@@ -392,7 +392,7 @@ export function DocTabs(props: {
   )
 }
 
-export function ReviewView(props: { workspaceId: string; client: ReviewClient; place: ReviewPlace; onPlace: (place: ReviewPlace) => void }) {
+export function ReviewView(props: { workspaceId: string; client: ReviewClient; place: ReviewPlace; onPlace: (place: ReviewPlace) => void; fill?: boolean }) {
   const { place } = props
   const phone = usePhone()
   const [data, setData] = useState<ReviewViewData | null>(null)
@@ -578,7 +578,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
     <div
       data-review-view={place.plan}
       className="flex min-w-0 flex-col"
-      style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 16, padding: phone ? '16px 0' : '16px 12px' }}
+      style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 16, padding: phone ? '16px 0' : '16px 12px', ...(props.fill ? { flex: '1 1 0%', minHeight: 0 } : {}) }}
     >
       <div className="flex flex-wrap items-center gap-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         <h3 className="m-0 text-base font-semibold" style={{ flex: '1 1 auto' }}>
@@ -660,7 +660,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
           </div>
           <style>{HIT_STYLE + CARD_STYLE}</style>
           {all ? (
-            <section role="tabpanel" id="review-tab-panel" aria-labelledby="review-tab-all" data-review-all style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760 }}>
+            <section role="tabpanel" id="review-tab-panel" aria-labelledby="review-tab-all" data-review-all style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: 'auto' } : {}) }}>
               {shown.length === 0 && (
                 <p className="m-0 text-sm text-muted" data-review-empty>
                   {data.findings.length === 0 ? 'No findings.' : 'No finding matches these filters.'}
@@ -679,7 +679,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               ))}
             </section>
           ) : (
-          <div ref={row} data-review-layout={wide ? 'rail' : 'inline'} style={{ display: 'flex', flexDirection: wide ? 'row' : 'column', alignItems: wide ? 'flex-start' : 'stretch', gap: 20, minWidth: 0 }}>
+          <div ref={row} data-review-layout={wide ? 'rail' : 'inline'} style={{ display: 'flex', flexDirection: wide ? 'row' : 'column', alignItems: props.fill && wide ? 'stretch' : wide ? 'flex-start' : 'stretch', gap: 20, minWidth: 0, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: wide ? 'hidden' : 'auto' } : {}) }}>
             <section
               role="tabpanel"
               id="review-tab-panel"
@@ -687,7 +687,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               aria-label={file ? undefined : 'No file'}
               data-review-doc={file ?? ''}
               className="min-w-0"
-              style={{ flex: '1 1 0', minWidth: 0, width: wide ? undefined : '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'var(--card, var(--bg))' }}
+              style={{ flex: '1 1 0', minWidth: 0, width: wide ? undefined : '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'var(--card, var(--bg))', ...(props.fill && wide ? { minHeight: 0, overflowY: 'auto' } : {}) }}
             >
               <div
                 ref={doc}
@@ -704,7 +704,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               aria-label="Side column"
               data-review-rail
               className="flex min-w-0 flex-col gap-2"
-              style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, ...(wide ? { flex: '0 0 340px', width: 340, position: 'sticky', top: 8, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' } : { width: '100%' }) }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, ...(wide ? (props.fill ? { flex: '0 0 340px', width: 340, minHeight: 0, overflowY: 'auto' } : { flex: '0 0 340px', width: 340, position: 'sticky', top: 8, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }) : { width: '100%', flex: 'none' }) }}
             >
               <DocTabs
                 tabs={['contents', 'comments']}
