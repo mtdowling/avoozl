@@ -530,7 +530,8 @@ if (query.get('page') === 'app') {
     github: roles ? rolesGithub : { mode: 'plans-repo', repositories: { 'acme/recipe-box': worker ? { coder: 'worker' } : { coder: 'issue-radar' } } },
     effective: null,
     error: null,
-    crews: [],
+    // &roles=single: both repositories have an Issue Radar crew, for Settings › Issue Radar.
+    crews: roles === 'single' ? ['acme/recipe-box', 'acme/recipe-api'].map((repository) => ({ repository, label: 'avoozl:ready', link: '/issue-radar' })) : [],
     rate: {
       cacheSeconds: 60,
       resources: {},
@@ -543,8 +544,14 @@ if (query.get('page') === 'app') {
       bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
       writes: { perMinute: 60, perHour: 400, run: { planId: 'nupp', done: 312, total: 1740, resumeAt: new Date(Date.now() + 38 * 60000).toISOString() } },
     },
-    choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
+    choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: ['claim', 'needsHuman'] },
   }))
+  if (roles === 'single' && !replyFor('radar.values'))
+    answer('radar.values', (body) => {
+      const repository = String((body.input as { repository?: string })?.repository ?? '')
+      const row = (id: string, label: string, value: string, status: string) => ({ id, label, value, controls: `What ${label} controls.`, status, note: 'Tick it yourself.' })
+      return { repository, grant: false, link: '/issue-radar', items: [row('repository', 'Repository to connect', repository, 'cannot-verify'), row('scope', 'Label scope', 'avoozl:ready', 'cannot-verify')] }
+    })
 }
 // &inline=1: a stateful backend for the Settings pages that edit in place.
 if (query.get('page') === 'app' && query.get('inline') === '1') installInlineFixture()

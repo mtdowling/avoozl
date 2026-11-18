@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Screenshots of Settings › GitHub and Settings › Workspaces in the full app
+// Screenshots of Settings › GitHub, Issue Radar and Workspaces in the full app
 // shell on fake data (harness ?page=app&roles=...): desktop (1280 px) and
 // phone (390 px), light and dark: <out>/<name>-<width>-<theme>.png.
 //
@@ -43,6 +43,8 @@ try {
     ["github-plans", "plans", "GitHub", false],
     ["github-local", "local", "GitHub", false],
     ["github-calls", "plans", "GitHub", false],
+    ["radar", "single", "Issue Radar", false],
+    ["radar-local", "local", "Issue Radar", false],
     ["workspaces", "plans", "Workspaces", false],
   ];
   for (const theme of ["light", "dark"])
@@ -76,7 +78,10 @@ try {
         const height = Math.min(
           4000,
           Math.ceil(
-            await page.evaluate("document.documentElement.scrollHeight"),
+            // The shell scrolls in its own pane: grow the window by what it hides.
+            await page.evaluate(
+              "Math.max(document.documentElement.scrollHeight, ...[...document.querySelectorAll('*')].map((e) => e.scrollHeight > e.clientHeight + 1 && getComputedStyle(e).overflowY !== 'visible' ? window.innerHeight + e.scrollHeight - e.clientHeight : 0))",
+            ),
           ),
         );
         await page.open(url, { ...size, height });
