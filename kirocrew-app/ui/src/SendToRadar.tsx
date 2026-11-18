@@ -14,6 +14,7 @@ import { Modal } from './ui/Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
+import { Box } from './ui/Box'
 
 type Client = ReturnType<typeof radarClient>
 
@@ -23,7 +24,6 @@ const STEPS = [
   ['Sent', 'A crew picks an issue on its own next turn. Follow it under With Issue Radar.'],
 ] as const
 
-const WARN = { color: 'var(--danger)' }
 
 export function SendToRadar(props: {
   workspaceId: string
@@ -103,9 +103,9 @@ export function SendToRadar(props: {
       attrs={{ 'data-radar-dialog': step }}
       unsaved={step < 2 && typed.trim() !== '' && { title: 'Stop the hand-off?', body: 'Nothing is sent. What you typed is lost.', action: 'Stop' }}
       title={
-        <span className="inline-flex items-center gap-1.5">
+        <Box as="span" inlineFlex items="center" gap="1.5">
           <Radar size={ICON} aria-hidden="true" /> {STEPS[step][0]}
-        </span>
+        </Box>
       }
       onDismiss={cancel}
       footer={
@@ -128,13 +128,13 @@ export function SendToRadar(props: {
         </>
       }
     >
-      <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
+      <Box as="ol" flex flexWrap gap="2" size="xs" aria-label="Steps">
         {STEPS.map(([title], i) => (
           <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
             {i + 1}. {title}
           </li>
         ))}
-      </ol>
+      </Box>
       <div>
         <Hint id="avoozl-radar-line" as="p" size="sm">
           {STEPS[step][1]}
@@ -142,7 +142,7 @@ export function SendToRadar(props: {
       </div>
 
       {step === 0 && (
-        <div className="flex flex-col gap-2 text-sm">
+        <Box flex flexCol gap="2" size="sm">
           <Hint as="p" size="xs">
             {items.length === 1 ? `#${items[0].number} ${items[0].title}` : `${items.length} issues`} in {repository}
           </Hint>
@@ -158,54 +158,53 @@ export function SendToRadar(props: {
                 , then come back.
               </p>
             ) : (
-              <fieldset className="flex flex-col gap-1.5" data-radar-crews>
-                <legend className="sr-only">Crew</legend>
+              <Box as="fieldset" flex flexCol gap="1.5" data-radar-crews>
+                <Box as="legend" srOnly>Crew</Box>
                 {crews.crews.map((entry) => (
-                  <label
+                  <Box
                     key={entry.id}
-                    className="flex cursor-pointer items-start gap-2 rounded-md border p-2"
-                    style={{ borderColor: entry.id === crewId ? 'var(--accent)' : 'var(--border)' }}
+                    as="label" css-border-color={entry.id === crewId ? 'accent' : 'border'} flex cursorPointer items="start" gap="2" rounded="md" border="all" p="2"
                   >
                     <input type="radio" name="avoozl-radar-crew" checked={entry.id === crewId} onChange={() => setCrewId(entry.id)} style={{ marginTop: 3 }} />
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-medium">{entry.name}</span>
+                    <Box as="span" flex minW0 flexCol gap="0.5">
+                      <Box as="span" flex flexWrap items="center" gap="1.5">
+                        <Box as="span" weight="medium">{entry.name}</Box>
                         {entry.status && <Badge>{entry.status}</Badge>}
                         {entry.labels.map((label) => (
                           <Badge key={label} variant="info">
                             {label}
                           </Badge>
                         ))}
-                      </span>
+                      </Box>
                       <Hint size="xs">{crewLine(entry)}</Hint>
-                    </span>
-                  </label>
+                    </Box>
+                  </Box>
                 ))}
-              </fieldset>
+              </Box>
             )
           ) : (
-            <div className="flex flex-col gap-1.5" data-radar-typed>
+            <Box flex flexCol gap="1.5" data-radar-typed>
               <Hint as="p" size="xs">{crews.reason}</Hint>
-              <label className="flex flex-col gap-1">
+              <Box as="label" flex flexCol gap="1">
                 <span>
                   Label the crew watches <Hint size="xs">(required)</Hint>
                 </span>
                 <Input value={typed} placeholder="radar" onChange={(e: { target: { value: string } }) => setTyped(e.target.value)} />
                 <Hint size="xs">Find it in Issue Radar under the crew’s Labels. A crew with no labels takes every open issue, so it needs none.</Hint>
-              </label>
-            </div>
+              </Box>
+            </Box>
           )}
           {crew?.emptyScope && (
-            <p role="alert" className="flex items-start gap-1.5 text-sm" style={WARN} data-radar-empty-scope>
+            <Box role="alert" as="p" css-color="danger" flex items="start" gap="1.5" size="sm" data-radar-empty-scope>
               <CircleAlert size={ICON} aria-hidden="true" style={{ marginTop: 3, flex: 'none' }} />
               {crew.name} has an empty scope, so it takes every open issue in {repository}, labeled or not. Avoozl writes no label; these move to With Issue Radar.
-            </p>
+            </Box>
           )}
-        </div>
+        </Box>
       )}
 
       {step === 1 && preview && (
-        <div className="flex flex-col gap-2 text-sm" data-radar-confirm>
+        <Box flex flexCol gap="2" size="sm" data-radar-confirm>
           {preview.label ? (
             <p>
               Add label <code data-radar-label>{preview.label}</code> to {preview.items.length === 1 ? 'this issue' : `these ${preview.items.length} issues`}
@@ -214,33 +213,33 @@ export function SendToRadar(props: {
           ) : (
             <p>No label is written. These issues move to With Issue Radar:</p>
           )}
-          <ul className="flex flex-col gap-0.5" data-radar-items>
+          <Box as="ul" flex flexCol gap="0.5" data-radar-items>
             {preview.items.map((item) => (
               <li key={item.number}>
-                <span className="text-muted tabular-nums">#{item.number}</span> {item.title}
+                <Box as="span" tone="muted" tabularNums>#{item.number}</Box> {item.title}
               </li>
             ))}
-          </ul>
+          </Box>
           {preview.warnings.map((warning) => (
-            <p key={warning} role="alert" style={WARN}>
+            <Box key={warning} role="alert" as="p" css-color="danger">
               {warning}
-            </p>
+            </Box>
           ))}
           <Hint as="p" size="xs">To undo, remove the label on GitHub before a crew claims the issue.</Hint>
-        </div>
+        </Box>
       )}
 
       {step === 2 && result && (
-        <ul className="flex flex-col gap-1 text-sm" data-radar-results>
+        <Box as="ul" flex flexCol gap="1" size="sm" data-radar-results>
           {(result.results ?? []).map((row) => (
-            <li key={row.number} className="flex items-start gap-1.5">
+            <Box key={row.number} as="li" flex items="start" gap="1.5">
               {row.ok ? <Check size={ICON} aria-hidden="true" style={{ color: 'var(--ok)', marginTop: 3 }} /> : <X size={ICON} aria-hidden="true" style={{ color: 'var(--danger)', marginTop: 3 }} />}
               <span>
                 #{row.number} {row.ok ? (result.label ? `labeled ${result.label}` : 'recorded') : `not sent: ${row.error}`}
               </span>
-            </li>
+            </Box>
           ))}
-        </ul>
+        </Box>
       )}
 
       {error && (

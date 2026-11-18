@@ -71,6 +71,17 @@ const leaf = (spec) => ({ leaf: true, ...spec });
 const int = (min, max) => leaf({ int: [min, max] });
 const argv = leaf({ argv: true });
 
+// The placeholders of `pullRequests.commentTemplate` (LT9.2, D10.4).
+export const PR_PLACEHOLDERS = [
+  "train",
+  "position",
+  "count",
+  "trunkCommit",
+  "checks",
+];
+export const PR_COMMENT_TEMPLATE =
+  "Landed in train {train} as {position} of {count}, trunk {trunkCommit}.\nChecks: {checks}.";
+
 export const TRAIN_DEFAULTS = Object.freeze({
   branchPrefix: "avoozl-batch/",
   trigger: Object.freeze({
@@ -88,6 +99,11 @@ export const TRAIN_DEFAULTS = Object.freeze({
     flakyReruns: 1,
   }),
   ci: Object.freeze({ waitForLastTrain: false }),
+  scheduling: Object.freeze({ overlap: "same-train" }),
+  pullRequests: Object.freeze({
+    mode: "review-only",
+    commentTemplate: PR_COMMENT_TEMPLATE,
+  }),
 });
 
 export const TRAIN_KEYS = {
@@ -115,6 +131,11 @@ export const TRAIN_KEYS = {
   ci: {
     workflow: leaf({ string: true }),
     waitForLastTrain: leaf({ bool: true }),
+  },
+  scheduling: { overlap: leaf({ oneOf: ["same-train", "serialize"] }) },
+  pullRequests: {
+    mode: leaf({ oneOf: ["review-only"] }),
+    commentTemplate: leaf({ template: true }),
   },
 };
 export const TARGET_KEYS = { policy: leaf({ oneOf: ["optimistic", "gated"] }) };
@@ -149,6 +170,13 @@ function checkValue(spec, value, at, fail) {
     if (typeof value !== "boolean") fail(`${at} must be true or false.`);
   } else if (spec.string) {
     if (typeof value !== "string" || !value) fail(`${at} must be text.`);
+  } else if (spec.template) {
+    if (typeof value !== "string" || !value) fail(`${at} must be text.`);
+    for (const [, name] of value.matchAll(/\{([^{}]*)\}/g))
+      if (!PR_PLACEHOLDERS.includes(name))
+        fail(
+          `${at} has {${name}}, which is not a placeholder. Use ${PR_PLACEHOLDERS.map((n) => `{${n}}`).join(", ")}.`,
+        );
   } else if (spec.prefix) {
     if (
       typeof value !== "string" ||
@@ -252,7 +280,7 @@ export function trainSettings(config, target) {
         ? { ...base[key], ...value }
         : value;
   out.branchPrefix ??= TRAIN_DEFAULTS.branchPrefix;
-  for (const key of ["trigger", "failure", "ci"])
+  for (const key of ["trigger", "failure", "ci", "scheduling", "pullRequests"])
     out[key] = { ...TRAIN_DEFAULTS[key], ...(out[key] ?? {}) };
   out.conflicts = { mechanical: [], ...(out.conflicts ?? {}) };
   out.validation = { cheap: [], full: {}, ...(out.validation ?? {}) };
@@ -363,6 +391,9 @@ export function assertNoMachineKeys(value, file, globalFile) {
     throw Error(`serve is set in ${file}. Put it in ${globalFile}.`);
   if (value?.lease !== undefined)
     throw Error(`lease is set in ${file}. Put it in ${globalFile}.`);
+  // A sink's URL may hold a secret, so sinks live only on the machine.
+  if (value?.notifications !== undefined)
+    throw Error(`notifications is set in ${file}. Put it in ${globalFile}.`);
 }
 
 export const leaseSettings = (config) => ({

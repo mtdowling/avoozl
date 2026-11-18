@@ -1,3 +1,4 @@
+import { validateNotifications } from "./notification-sinks.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -337,6 +338,15 @@ export function globalAvoozlConfigPath({
   return path.join(configHome, "avoozl", "config.json");
 }
 
+// Runner mode over SSH was removed; a file that still names its roles is
+// refused, naming the key and the replacement (worker-paths WP5.4).
+function validateRunnerRole(runner) {
+  if (["runner", "driver"].includes(runner?.role))
+    throw Error(
+      `runner.role "${runner.role}" was removed. Set runner.role to "worker": the machine's tick pulls its work (avoozl worker pull).`,
+    );
+}
+
 export function loadLayeredConfig({
   workspaceRoot,
   options = {},
@@ -385,8 +395,10 @@ export function loadLayeredConfig({
   validateModels(config.models);
   validateHarnesses(config.harnesses);
   validateRoles(config);
+  validateRunnerRole(config.runner);
   validatePlanReview(config.planReview);
   validateLanes(config.lanes);
+  validateNotifications(config.notifications);
   conflictRounds(config.landing);
   for (const layer of fileLayers)
     if (layer.filename === files.repository)

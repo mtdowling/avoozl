@@ -12,7 +12,7 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 test('every Waits on and Blocks list uses the shared EdgeList, with no inline or comma list left', () => {
   const list = source('EdgeList.tsx')
   assert.match(list, /if \(props\.items\.length === 0\) return null/)
-  assert.match(list, /<ul [^>]*listStyle: 'disc'/)
+  assert.match(list, /<Box as="ul" css-list-style="disc"/)
   assert.match(list, /<li key=\{item\.id\}/)
   for (const name of ['TaskDrawer.tsx', 'GraphView.tsx', 'FocusTree.tsx']) {
     const text = source(name)

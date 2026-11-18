@@ -93,12 +93,14 @@ import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
 import { ApiKeySettings } from './ApiKeySettings.tsx'
+import { NoticesSettings } from './NoticesSettings.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 // Fields share a row and wrap; each keeps a readable width.
 const grid = (min = 220): CSSProperties => ({
@@ -251,7 +253,7 @@ function Choice(props: {
 }
 
 function Hint({ children }: { children: ReactNode }) {
-  return <p className="mt-1 text-xs text-muted">{children}</p>
+  return <Box as="p" mt="1" size="xs" tone="muted">{children}</Box>
 }
 
 // A heading with its one-line blurb, then the fields. A `sub` section is a
@@ -310,7 +312,7 @@ function MatchField(props: {
   const current = shown && shown.match === line ? shown : null
   const errorId = `${props.id}-error`
   return (
-    <div className="flex min-w-0 flex-col gap-1 text-sm">
+    <Box flex minW0 flexCol gap="1" size="sm">
       <Field
         id={props.id}
         label={untriaged ? 'Untriaged filter' : 'Matches issues'}
@@ -331,14 +333,14 @@ function MatchField(props: {
           style={{ fontFamily: 'var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace)' }}
           onChange={(event) => props.onChange(event.target.value)}
         />
-        <span className="text-xs text-muted">{MATCH_HELP}</span>
+        <Box as="span" size="xs" tone="muted">{MATCH_HELP}</Box>
       </Field>
       {!line && (
-        <span className="text-xs text-muted">
+        <Box as="span" size="xs" tone="muted">
           {untriaged
             ? 'Blank with no triage labels: every open issue and pull request counts, less rule matches and tasks.'
             : 'Type a line such as label:agent:go to see what it matches.'}
-        </span>
+        </Box>
       )}
       {failed && <ErrorText as="span" size="xs">The line could not be checked: {failed}</ErrorText>}
       {current?.error && (
@@ -347,10 +349,10 @@ function MatchField(props: {
         </ErrorText>
       )}
       {current?.parsed && (
-        <div className="flex flex-wrap items-center gap-1.5" data-match-chips>
+        <Box flex flexWrap items="center" gap="1.5" data-match-chips>
           {matchChips(current.parsed).map((group) => (
             <Row key={group.kind} as="span" gap={1}>
-              <span className="text-xs text-muted">{CHIP_TEXT[group.kind]}</span>
+              <Box as="span" size="xs" tone="muted">{CHIP_TEXT[group.kind]}</Box>
               {group.values.map((value) => (
                 <Badge key={value} variant={group.kind === 'none' ? undefined : 'info'}>
                   {value}
@@ -358,41 +360,41 @@ function MatchField(props: {
               ))}
             </Row>
           ))}
-        </div>
+        </Box>
       )}
       {current?.parsed && <MatchIssues preview={current} untriaged={untriaged} />}
-    </div>
+    </Box>
   )
 }
 
 function MatchIssues({ preview, untriaged = false }: { preview: MatchPreview; untriaged?: boolean }) {
   const noun = untriaged ? ['item', 'items'] : ['issue', 'issues']
-  if (!preview.repository) return <span className="text-xs text-muted">Name the repository to see which open {noun[1]} match.</span>
-  if (preview.searchError) return <span className="text-xs text-muted">{preview.searchError}</span>
+  if (!preview.repository) return <Box as="span" size="xs" tone="muted">Name the repository to see which open {noun[1]} match.</Box>
+  if (preview.searchError) return <Box as="span" size="xs" tone="muted">{preview.searchError}</Box>
   if (preview.total === null) return null
   const count =
     preview.total === 0
       ? `No open ${noun[0]} matches now.`
       : `${preview.total} open ${preview.total === 1 ? `${noun[0]} matches` : `${noun[1]} match`} now${untriaged ? ', before rules and tasks are left out' : ''}`
-  if (!preview.issues.length) return <span className="text-xs text-muted" data-match-issues>{count}</span>
+  if (!preview.issues.length) return <Box as="span" size="xs" tone="muted" data-match-issues>{count}</Box>
   // Closed by default, so a page of rules stays short.
   return (
-    <details className="text-xs" data-match-issues>
-      <summary className="cursor-pointer text-muted">
+    <Box as="details" size="xs" data-match-issues>
+      <Box as="summary" cursorPointer tone="muted">
         {count}
         {preview.total > preview.issues.length ? ` (newest ${preview.issues.length})` : ''}
-      </summary>
-      <ul className="mt-1 flex flex-col gap-0.5">
+      </Box>
+      <Box as="ul" mt="1" flex flexCol gap="0.5">
         {preview.issues.map((issue) => (
-          <li key={issue.number} className="min-w-0 truncate">
+          <Box key={issue.number} as="li" minW0 truncate>
             <TextLink href={linkHref(issue.url)} target="_blank" rel="noopener noreferrer">
               #{issue.number}
             </TextLink>{' '}
             <span>{issue.title}</span>
-          </li>
+          </Box>
         ))}
-      </ul>
-    </details>
+      </Box>
+    </Box>
   )
 }
 
@@ -434,34 +436,34 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
         onChange={(filter) => set({ filter })}
         untriaged={{ placeholder: untriagedDefault(value.triageLabels) }}
       />
-      <fieldset className="flex flex-col gap-1 text-sm" data-triage-labels>
-        <legend className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-medium">Triage labels</span>
+      <Box as="fieldset" flex flexCol gap="1" size="sm" data-triage-labels>
+        <Box as="legend" flex flexWrap items="baseline" gapX="2">
+          <Box as="span" weight="medium">Triage labels</Box>
           <Marker rule={{ required: false }} />
-        </legend>
-        <span className="text-xs text-muted">An item with any of these counts as triaged and leaves the list.</span>
+        </Box>
+        <Box as="span" size="xs" tone="muted">An item with any of these counts as triaged and leaves the list.</Box>
         {!named ? (
-          <span className="text-xs text-muted">Name the repository as owner/name under Mode, and its labels show here.</span>
+          <Box as="span" size="xs" tone="muted">Name the repository as owner/name under Mode, and its labels show here.</Box>
         ) : !labels ? (
-          <span className="text-xs text-muted">Reading {repository}&apos;s labels…</span>
+          <Box as="span" size="xs" tone="muted">Reading {repository}&apos;s labels…</Box>
         ) : labels.error ? (
-          <span className="text-xs text-muted">{labels.error}</span>
+          <Box as="span" size="xs" tone="muted">{labels.error}</Box>
         ) : null}
         {rows.length > 0 && (
-          <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Triage labels">
+          <Box as="ul" flex flexWrap gapX="4" gapY="1" aria-label="Triage labels">
             {rows.map((row) => (
               <li key={row.name}>
                 <Switch label={row.name} gap={1.5} checked={row.checked} onChange={(on) => toggle(row.name, on)}>
                   <code>{row.name}</code>
-                  {row.missing && <span className="text-xs text-muted">(not on GitHub)</span>}
+                  {row.missing && <Box as="span" size="xs" tone="muted">(not on GitHub)</Box>}
                 </Switch>
               </li>
             ))}
-          </ul>
+          </Box>
         )}
-        {labels?.labels && rows.length === 0 && <span className="text-xs text-muted">{repository} has no labels yet.</span>}
+        {labels?.labels && rows.length === 0 && <Box as="span" size="xs" tone="muted">{repository} has no labels yet.</Box>}
         <RawKey name="untriaged.triageLabels" />
-      </fieldset>
+      </Box>
       <Row gap={3} align="end">
         <Text
           id={`${id}-untriaged-days`}
@@ -498,7 +500,7 @@ function RuleEditor(props: {
   const { rule, id } = props
   const set = (change: Partial<RuleForm>) => props.onChange({ ...rule, ...change })
   return (
-    <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+    <Box css-border-color="border" flex flexCol gap="2" border="t" pt="3">
       <div style={grid(180)}>
         <Text id={`${id}-id`} label="Rule name" raw="id" rule={{ required: true }} placeholder="deliver-ready" value={rule.id} onChange={(value) => set({ id: value })} />
         <Choice id={`${id}-action`} label="Action" raw="action" rule={{ required: true }} value={rule.action} options={props.actions} none="Choose" onChange={(value) => set({ action: value })} />
@@ -507,7 +509,7 @@ function RuleEditor(props: {
       <MatchField id={`${id}-match`} value={rule.match} repository={props.repository} workspaceId={props.workspaceId} onChange={(value) => set({ match: value })} />
       <Row gap={3}>
         <CheckRow label="Publish a clean breakdown's sub-issues without a re-label" raw="autoPublishChildren" checked={rule.autoPublishChildren} onChange={(autoPublishChildren) => set({ autoPublishChildren })} />
-        <span className="ml-auto">
+        <Box as="span" ml="auto">
           <DangerBtn
             icon={Trash2}
             confirm={{
@@ -519,25 +521,25 @@ function RuleEditor(props: {
           >
             Remove rule
           </DangerBtn>
-        </span>
+        </Box>
       </Row>
-    </div>
+    </Box>
   )
 }
 
 function Roles({ roles }: { roles: ReviewRole[] }) {
   return (
-    <ul className="mt-1 flex flex-col gap-1 text-sm">
+    <Box as="ul" mt="1" flex flexCol gap="1" size="sm">
       {roles.map((role) => (
         <li key={role.id}>
-          <span className="font-medium">{role.id}</span>{' '}
-          <span className="text-muted">
+          <Box as="span" weight="medium">{role.id}</Box>{' '}
+          <Box as="span" tone="muted">
             {role.agent} · {role.model ?? 'agent default'} · distinct by {role.distinctFrom}
-          </span>
-          <span className="block text-xs text-muted">{role.focus}</span>
+          </Box>
+          <Box as="span" block size="xs" tone="muted">{role.focus}</Box>
         </li>
       ))}
-    </ul>
+    </Box>
   )
 }
 
@@ -556,7 +558,7 @@ function ReviewRoles({ review, repository }: { review: ReviewSettings | undefine
       {review.error ? (
         <ErrorText size="sm">The delivery block is invalid: {review.error}</ErrorText>
       ) : roles.length === 0 ? (
-        <p className="text-sm text-muted">No reviewer roles. Checks alone verify a delivery.</p>
+        <Box as="p" size="sm" tone="muted">No reviewer roles. Checks alone verify a delivery.</Box>
       ) : (
         <>
           <Hint>
@@ -593,37 +595,37 @@ function ChecksEditor(props: {
   if (!named || (props.inspect && !checks))
     return (
       <Stack gap={2} data-checks="typed">
-        <p className="text-xs text-muted" data-checks-why>
+        <Box as="p" size="xs" tone="muted" data-checks-why>
           {!named
             ? 'Name the repository as owner/name under Mode, and Avoozl lists the checks GitHub runs there.'
             : `${props.inspect?.checksError ?? props.inspect?.error ?? 'GitHub could not be read.'} Type the names instead.`}{' '}
           Names are exact and case-sensitive, separated by commas.
-        </p>
+        </Box>
         <Text id={`${props.id}-checks`} label="Required checks" raw="requiredChecks" rule={{ required: false, blank: 'blank: no check is required' }} placeholder="build, lint" width="lg" value={props.value} onChange={props.onChange} />
       </Stack>
     )
   if (!props.inspect)
     return (
       <Stack gap={2} data-checks="reading">
-        <p className="text-xs text-muted">Reading the checks GitHub runs on {props.repository}…</p>
+        <Box as="p" size="xs" tone="muted">Reading the checks GitHub runs on {props.repository}…</Box>
       </Stack>
     )
   const url = checks?.url ?? `https://github.com/${props.repository}/settings/rules`
   return (
     <Stack gap={3} data-checks="listed">
-      <p className="text-xs text-muted">
+      <Box as="p" size="xs" tone="muted">
         Seen on {checks!.branch}&apos;s recent commits and open pull requests. Checks the branch rule requires stay on; Avoozl&apos;s list adds to
         them.{' '}
         <TextLink href={linkHref(url)} target="_blank" rel="noopener noreferrer">
           Change the branch rule on GitHub
         </TextLink>
-      </p>
+      </Box>
       {rows.length === 0 ? (
-        <p className="text-sm text-muted">GitHub shows no checks on {checks!.branch} or its open pull requests yet. Add a name below.</p>
+        <Box as="p" size="sm" tone="muted">GitHub shows no checks on {checks!.branch} or its open pull requests yet. Add a name below.</Box>
       ) : (
         <Stack as="ul" gap={2} aria-label="Checks">
           {rows.map((row) => (
-            <li key={row.name} className="flex flex-col text-sm" data-check-row={row.name}>
+            <Box key={row.name} as="li" flex flexCol size="sm" data-check-row={row.name}>
               <Switch
                 label={row.name}
                 gap={1.5}
@@ -634,10 +636,10 @@ function ChecksEditor(props: {
               >
                 <code>{row.name}</code>
               </Switch>
-              <span id={`${props.id}-check-${row.name}`} className="pl-5 text-xs text-muted">
+              <Box id={`${props.id}-check-${row.name}`} as="span" pl="5" size="xs" tone="muted">
                 {row.where}
-              </span>
-            </li>
+              </Box>
+            </Box>
           ))}
         </Stack>
       )}
@@ -655,7 +657,7 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
   const rule = props.inspect?.reviewRule
   const link = rule?.url ?? (props.repository ? `https://github.com/${props.repository}/settings/rules` : null)
   return (
-    <div className="flex flex-col gap-2 text-sm">
+    <Box flex flexCol gap="2" size="sm">
       <p>{reviewRuleText(props.inspect)}</p>
       {link && (
         <a href={linkHref(link)} target="_blank" rel="noreferrer" className="self-start text-xs underline">
@@ -663,14 +665,14 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
         </a>
       )}
       {props.deprecated && (
-        <div className="flex flex-wrap items-center gap-2 rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+        <Box css-border-color="border" flex flexWrap items="center" gap="2" rounded="base" border="all" p="2" size="xs">
           <Badge>deprecated</Badge>
-          <span className="text-muted">
+          <Box as="span" tone="muted">
             .avoozl.json still sets <code>pullRequestReviews</code>
             {props.approvals ? ` (${props.approvals} approvals)` : ''}. It counts only when GitHub&apos;s rule can&apos;t be read
             or names no count.
-          </span>
-          <span className="ml-auto">
+          </Box>
+          <Box as="span" ml="auto">
             <DangerBtn
               confirm={{
                 title: 'Remove pullRequestReviews from .avoozl.json?',
@@ -681,10 +683,10 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
             >
               Remove the old setting
             </DangerBtn>
-          </span>
-        </div>
+          </Box>
+        </Box>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -701,7 +703,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
         <Choice id={`${id}-target`} label="Forward target" raw="mirror.forwardTarget" rule={{ required: false, blank: MIRROR_DEFAULT_TEXT.forwardTarget }} value={mirror.forwardTarget} options={[...MIRROR_FORWARD_TARGETS]} none="Default (each)" onChange={(value) => set({ forwardTarget: value })} />
         <Text id={`${id}-public-branch`} label="Public branch" raw="mirror.publicBranch" placeholder="needed for the branch target" value={mirror.publicBranch} onChange={(value) => set({ publicBranch: value })} />
       </div>
-      <p className="text-xs text-muted">each: one public pull request per merged change. branch: the same, into the public branch. batch: one public pull request when the epic is done. An epic's tasks.md front-matter can set its own forwardTarget and publicBranch.</p>
+      <Box as="p" size="xs" tone="muted">each: one public pull request per merged change. branch: the same, into the public branch. batch: one public pull request when the epic is done. An epic's tasks.md front-matter can set its own forwardTarget and publicBranch.</Box>
       <Fold id={`${id}-more`} title="Advanced: mirror">
         <div style={grid()}>
           <Text id={`${id}-forward-to`} label="Forward to" raw="mirror.forwardTo" placeholder="source or fork:owner/name" value={mirror.forwardTo} onChange={(value) => set({ forwardTo: value })} />
@@ -786,9 +788,9 @@ export function RepositoryEditor(props: {
     <>
       {tab === 'general' && (
         <FormSection title="GitHub repository" blurb={REPOSITORY_BLURBS.general}>
-          <p className="text-xs text-muted">
-            Workspace mode: <span className="font-medium" style={{ color: 'var(--text)' }}>{MODE_TITLES[modeKey(props.mode)]}</span>. It follows from each repository&apos;s role in Repository setup.
-          </p>
+          <Box as="p" size="xs" tone="muted">
+            Workspace mode: <Box as="span" css-color="text" weight="medium">{MODE_TITLES[modeKey(props.mode)]}</Box>. It follows from each repository&apos;s role in Repository setup.
+          </Box>
           <div style={grid()}>
             <Text id={`${id}-name`} label="Repository" raw="key" rule={REPOSITORY_FIELD_RULES.name} placeholder="owner/name" value={repository.name} onChange={(value) => set({ name: value })} />
           </div>
@@ -848,7 +850,7 @@ export function RepositoryEditor(props: {
           </FormSection>
           <FormSection title="Label rules" blurb={REPOSITORY_BLURBS.github}>
             {repository.rules.length === 0 && (
-              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+              <Box as="p" flex flexWrap items="center" gapX="3" gapY="1" size="sm" tone="muted">
                 <span>No rules yet, so labels start nothing. Add one to let a label start work.</span>
                 <AskForHelp
                   workspaceId={props.workspaceId}
@@ -863,7 +865,7 @@ export function RepositoryEditor(props: {
                     docs: 'README.md, section Deliver through GitHub',
                   }}
                 />
-              </p>
+              </Box>
             )}
             {repository.rules.map((rule, index) => (
               <RuleEditor
@@ -1072,20 +1074,20 @@ function RepositoriesTab(props: {
       tabs: ['landing'],
       body: tab === 'landing' && (
         <FormSection title="Checks" blurb="A local-only repository: no GitHub remote, so the GitHub settings do not apply.">
-          <p className="text-sm" data-local-checks>
+          <Box as="p" size="sm" data-local-checks>
             Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from its facts in tasks.md, or this
             repository&apos;s checks when a task names none.
-          </p>
+          </Box>
         </FormSection>
       ),
     }
   }
   return (
-    <div className="flex flex-col gap-3.5">
+    <Box flex flexCol gap="3.5">
       <Card>
         <Section title={`Added repositories (${rows.length})`} blurb={REPOSITORIES_LINE}>
           {checkouts === null ? (
-            <p className="text-sm text-muted">Loading…</p>
+            <Box as="p" size="sm" tone="muted">Loading…</Box>
           ) : (
             <RepositoryList
               rows={rows}
@@ -1107,25 +1109,25 @@ function RepositoriesTab(props: {
             </p>
           )}
           {offer && message?.ok && (
-            <div className="mt-2" data-setup-offer>
+            <Box mt="2" data-setup-offer>
               <IconLabel icon={Workflow} primary disabled={Boolean(setupBlocked)} tooltip={setupBlocked ?? 'Choose its mode, set up GitHub and import its specs. Nothing is written before Set up.'} onClick={() => setSetupFolder(offer)}>
                 Set up GitHub and import specs
               </IconLabel>
-            </div>
+            </Box>
           )}
           {rows.length > 0 && (
-            <p className="mt-2 text-sm" data-tasks-live>
+            <Box as="p" mt="2" size="sm" data-tasks-live>
               {tasksLiveLine(form.mode, form.planningRepository)}
-            </p>
+            </Box>
           )}
           {rolesNote && (
-            <p className="mt-1 text-xs text-muted" data-roles-note>
+            <Box as="p" mt="1" size="xs" tone="muted" data-roles-note>
               {rolesNote}
-            </p>
+            </Box>
           )}
-          <div className="mt-2">
+          <Box mt="2">
             <RoleHelp />
-          </div>
+          </Box>
         </Section>
       </Card>
       {open?.kind === 'view' && openRow && (
@@ -1175,7 +1177,7 @@ function RepositoriesTab(props: {
           />
         </div>
       </Card>
-    </div>
+    </Box>
   )
 }
 
@@ -1188,22 +1190,22 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
   if (tab === 'general')
     return (
       <FormSection title="Local only" blurb="Avoozl codes, checks and merges here on this Mac.">
-        {props.kept && <p className="text-xs text-muted">Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.</p>}
+        {props.kept && <Box as="p" size="xs" tone="muted">Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.</Box>}
       </FormSection>
     )
   if (tab === 'landing')
     return (
       <>
         <FormSection title="Where tasks land">
-          <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
-            <dt className="text-muted">Landing branch</dt>
+          <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1" size="sm">
+            <Box as="dt" tone="muted">Landing branch</Box>
             <dd>
               <code>{row.branch}</code>
             </dd>
-          </dl>
-          <p className="text-sm" data-local-checks>
+          </Box>
+          <Box as="p" size="sm" data-local-checks>
             Avoozl runs each task&apos;s own checks from its facts in tasks.md, or this repository&apos;s checks when a task names none.
-          </p>
+          </Box>
         </FormSection>
         <ReviewRoles review={props.review} repository={row.github ?? row.name} />
       </>
@@ -1257,13 +1259,13 @@ function WorkspaceGitHub(props: {
       <>
         <Card>
           <Section title="GitHub settings" blurb="They apply once a repository has a GitHub role in Repository setup.">
-            <div className="flex flex-col gap-1.5 text-sm" data-local-note>
+            <Box flex flexCol gap="1.5" size="sm" data-local-note>
               <p>{LOCAL_HIDDEN_LINE}</p>
-              <p className="text-xs text-muted">
+              <Box as="p" size="xs" tone="muted">
                 Folders, landing branches and checks are under Repository setup. Worker and reviewer chats come from delivery in .avoozl.json.
-              </p>
-              {kept.length > 0 && <p className="text-xs text-muted" data-kept>Kept, not used: {kept.join(', ')}. Give a repository a GitHub role to use them again.</p>}
-            </div>
+              </Box>
+              {kept.length > 0 && <Box as="p" size="xs" tone="muted" data-kept>Kept, not used: {kept.join(', ')}. Give a repository a GitHub role to use them again.</Box>}
+            </Box>
           </Section>
         </Card>
         <RateBlock rate={props.rate} />
@@ -1271,7 +1273,7 @@ function WorkspaceGitHub(props: {
     )
   const dirty = dirtyTabs(form, props.saved, GITHUB_TAB_FIELDS)
   return (
-    <div className="flex min-w-0 flex-col gap-3.5" data-github-tabs>
+    <Box flex minW0 flexCol gap="3.5" data-github-tabs>
       <Tabs id="avoozl-github-tab" label="GitHub settings" tabs={GITHUB_TABS.map((item) => ({ ...item, dirty: dirty.has(item.key) }))} current={tab} onPick={pick} />
       <TabPanel id="avoozl-github-tab" current={tab}>
         {tab === 'issues' && (
@@ -1327,14 +1329,14 @@ function WorkspaceGitHub(props: {
           ) : (
             <Card>
               <Section title="GitHub calls" blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source.">
-                <p className="text-sm text-muted" data-empty="github-calls">
+                <Box as="p" size="sm" tone="muted" data-empty="github-calls">
                   No GitHub calls recorded yet. They show here after the next sync.
-                </p>
+                </Box>
               </Section>
             </Card>
           ))}
       </TabPanel>
-    </div>
+    </Box>
   )
 }
 
@@ -1376,11 +1378,11 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
   const setRepository = (change: Partial<RepositoryForm>) => set({ repositories: form.repositories.map((entry, at) => (at === index ? { ...entry, ...change } : entry)) })
   const part = { id, repository, set: setRepository }
   return (
-    <div className="flex flex-col gap-3.5" data-radar-settings>
+    <Box flex flexCol gap="3.5" data-radar-settings>
       {names.length > 1 && (
         <Card>
           <Section title="Repository" blurb="Each repository has its own Issue Radar settings. Pick the one to edit.">
-            <label className="flex flex-wrap items-center gap-2 text-sm" htmlFor="avoozl-radar-repository">
+            <Box as="label" flex flexWrap items="center" gap="2" size="sm" htmlFor="avoozl-radar-repository">
               Repository
               <SelectField id="avoozl-radar-repository" value={names[index]} onChange={(event) => setPicked(event.target.value)} look="plain">
                 {names.map((name, at) => (
@@ -1389,7 +1391,7 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
                   </option>
                 ))}
               </SelectField>
-            </label>
+            </Box>
           </Section>
         </Card>
       )}
@@ -1420,7 +1422,7 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
           <ReviewRulesFields {...part} />
         </Section>
       </Card>
-    </div>
+    </Box>
   )
 }
 
@@ -1551,11 +1553,11 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
         {error}
       </ErrorText>
     )
-  if (!settings || !form || !choices) return <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
+  if (!settings || !form || !choices) return <Box as="p" size="sm" tone="muted">{busy ? 'Loading…' : 'Not loaded'}</Box>
   const dirty = JSON.stringify(toPolicy(form)) !== JSON.stringify(toPolicy(toForm(settings.github)))
   const missing = missingRequired(form)
   return (
-    <div className="flex flex-col gap-3.5">
+    <Box flex flexCol gap="3.5">
       {settings.error && (
         <ErrorText role="alert" size="sm">
           The saved settings are invalid: {settings.error}
@@ -1599,7 +1601,7 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
         onSave={() => void save()}
         onDiscard={() => void reload()}
       />
-    </div>
+    </Box>
   )
 }
 
@@ -1623,11 +1625,12 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   const { tab, workspaceId } = props
   if (tab === 'workspaces')
     return (
-      <div className="flex flex-col gap-3.5">
+      <Box flex flexCol gap="3.5">
         <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
         <ThisComputer workspaceId={workspaceId} />
+        <NoticesSettings workspaceId={workspaceId} />
         <ApiKeySettings workspaceId={workspaceId} />
-      </div>
+      </Box>
     )
   if (!workspaceId)
     return (
@@ -1643,9 +1646,9 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   if (tab === 'models') return <ModelsSettings workspaceId={workspaceId} />
   if (tab === 'delivery') return <DeliverySettings workspaceId={workspaceId} />
   return (
-    <div className="flex flex-col gap-3.5">
+    <Box flex flexCol gap="3.5">
       <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} onTab={props.onTab} />
-    </div>
+    </Box>
   )
 }
 
@@ -1659,15 +1662,15 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
     <Card>
       <Section title="GitHub calls" blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source. Calls count against the limit; 304s and cached answers do not.">
         {lines.length > 0 && (
-          <div className="flex flex-col gap-1 text-xs text-muted" data-github-rate>
+          <Box flex flexCol gap="1" size="xs" tone="muted" data-github-rate>
             {lines.map((line) => (
               <p key={line}>{line}</p>
             ))}
-          </div>
+          </Box>
         )}
         {rows.length > 0 && (
           <>
-            <p className="text-xs text-muted">{rate?.hourCalls ?? 0} calls in the last hour. Click a heading to sort.</p>
+            <Box as="p" size="xs" tone="muted">{rate?.hourCalls ?? 0} calls in the last hour. Click a heading to sort.</Box>
             <UsageTable rows={rows} />
           </>
         )}
@@ -1677,7 +1680,6 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
 }
 
 const CELL: CSSProperties = { padding: '4px 8px' }
-const NUM: CSSProperties = { ...CELL, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 const USAGE_COLUMNS: { key: UsageKey; label: string }[] = [
   { key: 'source', label: 'Source' },
   { key: 'calls', label: 'Calls' },
@@ -1691,20 +1693,20 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
   const [sort, setSort] = useState<UsageSort>(USAGE_SORT)
   const sorted = sortUsage(rows, sort)
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table data-github-usage style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+    <Box css-overflow-x="auto">
+      <Box data-github-usage as="table" css-width="100%" css-border-collapse="collapse" css-font-size="14">
         <thead>
           <tr>
             {USAGE_COLUMNS.map((col) => {
               const on = sort.key === col.key
               const right = col.key !== 'source'
               return (
-                <th key={col.key} scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ textAlign: right ? 'right' : 'left', padding: '4px 8px', fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
+                <Box key={col.key} scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} as="th" css-text-align={right ? 'right' : 'left'} css-padding="4px-8px" css-font-weight="500" css-border-bottom="1px-solid-border">
                   <button type="button" data-sort={col.key} className="inline-flex items-center gap-1 font-medium" style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', padding: 0 }} onClick={() => setSort(nextUsageSort(sort, col.key))}>
                     {col.label}
-                    <span aria-hidden="true" className="text-xs text-muted">{on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</span>
+                    <Box aria-hidden="true" as="span" size="xs" tone="muted">{on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</Box>
                   </button>
-                </th>
+                </Box>
               )
             })}
           </tr>
@@ -1712,15 +1714,15 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
         <tbody>
           {sorted.map((row) => (
             <tr key={row.source} data-usage-source={row.source}>
-              <td style={CELL}>{row.source}</td>
-              <td style={NUM}>{row.calls}</td>
-              <td style={NUM}>{row.notModified}</td>
-              <td style={NUM}>{row.cached}</td>
+              <Box as="td" css-padding="4px-8px">{row.source}</Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">{row.calls}</Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">{row.notModified}</Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">{row.cached}</Box>
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -1743,28 +1745,28 @@ export default function SettingsView(props: {
   const choose = (next: SettingsTab) => (props.onTab ? props.onTab(next) : setOwn(next))
   const pick = (next: SettingsTab) => choose(next)
   const renderBody = (section: (typeof SETTINGS_TABS)[number]) => (
-    <div className="flex flex-col gap-3 pb-4" data-settings-body={section.key}>
-      <p className="text-sm text-muted" data-blurb={section.key}>
+    <Box flex flexCol gap="3" pb="4" data-settings-body={section.key}>
+      <Box as="p" size="sm" tone="muted" data-blurb={section.key}>
         {SETTINGS_BLURBS[section.key]}
-      </p>
+      </Box>
       <TabBoundary key={section.key} label={section.label}>
         <SettingsBody tab={section.key} workspaceId={workspaceId} onTab={pick} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
       </TabBoundary>
-    </div>
+    </Box>
   )
   const current = SETTINGS_TABS.find((t) => t.key === tab) ?? SETTINGS_TABS[0]
   // The nav lists the sections; the page shows only the picked one.
   return (
-    <section aria-labelledby="avoozl-settings-title" className="flex flex-col gap-3.5">
+    <Box aria-labelledby="avoozl-settings-title" as="section" flex flexCol gap="3.5">
       <ViewHeading id="avoozl-settings-title" view="settings">
         Settings
       </ViewHeading>
       <Stack data-settings-section={current.key} data-open="true" as="section" gap={2}>
-        <h3 className="text-base font-semibold break-words" data-settings-title>
+        <Box as="h3" size="base" weight="semibold" breakWords data-settings-title>
           {settingsTitle(current.key, current.label, props.workspaceName)}
-        </h3>
+        </Box>
         {renderBody(current)}
       </Stack>
-    </section>
+    </Box>
   )
 }

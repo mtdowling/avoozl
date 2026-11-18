@@ -42,6 +42,7 @@ import { relativeTime } from './task-api.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref, viewsClient } from './views-api.ts'
 import { errorMessage, readPageState, workspaceClient, type WorkspaceList } from './workspace-api.ts'
+import { Box } from './ui/Box'
 
 const AVOOZL_PAGE = '/apps/avoozl'
 
@@ -410,11 +411,11 @@ export default function AvoozlPanel() {
       tip={[headerName ? `Avoozl · ${headerName}` : 'Avoozl', workspaceName ? `Workspace: ${workspaceName}${pickedBy ? ` (${PICKED_BY[pickedBy]})` : ''}` : ''].filter(Boolean).join('. ')}
       tools={<RefreshButton bare workspaceId={workspaceId} onRefresh={() => void load()} />}
       end={
-        <span data-panel-line data-stopped={stopped ? '' : undefined} style={{ display: 'inline-flex' }}>
+        <Box data-panel-line data-stopped={stopped ? '' : undefined} as="span" css-display="inline-flex">
           <ConfirmProvider>
             <StopLineButton bare workspaceId={workspaceId} />
           </ConfirmProvider>
-        </span>
+        </Box>
       }
     />
   )
@@ -558,15 +559,15 @@ export default function AvoozlPanel() {
                     }
                     multi
                   />
-                  <li data-pp-row style={{ gridTemplateColumns: 'minmax(0,1fr)' }}>
+                  <Box data-pp-row as="li" css-grid-template-columns="minmax-0-1fr">
                     <Tooltip text={railFor(crewRow).map((step) => `${step.label}: ${step.state}`).join(', ')}>
-                      <span data-rail role="img" aria-label={railFor(crewRow).map((step) => `${step.label} ${step.state}`).join(', ')} style={{ display: 'inline-flex', gap: 3 }}>
+                      <Box data-rail role="img" aria-label={railFor(crewRow).map((step) => `${step.label} ${step.state}`).join(', ')} as="span" css-display="inline-flex" css-gap="3">
                         {railFor(crewRow).map((step) => (
                           <i key={step.label} data-rail-step={step.state} style={{ display: 'block', width: 16, height: 8, borderRadius: 3, background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)' }} />
                         ))}
-                      </span>
+                      </Box>
                     </Tooltip>
-                  </li>
+                  </Box>
                 </PanelList>
               )}
               <PanelEmpty>Avoozl cannot message this chat. It shows what the claim on GitHub says.</PanelEmpty>

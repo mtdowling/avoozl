@@ -23,6 +23,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 // A retro or proposal another page linked to.
 export interface RetroTarget {
@@ -46,7 +47,7 @@ function RetroChat({ retro }: { retro: Retro }) {
   if (!chat) return <Hint size="xs" data-retro-chat="none">No chat was recorded for this retro.</Hint>
   const name = retroName(retro)
   return (
-    <span className="flex flex-col gap-1 text-xs" data-retro-chat={chat.executor}>
+    <Box as="span" flex flexCol gap="1" size="xs" data-retro-chat={chat.executor}>
       <Row as="span" gap={3}>
         {chat.link ? (
           <a href={linkHref(chat.link)} className="underline" aria-label={`Open the chat for ${name}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -64,17 +65,16 @@ function RetroChat({ retro }: { retro: Retro }) {
         </Hint>
       </Row>
       {chat.executor === 'process' && (
-        <pre
+        <Box
           data-retro-log
-          className="m-0 rounded border p-1.5"
+          as="pre" css-border-color="border" css-max-height="7.5em" css-overflow="auto" css-white-space="pre-wrap" css-overflow-wrap="anywhere" css-font-family="font-mono-ui-monospace-monospace" m0 rounded="base" border="all" p="1.5"
           tabIndex={0}
           aria-label={`Log tail for ${name}`}
-          style={{ borderColor: 'var(--border)', maxHeight: '7.5em', overflow: 'auto', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--font-mono, ui-monospace, monospace)' }}
         >
           {chat.process?.logTail || 'No output yet.'}
-        </pre>
+        </Box>
       )}
-    </span>
+    </Box>
   )
 }
 
@@ -87,46 +87,46 @@ function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boo
       data-retro={retro.id}
       data-linked={linked || undefined}
     >
-      <span className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+      <Box as="span" flex flexWrap items="center" gap="2" size="sm" weight="semibold">
         {retroName(retro)}
         {retro.state !== 'done' && <Badge variant={STATE_BADGE[retro.state]}>{retro.state}</Badge>}
-        {bottleneck && <span className="font-normal text-muted">bottleneck {bottleneck}</span>}
-      </span>
-      <dl className="m-0 text-xs text-muted" style={{ display: 'flex', flexWrap: 'wrap', columnGap: 16, rowGap: 2 }} data-retro-facts>
-        <div style={{ display: 'flex', gap: 4 }}>
+        {bottleneck && <Box as="span" weight="normal" tone="muted">bottleneck {bottleneck}</Box>}
+      </Box>
+      <Box as="dl" css-display="flex" css-flex-wrap="wrap" css-column-gap="16" css-row-gap="2" m0 size="xs" tone="muted" data-retro-facts>
+        <Box css-display="flex" css-gap="4">
           <dt>Scope</dt>
-          <dd style={{ margin: 0, color: 'var(--text)' }}>{retroScope(retro)}</dd>
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+          <Box as="dd" css-margin="0" css-color="text">{retroScope(retro)}</Box>
+        </Box>
+        <Box css-display="flex" css-gap="4">
           <dt>Time</dt>
-          <dd style={{ margin: 0, color: 'var(--text)' }} title={retro.startedAt}>
+          <Box as="dd" css-margin="0" css-color="text" title={retro.startedAt}>
             {relativeTime(retro.startedAt, Date.now())}
-          </dd>
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+          </Box>
+        </Box>
+        <Box css-display="flex" css-gap="4">
           <dt>Model</dt>
-          <dd style={{ margin: 0, color: 'var(--text)' }}>{retro.model ?? 'not recorded'}</dd>
-        </div>
-      </dl>
+          <Box as="dd" css-margin="0" css-color="text">{retro.model ?? 'not recorded'}</Box>
+        </Box>
+      </Box>
       {retro.triggers.length > 0 && <Hint size="xs">Started by {retro.triggers.map((t) => t.detail).join('; ')}.</Hint>}
       {retro.state === 'running' && <Hint size="sm">Running since {relativeTime(retro.startedAt, Date.now())}.</Hint>}
       {retro.state === 'failed' && (
-        <span className="flex flex-wrap items-center gap-3 text-sm text-danger" data-retro-failed={retro.failure ?? 'unknown'}>
+        <Box as="span" flex flexWrap items="center" gap="3" size="sm" tone="danger" data-retro-failed={retro.failure ?? 'unknown'}>
           Failed: {retro.error}
           {again}
-        </span>
+        </Box>
       )}
       <RetroChat retro={retro} />
       {retro.bottleneck && <Hint size="xs">{retro.bottleneck.evidence}</Hint>}
       {retro.proposals.length > 0 ? (
         <Stack as="ul" gap={1} aria-label={`Proposals from ${retroName(retro)}`}>
           {retro.proposals.map((p: Proposal) => (
-            <li key={p.id} className="flex flex-wrap items-center gap-2 text-sm" data-retro-proposal={`${retro.id}:${p.id}`}>
+            <Box key={p.id} as="li" flex flexWrap items="center" gap="2" size="sm" data-retro-proposal={`${retro.id}:${p.id}`}>
               <button type="button" className="min-w-0 text-left underline" style={{ overflowWrap: 'anywhere' }} onClick={() => onOpen(p.id)}>
                 {proposalText(p)}
               </button>
               <Badge variant={p.status === 'open' ? 'warning' : undefined}>{p.status}</Badge>
-            </li>
+            </Box>
           ))}
         </Stack>
       ) : (
@@ -210,7 +210,7 @@ function RetrosList({ workspaceId, target, onOpen, onSeen }: { workspaceId: stri
 export function RetrosView({ workspaceId, page, target, onOpen }: { workspaceId: string | null; page: RetrosPage; target: RetroTarget | null; onOpen: (target: RetroTarget | null) => void }) {
   const here = target?.page === page ? target : null
   return (
-    <section aria-labelledby="avoozl-retros-title" className="flex flex-col gap-3.5">
+    <Box aria-labelledby="avoozl-retros-title" as="section" flex flexCol gap="3.5">
       <ViewHeading id="avoozl-retros-title" view="retros">
         {page === 'proposals' ? 'Proposals' : 'Retros'}
       </ViewHeading>
@@ -227,6 +227,6 @@ export function RetrosView({ workspaceId, page, target, onOpen }: { workspaceId:
       ) : (
         <RetrosList workspaceId={workspaceId} target={here} onOpen={(next) => onOpen(next)} onSeen={() => onOpen(null)} />
       )}
-    </section>
+    </Box>
   )
 }

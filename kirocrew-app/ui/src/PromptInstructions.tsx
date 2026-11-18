@@ -7,6 +7,7 @@ import { Fold, IconLabel } from './ui/controls.tsx'
 import { Marker } from './SettingsView.tsx'
 import { Check, Copy } from './icons.ts'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 const boxStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
@@ -32,27 +33,27 @@ export default function PromptInstructions(props: {
     }
   }
   return (
-    <div className="flex min-w-0 flex-col gap-2 text-sm" style={{ maxWidth: '44rem' }} data-prompt-instructions={props.id}>
+    <Box css-max-width="44rem" flex minW0 flexCol gap="2" size="sm" data-prompt-instructions={props.id}>
       <Fold id={`${props.id}-builtin`} title={`Built-in ${props.agent} prompt (read-only)`}>
         {props.builtIn ? (
-          <div className="flex flex-col gap-2 pb-2">
-            <pre className="rounded border p-2 text-xs" style={{ ...boxStyle, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: '16rem', overflowY: 'auto' }}>
+          <Box flex flexCol gap="2" pb="2">
+            <Box as="pre" css-border-color="border" css-color="text" css-background="card-transparent" css-white-space="pre-wrap" css-overflow-wrap="anywhere" css-max-height="16rem" css-overflow-y="auto" rounded="base" border="all" p="2" size="xs">
               {props.builtIn}
-            </pre>
+            </Box>
             <div>
               <IconLabel icon={copied ? Check : Copy} tooltip="Copy the built-in prompt" onClick={() => void copy()}>
                 {copied ? 'Copied' : 'Copy'}
               </IconLabel>
             </div>
-          </div>
+          </Box>
         ) : (
-          <p className="pb-2 text-xs text-muted">The built-in prompt could not be read.</p>
+          <Box as="p" pb="2" size="xs" tone="muted">The built-in prompt could not be read.</Box>
         )}
       </Fold>
-      <label htmlFor={props.id} className="flex flex-wrap items-baseline gap-x-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 }}>
-        <span className="font-medium">Your instructions</span>
+      <Box htmlFor={props.id} as="label" css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-column-gap="8" flex flexWrap items="baseline" gapX="2">
+        <Box as="span" weight="medium">Your instructions</Box>
         <Marker rule={{ required: false }} />
-      </label>
+      </Box>
       <Hint size="xs">Added after the built-in prompt.</Hint>
       <textarea
         id={props.id}
@@ -65,10 +66,10 @@ export default function PromptInstructions(props: {
       />
       {props.note && <Hint size="xs">{props.note}</Hint>}
       <Tooltip text=".avoozl.json key">
-        <code className="text-[11px] text-muted" style={{ overflowWrap: 'anywhere', opacity: 0.8 }}>
+        <Box as="code" css-overflow-wrap="anywhere" css-opacity="0.8" size="11" tone="muted">
           {props.raw}
-        </code>
+        </Box>
       </Tooltip>
-    </div>
+    </Box>
   )
 }

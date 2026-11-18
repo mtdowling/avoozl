@@ -11,6 +11,7 @@ import type { RepositoryForm } from './settings-api.ts'
 import { WHO_COLOR, WHO_TEXT, buildWorkflowMap, fieldSelector, type Card as StepCard, type Jump, type Lane, type Value } from './workflow-map.ts'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 export const WORKFLOW_BLURB =
   "How work flows through this repository, read from its saved settings. A value in a card opens the field that sets it."
@@ -30,18 +31,18 @@ const SOURCE_TEXT = { set: '', default: ' (default)', placeholder: ' (planned na
 
 function ValueLine({ value, onJump }: { value: Value; onJump?: (jump: Jump) => void }) {
   return (
-    <span className="text-xs" data-value={value.label} data-source={value.source}>
+    <Box as="span" size="xs" data-value={value.label} data-source={value.source}>
       <Hint>{value.label}: </Hint>
       {value.jump && onJump ? (
         <button type="button" className="underline" style={{ color: 'inherit', background: 'none', border: 0, padding: 0, cursor: 'pointer', overflowWrap: 'anywhere', textAlign: 'start' }} onClick={() => onJump(value.jump!)}>
           <code>{value.text}</code>
         </button>
       ) : (
-        <code style={{ overflowWrap: 'anywhere' }}>{value.text}</code>
+        <Box as="code" css-overflow-wrap="anywhere">{value.text}</Box>
       )}
       <Hint>{SOURCE_TEXT[value.source]}</Hint>
       {value.elsewhere && <Hint> (set in {value.elsewhere})</Hint>}
-    </span>
+    </Box>
   )
 }
 
@@ -55,25 +56,25 @@ function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (j
       data-who={card.who}
       data-muted={muted ? 'true' : undefined}
     >
-      <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+      <Box as="span" flex flexWrap items="center" gapX="2" gapY="0.5">
         <span className="text-xs font-semibold" style={{ color: WHO_COLOR[card.who] }} data-who-tag>
           {WHO_TEXT[card.who]}
         </span>
         {card.tag && (
-          <span className="rounded border px-1 text-[11px] text-muted" style={{ borderColor: 'var(--border)' }} data-status-tag>
+          <Box as="span" css-border-color="border" rounded="base" border="all" px="1" size="11" tone="muted" data-status-tag>
             {card.tag}
-          </span>
+          </Box>
         )}
-      </span>
-      <span className="font-medium">{card.title}</span>
+      </Box>
+      <Box as="span" weight="medium">{card.title}</Box>
       <Hint size="xs">{card.text}</Hint>
       {card.values.map((value) => (
         <ValueLine key={value.label} value={value} onJump={onJump} />
       ))}
       {card.muted && (
-        <span className="text-xs" data-reason>
+        <Box as="span" size="xs" data-reason>
           Off: {card.muted}
-        </span>
+        </Box>
       )}
     </li>
   )
@@ -81,26 +82,26 @@ function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (j
 
 function LaneRow({ lane, onJump }: { lane: Lane; onJump?: (jump: Jump) => void }) {
   return (
-    <section aria-label={`${lane.title} lane`} className="flex flex-col gap-1.5" data-lane={lane.key} data-lane-off={lane.muted ? 'true' : undefined}>
-      <h5 className="text-sm font-semibold">{lane.title}</h5>
+    <Box aria-label={`${lane.title} lane`} as="section" flex flexCol gap="1.5" data-lane={lane.key} data-lane-off={lane.muted ? 'true' : undefined}>
+      <Box as="h5" size="sm" weight="semibold">{lane.title}</Box>
       {lane.muted && (
         <Hint as="p" size="xs" data-reason>
           Off: {lane.muted}
         </Hint>
       )}
-      <ol className="m-0 flex list-none flex-wrap items-stretch gap-1.5 p-0">
+      <Box as="ol" m0 flex listNone flexWrap items="stretch" gap="1.5" p="0">
         {lane.cards.map((card, index) => (
           <Fragment key={card.key}>
             {index > 0 && (
-              <li aria-hidden="true" className="self-center text-muted">
+              <Box aria-hidden="true" as="li" self="center" tone="muted">
                 →
-              </li>
+              </Box>
             )}
             <Step card={card} off={Boolean(lane.muted)} onJump={onJump} />
           </Fragment>
         ))}
-      </ol>
-    </section>
+      </Box>
+    </Box>
   )
 }
 
@@ -137,29 +138,29 @@ export default function WorkflowMap(props: {
       )}
       {map.labels.length > 0 && (
         <Card>
-          <div className="overflow-x-auto" style={{ overflowX: 'auto' }} data-labels-table>
-            <table className="w-full text-left text-xs">
+          <Box css-overflow-x="auto" overflow="x-auto" data-labels-table>
+            <Box as="table" wFull align="left" size="xs">
               <caption className="pb-1 text-left text-sm font-semibold">Labels</caption>
               <thead>
-                <tr className="text-muted">
+                <Box as="tr" tone="muted">
                   <th className="pe-2 font-normal">Label</th>
                   <th className="pe-2 font-normal">Name</th>
                   <th className="pe-2 font-normal">Written by</th>
-                  <th className="font-normal">Setting</th>
-                </tr>
+                  <Box as="th" weight="normal">Setting</Box>
+                </Box>
               </thead>
               <tbody>
                 {map.labels.map((row) => (
                   <tr key={row.key} data-label-row={row.key}>
                     <td className="pe-2 align-top">{row.label}</td>
                     <td className="pe-2 align-top">
-                      <code style={{ overflowWrap: 'anywhere' }}>{row.name}</code>
+                      <Box as="code" css-overflow-wrap="anywhere">{row.name}</Box>
                       <Hint>{SOURCE_TEXT[row.source]}</Hint>
                     </td>
                     <td className="pe-2 align-top" style={{ color: WHO_COLOR[row.writer] }}>
                       {WHO_TEXT[row.writer]}
                     </td>
-                    <td className="align-top">
+                    <Box as="td" alignTop>
                       {row.jump && props.onJump ? (
                         <button type="button" className="underline" style={{ color: 'inherit', background: 'none', border: 0, padding: 0, cursor: 'pointer' }} onClick={() => props.onJump!(row.jump!)}>
                           Open setting
@@ -167,12 +168,12 @@ export default function WorkflowMap(props: {
                       ) : (
                         <Hint>{row.source === 'placeholder' ? 'not built yet' : '—'}</Hint>
                       )}
-                    </td>
+                    </Box>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+            </Box>
+          </Box>
         </Card>
       )}
     </Stack>

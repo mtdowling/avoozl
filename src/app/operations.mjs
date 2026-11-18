@@ -172,6 +172,7 @@ import { landingView } from "./landing-view.mjs";
 import { epicsView } from "./epics-view.mjs";
 import { integratorNeedsYou } from "./landing-lease.mjs";
 import { landingQueueView } from "./landing-queue-view.mjs";
+import { reviewBranch } from "./integrator-review.mjs";
 import { integratorStatus, submitBranch } from "./integrator-trains.mjs";
 import {
   checkIntegrationBranch,
@@ -276,6 +277,9 @@ import {
 } from "./plugins.mjs";
 import { pluginHealth } from "./plugin-session.mjs";
 import { queueSessionSend } from "./session-send.mjs";
+import { openSession, viewOpened } from "./session-open.mjs";
+import { kirocrewPinNeedsYou } from "./kirocrew-pin.mjs";
+import { machineAvoozlPaths } from "./host-config.mjs";
 import { rebuiltRows } from "./trackers.mjs";
 import { SUPPORTED_CONTRACTS } from "./plugin-contract.mjs";
 import {
@@ -488,13 +492,8 @@ import {
 import { claimTask, nextView } from "./runner.mjs";
 import { manualClaim } from "./manual-claim.mjs";
 import {
-  acceptEnvelope,
-  driverTick,
-  handoff,
-  pullStatus,
   claimWork,
   pullWork,
-  remoteView,
   readRunnerConfig,
   reportDone,
   runnerStatus,
@@ -599,6 +598,7 @@ import { publishSpec } from "./spec-publication.mjs";
 import { specLinks } from "./scm-links.mjs";
 import { specAuthority, takeOverSpec } from "./spec-takeover.mjs";
 import { publishOffer, reserveClaims } from "./worker-claims.mjs";
+import { workerResultsStep } from "./worker-result-step.mjs";
 import {
   checkStaleClaims,
   claimStaleMs,
@@ -1033,6 +1033,8 @@ export class Operations {
       // Stops one Kiro Crew session by slot (session-observer.mjs
       // gatewaySessionStopper); only the app backend has one.
       sessionStopper = null,
+      // True on the standalone page: no Kiro Crew runs beside this server.
+      kirocrewAbsent = false,
       // {now} for the code review chat (pr-review.mjs); tests fix the clock.
       reviewOptions = {},
       // Tests can delay isolated review-view preparation without opening chats.
@@ -1075,6 +1077,7 @@ export class Operations {
     this.crewReader = crewReader;
     this.sessionsReader = sessionsReader;
     this.sessionStopper = sessionStopper;
+    this.kirocrewAbsent = kirocrewAbsent;
     this.reviewOptions = reviewOptions;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
@@ -2240,6 +2243,24 @@ export class Operations {
       review: planReviewSummary(this.store, plan.id),
     };
   }
+  // The driver's step for worker machines' pushed results (WP5.3).
+  async workerResults(store, driving, journalFor) {
+    const config = loadLayeredConfig({
+        workspaceRoot: this.workspaceRoot,
+      }).config,
+      result = await workerResultsStep(store, {
+        driving,
+        journalFor,
+        github: this.github,
+        sources: config.runner?.sources ?? {},
+        protectedPaths:
+          readFlowPolicy(this.workspaceRoot).workspace.verify?.protectedPaths ??
+          [],
+      });
+    queueNotifications(store, result.notify);
+    return result;
+  }
+
   // This workspace's saved config, which names each role's executor
   // (Settings › Models); none when there is no file or it does not load.
   savedConfig() {
@@ -3132,6 +3153,22 @@ export class Operations {
         );
       return queueSessionSend(store, input);
     }
+    // Open chat on the standalone page (SW7): a person starts a read-only
+    // `process` session from a message; `session.view` reads it back.
+    if (name === "session.open") {
+      if (context.caller || context.mcp)
+        fail("Only a person opens a session, in the Avoozl page.", 403);
+      return openSession(store, input, {
+        config: loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config,
+        configDirectory: this.configDirectory,
+        workspaceRoot: this.workspaceRoot,
+      });
+    }
+    if (name === "session.view")
+      return viewOpened(store, input, {
+        ...machineAvoozlPaths(),
+        configDirectory: this.configDirectory,
+      });
     if (name === "reply.post")
       return postReply(store, this.github, input, context.caller, {
         roots: machineRoots(store, this.workspaceRoot),
@@ -3226,16 +3263,14 @@ export class Operations {
       });
     }
     // Runner mode over SSH (R84): off unless .avoozl.json has `runner`.
-    if (name === "remote.accept")
-      return acceptEnvelope(store, this.workspaceRoot, input.envelope);
+    // shortcut: no machine reports remote workers to a driver now, so the
+    // list is always empty. The page's In flight and Delivery still read it;
+    // remove it with their remote rows, which need new screenshots.
+    if (name === "remote.view") return { workers: [] };
     if (name === "remote.status")
       return runnerStatus(store, this.workspaceRoot);
     if (name === "remote.report")
       return reportDone(store, this.workspaceRoot, input);
-    if (name === "remote.handoff")
-      return handoff(store, this.workspaceRoot, input);
-    if (name === "remote.pull")
-      return pullStatus(store, this.workspaceRoot, input);
     if (name === "worker.claim")
       return claimWork(store, this.workspaceRoot, this.github);
     if (name === "worker.setup") {
@@ -3246,7 +3281,6 @@ export class Operations {
     }
     if (name === "worker.pull")
       return pullWork(store, this.workspaceRoot, this.github);
-    if (name === "remote.view") return remoteView(store, this.workspaceRoot);
     if (name === "instance.view") return instanceView(store);
     if (name === "instance.rename") {
       renameInstance(store, input.name);
@@ -3381,6 +3415,9 @@ export class Operations {
     // Queue a branch Avoozl did not start (landing-trains, LT1.4).
     if (name === "landing.submit")
       return submitBranch(store, this.workspaceRoot, input);
+    // Open the review pull request for a queued batch branch (LT1.6).
+    if (name === "landing.review")
+      return reviewBranch(store, { github: this.github, taskId: input.taskId });
     if (name === "delivery.retry")
       return retryDelivery(store, input, {
         caller: context.caller,
@@ -3401,13 +3438,9 @@ export class Operations {
       });
       if (remote) return remote;
       await this.refreshPrivateSpecs();
-      if (input.cron === true) await driverTick(store, this.workspaceRoot);
-      // Stale worker claims reach Needs you; nothing releases them (R90.6).
-      if (input.cron === true)
-        await checkStaleClaims(store, {
-          workspaceRoot: this.workspaceRoot,
-          driving: Object.keys(store.getMeta("specDrivers") ?? {}),
-          journalFor: async (planId) => {
+      if (input.cron === true) {
+        const driving = Object.keys(store.getMeta("specDrivers") ?? {}),
+          journalFor = async (planId) => {
             const journal = journalOf(
               store,
               { github: this.github, workspaceRoot: this.workspaceRoot },
@@ -3423,8 +3456,20 @@ export class Operations {
                   },
                 }
               : null;
-          },
+          };
+        // Stale worker claims reach Needs you; nothing releases them (R90.6).
+        await checkStaleClaims(store, {
+          workspaceRoot: this.workspaceRoot,
+          driving,
+          journalFor,
         }).catch(() => 0);
+        // What worker machines pushed is fetched, checked and landed here
+        // (R90.2, worker-paths WP5.3); a result that fails is a failed attempt.
+        if (driving.length)
+          await this.workerResults(store, driving, journalFor).catch(
+            () => null,
+          );
+      }
       const result = await tick(store, {
         workspaceRoot: this.workspaceRoot,
         memory: this.tickPolicy,
@@ -3700,6 +3745,7 @@ export class Operations {
       view.items.push(...planReviewNeedsYou(store));
       view.items.push(...specPullNeedsYou(store));
       view.items.push(...gateNeedsYou(store));
+      if (this.kirocrewAbsent) view.items.push(...kirocrewPinNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
       view.items.push(...integratorNeedsYou(store));
       view.items.push(...syncNeedsYou(store));

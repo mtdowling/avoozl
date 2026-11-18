@@ -20,7 +20,14 @@ const RESTART = "Kiro Crew starts and restarts the Avoozl app backend.";
 const TEAM =
   "Team coordination and execution targets were removed. Kiro Crew sessions are the delivery route, and GitHub issues, assignees, and pull requests hold shared state.";
 
+const SSH_RUNNER =
+  "Runner mode over SSH was removed. A second machine pulls its work: set runner.role to worker, and its tick pulls offers, asks for them and starts the ones the driver acknowledged (avoozl worker pull and avoozl worker claim run the same steps by hand).";
+
 export const MOVED_OPERATIONS = new Map([
+  ...["remote.accept", "remote.handoff", "remote.pull"].map((name) => [
+    name,
+    SSH_RUNNER,
+  ]),
   ...[
     "run.send",
     "run.interrupt",

@@ -18,6 +18,7 @@ import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useSt
 import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, type LucideIcon } from './icons.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref } from './views-api.ts'
+import { Box } from './ui/Box'
 
 export type Tone = 'ok' | 'warn' | 'danger' | 'info' | 'muted'
 
@@ -141,10 +142,10 @@ export function PanelRoot(props: { kind: string; children: ReactNode }) {
   const folds = useFoldsState()
   return (
     <FoldsContext.Provider value={folds}>
-      <div data-pp data-panel-kind={props.kind} style={{ display: 'flex', flexDirection: 'column' }}>
+      <Box data-pp data-panel-kind={props.kind} css-display="flex" css-flex-direction="column">
         <PanelStyles />
         {props.children}
-      </div>
+      </Box>
     </FoldsContext.Provider>
   )
 }
@@ -291,9 +292,9 @@ export function PanelRow(props: {
         </span>
         {meta && (
           <Tooltip text={meta} display="block">
-            <span data-pp-row-meta style={{ display: 'block' }}>
+            <Box data-pp-row-meta as="span" css-display="block">
               {meta}
-            </span>
+            </Box>
           </Tooltip>
         )}
       </span>

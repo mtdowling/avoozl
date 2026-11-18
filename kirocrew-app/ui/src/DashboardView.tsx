@@ -36,6 +36,7 @@ import { Empty, HomeBox, HomePair, HomeSection, HomeStyle, PrLink, Tiles } from 
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
+import { Box } from './ui/Box'
 
 export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'delivery' | 'landing' | 'flow'
 
@@ -52,12 +53,12 @@ const FAILED_KINDS = new Set(['delivery', 'stale-session', 'provider-out', 'tick
 function NeedCard({ item, attach, onAnswer, onInfo, onAsk, onTitle }: { item: Attention; attach: string | null; onAnswer: () => void; onInfo: () => void; onAsk: () => void; onTitle: () => void }) {
   return (
     <li data-home-need data-attention-row>
-      <span className="flex items-center justify-between gap-2">
+      <Box as="span" flex items="center" justify="between" gap="2">
         <span data-attention-tag>
           <Badge variant={FAILED_KINDS.has(item.kind) ? 'danger' : 'warning'}>{KIND_LABEL[item.kind] ?? item.kind}</Badge>
         </span>
-        {item.taskId && <span className="truncate text-xs text-muted">{item.taskId}</span>}
-      </span>
+        {item.taskId && <Box as="span" truncate size="xs" tone="muted">{item.taskId}</Box>}
+      </Box>
       <Tooltip text={attentionTip(item)} display="inline">
         {(describedBy) => (
           <a
@@ -210,17 +211,17 @@ const roleLabel = (row: InFlight) =>
 // its chat, so there is no Session here.
 export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: number; cost?: RadarCrewStrip['cost'][string] }) {
   return (
-    <li data-radar-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
-      <span data-in-flight-role style={{ flex: '0 0 7.5rem' }}>
+    <Box data-radar-flight-row as="li" css-border-color="border" flex flexWrap items="start" gap="2" border="t" py="2" firstBorderT0>
+      <Box data-in-flight-role as="span" css-flex="0-0-7.5rem">
         <Badge>Issue Radar</Badge>
-      </span>
-      <span className="min-w-0 flex-1" style={{ flexBasis: '12rem' }}>
-        <span className="font-medium">{row.title}</span>{' '}
+      </Box>
+      <Box as="span" css-flex-basis="12rem" minW0 flex1>
+        <Box as="span" weight="medium">{row.title}</Box>{' '}
         <Hint size="xs">
           {row.repository} #{row.number}
         </Hint>{' '}
         {row.stale && <Badge variant="warning">Stale</Badge>}
-        <span data-rail className="ml-1 inline-flex items-center gap-0.5 align-middle" role="img" aria-label={railFor(row).map((step) => `${step.label} ${step.state === 'done' ? 'done' : step.state === 'now' ? 'now' : 'next'}`).join(', ')}>
+        <Box data-rail as="span" ml="1" inlineFlex items="center" gap="0.5" alignMiddle role="img" aria-label={railFor(row).map((step) => `${step.label} ${step.state === 'done' ? 'done' : step.state === 'now' ? 'now' : 'next'}`).join(', ')}>
           {railFor(row).map((step) => (
             <i
               key={step.label}
@@ -229,7 +230,7 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
               style={{ display: 'block', width: 16, height: 8, borderRadius: 3, background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)' }}
             />
           ))}
-        </span>
+        </Box>
         <Hint size="xs" block>
           {row.crewName ?? row.crewId ?? 'no crew named'} · {row.phase ?? 'claim label, no claim comment'}
           {row.updated ? ` · updated ${relativeTime(row.updated, now)}` : ''}
@@ -239,8 +240,8 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
             Credits: {cost.stages.map((entry) => `${entry.stage} ${entry.credits.toFixed(1)}`).join(', ')} (total {cost.credits.toFixed(1)}, {cost.turns} turns)
           </Hint>
         )}
-      </span>
-      <span data-in-flight-actions className="flex items-center justify-end gap-3" style={{ flex: '0 0 11rem' }}>
+      </Box>
+      <Box data-in-flight-actions as="span" css-flex="0-0-11rem" flex items="center" justify="end" gap="3">
         {linkHref(row.url) && (
           <a href={linkHref(row.url)} target="_blank" rel="noopener noreferrer" className="text-sm underline" aria-label={`Open issue ${row.number} on GitHub`}>
             Issue
@@ -251,8 +252,8 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
             PR #{row.pr}
           </a>
         )}
-      </span>
-    </li>
+      </Box>
+    </Box>
   )
 }
 
@@ -302,7 +303,6 @@ const CHIP: CSSProperties = {
   lineHeight: '18px',
   textDecoration: 'none',
 }
-const CHIP_TEXT: CSSProperties = { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
 
 // In flight's `PR #N` chip with its check dot, and the branch chip (R92.6).
 // Both open GitHub in a new tab (R92.9).
@@ -314,10 +314,10 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
   return (
     // contain: inline-size keeps the chips out of the row's min-content, so a
     // long branch name shrinks instead of widening the card on a phone.
-    <span data-in-flight-links className="mt-1 flex items-center gap-1 text-xs" style={{ minWidth: 0, contain: 'inline-size' }}>
+    <Box data-in-flight-links as="span" css-min-width="0" css-contain="inline-size" mt="1" flex items="center" gap="1" size="xs">
       {pr && links.pr && (
         // The PR chip never shrinks; the branch chip gives way.
-        <span style={{ display: 'inline-flex', flex: '0 0 auto' }}>
+        <Box as="span" css-display="inline-flex" css-flex="0-0-auto">
           <Tooltip text={dot.label}>
             <a
               data-pr-chip
@@ -332,17 +332,17 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
               {links.pr.state === 'merged' || links.pr.state === 'closed' ? <Hint>{links.pr.state}</Hint> : null}
             </a>
           </Tooltip>
-        </span>
+        </Box>
       )}
       {branch && links.branch && (
         <Tooltip text={links.branch.ref}>
           <a data-branch-chip href={linkHref(links.branch.url)} target="_blank" rel="noopener noreferrer" style={CHIP} aria-label={`Branch ${links.branch.ref} for ${title}`}>
             <GitBranch size={12} aria-hidden="true" style={{ flex: '0 0 auto' }} />
-            <span style={CHIP_TEXT}>{links.branch.ref}</span>
+            <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{links.branch.ref}</Box>
           </a>
         </Tooltip>
       )}
-    </span>
+    </Box>
   )
 }
 
@@ -378,7 +378,7 @@ function SendMessage({ title, onSend, onClose }: { title: string; onSend: (text:
         value={text}
         onChange={(event) => setText(event.target.value)}
       />
-      <span className="flex flex-wrap items-center gap-1.5">
+      <Box as="span" flex flexWrap items="center" gap="1.5">
         <SmallBtn primary disabled={!text.trim() || state.kind === 'sending'} attrs={{ type: 'submit', 'data-send-submit': true }}>
           {state.kind === 'sending' ? 'Sending…' : 'Send'}
         </SmallBtn>
@@ -386,7 +386,7 @@ function SendMessage({ title, onSend, onClose }: { title: string; onSend: (text:
         <Hint role="status" size="xs" data-send-state={state.kind}>
           {state.kind === 'queued' ? 'Queued; it goes in when the run ends.' : state.kind === 'error' ? state.message : ''}
         </Hint>
-      </span>
+      </Box>
     </form>
   )
 }
@@ -398,12 +398,12 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
     href = processRow ? null : attachHref(row.session),
     remote = row.session.crew && row.session.crew !== 'local'
   return (
-    <li data-in-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+    <Box data-in-flight-row as="li" css-border-color="border" flex flexWrap items="start" gap="2" border="t" py="2" firstBorderT0>
       {/* Fixed columns, so every row's title and actions start at the same x. */}
-      <span data-in-flight-role style={{ flex: '0 0 7.5rem' }}>
+      <Box data-in-flight-role as="span" css-flex="0-0-7.5rem">
         <Badge>{roleLabel(row)}</Badge>
-      </span>
-      <span className="min-w-0 flex-1" style={{ flexBasis: '12rem' }}>
+      </Box>
+      <Box as="span" css-flex-basis="12rem" minW0 flex1>
         <TaskTitleLink id={row.taskId} title={row.title} className="font-medium" />{' '}
         <Hint size="xs">
           {row.taskId}
@@ -425,21 +425,20 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
         {row.links && <FlightChips links={row.links} title={row.title} />}
         {processRow && (
           // column-reverse keeps the newest line in view without a scroll effect.
-          <span
+          <Box
             data-process-log
-            className="mt-1 block rounded border text-xs"
+            as="span" css-border-color="border" css-max-height="7.5em" css-overflow="auto" css-display="flex" css-flex-direction="column-reverse" mt="1" block rounded="base" border="all" size="xs"
             tabIndex={0}
             aria-label={`Log tail for ${row.title}`}
-            style={{ borderColor: 'var(--border)', maxHeight: '7.5em', overflow: 'auto', display: 'flex', flexDirection: 'column-reverse' }}
           >
-            <pre className="m-0 p-1.5" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--font-mono, ui-monospace, monospace)' }}>
+            <Box as="pre" css-white-space="pre-wrap" css-overflow-wrap="anywhere" css-font-family="font-mono-ui-monospace-monospace" m0 p="1.5">
               {child?.logTail || 'No output yet.'}
-            </pre>
-          </span>
+            </Box>
+          </Box>
         )}
         {processRow && writing && onSend && <SendMessage title={row.title} onSend={onSend} onClose={() => setWriting(false)} />}
-      </span>
-      <span data-in-flight-actions className="flex items-center justify-end gap-1.5" style={{ flex: '0 0 11rem' }}>
+      </Box>
+      <Box data-in-flight-actions as="span" css-flex="0-0-11rem" flex items="center" justify="end" gap="1.5">
         <IconBtn icon={DetailsIcon} label={`Details for ${row.title}`} tooltip="Open the task drawer" onClick={onInfo} />
         {processRow && onSend && (
           <IconBtn icon={MessageSquare} label={`Send message to the ${row.role} for ${row.title}`} tooltip="Send message" onClick={() => setWriting((open) => !open)} />
@@ -459,8 +458,8 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
           Session
         </a>
         )}
-      </span>
-    </li>
+      </Box>
+    </Box>
   )
 }
 
@@ -563,9 +562,9 @@ export default function DashboardView(props: {
   return (
     <section aria-labelledby="avoozl-dashboard-title" data-home>
       <HomeStyle />
-      <h2 id="avoozl-dashboard-title" className="sr-only">
+      <Box id="avoozl-dashboard-title" as="h2" srOnly>
         Home
-      </h2>
+      </Box>
       <span role="status" className={busy || value?.failed ? 'text-xs text-muted' : 'sr-only'}>
         {busy ? 'Loading…' : value?.failed ? `${value.failed} of 4 reads failed; those sections are empty.` : ''}
       </span>
@@ -676,14 +675,14 @@ export default function DashboardView(props: {
                 <Empty>No crew or chat is working right now. Released issues show here once a crew claims them.</Empty>
                 {/* Only while nothing has ever run. */}
                 {summary.neverRan && (
-                  <div className="mb-2">
+                  <Box mb="2">
                     <StartDemoButton label="Start demo" />
-                  </div>
+                  </Box>
                 )}
               </>
             ) : (
               <>
-                <ul className="m-0 list-none p-0">
+                <Box as="ul" m0 listNone p="0">
                   {pages.take('flight', summary.inFlight).map((row) => (
                     <InFlightRow
                       key={row.slot}
@@ -699,33 +698,33 @@ export default function DashboardView(props: {
                       }
                     />
                   ))}
-                </ul>
+                </Box>
                 <ShowMore {...pages.more('flight', summary.inFlight.length)} />
                 {summary.radarFlight.length > 0 && (
                   <>
-                    <h4 data-on-the-line className="mt-2 text-xs font-semibold text-muted">
+                    <Box data-on-the-line as="h4" mt="2" size="xs" weight="semibold" tone="muted">
                       On the line ({summary.radarFlight.length}): Ready, Claimed, PR, CI, Merge
-                    </h4>
+                    </Box>
                     {summary.radarGroups.length > 0 ? (
                       <RadarFlightGroups groups={summary.radarGroups} now={now} cost={summary.radarCrewStrip?.cost} />
                     ) : (
                       <>
-                        <ul className="m-0 list-none p-0">
+                        <Box as="ul" m0 listNone p="0">
                           {pages.take('radar', summary.radarFlight).map((row) => (
                             <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} cost={summary.radarCrewStrip?.cost[`${row.repository}#${row.number}`]} />
                           ))}
-                        </ul>
+                        </Box>
                         <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
                       </>
                     )}
-                    <p className="my-2 text-xs text-muted">Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat.</p>
+                    <Box as="p" my="2" size="xs" tone="muted">Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat.</Box>
                   </>
                 )}
                 {summary.radarCrewStrip && summary.radarCrewStrip.crews.length > 0 && (
-                  <p data-crews-strip className="my-2 text-xs text-muted">
-                    <span className="font-semibold">Crews:</span> {summary.radarCrewStrip.counts.onDuty} on duty, {summary.radarCrewStrip.counts.working} working, {summary.radarCrewStrip.counts.paused} paused.{' '}
+                  <Box data-crews-strip as="p" my="2" size="xs" tone="muted">
+                    <Box as="span" weight="semibold">Crews:</Box> {summary.radarCrewStrip.counts.onDuty} on duty, {summary.radarCrewStrip.counts.working} working, {summary.radarCrewStrip.counts.paused} paused.{' '}
                     {summary.radarCrewStrip.crews.map((crew) => `${crew.name} (${crew.status ?? 'unknown'})`).join(', ')}
-                  </p>
+                  </Box>
                 )}
               </>
             )}
@@ -751,14 +750,14 @@ export default function DashboardView(props: {
             ) : summary.progress.length === 0 ? (
               <>
                 <Empty>No epics yet. {summary.plans.approved} approved and {summary.plans.draft} draft specs.</Empty>
-                <div className="mb-2">
+                <Box mb="2">
                   <Btn type="button" onClick={() => onNavigate('plans')}>
                     Open Specs
                   </Btn>
-                </div>
+                </Box>
               </>
             ) : (
-              <ul data-progress-by-epic className="my-1 flex list-none flex-col gap-1 p-0 text-sm">
+              <Box data-progress-by-epic as="ul" my="1" flex listNone flexCol gap="1" p="0" size="sm">
                 {summary.progress.map((entry) => {
                   const percent = entry.total ? Math.round((entry.done / entry.total) * 100) : 0
                   const title = entry.title
@@ -766,27 +765,27 @@ export default function DashboardView(props: {
                     <li key={entry.epic ?? '(none)'}>
                       <Tooltip text={`Show only ${title} in its spec graph${entry.running > 0 ? `. ${entry.running} Avoozl chats running now.` : ''}`} display="block">
                         <button type="button" className="w-full rounded px-1 py-1 text-left hover:bg-accent/10" onClick={() => props.onDrill?.({ kind: 'epic', id: entry.epic, title })}>
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="truncate">{title}</span>
-                            <span className="flex shrink-0 items-center gap-2 text-xs text-muted">
+                          <Box as="span" flex items="center" justify="between" gap="2">
+                            <Box as="span" truncate>{title}</Box>
+                            <Box as="span" flex shrink0 items="center" gap="2" size="xs" tone="muted">
                               {entry.running > 0 && (
-                                <span className="inline-flex items-center gap-1" style={{ color: 'var(--tile-purple, var(--aim))' }} aria-label={`${entry.running} Avoozl chats running`}>
+                                <Box as="span" css-color="tile-purple-aim" inlineFlex items="center" gap="1" aria-label={`${entry.running} Avoozl chats running`}>
                                   <Activity size={12} aria-hidden="true" />
                                   {entry.running}
-                                </span>
+                                </Box>
                               )}
                               {entry.done} of {entry.total}
-                            </span>
-                          </span>
-                          <span role="progressbar" aria-label={`${title} progress`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} className="mt-1 block h-1.5 overflow-hidden rounded" style={{ background: 'var(--border)' }}>
+                            </Box>
+                          </Box>
+                          <Box role="progressbar" aria-label={`${title} progress`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} as="span" css-background="border" mt="1" block h15 overflow="hidden" rounded="base">
                             <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
-                          </span>
+                          </Box>
                         </button>
                       </Tooltip>
                     </li>
                   )
                 })}
-              </ul>
+              </Box>
             )}
           </HomeBox>
         </HomeSection>

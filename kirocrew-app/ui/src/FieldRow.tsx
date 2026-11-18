@@ -10,6 +10,7 @@ import { Tooltip } from './ui/Tooltip.tsx'
 import type { FieldRule } from './settings-api.ts'
 import { Hint } from './ui/Hint'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 export const FIELD_WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 export type FieldWidth = keyof typeof FIELD_WIDTH
@@ -35,7 +36,7 @@ export function RawKey({ name }: { name: string }) {
   const parts = name.split('.')
   return (
     <Tooltip text=".avoozl.json key">
-      <code className="text-[11px] text-muted" data-raw-key style={{ overflowWrap: 'break-word', opacity: 0.8 }}>
+      <Box as="code" css-overflow-wrap="break-word" css-opacity="0.8" size="11" tone="muted" data-raw-key>
         {parts.map((part, at) => (
           <span key={at}>
             {at > 0 && (
@@ -46,7 +47,7 @@ export function RawKey({ name }: { name: string }) {
             {part}
           </span>
         ))}
-      </code>
+      </Box>
     </Tooltip>
   )
 }
@@ -89,20 +90,20 @@ export function FieldRow(props: {
   const note = props.note ?? props.rule?.blank
   const control = <div style={{ display: 'flex', minWidth: 0, maxWidth: props.width ? (FIELD_WIDTH[props.width as FieldWidth] ?? props.width) : undefined, flexDirection: 'column' }}>{props.children}</div>
   const label = (
-    <label htmlFor={props.id} className="flex flex-wrap items-baseline" style={{ columnGap: 8, rowGap: 2, alignContent: 'flex-start', alignSelf: 'start' }} data-field-label>
-      <span className="font-medium">{props.label}</span>
+    <Box htmlFor={props.id} as="label" css-column-gap="8" css-row-gap="2" css-align-content="flex-start" css-align-self="start" flex flexWrap items="baseline" data-field-label>
+      <Box as="span" weight="medium">{props.label}</Box>
       <Marker rule={props.rule} />
-    </label>
+    </Box>
   )
   const lines = (
-    <span className="flex flex-col" style={{ gap: 2 }}>
+    <Box as="span" css-gap="2" flex flexCol>
       {props.help && <FieldHelp id={`${props.id}-help`}>{props.help}</FieldHelp>}
       {note && (
         <FieldHelp id={`${props.id}-default`} kind="default">
           {note}
         </FieldHelp>
       )}
-    </span>
+    </Box>
   )
   return (
     <div
@@ -129,11 +130,11 @@ export function FieldRow(props: {
 export function CheckRow(props: { id?: string; label: ReactNode; checked: boolean; onChange: (checked: boolean) => void; raw?: string; help?: ReactNode; disabled?: boolean }) {
   return (
     <Switch id={props.id} label={typeof props.label === 'string' ? props.label : 'Option'} align="start" size="sm" checked={props.checked} disabled={props.disabled} onChange={props.onChange} data-check-row={props.raw ?? ''}>
-      <span className="flex min-w-0 flex-col" style={{ gap: 2 }}>
+      <Box as="span" css-gap="2" flex minW0 flexCol>
         <span>{props.label}</span>
         {props.help && <FieldHelp>{props.help}</FieldHelp>}
         {props.raw && <RawKey name={props.raw} />}
-      </span>
+      </Box>
     </Switch>
   )
 }

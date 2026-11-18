@@ -13,6 +13,7 @@ import { useRead } from './useRead.ts'
 import { DRAFT_STATE_TEXT, releaseClient, type DraftState } from './release-api.ts'
 import { linkHref } from './views-api.ts'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 const VARIANT: Partial<Record<DraftState, BadgeVariant>> = { waiting: 'warning', stale: 'danger', submitted: 'success', chat: 'info', queued: 'info' }
 
@@ -43,7 +44,7 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
         <SectionHeading title="Review drafts" className="mb-0" />
         <Hint as="p" size="xs">Draft reviews Avoozl made when someone added the review label. Each one waits on GitHub, seen only by that person, until they submit it.</Hint>
         {(value?.searches ?? []).map((search) => (
-          <div key={search.label} data-draft-search className="flex flex-wrap items-center gap-2 text-sm" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+          <Box key={search.label} data-draft-search css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" flex flexWrap items="center" gap="2" size="sm">
             <span>On GitHub:</span>
             <a href={linkHref(search.url)} target="_blank" rel="noreferrer">
               <code>{search.query}</code>
@@ -51,28 +52,28 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
             <Btn type="button" onClick={() => void copy(search.query)}>
               {copied === search.query ? 'Copied' : 'Copy'}
             </Btn>
-          </div>
+          </Box>
         ))}
-        <div className="flex flex-wrap gap-3" style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        <Box css-display="flex" css-flex-wrap="wrap" css-gap="12" flex flexWrap gap="3">
           <FilterSelect id="review-drafts-repository" label="Repository" value={repository} options={repositories.map((name) => ({ value: name, label: name }))} onChange={setRepository} />
           <FilterSelect id="review-drafts-state" label="State" value={state} options={states.map((name) => ({ value: name, label: DRAFT_STATE_TEXT[name] }))} onChange={setState} />
-        </div>
+        </Box>
         {shown.map((item) => (
-          <div key={item.id} data-review-draft={item.state} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 12px' }}>
+          <Box key={item.id} data-review-draft={item.state} css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-gap="4px-12px" flex flexWrap items="baseline" gapX="3" gapY="1" size="sm">
             <a href={linkHref(item.url)} target="_blank" rel="noreferrer" className="font-medium" style={{ overflowWrap: 'anywhere' }}>
               {item.repository} #{item.number}
             </a>
             <Badge variant={VARIANT[item.state] ?? 'info'}>{DRAFT_STATE_TEXT[item.state]}</Badge>
-            <span className="text-muted" style={{ overflowWrap: 'anywhere' }}>
+            <Box as="span" css-overflow-wrap="anywhere" tone="muted">
               {item.title} · for {item.reviewer}
               {item.state === 'stale' && item.headSha && item.staleHead ? ` · reviews ${item.headSha.slice(0, 7)}, now at ${item.staleHead.slice(0, 7)}` : ''}
-            </span>
+            </Box>
             {item.chat && (
               <a href={linkHref(item.chat)} className="text-xs">
                 Open chat
               </a>
             )}
-          </div>
+          </Box>
         ))}
         {!shown.length && <Hint as="p" size="sm">No draft matches these filters.</Hint>}
       </Card>

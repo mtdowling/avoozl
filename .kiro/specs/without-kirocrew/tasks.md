@@ -94,7 +94,7 @@ of the other specs.
 
 ## Phase 3: Roles with rules about who wrote what
 
-- [ ] nk-3.1 Plan review as a child, after nk-1.2 [NK3.3, NK5.1, NK5.2] (§D3, §D5)
+- [x] nk-3.1 Plan review as a child, after nk-1.2 [NK3.3, NK5.1, NK5.2] (§D3, §D5)
   - Facts:
     - summary: Phase 3 (Roles with rules about who wrote what). Plan review as a child. See NK3.3, NK5.1, NK5.2; §D3, §D5.
     - done:
@@ -102,7 +102,7 @@ of the other specs.
     - after: nk-1.2
   - Its row: the plan snapshot, read class, findings and summary in an output file; the definition's `servedModel` field; a round counts only with a served model that differs from the author's.
   - Done when: Tests: a child's review with a served model records the round as a chat's does; with no `servedModel` in the definition, or none in the output, the round is skipped with today's reason; a review by the model that wrote the plan is refused; findings over the tool's limit are refused.
-- [ ] nk-3.2 The plan answer as a child, after nk-1.2 [NK5.1, NK5.3] (§D5)
+- [x] nk-3.2 The plan answer as a child, after nk-1.2 [NK5.1, NK5.3] (§D5)
   - Facts:
     - summary: Phase 3 (Roles with rules about who wrote what). The plan answer as a child. See NK5.1, NK5.3; §D5.
     - done:
@@ -166,7 +166,7 @@ of the other specs.
       - Tests: a headless tick with a fake sink sends a queued decision once; with no sink, `status` shows the count and the oldest age; forty waiting items and a new sink give one notification; a sink that throws does not stop the tick or a second sink, and is tried again later; the Kiro Crew push is unchanged.
   - The headless tick calls `notifications.deliver`; a per-sink record of what was sent; `avoozl status` shows what waits; a backlog becomes one notification; a failing sink backs off; `src/web-notifications.mjs` and its test go.
   - Done when: Tests: a headless tick with a fake sink sends a queued decision once; with no sink, `status` shows the count and the oldest age; forty waiting items and a new sink give one notification; a sink that throws does not stop the tick or a second sink, and is tried again later; the Kiro Crew push is unchanged.
-- [ ] nk-6.2 Command and webhook sinks, after nk-6.1 [NK7.2, NK7.3, NK7.4, NK7.5] (§D6)
+- [x] nk-6.2 Command and webhook sinks, after nk-6.1 [NK7.2, NK7.3, NK7.4, NK7.5] (§D6)
   - Facts:
     - summary: Phase 6 (Notifications). Command and webhook sinks. See NK7.2, NK7.3, NK7.4, NK7.5; §D6.
     - done:
