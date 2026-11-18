@@ -280,6 +280,42 @@ test("link sets add no GitHub call: the count is the same with them on", async (
   assert.equal(calls.length, off);
 });
 
+test("delivery.view carries each task's link set for In flight chips, with no GitHub call", async (t) => {
+  const { root, store } = seed(t),
+    calls = [],
+    github = new Proxy(
+      {},
+      {
+        get: (_, method) =>
+          method === "then"
+            ? undefined
+            : (...args) => {
+                calls.push(String(method));
+                return method === "available" ? true : null;
+              },
+      },
+    ),
+    ops = new Operations(store, { workspaceRoot: root, github });
+  const { items } = await ops.execute("delivery.view", {}),
+    byId = new Map(items.map((item) => [item.id, item])),
+    { tasks } = linkSets(store);
+  assert.equal(calls.length, 0);
+  for (const id of ["open", "landed"]) {
+    const { links } = byId.get(id);
+    // `now` differs between the two reads; ages are not compared.
+    assert.deepEqual(
+      { ...links, checks: links.checks && { ...links.checks, ageMs: 0 } },
+      {
+        ...tasks[id],
+        checks: tasks[id].checks && { ...tasks[id].checks, ageMs: 0 },
+      },
+    );
+  }
+  assert.equal(byId.get("open").links.pr.number, 11);
+  assert.equal(byId.get("open").links.checks.dot, "pass");
+  assert.equal(byId.get("open").links.branch.ref, "avoozl/open");
+});
+
 test("task.detail carries the task's link set for the Links box", async (t) => {
   const { root, store } = seed(t),
     ops = new Operations(store, { workspaceRoot: root });
