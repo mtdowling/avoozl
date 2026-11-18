@@ -314,6 +314,7 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       id="avoozl-plugin"
       width="40rem"
       backLabel="Cancel"
+      dismissLabel="Cancel"
       describedBy="avoozl-plugin-line"
       boxRef={box}
       attrs={{ 'data-plugin-dialog': step }}

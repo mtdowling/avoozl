@@ -319,11 +319,12 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
       onDismiss={props.onClose}
       unsaved={dirty ? { title: 'Discard this source?', body: 'What you typed is lost.', action: 'Discard' } : null}
       backLabel="Close Add an intake source"
+      dismissLabel="Cancel"
       attrs={{ 'data-intake-source-add': true }}
       footer={
         <>
           {problem && (
-            <p role="alert" className="m-0 mr-auto text-xs text-danger">
+            <p role="alert" className="m-0 mr-auto text-xs text-danger" style={{ order: -1 }}>
               {problem.text}
             </p>
           )}

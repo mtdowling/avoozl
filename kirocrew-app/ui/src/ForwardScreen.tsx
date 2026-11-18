@@ -43,6 +43,7 @@ export function ForwardScreen(props: { workspaceId: string; forwardId: string; t
   return (
     <Modal
       id="forward-screen"
+      dismissLabel="Cancel"
       title={props.title}
       width="60rem"
       onDismiss={() => props.onClose(false)}

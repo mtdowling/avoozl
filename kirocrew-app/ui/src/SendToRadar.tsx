@@ -93,6 +93,7 @@ export function SendToRadar(props: {
       id="avoozl-radar"
       width="36rem"
       backLabel="Cancel"
+      dismissLabel="Cancel"
       describedBy="avoozl-radar-line"
       boxRef={box}
       attrs={{ 'data-radar-dialog': step }}
@@ -111,12 +112,12 @@ export function SendToRadar(props: {
             </Btn>
           )}
           {step === 0 && (
-            <Btn type="button" data-radar-review onClick={() => void review()} disabled={busy || !canReview}>
+            <Btn type="button" primary data-radar-review onClick={() => void review()} disabled={busy || !canReview}>
               {busy ? 'Checking…' : 'Review'}
             </Btn>
           )}
           {step === 1 && (
-            <Btn type="button" data-radar-send onClick={() => void send()} disabled={busy}>
+            <Btn type="button" primary data-radar-send onClick={() => void send()} disabled={busy}>
               {busy ? 'Sending…' : preview?.label ? 'Add label' : 'Send'}
             </Btn>
           )}

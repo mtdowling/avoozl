@@ -232,6 +232,7 @@ const EXECUTE = new Set([
   "flow.instructions.update",
   "flow.retro.decide",
   "flow.retro.start",
+  "flow.retro.again",
   "prompt.override.revert",
   "prompt.override.rebase",
   "runner.claim",

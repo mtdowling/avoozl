@@ -130,6 +130,7 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
       id="avoozl-pack"
       width="48rem"
       backLabel="Cancel"
+      dismissLabel="Cancel"
       boxRef={box}
       attrs={{ 'data-pack-dialog': true }}
       title={`Import ${row.id} version ${row.version}`}

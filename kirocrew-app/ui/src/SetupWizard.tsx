@@ -107,6 +107,7 @@ export function SetupDialog(props: {
       id="avoozl-setup"
       width="40rem"
       backLabel="Cancel"
+      dismissLabel="Cancel"
       describedBy="avoozl-setup-line"
       boxRef={box}
       attrs={{ 'data-setup-dialog': step }}

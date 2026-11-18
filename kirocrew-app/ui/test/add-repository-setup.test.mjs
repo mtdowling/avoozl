@@ -66,7 +66,7 @@ test('the page has one add entry and no Onboard box', { skip }, async () => {
   assert.deepEqual(page.errors, [])
 })
 
-test('View and Edit each have exactly one Close', { skip }, async () => {
+test('View has exactly one Close and Edit exactly one Cancel', { skip }, async () => {
   await open()
   await page.evaluate(press('[data-repository-list] button', 'View '))
   await page.until(`Boolean(document.querySelector('[data-repository-view]'))`)
@@ -76,7 +76,7 @@ test('View and Edit each have exactly one Close', { skip }, async () => {
   await page.until(`!document.querySelector('[data-repository-view]')`)
   await page.evaluate(press('[data-repository-list] button', 'Edit '))
   await page.until(`Boolean(document.querySelector('[data-repository-edit]'))`)
-  assert.deepEqual(await page.evaluate(footerButtons), ['Save', 'Close'])
+  assert.deepEqual(await page.evaluate(footerButtons), ['Cancel', 'Save'])
   assert.deepEqual(page.errors, [])
 })
 

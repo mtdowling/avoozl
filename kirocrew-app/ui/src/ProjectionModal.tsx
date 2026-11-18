@@ -61,6 +61,7 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
       width="52rem"
       title={`Project “${props.title}” to GitHub`}
       backLabel="Cancel"
+      dismissLabel="Cancel"
       attrs={{ 'data-projection-dialog': confirm ?? 'preview' }}
       onDismiss={() => props.onClose('Cancelled. Nothing was written.')}
       footer={
@@ -69,13 +70,13 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
             <Btn onClick={() => setConfirm(null)} disabled={busy}>
               Back
             </Btn>
-            <Btn onClick={() => void create(confirm === 'release')} disabled={busy}>
+            <Btn primary onClick={() => void create(confirm === 'release')} disabled={busy}>
               {confirm === 'release' ? 'Create and release' : 'Create issues (held)'}
             </Btn>
           </>
         ) : (
           <>
-            <Btn onClick={() => setConfirm('held')} disabled={busy || !preview || writes === 0 || Boolean(blocked)}>
+            <Btn primary onClick={() => setConfirm('held')} disabled={busy || !preview || writes === 0 || Boolean(blocked)}>
               Create issues (held)…
             </Btn>
             <Btn

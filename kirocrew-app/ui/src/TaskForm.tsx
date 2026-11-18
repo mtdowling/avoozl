@@ -151,7 +151,8 @@ export default function TaskForm(props: {
   detail: TaskDetail | null
   prerequisite?: string
   onSaved: (id: string) => void
-  onCancel: () => void
+  // Without it there is no Cancel button (a modal's footer has one).
+  onCancel?: () => void
 }) {
   const { workspaceId, graph, detail } = props
   const api = useAppApi()
@@ -265,9 +266,11 @@ export default function TaskForm(props: {
         <Btn type="submit" primary disabled={busy || !valid}>
           {locked ? 'Draft the spec change' : detail ? 'Save changes' : 'Add draft task'}
         </Btn>
-        <Btn type="button" onClick={props.onCancel} disabled={busy}>
-          Cancel
-        </Btn>
+        {props.onCancel && (
+          <Btn type="button" onClick={props.onCancel} disabled={busy}>
+            Cancel
+          </Btn>
+        )}
       </div>
     </form>
   )
