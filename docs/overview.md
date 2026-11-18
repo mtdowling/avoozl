@@ -50,7 +50,7 @@ Radar.
 | Accepted (a skipped issue may be planned)          | `acceptedLabel`         | unset                         | An allowed person |
 | Task states: ready, blocked, review, quarantined   | `githubLabelBehaviors`  | `avoozl:ready`, `avoozl:blocked`, `avoozl:review`, `avoozl:quarantined` | Avoozl |
 | Radar's claim                                      | `crewLabels.claim`      | `crew: in progress`           | Radar            |
-| Radar's needs-human                                | `crewLabels.needsHuman` | `crew: needs human`           | Radar            |
+| Radar's escalation (its needs-human label)         | `crewLabels.needsHuman` | `crew: needs human`; recommended `crew: needs avoozl` | Radar |
 
 Two labels that are equal are refused.
 

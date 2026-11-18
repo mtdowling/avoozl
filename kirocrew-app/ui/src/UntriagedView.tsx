@@ -642,7 +642,7 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
         <div className="flex flex-col gap-2" data-radar-view>
           <p className="text-xs text-muted">
             Issues a crew holds, or that you sent to one. Crews act with your GitHub login, so Avoozl tells their work apart by label: a close on an issue a crew claimed counts only once its pull request merges, a crew’s
-            labels never start Avoozl rules, and a crew’s “needs human” label shows under Needs you.
+            labels never start Avoozl rules, and a crew’s escalation label shows under Needs you.
           </p>
           {radarItems.length === 0 ? (
             <EmptyState icon={<Radar size={36} aria-hidden="true" />} title="Nothing with Issue Radar" subtitle="Select issues under Triage and press Send to Issue Radar." />

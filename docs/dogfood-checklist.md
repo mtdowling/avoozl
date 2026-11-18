@@ -89,14 +89,16 @@ none of them. These are the values it shows for the mirror:
 | Crew name                | `avoozl-avoozl-mirror` (any name works)                                                                        |
 | Model                    | `auto` (pick the one you use)                                                                                  |
 | Label scope              | `avoozl:ready`                                                                                                 |
-| Needs-human label        | `crew: needs human`                                                                                            |
+| Needs-human label        | `crew: needs avoozl`                                                                                           |
 | Claim time limit (hours) | `48`                                                                                                           |
 
 Tick each item as you finish it. The crew's label scope must match the ready
 label.
 
-**Changed:** create the `crew: needs human` label in the mirror first. A crew
-does not create it; it comments instead (Proof 3).
+**Changed:** create the `crew: needs avoozl` label in the mirror first. A crew
+does not create it; it comments instead (Proof 3). Enter the same name in
+**Settings > Issue Radar > Escalation label**, so Avoozl reads the label the
+crew writes.
 
 Expected: one crew, on the mirror only. Do not connect a crew to
 `mtdowling/avoozl`.
