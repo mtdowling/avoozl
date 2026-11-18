@@ -20,6 +20,12 @@ import { approvedSpecDependency } from "../spec-dependencies.mjs";
 import { approvalBatches, approveMany } from "./approval-batches.mjs";
 import { planReviewSummary } from "./plan-review-summary.mjs";
 import {
+  requestTaskSummary,
+  submitTaskSummary,
+  summaryFacts,
+  taskSummaryView,
+} from "./task-summary.mjs";
+import {
   specDeclarations,
   declaredDependencies,
 } from "./cross-spec-dependencies.mjs";
@@ -4631,11 +4637,31 @@ export class Operations {
       const data = this.read(),
         detail = this.detail(input.id),
         plan = detail.planId ? store.get("plans", detail.planId) : null;
-      return taskDetailView(store, data, detail, {
+      const view = taskDetailView(store, data, detail, {
         plan: plan && !plan.deletedAt ? plan : null,
         approved: Boolean(plan && this.planApproved(plan)),
       });
+      return {
+        ...view,
+        summary: taskSummaryView(store, view.task.id, summaryFacts(view)),
+      };
     }
+    // The page asks for the AI summary of the inputs it shows; the same
+    // inputs never write a second one (task-summary.mjs).
+    if (name === "task.summary.request") {
+      const data = this.read(),
+        detail = this.detail(input.id),
+        plan = detail.planId ? store.get("plans", detail.planId) : null,
+        view = taskDetailView(store, data, detail, {
+          plan: plan && !plan.deletedAt ? plan : null,
+          approved: Boolean(plan && this.planApproved(plan)),
+        });
+      return requestTaskSummary(store, view.task.id, summaryFacts(view), {
+        retry: input.retry === true,
+      });
+    }
+    if (name === "tasksummary.submit")
+      return submitTaskSummary(store, input, context.caller);
     if (name === "plan.spec.read") return this.readSpecDocuments(input);
     if (name === "task.files") return taskFiles(store, this.read(), input);
     if (name === "task.diff") return taskDiff(store, this.read(), input);
