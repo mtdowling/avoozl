@@ -16,7 +16,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 export type FilterField = (
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
@@ -69,10 +69,9 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
     return <Picker id={fieldId} label={field.label} items={field.items} value={field.value} onPick={field.onChange} emptyLabel="All" maxWidth="16rem" />
   if (field.kind === 'check')
     return (
-      <label className="flex items-center gap-1.5 pb-1 text-sm">
-        <Checkbox checked={field.checked} onChange={(event) => field.onChange(event.target.checked)} />
+      <Switch label={field.label} size="sm" gap={1.5} checked={field.checked} onChange={field.onChange}>
         {field.label}
-      </label>
+      </Switch>
     )
   return (
     <fieldset className="flex flex-col gap-1 text-sm">

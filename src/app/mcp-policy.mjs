@@ -161,6 +161,10 @@ export const PERSON_ONLY = new Map([
   ["flow.settings.update", person("Only a person changes flow settings.")],
   ["models.settings.update", person("Only a person changes chat models.")],
   [
+    "needskirocrew.runon",
+    person("Only a person chooses the harness a waiting role runs on."),
+  ],
+  [
     "activity.settings.update",
     person("Only a person changes how long activity is kept."),
   ],

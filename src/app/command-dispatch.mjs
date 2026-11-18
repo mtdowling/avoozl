@@ -13,6 +13,7 @@ import { CLIENT_OPERATIONS } from "./client.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { workspaceConfig } from "./config.mjs";
 import { machineAvoozlPaths, WorkspaceRegistry } from "./host-config.mjs";
+import { ensureApiKey, regenerateApiKey } from "./serve-auth.mjs";
 import { initializeWorkspace } from "./workspace.mjs";
 import { expandHome, listFolders } from "./folder-browse.mjs";
 import {
@@ -23,6 +24,7 @@ import {
 } from "./demo.mjs";
 
 export const NEEDS_KIROCREW = "Needs Kiro Crew";
+import { requiredReader } from "./needs-kirocrew.mjs";
 
 // The page also runs the tick, reads its health, reads the Graph,
 // Delivery and Conflicts views, edits the GitHub settings, and runs Set up GitHub. The cron and agents reach `workspace.tick`
@@ -218,6 +220,10 @@ const MACHINE_OPERATIONS = new Map([
   ["demo.status", "observe"],
   // What the Radar screens read in the open sample (demo-radar.mjs).
   ["demo.fixtures", "observe"],
+  // The API key for scripts (SW4.11): read or replaced by a person only; an
+  // app token or agent tool is refused (principalAllows).
+  ["serve.key.view", "person"],
+  ["serve.key.regenerate", "write"],
 ]);
 
 // Action-level authorization. The dashboard owner may call any app operation.
@@ -305,20 +311,19 @@ function machineOperation(registry, config, operation, input, home) {
   }
 }
 
-// Operations that cannot run without one Kiro Crew reader, by the context
-// key that holds it. `untriaged.crews` and `radar.crews` already answer an
-// absent reader with an unavailable view (radar-handoff.mjs).
-const NEEDS_READER = new Map([
-  ["untriaged.handoff", ["crewReader", "Send to Issue Radar"]],
-  ["flow.stop", ["sessionStopper", "Stop all agents for Kiro Crew chats"]],
-]);
-
+// Operations that cannot run without one Kiro Crew reader, from the one
+// table of what needs Kiro Crew (needs-kirocrew.mjs). `untriaged.crews` and
+// `radar.crews` answer an absent reader with an unavailable view instead.
 function missingReader(context, operation, input) {
-  const [key, what] = NEEDS_READER.get(operation) || [];
+  const needed = requiredReader(operation);
   // Only a full stop reaches Kiro Crew chats; a plain stop is Avoozl's own.
-  if (!key || context[key] || (operation === "flow.stop" && !input.full))
+  if (
+    !needed ||
+    context[needed.reader] ||
+    (operation === "flow.stop" && !input.full)
+  )
     return null;
-  return `${NEEDS_KIROCREW}: ${what} works only inside Kiro Crew.`;
+  return `${NEEDS_KIROCREW}: ${needed.what} works only inside Kiro Crew.`;
 }
 
 // Everything a dispatch needs, built once per server. `readers` holds the
@@ -331,6 +336,7 @@ export function commandContext({
   registryOptions = {},
   demoRoot = defaultDemoRoot(),
   home,
+  configDirectory = machineAvoozlPaths().configDirectory,
   follow = () => {},
 }) {
   // The open sample, or null. Only demo.start opens it; its requests name
@@ -417,6 +423,7 @@ export function commandContext({
     host,
     config,
     home,
+    configDirectory,
     readers,
     crewReader: readers.crewReader,
     sessionStopper: readers.sessionStopper,
@@ -477,6 +484,16 @@ export async function dispatchCommand({ claim, request, context }) {
           result: await demo.execute(operation, input, expectedRevision),
         },
       };
+    }
+    if (
+      operation === "serve.key.view" ||
+      operation === "serve.key.regenerate"
+    ) {
+      const key =
+        operation === "serve.key.view"
+          ? ensureApiKey(context.configDirectory)
+          : regenerateApiKey(context.configDirectory);
+      return { status: 200, body: { result: { key } } };
     }
     if (MACHINE_OPERATIONS.has(operation)) {
       const result = machineOperation(

@@ -10,6 +10,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { workspaceConfig } from "../config.mjs";
 import { deliveryPolicy, planReadyDispatches } from "../delivery.mjs";
+import { drainCheckRuns } from "../check-runs.mjs";
 import { drainProcessRequests } from "../executors/process.mjs";
 import {
   approveHarnessDefinition,
@@ -50,7 +51,9 @@ fs.mkdirSync(".avoozl", { recursive: true });
 fs.appendFileSync(".avoozl/agent.log", process.argv[2] + " " + process.argv[3] + "|" + text.split("\\n")[0] + "\\n");
 fs.mkdirSync(".avoozl", { recursive: true });
 const write = (value) => fs.writeFileSync(".avoozl/result.json", JSON.stringify(value));
-if (process.argv[2] === "start" && /"state": "findings"/.test(text))
+if (/^Avoozl falsifier/m.test(text) || /You are an Avoozl Falsifier/.test(text))
+  write({ state: "done", report: { ...${JSON.stringify(STANDS)}, ...(fs.existsSync(".avoozl/with-commit") ? { commit: "a".repeat(40) } : {}) } });
+else if (process.argv[2] === "start" && /"state": "findings"/.test(text))
   write({ state: "findings", report: ${JSON.stringify(FINDINGS)} });
 else if (/^Go ahead/.test(text)) {
   fs.writeFileSync("a.txt", "a\\n");
@@ -347,5 +350,95 @@ test("a definition with no resume codes the task without the step and says why",
   assert.match(
     fs.readFileSync(path.join(evidence, "bundle.json"), "utf8"),
     /Investigate first was skipped/,
+  );
+});
+
+// nk-2.1 (NK2.1, NK2.5): the falsifier as a child. It reads a detached copy
+// of the task's code, writes only its result, and its verdict opens the gate
+// as a chat's does, with no commit.
+async function falsifierChild(t, { withCommit = false } = {}) {
+  const w = await workspace(t, { process: true });
+  enqueueSessionRequests(w.store, { starts: [await w.dispatch()] });
+  const worker = () =>
+    w.store.list("session_bindings").find((b) => b.role === "worker");
+  await w.settle(() => worker()?.report?.kind === "findings");
+  const request = await w.dispatch("falsifier");
+  assert.equal(request.executor, "process");
+  assert.equal(request.permissionClass, "read");
+  // The copy Avoozl adds is at the task worktree's HEAD; the fake CLI's
+  // script goes in its .avoozl folder, as for the worker.
+  const tree = w.store.get("task_worktrees", "a").path,
+    head = git(tree, "rev-parse", "HEAD"),
+    checkout = w.store.get("projects", "app").root;
+  git(checkout, "worktree", "add", "-q", "--detach", request.worktree, head);
+  fs.mkdirSync(path.join(request.worktree, ".avoozl"), { recursive: true });
+  fs.writeFileSync(
+    path.join(request.worktree, ".avoozl", "agent.mjs"),
+    agent(),
+  );
+  if (withCommit)
+    fs.writeFileSync(path.join(request.worktree, ".avoozl", "with-commit"), "");
+  enqueueSessionRequests(w.store, { starts: [request] });
+  const falsifier = () =>
+    w.store.list("session_bindings").find((b) => b.role === "falsifier");
+  await w.settle(() => falsifier()?.status === "closed");
+  return { w, worker, falsifier, request, head };
+}
+
+test("a process falsifier's verdict opens the gate as a chat's does, with no commit", async (t) => {
+  const { w, falsifier, request, head } = await falsifierChild(t);
+  assert.equal(falsifier().commit, head);
+  assert.equal(falsifier().report.kind, "done");
+  assert.equal(falsifier().report.commit, undefined);
+  const round = w.store.get("task_investigations", "a").rounds.at(-1);
+  assert.deepEqual(round.reply, STANDS);
+  // It wrote no file but its result, and its copy is gone.
+  assert.equal(fs.existsSync(request.worktree), false);
+  assert.equal(
+    git(w.store.get("projects", "app").root, "status", "--porcelain"),
+    "",
+  );
+});
+
+test("a process falsifier's report with a commit field is refused", async (t) => {
+  const { w, falsifier } = await falsifierChild(t, { withCommit: true });
+  assert.equal(falsifier().report, undefined);
+  assert.equal(
+    w.store.get("task_investigations", "a").rounds.at(-1).reply,
+    undefined,
+  );
+});
+
+test("with every role on process, investigate first reaches Go ahead and lands", async (t) => {
+  const { w, worker } = await falsifierChild(t);
+  w.store.put("projects", {
+    ...w.store.get("projects", "app"),
+    checks: [["node", "--version"]],
+  });
+  const slot = worker().slot;
+  const { messages } = await w.tick();
+  const go = messages.filter((m) => m.slot === slot);
+  assert.equal(go.length, 1);
+  assert.match(go[0].text, /^Go ahead on Avoozl task a/);
+  enqueueSessionRequests(w.store, {
+    sends: [{ ...go[0], executor: "process" }],
+  });
+  await w.settle(() => worker()?.report?.kind === "done");
+  const tree = w.store.get("task_worktrees", "a").path;
+  assert.equal(worker().report.commit, git(tree, "rev-parse", "HEAD"));
+  // Avoozl runs the declared check itself and integrates the commit.
+  for (
+    let i = 0;
+    i < 4 && w.store.get("task_deliveries", "a")?.state !== "integrated";
+    i += 1
+  ) {
+    await w.tick();
+    await drainCheckRuns(w.store);
+  }
+  assert.equal(w.store.get("task_deliveries", "a").state, "integrated");
+  // Nothing in this run was asked of Kiro Crew.
+  assert.deepEqual(
+    w.store.list("session_bindings").map((b) => b.executor),
+    ["process", "process"],
   );
 });

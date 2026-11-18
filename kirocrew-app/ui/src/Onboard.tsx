@@ -16,7 +16,7 @@ import { RadioFold } from './ui/RadioFold.tsx'
 import { MODE_CARDS, groupWrites, writeBadge, type GitHubSettings, type SetupResult } from './settings-api.ts'
 import type { SpecList } from './plans-api.ts'
 import { errorMessage } from './workspace-api.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import {
   ONBOARD_STEPS,
   folderSpecs,
@@ -41,7 +41,7 @@ import {
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 const BADGE: Record<string, CSSProperties> = {
   create: { color: 'var(--ok)', borderColor: 'var(--ok)' },
@@ -498,13 +498,13 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
           <ul className="flex flex-col gap-1.5">
             {shown.map((spec) => (
               <li key={spec.name} className="flex flex-wrap items-center gap-2" data-onboard-spec={spec.name}>
-                <Checkbox
-                  aria-label={`Import ${spec.name}`}
+                <Switch
+                  label={`Import ${spec.name}`}
                   disabled={imported(spec)}
                   checked={imported(spec) || picked.has(spec.name)}
-                  onChange={(e) => {
+                  onChange={(on) => {
                     const nextPicked = new Set(picked)
-                    if (e.target.checked) nextPicked.add(spec.name)
+                    if (on) nextPicked.add(spec.name)
                     else nextPicked.delete(spec.name)
                     setPicked(nextPicked)
                   }}

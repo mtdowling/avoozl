@@ -92,12 +92,13 @@ import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, 
 import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
+import { ApiKeySettings } from './ApiKeySettings.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { SelectField } from './ui/SelectField'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 // Fields share a row and wrap; each keeps a readable width.
 const grid = (min = 220): CSSProperties => ({
@@ -450,11 +451,10 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
           <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Triage labels">
             {rows.map((row) => (
               <li key={row.name}>
-                <label className="flex items-center gap-1.5">
-                  <Checkbox checked={row.checked} onChange={(event) => toggle(row.name, event.target.checked)} />
+                <Switch label={row.name} gap={1.5} checked={row.checked} onChange={(on) => toggle(row.name, on)}>
                   <code>{row.name}</code>
                   {row.missing && <span className="text-xs text-muted">(not on GitHub)</span>}
-                </label>
+                </Switch>
               </li>
             ))}
           </ul>
@@ -624,15 +624,16 @@ function ChecksEditor(props: {
         <Stack as="ul" gap={2} aria-label="Checks">
           {rows.map((row) => (
             <li key={row.name} className="flex flex-col text-sm" data-check-row={row.name}>
-              <label className="flex items-center gap-1.5">
-                <Checkbox
-                  checked={row.checked}
-                  disabled={row.branchRule}
-                  aria-describedby={`${props.id}-check-${row.name}`}
-                  onChange={(event) => props.onChange(toggleCheck(props.value, row.name, event.target.checked))}
-                />
+              <Switch
+                label={row.name}
+                gap={1.5}
+                checked={row.checked}
+                disabled={row.branchRule}
+                describedBy={`${props.id}-check-${row.name}`}
+                onChange={(on) => props.onChange(toggleCheck(props.value, row.name, on))}
+              >
                 <code>{row.name}</code>
-              </label>
+              </Switch>
               <span id={`${props.id}-check-${row.name}`} className="pl-5 text-xs text-muted">
                 {row.where}
               </span>
@@ -1625,6 +1626,7 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
       <div className="flex flex-col gap-3.5">
         <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
         <ThisComputer workspaceId={workspaceId} />
+        <ApiKeySettings workspaceId={workspaceId} />
       </div>
     )
   if (!workspaceId)
