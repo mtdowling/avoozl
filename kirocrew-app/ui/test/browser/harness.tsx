@@ -44,7 +44,7 @@ import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import type { EditTab } from '../../src/repo-edit-tabs.ts'
-import { answerIntake } from './intake-fixture.ts'
+import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
@@ -1671,6 +1671,12 @@ if (page === 'forward') {
 }
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
+// &plugins=many|none: Settings > Plugins with eight plugins, or none.
+if (query.get('plugins')) {
+  const many = query.get('plugins') === 'many'
+  const rows = Array.from({ length: 8 }, (_, i) => ({ ...PLUGINS[i % 2], id: `${PLUGINS[i % 2].id}-${i + 1}` }))
+  answer('plugins.list', () => ({ supportedContracts: [1], routes: [], plugins: many ? rows : [] }))
+}
 
 // ?page=panel&sid=<chat>&state=full|empty: the side panel on sample reads.
 // window.__panel holds what the reads return, so a test can change it and see

@@ -1,8 +1,9 @@
-// The one tab bar for a page's groups (WAI-ARIA tabs): the bar takes the
-// full width and scrolls sideways on a narrow screen, arrow keys, Home and
+// The one tab bar for a page's groups (WAI-ARIA tabs), drawn like Kiro
+// Crew's own full-width bars (TABS_CSS): the bar spans its container, the
+// tabs share it, and it scrolls sideways on a narrow screen. Arrow keys, Home and
 // End move between tabs, and a tab with unsaved changes shows a dot. Pages
-// that want tabs use this, not their own bar: Settings › GitHub, and the
-// spec page and Review view through DocTabs (ReviewView.tsx).
+// that want tabs use this, not their own bar: Settings › GitHub, the task
+// view, and the spec page and Review view through DocTabs (ReviewView.tsx).
 //
 // useTabParam keeps the open tab in the page address (?<param>=<key>) on
 // Kiro Crew's /apps/<name> route, so the browser's Back and a pasted link
@@ -14,7 +15,24 @@ import { useNav } from './NavHistory.tsx'
 import { urlBase } from './focus-tree.ts'
 import { readTab, tabKey, tabLink } from './tabs.ts'
 
-const ACCENT = 'color-mix(in srgb, var(--aim) 72%, var(--text-strong, var(--text)))'
+// Kiro Crew's own full-width tab bar (its Task Runner modes): the tabs
+// share the row equally, the open one filled with the theme's accent, the
+// rest muted until hovered; no divider line under them. A tab never shrinks
+// below its label, so on a narrow screen the bar scrolls sideways instead.
+// Counts and the unsaved dot take the tab's own color on the filled tab; a
+// problem dot stays red, ringed there.
+export const TABS_CSS = `[data-tabs]{display:flex;flex:none;width:100%;min-width:0;box-sizing:border-box;gap:4px;overflow-x:auto;scrollbar-width:thin}
+[data-tabs]>[role=tab]{flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;box-sizing:border-box;padding:6px 12px;margin:0;border:0;border-radius:var(--radius-md,8px);background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:600;line-height:20px;white-space:nowrap;cursor:pointer;transition:background-color .15s,color .15s}
+[data-tabs]>[role=tab]:hover{background:var(--bg-elevated);color:var(--text)}
+[data-tabs]>[role=tab][aria-selected=true]{background:var(--accent);color:var(--accent-fg,#fff);box-shadow:var(--shadow-sm,0 1px 2px rgb(0 0 0 / .06))}
+[data-tabs]>[role=tab]:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+[data-tabs]>[role=tab][aria-selected=true]:focus-visible{outline-color:var(--accent-fg,#fff)}
+[data-tabs]>[role=tab][aria-selected=true] [data-tab-count]{background:color-mix(in srgb,currentColor 22%,transparent)!important;color:inherit!important;opacity:1!important}
+[data-tab-dot]{width:7px;height:7px;border-radius:999px;background:var(--accent);flex-shrink:0}
+[data-tabs]>[role=tab][aria-selected=true] [data-tab-dot]{background:currentColor}
+[data-tab-error]{width:7px;height:7px;border-radius:999px;background:var(--danger);flex-shrink:0}
+[data-tabs]>[role=tab][aria-selected=true] [data-tab-error]{box-shadow:0 0 0 1.5px var(--accent-fg,#fff)}
+@media (prefers-reduced-motion:reduce){[data-tabs]>[role=tab]{transition:none}}`
 
 export interface TabItem<T extends string = string> {
   key: T
@@ -59,8 +77,8 @@ export function Tabs<T extends string>(props: {
     props.onPick(next)
     refs.current.get(next)?.focus()
   }
-  // flex: none: in a column that scrolls (the Review side column) a bar
-  // that scrolls sideways would otherwise shrink to nothing.
+  // flex: none (TABS_CSS): in a column that scrolls (the Review side
+  // column) a bar that scrolls sideways would otherwise shrink to nothing.
   return (
     <div
       ref={bar}
@@ -69,8 +87,8 @@ export function Tabs<T extends string>(props: {
       data-tabs={props.id}
       {...(props.barAttr ? { [props.barAttr]: '' } : {})}
       onKeyDown={key}
-      style={{ display: 'flex', flex: 'none', width: '100%', gap: 2, borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'thin', minWidth: 0 }}
     >
+      <style>{TABS_CSS}</style>
       {props.tabs.map((tab) => {
         const on = tab.key === props.current
         return (
@@ -91,31 +109,10 @@ export function Tabs<T extends string>(props: {
             data-dirty={tab.dirty ? 'true' : undefined}
             data-error={tab.error ? 'true' : undefined}
             onClick={() => props.onPick(tab.key)}
-            style={{
-              flex: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 12px',
-              marginBottom: -1,
-              border: 0,
-              borderBottom: `2px solid ${on ? ACCENT : 'transparent'}`,
-              borderRadius: 0,
-              background: 'transparent',
-              color: on ? 'var(--text-strong, var(--text))' : 'var(--muted)',
-              fontSize: 13,
-              fontWeight: on ? 600 : 500,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
           >
             {tab.label}
-            {tab.error && (
-              <span data-tab-error aria-label="has a problem" role="img" style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--danger)', flexShrink: 0 }} />
-            )}
-            {tab.dirty && !tab.error && (
-              <span data-tab-dot aria-label="unsaved changes" role="img" style={{ width: 7, height: 7, borderRadius: 999, background: ACCENT, flexShrink: 0 }} />
-            )}
+            {tab.error && <span data-tab-error aria-label="has a problem" role="img" />}
+            {tab.dirty && !tab.error && <span data-tab-dot aria-label="unsaved changes" role="img" />}
             {tab.badge}
           </button>
         )

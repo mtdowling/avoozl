@@ -220,9 +220,9 @@ test('GitHub: every group is its own tab and bordered section, and Radar setting
 test('Plugins puts Add plugin on the left and the installed list on the right, stacked when narrow', () => {
   const plugins = source('PluginsSettings.tsx')
   const layout = plugins.slice(plugins.indexOf('data-plugins-layout'))
-  assert.ok(layout.indexOf('<AddPlugin') < layout.indexOf('aria-label="Installed plugins"'))
+  assert.ok(layout.indexOf('<AddPlugin') < layout.indexOf('title="Installed plugins"'))
   assert.match(plugins, /useMedia\('\(min-width: 1024px\)'\)/)
-  assert.match(plugins, /flexDirection: 'column'/)
+  assert.match(source('PairedCards.tsx'), /flexDirection: 'column'/)
 })
 
 const SETTINGS_TAB_KEYS = () => [...settings.slice(settings.indexOf('export const SETTINGS_TABS'), settings.indexOf('] as const')).matchAll(/key: '(\w+)'/g)].map((m) => m[1])
