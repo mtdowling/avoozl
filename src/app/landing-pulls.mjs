@@ -25,7 +25,7 @@
 import { branchReviewRule } from "./github-branch-rules.mjs";
 import { reviewVerdict } from "./github-reviews.mjs";
 import { headGuardedMerge } from "./driver-generations.mjs";
-import { journalChecks, landWithIntents } from "./landing-trains.mjs";
+import { journalChecks, landWithIntents } from "./merge-batch.mjs";
 import {
   landingRights,
   pushHead,

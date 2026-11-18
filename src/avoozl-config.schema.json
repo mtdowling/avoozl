@@ -2068,6 +2068,14 @@
               "enum": ["squash", "merge"],
               "default": "squash",
               "description": "How a pull request merges. Unset reads merge.method."
+            },
+            "mergeBatch": {
+              "description": "direct landing: how many verified tasks land in one merge batch. auto sizes the batch from how often changes fail; a number from 1 to 16 replaces the size, and 1 lands one task at a time.",
+              "default": "auto",
+              "oneOf": [
+                { "const": "auto" },
+                { "type": "integer", "minimum": 1, "maximum": 16 }
+              ]
             }
           }
         },

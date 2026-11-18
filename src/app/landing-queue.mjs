@@ -15,15 +15,16 @@
 //   is guarded too (`guardedFastForward`, driver-generations.mjs), so a move
 //   between the re-read and the push also refuses.
 //
-// - A train (41.3) takes the head and the portions right behind it that the
-//   same driver schedules, up to four tasks. A failed train is halved and the
-//   first half checked again, down to one portion; a passing first half
-//   lands and the rest stay queued, so the culprit is found one step later.
+// - A merge batch (merge-batches spec) takes the head and the members right
+//   behind it, up to the base's size limit, whatever their spec or driver.
+//   A failed batch is rerun once, then bisected to its culprit; the members
+//   before the culprit land and the members after it stay queued.
 //
-// The git and check steps are passed in, so direct trains (landing-trains.mjs)
-// and pull request landing reuse the same queue.
+// The git and check steps are passed in, so direct landing
+// (merge-batch.mjs) and pull request landing reuse the same queue.
 import { withWorkLock } from "./git.mjs";
 import { openStops } from "./flow.mjs";
+import { outputExcerpt } from "./verify.mjs";
 import { fail } from "./store.mjs";
 
 const SHA = /^[0-9a-f]{40}$/;
@@ -103,22 +104,24 @@ export function enqueueLanding(
 export const taskIds = (entry) =>
   entry.tasks.map((t) => (typeof t === "string" ? t : t.task));
 
-// The portions that land together from the head: the head, then each next
-// portion with the same driver while the train stays within `maxTasks`
-// tasks and none is paused. Without a driver the head lands alone.
-export function trainOf(store, queue, { maxTasks = 1 } = {}) {
+// The members that land together from the head: the head, then each next
+// member while the batch stays within `limit` members, none is paused, none
+// must land alone and `accept` agrees. The head lands alone when it must.
+export function batchOf(
+  store,
+  queue,
+  { limit = 1, isAlone = () => false, accept = () => true } = {},
+) {
   const [head] = queue,
     out = [];
   if (!head) return out;
-  let count = 0;
   for (const entry of queue) {
-    const size = Math.max(1, entry.tasks.length);
     if (out.length) {
-      if (!head.driver || entry.driver !== head.driver) break;
-      if (count + size > maxTasks || pausedBy(store, entry)) break;
+      if (isAlone(head) || isAlone(entry)) break;
+      if (out.length >= limit || pausedBy(store, entry) || !accept(entry))
+        break;
     }
     out.push(entry);
-    count += size;
   }
   return out;
 }
@@ -137,6 +140,20 @@ export function pausedBy(store, entry) {
     }) ?? null
   );
 }
+
+// The checks of a verdict that failed, and the log excerpt they carry,
+// capped at 8 KB (MB4.3). `tail` is the check's last output lines.
+const EXCERPT_BYTES = 8192;
+const failedOf = (checks = []) => checks.filter((c) => c.exitCode !== 0);
+const commandsOf = (checks) => failedOf(checks).map((c) => c.command);
+const bare = (checks = []) => checks.map(({ tail, ...rest }) => rest);
+const excerptOf = (checks) =>
+  outputExcerpt(
+    failedOf(checks)
+      .map((c) => c.tail)
+      .filter(Boolean)
+      .join("\n"),
+  ).slice(-EXCERPT_BYTES);
 
 function finish(store, entry, state, extra = {}) {
   return store.put(TABLE, {
@@ -199,8 +216,8 @@ export function withdrawLanding(store, { projectId, base, key }, reason) {
   return store.transaction(() => finish(store, entry, "withdrawn", { reason }));
 }
 
-// Takes the head of one base's queue, alone or as a train, one step toward
-// landing.
+// Takes the head of one base's queue, alone or as a merge batch, one step
+// toward landing.
 //
 // steps:
 //   observe(entry)  (optional)          -> {merged, candidate, ...record} when
@@ -208,24 +225,31 @@ export function withdrawLanding(store, { projectId, base, key }, reason) {
 //                                          head; checked before anything else
 //   readBase()                          -> the base's current commit
 //   prepare(entries, baseHead)          -> {candidate}, or {conflict: [files],
-//                                          key} naming the conflicted portion
-//   check(candidate, entries, baseHead) -> {ok, checks, record?}, or {wait,
-//                                          checks} while checks or reviews
-//                                          are pending; `record` is kept on
-//                                          the landed entries
+//                                          key} naming the conflicted member
+//   check(candidate, entries, baseHead, only) -> {ok, checks, record?}, or
+//                                          {wait, checks} while checks or
+//                                          reviews are pending; `record` is
+//                                          kept on the landed entries. `only`
+//                                          names the checks to run (a rerun
+//                                          or a bisect step), else all.
 //   land({entries, entry, candidate, baseHead}) -> true when the guarded
 //                                          move pushed
 //   afterLand({entries, candidate}) (optional) -> merges the landed base
 //                                          back into each working branch,
 //                                          outside the lock (task 41.5)
 //
-// options.maxTasks (default 1) bounds a train; direct landing passes 4.
+// options: `limit` (default 1) bounds a batch; `isAlone(entry)` marks a
+// member that must land alone; `accept(entry)` lets a member join a batch;
+// `bisect` turns on the rerun, the search for the culprit and the
+// confirmation alone (MB4) for batches of direct landing.
 //
 // Returns {state, entry, entries} with state one of: empty, paused,
-// running, conflict, failed, waiting, base-moved, busy, not-landed, landed. Only
-// conflict and failed take a portion out of the queue, and only the one
-// that conflicted or failed alone; landed takes out what landed. Every
-// other state keeps the order.
+// running, conflict, failed, retry, waiting, base-moved, busy, not-landed,
+// landed. `batch` is {held, waiting, landed, culprits} (member keys) for
+// the size record. `sentBack` lists members that left the queue as
+// {state: "conflict" | "failed", entry} while the rest went on. A member
+// that conflicted or failed alone leaves the queue; landed takes out what
+// landed. Every other state keeps the order.
 export async function landNext(
   store,
   { projectId, base },
@@ -257,34 +281,41 @@ export async function landNext(
     }
     const stop = pausedBy(store, queue[0]);
     if (stop) return { state: "paused", entry: queue[0], stop: stop.id };
-    let entries = trainOf(store, queue, options);
-    const baseHead = await steps.readBase();
+    let entries = batchOf(store, queue, options);
+    const batch = { held: entries.length, waiting: queue.length },
+      sentBack = [],
+      baseHead = await steps.readBase();
     if (!SHA.test(baseHead ?? ""))
       fail(`The base ${base} has no exact head to land on.`, 409);
-    // Outside the lock: merge with the base and run the checks. A conflict
-    // or a failure narrows the train until one portion is left.
-    let candidate, verdict;
+    // Outside the lock: stack the members on the base and run the checks.
+    let candidate,
+      verdict,
+      flaky = false,
+      culprits = [];
     for (;;) {
       const prepared = await steps.prepare(entries, baseHead);
-      // One pull request is one portion (pr landing never makes a train).
+      // One pull request is one member (pr landing never makes a batch).
       if (entries.length === 1 && prepared?.pr)
         entries = [notePull(store, entries[0], prepared.pr)];
       if (prepared?.conflict) {
+        // The later member goes back; the others go on (MB5.2).
         const at = Math.max(
-          0,
-          entries.findIndex((e) => e.key === prepared.key),
-        );
-        if (at > 0) {
-          entries = entries.slice(0, at);
-          continue;
-        }
-        return {
-          state: "conflict",
-          entries: [entries[0]],
-          entry: finish(store, entries[0], "conflict", {
+            0,
+            entries.findIndex((e) => e.key === prepared.key),
+          ),
+          sent = finish(store, entries[at], "conflict", {
             baseHead,
             files: prepared.conflict,
-          }),
+          });
+        sentBack.push({ state: "conflict", entry: sent });
+        entries = entries.filter((_, i) => i !== at);
+        if (entries.length) continue;
+        return {
+          state: "conflict",
+          entries: [sent],
+          entry: sent,
+          sentBack: sentBack.slice(0, -1),
+          batch: { ...batch, landed: [], culprits: [] },
         };
       }
       candidate = prepared?.candidate;
@@ -299,19 +330,111 @@ export async function landNext(
           entry: noteWait(store, entries[0], candidate, verdict),
           checks: verdict.checks ?? [],
         };
-      if (entries.length > 1) {
-        entries = entries.slice(0, Math.floor(entries.length / 2));
-        continue;
+      if (!options.bisect) {
+        return {
+          state: "failed",
+          entries: [entries[0]],
+          entry: finish(store, entries[0], "failed", {
+            baseHead,
+            candidate,
+            checks: bare(verdict?.checks),
+            excerpt: excerptOf(verdict?.checks),
+          }),
+          sentBack,
+          batch: { ...batch, landed: [], culprits: [entries[0].key] },
+        };
       }
-      return {
-        state: "failed",
-        entries,
-        entry: finish(store, entries[0], "failed", {
+      // MB4.1: a failing check runs once more on the same head.
+      let failing = commandsOf(verdict.checks);
+      const again = await steps.check(candidate, entries, baseHead, failing);
+      if (again?.ok) {
+        flaky = true;
+        verdict = {
+          ...verdict,
+          ok: true,
+          checks: verdict.checks.map(
+            (c) => again.checks.find((a) => a.command === c.command) ?? c,
+          ),
+        };
+        break;
+      }
+      if (commandsOf(again?.checks).length) failing = commandsOf(again.checks);
+      // MB4.2: the first boundary where the failing checks fail.
+      let lo = 1,
+        hi = entries.length,
+        atHi = { candidate, checks: again?.checks ?? verdict.checks };
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2),
+          part = await steps.prepare(entries.slice(0, mid), baseHead),
+          result = part?.candidate
+            ? await steps.check(
+                part.candidate,
+                entries.slice(0, mid),
+                baseHead,
+                failing,
+              )
+            : { ok: false, checks: atHi.checks };
+        if (result.ok) lo = mid + 1;
+        else {
+          hi = mid;
+          atHi = { candidate: part?.candidate ?? atHi.candidate, ...result };
+        }
+      }
+      const culprit = entries[lo - 1],
+        before = entries.slice(0, lo - 1);
+      // MB4.3: the culprit alone on the base, with the failing checks.
+      let culpritChecks = atHi.checks,
+        culpritCandidate = atHi.candidate,
+        together = [];
+      if (before.length) {
+        const alone = await steps.prepare([culprit], baseHead),
+          result = alone?.candidate
+            ? await steps.check(alone.candidate, [culprit], baseHead, failing)
+            : { ok: false, checks: culpritChecks };
+        if (result.ok) together = before.map((e) => e.key);
+        else {
+          culpritChecks = result.checks;
+          culpritCandidate = alone?.candidate ?? culpritCandidate;
+        }
+      }
+      const gone = () =>
+        finish(store, culprit, "failed", {
           baseHead,
-          candidate,
-          checks: verdict?.checks ?? [],
-        }),
-      };
+          candidate: culpritCandidate,
+          checks: bare(culpritChecks),
+          excerpt: excerptOf(culpritChecks),
+          ...(together.length ? { with: together } : {}),
+        });
+      if (!before.length) {
+        const sent = gone();
+        return {
+          state: "failed",
+          entries: [sent],
+          entry: sent,
+          sentBack,
+          batch: { ...batch, landed: [], culprits: [culprit.key] },
+        };
+      }
+      // The members ahead of the culprit land, after one full check of
+      // exactly that candidate (MB3.3).
+      const part = await steps.prepare(before, baseHead),
+        full = part?.candidate
+          ? await steps.check(part.candidate, before, baseHead)
+          : { ok: false };
+      if (!full.ok)
+        return {
+          state: "retry",
+          entries: before,
+          entry: before[0],
+          sentBack,
+          batch: { ...batch, landed: [], culprits: [], halve: true },
+        };
+      sentBack.push({ state: "failed", entry: gone() });
+      culprits = [culprit.key];
+      entries = before;
+      candidate = part.candidate;
+      verdict = full;
+      break;
     }
     // A stop pulled while the checks ran still pauses the queue.
     const late = entries.map((e) => pausedBy(store, e)).find(Boolean);
@@ -344,12 +467,13 @@ export async function landNext(
       throw error;
     }
     if (outcome.state !== "landed")
-      return { ...outcome, entry: entries[0], entries, candidate };
+      return { ...outcome, entry: entries[0], entries, candidate, sentBack };
     const landed = entries.map((e) =>
       finish(store, e, "landed", {
         baseHead,
         candidate,
-        checks: verdict.checks ?? [],
+        checks: bare(verdict.checks),
+        ...(flaky ? { flaky: true } : {}),
         ...verdict.record,
       }),
     );
@@ -366,6 +490,8 @@ export async function landNext(
       candidate,
       entry: landed[0],
       entries: landed,
+      sentBack,
+      batch: { ...batch, landed: landed.map((e) => e.key), culprits },
       ...(mergedBack ? { mergedBack } : {}),
     };
   })();

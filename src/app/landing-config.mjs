@@ -8,7 +8,7 @@ export const LANDING_MODES = Object.freeze(["direct", "pr", "train", "off"]);
 // the older keys folded in: a key in the block wins, then the older key at
 // the repository, then the workspace's, then the default. `project` is the
 // checkout's project row, for its `landing` and its `delivery` id.
-// {mode, autoMerge, method, maxAttempts}; `mode` is null when nothing sets it.
+// {mode, autoMerge, method, mergeBatch, maxAttempts}; `mode` is null when nothing sets it.
 export function landingSettings(config, repository, project = null) {
   const entry = config?.github?.repositories?.[repository],
     block = isRecord(entry?.landing) ? entry.landing : {},
@@ -23,6 +23,7 @@ export function landingSettings(config, repository, project = null) {
       ship(delivery.ship) ??
       true,
     method: block.method ?? entry?.merge?.method ?? "squash",
+    mergeBatch: block.mergeBatch ?? "auto",
     maxAttempts:
       entry?.conflicts?.maxAttempts ??
       (isRecord(config?.landing) ? config.landing.conflictRounds : undefined) ??

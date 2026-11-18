@@ -37,6 +37,7 @@ test("Avoozl's own repository keeps pr, auto-merge, squash and 2 rounds", () => 
     mode: "pr",
     autoMerge: true,
     method: "squash",
+    mergeBatch: "auto",
     maxAttempts: 2,
   });
   const task = { id: "t", repository: "avoozl" };
@@ -67,6 +68,7 @@ test("Nupp keeps its workspace delivery.ship and core-dev landing", () => {
     mode: "direct",
     autoMerge: true,
     method: "squash",
+    mergeBatch: "auto",
     maxAttempts: 2,
   });
   assert.equal(
@@ -99,6 +101,7 @@ test("older keys map to the block, and the block wins over them", () => {
     mode: "off",
     autoMerge: false,
     method: "merge",
+    mergeBatch: "auto",
     maxAttempts: 1,
   });
   assert.equal(mergeMethodOf(repositoryOf(old, "o/app")), "MERGE");
@@ -119,6 +122,7 @@ test("older keys map to the block, and the block wins over them", () => {
     mode: "pr",
     autoMerge: true,
     method: "squash",
+    mergeBatch: "auto",
     maxAttempts: 3,
   });
   const settings = repositoryOf(next, "o/app");
