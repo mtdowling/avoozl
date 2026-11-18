@@ -67,7 +67,7 @@ of the other specs.
 
 ## Phase 3: One remote route
 
-- [ ] wp-3.1 A worker machine pulls and claims on its own tick, after wp-1.1 [WP5.2] (§D8)
+- [x] wp-3.1 A worker machine pulls and claims on its own tick, after wp-1.1 [WP5.2] (§D8)
   - On `runner.role: "worker"` the tick pulls offers, requests claims for its free lanes and starts acknowledged tasks, before `runnerTick`; `avoozl worker pull` and `avoozl worker claim` call the same functions.
   - Done when: Tests with a fake GitHub and a fake driver: a worker with two free lanes and three offers claims two and starts two with no command run by hand; a request with no acknowledgment starts nothing; a tick with no GitHub records one line and starts nothing; the hand-run commands give the same result as one tick.
 - [ ] wp-3.2 The driver checks a pulled result on its tick, after wp-3.1 [WP5.3] (§D8)
