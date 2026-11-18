@@ -28,11 +28,12 @@ test('View is a read-only dialog; Edit has role, Save and Cancel in the shared m
   const view = modals.slice(modals.indexOf('export function ViewRepository'), modals.indexOf('export function EditRepository'))
   assert.match(view, /<Modal\s+id="avoozl-repo-view"\s+title=\{row\.name\}/)
   assert.doesNotMatch(view, /<Input|<select|<textarea|Save/)
-  assert.match(view, /footer=\{[\s\S]*Close/)
+  assert.doesNotMatch(view, /footer=/) // the shell's footer Close is the only one
   const edit = modals.slice(modals.indexOf('export function EditRepository'))
   assert.match(edit, /<Modal\s+id="avoozl-repo-edit"\s+title=\{row\.name\}/)
   assert.match(edit, /<RoleChoice/)
-  assert.match(edit, /Cancel[\s\S]*Save/)
+  assert.doesNotMatch(edit, /Cancel/)
+  assert.match(edit, /Save/)
 })
 
 test('a private mirror role writes the config the old Mirror box wrote', () => {
