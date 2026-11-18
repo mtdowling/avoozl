@@ -133,7 +133,7 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
       <Card className="flex flex-col gap-4">
         <Section title="Investigate first" blurb="Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand.">
           <Row gap={4} align="start">
-            <Labeled id="avoozl-delivery-investigate" label="Which tasks" raw="delivery.investigate.mode" width="16rem" note="A task's manifest can set investigate: true or false." byDefault="All but small tasks" reset={form.investigateMode && form.investigateMode !== DELIVERY_DEFAULTS.investigateMode ? () => set({ investigateMode: DELIVERY_DEFAULTS.investigateMode }) : undefined}>
+            <Labeled id="avoozl-delivery-investigate" label="Which tasks" raw="delivery.investigate.mode" width="16rem" note="A task's facts in tasks.md can set investigate: true or false." byDefault="All but small tasks" reset={form.investigateMode && form.investigateMode !== DELIVERY_DEFAULTS.investigateMode ? () => set({ investigateMode: DELIVERY_DEFAULTS.investigateMode }) : undefined}>
               <select id="avoozl-delivery-investigate" value={form.investigateMode ?? DELIVERY_DEFAULTS.investigateMode} onChange={(e) => set({ investigateMode: e.target.value as DeliveryForm['investigateMode'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
                 <option value="not-small">All but small tasks</option>
                 <option value="all">All tasks</option>

@@ -5,14 +5,22 @@
 // spec is approved again; apply twice; a manifest edit that leaves the title.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applySpecChange, diffSpec, planSpecChange } from "../spec-changed.mjs";
+import {
+  applySpecChange,
+  diffSpec as diffFolded,
+  planSpecChange,
+} from "../spec-changed.mjs";
 import {
   BATCH_SPEC,
   COMMIT,
   approvedSpec,
   workspace,
 } from "./radar-fixture.mjs";
-import { writeSpec } from "./spec-fixture.mjs";
+import { withFacts, writeSpec } from "./spec-fixture.mjs";
+
+// These cases describe facts as manifest objects; the reader sees Facts.
+const diffSpec = (name, before, after) =>
+  diffFolded(name, withFacts(before), withFacts(after));
 
 const edit = (spec, key, change) => {
   const manifest = JSON.parse(spec["avoozl/manifest.json"]);
@@ -70,11 +78,12 @@ test("each change maps to one action by the issue's state", () => {
   const action = (change, issues) => {
     const row = planSpecChange({
       name: "config",
-      before: BATCH_SPEC,
-      after:
+      before: withFacts(BATCH_SPEC),
+      after: withFacts(
         change === "removed"
           ? without(BATCH_SPEC, "1.3")
           : edit(BATCH_SPEC, "1.3", { acceptance: ["Changed."] }),
+      ),
       issues: new Map(issues ? [["config.1.3", issue(issues)]] : []),
     }).find((entry) => entry.taskId === "config.1.3");
     return row.action;

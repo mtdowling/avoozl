@@ -462,7 +462,6 @@ import {
 import { startGitHubItem } from "./github-intake.mjs";
 import { highlightLanguages } from "./highlight-languages.mjs";
 import { importNewPlans, newPlanStarts, requestNewPlan } from "./new-plan.mjs";
-import { writeSpecManifest } from "./spec-manifest.mjs";
 import { decideInvestigation } from "./investigate.mjs";
 import { taskEvidence } from "./evidence.mjs";
 import { instanceView, renameInstance } from "./instance.mjs";
@@ -573,6 +572,8 @@ import {
   epicMembers,
   findSpecFolder,
   lintSpec,
+  sameSpecContent,
+  specFacts,
   linkSpecPlan,
   listSpecFolders,
   parseSpec,
@@ -2092,10 +2093,7 @@ export class Operations {
       try {
         repositories = [
           ...new Set(
-            Object.values(
-              JSON.parse(folder.files["avoozl/manifest.json"] ?? "{}").tasks ??
-                {},
-            )
+            Object.values(specFacts(folder.files).tasks)
               .map((entry) => entry?.repository)
               .filter((value) => typeof value === "string"),
           ),
@@ -2118,6 +2116,51 @@ export class Operations {
   // Whether a plan's current text is the one last approved.
   // Every check plan.approve makes before it writes, shared with
   // plan.approveMany so a batch keeps each one. Throws on the first failure.
+  // A revision with the same content as the approved one it replaces, such
+  // as a spec moved from avoozl/manifest.json to Facts bullets, keeps that
+  // approval (design §4.40): a new receipt names the hash it was carried
+  // from. No approval pull request opens and no issue changes. Any
+  // difference, or a check that refuses it, leaves a draft to approve as
+  // usual. Returns the approved plan, or null.
+  carryApproval(previous, saved) {
+    if (
+      !previous?.spec ||
+      previous.state !== "approved" ||
+      !saved ||
+      saved.hash === previous.hash ||
+      saved.state !== "draft"
+    )
+      return null;
+    const receipt = this.store.get("approvals", previous.approvalId);
+    if (
+      receipt?.hash !== previous.hash ||
+      !receipt.files ||
+      !sameSpecContent(previous.spec, receipt.files, saved.files || {})
+    )
+      return null;
+    try {
+      const expectedRevision = this.store.read().revision,
+        input = { id: saved.id, expectedHash: saved.hash, expectedRevision },
+        { specQuality, proposals } = this.approvalChecks(input);
+      approvePlan(this.store, {
+        ...input,
+        approvedBy: receipt.approvedBy,
+        operator: this.operator,
+        evidence: `Carried from ${previous.hash}: the same content in another layout.`,
+        carriedFrom: previous.hash,
+        githubPolicy: this.githubPolicy(),
+        ...(specQuality
+          ? {
+              proposals,
+              declaredDependencies: specQuality.declaredDependencies,
+            }
+          : {}),
+      });
+    } catch {
+      return null;
+    }
+    return this.store.get("plans", saved.id);
+  }
   approvalChecks(input) {
     const plan = this.store.get("plans", input.id);
     if (!plan) fail("Plan not found.", 404);
@@ -2267,13 +2310,9 @@ export class Operations {
         (entry) =>
           entry.id === task.id || (task.specKey && entry.key === task.specKey),
       );
-    let manifest = {};
-    try {
-      manifest = JSON.parse(spec.files["avoozl/manifest.json"] ?? "{}");
-    } catch {
-      manifest = {};
-    }
-    const entry = item?.key ? (manifest.tasks?.[item.key] ?? {}) : {},
+    const entry = item?.key
+        ? (specFacts(spec.files).tasks[item.key] ?? {})
+        : {},
       { title, ...fields } = change,
       before = item ? lines[item.line - 1].replace(/\r$/, "") : null;
     return {
@@ -2294,7 +2333,7 @@ export class Operations {
                 (_, head) => head + title,
               ),
       },
-      manifest: item?.key
+      facts: item?.key
         ? { key: item.key, before: entry, after: { ...entry, ...fields } }
         : null,
       change,
@@ -3392,8 +3431,6 @@ export class Operations {
                 );
             },
             readSpec: (spec) => this.readSpec(spec),
-            writeManifest: (spec, text) =>
-              writeSpecManifest(this.readSpec(spec), text),
             lint: (spec) =>
               this.withContentDiagnostics(
                 lintSpec({
@@ -5775,7 +5812,7 @@ export class Operations {
           previousHash: plan.hash,
           caller: context.caller,
         });
-        return saved;
+        return this.carryApproval(plan, saved) ?? saved;
       }
       // An old-style plan whose spec folder now exists: link it as a draft.
       if (plan && !plan.spec && input.spec !== undefined) {

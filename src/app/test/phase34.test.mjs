@@ -184,16 +184,16 @@ test("fix work, and the manifest's investigate and ship fields", () => {
 
 test("a spec's ship mode and a bugfix spec's type reach each leaf", async () => {
   const { parseSpec } = await import("../spec-plans.mjs");
-  const { specFiles } = await import("./spec-fixture.mjs");
-  const files = specFiles(),
+  const { legacySpecFiles, withFacts } = await import("./spec-fixture.mjs");
+  const files = legacySpecFiles(),
     manifest = JSON.parse(files["avoozl/manifest.json"]);
   manifest.ship = "manual";
   manifest.tasks["1.1"].investigate = false;
-  const bugfix = {
+  const bugfix = withFacts({
     ...files,
     "avoozl/manifest.json": JSON.stringify(manifest),
     "bugfix.md": "# Bug\n\nThe loader drops empty lines.\n",
-  };
+  });
   delete bugfix["requirements.md"];
   const parsed = parseSpec({ name: "fix-loader", exists: true, files: bugfix });
   const leaves = parsed.proposals.filter((p) => p.kind === "leaf");
@@ -207,7 +207,10 @@ test("a spec's ship mode and a bugfix spec's type reach each leaf", async () => 
   const bad = parseSpec({
     name: "fix-loader",
     exists: true,
-    files: { ...bugfix, "avoozl/manifest.json": JSON.stringify(manifest) },
+    files: {
+      ...bugfix,
+      "tasks.md": bugfix["tasks.md"].replace("ship: manual", "ship: sometimes"),
+    },
   });
   assert.ok(bad.diagnostics.some((d) => /ship must be/.test(d.message)));
 });

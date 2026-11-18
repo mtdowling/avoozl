@@ -13,6 +13,7 @@ import {
 } from "../mirror-forward-batch.mjs";
 import { mirrorForwardStep } from "../mirror-forward.mjs";
 import { publicMergeReached } from "../mirror-forward-poll.mjs";
+import { withFacts } from "./spec-fixture.mjs";
 import { forwardRecord } from "../mirror-forward-run.mjs";
 import { mirrorNeedsYou, mirrorSyncStep } from "../mirror-sync.mjs";
 import {
@@ -185,13 +186,14 @@ function epic(t, extra = {}, target = { forwardTarget: "batch" }) {
     id: "approval-rewrite",
     planId: "p1",
     hash: "h",
-    files: {
+    files: withFacts({
+      "tasks.md": "- [ ] 1 Rewrite\n",
       "avoozl/manifest.json": JSON.stringify({
         integrationBranch: "rewrite/epic",
         ...target,
         tasks: { 1: { kind: "leaf", repository: SOURCE } },
       }),
-    },
+    }),
   });
   store.put("plans", {
     id: "p1",
@@ -326,9 +328,7 @@ test("a batch epic's task counts as done on its mirror merge; others wait for th
     id: "approval-each",
     planId: "p2",
     hash: "h2",
-    files: {
-      "avoozl/manifest.json": JSON.stringify({ forwardTarget: "each" }),
-    },
+    files: { "tasks.md": "---\nforwardTarget: each\n---\n" },
   });
   made.store.put("plans", {
     id: "p2",

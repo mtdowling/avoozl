@@ -122,7 +122,6 @@ export const TAB_LABEL: Record<string, string> = {
   'bugfix.md': 'bugfix.md',
   'design.md': 'design.md',
   'tasks.md': 'tasks.md',
-  'avoozl/manifest.json': 'manifest',
   [ALL_TAB]: 'All findings',
 }
 
@@ -227,8 +226,8 @@ export function openCounts(findings: Pick<ReviewFinding, 'severity' | 'state' | 
 // The tab bar's keys live with the shared tab bar.
 export { tabKey } from './tabs.ts'
 
-// A spec file's text as the view renders it: Markdown as is, the manifest
-// as a JSON code block.
+// A spec file's text as the view renders it: Markdown as is, a JSON file as
+// a JSON code block.
 export const renderText = (file: string, text: string) => (file.endsWith('.json') ? '```json\n' + text + '\n```' : text)
 
 export const lineText = (anchor: ReviewFinding['anchor']) =>

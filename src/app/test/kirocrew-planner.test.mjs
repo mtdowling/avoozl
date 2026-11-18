@@ -138,7 +138,6 @@ test("the planner prompt's example spec folder passes the spec reader", () => {
     written.push(file);
   }
   assert.deepEqual(written.sort(), [
-    "avoozl/manifest.json",
     "design.md",
     "requirements.md",
     "tasks.md",
@@ -150,9 +149,10 @@ test("the planner prompt's example spec folder passes the spec reader", () => {
   assert.deepEqual(result.diagnostics, []);
   assert.deepEqual(
     result.proposals.map((t) => t.id),
-    ["config.1"],
+    ["config.1", "config.1.1", "config.1.2"],
   );
-  assert.equal(result.proposals[0].acceptance.length, 3);
+  assert.equal(result.proposals[1].acceptance.length, 2);
+  assert.equal(result.proposals[1].repository, "sample", "a default fills it");
   for (const leaf of result.proposals.filter((t) => t.kind === "leaf")) {
     assert.equal(typeof leaf.repository, "string", leaf.id);
     assert.ok(leaf.checks.length, leaf.id);

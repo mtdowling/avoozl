@@ -10,7 +10,7 @@ import { newPlanStarts, newPlanTask, pendingNewPlans } from "../new-plan.mjs";
 import { planReviewWriter } from "../plan-review-authorship.mjs";
 import { recordSessionStatus } from "../session-bindings.mjs";
 import { fixture } from "./fixtures.mjs";
-import { specFiles, writeSpec } from "./spec-fixture.mjs";
+import { legacySpecFiles, specFiles, writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -23,8 +23,7 @@ function workspace(
   // An epic folder New plan may name (Requirement 59.11).
   if (epic)
     writeSpec(root, "rewrite", {
-      "tasks.md": "# Plans\n",
-      "avoozl/manifest.json": JSON.stringify({ kind: "epic", tasks: {} }),
+      "tasks.md": "---\nkind: epic\n---\n# Plans\n",
     });
   if (contentRules) {
     fs.writeFileSync(
@@ -57,11 +56,9 @@ const request = (overrides = {}) => ({
 
 // Every repository-named leaf, so the folder lints clean for project `app`.
 function cleanSpec() {
-  const files = specFiles(),
-    manifest = JSON.parse(files["avoozl/manifest.json"]);
-  for (const entry of Object.values(manifest.tasks))
-    if (entry.kind === "leaf") entry.repository = "app";
-  return { "avoozl/manifest.json": JSON.stringify(manifest, null, 2) };
+  return {
+    "tasks.md": `---\nrepo: app\n---\n${specFiles()["tasks.md"]}`,
+  };
 }
 
 const approvals = (store) => store.list("approvals").length;
@@ -88,7 +85,8 @@ test("plan.new returns a planner seed with Avoozl's spec rules and records the r
     "requirements.md",
     "design.md",
     "tasks.md",
-    "avoozl/manifest.json",
+    "Facts: bullet",
+    "Never write avoozl/manifest.json",
     "unique task ID",
     "category: Runtime",
     "Repositories: app.",
@@ -180,8 +178,11 @@ test("the tick imports a requested folder as a draft once it lints clean, and ne
   await ops.execute("workspace.tick", {});
   assert.equal(store.get("plans", "cache-invalidation"), null);
 
-  // Half written (no manifest): still waits, with the reason.
-  writeSpec(root, "cache-invalidation", { "avoozl/manifest.json": null });
+  // Half written (no Facts yet): still waits, with the reason.
+  writeSpec(root, "cache-invalidation", {
+    "tasks.md": legacySpecFiles()["tasks.md"],
+    "avoozl/manifest.json": null,
+  });
   await ops.execute("workspace.tick", {});
   assert.equal(store.get("plans", "cache-invalidation"), null);
   assert.ok(pendingNewPlans(store)[0].lastError);
@@ -277,7 +278,7 @@ test("the tick opens New plan's planner chat and credits its draft to that chat"
 
 // Spec Builder hand-off: plan.new returns the create body, the steering
 // file is written only when asked and never over a changed copy, and the
-// tick writes avoozl/manifest.json from Spec Builder's tasks.md.
+// tick imports Spec Builder's tasks.md once it lints clean.
 const steeringPath = (root) =>
   path.join(root, ".kiro", "steering", "avoozl-specs.md");
 const builderRequest = (overrides = {}) =>
@@ -291,7 +292,7 @@ test("plan.new preview says whether the steering file is there and records nothi
   );
   assert.equal(preview.steering.state, "missing");
   assert.equal(preview.steering.path, steeringPath(root));
-  assert.match(preview.steering.text, /Do not write `avoozl\/manifest.json`/);
+  assert.match(preview.steering.text, /Never write `avoozl\/manifest.json`/);
   assert.deepEqual(pendingNewPlans(store), []);
   assert.equal(fs.existsSync(steeringPath(root)), false);
   // The same field checks run.
@@ -353,119 +354,70 @@ test("a changed steering file is never overwritten, and a declined one puts the 
   assert.ok(kept.specBuilder.description.includes("Follow the spec rules in"));
 });
 
-// What Spec Builder writes: prose and tasks.md, no manifest.
+// What Spec Builder writes under the steering file: prose and tasks.md
+// with Facts bullets. Avoozl writes nothing into the folder.
 const builderTasks = [
+  "---",
+  "repo: app",
+  "checks: npm test",
+  "---",
   "# Tasks",
   "",
   "## Phase 1",
   "",
   "- [ ] 1. Load and validate configuration",
+  "  - Facts:",
+  "    - kind: package",
+  "    - summary: Load and validate configuration",
+  "    - after: 1.1, 1.2",
   "  - [ ] 1.1 Read the config file",
-  "    - A missing file yields defaults.",
-  "    - _Checks: `npm test`_",
+  "    - Facts:",
+  "      - done:",
+  "        - A missing file yields defaults.",
   "    - _Requirements: 1.1_",
   "  - [ ] 1.2 Validate loaded config",
-  "    - An unknown key is reported with its path.",
-  "    - _Requires: 1.1_",
-  "    - _Checks: `npm test`_",
+  "    - Facts:",
+  "      - after: 1.1",
+  "      - done:",
+  "        - An unknown key is reported with its path.",
   "",
 ].join("\n");
 const builderFiles = (tasks = builderTasks) => ({
   "tasks.md": tasks,
   "avoozl/manifest.json": null,
 });
-const manifestOf = (root) =>
-  JSON.parse(
-    fs.readFileSync(
-      path.join(
-        root,
-        ".kiro",
-        "specs",
-        "cache-invalidation",
-        "avoozl",
-        "manifest.json",
-      ),
-      "utf8",
-    ),
-  );
 
-test("the tick writes the manifest once Spec Builder's tasks.md holds still, then imports a draft", async (t) => {
+test("the tick imports Spec Builder's folder as a draft and writes no manifest", async (t) => {
   const { root, store, ops } = workspace(t, { epic: true });
   await ops.execute("plan.new", builderRequest());
-  const before = { approvals: approvals(store), sessions: sessions(store) };
+  const before = { approvals: approvals(store), sessions: sessions(store) },
+    folder = path.join(root, ".kiro", "specs", "cache-invalidation");
   writeSpec(root, "cache-invalidation", builderFiles());
-  const manifestFile = path.join(
-    root,
-    ".kiro",
-    "specs",
-    "cache-invalidation",
-    "avoozl",
-    "manifest.json",
-  );
-
-  // First sight of tasks.md: Spec Builder may still be writing it.
+  const tasksBefore = fs.readFileSync(path.join(folder, "tasks.md"), "utf8");
   await ops.execute("workspace.tick", {});
-  assert.equal(fs.existsSync(manifestFile), false);
-  assert.equal(store.get("plans", "cache-invalidation"), null);
-
-  await ops.execute("workspace.tick", {});
-  assert.deepEqual(manifestOf(root).tasks, {
-    1: {
-      kind: "package",
-      summary: "Load and validate configuration",
-      requires: ["1.1", "1.2"],
-    },
-    1.1: {
-      kind: "leaf",
-      summary: "Read the config file",
-      checks: ["npm test"],
-      repository: "app",
-      acceptance: ["A missing file yields defaults."],
-    },
-    1.2: {
-      kind: "leaf",
-      summary: "Validate loaded config",
-      requires: ["1.1"],
-      checks: ["npm test"],
-      repository: "app",
-      acceptance: ["An unknown key is reported with its path."],
-    },
-  });
   const plan = store.get("plans", "cache-invalidation");
   assert.equal(plan.state, "draft");
   assert.equal(approvals(store), before.approvals, "never approves");
   assert.equal(sessions(store), before.sessions, "starts no session");
-
-  // A revised tasks.md before approval: the manifest follows it.
-  writeSpec(
-    root,
-    "cache-invalidation",
-    builderFiles(
-      builderTasks.replace(
-        "Validate loaded config",
-        "Validate the loaded config",
-      ),
-    ),
-  );
-  await ops.execute("workspace.tick", {});
-  await ops.execute("workspace.tick", {});
   assert.equal(
-    manifestOf(root).tasks["1.2"].summary,
-    "Validate the loaded config",
+    fs.existsSync(path.join(folder, "avoozl", "manifest.json")),
+    false,
   );
-
-  // A manifest a person edited is never replaced.
-  const edited = manifestOf(root);
-  edited.tasks["1.2"].checks = ["npm run lint"];
-  fs.writeFileSync(manifestFile, JSON.stringify(edited));
-  writeSpec(
-    root,
-    "cache-invalidation",
-    builderFiles(
-      builderTasks.replace("Read the config file", "Read config.json"),
-    ),
+  assert.equal(
+    fs.readFileSync(path.join(folder, "tasks.md"), "utf8"),
+    tasksBefore,
   );
-  await ops.execute("workspace.tick", {});
-  await ops.execute("workspace.tick", {});
-  assert.deepEqual(manifestOf(root).tasks["1.2"].checks, ["npm run lint"]);
+  const lint = await ops.execute("plan.lint", { id: "cache-invalidation" });
+  assert.deepEqual(
+    lint.proposals.map((p) => [
+      p.specKey,
+      p.repository ?? null,
+      p.checks ?? null,
+    ]),
+    [
+      ["1", null, null],
+      ["1.1", "app", ["npm test"]],
+      ["1.2", "app", ["npm test"]],
+    ],
+  );
 });

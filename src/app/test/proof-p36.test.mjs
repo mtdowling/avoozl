@@ -488,17 +488,35 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
     true,
   );
 
-  // (6) The old forms are errors naming each entry; neither folder approves.
-  writePlan(root, "old", {
-    tasks: "- [ ] 1 Parent\n  - [ ] 1.1 Child\n- [ ] 2 Grouped\n",
-    entries: {
-      1: { kind: "epic", summary: "Goal.", requires: ["1.1"] },
-      1.1: leaf(),
-      2: leaf({ epic: "W1" }),
-    },
-    extra: { epics: ["W1"] },
+  // (6) The old forms are errors; neither folder approves.
+  writeSpec(root, "old", {
+    "requirements.md": "# Plan old\n\nThe goal of old.\n",
+    "tasks.md": [
+      "---",
+      "epics: W1",
+      "checks: npm test",
+      "---",
+      "# Tasks",
+      "",
+      "- [ ] 1 Parent",
+      "  - Facts:",
+      "    - kind: epic",
+      "    - after: 1.1",
+      "  - [ ] 1.1 Child",
+      "    - Facts:",
+      "      - done: It works",
+      "- [ ] 2 Grouped",
+      "  - Facts:",
+      "    - epic: W1",
+      "    - done: It works",
+      "",
+    ].join("\n"),
   });
-  writeEpic(root, "old-epic", ["alpha"], (plan) => ({ memberPlan: plan }));
+  writeSpec(root, "old-epic", {
+    "requirements.md": "# Old epic\n\nThe goal.\n",
+    "tasks.md":
+      "---\nkind: epic\n---\n# Plans\n\n- [ ] 1 alpha\n  - Facts:\n    - plan: alpha\n    - repo: plans\n",
+  });
   const old = await lint(ops, "old"),
     oldEpic = await lint(ops, "old-epic");
   const quality = async (name) =>
@@ -514,8 +532,8 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
     (d) => d.severity === "error",
   );
   assert.deepEqual(oldCodes.map((d) => [d.code, d.entry ?? null]).sort(), [
-    ["spec.entry-epic", null],
-    ["spec.entry-epic", "2"],
+    ["facts.unknown-key", null],
+    ["facts.unknown-key", null],
     ["spec.kind-epic", "1"],
   ]);
   const epicCodes = (await quality("old-epic")).diagnostics.filter(
@@ -523,11 +541,17 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
   );
   assert.deepEqual(
     epicCodes.map((d) => [d.code, d.entry]),
-    [["spec.epic-task-fields", "1"]],
+    [
+      ["spec.epic-task-fields", "1"],
+      ["spec.epic-member-unconfirmed", "1"],
+    ],
   );
   assert.ok(old.counts.error > 0 && oldEpic.counts.error > 0);
   for (const name of ["old", "old-epic"])
-    await assert.rejects(approve(ops, name), /Resolve plan diagnostic spec\./);
+    await assert.rejects(
+      approve(ops, name),
+      /Resolve plan diagnostic (spec|facts)\./,
+    );
 
   // (7) Changed 2026-11-18 (R108.8): batching has no setting, so the old
   // batch key "epic" is ignored and a save that carries it still works.
