@@ -6,6 +6,9 @@ category: Planning
 
 Status: Draft
 
+Status 2026-11-18: AN1 to AN3 are built (see `tasks.md`). AN4.1 for P38 and
+AN4.2 are superseded because Ideas and the lessons store were removed.
+
 ## Introduction
 
 This spec gathers the Avoozl work that is still open, has no owner and no open
@@ -23,8 +26,8 @@ separate acts that a person does later.
 ### Out of scope
 
 - Phase 12 of `radar-coder` (retirement of worker code).
-- Anything that only runs or places Avoozl's own workers: local workers are
-  retired. This leaves out crew placement, the crew registry, routing
+- Anything that only runs or places Avoozl's own workers (written when
+  local workers were retired; Avoozl runs its own workers again, R86). This leaves out crew placement, the crew registry, routing
   defaults in packs (`avoozl` tasks 11.x, 16.7, `avoozl-p29`) and the
   worker adapter proof (`rc-p14`).
 - Review drafts from a label (`rc-20.*`), merged.
