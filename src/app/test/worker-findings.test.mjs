@@ -43,10 +43,11 @@ const STANDS = {
 
 // The fake harness CLI: on its first run it writes findings when its brief
 // asks for them; when Avoozl resumes it with Go ahead it edits and says done.
-const agent = (log) => `
+const agent = () => `
 import fs from "node:fs";
 const text = fs.readFileSync(0, "utf8");
-fs.appendFileSync(${JSON.stringify(log)}, process.argv[2] + " " + process.argv[3] + "|" + text.split("\\n")[0] + "\\n");
+fs.mkdirSync(".avoozl", { recursive: true });
+fs.appendFileSync(".avoozl/agent.log", process.argv[2] + " " + process.argv[3] + "|" + text.split("\\n")[0] + "\\n");
 fs.mkdirSync(".avoozl", { recursive: true });
 const write = (value) => fs.writeFileSync(".avoozl/result.json", JSON.stringify(value));
 if (process.argv[2] === "start" && /"state": "findings"/.test(text))
@@ -119,9 +120,9 @@ async function workspace(t, { process: onProcess = false } = {}) {
   if (!onProcess) return w;
   const stateDirectory = path.join(root, "state"),
     configDirectory = path.join(root, "config"),
-    log = path.join(root, "agent.log"),
-    script = path.join(root, "agent.mjs");
-  fs.writeFileSync(script, agent(log));
+    // The script and its log live in the task worktree's .avoozl folder,
+    // which a sandboxed child may use and Avoozl never commits.
+    script = "{worktree}/.avoozl/agent.mjs";
   fs.mkdirSync(path.join(configDirectory, "harnesses"), { recursive: true });
   const bytes = JSON.stringify({
     name: "fake-cli",
@@ -151,7 +152,14 @@ async function workspace(t, { process: onProcess = false } = {}) {
   Object.assign(w, {
     supervisor,
     stateDirectory,
-    log: () => (fs.existsSync(log) ? fs.readFileSync(log, "utf8") : ""),
+    log: () => {
+      const file = path.join(
+        store.get("task_worktrees", "a").path,
+        ".avoozl",
+        "agent.log",
+      );
+      return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+    },
     // One pass of the supervisor and of the drain, until `check` holds.
     settle: async (check) => {
       const end = Date.now() + 30_000;
@@ -160,8 +168,15 @@ async function workspace(t, { process: onProcess = false } = {}) {
         await drainProcessRequests(store, {
           stateDirectory,
           ops,
-          prepareWorktree: (_, { taskId }) =>
-            ops.execute("worktree.prepare", { taskId }),
+          prepareWorktree: async (_, { taskId }) => {
+            const tree = await ops.execute("worktree.prepare", { taskId });
+            fs.mkdirSync(path.join(tree.path, ".avoozl"), { recursive: true });
+            fs.writeFileSync(
+              path.join(tree.path, ".avoozl", "agent.mjs"),
+              agent(),
+            );
+            return tree;
+          },
         });
         if (check()) return;
         if (Date.now() > end) throw Error("Timed out waiting.");
