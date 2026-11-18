@@ -8,6 +8,7 @@ const src = new URL('../src/', import.meta.url)
 const source = (name) => readFileSync(new URL(name, src), 'utf8')
 const dashboard = source('DashboardView.tsx')
 const parts = source('HomeParts.tsx')
+const tileSource = source('ui/StatTile.tsx')
 
 // The section ids inside each <HomePair>, in order.
 function pairs() {
@@ -57,13 +58,13 @@ test('six tiles link to their views, and only Needs you turns warm, only when so
   assert.deepEqual(homeTiles(summary([]), null).filter((t) => t.warm), [])
   // Unread reads show a dash, not a zero.
   assert.ok(homeTiles(null, null).every((t) => t.value === null))
-  assert.match(parts, /\[data-home-tile\]\[data-warm\] \[data-home-tile-value\]\{color:var\(--tile-orange,var\(--warning\)\)\}/)
+  assert.match(tileSource, /\[data-stat-tile\]\[data-warm\] \[data-stat-tile-value\]\{color:var\(--tile-orange,var\(--warning\)\)\}/)
 })
 
 test('phones stack every row to one column, and nothing moves under reduced motion', () => {
   assert.match(parts, /@media \(max-width:767px\)\{[^\n]*\[data-home-needs\],\[data-home-pair\]\{grid-template-columns:minmax\(0,1fr\)\}/)
   assert.match(parts, /\[data-home-needs\]\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/)
-  assert.match(parts, /@media \(prefers-reduced-motion:reduce\)\{\[data-home-tile\]\{transition:none\}\}/)
+  assert.match(tileSource, /@media \(prefers-reduced-motion:reduce\)\{\[data-stat-tile\]\{transition:none\}\}/)
   assert.match(parts, /\[data-home-head\] h3\{[^}]*text-transform:uppercase/)
 })
 
