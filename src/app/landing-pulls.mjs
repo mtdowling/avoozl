@@ -11,7 +11,8 @@
 //   branch is never pushed to.
 // - The head must pass every required check and meet the repository's review
 //   rule on that exact head. Pending checks or reviews keep the portion
-//   queued ("waiting"); a failed check fails it. Stale approvals after an
+//   queued ("waiting", with reason "checks" or "review"); a failed check
+//   fails it. Stale approvals after an
 //   update count for nothing (`reviewVerdict`).
 // - Source push rights are not merge rights. With merge rights the merge is
 //   guarded by the head (`headGuardedMerge`). Without them Avoozl keeps the
@@ -248,14 +249,15 @@ export function pullSteps({
             !r.pending && !PASS.has(r.conclusion) && r.conclusion !== "success",
         );
       if (failed) return { ok: false, checks: shown };
-      if (results.some((r) => r.pending)) return { wait: true, checks: shown };
+      if (results.some((r) => r.pending))
+        return { wait: true, reason: "checks", checks: shown };
       current.passed = results.map((r) => ({
         name: r.command,
         conclusion: r.conclusion,
       }));
       // Standing reviews on this exact head, by the repository's own rule.
       const rule = await branchReviewRule(github, target, entry.base);
-      if (rule.hidden) return { wait: true, checks: shown };
+      if (rule.hidden) return { wait: true, reason: "review", checks: shown };
       let approvers = [];
       if (rule.approvals) {
         const reviews = await github.pullRequestReviews(target, pull.number),
@@ -268,7 +270,8 @@ export function pullSteps({
             reviews,
             async (who) => (await github.permission(target, who))?.permission,
           );
-        if (verdict.state !== "approved") return { wait: true, checks: shown };
+        if (verdict.state !== "approved")
+          return { wait: true, reason: "review", checks: shown };
         approvers = verdict.reviews
           .filter((r) => r.allowed && !r.stale && r.state === "approved")
           .map((r) => r.reviewer);
