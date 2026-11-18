@@ -623,7 +623,18 @@ export function approvePlan(
       before = new Map(
         data.tasks
           .filter((t) => t.planId === id)
-          .map((t) => [t.id, { entry: entry(t), needsReview: t.needsReview }]),
+          .map((t) => [
+            t.id,
+            {
+              entry: entry(t),
+              needsReview: t.needsReview,
+              prior: {
+                title: t.title ?? null,
+                summary: t.summary ?? null,
+                acceptance: t.acceptance ?? null,
+              },
+            },
+          ]),
       ),
       held = new Set(plan.reviewHeld || []),
       edgeById = new Map(data.edges.filter((e) => e.id).map((e) => [e.id, e])),
@@ -931,6 +942,10 @@ export function approvePlan(
       task.needsReview =
         entry(task) !== prior.entry ||
         (prior.needsReview && !held.has(task.id));
+      // Keep the text as last reviewed, so Needs you can show what changed.
+      if (!task.needsReview) delete task.reviewPrior;
+      else if (entry(task) !== prior.entry && !task.reviewPrior)
+        task.reviewPrior = prior.prior;
     }
     delete plan.reviewHeld;
     const previousDesignHash = data.documents[documentId]?.hash || null;

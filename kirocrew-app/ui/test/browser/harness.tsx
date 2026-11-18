@@ -54,6 +54,7 @@ import { toForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
 import { reviewFixture } from './review-fixture.ts'
+import { needsContextItems } from './needs-context-fixture.ts'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import AvoozlPanel from '../../src/Panel.tsx'
@@ -544,6 +545,8 @@ if (query.get('page') === 'app') {
   // &reviewgroup=1: one review group (two tasks changed in a spec) in Needs you.
   const reviewGroup = { key: 'g1', kind: 'review', reason: 'review', taskId: null, title: 'Meal planner: sections changed', detail: 'Two tasks changed.', plan: 'meal-planner', epic: null, repository: null, since: '2026-11-14T10:00:00Z', tasks: [{ id: 'team-review', title: 'Review with team', status: 'planned' }, { id: 'cutover', title: 'Cutover', status: 'planned' }] }
   answer('conflicts.view', () => ({ revision: 1, items: [...Array.from({ length: needs }, (_, n) => item(n + 1)), ...(query.get('reviewgroup') === '1' ? [reviewGroup] : [])] }))
+  // &needsctx=1: Needs you items that carry their context (needs-context-fixture.ts).
+  if (query.get('needsctx') === '1') answer('conflicts.view', () => ({ revision: 1, items: needsContextItems }))
   if (!replyFor('delivery.view')) answer('delivery.view', () => ({ revision: 1, items: [] }))
   if (!replyFor('plan.list')) answer('plan.list', () => ({ items: [] }))
   // &slowradar=1: Radar's crews read never answers, as a slow GitHub or

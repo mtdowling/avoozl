@@ -85,6 +85,7 @@ export function settleConflicts(store, input = {}, expectedRevision) {
             continue;
           }
           task.needsReview = false;
+          delete task.reviewPrior;
         } else if (action === "unblock") {
           if (task.status !== "blocked") {
             refuse("It is not blocked.");

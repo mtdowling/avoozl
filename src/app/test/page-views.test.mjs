@@ -290,3 +290,17 @@ test("delivery view reports this Mac's lane limit from the workspace config", as
   );
   assert.equal(await limit({ version: 1, delivery: {} }), 3);
 });
+
+test("conflicts view adds each item's spec, task, dependents and earlier review text", async (t) => {
+  const { store, ops } = graphFixture(t);
+  const { items } = await ops.execute("conflicts.view", {});
+  const decision = items.find((item) => item.kind === "decision");
+  assert.equal(decision.taskId, "d");
+  assert.deepEqual(decision.context.task, { id: "d", title: "Task d" });
+  assert.deepEqual(decision.context.text.acceptance, ["d is observable."]);
+  assert.deepEqual(decision.context.unblocks, { total: 0, tasks: [] });
+  // Dependents come from blocking edges: a unblocks b.
+  const blocked = items.find((item) => item.taskId === "e");
+  assert.equal(blocked.context.task.id, "e");
+  assert.equal(blocked.context.spec, null);
+});

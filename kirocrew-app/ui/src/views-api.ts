@@ -334,14 +334,42 @@ export interface DeliveryItem extends TaskOwner {
   planArchived?: string | null
 }
 
+// What Needs you shows so a person can decide in place (needs-you-context.mjs).
+export interface TaskText {
+  summary: string | null
+  acceptance: string[]
+}
+export interface ItemContext {
+  task?: { id: string; title: string }
+  // planId is null when no stored plan exists; the name is then plain text.
+  spec?: { planId: string | null; name: string | null; title: string } | null
+  source?: { path: string; lineStart: number | null; lineEnd: number | null } | null
+  text?: TaskText
+  prior?: ({ title: string | null } & TaskText) | null
+  unblocks?: { total: number; tasks: { id: string; title: string }[] }
+  links?: TaskLinks | null
+  // A draft's review: counts by severity and the cached AI summary.
+  review?: {
+    state: string
+    current: boolean
+    reviewerModel: string | null
+    openBySeverity: Record<string, number>
+    found: number
+    fixed: number
+    summary: { text: string; revisionHash: string; current: boolean } | null
+  } | null
+}
+
 // One task in a review group.
 export interface ReviewTask extends TaskOwner {
   id: string
   title: string
   status: string | null
+  context?: ItemContext
 }
 
 export interface ConflictItem extends TaskOwner {
+  context?: ItemContext
   planReview?: { planId: string; revisionHash: string }
   kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | 'resource' | 'github-conflict' | 'tracker-conflict' | string
   // Null for a review group, which stands for many tasks.
