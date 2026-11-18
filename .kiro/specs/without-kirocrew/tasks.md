@@ -137,7 +137,7 @@ of the other specs.
     - after: nk-4.1
   - Its row: read class, body and line comments in an output file; Avoozl posts the pending review, and only for the recorded head.
   - Done when: Tests on both executors: one pending review is posted with the same body and comments; nothing is submitted; a draft for a head that moved is kept and marked, and posts nothing; a line comment outside the diff is dropped as it is for a chat.
-- [ ] nk-4.3 The pull request review as a child, after nk-4.1 [NK4.4] (§D4)
+- [x] nk-4.3 The pull request review as a child, after nk-4.1 [NK4.4] (§D4)
   - Facts:
     - summary: Phase 4 (Roles that read a pull request). The pull request review as a child. See NK4.4; §D4.
     - done:

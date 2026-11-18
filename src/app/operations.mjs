@@ -306,7 +306,11 @@ import {
   refreshUntriaged,
   untriagedView,
 } from "./untriaged.mjs";
-import { requestReviewChat, reviewChats } from "./pr-review.mjs";
+import {
+  requestReviewChat,
+  reviewChats,
+  showReviewChat,
+} from "./pr-review.mjs";
 import {
   postReviewDraft,
   reviewDraftNeedsYou,
@@ -4625,6 +4629,7 @@ export class Operations {
     }
     // Code review (§8.5): queue one review chat for a pull request; the
     // tick cron opens it. Person-only, like Send to Issue Radar.
+    if (name === "review.chat.show") return showReviewChat(store, input.id);
     if (name === "review.chat") {
       if (context.caller || context.mcp)
         fail(
