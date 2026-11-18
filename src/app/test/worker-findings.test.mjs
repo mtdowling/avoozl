@@ -254,11 +254,10 @@ test("a chat's findings by the command line and a child's by the result file rea
 
   assert.deepEqual(gate(child.store), gate(chat.w.store));
   assert.equal(gate(child.store).state, "falsifying");
-  const same = (brief, root) => brief.replaceAll(root, "<root>");
-  assert.equal(
-    same(falsifier.brief, child.root),
-    same(asked.brief, chat.w.root),
-  );
+  // The same findings reach both falsifiers, as data; each reports the way
+  // its own executor does (a chat by command line, a child by result file).
+  const data = (brief) => brief.slice(brief.indexOf("```text"));
+  assert.equal(data(falsifier.brief), data(asked.brief));
   assert.equal(falsifier.agent, asked.agent);
 });
 
@@ -443,4 +442,67 @@ test("with every role on process, investigate first reaches Go ahead and lands",
     w.store.list("session_bindings").map((b) => b.executor),
     ["process", "process"],
   );
+});
+
+// The falsifier chat reports its verdict by command line too, so investigate
+// first needs no MCP sharing on Kiro Crew.
+test("a falsifier chat reports its verdict by command line with its own token", async (t) => {
+  const chat = await chatFindings(t);
+  assert.equal(
+    chat.run(["--file", chat.file, "--token", chat.token]).status,
+    0,
+  );
+  const asked = await chat.w.dispatch("falsifier"),
+    token = issueReportToken(chat.w.store, {
+      taskId: "a",
+      attempt: 1,
+      role: "falsifier",
+    });
+  assert.ok(
+    asked.brief.includes(
+      `--role falsifier --file <that file> --token ${token}`,
+    ),
+  );
+  assert.doesNotMatch(asked.brief, /plans_/);
+  await chat.w.ops.execute("session.bind", {
+    taskId: "a",
+    slot: "falsifier",
+    attempt: 1,
+    source: "tick",
+    role: "falsifier",
+    title: "avoozl:a falsify round 1",
+  });
+  const verdict = path.join(chat.w.root, "verdict.json");
+  fs.writeFileSync(verdict, JSON.stringify(STANDS));
+  const report = (tok) =>
+    spawnSync(
+      process.execPath,
+      [
+        cli,
+        "runner",
+        "report",
+        "a",
+        "done",
+        "--role",
+        "falsifier",
+        "--file",
+        verdict,
+        "--token",
+        tok,
+        "--workspace",
+        chat.w.root,
+      ],
+      {
+        cwd: chat.w.root,
+        encoding: "utf8",
+        env: { ...process.env, AVOOZL_WORKSPACE: "" },
+      },
+    );
+  // The worker's token never speaks for the falsifier.
+  const wrong = report(chat.token);
+  assert.notEqual(wrong.status, 0);
+  assert.match(wrong.stderr, /does not match/);
+  const out = report(token);
+  assert.equal(out.status, 0, out.stderr);
+  assert.equal(chat.w.store.get("task_investigations", "a").state, "go");
 });
