@@ -3,7 +3,7 @@ import { useState } from 'react'
 import FlowView from '../../src/FlowView.tsx'
 import FlowSettings from '../../src/FlowSettings.tsx'
 import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
-import { ConfirmProvider } from '../../src/controls.tsx'
+import { ConfirmProvider } from '../../src/ui/controls.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
 import { answer } from './stubs.tsx'
 

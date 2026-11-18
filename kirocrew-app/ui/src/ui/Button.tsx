@@ -5,7 +5,7 @@
 // theme's text-on color (--accent-fg, --danger-fg) or, without one, the
 // page background, which contrasts with the fill in light and in dark.
 import { forwardRef, type ComponentProps } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
+import { Btn } from './Btn'
 
 export type ButtonVariant = 'primary' | 'danger' | 'default'
 

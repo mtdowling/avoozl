@@ -39,7 +39,7 @@ of the other specs.
 - [ ] nk-2.1 The falsifier as a child, after nk-1.1 [NK2.1, NK2.5] (§D2)
   - The falsifier's row: a detached copy at the commit, read class, `report` with verdict, evidence and confidence, recorded with no commit. This needs wp-1.2 of `worker-paths`, so that a `process` worker's findings exist for it to judge.
   - Done when: Tests on both executors: a falsifier's verdict opens or holds the same gate; a `process` falsifier's report with a commit field is refused; it writes no file but its result; with every role on `process`, a task with investigate first reaches Go ahead and lands.
-- [ ] nk-2.2 The responder and the task summary as children, after nk-1.1 [NK2.2, NK2.3, NK2.5] (§D2)
+- [x] nk-2.2 The responder and the task summary as children, after nk-1.1 [NK2.2, NK2.3, NK2.5] (§D2)
   - Their rows: the responder's reply is posted by Avoozl after today's checks; the summary is stored on the task; both read-only.
   - Done when: Tests on both executors with a fake GitHub: one reply is posted for one request and none for a blocked result; a reply that matches a content rule is held as it is for a chat; the summary is stored and shown; neither child has a credential or a network path.
 - [ ] nk-2.3 The issue planner's critique as a child, after nk-1.1 [NK2.4] (§D2)
@@ -86,7 +86,7 @@ of the other specs.
 
 ## Phase 6: Notifications
 
-- [ ] nk-6.1 Send notifications from the headless tick [NK7.1, NK7.6, NK7.7, NK7.8, NK7.9] (§D6)
+- [x] nk-6.1 Send notifications from the headless tick [NK7.1, NK7.6, NK7.7, NK7.8, NK7.9] (§D6)
   - The headless tick calls `notifications.deliver`; a per-sink record of what was sent; `avoozl status` shows what waits; a backlog becomes one notification; a failing sink backs off; `src/web-notifications.mjs` and its test go.
   - Done when: Tests: a headless tick with a fake sink sends a queued decision once; with no sink, `status` shows the count and the oldest age; forty waiting items and a new sink give one notification; a sink that throws does not stop the tick or a second sink, and is tried again later; the Kiro Crew push is unchanged.
 - [ ] nk-6.2 Command and webhook sinks, after nk-6.1 [NK7.2, NK7.3, NK7.4, NK7.5] (§D6)

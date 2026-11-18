@@ -3,12 +3,13 @@
 // one Release button per spec in Step mode. Read only except that click, which
 // a person makes. Rows stack on a narrow page and sit in columns on a wide one.
 import { useCallback, useMemo, useState } from 'react'
-import { Btn, Card } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
+import { Card } from './ui/Card'
 import { viewsClient } from './views-api.ts'
-import Badge, { type BadgeVariant } from './Badge.tsx'
+import Badge, { type BadgeVariant } from './ui/Badge.tsx'
 import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
-import { SectionHeading } from './controls.tsx'
+import { SectionHeading } from './ui/controls.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { MODE_TEXT, STATE_LABEL, capacityText, nextSteps, releaseClient, type QueueRepository, type QueueRow, type RowState } from './release-api.ts'
 import { Hint } from './ui/Hint'

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { useAppApi } from './host.ts'
-import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import { Card } from './ui/Card'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
 import {
   editChanges,
   editDraft,
@@ -17,8 +19,8 @@ import {
   type Repository,
   type WorkspaceList,
 } from './workspace-api'
-import { SectionHeading } from './controls.tsx'
-import { Button } from './Button.tsx'
+import { SectionHeading } from './ui/controls.tsx'
+import { Button } from './ui/Button.tsx'
 import { FormSection } from './FormSection.tsx'
 import { Modal } from './Modal.tsx'
 import { Pencil, Plus, Trash2 } from './icons.ts'

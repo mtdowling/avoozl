@@ -8,14 +8,14 @@
 // older keys. Auto leaves the plan reviewer unset; other roles use their
 // agent's own model and their project's harness.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Input } from '@kirocrew/app-sdk/ui'
+import { Input } from './ui/Input'
 import { useAppApi } from './host.ts'
-import Badge from './Badge.tsx'
+import Badge from './ui/Badge.tsx'
 import { FieldRow } from './FieldRow.tsx'
 import { FormSection } from './FormSection.tsx'
 import { Picker } from './Picker.tsx'
 import { optionItems } from './picker.ts'
-import { SmallBtn } from './controls.tsx'
+import { SmallBtn } from './ui/controls.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -46,7 +46,7 @@ const ROW_CSS = '[data-model-role]{display:grid;grid-template-columns:minmax(0,1
 // shortcut: these roles cannot run as a harness child yet (rows of
 // src/app/role-table.mjs with process: false); drop a role here when its task
 // lands.
-const CHAT_ONLY = new Set<Role>(['falsifier', 'planReviewer', 'reviewDraft', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview'])
+const CHAT_ONLY = new Set<Role>(['falsifier', 'planReviewer', 'reviewDraft', 'issuePlanner', 'planAnswer', 'prReview'])
 
 export default function ModelsSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()

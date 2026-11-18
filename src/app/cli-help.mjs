@@ -386,6 +386,14 @@ export const HELP_GROUPS = Object.freeze([
         "The same as a session-start hook: reads the hook's JSON on stdin and never fails the session",
       ),
       entry(
+        "worktree prepare TASK_ID",
+        "Create or return the task's worktree and print it",
+      ),
+      entry(
+        "runner report TASK_ID done|blocked|findings [--token T] [--file PATH] [--text TEXT]",
+        "Report from the task's worktree; a worker's brief gives the token",
+      ),
+      entry(
         "next --hook",
         "An AgentSpawn hook: brief a Crew Mode conductor whose session starts in this workspace",
       ),

@@ -5,7 +5,7 @@
 // e.g. on a phone) each card takes its natural height and nothing scrolls
 // inside. A PairedCard outside PairedCards is a plain card.
 import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { Card } from '@kirocrew/app-sdk/ui'
+import { Card } from './Card'
 import { SectionHeading } from './controls.tsx'
 
 const Paired = createContext(false)

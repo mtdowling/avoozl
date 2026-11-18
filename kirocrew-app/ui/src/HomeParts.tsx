@@ -4,7 +4,7 @@
 // only. Phones stack every row to one column; nothing moves under
 // prefers-reduced-motion.
 import type { ReactNode } from 'react'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import type { Tile } from './home-api.ts'
 import { linkHref } from './views-api.ts'
 

@@ -542,6 +542,7 @@ import {
   planReviewStep,
 } from "./plan-review-step.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
+import { cliCommand } from "./report-command.mjs";
 import { enqueueSessionRequests } from "./session-requests.mjs";
 import {
   createExtraction,
@@ -3341,7 +3342,7 @@ export class Operations {
       const remote = await runnerTick(store, this.workspaceRoot, {
         roster: Array.isArray(input.sessions) ? input.sessions : null,
         bindings: listSessionBindings(store),
-        command: `AVOOZL_WORKSPACE=${JSON.stringify(this.workspaceRoot)} node ${JSON.stringify(path.join(applicationRoot, "cli.mjs"))}`,
+        command: `AVOOZL_WORKSPACE=${JSON.stringify(this.workspaceRoot)} ${cliCommand()}`,
       });
       if (remote) return remote;
       await this.refreshPrivateSpecs();

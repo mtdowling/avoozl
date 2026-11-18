@@ -1,5 +1,5 @@
-import { Card } from '@kirocrew/app-sdk/ui'
-import { SectionHeading } from './controls.tsx'
+import { Card } from './ui/Card'
+import { SectionHeading } from './ui/controls.tsx'
 import type { FlowViewModel, RepositoryCi } from './flow-api.ts'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'

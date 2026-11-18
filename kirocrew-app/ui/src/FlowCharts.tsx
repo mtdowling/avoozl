@@ -1,9 +1,9 @@
 // The Flow tab's charts over time and its token and credit totals (owner
 // addition 2026-11-13). Each chart reads the same filtered flow.view, so the
 // shared filter panel narrows them all. Theme colors only, readable at 320px.
-import { Card } from '@kirocrew/app-sdk/ui'
-import { SectionHeading } from './controls.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import { Card } from './ui/Card'
+import { SectionHeading } from './ui/controls.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import {
   STAGES,
   STAGE_COLORS,

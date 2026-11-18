@@ -2,7 +2,7 @@
 // when something changed (or a save just failed or finished), sticks to the
 // bottom of the page's scroll area, and holds Save and Discard. Each page
 // owns its own values; this only draws the bar.
-import { Btn } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
 import { LAYER } from './layers.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'

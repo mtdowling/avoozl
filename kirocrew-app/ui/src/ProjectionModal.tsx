@@ -3,8 +3,8 @@
 // issues (held) and Create and release are the only buttons that write, and
 // only on step 2. Cancel, Esc and a click outside write nothing.
 import { useCallback, useEffect, useState } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import Badge from './ui/Badge.tsx'
 import { Modal } from './Modal.tsx'
 import { describeWrite, writesByRepository } from './plans-api.ts'
 import { UNDO, confirmLines, headline, preflightFailures, projectionClient, toggleBatch, type ProjectionDetail } from './projection-api.ts'

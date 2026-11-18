@@ -36,7 +36,7 @@ of the other specs.
 - [x] wp-1.3 A batch on `process` runs as single tasks, after wp-1.1 [WP3.3] (§D3)
   - The batch rules gain "the worker's executor makes commits"; a group that fails it runs as single tasks with the stated reason, where a group that breaks a rule is shown today.
   - Done when: Tests: a three-task group on `process` starts three sessions and lands three commits, and the page and `avoozl show` give the reason; the same group on `kirocrew` still runs in one chat with one commit per task.
-- [ ] wp-1.4 A report command that needs no `PATH`, and no MCP tool in a worker's brief, after wp-1.1, wp-1.2 [WP4.1, WP4.3, WP4.5] (§D5)
+- [x] wp-1.4 A report command that needs no `PATH`, and no MCP tool in a worker's brief, after wp-1.1, wp-1.2 [WP4.1, WP4.3, WP4.5] (§D5)
   - One helper gives the brief the Node binary and the running CLI's path, quoted for a shell; the batch brief and the investigate lines use the command-line report; the README says a worker needs no MCP sharing.
   - Done when: A test runs the report command taken from a built brief in a shell with an empty `PATH`, against the source checkout and against the built app package, and both record the report; a search of every `kirocrew` worker brief in the pair table finds no `plans_`; `plans_report` from a verifier and from an MCP client Avoozl did not start still works.
 

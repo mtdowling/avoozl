@@ -2,13 +2,14 @@
 // Conflicts. Each tab passes its fields as data, so the look, the layout,
 // the Clear button and the narrow fold are the same everywhere.
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { Btn, Card } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
+import { Card } from './ui/Card'
 import { FilterSelect, selectStyle } from './FilterSelect.tsx'
 import { Picker } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
 import { ListFilter, X } from './icons.ts'
 import { MoreMenu } from './MoreMenu.tsx'
-import { ICON, IconBtn, TipBtn } from './controls.tsx'
+import { ICON, IconBtn, TipBtn } from './ui/controls.tsx'
 import { useMedia } from './use-media.ts'
 import type { Option } from './filters.ts'
 import { Hint } from './ui/Hint'

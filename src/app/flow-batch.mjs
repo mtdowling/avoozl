@@ -10,6 +10,9 @@
 // retries alone at no attempt cost.
 import { EDIT_ONLY_STEP, workerExecutor } from "./delivery.mjs";
 import { briefCell } from "./worker-briefs.mjs";
+import { cliCommand } from "./report-command.mjs";
+import { issueReportToken } from "./report-match.mjs";
+import { contentBinding } from "./content-rules.mjs";
 import {
   isGate,
   isManual,
@@ -210,6 +213,24 @@ export function batchBrief(store, data, leaf, brief) {
   const tasks = leaf.batch.tasks.map((id) =>
       data.tasks.find((t) => t.id === id),
     ),
+    lead = leaf.task.id,
+    // The batch reports with the leader's token, once per task (WP4.1).
+    token = store
+      ? issueReportToken(store, { taskId: lead, attempt: leaf.attempt ?? 1 })
+      : null,
+    workspace = store ? contentBinding(store)?.workspaceRoot : null,
+    where = workspace ? ` --workspace ${JSON.stringify(workspace)}` : "",
+    run = token
+      ? [
+          `Work only in the worktree of ${lead}: run \`${cliCommand()} worktree prepare ${lead}${where}\` and use the worktree it prints, on its branch.`,
+          `Do the tasks in this order. Make exactly one commit per task, and after each commit run exactly \`${cliCommand()} runner report <task ID> done --token ${token}${where}\` from inside that worktree, with that task's ID; Avoozl reads the commit from HEAD. If one task cannot be done, run the same command with blocked in place of done and --text "<why>", and stop.`,
+        ]
+      : [
+          // shortcut: no report secret (every import makes one) falls back
+          // to the MCP tools; drop it when none can lack one.
+          `Work only in the worktree of ${lead} (call plans_prepare_worktree with {"input": {"taskId": "${lead}"}}), on its branch.`,
+          'Do the tasks in this order. Make exactly one commit per task, and after each commit call plans_report for that task with kind "done"; Avoozl reads the commit from HEAD. If one task cannot be done, report it blocked with the reason and stop.',
+        ],
     lines = [
       `Avoozl batch ${leaf.batch.id}: ${tasks.length} tasks the planner grouped for one session and one worktree.`,
       leaf.batch.reason ? `Why together: ${leaf.batch.reason}` : null,
@@ -223,8 +244,7 @@ export function batchBrief(store, data, leaf, brief) {
         task.summary ? `   Summary: ${task.summary}` : null,
       ]),
       "",
-      `Work only in the worktree of ${leaf.task.id} (call plans_prepare_worktree with {"input": {"taskId": "${leaf.task.id}"}}), on its branch.`,
-      'Do the tasks in this order. Make exactly one commit per task, and after each commit call plans_report for that task with kind "done"; Avoozl reads the commit from HEAD. If one task cannot be done, report it blocked with the reason and stop.',
+      ...run,
       EDIT_ONLY_STEP,
       "Avoozl runs the checks and review once, on the last commit.",
     ].filter((line) => line !== null);

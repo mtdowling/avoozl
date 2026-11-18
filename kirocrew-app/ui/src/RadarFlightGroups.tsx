@@ -1,7 +1,7 @@
 // Live Issue Radar claims grouped by the Avoozl that released them. The group
 // name is the Avoozl's display name; its ID is in the tooltip. Claims on an
 // issue with no Avoozl marker sit under "No Avoozl". Read from GitHub only.
-import Badge from "./Badge.tsx";
+import Badge from "./ui/Badge.tsx";
 import { usePhone } from "./list-detail.ts";
 import { relativeTime } from "./task-api.ts";
 import {
