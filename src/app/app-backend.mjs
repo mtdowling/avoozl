@@ -47,6 +47,7 @@ import {
 import { WORKSPACE_LOCK, tickHealth } from "./tick.mjs";
 import { withWorkLock } from "./git.mjs";
 import { launchSupervisor } from "./supervisor.mjs";
+import { uiBundleProblem } from "./ui-bundle.mjs";
 import {
   DEMO_WORKSPACE_ID,
   defaultDemoRoot,
@@ -502,7 +503,12 @@ export function startAppBackend({
   supervisor = gatewayClient(process.env) ? machineSupervisor : null,
   // Where a typed `~` and the folder picker start.
   home = os.homedir(),
+  // The installed app's ui folder (bin/avoozl.mjs passes it). A page built
+  // from other source, or none, gets only a sentence saying to rebuild.
+  uiDir = null,
 }) {
+  const uiProblem = uiDir ? uiBundleProblem(uiDir) : null;
+  if (uiProblem) console.error(uiProblem);
   const replay = new ReplayCache();
   // The open sample, or null. Only demo.start opens it; its requests name
   // DEMO_WORKSPACE_ID, which no catalog workspace can have.
@@ -608,6 +614,7 @@ export function startAppBackend({
         });
       if (target !== "/api/command")
         return send(res, 404, { error: "Not found." });
+      if (uiProblem) return send(res, 409, { error: uiProblem });
       if (req.method !== "POST") return send(res, 405, { error: "Use POST." });
       let request;
       try {

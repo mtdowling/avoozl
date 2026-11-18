@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { commandEvidence, git } from "./git.mjs";
 import { globMatch } from "./path-glob.mjs";
-import { runEach } from "./verify.mjs";
+import { notRunCause, outputExcerpt, outputTail, runEach } from "./verify.mjs";
 
 const CHECK_TIMEOUT_MS = 20 * 60_000;
 
@@ -181,16 +181,25 @@ export async function runFull(
     ...command,
   ];
   if (results) fs.rmSync(path.resolve(dir, results), { force: true });
-  const [check] = await runEach(dir, [argv], { timeoutFor, run, env }),
-    ok = check.exitCode === 0,
+  const timeoutMs = timeoutFor(argv.join(" ")),
+    started = Date.now(),
+    result = await run(dir, argv, { timeoutMs, env }),
+    elapsed = Date.now() - started,
+    exitCode = Number.isInteger(result.exitCode) ? result.exitCode : null,
+    output = (result.stdout || "") + "\n" + (result.stderr || ""),
+    tail = outputTail(output, dir),
     read = readResults(dir, results);
   return {
     platform,
-    ok,
-    exitCode: check.exitCode,
-    ...(check.notRun ? { notRun: check.notRun } : {}),
-    durationMs: check.durationMs,
-    ...(check.tail ? { tail: check.tail } : {}),
+    ok: exitCode === 0,
+    exitCode,
+    ...(exitCode === null
+      ? { notRun: notRunCause(result, elapsed, timeoutMs) }
+      : {}),
+    durationMs: elapsed,
+    ...(tail ? { tail } : {}),
+    // A longer redacted excerpt, for a failure sent back to its task.
+    ...(exitCode === 0 ? {} : { excerpt: outputExcerpt(output, dir, 200) }),
     suites: read.suites ?? null,
     ...(read.problem ? { resultsProblem: read.problem } : {}),
   };
