@@ -24,10 +24,6 @@ import {
 // issue intake, planner sessions for matched issues, broad-issue publishing,
 // re-projection, crew labels and the Project board.
 import { notesReprojectIds, notesReprojected } from "./task-notes.mjs";
-import {
-  releaseChangedPlanIds,
-  releaseRecorded,
-} from "./radar-coder-queue.mjs";
 import { recordActivity, recordTickActivity } from "./activity-log.mjs";
 import fs from "node:fs";
 import { validateTrackedRouting } from "./placement.mjs";
@@ -88,7 +84,6 @@ import { refreshProjectedReadiness } from "./github-projection.mjs";
 import { planningIdentity } from "./github-marker.mjs";
 import { syncProject } from "./github-project.mjs";
 import { reviewDispatches } from "./pr-review.mjs";
-import { crewStep } from "./github-crew.mjs";
 import { publicCrewAudit } from "./public-crews.mjs";
 import { respondStep } from "./github-respond.mjs";
 import { steeringStep } from "./github-steering.mjs";
@@ -102,7 +97,6 @@ import { intakeNotices, syncGitHubIssues } from "./github-sync.mjs";
 import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
-import { mergeStep } from "./radar-merge.mjs";
 import {
   conflictFixDispatches,
   conflictFixStep,
@@ -546,25 +540,18 @@ async function githubStep(store, github, workspaceRoot, delivery) {
     completeParents(store);
     await closeGitHubParents(store, github, { policy });
     await closePlanAndEpicIssues(store, github, { policy });
-    // Readiness changed by this tick's verdicts reaches GitHub now: the
-    // ready label for Issue Radar, `dispatch.ready` for the runner.
+    // Readiness changed by this tick's verdicts reaches GitHub now:
+    // `dispatch.ready` for the runner.
     // A taken-over spec, and one whose shown links changed
     // (R61.23), are projected once more.
     const identity = planningIdentity(workspaceRoot),
       reproject = takenOverPlanIds(store),
       noted = notesReprojectIds(store),
-      // A changed capacity, scope, release mode or Step click (RC4.5).
-      released = releaseChangedPlanIds(store, identity),
       projection = await refreshProjectedReadiness(store, github, {
         identity,
         skipPlans: readOnlyPlanIds(store),
-        forcePlans: new Set([...reproject, ...noted, ...released]),
+        forcePlans: new Set([...reproject, ...noted]),
       });
-    releaseRecorded(
-      store,
-      identity,
-      projection.projected.filter((planId) => released.has(planId)),
-    );
     for (const planId of projection.projected)
       if (reproject.has(planId)) reprojected(store, planId);
     notesReprojected(
@@ -984,10 +971,6 @@ async function runTick(
           ...(await intakeStep(store, github, workspaceRoot, breakdownHooks))
             .notify,
         );
-      // Issue Radar's claim and needs-human labels (§6.4).
-      const crew =
-        script && github ? await crewStep(store, github, workspaceRoot) : null;
-      if (crew) planned.notify.push(...crew.notify);
       // The public crew audit (R85.6, R85.7, §6.14): what a crew wrote on a
       // public repository since the last pass, checked with content rules.
       if (script && github)
@@ -1006,30 +989,6 @@ async function runTick(
           planned.notify.push({
             channel: "failure",
             title: "Avoozl could not audit a public crew",
-            text: error.message,
-          });
-        }
-      // Ready to merge rows and the conflict label on Issue Radar pull
-      // requests (RC5.3, RC5.6): one read per repository per interval.
-      if (script && github)
-        try {
-          const step = await mergeStep(
-            store,
-            github,
-            readGitHubPolicyOrNull(workspaceRoot),
-            delivery || {},
-          );
-          planned.notify.push(...step.notify);
-          for (const text of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not check pull requests for merging",
-              text,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not check pull requests for merging",
             text: error.message,
           });
         }
@@ -1645,9 +1604,6 @@ async function runTick(
           : {}),
         ...(project.result ? { project: project.result } : {}),
         ...(pluginReport?.length ? { plugins: pluginReport } : {}),
-        ...(crew?.status === "error"
-          ? { crew: { status: crew.status, error: crew.error } }
-          : {}),
       };
     });
     recordRun(store, {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 
-// rc-1.1: the per-repository `coder` setting and the Radar label set.
+// rc-1.1: the Radar label set.
 const policy = (mode, repository = {}) =>
   normalizeGitHubPolicy({
     mode,
@@ -12,31 +12,9 @@ const policy = (mode, repository = {}) =>
 const repo = (mode, repository) =>
   policy(mode, repository).repositories["example/app"];
 
-test("issue-radar validates in both GitHub modes", () => {
-  assert.equal(
-    repo("plans-repo", { coder: "issue-radar" }).coder,
-    "issue-radar",
-  );
-  assert.equal(
-    repo("single-repo", { coder: "issue-radar" }).coder,
-    "issue-radar",
-  );
-  assert.equal(repo("plans-repo", { coder: "worker" }).coder, "worker");
-  assert.equal(repo("single-repo", { coder: "worker" }).coder, "worker");
-});
-
-test("coder defaults are unchanged and unknown values are refused", () => {
-  assert.equal(repo("plans-repo").coder, "worker");
-  assert.equal(repo("single-repo").coder, "issue-radar");
-  // null means "not set", as before.
-  assert.equal(repo("plans-repo", { coder: null }).coder, "worker");
-  for (const coder of ["", "Worker", "ISSUE-RADAR", 1])
-    assert.throws(() => repo("plans-repo", { coder }), /coder must be/);
-});
-
 test("the Radar labels default to avoozl:plan, avoozl:ready, crew: in progress, avoozl:merge-conflict", () => {
   for (const mode of ["plans-repo", "single-repo"]) {
-    const entry = repo(mode, { coder: "issue-radar" });
+    const entry = repo(mode, {});
     assert.deepEqual(entry.radar, {
       planLabel: "avoozl:plan",
       conflictLabel: "avoozl:merge-conflict",

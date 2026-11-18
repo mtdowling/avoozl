@@ -1,16 +1,12 @@
 // rc-5.1: the per-repository merge path check (RC5.1, design D7), with a fake
 // GitHub. Nothing here reaches the network.
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
 import {
   effectiveShip,
   mergePath,
   requireMergePath,
 } from "../radar-merge-path.mjs";
-import { fixture } from "./fixtures.mjs";
 
 const REPO = "example/code";
 
@@ -59,7 +55,6 @@ function fake({
 const settings = (extra = {}) => ({
   baseBranch: "main",
   requiredChecks: ["build"],
-  coder: "issue-radar",
   ...extra,
 });
 const ids = (result) => result.items.map((item) => [item.id, item.ok]);
@@ -186,70 +181,5 @@ test("requireMergePath refuses auto-merge when not ready, warns for manual", () 
   assert.deepEqual(
     requireMergePath([{ ...notReady, ready: true, missing: [] }]),
     [],
-  );
-});
-
-function operations(t, { github, ship, coder = "issue-radar" }) {
-  const { root, store } = fixture(t);
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    JSON.stringify({
-      version: 1,
-      namespace: "avz_0123456789abcdef",
-      github: {
-        mode: "single-repo",
-        repositories: {
-          [REPO]: { baseBranch: "main", requiredChecks: ["build"], coder },
-        },
-      },
-      ...(ship ? { delivery: { ship } } : {}),
-    }),
-  );
-  return new Operations(store, { github, workspaceRoot: root });
-}
-
-test("radar.mergepath shows the three items for each Radar repository and writes nothing", async (t) => {
-  const ops = operations(t, {
-    github: fake({ autoMerge: false }),
-    ship: "auto-merge",
-  });
-  const before = ops.read().revision;
-  const result = await ops.execute("radar.mergepath", {});
-  assert.equal(ops.read().revision, before);
-  assert.equal(result.repositories.length, 1);
-  assert.deepEqual(result.repositories[0].missing, ["auto-merge"]);
-  assert.equal(result.repositories[0].items.length, 4);
-  const none = await operations(t, {
-    github: fake(),
-    ship: "auto-merge",
-    coder: "worker",
-  }).execute("radar.mergepath", {});
-  assert.deepEqual(none.repositories, []);
-});
-
-test("Create and release is refused for auto-merge while not ready; held create is not", async (t) => {
-  const ops = operations(t, {
-    github: fake({ autoMerge: false }),
-    ship: "auto-merge",
-  });
-  await assert.rejects(
-    ops.execute("github.project", { planId: "none", release: true }),
-    (error) => error.status === 409 && /Auto-merge allowed/.test(error.message),
-  );
-  // Without `release` the gate is not consulted, so the failure is the plan's.
-  await assert.rejects(
-    ops.execute("github.project", { planId: "none" }),
-    (error) => !/Auto-merge allowed/.test(error.message),
-  );
-});
-
-test("Create and release only warns for manual", async (t) => {
-  const ops = operations(t, {
-    github: fake({ autoMerge: false }),
-    ship: "manual",
-  });
-  await assert.rejects(
-    ops.execute("github.project", { planId: "none", release: true }),
-    (error) => !/Auto-merge allowed/.test(error.message),
   );
 });

@@ -76,9 +76,6 @@ export const CREW_LABEL_DEFAULTS = Object.freeze({
 // Issue Radar's own page route (its app.json), where a user scopes a crew
 // (R17.4).
 export const ISSUE_RADAR_PATH = "/issue-radar";
-// One place validates `coder`. Settings shows the display names
-// (kirocrew-app/ui/src/settings-api.ts CODER_CARDS).
-export const CODERS = Object.freeze(["issue-radar", "worker"]);
 // Avoozl's own workflow labels (design D2, D26), each with an `avoozl:`
 // default (RC21). Ready is `managedLabels.ready`. A name set in `.avoozl.json`
 // always wins; only an unset name reads the default.
@@ -356,10 +353,10 @@ function discussionsInput(value, label) {
 export const RELEASE_MODES = Object.freeze(["automatic", "step", "hold"]);
 
 // Release capacity (RC4.2): `release.capacity` is N, the most ready issues at
-// once; `release.scopes` gives a crew label its own N. A repository on Issue
-// Radar defaults to 2, any other to 1. 0 releases nothing. The older `concurrency` key only set Avoozl's retired local
+// once; `release.scopes` gives a label its own N. It defaults to 1; 0
+// releases nothing. The older `concurrency` key only set Avoozl's retired local
 // workers; it is still accepted and ignored, so an old file reads without error.
-function releaseInput(value, coder, label) {
+function releaseInput(value, label) {
   const input = value.release ?? {};
   if (!record(input)) fail(`${label}.release must be an object.`);
   onlyKeys(
@@ -387,9 +384,7 @@ function releaseInput(value, coder, label) {
   const capacity =
     input.capacity !== undefined
       ? whole(input.capacity, `${label}.release.capacity`)
-      : coder === "issue-radar"
-        ? 2
-        : 1;
+      : 1;
   if (input.scopes !== undefined && !Array.isArray(input.scopes))
     fail(`${label}.release.scopes must be a list.`);
   const seen = new Set(),
@@ -444,6 +439,7 @@ function repositoryInput(value, id, mode) {
       "folder",
       "baseBranch",
       "role",
+      // Who codes was removed (R91.6): an old file's `coder` is ignored.
       "coder",
       "allowedActors",
       "minimumPermission",
@@ -478,23 +474,13 @@ function repositoryInput(value, id, mode) {
     typeof value.stackedPullRequests !== "boolean"
   )
     fail(`${label}.stackedPullRequests must be true or false.`);
-  const coder =
-    value.coder ?? (mode === "single-repo" ? "issue-radar" : "worker");
-  if (coder === "remote")
-    fail(
-      `${label}.coder: the remote coder was removed. Remove the retired coder setting or choose an available coder.`,
-    );
-  if (!CODERS.includes(coder))
-    fail(
-      `${label}.coder must be ${CODERS.slice(0, -1).join(", ")} or ${CODERS.at(-1)}.`,
-    );
   const baseBranch = name(value.baseBranch, `${label}.baseBranch`, {
     optional: true,
   });
   // GitHub closes issues only from merges into the default branch (R16.5).
   if (mode && !baseBranch)
     fail(`${label}.baseBranch must name the repository's default branch.`);
-  const release = releaseInput(value, coder, label);
+  const release = releaseInput(value, label);
   if (
     value.dependencyText !== undefined &&
     typeof value.dependencyText !== "boolean"
@@ -632,8 +618,7 @@ function repositoryInput(value, id, mode) {
       fail(`${label}.radar.escalationDraft must be true or false.`);
     radar.escalationDraft = radarInput.escalationDraft;
   }
-  // The approval pull request (RC3.8): the decision record is on for Issue
-  // Radar repositories until RC12.7 is answered.
+  // The approval pull request (RC3.8): the decision record is off unless set.
   const approvalInput = onlyKeys(
     value.approval ?? {},
     ["decisionRecord"],
@@ -645,7 +630,7 @@ function repositoryInput(value, id, mode) {
   )
     fail(`${label}.approval.decisionRecord must be true or false.`);
   const approval = {
-    decisionRecord: approvalInput.decisionRecord ?? coder === "issue-radar",
+    decisionRecord: approvalInput.decisionRecord ?? false,
   };
 
   // Unset follows the repository: on when it is private, off when public.
@@ -745,7 +730,6 @@ function repositoryInput(value, id, mode) {
     checkout: name(value.checkout, `${label}.checkout`, { optional: true }),
     ...kirocrewSessionSettings(value, label, name),
     baseBranch,
-    coder,
     approval,
     allowedActors,
     minimumPermission,
@@ -889,20 +873,6 @@ export function priorityRank(priority, labels) {
       (entry) => typeof entry === "string" && names.has(lower(entry)),
     );
   return index < 0 ? list.length : index;
-}
-
-// The crews a user must configure in Issue Radar: one per single-repo
-// repository it codes, scoped to exactly that repository's ready label
-// (R17.4). Avoozl never reads or writes the crew records themselves (F23).
-export function issueRadarCrews(policy) {
-  if (policy?.mode !== "single-repo") return [];
-  return Object.entries(policy.repositories || {})
-    .filter(([, repository]) => repository.coder === "issue-radar")
-    .map(([repository, entry]) => ({
-      repository,
-      label: entry.managedLabels?.ready ?? null,
-      link: ISSUE_RADAR_PATH,
-    }));
 }
 
 // The `github` block of `.avoozl.json`. `issueIntake` and `queue` are the

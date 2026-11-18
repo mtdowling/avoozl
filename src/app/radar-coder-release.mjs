@@ -1,27 +1,15 @@
-// Release engine for `coder: issue-radar` (RC4, design D6): which eligible
-// tasks get the ready label this tick. Pure, so the projection and the tests
-// share it. A scope is a ready label with its own capacity N.
+// Release engine (RC4, design D6): which eligible tasks are released this
+// tick. Pure, so the projection and the tests share it. A scope is a ready
+// label with its own capacity N.
 
 import { rankingFor } from "./release-ranking.mjs";
 
 // A repository's release settings from the policy as written (the identity
-// holds it unnormalized). N is `release.capacity`, else 2 for Issue Radar,
-// else no cap. The older `concurrency` key (Avoozl's retired local workers)
-// is ignored.
-export function isRadarRepository(repository = {}, mode = null) {
-  return (
-    (repository?.coder ??
-      (mode === "single-repo" ? "issue-radar" : "worker")) === "issue-radar"
-  );
-}
-
-export function releaseFor(repository = {}, mode = null) {
+// holds it unnormalized). N is `release.capacity`, else no cap. The older
+// `concurrency` key (Avoozl's retired local workers) is ignored.
+export function releaseFor(repository = {}) {
   const input = repository.release ?? {},
-    capacity = Number.isSafeInteger(input.capacity)
-      ? input.capacity
-      : isRadarRepository(repository, mode)
-        ? 2
-        : Infinity;
+    capacity = Number.isSafeInteger(input.capacity) ? input.capacity : Infinity;
   return {
     capacity,
     mode: ["step", "hold"].includes(input.mode) ? input.mode : "automatic",
@@ -82,43 +70,6 @@ export function planRelease({ candidates, capacity, foreign = () => 0 }) {
       keep.add(c.id);
     }
   return keep;
-}
-
-// The one comment a claimed issue gets when release stops around it (RC4.3).
-// It says what Avoozl did and what only Issue Radar's own pause can stop.
-export const STOP_NOTICE =
-  "Avoozl: release is paused for this issue's scope" +
-  " (the line is stopped, or a blocker is open again)." +
-  " Avoozl releases nothing new there and leaves this issue's labels as they are." +
-  " It cannot stop a running crew: only Issue Radar's own pause does that." +
-  " A person resumes the line in Avoozl.";
-
-// The phase gate (RC4.4): a phase of a spec is held until every counted task
-// of the phase before it has merged. Phases run in the order their tasks
-// appear in the plan. `counts` picks the tasks that count; `merged` says
-// whether one has. Returns a Map of held task ID to
-// {phase, previous, waiting: [task IDs]}. Tasks with no phase are never held.
-export function phaseHolds(tasks, { counts, merged }) {
-  const phases = [];
-  for (const task of tasks) {
-    const id = task.phase?.id;
-    if (id && !phases.includes(id)) phases.push(id);
-  }
-  const holds = new Map();
-  for (let i = 1; i < phases.length; i += 1) {
-    const waiting = tasks
-      .filter((t) => t.phase?.id === phases[i - 1] && counts(t) && !merged(t))
-      .map((t) => t.id);
-    if (!waiting.length) continue;
-    for (const task of tasks)
-      if (task.phase?.id === phases[i])
-        holds.set(task.id, {
-          phase: phases[i],
-          previous: phases[i - 1],
-          waiting,
-        });
-  }
-  return holds;
 }
 
 // A Step click records one receipt per phase of a plan; "" is the phase of

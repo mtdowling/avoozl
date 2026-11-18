@@ -294,20 +294,6 @@ export function matchingAgentInstructions(data, category, task) {
   );
 }
 
-// An Issue Radar crew gets no Avoozl brief: it implements a task from its
-// issue. So the rules for both surfaces it works on go with the issue.
-export const CREW_CATEGORIES = Object.freeze([
-  "task.implement",
-  "github.issue.implement",
-]);
-
-export function crewAgentInstructions(data, task) {
-  const seen = new Set();
-  return CREW_CATEGORIES.flatMap((category) =>
-    matchingAgentInstructions(data, category, task),
-  ).filter((rule) => !seen.has(rule.id) && seen.add(rule.id));
-}
-
 export function workflowCategory(run) {
   const explicit = run.context?.workflowCategory;
   if (categories.has(explicit)) return explicit;
