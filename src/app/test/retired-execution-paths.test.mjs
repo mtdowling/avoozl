@@ -63,7 +63,12 @@ function workspace(t, tasks, tracked = {}) {
       ...tracked,
     }),
   );
-  return { root, file, store, ops: new Operations(store, { workspaceRoot: root }) };
+  return {
+    root,
+    file,
+    store,
+    ops: new Operations(store, { workspaceRoot: root }),
+  };
 }
 
 test("retired relay aliases resolve and refuse without changing state", async (t) => {

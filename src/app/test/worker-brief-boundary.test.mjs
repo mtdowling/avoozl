@@ -5,11 +5,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import {
-  EDIT_ONLY_STEP,
-  localSteps,
-  workerBrief,
-} from "../delivery.mjs";
+import { EDIT_ONLY_STEP, localSteps, workerBrief } from "../delivery.mjs";
 import { batchBrief } from "../flow-batch.mjs";
 import { Operations } from "../operations.mjs";
 import { rolePrompt } from "../prompts.mjs";

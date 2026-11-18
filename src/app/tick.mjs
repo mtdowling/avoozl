@@ -8,10 +8,7 @@ import {
   kirocrewExplicitSession,
 } from "./executors/kirocrew.mjs";
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
-import {
-  kirocrewSession,
-  kirocrewDispatches,
-} from "./executors/kirocrew.mjs";
+import { kirocrewSession, kirocrewDispatches } from "./executors/kirocrew.mjs";
 // workspace.tick: the one bounded, idempotent step a Kiro Crew script cron runs
 // every minute. It returns intents for the script to carry out; it never opens
 // sessions or sends messages itself. It takes the lock, loads policy, records
