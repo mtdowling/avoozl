@@ -75,7 +75,7 @@ Old links to a removed page open the page that took over its job
 
 | Item                                                    | Replaced by                                                         | PR            |
 | ------------------------------------------------------- | ------------------------------------------------------------------- | ------------- |
-| Routing page, routing agent, remote relay               | Nothing; pins and hard checks stay                                  | #153, #282    |
+| Crew choice, the remote relay                           | Nothing; pins and hard checks stay                                  | #153, #282    |
 | Ideas, Quick goal, the lessons store, Switch model      | New spec From a goal; steering rules file; Settings › Models        | #228          |
 | Demo tour                                               | The demo itself stays                                               | #311          |
 | Driver chat                                             | The spec driver lock stays                                          | #382          |
@@ -107,7 +107,7 @@ refuses and lists their ids.
 | `--delete-spec-folder` | Also remove the spec folder. Off by default. Refused if the folder has uncommitted changes. |
 
 `avoozl plan restore PLAN_ID` brings a deleted plan back. Both are for a person: MCP and chat callers
-are still refused, and inside an agent session the CLI needs `--as-person`.
+are still refused. The CLI runs it anywhere but a supervisor child, and says so when it runs inside an agent session.
 
 ## 6. Links
 

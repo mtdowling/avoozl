@@ -1,6 +1,6 @@
 # Design: one way to run a worker
 
-Status: Draft
+Status: Approved
 
 `WP` numbers are in this spec's `requirements.md`; `R` numbers and `§`
 sections without a `D` are in `.kiro/specs/avoozl/`. Labels are as in the
@@ -37,7 +37,7 @@ that worked before the phase without a route after it.
 | 1     | The pair table; findings on both executors; briefs by executor | Nothing                       |
 | 2     | Manual claim under the tick                         | Crew Mode dispatch and relay             |
 | 3     | Worker pull on the tick; results on the driver      | Runner mode over SSH                     |
-| 4     | One local placement module                          | Remote crews, hand-back, routing         |
+| 4     | Sessions run on this machine                        | Remote crews, hand-back                  |
 | 5     | The word test; spec edits                           | Dead commands; old words in docs         |
 
 ## D3. The pair table (WP3)
@@ -162,23 +162,15 @@ about 210 lines from `:619`), the `remote.accept`, `remote.handoff` and
 `src/app/test/remote-runner.test.mjs` apart from the cases that cover the
 worker role, which move to `worker-mode.test.mjs`.
 
-## D9. Placement on one machine (WP6)
+## D9. Sessions run on this machine (WP6)
 
-What stays of `routing.mjs`, `placement.mjs` and `crews.mjs` moves to
-`src/app/lanes.mjs`: `validateSession` for the `agent`, `model` and
-`harness` pins, the local reading and lane limit, and the provider checks'
-entry point (`provider-health.mjs` is unchanged). The tick imports
-`validateTrackedRouting`, `crewSnapshot`, `closeNoFit`, `fetchAll`,
-`openNoFit`, `routingContext` and `routingFacts` today (V:
-`src/app/tick.mjs:29` to `:37`); after, it imports the lane limit and the
-pin check.
+The `agent`, `model` and `harness` pins stay in `src/app/session-pins.mjs`,
+and the provider checks stay in `provider-health.mjs`. The crew snapshot
+(`crews.mjs`, `crew-reader.mjs`) stays for the In flight view.
 
-Removed: the remote crew registry and snapshot (`crews.mjs` apart from
-`LOCAL` and the local reading), `crew-reader.mjs`, `handback.mjs`,
-`remoteSteps` and `remoteTarget` in `delivery.mjs`, `kirocrewRemoteSession`,
-the `crew` argument in `kirocrew-app/executors/kirocrew.py` (V: `:256` to
-`:259`), `routing-health.mjs`'s routing marks, and the `routing.*` and
-`crews.update` operations.
+Removed: the remote steps and `remoteTarget` in `delivery.mjs`,
+`kirocrewRemoteSession`, `handback.mjs`, and the `crew` argument in
+`kirocrew-app/executors/kirocrew.py`.
 
 The no-fit decision stays for the one case left: a pin names a harness or a
 model this machine does not have.
@@ -187,7 +179,7 @@ model this machine does not have.
 
 Each has a default that the requirements already assume. Approving the spec
 approves the defaults. On 2026-11-18 the owner said to approve the spec
-with them; `requirements.md` says what that does and does not record.
+with them; `requirements.md` records the approval.
 
 | #   | Decision                                             | Default                                                                 | The other choice                                                              |
 | --- | ---------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
@@ -204,8 +196,8 @@ with them; `requirements.md` says what that does and does not record.
 - `plans_report` for the roles that are not the worker.
 - Issue Radar intake and its views. A search of every `radar-*`, intake,
   public-crews, review-draft and mirror module finds no import of `runner`,
-  `remote-runner`, `routing`, `placement`, `crews` or `handback` (A: from
-  one search, not rerun for this spec).
+  `remote-runner`, `crews` or `handback` (A: from one search, not rerun for
+  this spec).
 - The `plans_*` tool names and the environment aliases (AGENTS.md).
 
 ## D12. Risks

@@ -4,7 +4,7 @@ category: Planning
 
 # Requirements: the page draws with components, not class strings
 
-Status: Draft
+Status: Approved
 
 ## Introduction
 

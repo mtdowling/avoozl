@@ -1,6 +1,6 @@
 # Design: everything runs without Kiro Crew
 
-Status: Draft
+Status: Approved
 
 `NK` numbers are in this spec's `requirements.md`; `R` numbers and `§`
 sections without a `D` are in `.kiro/specs/avoozl/`. Labels are as in the

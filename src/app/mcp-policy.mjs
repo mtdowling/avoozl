@@ -164,11 +164,7 @@ export const PERSON_ONLY = new Map([
     "activity.settings.update",
     person("Only a person changes how long activity is kept."),
   ],
-  ["routing.update", person("Only a person changes the routing prompt.")],
-  ["crews.update", person("Only a person changes crew settings.")],
   ["relay.forget", person("Only a person forgets the relay chat.")],
-  ["routing.retry", person("Only a person retries routing now.")],
-  ["routing.turnOff", person("Only a person turns routing off.")],
   ["provider.switch", person("Only a person switches models.")],
   [
     "provider.switch.dryRun",
@@ -179,7 +175,6 @@ export const PERSON_ONLY = new Map([
     "providers.settings.update",
     person("Only a person changes provider settings."),
   ],
-  ["delivery.pickAgain", person("Only a person presses Pick again.")],
   [
     "delivery.integrate",
     person("Only a person presses Integrate on a Ready to merge task."),
@@ -338,7 +333,6 @@ export const NOT_ON_MCP = new Map([
     "driver.context",
     "driver.list",
     "concurrency.status",
-    "conversations.routing.preview",
     "openhands.profiles",
     "openhands.models",
     "server.restart.status",
@@ -402,23 +396,24 @@ export function agentSession(env = process.env) {
   return env.KIROCREW_SPAWNED === "1" || Boolean(env.KIRO_SESSION_ID);
 }
 
-// The refusal for a CLI call from an agent session, or null. `--as-person`
-// is the typed override, except in a supervisor child (AVOOZL_CHILD, R95.5),
-// where nobody is typing.
-export function cliRefusal(name, input, { env = process.env, asPerson } = {}) {
+// The refusal for a CLI call, or null. The command line is a person's tool,
+// so a person-only operation runs there, even inside an agent session, and is
+// recorded as run there (agentSessionNote). It is refused only in a
+// supervisor child (AVOOZL_CHILD, R95.5), where nobody is typing.
+export function cliRefusal(name, input, { env = process.env } = {}) {
   const reason = mcpRefusal(name, input);
-  if (!reason) return null;
-  if (env.AVOOZL_CHILD)
-    return (
-      reason.replace(/ Do it in the Avoozl app\.$/, "") +
-      " This command is running inside an agent the supervisor started" +
-      `${env.AVOOZL_CHILD_SESSION ? ` (${env.AVOOZL_CHILD_SESSION})` : ""}.` +
-      " Do it in the Avoozl app; --as-person does not apply here."
-    );
-  if (asPerson || !agentSession(env)) return null;
+  if (!reason || !env.AVOOZL_CHILD) return null;
   return (
     reason.replace(/ Do it in the Avoozl app\.$/, "") +
-    " This command is running inside an agent session. Do it in the Avoozl" +
-    " app, or add --as-person if you are the person typing it."
+    " This command is running inside an agent the supervisor started" +
+    `${env.AVOOZL_CHILD_SESSION ? ` (${env.AVOOZL_CHILD_SESSION})` : ""}.` +
+    " Do it in the Avoozl app."
   );
+}
+
+// What a person-only CLI call from an agent session leaves in the record, or
+// null when it is not one (R83.1).
+export function agentSessionNote(name, input, env = process.env) {
+  if (!mcpRefusal(name, input) || !agentSession(env)) return null;
+  return `Run from a Kiro Crew agent session${env.KIRO_SESSION_ID ? ` (${env.KIRO_SESSION_ID})` : ""}.`;
 }

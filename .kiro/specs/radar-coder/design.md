@@ -493,14 +493,14 @@ A separate last epic. Nothing starts before the real-repository proof
 | Removed for Radar-coded repositories                | Where today                              | Kept? |
 | --------------------------------------------------- | ---------------------------------------- | ------------------------- |
 | Own worker dispatch (tick opens a worker)          | `kirocrew-app/crons/tick.py`, `delivery.mjs`, `runner.mjs`  | Yes                       |
-| Crew routing and placement, router prompt           | Requirements 41, 42                      | Yes (placement), router off |
+| Crew selection, router prompt                       | Requirements 41, 42                      | Retired                     |
 | Runner mode over SSH                                | Requirement 84, `remote-runner.mjs`      | Removed (crews replace it) |
 | Remote relay                                        | Phase 32                                 | Removed                   |
 | Per-task budgets for workers                        | Requirement 67                           | Removed entirely 2026-11-17 (owner)  |
 | Workers' Files and diff fold                        | Requirement 81                           | Removed with the worker UI |
 | Verifier, falsifier, reviewer, responder roles      | `kirocrew-app/agents/*`                  | Yes for `worker`          |
 | Foreman, bot heartbeat                              | research only, not built; superseded by Radar crews (RC11.8) | Stay unbuilt |
-| Model switch of running chats (`provider.switch`, `provider.switch.dryRun`, the tick's `applySwitches` of queued switches) | `provider-health.mjs`, `routing.mjs` `switchModels`, `app-backend.mjs` | Removed. The Switch model button and dialog are gone from the page (RC11.9); `provider.switch.preview` stays as a public MCP read, and the gateway model call stays for Settings › Models' driver chat |
+| Model switch of running chats (`provider.switch`, `provider.switch.dryRun`, the tick's `applySwitches` of queued switches) | `provider-health.mjs`, `app-backend.mjs` | Removed. The Switch model button and dialog are gone from the page (RC11.9); `provider.switch.preview` stays as a public MCP read, and the gateway model call stays for Settings › Models' driver chat |
 
 Rules for the removal:
 
@@ -1063,7 +1063,7 @@ note if the tracker now differs.
 ### D28.5 The label
 
 `radar.trackerLabel`, default `avoozl:waiting-on-tracker`, joins the six
-labels of D26, and the clash check there covers it. Placement:
+labels of D26, and the clash check there covers it. Where it goes:
 
 | Issue                                          | Has the label while                           | Loses it when                                                 |
 | ---------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------- |

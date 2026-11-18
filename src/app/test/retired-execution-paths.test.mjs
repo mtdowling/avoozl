@@ -6,12 +6,12 @@ import test from "node:test";
 import { kirocrewConfiguration } from "../executors/kirocrew.mjs";
 import { groupedCall, GROUPED_TOOLS } from "../mcp-tools.mjs";
 import { Operations } from "../operations.mjs";
-import { validateNeeds, validateSession } from "../placement.mjs";
+import { validateSession } from "../session-pins.mjs";
 import { Store } from "../store.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
-// The machine file the tick used to read crews and the routing prompt from.
+// The machine file the tick reads provider settings from.
 const XDG = temporaryDirectory("avoozl-retired-xdg-");
 process.env.XDG_CONFIG_HOME = XDG;
 const MACHINE = path.join(XDG, "avoozl", "config.json");
@@ -74,11 +74,11 @@ function workspace(t, tasks, tracked = {}) {
 test("retired relay aliases resolve and refuse without changing state", async (t) => {
   const { root, store } = fixture(t),
     ops = new Operations(store, { workspaceRoot: root });
-  store.setMeta("routing.relay", {
+  store.setMeta("relay.state", {
     slot: "old-relay",
     queue: [{ id: "old-request" }],
   });
-  const before = store.getMeta("routing.relay");
+  const before = store.getMeta("relay.state");
   for (const action of Object.keys(GROUPED_TOOLS.plans_relay.actions)) {
     const call = groupedCall("plans_relay", { action });
     assert.equal(call.operation, "relay.call");
@@ -91,43 +91,18 @@ test("retired relay aliases resolve and refuse without changing state", async (t
     ops.execute("relay.forget", {}),
     /Remote relay was removed/,
   );
-  assert.deepEqual(store.getMeta("routing.relay"), before);
+  assert.deepEqual(store.getMeta("relay.state"), before);
 });
 
-test("routing and crew operations answer that placement was retired", async (t) => {
-  const env = workspace(t, [], { routing: { remoteRelay: "on" } });
-  for (const name of [
-    "routing.view",
-    "routing.preview",
-    "routing.update",
-    "routing.retry",
-    "routing.turnOff",
-    "crews.update",
-    "delivery.pickAgain",
-  ])
-    await assert.rejects(
-      env.ops.execute(name, { where: "workspace", routing: {} }),
-      (e) => e.status === 410 && /Crew placement was retired/.test(e.message),
-      name,
-    );
-  assert.equal(
-    JSON.parse(fs.readFileSync(env.file, "utf8")).routing.remoteRelay,
-    "on",
-    "refusal never rewrites an existing configuration",
-  );
-});
-
-test("old machine crews and routing are ignored; pins still steer", async (t) => {
+test("unknown machine file keys are dropped; pins still steer", async (t) => {
   fs.mkdirSync(path.dirname(MACHINE), { recursive: true });
-  // This used to hold every local session (chat limit 0) and turn the
-  // routing prompt on; now nothing reads it.
+  // Nothing reads these keys; they never stop a workspace from loading.
   fs.writeFileSync(
     MACHINE,
     JSON.stringify({
       version: 1,
-      crews: { local: { chatLimit: 0 }, box: { gitHosts: ["x.test"] } },
-      crewStaleSeconds: 30,
-      routing: { enabled: true, prompt: "Send everything to box." },
+      oldKey: { enabled: true },
+      providers: { oldProviderKey: 1 },
     }),
   );
   t.after(() => fs.rmSync(MACHINE, { force: true }));
@@ -135,7 +110,6 @@ test("old machine crews and routing are ignored; pins still steer", async (t) =>
     leaf("a"),
     leaf("b", { session: { agent: "agent-p", model: "model-p" } }),
   ]);
-  env.store.setMeta("routing.models", { models: ["model-x"] });
   const result = await env.ops.execute("workspace.tick", { sessions: [] }),
     workers = Object.fromEntries(
       result.dispatch
@@ -147,20 +121,15 @@ test("old machine crews and routing are ignored; pins still steer", async (t) =>
   assert.equal(workers.a.model, "model-d");
   assert.equal(workers.b.model, "model-p");
   assert.equal(kirocrewConfiguration(env.store, workers.b).agent, "agent-p");
-  assert.equal(workers.a.placement, undefined);
 });
 
-test("a manifest may not name a crew or crew tags", () => {
+test("a manifest session pin names an agent, model or harness only", () => {
   assert.deepEqual(validateSession({ model: "m", harness: "kirocrew" }), {
     model: "m",
     harness: "kirocrew",
   });
   assert.throws(
     () => validateSession({ crew: "box" }),
-    /session\.crew: crew placement was retired/,
-  );
-  assert.throws(
-    () => validateNeeds(["os:linux"]),
-    /needs: crew placement was retired/,
+    /session\.crew is not a session setting/,
   );
 });

@@ -758,7 +758,7 @@ export function startSupervisor({
         // Avoozl pushes; an agent gets no push credentials (R102.6). The
         // sandbox then sets git's own empty credential helper.
         // The child marker makes the CLI refuse person-only commands, even
-        // with --as-person (R95.5).
+        // on the command line (R95.5).
         env: withoutPushCredentials({
           ...env,
           ...(values.tmp

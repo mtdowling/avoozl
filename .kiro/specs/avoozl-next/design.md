@@ -30,7 +30,7 @@ only for Avoozl's own workers.
 | `rc-25.4` to `rc-25.7`, `rc-p25` | not included | pull request 191 and later (another worker); `rc-p25` is an owner step |
 | `rc-p23`, `rc-p26` | owner steps | the run needs real scratch repositories |
 | `rc-12.*`, `rc-p12` | not included | Phase 12, retirement |
-| `avoozl` 11.1, 11.10, 12.13, 13.9, 16.7, `p29` | not included | crew placement for workers, and upstream asks |
+| `avoozl` 11.1, 11.10, 12.13, 13.9, 16.7, `p29` | not included | workers on other crews, and upstream asks |
 | `rc-p14` | not included | proof of the worker adapter |
 | `avoozl` 8.5, `p8b` | not included | skipped by the owner |
 

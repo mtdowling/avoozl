@@ -107,8 +107,6 @@ export const VIEW_ICONS = {
   flow: Gauge,
   // A retro is a review of how delivery went; ClipboardCheck is in the host's list.
   retros: ClipboardCheck,
-  // HardDrive is already in the list above: crews are machines.
-  routing: HardDrive,
   conflicts: CircleAlert,
   untriaged: Inbox,
   // Needs you reuses the Conflicts icon.

@@ -487,7 +487,7 @@ test("ticks stop from the hold until the verifying tick, which runs once", async
   assert.deepEqual(await tick(client), { skipped: "retirement" });
 });
 
-test("the CLI maps retire-issues steps and refuses them in an agent session", async () => {
+test("the CLI maps retire-issues steps and refuses them in a supervisor child", async () => {
   const { spawnSync } = await import("node:child_process");
   const { fileURLToPath } = await import("node:url");
   const { initializeWorkspace } = await import("../workspace.mjs");
@@ -497,7 +497,7 @@ test("the CLI maps retire-issues steps and refuses them in an agent session", as
   const run = (args) =>
     spawnSync(process.execPath, [cli, ...args, "--workspace", root], {
       encoding: "utf8",
-      env: { ...process.env, KIROCREW_SPAWNED: "", KIRO_SESSION_ID: "s1" },
+      env: { ...process.env, KIROCREW_SPAWNED: "", AVOOZL_CHILD: "1" },
     });
   const bad = run(["github", "retire-issues", "nope"]);
   assert.notEqual(bad.status, 0);
@@ -505,7 +505,7 @@ test("the CLI maps retire-issues steps and refuses them in an agent session", as
   for (const step of ["preview", "hold", "apply", "verify", "close"]) {
     const refused = run(["github", "retire-issues", step]);
     assert.notEqual(refused.status, 0, step);
-    assert.match(refused.stderr, /agent session/, step);
+    assert.match(refused.stderr, /supervisor started/, step);
   }
 });
 

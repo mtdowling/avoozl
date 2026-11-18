@@ -1,13 +1,12 @@
 // Trace is gone (Requirement 106): task details hold the Timeline of Avoozl's
-// task steps, old trace links land somewhere real, and nothing new calls
-// GitHub. The page check runs in a real Chrome (AVOOZL_CHROME) and is skipped
+// task steps, and nothing new calls GitHub. The page check runs in a real Chrome (AVOOZL_CHROME) and is skipped
 // without one.
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
-import { TABS, parseTraceLink, redirectTab, taskForIssue } from '../src/nav-api.ts'
+import { TABS } from '../src/nav-api.ts'
 import { afterPrevious, clock } from '../src/task-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
@@ -16,33 +15,6 @@ test('there is no Trace nav entry, page, drawer or Done list', () => {
   assert.ok(!TABS.some((t) => t.key === 'trace' || t.label === 'Trace'))
   for (const name of ['TraceView.tsx', 'TraceDone.tsx', 'trace-api.ts']) assert.equal(existsSync(new URL(`../src/${name}`, import.meta.url)), false, name)
   for (const name of ['App.tsx', 'DashboardView.tsx', 'RadarFlightGroups.tsx']) assert.doesNotMatch(source(name), /Trace(View|Drawer|Page)|onTrace|radar\.trace|trace\.done/, name)
-})
-
-test('an old trace page link opens Delivery', () => {
-  assert.deepEqual(redirectTab('trace'), { tab: 'delivery' })
-})
-
-test('an old ?trace link names an issue, and the task that owns it opens', () => {
-  assert.deepEqual(parseTraceLink('?trace=acme%2Frecipe-box%2352'), { repository: 'acme/recipe-box', number: 52 })
-  assert.equal(parseTraceLink('?trace=nope'), null)
-  assert.equal(parseTraceLink(''), null)
-  const graph = {
-    tasks: [
-      { id: 'a', repository: 'recipe-box', issue: { number: 52, repository: 'acme/recipe-box' } },
-      { id: 'b', repository: 'acme/other', issue: { number: 52, repository: null } },
-      { id: 'c', repository: 'x', issue: null },
-    ],
-  }
-  assert.equal(taskForIssue(graph, { repository: 'acme/recipe-box', number: 52 })?.id, 'a')
-  assert.equal(taskForIssue(graph, { repository: 'acme/other', number: 52 })?.id, 'b')
-  assert.equal(taskForIssue(graph, { repository: 'acme/recipe-box', number: 53 }), undefined)
-  // The link is read once and sent through Delivery; a missing task stays there.
-  const app = source('App.tsx')
-  assert.match(app, /<OldTraceLink /)
-  assert.match(app, /go\(\{ tab: 'delivery', focus: null, drill: null \}\)/)
-  // It reads the stored graph and nothing from GitHub.
-  assert.match(source('OldTraceLink.tsx'), /views\.graph\(/)
-  assert.doesNotMatch(source('OldTraceLink.tsx'), /radar\./)
 })
 
 test('the Timeline reads the steps task.detail gives, with a wait since the step before', () => {

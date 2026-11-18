@@ -6,7 +6,6 @@
 // (panel-chat.ts). All data comes from one operation, `panel.view`, read when
 // the Refresh countdown ends, when the window gains focus, and not while hidden
 // (panel-api.ts). Every view is built from the shared parts in PanelParts.tsx.
-// Local workers are retired: no worker rows here.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ConfirmProvider } from './controls.tsx'
 import { railFor } from './dashboard-api.ts'
