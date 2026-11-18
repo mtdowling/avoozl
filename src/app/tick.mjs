@@ -182,22 +182,6 @@ export const WORKSPACE_LOCK = {
 };
 const MAX_POLICY_BYTES = 512 * 1024;
 
-// Budgets were removed 2026-11-17. Old `budget` and `prices` keys are ignored,
-// with one warning per process, so an existing workspace still loads.
-let warnedBudgets = false;
-export function warnRemovedBudgets(value) {
-  const old =
-    value.budget !== undefined ||
-    value.prices !== undefined ||
-    Object.values(value.projects ?? {}).some((p) => p?.budget !== undefined);
-  if (!old || warnedBudgets) return old;
-  warnedBudgets = true;
-  console.warn(
-    ".avoozl.json: budgets were removed; the budget and prices keys are ignored.",
-  );
-  return old;
-}
-
 function parsePolicy(text) {
   if (Buffer.byteLength(text) > MAX_POLICY_BYTES)
     throw Error(".avoozl.json is too large.");
@@ -215,7 +199,6 @@ function parsePolicy(text) {
   validateModels(value.models);
   validatePlanReview(value.planReview);
   validateIntake(value.intake);
-  warnRemovedBudgets(value);
   return value;
 }
 
@@ -1404,6 +1387,8 @@ async function runTick(
           ? []
           : planReadyDispatches(store, delivery, {
               skip: new Set([...readySkip, ...schedule.skip]),
+              // Settings › Models' worker harness (R98.3).
+              harnesses: (memory.value || {}).harnesses,
               github: readGitHubPolicyOrNull(workspaceRoot),
               routing,
               placementState,

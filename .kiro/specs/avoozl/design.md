@@ -2602,7 +2602,7 @@ budget, Over budget, receipts, the drawer's Budget fold, Settings › Budgets
 and the spend cap in harness definitions. Kept: the per-turn usage reads and
 `flow_usage` (§4.11) for Flow's usage charts, and the plan-quota stop (§4.28).
 A `budget` or `prices` key in `.avoozl.json`, a repository entry or a manifest
-is ignored with one warning, never an error.
+is skipped silently, never an error.
 
 ---
 

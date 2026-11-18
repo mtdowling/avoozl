@@ -967,18 +967,52 @@ if (query.get('page') === 'workspaces') {
     items = items.filter((item) => item.id !== id)
     return { id, root: gone.root, removed: true, databasePreserved: true }
   })
+  answer('workspaces.update', (body) => {
+    const { id, ...change } = (body as { input: { id: string; name?: string; root?: string } }).input
+    wsWin.__wsCalls.push(`update ${id} ${JSON.stringify(change)}`)
+    if (change.root === '/bad') throw new Refusal(400, { error: 'No Avoozl workspace in /bad.' })
+    items = items.map((item) => (item.id === id ? { ...item, ...change } : item))
+    return items.find((item) => item.id === id)
+  })
   answer('workspace.tick.health', () => ({ lastRun: null, lock: null }))
   answer('workspace.tick.log', () => ({ items: [] }))
 }
 
+// The folder picker's reads (workspaces.browse) on every page: a small home
+// folder at /me with one workspace in it.
+const FOLDERS: Record<string, string[]> = { '/me': ['code', 'plans', 'notes'], '/me/plans': ['launch', 'nupp'], '/me/code': [] }
+answer('workspaces.browse', (body) => {
+  const asked = (body as { input: { path?: string } }).input.path?.replace(/^~(?=\/|$)/, '/me').replace(/\/$/, '') || '/me'
+  const at = asked in FOLDERS ? asked : '/me'
+  return {
+    path: at,
+    home: '/me',
+    parent: at === '/me' ? null : at.slice(0, at.lastIndexOf('/')),
+    workspace: at.startsWith('/me/plans/'),
+    truncated: false,
+    folders: (FOLDERS[at] ?? []).map((name) => ({ name, path: `${at}/${name}`, workspace: at === '/me/plans' })),
+  }
+})
+
 // The app shell answers too, so Settings › Models can be shot in place.
 if (query.get('page') === 'models' || query.get('page') === 'app') {
-  let settings = { filename: '.avoozl.json', exists: true, hash: 'models-before', models: { planner: 'fake-writer' } }
+  let settings = {
+    filename: '.avoozl.json',
+    exists: true,
+    hash: 'models-before',
+    models: { planner: 'fake-writer' },
+    harnesses: {},
+    harnessDefinitions: [
+      { name: 'claude-code', approved: true },
+      { name: 'codex', approved: false },
+    ],
+  }
   answer('GET /api/models', () => ['fake-writer', 'fake-reviewer'])
   answer('models.settings.get', () => settings)
   answer('models.settings.update', (body) => {
     state.calls.push(body)
-    settings = { ...settings, hash: 'models-after', models: (body.input as { models: typeof settings.models }).models }
+    const input = body.input as { models: typeof settings.models; harnesses?: typeof settings.harnesses }
+    settings = { ...settings, hash: 'models-after', models: input.models, harnesses: input.harnesses ?? settings.harnesses }
     return settings
   })
 }

@@ -50,7 +50,7 @@ test('an empty Home says what to set up, with a button for each, instead of hidi
   assert.deepEqual(page.errors, [])
 })
 
-test('Settings lists its sections in the nav, shows only the picked one, and has the Mirror setup buttons', { skip }, async () => {
+test('Settings lists its sections in the nav, shows only the picked one, and lists repositories as compact rows', { skip }, async () => {
   await open({ radar: '1' })
   await page.until(`Boolean(${tab('Settings')})`)
   await click(tab('Settings'))
@@ -63,12 +63,11 @@ test('Settings lists its sections in the nav, shows only the picked one, and has
   // Opening another section in the nav shows that one alone.
   await click(`document.querySelector('[data-nav-item="settings/repositories"]')`)
   // Repository setup edits in place: no Configure button and no dialog.
-  await page.until(`Boolean(document.querySelector('[data-mirror-setup]'))`)
+  await page.until(`Boolean(document.querySelector('[data-repository-list], [data-repositories-empty]'))`)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-open-settings], [data-settings-dialog]'))`), false)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
-  const buttons = await page.evaluate(`[...document.querySelectorAll('[data-setup-action]')].map((b) => [b.dataset.setupAction, b.disabled])`)
-  // Both buttons wait for the two repository names.
-  assert.deepEqual(buttons, [['Adopt existing setup', true], ['Create setup', true]])
+  // No separate Mirror box: its buttons live in a repository's Edit dialog.
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-mirror-setup], [data-setup-action]'))`), false)
   assert.deepEqual(page.errors, [])
 })
 

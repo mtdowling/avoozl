@@ -5,6 +5,7 @@
 // and refuses with 401 when it is missing, stale, replayed, or forged.
 import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Store } from "./store.mjs";
@@ -15,6 +16,7 @@ import { classifyOperation } from "./operation-kinds.mjs";
 import { workspaceConfig } from "./config.mjs";
 import { machineAvoozlPaths, WorkspaceRegistry } from "./host-config.mjs";
 import { initializeWorkspace } from "./workspace.mjs";
+import { expandHome, listFolders } from "./folder-browse.mjs";
 import { gatewayPusher } from "./notifications.mjs";
 import {
   gatewaySessionStopper,
@@ -333,6 +335,12 @@ const MACHINE_OPERATIONS = new Map([
   // agent tool is refused (principalAllows), and MCP has no route to either.
   ["workspaces.remove", "write"],
   ["workspaces.stop", "write"],
+  // A person's edit of a workspace's name, folder, run limit, on/off and
+  // default. Person-only, as above.
+  ["workspaces.update", "write"],
+  // The Add and Edit dialogs' folder picker: folders under home. It changes
+  // nothing, but names folders on this computer, so only a person reads it.
+  ["workspaces.browse", "person"],
   // Demo mode (§6.11): install the sample once and open it, or close it.
   ["demo.start", "write"],
   ["demo.exit", "write"],
@@ -374,8 +382,9 @@ function sameDirectory(a, b) {
 
 // Workspace list, add, init, stop and remove over the machine catalog. Registry errors are
 // path and identity validation for the owner's own input, so they return 400.
-function machineOperation(registry, config, operation, input) {
+function machineOperation(registry, config, operation, input, home) {
   try {
+    if (operation === "workspaces.browse") return listFolders(input.path, home);
     registry.reload();
     if (operation === "workspaces.list")
       return {
@@ -393,8 +402,27 @@ function machineOperation(registry, config, operation, input) {
         ? registry.remove(id)
         : registry.setEnabled(id, false);
     }
+    if (operation === "workspaces.update") {
+      const id = String(input.id || "").trim();
+      if (!registry.config.workspaces[id])
+        throw badRequest(`Workspace ${id || "(none)"} is not registered.`, 404);
+      const change = {};
+      if (input.name !== undefined) change.name = String(input.name);
+      if (input.root !== undefined) change.root = expandHome(input.root, home);
+      if (input.maxConcurrentRuns !== undefined)
+        change.maxConcurrentRuns = input.maxConcurrentRuns;
+      let result = registry.update(id, change);
+      if (
+        input.enabled !== undefined &&
+        Boolean(input.enabled) !== result.enabled
+      )
+        result = registry.setEnabled(id, Boolean(input.enabled));
+      if (input.default === true && registry.config.defaultWorkspace !== id)
+        result = registry.setDefault(id);
+      return result;
+    }
     const id = String(input.id || "").trim(),
-      root = String(input.root || "").trim(),
+      root = expandHome(input.root, home),
       name = String(input.name || "").trim() || undefined;
     if (!path.isAbsolute(root))
       throw badRequest("Choose an absolute workspace directory.");
@@ -468,6 +496,8 @@ export function startAppBackend({
   // Starts this machine's supervisor for process children (R95.3). Only
   // under Kiro Crew's gateway, so tests and bare runs start none.
   supervisor = gatewayClient(process.env) ? machineSupervisor : null,
+  // Where a typed `~` and the folder picker start.
+  home = os.homedir(),
 }) {
   const replay = new ReplayCache();
   // The open sample, or null. Only demo.start opens it; its requests name
@@ -609,8 +639,14 @@ export function startAppBackend({
         });
       }
       if (MACHINE_OPERATIONS.has(operation)) {
-        const result = machineOperation(machine(), config, operation, input);
-        if (operation !== "workspaces.list") follow();
+        const result = machineOperation(
+          machine(),
+          config,
+          operation,
+          input,
+          home,
+        );
+        if (MACHINE_OPERATIONS.get(operation) === "write") follow();
         return send(res, 200, { result });
       }
       const { ops } = operations(workspaceFor(workspaceId));

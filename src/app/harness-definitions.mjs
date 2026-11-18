@@ -38,8 +38,8 @@ const KEYS = new Set([
   "writeRoots",
   "allow",
   "cost",
-  // Removed 2026-11-17 with budgets: still accepted so an old definition
-  // loads, and ignored.
+  // Removed 2026-11-17 with budgets: skipped silently so an old definition
+  // loads.
   "spendCap",
   "attach",
   "model",
@@ -317,6 +317,30 @@ export function loadHarnessDefinition({ configDirectory, name }) {
   if (definition.name !== name)
     fail(`${file}: name is ${definition.name}, but the file is named ${name}.`);
   return Object.freeze({ ...definition, hash: seen });
+}
+
+// The definitions in this machine's config, for Settings › Models: each
+// file's name and whether its exact bytes are approved. Reads only; a bad
+// file still lists, and is refused when a session loads it.
+export function listHarnessDefinitions(configDirectory) {
+  if (typeof configDirectory !== "string" || !configDirectory) return [];
+  const directory = path.join(path.resolve(configDirectory), HARNESS_DIRECTORY);
+  if (!fs.existsSync(directory)) return [];
+  const approvals = readApprovals(configDirectory);
+  return fs
+    .readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .map((entry) => entry.name.slice(0, -".json".length))
+    .filter((name) => NAME.test(name))
+    .sort()
+    .map((name) => ({
+      name,
+      approved:
+        approvals[name] ===
+        harnessDefinitionHash(
+          fs.readFileSync(path.join(directory, `${name}.json`)),
+        ),
+    }));
 }
 
 // Record a person's approval of one exact hash. Callers enforce that a
