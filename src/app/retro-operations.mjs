@@ -1,8 +1,7 @@
 // The Proposals operations (design §4.18, Requirement 68): what the Flow
 // tab's Proposals view reads, and the person-only acts on prompt overrides.
 // Operations routes each name here; every write is a person's, and
-// sessions, MCP, the app token and plugins get 403. The lessons store and
-// its operations were removed (RC30.4).
+// sessions, MCP, the app token and plugins get 403.
 import { fail } from "./store.mjs";
 import { listOr } from "./flow.mjs";
 import { currentPrompts, overridesFile, retroMemory } from "./retro-memory.mjs";
@@ -60,9 +59,6 @@ function proposalsView(store) {
         })),
     ),
     available: Boolean(retroMemory(store)),
-    // The removed lessons store's export (RC30.5): its count, or why it
-    // failed and the store stays.
-    lessonsExport: retroMemory(store)?.lessonsExport ?? null,
   };
 }
 
