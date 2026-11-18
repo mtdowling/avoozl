@@ -74,6 +74,8 @@ export const TRAIN_KEYS = {
 };
 export const TARGET_KEYS = { policy: leaf({ oneOf: ["optimistic", "gated"] }) };
 const MACHINE_KEYS = ["platforms", "slots"];
+// `machine` in the global file: the two above, and `alias`, this machine's name.
+export const MACHINE_FILE_KEYS = [...MACHINE_KEYS, "alias"];
 // One platform's command under `validation.full`, one mechanical conflict
 // rule, and one `machine.platforms` entry.
 export const PLATFORM_COMMAND_KEYS = ["command", "results", "suiteArgs"];
@@ -268,7 +270,7 @@ export function validateTrains(config, files = {}) {
       throw Error(`${m} (${glob})`);
     };
     for (const key of Object.keys(machine))
-      if (!MACHINE_KEYS.includes(key) && key !== "alias")
+      if (!MACHINE_FILE_KEYS.includes(key))
         fail(`machine.${key} is not a known setting.`);
     const platforms = machine.platforms ?? {};
     if (!isRecord(platforms)) fail("machine.platforms must be an object.");

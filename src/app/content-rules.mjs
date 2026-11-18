@@ -341,6 +341,16 @@ function refuseRuleKeys(value, where) {
   }
 }
 
+export const CONTENT_RULES_KEYS = ["sets"];
+export const RULE_SET_KEYS = [
+  "id",
+  "action",
+  "boundaries",
+  "repositories",
+  "plugin",
+  "remote",
+];
+
 // The validated `contentRules` of a policy: {sets: [{id, action, boundaries,
 // repositories, plugin}]}. `pluginIds` and `repositories`, when given, are
 // the ids the set may name.
@@ -352,7 +362,7 @@ export function validateContentRules(
   refuseRuleKeys(value, "contentRules");
   if (!record(value)) fail("contentRules must be an object.");
   for (const key of Object.keys(value))
-    if (key !== "sets")
+    if (!CONTENT_RULES_KEYS.includes(key))
       fail(`contentRules.${key} is not a content rules setting.`);
   const list = value.sets ?? [];
   if (!Array.isArray(list)) fail("contentRules.sets must be a list.");
@@ -361,16 +371,7 @@ export function validateContentRules(
     const where = `contentRules.sets.${i}`;
     if (!record(entry)) fail(`${where} must be an object.`);
     for (const key of Object.keys(entry))
-      if (
-        ![
-          "id",
-          "action",
-          "boundaries",
-          "repositories",
-          "plugin",
-          "remote",
-        ].includes(key)
-      )
+      if (!RULE_SET_KEYS.includes(key))
         fail(`${where}.${key} is not a rule set setting.`);
     if (typeof entry.id !== "string" || !entry.id)
       fail(`${where}.id must name the rule set.`);
