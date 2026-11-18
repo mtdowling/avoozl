@@ -2,13 +2,11 @@
 // D9): one list with what each value controls, and a re-read that ticks what
 // Radar's own read confirms. Avoozl does not write any of them. Pure: the
 // read arrives as data (`read`), from the grant when there is one.
-import { CREW_AGENT, crewAgentCheck } from "./crew-agent.mjs";
 import {
   CREW_LABEL_DEFAULTS,
   ISSUE_RADAR_PATH,
   READY_LABEL_DEFAULT,
 } from "./github-policy.mjs";
-import { CREW_PROMPT } from "./radar-crew-prompt.mjs";
 import { CLAIM_TTL_HOURS } from "./radar-claims.mjs";
 
 // A crew's name when the pack names none: stable, from the repository.
@@ -32,12 +30,6 @@ export function radarValues({ repository, settings = {}, crew = {} }) {
       label: "Crew name",
       value: crew.name || crewNameFor(repository),
       controls: "How the crew shows in Issue Radar. Any name works.",
-    },
-    {
-      id: "agent",
-      label: "Agent",
-      value: CREW_AGENT,
-      controls: "The agent that gives the crew Avoozl's tools and checks.",
     },
     {
       id: "model",
@@ -64,13 +56,6 @@ export function radarValues({ repository, settings = {}, crew = {} }) {
       controls:
         "How long a crew may hold an issue before Radar treats the claim as stale.",
     },
-    {
-      id: "prompt",
-      label: "Additional prompt",
-      value: CREW_PROMPT,
-      controls:
-        "Tells the crew to run the check on each issue before it builds.",
-    },
   ];
 }
 
@@ -79,11 +64,7 @@ export function radarValues({ repository, settings = {}, crew = {} }) {
 function crewOf(read, values) {
   const name = values.find((v) => v.id === "crew-name").value;
   const crews = Array.isArray(read?.crews) ? read.crews : [];
-  return (
-    crews.find((crew) => crew?.name === name) ??
-    crews.find((crew) => crew?.agent === CREW_AGENT) ??
-    null
-  );
+  return crews.find((crew) => crew?.name === name) ?? null;
 }
 
 const same = (a, b) =>
@@ -103,23 +84,13 @@ export function radarReread(values, read, reason = null) {
         note: `${reason || "Avoozl cannot read Issue Radar here."} Tick it when you have done it.`,
       })),
     };
-  const crew = crewOf(read, values),
-    agents = crewAgentCheck({
-      list: read.agents,
-      crews: read.crews,
-    });
+  const crew = crewOf(read, values);
   const verdict = {
     repository: () =>
       Array.isArray(read.connected)
         ? read.connected.some((name) => same(name, values[0].value))
         : null,
     "crew-name": () => (Array.isArray(read.crews) ? Boolean(crew) : null),
-    agent: () =>
-      crew?.agent !== undefined
-        ? crew.agent === CREW_AGENT
-        : agents.state === "not-verified"
-          ? null
-          : agents.state === "present",
     model: () => {
       const wanted = values.find((v) => v.id === "model").value;
       return wanted === "auto" || crew?.model === undefined
@@ -145,8 +116,6 @@ export function radarReread(values, read, reason = null) {
       (read.claimTtlHours ?? crew?.claimTtlHours) === undefined
         ? null
         : Number(read.claimTtlHours ?? crew.claimTtlHours) === CLAIM_TTL_HOURS,
-    prompt: () =>
-      crew?.prompt === undefined ? null : crew.prompt.includes(CREW_PROMPT),
   };
   return {
     grant: true,

@@ -596,7 +596,7 @@ if (query.get('page') === 'app') {
     answer('radar.values', (body) => {
       const repository = (body as { input: { repository: string } }).input.repository
       const item = (id: string, label: string, value: string) => ({ id, label, value, controls: `What ${label} controls.`, status: 'cannot-verify', note: 'Tick it yourself.' })
-      return { repository, grant: false, link: '/issue-radar', items: [item('repository', 'Repository to connect', repository), item('agent', 'Agent', 'avoozl-crew'), item('scope', 'Label scope', 'ready')] }
+      return { repository, grant: false, link: '/issue-radar', items: [item('repository', 'Repository to connect', repository), item('scope', 'Label scope', 'ready')] }
     })
   }
 }
@@ -1563,16 +1563,13 @@ function NeedsPage() {
 if (page === 'radar-values') {
   const grant = query.get('grant') === '1'
   const item = (id: string, label: string, value: string, status: string) => ({ id, label, value, controls: `What ${label} controls.`, status, note: status === 'ok' ? 'Issue Radar shows this value.' : 'Tick it yourself.' })
-  const long = 'For any issue with an <!-- avoozl --> marker, run `avoozl verify-issue OWNER/REPO#N` (or the plans_verify_issue tool) first; build only if it exits 0, otherwise skip it with scope needs-decision and say which check failed.'
   answer('radar.values', () => ({
     repository: 'example/code',
     grant,
     link: '/issue-radar',
     items: [
       item('repository', 'Repository to connect', 'example/code', grant ? 'ok' : 'cannot-verify'),
-      item('agent', 'Agent', 'avoozl-crew', grant ? 'ok' : 'cannot-verify'),
       item('scope', 'Label scope', 'ready', grant ? 'differs' : 'cannot-verify'),
-      item('prompt', 'Additional prompt', long, 'cannot-verify'),
     ],
   }))
 }
