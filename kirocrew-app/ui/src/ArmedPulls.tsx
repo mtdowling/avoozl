@@ -7,6 +7,7 @@ import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { releaseClient } from './release-api.ts'
+import { Box } from './ui/Box'
 
 export default function ArmedPulls(props: { workspaceId: string | null; stopped: boolean }) {
   const api = useAppApi()
@@ -27,7 +28,7 @@ export default function ArmedPulls(props: { workspaceId: string | null; stopped:
   }
   return (
     <div data-armed-pulls className="flex flex-col gap-1 text-sm" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span className="font-medium">Armed to merge by themselves while the line is stopped:</span>
+      <Box as="span" weight="medium">Armed to merge by themselves while the line is stopped:</Box>
       {pulls.map((pull) => (
         <span key={`${pull.repository}#${pull.number}`} className="flex flex-wrap items-center gap-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
           <span style={{ overflowWrap: 'anywhere' }}>

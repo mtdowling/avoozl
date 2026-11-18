@@ -313,6 +313,10 @@ export const HELP_GROUPS = Object.freeze([
         "landing submit TASK --branch NAME",
         "Queue a pushed batch branch for the integrator (landing: train)",
       ),
+      entry(
+        "landing review TASK",
+        "Open a review pull request for a queued batch branch (only when you ask)",
+      ),
     ],
   },
   {

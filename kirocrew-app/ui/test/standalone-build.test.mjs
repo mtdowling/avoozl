@@ -212,7 +212,7 @@ test("Kiro Crew's own stylesheet, without the page, lacks a planted class (SW12.
 
 test("the styles the page renders are listed, and a run-time style fails the build (SW2.5)", () => {
   const listed = listStyleTexts(src);
-  assert.equal(listed.length, 23);
+  assert.equal(listed.length, 24);
   assert.deepEqual(
     [...new Set(listed.map((s) => s.text))].sort(),
     [...built().styles].sort(),

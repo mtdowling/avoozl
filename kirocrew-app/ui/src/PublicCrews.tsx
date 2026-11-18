@@ -15,6 +15,7 @@ import { errorMessage } from './workspace-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 export const HOME_NOTE =
   'A separate crew home removes injected context only. The crew can still read every file your operating-system user can read and use its credentials. A crew that must not read them runs as another user, in a container, or on another machine.'
@@ -52,13 +53,13 @@ function Row(props: { row: PublicCrew; workspaceId: string; onChange: () => void
   }
   return (
     <div className="flex min-w-0 flex-col gap-2" data-public-crew={row.repository} style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-      <div className="flex flex-wrap items-center gap-2">
+      <Box flex flexWrap items="center" gap="2">
         <span className="text-sm font-medium" style={{ overflowWrap: 'anywhere' }}>
           {row.repository}
         </span>
         <Badge variant={badge.variant}>{badge.text}</Badge>
         {row.visibility === 'unknown' && <Hint size="xs">Visibility not read, so it counts as public.</Hint>}
-      </div>
+      </Box>
       <Hint as="p" size="xs" data-signoff-line>
         {signoffLine(row)}
       </Hint>
@@ -67,34 +68,34 @@ function Row(props: { row: PublicCrew; workspaceId: string; onChange: () => void
           {row.banner}
         </ErrorText>
       )}
-      <ul className="m-0 flex list-none flex-col gap-1 p-0" aria-label={`Checklist for ${row.repository}`}>
+      <Box as="ul" m0 flex listNone flexCol gap="1" p="0" aria-label={`Checklist for ${row.repository}`}>
         {row.items.map((item) => (
-          <li key={item.key} className="flex min-w-0 items-start gap-2 text-sm" data-check={item.key} data-ok={item.ok ? 'true' : 'false'}>
+          <Box key={item.key} as="li" flex minW0 items="start" gap="2" size="sm" data-check={item.key} data-ok={item.ok ? 'true' : 'false'}>
             <span aria-hidden="true" style={{ display: 'inline-flex', paddingTop: 2, color: item.ok ? 'var(--ok)' : 'var(--danger)' }}>
               {item.ok ? <CircleCheck size={ICON} /> : <CircleAlert size={ICON} />}
             </span>
-            <span className="min-w-0">
-              <span className="font-medium">{item.label}</span>
-              <span className="sr-only">{item.ok ? ': met' : ': not met'}</span>
+            <Box as="span" minW0>
+              <Box as="span" weight="medium">{item.label}</Box>
+              <Box as="span" srOnly>{item.ok ? ': met' : ': not met'}</Box>
               <Hint> · {item.line}</Hint>
-            </span>
-          </li>
+            </Box>
+          </Box>
         ))}
-      </ul>
-      <div className="flex flex-wrap items-end gap-2">
+      </Box>
+      <Box flex flexWrap items="end" gap="2">
         <div className="flex min-w-0 flex-col gap-1" style={{ flex: '2 1 16rem' }}>
-          <label htmlFor={`${id}-home`} className="text-xs font-medium">
+          <Box htmlFor={`${id}-home`} as="label" size="xs" weight="medium">
             Crew home (its own KIRO_HOME)
-          </label>
+          </Box>
           <Input id={`${id}-home`} value={home} placeholder="/path/to/crew-home" onChange={(event) => setHome(event.target.value)} />
         </div>
         <div className="flex min-w-0 flex-col gap-1" style={{ flex: '1 1 9rem' }}>
-          <label htmlFor={`${id}-agent`} className="text-xs font-medium">
+          <Box htmlFor={`${id}-agent`} as="label" size="xs" weight="medium">
             Crew agent
-          </label>
+          </Box>
           <Input id={`${id}-agent`} value={agent} onChange={(event) => setAgent(event.target.value)} />
         </div>
-        <div className="flex gap-2">
+        <Box flex gap="2">
           <Btn type="button" primary disabled={busy || Boolean(row.banner)} onClick={() => void signOff()} data-sign-off={row.repository}>
             {row.signedOff ? 'Sign off again' : 'Sign off'}
           </Btn>
@@ -103,8 +104,8 @@ function Row(props: { row: PublicCrew; workspaceId: string; onChange: () => void
               Withdraw
             </Btn>
           )}
-        </div>
-      </div>
+        </Box>
+      </Box>
       {error && (
         <ErrorText role="alert" size="sm">
           {error}

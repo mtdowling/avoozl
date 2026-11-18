@@ -15,6 +15,7 @@ import { Tooltip } from './ui/Tooltip.tsx'
 import { safeHref } from './views-api.ts'
 import { baseTitle, holdVariant, holdWord, itemCount, itemLinks, landingNote, landingQueueClient, queueLine, type LandingItem } from './landing-queue-api.ts'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 const DOT: Record<string, string> = { pass: 'var(--ok)', fail: 'var(--danger)', pending: 'var(--warn, var(--accent))', stale: 'var(--muted)' }
 const DOT_TEXT: Record<string, string> = { pass: 'Checks passed', fail: 'Checks failed', pending: 'Checks running', stale: 'Checks are for an older head' }
@@ -38,26 +39,26 @@ function Row(props: { item: LandingItem; now: number }) {
   const first = item.tasks[0]
   return (
     <li data-landing-row={item.key} data-hold={item.hold.kind} className="flex w-full min-w-0 flex-col gap-1 border-t py-2 text-sm first:border-t-0" style={{ borderColor: 'var(--border)' }}>
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="w-6 shrink-0 text-xs tabular-nums text-muted" data-landing-position>
+      <Box flex minW0 items="center" gap="2">
+        <Box as="span" w6 shrink0 size="xs" tabularNums tone="muted" data-landing-position>
           {item.position ?? '—'}
-        </span>
+        </Box>
         {first ? (
           <button type="button" className="min-w-0 flex-1 truncate text-left underline" onClick={() => drawer.openTask(first.id)} aria-label={item.tasks.map((t) => t.title).join(', ')}>
             {first.title}
             {item.tasks.length > 1 ? ` +${item.tasks.length - 1}` : ''}
           </button>
         ) : (
-          <span className="min-w-0 flex-1 truncate">{item.key}</span>
+          <Box as="span" minW0 flex1 truncate>{item.key}</Box>
         )}
-        <span className="shrink-0">
+        <Box as="span" shrink0>
           <Badge variant={holdVariant(item.hold.kind)}>{holdWord(item.hold.kind)}</Badge>
-        </span>
-      </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 pl-8 text-xs text-muted">
-        <span className="min-w-0" data-landing-hold>
+        </Box>
+      </Box>
+      <Box flex minW0 flexWrap items="center" gapX="3" gapY="1" pl="8" size="xs" tone="muted">
+        <Box as="span" minW0 data-landing-hold>
           {item.hold.text}
-        </span>
+        </Box>
         {links.map((link) => (
           <a key={link.key} href={safeHref(link.href) ?? undefined} target="_blank" rel="noopener noreferrer" className="inline-flex min-w-0 items-center gap-1 underline" data-landing-link={link.key}>
             {link.key === 'pr' && <CheckDot checks={item.checks} />}
@@ -67,8 +68,8 @@ function Row(props: { item: LandingItem; now: number }) {
           </a>
         ))}
         {!item.pr && item.checks && <CheckDot checks={item.checks} />}
-        {item.since && <span className="tabular-nums">{duration(item.since, props.now)}</span>}
-      </div>
+        {item.since && <Box as="span" tabularNums>{duration(item.since, props.now)}</Box>}
+      </Box>
     </li>
   )
 }
@@ -80,7 +81,7 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
   const { value, error, busy, reload } = useRead(props.workspaceId, load)
   const now = Date.now()
   return (
-    <section aria-labelledby="avoozl-landing-title" className="flex flex-col gap-3.5" data-landing-queue>
+    <Box aria-labelledby="avoozl-landing-title" as="section" flex flexCol gap="3.5" data-landing-queue>
       <ViewHeading
         id="avoozl-landing-title"
         view="landing"
@@ -109,19 +110,19 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
             <div data-landing-base={base.key}>
               <SectionHeading level={3} title={`${baseTitle(base)} (${base.items.length})`} meta={landingNote(base)} className="mb-1" />
               {queueLine(base) && (
-                <p className="mb-1 text-xs text-muted" data-landing-queue-line>
+                <Box as="p" mb="1" size="xs" tone="muted" data-landing-queue-line>
                   {queueLine(base)}
-                </p>
+                </Box>
               )}
-              <ul className="flex w-full flex-col">
+              <Box as="ul" flex wFull flexCol>
                 {base.items.map((item) => (
                   <Row key={item.key} item={item} now={now} />
                 ))}
-              </ul>
+              </Box>
             </div>
           </Card>
         ))
       )}
-    </section>
+    </Box>
   )
 }

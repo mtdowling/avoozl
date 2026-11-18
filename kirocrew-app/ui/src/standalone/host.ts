@@ -21,10 +21,14 @@ export function installCsrf(win: Window = window) {
   }
 }
 
-type ChatLaunch = { message?: string; agent?: string; slotKey?: string; autoSend?: boolean }
-let openChat: (launch: ChatLaunch) => void = () => console.info('Open chat is not available on this page yet.')
-export const onOpenChat = (handler: typeof openChat) => {
+export type ChatLaunch = { message?: string; agent?: string; slotKey?: string; autoSend?: boolean }
+let openChat: (launch: ChatLaunch) => void = () => console.info('Open chat is not ready yet.')
+// The Start a session dialog takes the launch; the returned function lets go.
+export const onOpenChat = (handler: (launch: ChatLaunch) => void) => {
   openChat = handler
+  return () => {
+    openChat = () => undefined
+  }
 }
 
 // The SDK's navigate: a path under the app's base moves the page with the
