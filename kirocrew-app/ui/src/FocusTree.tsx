@@ -45,6 +45,10 @@ import {
   type GraphTab,
   type TreeRoot,
 } from './focus-tree.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 // Theme variables only (Radar's rule): go is the accent, a hold is warn.
 const COLOR: Record<NodeState, string> = {
@@ -210,7 +214,7 @@ export default function GraphPage(props: {
   const lists = useMemo(() => (graph ? frontier(graph) : null), [graph])
 
   return (
-    <section aria-labelledby="avoozl-graph-title" className="flex flex-col gap-3" data-graph-page>
+    <Stack aria-labelledby="avoozl-graph-title" as="section" gap={3} data-graph-page>
       <NavSlotFor section="dashboard">
         <div role="group" aria-label="Graph filters" data-nav-filters="avoozl-graph" data-rail>
           <RailStyle />
@@ -236,7 +240,7 @@ export default function GraphPage(props: {
         <span className="whitespace-nowrap">
           DEPENDENCIES · <span className="font-semibold" style={{ color: 'var(--text-strong, var(--text))' }}>{props.workspaceName ?? workspaceId ?? ''}</span>
         </span>
-        <div role="tablist" aria-label="Dependency views" className="flex items-center gap-1">
+        <Row role="tablist" aria-label="Dependency views" gap={1} wrap={false}>
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -255,7 +259,7 @@ export default function GraphPage(props: {
               {t.label}
             </button>
           ))}
-        </div>
+        </Row>
         <div className="ml-auto flex items-center gap-1.5">
           <NavArrow label="Back" icon="back" disabled={trail.at <= 0} onClick={back} />
           <NavArrow label="Forward" icon="forward" disabled={trail.at >= trail.list.length - 1} onClick={forward} />
@@ -293,23 +297,23 @@ export default function GraphPage(props: {
         </div>
       </div>
       {jumpError && (
-        <p id="avoozl-graph-jump-error" role="alert" className="m-0 text-xs text-danger">
+        <ErrorText id="avoozl-graph-jump-error" role="alert" size="xs" flush>
           {jumpError}
-        </p>
+        </ErrorText>
       )}
       {source.error && (
-        <p role="alert" className="m-0 text-sm text-danger">
+        <ErrorText role="alert" size="sm" flush>
           {source.error}
-        </p>
+        </ErrorText>
       )}
       {!workspaceId ? (
-        <p className="text-sm text-muted">Choose a workspace in the header.</p>
+        <Hint as="p" size="sm">Choose a workspace in the header.</Hint>
       ) : !graph ? (
-        <p className="text-sm text-muted" role="status">
+        <Hint as="p" size="sm" role="status">
           {source.busy ? 'Loading…' : ''}
-        </p>
+        </Hint>
       ) : graph.total === 0 ? (
-        <p className="text-sm text-muted">No tasks yet. Store and approve a spec in the Specs tab to fill the graph.</p>
+        <Hint as="p" size="sm">No tasks yet. Store and approve a spec in the Specs tab to fill the graph.</Hint>
       ) : place.tab === 'frontier' ? (
         <Frontier ready={lists!.ready} waiting={lists!.waiting} onOpenTree={(id) => openTree({ kind: 'task', id })} onOpen={(id) => openItem({ kind: 'task', id })} />
       ) : place.tab === 'focus' ? (
@@ -344,7 +348,7 @@ export default function GraphPage(props: {
           onOpenSpecs={props.onOpenSpecs ? () => (setModal(null), props.onOpenSpecs!()) : undefined}
         />
       )}
-    </section>
+    </Stack>
   )
 }
 
@@ -509,7 +513,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
     })
   }, [first, root.kind, root.id])
 
-  if (!tree || !layout) return <p className="text-sm text-muted">Nothing named {root.id} is in this workspace’s graph.</p>
+  if (!tree || !layout) return <Hint as="p" size="sm">Nothing named {root.id} is in this workspace’s graph.</Hint>
   const label = root.kind === 'spec' ? `spec ${root.id}` : root.id
   const nodes = layout.nodes
   const focusNode = (id: string | null) => {
@@ -538,7 +542,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
   const width = layout.width + 8
   const height = layout.height + 8
   return (
-    <div className="flex flex-col gap-2" data-focus-tree={`${root.kind}:${root.id}`}>
+    <Stack gap={2} data-focus-tree={`${root.kind}:${root.id}`}>
       <div className="flex flex-wrap items-baseline gap-x-3 text-[11px]" style={{ fontFamily: MONO, letterSpacing: '.1em', color: 'var(--muted-strong, var(--muted))' }}>
         <span data-tree-stat>
           tree of {label}: {tree.graph.tasks.length} {tree.graph.tasks.length === 1 ? 'node' : 'nodes'} · {tree.live} live {tree.live === 1 ? 'edge' : 'edges'}
@@ -724,7 +728,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
         )}
       </div>
       <style>{`.avoozl-tree-node:focus-visible > rect:last-of-type{stroke:var(--accent);stroke-width:2.5}.avoozl-tree-row:focus-visible{outline:2px solid var(--accent);outline-offset:1px}[data-tree-scroll][data-panning] *{cursor:grabbing!important}`}</style>
-    </div>
+    </Stack>
   )
 }
 
@@ -752,7 +756,7 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
   const members = item.kind === 'spec' ? graph.tasks.filter((t) => (t.planId ?? null) === item.id || (t.spec ?? null) === item.id) : []
   const row = (label: string, value: ReactNode) => (
     <>
-      <dt className="text-muted">{label}</dt>
+      <Hint as="dt">{label}</Hint>
       <dd className="m-0">{value}</dd>
     </>
   )
@@ -801,9 +805,9 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
         </dl>
       ) : item.kind === 'spec' ? (
         <div className="flex flex-col gap-2 text-sm">
-          <p className="m-0 text-muted">
+          <Hint as="p" flush>
             Spec <code>{item.id}</code> · {members.length} tasks · {members.filter((t) => nodeState(t) === 'done').length} done
-          </p>
+          </Hint>
           <ul className="m-0 flex flex-col gap-1 p-0" style={{ listStyle: 'none' }}>
             {members.map((t) => (
               <li key={t.id} className="flex items-baseline gap-2">
@@ -815,7 +819,7 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
           </ul>
         </div>
       ) : (
-        <p className="m-0 text-sm text-muted">{item.id} is not in this workspace’s graph.</p>
+        <Hint as="p" size="sm" flush>{item.id} is not in this workspace’s graph.</Hint>
       )}
     </Modal>
   )

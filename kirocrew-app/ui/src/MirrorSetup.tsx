@@ -16,6 +16,9 @@ import {
   type MirrorSetupResult,
 } from "./mirror-setup-api.ts";
 import { errorMessage } from "./workspace-api.ts";
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 const STATE_TEXT: Record<string, string> = {
   found: "Found",
@@ -92,12 +95,12 @@ export default function MirrorSetup(props: {
       style={{ borderColor: "var(--border)" }}
     >
       <SectionHeading level={4} title="Set up the mirror" className="mb-0" />
-      <p className="text-sm text-muted">
+      <Hint as="p" size="sm">
         Set up the private copy crews work in: {props.repository} for{" "}
         {props.source}. Each button shows a dry run first and writes nothing
         until you confirm.
-      </p>
-      <div className="flex flex-wrap items-center gap-2">
+      </Hint>
+      <Row gap={2}>
         {MIRROR_BUTTONS.map((button) => (
           <span key={button.kind} className="inline-flex items-center gap-1.5">
             <Btn
@@ -111,7 +114,7 @@ export default function MirrorSetup(props: {
             <InfoTip text={button.about} label={`About ${button.label}`} />
           </span>
         ))}
-      </div>
+      </Row>
       {error && (
         <p
           role="alert"
@@ -122,14 +125,14 @@ export default function MirrorSetup(props: {
         </p>
       )}
       {result && (
-        <div data-mirror-run={run?.kind} className="flex flex-col gap-2">
+        <Stack data-mirror-run={run?.kind} gap={2}>
           <p className="text-sm font-medium">
             {result.applied ? "Result" : "Dry run"}: {result.repository} from{" "}
             {result.source}. {result.writes}{" "}
             {result.writes === 1 ? "write" : "writes"} left.
           </p>
           {result.refused && <p className="text-sm">{result.detail}</p>}
-          <ul className="flex flex-col gap-1" data-mirror-lines>
+          <Stack as="ul" gap={1} data-mirror-lines>
             {result.lines.map((line) => (
               <li
                 key={line.id}
@@ -152,19 +155,19 @@ export default function MirrorSetup(props: {
                   <span className="font-medium">
                     {LINE_NAMES[line.id] ?? line.id}
                   </span>{" "}
-                  <span className="text-xs text-muted">
+                  <Hint size="xs">
                     {STATE_TEXT[line.state] ?? line.state}
-                  </span>
-                  <span className="block text-xs text-muted">
+                  </Hint>
+                  <Hint size="xs" block>
                     {line.detail}
                     {line.status === "blocked" && line.permission
                       ? ` Needs: ${line.permission}.`
                       : ""}
-                  </span>
+                  </Hint>
                 </span>
               </li>
             ))}
-          </ul>
+          </Stack>
           {result.applied && (
             <ul data-mirror-applied className="flex flex-col gap-1 text-sm">
               {result.applied.map((row) => (
@@ -180,7 +183,7 @@ export default function MirrorSetup(props: {
             </p>
           )}
           {!result.applied && (
-            <div className="flex flex-wrap gap-2">
+            <Row gap={2} align="start">
               <Btn
                 type="button"
                 disabled={busy || !chosen.length}
@@ -193,7 +196,7 @@ export default function MirrorSetup(props: {
               <Btn type="button" disabled={busy} onClick={() => setRun(null)}>
                 Hide
               </Btn>
-            </div>
+            </Row>
           )}
           {result.applied && (
             <div>
@@ -202,7 +205,7 @@ export default function MirrorSetup(props: {
               </Btn>
             </div>
           )}
-        </div>
+        </Stack>
       )}
     </div>
   );

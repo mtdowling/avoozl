@@ -48,6 +48,9 @@ import { StopLineButton } from './StopLine.tsx'
 import { NAV_ICON } from './LeftNav.tsx'
 import { NavSlotFor } from './nav-slot.tsx'
 import { RailBlock, RailChips, RailDivider, RailRow, RailStyle } from './NavRail.tsx'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
+import { TextLink } from './ui/TextLink'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -109,7 +112,7 @@ function LaneCardView(props: {
             <div className="mt-1.5 text-xs" data-batch-card={card.batch.id}>
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge>Batch of {card.batch.members.length}</Badge>
-                {card.batch.reason && <span className="text-muted">{card.batch.reason}</span>}
+                {card.batch.reason && <Hint>{card.batch.reason}</Hint>}
               </div>
               <ul className="mt-1 flex flex-col gap-0.5" aria-label="Tasks in this batch">
                 {card.batch.members.map((member) => (
@@ -147,9 +150,9 @@ function LaneCardView(props: {
               {card.sessions.map((session) => (
                 <li key={session.slot}>
                   {session.link ? (
-                    <a href={linkHref(session.link)} className="underline">
+                    <TextLink href={linkHref(session.link)}>
                       {sessionLabel(session)}
-                    </a>
+                    </TextLink>
                   ) : (
                     sessionLabel(session)
                   )}
@@ -289,14 +292,14 @@ export function DeliveryBoard(props: {
   const single = columns === 1
   const compact = !single && laneWidth(width, columns, LANE_GAP) < LANE_LABEL_WIDTH
   const list = (id: string, cards: LaneCard[], phase?: 'running' | 'reviewing') => (
-    <ul className="flex flex-col">
+    <Stack as="ul">
       {pages.take(id, cards).map((card) => props.card(card, phase, compact))}
       {pages.more(id, cards.length).left > 0 && (
         <li className={compact ? 'px-2' : 'px-3'}>
           <ShowMore {...pages.more(id, cards.length)} />
         </li>
       )}
-    </ul>
+    </Stack>
   )
   return (
     <>
@@ -344,12 +347,12 @@ export function DeliveryBoard(props: {
                     </p>
                   ) : null}
                   {progressGroups(lanes).map((group) => (
-                    <div key={group.id} className="flex flex-col gap-2" role="group" aria-label={`${group.label}: ${group.cards.length}`}>
+                    <Stack key={group.id} gap={2} role="group" aria-label={`${group.label}: ${group.cards.length}`}>
                       <h4 className={`flex items-center gap-1.5 ${compact ? 'px-2' : 'px-3'} text-xs font-semibold uppercase tracking-wide text-muted`}>
                         {group.label} <Badge>{group.cards.length}</Badge>
                       </h4>
                       {list(`${lane.id}:${group.id}`, group.cards, group.id)}
-                    </div>
+                    </Stack>
                   ))}
                 </>
               ) : (
@@ -519,9 +522,9 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
         id="avoozl-delivery-title"
         view="delivery"
         meta={
-          <span role="status" className="text-xs text-muted">
+          <Hint role="status" size="xs">
             {acting ? 'Working…' : ''}
-          </span>
+          </Hint>
         }
         actions={
           workspaceId && (
@@ -550,9 +553,9 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
         </p>
       )}
       {!workspaceId ? (
-        <p className="text-sm text-muted">Choose a workspace in the header.</p>
+        <Hint as="p" size="sm">Choose a workspace in the header.</Hint>
       ) : !lanes ? (
-        <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
+        <Hint as="p" size="sm">{busy ? 'Loading…' : 'Not loaded'}</Hint>
       ) : (
         <>
           <DeliveryFilters
@@ -564,9 +567,9 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
             showSuperseded={showSuperseded}
             onSuperseded={setShowSuperseded}
           />
-          <span className="text-xs text-muted" role="status" data-filter-status>
+          <Hint size="xs" role="status" data-filter-status>
             {shownCount} of {totalCount} tasks
-          </span>
+          </Hint>
           <DeliveryBoard
             lanes={lanes}
             only={laneForState(filter.state)}
@@ -596,16 +599,16 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
           />
           {reports.length > 0 && <ContentReports reports={reports} />}
           {showSuperseded && (
-            <ul className="flex flex-col gap-2">
+            <Stack as="ul" gap={2}>
               {superseded.map((item) => (
                 <li key={item.id}>
                   <Card>
-                    <SectionHeading title={item.title} meta={<span className="text-sm text-muted">{item.id}</span>} className="mb-2" />
+                    <SectionHeading title={item.title} meta={<Hint size="sm">{item.id}</Hint>} className="mb-2" />
                     <ItemDetails item={item} onSupersede={onSupersede} />
                   </Card>
                 </li>
               ))}
-            </ul>
+            </Stack>
           )}
         </>
       )}
@@ -631,8 +634,8 @@ function ContentReports({ reports }: { reports: ContentReport[] }) {
               Rule {report.rule} at {report.target}
               {report.line ? ` line ${report.line}` : ''} ({report.boundary})
             </span>
-            {report.taskId && <span className="text-xs text-muted">{report.taskId}</span>}
-            {report.at && <span className="text-xs text-muted">{report.at.slice(0, 16).replace('T', ' ')}</span>}
+            {report.taskId && <Hint size="xs">{report.taskId}</Hint>}
+            {report.at && <Hint size="xs">{report.at.slice(0, 16).replace('T', ' ')}</Hint>}
           </li>
         ))}
       </ul>

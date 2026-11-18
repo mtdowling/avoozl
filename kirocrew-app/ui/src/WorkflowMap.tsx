@@ -9,6 +9,8 @@ import { COMMAND_PATH } from './workspace-api.ts'
 import type { DeliverySettings } from './delivery-api.ts'
 import type { RepositoryForm } from './settings-api.ts'
 import { WHO_COLOR, WHO_TEXT, buildWorkflowMap, fieldSelector, type Card as StepCard, type Jump, type Lane, type Value } from './workflow-map.ts'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 export const WORKFLOW_BLURB =
   "How work flows through this repository, read from its saved settings. A value in a card opens the field that sets it."
@@ -29,7 +31,7 @@ const SOURCE_TEXT = { set: '', default: ' (default)', placeholder: ' (planned na
 function ValueLine({ value, onJump }: { value: Value; onJump?: (jump: Jump) => void }) {
   return (
     <span className="text-xs" data-value={value.label} data-source={value.source}>
-      <span className="text-muted">{value.label}: </span>
+      <Hint>{value.label}: </Hint>
       {value.jump && onJump ? (
         <button type="button" className="underline" style={{ color: 'inherit', background: 'none', border: 0, padding: 0, cursor: 'pointer', overflowWrap: 'anywhere', textAlign: 'start' }} onClick={() => onJump(value.jump!)}>
           <code>{value.text}</code>
@@ -37,8 +39,8 @@ function ValueLine({ value, onJump }: { value: Value; onJump?: (jump: Jump) => v
       ) : (
         <code style={{ overflowWrap: 'anywhere' }}>{value.text}</code>
       )}
-      <span className="text-muted">{SOURCE_TEXT[value.source]}</span>
-      {value.elsewhere && <span className="text-muted"> (set in {value.elsewhere})</span>}
+      <Hint>{SOURCE_TEXT[value.source]}</Hint>
+      {value.elsewhere && <Hint> (set in {value.elsewhere})</Hint>}
     </span>
   )
 }
@@ -64,7 +66,7 @@ function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (j
         )}
       </span>
       <span className="font-medium">{card.title}</span>
-      <span className="text-xs text-muted">{card.text}</span>
+      <Hint size="xs">{card.text}</Hint>
       {card.values.map((value) => (
         <ValueLine key={value.label} value={value} onJump={onJump} />
       ))}
@@ -82,9 +84,9 @@ function LaneRow({ lane, onJump }: { lane: Lane; onJump?: (jump: Jump) => void }
     <section aria-label={`${lane.title} lane`} className="flex flex-col gap-1.5" data-lane={lane.key} data-lane-off={lane.muted ? 'true' : undefined}>
       <h5 className="text-sm font-semibold">{lane.title}</h5>
       {lane.muted && (
-        <p className="text-xs text-muted" data-reason>
+        <Hint as="p" size="xs" data-reason>
           Off: {lane.muted}
-        </p>
+        </Hint>
       )}
       <ol className="m-0 flex list-none flex-wrap items-stretch gap-1.5 p-0">
         {lane.cards.map((card, index) => (
@@ -121,17 +123,17 @@ export default function WorkflowMap(props: {
     [props.mode, props.repository, ship, props.planningRepository],
   )
   return (
-    <div className="flex flex-col gap-3" data-workflow-map>
-      <p className="text-xs text-muted" data-workflow-blurb>
+    <Stack gap={3} data-workflow-map>
+      <Hint as="p" size="xs" data-workflow-blurb>
         {WORKFLOW_BLURB}
-      </p>
+      </Hint>
       {map.lanes.map((lane) => (
         <LaneRow key={lane.key} lane={lane} onJump={props.onJump} />
       ))}
       {map.note && (
-        <p className="text-xs text-muted" data-workflow-note>
+        <Hint as="p" size="xs" data-workflow-note>
           {map.note}
-        </p>
+        </Hint>
       )}
       {map.labels.length > 0 && (
         <Card>
@@ -152,7 +154,7 @@ export default function WorkflowMap(props: {
                     <td className="pe-2 align-top">{row.label}</td>
                     <td className="pe-2 align-top">
                       <code style={{ overflowWrap: 'anywhere' }}>{row.name}</code>
-                      <span className="text-muted">{SOURCE_TEXT[row.source]}</span>
+                      <Hint>{SOURCE_TEXT[row.source]}</Hint>
                     </td>
                     <td className="pe-2 align-top" style={{ color: WHO_COLOR[row.writer] }}>
                       {WHO_TEXT[row.writer]}
@@ -163,7 +165,7 @@ export default function WorkflowMap(props: {
                           Open setting
                         </button>
                       ) : (
-                        <span className="text-muted">{row.source === 'placeholder' ? 'not built yet' : '—'}</span>
+                        <Hint>{row.source === 'placeholder' ? 'not built yet' : '—'}</Hint>
                       )}
                     </td>
                   </tr>
@@ -173,6 +175,6 @@ export default function WorkflowMap(props: {
           </div>
         </Card>
       )}
-    </div>
+    </Stack>
   )
 }

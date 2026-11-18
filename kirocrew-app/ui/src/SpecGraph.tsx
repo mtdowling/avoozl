@@ -7,6 +7,8 @@ import { frontier, specGraphHref, type TreeRoot } from './focus-tree.ts'
 import { FocusTreeView, Frontier, ItemModal } from './FocusTree.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { linkHref, type Graph } from './views-api.ts'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
 
 type Mode = 'frontier' | 'tree'
 
@@ -48,26 +50,26 @@ export function SpecGraph(props: { graph: Graph | null; planId: string; only?: M
   return (
     <div className="flex min-w-0 flex-col gap-2" data-spec-graph>
       {!graph ? (
-        <p className="text-sm text-muted" role="status">
+        <Hint as="p" size="sm" role="status">
           Loading…
-        </p>
+        </Hint>
       ) : graph.tasks.length === 0 ? (
-        <p className="text-sm text-muted">No task yet.</p>
+        <Hint as="p" size="sm">No task yet.</Hint>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2">
+          <Row gap={2}>
             {!props.only && (
-              <div role="tablist" aria-label="Spec graph views" className="flex items-center gap-1">
+              <Row role="tablist" aria-label="Spec graph views" gap={1} wrap={false}>
                 {tab('frontier', 'Frontier')}
                 {tab('tree', 'Focus tree')}
-              </div>
+              </Row>
             )}
             {href && (
               <a href={linkHref(href)} className="ml-auto text-xs underline underline-offset-2" style={{ color: 'var(--accent)' }} data-spec-graph-open>
                 Open in Graph →
               </a>
             )}
-          </div>
+          </Row>
           <div className="min-w-0 overflow-x-auto" data-spec-graph-body>
             {mode === 'frontier' ? (
               <Frontier ready={lists!.ready} waiting={lists!.waiting} onOpenTree={(id) => drill({ kind: 'task', id })} onOpen={(id) => openItem({ kind: 'task', id })} />

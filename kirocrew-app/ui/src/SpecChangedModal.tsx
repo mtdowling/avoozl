@@ -8,6 +8,8 @@ import Badge from './Badge.tsx'
 import { Modal } from './Modal.tsx'
 import { ACTION_LABEL, ISSUE_STATE_LABEL, projectionClient, writing, type SpecChange } from './projection-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 type Client = ReturnType<typeof projectionClient>
 
@@ -52,7 +54,7 @@ export function SpecChangedModal(props: { workspaceId: string; client: Client; p
       onDismiss={() => props.onClose('Nothing was written.')}
       footer={
         <>
-          {why && <span className="text-sm text-muted">{why}</span>}
+          {why && <Hint size="sm">{why}</Hint>}
           <Btn primary onClick={() => void apply()} disabled={busy || why !== null}>
             Approve change and apply
           </Btn>
@@ -67,23 +69,23 @@ export function SpecChangedModal(props: { workspaceId: string; client: Client; p
         )}
         {change && (
           <>
-            <p className="text-muted">Avoozl wrote nothing yet. The spec must be approved again before it does.</p>
+            <Hint as="p">Avoozl wrote nothing yet. The spec must be approved again before it does.</Hint>
             {change.rows.length === 0 ? (
-              <p className="text-muted">No task changed.</p>
+              <Hint as="p">No task changed.</Hint>
             ) : (
-              <ul className="flex flex-col gap-2" data-change-rows>
+              <Stack as="ul" gap={2} data-change-rows>
                 {change.rows.map((row) => (
                   <li key={row.taskId} className="flex flex-col gap-0.5 border-b pb-2" style={{ borderColor: 'var(--border)' }}>
                     <span className="break-words">
                       <code>{row.taskId}</code> {row.title} <Badge>{row.change}</Badge>
                     </span>
-                    <span className="text-muted">
+                    <Hint>
                       {row.number ? `#${row.number} ` : ''}
                       {ISSUE_STATE_LABEL[row.issueState]} · {ACTION_LABEL[row.action]}. {row.text}
-                    </span>
+                    </Hint>
                   </li>
                 ))}
-              </ul>
+              </Stack>
             )}
           </>
         )}

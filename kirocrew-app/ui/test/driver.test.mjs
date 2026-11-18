@@ -84,9 +84,9 @@ test('the pieces are wired: spec page, Hand off, dialogs and Settings', () => {
   assert.match(driver, /Reassign it on GitHub/)
   assert.match(driver, /Avoozl does not reassign it/)
   // Force take over names the old driver and needs the spec name typed.
-  assert.match(driver, /Assigned to<\/dt>/)
-  assert.match(driver, /Driving machine<\/dt>/)
-  assert.match(driver, /Last heartbeat<\/dt>/)
+  assert.match(driver, /<Hint as="dt">Assigned to<\/Hint>/)
+  assert.match(driver, /Driving machine<\/Hint>/)
+  assert.match(driver, /Last heartbeat<\/Hint>/)
   assert.match(driver, /may still be running chats for this spec/)
   assert.match(driver, /Type <code>\{spec\.spec\}<\/code> to confirm/)
   // This computer shows the machine ID small and says the values stay here.
