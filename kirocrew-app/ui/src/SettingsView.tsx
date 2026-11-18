@@ -43,6 +43,11 @@ import {
   isGitHubMode,
   rateLines,
   usageRows,
+  sortUsage,
+  nextUsageSort,
+  USAGE_SORT,
+  type UsageKey,
+  type UsageSort,
   type RateView,
   defaultCoder,
   modeKey,
@@ -1523,42 +1528,75 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   )
 }
 
-// The last GitHub rate-limit numbers and the calls of the last hour by source.
+// The last GitHub rate-limit numbers, then the calls of the last hour by source.
 export function RateBlock({ rate }: { rate: RateView | undefined }) {
   const lines = rateLines(rate),
     rows = usageRows(rate)
-  if (!lines.length && !rows.length) return null
   return (
-    <div className="text-xs text-muted" data-github-rate>
-      <p className="font-medium">GitHub calls, last known</p>
-      {lines.map((line) => (
-        <p key={line}>{line}</p>
-      ))}
-      {rows.length > 0 && (
-        <p className="mt-2 font-medium">Calls in the last hour: {rate?.hourCalls ?? 0}</p>
+    <>
+      {lines.length > 0 && (
+        <div className="text-xs text-muted" data-github-rate>
+          <p className="font-medium">GitHub calls, last known</p>
+          {lines.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
       )}
       {rows.length > 0 && (
-        <table data-github-usage>
-          <thead>
-            <tr>
-              <th className="pr-4 text-left font-normal">Source</th>
-              <th className="pr-4 text-right font-normal">Calls</th>
-              <th className="pr-4 text-right font-normal">304 (free)</th>
-              <th className="text-right font-normal">Cached (free)</th>
+        <Card>
+          <Section title="GitHub calls in the last hour" blurb={`${rate?.hourCalls ?? 0} calls by source. Calls count against the limit; 304s and cached answers do not. Click a heading to sort.`}>
+            <UsageTable rows={rows} />
+          </Section>
+        </Card>
+      )}
+    </>
+  )
+}
+
+const CELL: CSSProperties = { padding: '4px 8px' }
+const NUM: CSSProperties = { ...CELL, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
+const USAGE_COLUMNS: { key: UsageKey; label: string }[] = [
+  { key: 'source', label: 'Source' },
+  { key: 'calls', label: 'Calls' },
+  { key: 'notModified', label: '304 (free)' },
+  { key: 'cached', label: 'Cached (free)' },
+]
+
+// A real table: each heading is a button that sorts by it, and the th says
+// which way (aria-sort). Numbers sit right-aligned.
+export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
+  const [sort, setSort] = useState<UsageSort>(USAGE_SORT)
+  const sorted = sortUsage(rows, sort)
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table data-github-usage style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+        <thead>
+          <tr>
+            {USAGE_COLUMNS.map((col) => {
+              const on = sort.key === col.key
+              const right = col.key !== 'source'
+              return (
+                <th key={col.key} scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ textAlign: right ? 'right' : 'left', padding: '4px 8px', fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
+                  <button type="button" data-sort={col.key} className="inline-flex items-center gap-1 font-medium" style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', padding: 0 }} onClick={() => setSort(nextUsageSort(sort, col.key))}>
+                    {col.label}
+                    <span aria-hidden="true" className="text-xs text-muted">{on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</span>
+                  </button>
+                </th>
+              )
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((row) => (
+            <tr key={row.source} data-usage-source={row.source}>
+              <td style={CELL}>{row.source}</td>
+              <td style={NUM}>{row.calls}</td>
+              <td style={NUM}>{row.notModified}</td>
+              <td style={NUM}>{row.cached}</td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.source} data-usage-source={row.source}>
-                <td className="pr-4">{row.source}</td>
-                <td className="pr-4 text-right">{row.calls}</td>
-                <td className="pr-4 text-right">{row.notModified}</td>
-                <td className="text-right">{row.cached}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

@@ -1,10 +1,10 @@
-// Links and notes on a task, and Mark done for a manual task, in the task
-// drawer (design §4.16, Requirement 61.12, 61.16–61.23). Entries list
-// newest first with who wrote each and when; a person adds a link or a
-// note, edits one, removes one after a confirm, and ticks Show on the issue
-// when the task has an issue. A save a content rule blocks offers Allow once
-// in place. A manual task shows what the person checks and Mark done, a
-// dialog with an outcome note, links, and Done, Skipped or Refused.
+// Links on a task, and Mark done for a manual task, in the task drawer
+// (design §4.16, Requirement 61.12, 61.16–61.23). Links list newest first
+// with who added each and when; a person adds one from the Add link button,
+// edits one, removes one after a confirm, and ticks Show on the issue when
+// the task has an issue. A save a content rule blocks offers Allow once in
+// place. A manual task shows what the person checks and Mark done, a dialog
+// with links and Done, Skipped or Refused. Tasks keep no notes.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
@@ -17,13 +17,7 @@ import { Ban, Check, ClipboardCheck, ExternalLink, Pencil, Plus, RotateCcw, Tras
 import { safeHref, linkHref } from './views-api.ts'
 import { relativeTime } from './task-api.ts'
 import { errorMessage } from './workspace-api.ts'
-import { authorLabel, blockedDecisions, linkProblem, noteProblem, notesClient, type ManualDone, type NoteEntry } from './notes-api.ts'
-
-const fieldStyle = {
-  borderColor: 'var(--border)',
-  color: 'var(--text)',
-  background: 'var(--card, transparent)',
-}
+import { authorLabel, blockedDecisions, linkProblem, notesClient, type ManualDone, type NoteEntry } from './notes-api.ts'
 
 // A save a content rule blocked: the decisions to allow, and the save to
 // run again once allowed.
@@ -84,19 +78,18 @@ function EntryView(props: {
   entry: NoteEntry
   onGitHub: boolean
   busy: boolean
-  onEdit: (entry: NoteEntry, change: { url?: string; label?: string; text?: string }) => Promise<void>
+  onEdit: (entry: NoteEntry, change: { url: string; label: string }) => Promise<void>
   onRemove: (entry: NoteEntry) => void
   onShow: (entry: NoteEntry, on: boolean) => void
 }) {
   const { entry } = props
   const [editing, setEditing] = useState(false)
-  const [url, setUrl] = useState(entry.url ?? '')
-  const [label, setLabel] = useState(entry.label ?? '')
-  const [text, setText] = useState(entry.text ?? '')
-  const problem = editing ? (entry.kind === 'link' ? linkProblem(url, label) : noteProblem(text)) : null
-  const href = entry.kind === 'link' ? safeHref(entry.url ?? null) : null
+  const [url, setUrl] = useState(entry.url)
+  const [label, setLabel] = useState(entry.label)
+  const problem = editing ? linkProblem(url, label) : null
+  const href = safeHref(entry.url)
   return (
-    <li className="flex flex-col gap-1 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-note-entry={entry.kind}>
+    <li className="flex flex-col gap-1 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-link-entry>
       <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
         <span>{authorLabel(entry)}</span>
         <Tooltip text={entry.at}>
@@ -108,38 +101,21 @@ function EntryView(props: {
       </div>
       {editing ? (
         <div className="flex flex-col gap-2">
-          {entry.kind === 'link' ? (
-            <>
-              <label className="flex flex-col gap-1 text-xs">
-                URL
-                <Input value={url} onChange={(event: { target: { value: string } }) => setUrl(event.target.value)} />
-              </label>
-              <label className="flex flex-col gap-1 text-xs">
-                Label
-                <Input value={label} onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
-              </label>
-            </>
-          ) : (
-            <label className="flex flex-col gap-1 text-xs">
-              Note
-              <textarea
-                rows={4}
-                value={text}
-                onChange={(event) => setText(event.target.value)}
-                className="rounded border px-2 py-1 text-sm"
-                style={fieldStyle}
-              />
-            </label>
-          )}
+          <label className="flex flex-col gap-1 text-xs">
+            URL
+            <Input value={url} onChange={(event: { target: { value: string } }) => setUrl(event.target.value)} />
+          </label>
+          <label className="flex flex-col gap-1 text-xs">
+            Label
+            <Input value={label} onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
+          </label>
           {problem && <span className="text-xs text-danger">{problem}</span>}
           <div className="flex flex-wrap gap-2">
             <Btn
               type="button"
               primary
               disabled={props.busy || Boolean(problem)}
-              onClick={() =>
-                void props.onEdit(entry, entry.kind === 'link' ? { url: url.trim(), label: label.trim() } : { text }).then(() => setEditing(false))
-              }
+              onClick={() => void props.onEdit(entry, { url: url.trim(), label: label.trim() }).then(() => setEditing(false))}
             >
               Save
             </Btn>
@@ -148,38 +124,31 @@ function EntryView(props: {
             </Btn>
           </div>
         </div>
-      ) : entry.kind === 'link' ? (
-        href ? (
-          <a
-            href={linkHref(href)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm underline"
-            style={{ overflowWrap: 'anywhere' }}
-          >
-            <ExternalLink size={ICON} aria-hidden="true" />
-            {entry.label}
-          </a>
-        ) : (
-          <span className="text-sm">{entry.label}</span>
-        )
+      ) : href ? (
+        <a
+          href={linkHref(href)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm underline"
+          style={{ overflowWrap: 'anywhere' }}
+        >
+          <ExternalLink size={ICON} aria-hidden="true" />
+          {entry.label}
+        </a>
       ) : (
-        // A note is shown as typed, never as markup: people and agents write it.
-        <p className="text-sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-          {entry.text}
-        </p>
+        <span className="text-sm">{entry.label}</span>
       )}
       {!editing && (
         <div className="flex flex-wrap items-center gap-2">
-          <IconLabel icon={Pencil} disabled={props.busy} tooltip={`Edit this ${entry.kind}`} onClick={() => setEditing(true)}>
+          <IconLabel icon={Pencil} disabled={props.busy} tooltip="Edit this link" onClick={() => setEditing(true)}>
             Edit
           </IconLabel>
           <DangerBtn
             icon={Trash2}
             disabled={props.busy}
-            tooltip={`Remove this ${entry.kind}. It stays in the activity log.`}
+            tooltip="Remove this link. It stays in the activity log."
             confirm={{
-              title: `Remove this ${entry.kind}?`,
+              title: 'Remove this link?',
               body: 'It leaves the list. The activity log keeps a record that it was removed.',
               action: 'Remove',
             }}
@@ -188,7 +157,7 @@ function EntryView(props: {
             Remove
           </DangerBtn>
           {props.onGitHub && (
-            <Tooltip text="List it in the issue's managed section on GitHub. Off by default: notes may hold things not meant for the repository.">
+            <Tooltip text="List it in the issue's managed section on GitHub. Off by default: a link may point at things not meant for the repository.">
               {(describedBy) => (
                 <label className="inline-flex items-center gap-1.5 text-xs" aria-describedby={describedBy}>
                   <input type="checkbox" checked={entry.onIssue} disabled={props.busy} onChange={(event) => props.onShow(entry, event.target.checked)} />
@@ -203,8 +172,9 @@ function EntryView(props: {
   )
 }
 
-// The drawer's Links and notes fold body.
-export function LinksAndNotes(props: { workspaceId: string; taskId: string; onGitHub: boolean; refresh?: number }) {
+// The drawer's Links box: the links, then an Add link button that opens the
+// fields for one link. Adding or Cancel closes them again.
+export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub: boolean; refresh?: number }) {
   const api = useAppApi()
   const client = useMemo(() => notesClient(api), [api])
   const [entries, setEntries] = useState<NoteEntry[] | null>(null)
@@ -212,10 +182,10 @@ export function LinksAndNotes(props: { workspaceId: string; taskId: string; onGi
   const [notice, setNotice] = useState<string | null>(null)
   const [blocked, setBlocked] = useState<Blocked | null>(null)
   const [busy, setBusy] = useState(false)
+  const [adding, setAdding] = useState(false)
   const [url, setUrl] = useState('')
   const [label, setLabel] = useState('')
-  const [text, setText] = useState('')
-  const [tried, setTried] = useState<'link' | 'note' | null>(null)
+  const [tried, setTried] = useState(false)
   const load = useCallback(async () => {
     try {
       setEntries((await client.list(props.workspaceId, props.taskId)).entries)
@@ -227,6 +197,12 @@ export function LinksAndNotes(props: { workspaceId: string; taskId: string; onGi
     void load()
   }, [load, props.refresh])
 
+  const closeForm = () => {
+    setAdding(false)
+    setUrl('')
+    setLabel('')
+    setTried(false)
+  }
   // One save: on a content rule block, offer Allow once with this save.
   const save = async (call: () => Promise<unknown>, done: string, after?: () => void) => {
     setBusy(true)
@@ -254,15 +230,10 @@ export function LinksAndNotes(props: { workspaceId: string; taskId: string; onGi
       setBusy(false)
     }
   }
-  const linkIssue = tried === 'link' ? linkProblem(url, label) : null
-  const noteIssue = tried === 'note' ? noteProblem(text) : null
+  const linkIssue = tried ? linkProblem(url, label) : null
 
   return (
-    <div className="flex flex-col gap-3" data-links-and-notes>
-      <p className="text-xs text-muted">
-        What happened while the work ran: meeting outcomes, docs, findings. Kept here, not in the spec, so adding one changes no approval. Workers read them as
-        data.
-      </p>
+    <div className="flex flex-col gap-3" data-task-links>
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
@@ -287,9 +258,9 @@ export function LinksAndNotes(props: { workspaceId: string; taskId: string; onGi
       {entries === null ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : entries.length === 0 ? (
-        <p className="text-sm text-muted">No links or notes yet.</p>
+        <p className="text-sm text-muted">No links yet.</p>
       ) : (
-        <ul className="flex flex-col" aria-label="Links and notes, newest first">
+        <ul className="flex flex-col" aria-label="Links, newest first">
           {entries.map((entry) => (
             <EntryView
               key={entry.id}
@@ -308,80 +279,47 @@ export function LinksAndNotes(props: { workspaceId: string; taskId: string; onGi
           ))}
         </ul>
       )}
-      <form
-        className="flex flex-col gap-2 rounded border p-2"
-        style={{ borderColor: 'var(--border)' }}
-        aria-label="Add link"
-        onSubmit={(event) => {
-          event.preventDefault()
-          setTried('link')
-          if (linkProblem(url, label)) return
-          void save(
-            () => client.addLink(props.workspaceId, props.taskId, url, label),
-            'Link added.',
-            () => {
-              setUrl('')
-              setLabel('')
-              setTried(null)
-            },
-          )
-        }}
-      >
-        <span className="text-sm font-semibold">Add link</span>
-        <div className="flex flex-wrap gap-2">
-          <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '12rem' }}>
-            URL
-            <Input value={url} placeholder="https://" onChange={(event: { target: { value: string } }) => setUrl(event.target.value)} />
-          </label>
-          <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '10rem' }}>
-            Label
-            <Input value={label} placeholder="Review notes" onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
-          </label>
-        </div>
-        {linkIssue && <span className="text-xs text-danger">{linkIssue}</span>}
+      {adding ? (
+        <form
+          className="flex flex-col gap-2 rounded border p-2"
+          style={{ borderColor: 'var(--border)' }}
+          aria-label="Add link"
+          data-add-link-form
+          onSubmit={(event) => {
+            event.preventDefault()
+            setTried(true)
+            if (linkProblem(url, label)) return
+            void save(() => client.addLink(props.workspaceId, props.taskId, url, label), 'Link added.', closeForm)
+          }}
+        >
+          <div className="flex flex-wrap gap-2">
+            <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '12rem' }}>
+              URL
+              <Input autoFocus value={url} placeholder="https://" onChange={(event: { target: { value: string } }) => setUrl(event.target.value)} />
+            </label>
+            <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '10rem' }}>
+              Label
+              <Input value={label} placeholder="Review doc" onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
+            </label>
+          </div>
+          {linkIssue && <span className="text-xs text-danger">{linkIssue}</span>}
+          <div className="flex flex-wrap gap-2">
+            <Btn type="submit" primary disabled={busy} data-add-link-submit>
+              Add
+            </Btn>
+            <Btn type="button" disabled={busy} onClick={closeForm}>
+              Cancel
+            </Btn>
+          </div>
+        </form>
+      ) : (
         <div>
-          <Btn type="submit" disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Btn type="button" onClick={() => setAdding(true)} data-add-link style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Plus size={ICON} aria-hidden="true" />
             Add link
           </Btn>
         </div>
-      </form>
-      <form
-        className="flex flex-col gap-2 rounded border p-2"
-        style={{ borderColor: 'var(--border)' }}
-        aria-label="Add note"
-        onSubmit={(event) => {
-          event.preventDefault()
-          setTried('note')
-          if (noteProblem(text)) return
-          void save(
-            () => client.addNote(props.workspaceId, props.taskId, text),
-            'Note added.',
-            () => {
-              setText('')
-              setTried(null)
-            },
-          )
-        }}
-      >
-        <label className="flex flex-col gap-1 text-sm font-semibold">
-          Add note
-          <textarea
-            rows={3}
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            className="rounded border px-2 py-1 text-sm font-normal"
-            style={fieldStyle}
-          />
-        </label>
-        {noteIssue && <span className="text-xs text-danger">{noteIssue}</span>}
-        <div>
-          <Btn type="submit" disabled={busy} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Plus size={ICON} aria-hidden="true" />
-            Add note
-          </Btn>
-        </div>
-      </form>
+      )}
     </div>
   )
 }
@@ -394,7 +332,7 @@ const MARKED: Record<Choice, string> = {
   refused: 'Marked refused. The tasks that wait on it stay held.',
 }
 
-// Mark done (R61.12): an optional outcome note and links, then Done,
+// Mark done (R61.12): optional outcome links, then Done,
 // Skipped or Refused. Done and Skipped release the tasks that wait on it;
 // Refused is a no-go and keeps them held.
 export function MarkDoneDialog(props: {
@@ -407,13 +345,12 @@ export function MarkDoneDialog(props: {
 }) {
   const client = notesClient(useAppApi())
   const [choice, setChoice] = useState<Choice>('done')
-  const [note, setNote] = useState('')
   const [links, setLinks] = useState<{ url: string; label: string }[]>([])
   const [error, setError] = useState<string | null>(null)
   const [blocked, setBlocked] = useState<Blocked | null>(null)
   const [busy, setBusy] = useState(false)
   const problems = links.map((link) => linkProblem(link.url, link.label))
-  const dirty = Boolean(note.trim() || links.length)
+  const dirty = links.length > 0
   const setLink = (i: number, change: Partial<{ url: string; label: string }>) => setLinks(links.map((link, j) => (j === i ? { ...link, ...change } : link)))
   const submit = async () => {
     if (problems.some(Boolean)) return
@@ -423,7 +360,6 @@ export function MarkDoneDialog(props: {
     const attempt = async () => {
       await client.markDone(props.workspaceId, props.taskId, {
         choice,
-        ...(note.trim() ? { note } : {}),
         ...(links.length
           ? {
               links: links.map((link) => ({
@@ -517,20 +453,6 @@ export function MarkDoneDialog(props: {
           },
         ]}
       />
-      <label className="flex flex-col gap-1 text-sm">
-        <span>
-          Outcome note <span className="text-xs text-muted">(optional)</span>
-        </span>
-        <textarea
-          rows={4}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          className="rounded border px-2 py-1 text-sm"
-          style={fieldStyle}
-          data-outcome-note
-        />
-        <span className="text-xs text-muted">What was decided. The workers after it read this as data.</span>
-      </label>
       <fieldset className="flex flex-col gap-2 text-sm">
         <legend>
           Links <span className="text-xs text-muted">(optional)</span>
@@ -625,7 +547,7 @@ export function ManualTask(props: {
         </div>
       ) : (
         <div>
-          <IconLabel icon={ClipboardCheck} primary tooltip="Record that the step happened, with what was decided" onClick={() => setOpen(true)}>
+          <IconLabel icon={ClipboardCheck} primary tooltip="Record that the step happened" onClick={() => setOpen(true)}>
             Mark done
           </IconLabel>
         </div>
