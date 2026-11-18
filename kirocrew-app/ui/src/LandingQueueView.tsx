@@ -13,7 +13,7 @@ import { RefreshButton } from './RefreshButton.tsx'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { safeHref } from './views-api.ts'
-import { baseTitle, holdVariant, holdWord, itemCount, itemLinks, landingNote, landingQueueClient, type LandingItem } from './landing-queue-api.ts'
+import { baseTitle, holdVariant, holdWord, itemCount, itemLinks, landingNote, landingQueueClient, queueLine, type LandingItem } from './landing-queue-api.ts'
 
 const DOT: Record<string, string> = { pass: 'var(--ok)', fail: 'var(--danger)', pending: 'var(--warn, var(--accent))', stale: 'var(--muted)' }
 const DOT_TEXT: Record<string, string> = { pass: 'Checks passed', fail: 'Checks failed', pending: 'Checks running', stale: 'Checks are for an older head' }
@@ -107,6 +107,11 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
           <Card key={base.key}>
             <div data-landing-base={base.key}>
               <SectionHeading level={3} title={`${baseTitle(base)} (${base.items.length})`} meta={landingNote(base)} className="mb-1" />
+              {queueLine(base) && (
+                <p className="mb-1 text-xs text-muted" data-landing-queue-line>
+                  {queueLine(base)}
+                </p>
+              )}
               <ul className="flex w-full flex-col">
                 {base.items.map((item) => (
                   <Row key={item.key} item={item} now={now} />
