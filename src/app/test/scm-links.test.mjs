@@ -316,6 +316,21 @@ test("delivery.view carries each task's link set for In flight chips, with no Gi
   assert.equal(byId.get("open").links.branch.ref, "avoozl/open");
 });
 
+test("task.detail carries the task's link set for the Links box", async (t) => {
+  const { root, store } = seed(t),
+    ops = new Operations(store, { workspaceRoot: root });
+  const { links } = await ops.execute("task.detail", { id: "open" });
+  const expected = taskLinks(store, "open");
+  assert.equal(links.pr.url, expected.pr.url);
+  assert.equal(links.branch.url, expected.branch.url);
+  assert.equal(links.checks.dot, "pass");
+  assert.deepEqual(links.worktree, expected.worktree);
+  assert.equal(
+    (await ops.execute("task.detail", { id: "bare" })).links.pr,
+    null,
+  );
+});
+
 test("plan.get carries the spec's link set and makes no GitHub call", async (t) => {
   const { root, store } = seed(t),
     calls = [],

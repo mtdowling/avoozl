@@ -1650,13 +1650,13 @@ paused. Screenshot approval remains owner work.
 - [x] 44.2 Links box in the spec details panel, after 44.1 [R92.4, R92.9, R92.10, R92.12] (§4.27)
   - Spec issue, working branch, open PRs with a check dot each, Radar issues it came from. Links open with target=_blank rel="noopener noreferrer"; a private spec issue renders only locally.
 
-- [ ] 44.3 Links box in the task details view and the Graph modal, after 44.1 [R92.5, R92.9, R92.10, R92.12] (§4.27)
+- [x] 44.3 Links box in the task details view and the Graph modal, after 44.1 [R92.5, R92.9, R92.10, R92.12] (§4.27)
   - Branch, PR, checks, landed commit and issue; the Graph modal reuses the same view. A worktree path shows as local text only.
 
 - [x] 44.4 PR and branch chips on In flight rows, after 44.1 [R92.6, R92.9, R92.12] (§4.27)
   - `PR #N` with a check dot, and the branch. Chips fit a 390 px row.
 
-- [ ] 44.5 Landing queue page under Dashboards, after 44.1 [R92.7, R92.2, R92.12] (§4.27)
+- [x] 44.5 Landing queue page under Dashboards, after 44.1 [R92.7, R92.2, R92.12] (§4.27)
   - A Dashboards page next to CI, not a nav pill. Per target base, items in landing order with each hold reason; full-width rows at 390 px. No GitHub call; Refresh redraws.
 
 - [x] 44.6 Radar back-links through intake and the journal, after 44.1, 56.11 [R92.8, R92.10] (§4.27)
