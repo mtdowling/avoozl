@@ -190,6 +190,7 @@ export const APP_OPERATIONS = new Set([
   "radar.releasestep",
   "radar.armed",
   "integration.view",
+  "landing.view",
   "gap.preview",
   "gap.accept",
   "integration.land",
