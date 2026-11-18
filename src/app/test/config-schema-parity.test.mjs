@@ -1,12 +1,14 @@
 // src/avoozl-config.schema.json is what an editor checks a `.avoozl.json`
 // against, so a key the loader accepts and the schema lacks is flagged in a
 // valid file (simplification audit §2.3, F19). These tests hold the schema to
-// the validators' own key lists, and every closed object in the schema to
-// one of those lists.
+// the validators' own key lists, every closed object in the schema to one of
+// those lists, every open object to the keys its reader reads, and mark as
+// ignored exactly the keys accepted only so an old file loads.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { ruleKeys, whenKeys } from "../agent-instructions.mjs";
+import { CONTENT_RULES_KEYS, RULE_SET_KEYS } from "../content-rules.mjs";
 import {
   HARNESS_ROLES,
   MODEL_ROLES,
@@ -34,6 +36,7 @@ import { SOURCE_KEYS } from "../intake.mjs";
 import { INVESTIGATE_KEYS } from "../investigate.mjs";
 import {
   LEASE_KEYS,
+  MACHINE_FILE_KEYS,
   MACHINE_PLATFORM_KEYS,
   MECHANICAL_KEYS,
   PLATFORM_COMMAND_KEYS,
@@ -100,6 +103,8 @@ const PAIRS = [
   ...trainPairs(TRAINS, { ...TRAIN_KEYS, targets: { leaf: true } }),
   ...trainPairs(TARGET, { ...TRAIN_KEYS, ...TARGET_KEYS }),
   ["#/properties/plugins/items", ENTRY_KEYS],
+  ["#/properties/contentRules", CONTENT_RULES_KEYS],
+  ["#/properties/contentRules/properties/sets/items", RULE_SET_KEYS],
   ["#/properties/intake/properties/sources/additionalProperties", SOURCE_KEYS],
   ["#/properties/delivery", DELIVERY_KEYS],
   ["#/$defs/deliveryInvestigate", INVESTIGATE_KEYS],
@@ -164,6 +169,121 @@ const UNPAIRED = new Map([
   ["#/properties/intake", "sourceDeclarations in intake.mjs reads sources"],
   ["#/properties/activity", "validateActivitySettings in activity-log.mjs"],
   ["#/$defs/agentInstructions", "agent-instructions.mjs accepts only rules"],
+  ["#/properties/workers", "claimStaleMs in worker-release.mjs"],
+]);
+
+// Open schema objects (unknown keys pass) and the keys their readers read.
+const OPEN = new Map([
+  [
+    "#",
+    [
+      "$schema",
+      "version",
+      "workspaceId",
+      "namespace",
+      "name",
+      "operator",
+      "dbPath",
+      "documents",
+      "port",
+      "host",
+      "url",
+      "runner",
+      "agentInstructions",
+      "conversations",
+      "projects",
+      "receipts",
+      "github",
+      "models",
+      "harnesses",
+      "planReview",
+      "lanes",
+      "landing",
+      "planningRepository",
+      "plugins",
+      "intake",
+      "activity",
+      "delivery",
+      "flow",
+      "contentRules",
+      "workers",
+      "packs",
+      "machine",
+      "lease",
+      // Still parsed by layered-config.mjs so old files load (audit D8).
+      "ahp",
+      "ahpPort",
+      "ahpHost",
+      "ahpProjection",
+      "ahpTokens",
+      "ahpManifest",
+      "canvasOrigins",
+      "agentManifest",
+    ],
+  ],
+  // conflictRounds and validateTrains in landing-config.mjs.
+  ["#/properties/landing", ["conflictRounds", "trains", "unionPaths"]],
+  ["#/properties/machine", MACHINE_FILE_KEYS],
+  // plugin-pack.mjs writes each entry.
+  [
+    "#/properties/packs/additionalProperties",
+    ["version", "importedAt", "importedBy", "settings"],
+  ],
+  // readRunnerConfig in remote-runner.mjs, and poolsOf in worker-offers.mjs.
+  [
+    "#/$defs/runner",
+    [
+      "role",
+      "crewId",
+      "agents",
+      "executor",
+      "workerMode",
+      "remote",
+      "checkTimeoutSeconds",
+      "checks",
+      "repos",
+      "hosts",
+      "pools",
+      "sources",
+      "lanes",
+    ],
+  ],
+  ["#/$defs/runner/properties/checks/additionalProperties", ["argv"]],
+  [
+    "#/$defs/runner/properties/hosts/additionalProperties",
+    ["via", "argv", "ssh", "command", "dashboardUrl"],
+  ],
+  [
+    "#/$defs/runner/properties/pools/items",
+    ["spec", "repository", "target", "claims", "issue", "base", "visibility"],
+  ],
+  ["#/$defs/runner/properties/sources/additionalProperties", ["url", "parent"]],
+  ["#/$defs/ahp", ["port", "host", "projection", "tokens", "manifest"]],
+]);
+
+// Keys a validator accepts only so an old file loads, and never reads.
+const AHP = "It configured the removed VS Code extension's agent host.";
+const IGNORED = new Map([
+  ...[
+    "ahp",
+    "ahpPort",
+    "ahpHost",
+    "ahpProjection",
+    "ahpTokens",
+    "ahpManifest",
+    "canvasOrigins",
+    "agentManifest",
+  ].map((key) => [`#/properties/${key}`, AHP]),
+  ...[...RETIRED_ROLES].map((role) => [
+    `#/properties/models/properties/${role}`,
+    "chat-models.mjs drops retired roles",
+  ]),
+  ["#/$defs/conversations/properties/driver", "repository-settings.mjs"],
+  ["#/$defs/conversations/properties/routing", "repository-settings.mjs"],
+  [`${REPOSITORY}/coder`, "Who codes was removed (R91.6)"],
+  [`${REPOSITORY}/concurrency`, "github-policy.mjs releaseInput"],
+  ["#/$defs/flow/properties/lessons", "flowSection drops it"],
+  ["#/$defs/flow/properties/batch", "flowSection drops it"],
 ]);
 
 // Every closed object in the schema, by pointer.
@@ -211,3 +331,57 @@ test("every closed schema object is held to a validator's key list", () => {
     "pair each new closed object with its validator's key list in PAIRS",
   );
 });
+
+test("every open schema object lists exactly the keys its reader reads", () => {
+  const paired = new Set(PAIRS.map(([pointer]) => pointer)),
+    problems = [];
+  for (const [pointer, keys] of OPEN) {
+    const listed = Object.keys(at(pointer)?.properties ?? {});
+    for (const key of keys)
+      if (!listed.includes(key)) problems.push(`${pointer} lacks ${key}`);
+    for (const key of listed)
+      if (!keys.includes(key))
+        problems.push(`${pointer} lists ${key}, which nothing reads`);
+  }
+  for (const pointer of openObjects())
+    if (!OPEN.has(pointer) && !paired.has(pointer))
+      problems.push(`${pointer} is open and has no key list in OPEN`);
+  assert.deepEqual(problems, []);
+});
+
+test("the schema marks ignored exactly the keys accepted only for old files", () => {
+  for (const pointer of IGNORED.keys())
+    assert.equal(
+      at(pointer)?.deprecated,
+      true,
+      `${pointer} must be deprecated`,
+    );
+  assert.deepEqual(
+    deprecatedKeys().filter((pointer) => !IGNORED.has(pointer)),
+    [],
+    "a deprecated key no validator ignores",
+  );
+});
+
+// Every open object with properties, and every deprecated key, by pointer.
+function openObjects() {
+  const found = [];
+  (function walk(node, pointer) {
+    if (!node || typeof node !== "object") return;
+    if (node.properties && node.additionalProperties !== false)
+      found.push(pointer);
+    for (const [key, child] of Object.entries(node))
+      walk(child, `${pointer}/${key}`);
+  })(schema, "#");
+  return found;
+}
+function deprecatedKeys() {
+  const found = [];
+  (function walk(node, pointer) {
+    if (!node || typeof node !== "object") return;
+    if (node.deprecated === true) found.push(pointer);
+    for (const [key, child] of Object.entries(node))
+      walk(child, `${pointer}/${key}`);
+  })(schema, "#");
+  return found;
+}

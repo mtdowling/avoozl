@@ -68,18 +68,24 @@
           },
           "uniqueItems": true
         }
-      ]
+      ],
+      "deprecated": true,
+      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
     },
     "agentManifest": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "deprecated": true,
+      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
     },
     "url": {
       "type": "string",
       "format": "uri"
     },
     "ahp": {
-      "$ref": "#/$defs/ahp"
+      "$ref": "#/$defs/ahp",
+      "deprecated": true,
+      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
     },
     "conversations": {
       "$ref": "#/$defs/conversations"
@@ -882,6 +888,77 @@
     "flow": {
       "$ref": "#/$defs/flow"
     },
+    "contentRules": {
+      "description": "Content rule sets (design 4.9). The rules themselves live in a terms file outside Git or in a rules plugin, never here.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "action": {
+                "enum": ["block", "report"],
+                "default": "block"
+              },
+              "boundaries": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "enum": [
+                    "plan",
+                    "github",
+                    "brief",
+                    "diff",
+                    "intake",
+                    "proposal",
+                    "activity",
+                    "evidence",
+                    "notes"
+                  ]
+                }
+              },
+              "repositories": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "plugin": {
+                "type": "string",
+                "minLength": 1
+              },
+              "remote": {
+                "enum": ["allow", "forbid"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "workers": {
+      "description": "Worker mode claims (design 4.28).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claimStaleAfter": {
+          "description": "When a worker's claim shows in Needs you: like \"90m\", \"24h\" or \"2d\", or a number of seconds.",
+          "type": ["string", "number"],
+          "pattern": "^\\d{1,6}[mhd]$",
+          "exclusiveMinimum": 0,
+          "default": "24h"
+        }
+      }
+    },
     "ahpPort": {
       "type": "integer",
       "minimum": 0,
@@ -975,6 +1052,10 @@
             "minimum": 1,
             "maximum": 32
           }
+        },
+        "alias": {
+          "type": "string",
+          "description": "This machine's name."
         }
       }
     },
@@ -1073,6 +1154,18 @@
           "additionalProperties": {
             "type": "object",
             "properties": {
+              "via": {
+                "enum": ["local"],
+                "description": "Run the host's command on this machine instead of over ssh."
+              },
+              "argv": {
+                "description": "With via local: the command that stands in for ssh.",
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              },
               "ssh": {
                 "type": "string"
               },
@@ -1678,7 +1771,8 @@
           "description": "Must equal the repository's default branch when a mode is set."
         },
         "coder": {
-          "description": "Ignored. Who codes was removed: the Avoozl worker is the only coder, and an old value still loads."
+          "deprecated": true,
+          "description": "Ignored. Who codes was removed (R91.6). Files that still set it load as before."
         },
         "radar": {
           "type": "object",
