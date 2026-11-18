@@ -136,12 +136,13 @@ test('each mode shows only the settings it reads, and Local only keeps the rest'
   assert.match(settings, /<p>\{LOCAL_HIDDEN_LINE\}<\/p>/)
 })
 
-test('Repositories: one list with row actions, a red Remove behind a confirm, then Add repository in its own box', () => {
+test('Repositories: one compact list with View, Edit and a trash Remove behind Are you sure?, then Add repository in its own box', () => {
   const repos = source('RepositoriesSettings.tsx')
   assert.match(repos, /REPOSITORIES_LINE =/)
-  assert.match(repos, /<IconBtn icon=\{FolderOpen\} label=\{`Open \$\{row\.name\} in Finder`\}/)
-  assert.match(repos, /target="_blank"\s+rel="noopener noreferrer"/)
-  assert.match(repos, /<DangerBtn[\s\S]*Remove \$\{row\.name\} from this workspace\?[\s\S]*are not touched/)
+  assert.match(repos, /<IconBtn icon=\{Eye\} label=\{`View \$\{row\.name\}`\}/)
+  assert.match(repos, /<IconBtn icon=\{Pencil\} label=\{`Edit \$\{row\.name\}`\}/)
+  assert.match(repos, /<DangerBtn icon=\{Trash2\} label=\{`Remove \$\{row\.name\}`\}/)
+  assert.match(repos, /Are you sure\?[\s\S]*are not touched/)
   assert.match(repos, /data-repositories-empty/)
   assert.match(repos, /1\. Pick the folder/)
   assert.match(repos, /2\. Confirm what Avoozl found/)
@@ -149,7 +150,7 @@ test('Repositories: one list with row actions, a red Remove behind a confirm, th
   assert.ok(tab.indexOf('<RepositoryList') < tab.indexOf('<AddRepository'), 'the list comes before Add repository')
   assert.match(tab, /Added repositories \(\$\{rows\.length\}\)/)
   assert.match(tab, /workspaces\.removeRepository\(props\.workspaceId, target\.checkout\.id\)/)
-  assert.match(tab, /data-local-checks/)
+  assert.match(settings, /data-local-checks/)
   // The Workspaces pane has no repositories panel at all. Add and Edit are
   // modals: no inline form and no right-side shelf.
   const ws = source('WorkspaceView.tsx')
@@ -182,7 +183,7 @@ test('who counts is one row on the Triggers tab, with write as the default; no s
 })
 
 test('Settings has a GitHub page; Workspaces keeps only workspace things', () => {
-  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'radar', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
+  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'radar', 'plugins', 'content', 'flow', 'models', 'delivery'])
   assert.doesNotMatch(settings, /Where tasks live' \}/)
   assert.match(settings, /setup=\{<SetupWizard/)
   const workspaces = settings.slice(settings.indexOf("if (tab === 'workspaces')"), settings.indexOf("if (!workspaceId)"))
@@ -191,7 +192,7 @@ test('Settings has a GitHub page; Workspaces keeps only workspace things', () =>
   // The Plugins link to the GitHub settings opens the GitHub page.
   assert.match(settings, /onOpenGitHub=\{\(\) => props\.onTab\('github'\)\}/)
   // Any other tab, GitHub included, is the PolicyEditor with one Save bar.
-  assert.match(settings, /<PolicyEditor key=\{version\} workspaceId=\{workspaceId\} tab=\{tab\}/)
+  assert.match(settings, /<PolicyEditor workspaceId=\{workspaceId\} tab=\{tab\}/)
   assert.match(settings, /\{tab === 'github' && <RateBlock rate=\{settings\.rate\} \/>\}/)
   assert.match(settings, /<SaveFooter[\s\S]*note="Writes \.avoozl\.json\."/)
 })

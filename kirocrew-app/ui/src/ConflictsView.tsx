@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BudgetActions } from './Budget.tsx'
 import { PlanReviewDecision } from './PlanReviewDecision.tsx'
-import type { BudgetChip } from './budget-api.ts'
 import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
@@ -120,14 +118,6 @@ export function ConflictActions(props: {
         <PlanReviewDecision key={`${workspaceId}:${item.planReview.planId}:${item.planReview.revisionHash}`} {...item.planReview} busy={busy} run={run} onDecide={(action) =>
           views.decidePlanReview(workspaceId, item.planReview!.planId, item.planReview!.revisionHash, action)
         } />
-      )}
-      {(item.kind === 'budget' || item.kind === 'over-budget') && item.taskId && (item as ConflictItem & { budget?: BudgetChip }).budget && (
-        <BudgetActions
-          workspaceId={workspaceId}
-          taskId={item.taskId}
-          budget={(item as ConflictItem & { budget: BudgetChip }).budget}
-          onDone={(text) => run(async () => ({ ok: true, text }))}
-        />
       )}
       {item.kind === 'investigation' && item.taskId && <InvestigationActions item={item} busy={busy} onDecide={(action, text) => run(async () => {
         await views.decideInvestigation(workspaceId, item.taskId!, action)

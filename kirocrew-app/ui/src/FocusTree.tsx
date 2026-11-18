@@ -20,6 +20,7 @@ import { ArrowLeft, ArrowRight, ExternalLink, ListFilter } from './icons.ts'
 import { NavSlotFor } from './nav-slot.tsx'
 import { RailBlock, RailRow, RailStyle } from './NavRail.tsx'
 import { usePhone } from './list-detail.ts'
+import { useScrollPan } from './drag-pan.ts'
 import GraphView from './GraphView.tsx'
 import { edgePath, layoutGraph, nodeState, STATES, type Drill, type NodeState, type Spacing } from './graph-layout.ts'
 import {
@@ -483,6 +484,7 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
   const [cursor, setCursor] = useState<string | null>(first)
   const box = useRef<HTMLDivElement>(null)
   const phone = usePhone()
+  const pan = useScrollPan(box)
   // A new root takes the cursor, and keyboard focus when it was in the tree.
   // The root card scrolls into view, so drilling right or left keeps it in
   // sight.
@@ -540,7 +542,15 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
           </button>
         )}
       </div>
-      <div ref={box} className="overflow-auto rounded border" style={{ borderColor: 'var(--border)', background: 'var(--bg)', maxHeight: phone ? undefined : '70vh' }} data-tree-scroll>
+      <div
+        ref={box}
+        className="overflow-auto rounded border"
+        // overflow inline too: panning needs a real scroll box, host CSS or not.
+        style={{ borderColor: 'var(--border)', background: 'var(--bg)', overflow: 'auto', maxHeight: phone ? undefined : '70vh', cursor: pan.panning ? 'grabbing' : 'grab', userSelect: pan.panning ? 'none' : undefined }}
+        data-tree-scroll
+        data-panning={pan.panning || undefined}
+        {...pan.handlers}
+      >
         {phone ? (
           // A phone: one column of cards, upstream first, the page scrolls.
           <ol role="group" aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`} aria-describedby={HINT_ID} className="m-0 flex flex-col gap-2 p-2" style={{ listStyle: 'none', fontFamily: MONO }} data-tree-list>
@@ -703,7 +713,7 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
         </svg>
         )}
       </div>
-      <style>{`.avoozl-tree-node:focus-visible > rect:last-of-type{stroke:var(--accent);stroke-width:2.5}.avoozl-tree-row:focus-visible{outline:2px solid var(--accent);outline-offset:1px}`}</style>
+      <style>{`.avoozl-tree-node:focus-visible > rect:last-of-type{stroke:var(--accent);stroke-width:2.5}.avoozl-tree-row:focus-visible{outline:2px solid var(--accent);outline-offset:1px}[data-tree-scroll][data-panning] *{cursor:grabbing!important}`}</style>
     </div>
   )
 }

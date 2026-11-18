@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Full-page screenshots of Settings › Budgets on the
+// Full-page screenshots of Settings pages on the
 // harness page with sample data, at 320, 768 and 1280 px wide, light and
 // dark: <out>/<page>-<width>-<theme>.png. `--open` also opens every fold.
 //
@@ -12,7 +12,7 @@ import { buildHarness } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const WIDTHS = [320, 768, 1280]
-const ALL = ['github-usage', 'budgets', 'coder', 'release-queue', 'release-mode', 'projection', 'spec-changed']
+const ALL = ['github-usage', 'coder', 'release-queue', 'release-mode', 'projection', 'spec-changed']
 
 const args = process.argv.slice(2)
 const open = args.includes('--open')

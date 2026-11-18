@@ -25,7 +25,6 @@ export const HARNESS_PLACEHOLDERS = Object.freeze([
   "tmp",
   "project_cache_dirs",
   "project_allow_commands",
-  "budget_usd",
 ]);
 export const PERMISSION_CLASSES = EXECUTOR_CONTRACT.permissionClasses;
 export const HARNESS_UNCONFINED = "harness-unconfined.json";
@@ -39,6 +38,8 @@ const KEYS = new Set([
   "writeRoots",
   "allow",
   "cost",
+  // Removed 2026-11-17 with budgets: skipped silently so an old definition
+  // loads.
   "spendCap",
   "attach",
   "model",
@@ -243,10 +244,6 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
         );
     definition.tmpEnv = Object.freeze([...value.tmpEnv]);
   }
-  if (value.spendCap !== undefined)
-    definition.spendCap = argv(value.spendCap, "spendCap", source, {
-      command: false,
-    });
   // What a person runs in the worktree to join the session (R98.1); In
   // flight shows it to copy. Avoozl never runs it.
   if (value.attach !== undefined)
