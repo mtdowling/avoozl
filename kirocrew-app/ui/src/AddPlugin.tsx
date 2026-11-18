@@ -36,6 +36,9 @@ import { RadioFold } from './RadioFold.tsx'
 import { Folder, GitBranch, Laptop, Package, Plus, Users } from './icons.ts'
 import { Facts, Parts } from './PluginsSettings.tsx'
 import { Modal } from './Modal.tsx'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -45,10 +48,10 @@ function Field(props: { label: string; marker?: 'required' | 'optional'; raw?: s
   return (
     <label className="flex flex-col gap-1 text-sm">
       <span>
-        {props.label} {props.marker && <span className="text-xs text-muted">({props.marker})</span>}
+        {props.label} {props.marker && <Hint size="xs">({props.marker})</Hint>}
       </span>
       {props.children}
-      {props.hint && <span className="text-xs text-muted">{props.hint}</span>}
+      {props.hint && <Hint size="xs">{props.hint}</Hint>}
       {props.raw && <code className="text-[11px] text-muted">{props.raw}</code>}
     </label>
   )
@@ -77,7 +80,7 @@ function SourceFields({ form, set }: { form: PluginForm; set: (patch: Partial<Pl
       </div>
     ),
     git: (
-      <div className="flex flex-col gap-2">
+      <Stack gap={2}>
         <Field label="Git URL or repository path" marker="required" raw="git">
           <Input value={form.git} placeholder="https://git.example.com/team/plugin.git" onChange={(e: Change) => set({ git: e.target.value })} />
         </Field>
@@ -89,8 +92,8 @@ function SourceFields({ form, set }: { form: PluginForm; set: (patch: Partial<Pl
             <Input value={form.subdir} placeholder="plugin" onChange={(e: Change) => set({ subdir: e.target.value })} />
           </Field>
         </div>
-        <p className="text-xs text-muted">Next finds the exact commit this names. Add fetches only that commit, with hooks off and nothing installed.</p>
-      </div>
+        <Hint as="p" size="xs">Next finds the exact commit this names. Add fetches only that commit, with hooks off and nothing installed.</Hint>
+      </Stack>
     ),
   }
   return (
@@ -135,7 +138,7 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
           .filter(([, v]) => v)
           .map(([label, v]) => (
             <div key={label} className="contents">
-              <dt className="text-muted">{label}</dt>
+              <Hint as="dt">{label}</Hint>
               <dd className="break-all">
                 <code>{v}</code>
               </dd>
@@ -164,9 +167,9 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
         <Input value={form.config} onChange={(e: Change) => set({ config: e.target.value })} placeholder='{"tokenEnv": "EXAMPLE_TOKEN"}' />
       </Field>
       {props.problem && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {props.problem}
-        </p>
+        </ErrorText>
       )}
     </div>
   )
@@ -184,8 +187,8 @@ function ScopeStep(props: { form: PluginForm; set: (patch: Partial<PluginForm>) 
   const detail = (line: string, when: string, limits: string) => (
     <div className="flex flex-col gap-1 text-sm">
       <p>{line}</p>
-      <p className="text-xs text-muted">Use it when {when}</p>
-      <p className="text-xs text-muted">{limits}</p>
+      <Hint as="p" size="xs">Use it when {when}</Hint>
+      <Hint as="p" size="xs">{limits}</Hint>
     </div>
   )
   return (
@@ -226,7 +229,7 @@ function ScopeStep(props: { form: PluginForm; set: (patch: Partial<PluginForm>) 
                 <input type="checkbox" className="mt-1" checked={props.confirmPublic} onChange={(e) => props.setConfirmPublic(e.target.checked)} />
                 <span>
                   Publish it in .avoozl.json
-                  <span className="block text-xs text-muted">Anyone who can read the repository sees this plugin’s id, source and config.</span>
+                  <Hint size="xs" block>Anyone who can read the repository sees this plugin’s id, source and config.</Hint>
                 </span>
               </label>
             ),
@@ -376,9 +379,9 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
         ))}
       </ol>
       <div>
-        <p id="avoozl-plugin-line" className="text-sm text-muted">
+        <Hint id="avoozl-plugin-line" as="p" size="sm">
           {PLUGIN_STEPS[step][1]}
-        </p>
+        </Hint>
       </div>
       {step === 0 && <SourceFields form={form} set={set} />}
       {step === 1 && preview && <WhatStep form={form} preview={preview} supported={supported} set={set} problem={problem} />}
@@ -386,7 +389,7 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       {step === 3 && added && (
         <div className="flex flex-col gap-3 text-sm" data-plugin-review>
           <FormSection title={added.id} meta={<Badge variant={stateLabel(added).attention ? 'warning' : undefined}>{stateLabel(added).label}</Badge>}>
-            {added.reason && <p className="text-xs text-muted">{added.reason}</p>}
+            {added.reason && <Hint as="p" size="xs">{added.reason}</Hint>}
             <Parts row={added} />
             <Facts row={added} />
           </FormSection>
@@ -395,13 +398,13 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
               <PackChanges preview={pack} />
             </FormSection>
           )}
-          <p className="text-xs text-muted">Cancel removes the entry just added. Nothing has run.</p>
+          <Hint as="p" size="xs">Cancel removes the entry just added. Nothing has run.</Hint>
         </div>
       )}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
     </Modal>
   )
@@ -417,14 +420,14 @@ export default function AddPlugin(props: { workspaceId: string; client: Client; 
   }, [])
   return (
     <PairedCard title="Add plugin" label="Add plugin" grow={2} minWidth="18rem">
-      <p className="text-xs text-muted">Four steps. Nothing runs or imports until you approve its exact version.</p>
+      <Hint as="p" size="xs">Four steps. Nothing runs or imports until you approve its exact version.</Hint>
       <ol className="mt-2 flex flex-col gap-1 text-xs">
         {PLUGIN_STEPS.map(([title, line], i) => (
           <li key={title} className="flex gap-2">
             <span className="font-semibold">{i + 1}.</span>
             <span>
               {title}
-              <span className="block text-muted">{line}</span>
+              <Hint block>{line}</Hint>
             </span>
           </li>
         ))}

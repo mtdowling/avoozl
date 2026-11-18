@@ -17,7 +17,7 @@ test('Needs you shows its count once, at the right end of the filter row', () =>
   assert.match(view, /shown\.length < matching\.length \? `\$\{shown\.length\} shown of \$\{matching\.length\}` : ''/)
   assert.match(view, /key: 'q'[^\n]*primary: true/)
   assert.match(view, /key: 'kind'[^\n]*primary: true/)
-  assert.match(source('PlansView.tsx'), /<PlanFilters[^>]*>\s*<span className="text-xs text-muted" role="status">/)
+  assert.match(source('PlansView.tsx'), /<PlanFilters[^>]*>\s*<Hint size="xs" role="status">/)
   const panel = source('FilterPanel.tsx')
   assert.match(panel, /data-filter-row className="flex min-w-0 items-center gap-1\.5" style=\{\{ flexWrap: 'nowrap' \}\}/)
   assert.match(panel, /<MoreMenu label=\{`More filters/)

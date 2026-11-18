@@ -7,6 +7,8 @@
 // Used by the Settings mode picker and the Add plugin steps.
 import type { ReactNode } from 'react'
 import type { LucideIcon } from './icons.ts'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 export interface RadioSection<K extends string> {
   key: K
@@ -41,7 +43,7 @@ export function RadioFold<K extends string>(props: {
   sections: RadioSection<K>[]
 }) {
   return (
-    <div role="radiogroup" aria-label={props.label} className="flex flex-col" data-radio-fold={props.name}>
+    <Stack role="radiogroup" aria-label={props.label} data-radio-fold={props.name}>
       <style>{MOTION}</style>
       {props.sections.map((section) => {
         const open = section.key === props.value
@@ -83,10 +85,10 @@ export function RadioFold<K extends string>(props: {
                   {Icon && <Icon size={16} aria-hidden="true" style={{ flex: 'none', color: open ? 'var(--accent)' : 'var(--muted)' }} />}
                   {section.title}
                 </span>
-                <span id={`${id}-line`} className="text-sm text-muted">
+                <Hint id={`${id}-line`} size="sm">
                   {section.line}
-                </span>
-                {section.disabled && <span className="text-xs text-muted">{section.disabled}</span>}
+                </Hint>
+                {section.disabled && <Hint size="xs">{section.disabled}</Hint>}
               </span>
             </label>
             {open && !section.disabled && (section.description || section.fields) && (
@@ -99,6 +101,6 @@ export function RadioFold<K extends string>(props: {
           </section>
         )
       })}
-    </div>
+    </Stack>
   )
 }
