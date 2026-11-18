@@ -1,5 +1,7 @@
 # Spec details: Links box (task 44.2, 2026-11-17)
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 The spec details panel gains a **Links** box after Repositories. It lists
 the spec issue, the working branch, each open pull request with a check
 dot, and the Radar issues the spec came from. A dot is green when checks

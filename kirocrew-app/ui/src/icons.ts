@@ -1,6 +1,6 @@
 // The icons the page draws, all from the lucide-react module Kiro Crew
 // provides at run time. Each name was checked against the module the host
-// (Kiro Crew 0.12.2.3) exports; keep new ones to names it has.
+// (Kiro Crew 0.12.2) exports; keep new ones to names it has.
 export {
   Activity,
   ArrowDown,

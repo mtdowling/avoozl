@@ -10,7 +10,7 @@
     "build:agents": "node src/app/executors/kirocrew/build-agents.mjs",
     "check:agents": "node src/app/executors/kirocrew/build-agents.mjs --check",
     "prepack": "npm run build",
-    "pretest": "npm run check:agents && npm run build",
+    "pretest": "node scripts/check-no-images.mjs && npm run check:agents && npm run build",
     "workspace": "node cli.mjs",
     "test": "node scripts/run-tests.mjs",
     "test:map": "node scripts/build-test-map.mjs",
@@ -26,7 +26,7 @@
     "react": "^19.3.1"
   },
   "version": "0.1.0",
-  "description": "Plans, tasks, and agents in one local workspace.",
+  "description": "Approve a spec; Avoozl runs it with coding agents, checks each commit itself, and lands it.",
   "license": "MIT",
   "bin": {
     "avoozl": "./cli.mjs",

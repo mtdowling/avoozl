@@ -94,6 +94,7 @@ jobs:
       - run: npm ci --ignore-scripts
         if: steps.modules.outputs.cache-hit != 'true'
       - run: npm run format:check
+      - run: node scripts/check-no-images.mjs
       - run: node scripts/spec-lint.mjs
 
   linux:

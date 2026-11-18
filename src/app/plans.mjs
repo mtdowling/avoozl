@@ -413,7 +413,7 @@ function approveEpic(
   store,
   data,
   plan,
-  { expectedRevision, approver, evidence },
+  { expectedRevision, approver, evidence, delegation },
 ) {
   const now = new Date().toISOString(),
     plans = store.list("plans").filter((entry) => !entry.deletedAt),
@@ -434,6 +434,7 @@ function approveEpic(
       files: plan.files,
       approval: approvalRecord(store, plan.id, plan.hash, approver),
       epic: { members: listed },
+      ...(delegation ? { delegation } : {}),
     };
   store.put("approvals", receipt);
   plan.state = "approved";
@@ -485,6 +486,9 @@ export function approvePlan(
     // tasks count as approved owners for a checked task; approveMany checks
     // after the last approval that every one resolved.
     coApproved = new Set(),
+    // A delegate's approval on a person's behalf (R109): {delegate,
+    // onBehalfOf, grantedAt}, recorded on the receipt.
+    delegation = null,
   },
 ) {
   // Authorization is the reviewed hash and database revision below. Who
@@ -513,6 +517,7 @@ export function approvePlan(
         expectedRevision,
         approver: approvedBy?.trim() || operator?.trim() || "",
         evidence,
+        delegation,
       });
     // A spec plan's tasks keep their tasks.md IDs; its tasks.md is plan.text.
     const extracted = Boolean(extraction),
@@ -1034,6 +1039,7 @@ export function approvePlan(
       approvedBy: approver,
       evidence: evidence?.trim() || "",
       ...(baselined.length ? { baseline: baselined } : {}),
+      ...(delegation ? { delegation } : {}),
       at: now,
       mapping,
       taskIds: Object.values(mapping),

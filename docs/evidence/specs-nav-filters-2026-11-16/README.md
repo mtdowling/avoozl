@@ -1,5 +1,7 @@
 # Specs nav filters styled like Radar's Issues nav (2026-11-16)
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 The Specs filters in the left nav are now rows and chips, as Issue Radar's
 Issues nav draws them: a search box, SORT (Name, Last update, Tasks; the
 active row filled with its direction arrow), FILTERS (status rows, then what a

@@ -1,5 +1,7 @@
 # Activity nav filters styled like the Specs nav (2026-11-16)
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 The Activity filters in the left nav now use the Specs nav's rows and chips
 (`NavRail.tsx`, from PR #361) instead of three dropdowns: SOURCE rows (All,
 then each source with its count; the active row filled, Clear in the header

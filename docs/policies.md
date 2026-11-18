@@ -253,10 +253,15 @@ dependents only when that commit has enough approvals.
 An Issue Radar crew works one repository. Each turn it lists the open
 issues, keeps those that carry a label it watches (every open issue when it
 watches none), skips any issue that already has a `crew:` label, and claims
-one by adding `crew: in progress`. When it needs a person it adds the
-repository's "needs human" label (`crew: needs human` unless Issue Radar's
-settings say otherwise). Crews use your `gh` login, so on GitHub their
-labels and closes look like yours.
+one by adding `crew: in progress`. When it gives an issue up it adds the
+repository's escalation label, which Issue Radar calls its needs-human
+label. Name it `crew: needs avoozl`: Avoozl takes such an issue in, so the
+name should not say a person is needed. Set that name in Issue Radar's
+settings for the repository and in **Settings > Issue Radar > Escalation
+label**; the two must match. Keep the `crew:` prefix, which is what makes
+other crews skip the issue. Left alone, both use Issue Radar's own default,
+`crew: needs human`. Crews use your `gh` login, so on GitHub their labels
+and closes look like yours.
 
 **Send to Issue Radar.** In the Intake tab, select issues from one
 repository and press **Send selected to Issue Radar**, or use the row's
@@ -284,7 +289,7 @@ yours by label, not by login:
   close is still an order.
 - Adding or removing a crew label never makes a rule true, and a rule may
   not use a crew label as a trigger.
-- The "needs human" label shows under **Needs you** with a link to the
+- The escalation label shows under **Needs you** with a link to the
   issue, both for Avoozl tasks and for issues sent from Intake.
 
 Labels a crew watches are set in Issue Radar. Labels it writes are set under
@@ -615,6 +620,13 @@ in an agent's shell). The Kiro Crew dashboard terminal sets neither: it copies
 the gateway's environment and adds `KIROCREW_TERMINAL=1`, which Avoozl does
 not trust because an agent could set it. This is a speed bump: code that unsets
 those variables gets past it.
+
+Approval has one sanctioned way past it that needs no claim to be the
+person: approval delegation. A person runs `approval delegate NAME`; then
+`plan approve ... --delegate NAME` and `plan.approve` with `delegate` work
+from an agent session and over MCP, approving as that person, and each
+receipt records the delegate and the grant. With no active grant the delegate
+is refused. Granting and revoking are themselves person-only.
 
 For a Kiro Crew chat it stays a speed bump. The chat runs as you, with your
 files, your `gh` login and your network, so nothing stops a determined agent

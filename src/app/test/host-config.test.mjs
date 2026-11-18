@@ -11,6 +11,7 @@ import {
   WorkspaceRegistry,
 } from "../host-config.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
+import { HOST_CONFIG_SCHEMA_URL } from "../config-schema.mjs";
 import { globalAvoozlConfigPath } from "../layered-config.mjs";
 import { workspaceConfig } from "../config.mjs";
 import { Store } from "../store.mjs";
@@ -512,7 +513,7 @@ test("duplicate roots, checkout bindings, symlinks, and identity mismatches fail
 
 test("host schema publishes workspace and concurrency contracts", () => {
   const schema = JSON.parse(fs.readFileSync(hostConfigSchemaPath, "utf8"));
-  assert.equal(schema.$id, "https://avoozl.dev/schema/host-config-v1.json");
+  assert.equal(schema.$id, HOST_CONFIG_SCHEMA_URL);
   assert.equal(schema.properties.maxConcurrentRuns.minimum, 1);
   assert.equal(schema.$defs.workspace.properties.maxConcurrentRuns.minimum, 0);
   assert.equal(
