@@ -201,7 +201,7 @@ test('a running review shows the purple working box, announced politely and stil
     assert.equal(await page.evaluate(`document.querySelector('[data-approve-spec-go]').disabled`), false)
     assert.deepEqual(page.errors, [])
   }
-  const source = await import('node:fs').then((fs) => fs.readFileSync(new URL('../src/PlanReviewSummary.tsx', import.meta.url), 'utf8'))
+  const source = await import('node:fs').then((fs) => fs.readFileSync(new URL('../src/PlanReviewSummary.tsx', import.meta.url), 'utf8') + fs.readFileSync(new URL('../src/ui/PageStyles.tsx', import.meta.url), 'utf8'))
   assert.match(source, /animation: avoozl-review-sweep 2s ease-in-out infinite/, 'motion matches Kiro Crew when motion is allowed')
 })
 

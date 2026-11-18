@@ -42,9 +42,8 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { ModelRowsStyle } from './ui/PageStyles'
 
-// One column on a phone; role | harness | agent | model | source from 1000px.
-const ROW_CSS = '[data-model-role]{display:grid;grid-template-columns:minmax(0,1fr);gap:8px 16px}@media (min-width:1000px){[data-model-role]{grid-template-columns:11rem minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 10rem}}[data-model-role]~[data-model-role]{border-top:1px solid var(--border);padding-top:12px}'
 // shortcut: these roles cannot run as a harness child yet (rows of
 // src/app/role-table.mjs with process: false); drop a role here when its task
 // lands.
@@ -107,9 +106,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
   const reset = (role: Role) => setForm({ ...form, [role]: {} })
   return (
     <Stack gap={4} data-models-settings>
-      <style href="avoozl-models-rows" precedence="default">
-        {ROW_CSS}
-      </style>
+      <ModelRowsStyle />
       <FormSection title="Harnesses on this machine" blurb="Harness files live in this machine’s Avoozl config. Each is approved by its file hash.">
         <Box as="ul" css-column-gap="24" css-row-gap="8" flex flexWrap size="sm" data-models-harnesses>
           <Box as="li" flex items="center" gap="2">

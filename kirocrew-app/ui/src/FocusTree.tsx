@@ -50,6 +50,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { TreeStyle } from './ui/PageStyles'
 
 // Theme variables only (Radar's rule): go is the accent, a hold is warn.
 const COLOR: Record<NodeState, string> = {
@@ -727,7 +728,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
         </svg>
         )}
       </div>
-      <style>{`.avoozl-tree-node:focus-visible > rect:last-of-type{stroke:var(--accent);stroke-width:2.5}.avoozl-tree-row:focus-visible{outline:2px solid var(--accent);outline-offset:1px}[data-tree-scroll][data-panning] *{cursor:grabbing!important}`}</style>
+      <TreeStyle />
     </Stack>
   )
 }

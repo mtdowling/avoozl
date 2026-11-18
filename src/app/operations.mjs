@@ -3325,8 +3325,8 @@ export class Operations {
         }),
       );
     }
-    // Retired tool names remain resolvable for existing clients.
-    if (name === "relay.call" || name === "relay.forget")
+    // Retired: an old page may still send it.
+    if (name === "relay.forget")
       fail(
         "The Remote relay was removed. Use Avoozl worker sessions and runner report instead.",
         410,

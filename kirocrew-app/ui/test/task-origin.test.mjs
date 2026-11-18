@@ -131,7 +131,7 @@ test('a citation marks a range, a task block, or a heading through its section',
 })
 
 test('the cited file renders the whole text, marks with a class, and skips animation under reduced motion', () => {
-  const cited = readFileSync(new URL('../src/CitedFile.tsx', import.meta.url), 'utf8')
+  const cited = readFileSync(new URL('../src/CitedFile.tsx', import.meta.url), 'utf8') + readFileSync(new URL('../src/ui/PageStyles.tsx', import.meta.url), 'utf8')
   assert.match(cited, /<Markdown text=\{text\}/)
   assert.match(cited, /node\.classList\.add\(CITED_CLASS\)/)
   assert.match(cited, /export const CITED_CLASS = 'avoozl-cited'/)

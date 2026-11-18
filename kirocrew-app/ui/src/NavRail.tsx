@@ -5,27 +5,13 @@
 // a count for one value each. No dropdowns: every choice is a button with
 // aria-pressed. Colors are Kiro Crew's theme variables only.
 import { useMemo, useState, type ReactNode } from 'react'
-import { NAV_PILL } from './nav-style.ts'
 import { ArrowDown, ArrowUp, Search, X, type LucideIcon } from './icons.ts'
 import { Box } from './ui/Box'
+import { RailCss } from './ui/PageStyles'
 
-// Radar's sizes: 12px headers at .05em, 13px rows 8px in, 6px corners.
-const CSS = `[data-rail-head]{display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
-[data-rail-row]{display:flex;align-items:center;gap:8px;width:100%;min-width:0;box-sizing:border-box;height:${NAV_PILL}px;padding:0 8px;border:0;border-radius:6px;background:none;color:var(--muted);font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
-[data-rail-row]:hover{background:var(--bg-hover);color:var(--text)}
-[data-rail-row][aria-pressed=true]{background:var(--accent-subtle,var(--bg-hover));color:var(--text);font-weight:500}
-[data-rail-row][aria-pressed=true]:hover{background:color-mix(in srgb,var(--accent) 18%,var(--bg-elevated))}
-[data-rail-row]:disabled{opacity:.4;cursor:default}
-[data-rail-chip]{display:inline-flex;align-items:center;gap:8px;max-width:100%;box-sizing:border-box;padding:4px 12px;border:0;border-radius:999px;color:var(--text);font:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background-color .12s}
-[data-rail-chip][aria-pressed=true]{font-weight:700}
-[data-rail-icon]{display:inline-flex;padding:2px;border:0;border-radius:4px;background:none;color:var(--muted);cursor:pointer}
-[data-rail-icon]:hover{color:var(--text);background:var(--bg-hover)}
-[data-rail-icon][aria-expanded=true]{color:var(--accent)}
-[data-rail-row]:focus-visible,[data-rail-chip]:focus-visible,[data-rail-icon]:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-[data-rail-text]{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}`
 
 export function RailStyle() {
-  return <style>{CSS}</style>
+  return <RailCss />
 }
 
 // One block: its header (icon, title, an optional control on the right),

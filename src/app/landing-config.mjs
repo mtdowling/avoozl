@@ -127,11 +127,17 @@ export const TRAIN_KEYS = {
     maxRebases: int(0, 10),
     flakyReruns: int(0, 3),
   },
-  conflicts: { mechanical: leaf({ mechanical: true }) },
+  conflicts: {
+    mechanical: leaf({ mechanical: true }),
+    resolver: leaf({ oneOf: ["rules", "chat"] }),
+  },
   ci: {
     workflow: leaf({ string: true }),
     waitForLastTrain: leaf({ bool: true }),
+    jobPlatforms: leaf({ stringMap: true }),
+    bisectOnRed: leaf({ bool: true }),
   },
+  capacity: { ci: leaf({ intMap: [1, 32] }) },
   scheduling: { overlap: leaf({ oneOf: ["same-train", "serialize"] }) },
   pullRequests: {
     mode: leaf({ oneOf: ["review-only"] }),
@@ -170,6 +176,17 @@ function checkValue(spec, value, at, fail) {
     if (typeof value !== "boolean") fail(`${at} must be true or false.`);
   } else if (spec.string) {
     if (typeof value !== "string" || !value) fail(`${at} must be text.`);
+  } else if (spec.stringMap) {
+    if (!isRecord(value)) fail(`${at} must map job names to platform names.`);
+    for (const [name, platform] of Object.entries(value))
+      if (typeof platform !== "string" || !platform)
+        fail(`${at}.${name} must be a platform name.`);
+  } else if (spec.intMap) {
+    const [lo, hi] = spec.intMap;
+    if (!isRecord(value)) fail(`${at} must map platform names to counts.`);
+    for (const [name, n] of Object.entries(value))
+      if (!Number.isInteger(n) || n < lo || n > hi)
+        fail(`${at}.${name} must be a whole number ${lo}–${hi}.`);
   } else if (spec.template) {
     if (typeof value !== "string" || !value) fail(`${at} must be text.`);
     for (const [, name] of value.matchAll(/\{([^{}]*)\}/g))
@@ -282,7 +299,12 @@ export function trainSettings(config, target) {
   out.branchPrefix ??= TRAIN_DEFAULTS.branchPrefix;
   for (const key of ["trigger", "failure", "ci", "scheduling", "pullRequests"])
     out[key] = { ...TRAIN_DEFAULTS[key], ...(out[key] ?? {}) };
-  out.conflicts = { mechanical: [], ...(out.conflicts ?? {}) };
+  out.capacity = { ci: {}, ...(out.capacity ?? {}) };
+  out.conflicts = {
+    mechanical: [],
+    resolver: "rules",
+    ...(out.conflicts ?? {}),
+  };
   out.validation = { cheap: [], full: {}, ...(out.validation ?? {}) };
   return out;
 }

@@ -14,6 +14,7 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
+import { NeedsContextStyle } from './ui/PageStyles'
 
 const linkButton = { background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer', textAlign: 'left' as const }
 
@@ -251,7 +252,7 @@ export function ItemContextBlock({ item, plan }: { item: ConflictItem; plan?: st
   const unblock = unblockLine(item)
   return (
     <Box css-border-color="border" flex flexCol gap="3" rounded="base" border="all" p="3" data-needs-context={item.kind}>
-      <style>{'[data-needs-context] :is(dl,dd,h4,p,ul){margin:0}[data-needs-context] dd{margin-left:0}'}</style>
+      <NeedsContextStyle />
       <Box as="dl" css-grid-template-columns="auto-1fr" m0 grid gapX="3" gapY="1" size="sm" data-context-where>
         <Hint as="dt" size="xs">Spec</Hint>
         <Box as="dd" css-overflow-wrap="anywhere" m0 minW0>

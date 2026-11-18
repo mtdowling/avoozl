@@ -30,7 +30,6 @@ const server = await startServe({
   port: Number(values.port ?? 0),
   uiDir: standaloneUiDirectory(),
   stateDirectory,
-  configDirectory,
   link: false,
   registryOptions: {
     configPath: path.join(configDirectory, "config.json"),

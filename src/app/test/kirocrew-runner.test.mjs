@@ -114,13 +114,16 @@ const run = (root, ...args) =>
       env: isolatedEnv(root),
     }),
   );
+// name is "tool.action" for a grouped tool.
 const tool = (name, input, sessionKey) => ({
   jsonrpc: "2.0",
   id: 1,
   method: "tools/call",
   params: {
-    name,
-    arguments: { input },
+    name: name.split(".")[0],
+    arguments: name.includes(".")
+      ? { action: name.split(".")[1], input }
+      : { input },
     ...(sessionKey
       ? { _meta: { "kirocrew.caller": { schemaVersion: 1, sessionKey } } }
       : {}),
@@ -268,7 +271,7 @@ test("the tick leaves ready leaves to a Crew Mode conductor and still verifies i
 
 test("only the claiming conductor, the worker, or the local command line may report", async (t) => {
   // Nearby inputs: the worker itself, its conductor naming the slot, another
-  // session naming the slot, a relay for a plain plans_bind_session binding,
+  // session naming the slot, a relay for a plain plans_session bind binding,
   // and the local CLI.
   const { ops } = setup(t, { tasks: [leaf("a"), leaf("b")] });
   await ops.execute(
@@ -415,19 +418,31 @@ test("every runner write goes through Operations.execute, whichever surface call
   assert.equal(viaCli.binding.conductor, "cli");
   assert.deepEqual(ids(run(root, "next").ready), ["b"]);
   const denied = await handleMcp(
-    tool("plans_claim_task", { taskId: "a", slot: "worker-x" }, "dashboard:c"),
+    tool(
+      "plans_session.claim",
+      { taskId: "a", slot: "worker-x" },
+      "dashboard:c",
+    ),
     ops,
     { attestedCaller: true },
   );
   assert.equal(denied.body.result.isError, true);
   assert.match(denied.body.result.content[0].text, /not ready to start/);
   const unattested = await handleMcp(
-    tool("plans_claim_task", { taskId: "b", slot: "worker-b" }, "dashboard:c"),
+    tool(
+      "plans_session.claim",
+      { taskId: "b", slot: "worker-b" },
+      "dashboard:c",
+    ),
     ops,
   );
   assert.equal(unattested.body.result.isError, true);
   const claimed = await handleMcp(
-    tool("plans_claim_task", { taskId: "b", slot: "worker-b" }, "dashboard:c"),
+    tool(
+      "plans_session.claim",
+      { taskId: "b", slot: "worker-b" },
+      "dashboard:c",
+    ),
     ops,
     { attestedCaller: true },
   );
@@ -479,7 +494,7 @@ test("decisions and failures queue once on the app's channels with a link to the
   assert.deepEqual(rows[0].payload, {
     channel: "failure",
     title: "Avoozl stopped on a",
-    body: "a failed 1 times. Last cause: session closed without a done report.\n\nOpen the last session to see why. Fix the cause, then ask Avoozl to retry a (plans_retry_delivery).",
+    body: "a failed 1 times. Last cause: session closed without a done report.\n\nOpen the last session to see why. Fix the cause, then ask Avoozl to retry a (plans_task (action: retry)).",
     url: "/chat?sid=w-1",
     group_key: "avoozl:a",
   });

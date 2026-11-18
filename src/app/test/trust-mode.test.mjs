@@ -29,7 +29,7 @@ class Ctx:
     def list_session_folders(self): return []
     def create_session_folder(self, name, parent_id=""): return {"id": name, "name": name}
     def call_tool(self, server, tool, args):
-        return json.dumps(self.intents if tool == "plans_tick" else {"ok": True})
+        return json.dumps(self.intents if tool == "plans_maintain" else {"ok": True})
     def open_session(self, name, **kwargs):
         crew.open.append("slot-%d" % (len(crew.open) + 1)); return crew.open[-1]
     def send_to_session(self, slot, text): return {"ok": True}

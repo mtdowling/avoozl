@@ -999,7 +999,7 @@ export const listOr = (store, table) => {
   }
 };
 
-// flow.view: the Flow tab, `avoozl flow`, and plans_flow. Computed on read,
+// flow.view: the Flow tab, `avoozl flow`, and plans_view (action: flow). Computed on read,
 // never stored as truth (§4.11). Filters: repository, epic (across plans),
 // plan and phase (inside the plan), window (last N finished tasks, default
 // 20), stage (bars only).

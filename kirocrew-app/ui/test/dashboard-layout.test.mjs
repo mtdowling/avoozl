@@ -7,7 +7,8 @@ import test from 'node:test'
 const src = new URL('../src/', import.meta.url)
 const source = (name) => readFileSync(new URL(name, src), 'utf8')
 const dashboard = source('DashboardView.tsx')
-const parts = source('HomeParts.tsx')
+// Home's rules are in src/ui/PageStyles.tsx (UC3.4).
+const parts = source('HomeParts.tsx') + source('ui/PageStyles.tsx')
 const tileSource = source('ui/StatTile.tsx')
 
 // The section ids inside each <HomePair>, in order.
