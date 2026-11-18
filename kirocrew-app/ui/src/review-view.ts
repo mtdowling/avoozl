@@ -262,16 +262,3 @@ export function blocksIn(lines: number[], start: number, end: number): number[] 
   }
   return out.length ? out : lines.length ? [blockFor(lines, start)] : []
 }
-
-// Each card's top in the rail: level with its block (`want`), pushed down
-// below the card above when they would overlap. In `want` order, then line.
-export function stackCards(cards: { id: string; want: number; line: number; height: number }[], gap = 8): Record<string, number> {
-  const tops: Record<string, number> = {}
-  let floor = 0
-  for (const card of [...cards].sort((a, b) => a.want - b.want || a.line - b.line)) {
-    const top = Math.max(card.want, floor)
-    tops[card.id] = top
-    floor = top + card.height + gap
-  }
-  return tops
-}

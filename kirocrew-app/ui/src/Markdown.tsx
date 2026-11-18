@@ -73,9 +73,7 @@ function Code({ text, lang, line }: { text: string; lang: string | null; line?: 
 // block's first line minus one (the Review view, ReviewView.tsx).
 // `measure` caps prose at a readable line length; tables and code may use
 // the full width.
-// `after` renders something after a top-level block, given its first line
-// and the next block's (null for the last): the Review view's inline cards.
-export function Markdown({ text, idPrefix, measure, after }: { text: string; idPrefix?: string; measure?: string; after?: (line: number, next: number | null) => ReactNode }) {
+export function Markdown({ text, idPrefix, measure }: { text: string; idPrefix?: string; measure?: string }) {
   const prose = measure ? { maxWidth: measure } : undefined
   const all = blocks(text)
   return (
@@ -83,7 +81,6 @@ export function Markdown({ text, idPrefix, measure, after }: { text: string; idP
       {all.map((block, i) => (
         <Fragment key={i}>
           {render(block, i)}
-          {after?.(block.line, i + 1 < all.length ? all[i + 1].line : null)}
         </Fragment>
       ))}
     </div>
