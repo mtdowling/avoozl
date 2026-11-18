@@ -7483,6 +7483,22 @@
         "avoozl-p57"
       ]
     },
+    "50.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 50 (Kiro Crew stays the only UI). See R98.6–R98.10; §4.28.",
+      "acceptance": [
+        "One `roles` table for harness, agent and model; Settings › Models is the only place to pick them"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "50.3"
+      ]
+    },
     "avoozl-p60": {
       "kind": "leaf",
       "repository": "avoozl",

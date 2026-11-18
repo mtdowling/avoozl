@@ -5032,6 +5032,31 @@ Avoozl page, whatever harness runs it, so that I never need another UI.
 5. A headless machine SHALL get only the CLI: `avoozl status` and
    `avoozl runner status --json`. Avoozl SHALL host no other UI.
 
+Added 2026-11-18 (owner approval of the simplification audit, item 8 and
+F7 in `docs/simplification-audit.md`): one roles table. Today a role's
+model is picked in seven places, and the worker's is on Settings ›
+Delivery while the others are on Settings › Models.
+
+6. `.avoozl.json` SHALL hold one `roles` table with one row per role:
+   `worker`, `falsifier`, `planner`, `planReviewer`, `retro` and
+   `reviewDraft`. A row MAY set `harness` and `model`; the `worker` and
+   `falsifier` rows MAY also set `agent`. A missing key or `auto` keeps
+   that role's default.
+7. Settings › Models SHALL be the only page that picks a role's harness,
+   agent or model. Settings › Delivery SHALL keep only delivery choices.
+8. Avoozl SHALL read the older keys into the table silently, with no
+   warning: `models.<role>`, `harnesses.<role>`, `delivery.agent`,
+   `delivery.model`, `delivery.investigate.agent`,
+   `delivery.investigate.model` and `flow.retro.model`. A `roles` value
+   SHALL win over an older key.
+9. Saving Settings › Models SHALL write `roles` and remove the older keys
+   of criterion 8 from the same file.
+10. A task's `session` pin SHALL still win over its role's row. The
+    existing checks SHALL hold against the table: a named plan reviewer
+    model differs from a named planner model, and a review role with
+    `distinctFrom: model` needs a named worker model that differs from its
+    own.
+
 ### Requirement 99: Cross-model plan review
 
 Added 2026-11-15 (owner request). Design §4.29. This adds to Requirement 4.1
