@@ -1682,7 +1682,7 @@ Screenshot approval remains owner work.
 - [x] 44.6 Radar back-links through intake and the journal, after 44.1, 56.11 [R92.8, R92.10] (§4.27)
   - Spec shows its Radar source issues. The intake status comment names the spec issue where visibility permits; the journal records the source issue as owner/repo#N under the privacy scan, so GitHub shows a cross-reference. Tests: a public Radar issue never names a private spec; no Radar API, grant or import; no new GitHub write.
 
-- [ ] avoozl-p54 P54 Proof: links and the landing queue on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6 [R92, R102.7, R102.12] (§4.27)
+- [x] avoozl-p54 P54 Proof: links and the landing queue on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6 [R92, R102.7, R102.12] (§4.27)
   - Setup: isolated scratch workspace with two registered targets, one PR from a fork, a spec created from a scratch Radar-style issue, one landed and one held task; no real workspace tick.
   - Action: open the spec details panel, a task's details and its Graph modal, In flight and the Landing queue at 390 and 1280 px, light and dark; follow each link; count GitHub calls before and after.
   - Expected: every link reaches the right GitHub item in a new tab; held items show the right reason; opening and refreshing the views adds zero calls; the scratch Radar issue shows the spec link only when the spec is public. Private spec references, host names, usernames and paths never render on a public surface.
