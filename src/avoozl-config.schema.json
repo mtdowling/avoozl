@@ -105,8 +105,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "parser": { "type": "string" },
-        "warmCheck": { "type": "string" },
+        "parser": {
+          "type": "string"
+        },
+        "warmCheck": {
+          "type": "string"
+        },
         "report": {
           "oneOf": [
             {
@@ -146,11 +150,21 @@
       "description": "Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
       "additionalProperties": false,
       "properties": {
-        "planner": { "$ref": "#/$defs/chatModel" },
-        "planReviewer": { "$ref": "#/$defs/chatModel" },
-        "driver": { "$ref": "#/$defs/chatModel" },
-        "retro": { "$ref": "#/$defs/chatModel" },
-        "reviewDraft": { "$ref": "#/$defs/chatModel" }
+        "planner": {
+          "$ref": "#/$defs/chatModel"
+        },
+        "planReviewer": {
+          "$ref": "#/$defs/chatModel"
+        },
+        "driver": {
+          "$ref": "#/$defs/chatModel"
+        },
+        "retro": {
+          "$ref": "#/$defs/chatModel"
+        },
+        "reviewDraft": {
+          "$ref": "#/$defs/chatModel"
+        }
       }
     },
     "planReview": {
@@ -158,7 +172,10 @@
       "description": "Cross-model draft review. Auto skips review until a reviewer is named and its model can be shown to differ from the writer's.",
       "additionalProperties": false,
       "properties": {
-        "mode": { "enum": ["auto", "ask", "off"], "default": "auto" },
+        "mode": {
+          "enum": ["auto", "ask", "off"],
+          "default": "auto"
+        },
         "rounds": {
           "type": "integer",
           "minimum": 1,
@@ -189,6 +206,404 @@
           "minimum": 0,
           "maximum": 10,
           "default": 2
+        },
+        "trains": {
+          "type": "object",
+          "description": "Integrator trains for repositories with landing: train. A target's keys replace the same keys at this level. Refused when it holds machine keys.",
+          "additionalProperties": false,
+          "properties": {
+            "branchPrefix": {
+              "type": "string",
+              "default": "avoozl-batch/"
+            },
+            "trigger": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "minBranches": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 32,
+                  "default": 3
+                },
+                "maxWaitMinutes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1440,
+                  "default": 15
+                },
+                "maxBranches": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 32,
+                  "default": 10
+                },
+                "cooldownSeconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3600,
+                  "default": 60
+                }
+              }
+            },
+            "validation": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "cheap": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "full": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["command"],
+                    "properties": {
+                      "command": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "results": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "platforms": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "rules": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "classifier": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "failure": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "action": {
+                  "enum": ["return", "eject"],
+                  "default": "return"
+                },
+                "retries": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10,
+                  "default": 2
+                },
+                "trunk": {
+                  "enum": ["revert", "fix-forward"],
+                  "default": "revert"
+                },
+                "maxBisects": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10,
+                  "default": 2
+                },
+                "maxRebases": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10,
+                  "default": 3
+                },
+                "flakyReruns": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3,
+                  "default": 1
+                }
+              }
+            },
+            "conflicts": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "mechanical": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["paths", "strategy"],
+                    "properties": {
+                      "paths": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "strategy": {
+                        "enum": ["union", "regenerate", "format"]
+                      },
+                      "command": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "verify": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "ci": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "workflow": {
+                  "type": "string"
+                },
+                "waitForLastTrain": {
+                  "type": "boolean",
+                  "default": false
+                }
+              }
+            },
+            "targets": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["policy"],
+                "properties": {
+                  "branchPrefix": {
+                    "type": "string",
+                    "default": "avoozl-batch/"
+                  },
+                  "trigger": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "minBranches": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 32,
+                        "default": 3
+                      },
+                      "maxWaitMinutes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1440,
+                        "default": 15
+                      },
+                      "maxBranches": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 32,
+                        "default": 10
+                      },
+                      "cooldownSeconds": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3600,
+                        "default": 60
+                      }
+                    }
+                  },
+                  "validation": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "cheap": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      },
+                      "full": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": ["command"],
+                          "properties": {
+                            "command": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "results": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "platforms": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "rules": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "classifier": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  },
+                  "failure": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "action": {
+                        "enum": ["return", "eject"],
+                        "default": "return"
+                      },
+                      "retries": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10,
+                        "default": 2
+                      },
+                      "trunk": {
+                        "enum": ["revert", "fix-forward"],
+                        "default": "revert"
+                      },
+                      "maxBisects": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10,
+                        "default": 2
+                      },
+                      "maxRebases": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10,
+                        "default": 3
+                      },
+                      "flakyReruns": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 3,
+                        "default": 1
+                      }
+                    }
+                  },
+                  "conflicts": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "mechanical": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": ["paths", "strategy"],
+                          "properties": {
+                            "paths": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "strategy": {
+                              "enum": ["union", "regenerate", "format"]
+                            },
+                            "command": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "verify": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "ci": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "workflow": {
+                        "type": "string"
+                      },
+                      "waitForLastTrain": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    }
+                  },
+                  "policy": {
+                    "enum": ["optimistic", "gated"]
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -209,9 +624,13 @@
           "id": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9-]{0,60}$",
-            "not": { "enum": ["local", "github"] }
+            "not": {
+              "enum": ["local", "github"]
+            }
           },
-          "package": { "type": "string" },
+          "package": {
+            "type": "string"
+          },
           "path": {
             "type": "string",
             "description": "A folder relative to this file."
@@ -228,16 +647,24 @@
             "type": "string",
             "description": "The plugin's folder inside the git repository."
           },
-          "contract": { "type": "integer" },
+          "contract": {
+            "type": "integer"
+          },
           "config": {
             "type": "object",
             "description": "Plain, non-secret data for the plugin. A key ending in Env names an environment variable the plugin reads a credential from."
           }
         },
         "oneOf": [
-          { "required": ["package"] },
-          { "required": ["path"] },
-          { "required": ["git", "ref"] }
+          {
+            "required": ["package"]
+          },
+          {
+            "required": ["path"]
+          },
+          {
+            "required": ["git", "ref"]
+          }
         ]
       }
     },
@@ -250,7 +677,9 @@
           "type": "object",
           "propertyNames": {
             "pattern": "^[a-z][a-z0-9-]{0,60}$",
-            "not": { "enum": ["github", "local"] }
+            "not": {
+              "enum": ["github", "local"]
+            }
           },
           "additionalProperties": {
             "type": "object",
@@ -268,12 +697,21 @@
               },
               "labelFields": {
                 "type": "array",
-                "items": { "type": "string", "minLength": 1 }
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
               },
-              "assigneeField": { "type": "string", "minLength": 1 },
+              "assigneeField": {
+                "type": "string",
+                "minLength": 1
+              },
               "allowedActors": {
                 "type": "array",
-                "items": { "type": "string", "minLength": 1 }
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
               },
               "minimumPermission": {
                 "enum": ["read", "triage", "write", "maintain", "admin"]
@@ -344,9 +782,16 @@
               "enum": ["all", "not-small", "off"],
               "default": "not-small"
             },
-            "minConfidence": { "enum": ["medium", "high"], "default": "high" },
-            "agent": { "type": "string" },
-            "model": { "type": "string" }
+            "minConfidence": {
+              "enum": ["medium", "high"],
+              "default": "high"
+            },
+            "agent": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            }
           }
         },
         "ship": {
@@ -360,7 +805,11 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "concurrency": { "type": "integer", "minimum": 0, "maximum": 32 }
+              "concurrency": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 32
+              }
             }
           }
         }
@@ -398,10 +847,86 @@
       "additionalProperties": {
         "type": "object",
         "properties": {
-          "version": { "type": "string" },
-          "importedAt": { "type": "string" },
-          "importedBy": { "type": "string" },
-          "settings": { "type": "array", "items": { "type": "string" } }
+          "version": {
+            "type": "string"
+          },
+          "importedAt": {
+            "type": "string"
+          },
+          "importedBy": {
+            "type": "string"
+          },
+          "settings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "machine": {
+      "type": "object",
+      "description": "This machine's validation environments. Global configuration only; the repository file may not set platforms or slots.",
+      "properties": {
+        "platforms": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": {
+                "enum": ["native", "container", "vm"]
+              },
+              "wrapper": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "cleanup": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "slot": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "slots": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          }
+        }
+      }
+    },
+    "lease": {
+      "type": "object",
+      "description": "Landing lease timing. Global configuration only.",
+      "additionalProperties": false,
+      "properties": {
+        "heartbeatSeconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 600,
+          "default": 60
+        },
+        "missedHeartbeats": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10,
+          "default": 3
         }
       }
     }
@@ -421,14 +946,26 @@
       "type": "object",
       "description": "Runner mode over SSH, off unless role is set. A runner runs tasks a driver hands it. Machine paths (repos) and a local stand-in for ssh belong in ~/.config/avoozl/config.json.",
       "properties": {
-        "role": { "enum": ["runner", "driver"] },
+        "role": {
+          "enum": ["runner", "driver"]
+        },
         "crewId": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
         },
-        "agents": { "type": "array", "items": { "type": "string" } },
-        "remote": { "type": "string" },
-        "checkTimeoutSeconds": { "type": "integer", "minimum": 1 },
+        "agents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "remote": {
+          "type": "string"
+        },
+        "checkTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
         "checks": {
           "type": "object",
           "additionalProperties": {
@@ -438,23 +975,34 @@
               "argv": {
                 "type": "array",
                 "minItems": 1,
-                "items": { "type": "string" }
+                "items": {
+                  "type": "string"
+                }
               }
             }
           }
         },
         "repos": {
           "type": "object",
-          "additionalProperties": { "type": "object" }
+          "additionalProperties": {
+            "type": "object"
+          }
         },
         "hosts": {
           "type": "object",
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "ssh": { "type": "string" },
-              "command": { "type": "string" },
-              "dashboardUrl": { "type": "string", "format": "uri" }
+              "ssh": {
+                "type": "string"
+              },
+              "command": {
+                "type": "string"
+              },
+              "dashboardUrl": {
+                "type": "string",
+                "format": "uri"
+              }
             }
           }
         }
@@ -1019,7 +1567,10 @@
               "minLength": 1,
               "default": "plan approved"
             },
-            "clearPlanLabel": { "type": "boolean", "default": false },
+            "clearPlanLabel": {
+              "type": "boolean",
+              "default": false
+            },
             "escalationDraft": {
               "type": "boolean",
               "default": false,
@@ -1039,12 +1590,20 @@
               "type": "object",
               "description": "What Set up shows for an Issue Radar crew. Avoozl creates no crew.",
               "properties": {
-                "count": { "type": "integer", "minimum": 1, "maximum": 8 },
+                "count": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 8
+                },
                 "models": {
                   "type": "array",
                   "minItems": 1,
                   "maxItems": 8,
-                  "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  }
                 },
                 "template": {
                   "type": "string",
@@ -1110,7 +1669,11 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "capacity": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "capacity": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            },
             "mode": {
               "description": "Automatic releases as slots free. Step waits for one click per phase. Hold releases nothing; a person adds the ready label by hand.",
               "enum": ["automatic", "step", "hold"],
@@ -1121,7 +1684,10 @@
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "enabled": { "type": "boolean", "default": true },
+                "enabled": {
+                  "type": "boolean",
+                  "default": true
+                },
                 "agingHours": {
                   "type": "integer",
                   "minimum": 1,
@@ -1136,7 +1702,10 @@
                 "additionalProperties": false,
                 "required": ["label"],
                 "properties": {
-                  "label": { "type": "string", "minLength": 1 },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
                   "capacity": {
                     "type": "integer",
                     "minimum": 0,
@@ -1589,7 +2158,14 @@
           }
         }
       },
-      "anyOf": [{ "required": ["identities"] }, { "required": ["roles"] }],
+      "anyOf": [
+        {
+          "required": ["identities"]
+        },
+        {
+          "required": ["roles"]
+        }
+      ],
       "additionalProperties": false
     },
     "safetySeparationOfDuty": {

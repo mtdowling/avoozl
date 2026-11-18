@@ -6,6 +6,7 @@ import { GitHubClient } from "../github.mjs";
 import {
   appendRecord,
   githubJournal,
+  journalNames,
   journalOutcomes,
   localJournal,
   parseRecord,
@@ -374,4 +375,70 @@ test("a local file journal follows the same protocol", async () => {
   });
   assert.equal(state.state, "refused");
   assert.equal(isComplete(state), false);
+});
+
+test("a public journal stores opaque spec and task IDs and replays readable ones", async () => {
+  const journal = memory(),
+    names = journalNames({
+      salt: "avz_testtesttesttest",
+      spec: "config",
+      tasks: ["config.1.1"],
+    }),
+    options = { ...PUBLIC, names },
+    intent = {
+      op: "land.0123456789abcdef",
+      kind: "intent",
+      spec: "config",
+      revision: REVISION,
+      base: "abc1234",
+      tasks: [{ task: "config.1.1", definition: DEFINITION }],
+      refs: [{ repository: "example/code", commit: "def5678" }],
+    };
+  // Readable IDs are refused on a public journal without names.
+  await assert.rejects(appendRecord(journal, intent, PUBLIC), /invalid spec/);
+  await appendRecord(journal, intent, options);
+  await appendRecord(
+    journal,
+    {
+      op: "landed.0123456789abcdef",
+      kind: "outcome",
+      spec: "config",
+      revision: REVISION,
+      outcomes: [
+        {
+          task: "config.1.1",
+          kind: "landed",
+          definition: DEFINITION,
+          commit: "def5678",
+        },
+      ],
+    },
+    options,
+  );
+  // A retry of the same operation writes nothing.
+  await appendRecord(journal, intent, options);
+  assert.equal(journal.entries.length, 2);
+  for (const { body } of journal.entries) {
+    assert.ok(!body.includes("config"), body);
+    assert.match(body, new RegExp(names.spec("config")));
+  }
+  const replayed = await replay(journal, options);
+  assert.equal(replayed.held, false);
+  assert.deepEqual(
+    replayed.records.map(({ record }) => [
+      record.spec,
+      (record.tasks ?? record.outcomes).map((t) => t.task),
+    ]),
+    [
+      ["config", ["config.1.1"]],
+      ["config", ["config.1.1"]],
+    ],
+  );
+  assert.deepEqual(
+    journalOutcomes(replayed).map((o) => [o.spec, o.task, o.kind]),
+    [["config", "config.1.1", "landed"]],
+  );
+  // Without the names a replay keeps the opaque IDs: they match no task.
+  const blind = await replay(journal);
+  assert.equal(blind.records[0].record.spec, names.spec("config"));
 });

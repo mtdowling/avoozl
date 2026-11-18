@@ -32,7 +32,13 @@ import { lineFirstIds } from "./flow.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { pathsOverlap, unblockCounts } from "./release-ranking.mjs";
 import { localJournalFile } from "./spec-publication.mjs";
-import { githubJournal, localJournal, replayJournal } from "./spec-journal.mjs";
+import {
+  githubJournal,
+  journalNames,
+  localJournal,
+  replayJournal,
+} from "./spec-journal.mjs";
+import { planningIdentity } from "./github-marker.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const DRIVERS = "specDrivers";
@@ -222,6 +228,19 @@ export function journalOf(store, { github, workspaceRoot, actor }, planId) {
         .map((entry) => entry.id),
     ],
     issue: { repository: id, number: issue.number },
+    // A public journal names this spec and its tasks by opaque IDs, salted
+    // with the workspace namespace, else the spec issue itself.
+    names: journalNames({
+      salt:
+        (workspaceRoot && planningIdentity(workspaceRoot).namespace) ||
+        `${id}#${issue.number}`,
+      spec: planId,
+      tasks: () =>
+        store
+          .read()
+          .tasks.filter((task) => task.planId === planId)
+          .map((task) => task.id),
+    }),
   };
 }
 
@@ -252,6 +271,7 @@ export async function revalidateSpecs(
           permission: journal.permission,
           visibility: await journal.visibility(),
           publicRepositories: journal.publicRepositories ?? [],
+          names: journal.names,
         }),
       );
     } catch {
