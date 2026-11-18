@@ -1,132 +1,95 @@
 # Avoozl overview
 
-Status marks, checked against the code and the task checkboxes in
-`.kiro/specs/radar-coder/tasks.md` on `main`, not against the spec text:
-
-- **built**: in the code and tested.
-- **fake-tested**: in the code, tested only against a fake GitHub or fake remote tool. Never run on a real repository. Every proof task (`rc-p*`) is still open, so most Radar work sits here.
-- **spec-only**: written in the spec, not in the code.
+Status 2026-11-18, checked against `origin/main`. The avoozl spec
+(`.kiro/specs/avoozl/`) governs. The `radar-coder` spec is superseded where
+it conflicts (see the banner at its top). This file lists what the app is
+and shows now; it is not a list of verdicts.
 
 ## 1. What Avoozl is
 
-Avoozl plans epics. It turns an approved spec into GitHub issues, releases
-them in order, and shows where each one stands. Another tool writes the code.
+Avoozl plans epics and delivers them. It turns an approved spec into a task
+graph, runs each ready task in its own working branch with an executor (a
+Kiro Crew chat or a process harness), checks the exact commit, and lands it
+by the repository's `landing` setting. GitHub is optional.
 
-| Is                                                                                                                                                       | Is not                                                                     | Mark                                          |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------- |
-| Plans epics: spec, tasks, issues, order                                                                                                                  | A triage tool                                                              | built                                         |
-| Hands ready issues to Issue Radar crews (default coder)                                                                                                  | A maintenance tool                                                         | fake-tested                                   |
-| Local-only mode: SQLite plans that are not projected. They cannot be coded until a GitHub repo is attached. Local workers (`coder: worker`) are retired. | A pull request reviewer (one exception: review drafts by label, section 2) | built (workers still in code, UI removal now) |
-| Can hand tasks to a managed remote harness (`coder: remote`) as a plug                                                                                   | Tied to any named remote product                                           | fake-tested                                   |
-| Shows Needs you, On the line, Release queue, Flow                                                                                                 | A second issue or PR list (Radar and GitHub already have them)             | built, Flow spec-only on GitHub data          |
+| Is                                                                                          | Is not                                                                     |
+| ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Plans epics: spec, tasks, order                                                             | A triage tool (Issue Radar does that)                                      |
+| Runs, checks and lands each task, and releases what waited on it                            | A maintenance tool                                                         |
+| Local only mode: tasks in SQLite, no GitHub                                                 | A pull request reviewer (one exception: review drafts by label)            |
+| Shows Needs you, In flight, Landing queue, Delivery, Flow and Retros                        | A second issue or pull request list (Issue Radar and GitHub already have them) |
 
-Where a plan is for one small change, Avoozl says so and offers
-"Plan it anyway" (RC13): built.
+Where a spec is for one small change, Avoozl says so and offers "Plan it
+anyway".
 
-## 2. The three workflows
+## 2. Workflows
 
-| Workflow                   | Path                                                                                                                                                                                                                                   | Mark                                                  |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Maintenance, by Radar      | Radar crews take issues, open pull requests, auto-merge arms when checks pass. Avoozl does not triage or plan these. It shows them on Home.                                                                                  | fake-tested (arming, claims, release); `rc-p5` open   |
-| Epic from an approved plan | Spec Builder writes requirements, design, tasks. Approve opens an approval pull request. Projection makes issues (sub-issues of the source issue). Release gates by capacity, phase and Stop the line. The coder builds. Merge. Retro. | fake-tested; `rc-p2`, `rc-p3`, `rc-p4`, `rc-p11` open |
-| Tag-based review drafts    | A person adds the review label to a pull request. One read-only chat drafts a pending review with line comments. The person edits and submits it. Avoozl never submits.                                                                | spec-only (`rc-20.1` to `rc-20.4` unchecked)          |
+| Workflow                   | Path                                                                                                                                                                                                                    |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Maintenance, by Radar      | Radar crews take issues and open pull requests. Avoozl does not triage or plan these. Needs you › Issue Radar lists what you sent to a crew.                                                                            |
+| Epic from an approved spec | Spec Builder writes requirements, design and tasks. Approve records the revision. The tick releases ready tasks by capacity, phase and Stop the line. Avoozl runs, checks and lands each one (R86, R87). Retro follows. |
+| Tag-based review drafts    | A person adds the review label to a pull request. One read-only chat drafts a pending review with line comments. The person edits and submits it. Avoozl never submits.                                                 |
 
 ## 3. Labels
 
 Every label is a per-repository setting. No behavior needs an `avoozl:`
-prefix. The table shows what the code reads now and the default the spec
-sets (RC21).
+prefix. Defaults below are what the code reads (`github-policy.mjs`,
+`github-label-behaviors.mjs`). Radar's own labels are set in Settings › Issue
+Radar.
 
-| Role                                               | Setting                 | Default in code now                                     | Default in spec (RC21)  | Who writes it         |
-| -------------------------------------------------- | ----------------------- | ------------------------------------------------------- | ----------------------- | --------------------- |
-| Planning (starts a plan)                           | `radar.planLabel`       | `to plan`                                               | `avoozl:plan`           | A person              |
-| Ready (a crew may take it)                         | `managedLabels.ready`   | `avoozl:ready`                                          | same                    | Avoozl, on release    |
-| Managed marker                                     | `managedLabels`         | `avoozl:managed`                                        | same                    | Avoozl                |
-| Approval                                           | `radar.approvalLabel`   | `plan approved`                                         | `avoozl:plan-approved`  | A person              |
-| Merge conflict                                     | `radar.conflictLabel`   | `merge conflict`                                        | `avoozl:merge-conflict` | Avoozl                |
-| Review (starts a draft)                            | `radar.reviewLabel`     | none                                                    | `avoozl:review`         | A person              |
-| Drafted                                            | `radar.draftedLabel`    | none                                                    | `avoozl:drafted`        | Avoozl                |
-| Waiting on tracker (a gate, or a task held by one) | `radar.trackerLabel`    | `avoozl:waiting-on-tracker`                             | same                    | Avoozl                |
-| Accepted (a skipped issue may be planned)          | `acceptedLabel`         | unset                                                   | unset                   | An allowed person     |
-| Worker queue states: blocked, review, quarantined  | `githubLabelBehaviors`  | `avoozl:blocked`, `avoozl:review`, `avoozl:quarantined` | same                    | Avoozl (worker coder) |
-| Radar's claim                                      | `crewLabels.claim`      | `crew: in progress`                                     | same, Radar's           | Radar                 |
-| Radar's needs-human                                | `crewLabels.needsHuman` | `crew: needs human`                                     | same, Radar's           | Radar                 |
+| Role                                               | Setting                 | Default                       | Who writes it    |
+| -------------------------------------------------- | ----------------------- | ----------------------------- | ---------------- |
+| Planning (starts a plan)                           | `radar.planLabel`       | `avoozl:plan`                 | A person         |
+| Ready                                              | `managedLabels.ready`   | `avoozl:ready`                | Avoozl           |
+| Managed marker                                     | `managedLabel`          | `avoozl:managed`              | Avoozl           |
+| Approval                                           | `radar.approvalLabel`   | `avoozl:plan-approved`        | A person         |
+| Merge conflict                                     | `radar.conflictLabel`   | `avoozl:merge-conflict`       | Avoozl           |
+| Review (starts a draft)                            | `radar.reviewLabel`     | `avoozl:review`               | A person         |
+| Drafted                                            | `radar.draftedLabel`    | `avoozl:drafted`              | Avoozl           |
+| Waiting on tracker (a gate, or a task held by one) | `radar.trackerLabel`    | `avoozl:waiting-on-tracker`   | Avoozl           |
+| Accepted (a skipped issue may be planned)          | `acceptedLabel`         | unset                         | An allowed person |
+| Task states: ready, blocked, review, quarantined   | `githubLabelBehaviors`  | `avoozl:ready`, `avoozl:blocked`, `avoozl:review`, `avoozl:quarantined` | Avoozl |
+| Radar's claim                                      | `crewLabels.claim`      | `crew: in progress`           | Radar            |
+| Radar's needs-human                                | `crewLabels.needsHuman` | `crew: needs human`           | Radar            |
 
-Avoozl reads Radar's two labels and does not write them, except one claim at
-approval (RC19, built). Two labels that are equal are refused (built for
-planning, ready, claim, needs-human, conflict, approval). The rename and the
-review and drafted labels are spec-only (`rc-20.1`).
+Two labels that are equal are refused.
 
 ## 4. Screens
 
-Verdicts are the owner's decisions. UI removal happens now. Code removal
-waits for the real-repository proof (`rc-p11`). The `plans_*` MCP names and
-the `NUPP_WORKSPACE` and `AICOMMANDER_*` aliases stay.
+The nav has seven entries (`kirocrew-app/ui/src/nav-api.ts`):
 
-### Page tabs
+| Nav entry  | Pages                                                          |
+| ---------- | -------------------------------------------------------------- |
+| Dashboards | Home, Graph, Delivery, CI, Landing queue                       |
+| Specs      | One list with status chips; spec details with tabs             |
+| Needs you  | Decisions, Triage, Issue Radar                                 |
+| Flow       | One page                                                       |
+| Retros     | Retros, Proposals                                              |
+| Activity   | One page                                                       |
+| Settings   | Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery |
 
-| Screen                                                                                               | Verdict                                                                                                                                                                                                                                                                                                                                                                                                                                    | Why                                                                                               |
-| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| Home (Dashboard): Needs you, On the line, Release queue, Progress by goal                            | Keep                                                                                                                                                                                                                                                                                                                                                                                                                                       | Radar's lists do not show epics or release order. Built.                                          |
-| Specs (with Spec Builder, approval, projection; New spec starts Blank, From template or From a goal) | Keep                                                                                                                                                                                                                                                                                                                                                                                                                                       | The core of planning. Built.                                                                      |
-| Graph                                                                                                | Remove the tab. For issues on GitHub, link to Issue Radar's Graph (Focus on the issue if Radar's route supports it, else the tab). Avoozl's own graph stays only inside Specs (a plan before projection; epic, plan, phase drill-down; phase gate, release count, held reasons). Back-stack and drill rules stay.                                                                                                                          | Radar shows live edges; Avoozl shows what Radar cannot. Built today as a tab.                     |
-| Trace (page and drawer)                                                                              | Removed 2026-11-17 | Its steps are the Timeline box in task details. | Built.
-| Flow                                                                                                 | Keep, rebuild on GitHub data (RC8.5), retros under it                                                                                                                                                                                                                                                                                                                                                                                      | Today it reads local worker data. The GitHub rebuild is spec-only (`rc-8.4`, `rc-8.5` unchecked). |
-| Delivery                                                                                             | Remove entirely. No local-workers variant. Its Defer, Start now, Retry, review runs and content rule reports go with it. Lane map: Ready is Home Release queue. In progress is On the line (all machines) and Radar's Pipeline lanes or crew page (this machine). Needs you is Waiting on you. Waiting on blockers is Release queue held reasons and the plan view. Done is Delivery and Home's Recently landed. Held or blocker text Release queue lacks moves into it. | Local workers are retired, so nothing is left for it to control.                                  |
-| Conflicts                                                                                            | Remove the tab. Fold into Needs you (RC8.1). Still a tab in the code today.                                                                                                                                                                                                                                                                                                                                                                | One queue for what waits on a person.                                                             |
-| Intake                                                                                               | Remove the tab. Fold into Needs you.                                                                                                                                                                                                                                                                                                                                                                                                       | Radar handbacks and planning-label items become Needs you rows. Where Ideas go is not decided.    |
-| Activity                                                                                             | Keep                                                                                                                                                                                                                                                                                                                                                                                                                                       | Who did what, from the page, MCP, GitHub and plugins. Built.                                      |
-| Settings                                                                                             | Keep, with the removals below                                                                                                                                                                                                                                                                                                                                                                                                              |                                                                                                   |
-| Review drafts list                                                                                   | Add (spec-only, RC20)                                                                                                                                                                                                                                                                                                                                                                                                                      | The one pull request feature.                                                                     |
+Old links to a removed page open the page that took over its job
+(`redirectTab`, `redirectSettings`).
 
-### Settings tabs
+## 5. What was removed
 
-| Tab                                                                           | Verdict                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| Workspaces, Repositories (with Crews and rules, per-repo coder, release mode) | Keep                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Where tasks live                                                              | Keep                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Plugins, Content rules                                                        | Keep                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Flow (settings)                                                               | Keep                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Delivery                                                                      | Remove entirely. No local-workers variant. Its Defer, Start now, Retry, review runs and content rule reports go with it. Lane map: Ready is Home Release queue. In progress is On the line (all machines) and Radar's Pipeline lanes or crew page (this machine). Needs you is Waiting on you. Waiting on blockers is Release queue held reasons and the plan view. Done is Delivery and Home's Recently landed. Held or blocker text Release queue lacks moves into it. | Local workers are retired, so nothing is left for it to control. |
-| Routing                                                                       | Remove from the nav. Its code goes in the retirement epic, after the real-repo proof.                                                                                                                                                                                                                                                                                                                                                      |
-| Models                                                                        | Add. One picker per Avoozl chat (planner, driver, retro, review drafts), saved as `models` in `.avoozl.json`. Radar crews pick their own model.                                                                                                                                                                                                                                                                                            |
+| Item                                                    | Replaced by                                                         | PR            |
+| ------------------------------------------------------- | ------------------------------------------------------------------- | ------------- |
+| Routing page, routing agent, remote relay               | Nothing; pins and hard checks stay                                  | #153, #282    |
+| Ideas, Quick goal, the lessons store, Switch model      | New spec From a goal; steering rules file; Settings › Models        | #228          |
+| Demo tour                                               | The demo itself stays                                               | #311          |
+| Driver chat                                             | The spec driver lock stays                                          | #382          |
+| Budgets and Settings › Prices                           | Nothing                                                             | #461, #487    |
+| Trace page                                              | Timeline box in task details                                        | #469          |
+| Lanes page                                              | Machine badges and counts on Delivery                               | #508          |
+| Where tasks live page                                   | A role per repository in Repository setup                           | #459, #484    |
+| Onboard button                                          | Add repository                                                      | #515          |
+| Instance name page                                      | Pencil button in the nav footer                                     | #453          |
+| Conflicts and Intake tabs                               | Needs you › Decisions and Triage                                    | #464          |
+| `verify-issue`, the provenance marker, `avoozl-crew`     | PR landing                                                          | #509          |
 
-### Other surfaces
-
-| Surface                                                                        | Verdict                                                                                                                                                                   |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Side panel tab "Avoozl" (spec check and Approve, the crew a chat is on, recap) | Keep. Built.                                                                                                                                                              |
-| Set up wizard, Radar values screen                                             | Keep. Fake-tested.                                                                                                                                                        |
-| Quick goal modal and proposal screen                                           | Remove. New spec's From a goal start does its job (RC30.1).                                                                                                               |
-| New task                                                                       | Keep only in a spec's detail view (RC30.2).                                                                                                                               |
-| Ideas (page, Needs you rows, operations, CLI, storage)                         | Remove. The `capture_idea` and `add_idea_note` MCP actions stay as stubs that return a removed error (RC30.3).                                                            |
-| Lessons store, Lessons views, lessons packs, import and Share                  | Remove. Retros propose rule changes as a pull request to `.kiro/steering/avoozl-rules.md`; stored lessons are exported there once, then the tables drop (RC30.4, RC30.5). |
-| Switch model button, dialog and bulk switch                                    | Remove. Local workers are retired and Radar crews pick their own model; its backend is on the retirement list (RC11.9).                                                   |
-| Release mode and Release queue, Stop the line                                  | Keep. Fake-tested.                                                                                                                                                        |
-| Integration branches                                                           | Keep. Fake-tested.                                                                                                                                                        |
-| Demo and walkthrough                                                           | Keep. Retarget to crews (`rc-12.8`).                                                                                                                                      |
-| Runner mode                                                                    | Remove from nav and Home                                                                                                                                                  |
-| Remote relay                                                                   | Remove from nav and Home                                                                                                                                                  |
-| Foreman                                                                        | Never built. Stays unbuilt.                                                                                                                                               |
-| Prices                                                | Remove from nav and Home                                                                                                                                                  |
-| Worker Files and diff fold on Radar repos                                      | Remove                                                                                                                                                                    |
-
-## 5. What is retired, and when
-
-| Item                                                                           | UI                          | Code                       | Spec task   |
-| ------------------------------------------------------------------------------ | --------------------------- | -------------------------- | ----------- |
-| Routing page, crew routing and placement                                       | Now                         | After `rc-p11`             | `rc-12.3`   |
-| Runner mode                                                                    | Now                         | After `rc-p11`             | `rc-12.4`   |
-| Remote relay                                                                   | Now                         | After `rc-p11`             | `rc-12.5`   |
-| Worker Files and diff fold                                  | Now                         | After `rc-p11`             | `rc-12.6`   |
-| Worker dispatch, `coder: worker`, worker reviewer roles, integration by worker | Now (not a Settings choice) | After `rc-p11`, every repo | `rc-12.2`   |
-| Intake page, Delivery page, Graph tab, Conflicts tab                           | Now                         | After `rc-p11`             | No task yet |
-
-Not retired: the `plans_*` MCP names, the environment aliases, the `aicommander` command and the
-`aicommander.*` editor settings. A compatibility test guards them
-(`rc-12.7`, spec-only).
-
-Settings keeps an empty slot for a future Mirror section. A repo still set to `coder: worker` shows the banner "Local workers are retired. Switch to Issue Radar." (spec-only until the UI task lands).
+Not removed: the `plans_*` MCP names, the environment aliases, the
+`aicommander` command and the `aicommander.*` editor settings.
 
 ## CLI
 
