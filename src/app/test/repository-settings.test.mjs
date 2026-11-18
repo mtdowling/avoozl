@@ -673,3 +673,31 @@ test("project removal refuses active work, locks, and GitHub connections", async
   for (const id of ["active", "locked", "authorized", "monitored"])
     assert.ok(store.get("projects", id));
 });
+
+test("a repository's Flow override saves and the settings still load", (t) => {
+  const { root, store } = fixture(t),
+    filename = path.join(root, ".avoozl.json");
+  writeJson(filename, {
+    version: 1,
+    projects: { code: { root: "../code", checks: [["npm", "test"]] } },
+  });
+  const configuration = new RepositorySettings(store, {
+    workspaceRoot: root,
+    files: { repository: filename },
+    sources: [],
+  });
+  configuration.reload();
+  assert.equal(configuration.state.error, null);
+  const saved = configuration.updateFlowSettings({
+    flow: { stopTheLine: { scope: "repo" } },
+    repository: "code",
+    expectedHash: configuration.readFlowSettings().hash,
+  });
+  assert.deepEqual(saved.repositories, {
+    code: { stopTheLine: { scope: "repo" } },
+  });
+  // The save's own key was refused as unknown, leaving every setting in an
+  // error state until the file was edited by hand.
+  configuration.reload();
+  assert.equal(configuration.state.error, null);
+});

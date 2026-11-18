@@ -121,6 +121,9 @@ export const PROJECT_KEYS = Object.freeze([
   "executor",
   "harness",
   "sandbox",
+  // Settings > Flow writes a repository's override here; flow.mjs reads and
+  // validates it (flowSection), so this list only has to let it through.
+  "flow",
 ]);
 export const SANDBOX_KEYS = Object.freeze([
   "writeRoots",
