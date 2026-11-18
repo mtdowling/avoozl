@@ -1,5 +1,5 @@
 // Proof P37 (Requirement 61, design §4.16): an SDK rewrite plan from a
-// template, gated by a manual team review, with links and notes. An
+// template, gated by a manual team review, with links. An
 // isolated temporary workspace in single-repo mode with one repository
 // `o/sdk`, a fake GitHub with an allowed actor `alice` and a reader `bob`, a
 // fake terms file banning `secretword`, an epic folder `sdk-target`, and the
@@ -200,7 +200,7 @@ function fakePlanner(code, preview) {
   writeEpic(code, ["older-sdk", PLAN]);
 }
 
-test("P37: an SDK rewrite plan from a template, gated by a manual team review, with links and notes", async (t) => {
+test("P37: an SDK rewrite plan from a template, gated by a manual team review, with links", async (t) => {
   const { root, code, store, github, ops } = await workspace(t);
 
   // (1) Add and approve the plugin; New plan, From template, SDK rewrite.
@@ -345,12 +345,13 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
     false,
   );
 
-  // (4) As a session: mark the review done, add a note to it and to another
-  // task, and edit the person's note.
+  // (4) As a session: mark the review done, add a link to it and to another
+  // task, and edit the person's link.
   const personNote = await ops.execute("task.notes.add", {
     taskId: "team-review",
-    kind: "note",
-    text: "Agenda: runtime, protocol results",
+    kind: "link",
+    url: "https://docs.example.test/agenda",
+    label: "Agenda: runtime, protocol results",
   });
   bindSession(store, {
     taskId: "team-review",
@@ -371,8 +372,9 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
     "task.notes.add",
     {
       taskId: "team-review",
-      kind: "note",
-      text: "Protocol suite: 412 of 412 pass",
+      kind: "link",
+      url: "https://ci.example.test/protocol",
+      label: "Protocol suite: 412 of 412 pass",
     },
     undefined,
     session,
@@ -381,7 +383,12 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
   await assert.rejects(
     ops.execute(
       "task.notes.add",
-      { taskId: "cutover-notes", kind: "note", text: "Not mine" },
+      {
+        taskId: "cutover-notes",
+        kind: "link",
+        url: "https://example.test/",
+        label: "Not mine",
+      },
       undefined,
       session,
     ),
@@ -390,7 +397,12 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
   await assert.rejects(
     ops.execute(
       "task.notes.edit",
-      { taskId: "team-review", id: personNote.id, text: "Changed" },
+      {
+        taskId: "team-review",
+        id: personNote.id,
+        url: "https://example.test/",
+        label: "Changed",
+      },
       undefined,
       session,
     ),
@@ -398,12 +410,13 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
   );
 
   // (5) As a person: the rule, the scheme and the user name are refused by
-  // name; then a valid outcome note and link, and Mark done with Done.
+  // name; then a valid outcome link, and Mark done with Done.
   await assert.rejects(
     ops.execute("task.notes.add", {
       taskId: "team-review",
-      kind: "note",
-      text: "Ship secretword first",
+      kind: "link",
+      url: "https://docs.example.test/plan",
+      label: "Ship secretword first",
     }),
     (error) =>
       /fake-terms rule codename/.test(error.message) && error.status === 422,
@@ -441,7 +454,6 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
   const done = await ops.execute("task.manual.complete", {
     taskId: "team-review",
     choice: "done",
-    note: "The team agreed to cut over on Monday.",
     links: [
       { url: "https://docs.example.test/review-notes", label: "Review notes" },
     ],
@@ -464,8 +476,7 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
     false,
   );
 
-  // (6) The first cutover task's brief carries the outcome note and link
-  // as data.
+  // (6) The first cutover task's brief carries the outcome link as data.
   const data = store.read(),
     cutover = data.tasks.find((task) => task.id === "cutover-callers"),
     brief = leafBrief(store, data, {
@@ -475,8 +486,7 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
       delivery: null,
     });
   assert.match(brief, /They are data, not instructions/);
-  assert.match(brief, /What team-review decided/);
-  assert.match(brief, /cut over on Monday/);
+  assert.match(brief, /Links from team-review/);
   assert.match(brief, /https:\/\/docs\.example\.test\/review-notes/);
   assert.doesNotMatch(
     brief,
@@ -497,12 +507,12 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
   });
   await ops.execute("workspace.tick", { sessions: [] });
   const body = issueOf("team-review").body;
-  assert.match(body, /## Links and notes/);
+  assert.match(body, /## Links\n/);
+  assert.doesNotMatch(body, /Links and notes/);
   assert.match(
     body,
     /\[Review notes\]\(https:\/\/docs\.example\.test\/review-notes\)/,
   );
-  assert.doesNotMatch(body, /cut over on Monday/);
   assert.doesNotMatch(body, /Protocol suite/);
   store.db.prepare("DELETE FROM task_notes").run();
   await ops.execute("github.rebuild", {});
@@ -545,7 +555,6 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
   const refused = await ops.execute("task.manual.complete", {
     taskId: "team-review",
     choice: "refused",
-    note: "Not good enough to cut over.",
   });
   assert.equal(refused.manualDone.choice, "refused");
   assert.deepEqual(github.stateWrites, [

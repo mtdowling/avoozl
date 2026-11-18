@@ -151,7 +151,7 @@ const projections = projectionClient(useAppApi() as never)
 const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', folder: '.kiro/specs/modal-plan', planId: 'modal-plan', type: 'feature', category: null, categoryProblem: null, errors: 0, status: 'approved', tasks: { total: 3, done: 1 }, now: { ready: 1, running: 0, needsYou: 0 }, epics: 1, lastChange: null }
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
 
-// A manual task waiting for a person, with links and notes (R61).
+// A manual task waiting for a person, with links (R61).
 answer('task.detail', () => ({
   revision: 1,
   task: {
@@ -191,9 +191,14 @@ answer('task.notes.list', () => ({
   taskId: 'team-review',
   entries: [
     { id: 'note-000000000002', taskId: 'team-review', kind: 'link', label: 'Protocol test results', url: 'https://docs.example.test/results', outcome: false, author: 'session:chat-1', at: '2026-11-13T10:05:00Z', onIssue: false },
-    { id: 'note-000000000001', taskId: 'team-review', kind: 'note', text: 'Agenda: runtime, protocol results, open gaps.\nInvite the runtime owners.', outcome: false, author: 'person', login: 'alice', at: '2026-11-13T09:00:00Z', onIssue: true },
+    { id: 'note-000000000001', taskId: 'team-review', kind: 'link', label: 'Review agenda', url: 'https://docs.example.test/agenda', outcome: false, author: 'person', login: 'alice', at: '2026-11-13T09:00:00Z', onIssue: true },
   ],
 }))
+answer('task.notes.add', (body) => {
+  state.calls.push(body)
+  const input = body.input as { taskId: string; url: string; label: string }
+  return { id: 'note-000000000003', taskId: input.taskId, kind: 'link', url: input.url, label: input.label, outcome: false, author: 'person', at: '2026-11-13T11:00:00Z', onIssue: false }
+})
 answer('repositories.list', () => ({ items: [{ id: 'sdk', name: 'sdk', localCheckout: '/w/sdk', github: 'o/sdk', baseBranch: 'main' }] }))
 answer('template.list', () => ({
   templates: [
@@ -722,6 +727,24 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
     ],
     contentReports: [],
   }))
+  // The line, for the Delivery heading's Stop the line: a stop opens one,
+  // Resume closes it. window.__lineCalls records both. &stopped=1 starts stopped.
+  const lineWin = window as unknown as { __lineCalls: unknown[] }
+  lineWin.__lineCalls = []
+  const open = (reason: string) => ({ id: 'l1', manual: true, by: { kind: 'person', name: 'you' }, reason, scope: 'all', closedAt: null, branch: 'main', check: null, openedAt: at })
+  let stops = query.get('stopped') ? [open('bad base')] : []
+  answer('flow.view', () => ({ line: stops, stages: [], tasks: [], retros: [] }))
+  answer('flow.stop', (body) => {
+    const input = body.input as { reason: string }
+    lineWin.__lineCalls.push({ stop: input })
+    stops = [open(input.reason)]
+    return { stop: stops[0] }
+  })
+  answer('flow.resume', (body) => {
+    lineWin.__lineCalls.push({ resume: (body.input as { stopId?: string }).stopId })
+    stops = []
+    return { stop: { id: 'l1', closedAt: new Date().toISOString() } }
+  })
 }
 // &process=1: Home's In flight with a `process` worker (Claude Code under
 // the supervisor, resumed once, cost known) beside a Kiro Crew reviewer

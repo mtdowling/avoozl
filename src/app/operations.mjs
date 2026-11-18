@@ -4346,7 +4346,7 @@ export class Operations {
     if (name === "idea.capture" || name === "idea.append")
       fail("Ideas were removed from Avoozl.", 410);
     if (name === "intake.list") return listItems(store, input);
-    // Manual tasks and Links and notes (§4.16, R61.12–R61.22).
+    // Manual tasks and task links (§4.16, R61.12–R61.22).
     if (name === "task.manual.complete" || name === "task.manual.reopen") {
       if (context.caller || context.mcp)
         fail(
@@ -4378,7 +4378,7 @@ export class Operations {
         });
       if (context.caller || context.mcp)
         fail(
-          "Only a person edits, removes or shows a link or note, in the Avoozl page or the CLI.",
+          "Only a person edits, removes or shows a link, in the Avoozl page or the CLI.",
           403,
         );
       if (name === "task.notes.edit") return editNote(store, task, input);

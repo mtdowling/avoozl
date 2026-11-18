@@ -1,5 +1,5 @@
 // Pull the Andon cord (design §4.11, R64): the Stop the line icon in
-// the left nav, on every tab, and its dialog. The person picks Stop the line (new
+// the Dashboards › Delivery heading and the side panel, and its dialog. The person picks Stop the line (new
 // work in a scope) or Stop all agents (everything, and every running chat
 // Avoozl opened), and gives a one-line reason. Nothing is written until the
 // dialog's red button (and, for Stop all agents, its confirm); Cancel, Esc
@@ -36,7 +36,7 @@ interface Choices {
 const LINE_READ_MS = 60000
 
 // The open stops, read through flow.view; [] until read or when it fails.
-function useOpenStops(workspaceId: string | null) {
+export function useOpenStops(workspaceId: string | null) {
   const api = useAppApi()
   const flows = useMemo(() => flowClient(api), [api])
   const [stops, setStops] = useState<LineStop[]>([])
@@ -60,7 +60,7 @@ function useOpenStops(workspaceId: string | null) {
   return stops
 }
 
-// The left nav's icon (App.tsx): pause or play, with its words in the
+// The Delivery heading's icon (DeliveryView.tsx): pause or play, with its words in the
 // tooltip and aria-label only. While a stop is open it says Line stopped; pressing it still
 // opens the dialog to stop more.
 export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void; bare?: boolean; nav?: boolean; square?: boolean }) {

@@ -38,6 +38,8 @@ import { chatClient } from './chat-api.ts'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, START_TIP } from './delivery-api.ts'
 import { linkHref } from './views-api.ts'
 import { Picker } from './Picker.tsx'
+import { StopLineButton } from './StopLine.tsx'
+import { NAV_ICON } from './LeftNav.tsx'
 import { NavSlotFor } from './nav-slot.tsx'
 import { RailBlock, RailChips, RailDivider, RailRow, RailStyle } from './NavRail.tsx'
 
@@ -470,14 +472,18 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
         actions={
           workspaceId && (
             <>
-              <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy || acting}>
-                Refresh
-              </IconLabel>
+              {/* One row: Start now and its box, Refresh, then Stop the line. */}
               {startable.length > 0 && (
                 <div data-start-now-picker style={{ minWidth: '14rem' }}>
-                  <Picker label="Start now" items={startable} value="" keep={false} onPick={start} placeholder="Find a ready task" maxWidth="20rem" />
+                  <Picker inline label="Start now" items={startable} value="" keep={false} onPick={start} placeholder="Find a ready task" maxWidth="24rem" />
                 </div>
               )}
+              <Tooltip text="Refresh">
+                <button type="button" data-delivery-refresh aria-label="Refresh" onClick={() => void reload()} disabled={busy || acting} style={{ ...NAV_ICON, color: 'var(--muted)' }}>
+                  <RefreshCw size={14} aria-hidden="true" />
+                </button>
+              </Tooltip>
+              <StopLineButton nav workspaceId={workspaceId} />
             </>
           )
         }

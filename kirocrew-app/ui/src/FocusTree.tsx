@@ -113,6 +113,15 @@ export default function GraphPage(props: {
   const latest = useRef(trail)
   latest.current = trail
   const [modal, setModal] = useState<TreeRoot | null>(null)
+  const drawer = useTaskDrawer()
+  // A task's ↗ opens its full task details, as Specs does; closing them
+  // returns focus to the card. A spec, or a draft spec's task, which has no
+  // task details yet, opens the summary modal.
+  const openItem = (item: TreeRoot) => {
+    const task = item.kind === 'task' ? graph?.tasks.find((t) => t.id === item.id) : undefined
+    if (task && !task.draft) drawer.openTask(task.id)
+    else setModal(item)
+  }
 
   // Start: a drill from another view, else a pasted link, else where Back
   // left it, else the Frontier.
@@ -301,9 +310,9 @@ export default function GraphPage(props: {
       ) : graph.total === 0 ? (
         <p className="text-sm text-muted">No tasks yet. Store and approve a spec in the Specs tab to fill the graph.</p>
       ) : place.tab === 'frontier' ? (
-        <Frontier ready={lists!.ready} waiting={lists!.waiting} onOpenTree={(id) => openTree({ kind: 'task', id })} onOpen={(id) => setModal({ kind: 'task', id })} />
+        <Frontier ready={lists!.ready} waiting={lists!.waiting} onOpenTree={(id) => openTree({ kind: 'task', id })} onOpen={(id) => openItem({ kind: 'task', id })} />
       ) : place.tab === 'focus' ? (
-        root && <FocusTreeView graph={graph} root={root} onReRoot={openTree} onOpen={setModal} />
+        root && <FocusTreeView graph={graph} root={root} onReRoot={openTree} onOpen={openItem} />
       ) : (
         <GraphView
           workspaceId={workspaceId}
@@ -312,7 +321,7 @@ export default function GraphPage(props: {
           source={source}
           bare
           onTree={(id) => openTree({ kind: 'task', id })}
-          onOpenItem={(id) => setModal({ kind: 'task', id })}
+          onOpenItem={(id) => openItem({ kind: 'task', id })}
         />
       )}
       {place.tab !== 'all' && graph && graph.total > 0 && (
@@ -320,7 +329,7 @@ export default function GraphPage(props: {
           <span className="min-w-0 flex-1">
             {place.tab === 'frontier'
               ? 'Newly unlocked tasks have every blocker on record done. Open a row to see why, or open its tree.'
-              : 'The live dependency tree of the selected task or spec. Click a card or press Enter to drill into its tree; O, Space or ↗ opens it here. Arrow keys move between cards. Dashed = sequence only, struck = done.'}
+              : 'The live dependency tree of the selected task or spec. Click a card or press Enter to drill into its tree; O, Space or ↗ opens its details. Arrow keys move between cards. Dashed = sequence only, struck = done.'}
           </span>
           <span className="flex-none tabular-nums">{lists?.ready.length ?? 0} newly unlocked</span>
         </div>
@@ -585,7 +594,7 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
                         <button
                           type="button"
                           tabIndex={-1}
-                          aria-label={`Open ${node.id} here`}
+                          aria-label={`Open ${node.id} details`}
                           data-tree-open={node.id}
                           className="inline-flex cursor-pointer items-center p-0.5"
                           style={{ color: 'var(--muted)', background: 'transparent' }}
@@ -691,7 +700,7 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
                 <g
                   role="button"
                   tabIndex={-1}
-                  aria-label={`Open ${node.id} here`}
+                  aria-label={`Open ${node.id} details`}
                   data-tree-open={node.id}
                   transform={`translate(${CARD.w - 24},4)`}
                   onClick={(e) => {
@@ -701,7 +710,7 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
                   }}
                   style={{ cursor: 'pointer' }}
                 >
-                  <title>Open {node.id} here</title>
+                  <title>Open {node.id} details</title>
                   <rect width={20} height={20} rx={4} style={{ fill: 'transparent' }} />
                   <g transform="translate(4,4)" style={{ color: 'var(--muted)' }}>
                     <ExternalLink size={12} aria-hidden="true" />
@@ -718,11 +727,10 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
   )
 }
 
-/* The item modal: a task or a spec, opened without leaving the Graph. */
+/* The item modal: a spec, or a draft spec's task, opened without leaving the Graph. */
 
 function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => void; onTree: (root: TreeRoot) => void; onOpenSpecs?: () => void }) {
   const { graph, item } = props
-  const drawer = useTaskDrawer()
   const byId = new Map(graph.tasks.map((t) => [t.id, t]))
   // Esc and Close put focus back on the card that opened it.
   const close = () => {
@@ -765,16 +773,6 @@ function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => void; o
           {draftSpec && props.onOpenSpecs && (
             <SmallBtn attrs={{ 'data-open-specs': draftSpec.name }} onClick={props.onOpenSpecs}>
               Open Specs
-            </SmallBtn>
-          )}
-          {task && !task.draft && (
-            <SmallBtn
-              onClick={() => {
-                props.onClose()
-                drawer.openTask(task.id)
-              }}
-            >
-              All details
             </SmallBtn>
           )}
           <SmallBtn onClick={() => props.onTree(item)}>Open tree</SmallBtn>

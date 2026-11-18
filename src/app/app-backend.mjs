@@ -313,7 +313,7 @@ export const APP_OPERATIONS = new Set([
   "plan.delete.preview",
   "plan.archive",
   "plan.unarchive",
-  // Manual tasks, Links and notes, and workflow templates (§4.16).
+  // Manual tasks, task links, and workflow templates (§4.16).
   "task.manual.complete",
   "task.manual.reopen",
   "task.notes.list",
