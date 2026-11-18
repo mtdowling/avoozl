@@ -70,6 +70,10 @@ const tools = {
     actions: {
       graph: ["graph.view", "the dependency graph, optionally one plan"],
       delivery: ["delivery.view", "delivery columns"],
+      integrator: [
+        "integrator.status",
+        "per train target: the landing lease holder, the running train and its step, and the trigger state; from stored records",
+      ],
       landing_holds: [
         "landing.queue",
         "what waits to land on each base, in landing order, and why each one is held; from stored records, no GitHub call",
