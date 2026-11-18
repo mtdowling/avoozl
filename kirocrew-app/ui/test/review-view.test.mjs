@@ -160,6 +160,14 @@ test('at 390 the side column sits under the document with the same two tabs', { 
   assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no page overflow')
 })
 
+test('the side column keeps its Contents and Comments tab bar in view when the page fills the window', { skip }, async () => {
+  await openReview(1280, false)
+  // In a column that scrolls, a bar that scrolls sideways must not shrink.
+  assert.ok(await page.evaluate(`document.querySelector('[data-review-side-tabs]').getBoundingClientRect().height > 20`), 'Contents and Comments show')
+  await click('[data-review-side-tab="contents"]')
+  await page.until(`Boolean(document.querySelector('[data-review-contents]'))`)
+})
+
 test('Reject needs a reason, and each action records the revision on screen', { skip }, async () => {
   await openReview(1280, false)
   await click('[data-finding-card="f-blocker"] [data-finding-action="reject"]')
