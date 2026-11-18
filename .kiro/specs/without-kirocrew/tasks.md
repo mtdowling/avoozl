@@ -7,13 +7,13 @@ checks: npm test, git diff --check
 
 Status: Approved
 
-Explicit `after` lists and the manifest's `requires` govern execution; phase
+Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
 brackets (`NK1` to `NK9`, in `requirements.md`); `D` sections refer to this
 spec's `design.md`, `R` numbers to `.kiro/specs/avoozl/requirements.md`.
 
-Two tasks wait on `.kiro/specs/worker-paths/`, which the manifest cannot
-name: nk-2.1 needs its wp-1.2, and nk-p2 needs its wp-p1. Each says so in
+Two tasks wait on `.kiro/specs/worker-paths/`, which this spec's `after`
+facts do not name: nk-2.1 needs its wp-1.2, and nk-p2 needs its wp-p1. Each says so in
 its text.
 
 Rules for every task: work in a task worktree; tests use isolated temporary

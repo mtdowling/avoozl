@@ -64,3 +64,19 @@ export function uiBundleProblem(uiDir) {
     return `This Avoozl page is out of date: kirocrew-app/ui/dist was built from other source than kirocrew-app/ui/src. In the Avoozl checkout, run: ${UPDATE_COMMAND}`;
   return null;
 }
+
+// The ui folder that holds the built standalone page: beside the checkout's
+// src/app, or beside the installed app's bin/lib copy of it.
+export function standaloneUiDirectory(here = import.meta.dirname) {
+  const candidates = [
+    path.join(here, "..", "..", "kirocrew-app", "ui"),
+    path.join(here, "..", "..", "..", "..", "ui"),
+    path.join(here, "..", "..", "..", "..", "..", "ui"),
+  ];
+  const found = candidates.find((dir) =>
+    fs.existsSync(path.join(dir, "dist", "standalone", "index.html")),
+  );
+  if (!found)
+    throw Error("The standalone page is not built. Run npm run build.");
+  return found;
+}

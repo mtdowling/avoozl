@@ -35,6 +35,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Checkbox } from './ui/Checkbox'
 
 // Spec Builder resolves symlinks (/tmp is /private/tmp on macOS).
 const samePath = (left: string, right: string) => {
@@ -256,8 +257,7 @@ export default function NewPlanDrawer(props: {
             ) : (
               repositories.map((repo) => (
                 <label key={repo.id} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={form.repositories.includes(repo.id)}
                     onChange={(event) =>
                       set({ repositories: event.target.checked ? [...form.repositories, repo.id] : form.repositories.filter((id) => id !== repo.id) })

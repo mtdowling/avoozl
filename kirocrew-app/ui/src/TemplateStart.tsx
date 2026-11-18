@@ -13,6 +13,8 @@ import { readInputFile, type TemplateInput, type TemplateSummary } from './notes
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { SelectField } from './ui/SelectField'
+import { Checkbox } from './ui/Checkbox'
 
 const fieldStyle = {
   borderColor: 'var(--border)',
@@ -51,8 +53,7 @@ function InputField(props: {
           const chosen = Array.isArray(props.value) ? props.value : []
           return (
             <label key={repo.id} className="flex items-center gap-2">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={chosen.includes(repo.id)}
                 onChange={(event) => props.onChange(event.target.checked ? [...chosen, repo.id] : chosen.filter((v) => v !== repo.id))}
               />
@@ -67,12 +68,10 @@ function InputField(props: {
     <div className="flex flex-col gap-1 text-sm" data-template-input={input.id}>
       <label htmlFor={id}>{label}</label>
       {input.type === 'choice' ? (
-        <select
+        <SelectField
           id={id}
           value={String(props.value ?? '')}
-          onChange={(event) => props.onChange(event.target.value)}
-          className="rounded border px-2 py-1 text-sm"
-          style={{ ...fieldStyle, maxWidth: '24rem' }}
+          onChange={(event) => props.onChange(event.target.value)} look="field" maxWidth="24rem"
         >
           <option value="">Choose…</option>
           {(input.options ?? []).map((option) => (
@@ -80,7 +79,7 @@ function InputField(props: {
               {option}
             </option>
           ))}
-        </select>
+        </SelectField>
       ) : input.type === 'file' ? (
         <>
           <input
@@ -237,9 +236,7 @@ export function TemplateStart(props: {
             <Hint as="p" size="xs">Reading…</Hint>
           )}
           <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              className="mt-1"
+            <Checkbox drop={4}
               checked={props.importSettings}
               disabled={!preview}
               onChange={(event) => props.onImportSettings(event.target.checked)}
