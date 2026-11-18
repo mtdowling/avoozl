@@ -7,6 +7,7 @@
 // Save writes `roles` in .avoozl.json with the file's hash and drops the
 // older keys. Auto leaves the plan reviewer unset; other roles use their
 // agent's own model and their project's harness.
+import { useInstance } from './InstanceName.tsx'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Input } from './ui/Input'
 import { useAppApi } from './host.ts'
@@ -51,6 +52,7 @@ const CHAT_ONLY = new Set<Role>(['planReviewer', 'reviewDraft', 'issuePlanner', 
 
 export default function ModelsSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()
+  const host = useInstance(workspaceId)?.host
   const client = useMemo(() => modelsClient(api), [api])
   const load = useCallback((id: string) => client.get(id), [client])
   const { value, error, reload } = useRead<ModelSettings>(workspaceId, load)
@@ -150,7 +152,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                   <Picker
                     id={`avoozl-harness-${role.key}`}
                     label={<span style={HIDDEN}>{role.label} harness</span>}
-                    items={optionItems(harnessOptions(definitions, row.harness ?? '', ROLE_ACCESS[role.key]))}
+                    items={optionItems(harnessOptions(definitions, row.harness ?? '', ROLE_ACCESS[role.key], host))}
                     value={harness}
                     onPick={(next) => pickHarness(role.key, next)}
                     placeholder="Type to find a harness, or auto"

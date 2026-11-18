@@ -205,6 +205,10 @@ const tools = {
         "landing.submit",
         "queue a batch branch for the integrator: {taskId, branch}; the branch starts with the batch prefix and passes the cheap checks",
       ],
+      landing_review: [
+        "landing.review",
+        "open a review pull request for a queued batch branch, only when the person asks: {taskId}",
+      ],
       validate: ["run.validate", "run acceptance checks at the worktree head"],
       integrate: ["integration.merge", "rebase, revalidate, fast-forward"],
       accept: ["task.accept", "record acceptance evidence"],

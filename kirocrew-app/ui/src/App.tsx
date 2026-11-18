@@ -213,6 +213,8 @@ function AvoozlPage() {
     else if (parseReviewLink(window.location.search) || parseSpecTab(window.location.search)) go({ tab: 'plans', focus: null, drill: null })
     // ?github=<tab> opens Settings › GitHub, which opens that tab.
     else if (readTab(window.location.search, 'github', GITHUB_TABS.map((t) => t.key))) go({ tab: 'settings', settingsTab: 'github', focus: null, drill: null })
+    // ?settings=<tab> opens Settings on that tab, so a message can link to it.
+    else if (readTab(window.location.search, 'settings', SETTINGS_TABS.map((t) => t.key))) go({ tab: 'settings', settingsTab: readTab(window.location.search, 'settings', SETTINGS_TABS.map((t) => t.key)) as SettingsTab, focus: null, drill: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

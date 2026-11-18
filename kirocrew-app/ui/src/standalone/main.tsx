@@ -6,6 +6,8 @@ import { Btn } from '../ui/Btn'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import manifest from '../../../app.json'
 import App from '../App.tsx'
+import { StartSession } from './StartSession.tsx'
+import { Notices } from './Notices.tsx'
 import {
   applyTheme,
   clearNotice,
@@ -83,6 +85,8 @@ createRoot(document.getElementById('root')!).render(
         <main className="min-h-0 flex-1 overflow-auto">
           <App />
         </main>
+        <StartSession />
+        <Notices />
       </div>
     </AppApiProvider>
   </StrictMode>,
