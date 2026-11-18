@@ -1,16 +1,16 @@
-// Settings > Repositories > Onboard: a stepped dialog styled like Add
-// plugin that takes a folder to plans ready to approve. Pick folder, pick
-// mode, check GitHub, set up, import specs, leak scan (public repositories),
-// preview issues, finish. Steps that do not apply are left out; steps
+// Settings > Repository setup > Set up GitHub and import specs: a stepped
+// dialog for a repository that was just added (Add repository picked its
+// folder). Pick mode, check GitHub, set up, import specs, leak scan (public
+// repositories), preview issues, finish. Steps that do not apply are left out; steps
 // already satisfied show as done and can be skipped. Cancel is on every
 // step. Nothing is written before Set up, each GitHub write there asks
 // first, and the flow never approves a plan, starts an agent or pushes.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
+import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { IconLabel, SectionHeading, useConfirm } from './controls.tsx'
-import { Check, GitBranch, Laptop, Lock, Workflow } from './icons.ts'
+import { useConfirm } from './controls.tsx'
+import { Check, GitBranch, Laptop, Lock } from './icons.ts'
 import { RadioFold } from './RadioFold.tsx'
 import { MODE_CARDS, groupWrites, writeBadge, type GitHubSettings, type SetupResult } from './settings-api.ts'
 import type { SpecList } from './plans-api.ts'
@@ -75,34 +75,6 @@ function Done({ children }: { children: ReactNode }) {
       <Check size={14} aria-hidden="true" style={{ color: 'var(--ok)' }} />
       {children}
     </p>
-  )
-}
-
-function FolderStep(props: { folder: string; setFolder: (v: string) => void; found: FolderFacts | null }) {
-  const { found } = props
-  return (
-    <div className="flex flex-col gap-3 text-sm" data-onboard-folder>
-      <label className="flex flex-col gap-1">
-        <span>
-          Folder <span className="text-xs text-muted">(required)</span>
-        </span>
-        <Input id="avoozl-onboard-folder" value={props.folder} placeholder="/path/to/my-service" onChange={(e: Change) => props.setFolder(e.target.value)} />
-        <span className="text-xs text-muted">The checkout&apos;s folder, as an absolute path. Any folder inside it works too.</span>
-      </label>
-      {found && (
-        <Facts
-          rows={[
-            ['Checkout', found.root],
-            ['GitHub', found.github ? `${found.github}${found.visibility ? ` (${found.visibility})` : ''}` : found.remote ? `${found.remote} is not on GitHub` : 'No remote: local only'],
-            ['Default branch', found.baseBranch],
-            ['.avoozl.json', found.settingsFile ? 'Found in the checkout' : 'None in the checkout'],
-            ['Specs', found.specs.length ? `${found.specs.length} in .kiro/specs: ${found.specs.join(', ')}` : 'None in .kiro/specs'],
-            ['In this workspace', found.registered ? `Already added as ${found.registered.id}` : 'Not added yet'],
-          ]}
-        />
-      )}
-      {found?.githubError && <p className="text-xs text-muted">{found.githubError} Visibility is unknown, so the leak scan step is skipped.</p>}
-    </div>
   )
 }
 
@@ -246,11 +218,10 @@ function CheckStep({ result }: { result: SetupResult | null }) {
   )
 }
 
-function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onClose: (note?: string) => void; onChanged: () => Promise<unknown>; onOpenPlans?: () => void }) {
-  const { workspaceId, client, onClose } = props
+function OnboardDialog(props: { workspaceId: string; folder: string; client: OnboardClient; onClose: (note?: string) => void; onChanged: () => Promise<unknown>; onOpenPlans?: () => void }) {
+  const { workspaceId, client, onClose, folder } = props
   const ask = useConfirm()
-  const [step, setStep] = useState<StepKey>('folder')
-  const [folder, setFolder] = useState('')
+  const [step, setStep] = useState<StepKey>('mode')
   const [found, setFound] = useState<FolderFacts | null>(null)
   const [settings, setSettings] = useState<GitHubSettings | null>(null)
   const [planningRegistered, setPlanningRegistered] = useState(false)
@@ -265,7 +236,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const box = useRef<HTMLDivElement>(null)
-  const steps = form ? onboardSteps(form, found) : (['folder', 'mode', 'setup', 'import', 'finish'] as StepKey[])
+  const steps: StepKey[] = (form ? onboardSteps(form, found) : (['mode', 'setup', 'import', 'finish'] as StepKey[])).filter((key): key is Exclude<StepKey, 'folder'> => key !== 'folder')
   const at = steps.indexOf(step)
   const text = ONBOARD_STEPS.find((s) => s.key === step)!
   const wrote = written.length > 0
@@ -294,17 +265,19 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
   const back = () => go(steps[Math.max(0, at - 1)])
   const set = (patch: Partial<OnboardForm>) => setForm((current) => (current ? { ...current, ...patch } : current))
 
-  // Step 1: read the folder, the workspace's settings and its repositories.
+  // Read the folder, the workspace's settings and its repositories.
   const look = () =>
     call(async () => {
-      if (!folder.trim()) throw Error('Give the checkout folder.')
-      const [facts, current, repositories] = await Promise.all([client.inspect(workspaceId, folder.trim()), client.settings(workspaceId), client.repositories(workspaceId)])
+      const [facts, current, repositories] = await Promise.all([client.inspect(workspaceId, folder), client.settings(workspaceId), client.repositories(workspaceId)])
       setFound(facts)
       setSettings(current)
       setPlanningRegistered(repositories.items.some((r) => r.planning && r.id !== facts.registered?.id))
       setForm(onboardForm(facts, current))
-      go('mode')
     })
+  useEffect(() => {
+    void look()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   // Step 3: the read-only Set up GitHub preview.
   const checkGitHub = () =>
     call(async () => {
@@ -390,13 +363,12 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
   const checkFailed = step === 'check' && check ? check.steps.some((s) => s.status === 'failed') && check.writes.length === 0 : false
   const setupLeft = setupDone ? [] : planned.filter((w) => !w.done)
   const isDone = (key: StepKey) =>
-    (key === 'folder' && Boolean(found)) ||
+    (key === 'mode' && typeof (settings?.github as { mode?: unknown } | undefined)?.mode === 'string') ||
     (key === 'check' && Boolean(check) && check!.writes.length === 0) ||
     (key === 'setup' && (setupDone || (Boolean(form) && setupLeft.length === 0))) ||
     (key === 'import' && shown.length > 0 && shown.every(imported))
   return (
-    // Esc, Back and a click outside do what Cancel does, asking first once
-    // a folder was entered.
+    // Esc, Back and a click outside do what Cancel does.
     <Modal
       id="avoozl-onboard"
       width="44rem"
@@ -404,7 +376,6 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
       describedBy="avoozl-onboard-line"
       boxRef={box}
       attrs={{ 'data-onboard-dialog': step }}
-      unsaved={folder.trim() !== '' && { title: 'Stop onboarding?', body: wrote ? `What was done stays: ${written.join('; ')}.` : 'What you entered is lost. Nothing was written.', action: 'Stop' }}
       title={text.title}
       onDismiss={cancel}
       footer={
@@ -412,11 +383,6 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
           {at > 0 && step !== 'finish' && steps[at - 1] !== 'setup' && (
             <Btn type="button" onClick={back} disabled={busy}>
               Back
-            </Btn>
-          )}
-          {step === 'folder' && (
-            <Btn type="button" primary onClick={() => void look()} disabled={busy || !folder.trim()}>
-              Check folder
             </Btn>
           )}
           {step === 'mode' && (
@@ -499,7 +465,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
           {text.line}
         </p>
       </div>
-      {step === 'folder' && <FolderStep folder={folder} setFolder={(v) => { setFolder(v); setFound(null) }} found={found} />}
+      {!form && !error && <p className="text-sm text-muted">Reading the folder…</p>}
       {step === 'mode' && form && found && <ModeStep form={form} set={set} found={found} problem={problem} />}
       {step === 'check' && <CheckStep result={check} />}
       {step === 'setup' && (
@@ -643,48 +609,10 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
   )
 }
 
-// The box above Add repository: what Onboard does, its steps, and the button.
-export default function Onboard(props: { workspaceId: string; disabled: string | null; onChanged: () => Promise<unknown>; onOpenPlans?: () => void }) {
+// What Add repository's follow-up opens for one added repository: the steps
+// after the folder. `folder` is the repository's checkout.
+export default function SetupRepository(props: { workspaceId: string; folder: string; onChanged: () => Promise<unknown>; onClose: (note?: string) => void; onOpenPlans?: () => void }) {
   const api = useAppApi()
   const client = useMemo(() => onboardClient(api), [api])
-  const [open, setOpen] = useState(false)
-  const [note, setNote] = useState<string | null>(null)
-  const close = useCallback((text?: string) => {
-    setOpen(false)
-    setNote(text ?? null)
-  }, [])
-  return (
-    <Card>
-      <SectionHeading title="Onboard a repository" className="mb-2" />
-      <p className="mt-1 text-xs text-muted">From a folder to specs ready to approve: mode, GitHub setup, spec import and an issue preview. Each GitHub write asks first.</p>
-      <ol className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
-        {ONBOARD_STEPS.map((s, i) => (
-          <li key={s.key}>
-            {i + 1}. {s.title}
-          </li>
-        ))}
-      </ol>
-      <div className="mt-3">
-        <IconLabel
-          icon={Workflow}
-          primary
-          disabled={Boolean(props.disabled)}
-          tooltip={props.disabled ?? 'Walk through each step. Nothing is written before Set up.'}
-          onClick={() => {
-            setNote(null)
-            setOpen(true)
-          }}
-        >
-          Onboard
-        </IconLabel>
-      </div>
-      {props.disabled && <p className="mt-2 text-xs text-muted">{props.disabled}</p>}
-      {note && (
-        <p className="mt-2 text-xs text-muted" role="status">
-          {note}
-        </p>
-      )}
-      {open && <OnboardDialog workspaceId={props.workspaceId} client={client} onChanged={props.onChanged} onClose={close} onOpenPlans={props.onOpenPlans} />}
-    </Card>
-  )
+  return <OnboardDialog workspaceId={props.workspaceId} folder={props.folder} client={client} onChanged={props.onChanged} onClose={props.onClose} onOpenPlans={props.onOpenPlans} />
 }

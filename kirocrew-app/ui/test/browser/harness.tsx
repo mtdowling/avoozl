@@ -17,7 +17,7 @@ import { Tooltip } from '../../src/Tooltip.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
 import GraphView from '../../src/GraphView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
-import Onboard from '../../src/Onboard.tsx'
+import SetupRepository from '../../src/Onboard.tsx'
 import { Modal } from '../../src/Modal.tsx'
 import { specGraph } from './spec-graph-fixture.ts'
 import { installInlineFixture } from './settings-inline-fixture.ts'
@@ -285,7 +285,7 @@ const repoEdit = (edited: boolean) =>
 
 export const SCENARIOS: Record<string, Scenario> = {
   'add-plugin': own('Add plugin', <AddPlugin workspaceId="w" client={idle} supported={[1]} onChanged={async () => undefined} />),
-  onboard: own('Onboard', <Onboard workspaceId="w" disabled={null} onChanged={async () => undefined} />),
+  onboard: shown((close) => <SetupRepository workspaceId="w" folder="/work/avoozl" onChanged={async () => undefined} onClose={close} />),
   'repo-edit': repoEdit(false),
   'repo-edit-unsaved': repoEdit(true),
   'setup-github': shown((close) => <SetupDialog workspaceId="w" client={idle} form={setupForm({})} set={() => undefined} first={null} onClose={close} onSaved={async () => undefined} />),
@@ -550,6 +550,24 @@ if (query.get('page') === 'app') {
       { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main' },
       { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
     ] }))
+  // Add repository and Set up GitHub and import specs read a folder the same way.
+  if (roles) {
+    answer('repositories.detect', (body) => ({ root: (body.input as { folder: string }).folder, id: 'new-service', baseBranch: 'main', remote: 'git@github.com:acme/new-service.git', github: 'acme/new-service' }))
+    answer('repositories.configure', (body) => ({ id: (body.input as { id: string }).id, name: (body.input as { id: string }).id, localCheckout: (body.input as { localCheckout: string }).localCheckout, github: 'acme/new-service', baseBranch: 'main' }))
+    answer('onboarding.inspect', (body) => ({
+      root: (body.input as { folder: string }).folder,
+      baseBranch: 'main',
+      currentBranch: 'main',
+      remote: 'git@github.com:acme/new-service.git',
+      github: 'acme/new-service',
+      id: 'new-service',
+      settingsFile: false,
+      specs: ['search-v2'],
+      registered: { id: 'new-service', localCheckout: (body.input as { folder: string }).folder, github: 'acme/new-service', baseBranch: 'main', planning: false },
+      visibility: 'private',
+      githubError: null,
+    }))
+  }
   answer('github.settings.get', () => ({
     filename: '.avoozl.json',
     exists: true,

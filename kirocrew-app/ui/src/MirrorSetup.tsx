@@ -191,14 +191,14 @@ export default function MirrorSetup(props: {
                 {chosen.length === 1 ? "line" : "lines"}
               </Btn>
               <Btn type="button" disabled={busy} onClick={() => setRun(null)}>
-                Close
+                Hide
               </Btn>
             </div>
           )}
           {result.applied && (
             <div>
               <Btn type="button" onClick={() => setRun(null)}>
-                Close
+                Hide
               </Btn>
             </div>
           )}

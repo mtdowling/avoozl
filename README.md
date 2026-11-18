@@ -191,7 +191,8 @@ checks durable session and delivery records first.
 ## Deliver through GitHub
 
 Pick a GitHub mode under **Settings > Where tasks live**, then use **Set up
-GitHub** there, or **Settings > Repositories > Onboard** for a new folder. Both
+GitHub** there, or **Add repository** in **Settings > Repository setup** and then
+**Set up GitHub and import specs** for a new folder. Both
 read GitHub first and preview every write (labels, Project fields, issue
 types); nothing is written until you confirm. Approved specs become issues,
 sub-issues, and blocked-by links, with a Project board as the view. Public and
