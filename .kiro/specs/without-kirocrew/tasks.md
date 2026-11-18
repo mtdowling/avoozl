@@ -42,7 +42,7 @@ of the other specs.
 - [ ] nk-2.2 The responder and the task summary as children, after nk-1.1 [NK2.2, NK2.3, NK2.5] (§D2)
   - Their rows: the responder's reply is posted by Avoozl after today's checks; the summary is stored on the task; both read-only.
   - Done when: Tests on both executors with a fake GitHub: one reply is posted for one request and none for a blocked result; a reply that matches a content rule is held as it is for a chat; the summary is stored and shown; neither child has a credential or a network path.
-- [ ] nk-2.3 The issue planner's critique as a child, after nk-1.1 [NK2.4] (§D2)
+- [x] nk-2.3 The issue planner's critique as a child, after nk-1.1 [NK2.4] (§D2)
   - Its row: write root the spec folder's `avoozl/` folder only.
   - Done when: Tests: `critique.md` written by a child is read as a chat's is; a child that writes any other file in the spec folder is refused by its write roots.
 

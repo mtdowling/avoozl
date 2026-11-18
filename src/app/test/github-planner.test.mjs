@@ -9,6 +9,10 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
+import {
+  harnessPermission,
+  parseHarnessDefinition,
+} from "../harness-definitions.mjs";
 import { issueSpecName, PLANNER_AGENT } from "../github-planner.mjs";
 import { readSpecFolder } from "../spec-plans.mjs";
 import { Store } from "../store.mjs";
@@ -350,4 +354,85 @@ test("a planner that ends without classifying asks once and holds the issue", as
   intents = await crew.tick();
   assert.equal(planners(intents).length, 1);
   assert.equal(crew.sessions.size, 2);
+});
+
+// nk-2.3 (NK2.4): the critique as a `process` child. Its folder and only
+// write root in the spec folder is avoozl/; the breakdown stays a chat.
+test("a child's critique.md is read as a chat's is, and it can write nothing else", async (t) => {
+  const { state, github, code } = await openWorkspace(t),
+    crew = fakeKiroCrew(state);
+  state.store.put("projects", {
+    ...state.store.get("projects", "code"),
+    executor: "process",
+  });
+  let intents = await crew.tick();
+  const [start] = planners(intents);
+  assert.equal(start.executor, "kirocrew", "the breakdown stays a chat");
+  const [planner] = crew.sessions.values();
+  await state.ops.execute(
+    "github.breakdown.classify",
+    { repository: REPO, number: 7, kind: "broad", reason: "Two leaves." },
+    undefined,
+    caller(planner),
+  );
+  writeSpec(code, SPEC);
+  await state.ops.execute(
+    "github.breakdown.draft",
+    { repository: REPO, number: 7, spec: SPEC },
+    undefined,
+    caller(planner),
+  );
+  intents = await state.ops.execute("workspace.tick", {
+    sessions: [{ target: planner.slot, status: "working" }],
+  });
+  const [critic] = planners(intents),
+    folder = path.join(code, ".kiro", "specs", SPEC);
+  assert.equal(critic.executor, "process");
+  assert.equal(critic.permissionClass, "write");
+  assert.equal(critic.worktree, path.join(folder, "avoozl"));
+  assert.match(critic.brief, /Mode: critique\./);
+  // Its write roots: the avoozl/ folder and its own temp folder only.
+  const definition = parseHarnessDefinition({
+      name: "fake-cli",
+      start: ["node"],
+      resume: ["node"],
+      promptFrom: "stdin",
+      permission: { write: "w", read: "r" },
+      writeRoots: ["{worktree}", "{tmp}"],
+    }),
+    tmp = temporaryDirectory("avoozl-critique-tmp-"),
+    { writeRoots } = harnessPermission(definition, {
+      permissionClass: "write",
+      worktree: critic.worktree,
+      tmp,
+    });
+  assert.deepEqual(writeRoots, [critic.worktree, tmp]);
+  for (const file of ["requirements.md", "design.md", "tasks.md"])
+    assert.ok(
+      !writeRoots.some((root) =>
+        path.join(folder, file).startsWith(root + path.sep),
+      ),
+      file,
+    );
+  // The child writes critique.md in its folder; the tick reads it as a chat's.
+  await state.ops.execute("session.bind", {
+    taskId: critic.task,
+    slot: "process-critic",
+    title: critic.title,
+    source: "tick",
+    role: critic.role,
+    attempt: critic.attempt,
+  });
+  const { hash } = readSpecFolder(code, SPEC);
+  fs.writeFileSync(
+    path.join(critic.worktree, "critique.md"),
+    `Reviewed: .kiro/specs/${SPEC}/ ${hash}\n\nNo findings.\n`,
+  );
+  await state.ops.execute("workspace.tick", {
+    sessions: [
+      { target: planner.slot, status: "working" },
+      { target: "process-critic", status: "closed" },
+    ],
+  });
+  assert.equal(github.subIssues.length, 2, "children published");
 });
