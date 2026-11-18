@@ -424,6 +424,7 @@ import {
   conflictsView,
   deliveryView,
   graphView,
+  withGraphState,
   ownership,
   plansTableView,
   epicView,
@@ -4721,12 +4722,15 @@ export class Operations {
             return settings;
           });
     if (name === "publication.retry") return { retryRequested: true };
-    if (name === "query")
-      return queryTasks(this.read(), {
+    if (name === "query") {
+      // Each row says the state the page shows for it, beside its status.
+      const data = this.read();
+      return queryTasks(data, {
         scope: "all",
         ...input,
         claimed: claimedOrNone(store),
-      });
+      }).map(withGraphState(store, data));
+    }
     if (name === "search.result") {
       const run = store.get("runs", input.id);
       if (!run || !run.prompt?.startsWith("NUPP_PROMPT_SEARCH"))
@@ -4805,7 +4809,8 @@ export class Operations {
       });
       return { view, explanation: view.caption };
     }
-    if (name === "task.get") return this.detail(input.id);
+    if (name === "task.get")
+      return withGraphState(store, this.read())(this.detail(input.id));
     if (name === "report.save")
       return store.mutate(
         "Save report " + (input.title || ""),
