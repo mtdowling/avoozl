@@ -14,7 +14,12 @@ import {
 } from "../task-outcomes.mjs";
 import { createSpecPlan, readSpecFolder, specHash } from "../spec-plans.mjs";
 import { fixture } from "./fixtures.mjs";
-import { specFiles, writeSpec } from "./spec-fixture.mjs";
+import {
+  legacySpecFiles,
+  specFiles,
+  withFacts,
+  writeSpec,
+} from "./spec-fixture.mjs";
 
 const entry = {
   kind: "leaf",
@@ -199,7 +204,7 @@ test("branch checkmarks stay outside the revision hash", () => {
 
 test("legacy route github and merged-pr are read without rewriting the spec", (t) => {
   const { root, store } = fixture(t);
-  const files = specFiles(),
+  const files = legacySpecFiles(),
     manifest = JSON.parse(files["avoozl/manifest.json"]);
   manifest.tasks["1.1"] = {
     ...manifest.tasks["1.1"],
@@ -207,10 +212,11 @@ test("legacy route github and merged-pr are read without rewriting the spec", (t
     completion: "merged-pr",
   };
   files["avoozl/manifest.json"] = JSON.stringify(manifest, null, 2) + "\n";
-  writeSpec(root, "legacy", files);
+  const folded = withFacts(files);
+  writeSpec(root, "legacy", folded);
   const folder = path.join(root, ".kiro", "specs", "legacy");
   const before = Object.fromEntries(
-    Object.keys(files).map((file) => [
+    Object.keys(folded).map((file) => [
       file,
       fs.readFileSync(path.join(folder, file), "utf8"),
     ]),
@@ -218,7 +224,7 @@ test("legacy route github and merged-pr are read without rewriting the spec", (t
   const spec = readSpecFolder(root, "legacy");
   const plan = createSpecPlan(store, { id: "legacy" }, spec);
   assert.equal(plan.hash, specHash(before));
-  for (const file of Object.keys(files))
+  for (const file of Object.keys(folded))
     assert.equal(
       fs.readFileSync(path.join(folder, file), "utf8"),
       before[file],

@@ -44,8 +44,9 @@ import { useRead } from './useRead.ts'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
+import { SelectField } from './ui/SelectField'
+import { Checkbox } from './ui/Checkbox'
 
-const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)', maxWidth: '100%' }
 const BOX = { borderColor: 'var(--border)' }
 const TONE: Record<SourceTone, BadgeVariant | undefined> = { ok: 'success', off: undefined, error: 'danger', waiting: 'info' }
 const SCOPE = { machine: 'This computer only', repository: 'Shared with the repo' }
@@ -378,14 +379,14 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
           </Field>
           <Field id="intake-repository" label="Work lands in" marker="required" raw="repository" hint="Its rules apply, and a delivered item's task lands there.">
             {(described) => (
-              <select id="intake-repository" className="rounded-md border px-2 py-1 text-sm" style={{ ...selectStyle, width: 'fit-content' }} value={form.repository} onChange={(event: Change) => set({ repository: event.target.value })} aria-describedby={described} aria-invalid={invalid('repository')}>
+              <SelectField id="intake-repository" look="field" round="md" maxWidth="100%" width="fit-content" value={form.repository} onChange={(event: Change) => set({ repository: event.target.value })} aria-describedby={described} aria-invalid={invalid('repository')}>
                 <option value="">Pick a repository</option>
                 {props.repositories.map((repo) => (
                   <option key={repo.id} value={repo.github ?? repo.id}>
                     {repo.github ?? repo.id}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             )}
           </Field>
         </Group>
@@ -416,14 +417,14 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
                   fields: (
                     <Field id="intake-minimumPermission" label="At least" marker="optional" raw="minimumPermission">
                       {(described) => (
-                        <select id="intake-minimumPermission" className="rounded-md border px-2 py-1 text-sm" style={{ ...selectStyle, width: 'fit-content' }} value={form.minimumPermission} onChange={(event: Change) => set({ minimumPermission: event.target.value })} aria-describedby={described}>
+                        <SelectField id="intake-minimumPermission" look="field" round="md" maxWidth="100%" width="fit-content" value={form.minimumPermission} onChange={(event: Change) => set({ minimumPermission: event.target.value })} aria-describedby={described}>
                           <option value="">{DEFAULT_PERMISSION} (default)</option>
                           {PERMISSIONS.map((p) => (
                             <option key={p} value={p}>
                               {p}
                             </option>
                           ))}
-                        </select>
+                        </SelectField>
                       )}
                     </Field>
                   ),
@@ -456,7 +457,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
                 line: SCOPE_TIP.repository,
                 fields: (
                   <label className="inline-flex items-start gap-2 text-xs" data-intake-public-warning>
-                    <input id="intake-confirm-public" type="checkbox" checked={confirmPublic} onChange={(event) => setConfirmPublic(event.target.checked)} aria-invalid={invalid('scope')} style={{ marginTop: 2 }} />
+                    <Checkbox id="intake-confirm-public" checked={confirmPublic} onChange={(event) => setConfirmPublic(event.target.checked)} aria-invalid={invalid('scope')} drop={2} />
                     <span>.avoozl.json may be public. Saving there publishes this source's name and plugin. I understand.</span>
                   </label>
                 ),

@@ -49,6 +49,7 @@ import {
 import { instanceIdentity, peekInstanceId } from "./instance.mjs";
 import { epicOfPlan } from "./epics.mjs";
 import { resolveBatchGroups } from "./radar-coder-batch.mjs";
+import { issueHash } from "./plans.mjs";
 import {
   issueRecordId,
   machineIdentity,
@@ -60,6 +61,7 @@ const SECTION =
   /<!-- avoozl:managed:start -->[\s\S]*?<!-- avoozl:managed:end -->/;
 const MARKER_BLOCK = /<!--\s*avoozl-task\s*\n[\s\S]*?\n-->/;
 const SHA256 = /^[0-9a-f]{64}$/;
+
 const COMMIT = /^[0-9a-f]{40}$/;
 const FIELDS = ["title", "body", "labels", "blockers"];
 
@@ -104,7 +106,7 @@ function managedSection(
     entries = issueNotesLines(shown).join("\n"),
     ruleLines = rules.map(agentRuleLine).join("\n");
   return `<!-- avoozl:managed:start -->
-This issue is projected from approved design \`${plan.id}\` at \`${plan.hash.slice(0, 12)}\`.
+This issue is projected from approved design \`${plan.id}\` at \`${issueHash(plan).slice(0, 12)}\`.
 ${task.phase ? `\nPhase: ${task.phase.title}\n` : ""}${parentRef ? `\nParent: ${parentRef}\n` : ""}
 ${task.summary || task.nextAction || ""}
 
@@ -125,7 +127,7 @@ function batchSection(plan, parts) {
       .replace(/\n<!-- avoozl:managed:end -->$/, "")
       .replace(/^This issue is projected from[^\n]*\n/, "");
   return `<!-- avoozl:managed:start -->
-This issue is a batch of ${parts.length} tasks projected from approved design \`${plan.id}\` at \`${plan.hash.slice(0, 12)}\`. One pull request closes it, and that closes every task below.
+This issue is a batch of ${parts.length} tasks projected from approved design \`${plan.id}\` at \`${issueHash(plan).slice(0, 12)}\`. One pull request closes it, and that closes every task below.
 ${parts.map(({ task, section }) => `\n## ${task.id}: ${task.title}\n${inner(section)}`).join("\n")}
 <!-- avoozl:managed:end -->`;
 }
@@ -187,7 +189,9 @@ function taskMarker({
         : {}),
     source: {
       commit: COMMIT.test(commit || "") ? commit : null,
-      manifest: SHA256.test(plan.hash) ? plan.hash : digest(String(plan.hash)),
+      manifest: SHA256.test(issueHash(plan))
+        ? issueHash(plan)
+        : digest(String(issueHash(plan))),
     },
     ...(Object.keys(edges).length ? { edges } : {}),
     applied: {
@@ -399,7 +403,7 @@ async function upsertParent({
     namespace,
     kind,
     ...(parent ? { parent } : {}),
-    source: { commit: null, manifest: plan.hash },
+    source: { commit: null, manifest: issueHash(plan) },
     applied,
   });
   if (!current) {

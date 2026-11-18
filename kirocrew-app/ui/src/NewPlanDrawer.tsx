@@ -2,8 +2,7 @@
 // Crew's Spec Builder, which drafts the spec folder phase by phase. The
 // backend (plan.new) checks the fields, runs content rules on what is
 // handed over, and writes Avoozl's steering file only after the person
-// agrees here. Avoozl then writes the manifest and the folder shows in
-// Plans as a draft once it lints clean. When Spec Builder is off, an Avoozl
+// agrees here. The folder shows in Plans as a draft once it lints clean. When Spec Builder is off, an Avoozl
 // planner chat is the fallback. Nothing here approves a plan, starts
 // delivery or pushes.
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -36,6 +35,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Checkbox } from './ui/Checkbox'
 
 // Spec Builder resolves symlinks (/tmp is /private/tmp on macOS).
 const samePath = (left: string, right: string) => {
@@ -197,7 +197,7 @@ export default function NewPlanDrawer(props: {
       props.onClose(
         elsewhere
           ? `Spec Builder made ${handoff.name} in ${created.spec_dir}, but Avoozl reads ${handoff.folder}. Clear Spec Builder's base path setting, or move the folder.`
-          : `Spec Builder is drafting ${handoff.name}. Avoozl writes its manifest after tasks.md, and it shows here as a draft; you approve it.`,
+          : `Spec Builder is drafting ${handoff.name}. It shows here as a draft once its tasks.md lints clean; you approve it.`,
       )
       openSpecBuilder(handoff.name, navigate)
   }
@@ -257,8 +257,7 @@ export default function NewPlanDrawer(props: {
             ) : (
               repositories.map((repo) => (
                 <label key={repo.id} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={form.repositories.includes(repo.id)}
                     onChange={(event) =>
                       set({ repositories: event.target.checked ? [...form.repositories, repo.id] : form.repositories.filter((id) => id !== repo.id) })
@@ -338,7 +337,7 @@ export default function NewPlanDrawer(props: {
               : start === 'goal'
                 ? 'An Avoozl planner chat writes the spec from your goal: requirements, design and tasks. It shows in Specs as a draft and is approved like any spec. Nothing is started.'
                 : start === 'blank'
-                ? "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the spec shows in Specs as a draft. Nothing is approved or started."
+                ? "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. The spec shows in Specs as a draft once it lints clean. Nothing is approved or started."
                 : 'Name it, then pick how to start: Blank, From template or From a goal. It shows in Specs as a draft. Nothing is approved or started.'}
           </Hint>
           <Field id="avoozl-new-plan-name" need="required" label="Name" hint="Becomes the spec folder name: lowercase letters, digits and hyphens." problem={nameIssue}>

@@ -13,6 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Store } from "../store.mjs";
 import { Operations } from "../operations.mjs";
+import { withFacts } from "./spec-fixture.mjs";
 
 // Small, fast, seeded: the same seed gives the same workspace.
 function random(seed) {
@@ -89,12 +90,12 @@ function specFiles(name, { groups, leaves, extraPerLeaf, next }) {
     };
   }
   lines.push("");
-  return {
+  return withFacts({
     "requirements.md": `# ${name}\n\nSynthetic requirements for a performance fixture.\n`,
     "design.md": `# Design\n\nSynthetic design for ${name}.\n`,
     "tasks.md": lines.join("\n"),
     "avoozl/manifest.json": JSON.stringify({ tasks: manifest }, null, 2) + "\n",
-  };
+  });
 }
 
 function git(cwd, ...args) {

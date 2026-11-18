@@ -42,7 +42,7 @@ evidence baseline.
 | Plugins                              | Outside packages may add delivery routes and task trackers through one versioned seam, loaded only after a person approves each version, in a local child process with no listener. Private and company-internal integrations live outside the public repository and plug in only this way (§4.8)                                                                                                                                                                         | Owner, 2026-11-12; Requirements 22, 34, 35                 |
 | Review gates                         | Each local writer's exact commit gets the checks role plus review roles with split focus, each in a fresh session on a model other than the writer's, before integration; changes requested start a new writer attempt and new reviews; every finding is closed as fixed or unchanged against the changed files; a check that cannot run keeps the gate shut. Reviews are roles on one delivery, not graph tasks (§5.2)                                                   | Owner handoff, 2026-11-12; Requirements 36–39              |
 | Content rules                        | `.avoozl.json` names which rule sets apply and the action; the banned terms live in an untracked terms file or an approved private plugin. Every write or approval boundary is checked; a match blocks and opens a decision, never redacts, and can be allowed once with a reason; findings name rule and location, never the term. Today's leak, reply, and secret screens become built-in sets (§4.9)                                                                   | Owner, 2026-11-12; Requirement 40                          |
-| Plan layout                          | Required, not a default: every plan is a Kiro spec folder `.kiro/specs/<name>/` with `requirements.md` or `bugfix.md`, `design.md`, `tasks.md`, and `avoozl/manifest.json`. Fenced plan files are a migration read path only                                                                                                                                                                                                                                              | Owner, 2026-11-11; Requirement 30                          |
+| Plan layout                          | Required, not a default: every plan is a Kiro spec folder `.kiro/specs/<name>/` with `requirements.md` or `bugfix.md`, `design.md`, and `tasks.md` with a `Facts:` bullet per task (§4.40). Fenced plan files are a migration read path only                                                                                                                                                                                                                                              | Owner, 2026-11-11; Requirement 30                          |
 | Untriaged list                       | A read-only list of open issues and pull requests that no trigger rule, triage label, or task covers, linking out to GitHub and Issue Radar, and starting Avoozl's own code review chat; GitHub modes only; deep links wait on MC-14 (§8.5)                                                                                                                                                                                                                                                        | Owner, 2026-11-12; Requirement 49                          |
 
 ### New verified facts used by this design
@@ -155,13 +155,13 @@ a coder. It still hosts no UI outside Kiro Crew.
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | Reviewed design                                   | Git: a Kiro spec folder `.kiro/specs/<name>/` in the planning repository (plans-repo mode or no GitHub mode) or the code repository (single-repo mode), at an exact commit (§6.8) | Receipt: approved commit and hash                      | Never edited in SQLite                                                                                                        |
 | Repository policy and labels                      | Git: `.avoozl.json` at an exact commit                                                                                                                                            | Receipt of the commit applied                          | Settings view edits the file, not SQLite                                                                                      |
-| Task manifest                                     | Git: `avoozl/manifest.json` inside the spec folder, generated then reviewed                                                                                                       | Receipt                                                | Pins design commit, policy commit, compiler digest                                                                            |
+| Task facts                                        | Git: `Facts:` bullets in the spec folder's `tasks.md` (§4.40), written then reviewed                                                                                                     | Receipt                                                | Pins design commit, policy commit, compiler digest                                                                            |
 | Local task graph (local-only tasks)               | **SQLite** in the workspace, published to Git by `workspace-repository` (F36)                                                                                                     | **Authoritative**                                      | The only writable task store for local work                                                                                   |
 | Local task status                                 | **SQLite**                                                                                                                                                                        | **Authoritative**                                      | Derived states (ready) are computed, not stored                                                                               |
 | GitHub issue graph                                | GitHub: issues, sub-issue links, issue dependencies, hidden markers                                                                                                               | **Cache**                                              | Rebuildable from GitHub alone                                                                                                 |
 | GitHub task status                                | GitHub: open/closed, state reason, open blocked-by dependencies (the native Blocked signal, F53), managed labels                                                                  | **Cache**                                              | Avoozl writes no Blocked Status or blocked label                                                                              |
 | Project item Status                               | GitHub Project: built-in workflows (F54) and people's drags. Avoozl never writes it                                                                                               | **Cache**                                              | Avoozl reads only Deferred as an order (§6.7)                                                                                 |
-| Project item fields (Release, Wave, Iteration)    | GitHub Project; Avoozl sets Release at projection and keeps Wave and Iteration current from plan milestones and edges. A person may change Release (§6.7)                         | **Cache** with last applied values                     | A Release change drafts a manifest change; a Wave edit is reverted (§6.7)                                                     |
+| Project item fields (Release, Wave, Iteration)    | GitHub Project; Avoozl sets Release at projection and keeps Wave and Iteration current from plan milestones and edges. A person may change Release (§6.7)                         | **Cache** with last applied values                     | A Release change drafts a facts change;   a Wave edit is reverted (§6.7)                                                     |
 | Pause (Deferred)                                  | GitHub: the item's Status, as set by an allowed actor                                                                                                                             | **Cache**                                              | Rebuild reads it from the Project                                                                                             |
 | Last applied managed values                       | GitHub: hidden marker in the issue                                                                                                                                                | **Cache**                                              | Moves out of SQLite (fixes F12, F17)                                                                                          |
 | Kiro Crew sessions and transcripts                | Kiro Crew                                                                                                                                                                         | Binding: task ID → slot key                            | Bindings can be rediscovered from session titles                                                                              |
@@ -193,7 +193,7 @@ a coder. It still hosts no UI outside Kiro Crew.
 - **Default.** With no GitHub mode, every task is `local`. With a GitHub mode
   (§6.6), a new task's default is `github`: once its plan is approved, the
   next projection creates its issue. Local is opt-in, either per task
-  (`authority: local` on the manifest entry) or per workspace
+  (`authority: local` in the task's facts) or per workspace
   (`"defaultAuthority": "local"` in `.avoozl.json`).
 - **Pending.** Between approval and its first projection, a task bound for
   GitHub is still a SQLite row with no issue. It is shown as "pending
@@ -218,7 +218,7 @@ a coder. It still hosts no UI outside Kiro Crew.
 status, completion verdict, and managed-field baseline. Only session bindings may
 be missing; the tick rediscovers them from session titles (`avoozl:<task-id>`).
 The same test holds for `authority: "plugin:<id>"` tasks, rebuilt from the
-plugin's `list` and `read` plus the approved manifest (§4.8, proof P26).
+plugin's `list` and `read` plus the approved task facts (§4.8, proof P26).
 
 ### 3.4 Managed issue marker, version 2
 
@@ -290,7 +290,7 @@ plugin's `list` and `read` plus the approved manifest (§4.8, proof P26).
  │        │  open_session / send_to_session        │                      │
  │        ▼                                        ├── SQLite workspace   │
  │  Kiro Crew sessions (workers, verifier,         ├── Git (design, policy│
- │  responder, planner)                            │    manifest, worktrees)
+ │  responder, planner)                            │    task facts, worktrees)
  │                                                 └── GitHub REST        │
  │  Issue Radar crews ◀──── ready label ───────────────┘                  │
  └───────────────────────────────────────────────────────────────────────┘
@@ -644,7 +644,7 @@ New MCP tools (**Proposed**, `plans_` prefix kept for consistency):
   store may supply the environment variable.
 - Issue text, comments, and pull-request text are untrusted data in every brief.
   Briefs quote them inside a fenced block labeled as data and restate the task's
-  own acceptance criteria from the approved manifest.
+  own acceptance criteria from the approved task facts.
 - The responder agent has read tools only and no shell write or `gh` write; its
   reply reaches GitHub through `plans_post_reply`, which Avoozl screens for
   secrets and absolute paths before posting.
@@ -805,7 +805,7 @@ generically:
   a managed description section). A tracker that cannot store them is refused
   for the kind `tracker`.
 - **Graph.** Most trackers have no native blocked-by links. Then the graph
-  stays in Avoozl: blocking edges come from the approved manifest in Git,
+  stays in Avoozl: blocking edges come from the approved task facts in Git,
   SQLite caches them, and the tracker holds only records. An edge change is a
   plan change. With the `edges` capability, Avoozl projects blocking edges as
   the tracker's own links, and they become managed fields.
@@ -903,7 +903,7 @@ list never lands in a repository.
 | Boundary                 | What is checked                                                              | Where                                                                                      | On a match                                                                                                              |
 | ------------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
 | `plan`: planner draft    | Every spec file the planner saves or proposes                                | `plan.create`, `plan.save`, `plan.propose`                                                 | The call is refused with set, rule, file, and line; the planner fixes it                                                |
-| `plan`: approval         | Every spec file and `avoozl/manifest.json` at the exact folder hash          | `lintSpec`, as `content.match` diagnostics                                                 | Approval is refused; the diagnostic opens a decision                                                                    |
+| `plan`: approval         | Every spec file at the exact folder hash                                     | `lintSpec`, as `content.match` diagnostics                                                 | Approval is refused; the diagnostic opens a decision                                                                    |
 | `github`: issues         | Title and whole body (marker included) of every create or update             | Projection (§6.3), before the write                                                        | Nothing written for that issue; decision                                                                                |
 | `github`: Project fields | Release and Iteration values                                                 | Project sync (§6.7), before the write                                                      | Nothing written for that item; decision                                                                                 |
 | `github`: comments       | Breakdown previews, published summaries, steering replies, responder replies | Each comment writer, `plans_post_reply`                                                    | Avoozl's own comment: decision. A responder reply: refused in-call (F69)                                                |
@@ -1043,7 +1043,7 @@ allow host: \bbuild0\.corp\.example\b
 
 **Decided**, owner 2026-11-18: every session Avoozl opens runs on this
 machine, on the executor its harness names (§4.28). `src/app/session-pins.mjs`
-checks a manifest task's `session` pin: `agent`, `model` or `harness`, and
+checks a task's `session` fact: `agent`, `model` or `harness`, and
 nothing else. The crew snapshot (`crews.mjs`, `crew-reader.mjs`) stays for the
 In flight view's unreachable-crew flag.
 
@@ -1056,7 +1056,7 @@ In flight view's unreachable-crew flag.
 
 #### Agent and model per session
 
-The writer's session comes from: the manifest `session` pin, `delivery`
+The writer's session comes from: the task's `session` fact, `delivery`
 (repository, then workspace), then Kiro Crew's default agent and `auto`. A
 retry keeps its last model unless it is out. Checks and review roles keep
 their own agent and model (§5.2). The binding records `agent`, `model`,
@@ -1363,14 +1363,14 @@ enforced there.
 
 #### Batching
 
-**Changed 2026-11-18.** The planner decides batches in the manifest, and
+**Changed 2026-11-18.** The planner decides batches in `tasks.md` (§4.40), and
 batching has no setting (§4.37, Requirement 108). The grouping rules below
 are replaced; the run, checks and split still hold.
 
-A leaf is batchable only when the plan marks it `size: "small"` in the
-manifest, because only the planner knows a task is small before it runs.
+A leaf was batchable only when the plan marked it `size: "small"` in its
+facts, because only the planner knows a task is small before it runs.
 Avoozl groups ready batchable leaves by `flow.batch.by` (`phase`, the same
-parent or phase, by default, renamed from `epic` in §6.9; or `files`, overlapping manifest `paths`) up to
+parent or phase, by default, renamed from `epic` in §6.9; or `files`, overlapping `paths` facts) up to
 `flow.batch.max` (default 3). Every leaf in a batch shares the repository,
 route, crew, and review roles, has no edge to another, and has local
 authority. GitHub-authority leaves are not batched yet: each closes through
@@ -1949,7 +1949,6 @@ templates/sdk-rewrite/
   starter/requirements.md
   starter/design.md
   starter/tasks.md
-  starter/avoozl/manifest.json
 ```
 
 | Key                          | Holds                                                                                      | Checked by                                                               |
@@ -1980,7 +1979,7 @@ request records nothing. The seed holds the prompt, the starter with its
 placeholders filled, the inputs, and the spec rules the drawer already
 sends. The tick imports the folder as a draft once it lints clean, with the
 template recorded on the plan. With an epic picked, the planner also adds
-the plan to that epic folder's `tasks.md` and manifest, which come back as
+the plan to that epic folder's `tasks.md` and its facts, which come back as
 a draft revision of the epic (§6.9: both sides must agree).
 
 **Settings and flow.** Picking a template changes no setting. When it has a
@@ -1988,26 +1987,27 @@ a draft revision of the epic (§6.9: both sides must agree).
 skip) with **Import these settings**, unticked. Ticking it and submitting
 runs the person-only pack import against the shown preview hash, exactly as
 Settings does (Requirement 55.5–55.7). Batches come from the planner's
-manifest groups (§4.37), never from a template setting.
+`batch` facts (§4.37, §4.40), never from a template setting.
 
 #### Manual leaves
 
-```json
-"review": {
-  "kind": "leaf",
-  "manual": true,
-  "repository": "sdk",
-  "acceptance": ["The team agreed the runtime and protocol results are good enough to cut over"],
-  "completion": "person",
-  "requires": ["protocol-tests"]
-}
+```markdown
+- [ ] review Review with the team
+  - Facts:
+    - manual: true
+    - repo: sdk
+    - completion: person
+    - after: protocol-tests
+    - done:
+      - The team agreed the runtime and protocol results are good enough to cut over
 ```
 
-- **Lint.** `manual` leaves need `acceptance`, `repository` and completion
-  `person`; `checks`, `agent`, `model`, `size`, `paths` and `route` are
-  errors (`spec.manual-field`), and `person` on any other leaf is an error
-  (`spec.person-completion`). `repository` only says where the issue
-  lives, since nothing runs in it.
+- **Lint.** `manual` leaves need `done`, `repo` and completion `person`;
+  `checks`, `session`, `batch`, `paths` and `route` are errors
+  (`spec.manual-field`), `agent`, `model` and `size` are unknown facts
+  (§4.40), and `person` on any other leaf is an error
+  (`spec.person-completion`). `repo` only says where the issue lives,
+  since nothing runs in it.
 - **Tick.** A manual leaf is left out of `ready` for dispatch, batching,
   verification, review and integration. Its edges work as for any task, and
   every edge condition on it is met when it is done, because there is no
@@ -2700,7 +2700,7 @@ dispatch ─▶ worker: findings + confidence (no edits)
 | ------------------------------------ | ------------------------- | ------------- |
 | `delivery.investigate.mode`          | `all`, `not-small`, `off` | `not-small`   |
 | `delivery.investigate.minConfidence` | `medium`, `high`          | `high`        |
-| Manifest `investigate`               | `true`, `false`           | from the mode |
+| Task fact `investigate`              | `true`, `false`           | from the mode |
 
 The falsifier is role `falsifier`, chosen like a review role (§4.10) with
 `distinctFrom: model`. Its brief quotes the findings as untrusted data. One
@@ -2756,8 +2756,8 @@ F3 and F4): who merges is `autoMerge` in the repository's one landing block.
 | `true` (default)    | enables auto-merge         | waits for the merge                                     | nothing                                              |
 | `false`             | does not enable auto-merge | Needs you: Ready to merge, when checks and reviews pass | merges on GitHub, or presses Integrate in Local only |
 
-The task's manifest `ship` (`auto-merge` or `manual`) wins, then the spec
-manifest's top-level `ship`, then the repository's `landing.autoMerge`.
+The task's `ship` fact (`auto-merge` or `manual`) wins, then the spec's
+`ship` in `tasks.md` front-matter, then the repository's `landing.autoMerge`.
 With auto-merge off, a writer that turned auto-merge on is asked to turn it
 off, and a pull request closed without merging goes back to its writer once
 as one feedback round. A local task's Integrate approves one commit; a new
@@ -3224,8 +3224,8 @@ runs after the new-plan import and the folder reload, and starts at most one
 round per plan per tick. A spec still settling (Requirement 65.6) waits.
 
 **Brief.** The reviewer opens on the planning repository's spec folder at
-the revision, plus a clean detached worktree per repository the manifest
-names at its default branch head, as reviews of a commit do (§4.10). The
+the revision, plus a clean detached worktree per repository the task facts
+name at its default branch head, as reviews of a commit do (§4.10). The
 brief quotes the files as data, lists the other spec folders (name, state,
 hash) for `conflict` findings, and names the six kinds. The session is bound
 to the plan and revision (`run.review`), so `plans_submit_review` takes
@@ -3264,7 +3264,7 @@ flow efficiency does not read it.
 | Reuse `review_threads` and `review_rounds` | Already keyed by plan and hash, with a run bound to one revision                                          |
 | Never blocks approval                      | The person decides; a review is evidence, not a gate                                                      |
 | Default one round                          | Each round is a reviewer chat and a planner chat                                                          |
-| Keep the critique                          | It checks manifest against prose; this checks the plan against the code                                   |
+| Keep the critique                          | It checks task facts against prose; this checks the plan against the code                                |
 
 Tests, with fake chats and fake model names:
 
@@ -3618,7 +3618,7 @@ executor, sandbox, ranking, build-receipt and review capabilities remain.
 | Person outcome | An authorized person recorded `done`, `skipped`, `refused` or `reopened` | Per the table below |
 
 **Outcomes.** Each durable outcome is bound to the spec, the task, the approved
-revision hash and the **definition** (a digest of that task's manifest entry at that
+revision hash and the **definition** (a digest of that task's facts at that
 revision), plus the exact commit and the evidence.
 
 | Kind | Completes the task | Successors |
@@ -4028,7 +4028,7 @@ stays for issues Avoozl did not create and refuses one carrying `crew:avoozl`.
   record instead of closing an issue.
 - **Spec edits.** A changed definition makes earlier outcomes stale. A changed or
   removed task with a live ref goes to Needs you.
-- **Old manifest values.** Reinterpret, never rewrite. `route: github` means "lands
+- **Old fact values.** Reinterpret, never rewrite. `route: github` means "lands
   through the queue"; `merged-pr` means "landed". Sites: `src/work-model.mjs:128-140`,
   `src/app/plan-quality.mjs:59-63`, `src/app/delivery.mjs:2019-2030`.
 
@@ -4055,7 +4055,7 @@ successors (`github-close.mjs`), so step 5 cannot precede step 4. A failed
 migration stays held and reports its unchanged/changed bindings; retry is
 idempotent. No live workspace is migrated by a spec-editing pull request.
 
-Retain the legacy manifest spellings `route: github` (landing queue) and
+Retain the legacy fact spellings `route: github` (landing queue) and
 `merged-pr` (accepted landing). Do not rewrite approved plans to rename them.
 
 #### 4.32.14 Module changes and implementation order
@@ -4442,29 +4442,30 @@ in Settings. The planner already reads the code and writes the tasks, so it
 is the one place that knows which tasks are cheaper in one chat. The tick
 stays a pure planner: no model call there.
 
-**Manifest.** The planner may write one top-level object:
+**In `tasks.md`** (changed 2026-11-18, §4.40). Each member names its group
+in a `batch` fact, and front-matter gives the group's reason once:
 
-```json
-{
-  "tasks": { "3.1": { "kind": "leaf" }, "3.2": { "kind": "leaf" } },
-  "batches": {
-    "doc-links": {
-      "tasks": ["3.1", "3.2"],
-      "reason": "Two one-line link fixes in README.md"
-    }
-  }
-}
+```markdown
+---
+batch-doc-links: Two one-line link fixes in README.md
+---
+- [ ] 3.1 Fix the install link
+  - Facts:
+    - batch: doc-links
+- [ ] 3.2 Fix the license link
+  - Facts:
+    - batch: doc-links
 ```
 
-`parseSpec` (`spec-plans.mjs`) checks the shape and refuses, as
-`manifest.schema`: a value that is not an object, a group ID outside
-`[A-Za-z0-9._-]{1,60}`, fewer than 2 or more than 5 tasks, a task ID with no
-leaf entry, a task in two groups, a reason that is empty, over 200
+`parseSpec` (`spec-plans.mjs`) reads the group's tasks from its members and
+refuses, as `facts.schema` in `tasks.md`: a group ID outside
+`[A-Za-z0-9._-]{1,60}`, fewer than 2 or more than 5 tasks, a member that is
+not a leaf, a group with no reason, and a reason that is empty, over 200
 characters or more than one line. Each member proposal gets
 `batch: {id, tasks, reason}` with full task IDs. `approvePlan` copies
 `batch` onto the task with `planHash`, as it copies the other fields, so a
-stored group always comes from an approved revision. The old `size` field
-is dropped on read with no diagnostic.
+stored group always comes from an approved revision. An old `size` fact
+is an unknown key, which lint refuses (§4.40).
 
 **Dispatch (`flow-batch.mjs`, pure).** `planBatches` keeps its signature for
 `planReadyDispatches`. For each ready leaf with a `batch`:
@@ -4677,7 +4678,7 @@ git, not kept in it.
 ### 4.40 Task facts live in tasks.md
 
 Added 2026-11-18 (Requirement 111). Replaces `avoozl/manifest.json`; changes
-§6.8, §6.9 and the manifest keys of §4.32.6, §4.35 and §4.37.
+§6.8, §6.9 and the task keys of §4.32.6, §4.35 and §4.37.
 
 **Why.** Two files described each task: the title in `tasks.md`, its
 repository, edges, checks and acceptance in a JSON file keyed by the same ID.
@@ -4711,12 +4712,12 @@ checks: npm test, git diff --check
 | --- | --- | --- |
 | `kind` | `kind` | `leaf` (the default) or `package` |
 | `repo` | `repository` | one text |
-| `summary`, `completion`, `phase`, `batch`, `authority`, `route`, `type`, `milestone`, `iteration`, `scope`, `track`, `acceptFrom`, `verify`, `ship` | the same name | one text |
+| `summary`, `completion`, `phase`, `batch`, `authority`, `route`, `type`, `milestone`, `iteration`, `scope`, `track`, `projectId`, `taskId`, `nextAction`, `distinctReason`, `acceptFrom`, `verify`, `ship` | the same name | one text |
 | `done` | `acceptance` | list |
-| `checks`, `sequence`, `supports`, `tags`, `resources`, `paths`, `labels` | the same name | list |
+| `checks`, `sequence`, `supports`, `unblocks`, `tags`, `resources`, `paths`, `labels`, `needs` | the same name | list |
 | `after` | `requires` | list; an entry may end `:<completion>` |
 | `manual`, `investigate` | the same name | `true` or `false` |
-| `session`, `needs`, `tracker` | the same name | one line of JSON |
+| `session`, `tracker` | the same name | one line of JSON |
 | `plan`, `summary`, `step` | an epic's entry | text, in an epic folder |
 
 A list is `key: a, b` or `key:` with nested bullets. Nested bullets keep a
@@ -4746,35 +4747,53 @@ codes.
 
 **Revision hash.** The hash covers the prose files without `Status:`,
 `tasks.md` without checkbox marks, `Facts:` bullets and its front-matter, and
-the parsed facts written as one canonical JSON text: the text the old
-manifest held (version 1, each task's keys in a fixed order, tasks in
-`tasks.md` order, defaults filled in). Layout is outside the hash, content is
-inside it. A pure conversion therefore hashes as before: every approval, issue
-marker and receipt that names the hash holds, and nothing is approved again.
-This is exact for a manifest written in that canonical form, which the
-repository's specs and Avoozl's own writers used. A spec whose old manifest
-used another key order gets a new hash once, and the conversion report says
-so before the change merges. Avoozl parses a revision once, keeps it in
-SQLite, and parses again only when the hash changes. Ticks stay outside it.
+the parsed facts written as one JSON text in the shape the old manifest had
+(version 1, tasks in `tasks.md` order, each task's keys in bullet order,
+defaults filled in where they sit in a manifest). Defaults in front-matter or
+on each task, and a list inline or as bullets, hash the same. A conversion
+that keeps the old manifest's text exactly keeps its hash; four of this
+repository's eight specs did. The others could not, because their manifest
+listed tasks in another order than `tasks.md`, ordered a task's keys by hand,
+or escaped `§` as `\u00a7`, and none of that survives the move. Avoozl parses a revision once, keeps it in SQLite,
+and parses again only when the hash changes. Ticks stay outside it.
 
-**Removed.** `avoozl/manifest.json` and everything that read or wrote it,
-`spec-manifest.mjs` (the manifest drafted from marker bullets), the review
-tabs' manifest tab, and the marker bullets (`_Repository: x_`) the steering
-file taught. The planner prompt and the steering file teach `Facts:`.
+**Approval carry-over.** Owner decision 2026-11-18. When `plan.save` stores
+a new revision of an approved spec, and the approved receipt's stored files
+and the new files have the same prose without `Status:`, the same `tasks.md`
+text without marks and facts, the same spec-wide facts and the same parsed
+tasks (line numbers aside), Avoozl records a new approval at the new hash
+with `carriedFrom` naming the old one. It opens no approval pull request and
+changes no issue: the plan keeps `issueHash`, the hash its issues were
+projected at, until a normal approval clears it. Any difference, or a check
+that refuses the revision, leaves a draft for a normal approval. The spec
+page's Approvals list shows "carried from". The old manifest is read only
+from a receipt or revision stored in SQLite (`spec-legacy.mjs`), never from
+disk. A rebuild from GitHub after the database is lost still needs a person
+to approve a spec whose issues name the old hash.
 
-**Conversion.** `scripts/convert-facts.mjs` ran once on a copy of each spec
-in this repository, and the manifests were deleted in the same change. It is
-not shipped as a command, and no reader accepts the old file. A test keeps
-the repository's before and after parse equal, using the saved old manifests
-under the test's fixtures.
+**Removed.** `avoozl/manifest.json` and everything that read it from disk or
+wrote it, `spec-manifest.mjs` (the manifest drafted from marker bullets), the
+review tabs' manifest tab, and the marker bullets (`_Repository: x_`) the
+steering file taught. The planner prompt and the steering file teach
+`Facts:`; the old steering text counts as an older Avoozl copy, so New spec
+offers the new one over it. Keys nothing reads, such as a task's `agent`,
+`model`, `size` and `budget`, are unknown facts now.
+
+**Conversion.** A one-off script folded each manifest into its `tasks.md` on
+a copy, the old and new parses were compared, and the manifests were deleted
+in the same change. It is not shipped as a command, and no disk reader
+accepts the old file. `spec-conversion.test.mjs` keeps the proof: a digest of
+the old reader's tasks for each spec, checked while the spec is unchanged
+since the conversion.
 
 **Tests.** `spec-facts.test.mjs`: each key, each refusal with its line,
 defaults and packages, an epic folder, a batch group, a leftover manifest.
 `spec-plans.test.mjs` and the fixtures write `Facts:`. A hash test: the same
 spec in old layout (built in the test) and new layout hashes the same, and a
-changed fact changes it. A conversion test parses every spec in the repo
-before and after and compares tasks and proposals. `templates.test.mjs`:
-the planner text names `Facts:` and not the manifest.
+changed fact changes it. `spec-carry.test.mjs`: the same content carries;
+one character changed in prose, `after`, `checks` or `done` does not.
+`spec-conversion.test.mjs` as above. `kirocrew-planner.test.mjs`: the
+planner prompt's example folder lints clean.
 
 ## 5. Local workflow
 
@@ -5023,7 +5042,7 @@ a declared check missing from the report as not run (Requirement 38.1).
 `validateRun` evidence with `exitCode: null` already fails; acceptance now
 also needs every declared check present at the current commit.
 
-**`acceptFrom: "validation"`.** A manifest field on a leaf, linted like
+**`acceptFrom: validation`.** A fact on a leaf, linted like
 `completion`. It changes `task.accept` and `task.update` as Requirement 38.4
 says. A leaf whose repository has review roles gets the same `task.update`
 refusals (Requirement 36.11) whether or not it sets the flag. The
@@ -5084,14 +5103,14 @@ the head moves. It is not part of the first cut (Requirement 36.13).
    asks for an ID on every `tasks.md` item (§6.8).
 2. In the Avoozl Plans view the user picks the spec folder and presses
    **Prepare delivery**. Avoozl reads the files from disk (MC-7 interim).
-3. An `avoozl-planner` session writes `avoozl/manifest.json` in the folder:
-   for every `tasks.md` ID, its kind, repository, edges, checks, completion,
+3. An `avoozl-planner` session writes a `Facts:` bullet under every
+   `tasks.md` item (§4.40): its kind, repository, edges, checks, completion,
    and source references (file and heading).
-4. A critique session compares manifest and prose and lists uncovered
+4. A critique session compares the task facts and prose and lists uncovered
    requirements and unsourced tasks.
 5. Deterministic validation checks schema, references, cycles, repository
    registration, and label policy.
-6. The user commits the manifest through a normal review (pull request or local
+6. The user commits the spec folder through a normal review (pull request or local
    commit). Approval is the reviewed commit, pinned with policy commit and
    compiler digest.
 7. **Preview** lists every issue create and update, sub-issue link, dependency
@@ -5378,15 +5397,15 @@ P18 checks them (F39).
   Ready, and a board with Todo keeps Todo.
 - **Release** (single-select) is set from the plan's milestones when Avoozl
   adds the item. A milestone is
-  a manifest-level group of task IDs; each leaf takes its own milestone, and a
+  a group of task IDs named by their `milestone` facts; each leaf takes its own milestone, and a
   parent takes the latest milestone of its children. Avoozl creates missing
   Release options only when the policy allows it. GitHub milestones are not
   used, because each belongs to one repository (F42). People may change
   Release afterward (below).
 - **Iteration** is optional. When `fields.iteration` names an iteration field
-  (F41), Avoozl sets the iteration the manifest names for a task, and leaves
+  (F41), Avoozl sets the iteration a task's `iteration` fact names, and leaves
   it empty otherwise. It never invents dates.
-- **Wave** (number) is computed, never read from the manifest. **Proposed**
+- **Wave** (number) is computed, never read from task facts. **Proposed**
   (owner decision 2026-11-12):
   - A task that waits on nothing is wave 1. Any other task is 1 plus the
     highest wave among the tasks it waits on. Only blocking edges count
@@ -5426,7 +5445,7 @@ P18 checks them (F39).
   | Deferred in or out by an actor the policy does not allow, or whose actor cannot be read | Ignored as an order; the card is not reverted; the Delivery view shows "Deferred by a person the policy does not allow"                                                                  |
   | Done                                                                                    | The Auto-close issue workflow closes the issue; §6.5 judges the close (an allowed actor's order releases dependents; anyone else's close holds them with a decision). Changed 2026-11-12 |
   | Any other Status, including In progress or Todo                                         | The board's own; Avoozl neither reverts nor acts on it. When it disagrees with Avoozl's state, the Delivery view shows both                                                              |
-  | Release, by anyone                                                                      | Kept; Avoozl drafts a manifest change for review                                                                                                                                         |
+  | Release, by anyone                                                                      | Kept; Avoozl drafts a facts change for review                                                                                                                                            |
   | Wave, by anyone                                                                         | Refused; Wave written back from edges; Kiro Crew notification                                                                                                                            |
   | Automation (`@github-project-automation`)                                               | Expected; it writes only Status, which Avoozl does not track                                                                                                                             |
   - **Who may order.** **Proposed:** only actors the repository policy
@@ -5449,12 +5468,12 @@ P18 checks them (F39).
     other column resumes it. A paused task whose running session merges a
     passing pull request still completes (§6.5).
   - **Release changes.** **Proposed:** Avoozl writes Release when it adds the
-    item, and again only when an approved manifest moves the task and the
+    item, and again only when an approved revision moves the task and the
     field still holds the value Avoozl last wrote (`applied.project`). Any
     other value is a person's: Avoozl keeps it, uses it for the parent's
-    latest-milestone rule, and drafts a manifest change that moves the task
+    latest-milestone rule, and drafts a facts change that moves the task
     to that milestone for review in the Avoozl app; it commits nothing on its
-    own. Once an approved manifest says the same, the draft is closed.
+    own. Once an approved revision says the same, the draft is closed.
   - **Automations.** **Verified:** Project workflows set Status on events
     (F49, F54), attributed to `@github-project-automation` (F50). Avoozl
     keeps no Status baseline, so there is nothing to reconcile.
@@ -5553,7 +5572,8 @@ legacy entries without a step still mean implement. Tasks are never issues.
 **Proposed**, owner decision 2026-11-13 (Requirement 59). An epic is a goal
 that spans plans, such as a language rewrite. A phase is a group of tasks
 inside one plan. Today's code mixes three things under one word: the
-manifest `kind: "epic"` (a parent task inside a plan), the per-task `epic`
+manifest `kind: "epic"` (a parent task inside a plan, before §4.40 moved
+task facts into `tasks.md`), the per-task `epic`
 string with its `epics` list (a grouping), and `doc:<path>` epics that the
 catalog and capture paths make up for any document (`src/catalog.mjs`,
 `src/capture.mjs`, `src/app/plans.mjs`; `specOf` in
@@ -5567,29 +5587,32 @@ throwaway script.
 | ------------- | --------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
 | Epic          | A goal across plans   | Its own spec folder; members' `epic:` front-matter | One issue, `epicIssueType`                                 |
 | Plan          | One spec folder       | `.kiro/specs/<name>/` (§6.8)                       | One plan issue, sub-issue of its epic's issue              |
-| Phase         | A group inside a plan | Manifest `phase`, else the `tasks.md` heading      | Not an issue: managed body line and optional Project field |
-| Package, leaf | Tasks                 | Manifest `kind`                                    | Sub-issues of the plan issue or package                    |
+| Phase         | A group inside a plan | `phase` fact, else the `tasks.md` heading          | Not an issue: managed body line and optional Project field |
+| Package, leaf | Tasks                 | `kind` fact                                        | Sub-issues of the plan issue or package                    |
 
-**Epic folder.** The same four files as a plan (§6.8), so Requirement 30's
-layout rule holds unchanged. A folder is an epic folder when its manifest
-has a top-level `"kind": "epic"`. `requirements.md` states the goal and what
+**Epic folder.** The same three files as a plan (§6.8), so Requirement 30's
+layout rule holds unchanged. A folder is an epic folder when its `tasks.md`
+front-matter says `kind: epic` (§4.40). `requirements.md` states the goal and what
 done means. `design.md` says how the member plans fit and in what order.
 `tasks.md` has one item per member plan, for example
-`- [ ] 1 Native runtime`. The manifest lists plans, not tasks:
+`- [ ] 1 Native runtime`. Its facts list plans, not tasks:
 
-```json
-{
-  "version": 1,
-  "kind": "epic",
-  "tasks": {
-    "1": { "plan": "native-runtime", "summary": "Direction and work W1-W7" },
-    "2": { "plan": "runtime-contracts" }
-  }
-}
+```markdown
+---
+kind: epic
+---
+- [ ] 1 Native runtime
+  - Facts:
+    - plan: native-runtime
+    - summary: Direction and work W1-W7
+- [ ] 2 Runtime contracts
+  - Facts:
+    - plan: runtime-contracts
 ```
 
-- An entry may hold only `plan` and `summary`. The older `memberPlan`
-  key is an error; task 21.7 renames it in the one folder that used it.
+- A row may hold only `plan`, `summary` and `step` (§4.32.6). The older
+  `memberPlan` key is an unknown key; task 21.7 renamed it in the one
+  folder that used it.
 - Each member's `requirements.md` (or `bugfix.md`) starts with front-matter
   such as `---` / `category: Runtime` / `epic: rewrite` / `---`. Avoozl reads
   `epic:` exactly as it reads `category:` (§6.8): one top-level line, never
@@ -5618,24 +5641,25 @@ done means. `design.md` says how the member plans fit and in what order.
 | `spec.epic-task-fields`        | error    | An entry holds a key other than `plan` and `summary` (`memberPlan` included)                               |
 | `spec.epic-bugfix`             | error    | The epic folder has `bugfix.md`                                                                            |
 | `spec.epic-unknown`            | warning  | A plan's `epic:` names no epic folder, or one that does not list it                                        |
-| `spec.kind-epic`               | error    | A plan's manifest entry has `"kind": "epic"`; use `package`                                                |
-| `spec.entry-epic`              | error    | A plan's manifest entry has `epic`, or the manifest has a top-level `epics` list; use `phase` and `phases` |
+| `spec.kind-epic`               | error    | A plan's task has `kind: epic`; use `package`                                                              |
+| `facts.unknown-key`            | error    | A task has an `epic` fact, or front-matter has `epics`; use `phase` and `phase-<id>` (was `spec.entry-epic`) |
 
-**Phases.** A task's phase is, in order: its manifest entry's `phase`
-value; otherwise the nearest heading of level 2 or lower above its item in
+**Phases.** A task's phase is, in order: its `phase` fact; otherwise the nearest heading of level 2 or lower above its item in
 `tasks.md`; otherwise **No phase**. The heading's text is the title, and
-its slug is the ID, made unique within the plan by a `-2` suffix. A
-manifest may name titles for its `phase` values:
+its slug is the ID, made unique within the plan by a `-2` suffix.
+`tasks.md` front-matter may name titles for `phase` values:
 
-```json
-"phases": { "w1": { "title": "W1: core execution" } }
+```markdown
+---
+phase-w1: W1: core execution
+---
 ```
 
 A `phase` value with no title shows its ID. A heading renamed in
 `tasks.md` changes the phase ID; no issue or edge depends on it, so
 nothing else moves. Phases never add edges, readiness, or completion. A
 heading-only plan such as this spec gets its phases from its
-`## Phase N: ...` headings with no manifest change.
+`## Phase N: ...` headings with no `phase` facts.
 
 **No invented groups.** The `doc:` form goes away. Capture and catalog
 paths stop creating `doc:<path>` epics; a captured task keeps its source
@@ -5713,7 +5737,7 @@ under different owners, or a link write is refused, both issues stay, the
 marker records the epic, and the Delivery view shows why (Requirement
 59.9).
 
-Existing projected issues for a manifest `kind: "epic"` entry stay where
+Existing projected issues for an old `kind: "epic"` task stay where
 they are, as package issues. The next preview shows their type change and
 their new parent, the plan issue; nothing is closed or recreated.
 
@@ -5735,7 +5759,8 @@ prose beside it, so no new top tab is added. The New plan drawer offers
 **Epic** (pick one) and **Phases**; the seed tells the planner to write the
 `epic:` key and the phase headings.
 
-**One-time rewrite** (task 21.7). No operation, CLI command or MCP action
+**One-time rewrite** (task 21.7, done; it ran on `avoozl/manifest.json`
+files, before §4.40 moved task facts into `tasks.md`). No operation, CLI command or MCP action
 migrates a workspace: the owner is Avoozl's only user, so the owner's data
 is rewritten once and the old forms are errors from then on. Task 21.7
 writes a script, runs it, and keeps it in the task's report, not in `src/`.
@@ -6291,7 +6316,7 @@ operations as CLI and MCP (Requirement 20.4).
 | Nav entry     | Pages                                                              | Holds                                                                                                         |
 | ------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
 | **Dashboards** | Home, Graph, Delivery, Landing queue                                | Counts and In flight; the task graph; running and recent tasks with machine badges and Stop the line; the landing queue |
-| **Specs**     | one list with status chips; spec details with tabs                 | Kiro spec folders, manifest, review, graph, links; **New spec**                                               |
+| **Specs**     | one list with status chips; spec details with tabs                 | Kiro spec folders, review, graph, links;           **New spec**                                               |
 | **Needs you** | Decisions, Triage, Issue Radar                                     | Open decisions; GitHub items nothing covers yet; issues sent to Issue Radar                                   |
 | **Flow**      | one page                                                           | Lead time, flow efficiency, first-pass rate, time to fix, stacked time bars, bottlenecks                      |
 | **Retros**    | Retros, Proposals                                                  | Retrospectives, their proposals and PDCA results                                                              |
@@ -6767,14 +6792,11 @@ handoff, execute, task, stop and delete under it; Avoozl's page calls only
    design.md and tasks.md only, and appends the description as the user's
    words. Its chat runs the default agent with the spec root as its
    folder, and that agent's resources include `.kiro/steering/**/*.md`.
-6. Each tick, once the prose files exist and `tasks.md` is unchanged since
-   the last tick, Avoozl writes `avoozl/manifest.json` from it: an item with
-   sub-items is a `package` that requires them; every other item is a
-   `leaf` whose bullets are its acceptance, with `_Repository:_`,
-   `_Requires:_`, `_Checks:_` and `_Manual_` read into their fields and the
-   one picked repository as the default. Then the folder lints and imports
-   as a draft. Until the first approval, a changed `tasks.md` rewrites a
-   manifest Avoozl wrote and nobody edited.
+6. The steering file asks Spec Builder for a `Facts:` bullet under each
+   item and front-matter defaults (§4.40). Each tick the folder lints and,
+   once clean, imports as a draft. Avoozl writes nothing into the folder.
+   (Changed 2026-11-18: Avoozl no longer drafts a manifest from marker
+   bullets.)
 7. A refused create maps to words: `app_disabled` says to turn Spec
    Builder on in Apps; an SDK grant refusal says to approve the update in
    Apps › Updates; both offer the planner chat with the same fields.
@@ -6952,7 +6974,7 @@ and adds an `Epic` issue type if an organization admin runs it.
 7. **Drain runs.** Runs still `observing` or `interrupted` in the old host are
    finished or closed before cutover; their evidence is imported.
 8. **Cutover.** One reviewed change in the planning repository commits the
-   manifest, mapping report, reconciliation report, and baseline. The user
+   spec folders, mapping report, reconciliation report, and baseline. The user
    approves it, and the next tick projects the issues, sub-issues,
    dependencies, and Project items, with Release set from milestones. The
    graph is read through the migration read path (§6.8) until step 11.
@@ -6967,14 +6989,15 @@ and adds an `Epic` issue type if an organization admin runs it.
     repository that are stale or no longer current. A file is listed only
     with evidence: every task it holds is done or migrated (each ID is in the
     baseline or has an issue), and the file is superseded (a newer file or
-    spec covers it) or has no live reference (no open issue body, manifest,
+    spec covers it) or has no live reference (no open issue body, task facts,
     current plan, or steering file links to it). Each file gets one reason
     line naming that evidence. The owner approves the list; deletion is one
     reviewed commit with nothing else in it. Git history keeps the files, so
     reverting that commit undoes it. The step touches no issue and no marker.
 11. **Move to the Kiro spec layout.** Each current plan file becomes
     `.kiro/specs/<name>/` with `requirements.md` (or `bugfix.md`), `design.md`,
-    `tasks.md`, and `avoozl/manifest.json` (§6.8). Every `tasks.md` item uses
+    and `tasks.md` with task facts (§6.8; a manifest file then, `Facts:`
+    bullets since §4.40). Every `tasks.md` item uses
     the task's existing ID as its token (`w3.reactor-timers`), so markers and
     issue links do not change. Validation must pass on every spec. A
     projection preview after the move must show no issue created, closed,
@@ -7015,7 +7038,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P13   | The pull request merges automatically under required checks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | P14   | An existing workspace graph migrates without duplicates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | P15   | A clean machine installs and runs the local workflow from public docs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| P16   | Project sync: Release, Wave, and Iteration for issues from several repositories, and Status left to built-in workflows; Deferred by an allowed actor pauses; other drags are left alone; a Release change is kept and drafts a manifest change; a Wave edit is reverted                                                                                                                                                                                                                                                                                                                                                                                 |
+| P16   | Project sync: Release, Wave, and Iteration for issues from several repositories, and Status left to built-in workflows; Deferred by an allowed actor pauses; other drags are left alone; a Release change is kept and drafts a facts change; a Wave edit is reverted                                                                                                                                                                                                                                                                                                                                                                                 |
 | P17   | Plans-repo mode in one organization: private plans repo, public code repo, GitHub closes the issue through the linked branch, no repo name in the public PR                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | P18   | Plans-repo mode across two organizations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | P19   | Single-repo mode end to end: `Closes #N`, GitHub closes, Avoozl verifies; a non-default base is refused                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -7035,7 +7058,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P33   | Superseded 2026-11-13 by P29 and P44: rules and weighted choices are removed. Agent and model per task with fake crews and fake agents: no `session` changes nothing, the order of sources holds, weighted choices split a batch as computed, retries keep the model, review distinctness skips colliding choices, a missing agent rules a crew out (Phase 11)                                                                                                                                                                                                                                                                                          |
 | P34   | Pull request feedback with a fake GitHub and fake workers: failed checks, changes requested, review comments, conflicts, and auto-merge off each reach the live worker once, in one message per tick; untrusted comments are not relayed; a gone worker gets a resume attempt on the same branch and model; the round bound and the same-check stop open a decision; Avoozl writes nothing to GitHub (Phase 15)                                                                                                                                                                                                                                         |
 | P35   | One bundle plugin with a pack, rules, a tracker, and an intake source: it installs shared with the repository, previews its pack as create/change/keep/skip, refuses an import before approval, imports after approval with provenance, polls a fake intake source, and refuses an unknown pack key by name, a silent who-counts lowering, and a new version without a new approval (Phase 16)                                                                                                                                                                                                                                                          |
-| P36   | Epics across plans and phases inside plans, in a temporary workspace with one epic and two member plans: membership needs both sides, phases come from the manifest or headings, no `doc:` group appears, three levels of sub-issues project and a second preview writes nothing, and the old forms are errors (Phase 21; the owner's data is rewritten once in task 21.7)                                                                                                                                                                                                                                                                              |
+| P36   | Epics across plans and phases inside plans, in a temporary workspace with one epic and two member plans: membership needs both sides, phases come from `phase` facts or headings, no `doc:` group appears, three levels of sub-issues project and a second preview writes nothing, and the old forms are errors (Phase 21; the owner's data is rewritten once in task 21.7)                                                                                                                                                                                                                                                                              |
 | P37   | Workflow templates, manual leaves, and links and notes, in a temporary single-repo workspace with a fake GitHub and the sample SDK rewrite template: the template makes a draft that joins an epic and imports no setting unless ticked, the manual review leaf is never dispatched and gates cutover, only a person or an allowed GitHub closer completes it, and links and notes pass content rules, reach briefs, and reach the issue only when shown (Phase 22)                                                                                                                                                                                     |
 | P38   | The Specs name and ideas, in a temporary workspace with a fake chat and a fake New spec entry point: no user-facing plan word outside the allowlist, the compat names unchanged, an idea captured by a person, by MCP and by a session, refused fields and blocked text, an idea that never matches a rule or counts as untriaged, a riff that only appends, Make it a spec that prefills New spec and graduates the idea, and archive kept past the purge (Phase 23)                                                                                                                                                                                   |
 | P40   | Driver handoff with temporary workspaces on one fake GitHub: the plan issue's single assignee and the machine claim pick one driver, the epic's assignee stands in, zero or several assignees read only with one decision, one login on two machines, the check before dispatch, age never moves the role, drain then export then reassign and take over, a tampered file refused, rebuild and forced take-over with the loss list, a silently ignored reassignment, the old driver going read-only on return, away tasks never restarted by lease, the re-approve list, person-only 403s, and the Local only row (Phase 26)                            |
@@ -7083,7 +7106,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 8. Later                                                                      | Plugin seam: route and tracker contracts, loading and consent (§4.8); deferred GitHub features                                                                                                                                                                                                                                                                      | Only after P1–P25 pass; the seam also waits for a second real route (§14); then P26                                 |
 | 9. Review gates                                                               | Review roles on a local delivery, findings closure, not-run checks, `acceptFrom: "validation"`, supersede by hand (§5.2); GitHub pull-request reviews as verdicts later                                                                                                                                                                                             | Starts after Phase 2's proofs, independent of Phases 3–8; P27                                                       |
 | 10. Content rules                                                             | One matcher for banned terms at every write and approval boundary; terms outside Git; built-in sets from today's screens; rules plugins (§4.9)                                                                                                                                                                                                                      | Starts after Phase 2's proofs; GitHub and plugin tasks also wait for the tasks that built those boundaries; P28     |
-| 11. Retired                                                                   | Removed 2026-11-18. Only the manifest pins and the crew snapshot remain (§4.10)                                                                                                                                                                                                                                                                                          | None |
+| 11. Retired                                                                   | Removed 2026-11-18. Only the `session` facts and the crew snapshot remain (§4.10)                                                                                                                                                                                                                                                                                          | None |
 | 12. Flow                                                                      | Flow timing, stop the line, local checks first, batching, retrospectives with PDCA, the Flow tab and settings (§4.11, §8.4)                                                                                                                                                                                                                                         | Starts after Phase 2's proofs; GitHub timing and local checks first also wait for 3.11, 4.7, and 10.4; P30          |
 | 13. Untriaged                                                                 | Untriaged filter and triage labels, the cached read in the tick, `untriaged.view`, the Untriaged tab and Dashboard count, the optional notice (§8.5)                                                                                                                                                                                                                | Starts after Phase 2's proofs and after 3.13 and 3.14; exact hand-off links wait for MC-14 (13.6); P31              |
 | 14. Incoming items                                                            | One incoming-item record in SQLite; `intake.submit`, `intake.list`, `intake.view` on the page, CLI, and MCP; plugin `poll` and MCP submit; the `intake` content boundary; `source:` rules and who counts per source; updates and closes; reviews to the Code review chat; every source in Untriaged; GitHub intake and the Untriaged read moved onto the record (§4.12) | Starts after Phase 2's proofs and after 8.7, 10.6, 13.3, and 13.4; the `review` action waits for MC-15 (14.11); P32 |
@@ -7130,7 +7153,7 @@ Crew ships today (F8, F9).
 | -------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Phase 0        | One background subagent from the planning chat (already started) | Nothing; reviews its report                                                                                                                                                                                                            |
 | Phases 1–2     | One Crew Mode chat on `kirocrew-conductor`                       | Turns on Crew Mode once (Settings → Developer → Feature Previews), opens one Crew Mode chat filed in a folder whose project directory is the `kirocrew-native` worktree, sends one starter message, and answers questions in that chat |
-| Phase 3 onward | Avoozl itself: Plans view → **Prepare delivery** → **Deliver**   | Approves the manifest; answers decisions in the Conflicts view or the linked session                                                                                                                                                   |
+| Phase 3 onward | Avoozl itself: Plans view → **Prepare delivery** → **Deliver**   | Approves the spec;     answers decisions in the Conflicts view or the linked session                                                                                                                                                   |
 
 How the conductor runs Phases 1–2:
 

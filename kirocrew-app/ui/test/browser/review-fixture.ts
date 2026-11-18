@@ -49,8 +49,7 @@ export function reviewFixture(): { data: ReviewViewData; decide: (input: { id: s
         'Text SHALL convert to and from UTF-8 byte strings.',
       ].join('\n'),
       'design.md': ['# Design', '', 'The loader reads `bytes.toml` once at start.', '', '## Layout', '', 'Bytes pack into words of eight.'].join('\n'),
-      'tasks.md': ['# Tasks', '', '- [ ] 1.1 Add the byte type', '- [ ] 1.2 Wrap on overflow'].join('\n'),
-      'avoozl/manifest.json': JSON.stringify({ version: 1, tasks: { '1.1': { kind: 'leaf' }, '1.2': { kind: 'leaf', after: ['1.1'] } } }, null, 2),
+      'tasks.md': ['# Tasks', '', '- [ ] 1.1 Add the byte type', '  - Facts:', '    - done: A byte holds 0 to 255', '- [ ] 1.2 Wrap on overflow', '  - Facts:', '    - after: 1.1', '    - done: 256 wraps to 0'].join('\n'),
     },
     rounds: [
       {

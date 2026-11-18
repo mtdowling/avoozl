@@ -42,7 +42,7 @@ for (const [width, dark] of [
 ])
   test(`the review view shows tabs, severity borders, filters and chat links at ${width}`, { skip }, async () => {
     await openReview(width, dark)
-    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-review-tab]')].map((t) => t.dataset.reviewTab)`), ['requirements.md', 'design.md', 'tasks.md', 'avoozl/manifest.json', 'all'])
+    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-review-tab]')].map((t) => t.dataset.reviewTab)`), ['requirements.md', 'design.md', 'tasks.md', 'all'])
     assert.match(await text('[data-review-doc]'), /fixed-width byte types/)
     // Requirements' findings in line order, each with its border and label.
     assert.deepEqual(await cards(), ['f-warn', 'f-blocker', 'f-later'])
@@ -227,7 +227,6 @@ test('the tab bar moves with arrow keys, Home and End, and counts open findings 
     ['requirements.md', 'true', 0, '2'],
     ['design.md', 'false', -1, '1'],
     ['tasks.md', 'false', -1, '0'],
-    ['avoozl/manifest.json', 'false', -1, '0'],
     ['all', 'false', -1, '3'],
   ])
   const key = (k) => page.evaluate(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(k)}, bubbles: true }))`)
@@ -244,10 +243,10 @@ test('the tab bar moves with arrow keys, Home and End, and counts open findings 
   await page.until(`Boolean(document.querySelector('[data-review-all]'))`)
   await key('Home')
   await page.until(`document.querySelector('[data-review-tab="requirements.md"]').getAttribute('aria-selected') === 'true'`)
-  // The manifest renders as a JSON block.
-  await click('[data-review-tab="avoozl/manifest.json"]')
-  await page.until(`/"version": 1/.test(document.querySelector('[data-review-doc]')?.textContent ?? '')`)
-  assert.equal(await page.evaluate(`document.querySelector('[role="tabpanel"]').getAttribute('aria-labelledby')`), await page.evaluate(`document.querySelector('[data-review-tab="avoozl/manifest.json"]').id`))
+  // tasks.md shows its Facts bullets as written.
+  await click('[data-review-tab="tasks.md"]')
+  await page.until(`/Facts:/.test(document.querySelector('[data-review-doc]')?.textContent ?? '')`)
+  assert.equal(await page.evaluate(`document.querySelector('[role="tabpanel"]').getAttribute('aria-labelledby')`), await page.evaluate(`document.querySelector('[data-review-tab="tasks.md"]').id`))
   assert.deepEqual(page.errors, [])
 })
 

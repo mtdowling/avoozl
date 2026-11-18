@@ -5,6 +5,7 @@
 import { parseRepository } from "./github.mjs";
 import { ruleBranch } from "./github-branch-rules.mjs";
 import { fail } from "./store.mjs";
+import { specFacts } from "./spec-plans.mjs";
 
 export const SYNC_SCHEDULES = ["weekly", "daily", "off"];
 export const DEFAULT_SYNC = "weekly";
@@ -133,13 +134,13 @@ export function requireIntegrationBranch(check) {
 }
 
 // The integration branch of the spec a plan was approved from, or null: no
-// field, no approval yet, or a manifest the lint already refuses.
+// field, no approval yet, or a value the lint already refuses.
 export function integrationBranchOf(store, plan) {
   try {
-    const text = store.get("approvals", plan.approvalId)?.files?.[
-      "avoozl/manifest.json"
-    ];
-    return text ? (integrationOf(JSON.parse(text))?.branch ?? null) : null;
+    const files = store.get("approvals", plan.approvalId)?.files;
+    return files?.["tasks.md"] === undefined
+      ? null
+      : (integrationOf(specFacts(files))?.branch ?? null);
   } catch {
     return null;
   }

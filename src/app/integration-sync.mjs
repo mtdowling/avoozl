@@ -7,6 +7,7 @@
 // shortcut: the files named for a conflict are those both sides changed (the
 // first 300 each, as GitHub lists them). Upgrade when a conflict list is needed.
 import { integrationOf } from "./integration-branch.mjs";
+import { planManifest } from "./forward-epics.mjs";
 import { ruleBranch } from "./github-branch-rules.mjs";
 
 const META = "integrationSync";
@@ -26,12 +27,9 @@ export function syncTargets(store, policy) {
     .filter((plan) => plan.approvalId && !plan.deletedAt)
     .sort((a, b) => String(a.spec).localeCompare(String(b.spec)));
   for (const plan of plans) {
-    const text = store.get("approvals", plan.approvalId)?.files?.[
-      "avoozl/manifest.json"
-    ];
     let manifest, wanted;
     try {
-      manifest = text ? JSON.parse(text) : null;
+      manifest = planManifest(store, plan);
       wanted = integrationOf(manifest);
     } catch (error) {
       problems.push(`${plan.spec}: ${error.message}`);
