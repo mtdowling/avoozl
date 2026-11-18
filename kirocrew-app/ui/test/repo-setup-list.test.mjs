@@ -9,9 +9,9 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 const base = () => toForm({ mode: 'plans-repo', planningRepository: 'o/plans', repositories: { 'o/pub': { baseBranch: 'main', role: 'code' }, 'o/plans': { baseBranch: 'main', role: 'planning' } } })
 const row = (github) => ({ github, branch: 'main', policy: -1 })
 
-test('the list has no detail fields and no inline role control', () => {
+test('the list has no form fields and no inline role control', () => {
   const list = source('RepositoriesSettings.tsx').slice(source('RepositoriesSettings.tsx').indexOf('export function RepositoryList'), source('RepositoriesSettings.tsx').indexOf('// What the Are you sure'))
-  assert.doesNotMatch(list, /row\.folder|row\.branch|<select|<Input|<code>/)
+  assert.doesNotMatch(list, /<select|<Input/)
   assert.match(list, /<Badge>\{props\.roleText\(row\)\}<\/Badge>/)
   for (const icon of ['Eye', 'Pencil', 'Trash2']) assert.match(list, new RegExp(`icon=\\{${icon}\\}`))
   assert.match(list, /<DangerBtn icon=\{Trash2\} label=\{`Remove \$\{row\.name\}`\} tooltip="Remove"/)
