@@ -1,3 +1,4 @@
+import { roleRun } from "./role-table.mjs";
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // Review drafts by label (radar-coder RC20, design D25). A trusted person adds
@@ -430,7 +431,7 @@ function waitingRow(receipt, reviewLabel) {
 
 // The tick's dispatch entries: one per queued draft with no chat yet. The
 // chat needs no checkout, so it opens without a project folder.
-export function reviewDraftDispatches(store) {
+export function reviewDraftDispatches(store, { config } = {}) {
   const bound = new Set(
     listSessionBindings(store)
       .filter((binding) => binding.role === DRAFT_ROLE)
@@ -442,6 +443,7 @@ export function reviewDraftDispatches(store) {
       kirocrewRequest(store, {
         task: receipt.id,
         role: DRAFT_ROLE,
+        ...roleRun("reviewDraft", { config }),
         attempt: receipt.attempt,
         // Kiro Crew names the chat's slot from its title, so each label event
         // (a redraft is a new one) needs its own title or it lands in the old

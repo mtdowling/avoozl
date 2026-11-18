@@ -40,9 +40,10 @@ import {
 const HIDDEN = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' } as const
 // One column on a phone; role | harness | agent | model | source from 1000px.
 const ROW_CSS = '[data-model-role]{display:grid;grid-template-columns:minmax(0,1fr);gap:8px 16px}@media (min-width:1000px){[data-model-role]{grid-template-columns:11rem minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 10rem}}[data-model-role]~[data-model-role]{border-top:1px solid var(--border);padding-top:12px}'
-// shortcut: these roles do not run on a harness yet; drop a role here once
-// its dispatch reads its harness.
-const CHAT_ONLY = new Set<Role>(['falsifier', 'planReviewer', 'reviewDraft'])
+// shortcut: these roles cannot run as a harness child yet (rows of
+// src/app/role-table.mjs with process: false); drop a role here when its task
+// lands.
+const CHAT_ONLY = new Set<Role>(['falsifier', 'planReviewer', 'reviewDraft', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview'])
 
 export default function ModelsSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()
@@ -155,9 +156,9 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                   </span>
                 )}
                 <FieldRow id={`avoozl-model-${role.key}`} label="Model">
-                  {modelFree ? (
+                  {modelFree || !role.model ? (
                     <span className="text-xs text-muted" data-no-model>
-                      {harness} takes no model.
+                      {role.model ? `${harness} takes no model.` : 'The harness’s own.'}
                     </span>
                   ) : (
                     <Picker
@@ -192,7 +193,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                     </span>
                   )}
                   {CHAT_ONLY.has(role.key) && harness !== 'auto' && harness !== KIROCREW_HARNESS && (
-                    <span data-harness-pending>Saved. This role still runs as a Kiro Crew chat until it can run on a harness.</span>
+                    <span data-harness-pending>Saved. On a harness this role starts but cannot hand back its answer yet. Keep it on auto or the Kiro Crew chat.</span>
                   )}
                 </div>
               </div>
