@@ -32,6 +32,10 @@ import {
   type TextLine,
   type TreeNode,
 } from './files-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 // A diff longer than this many lines shows its start, then a button.
 export const DIFF_LINES = 1500
@@ -63,7 +67,7 @@ function StatusBadge({ change }: { change: FileChange }) {
 }
 
 function Counts({ change }: { change: FileChange }) {
-  if (change.binary) return <span className="text-xs text-muted">binary</span>
+  if (change.binary) return <Hint size="xs">binary</Hint>
   if (change.additions === null) return null
   return (
     <span className="shrink-0 text-xs" style={mono}>
@@ -74,7 +78,7 @@ function Counts({ change }: { change: FileChange }) {
 
 function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null; onPick: (path: string) => void }) {
   return (
-    <ul aria-label={props.depth === 0 ? 'Files' : undefined} className="flex flex-col">
+    <Stack aria-label={props.depth === 0 ? 'Files' : undefined} as="ul">
       {props.nodes.map((node) =>
         node.file ? (
           <li key={node.path}>
@@ -89,8 +93,8 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
               {node.change ? <StatusBadge change={node.change} /> : <span style={{ width: 18 }} aria-hidden="true" />}
               <span className="min-w-0 flex-1 truncate">
                 {node.name}
-                {node.change?.from && <span className="text-xs text-muted"> ← {node.change.from}</span>}
-                {node.change?.untracked && <span className="text-xs text-muted"> (not committed)</span>}
+                {node.change?.from && <Hint size="xs"> ← {node.change.from}</Hint>}
+                {node.change?.untracked && <Hint size="xs"> (not committed)</Hint>}
               </span>
               {node.change && <Counts change={node.change} />}
             </button>
@@ -105,7 +109,7 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
           </li>
         ),
       )}
-    </ul>
+    </Stack>
   )
 }
 
@@ -193,13 +197,13 @@ function Diff(props: { diff: DiffView; layout: 'unified' | 'split' }) {
   const note = diffSummary(props.diff)
   if (note)
     return (
-      <p className="text-sm text-muted" data-diff-summary>
+      <Hint as="p" size="sm" data-diff-summary>
         {note}
-      </p>
+      </Hint>
     )
   const shown = full ? lines : lines.slice(0, DIFF_LINES)
   return (
-    <div data-diff className="flex flex-col gap-1">
+    <Stack data-diff gap={1}>
       <div className="overflow-x-auto rounded border" style={{ borderColor: 'var(--border)', background: 'var(--card, var(--bg))' }}>
         {props.layout === 'split' ? <SplitDiff lines={shown} /> : <UnifiedDiff lines={shown} />}
       </div>
@@ -208,7 +212,7 @@ function Diff(props: { diff: DiffView; layout: 'unified' | 'split' }) {
           Show the other {lines.length - shown.length} lines
         </button>
       )}
-    </div>
+    </Stack>
   )
 }
 
@@ -260,11 +264,11 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
   const tree = useMemo(() => (view ? fileTree(showAll && view.all ? view.all.paths : [], view.files) : []), [view, showAll])
   if (error)
     return (
-      <p role="alert" className="text-sm text-danger">
+      <ErrorText role="alert" size="sm">
         {error}
-      </p>
+      </ErrorText>
     )
-  if (!view) return props.box ? null : <p className="text-sm text-muted">Reading the task&apos;s branch…</p>
+  if (!view) return props.box ? null : <Hint as="p" size="sm">Reading the task&apos;s branch…</Hint>
   if (props.box && view.mode === 'none') return null
 
   const github = safeHref(view.github) && view.github
@@ -279,7 +283,7 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
   if (view.mode === 'none')
     return (
       <div className="flex flex-col gap-2 text-sm">
-        <p className="text-muted">{view.remote ? 'This task runs on another machine. Its files are not here.' : 'No worktree or branch for this task on this machine yet.'}</p>
+        <Hint as="p">{view.remote ? 'This task runs on another machine. Its files are not here.' : 'No worktree or branch for this task on this machine yet.'}</Hint>
         {branchLink}
       </div>
     )
@@ -289,7 +293,7 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
   const fileTarget = local && picked && pickedChange?.status !== 'deleted' ? { path: joinPath(view.worktree!, picked), line: firstChangedLine(diffLines) } : null
   const fileHref = fileTarget && editorHref(editor, fileTarget.path, fileTarget.line)
   const body = (
-    <div className="flex flex-col gap-3" data-task-files>
+    <Stack gap={3} data-task-files>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span data-files-totals>
           {view.totals ? (
@@ -306,12 +310,12 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
             'Too many changes to list.'
           )}
         </span>
-        {view.files.length > 0 && <span className="text-xs text-muted">{statusCounts(view.files)}</span>}
+        {view.files.length > 0 && <Hint size="xs">{statusCounts(view.files)}</Hint>}
         <span className="flex-1" />
         <IconBtn icon={RefreshCw} label="Read the files again" onClick={() => setReload((n) => n + 1)} />
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="text-muted">{view.mode === 'worktree' ? 'Its worktree' : `Its branch ${view.branch}`} against where it left its base.</span>
+        <Hint>{view.mode === 'worktree' ? 'Its worktree' : `Its branch ${view.branch}`} against where it left its base.</Hint>
         {local ? (
           <a href={editorHref(editor, view.worktree!)!} className="inline-flex items-center gap-1 underline" data-open-worktree>
             <ExternalLink size={14} aria-hidden="true" />
@@ -341,16 +345,16 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
         </label>
       </div>
       {tree.length === 0 ? (
-        <p className="text-sm text-muted">This task has not changed any files yet.</p>
+        <Hint as="p" size="sm">This task has not changed any files yet.</Hint>
       ) : (
         <div className="max-h-80 overflow-auto rounded border p-1" style={{ borderColor: 'var(--border)' }}>
           <Tree nodes={tree} depth={0} selected={picked} onPick={pick} />
         </div>
       )}
-      {(view.truncated || view.all?.truncated) && <p className="text-xs text-muted">Only the first files are listed.</p>}
+      {(view.truncated || view.all?.truncated) && <Hint as="p" size="xs">Only the first files are listed.</Hint>}
       {diff && (
-        <section aria-label={`Diff of ${diff.path}`} className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
+        <Stack aria-label={`Diff of ${diff.path}`} as="section" gap={2}>
+          <Row gap={2}>
             <h4 className="min-w-0 flex-1 text-sm font-semibold" style={{ ...mono, overflowWrap: 'anywhere' }}>
               {diff.path}
             </h4>
@@ -369,19 +373,19 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
                 Open in {EDITORS.find((e) => e.key === editor)!.label}
               </a>
             )}
-          </div>
+          </Row>
           {diff.error ? (
-            <p role="alert" className="text-sm text-danger">
+            <ErrorText role="alert" size="sm">
               {diff.error}
-            </p>
+            </ErrorText>
           ) : diff.view ? (
             <Diff diff={diff.view} layout={layout} />
           ) : (
-            <p className="text-sm text-muted">Reading the diff…</p>
+            <Hint as="p" size="sm">Reading the diff…</Hint>
           )}
-        </section>
+        </Stack>
       )}
-    </div>
+    </Stack>
   )
   return props.box ? <SectionBox id={props.box.id} title={props.box.title}>{body}</SectionBox> : body
 }

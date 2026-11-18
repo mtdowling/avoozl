@@ -8,6 +8,7 @@ import { SectionHeading } from './controls.tsx'
 import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
 import { branchLine, releaseClient } from './release-api.ts'
+import { Hint } from './ui/Hint'
 
 const VARIANT: Record<string, BadgeVariant> = { green: 'success', red: 'danger', pending: 'warning' }
 
@@ -30,7 +31,7 @@ export default function IntegrationBranches(props: { workspaceId: string | null 
             <span className="text-muted" style={{ overflowWrap: 'anywhere' }}>
               {branchLine(row)}
             </span>
-            {row.error && <span className="text-muted">Last read failed: {row.error}</span>}
+            {row.error && <Hint>Last read failed: {row.error}</Hint>}
           </div>
         ))}
       </Card>

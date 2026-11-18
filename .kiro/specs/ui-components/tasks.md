@@ -32,9 +32,10 @@ of the other specs.
 
 ## Phase 2: The parts that remove the most strings
 
-- [ ] uc-2.1 `Hint`, `ErrorText`, `Stack`, `Row` and `TextLink`, after uc-1.1 [UC2.1, UC2.3, UC2.4] (§D2)
+- [x] uc-2.1 `Hint`, `ErrorText`, `Stack`, `Row` and `TextLink`, after uc-1.1 [UC2.1, UC2.3, UC2.4] (§D2)
   - The five parts in `src/ui/`, each with a light and dark render test; the views that use the strings of D2 most move first, and the allow-list drops by what they removed.
   - Done when: The five render tests pass; the raw-style count across views drops by at least 600; the page tests pass with assertions unchanged; screenshots go to the owner.
+  - Built: PR #620.
 - [ ] uc-2.2 Move the shared parts into `src/ui/`, after uc-1.1 [UC1.2, UC2.2] (§D1)
   - `Button.tsx`, `Badge.tsx`, `Tabs.tsx`, `Tooltip.tsx`, `RadioFold.tsx`, `PairedCards.tsx` and the components of `controls.tsx` move; one module per Kiro Crew part in use re-exports it.
   - Done when: No view imports `@kirocrew/app-sdk/ui` directly, checked by a source test; the page renders the same, checked by the existing page tests with assertions unchanged.

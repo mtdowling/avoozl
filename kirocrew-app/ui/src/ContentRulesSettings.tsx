@@ -44,6 +44,10 @@ import { errorMessage } from './workspace-api.ts'
 import { useMedia } from './use-media.ts'
 import { PairedCard, PairedCards } from './PairedCards.tsx'
 import { useSteppedState } from './NavHistory.tsx'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 type Client = ReturnType<typeof contentClient>
 type Selection = { kind: 'set' | 'builtin'; id: string } | { kind: 'new' }
@@ -112,7 +116,7 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
   )
   return (
     <PairedCard label="Rule sets" width="18rem" style={panelStyle}>
-      <div className="flex flex-col gap-3" data-rule-panel>
+      <Stack gap={3} data-rule-panel>
       <div className="flex flex-col items-start gap-2">
         <h3 className="text-sm font-semibold">Your rule sets</h3>
         {!(value && !value.sets.length) && add}
@@ -120,7 +124,7 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
       {value && !value.sets.length ? (
         <div className="flex flex-col items-start gap-1.5 text-xs" data-rule-empty>
           <p>No rule sets yet. Only the built-in sets run.</p>
-          <p className="text-muted">Choose Add rule set to block your own words, like a project code name.</p>
+          <Hint as="p">Choose Add rule set to block your own words, like a project code name.</Hint>
           {add}
           <span>
             <HelpLink />
@@ -147,7 +151,7 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
       )}
       <div className="border-t pt-2" style={{ borderColor: 'var(--border)' }}>
         <h3 className="text-sm font-semibold">Built in</h3>
-        <p className="text-xs text-muted">Always on. Settings can’t change them.</p>
+        <Hint as="p" size="xs">Always on. Settings can’t change them.</Hint>
         <ul className="mt-1 flex flex-col gap-0.5">
           {value?.builtins.map((set) => (
             <SetRow
@@ -162,7 +166,7 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
           ))}
         </ul>
       </div>
-      </div>
+      </Stack>
     </PairedCard>
   )
 }
@@ -175,7 +179,7 @@ function Facts({ rows }: { rows: [string, ReactNode][] }) {
     <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'minmax(7rem, auto) 1fr' }}>
       {rows.map(([label, value]) => (
         <div key={label} className="contents">
-          <dt className="text-muted">{label}</dt>
+          <Hint as="dt">{label}</Hint>
           <dd>{value}</dd>
         </div>
       ))}
@@ -187,9 +191,9 @@ function BuiltinDetails({ id, appliesAt, mode }: { id: string; appliesAt: string
   const info = BUILTIN_INFO[id]
   const used = builtinUsed(id, mode)
   return (
-    <div className="flex flex-col gap-3" data-rule-details={id}>
+    <Stack gap={3} data-rule-details={id}>
       <SectionHeading icon={Lock} title={builtinName(id)} meta={used ? <Badge>Always on</Badge> : <Badge>Not used</Badge>} blurb={<code className="text-[11px]">{id}</code>} />
-      {!used && <p className="text-sm text-muted">Not used in this mode: there is no planning repository to keep private. It runs in Plans repository mode.</p>}
+      {!used && <Hint as="p" size="sm">Not used in this mode: there is no planning repository to keep private. It runs in Plans repository mode.</Hint>}
       <Facts
         rows={[
           ['What it protects', info?.protects ?? 'A check Avoozl runs on its own writes.'],
@@ -197,19 +201,19 @@ function BuiltinDetails({ id, appliesAt, mode }: { id: string; appliesAt: string
           [
             'It blocks',
             info ? (
-              <span className="flex flex-col gap-1">
+              <Stack as="span" gap={1}>
                 <code className="w-fit rounded border px-1.5 py-0.5 text-xs" style={{ borderColor: 'var(--border)' }}>
                   {info.example}
                 </code>
-                <span className="text-xs text-muted">A made-up example.</span>
-              </span>
+                <Hint size="xs">A made-up example.</Hint>
+              </Stack>
             ) : (
               '—'
             ),
           ],
         ]}
       />
-    </div>
+    </Stack>
   )
 }
 
@@ -229,7 +233,7 @@ function SetFormView(props: {
   const { form, set, choices } = props
   const nameHelp = props.isNew ? 'Lowercase letters, digits, dots and dashes. It also names the terms file.' : 'The name is the terms file’s name, so it stays.'
   return (
-    <div className="flex flex-col gap-3" data-set-form>
+    <Stack gap={3} data-set-form>
       <FieldRow id="avoozl-set-id" label="Name" raw="id" rule={{ required: true }} width="22rem" help={nameHelp}>
         <Input id="avoozl-set-id" aria-describedby="avoozl-set-id-help" value={form.id} disabled={!props.isNew} placeholder="company-terms" onChange={(e: { target: { value: string } }) => set({ id: e.target.value })} />
       </FieldRow>
@@ -269,9 +273,9 @@ function SetFormView(props: {
             ))}
           </div>
         ) : (
-          <p className="text-xs text-muted">No repositories are registered yet. Add them under Repositories.</p>
+          <Hint as="p" size="xs">No repositories are registered yet. Add them under Repositories.</Hint>
         )}
-        <span className="text-xs text-muted">None checked: every repository.</span>
+        <Hint size="xs">None checked: every repository.</Hint>
       </fieldset>
       <FieldRow id="avoozl-set-plugin" label="Rules plugin" raw="plugin" rule={{ required: false }} width="22rem" help="A plugin of kind rules, approved under Plugins, can supply this set instead.">
         <select
@@ -290,7 +294,7 @@ function SetFormView(props: {
           ))}
         </select>
       </FieldRow>
-    </div>
+    </Stack>
   )
 }
 
@@ -340,9 +344,9 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
           <IconBtn icon={X} label={`Drop line ${index + 1}`} onClick={props.onRemove} />
         </div>
         {error && (
-          <span id={errorId} className="text-xs text-danger">
+          <ErrorText id={errorId} as="span" size="xs">
             Line {index + 1}: {error}
-          </span>
+          </ErrorText>
         )}
       </li>
     )
@@ -411,9 +415,9 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
         </div>
       )}
       {error && (
-        <span id={errorId} className="text-xs text-danger" role="alert">
+        <ErrorText id={errorId} as="span" size="xs" role="alert">
           Line {index + 1}: {error}
-        </span>
+        </ErrorText>
       )}
     </li>
   )
@@ -426,7 +430,7 @@ function FileView(props: { text: string; onChange: (text: string) => void }) {
   const count = Math.max(1, props.text.replace(/\n$/, '').split('\n').length)
   const lineStyle = { fontFamily: 'var(--mono, monospace)', fontSize: 12, lineHeight: '18px' }
   return (
-    <div className="flex flex-col gap-1">
+    <Stack gap={1}>
       <div className="flex overflow-hidden rounded border" style={{ borderColor: 'var(--border)', height: 220 }}>
         <div ref={gutter} aria-hidden="true" className="select-none overflow-hidden px-2 py-1.5 text-right" style={{ ...lineStyle, background: 'color-mix(in srgb, var(--text) 5%, var(--card, var(--bg)))', minWidth: '2.5rem' }}>
           {Array.from({ length: count + 20 }, (_, i) => (
@@ -456,7 +460,7 @@ function FileView(props: { text: string; onChange: (text: string) => void }) {
           ))}
         </ul>
       )}
-    </div>
+    </Stack>
   )
 }
 
@@ -471,7 +475,7 @@ function TryIt({ rows }: { rows: TermRow[] }) {
     <div className="flex flex-col gap-1.5 rounded border p-2" style={{ borderColor: 'var(--border)' }} data-try-it>
       <label className="flex flex-col gap-1 text-sm">
         Try it
-        <span className="text-xs text-muted">Paste some text. Matches light up. Nothing here is saved or sent.</span>
+        <Hint size="xs">Paste some text. Matches light up. Nothing here is saved or sent.</Hint>
         <textarea
           value={sample}
           onChange={(e) => setSample(e.target.value)}
@@ -510,10 +514,10 @@ function TryIt({ rows }: { rows: TermRow[] }) {
               </div>
             ))}
           </div>
-          <p className="text-xs text-muted" role="status">
+          <Hint as="p" size="xs" role="status">
             {blocking.length ? `${blocking.length} match${blocking.length === 1 ? '' : 'es'}: ${named.join(', ')}.` : 'No matches.'}
             {allowed ? ` ${allowed} allowed.` : ''} Avoozl also reads through percent and HTML escapes; this preview does not.
-          </p>
+          </Hint>
         </>
       )}
     </div>
@@ -605,17 +609,17 @@ function TermsEditor(props: {
     onState({ dirty, problem })
     return () => onState({ dirty: false, problem: null })
   }, [dirty, problem, onState])
-  if (error && !file) return <p className="text-sm text-danger">{error}</p>
-  if (!file) return <p className="text-sm text-muted">Reading the terms file…</p>
+  if (error && !file) return <ErrorText size="sm">{error}</ErrorText>
+  if (!file) return <Hint as="p" size="sm">Reading the terms file…</Hint>
   if (!file.editable)
     return (
-      <p className="text-sm text-muted">
+      <Hint as="p" size="sm">
         {file.reason} <code className="text-xs">{file.file}</code>
-      </p>
+      </Hint>
     )
   return (
     <div className="flex flex-col gap-2.5" data-terms-editor>
-      <div className="flex flex-wrap items-center gap-2">
+      <Row gap={2}>
         <SegmentedControl
           collapse={false}
           wrap="hug"
@@ -628,19 +632,19 @@ function TermsEditor(props: {
           value={view}
           onChange={(key: string) => setView(key as 'builder' | 'file')}
         />
-        <span className="text-xs text-muted">
+        <Hint size="xs">
           {ruleCount(rows)} rule{ruleCount(rows) === 1 ? '' : 's'}
           {allowCount(rows) ? `, ${allowCount(rows)} allow` : ''}
           {!file.exists && !dirty ? ', no file yet' : ''}
-        </span>
+        </Hint>
         <span className="ml-auto">
           <HelpLink>How a line works</HelpLink>
         </span>
-      </div>
+      </Row>
       {view === 'builder' ? (
-        <div className="flex flex-col gap-2">
-          {ruleCount(rows) === 0 && <p className="text-xs text-muted">No rules yet. Add one: a name that shows in logs, and the word or pattern to find.</p>}
-          <ul className="flex flex-col gap-2" aria-label="Rules">
+        <Stack gap={2}>
+          {ruleCount(rows) === 0 && <Hint as="p" size="xs">No rules yet. Add one: a name that shows in logs, and the word or pattern to find.</Hint>}
+          <Stack as="ul" gap={2} aria-label="Rules">
             {rows.map((row, i) => (
               <RuleRow
                 key={i}
@@ -652,8 +656,8 @@ function TermsEditor(props: {
                 onRemove={() => fromRows(rows.filter((_, j) => j !== i))}
               />
             ))}
-          </ul>
-          <span className="flex flex-wrap gap-3">
+          </Stack>
+          <Row as="span" gap={3} align="start">
             <IconLabel icon={Plus} onClick={() => fromRows([...rows, { kind: 'word', name: nextRuleName(rows), value: '' }])}>
               Add rule
             </IconLabel>
@@ -664,8 +668,8 @@ function TermsEditor(props: {
             >
               Add allow
             </IconLabel>
-          </span>
-        </div>
+          </Row>
+        </Stack>
       ) : (
         <FileView text={text} onChange={fromText} />
       )}
@@ -678,14 +682,14 @@ function TermsEditor(props: {
         </span>
       </p>
       {error && (
-        <p className="text-sm text-danger" role="alert">
+        <ErrorText size="sm" role="alert">
           {error}
-        </p>
+        </ErrorText>
       )}
       {note && (
-        <p className="text-sm text-muted" role="status">
+        <Hint as="p" size="sm" role="status">
           {note}
-        </p>
+        </Hint>
       )}
     </div>
   )
@@ -743,7 +747,7 @@ function SetDetails(props: {
     termsControl.current?.discard()
   }
   return (
-    <div className="flex flex-col gap-4" data-rule-details={set?.id ?? 'new'}>
+    <Stack gap={4} data-rule-details={set?.id ?? 'new'}>
       <SectionHeading
         title={set ? set.id : 'New rule set'}
         meta={
@@ -784,20 +788,20 @@ function SetDetails(props: {
           Nothing it checks is written until this is fixed: {set.reason}.
         </p>
       )}
-      <section className="flex flex-col gap-2">
+      <Stack as="section" gap={2}>
         <h4 className="text-sm font-semibold">Settings</h4>
         <SetFormView form={form} set={(patch) => setForm({ ...form, ...patch })} isNew={!set} choices={choices} />
-      </section>
+      </Stack>
       {set && set.source === 'file' && (
         <section className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
           <h4 className="text-sm font-semibold">Words and patterns</h4>
-          <p className="text-xs text-muted">One rule per line. Case doesn’t matter. Only you can see these.</p>
+          <Hint as="p" size="xs">One rule per line. Case doesn’t matter. Only you can see these.</Hint>
           <TermsEditor workspaceId={props.workspaceId} client={props.client} set={set} onSaved={props.reload} control={termsControl} onState={setTerms} />
         </section>
       )}
-      {set && set.source === 'plugin' && <p className="text-sm text-muted">The plugin {set.plugin} supplies this set’s rules, so there is no terms file to edit.</p>}
+      {set && set.source === 'plugin' && <Hint as="p" size="sm">The plugin {set.plugin} supplies this set’s rules, so there is no terms file to edit.</Hint>}
       <SaveFooter dirty={setsDirty || terms.dirty} saving={busy} problem={problem} error={error} note="Settings go to .avoozl.json, words to a file on this machine." onSave={() => void save()} onDiscard={discard} />
-    </div>
+    </Stack>
   )
 }
 
@@ -824,32 +828,32 @@ function HowRulesWork() {
       <div className="mt-3 grid gap-4 text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 20rem), 1fr))' }}>
         <section>
           <h4 className="font-semibold">Rule sets</h4>
-          <p className="text-muted">
+          <Hint as="p">
             A rule set is a named list of words Avoozl must not write. .avoozl.json only names the set and where it checks. The words live in a
             file on this machine, or come from a rules plugin.
-          </p>
+          </Hint>
         </section>
         <section>
           <h4 className="font-semibold">One rule per line</h4>
-          <p className="text-muted">A name, a colon, then what to find. Lines starting with # are notes. Case never matters.</p>
+          <Hint as="p">A name, a colon, then what to find. Lines starting with # are notes. Case never matters.</Hint>
           <pre className="mt-1 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
             {EXAMPLE_LINES}
           </pre>
         </section>
         <section>
           <h4 className="font-semibold">Word or pattern</h4>
-          <p className="text-muted">
+          <Hint as="p">
             A word or phrase matches only itself. A pattern is a regular expression, for things like any ticket number. The builder saves a word
             with its dots and brackets escaped, so they mean themselves.
-          </p>
+          </Hint>
         </section>
         <section>
           <h4 className="font-semibold">Allow a false match</h4>
-          <p className="text-muted">
+          <Hint as="p">
             A line starting <code>allow</code> lets text through that a rule would block. <code>allow:</code> works for every rule in the
             file; <code>allow ticket:</code> works for the ticket rule only. It counts only when it matches the same line the rule matched.
             Allow lines are as private as rules, and the built-in sets don’t use them.
-          </p>
+          </Hint>
           <pre className="mt-1 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
             {ALLOW_LINES}
           </pre>
@@ -867,32 +871,32 @@ function HowRulesWork() {
         </section>
         <section>
           <h4 className="font-semibold">Block or report</h4>
-          <p className="text-muted">
+          <Hint as="p">
             Block stops the write and opens a decision in Conflicts. There a person can change the text, or Allow once with a reason: that lets
             that exact text through one time. Report lets the write through and lists the match in Delivery, with one notice.
-          </p>
+          </Hint>
         </section>
         <section>
           <h4 className="font-semibold">Built-in sets</h4>
-          <p className="text-muted">
+          <Hint as="p">
             Plans repo name, Safe replies and Secrets always run where they apply. Settings can’t turn them off, and a set of yours can’t use a
             name starting builtin:.
-          </p>
+          </Hint>
         </section>
         <section>
           <h4 className="font-semibold">Privacy</h4>
-          <p className="text-muted">
+          <Hint as="p">
             Terms files sit in .avoozl/local/content-rules, which Git must ignore, and only your account can read them. A file Git tracks, or
             could commit, is refused. A finding names the set, the rule and the line, never the words. A set whose file is missing blocks
             everything it checks until the file is back.
-          </p>
+          </Hint>
         </section>
         <section>
           <h4 className="font-semibold">Rules plugins</h4>
-          <p className="text-muted">
+          <Hint as="p">
             A plugin of kind rules can supply sets, for words a team shares without a file on each machine. Add and approve it under Plugins, then
             pick it as the set’s rules plugin. Its rules stay in memory only.
-          </p>
+          </Hint>
         </section>
       </div>
     </details>
@@ -925,19 +929,19 @@ export default function ContentRulesSettings({ workspaceId }: { workspaceId: str
   const { openChat } = useChatLauncher()
   const design = () => openChat({ message: rulesDesignMessage({ sets: (value?.sets ?? []).map((s) => s.id) }), autoSend: false })
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2" data-rules-design>
+    <Stack gap={4}>
+      <Row gap={2} align="start" data-rules-design>
         <IconLabel icon={MessagesSquare} tooltip={DESIGN_RULES_TIP} onClick={design}>
           Design a rule set
         </IconLabel>
-      </div>
-      {error && <p className="text-xs text-danger">{error}</p>}
-      {value?.error && <p className="text-xs text-danger">.avoozl.json contentRules is invalid, so every check blocks: {value.error}</p>}
+      </Row>
+      {error && <ErrorText size="xs">{error}</ErrorText>}
+      {value?.error && <ErrorText size="xs">.avoozl.json contentRules is invalid, so every check blocks: {value.error}</ErrorText>}
       <PairedCards paired={wide} attrs={{ 'data-content-layout': '' }}>
         <SetList value={value} selection={chosen} onSelect={setSelection} />
         <PairedCard label="Rule set details" grow={1}>
           {!value ? (
-            <p className="text-sm text-muted">Reading rule sets…</p>
+            <Hint as="p" size="sm">Reading rule sets…</Hint>
           ) : builtin ? (
             <BuiltinDetails id={builtin.id} appliesAt={builtin.appliesAt} mode={value.mode} />
           ) : chosen?.kind === 'new' || set ? (
@@ -957,6 +961,6 @@ export default function ContentRulesSettings({ workspaceId }: { workspaceId: str
         </PairedCard>
       </PairedCards>
       <HowRulesWork />
-    </div>
+    </Stack>
   )
 }

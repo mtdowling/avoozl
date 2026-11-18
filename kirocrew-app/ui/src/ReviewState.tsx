@@ -12,6 +12,9 @@ import { IconBtn, IconLabel, useAskChat } from './controls.tsx'
 import { Check, CirclePlus, DetailsIcon, ExternalLink, MessageSquare, RotateCcw } from './icons.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
 
 const model = (requested: string | null, served: string | null) =>
   `asked ${requested ?? 'agent default'}${served ? `, ran ${served}` : ''}`
@@ -26,11 +29,11 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
         <li key={run.key} className="flex flex-wrap items-center gap-1.5">
           <Badge variant={run.live ? 'info' : undefined}>{run.role}</Badge>
           <span>round {run.round}</span>
-          <span className="text-muted">· {model(run.requested, run.served)}</span>
+          <Hint>· {model(run.requested, run.served)}</Hint>
           {run.verdict ? (
             <Badge variant={run.verdict === 'approved' ? 'success' : 'warning'}>{run.stale ? `${run.verdict} (stale)` : run.verdict}</Badge>
           ) : (
-            <span className="text-muted">· {run.live ? 'reviewing' : (run.status ?? 'no verdict')}</span>
+            <Hint>· {run.live ? 'reviewing' : (run.status ?? 'no verdict')}</Hint>
           )}
           <span className="ml-auto flex flex-wrap items-center gap-1.5">
             {run.link && (
@@ -97,11 +100,11 @@ export function HandSetReview(props: {
       <span className="font-medium">{noSessionLabel(task.noSession)}</span>
       {task.nextAction ? (
         <span>
-          <span className="text-muted">Next: </span>
+          <Hint>Next: </Hint>
           {task.nextAction}
         </span>
       ) : (
-        <span className="text-muted">No next action recorded.</span>
+        <Hint>No next action recorded.</Hint>
       )}
       <div className="flex flex-wrap gap-1.5">
         <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat about this task. It changes nothing." onClick={() => void chat.ask({ tasks: [task.id] })}>
@@ -129,7 +132,7 @@ export function HandSetReview(props: {
         )}
       </div>
       {confirming && done && (
-        <div role="group" aria-label="Confirm mark done" className="flex flex-wrap items-center gap-2" data-confirm-done>
+        <Row role="group" aria-label="Confirm mark done" gap={2} data-confirm-done>
           <span>Mark {task.title} {done}? Tasks that wait on it may start. Edit can set it back.</span>
           <Btn type="button" onClick={() => setConfirming(false)}>
             Cancel
@@ -137,13 +140,13 @@ export function HandSetReview(props: {
           <Btn type="button" primary disabled={busy} onClick={() => void set(done, `Marked ${task.id} ${done}.`)}>
             Mark done
           </Btn>
-        </div>
+        </Row>
       )}
-      {!local && <span className="text-muted">{task.authority} owns this task&apos;s status; change it there.</span>}
+      {!local && <Hint>{task.authority} owns this task&apos;s status; change it there.</Hint>}
       {(error || chat.error) && (
-        <span role="alert" className="text-danger">
+        <ErrorText role="alert" as="span">
           {error ?? chat.error}
-        </span>
+        </ErrorText>
       )}
     </div>
   )

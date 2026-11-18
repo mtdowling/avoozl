@@ -10,6 +10,7 @@ import { useRead } from './useRead.ts'
 import { clearable, releaseClient, type GateRow, type GateState } from './release-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
+import { Hint } from './ui/Hint'
 
 const VARIANT: Record<GateState, BadgeVariant> = { open: 'info', failed: 'danger', unknown: 'warning', done: 'success', cleared: 'success' }
 
@@ -25,15 +26,15 @@ export function GateList(props: { gates: GateRow[]; busy?: boolean; onClear?: (t
             <span className="font-medium" style={{ overflowWrap: 'anywhere' }}>
               {gate.title}
             </span>
-            <span className="text-xs text-muted">{gate.taskId}</span>
+            <Hint size="xs">{gate.taskId}</Hint>
           </div>
           <span className="text-muted" data-gate-tracker style={{ overflowWrap: 'anywhere' }}>
             {gate.tracker} · {gate.item} · done when {gate.done}
           </span>
-          <span className="text-xs text-muted" data-gate-checks>
+          <Hint size="xs" data-gate-checks>
             Last check {gate.lastCheck ?? 'never'}
             {gate.nextCheck ? ` · next ${gate.nextCheck}` : ''}
-          </span>
+          </Hint>
           {gate.evidence && (
             <span className="text-xs text-muted" data-gate-evidence style={{ overflowWrap: 'anywhere' }}>
               {gate.evidence}
@@ -45,11 +46,11 @@ export function GateList(props: { gates: GateRow[]; busy?: boolean; onClear?: (t
             </a>
           )}
           {gate.cleared && (
-            <span className="text-xs text-muted" data-gate-cleared>
+            <Hint size="xs" data-gate-cleared>
               Cleared by {gate.cleared.actor} ({gate.cleared.how}) at {gate.cleared.at}: {gate.cleared.reason} Last state was {gate.cleared.lastState}.
-            </span>
+            </Hint>
           )}
-          {gate.held.length > 0 && <span className="text-xs text-muted">Holds {gate.held.join(', ')}</span>}
+          {gate.held.length > 0 && <Hint size="xs">Holds {gate.held.join(', ')}</Hint>}
           {props.onClear && clearable(gate) && (
             <div className="flex flex-wrap items-center gap-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
               {asking === gate.taskId ? (
@@ -98,7 +99,7 @@ export default function TrackerGates(props: { workspaceId: string | null }) {
     <div data-tracker-gates>
       <Card className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <SectionHeading title="Tracker gates" className="mb-0" />
-        <p className="text-xs text-muted">Tasks that wait on an item outside GitHub. Avoozl reads each one and never clears it. A clear is your order, recorded with your name.</p>
+        <Hint as="p" size="xs">Tasks that wait on an item outside GitHub. Avoozl reads each one and never clears it. A clear is your order, recorded with your name.</Hint>
         {failure && (
           <p role="alert" className="text-sm" style={{ color: 'var(--danger)' }}>
             {failure}

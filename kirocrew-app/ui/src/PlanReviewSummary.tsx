@@ -5,6 +5,8 @@ import { Hourglass } from './icons.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
 import { reviewCounts, shortHash, type PlanReviewSummary as Summary, type RevisionChange } from './plans-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
 
 export function reviewStateLabel(review?: Summary | null): string {
   if (!review || review.state === 'not-reviewed') return 'Not reviewed'
@@ -38,7 +40,7 @@ export function ReviewWorking(props: { model: string | null; title?: string; lab
         <Hourglass size={18} aria-hidden className="shrink-0" style={{ color: 'var(--aim, #7c3aed)' }} />
         <div className="min-w-0 flex-1">
           <p className="m-0 font-semibold" style={{ color: 'var(--aim, #7c3aed)' }} data-plan-review-state>{props.title ?? 'Review running'}</p>
-          <p className="m-0 text-xs text-muted">{label}</p>
+          <Hint as="p" size="xs" flush>{label}</Hint>
         </div>
       </div>
     </div>
@@ -85,7 +87,7 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
             <table className="text-sm" style={{ borderCollapse: 'collapse' }}>
               <tbody>
                 <tr><th scope="row" style={ROW_TH}>Reviewer</th><td style={ROW_TD}>{review.reviewerModel ?? 'not set'}</td></tr>
-                <tr><th scope="row" style={ROW_TH}>Revision</th><td style={ROW_TD}><Tooltip text={review.revisionHash}><code>{shortHash(review.revisionHash)}</code></Tooltip>{!review.current && <span className="text-muted"> · older revision</span>}</td></tr>
+                <tr><th scope="row" style={ROW_TH}>Revision</th><td style={ROW_TD}><Tooltip text={review.revisionHash}><code>{shortHash(review.revisionHash)}</code></Tooltip>{!review.current && <Hint> · older revision</Hint>}</td></tr>
                 <tr><th scope="row" style={ROW_TH}>Writer</th><td style={ROW_TD}>{review.writerModel ?? 'unknown'}</td></tr>
               </tbody>
             </table>
@@ -112,7 +114,7 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
             : <button type="button" className="self-start underline" style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }} data-open-review onClick={props.onOpenReview}>Open review</button>
         )}
       </section>
-      {error && <p role="alert" className="m-0 text-danger">{error}</p>}
+      {error && <ErrorText role="alert" flush>{error}</ErrorText>}
     </div>
   )
 }
@@ -131,7 +133,7 @@ export function RevisionChanged(props: { change: RevisionChange }) {
       )}
       {change.fixed.length > 0 && <p className="m-0" data-revision-moved-fixed>Now fixed: {change.fixed.map((finding) => finding.claim).join(' · ')}</p>}
       {change.moved.length > 0 && <p className="m-0" data-revision-moved-anchors>Moved or removed: {change.moved.map((finding) => finding.claim).join(' · ')}</p>}
-      <p className="m-0 text-muted">Approve now applies to <code>{shortHash(change.to)}</code>. Press it again to approve this revision.</p>
+      <Hint as="p" flush>Approve now applies to <code>{shortHash(change.to)}</code>. Press it again to approve this revision.</Hint>
     </section>
   )
 }
