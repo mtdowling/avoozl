@@ -30,6 +30,7 @@ import {
 import { PackChanges } from './PackImport.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { IconLabel, SectionHeading } from './controls.tsx'
+import { FormSection } from './FormSection.tsx'
 import { RadioFold } from './RadioFold.tsx'
 import { Folder, GitBranch, Laptop, Package, Plus, Users } from './icons.ts'
 import { Facts, Parts } from './PluginsSettings.tsx'
@@ -382,20 +383,16 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       {step === 1 && preview && <WhatStep form={form} preview={preview} supported={supported} set={set} problem={problem} />}
       {step === 2 && <ScopeStep form={form} set={set} confirmPublic={confirmPublic} setConfirmPublic={setConfirmPublic} />}
       {step === 3 && added && (
-        <div className="flex flex-col gap-2 text-sm" data-plugin-review>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">{added.id}</span>
-            <Badge variant={stateLabel(added).attention ? 'warning' : undefined}>{stateLabel(added).label}</Badge>
-          </div>
-          {added.reason && <p className="text-xs text-muted">{added.reason}</p>}
-          <Parts row={added} />
-          <Facts row={added} />
+        <div className="flex flex-col gap-3 text-sm" data-plugin-review>
+          <FormSection title={added.id} meta={<Badge variant={stateLabel(added).attention ? 'warning' : undefined}>{stateLabel(added).label}</Badge>}>
+            {added.reason && <p className="text-xs text-muted">{added.reason}</p>}
+            <Parts row={added} />
+            <Facts row={added} />
+          </FormSection>
           {pack && (
-            <div className="flex flex-col gap-1">
-              <h4 className="text-sm font-semibold">Settings pack</h4>
+            <FormSection title="Settings pack" blurb="After you approve, import these from the plugin’s card. Nothing is imported now.">
               <PackChanges preview={pack} />
-              <p className="text-xs text-muted">After you approve, import these from the plugin’s card. Nothing is imported now.</p>
-            </div>
+            </FormSection>
           )}
           <p className="text-xs text-muted">Cancel removes the entry just added. Nothing has run.</p>
         </div>
