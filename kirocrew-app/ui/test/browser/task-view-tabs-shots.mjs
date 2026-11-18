@@ -55,12 +55,12 @@ try {
     for (const width of [1280, 390]) {
       await open(width, theme)
       await shoot(`tabs-overview-${width}-${theme}`)
-      for (const key of ['timeline', 'links', 'details']) {
+      // Only the tabs the task has data for are in the bar.
+      const keys = await page.evaluate(`[...document.querySelectorAll('[data-tabs="task-tabs"] [role=tab]')].map((t) => t.dataset.tab).filter((k) => k !== 'overview')`)
+      for (const key of keys) {
         await tab(key)
         await shoot(`tabs-${key}-${width}-${theme}`)
       }
-      await tab('work')
-      await shoot(`tabs-work-${width}-${theme}`)
     }
   for (const width of [1280, 390]) {
     await open(width, 'light', 'none')

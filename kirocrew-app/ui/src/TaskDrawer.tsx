@@ -5,14 +5,15 @@ import { Btn } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { TaskDrawerContext, type TaskDrawerApi } from './drawer-context.ts'
 import { modelLabel, safeHref, viewsClient, canSupersede, type ConflictItem, type Graph } from './views-api.ts'
-import { duration, lineText, linkParts, relativeTime, sessionHref, sourceLine, taskClient, tabHasData, TASK_TABS, TASK_TAB_KEYS, TASK_TAB_PARAM, type OriginSource, type TaskDetail, type TaskLink, type TaskOrigin, type TaskTab } from './task-api.ts'
+import { duration, linkParts, relativeTime, sessionHref, sourceExcerpt, sourceLine, taskClient, visibleTabs, TASK_TAB_KEYS, TASK_TAB_PARAM, type OriginSource, type TaskDetail, type TaskLink, type TaskOrigin, type TaskTab } from './task-api.ts'
 import { Tabs, TabPanel, useTabParam } from './Tabs.tsx'
 import { TaskSummaryBox } from './TaskSummaryBox.tsx'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, resumeStatus } from './delivery-api.ts'
 import { ItemDetails, RetryForm, SupersedeForm } from './DeliveryDetails.tsx'
 import { ConflictActions, ReviewButton } from './ConflictsView.tsx'
 import { DocumentReader } from './DocumentReader.tsx'
-import { CitedFile } from './CitedFile.tsx'
+import { SnippetBox } from './SnippetBox.tsx'
+import { EdgeList } from './EdgeList.tsx'
 import { HandSetReview, ReviewRuns } from './ReviewState.tsx'
 import { reviewRuns } from './views-api.ts'
 import { Markdown } from './Markdown.tsx'
@@ -26,21 +27,14 @@ import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
 import { EvidenceFold } from './Evidence.tsx'
 import { TaskFiles } from './TaskFiles.tsx'
-import { Eye, FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, RotateCcw } from './icons.ts'
+import { FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, RotateCcw } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ManualTask, TaskLinks } from './TaskNotes.tsx'
 import { TaskScmLinks } from './TaskScmLinks.tsx'
 import { TaskSteps } from './TaskSteps.tsx'
 
-// What an empty tab says (the one rule: every tab shows, an empty one is muted).
-const EMPTY: Record<TaskTab, string> = {
-  overview: '',
-  timeline: 'Nothing recorded yet.',
-  links: '',
-  work: 'No delivery yet. No worker session has started.',
-  review: 'No review has run on this task.',
-  details: '',
-}
+// Lines shown either side of a task's own lines.
+const SNIPPET_CONTEXT = 3
 
 type Mode =
   | { kind: 'task'; id: string; tab?: TaskTab }
@@ -58,26 +52,18 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function Links({ title, links, open }: { title: string; links: TaskLink[]; open: (id: string) => void }) {
+  if (links.length === 0) return null
+  const items = links.map((link) => ({
+    id: link.id,
+    text: link.title,
+    note: `${link.id} · ${link.kind === 'sequence' ? 'runs after' : 'needs done'}${link.condition ? ` (${link.condition})` : ''} · ${link.satisfied ? 'met' : 'waiting'}`,
+  }))
   return (
     <div>
       <h4 className="text-sm font-semibold">{title}</h4>
-      {links.length === 0 ? (
-        <p className="text-sm text-muted">Nothing.</p>
-      ) : (
-        <ul className="mt-1 flex flex-col gap-1 text-sm">
-          {links.map((link) => (
-            <li key={`${link.id}:${link.kind}`} className="flex flex-wrap items-baseline gap-1.5">
-              <button type="button" className="underline" onClick={() => open(link.id)}>
-                {link.title}
-              </button>
-              <span className="text-xs text-muted">
-                {link.id} · {link.kind === 'sequence' ? 'runs after' : 'needs done'}
-                {link.condition ? ` (${link.condition})` : ''} · {link.satisfied ? 'met' : 'waiting'}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="mt-1">
+        <EdgeList label={title} items={items} onOpen={open} />
+      </div>
     </div>
   )
 }
@@ -85,36 +71,79 @@ function Links({ title, links, open }: { title: string; links: TaskLink[]; open:
 // The drawer's body for one task: sections and the actions the other views
 // offer, all on one read (task.detail).
 
-// Where a task came from, and the file lines it was made from, read on
-// demand with document.get. The file's path in the sentence and Open full
-// file show the whole file in DocumentReader; Read shows the lines here. A
-// file the workspace no longer has says so.
-function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: string; onOpenSpec?: (spec: string) => void }) {
-  const { origin } = props
+// One source's snippet: its own lines and 3 either side, each numbered, with
+// the task's lines marked. Read from the file when first opened. The header
+// (SnippetBox) shows and hides it; Open full file opens the whole file.
+function SourceSnippet(props: { source: OriginSource; workspaceId: string; open: boolean; onFull: () => void }) {
+  const { source } = props
   const api = useAppApi()
   const tasks = useMemo(() => taskClient(api), [api])
-  const [reading, setReading] = useState<{ source: OriginSource; text: string | null; error: string | null } | null>(null)
+  const [read, setRead] = useState<{ text: string | null; error: string | null }>({ text: null, error: null })
+  const [asked, setAsked] = useState(props.open)
+  useEffect(() => {
+    if (!asked) return
+    let live = true
+    tasks.document(props.workspaceId, source.document).then(
+      (doc) => live && setRead({ text: doc.text, error: null }),
+      (caught) => live && setRead({ text: null, error: errorMessage(caught) }),
+    )
+    return () => {
+      live = false
+    }
+  }, [asked, tasks, props.workspaceId, source.document])
+  const rows = read.text === null ? [] : sourceExcerpt(read.text, source, SNIPPET_CONTEXT)
+  return (
+    <SnippetBox
+      attr="data-origin-reader"
+      open={props.open}
+      onToggle={(open) => open && setAsked(true)}
+      title={<span data-excerpt-range>{sourceLine(source)}</span>}
+      action={
+        <IconLabel icon={FileText} tooltip={`Open all of ${source.document} in a reader, at the cited line`} onClick={props.onFull}>
+          Open full file
+        </IconLabel>
+      }
+    >
+      {read.error ? (
+        <p role="alert" className="border-t p-2 text-danger" style={{ borderColor: 'var(--border)' }}>
+          {read.error}
+        </p>
+      ) : read.text === null ? (
+        <p className="border-t p-2 text-muted" style={{ borderColor: 'var(--border)' }}>
+          Reading…
+        </p>
+      ) : (
+        <ol className="m-0 list-none overflow-x-auto border-t p-0 font-mono" style={{ borderColor: 'var(--border)' }} aria-label={`Lines from ${source.document}`} data-snippet-lines>
+          {rows.map((row) => (
+            <li
+              key={row.number}
+              data-snippet-line={row.number}
+              data-hit={row.hit ? 'true' : undefined}
+              className="flex gap-3 px-2 py-px"
+              style={row.hit ? { background: 'color-mix(in srgb, var(--accent) 12%, transparent)', boxShadow: 'inset 3px 0 0 var(--accent)' } : undefined}
+            >
+              <span className="w-8 shrink-0 select-none text-right text-muted">{row.number}</span>
+              <span className="whitespace-pre-wrap" style={{ overflowWrap: 'anywhere' }}>
+                {row.text || ' '}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </SnippetBox>
+  )
+}
+
+// Where a task came from: the sentence, and a snippet of the file lines it
+// was made from. The first readable source's snippet is open at first. The
+// file's path in the sentence and Open full file show the whole file in
+// DocumentReader. A file the workspace no longer has says so.
+function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: string; onOpenSpec?: (spec: string) => void }) {
+  const { origin } = props
   const [full, setFull] = useState<OriginSource | null>(null)
   const closeFull = useCallback(() => setFull(null), [])
-  const read = async (source: OriginSource) => {
-    if (reading?.source === source) return setReading(null)
-    setReading({ source, text: null, error: null })
-    try {
-      const doc = await tasks.document(props.workspaceId, source.document)
-      setReading({ source, text: doc.text, error: null })
-    } catch (caught) {
-      setReading({ source, text: null, error: errorMessage(caught) })
-    }
-  }
   const first = origin.sources[0]
-  // The first readable source shows here at once: the whole file, with
-  // the task's lines marked and in view.
   const firstReadable = origin.sources.find((s) => s.readable) ?? null
-  useEffect(() => {
-    if (firstReadable) void read(firstReadable)
-    // Only when the task changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firstReadable?.document, firstReadable?.lineStart])
   return (
     <div className="flex flex-col gap-1.5" data-origin={origin.kind}>
       <span className="font-medium">{origin.label}</span>
@@ -142,63 +171,20 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
             Open spec {origin.spec} in Specs
           </button>
         )}
-        {origin.sources.map((source) =>
-          source.readable ? (
-            <span key={source.document + source.lineStart} className="inline-flex flex-wrap gap-2">
-              <IconLabel
-                icon={FileText}
-                tooltip={`Open all of ${source.document} in a reader, at the cited line`}
-                onClick={() => setFull(source)}
-                aria-label={`Open full file ${source.document}`}
-              >
-                Open full file
-              </IconLabel>
-              <IconLabel
-                icon={Eye}
-                tooltip="Show the lines this task was made from here, read from the file now"
-                onClick={() => void read(source)}
-                aria-label={`${reading?.source === source ? 'Hide' : 'Read'} ${sourceLine(source)}`}
-              >
-                {reading?.source === source ? 'Hide' : 'Read'} {sourceLine(source)}
-              </IconLabel>
-            </span>
-          ) : (
+        {origin.sources
+          .filter((source) => !source.readable)
+          .map((source) => (
             <span key={source.document} className="text-xs text-muted">
               {sourceLine(source)} (no longer in this workspace)
             </span>
-          ),
-        )}
+          ))}
       </div>
       {origin.prompt && <blockquote className="border-l-2 pl-2 text-xs text-muted" style={{ borderColor: 'var(--border)' }}>{origin.prompt}</blockquote>}
-      {reading && (
-        <div className="rounded border text-xs" style={{ borderColor: 'var(--border)' }} data-origin-reader>
-          {reading.error ? (
-            <p role="alert" className="p-2 text-danger">{reading.error}</p>
-          ) : reading.text === null ? (
-            <p className="p-2 text-muted">Reading…</p>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center gap-2 border-b px-2 py-1" style={{ borderColor: 'var(--border)' }}>
-                <span className="text-muted" data-excerpt-range>
-                  {reading.source.document}
-                  {lineText(reading.source) ? ` · ${lineText(reading.source)} marked` : ''}
-                </span>
-                <button type="button" className="ml-auto underline" onClick={() => setFull(reading.source)}>
-                  Open full file
-                </button>
-              </div>
-              <CitedFile
-                text={reading.text}
-                lineStart={reading.source.lineStart}
-                lineEnd={reading.source.lineEnd}
-                maxHeight={360}
-                idPrefix="avoozl-origin"
-                label={`Contents of ${reading.source.document}`}
-              />
-            </>
-          )}
-        </div>
-      )}
+      {origin.sources
+        .filter((source) => source.readable)
+        .map((source) => (
+          <SourceSnippet key={source.document + source.lineStart} source={source} workspaceId={props.workspaceId} open={source === firstReadable} onFull={() => setFull(source)} />
+        ))}
       {full && <DocumentReader workspaceId={props.workspaceId} target={full} onClose={closeFull} />}
     </div>
   )
@@ -228,13 +214,13 @@ function TaskPanel(props: {
   // The open tab lives in the page address, so Back and a pasted link land on
   // it. A task opens on Overview unless the caller names a tab (an old
   // Timeline link).
-  const [tab, pick] = useTabParam<TaskTab>(TASK_TAB_PARAM, TASK_TAB_KEYS, 'overview', 'Back to the last task tab')
+  const [picked, pick] = useTabParam<TaskTab>(TASK_TAB_PARAM, TASK_TAB_KEYS, 'overview', 'Back to the last task tab')
   const first = useRef(true)
   useEffect(() => {
     if (!first.current) return
     first.current = false
     const want = props.tab ?? 'overview'
-    if (want !== tab) pick(want)
+    if (want !== picked) pick(want)
     // Once, when the task opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -287,6 +273,9 @@ function TaskPanel(props: {
   const done = delivery?.complete ?? task.state === 'done'
   const issue = safeHref(task.issue?.url ?? null)
   const runs = reviewRuns(delivery).length
+  const shown = visibleTabs(detail, runs)
+  // An address that names a tab with no data lands on Overview.
+  const tab: TaskTab = shown.some((t) => t.key === picked) ? picked : 'overview'
 
   return (
     <div className="flex flex-col gap-3">
@@ -403,20 +392,21 @@ function TaskPanel(props: {
           />
         </div>
       )}
-      <Tabs id="task-tabs" label="Task details" tabs={TASK_TABS} current={tab} onPick={pick} />
+      <Tabs id="task-tabs" label="Task details" tabs={shown} current={tab} onPick={pick} />
       <TabPanel id="task-tabs" current={tab}>
-        {tab !== 'overview' && !tabHasData(tab, detail, runs) && <p className="text-sm text-muted" data-tab-empty={tab}>{EMPTY[tab]}</p>}
         {tab === 'overview' && (
           <>
             <TaskSummaryBox workspaceId={workspaceId} id={task.id} summary={detail.summary} />
             <SectionBox id="summary" title="Status">
               <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
                 <Row label="State">{task.state ?? 'unknown'}</Row>
-                <Row label="Spec">
-                  {detail.plan ? `${detail.plan.title}${detail.plan.approved ? ' (approved)' : ` (${detail.plan.state ?? 'draft'})`}` : 'none'}
-                  {task.planArchived ? ' · archived: its tasks do not start until you unarchive it' : ''}
-                </Row>
-                <Row label="Phase">{task.phase?.title ?? 'none'}</Row>
+                {detail.plan && (
+                  <Row label="Spec">
+                    {`${detail.plan.title}${detail.plan.approved ? ' (approved)' : ` (${detail.plan.state ?? 'draft'})`}`}
+                    {task.planArchived ? ' · archived: its tasks do not start until you unarchive it' : ''}
+                  </Row>
+                )}
+                {task.phase && <Row label="Phase">{task.phase.title}</Row>}
                 <Row label="Wave">{task.wave}</Row>
                 <Row label="Done when">{task.completion}</Row>
                 {task.decision && <Row label="Decision">{task.decision}</Row>}
@@ -435,12 +425,14 @@ function TaskPanel(props: {
                 ))}
               </dl>
             </SectionBox>
-            <SectionBox id="links" title="Edges">
-              <div className="flex flex-col gap-3">
-                <Links title="Waits on" links={detail.waitsOn} open={props.open} />
-                <Links title="Blocks" links={detail.blocks} open={props.open} />
-              </div>
-            </SectionBox>
+            {(detail.waitsOn.length > 0 || detail.blocks.length > 0) && (
+              <SectionBox id="links" title="Edges">
+                <div className="flex flex-col gap-3">
+                  <Links title="Waits on" links={detail.waitsOn} open={props.open} />
+                  <Links title="Blocks" links={detail.blocks} open={props.open} />
+                </div>
+              </SectionBox>
+            )}
             {detail.conflicts.length > 0 && (
               <SectionBox id="conflicts" title={`Conflicts (${detail.conflicts.length})`}>
                 <ul className="flex flex-col gap-3">
@@ -466,7 +458,7 @@ function TaskPanel(props: {
             )}
           </>
         )}
-        {tab === 'timeline' && tabHasData('timeline', detail, runs) && (
+        {tab === 'timeline' && (
           <>
             <SectionBox id="timeline" title="Timeline">
               {detail.steps?.length ? <TaskSteps steps={detail.steps} /> : null}
@@ -487,9 +479,11 @@ function TaskPanel(props: {
                 </>
               ) : null}
             </SectionBox>
-            <SectionBox id="timing" title="Timing">
-              <TimingFold timing={detail.timing ?? null} />
-            </SectionBox>
+            {detail.timing && (
+              <SectionBox id="timing" title="Timing">
+                <TimingFold timing={detail.timing} />
+              </SectionBox>
+            )}
           </>
         )}
         {tab === 'links' && (
@@ -503,9 +497,7 @@ function TaskPanel(props: {
                 </div>
               </div>
             </SectionBox>
-            <SectionBox id="files" title="Files">
-              <TaskFiles workspaceId={workspaceId} taskId={task.id} active />
-            </SectionBox>
+            <TaskFiles workspaceId={workspaceId} taskId={task.id} active box={{ id: 'files', title: 'Files' }} />
           </>
         )}
         {tab === 'work' && delivery && (
@@ -560,7 +552,7 @@ function TaskPanel(props: {
             {delivery.sessions.length ? <p className="text-xs text-muted">Running for {duration(delivery.sessions.at(-1)!.boundAt)} in its latest attempt.</p> : null}
           </>
         )}
-        {tab === 'review' && tabHasData('review', detail, runs) && (
+        {tab === 'review' && (
           <>
             {task.handSetReview && (
               <HandSetReview
@@ -585,7 +577,7 @@ function TaskPanel(props: {
           <>
             <SectionBox id="fields" title="Fields">
               <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
-                <Row label="Epic">{task.epicTitle ?? 'none'}</Row>
+                {task.epicTitle && <Row label="Epic">{task.epicTitle}</Row>}
                 {detail.origin && (
                   <Row label="Came from">
                     <Origin origin={detail.origin} issue={issue} workspaceId={workspaceId} />
@@ -595,51 +587,47 @@ function TaskPanel(props: {
                   <Authority owner={task} /> {task.authority}
                 </Row>
                 <Row label="Route">{task.route}</Row>
-                <Row label="Status">{task.status ?? 'none'}</Row>
+                {task.status && <Row label="Status">{task.status}</Row>}
                 {task.repository && <Row label="Repository">{task.repository}</Row>}
                 {task.owner && <Row label="Assignee">{task.owner}</Row>}
               </dl>
             </SectionBox>
-            <SectionBox id="description" title="Description">
-              <div className="flex flex-col gap-3">
-                {task.summary ? <Markdown text={task.summary} /> : <p className="text-sm text-muted">No description.</p>}
-                <div>
-                  <h4 className="text-sm font-semibold">Acceptance</h4>
-                  {task.acceptance.length ? (
-                    <ul className="mt-1 list-disc pl-5 text-sm">
-                      {task.acceptance.map((line, i) => (
-                        <li key={i}>{line}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted">None.</p>
+            {(task.summary || task.acceptance.length > 0 || task.checks.length > 0 || task.context) && (
+              <SectionBox id="description" title="Description">
+                <div className="flex flex-col gap-3">
+                  {task.summary && <Markdown text={task.summary} />}
+                  {task.acceptance.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold">Acceptance</h4>
+                      <ul className="mt-1 list-disc pl-5 text-sm">
+                        {task.acceptance.map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {task.checks.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold">Checks</h4>
+                      <ul className="mt-1 flex flex-col gap-1 text-sm">
+                        {task.checks.map((line, i) => (
+                          <li key={i}>
+                            <code>{line}</code>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {task.context && (
+                    <div>
+                      <h4 className="text-sm font-semibold">From its spec</h4>
+                      <Markdown text={task.context} />
+                    </div>
                   )}
                 </div>
-                <div>
-                  <h4 className="text-sm font-semibold">Checks</h4>
-                  {task.checks.length ? (
-                    <ul className="mt-1 flex flex-col gap-1 text-sm">
-                      {task.checks.map((line, i) => (
-                        <li key={i}>
-                          <code>{line}</code>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted">None.</p>
-                  )}
-                </div>
-                {task.context && (
-                  <div>
-                    <h4 className="text-sm font-semibold">From its spec</h4>
-                    <Markdown text={task.context} />
-                  </div>
-                )}
-              </div>
-            </SectionBox>
-            <SectionBox id="evidence" title="Evidence">
-              <EvidenceFold workspaceId={workspaceId} taskId={task.id} />
-            </SectionBox>
+              </SectionBox>
+            )}
+            <EvidenceFold workspaceId={workspaceId} taskId={task.id} box={{ id: 'evidence', title: 'Evidence' }} />
           </>
         )}
       </TabPanel>
