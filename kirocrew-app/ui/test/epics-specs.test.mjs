@@ -43,7 +43,7 @@ test('the real sample: Specs is one list with a status chip per spec, and a spec
   await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
   await click(specsTab)
   await page.until(`Boolean(document.querySelector('[data-spec-list] [data-plan-row]'))`)
-  const chips = await page.evaluate(`Object.fromEntries([...document.querySelectorAll('[data-spec-list] [data-plan-row]')].map((r) => [r.querySelector('.truncate').textContent, r.dataset.specChip]))`)
+  const chips = await page.evaluate(`Object.fromEntries([...document.querySelectorAll('[data-spec-list] [data-plan-row]')].map((r) => [r.querySelector('[data-spec-name]').firstChild.textContent, r.dataset.specChip]))`)
   assert.equal(chips['Pantry photos'], 'draft')
   assert.ok(Object.values(chips).every((c) => ['draft', 'approved', 'github', 'done'].includes(c)))
   // The removed blocks are gone.
