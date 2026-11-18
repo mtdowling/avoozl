@@ -1,6 +1,6 @@
 // Settings › Flow in the app shell (harness ?page=app&flow=1): every label
 // keeps a gap before its "(optional)" marker, fields side by side line up,
-// Group by is a segmented control (no native dropdown), and Save sits last
+// there is no Batching box (R108.8) and no native dropdown, and Save sits last
 // in a footer that stays in view. The harness's own small stylesheet is used
 // on purpose: the gaps must not depend on the host's utility classes.
 // Skipped when no Chrome is found.
@@ -43,7 +43,7 @@ async function openFlowSettings(width) {
   await page.until(`Boolean(document.querySelector('[data-flow-settings]'))`)
   // The footer appears once a field changes.
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-save-footer]'))`), false, 'no footer before a change')
-  await page.evaluate(`(() => { const input = document.getElementById('avoozl-flow-max'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '2'); input.dispatchEvent(new Event('input', { bubbles: true })); return true })()`)
+  await page.evaluate(`(() => { const input = document.getElementById('avoozl-flow-every'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '2'); input.dispatchEvent(new Event('input', { bubbles: true })); return true })()`)
   await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)
 }
 
@@ -69,7 +69,7 @@ const READ = `(() => {
     gaps,
     rows,
     selects: root.querySelectorAll('select').length,
-    groupBy: Boolean(root.querySelector('[aria-label="Group by"]')),
+    batching: /Batching|Most tasks per run|Group by/.test(root.textContent),
     footerInView: r(footer).bottom <= innerHeight + 1 && r(footer).top >= 0,
     buttons: buttons.map((b) => b.textContent.trim()),
     lastButton: buttons.at(-1)?.textContent.trim(),
@@ -81,7 +81,7 @@ for (const width of [390, 1280])
   test(`Settings › Flow keeps gaps, aligned fields and a Save footer at ${width} px`, { skip }, async () => {
     await openFlowSettings(width)
     const before = await page.evaluate(READ)
-    assert.ok(before.gaps.length >= 8, `found ${before.gaps.length} labels`)
+    assert.ok(before.gaps.length >= 6, `found ${before.gaps.length} labels`)
     for (const { label, gap } of before.gaps) if (gap !== null) assert.ok(gap >= 4, `"${label}" runs into (optional): ${gap}px`)
     for (const { group, rows } of before.rows)
       for (const row of rows) {
@@ -90,7 +90,7 @@ for (const width of [390, 1280])
         assert.equal(row.keys, 1, `${group}: .avoozl.json keys in one row sit at different heights`)
       }
     assert.equal(before.selects, 0, 'no native dropdown')
-    assert.ok(before.groupBy, 'Group by is a segmented control')
+    assert.equal(before.batching, false, 'no Batching box')
     assert.deepEqual(before.buttons, ['Discard', 'Save'])
     assert.equal(before.lastButton, 'Save')
     assert.ok(before.lastPrimary, 'Save is the primary button')

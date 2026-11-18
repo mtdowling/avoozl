@@ -291,8 +291,11 @@ function SpecTabs(props: { tabs: string[]; current: string; plan: SpecPlan | nul
   const files = props.tabs.filter((tab) => !TAB_NAME[tab])
   const shown: Record<string, number> = Object.fromEntries(files.map((file) => [file, counts[file] ?? 0]))
   shown.review = Object.values(counts).reduce((a, b) => a + b, 0)
+  // The same inset as the spec header and body (data-spec-body), so the bar
+  // spans the page's content edge to edge.
+  const phone = usePhone()
   return (
-    <div data-spec-tabs-wrap style={{ padding: '0 12px', minWidth: 0 }}>
+    <div data-spec-tabs-wrap style={{ padding: phone ? 0 : '0 12px', minWidth: 0 }}>
       <DocTabs tabs={props.tabs} current={props.current} counts={shown} onPick={props.onPick} bar={{ label: 'Spec views', attr: 'data-spec-tab', prefix: 'spec-tab', labels: TAB_NAME }} />
     </div>
   )

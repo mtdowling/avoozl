@@ -21,6 +21,7 @@ test('the repository, workspace and plugin dialogs group fields with FormSection
   const modals = source('RepositoryModals.tsx')
   assert.match(slice(modals, 'export function ViewRepository', 'export function EditRepository'), /<FormSection title="Repository">/)
   assert.match(slice(modals, 'export function EditRepository'), /<FormSection title="Role">/)
+  assert.match(slice(modals, 'export function EditRepository'), /<FormSection title="Public repository"/)
   const settings = source('SettingsView.tsx')
   for (const from of ['export function RepositoryEditor(', 'function LocalRepository(', 'function MirrorBox(', 'function UntriagedSettings(', 'function ReviewRoles(']) {
     const body = fn(settings, from)
@@ -81,9 +82,10 @@ test('the repository Edit modal is FormSections with no bordered boxes inside', 
   await settle()
   const { sections, boxes } = await page.evaluate(LAYOUT('[data-repository-edit]'))
   const top = sections.filter((s) => !s.nested)
+  // The General tab opens first.
   assert.deepEqual(
     top.map((s) => s.title),
-    ['Role', 'Settings'],
+    ['Role', 'GitHub repository'],
   )
   assert.equal(top[0].top, '0px', 'the first section has no line')
   assert.equal(top[1].top, '1px', 'later sections start with a line')

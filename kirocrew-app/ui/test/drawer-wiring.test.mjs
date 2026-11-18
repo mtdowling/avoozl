@@ -34,17 +34,17 @@ test('the task modal is the shared Modal: Esc, the X and Close close it, and foc
 
 test('the drawer shows every section, and a linked task opens in it', () => {
   const drawer = source('TaskDrawer.tsx')
-  for (const label of ['Summary', 'Description', 'Edges', 'Delivery', 'Conflicts', 'Timeline'])
-    assert.match(drawer, new RegExp(`label: '${label}'`))
+  // The tabs (task-api.ts TASK_TABS) hold the sections.
+  const api = source('task-api.ts')
+  for (const label of ['Overview', 'Timeline', 'Links', 'Work', 'Review', 'Details']) assert.match(api, new RegExp(`label: '${label}'`))
   // Sections are bordered boxes that fold, all open at once; Edit is a
   // button that opens the form.
-  assert.match(drawer, /<SectionBox id="summary" title="Summary">/)
+  assert.match(drawer, /<SectionBox id="summary" title="Status">/)
   for (const id of ['description', 'links', 'delivery', 'conflicts', 'timeline']) assert.match(drawer, new RegExp(`<SectionBox id="${id}" title=`))
   // The Waits on / Blocks box is Edges; its id stays 'links' so saved state and deep links still work.
   assert.match(drawer, /<SectionBox id="links" title="Edges">/)
-  assert.match(drawer, /\{ key: 'links', label: 'Edges' \}/)
   // The task's own links have their own box, keyed apart from Edges.
-  assert.match(drawer, /\{ key: 'task-links', label: 'Links' \}/)
+  assert.match(drawer, /<SectionBox id="task-links" title="Links">/)
   assert.doesNotMatch(drawer, /notes'/)
   assert.doesNotMatch(drawer, /SegmentedControl/)
   assert.match(source('controls.tsx'), /<details\b/)
@@ -52,7 +52,7 @@ test('the drawer shows every section, and a linked task opens in it', () => {
   // Focus shows the task's chain in the Graph; Ask in a chat seeds a chat.
   assert.match(drawer, /props\.onFocus!\(task\.id, task\.title\)/)
   assert.match(drawer, /chat\.ask\(\{ tasks: \[task\.id\] \}\)/)
-  assert.match(drawer, /onClick=\{\(\) => open\(link\.id\)\}/)
+  assert.match(drawer, /<EdgeList label=\{title\} items=\{items\} onOpen=\{open\} \/>/)
   for (const action of ['Retry', 'Defer', 'Resume', 'SupersedeForm', 'ConflictActions', 'TaskForm'])
     assert.match(drawer, new RegExp(action))
 })
@@ -114,7 +114,7 @@ test('a review group opens in the drawer with its tasks and a confirmed Mark rev
   const drawer = source('TaskDrawer.tsx')
   assert.match(drawer, /openReview: \(group, onReviewed\) =>/)
   assert.match(drawer, /<ReviewPanel/)
-  assert.match(drawer, /onClick=\{\(\) => props\.open\(task\.id\)\}/)
+  assert.match(source('NeedsYouContext.tsx'), /onClick=\{\(\) => drawer\.openTask\(task\.id\)\}/)
   assert.match(source('ConflictsView.tsx'), /ask\(confirmSettle\('reviewed', count/)
   for (const name of ['ConflictsView.tsx', 'DashboardView.tsx']) assert.match(source(name), /drawer\.openReview\(/, name)
   assert.match(source('GraphView.tsx'), /task\.review && <Badge>review<\/Badge>/)

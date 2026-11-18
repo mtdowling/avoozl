@@ -381,7 +381,7 @@ What a pack may set, and where each lands in `.avoozl.json`:
 | `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                                                  |
 | `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                                               |
 | `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`, `concurrency`                                                                                                                                                   |
-| `settings.flow`              | Flow settings, such as `batch.max`                                                                                                                                                                                      |
+| `settings.flow`              | Flow settings, such as `retro.everyTasks`; an old `batch` key is ignored                                                                                                                                                |
 
 - Every key is checked with the same rules Settings uses. Any other key is
   refused by name, such as `Pack key settings.repositories.autoMerge is not

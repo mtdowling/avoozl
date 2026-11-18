@@ -69,7 +69,44 @@ export interface TaskDetail {
   // The Links box (R92.5, scm-links.mjs): from stored records only; older
   // backends omit it.
   links?: TaskScmLinks | null
+  // The AI summary for these inputs; older backends omit it.
+  summary?: TaskSummary
 }
+
+// none: not written for the inputs now shown (the page asks for it).
+export interface TaskSummary {
+  state: 'none' | 'working' | 'ready' | 'failed'
+  text: string | null
+  hash: string
+}
+
+// The task details tabs. One rule for all: a tab or section with no data is
+// not drawn at all, with no empty-state line (tabHasData, visibleTabs).
+// Links stays because Add link lives there; Overview and Details always
+// have the task's own fields.
+export const TASK_TABS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'links', label: 'Links' },
+  { key: 'work', label: 'Work' },
+  { key: 'review', label: 'Review' },
+  { key: 'details', label: 'Details' },
+] as const
+export type TaskTab = (typeof TASK_TABS)[number]['key']
+export const TASK_TAB_KEYS = TASK_TABS.map((tab) => tab.key)
+export const TASK_TAB_PARAM = 'task-tab'
+
+// Whether a tab has anything to show.
+export function tabHasData(tab: TaskTab, detail: TaskDetail, reviewRunCount: number): boolean {
+  if (tab === 'timeline') return Boolean(detail.steps?.length || detail.timeline.length)
+  if (tab === 'work') return Boolean(detail.delivery)
+  if (tab === 'review') return reviewRunCount > 0 || Boolean(detail.task.handSetReview)
+  return true
+}
+
+// The tabs to draw, in order. An address or link that names a hidden tab
+// lands on Overview.
+export const visibleTabs = (detail: TaskDetail, reviewRunCount: number) => TASK_TABS.filter((tab) => tabHasData(tab.key, detail, reviewRunCount))
 
 // One GitHub item a task links to. The backend builds `url` from validated
 // fields only.
@@ -262,6 +299,9 @@ export function taskClient(api: AppApi) {
   }
   return {
     detail: (workspaceId: string, id: string) => run<TaskDetail>('task.detail', { id }, workspaceId),
+    // Ask for the AI summary of the inputs now shown. The same inputs never
+    // write a second one; retry writes a failed one again.
+    summaryRequest: (workspaceId: string, id: string, retry = false) => run<TaskSummary>('task.summary.request', { id, retry }, workspaceId),
     // A workspace Markdown file, for reading where a task came from.
     document: (workspaceId: string, id: string) => run<{ id: string; title: string; text: string }>('document.get', { id }, workspaceId),
     // Writes nothing: what a locked task's edit becomes as a plan change.

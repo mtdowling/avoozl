@@ -12,7 +12,7 @@ import {
 } from "../build-receipt-read.mjs";
 import { INSTANCE_NAMES, plainInstanceName } from "../instance.mjs";
 import { ciStep } from "../flow-ci.mjs";
-import { flowView, refreshFlow } from "../radar-flow.mjs";
+import { flowView } from "../radar-flow.mjs";
 import { GitHubClient } from "../github.mjs";
 import { renderMarker } from "../github-marker.mjs";
 import { fixture } from "./fixtures.mjs";
@@ -411,25 +411,19 @@ test("the reader's calls count under the receipt source", async (t) => {
   assert.deepEqual(seen, ["receipt"]);
 });
 
-test("Flow shows what was stored, grouped by instance and target", async (t) => {
+test("Flow shows what was stored, grouped by target", async (t) => {
   const { store } = fixture(t),
     gh = github();
   await check(store, gh);
-  await refreshFlow(store, gh, POLICY, { force: true });
   const view = flowView(store).builds;
   assert.equal(view.count, 2);
   assert.equal(view.medianMs, 50_000);
+  // The instance came from Radar issue markers, read no more (R91.6).
   assert.deepEqual(
-    view.byInstance.map((row) => [row.instance, row.count, row.totalMs]).sort(),
-    [
-      [INSTANCE("a"), 1, 40_000],
-      [INSTANCE("b"), 1, 60_000],
-    ],
+    view.byInstance.map((row) => [row.instance, row.count, row.totalMs]),
+    [[null, 2, 100_000]],
   );
   assert.equal(view.byPhase.length, 1);
-  const before = [gh.calls.list, gh.calls.download];
-  await refreshFlow(store, gh, POLICY, { force: true });
-  assert.deepEqual([gh.calls.list, gh.calls.download], before);
 });
 
 test("receiptLine and buildView word an empty case", () => {
@@ -570,7 +564,6 @@ test("Flow shows the builds of a repository with receipts and no Radar crew", as
       repositories: { [REPO]: { buildReceipts: true } },
     };
   await ciStep(store, gh, { policy, now: NOW });
-  await refreshFlow(store, gh, policy, { force: true });
   const view = flowView(store);
   assert.deepEqual(view.repositories, [], "no Radar repository");
   assert.equal(view.count, 0, "no finished issues");
@@ -582,9 +575,6 @@ test("Flow shows the builds of a repository with receipts and no Radar crew", as
       [52, "npm test"],
     ],
   );
-  // A Radar repository's rows are not counted twice.
-  await refreshFlow(store, gh, POLICY, { force: true });
-  assert.equal(flowView(store).builds.count, 2);
 });
 
 // A head whose artifacts span two pages of the list keeps all three

@@ -394,7 +394,13 @@ export async function integratorPass(
       }
       lease = taken.lease;
       if (taken.dead)
-        await run?.cleanup?.(store, { ...where, dead: taken.dead, project });
+        await run?.cleanup?.(store, {
+          ...where,
+          dead: taken.dead,
+          project,
+          config,
+          settings,
+        });
     }
     const result = { ...where, project, state: "holding", lease, settings };
     if (run?.train) {

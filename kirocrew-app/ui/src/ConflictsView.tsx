@@ -48,6 +48,8 @@ import { itemRef } from './chat-api.ts'
 import { linkHref } from './views-api.ts'
 import { optionItems } from './picker.ts'
 import { routingClient } from './routing-api.ts'
+import { ItemContextBlock, SpecLink } from './NeedsYouContext.tsx'
+import { specOfItem } from './needs-you-context.ts'
 import { releaseClient } from './release-api.ts'
 
 const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter, write: writeConflictFilter, empty: {} as ConflictFilter }
@@ -66,27 +68,6 @@ const FIELD_NAMES: Record<string, string> = {
   blockers: 'Blocked-by links',
   state: 'Issue state',
   identity: 'Issue identity',
-}
-
-const shownValue = (value: string | string[] | null | undefined) =>
-  Array.isArray(value) ? (value.length ? value.join(', ') : 'none') : value ? value : 'empty'
-
-function Values({ item }: { item: ConflictItem }) {
-  if (item.expected === undefined && item.actual === undefined) return null
-  const block = (label: string, value: ConflictItem['expected']) => (
-    <div className="min-w-0">
-      <div className="text-xs text-muted">{label}</div>
-      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
-        {shownValue(value)}
-      </pre>
-    </div>
-  )
-  return (
-    <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 16rem), 1fr))' }}>
-      {block('Avoozl expected', item.expected)}
-      {block(item.changedBy ? `GitHub has (changed by ${item.changedBy})` : 'GitHub has', item.actual)}
-    </div>
-  )
 }
 
 // One item's resolve choices, shared by the Conflicts tab and the task
@@ -260,42 +241,16 @@ export function ConflictActions(props: {
   )
 }
 
-const CONFIDENCE_LABEL = { low: 'Low', medium: 'Medium', high: 'High' } as const
-
-// Findings the gate did not pass (§4.21): what the worker found, what the
-// falsifier said, and the person's three choices.
+// Findings the gate did not pass (§4.21): the person's three choices. The
+// findings and the falsifier's reply are the item's evidence above them.
 export function InvestigationActions(props: {
   item: ConflictItem
   busy: boolean
   onDecide: (action: 'go' | 'again' | 'stop', text: string) => void
 }) {
   const { item, busy } = props
-  const f = item.findings
-  const row = (label: string, value: string) => (
-    <div className="min-w-0">
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="whitespace-pre-wrap break-words text-sm">{value}</dd>
-    </div>
-  )
   return (
     <div className="flex flex-col gap-2" data-investigation={item.taskId}>
-      {f && (
-        <dl className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 16rem), 1fr))' }}>
-          {row('Read', f.read)}
-          {row('Cause or approach', f.cause)}
-          {row('Planned change', f.plan)}
-          {row('How it is checked', f.check)}
-          {row('Worker is sure', CONFIDENCE_LABEL[f.confidence])}
-        </dl>
-      )}
-      {item.reply && (
-        <div className="rounded border p-2 text-sm" style={{ borderColor: 'var(--border)' }}>
-          <div className="text-xs text-muted">
-            Falsifier: {item.reply.verdict === 'refuted' ? 'refuted' : 'stands'}, {CONFIDENCE_LABEL[item.reply.confidence].toLowerCase()} confidence
-          </div>
-          <p className="mt-1 whitespace-pre-wrap break-words">{item.reply.evidence}</p>
-        </div>
-      )}
       <div className="flex flex-wrap items-center gap-2">
         <IconLabel icon={Check} tooltip="The worker codes the change it planned" disabled={busy} onClick={() => props.onDecide('go', `Go ahead sent to ${item.taskId}.`)}>
           Go ahead
@@ -553,7 +508,6 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
   }, [tasks, workspaceId, item.taskId])
   return (
     <div className="mt-2 flex flex-col gap-2 rounded border p-2 text-sm" style={{ borderColor: 'var(--border)' }} data-history>
-      <Values item={item} />
       {error && <p className="text-xs text-danger">{error}</p>}
       {detail && (
         <>
@@ -582,11 +536,14 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
   )
 }
 
-// One dense list row: the kind, the title, its task and age, and why. A
-// click picks it; its details and actions open in the right column.
+// One dense list row: the kind, the title, its spec and task, why, and age.
+// A click on the title and reason picks it; its context and actions open in
+// the right column. The spec is its own link, so it sits outside that button.
 function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectable: boolean; selected: boolean; onSelect: (on: boolean) => void; onFocus: () => void }) {
   const { item } = props
   const time = itemTime(item as ConflictItem & { openedAt?: string | null })
+  const spec = specOfItem(item)
+  const task = item.context?.task ?? (item.taskId ? { id: item.taskId, title: item.title } : null)
   return (
     <li className="border-t first:border-t-0" style={{ borderColor: 'var(--border)' }} data-conflict-row>
       <div className="flex items-start gap-2 px-1 py-1.5" style={{ background: props.focused ? 'var(--accent-subtle, var(--bg-elevated))' : undefined, borderRadius: 6 }}>
@@ -598,26 +555,38 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
           onChange={(event) => props.onSelect(event.target.checked)}
           style={{ marginTop: 3 }}
         />
-        <button
-          type="button"
-          data-conflict-pick={itemKey(item)}
-          aria-current={props.focused ? 'true' : undefined}
-          onClick={props.onFocus}
-          className="flex min-w-0 flex-1 flex-col items-stretch gap-0.5 text-left"
-          style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }}
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable', 'spec-pull'].includes(item.kind) ? 'warning' : 'danger'}>
-              {LABELS[item.kind] ?? item.kind}
-            </Badge>
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</span>
-            {time && <span className="shrink-0 text-xs text-muted">{relativeTime(time)}</span>}
-          </span>
-          <span className="truncate text-xs text-muted">
-            {item.taskId ? `${item.taskId} · ` : ''}
-            {whyLine(item)}
-          </span>
-        </button>
+        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-0.5">
+          <button
+            type="button"
+            data-conflict-pick={itemKey(item)}
+            aria-current={props.focused ? 'true' : undefined}
+            onClick={props.onFocus}
+            className="flex min-w-0 flex-col items-stretch gap-0.5 text-left"
+            style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable', 'spec-pull'].includes(item.kind) ? 'warning' : 'danger'}>
+                {LABELS[item.kind] ?? item.kind}
+              </Badge>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</span>
+              {time && <span className="shrink-0 text-xs text-muted">{relativeTime(time)}</span>}
+            </span>
+            <span className="truncate text-xs text-muted" data-row-reason>
+              {whyLine(item)}
+            </span>
+          </button>
+          {(spec || task) && (
+            <span className="truncate text-xs text-muted" data-row-where>
+              {spec && (
+                <>
+                  Spec: <SpecLink spec={spec} />
+                </>
+              )}
+              {spec && task && ' · '}
+              {task && <span data-row-task>Task {task.id}</span>}
+            </span>
+          )}
+        </div>
       </div>
     </li>
   )
@@ -653,7 +622,6 @@ function ConflictDetail(props: {
         {item.field && <Badge>{FIELD_NAMES[item.field] ?? item.field}</Badge>}
         {item.kind !== 'spec-pull' && <Authority owner={item} />}
         {item.taskId && <span className="text-xs text-muted">{item.taskId}</span>}
-        {props.plan && <span className="text-xs text-muted">· spec {props.plan}</span>}
         {time && (
           <Tooltip text={time}>
             <span className="text-xs text-muted">· {relativeTime(time)}</span>
@@ -665,7 +633,7 @@ function ConflictDetail(props: {
           {item.title}
         </h3>
       )}
-      <p className="m-0 text-sm text-muted">{whyLine(item)}</p>
+      <ItemContextBlock item={item} plan={props.plan} />
       <div className="flex flex-wrap items-center gap-1.5" data-conflict-actions>
         {item.taskId && (
           <IconLabel icon={DetailsIcon} tooltip="Open this task's details" onClick={() => drawer.openTask(item.taskId!)}>
@@ -691,7 +659,7 @@ function ConflictDetail(props: {
           </IconLabel>
         )}
       </div>
-      <Card>
+      <Card data-conflict-resolve>
         <h4 className="m-0 mb-2 text-sm font-semibold">Resolve</h4>
         <ConflictActions item={item} workspaceId={props.workspaceId} revision={props.revision} busy={props.busy} run={props.run} onSettled={props.onSettled} onReload={props.onReload} />
       </Card>

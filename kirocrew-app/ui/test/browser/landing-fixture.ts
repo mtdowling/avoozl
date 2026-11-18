@@ -48,5 +48,19 @@ export const landingFixture: LandingQueue = {
         item('leftovers', 'Suggest meals from leftovers', { position: 2, since: at(2), hold: { kind: 'stopped', text: 'Line stopped: flaky base.' } }),
       ],
     },
+    {
+      key: 'recipe-box\u0000core-dev',
+      projectId: 'recipe-box',
+      repository: 'acme/recipe-box',
+      base: 'core-dev',
+      landing: 'train',
+      queue: { depth: 4, train: { id: 'train-3f9a2c71b0de', policy: 'gated', step: 'full on the stack', members: 2, startedAt: at(6) } },
+      items: [
+        item('sync', 'Sync the pantry list', { position: 1, since: at(18), hold: { kind: 'train', text: 'In train-3f9a2c71b0de, step full on the stack.' } }),
+        item('scale', 'Scale a recipe by servings', { position: 2, since: at(17), hold: { kind: 'train', text: 'In train-3f9a2c71b0de, step full on the stack.' } }),
+        item('labels', 'Print recipe labels', { position: 3, since: at(11), hold: { kind: 'waiting', text: 'Waiting for the next train; train-3f9a2c71b0de is running.' } }),
+        item('import', 'Import recipes from a file', { position: 4, since: at(2), hold: { kind: 'held', text: 'Held: built on labels, which is queued outside this train.' } }),
+      ],
+    },
   ],
 }

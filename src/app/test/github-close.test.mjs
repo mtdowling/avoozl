@@ -10,11 +10,6 @@ import { parseMarker, renderMarker } from "../github-marker.mjs";
 import { machineIdentity } from "../github-sync.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
-import { setRadarHandoverPaused } from "../coder-adapter.mjs";
-
-// These tests cover the Radar hand-over kept while Phase 45 is paused
-// (R103.4 pauses it in the product).
-setRadarHandoverPaused(false);
 
 // No machine-wide Avoozl configuration leaks into these workspaces.
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -123,6 +118,10 @@ class FakeGitHub {
   }
   closingPullRequests(_repository, number) {
     return Promise.resolve(structuredClone(this.closing.get(number) || []));
+  }
+  // Every leaf is the Avoozl worker's, on its linked branch (R91.6).
+  branchPullRequests() {
+    return Promise.resolve([]);
   }
   pullRequestReviews(_repository, number) {
     return Promise.resolve(structuredClone(this.reviews.get(number) || []));

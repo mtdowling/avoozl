@@ -19,6 +19,13 @@ import {
 import { approvedSpecDependency } from "../spec-dependencies.mjs";
 import { approvalBatches, approveMany } from "./approval-batches.mjs";
 import { planReviewSummary } from "./plan-review-summary.mjs";
+import { addItemContext } from "./needs-you-context.mjs";
+import {
+  requestTaskSummary,
+  submitTaskSummary,
+  summaryFacts,
+  taskSummaryView,
+} from "./task-summary.mjs";
 import {
   specDeclarations,
   declaredDependencies,
@@ -142,19 +149,11 @@ import {
   disarmPullRequest,
   mergeMethodNeedsYou,
 } from "./radar-arm.mjs";
-import { preflight, requirePreflight } from "./radar-preflight.mjs";
-import {
-  approvalLabelStep,
-  approvalNeedsYou,
-  claimParent,
-  releaseClaims,
-  writeBackApproval,
-} from "./approval-label.mjs";
+import { approvalNeedsYou, releaseClaims } from "./approval-label.mjs";
 import {
   crewLabelBackfill,
   crewLabelNeedsYou,
 } from "./crew-label-backfill.mjs";
-import { planSource } from "./radar-source.mjs";
 import { formatGapTable, gapProposals, parseGapReport } from "./gap-report.mjs";
 import {
   integrationView,
@@ -167,12 +166,10 @@ import { epicsView } from "./epics-view.mjs";
 import { integratorNeedsYou } from "./landing-lease.mjs";
 import { landingQueueView } from "./landing-queue-view.mjs";
 import { integratorStatus, submitBranch } from "./integrator-trains.mjs";
-import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
   checkIntegrationBranch,
   requireIntegrationBranch,
 } from "./integration-branch.mjs";
-import { mergeNeedsYou } from "./radar-merge.mjs";
 import {
   checkConflictFix,
   conflictFixNeedsYou,
@@ -189,11 +186,9 @@ import {
 import { syncNeedsYou } from "./integration-sync.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
-  CODERS,
   CREW_LABEL_KEYS,
   FIELD_KEYS,
   CREW_LABEL_DEFAULTS,
-  issueRadarCrews,
   MANAGED_LABEL_KEYS,
   MODE_CHOICES,
   newTaskAuthority,
@@ -566,7 +561,7 @@ import {
   recordOperation,
 } from "./activity-log.mjs";
 import { lintPlan } from "./plan-quality.mjs";
-import { flowView as radarFlowView, refreshFlow } from "./radar-flow.mjs";
+import { flowView as radarFlowView } from "./radar-flow.mjs";
 import {
   applyRetroRule,
   retroView,
@@ -618,7 +613,6 @@ import { applyExport, previewExport } from "./issue-export.mjs";
 import {
   approvalChangedAtMerge,
   approvalEvidence,
-  approvalState,
   mayLinkSpecIssue,
   openApproval,
   reconcileApproval,
@@ -1165,15 +1159,10 @@ export class Operations {
   // roles, so a switch never breaks review distinctness (R72.9).
   providerOptions() {
     const policy = readDeliveryPolicy(this.workspaceRoot).delivery,
-      github = readGitHubPolicyOrNull(this.workspaceRoot),
       tasks = new Map(this.read().tasks.map((t) => [t.id, t]));
     return {
       ...(this.placement.now ? { now: this.placement.now() } : {}),
       tasks,
-      // Issue Radar codes the task (design §6.4): its chats are not Avoozl's.
-      radar: (task) =>
-        Boolean(task?.github?.repository) &&
-        github?.repositories?.[task.github.repository]?.coder === "issue-radar",
       reviewRoles: (binding) =>
         policy
           ? deliveryReviewRoles(
@@ -1793,11 +1782,9 @@ export class Operations {
       wanted && origin && origin.toLowerCase() === wanted.toLowerCase(),
     );
   }
-  // Where a spec's approval pull request opens (D5.2, RC3.6): the repository
-  // that holds the spec, when it is an Issue Radar repository (single-repo) or
-  // the planning repository of a workspace with one (plans-repo). A worker
-  // repository, a local workspace and a spec outside a GitHub checkout keep
-  // the plain approval.
+  // Where a spec's approval pull request opens (D5.2, RC3.6, R86.8): only a
+  // spec whose home is a mirror's protected plans branch. Every other spec
+  // keeps the plain approval, the local hash receipt.
   approvalPullRequestTarget(plan) {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot);
     if (!policy?.mode || !plan.spec) return null;
@@ -1808,7 +1795,6 @@ export class Operations {
         409,
       );
     const entries = Object.entries(policy.repositories || {}),
-      radar = entries.filter(([, entry]) => entry.coder === "issue-radar"),
       home = spec.home ?? plan.home,
       hidden =
         home === "plansBranch"
@@ -1854,28 +1840,7 @@ export class Operations {
         ref,
       };
     }
-    const root = spec.root,
-      origin = (
-        repository ||
-        (root && originRepositorySync(root))
-      )?.toLowerCase();
-    if (!origin) return null;
-    const holder =
-      policy.mode === "single-repo"
-        ? radar.find(
-            ([id, entry]) =>
-              id.toLowerCase() === origin ||
-              entry.mirror?.mirror.toLowerCase() === origin,
-          )
-        : radar.length && policy.planningRepository?.toLowerCase() === origin
-          ? [policy.planningRepository, radar[0][1]]
-          : null;
-    if (!holder) return null;
-    const [owner, repo] = origin.split("/");
-    return {
-      repository: { owner, repo, id: origin },
-      decisionRecord: holder[1].approval.decisionRecord,
-    };
+    return null;
   }
   // Approve ends in a commit a crew can read: open the approval pull request,
   // and approve in Avoozl only once it has merged. Returns null when no pull
@@ -1996,43 +1961,6 @@ export class Operations {
       return null;
     }
   }
-  // The Create and release preflight (RC2.9) for a plan's repository, or null
-  // when that repository is not coded by Issue Radar.
-  async radarPreflight(plan, repository) {
-    const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-      entry = policy?.repositories?.[repository];
-    if (!entry || !isRadarRepository(entry, policy.mode)) return null;
-    const delivery = readDeliveryPolicy(this.workspaceRoot).delivery || {};
-    return preflight({
-      store: this.store,
-      plan,
-      repository,
-      approved: this.planApproved(plan),
-      decisionRecord: entry.approval?.decisionRecord === true,
-      mergePath: (await this.mergePaths(repository))[0],
-      delivery,
-    });
-  }
-  // After an approval: write it back to the source issue unless the label
-  // itself approved it, and claim the parent (RC18.4, RC19.1). Best effort:
-  // the approval stands whatever GitHub says.
-  async afterApproval(plan, { approver, commit, viaLabel }) {
-    const policy = readGitHubPolicyOrNull(this.workspaceRoot);
-    if (!policy?.mode || !this.github?.available?.()) return;
-    const shared = {
-      store: this.store,
-      github: this.github,
-      policy,
-      identity: planningIdentity(this.workspaceRoot),
-      plan,
-    };
-    try {
-      if (!viaLabel) await writeBackApproval({ ...shared, approver, commit });
-      await claimParent(shared);
-    } catch {
-      // Nothing here may undo an approval.
-    }
-  }
   // An approval pull request that merged is the person's approval (they
   // merged it): record it under the login that asked for it, with no second
   // command. One read per open approval pull request.
@@ -2073,44 +2001,15 @@ export class Operations {
     );
     await mergeApprovedPulls(this.store, this.github, policy);
   }
-  // The tick's pass over approval labels and Avoozl's own claims (RC18.2, RC19.5).
+  // The tick's pass over merged approval pull requests and Avoozl's own
+  // older claims (RC19.5). Approving on a Radar source issue went with Who
+  // codes (R91.6).
   async approvalTick() {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot);
     if (!policy?.mode || !this.github?.available?.()) return;
     await this.specPullTick(policy).catch(() => {});
     await this.recordMergedApprovals().catch(() => {});
-    const identity = planningIdentity(this.workspaceRoot),
-      plans = this.store.list("plans"),
-      drafts = plans
-        .filter(
-          (plan) =>
-            plan.spec &&
-            !plan.archivedAt &&
-            !this.planApproved(plan) &&
-            planSource(plan, identity),
-        )
-        .map((plan) => ({
-          plan,
-          errors: this.lintSpecPlan(plan, [], {
-            content: false,
-          }).diagnostics.filter((diagnostic) => diagnostic.severity === "error")
-            .length,
-        }));
-    await approvalLabelStep({
-      store: this.store,
-      github: this.github,
-      policy,
-      identity,
-      drafts,
-      approve: (plan, login) =>
-        this.perform("plan.approve", {
-          id: plan.id,
-          expectedHash: plan.hash,
-          approvedBy: login,
-          expectedRevision: this.store.read().revision,
-          via: "label",
-        }),
-    });
+    const plans = this.store.list("plans");
     await releaseClaims({
       store: this.store,
       github: this.github,
@@ -2601,13 +2500,9 @@ export class Operations {
       // Review roles from `delivery` in the same file, shown beside each
       // repository's pull-request review settings. Read only here.
       review: reviewSettings(readDeliveryPolicy(this.workspaceRoot)),
-      // The label each Issue Radar crew must scope to, from the policy in
-      // force, so it is exactly the label Avoozl applies (R17.4).
-      crews: issueRadarCrews(effective),
       choices: {
         modes: MODE_CHOICES,
         authorities: ["github", "local"],
-        coders: CODERS,
         permissions: PERMISSIONS,
         actions: RULE_ACTIONS,
         fields: FIELD_KEYS,
@@ -2751,16 +2646,14 @@ export class Operations {
         ),
     };
   }
-  // The merge path of the named repository, or of every Issue Radar one.
+  // The merge path of the named repository; none without a name.
   async mergePaths(only) {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot),
       delivery = readDeliveryPolicy(this.workspaceRoot).delivery || {};
-    if (!policy?.mode || !this.github?.available?.()) return [];
+    if (!only || !policy?.mode || !this.github?.available?.()) return [];
     return Promise.all(
       Object.entries(policy.repositories || {})
-        .filter(([id, entry]) =>
-          only ? id === only : entry.coder === "issue-radar",
-        )
+        .filter(([id]) => id === only)
         .map(([id, entry]) => mergePath(this.github, id, entry, { delivery })),
     );
   }
@@ -3735,7 +3628,6 @@ export class Operations {
         view = conflictsView(store, data),
         policy = readGitHubPolicyOrNull(this.workspaceRoot);
       // Crews that asked for a person on issues no task owns (R52.10).
-      view.items.push(...mergeNeedsYou(store));
       view.items.push(...conflictFixNeedsYou(store));
       view.items.push(...mergeMethodNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
@@ -3765,6 +3657,7 @@ export class Operations {
           ),
         ),
       );
+      addItemContext(store, data, view.items);
       return view;
     }
     // The chat side panel in one read: every part it shows, each null when its
@@ -4143,21 +4036,17 @@ export class Operations {
         input,
         context.caller,
       );
+    // The Create and release preflight (RC2.9) was Issue Radar's; no
+    // repository is Radar-coded any more (R91.6).
     if (name === "radar.preflight") {
       const plan = store.get("plans", input.planId);
       if (!plan) fail("Plan not found.", 404);
-      return { preflight: await this.radarPreflight(plan, input.repository) };
+      return { preflight: null };
     }
-    // Flow from GitHub data (RC8.5): stage times of finished Radar issues.
-    // `refresh` reads GitHub first (at most every 10 minutes unless forced).
-    if (name === "radar.flow") {
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
-      if (policy?.mode && this.github?.available?.())
-        await refreshFlow(store, this.github, policy, {
-          force: input.refresh === true,
-        });
-      return radarFlowView(store);
-    }
+    // Flow from GitHub data (RC8.5): stage times of Radar issues read before
+    // Who codes was removed (R91.6), and every stored build observation.
+    // Nothing is read from GitHub here any more.
+    if (name === "radar.flow") return radarFlowView(store);
     // Retro rule targets (RC8.6): applied rules with their check, and the
     // apply (a pull request, or the full prompt text to copy) or undo.
     if (name === "radar.retro")
@@ -4746,11 +4635,31 @@ export class Operations {
       const data = this.read(),
         detail = this.detail(input.id),
         plan = detail.planId ? store.get("plans", detail.planId) : null;
-      return taskDetailView(store, data, detail, {
+      const view = taskDetailView(store, data, detail, {
         plan: plan && !plan.deletedAt ? plan : null,
         approved: Boolean(plan && this.planApproved(plan)),
       });
+      return {
+        ...view,
+        summary: taskSummaryView(store, view.task.id, summaryFacts(view)),
+      };
     }
+    // The page asks for the AI summary of the inputs it shows; the same
+    // inputs never write a second one (task-summary.mjs).
+    if (name === "task.summary.request") {
+      const data = this.read(),
+        detail = this.detail(input.id),
+        plan = detail.planId ? store.get("plans", detail.planId) : null,
+        view = taskDetailView(store, data, detail, {
+          plan: plan && !plan.deletedAt ? plan : null,
+          approved: Boolean(plan && this.planApproved(plan)),
+        });
+      return requestTaskSummary(store, view.task.id, summaryFacts(view), {
+        retry: input.retry === true,
+      });
+    }
+    if (name === "tasksummary.submit")
+      return submitTaskSummary(store, input, context.caller);
     if (name === "plan.spec.read") return this.readSpecDocuments(input);
     if (name === "task.files") return taskFiles(store, this.read(), input);
     if (name === "task.diff") return taskDiff(store, this.read(), input);
@@ -6117,13 +6026,6 @@ export class Operations {
         operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
       });
-      // One approval record; the issue hears of it once (RC18.4, RC18.5).
-      if (plan.spec && !extraction && !approved.existing)
-        await this.afterApproval(plan, {
-          approver,
-          commit: approvalState(store, plan.id, plan.hash)?.commit,
-          viaLabel: input.via === "label",
-        });
       return approved;
     }
     // Several specs at once, all or none (approval-batches.mjs).
@@ -6612,16 +6514,6 @@ export class Operations {
     // path is ready. `release` is set only by that action.
     if (name === "github.project" && input.release === true) {
       requireMergePath(await this.mergePaths(input.repository));
-      const plan = store.get("plans", input.planId),
-        configured = store.list("github_repositories"),
-        repository =
-          input.repository ||
-          (configured.length === 1 ? configured[0].id : undefined),
-        checked =
-          plan && repository
-            ? await this.radarPreflight(plan, repository)
-            : null;
-      if (checked) requirePreflight(checked);
     }
     if (name === "github.project") {
       if (!input.dryRun) refuseOtherRun(store, input.planId);
@@ -6652,9 +6544,7 @@ export class Operations {
         repository =
           input.repository ||
           (configured.length === 1 ? configured[0].id : undefined);
-      const checks = await this.radarPreflight(plan, repository),
-        withChecks = (value) =>
-          checks ? { ...value, preflight: checks } : value;
+      const withChecks = (value) => value;
       const projection = (target) =>
         previewProjection(target, this.github, {
           planId: plan.id,
@@ -6664,7 +6554,7 @@ export class Operations {
           claimed: claimedTaskIds(target),
           batches: input.batches,
         });
-      // Batches the planner would group, for the preview's batch edit.
+      // The planner's batch groups (§4.37), for the preview's batch edit.
       const grouped = (target) =>
           planProjectionBatches({
             tasks: target
@@ -6672,7 +6562,6 @@ export class Operations {
               .tasks.filter((task) => task.planId === plan.id),
             edges: target.read().edges,
             mode: "suggest",
-            max: this.settingsFile().readFlowSettings().flow.batch?.max,
             complete: (status) => statusComplete(target.read(), status),
           }),
         suggested = (target) =>

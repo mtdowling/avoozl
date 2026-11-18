@@ -86,7 +86,6 @@ export function workspaceConfig(options = {}) {
     dbPath,
     plansRoot,
     port,
-    safety: saved.safety || null,
     endpoint: saved.url || "http://127.0.0.1:" + port,
   };
 }

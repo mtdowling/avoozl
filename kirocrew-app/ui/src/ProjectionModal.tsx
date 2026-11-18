@@ -76,10 +76,11 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
           </>
         ) : (
           <>
-            <Btn primary onClick={() => setConfirm('held')} disabled={busy || !preview || writes === 0 || Boolean(blocked)}>
+            <Btn onClick={() => setConfirm('held')} disabled={busy || !preview || writes === 0 || Boolean(blocked)}>
               Create issues (held)…
             </Btn>
             <Btn
+              primary
               onClick={() => setConfirm('release')}
               disabled={busy || !preview || writes === 0 || Boolean(blocked) || failing.length > 0}
               title={failing.length ? `Preflight: ${failing.map((item) => item.label).join(', ')}` : undefined}

@@ -794,6 +794,7 @@ never move.
   - `flow.localChecksFirst` (default `true`); briefs for pushing sessions say to run the declared checks before each push; `done` for a pushed commit refused without a passing check list for that commit; the 10.4 pre-push hook also refuses a push with no recorded local pass and does not rerun checks; local delivery unchanged.
   - Built: `156ae8e` (flow-checks.mjs, `plans_run_checks`, `avoozl checks run`).
 - [x] 12.8 Batching, after 12.1, 9.2, and 9.6 [R46] (§4.11)
+  - Changed 2026-11-18: the grouping and `flow.batch` settings are replaced by planner groups with no setting (61.1, R108, §4.37).
   - Manifest `size: "small"`; group ready local-authority leaves by `flow.batch.by` (`epic` default, or `files`) up to `flow.batch.max` (default 3, 1 is off), same repository, route, crew, and review roles, no edges; one session and worktree, one commit and `done` per task, checks and review once on the batch head, one rebase; on failure split and retry alone with no attempt cost; Graph and Delivery show the batch.
   - Built: `736fbd6` (flow-batch.mjs); split worktree retired `2f2de0c`.
 - [x] 12.9 Retrospectives, after 12.5 and 10.4 [R47.1–R47.6, R47.8, R47.9] (§4.11)
@@ -1681,7 +1682,7 @@ Screenshot approval remains owner work.
 - [x] 44.6 Radar back-links through intake and the journal, after 44.1, 56.11 [R92.8, R92.10] (§4.27)
   - Spec shows its Radar source issues. The intake status comment names the spec issue where visibility permits; the journal records the source issue as owner/repo#N under the privacy scan, so GitHub shows a cross-reference. Tests: a public Radar issue never names a private spec; no Radar API, grant or import; no new GitHub write.
 
-- [ ] avoozl-p54 P54 Proof: links and the landing queue on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6 [R92, R102.7, R102.12] (§4.27)
+- [x] avoozl-p54 P54 Proof: links and the landing queue on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6 [R92, R102.7, R102.12] (§4.27)
   - Setup: isolated scratch workspace with two registered targets, one PR from a fork, a spec created from a scratch Radar-style issue, one landed and one held task; no real workspace tick.
   - Action: open the spec details panel, a task's details and its Graph modal, In flight and the Landing queue at 390 and 1280 px, light and dark; follow each link; count GitHub calls before and after.
   - Expected: every link reaches the right GitHub item in a new tab; held items show the right reason; opening and refreshing the views adds zero calls; the scratch Radar issue shows the spec link only when the spec is public. Private spec references, host names, usernames and paths never render on a public surface.
@@ -1703,11 +1704,16 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
 - [x] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
 - [ ] 45.4 Retire shared task projection and synchronization callers, after 45.1, 45.2, 45.3, avoozl-p53, avoozl-p54, 56.5, 56.9, avoozl-p66 [R86.1, R91.2, R91.3, R102.20] (§4.32)
   - Remove per-task projection, Project sync, issue close/completion/rebuild and old driver markers after binding retirement and replacement proofs. Keep spec issue publication, epic links, journals, explicit export, ranking, setup, receipts and the executor seam. No task-issue reconciliation remains.
+  - The `coder` setting and every coder route are removed by 45.6; this task removes what is left of the shared callers, including the Radar-only operations 45.6 left answering empty (`radar.releasequeue` rows, `radar.flow` reads, `radar.mergepath` without a repository, `radar.preflight`, `untriaged.plan`) and the Release queue card that shows them.
 
-- [ ] 45.5 Compatibility names still resolve; docs say one path, after 45.4 [R91.4] (§4.26)
+- [x] 45.6 Remove Who codes; the Avoozl worker is the only coder [R86.1, R91.6] (§4.26)
+  - Delete `CODERS`, the coder default by mode, the schema's `coder` property and every `coder === "issue-radar"` branch (operations, plans-repo coverage, marker, projection hand-over and coder split, integration sync, coder adapter, Radar release queue, merge path, conflict fixes, crew claim reconcile, Radar source, Radar flow); delete modules left with no caller. The UI loses `CoderPicker.tsx` and its coding tour, `CODER_CARDS`, `coderSource`, `defaultCoder`, the Who codes field and summary, the Radar crew card and the Workflow map's Who codes step.
+  - A stored `coder` loads and is ignored with no warning (one test). Keep Radar intake (56.8), Radar escalations in Triage (56.14), back-links (44.6) and Settings › Issue Radar; one test shows a `coder: issue-radar` repository still feeds Triage and its Radar escalations. Screenshots of Repository setup and Settings › Issue Radar under `docs/evidence/remove-who-codes/`.
+
+- [ ] 45.5 Compatibility names still resolve; docs say one path, after 45.4, 45.6 [R91.4] (§4.26)
   - `docs/research/` and `docs/evidence/` untouched except new receipts.
 
-- [ ] avoozl-p55 P55 Proof: after removal there is one delivery path, after 45.1, 45.2, 45.3, 45.4, 45.5 [R91] (§4.26)
+- [ ] avoozl-p55 P55 Proof: after removal there is one delivery path, after 45.1, 45.2, 45.3, 45.4, 45.5, 45.6 [R91] (§4.26)
   - Setup: a temporary workspace on the built app.
   - Action: run one task through the loop; list the app's agents and modules; resolve each compatibility name.
   - Expected: the task lands; no Radar, relay, router or crew agent or module remains; every compatibility name resolves.
@@ -1823,7 +1829,9 @@ Requirement 97.3 (design §4.28).
 ## Phase 50: Kiro Crew stays the only UI
 
 Requirement 98 (design §4.28). Screen changes wait for the owner's
-screenshots review.
+screenshots review. A draft spec, `.kiro/specs/standalone-web/`, proposes a
+loopback-only second host for this page; it changes nothing here until
+approved.
 
 - [x] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
 - [x] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)
@@ -2013,7 +2021,7 @@ proof or run a real workspace to get past that wait.
   - One previewed, paced, idempotent backfill adds crew:avoozl to open projected task issues with no crew: label; claimed issues are left alone with one Needs you row. Send to Issue Radar refuses crew:avoozl issues. Tests cover no hand-over write, backfill retry and the claimed skip.
 
 - [x] 56.14 Issue Radar escalations open first in intake, after 56.8, 56.12 [R103.8, R103.9, R103.10, R103.11] (§4.32)
-  - Keep plan-me routing. Trusted escalations (the repository's needs-human label) sort first in Untriaged, or Intake for a Radar-coded repository, with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.
+  - Keep plan-me routing. Trusted escalations (the repository's needs-human label) sort first in Untriaged (Intake for a Radar-coded repository until 45.6) with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.
   - Person-only start. A per-repository escalation rule, off by default, drafts locally with zero GitHub writes; approval and dispatch stay person-only. Take-over writes crew:avoozl and never removes the needs-human label; a live crew claim asks to confirm. No Radar API or grant. Tests cover order, buttons, zero-write draft and one label write.
 
 - [x] 56.15 Reanchor a held journal by a person's record, after 56.2 [R102.26] (§4.32)
@@ -2099,3 +2107,12 @@ the spec pull request item through the same list, not a second one.
 
 - [x] 60.1 Adopt spec-only pull requests into their spec, out of Triage, with a Proposed change box, a PR chip and a Decisions item, after 58.1, 57.6 [R107.1, R107.2, R107.3, R107.4, R107.5, R107.6, R107.7, R107.8, R107.9] (§4.36)
   - `spec-pull-requests.mjs` detects, links and adopts; the Triage read gains changed file paths; Approve records the revision, merges after checks, and Reject and Request changes act on the pull request. Tests and screenshots under `docs/evidence/spec-pr-adoption/`.
+
+## Phase 61: The planner decides batches
+
+Owner decision 2026-11-18 (Requirement 108, design §4.37). One build task.
+Landing trains are being built on `task/lt-*` and touch `delivery.mjs`;
+merge main often and keep to `flow-batch.mjs` and the call sites.
+
+- [x] 61.1 Planner batch groups replace `size: "small"` and `flow.batch`, after 12.8 [R108.1, R108.2, R108.3, R108.4, R108.5, R108.6, R108.7, R108.8, R108.9, R108.10, R108.11, R108.12] (§4.37)
+  - `parseSpec` reads `batches` and approval stores `batch` on each member; `flow-batch.mjs` dispatches a planner group as one handoff when every open member is ready, checks the rules in code and runs a rule-breaking group alone with its reason; split on failure as before. `flow.batch`, `size`, the Batching box and `BATCH_BY` are removed, and old values are ignored. Delivery shows a batched handoff as one In progress card; task details link to the batch. The planner prompt says when to group. Tests and screenshots under `docs/evidence/agent-batching/`.

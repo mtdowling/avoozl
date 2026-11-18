@@ -56,6 +56,19 @@ async function assertShell(name, title, label = 'Close') {
   })()`)
   assert.equal(box.inside, true, `${name}: the dismiss button is on the screen`)
   assert.equal(box.first, true, `${name}: the dismiss button sits left of the footer's other buttons`)
+  // With a main action (primary or danger), it is the last footer button by
+  // position and the dismiss button is not. Alone, the dismiss button is last.
+  const order = await page.evaluate(`(() => {
+    const buttons = [...${TOP}.querySelectorAll('[data-modal-footer] button')].filter((b) => b.getBoundingClientRect().width > 0 && b.style.order !== '-1')
+    const right = buttons.map((b, i) => ({ i, right: b.getBoundingClientRect().right, main: b.hasAttribute('data-primary') || ['primary', 'danger'].includes(b.dataset.variant), close: b.hasAttribute('data-modal-footer-close') }))
+    const last = right.reduce((a, b) => (b.right >= a.right ? b : a))
+    return { count: right.length, hasMain: right.some((b) => b.main), lastMain: last.main, lastClose: last.close }
+  })()`)
+  if (order.count === 1) assert.equal(order.lastClose, true, `${name}: a lone dismiss button is last`)
+  else if (order.hasMain) {
+    assert.equal(order.lastMain, true, `${name}: the main action is the rightmost footer button`)
+    assert.equal(order.lastClose, false, `${name}: the dismiss button is not rightmost`)
+  }
   // The header X is there too.
   assert.equal(await page.evaluate(`Boolean(${TOP}.querySelector('[data-modal-close]'))`), true, `${name}: the X`)
   // Tab stays inside the modal.
@@ -213,7 +226,7 @@ test('the Graph node modal: the node is the title, Close in the footer', { skip 
   await page.until(CLOSED)
 })
 
-test('the workspace and instance modals', { skip }, async () => {
+test('the workspace modals', { skip }, async () => {
   await page.open(harness.url({ page: 'workspaces' }), { width: 1280, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-edit-workspace="launch"]'))`)
   await page.evaluate(`document.querySelector('[data-add-workspace]').click()`)
@@ -232,11 +245,4 @@ test('the workspace and instance modals', { skip }, async () => {
   await assertShell('Remove workspace', /^Remove .+ from Avoozl\?$/, 'Cancel')
   await page.key('Escape', 'Escape', 27)
   await page.until(`!document.querySelector('[data-remove-workspace-confirm]')`)
-
-  await page.open(harness.url({ page: 'app', radar: '1' }), { width: 1280, height: 800 })
-  await page.until(`Boolean(document.querySelector('[data-left-nav] [data-instance-edit]'))`, 30000)
-  await page.evaluate(`document.querySelector('[data-left-nav] [data-instance-edit]').click()`)
-  await page.until(OPEN)
-  await settle()
-  await assertShell('Instance name', 'Instance name', 'Cancel')
 })

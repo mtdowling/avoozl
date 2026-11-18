@@ -58,10 +58,10 @@ person.
 - [x] lt-2.3 The integrator process and role, after lt-2.2, lt-1.2 [LT2.1, LT2.2, LT2.3, LT2.5] (§D4, §D21)
   - `avoozl integrator run` as a supervisor child serving every `train` target in its workspace, in `src/app/integrator-trains.mjs`; `landDirect` skips `train` targets; `avoozl integrator status [--json]`.
   - Done when: Tests: with a `train` target, a tick that verifies a task pushes only the batch branch and never the trunk; the integrator process is the only caller that pushes the trunk (a test wraps git and records pushes by process); the supervisor restarts a killed integrator; `status --json` shows holder, train and trigger state.
-- [ ] lt-2.4 A taker cleans up a dead train, after lt-2.3, lt-3.1 [LT3.6, LT3.7] (§D5.3)
+- [x] lt-2.4 A taker cleans up a dead train, after lt-2.3, lt-3.1 [LT3.6, LT3.7] (§D5.3)
   - Remove listed worktrees, run held environments' `cleanup`, release slots, settle members: back to `queued` in order if unpushed; finish validation and failure handling first if an optimistic train had pushed. Each action is written to the dead train's steps; its outcome becomes `abandoned`.
   - Done when: Tests kill an integrator (a) mid-stack, (b) mid-full-validation under gated and (c) after an optimistic push; in each the taker leaves no landing worktree, runs the fake cleanup command once, frees the slot, and (a, b) requeues members in the same order or (c) runs full validation on the pushed head before forming a new train.
-- [ ] lt-p1 Proof: one integrator per trunk, and a dead one clears by itself, after lt-2.1, lt-2.2, lt-2.3, lt-2.4 [LT2, LT3] (§D5)
+- [x] lt-p1 Proof: one integrator per trunk, and a dead one clears by itself, after lt-2.1, lt-2.2, lt-2.3, lt-2.4 [LT2, LT3] (§D5)
   - Setup: an isolated workspace, a scratch repository with a bare remote, a `train` target with a slow fake full validation, and two integrator processes on one machine.
   - Action: (1) queue three branches and start both integrators; (2) kill the lease holder during full validation; (3) suspend (SIGSTOP) the next holder past its expiry; (4) move the remote trunk by hand during a train.
   - Expected: (1) one train, one trunk push; the other integrator reports `busy`; (2) the survivor takes the lease after three missed heartbeats, cleans up and lands the three; (3) nothing is taken and one Needs you item names the hung integrator; (4) the push is refused, the stack is rebased and rechecked, and the trunk never shows a forced update.
@@ -108,7 +108,7 @@ person.
 - [x] lt-5.2 Watch the train's one CI run, after lt-5.1, lt-4.4 [LT8.6, LT8.7, LT4.6] (§D10, §D9.3)
   - Read `ci.workflow`'s run for the pushed head through the pacer and record it on the train; validated only when every needed platform passed; `ci.waitForLastTrain` holds the next train until that conclusion.
   - Done when: Fake-GitHub tests: the run ID and conclusion land on the train record; a train with a CI-only platform is validated only after the run passes; with `waitForLastTrain` false the next train starts before the conclusion and with true it waits; Stop the line counts only validated trains' heads.
-- [ ] lt-p2 Proof: ten branches land in one train, after lt-p1, lt-1.2, lt-3.2, lt-3.3, lt-4.2, lt-5.1, lt-5.2 [LT1, LT4, LT5, LT6, LT8] (§D7, §D10)
+- [x] lt-p2 Proof: ten branches land in one train, after lt-p1, lt-1.2, lt-3.2, lt-3.3, lt-4.2, lt-5.1, lt-5.2 [LT1, LT4, LT5, LT6, LT8] (§D7, §D10)
   - Setup: a scratch repository with a bare remote and a fake GitHub; ten task branches as in the 2026-11-17 incident, two of which delete different functions from the same lines, one built on another, one append-only `CHANGELOG.md` conflict under a `union` rule; policy optimistic.
   - Action: queue all ten, let the integrator run.
   - Expected: one train of nine; the later of the two same-line branches returns to its task with the conflicted file and the earlier commit; the stacked branch carries no duplicated commit; the changelog merges by rule and passes verify; one trunk push, one CI run, no forced update on any ref; the returned branch, fixed by a merge and requeued, lands in the next train.
@@ -124,7 +124,7 @@ person.
 - [x] lt-6.2 Land the good branches; return, eject, revert or fix forward, after lt-6.1, lt-5.1 [LT10.3, LT10.4, LT10.5, LT16.5] (§D11.2)
   - Gated: drop the culprit, restack, cheap checks, rerun the failed suites, land, up to `maxBisects`. Optimistic: `revert` pushes one fast-forward revert of the culprit's range; `fix-forward` pulls Stop the line for the target and puts a fix task first. `failure.action` `return` sends the culprit's chat the suites, platform and a log excerpt of at most 200 lines through `sendFailureBack`, up to `retries`; `eject` opens Needs you. `landNext` halving stays for `direct`.
   - Done when: Real-git tests: gated with one culprit lands nine and returns one; gated with a second culprit after the first restack stops at `maxBisects`; optimistic `revert` leaves the trunk green with one revert commit and no forced update; `fix-forward` opens a stop and a fix task first in line; `return` sends the excerpt and counts rounds, then ejects; `eject` opens one Needs you item; a `direct` repository still halves.
-- [ ] lt-p3 Proof: a red train lands the rest, after lt-p2, lt-6.1, lt-6.2 [LT10] (§D11)
+- [x] lt-p3 Proof: a red train lands the rest, after lt-p2, lt-6.1, lt-6.2 [LT10] (§D11)
   - Setup: a scratch repository with a fake suite runner, eight queued branches, member 5 breaks one suite on one platform, member 2 has a flaky suite; run once gated and once optimistic with `revert`.
   - Action: let the integrator run each.
   - Expected: gated: the flake is recorded and ignored; the bisect probes only the failing suite on the failing platform and names member 5; seven land; member 5's chat gets the suite and excerpt. Optimistic: eight land, then one revert of member 5's range turns the trunk green; member 5 is returned. Neither run forces any ref.
@@ -134,7 +134,7 @@ person.
 
 ## Phase 7: Queue depth and wait
 
-- [ ] lt-7.1 Queue depth and time in queue on the Landing queue page, the CLI and MCP, after lt-3.1 [LT14.1, LT14.3] (§D15)
+- [x] lt-7.1 Queue depth and time in queue on the Landing queue page, the CLI and MCP, after lt-3.1 [LT14.1, LT14.3] (§D15)
   - Extend `src/app/landing-queue-view.mjs` with, per target, queue depth, each entry's time in queue and hold reason, and the running train and its step; `avoozl landing status [--json]` and the MCP read return the same. Branch age, behind-trunk, last trains, the 7-day numbers and the wait alert come in lt-9.2.
   - Done when: A seeded-store test checks depth, each time in queue and hold reason, and the running train's step; a counting-client test shows zero GitHub calls for the page, the CLI and the MCP read; the UI test renders the page at 390 and 1280 px; screenshots in light and dark go to the owner (R92.12).
 - [ ] lt-p4 Proof: a live train on Nupp, after lt-p3, lt-1.3, lt-4.3, lt-4.4, lt-7.1 [LT1, LT7, LT8, LT13.1, LT13.2] (§D20)

@@ -105,7 +105,8 @@ test("panel.view fills every section from the sample workspace", async () => {
       assert.notEqual(view[part], null, `${part} was read`);
     assert.ok(view.conflicts.length > 0, "something waits on a person");
     assert.ok(view.crews.rows.length > 0, "a crew holds a claim");
-    assert.ok(view.queue.repositories[0].rows.length > 0, "the queue has rows");
+    // No repository is Radar-coded (R91.6), so the release queue is empty.
+    assert.deepEqual(view.queue.repositories, []);
     assert.ok(
       view.flow.tasks.some((task) => task.finishedAt),
       "something merged",

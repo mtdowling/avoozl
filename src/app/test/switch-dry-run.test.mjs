@@ -48,7 +48,6 @@ function setup() {
   const options = {
     settings: {},
     tasks,
-    radar: (task) => task?.id === "r1",
     reviewRoles: (b) =>
       b.role === "review:correctness"
         ? [{ id: "correctness", distinctFrom: "model", model: "delta-1" }]
@@ -105,7 +104,7 @@ test("chosen tasks without an Avoozl chat say why; auto is a target", () => {
     [["s1", "auto"]],
   );
   const why = Object.fromEntries(dry.skipped.map((c) => [c.taskId, c.why]));
-  assert.equal(why.r1, "Issue Radar codes this task");
+  assert.equal(why.r1, "no running chat");
   assert.equal(why.q2, "no running chat");
   assert.deepEqual(dry.marks, []);
   assert.deepEqual(dry.queued, []);

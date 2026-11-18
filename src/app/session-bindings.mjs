@@ -21,6 +21,8 @@ const ROLES = new Set([
   "review-draft",
   "plan-review",
   "plan-answer",
+  // The AI summary on a task's Overview tab (task-summary.mjs).
+  "task-summary",
   // A conflict fix chat (radar-conflict-fix.mjs, RC28).
   "conflict-fix",
   // Tries to prove a worker's findings wrong (§4.21).
@@ -108,6 +110,10 @@ function batchInput(value, role, leader) {
     id: value.id,
     tasks: [...value.tasks],
     ...(typeof value.by === "string" ? { by: value.by } : {}),
+    // The planner's one-line reason (§4.37), shown on the batch's card.
+    ...(typeof value.reason === "string"
+      ? { reason: value.reason.slice(0, 200) }
+      : {}),
   };
 }
 
@@ -179,6 +185,9 @@ export function bindSession(
         // A review draft chat binds to its draft (review-draft.mjs).
         (role === "review-draft" &&
           store.get("receipts", named)?.kind === "review-draft") ||
+        // A task summary chat binds to its receipt (task-summary.mjs).
+        (role === "task-summary" &&
+          store.get("receipts", named)?.kind === "task-summary") ||
         // A spec review binds to its revision-bound round, not a task.
         (["plan-review", "plan-answer"].includes(role) &&
           store.get("review_rounds", named)?.spec) ||
@@ -285,6 +294,7 @@ export function bindSession(
         id: binding.batch.id,
         tasks: binding.batch.tasks,
         by: binding.batch.by ?? null,
+        reason: binding.batch.reason ?? null,
         slot,
         state: "running",
         openedAt: binding.boundAt,

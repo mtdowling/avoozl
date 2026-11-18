@@ -9,6 +9,7 @@ import {
   guardedFetch,
   outputProblems,
   poller,
+  recoverRun,
   pushArgs,
   refusePushFlags,
   refuseSkippingFlags,
@@ -226,4 +227,31 @@ test("waiting polls at most once per ten minutes", async () => {
   });
   await next.wait();
   assert.equal(slept.at(-1), 10 * 60 * 1000);
+});
+
+test("a crashed run reruns one stage that ran and records it", () => {
+  const state = {
+    failure: "Command failed",
+    finished: true,
+    done: ["setup", "probes"],
+    report: {
+      steps: [{ name: "setup" }, { name: "probes", pushed: 2 }],
+      stopped: [{ push: "message" }],
+    },
+  };
+  assert.throws(() => recoverRun(state, "export"), /has not run/);
+  recoverRun(state, "probes", "t1");
+  assert.deepEqual(state.done, ["setup"]);
+  assert.equal(state.finished, undefined);
+  assert.deepEqual(state.report.stopped, []);
+  assert.deepEqual(state.recoveries, [
+    {
+      at: "t1",
+      crash: "Command failed",
+      rerun: "probes",
+      earlier: { name: "probes", pushed: 2 },
+      stopped: [{ push: "message" }],
+    },
+  ]);
+  assert.throws(() => recoverRun(state, "setup"), /did not crash/);
 });
