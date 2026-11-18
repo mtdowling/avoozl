@@ -1110,8 +1110,9 @@ try {
   else if (command === "seed")
     console.log(
       JSON.stringify(
+        // No name installs the default pack (`examples` says which).
         await localOrRequest("workspace.seed", {
-          example: options.example || positionals[0] || "product-launch",
+          example: options.example || positionals[0],
         }),
         null,
         2,
