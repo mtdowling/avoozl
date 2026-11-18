@@ -136,7 +136,7 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
   return (
     <div className="flex flex-col gap-3" data-delivery-settings>
       <Card className="flex flex-col gap-4">
-        <Section title="Writer" blurb="The agent and model worker chats open on, unless a task's manifest picks another.">
+        <Section title="Writer" blurb="The agent and model worker chats open on, unless a task's facts in tasks.md pick another.">
           <div className="flex flex-wrap gap-4">
             <Labeled id="avoozl-delivery-agent" label="Agent" raw="delivery.agent" width="16rem" byDefault={DELIVERY_DEFAULTS.agent} reset={form.agent.trim() && form.agent.trim() !== DELIVERY_DEFAULTS.agent ? () => set({ agent: '' }) : undefined}>
               <Input id="avoozl-delivery-agent" value={form.agent} placeholder={DELIVERY_DEFAULTS.agent} onChange={(e) => set({ agent: e.target.value })} />
@@ -154,7 +154,7 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
         </Section>
         <Section title="Investigate first" blurb="Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand.">
           <div className="flex flex-wrap gap-4">
-            <Labeled id="avoozl-delivery-investigate" label="Which tasks" raw="delivery.investigate.mode" width="16rem" note="A task's manifest can set investigate: true or false." byDefault="All but small tasks" reset={form.investigateMode && form.investigateMode !== DELIVERY_DEFAULTS.investigateMode ? () => set({ investigateMode: DELIVERY_DEFAULTS.investigateMode }) : undefined}>
+            <Labeled id="avoozl-delivery-investigate" label="Which tasks" raw="delivery.investigate.mode" width="16rem" note="A task's facts in tasks.md can set investigate: true or false." byDefault="All but small tasks" reset={form.investigateMode && form.investigateMode !== DELIVERY_DEFAULTS.investigateMode ? () => set({ investigateMode: DELIVERY_DEFAULTS.investigateMode }) : undefined}>
               <select id="avoozl-delivery-investigate" value={form.investigateMode ?? DELIVERY_DEFAULTS.investigateMode} onChange={(e) => set({ investigateMode: e.target.value as DeliveryForm['investigateMode'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
                 <option value="not-small">All but small tasks</option>
                 <option value="all">All tasks</option>

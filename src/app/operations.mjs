@@ -2255,7 +2255,9 @@ export class Operations {
         (entry) =>
           entry.id === task.id || (task.specKey && entry.key === task.specKey),
       );
-    const entry = item?.key ? (specFacts(spec.files).tasks[item.key] ?? {}) : {},
+    const entry = item?.key
+        ? (specFacts(spec.files).tasks[item.key] ?? {})
+        : {},
       { title, ...fields } = change,
       before = item ? lines[item.line - 1].replace(/\r$/, "") : null;
     return {

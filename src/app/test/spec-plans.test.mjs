@@ -104,7 +104,9 @@ test("a leftover avoozl/manifest.json is an error that says to delete it", () =>
   fs.writeFileSync(path.join(directory, "avoozl/manifest.json"), "{}\n");
   const before = readSpecFolder(root, "config");
   const result = lint(root);
-  assert.deepEqual(codes(result), ["spec.manifest-left avoozl/manifest.json:1"]);
+  assert.deepEqual(codes(result), [
+    "spec.manifest-left avoozl/manifest.json:1",
+  ]);
   assert.match(result.diagnostics[0].message, /Delete .*manifest\.json/);
   assert.equal(result.canApprove, false);
   // Nothing reads it: it is not part of the revision hash.
@@ -1177,7 +1179,8 @@ const withBatch = (front, members) => {
   for (const [key, group] of Object.entries(members))
     text = text.replace(
       new RegExp(`(- \\[ \\] ${key.replace(".", "\\.")} .*\\n\\s*- Facts:\\n)`),
-      (head) => `${head}${" ".repeat(key.includes(".") ? 6 : 4)}- batch: ${group}\n`,
+      (head) =>
+        `${head}${" ".repeat(key.includes(".") ? 6 : 4)}- batch: ${group}\n`,
     );
   return { "tasks.md": front ? `---\n${front}\n---\n${text}` : text };
 };
@@ -1203,7 +1206,11 @@ test("a batch group lands on each member", () => {
 
 test("a malformed batch group is an error in tasks.md", () => {
   const cases = [
-    ["batch-bad id: x", { 1.1: "bad id", 1.2: "bad id" }, /needs an ID|front-matter/],
+    [
+      "batch-bad id: x",
+      { 1.1: "bad id", 1.2: "bad id" },
+      /needs an ID|front-matter/,
+    ],
     ["batch-g: x", { 1.1: "g" }, /lists 2 to 5 different/],
     ["batch-g: x", { 1: "g", 1.1: "g" }, /names "1", which is not a leaf/],
     [null, { 1.1: "g", 1.2: "g" }, /Batch "g" has no reason/],

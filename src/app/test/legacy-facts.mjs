@@ -4,11 +4,7 @@
 // the parse and the hash (Requirement 111.6, 111.10). Avoozl itself has no
 // converter: nothing reads the old file.
 import { digest } from "../../model.mjs";
-import {
-  factsLines,
-  factsText,
-  withDefaults,
-} from "../spec-facts.mjs";
+import { factsLines, factsText, withDefaults } from "../spec-facts.mjs";
 import { specItems, withoutMarks, withoutStatus } from "../spec-plans.mjs";
 
 const MANIFEST = "avoozl/manifest.json";

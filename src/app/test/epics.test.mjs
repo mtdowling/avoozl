@@ -176,8 +176,7 @@ test("the spec reader knows epic folders and refuses the old plan forms", (t) =>
   assert.ok(
     old.diagnostics.some(
       (d) =>
-        d.code === "spec.epic-task-fields" &&
-        /"kind", "repo"/.test(d.message),
+        d.code === "spec.epic-task-fields" && /"kind", "repo"/.test(d.message),
     ),
   );
   writeSpec(root, "member-plan", {

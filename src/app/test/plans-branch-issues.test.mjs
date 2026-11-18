@@ -33,9 +33,9 @@ const manifest = (requires, unblocks) =>
   });
 const files = (title, requires, unblocks) =>
   withFacts({
-  ...specFiles(),
-  "tasks.md": `# Tasks\n\n- [ ] 1 Goal\n  - [ ] 1.1 ${title}\n`,
-  "avoozl/manifest.json": manifest(requires, unblocks),
+    ...specFiles(),
+    "tasks.md": `# Tasks\n\n- [ ] 1 Goal\n  - [ ] 1.1 ${title}\n`,
+    "avoozl/manifest.json": manifest(requires, unblocks),
   });
 
 async function setup(t) {

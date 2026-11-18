@@ -13,25 +13,25 @@ const PLANS = "avoozl-plans";
 
 const files = (title) =>
   withFacts({
-  ...specFiles(),
-  "tasks.md": `# Tasks\n\n- [ ] 1 Goal\n  - [ ] 1.1 ${title}\n`,
-  "avoozl/manifest.json": JSON.stringify({
-    tasks: {
-      1: {
-        kind: "package",
-        summary: "Goal.",
-        requires: ["1.1"],
-        acceptance: ["Done."],
+    ...specFiles(),
+    "tasks.md": `# Tasks\n\n- [ ] 1 Goal\n  - [ ] 1.1 ${title}\n`,
+    "avoozl/manifest.json": JSON.stringify({
+      tasks: {
+        1: {
+          kind: "package",
+          summary: "Goal.",
+          requires: ["1.1"],
+          acceptance: ["Done."],
+        },
+        1.1: {
+          kind: "leaf",
+          summary: "Do the work.",
+          acceptance: ["It works."],
+          checks: ["npm test"],
+          completion: "integrated",
+        },
       },
-      1.1: {
-        kind: "leaf",
-        summary: "Do the work.",
-        acceptance: ["It works."],
-        checks: ["npm test"],
-        completion: "integrated",
-      },
-    },
-  }),
+    }),
   });
 
 // The mirror block sits on the entry named by `key`: the source (the usual

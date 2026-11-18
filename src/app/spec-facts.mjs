@@ -383,11 +383,15 @@ export function readFacts(text, items) {
 
   // A Facts bullet that is not an item's first child, and a fact outside one.
   let fenced = false,
-    owner = null;
+    owner = null,
+    misplaced = null;
   rows.forEach((raw, index) => {
     const line = index + 1;
     if (FENCE.test(raw)) fenced = !fenced;
     if (fenced || skip.has(line)) return;
+    // The children of a misplaced Facts bullet are reported once, with it.
+    if (misplaced !== null && raw.trim() && indentOf(raw) > misplaced) return;
+    misplaced = null;
     if (byLine.has(line)) {
       owner = { item: byLine.get(line), indent: indentOf(raw) };
       return;
@@ -395,7 +399,8 @@ export function readFacts(text, items) {
     if (/^#{1,6}\s/.test(raw)) owner = null;
     const bullet = BULLET.exec(raw);
     if (!bullet) return;
-    if (FACTS.test(bullet[2]) && !accepted.has(line))
+    if (FACTS.test(bullet[2]) && !accepted.has(line)) {
+      misplaced = bullet[1].length;
       problems.push(
         problem(
           "facts.misplaced",
@@ -403,7 +408,7 @@ export function readFacts(text, items) {
           "Facts: is the first child of a task item, and a task has one. Move it directly under its item.",
         ),
       );
-    else if (
+    } else if (
       owner &&
       bullet[1].length > owner.indent &&
       Object.hasOwn(KEYS, /^([A-Za-z][A-Za-z0-9]*):/.exec(bullet[2])?.[1] ?? "")

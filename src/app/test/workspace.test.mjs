@@ -265,9 +265,10 @@ test("the default example is draft spec folders, installed once, edits kept", as
       "requirements.md",
       "design.md",
       "tasks.md",
-      "avoozl/manifest.json",
     ])
       assert(fs.existsSync(path.join(specs, spec, file)), `${spec}/${file}`);
+  for (const spec of result.specs)
+    assert(!fs.existsSync(path.join(specs, spec, "avoozl", "manifest.json")));
   // Stored as drafts: nothing approved, started or configured, no task.
   assert.deepEqual(
     store

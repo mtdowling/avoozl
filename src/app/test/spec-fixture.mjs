@@ -81,10 +81,7 @@ export function writeSpec(root, name, overrides = {}) {
 
 // A tasks.md text with the facts of `manifest` (the fixture's by default)
 // folded in, for tests that rewrite tasks.md on disk.
-export const tasksWithFacts = (
-  tasks,
-  manifest = legacySpecFiles()[MANIFEST],
-) =>
+export const tasksWithFacts = (tasks, manifest = legacySpecFiles()[MANIFEST]) =>
   withFacts({ "tasks.md": tasks, [MANIFEST]: manifest })["tasks.md"];
 
 // The fixture's tasks.md line of a text.

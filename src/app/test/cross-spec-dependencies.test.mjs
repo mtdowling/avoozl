@@ -328,7 +328,10 @@ test("changing the reviewed foreign dependency still holds a consumer for review
     file,
     fs
       .readFileSync(file, "utf8")
-      .replace(/(left-finish[^\n]*\n(?:\s+-.*\n)*?\s+- after:) right-step/, "$1 left-start"),
+      .replace(
+        /(left-finish[^\n]*\n(?:\s+-.*\n)*?\s+- after:) right-step/,
+        "$1 left-start",
+      ),
   );
   await w.ops.execute("plan.save", { id: "left", expectedHash: plan.hash });
   await approve(w, "left");
