@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ACTIVITY_FILTER_STORE, filterActive, filterChoices, retentionAutosave, retentionInput, rowTarget } from '../src/activity-api.ts'
+import { ACTIVITY_FILTER_STORE, SOURCE_LABELS, filterActive, filterChoices, retentionAutosave, retentionInput, rowTarget } from '../src/activity-api.ts'
 import { PAGE } from '../src/paging.ts'
 
 const src = new URL('../src/', import.meta.url)
@@ -145,4 +145,13 @@ test('Keep activity has no Save button and saves on blur and Enter', () => {
   assert.match(keep, /event\.key === 'Enter'/)
   assert.match(keep, /'Saving…'/)
   assert.match(keep, /'Saved'/)
+})
+
+test('the tick is a source with its own label and filter row', () => {
+  assert.equal(SOURCE_LABELS.tick, 'Tick')
+  const page = { items: [], total: 3, sources: ['local', 'tick'], kinds: ['tick.failed'], actors: ['avoozl'], counts: { source: { local: 1, tick: 2 } }, retentionDays: 30 }
+  assert.deepEqual(filterChoices(page, {}).sources, [
+    { value: 'local', label: 'This workspace', count: 1 },
+    { value: 'tick', label: 'Tick', count: 2 },
+  ])
 })
