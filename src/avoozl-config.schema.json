@@ -453,6 +453,16 @@
                 }
               }
             },
+            "scheduling": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "overlap": {
+                  "enum": ["same-train", "serialize"],
+                  "default": "same-train"
+                }
+              }
+            },
             "pullRequests": {
               "type": "object",
               "additionalProperties": false,
@@ -669,6 +679,16 @@
                       "waitForLastTrain": {
                         "type": "boolean",
                         "default": false
+                      }
+                    }
+                  },
+                  "scheduling": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "overlap": {
+                        "enum": ["same-train", "serialize"],
+                        "default": "same-train"
                       }
                     }
                   },
