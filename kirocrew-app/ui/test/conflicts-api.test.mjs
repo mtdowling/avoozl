@@ -18,7 +18,7 @@ test('every kind gets an action or a plain reason why it has none', () => {
     [item('resource', 'x'), null, /share a resource/],
     // A source conflict Avoozl asked about has its own three buttons (RC28.3).
     [item('needs-human', null, { reason: 'conflict-fix', authority: 'github', conflictFix: { repository: 'o/r', pullRequest: 3, actions: ['resolve', 'dismiss'] } }), null, null],
-    [item('needs-human', null, { reason: 'merge-method', authority: 'github' }), null, /merge\.method/],
+    [item('needs-human', null, { reason: 'merge-method', authority: 'github' }), null, /merge method on the Landing tab/],
   ]
   for (const [entry, action, reason] of cases) {
     assert.equal(settleActionOf(entry), action, `${entry.kind} ${entry.taskId}`)

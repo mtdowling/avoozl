@@ -1,4 +1,5 @@
 import { kirocrewSessionSettings } from "./executors/kirocrew.mjs";
+import { LANDING_MODES } from "./landing-config.mjs";
 // Repository policy in `.avoozl.json` (design §4.4): GitHub mode, task
 // authority, the Project, and per-repository rules that map labels to fixed
 // actions. No label name is built in. Validation is deterministic; the one
@@ -172,12 +173,14 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "mirror",
     "conflicts",
     "merge",
+    "landing",
     "cacheSeconds",
   ],
   crew: ["count", "models", "template"],
   approval: ["decisionRecord"],
   conflicts: ["onSourceConflict", "maxAttempts"],
   merge: ["method"],
+  landing: ["mode", "autoMerge", "method"],
   untriaged: ["filter", "triageLabels", "ignoreOlderThanDays", "notify"],
 });
 // Who may give Avoozl orders when a repository names nobody.
@@ -770,7 +773,9 @@ function repositoryInput(value, id, mode) {
     discussions,
     untriaged,
     conflicts: conflictsInput(value.conflicts, `${label}.conflicts`),
-    merge: mergeInput(value.merge, `${label}.merge`),
+    // One landing block (design §4.25); `merge.method` is its older key and
+    // stays the field the arming code reads.
+    ...landingInput(value.landing, value.merge, label),
     ...(value.mirror === undefined || value.mirror === null
       ? {}
       : { mirror: mirrorInput(value.mirror, `${label}.mirror`, baseBranch) }),
@@ -782,19 +787,24 @@ function repositoryInput(value, id, mode) {
 // asks a person.
 export const CONFLICT_ACTIONS = Object.freeze(["fix", "ask"]);
 export const MAX_ATTEMPTS = 10;
+// One count for crew pull requests and landing (R87.6, RC28.4). A
+// repository that sets none reads `landing.conflictRounds`, then this.
 export const CONFLICT_DEFAULTS = Object.freeze({
   onSourceConflict: "fix",
-  maxAttempts: 1,
+  maxAttempts: 2,
 });
 function conflictsInput(value, label) {
   const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.conflicts, label);
   const action = input.onSourceConflict ?? CONFLICT_DEFAULTS.onSourceConflict,
-    count = input.maxAttempts ?? CONFLICT_DEFAULTS.maxAttempts;
+    count = input.maxAttempts ?? null;
   if (!CONFLICT_ACTIONS.includes(action))
     fail(`${label}.onSourceConflict must be fix or ask.`);
-  if (!Number.isSafeInteger(count) || count < 1 || count > MAX_ATTEMPTS)
+  if (
+    count !== null &&
+    (!Number.isSafeInteger(count) || count < 0 || count > MAX_ATTEMPTS)
+  )
     fail(
-      `${label}.maxAttempts must be a whole number from 1 to ${MAX_ATTEMPTS}.`,
+      `${label}.maxAttempts must be a whole number from 0 to ${MAX_ATTEMPTS}.`,
     );
   return { onSourceConflict: action, maxAttempts: count };
 }
@@ -808,12 +818,30 @@ export const MERGE_METHOD_SETTING = Object.freeze({
   squash: { key: "allow_squash_merge", name: "Allow squash merging" },
   merge: { key: "allow_merge_commit", name: "Allow merge commits" },
 });
-function mergeInput(value, label) {
-  const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.merge, label),
-    method = input.method ?? MERGE_METHOD_DEFAULT;
-  if (!MERGE_METHODS.includes(method))
-    fail(`${label}.method must be squash or merge.`);
-  return { method };
+// `landing` {mode, autoMerge, method} and the older `merge` {method}:
+// {landing: {mode, autoMerge}, merge: {method}}, unset values null. Null
+// reads as unset, so a normalized policy normalizes to itself.
+function landingInput(value, merge, label) {
+  const block = onlyKeys(
+      value ?? {},
+      GITHUB_BLOCK_KEYS.landing,
+      `${label}.landing`,
+    ),
+    old = onlyKeys(merge ?? {}, GITHUB_BLOCK_KEYS.merge, `${label}.merge`);
+  if (block.mode != null && !LANDING_MODES.includes(block.mode))
+    fail(`${label}.landing.mode must be direct, pr, train or off.`);
+  if (block.autoMerge != null && typeof block.autoMerge !== "boolean")
+    fail(`${label}.landing.autoMerge must be true or false.`);
+  for (const [at, method] of [
+    ["landing.method", block.method],
+    ["merge.method", old.method],
+  ])
+    if (method != null && !MERGE_METHODS.includes(method))
+      fail(`${label}.${at} must be squash or merge.`);
+  return {
+    landing: { mode: block.mode ?? null, autoMerge: block.autoMerge ?? null },
+    merge: { method: block.method ?? old.method ?? MERGE_METHOD_DEFAULT },
+  };
 }
 // The GitHub GraphQL merge method for a repository's settings.
 export const mergeMethodOf = (settings) =>

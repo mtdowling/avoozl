@@ -64,7 +64,7 @@ import {
   settingsTitle,
 } from './settings-api.ts'
 import SetupWizard from './SetupWizard.tsx'
-import { AVOOZL_LABELS_LINE, AvoozlLabelFields, CREW_PART_TEXT, ConflictFields, MergeMethodFields, ReviewRulesFields } from './CrewsRulesSettings.tsx'
+import { AVOOZL_LABELS_LINE, AutoMergeFields, AvoozlLabelFields, CREW_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields, ReviewRulesFields } from './CrewsRulesSettings.tsx'
 import WorkflowMap, { focusField } from './WorkflowMap.tsx'
 import { type Jump, type JumpField } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
@@ -82,7 +82,8 @@ import DeliverySettings from './DeliverySettings.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
-import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
+import { COMMAND_PATH, errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
+import type { DeliverySettings as DeliveryRead } from './delivery-api.ts'
 import { Fold } from './controls.tsx'
 import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
 import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
@@ -115,7 +116,6 @@ export const SETTINGS_TABS = [
   { key: 'flow', label: 'Flow' },
   // Avoozl's own chats only; Radar crews pick their own model.
   { key: 'models', label: 'Models' },
-  // Who merges (delivery.ship) is read for Radar pull requests too.
   { key: 'delivery', label: 'Delivery' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
@@ -137,7 +137,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   models: "The harness each role runs on, and the model of Avoozl's own chats. Issue Radar crews pick their own.",
   delivery:
-    'Who merges a finished pull request, and the writer agent and model, investigate-first and pull request feedback for Avoozl worker chats.',
+    'The writer agent and model, investigate-first and pull request feedback for Avoozl worker chats.',
 }
 
 // Section blurbs of a repository's Edit dialog (repo-edit-tabs.ts has its tabs).
@@ -746,6 +746,22 @@ export function RepositoryEditor(props: {
   const setRule = (at: number, rule: RuleForm) =>
     set({ rules: repository.rules.map((item, index) => (index === at ? rule : item)) })
   const name = repository.name.trim()
+  // The older workspace delivery.ship, which a repository that sets no
+  // landing.autoMerge follows (§4.25); read only on the Landing tab.
+  const [inheritedShip, setInheritedShip] = useState<string | null>(null)
+  useEffect(() => {
+    if (tab !== 'landing') return
+    let live = true
+    api
+      .post<{ result: DeliveryRead }>(COMMAND_PATH, { operation: 'delivery.settings.get', input: {}, workspaceId: props.workspaceId })
+      .then(
+        (reply) => live && setInheritedShip(reply.result?.delivery?.ship ?? null),
+        () => live && setInheritedShip(null),
+      )
+    return () => {
+      live = false
+    }
+  }, [tab, api, props.workspaceId])
   // GitHub's rules and checks, read only when the Landing tab needs them.
   useEffect(() => {
     setInspect(null)
@@ -781,6 +797,28 @@ export function RepositoryEditor(props: {
               <Text id={`${id}-base`} label="Default branch" raw="baseBranch" rule={REPOSITORY_FIELD_RULES.baseBranch} placeholder="main" width="md" value={repository.baseBranch} onChange={(value) => set({ baseBranch: value })} />
               <Text id={`${id}-release-capacity`} label="Release N" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} help={RELEASE_N_HELP} placeholder="no limit" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
             </div>
+          </FormSection>
+          <FormSection title={CREW_PART_TEXT.merge.title} blurb={CREW_PART_TEXT.merge.blurb}>
+            <div style={grid()}>
+              <Choice
+                id={`${id}-landing-mode`}
+                label="Landing mode"
+                raw="landing.mode"
+                rule={{ required: false, blank: 'blank: as avoozl setup left it' }}
+                value={repository.landingMode}
+                options={[...LANDING_MODES]}
+                none="Not set"
+                width="md"
+                onChange={(value) => set({ landingMode: value })}
+              />
+            </div>
+            <AutoMergeFields id={id} repository={repository} set={set} inherited={inheritedShip} />
+          </FormSection>
+          <FormSection title="Merge method" blurb="How a pull request merges when auto-merge is armed.">
+            <MergeMethodFields id={id} repository={repository} set={set} />
+          </FormSection>
+          <FormSection title={CREW_PART_TEXT.conflicts.title} blurb={CREW_PART_TEXT.conflicts.blurb}>
+            <ConflictFields id={id} repository={repository} set={set} />
           </FormSection>
           <FormSection title="Required checks" blurb={REPOSITORY_BLURBS.checks}>
             <ChecksEditor id={id} value={repository.requiredChecks} inspect={inspect} repository={name} onChange={(value) => set({ requiredChecks: value })} />
@@ -1376,16 +1414,6 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
       <Card>
         <Section title="Crew review rules" blurb={CREW_PART_TEXT.rules.blurb}>
           <ReviewRulesFields {...part} />
-        </Section>
-      </Card>
-      <Card>
-        <Section title="Crew pull-request conflicts" blurb={CREW_PART_TEXT.conflicts.blurb}>
-          <ConflictFields {...part} />
-        </Section>
-      </Card>
-      <Card>
-        <Section title={CREW_PART_TEXT.merge.title} blurb={CREW_PART_TEXT.merge.blurb}>
-          <MergeMethodFields {...part} />
         </Section>
       </Card>
     </div>

@@ -975,3 +975,25 @@ export function providerOutItems(store, options = {}) {
       };
     });
 }
+
+// The models Kiro Crew lists (`GET /api/models`, F128), as the app backend
+// last read them. Read again on every backend pass, so a model Kiro Crew
+// drops leaves the options at the next pass.
+const MODELS = "routing.models";
+export function recordModelList(store, models) {
+  const names = (Array.isArray(models) ? models : [])
+    .map((m) => (typeof m === "string" ? m : (m?.model_name ?? m?.id)))
+    .filter((m) => typeof m === "string" && m && m.length <= 128)
+    .slice(0, 100);
+  store.setMeta(MODELS, { models: names, readAt: new Date().toISOString() });
+  return names;
+}
+export const modelList = (store) => store.getMeta(MODELS)?.models || [];
+
+// The models a running chat may switch to (§4.20 Running chats): the
+// task's pin, then the models Kiro Crew lists.
+export function switchModels(store, task) {
+  return [task?.session?.model, ...modelList(store)].filter(
+    (m, i, all) => m && all.indexOf(m) === i,
+  );
+}

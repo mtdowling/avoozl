@@ -36,9 +36,11 @@ import {
   applySwitches,
   gatewayModelList,
   gatewayModelSwitcher,
+  healthContext,
+  recordModelList,
   refreshHealth,
+  switchModels,
 } from "./provider-health.mjs";
-import { recordModelList, routingContext, switchModels } from "./routing.mjs";
 import { taskRepository } from "../work-model.mjs";
 import {
   issueRadarReader,
@@ -760,13 +762,12 @@ export function startAppBackend({
             }
           if (modelSwitcher) {
             const data = store.read(),
-              tasks = new Map(data.tasks.map((t) => [t.id, t])),
-              ctx = routingContext(store, { workspaceRoot: ops.workspaceRoot });
+              tasks = new Map(data.tasks.map((t) => [t.id, t]));
             await applySwitches(store, modelSwitcher, {
               ...ops.providerOptions(),
-              health: ctx.health,
+              health: healthContext(store),
               choicesFor: (binding) =>
-                switchModels(ctx, tasks.get(binding.taskId)),
+                switchModels(store, tasks.get(binding.taskId)),
             });
           }
         } catch (error) {

@@ -1006,56 +1006,13 @@ try {
         2,
       ),
     );
-  else if (command === "routing") {
-    // Routing (§8.3): view, read-only preview, and validated edits with the
-    // expected revision read first, as the page does.
-    const action = positionals[0] || "view";
-    let result;
-    if (action === "view") result = await localOrRequest("routing.view", {});
-    else if (action === "preview")
-      result = await localOrRequest("routing.preview", {});
-    else if (action === "set") {
-      if (!options.file)
-        throw Error(
-          "Name the routing JSON: avoozl routing set --file ROUTING.json ({enabled, prompt, model}).",
-        );
-      const view = await localOrRequest("routing.view", {});
-      result = await localOrRequest("routing.update", {
-        where: "machine",
-        routing: JSON.parse(fs.readFileSync(options.file, "utf8")),
-        expectedHash: view.machineHash,
-      });
-    } else throw Error("Choose routing view, preview, or set.");
-    console.log(JSON.stringify(result, null, 2));
-  } else if (command === "crews" && positionals[0] === "set") {
-    if (!options.file)
-      throw Error(
-        "Name the crews JSON: avoozl crews set --file CREWS.json [--stale SECONDS].",
-      );
-    const view = await localOrRequest("routing.view", {});
-    console.log(
-      JSON.stringify(
-        await localOrRequest("crews.update", {
-          crews: JSON.parse(fs.readFileSync(options.file, "utf8")),
-          ...(options.stale !== undefined
-            ? {
-                staleSeconds:
-                  options.stale === "" ? null : Number(options.stale),
-              }
-            : {}),
-          expectedHash: view.machineHash,
-        }),
-        null,
-        2,
-      ),
-    );
-  } else if (command === "pick-again")
-    console.log(
-      JSON.stringify(
-        await localOrRequest("delivery.pickAgain", { taskId: positionals[0] }),
-        null,
-        2,
-      ),
+  else if (
+    command === "routing" ||
+    command === "pick-again" ||
+    command === "crews"
+  )
+    throw Error(
+      "Crew placement was retired: every session runs on this machine. Pin a task's agent, model or harness in its manifest `session`.",
     );
   else if (command === "verify" && positionals[0] === "allow")
     console.log(
@@ -2075,12 +2032,11 @@ try {
         `There is no help for ${positionals[0]}. ${PROGRAM} help lists every command by job.`,
       );
     console.log(text);
-  } else if (["task", "checks", "crews"].includes(command))
+  } else if (["task", "checks"].includes(command))
     throw Error(
       {
         task: "Choose task supersede.",
         checks: "Choose checks run.",
-        crews: "Choose crews set.",
       }[command],
     );
   else {
