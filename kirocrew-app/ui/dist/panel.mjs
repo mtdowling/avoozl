@@ -29,6 +29,8 @@ function re(e) {
 		init: (e) => t("workspaces.init", { ...e }),
 		remove: (e) => t("workspaces.remove", { id: e }),
 		stop: (e) => t("workspaces.stop", { id: e }),
+		update: (e) => t("workspaces.update", { ...e }),
+		browse: (e) => t("workspaces.browse", e ? { path: e } : {}),
 		repositories: (e) => t("repositories.list", {}, e).then((e) => e.items),
 		detectRepository: (e, n) => t("repositories.detect", { folder: n }, e),
 		removeRepository: (e, n) => t("repositories.remove", { id: n }, e),

@@ -113,6 +113,14 @@ function safeDirectory(directory, label, { mustExist = true } = {}) {
     );
 }
 
+function sameRealPath(a, b) {
+  try {
+    return fs.realpathSync.native(a) === fs.realpathSync.native(b);
+  } catch {
+    return false;
+  }
+}
+
 function processAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
@@ -744,6 +752,56 @@ export class WorkspaceRegistry {
       databasePreserved: true,
       receipt: saved.receipt,
     };
+  }
+
+  // A person's edit of one workspace: its name, its folder, and how many
+  // runs it may hold. A new folder must already hold this workspace (its
+  // .avoozl.json and database, as after a move), so an edit never points a
+  // workspace at an empty or another workspace's folder.
+  update(id, { name, root, maxConcurrentRuns } = {}) {
+    this.get(id);
+    const registered = this.config.workspaces[id],
+      value = { ...registered };
+    if (name !== undefined) {
+      if (typeof name !== "string" || !name.trim())
+        throw Error("Give the workspace a name.");
+      value.name = name;
+    }
+    if (maxConcurrentRuns !== undefined)
+      value.maxConcurrentRuns = Number(maxConcurrentRuns);
+    const moved =
+      root !== undefined &&
+      !(fs.existsSync(root) && sameRealPath(root, registered.root));
+    if (moved) {
+      if (typeof root !== "string" || !path.isAbsolute(root))
+        throw Error("Choose an absolute workspace directory.");
+      safeDirectory(root, `Workspace ${id}`);
+      value.root = fs.realpathSync.native(root);
+      for (const [otherId, other] of Object.entries(this.config.workspaces))
+        if (
+          otherId !== id &&
+          fs.existsSync(other.root) &&
+          sameRealPath(other.root, value.root)
+        )
+          throw Error(
+            `Workspace root ${value.root} is already registered as ${otherId}.`,
+          );
+      const files = validateWorkspaceFiles(id, value.root);
+      if (!files.initialized)
+        throw Error(
+          `No Avoozl workspace in ${value.root}. Move the workspace folder there first, or add it as a new workspace.`,
+        );
+    }
+    const candidate = normalizeWorkspace(id, value);
+    const next = structuredClone(this.config);
+    next.workspaces[id] = candidate;
+    const saved = this.save(next, "update", id, {
+      name: candidate.name,
+      root: candidate.root,
+      maxConcurrentRuns: candidate.maxConcurrentRuns,
+      ...(moved ? { previousRoot: registered.root } : {}),
+    });
+    return { ...this.get(id), receipt: saved.receipt };
   }
 
   setDefault(id) {
