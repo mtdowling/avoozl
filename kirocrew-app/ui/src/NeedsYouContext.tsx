@@ -199,6 +199,26 @@ function Evidence({ item }: { item: ConflictItem }) {
           {context.links.checks && <Hint>{checkDot(context.links.checks).label}</Hint>}
         </div>
       )}
+      {kinds.includes('checks') && context?.failedChecks && (
+        <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm" data-failed-checks>
+          {context.failedChecks.checks.map((check) => (
+            <li key={check.name} className="flex min-w-0 flex-col">
+              <span>
+                Failed check <strong>{check.name}</strong>
+                {check.conclusion ? ` (${check.conclusion})` : ''}
+                {context.failedChecks!.commit ? ` on ${context.failedChecks!.commit.slice(0, 7)}` : ''}
+              </span>
+              {check.firstError ? (
+                <code className="break-words text-xs" data-first-error>
+                  {check.firstError}
+                </code>
+              ) : (
+                <Hint size="xs">The check gave no error line.</Hint>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
       {kinds.includes('content') && (
         <p className="m-0 text-sm" data-content-evidence>
           Rule set {item.set ?? 'unknown'}

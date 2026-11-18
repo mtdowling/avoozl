@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Full-app screenshots of Needs you > Decisions (harness ?page=app&needsctx=1):
-// the list, then five items open (a question, a review group, a ready pull
-// request, a draft review, an item with no evidence), at 1280 and 390 px,
-// light and dark: <out>/<shot>-<width>-<theme>.png
+// the list, then six items open (a question, a review group, a ready pull
+// request, a draft review, a stop on failed checks, an item with no
+// evidence), at 1280 and 390 px, light and dark: <out>/<shot>-<width>-<theme>.png
 //
 //   node test/browser/needs-you-context-shots.mjs <out dir>
 //
@@ -27,7 +27,7 @@ const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
 const browser = await launch(chrome)
 const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 // Item kinds, in the order the fixture lists them.
-const PICKS = { decision: 'decision:', review: 'review:', ready: 'ready-to-merge:', draft: 'plan-review:', bare: 'needs-human:' }
+const PICKS = { decision: 'decision:', review: 'review:', ready: 'ready-to-merge:', draft: 'plan-review:', failed: 'stale-session:', bare: 'needs-human:' }
 try {
   const page = await browser.page()
   for (const width of [1280, 390])

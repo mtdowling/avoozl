@@ -37,6 +37,7 @@ import {
 } from "./working-heads.mjs";
 import { postVerified } from "./setup-landing.mjs";
 import { fail } from "./store.mjs";
+import { firstErrorLine } from "./verify.mjs";
 
 const lower = (value) => String(value).toLowerCase();
 const PASS = new Set(["success", "neutral", "skipped"]);
@@ -178,12 +179,20 @@ export function pullSteps({
             command: name,
             conclusion: run.conclusion ?? "pending",
             pending: run.status !== "completed",
+            // A line naming the error beats the title, which is often
+            // only a count ("1 error"), so the title is read last.
+            firstError: firstErrorLine(
+              run.output?.summary,
+              run.output?.text,
+              run.output?.title,
+            ),
           };
         if (state)
           return {
             command: name,
             conclusion: state.state,
             pending: state.state === "pending",
+            firstError: firstErrorLine(state.description),
           };
         return { command: name, conclusion: "missing", pending: true };
       }),
@@ -305,11 +314,18 @@ export function pullSteps({
           ok: false,
           checks: [{ command: "no required check", exitCode: 1 }],
         };
-      const shown = results.map(({ command, conclusion }) => ({
-          command,
-          conclusion,
-          exitCode: PASS.has(conclusion) || conclusion === "success" ? 0 : 1,
-        })),
+      const shown = results.map(
+          ({ command, conclusion, pending, firstError }) => {
+            const ok = PASS.has(conclusion) || conclusion === "success";
+            return {
+              command,
+              conclusion,
+              exitCode: ok ? 0 : 1,
+              // The failing check's own first error line, kept for Needs you.
+              ...(!ok && !pending && firstError ? { firstError } : {}),
+            };
+          },
+        ),
         failed = results.some(
           (r) =>
             !r.pending && !PASS.has(r.conclusion) && r.conclusion !== "success",
