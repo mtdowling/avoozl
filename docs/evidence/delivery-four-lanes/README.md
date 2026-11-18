@@ -29,3 +29,8 @@ shell with the host's stylesheet, light and dark:
 `kirocrew-app/ui/test/delivery-lanes.test.mjs` checks the same widths in
 Chrome: one column per lane in one row, no button outside its card and no
 sideways scroll above 767 px, and 1 per row at 390 px.
+
+The Delivery nav filters also move the "Task name or ID" search under the
+Filters header, as the first row above All states (left nav in the 1280 and
+1024 shots). No other dashboard rail has a search above its first header:
+Graph, Activity and Flow have no search box.

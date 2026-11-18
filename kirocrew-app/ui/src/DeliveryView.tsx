@@ -346,14 +346,6 @@ function DeliveryFilters(props: {
     <NavSlotFor section="dashboard">
       <div role="search" aria-label="Filter delivery" data-nav-filters="avoozl-delivery" data-rail>
         <RailStyle />
-        <input
-          type="search"
-          aria-label="Search tasks"
-          placeholder="Task name or ID"
-          value={filter.q ?? ''}
-          onChange={(event) => set({ q: event.target.value || undefined })}
-          style={{ width: '100%', boxSizing: 'border-box', marginBottom: 12, fontSize: 13, padding: '6px 12px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
-        />
         <RailBlock
           first
           id="filters"
@@ -367,6 +359,15 @@ function DeliveryFilters(props: {
             )
           }
         >
+          {/* The search sits under the Filters header, above All states. */}
+          <input
+            type="search"
+            aria-label="Search tasks"
+            placeholder="Task name or ID"
+            value={filter.q ?? ''}
+            onChange={(event) => set({ q: event.target.value || undefined })}
+            style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8, fontSize: 13, padding: '6px 12px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
+          />
           <RailRow label="All states" active={!filter.state} onClick={() => set({ state: undefined })} attrs={{ 'data-rail-state': '' }} />
           {STATES.filter((state) => states.has(state.id) || filter.state === state.id).map((state) => (
             <RailRow

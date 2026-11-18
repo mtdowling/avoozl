@@ -2,7 +2,8 @@
 // Dashboards › Delivery draws every lane in one row on any window wider than
 // a phone, beside the left nav and at 125% or 150% zoom of a 1280 px window
 // (1024 and 853 CSS px), with no button outside its card and no sideways
-// scroll. A phone (390 px) stacks the lanes, 1 per row. Skipped when no
+// scroll. A phone (390 px) stacks the lanes, 1 per row. The nav filters put
+// the task search under the Filters header. Skipped when no
 // Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
@@ -76,4 +77,23 @@ test('Delivery at 390 px (a phone): 1 lane per row', { skip }, async () => {
   assert.equal(got.columns, 1)
   assert.equal(got.rows, got.lanes, 'each lane on its own row')
   assert.equal(got.sideways, false, 'no sideways scroll')
+})
+
+test("Delivery's nav filters: the task search sits under the Filters header, above All states", { skip }, async () => {
+  await openDelivery(1280)
+  const got = await page.evaluate(`(() => {
+    const rail = document.querySelector('[data-left-nav] [data-nav-filters="avoozl-delivery"]')
+    const block = rail.querySelector('[data-rail-section="filters"]')
+    const head = block.querySelector('[data-rail-head]')
+    const search = rail.querySelector('input[type="search"]')
+    const all = block.querySelector('[data-rail-state=""]')
+    const after = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    return {
+      inBlock: block.contains(search),
+      afterHead: after(head, search),
+      beforeAll: after(search, all),
+      below: search.getBoundingClientRect().top >= head.getBoundingClientRect().bottom,
+    }
+  })()`)
+  assert.deepEqual(got, { inBlock: true, afterHead: true, beforeAll: true, below: true })
 })
