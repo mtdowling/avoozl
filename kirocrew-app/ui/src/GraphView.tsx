@@ -51,6 +51,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
+import { PanningStyle } from './ui/PageStyles'
 
 // Graphs larger than this open with every group collapsed to one node.
 const COLLAPSE_ABOVE = 60
@@ -661,7 +662,7 @@ export default function GraphView({
               data-panning={panning || undefined}
               style={{ cursor: panning ? 'grabbing' : 'grab', userSelect: 'none' }}
             >
-              {panning && <style>{'[data-graph-view] svg[data-panning] *{cursor:grabbing!important}'}</style>}
+              {panning && <PanningStyle />}
               <defs>
                 <marker id="avoozl-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={7} markerHeight={7} orient="auto">
                   <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--muted)' }} />
