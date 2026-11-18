@@ -109,6 +109,7 @@ import {
   withSource,
 } from "./github-rate.mjs";
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
+import { taskSummaryDispatches } from "./task-summary.mjs";
 import {
   validateModels,
   validatePlanReview,
@@ -1412,6 +1413,7 @@ async function runTick(
           ? [
               ...reviewDispatches(store),
               ...reviewDraftDispatches(store),
+              ...taskSummaryDispatches(store),
               ...conflictFixDispatches(store),
             ]
           : [];

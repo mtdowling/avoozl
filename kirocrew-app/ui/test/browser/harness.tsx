@@ -41,7 +41,8 @@ import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
 import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
-import { answerIntake } from './intake-fixture.ts'
+import type { EditTab } from '../../src/repo-edit-tabs.ts'
+import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
 import { ForwardScreen } from '../../src/ForwardScreen.tsx'
@@ -151,7 +152,27 @@ const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', f
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
 
 // A manual task waiting for a person, with links (R61).
+// The AI summary (?summary=none|working|ready|failed): what task.detail
+// carries, and what task.summary.request answers. A request for a summary that
+// is not written yet answers working, then ready on the next one.
+const SUMMARY_TEXT = 'Team review is the last gate before cutover. It is waiting on you: the protocol tests passed, and nothing else blocks it. Cutover starts once you mark it done.'
+const summaryAt = (name: string) => ({ state: name, text: name === 'ready' ? SUMMARY_TEXT : null, hash: 'h1' })
+let summaryAsks = 0
+answer('task.summary.request', (body) => {
+  state.calls.push(body)
+  summaryAsks++
+  if ((body.input as { retry?: boolean }).retry) return summaryAt('working')
+  return summaryAt(query.get('summary') === 'failed' || summaryAsks < 2 ? 'working' : 'ready')
+})
+// The spec file the task came from: 40 lines, the task's own at 20–21.
+const SPEC_LINES = Array.from({ length: 40 }, (_, i) => `Spec line ${i + 1}`)
+answer('document.get', () => ({ id: '.kiro/specs/team/tasks.md', title: 'tasks.md', text: SPEC_LINES.join('\n') }))
 answer('task.detail', () => ({
+  origin: {
+    kind: 'spec', label: 'Spec task', text: 'From .kiro/specs/team/tasks.md, lines 20–21.', spec: null, plan: null,
+    sources: [{ document: '.kiro/specs/team/tasks.md', title: null, lineStart: 20, lineEnd: 21, checked: null, readable: true }],
+  },
+  summary: summaryAt(query.get('summary') ?? 'none'),
   revision: 1,
   task: {
     id: 'team-review', title: 'Review with team', summary: 'The team reviews the results before cutover.',
@@ -196,7 +217,7 @@ answer('task.detail', () => ({
 }))
 answer('task.evidence', () => ({
   taskId: 'team-review',
-  entries: [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],
+  entries: query.get('evidence') === 'none' ? [] : [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],
 }))
 answer('task.notes.list', () => ({
   taskId: 'team-review',
@@ -540,15 +561,21 @@ if (query.get('page') === 'app') {
     ? { mode: 'single-repo', defaultAuthority: 'github', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
     : roles === 'local'
       ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
-      : { mode: 'plans-repo', planningRepository: 'acme/plans', defaultAuthority: 'github', epicIssueType: 'Epic', project: { owner: 'acme', number: 7 }, repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code' }, 'acme/recipe-api': { baseBranch: 'main', role: 'code' } } }
+      : { mode: 'plans-repo', planningRepository: 'acme/plans', defaultAuthority: 'github', epicIssueType: 'Epic', project: { owner: 'acme', number: 7 }, repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code', coder: 'worker', requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'], merge: { method: 'squash' }, rules: [{ id: 'ready', action: 'plan', match: 'label:ready -label:blocked' }], untriaged: { triageLabels: ['needs-triage'] } }, 'acme/recipe-api': { baseBranch: 'main', role: 'code', minimumPermission: 'write' } } }
   if (roles)
     answer('repositories.list', () => ({ items: [
-      { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main' },
-      { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main' },
+      { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main', landing: 'pr', harness: 'kiro' },
+      { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main', landing: 'train' },
       { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
     ] }))
   // Add repository and Set up GitHub and import specs read a folder the same way.
   if (roles) {
+    // Save writes are recorded in __harness.calls.
+    if (!replyFor('github.settings.update'))
+      answer('github.settings.update', (body) => {
+        state.calls.push(body)
+        return replyFor('github.settings.get')!({})
+      })
     answer('repositories.detect', (body) => ({ root: (body.input as { folder: string }).folder, id: 'new-service', baseBranch: 'main', remote: 'git@github.com:acme/new-service.git', github: 'acme/new-service' }))
     answer('repositories.configure', (body) => ({ id: (body.input as { id: string }).id, name: (body.input as { id: string }).id, localCheckout: (body.input as { localCheckout: string }).localCheckout, github: 'acme/new-service', baseBranch: 'main' }))
     answer('onboarding.inspect', (body) => ({
@@ -1205,13 +1232,14 @@ if (query.get('page') === 'github-flow' || (query.get('page') === 'app' && query
         }
       : {}),
   }))
-// ?page=repo-mode: one repository's Edit body on its Mode and branch tab.
+// ?page=repo-mode: one repository's Edit body on its Landing tab.
 function RepoModePage() {
   const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('acme/recipe-box'))
+  const [tab, setTab] = useState<EditTab>('landing')
   const choices = { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] }
   return (
     <NavHistoryProvider>
-      <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" onChange={setRepository} />
+      <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" tab={tab} onTab={setTab} onChange={setRepository} />
     </NavHistoryProvider>
   )
 }
@@ -1621,6 +1649,29 @@ if (page === 'forward') {
 }
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
+// &plugins=many|none: Settings > Plugins with eight plugins, or none.
+if (query.get('plugins')) {
+  const many = query.get('plugins') === 'many'
+  const rows = Array.from({ length: 8 }, (_, i) => ({ ...PLUGINS[i % 2], id: `${PLUGINS[i % 2].id}-${i + 1}` }))
+  answer('plugins.list', () => ({ supportedContracts: [1], routes: [], plugins: many ? rows : [] }))
+}
+// &rules=many|one: Settings > Content rules with fourteen rule sets, or one.
+if (query.get('rules')) {
+  const count = query.get('rules') === 'many' ? 14 : 1
+  const sets = Array.from({ length: count }, (_, i) => ({ id: i ? `codenames-${i + 1}` : 'codenames', action: i % 3 ? 'block' : 'report', source: 'file', boundaries: ['plan', 'github'], available: true, ruleCount: 2 }))
+  answer('content.rules', () => ({
+    error: null,
+    configHash: 'h1',
+    mode: 'single-repo',
+    builtins: [
+      { id: 'secrets', appliesAt: 'Every write' },
+      { id: 'private-paths', appliesAt: 'Mirror pushes' },
+    ],
+    choices: { repositories: ['recipe-box'], plugins: [] },
+    sets,
+  }))
+  answer('content.terms.get', (body) => ({ id: (body.input as { id: string }).id, file: '~/.avoozl/codenames.terms', from: 'machine', editable: true, exists: true, text: 'zebra: zebra falcon\nheron: blue heron\n' }))
+}
 
 // ?page=panel&sid=<chat>&state=full|empty: the side panel on sample reads.
 // window.__panel holds what the reads return, so a test can change it and see

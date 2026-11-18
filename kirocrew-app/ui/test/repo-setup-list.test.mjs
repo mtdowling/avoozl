@@ -9,9 +9,9 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 const base = () => toForm({ mode: 'plans-repo', planningRepository: 'o/plans', repositories: { 'o/pub': { baseBranch: 'main', role: 'code' }, 'o/plans': { baseBranch: 'main', role: 'planning' } } })
 const row = (github) => ({ github, branch: 'main', policy: -1 })
 
-test('the list has no detail fields and no inline role control', () => {
+test('the list has no form fields and no inline role control', () => {
   const list = source('RepositoriesSettings.tsx').slice(source('RepositoriesSettings.tsx').indexOf('export function RepositoryList'), source('RepositoriesSettings.tsx').indexOf('// What the Are you sure'))
-  assert.doesNotMatch(list, /row\.folder|row\.branch|<select|<Input|<code>/)
+  assert.doesNotMatch(list, /<select|<Input/)
   assert.match(list, /<Badge>\{props\.roleText\(row\)\}<\/Badge>/)
   for (const icon of ['Eye', 'Pencil', 'Trash2']) assert.match(list, new RegExp(`icon=\\{${icon}\\}`))
   assert.match(list, /<DangerBtn icon=\{Trash2\} label=\{`Remove \$\{row\.name\}`\} tooltip="Remove"/)
@@ -63,10 +63,10 @@ test('a mirror needs an owner/name public repository that is another repository'
 
 test('an edited entry replaces the saved one by name, and a role change keeps it', () => {
   const form = base()
-  const edited = { ...form.repositories[0], coder: 'issue-radar' }
+  const edited = { ...form.repositories[0], baseBranch: 'trunk' }
   const next = withRepositoryEdit(form, { github: 'o/pub', branch: 'main', policy: 7 }, { entry: edited, role: 'both', source: '' })
   const entry = next.repositories.find((e) => e.name === 'o/pub')
-  assert.equal(entry.coder, 'issue-radar')
+  assert.equal(entry.baseBranch, 'trunk')
   assert.equal(entry.role, 'both')
   assert.deepEqual(emptyRepository('x').mirror, emptyMirror())
 })

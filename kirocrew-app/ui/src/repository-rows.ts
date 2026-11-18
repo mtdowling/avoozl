@@ -1,6 +1,7 @@
 // Settings > Repositories rows, kept free of JSX so node can test them.
 import type { Repository } from './workspace-api.ts'
 import type { RepositoryForm } from './settings-api.ts'
+import type { ListFact } from './ListItem.tsx'
 
 export interface RepositoryRow {
   key: string
@@ -53,3 +54,31 @@ export function repositoryRows(checkouts: Repository[], policies: RepositoryForm
 }
 
 export const githubHref = (github: string | null) => (github && /^[\w.-]+\/[\w.-]+$/.test(github) ? `https://github.com/${github}` : null)
+
+// The labels a rule's search line asks for (label:a, label:"b c", label:x,y);
+// a -label: term excludes, so it is not a trigger.
+export function ruleLabels(match: string): string[] {
+  const found: string[] = []
+  for (const term of match.matchAll(/(?<![-\w])label:("[^"]*"|\S+)/g))
+    for (const part of term[1].startsWith('"') ? [term[1].slice(1, -1)] : term[1].split(',')) if (part && !found.includes(part)) found.push(part)
+  return found
+}
+
+// What a row shows under its title: every fact the View dialog shows, in
+// the list's order. A fact with no value is left blank and not rendered.
+export function repositoryFacts(row: RepositoryRow, entry: RepositoryForm | null, mirrorSource = ''): ListFact[] {
+  const harness = row.checkout?.harness
+  const landing = row.checkout?.landing
+  return [
+    { label: 'Folder', value: row.folder, mono: true, truncate: true },
+    { label: 'Tasks land on', value: row.checkout || entry ? `${row.branch}${landing ? ` (${landing})` : ''}` : '', mono: true },
+    { label: 'Harness', value: harness },
+    { label: 'Trigger labels', chips: (entry?.rules ?? []).flatMap((rule) => ruleLabels(rule.match)).filter((label, at, all) => all.indexOf(label) === at) },
+    { label: 'Triage labels', chips: entry?.untriaged.triageLabels },
+    { label: 'Merge', value: entry?.mergeMethod },
+    { label: 'Checks', value: entry?.requiredChecks, mono: true, truncate: true },
+    { label: 'Who may start work', value: entry?.allowedActors || (entry?.minimumPermission ? `permission ${entry.minimumPermission} or higher` : ''), truncate: true },
+    { label: 'Release crews', value: entry?.releaseCapacity },
+    { label: 'Mirror of', value: mirrorSource, mono: true },
+  ]
+}

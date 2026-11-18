@@ -10,11 +10,14 @@ import { findChrome, launch } from './browser/chrome.mjs'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
-test('every drawer section is a SectionBox, open at first, with no fold or tab left', () => {
+test('every drawer section is a SectionBox, open at first, inside the shared tab bar', () => {
   const drawer = source('TaskDrawer.tsx')
-  const keys = [...drawer.matchAll(/\{ key: '([\w-]+)', label: '[^']+' \}/g)].map((m) => m[1])
-  assert.ok(keys.length >= 10, 'the section list')
-  for (const key of keys) assert.match(drawer, new RegExp(`<SectionBox id="${key}" title=`), key)
+  for (const key of ['summary', 'description', 'links', 'task-links', 'delivery', 'timing', 'conflicts', 'timeline', 'review', 'fields'])
+    assert.match(drawer, new RegExp(`<SectionBox id="${key}" title=`), key)
+  // Files and Evidence draw their own box, and nothing when they have no data.
+  for (const key of ['files', 'evidence']) assert.match(drawer, new RegExp(`box=\\{\\{ id: '${key}'`), key)
+  // The shared tab bar (Tabs.tsx), not a pattern of its own.
+  assert.match(drawer, /<Tabs id="task-tabs"/)
   assert.doesNotMatch(drawer, /<Fold\b|<details\b|SegmentedControl|role="tab/)
   // Opening one never closes another, and none starts closed.
   assert.doesNotMatch(drawer, /<SectionBox[^>]*open=\{/)
@@ -54,31 +57,34 @@ const BOXES = `[...document.querySelectorAll('[data-section-box]')].map((box) =>
   return { id: box.dataset.sectionBox, title: button?.textContent.trim() ?? '', expanded: button?.getAttribute('aria-expanded'), hidden: body ? body.hidden : null }
 })`
 
-test('page: each section shows a header and folds by click and by keyboard (Space)', { skip }, async () => {
+test('page: every tab shows its sections, each header folds by click and by keyboard (Space)', { skip }, async () => {
   await page.open(harness.url({ modal: 'task-drawer', theme: 'light' }), { width: 1280, height: 900 })
   await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
   await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
-  await page.until(`document.querySelectorAll('[data-section-box]').length >= 9`)
-  const boxes = await page.evaluate(BOXES)
-  assert.equal(boxes.find((b) => b.id === 'notes'), undefined, 'tasks have no Notes box')
-  for (const id of ['summary', 'description', 'links', 'task-links', 'delivery', 'timing', 'evidence', 'conflicts', 'timeline']) {
-    const box = boxes.find((b) => b.id === id)
-    assert.ok(box, `${id} is shown`)
-    assert.ok(box.title, `${id} has a header`)
-    assert.equal(box.expanded, 'true', `${id} starts open`)
-    assert.equal(box.hidden, false, `${id} body shows`)
-  }
-  for (const { id } of boxes) {
-    const sel = JSON.stringify(`[data-section-toggle="${id}"]`)
-    await page.evaluate(`document.querySelector(${sel}).click()`)
-    await page.until(`document.querySelector(${sel}).getAttribute('aria-expanded') === 'false'`)
-    const now = await page.evaluate(BOXES)
-    assert.equal(now.find((b) => b.id === id).hidden, true, `${id} body hides`)
-    // The others stay open.
-    assert.ok(now.filter((b) => b.id !== id).every((b) => b.expanded === 'true'), `${id} closed another box`)
-    await page.evaluate(`document.querySelector(${sel}).focus()`)
-    await page.key(' ', 'Space', 32)
-    await page.until(`document.querySelector(${sel}).getAttribute('aria-expanded') === 'true'`)
+  await page.until(`document.querySelectorAll('[data-section-box]').length >= 2`)
+  const want = { overview: ['summary', 'links'], timeline: ['timeline'], links: ['task-links', 'files'], details: ['fields', 'description', 'evidence'] }
+  for (const [tab, ids] of Object.entries(want)) {
+    await page.evaluate(`document.querySelector('[data-tab="${tab}"]').click()`)
+    await page.until(`document.querySelector('[data-tab-panel]').dataset.tabPanel === '${tab}'`)
+    await page.until(`${JSON.stringify(ids)}.every((id) => document.querySelector('[data-section-box="' + id + '"]'))`)
+    const boxes = await page.evaluate(BOXES)
+    assert.deepEqual(boxes.map((b) => b.id), ids, tab)
+    for (const box of boxes) {
+      assert.ok(box.title, `${box.id} has a header`)
+      assert.equal(box.expanded, 'true', `${box.id} starts open`)
+      assert.equal(box.hidden, false, `${box.id} body shows`)
+    }
+    for (const { id } of boxes) {
+      const sel = JSON.stringify(`[data-section-toggle="${id}"]`)
+      await page.evaluate(`document.querySelector(${sel}).click()`)
+      await page.until(`document.querySelector(${sel}).getAttribute('aria-expanded') === 'false'`)
+      const now = await page.evaluate(BOXES)
+      assert.equal(now.find((b) => b.id === id).hidden, true, `${id} body hides`)
+      assert.ok(now.filter((b) => b.id !== id).every((b) => b.expanded === 'true'), `${id} closed another box`)
+      await page.evaluate(`document.querySelector(${sel}).focus()`)
+      await page.key(' ', 'Space', 32)
+      await page.until(`document.querySelector(${sel}).getAttribute('aria-expanded') === 'true'`)
+    }
   }
   assert.deepEqual(page.errors, [])
 })
@@ -89,6 +95,8 @@ test('page: Add link shows one set of fields and closes after adding', { skip },
   await page.open(harness.url({ modal: 'task-drawer', theme: 'light' }), { width: 1280, height: 900 })
   await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
   await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
+  await page.until(`Boolean(document.querySelector('[data-tab="links"]'))`)
+  await page.evaluate(`document.querySelector('[data-tab="links"]').click()`)
   await page.until(`document.querySelectorAll('[data-link-entry]').length === 2`)
   const box = `document.querySelector('[data-section-box="task-links"]')`
   const shape = `({ forms: ${box}.querySelectorAll('[data-add-link-form]').length, inputs: ${box}.querySelectorAll('input:not([type=checkbox])').length, button: Boolean(${box}.querySelector('[data-add-link]')) })`
@@ -125,6 +133,8 @@ test('page: the Links box shows branch, PR, checks, landed and issue from the st
   await page.open(harness.url({ modal: 'task-drawer', theme: 'light' }), { width: 1280, height: 900 })
   await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
   await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
+  await page.until(`Boolean(document.querySelector('[data-tab="links"]'))`)
+  await page.evaluate(`document.querySelector('[data-tab="links"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-section-box="task-links"] [data-scm-links]'))`)
   // The added links arrive in a read of their own, after the stored set.
   await page.until(`document.querySelectorAll('[data-section-box="task-links"] a').length >= 6`)
@@ -144,7 +154,7 @@ test('page: the Links box shows branch, PR, checks, landed and issue from the st
   assert.match(read.rows.Worktree, /^\/w\/avoozl-worktrees\/team-review/)
   assert.equal(read.rows['Pull request'], 'o/sdk#52 · open')
   assert.match(read.rows.Checks, /^Passed on aaaaaaa, not the current head/)
-  assert.equal(read.rows.Landed, 'none')
+  assert.equal(read.rows.Landed, undefined, 'a row with no data is not drawn')
   assert.equal(read.rows.Issue, 'o/sdk#47')
   assert.equal(read.dot, 'stale')
   assert.equal(read.worktreeLinked, false)

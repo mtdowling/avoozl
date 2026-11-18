@@ -227,6 +227,10 @@ export const OLD_TOOLS = {
     "reply.post",
     "Post your one reply on the GitHub issue your responder session is bound to: {body}. Avoozl picks the issue from your session, refuses a reply with a secret-looking token, a URL with credentials, or an absolute or home path, or (on a public repository) one that quotes another repository on this machine (nothing is posted; fix it and post again), posts at most one comment per issue snapshot, and removes the responding label.",
   ],
+  plans_submit_task_summary: [
+    "tasksummary.submit",
+    "Send your one task summary: {summary}, 2 to 4 short plain sentences (at most 800 characters). Avoozl picks the task from your session. It changes nothing else.",
+  ],
   plans_post_review_draft: [
     "reviewdraft.post",
     "Post your one draft review on the pull request your review draft chat is bound to: {body, comments?: [{path, line, start_line?, side?: RIGHT|LEFT, body}]}. Avoozl picks the pull request from your session and posts a PENDING review on the head commit your brief names, under the login of the person who asked; they edit and submit it. It refuses text with a secret-looking token, a URL with credentials or an absolute or home path (nothing is posted; fix it and post again), returns GitHub's refusal of a line outside the diff with nothing posted, and swaps the review label for the drafted label. It never submits, approves or requests changes.",
