@@ -14,7 +14,7 @@ import {
 import { Operations } from "../operations.mjs";
 import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
 import { fixture } from "./fixtures.mjs";
-import { specFiles, writeSpec } from "./spec-fixture.mjs";
+import { legacySpecFiles, specFiles, writeSpec } from "./spec-fixture.mjs";
 
 const REPO = "example/code";
 
@@ -161,7 +161,7 @@ test("the manifest fields: absent changes nothing, present is checked", () => {
 
 function lintWith(t, extra) {
   const { root } = fixture(t),
-    manifest = JSON.parse(specFiles()["avoozl/manifest.json"]);
+    manifest = JSON.parse(legacySpecFiles()["avoozl/manifest.json"]);
   writeSpec(root, "config", {
     "avoozl/manifest.json": JSON.stringify({ ...manifest, ...extra }),
   });

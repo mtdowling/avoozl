@@ -12,7 +12,7 @@ import { readDeliveryPolicy } from "../tick.mjs";
 import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
 import { queryTasks } from "../../model.mjs";
 import { snapshot } from "./fixtures.mjs";
-import { specFiles, writeSpec } from "./spec-fixture.mjs";
+import { legacySpecFiles, specFiles, writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -233,7 +233,7 @@ test("a superseded task gets no new verifier or check run; its running session i
 
 test("acceptFrom is a manifest field on local integrated leaves only", async (t) => {
   const root = temporaryDirectory(),
-    manifest = JSON.parse(specFiles()["avoozl/manifest.json"]);
+    manifest = JSON.parse(legacySpecFiles()["avoozl/manifest.json"]);
   manifest.tasks["1.1"].acceptFrom = "validation";
   writeSpec(root, "config", {
     "avoozl/manifest.json": JSON.stringify(manifest, null, 2),
