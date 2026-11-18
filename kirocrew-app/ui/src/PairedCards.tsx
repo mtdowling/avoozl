@@ -26,8 +26,11 @@ export function PairedCards(props: { paired: boolean; children: ReactNode; attrs
   )
 }
 
-// `grow` is the card's share of the row's width; `minWidth` its narrowest.
-export function PairedCard(props: { title: ReactNode; label: string; meta?: ReactNode; grow?: number; minWidth?: string; children?: ReactNode }) {
+// `grow` is the card's share of the row's width; `minWidth` its narrowest;
+// `width` a fixed width instead.
+// With no `title` the card has no heading and its whole body scrolls.
+// `style` changes the card's look (a tinted list panel).
+export function PairedCard(props: { title?: ReactNode; label: string; meta?: ReactNode; grow?: number; minWidth?: string; width?: string; style?: CSSProperties; children?: ReactNode }) {
   const paired = useContext(Paired)
   const body = useRef<HTMLDivElement>(null)
   const [scrolls, setScrolls] = useState(false)
@@ -41,10 +44,10 @@ export function PairedCard(props: { title: ReactNode; label: string; meta?: Reac
     check()
     return () => watch.disconnect()
   }, [paired, props.children])
-  const card: CSSProperties = paired ? { flex: `${props.grow ?? 1} 1 0`, minWidth: props.minWidth ?? 0, minHeight: 0, display: 'flex', flexDirection: 'column' } : { minWidth: 0 }
+  const card: CSSProperties = { ...props.style, ...(paired ? { flex: props.width ? `0 0 ${props.width}` : `${props.grow ?? 1} 1 0`, minWidth: props.minWidth ?? 0, minHeight: 0, display: 'flex', flexDirection: 'column' } : { minWidth: 0 }) }
   return (
     <Card style={card}>
-      <SectionHeading title={props.title} meta={props.meta} className="mb-2" />
+      {props.title ? <SectionHeading title={props.title} meta={props.meta} className="mb-2" /> : null}
       <div
         ref={body}
         data-paired-body
