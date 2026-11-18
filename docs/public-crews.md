@@ -1,7 +1,6 @@
 # Crews on public repositories
 
-Requirement 85, design §6.14. Facts were read from Kiro Crew 0.12.2.4 and
-tried on a scratch repository.
+Requirement 85, design §6.14.
 
 An Issue Radar crew can work a public repository. The machine it runs on
 may also hold private material: internal names, company hosts, links and

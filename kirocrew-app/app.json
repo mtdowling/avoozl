@@ -5,6 +5,7 @@
   "description": "Approve a spec; Avoozl runs it with coding agents, checks each commit itself, and lands it.",
   "author": "mtdowling",
   "license": "MIT",
+  "minKiroCrewVersion": "0.12.2",
   "iconPath": "assets/icon.png",
   "skills": [
     "skills/avoozl",
