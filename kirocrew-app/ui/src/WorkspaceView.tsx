@@ -5,6 +5,8 @@ import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import {
   describeTick,
+  editChanges,
+  editDraft,
   errorMessage,
   isRunning,
   pickDefault,
@@ -12,6 +14,7 @@ import {
   workspaceClient,
   workspaceState,
   type CatalogWorkspace,
+  type EditDraft,
   type Repository,
   type TickHealth,
   type WorkspaceList,
@@ -21,6 +24,7 @@ import { relativeTime } from './task-api.ts'
 import { SectionHeading, dangerStyle } from './controls.tsx'
 import { Modal } from './Modal.tsx'
 import { Pencil, Plus, Trash2 } from './icons.ts'
+import { FolderField } from './FolderPicker.tsx'
 
 function Field(props: {
   id: string
@@ -117,6 +121,8 @@ export default function WorkspaceView(
   const [draft, setDraft] = useState({ id: '', root: '', name: '' })
   // Which dialog is open: the add form, or one workspace's details.
   const [dialog, setDialog] = useState<'add' | { edit: string } | { remove: string } | null>(null)
+  // The edit dialog's form, filled from the workspace when it opens.
+  const [edit, setEdit] = useState<EditDraft | null>(null)
 
   // Run one call; show its error instead of throwing.
   const attempt = useCallback(async (call: () => Promise<void>) => {
@@ -199,6 +205,30 @@ export default function WorkspaceView(
 
   const current = list?.items.find((w) => w.id === selected) ?? null
   const editing = dialog && typeof dialog === 'object' && 'edit' in dialog ? dialog.edit : null
+  const isDefault = Boolean(current && list?.defaultWorkspace === current.id)
+  const editCheck = current && edit ? editChanges(current, isDefault, edit) : { change: null, error: null }
+  const openEdit = (workspace: CatalogWorkspace) => {
+    setSelected(workspace.id)
+    setError(null)
+    setEdit(editDraft(workspace, list?.defaultWorkspace === workspace.id))
+    setDialog({ edit: workspace.id })
+  }
+  const closeEdit = () => {
+    setEdit(null)
+    setError(null)
+    setDialog(null)
+  }
+  const saveEdit = () => {
+    const { change } = editCheck
+    if (!change) return
+    void attempt(async () => {
+      await client.update(change)
+      const next = await client.list()
+      setList(next)
+      setEdit(null)
+      setDialog(null)
+    })
+  }
   const removing = dialog && typeof dialog === 'object' && 'remove' in dialog ? (list?.items.find((w) => w.id === dialog.remove) ?? null) : null
   // Remove (or Stop it first, then Remove): the list reloads and the page
   // picks its default again when the shown workspace left.
@@ -247,10 +277,7 @@ export default function WorkspaceView(
                 workspace={workspace}
                 selected={workspace.id === selected}
                 onSelect={() => setSelected(workspace.id)}
-                onEdit={() => {
-                  setSelected(workspace.id)
-                  setDialog({ edit: workspace.id })
-                }}
+                onEdit={() => openEdit(workspace)}
               />
             ))}
           </ul>
@@ -299,12 +326,13 @@ export default function WorkspaceView(
               void submitWorkspace('add')
             }}
           >
-            <Field
+            <FolderField
               id="avoozl-ws-root"
-              label="Folder (absolute path)"
+              label="Folder"
               value={draft.root}
-              placeholder="/path/to/plans"
+              placeholder="~/plans"
               required
+              client={client}
               onChange={(root) => setDraft({ ...draft, root })}
             />
             <Field
@@ -333,16 +361,17 @@ export default function WorkspaceView(
         </Modal>
       )}
 
-      {editing && current && current.id === editing && (
+      {editing && current && current.id === editing && edit && (
         <Modal
           id="avoozl-ws-edit"
           width="40rem"
-          title={current.name}
+          title={`Edit ${current.name}`}
           backLabel="Close"
           focusClose
           describedBy="avoozl-ws-edit-line"
           attrs={{ 'data-edit-workspace-modal': true }}
-          onDismiss={() => setDialog(null)}
+          unsaved={Boolean(editCheck.change) && { title: 'Discard your changes?', body: 'What you changed is lost.', action: 'Discard' }}
+          onDismiss={closeEdit}
           footer={
             <>
               {/* Remove sits at the footer's left, red; it asks first. */}
@@ -350,20 +379,62 @@ export default function WorkspaceView(
                 <Trash2 size={14} aria-hidden="true" />
                 Remove
               </Btn>
-              <Btn onClick={runTick} disabled={busy}>
-                Run tick now
-              </Btn>
-              <Btn onClick={() => selected && void loadSelected(selected)} disabled={busy}>
-                Refresh health
+              <Btn type="submit" form="avoozl-ws-edit-form" primary data-edit-save disabled={busy || !editCheck.change || Boolean(editCheck.error)}>
+                Save
               </Btn>
             </>
           }
         >
           <p id="avoozl-ws-edit-line" className="text-sm text-muted">
-            {current.id} · {current.root}
+            ID {current.id}. The ID cannot change: tasks, receipts and chats name it.
           </p>
+          <form
+            id="avoozl-ws-edit-form"
+            data-edit-form
+            className="flex flex-col gap-2"
+            onSubmit={(event) => {
+              event.preventDefault()
+              saveEdit()
+            }}
+          >
+            <Field id="avoozl-ws-edit-name" label="Name" value={edit.name} required onChange={(name) => setEdit({ ...edit, name })} />
+            <FolderField id="avoozl-ws-edit-root" label="Folder" value={edit.root} required client={client} onChange={(root) => setEdit({ ...edit, root })} />
+            <p className="text-xs text-muted">Change it after you move the folder. The new folder must hold this workspace.</p>
+            <label htmlFor="avoozl-ws-edit-limit" className="flex flex-col gap-1 text-sm">
+              <span>Agents at once</span>
+              <Input id="avoozl-ws-edit-limit" type="number" min={0} max={64} step={1} value={edit.maxConcurrentRuns} onChange={(event) => setEdit({ ...edit, maxConcurrentRuns: event.target.value })} style={{ maxWidth: '8rem' }} />
+              <span className="text-xs text-muted">How many tasks run here at the same time. 0 holds new work.</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" data-edit-enabled checked={edit.enabled} onChange={(event) => setEdit({ ...edit, enabled: event.target.checked })} />
+              On (ticks run and pages read it)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" data-edit-default checked={edit.default} disabled={isDefault} onChange={(event) => setEdit({ ...edit, default: event.target.checked })} />
+              {isDefault ? 'The default workspace' : 'Make it the default workspace'}
+            </label>
+            {editCheck.error && (
+              <p className="text-sm text-danger" data-edit-error>
+                {editCheck.error}
+              </p>
+            )}
+            {error && (
+              <p role="alert" className="text-sm text-danger">
+                {error}
+              </p>
+            )}
+          </form>
           <div data-tick-panel>
-            <SectionHeading title="Tick health" className="mb-2" />
+            <div className="flex flex-wrap items-center gap-2">
+              <SectionHeading title="Tick health" className="mb-0" />
+              <span className="flex-1" />
+              <Btn type="button" onClick={runTick} disabled={busy}>
+                Run tick now
+              </Btn>
+              <Btn type="button" onClick={() => selected && void loadSelected(selected)} disabled={busy}>
+                Refresh health
+              </Btn>
+            </div>
             <p className="my-2 text-sm">{describeTick(health)}</p>
             <h4 className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted">
               Last {TICK_LOG_LINES} ticks, newest first
