@@ -46,9 +46,8 @@ export async function previewWorker({
     );
   if (!config.pools.length) problems.push("No pool names a spec to pull from.");
   if (!github?.available?.()) {
-    result.transport = "ssh-envelope";
     problems.push(
-      "No GitHub access here. Use runner mode over SSH (role runner) for this machine.",
+      "No GitHub access here. A worker machine needs GitHub; this machine can run its own workspace.",
     );
     return { ...result, ok: false };
   }

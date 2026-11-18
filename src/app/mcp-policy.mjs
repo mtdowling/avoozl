@@ -287,7 +287,7 @@ const proposalsPage =
 const removed = "Removed; the operation has no handler.";
 const page = "App page rendering only.";
 const remote =
-  "Runner mode (R84) runs over ssh and the CLI; no MCP tool hands off, accepts or reports a remote task.";
+  "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.";
 export const NOT_ON_MCP = new Map([
   ...[
     "remote.accept",
