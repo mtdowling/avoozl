@@ -3,8 +3,8 @@
 // applies only the ticked lines after a confirm. All logic is in the
 // operations behind mirror-setup-api.ts.
 import { useCallback, useMemo, useState } from "react";
-import { Btn } from "@kirocrew/app-sdk/ui";
-import { InfoTip, SectionHeading } from "./controls.tsx";
+import { Btn } from "./ui/Btn";
+import { InfoTip, SectionHeading } from "./ui/controls.tsx";
 import { useAppApi } from "./host.ts";
 import {
   LINE_NAMES,

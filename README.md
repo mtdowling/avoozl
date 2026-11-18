@@ -216,9 +216,10 @@ How many worker chats run at once is this machine's `lanes.local` (default
 { "version": 1, "lanes": { "local": 1 } }
 ```
 
-A local worker needs nothing more: it works in the worktree its brief names
-and reports from the command line. Two Kiro Crew steps, each done once, are
-for the other chats:
+A local worker needs nothing more: it prepares its worktree and reports with
+the command in its brief, which names this Avoozl's Node binary and CLI file
+and needs neither `avoozl` on its `PATH` nor MCP sharing. Two Kiro Crew steps,
+each done once, are for the other chats:
 
 1. Let Kiro Crew tell Avoozl which chat is calling. A worker that opens a
    pull request, and every verifier, reviewer and investigation chat, reports
@@ -529,6 +530,14 @@ sharing a change; `npm run test:changed` runs only the tests a change reaches, a
 does the same. The built page is not committed: `npm run build` makes it. Tests use disposable workspaces and make no network or paid
 agent calls. `node scripts/release-scan.mjs` checks what the npm and app
 packages would contain.
+
+`npm run build` also builds a standalone copy of the page into
+`kirocrew-app/ui/dist/standalone/`, from Kiro Crew's own source at a pinned
+release: v0.12.2 (`kirocrew-app/ui/kirocrew-pin.json`), the same release as the
+Kiro Crew version this app asks for. The build fetches that source into a cache
+outside git, checks its digest, and edits none of it. The standalone page and the
+page inside Kiro Crew match when the installed Kiro Crew is the pinned release.
+Nothing serves the standalone page yet.
 
 ## License
 

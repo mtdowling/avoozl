@@ -3,9 +3,9 @@
 // steps as data. The step change is announced to screen readers, and the
 // slide is dropped under reduced motion.
 import { useState, type ReactNode } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
 import { ArrowLeft, ArrowRight } from './icons.ts'
-import { ICON } from './controls.tsx'
+import { ICON } from './ui/controls.tsx'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'

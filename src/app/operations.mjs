@@ -499,6 +499,7 @@ import {
   reportDone,
   runnerStatus,
   runnerTick,
+  workerTick,
 } from "./remote-runner.mjs";
 import { previewWorker } from "./worker-setup.mjs";
 import { supersedeTask } from "./supersede.mjs";
@@ -546,6 +547,7 @@ import {
   planReviewStep,
 } from "./plan-review-step.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
+import { cliCommand } from "./report-command.mjs";
 import { enqueueSessionRequests } from "./session-requests.mjs";
 import {
   createExtraction,
@@ -3323,11 +3325,13 @@ export class Operations {
       return deliverNotifications(store, this.notifier);
     if (name === "worktree.prepare") return prepareWorktree(store, input);
     if (name === "workspace.tick") {
+      // A worker machine pulls and claims before it runs what it was given.
+      await workerTick(store, this.workspaceRoot, this.github);
       // A runner holds no plans, so its tick only runs handed tasks.
       const remote = await runnerTick(store, this.workspaceRoot, {
         roster: Array.isArray(input.sessions) ? input.sessions : null,
         bindings: listSessionBindings(store),
-        command: `AVOOZL_WORKSPACE=${JSON.stringify(this.workspaceRoot)} node ${JSON.stringify(path.join(applicationRoot, "cli.mjs"))}`,
+        command: `AVOOZL_WORKSPACE=${JSON.stringify(this.workspaceRoot)} ${cliCommand()}`,
       });
       if (remote) return remote;
       await this.refreshPrivateSpecs();

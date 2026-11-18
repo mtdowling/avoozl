@@ -64,6 +64,7 @@ export function processExecutor({
       if (!worktree) throw Error("A process session needs the task worktree.");
       const project = projectFor(task, worktree) ?? {};
       const sandbox = project.sandbox ?? {};
+      const offline = processRow(role)?.offline === true;
       const sessionId = `process-${randomUUID()}`;
       return withDatabase(stateDirectory, (db) =>
         requestChild(db, {
@@ -85,7 +86,8 @@ export function processExecutor({
             project_cache_dirs: sandbox.writeRoots ?? [],
           },
           allowCommands: sandbox.allowCommands,
-          network: sandbox.network,
+          // A role that reads only its folder gets no network (NK2.2).
+          network: offline ? undefined : sandbox.network,
         }),
       );
     },
@@ -182,13 +184,28 @@ async function prepareDetached(checkout, worktree, commit) {
   return worktree;
 }
 
-// A verdict session whose folder is its own detached worktree, not the
-// checkout (the shape planVerifierDispatches gives a `process` project).
+// A read session whose folder is its own detached worktree, not the
+// checkout (the shape planVerifierDispatches gives a `process` project, and
+// the responder's at its base branch).
 const verdictSession = (session, checkout) =>
-  reportsVerdict(session.role) &&
+  processRow(session.role)?.folder === "detached" &&
   session.permissionClass === "read" &&
   Boolean(session.commit && session.worktree && checkout) &&
   path.resolve(session.worktree) !== path.resolve(checkout);
+
+// The main checkout a linked worktree belongs to, or null.
+async function checkoutOf(worktree) {
+  try {
+    const common = await git(worktree, [
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-common-dir",
+    ]);
+    return path.dirname(common);
+  } catch {
+    return null;
+  }
+}
 
 async function removeDetached(checkout, worktree) {
   if (!checkout || path.resolve(checkout) === path.resolve(worktree)) return;
@@ -263,6 +280,28 @@ export async function finishProcessSession(ops, binding, result, store = null) {
     );
   }
   if (hands === "folder") return null;
+  // The same operation a chat's tool call runs, as the supervisor's record of
+  // this session (NK5.1), so it gets the same checks. A blocked result
+  // records nothing: no reply is posted and no summary stored.
+  const asSession = () => ({ caller: cliReportCaller(binding) });
+  if (hands === "post-reply")
+    return result.state === "done"
+      ? ops.execute(
+          "reply.post",
+          { body: result.report?.body ?? result.text },
+          undefined,
+          asSession(),
+        )
+      : null;
+  if (hands === "summary")
+    return result.state === "done"
+      ? ops.execute(
+          "tasksummary.submit",
+          { summary: result.report?.summary ?? result.text },
+          undefined,
+          asSession(),
+        )
+      : null;
   // A plan-less worker's task is not in a plan: its own runner reads HEAD,
   // runs the checks and pushes (R90.2).
   if (store && hasRemoteTask(store, binding.taskId))
@@ -498,9 +537,13 @@ export async function drainProcessRequests(
             );
         }
         if (status.startsWith("exited ")) {
-          const checkout = sessionProject(store, {
-            task: binding.taskId,
-          })?.root;
+          // A responder's task is its response, not a task: its checkout is
+          // the one its detached worktree belongs to.
+          const checkout =
+            sessionProject(store, { task: binding.taskId })?.root ??
+            (binding.worktree && binding.commit
+              ? await checkoutOf(binding.worktree)
+              : null);
           if (verdictSession(binding, checkout))
             await removeDetached(checkout, binding.worktree);
           const row = processRow(binding.role);

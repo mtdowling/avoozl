@@ -4,7 +4,7 @@
 // link opens in a new tab; the worktree path is local text, never a link.
 // The Graph opens the same task details, so it shows the same box.
 import type { ReactNode } from 'react'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref, safeHref } from './views-api.ts'
 import { checksLine, scmLabel, type ScmChecks, type ScmLink, type TaskScmLinks } from './task-api.ts'
 import { Hint } from './ui/Hint'

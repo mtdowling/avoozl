@@ -2,7 +2,8 @@
 // no cron runs the tick and no app backend hands `process` requests to the
 // supervisor, so `avoozl supervisor --tick` runs this, in its own process,
 // for every enabled workspace in the machine catalog: the tick, then the
-// hand-off of `process` session requests, then the queued checks.
+// hand-off of `process` session requests, the queued checks, then the
+// queued notifications to this machine's sinks (NK7.1).
 // shortcut: intents for the `kirocrew` executor stay queued here, since no
 // Kiro Crew runs; a headless machine's projects use `process`.
 import fs from "node:fs";
@@ -34,7 +35,12 @@ export function catalogTickRoots({ stateDirectory, configDirectory }) {
 }
 
 // One workspace: returns {root, tick, errors} or {root, skipped}.
-export async function tickWorkspace(root, { stateDirectory, configDirectory }) {
+// `sinks` is [{id, push}] (notifications.mjs deliverToSinks); with none, the
+// notifications wait and `avoozl status` counts them.
+export async function tickWorkspace(
+  root,
+  { stateDirectory, configDirectory, sinks = [] },
+) {
   const target = workspaceConfig({
     workspace: root,
     env: { ...process.env, AVOOZL_WORKSPACE: root },
@@ -51,6 +57,7 @@ export async function tickWorkspace(root, { stateDirectory, configDirectory }) {
       plansRoot: target.plansRoot,
       configDirectory,
       driver: { settingsFile: driverSettingsPath() },
+      notifier: sinks,
     });
     const tick = await ops.execute("workspace.tick", { cron: true });
     const { errors } = await drainProcessRequests(store, {
@@ -60,10 +67,19 @@ export async function tickWorkspace(root, { stateDirectory, configDirectory }) {
     });
     // Awaited, unlike the app backend's, since the store closes after.
     await drainCheckRuns(store);
+    // The same delivery the app backend runs. A sink's failure is recorded
+    // on the sink and never fails the tick.
+    let notifications;
+    try {
+      notifications = await ops.execute("notifications.deliver", {});
+    } catch (error) {
+      errors.push({ id: "notifications", error: error.message });
+    }
     return {
       root,
       tick: tick?.skipped ? { skipped: tick.skipped } : "ran",
       errors,
+      ...(notifications ? { notifications } : {}),
     };
   } finally {
     store.close();

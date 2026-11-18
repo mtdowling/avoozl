@@ -76,7 +76,7 @@ test('Save is blocked with a clear message while a required setting is missing',
 
 test('the radio fold-out is real radios with motion off under reduced motion, and the role help keeps the mode cards', () => {
   const picker = source('RoleHelp.tsx')
-  const fold = source('RadioFold.tsx')
+  const fold = source('ui/RadioFold.tsx')
   assert.deepEqual(MODE_CARDS.map((card) => card.mode), ['local', 'plans-repo', 'single-repo'])
   for (const card of MODE_CARDS) {
     assert.ok(card.useWhen.length >= 3)
@@ -160,7 +160,7 @@ test('Repositories: one compact list with View, Edit and a trash Remove behind A
   assert.match(ws, /<Pencil size=\{14\}/)
   // The add form sits inside its modal, after the list.
   assert.ok(ws.indexOf('Your workspaces') < ws.indexOf('<Modal\n          id="avoozl-ws-add"'))
-  assert.match(source('controls.tsx'), /export const dangerStyle: CSSProperties = \{ color: 'var\(--danger\)', borderColor: 'var\(--danger\)' \}/)
+  assert.match(source('ui/controls.tsx'), /export const dangerStyle: CSSProperties = \{ color: 'var\(--danger\)', borderColor: 'var\(--danger\)' \}/)
 })
 
 test('markers read (required) or (optional) in plain muted text, never red or bold', () => {
@@ -217,7 +217,7 @@ test('Plugins puts Add plugin on the left and the installed list on the right, s
   const layout = plugins.slice(plugins.indexOf('data-plugins-layout'))
   assert.ok(layout.indexOf('<AddPlugin') < layout.indexOf('title="Installed plugins"'))
   assert.match(plugins, /useMedia\('\(min-width: 1024px\)'\)/)
-  assert.match(source('PairedCards.tsx'), /flexDirection: 'column'/)
+  assert.match(source('ui/PairedCards.tsx'), /flexDirection: 'column'/)
 })
 
 const SETTINGS_TAB_KEYS = () => [...settings.slice(settings.indexOf('export const SETTINGS_TABS'), settings.indexOf('] as const')).matchAll(/key: '(\w+)'/g)].map((m) => m[1])

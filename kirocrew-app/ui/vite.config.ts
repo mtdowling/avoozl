@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { readFileSync } from 'node:fs'
+import { standaloneConfig } from './standalone.config.ts'
+import { fetchKiroCrewUi } from '../../scripts/fetch-kirocrew-ui.mjs'
 
 const version = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version as string
 
@@ -13,6 +15,7 @@ const entries: Record<string, [string, string]> = {
 }
 
 export default defineConfig(({ mode }) => {
+  if (mode === 'standalone' || mode === 'standalone-css') return standaloneConfig(fetchKiroCrewUi(), mode)
   const entry = entries[mode] ?? entries.page
   return {
     plugins: [react()],

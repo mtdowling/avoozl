@@ -10,6 +10,17 @@ declare module '@kirocrew/app-sdk' {
   }
 
   export function useAppApi(): AppApi
+  // The provider the standalone page mounts (src/standalone/main.tsx).
+  export function AppApiProvider(props: {
+    appName: string
+    appDisplayName?: string
+    appVersion?: string
+    allowedApiPaths: string[]
+    navigateFn: (path: string) => void
+    notifyFn?: (message: string, opts?: { type?: 'info' | 'success' | 'error' }) => void
+    sessionKey?: string
+    children?: import('react').ReactNode
+  }): import('react').ReactNode
   // The host's own page navigation (a dashboard route such as /chat).
   export function useNavigate(): (path: string) => void
   export function useChatLauncher(): {
@@ -184,3 +195,10 @@ declare module 'react-dom' {
   import type { ReactNode, ReactPortal } from 'react'
   export function createPortal(children: ReactNode, container: Element | DocumentFragment): ReactPortal
 }
+
+// The standalone entry mounts the page itself (src/standalone/main.tsx).
+declare module 'react-dom/client' {
+  import type { ReactNode } from 'react'
+  export function createRoot(container: Element): { render(children: ReactNode): void }
+}
+declare module '*.css'

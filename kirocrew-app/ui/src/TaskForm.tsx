@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
 import {
   COMPLETION_LEVELS,
   emptyForm,

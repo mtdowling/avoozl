@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppApi, useChatLauncher } from './host.ts'
-import { Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Input } from './ui/Input'
+import { SegmentedControl } from './ui/SegmentedControl'
+import Badge from './ui/Badge.tsx'
 import {
   BOUNDARIES,
   BOUNDARY_HINTS,
@@ -36,13 +37,13 @@ import {
 } from './content-api.ts'
 import { SaveFooter } from './SaveFooter.tsx'
 import { CheckRow, FieldRow, Marker, RawKey } from './FieldRow.tsx'
-import { ChoiceCards, DangerBtn, ICON, IconBtn, IconLabel, SectionHeading } from './controls.tsx'
+import { ChoiceCards, DangerBtn, ICON, IconBtn, IconLabel, SectionHeading } from './ui/controls.tsx'
 import { BookOpen, Ban, Eye, Lock, MessagesSquare, Plus, ShieldCheck, Trash2, X } from './icons.ts'
 import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { useMedia } from './use-media.ts'
-import { PairedCard, PairedCards } from './PairedCards.tsx'
+import { PairedCard, PairedCards } from './ui/PairedCards.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'

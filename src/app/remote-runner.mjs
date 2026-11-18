@@ -348,6 +348,31 @@ export async function claimWork(store, workspaceRoot, github) {
   return result;
 }
 
+// A worker machine's own tick (worker-paths WP5.2): pull offers within the
+// free lanes, ask for them, and start the ones the driver acknowledged, with
+// the same functions `avoozl worker pull` and `avoozl worker claim` run once
+// by hand. With no GitHub, or a GitHub that fails, the tick records one line
+// and starts nothing; the next tick tries again. Returns what it did, or null
+// on a workspace that is not a worker.
+export async function workerTick(store, workspaceRoot, github) {
+  const config = readRunnerConfig(workspaceRoot);
+  if (config?.role !== "worker") return null;
+  const skipped = (reason) => {
+    store.event(null, "worker.tick", { skipped: reason });
+    return { pulled: null, claimed: null, skipped: reason };
+  };
+  if (!github?.available?.()) return skipped("no GitHub access");
+  try {
+    const pulled = await pullWork(store, workspaceRoot, github);
+    return {
+      pulled: pulled.offers.length,
+      claimed: await claimWork(store, workspaceRoot, github),
+    };
+  } catch (error) {
+    return skipped(error.message);
+  }
+}
+
 const chatKey = (slot) =>
   slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;
 

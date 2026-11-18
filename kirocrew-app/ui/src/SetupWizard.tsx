@@ -8,9 +8,10 @@
 // step; before Apply nothing is written, and during Apply the backend stops
 // before its next write (github.setup.cancel) and reports what was done.
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import { Tooltip } from './Tooltip.tsx'
-import { IconBtn, IconLabel, ICON } from './controls.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import { Tooltip } from './ui/Tooltip.tsx'
+import { IconBtn, IconLabel, ICON } from './ui/controls.tsx'
 import { CircleCheck, RefreshCw, Workflow, X } from './icons.ts'
 import { groupWrites, setupForm, setupInput, setupState, writeBadge, type GitHubSettings, type SetupForm, type SetupResult, settingsClient } from './settings-api.ts'
 import { errorMessage } from './workspace-api.ts'

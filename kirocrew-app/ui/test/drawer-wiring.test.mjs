@@ -47,7 +47,7 @@ test('the drawer shows every section, and a linked task opens in it', () => {
   assert.match(drawer, /<SectionBox id="task-links" title="Links">/)
   assert.doesNotMatch(drawer, /notes'/)
   assert.doesNotMatch(drawer, /SegmentedControl/)
-  assert.match(source('controls.tsx'), /<details\b/)
+  assert.match(source('ui/controls.tsx'), /<details\b/)
   assert.match(drawer, /setEditing\(!editing\)/)
   // Focus shows the task's chain in the Graph; Ask in a chat seeds a chat.
   assert.match(drawer, /props\.onFocus!\(task\.id, task\.title\)/)

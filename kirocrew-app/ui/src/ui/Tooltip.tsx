@@ -10,9 +10,9 @@
 // top layer, so only its own tooltips show above it.
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { placeTooltip, tooltipController } from './tooltip.ts'
-import { LAYER } from './layers.ts'
-import { usePortalTarget } from './Modal.tsx'
+import { placeTooltip, tooltipController } from '../tooltip.ts'
+import { LAYER } from '../layers.ts'
+import { usePortalTarget } from '../Modal.tsx'
 
 const reducedMotion = () => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
 
