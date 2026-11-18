@@ -12,10 +12,9 @@ Execution state lives in a local SQLite workspace. GitHub is optional.
 
 ## Install
 
-You need Kiro Crew 0.12.2.3 or later, as installed (no custom build), Node
-22.13 or later (for built-in SQLite; Node 26 is tested), and Git. The GitHub
-features also need `gh` signed in, or a token. Avoozl was tested on Kiro Crew
-0.12.2.3; earlier versions were not tried.
+You need Kiro Crew 0.12.2 or later, as installed (no custom build), Node
+22.13 or later (for built-in SQLite), and Git. The GitHub features also need
+`gh` signed in, or a token.
 
 ```sh
 git clone https://github.com/mtdowling/avoozl.git
