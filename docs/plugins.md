@@ -476,7 +476,7 @@ flow defaults. Proof P37 runs it with a fake GitHub; no template has run
 live yet.
 
 A starter may hold manual tasks (`"manual": true`): steps only a person
-does. See [Manual tasks and links and notes](policies.md#manual-tasks-and-links-and-notes).
+does. See [Manual tasks and task links](policies.md#manual-tasks-and-task-links).
 
 ## Intake part
 

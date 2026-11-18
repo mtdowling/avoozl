@@ -1755,18 +1755,19 @@ try {
         2,
       ),
     );
-  else if (command === "task" && positionals[0] === "notes") {
-    // Links and notes (R61.22): list and add for anyone; edit, remove and
+  else if (
+    command === "task" &&
+    // `task notes` is the name before task notes were removed.
+    ["links", "notes"].includes(positionals[0])
+  ) {
+    // Task links (R61.22): list and add for anyone; edit, remove and
     // show on the issue are a person's, as the command line is.
     const taskId = need(
         positionals[1],
-        "task notes TASK_ID [add|edit|remove|show]",
+        "task links TASK_ID [add|edit|remove|show]",
       ),
       action = positionals[2] || "list",
-      entry = () =>
-        options.link !== undefined
-          ? { kind: "link", url: options.link, label: options.label }
-          : { kind: "note", text: options.note };
+      entry = () => ({ kind: "link", url: options.link, label: options.label });
     const name = {
       list: "task.notes.list",
       add: "task.notes.add",
@@ -1775,11 +1776,11 @@ try {
       show: "task.notes.show",
     }[action];
     if (!name)
-      throw Error("Choose task notes TASK_ID list, add, edit, remove or show.");
+      throw Error("Choose task links TASK_ID list, add, edit, remove or show.");
     const id =
         action === "list" || action === "add"
           ? undefined
-          : need(positionals[3], `task notes TASK_ID ${action} NOTE_ID`),
+          : need(positionals[3], `task links TASK_ID ${action} LINK_ID`),
       input =
         action === "list"
           ? { taskId }
@@ -1811,7 +1812,6 @@ try {
                   : options.skipped
                     ? "skipped"
                     : "done",
-                ...(options.note ? { note: options.note } : {}),
                 ...(options.link
                   ? { links: [{ url: options.link, label: options.label }] }
                   : {}),
@@ -1961,12 +1961,12 @@ try {
   planning publish PLAN_ID               Open a private planning pull request
   planning reconcile                     Project tasks from merged planning PRs
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS
-  task notes TASK_ID [list]             A task's links and notes, newest first
-  task notes TASK_ID add --note TEXT | --link URL --label LABEL
-  task notes TASK_ID edit NOTE_ID --note TEXT | --link URL --label LABEL  (a person only)
-  task notes TASK_ID remove NOTE_ID     Remove a link or note; it stays in the activity history (a person only)
-  task notes TASK_ID show NOTE_ID [--off]  Show it on the task's issue, or stop (a person only)
-  task done TASK_ID [--skipped|--refused] [--note TEXT] [--link URL --label LABEL]
+  task links TASK_ID [list]             A task's links, newest first
+  task links TASK_ID add --link URL --label LABEL
+  task links TASK_ID edit LINK_ID --link URL --label LABEL  (a person only)
+  task links TASK_ID remove LINK_ID     Remove a link; it stays in the activity history (a person only)
+  task links TASK_ID show LINK_ID [--off]  Show it on the task's issue, or stop (a person only)
+  task done TASK_ID [--skipped|--refused] [--link URL --label LABEL]
                                          Mark a manual task done, skipped or refused (a person only;
                                          refused is a no-go and keeps its dependents held)
   task reopen TASK_ID                   Reopen a manual task; its dependents wait again (a person only)

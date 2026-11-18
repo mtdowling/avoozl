@@ -47,7 +47,8 @@ export function parseManagedSection(body) {
     heading = (name) => lines.indexOf("## " + name),
     acceptanceAt = heading("Acceptance criteria"),
     dependenciesAt = heading("Dependencies"),
-    notesAt = heading("Links and notes"),
+    // "Links and notes" is the heading before task notes were removed.
+    notesAt = Math.max(heading("Links"), heading("Links and notes")),
     rulesAt = heading("Agent rules"),
     end = (from) => {
       const next = lines.findIndex(
@@ -328,7 +329,7 @@ async function rebuild(
       );
       const order = orderReceipt(entry, taskId);
       if (order) receipts += putIfChanged(store, "receipts", order);
-      // Shown links and notes come back from the body; unshown ones live
+      // Shown links come back from the body; unshown ones live
       // only in SQLite and its backups, like session bindings (§3.3).
       for (const note of parseIssueNotes(entry.section.notes, taskId))
         receipts += putIfChanged(store, "task_notes", note);

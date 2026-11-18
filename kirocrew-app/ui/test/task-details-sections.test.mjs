@@ -12,7 +12,7 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 
 test('every drawer section is a SectionBox, open at first, with no fold or tab left', () => {
   const drawer = source('TaskDrawer.tsx')
-  const keys = [...drawer.matchAll(/\{ key: '(\w+)', label: '[^']+' \}/g)].map((m) => m[1])
+  const keys = [...drawer.matchAll(/\{ key: '([\w-]+)', label: '[^']+' \}/g)].map((m) => m[1])
   assert.ok(keys.length >= 10, 'the section list')
   for (const key of keys) assert.match(drawer, new RegExp(`<SectionBox id="${key}" title=`), key)
   assert.doesNotMatch(drawer, /<Fold\b|<details\b|SegmentedControl|role="tab/)
@@ -60,7 +60,8 @@ test('page: each section shows a header and folds by click and by keyboard (Spac
   await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
   await page.until(`document.querySelectorAll('[data-section-box]').length >= 9`)
   const boxes = await page.evaluate(BOXES)
-  for (const id of ['summary', 'description', 'links', 'notes', 'delivery', 'timing', 'evidence', 'conflicts', 'timeline']) {
+  assert.equal(boxes.find((b) => b.id === 'notes'), undefined, 'tasks have no Notes box')
+  for (const id of ['summary', 'description', 'links', 'task-links', 'delivery', 'timing', 'evidence', 'conflicts', 'timeline']) {
     const box = boxes.find((b) => b.id === id)
     assert.ok(box, `${id} is shown`)
     assert.ok(box.title, `${id} has a header`)
@@ -79,5 +80,40 @@ test('page: each section shows a header and folds by click and by keyboard (Spac
     await page.key(' ', 'Space', 32)
     await page.until(`document.querySelector(${sel}).getAttribute('aria-expanded') === 'true'`)
   }
+  assert.deepEqual(page.errors, [])
+})
+
+// Links: the fields stay hidden behind Add link, open for one link, and
+// close again after Add, so each further link is one click.
+test('page: Add link shows one set of fields and closes after adding', { skip }, async () => {
+  await page.open(harness.url({ modal: 'task-drawer', theme: 'light' }), { width: 1280, height: 900 })
+  await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
+  await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
+  await page.until(`document.querySelectorAll('[data-link-entry]').length === 2`)
+  const box = `document.querySelector('[data-section-box="task-links"]')`
+  const shape = `({ forms: ${box}.querySelectorAll('[data-add-link-form]').length, inputs: ${box}.querySelectorAll('input:not([type=checkbox])').length, button: Boolean(${box}.querySelector('[data-add-link]')) })`
+  assert.deepEqual(await page.evaluate(shape), { forms: 0, inputs: 0, button: true })
+  await page.evaluate(`${box}.querySelector('[data-add-link]').click()`)
+  await page.until(`Boolean(${box}.querySelector('[data-add-link-form]'))`)
+  assert.deepEqual(await page.evaluate(shape), { forms: 1, inputs: 2, button: false })
+  // Cancel closes it with nothing sent.
+  await page.evaluate(`[...${box}.querySelectorAll('[data-add-link-form] button')].find((b) => b.textContent.trim() === 'Cancel').click()`)
+  await page.until(`!${box}.querySelector('[data-add-link-form]')`)
+  await page.evaluate(`${box}.querySelector('[data-add-link]').click()`)
+  await page.until(`Boolean(${box}.querySelector('[data-add-link-form]'))`)
+  // The same check as before: a bad link is refused in place.
+  await page.evaluate(`${box}.querySelector('[data-add-link-submit]').click()`)
+  await page.until(`${box}.textContent.includes('Give a link.')`)
+  for (const [i, value] of [[0, 'https://docs.example.test/plan'], [1, 'Plan doc']])
+    await page.evaluate(`(() => {
+      const input = ${box}.querySelectorAll('[data-add-link-form] input')[${i}]
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)})
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })()`)
+  await page.evaluate(`${box}.querySelector('[data-add-link-submit]').click()`)
+  await page.until(`!${box}.querySelector('[data-add-link-form]') && Boolean(${box}.querySelector('[data-add-link]'))`)
+  const sent = await page.evaluate(`window.__harness.calls.filter((c) => c.operation === 'task.notes.add').map((c) => c.input)`)
+  assert.deepEqual(sent, [{ taskId: 'team-review', kind: 'link', url: 'https://docs.example.test/plan', label: 'Plan doc' }])
+  assert.equal(await page.evaluate(`${box}.textContent.includes('Link added.')`), true)
   assert.deepEqual(page.errors, [])
 })
