@@ -310,9 +310,9 @@ export default function NewPlanDrawer(props: {
       footer={
         <>
           {tried && start === null && (
-            <span role="alert" className="mr-auto text-xs text-danger" style={{ order: -1 }} data-start-problem>
+            <Box role="alert" as="span" css-order={-1} mrAuto size="xs" tone="danger" data-start-problem>
               Pick Blank, From template or From a goal.
-            </span>
+            </Box>
           )}
           <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || start === null || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {start === 'template' || start === 'goal' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}

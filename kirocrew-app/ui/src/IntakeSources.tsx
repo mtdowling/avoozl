@@ -361,9 +361,9 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
       footer={
         <>
           {problem && (
-            <p role="alert" className="m-0 mr-auto text-xs text-danger" style={{ order: -1 }}>
+            <Box role="alert" as="p" css-order={-1} m0 mrAuto size="xs" tone="danger">
               {problem.text}
-            </p>
+            </Box>
           )}
           <IconLabel icon={Plus} primary onClick={add} disabled={busy}>
             Add source

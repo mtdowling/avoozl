@@ -23,7 +23,7 @@ function RepositoryCard({ row }: { row: RepositoryCi }) {
           return <Stack key={name} data-ci-class={name} gap={1}>
             <Box flex flexWrap justify="between" gapX="3" size="xs"><Box as="span" weight="medium">{name}</Box><span>{number(task)} task · {number(other)} other min</span></Box>
             <Box role="img" aria-label={`${name}: ${number(task)} task minutes, ${number(other)} other minutes`} css-display="flex" css-height="9" css-border-radius="3" css-overflow="hidden" css-background="mix-muted-12%-transparent">
-              <span style={{ width: `${100 * task / max}%`, background: 'var(--accent)' }} /><span style={{ width: `${100 * other / max}%`, background: 'var(--muted)' }} />
+              <Box as="span" css-width={`${100 * task / max}%`} css-background="accent" /><Box as="span" css-width={`${100 * other / max}%`} css-background="muted" />
             </Box>
           </Stack>
         })}

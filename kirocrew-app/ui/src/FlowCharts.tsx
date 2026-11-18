@@ -86,7 +86,7 @@ function Bars({ rows }: { rows: UsageRow[] }) {
   return (
     <Box css-height="90" flex items="end" gap="1" role="img" aria-label={rows.map((r) => `${r.key}: ${usageText(r)}`).join(', ')}>
       {rows.map((r) => (
-        <span key={r.key} className="rounded-sm" style={{ display: 'block', flex: 'none', height: Math.max(2, Math.round((H * value(r)) / max)), width: 14, background: 'var(--accent)' }} />
+        <Box key={r.key} as="span" css-display="block" css-flex="none" css-height={Math.max(2, Math.round((H * value(r)) / max))} css-width="14" css-background="accent" rounded="sm" />
       ))}
     </Box>
   )

@@ -1343,7 +1343,7 @@ function SpecRail(props: {
                         </span>
                       </Box>
                       <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
-                        <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
+                        <Box as="span" css-width={`${percent}%`} css-background="ok" block hFull />
                       </Box>
                     </PlainButton>
                   </Tooltip>

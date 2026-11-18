@@ -40,7 +40,7 @@ export function ResizeHandle(props: {
     [left, onResize, growsLeft, props.width],
   )
   return (
-    <div
+    <Box
       role="separator"
       aria-orientation="vertical"
       aria-label={props.label}
@@ -59,9 +59,9 @@ export function ResizeHandle(props: {
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ flex: '0 0 8px', alignSelf: 'stretch', cursor: 'col-resize', position: 'relative', zIndex: LAYER.raised, display: 'flex', justifyContent: 'center', outline: 'none' }}
+      css-flex="0-0-8px" css-align-self="stretch" css-cursor="col-resize" css-position="relative" css-z-index={LAYER.raised} css-display="flex" css-justify-content="center" css-outline="none"
     >
       <Box aria-hidden="true" as="span" css-width="2" css-height="100%" css-background={hover ? 'accent' : 'transparent'} css-transition="background-120ms" />
-    </div>
+    </Box>
   )
 }

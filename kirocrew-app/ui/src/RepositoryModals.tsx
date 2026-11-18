@@ -200,9 +200,9 @@ export function EditRepository(props: {
       footer={
         <>
           {error && (
-            <span role="alert" className="mr-auto text-sm text-danger" style={{ order: -1 }}>
+            <Box role="alert" as="span" css-order={-1} mrAuto size="sm" tone="danger">
               {error}
-            </span>
+            </Box>
           )}
           <Btn type="button" primary disabled={busy || !changed || Boolean(problem)} onClick={() => void save()}>
             Save

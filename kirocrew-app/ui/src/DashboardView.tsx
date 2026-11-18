@@ -761,7 +761,7 @@ export default function DashboardView(props: {
                             </Box>
                           </Box>
                           <Box role="progressbar" aria-label={`${title} progress`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} as="span" css-background="border" mt="1" block h15 overflow="hidden" rounded="base">
-                            <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
+                            <Box as="span" css-width={`${percent}%`} css-background="ok" block hFull />
                           </Box>
                         </PlainButton>
                       </Tooltip>

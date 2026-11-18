@@ -57,7 +57,7 @@ export function StageBar({ stages, scale, label }: { stages: Record<string, numb
     total = parts.reduce((sum, p) => sum + p.ms, 0)
   const text = `${label}: ${parts.map((p) => `${p.label} ${duration(p.ms)}`).join(', ') || 'no time yet'}`
   return (
-    <div style={{ width: `${Math.max(4, scale ? (100 * total) / scale : 100)}%` }}>
+    <Box css-width={`${Math.max(4, scale ? (100 * total) / scale : 100)}%`}>
       <Tooltip text={text} display="block">
         {(describedBy) => (
           <Box role="img" aria-label={text} aria-describedby={describedBy} tabIndex={0} css-display="flex" css-height="12" css-border-radius="4" css-overflow="hidden" css-background="mix-muted-15%-transparent">
@@ -67,7 +67,7 @@ export function StageBar({ stages, scale, label }: { stages: Record<string, numb
           </Box>
         )}
       </Tooltip>
-    </div>
+    </Box>
   )
 }
 
@@ -177,7 +177,7 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
 function MetricCards({ view }: { view: FlowViewModel }) {
   const phone = useMedia('(max-width: 767px)')
   return (
-    <div style={{ display: 'grid', width: '100%', gap: '0.75rem', gridTemplateColumns: `repeat(${phone ? 2 : 6}, minmax(0, 1fr))` }} data-flow-cards>
+    <Box css-display="grid" css-width="100%" css-gap="0.75rem" css-grid-template-columns={`repeat(${phone ? 2 : 6}, minmax(0, 1fr))`} data-flow-cards>
       {metricCards(view).map((card) => (
         <Card key={card.key} className="flex flex-col gap-1" style={{ minWidth: 0 }}>
           <Tooltip text={card.tip}>
@@ -199,7 +199,7 @@ function MetricCards({ view }: { view: FlowViewModel }) {
           )}
         </Card>
       ))}
-    </div>
+    </Box>
   )
 }
 
