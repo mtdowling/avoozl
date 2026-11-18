@@ -1,4 +1,4 @@
-import Badge from './Badge.tsx'
+import Badge from './ui/Badge.tsx'
 import { safeHref, type TaskOwner } from './views-api.ts'
 import { linkHref } from './views-api.ts'
 

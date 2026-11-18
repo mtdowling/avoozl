@@ -2,7 +2,7 @@
 // repository's settings. Display only; a value jumps to the field that sets
 // it. No animation, theme variables only, cards wrap down to 320 px.
 import { Fragment, useCallback, useMemo } from 'react'
-import { Card } from '@kirocrew/app-sdk/ui'
+import { Card } from './ui/Card'
 import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
 import { COMMAND_PATH } from './workspace-api.ts'

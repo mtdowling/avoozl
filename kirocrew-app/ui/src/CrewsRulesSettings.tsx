@@ -4,11 +4,11 @@
 // from, each mode one radio fold-out, and no model price anywhere. It edits
 // one repository's form. Settings › Issue Radar shows each part in its own
 // section; Save writes .avoozl.json like every other page.
-import { Input } from '@kirocrew/app-sdk/ui'
-import { Fold } from './controls.tsx'
+import { Input } from './ui/Input'
+import { Fold } from './ui/controls.tsx'
 import { FieldBox } from './FieldBox.tsx'
 import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
-import { RadioFold } from './RadioFold.tsx'
+import { RadioFold } from './ui/RadioFold.tsx'
 import { SHIP_CHOICES } from './delivery-api.ts'
 import { AVOOZL_LABELS, CONFLICT_ACTIONS, CONFLICT_ACTION_TEXT, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
 import { ErrorText } from './ui/ErrorText'

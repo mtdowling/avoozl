@@ -3,8 +3,8 @@
 // loads only when a person asks for it.
 import { useCallback, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import Badge from './Badge.tsx'
-import { SectionBox } from './controls.tsx'
+import Badge from './ui/Badge.tsx'
+import { SectionBox } from './ui/controls.tsx'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'

@@ -3,10 +3,11 @@
 // before the last step's button. Cancel, Esc and a click outside close it
 // on every step before then.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
 import { Check, CircleAlert, Radar, X } from './icons.ts'
-import { ICON } from './controls.tsx'
+import { ICON } from './ui/controls.tsx'
 import { crewLine, radarClient, type CrewList, type HandOffInput, type HandOffReply, type UntriagedItem } from './untriaged-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Modal } from './Modal.tsx'

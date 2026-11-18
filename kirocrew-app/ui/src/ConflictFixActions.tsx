@@ -2,7 +2,7 @@
 // ask about (RC28.3): Resolve myself and Dismiss. Each calls
 // `conflictfix.decide`; the page holds no logic of its own.
 import { Check, X } from './icons.ts'
-import { DangerBtn, IconLabel } from './controls.tsx'
+import { DangerBtn, IconLabel } from './ui/controls.tsx'
 import type { ConflictItem } from './views-api.ts'
 import { Row } from './ui/Row'
 

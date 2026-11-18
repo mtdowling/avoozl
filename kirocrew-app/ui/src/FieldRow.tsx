@@ -6,7 +6,7 @@
 // aria-describedby (fieldDescribedBy). A width limits the control only, so a
 // narrow number box never squeezes its label or help into a thin column.
 import type { ReactNode } from 'react'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import type { FieldRule } from './settings-api.ts'
 import { Hint } from './ui/Hint'
 

@@ -5,7 +5,7 @@
 // row is narrower than 300px. Sizes follow Kiro Crew's own panels: 12px text,
 // 11px small buttons with a 6px radius, theme colors only.
 import type { ReactNode } from 'react'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref } from './views-api.ts'
 
 export type CellTone = 'ok' | 'warn' | 'danger' | 'muted'

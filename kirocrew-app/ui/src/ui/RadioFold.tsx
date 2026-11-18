@@ -6,9 +6,9 @@
 // its fields. A disabled choice shows its reason and cannot be picked.
 // Used by the Settings mode picker and the Add plugin steps.
 import type { ReactNode } from 'react'
-import type { LucideIcon } from './icons.ts'
-import { Hint } from './ui/Hint'
-import { Stack } from './ui/Stack'
+import type { LucideIcon } from '../icons.ts'
+import { Hint } from '../ui/Hint'
+import { Stack } from '../ui/Stack'
 
 export interface RadioSection<K extends string> {
   key: K

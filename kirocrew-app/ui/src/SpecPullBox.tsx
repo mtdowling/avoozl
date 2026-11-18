@@ -3,10 +3,10 @@
 // the backend adopted and acts only through specPullClient.
 import { useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import Badge from './Badge.tsx'
+import Badge from './ui/Badge.tsx'
 import { DiffBlock } from './FlowMemory.tsx'
 import { SeverityBadges } from './SeverityBadges.tsx'
-import { DangerBtn, TipBtn } from './controls.tsx'
+import { DangerBtn, TipBtn } from './ui/controls.tsx'
 import { safeHref } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { CHECKS_TEXT, approveWhy, specPullClient, type SpecPull } from './spec-pr-api.ts'

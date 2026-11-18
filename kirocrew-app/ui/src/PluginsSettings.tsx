@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import AddPlugin from './AddPlugin.tsx'
 import IntakeSources from './IntakeSources.tsx'
 import { useAppApi, useChatLauncher } from './host.ts'
-import { EmptyState } from '@kirocrew/app-sdk/ui'
+import { EmptyState } from './ui/EmptyState'
 import { FormSection } from './FormSection.tsx'
-import { PairedCard, PairedCards } from './PairedCards.tsx'
-import Badge from './Badge.tsx'
+import { PairedCard, PairedCards } from './ui/PairedCards.tsx'
+import Badge from './ui/Badge.tsx'
 import {
   CONTRACT_LABEL,
   canApprove,
@@ -17,7 +17,7 @@ import {
 } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
-import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './controls.tsx'
+import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './ui/controls.tsx'
 import { PackImportDialog } from './PackImport.tsx'
 import { SkillNoteCard } from './FlowMemory.tsx'
 import { flowClient, type SkillNote } from './flow-api.ts'

@@ -2,7 +2,7 @@
 // the tick arms nothing, and a person can turn auto-merge off on ones already
 // armed. Nothing shows without a stop or without an armed pull request.
 import { useCallback, useMemo, useState } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
 import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'

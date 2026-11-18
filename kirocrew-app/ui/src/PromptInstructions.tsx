@@ -2,8 +2,8 @@
 // the owner's own instructions, which Avoozl adds after the built-in prompt.
 // One part for every agent whose prompt the owner may extend.
 import { useState } from 'react'
-import { Tooltip } from './Tooltip.tsx'
-import { Fold, IconLabel } from './controls.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
+import { Fold, IconLabel } from './ui/controls.tsx'
 import { Marker } from './SettingsView.tsx'
 import { Check, Copy } from './icons.ts'
 import { Hint } from './ui/Hint'
