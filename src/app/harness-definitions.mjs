@@ -47,6 +47,9 @@ const KEYS = new Set([
   "keepEnv",
   "tmpEnv",
   "resultAllow",
+  // Where the harness output names the model that served the session
+  // (NK5.2): {"from": "output", "field": ...}.
+  "servedModel",
 ]);
 // Variables a harness may keep to sign in to its own provider. Never a
 // GitHub, git, SSH, Kiro Crew or Avoozl name: those stay out of a child.
@@ -248,6 +251,20 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
   // flight shows it to copy. Avoozl never runs it.
   if (value.attach !== undefined)
     definition.attach = argv(value.attach, "attach", source);
+  if (value.servedModel !== undefined) {
+    const served = value.servedModel;
+    if (
+      !served ||
+      typeof served !== "object" ||
+      Array.isArray(served) ||
+      Object.keys(served).sort().join() !== "field,from" ||
+      served.from !== "output" ||
+      typeof served.field !== "string" ||
+      !/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(served.field)
+    )
+      fail(`${source}: servedModel must be {"from": "output", "field": ...}.`);
+    definition.servedModel = { from: "output", field: served.field };
+  }
   if (value.cost !== undefined) {
     const cost = words(value.cost, "cost", source);
     const field = { output: "field", file: "path" }[cost.from];

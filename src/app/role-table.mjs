@@ -59,6 +59,21 @@ const verdictFinish = (allowCommands) => [
 //   finish   the lines that replace the Avoozl tools in a child's brief
 //   offline  true when the child gets no network, whatever its project
 //            allows: it reads only its folder and brief
+// A plan review's output file: {findings: [...], summary?}. The findings'
+// own rules are plans_submit_review's.
+function planReviewOutput(text) {
+  const value = JSON.parse(text);
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    !Array.isArray(value.findings) ||
+    Object.keys(value).some((key) => !["findings", "summary"].includes(key))
+  )
+    throw Error('write {"findings": [...], "summary"?: "..."}');
+  return value;
+}
+
 export const ROLE_TABLE = Object.freeze({
   worker: {
     setting: "worker",
@@ -163,11 +178,24 @@ export const ROLE_TABLE = Object.freeze({
     process: false,
     access: "write",
   },
+  // Plan review reads the plan snapshot Avoozl prepares and hands back its
+  // findings and summary in an output file. A round counts only with a
+  // served model the harness output names (NK3.3, NK5.2).
   planReviewer: {
     setting: "planReviewer",
     roles: ["plan-review"],
-    process: false,
+    prompt: "plan-review",
+    process: true,
     access: "read",
+    hands: "plan-review",
+    served: true,
+    // shortcut: a byte limit for the file only; the 50 findings and every
+    // field limit are plans_submit_review's own, applied when it is recorded.
+    output: { limit: 1_048_576, validate: planReviewOutput },
+    finish: () => [
+      'You run without Avoozl\'s tools. Instead of calling plans_submit_review, write your findings to .avoozl/output/review.json in the current folder as {"findings": [<each finding as plans_submit_review takes it>], "summary": "<optional>"}, then write .avoozl/result.json as {"state": "done", "output": "review.json"}. Avoozl fills in the plan and revision.',
+      "Write no other file, then exit.",
+    ],
   },
   planAnswer: {
     setting: "planAnswer",
