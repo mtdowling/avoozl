@@ -4240,24 +4240,32 @@ step by hand when I want it.
 
 #### Acceptance criteria
 
-1. `delivery.ship` SHALL be `auto-merge` (default, today's behavior) or
-   `manual`, per workspace and per repository. A spec's manifest MAY set a
-   top-level `ship` and a manifest task its own `ship`. The task's value
-   wins, then the spec's, then the repository's, then the workspace's. A
-   task that came from a GitHub issue follows it like any other.
-2. With `auto-merge`, Requirement 18 SHALL apply unchanged.
-3. With `manual`, briefs SHALL tell writers not to enable auto-merge, and
-   Avoozl SHALL say so on Settings > Delivery. WHEN a pull request's
+1. Who merges SHALL be `autoMerge` in the repository's landing block
+   (Requirement 87.1): `true` (default, today's behavior) or `false`. A
+   spec's manifest MAY set a top-level `ship` and a manifest task its own
+   `ship`, `auto-merge` or `manual`, as a pin. The task's pin wins, then the
+   spec's, then the repository's `autoMerge`. A task that came from a GitHub
+   issue follows it like any other. (Changed 2026-11-18, simplification
+   audit F3: it was `delivery.ship` per workspace and per repository.)
+   `delivery.repositories.<id>.ship` SHALL still load as the value of that
+   checkout's repository, and `delivery.ship` as the value of every
+   repository that sets none, `manual` meaning `false`, with no warning.
+   Avoozl SHALL NOT write either key.
+2. With auto-merge on, Requirement 18 SHALL apply unchanged.
+3. With auto-merge off, briefs SHALL tell writers not to enable auto-merge,
+   and Avoozl SHALL say so on the repository's Landing tab. WHEN a pull request's
    required checks pass and its reviews are met THEN Needs you SHALL show
    one **Ready to merge** item with a link to it; the person merges on
    GitHub, and Requirement 16 decides completion as before.
-4. With `manual` in Local only mode, integration SHALL wait for a person's
-   **Integrate** on the Ready to merge item.
+4. With auto-merge off in Local only mode, integration SHALL wait for a
+   person's **Integrate** on the Ready to merge item. A Local only
+   workspace has no GitHub repository entries, so it keeps reading
+   `delivery.ship` and each project's `landing`.
 5. Avoozl SHALL still never merge a pull request itself.
-6. With `manual`, WHEN a writer's pull request closes without merging THEN
-   Avoozl SHALL send the writer one message, as one feedback round, to read
-   why, fix it and reopen it, or report blocked. Settings > Delivery SHALL
-   choose the mode with one radio fold-out.
+6. With auto-merge off, WHEN a writer's pull request closes without merging
+   THEN Avoozl SHALL send the writer one message, as one feedback round, to
+   read why, fix it and reopen it, or report blocked. Settings › Repository
+   setup › Edit › Landing SHALL choose it; Settings › Delivery SHALL NOT.
 
 ### Requirement 81: Review a task's changes in the drawer
 
@@ -4571,10 +4579,20 @@ pressing merge.
 
 #### Acceptance criteria
 
-1. Each repository SHALL have a landing setting: `direct`, `pr` or `off`.
-   The default SHALL be `off` until Set up (Requirement 89) writes another.
-   Under `off` Avoozl SHALL push nothing and SHALL list the verified commit
-   in Needs you.
+1. Each repository SHALL have one landing block,
+   `github.repositories.<owner/name>.landing`, edited in one place,
+   Settings › Repository setup › Edit › Landing: `mode` (`direct`, `pr`,
+   `train` or `off`), `autoMerge` (Requirement 80, default `true`) and
+   `method` (`squash` or `merge`, default `squash`, RC28.7). The default
+   mode SHALL be `off` until Set up (Requirement 89) writes another. Under
+   `off` Avoozl SHALL push nothing and SHALL list the verified commit in
+   Needs you. (Changed 2026-11-18, simplification audit F3: the mode was
+   the project's `landing`, the method `merge.method`, and who merges
+   `delivery.ship`.) The project's `landing` SHALL still load as the mode,
+   and `merge.method` as the method, of a repository whose block sets none,
+   with no warning. Avoozl SHALL NOT write them. A key in the block wins
+   over its older key. Avoozl's own repository and Nupp SHALL land as they
+   did before the change, each covered by a test.
 2. `direct` SHALL select an exact verified working-branch portion, or a
    train of up to four tasks across specs of the same driver. A landing
    worktree SHALL merge it with the current base, check that exact candidate,
@@ -4597,8 +4615,11 @@ pressing merge.
    the queue; a paused queue SHALL keep its order.
 6. WHEN a merge of the base into the task branch conflicts THEN Avoozl SHALL
    send the conflict to the same worker chat with the list of conflicted
-   files, for at most `landing.conflictRounds` rounds (default 2). A later
-   failure SHALL go to Needs you. The separate resolver chat
+   files, for at most the repository's `conflicts.maxAttempts` rounds
+   (default 2), the same count crew pull requests use (RC28.4). A later
+   failure SHALL go to Needs you. (Changed 2026-11-18, simplification audit
+   F4: the count was `landing.conflictRounds`, which still loads, with no
+   warning, as the count of every repository that sets none.) The separate resolver chat
    (`avoozl-conflict-fix`, RC28) SHALL be removed.
 7. A task SHALL start from its spec's recorded working head, generalized
    from RC16's epic integration branch. Only verified integrations SHALL

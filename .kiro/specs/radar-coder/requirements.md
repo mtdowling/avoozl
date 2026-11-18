@@ -1590,21 +1590,24 @@ Avoozl turns that handback into one short resolver chat.
    with **Resolve myself** and **Dismiss**. A push whose commit did not pass the
    check SHALL get the same row, and Avoozl SHALL NOT arm it.
 4. **Limits.** (a) At most `conflicts.maxAttempts` resolver attempts per
-   conflict (default 1); a conflict is one pull request at one head commit, so
+   conflict (default 2; changed 2026-11-18, Avoozl Requirement 87.6: one
+   count for crew pull requests and for landing); a conflict is one pull request at one head commit, so
    a new push is a new conflict. (b) Avoozl SHALL NOT touch a pull request no
    crew wrote, or one whose issue has no valid Avoozl marker; it SHALL send a
    branch with a commit by someone other than the crew after the crew's last
    commit (Avoozl's own merge commits aside) to the Waiting on you row. (c) An
    open Stop the line SHALL pause it for the tasks the stop pauses.
 5. **Setting.** `conflicts.onSourceConflict` per repository, `fix` or `ask`
-   (default `fix`), and `conflicts.maxAttempts` (default 1), in Settings and
-   `.avoozl.json`, shown in the Workflow map. With `ask`, every candidate is a
+   (default `fix`), and `conflicts.maxAttempts` (default 2), on the
+   repository's Landing tab and in `.avoozl.json`, shown in the Workflow map. With `ask`, every candidate is a
    Waiting on you row and Avoozl starts no chat. Label names stay the
    configurable ones of RC21; no behavior needs an `avoozl:` prefix.
 6. **Visible.** Trace and Activity SHALL show "conflict fixed by Avoozl" with
    the merge commit. Flow SHALL count the task as fix work.
-7. **Merge method.** `merge.method` per repository, `squash` or `merge`
-   (default `squash`), in Settings, `.avoozl.json` and the Workflow map. Every
+7. **Merge method.** `landing.method` per repository, `squash` or `merge`
+   (default `squash`), on the repository's Landing tab, in `.avoozl.json`
+   and the Workflow map. (Changed 2026-11-18, Avoozl Requirement 87.1: it
+   was `merge.method`, which still loads.) Every
    place Avoozl arms auto-merge on a crew pull request (RC5.2 and RC28.2) SHALL
    use it: `squash` arms a squash merge whose commit title and body are the pull
    request's title and body, so the base gets one commit per pull request and a
