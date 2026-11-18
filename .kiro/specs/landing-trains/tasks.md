@@ -49,10 +49,10 @@ person.
 
 ## Phase 2: The landing lease and the integrator
 
-- [ ] lt-2.1 One lease module from the activity lease [LT3.2] (§D5.1)
+- [x] lt-2.1 One lease module from the activity lease [LT3.2] (§D5.1)
   - `src/lease.mjs` with `takeLease`, `renewLease`, `endLease`, `leaseState`, in seconds; `applyActivity` calls it and keeps its API and 5–240 minute bounds.
   - Done when: `src/report.test.mjs`'s activity tests pass unchanged; new tests in `src/lease.test.mjs` cover take on none and on stale, busy on active foreign, renew and end with the right and the wrong lease ID, and a 180-second lease going stale at 181 seconds.
-- [ ] lt-2.2 The landing lease: compare-and-set, heartbeat, expiry and the hung holder, after lt-2.1, lt-1.1 [LT3.1, LT3.3, LT3.4, LT3.5, LT3.9] (§D2, §D5.2)
+- [x] lt-2.2 The landing lease: compare-and-set, heartbeat, expiry and the hung holder, after lt-2.1, lt-1.1 [LT3.1, LT3.3, LT3.4, LT3.5, LT3.9] (§D2, §D5.2)
   - `landing_leases` table (added to the store's table lists); take inside one transaction; renew every `heartbeatSeconds`; expire after `missedHeartbeats`; a stale lease whose holder pid is alive on this machine with the same start time is not taken and opens one Needs you item.
   - Done when: Tests in `src/app/test/landing-lease.test.mjs`: two stores on one database file race to take the lease and exactly one wins, the other gets `busy` and writes nothing; a lease renewed on time stays; one not renewed for three heartbeats goes stale; a stale lease with a live pid is refused with one Needs you item across three loops; a stale lease with a dead pid is taken.
 - [ ] lt-2.3 The integrator process and role, after lt-2.2, lt-1.2 [LT2.1, LT2.2, LT2.3, LT2.5] (§D4, §D21)
