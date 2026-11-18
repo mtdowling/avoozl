@@ -26,10 +26,8 @@
       "pattern": "^[a-z][a-z0-9-]{0,60}$"
     },
     "maxConcurrentRuns": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 256,
-      "default": 4
+      "deprecated": true,
+      "description": "Ignored and dropped on the next save. lanes.local in the machine Avoozl configuration sets how many chats this machine runs."
     },
     "workspaces": {
       "type": "object",
@@ -61,11 +59,8 @@
           "default": true
         },
         "maxConcurrentRuns": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 64,
-          "default": 2,
-          "description": "Maximum new runs in this workspace. Zero pauses dispatch without stopping active runs."
+          "deprecated": true,
+          "description": "Ignored and dropped on the next save. lanes.local in the machine Avoozl configuration sets how many chats this machine runs."
         },
         "repositories": {
           "type": "object",

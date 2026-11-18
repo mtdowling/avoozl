@@ -340,7 +340,19 @@ limits I set, so that I do not file, start, or chase routine work.
    met its completion condition, and no conflict or human decision is open.
 2. WHEN a leaf becomes ready and capacity allows THEN Avoozl SHALL dispatch it
    without a manual step.
-3. Concurrency SHALL be bounded per workspace and per repository.
+3. Concurrency SHALL have exactly two settings: `lanes.local` in the machine
+   file (`~/.config/avoozl/config.json`), how many worker chats this machine
+   runs at once (default 3), and Release N (`release.capacity`), how many
+   issues a repository releases at once. (Changed 2026-11-18, simplification
+   audit F1 and F2: it was bounded per workspace and per repository.) Older
+   keys SHALL be read as old input only and never written:
+   `delivery.concurrency`, then `lanes.local` in `.avoozl.json`, count as this
+   machine's lanes when the machine file sets none; per-repository
+   `delivery.repositories.*.concurrency`, `github.repositories.*.concurrency`,
+   and the host and workspace `maxConcurrentRuns` SHALL be ignored. A file
+   that sets them SHALL load with no error or warning. Settings › Workspaces
+   SHALL NOT show an "Agents at once" field, and `avoozl workspace
+   concurrency` SHALL NOT exist, because nothing enforced them.
 4. WHEN a leaf needs several internal steps THEN Avoozl MAY run it through Task
    Runner, and those steps SHALL NOT become Avoozl tasks.
 5. WHEN several independent ready leaves exist and Crew Mode is enabled THEN
@@ -677,7 +689,7 @@ so that two stores never disagree.
 
 ### Requirement 20: The Avoozl app
 
-**Status 2026-11-18.** The page has seven nav entries, not six views: Dashboards (Home, Graph, Delivery, CI, Landing queue), Specs, Needs you (Decisions, Triage, Issue Radar), Flow, Retros (Retros, Proposals), Activity and Settings (Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery). Criterion 1 is read that way.
+**Status 2026-11-18.** The page has seven nav entries, not six views: Dashboards (Home, Graph, Delivery, Landing queue), Specs, Needs you (Decisions, Triage, Issue Radar), Flow, Retros (Retros, Proposals), Activity and Settings (Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery). Criterion 1 is read that way. The Dashboards › CI page is hidden until it is built (owner, 2026-11-18, simplification audit item 10); Flow shows CI, and an old CI link opens Flow.
 
 **User story:** As a developer, I want one Avoozl page in Kiro Crew with clear
 views, so that I see my graph and its delivery without leaving Kiro Crew.
@@ -898,8 +910,8 @@ it on Kiro Crew and Issue Radar and reuses no outside code, skills, or text.
    between children, show the preview, and publish them only after approval
    (or automatically when the rule allows it, per Requirement 9).
 6. Fan-out SHALL be automatic: every child whose blockers are complete SHALL
-   receive the ready label in the same tick, up to the repository's concurrency
-   limit.
+   receive the ready label in the same tick, up to the repository's Release N
+   (Requirement 6.3).
 7. WHEN slots are scarce THEN Avoozl SHALL release ready children in a
    configurable priority order by label (for example `critical`, then `high`),
    then by graph order.
@@ -912,7 +924,7 @@ it on Kiro Crew and Issue Radar and reuses no outside code, skills, or text.
 10. Concurrency on GitHub SHALL be bounded by how many leaves Avoozl labels ready
     at once and by the number of crews configured per route, since each crew
     holds at most one item in its editing phases (F24). In plans-repo mode it
-    SHALL be bounded by the repository's worker concurrency.
+    SHALL be bounded by this machine's lanes (Requirement 6.3).
 11. WHEN a crew labels an issue as needing a human THEN Avoozl SHALL show it as a
     decision and SHALL withhold readiness from that issue's dependents.
 12. The parent issue SHALL close as completed only after every required child
@@ -1406,11 +1418,12 @@ reaches the integration branch or a dependent task.
 
 #### Acceptance criteria
 
-1. One writer per repository at a time SHALL be expressed by setting that
-   repository's delivery concurrency to 1 (Requirement 6.3), because two
-   writers in one repository would conflict. Review and check sessions only
-   read, so they SHALL NOT count against that limit. Avoozl SHALL add no
-   second writer limit.
+1. Review and check sessions only read, so they SHALL NOT count against
+   this machine's lanes (Requirement 6.3). Avoozl SHALL add no separate
+   writer limit. (Changed 2026-11-18: one writer per repository was a
+   per-repository concurrency of 1. That key is now ignored, because every
+   task writes in its own worktree and landing merges one head at a time;
+   `lanes.local: 1` still gives one writer on the machine.)
 2. A repository's delivery policy MAY name review roles. Each role SHALL have
    a unique `id`, a `focus` (for example "conventions", or "correctness and
    performance"), the agent that runs it, and a `distinctFrom` rule. Two
@@ -1672,7 +1685,7 @@ public or shared repositories cannot leak what the company keeps private.
 
 ### Requirement 41: Crew placement
 
-**Status 2026-11-18.** The routing prompt, the routing agent chat and the remote relay (41.16–41.24) were removed (#282, task 45.3). Placement keeps manifest pins, capacity and provider hard checks (`src/app/routing.mjs`). `plans_relay` answers "Remote relay was removed". Treat the criteria about the prompt and the relay as history.
+**Status 2026-11-18.** Retired. The routing prompt, the routing agent chat and the remote relay (41.16–41.24) were removed first (#282, task 45.3). Crew placement itself was then retired (owner, 2026-11-18, simplification audit item 9, F20): every session Avoozl opens runs on this machine, on the executor its harness names (Requirement 98). The `avoozl routing` and `avoozl crews set` commands and the `routing.view`, `routing.preview`, `routing.update`, `routing.retry`, `routing.turnOff` and `crews.update` operations answer that routing was retired. The machine file's `crews`, `crewStaleSeconds` and `routing` keys are ignored silently. No-fit decisions, routing marks and the routing-failed Needs you item are gone. What stays: a manifest `session` pin for agent, model and harness (Requirement 53), the provider check that holds a worker whose model is out (Requirement 72), and the spec driver lock (Requirement 66). Lanes is the only cap on how many chats this machine runs. `plans_relay` answers "Remote relay was removed". Treat every criterion below as history.
 
 Added 2026-11-12 (owner request). Design §4.10. Written against the Avoozl
 branch `kirocrew-native` at `0a7ef2d` and Kiro Crew 0.12.2 (design F75–F84).
@@ -1900,7 +1913,7 @@ user-facing work never leaves this machine.
 
 ### Requirement 42: Routing page
 
-**Status 2026-11-18.** Removed. There is no Routing page and no Settings › Routing section (#153); `redirectSettings` sends an old link to Repository setup. Criterion 88.7 says the same.
+**Status 2026-11-18.** Removed. There is no Routing page and no Settings › Routing section (#153); `redirectSettings` sends an old link to Repository setup. Criterion 88.7 says the same. The CLI and operations behind it were retired with crew placement (Requirement 41 status).
 
 Added 2026-11-12 (owner request). Design §8.3. Changed 2026-11-13 (owner
 decision): Routing moves into Settings, and the rule builder, presets,
@@ -2624,6 +2637,8 @@ crew's label or close is the owner. An app token reaches Issue Radar's `GET /cre
 
 ### Requirement 53: Agent and model per task
 
+**Status 2026-11-18.** Crew placement is retired (Requirement 41 status). The writer's agent and model come from the manifest task's `session` pin, then the repository's and the workspace's `delivery` settings, then Kiro Crew's default agent and `auto` (criterion 3 without the routing agent). A pinned model that is `out` is replaced by a person's Switch model replacement, else the task waits (Requirement 72.5). `session.crew` and `needs` are refused when a plan is written, because only this machine runs work. A retry keeps its last model only for a feedback round or an interrupted attempt, as it did with routing off. Criteria 4, 5, 8, 9's crew names, 11 and Pick again in 6 are history. The reviewer side of criterion 7 stays: a review never runs on the writer's model under `distinctFrom: model`.
+
 Added 2026-11-13 (owner request). Design §4.10 "Agent and model per
 session". Extends Requirements 41 and 42.
 
@@ -2804,7 +2819,9 @@ setting or runs until someone on that computer has seen it and approved it.
    `requiredChecks`, `priority`, `managedLabels`, and `concurrency`;
    `project` `fields` and `statusValues`; `epicIssueType`; `contentRules`
    `sets` as references only; `delivery` `reviewers` (review roles),
-   `agent`, `model`, `runner`, and `concurrency`; and `flow`. Every value
+   `agent`, `model`, `runner`, and `concurrency`; and `flow`. Both
+   `concurrency` keys SHALL be accepted so an old pack imports, and SHALL
+   write nothing (Requirement 6.3; changed 2026-11-18). Every value
    SHALL pass the validator Settings uses for that key. Any other key, a
    credential-like key, or anything that could hold a content rule SHALL
    be refused with an error naming the key, and the plugin SHALL show as
@@ -4225,24 +4242,32 @@ step by hand when I want it.
 
 #### Acceptance criteria
 
-1. `delivery.ship` SHALL be `auto-merge` (default, today's behavior) or
-   `manual`, per workspace and per repository. A spec's manifest MAY set a
-   top-level `ship` and a manifest task its own `ship`. The task's value
-   wins, then the spec's, then the repository's, then the workspace's. A
-   task that came from a GitHub issue follows it like any other.
-2. With `auto-merge`, Requirement 18 SHALL apply unchanged.
-3. With `manual`, briefs SHALL tell writers not to enable auto-merge, and
-   Avoozl SHALL say so on Settings > Delivery. WHEN a pull request's
+1. Who merges SHALL be `autoMerge` in the repository's landing block
+   (Requirement 87.1): `true` (default, today's behavior) or `false`. A
+   spec's manifest MAY set a top-level `ship` and a manifest task its own
+   `ship`, `auto-merge` or `manual`, as a pin. The task's pin wins, then the
+   spec's, then the repository's `autoMerge`. A task that came from a GitHub
+   issue follows it like any other. (Changed 2026-11-18, simplification
+   audit F3: it was `delivery.ship` per workspace and per repository.)
+   `delivery.repositories.<id>.ship` SHALL still load as the value of that
+   checkout's repository, and `delivery.ship` as the value of every
+   repository that sets none, `manual` meaning `false`, with no warning.
+   Avoozl SHALL NOT write either key.
+2. With auto-merge on, Requirement 18 SHALL apply unchanged.
+3. With auto-merge off, briefs SHALL tell writers not to enable auto-merge,
+   and Avoozl SHALL say so on the repository's Landing tab. WHEN a pull request's
    required checks pass and its reviews are met THEN Needs you SHALL show
    one **Ready to merge** item with a link to it; the person merges on
    GitHub, and Requirement 16 decides completion as before.
-4. With `manual` in Local only mode, integration SHALL wait for a person's
-   **Integrate** on the Ready to merge item.
+4. With auto-merge off in Local only mode, integration SHALL wait for a
+   person's **Integrate** on the Ready to merge item. A Local only
+   workspace has no GitHub repository entries, so it keeps reading
+   `delivery.ship` and each project's `landing`.
 5. Avoozl SHALL still never merge a pull request itself.
-6. With `manual`, WHEN a writer's pull request closes without merging THEN
-   Avoozl SHALL send the writer one message, as one feedback round, to read
-   why, fix it and reopen it, or report blocked. Settings > Delivery SHALL
-   choose the mode with one radio fold-out.
+6. With auto-merge off, WHEN a writer's pull request closes without merging
+   THEN Avoozl SHALL send the writer one message, as one feedback round, to
+   read why, fix it and reopen it, or report blocked. Settings › Repository
+   setup › Edit › Landing SHALL choose it; Settings › Delivery SHALL NOT.
 
 ### Requirement 81: Review a task's changes in the drawer
 
@@ -4556,10 +4581,20 @@ pressing merge.
 
 #### Acceptance criteria
 
-1. Each repository SHALL have a landing setting: `direct`, `pr` or `off`.
-   The default SHALL be `off` until Set up (Requirement 89) writes another.
-   Under `off` Avoozl SHALL push nothing and SHALL list the verified commit
-   in Needs you.
+1. Each repository SHALL have one landing block,
+   `github.repositories.<owner/name>.landing`, edited in one place,
+   Settings › Repository setup › Edit › Landing: `mode` (`direct`, `pr`,
+   `train` or `off`), `autoMerge` (Requirement 80, default `true`) and
+   `method` (`squash` or `merge`, default `squash`, RC28.7). The default
+   mode SHALL be `off` until Set up (Requirement 89) writes another. Under
+   `off` Avoozl SHALL push nothing and SHALL list the verified commit in
+   Needs you. (Changed 2026-11-18, simplification audit F3: the mode was
+   the project's `landing`, the method `merge.method`, and who merges
+   `delivery.ship`.) The project's `landing` SHALL still load as the mode,
+   and `merge.method` as the method, of a repository whose block sets none,
+   with no warning. Avoozl SHALL NOT write them. A key in the block wins
+   over its older key. Avoozl's own repository and Nupp SHALL land as they
+   did before the change, each covered by a test.
 2. `direct` SHALL select an exact verified working-branch portion, or a
    train of up to four tasks across specs of the same driver. A landing
    worktree SHALL merge it with the current base, check that exact candidate,
@@ -4582,8 +4617,11 @@ pressing merge.
    the queue; a paused queue SHALL keep its order.
 6. WHEN a merge of the base into the task branch conflicts THEN Avoozl SHALL
    send the conflict to the same worker chat with the list of conflicted
-   files, for at most `landing.conflictRounds` rounds (default 2). A later
-   failure SHALL go to Needs you. The separate resolver chat
+   files, for at most the repository's `conflicts.maxAttempts` rounds
+   (default 2), the same count crew pull requests use (RC28.4). A later
+   failure SHALL go to Needs you. (Changed 2026-11-18, simplification audit
+   F4: the count was `landing.conflictRounds`, which still loads, with no
+   warning, as the count of every repository that sets none.) The separate resolver chat
    (`avoozl-conflict-fix`, RC28) SHALL be removed.
 7. A task SHALL start from its spec's recorded working head, generalized
    from RC16's epic integration branch. Only verified integrations SHALL
@@ -4629,8 +4667,8 @@ instead of a stuck chat.
    lease expired.
 5. More lanes SHALL come from worker machines (Requirement 90). (Changed
    2026-11-18: the owner dropped the 50% CPU rule and the fixed three lanes
-   as requirements. In code, `lanes.local`, default 3, still seeds
-   `delivery.concurrency`; it is a setting.)
+   as requirements. `lanes.local`, default 3, is a setting in the machine
+   file, Requirement 6.3.)
 6. Prepare SHALL use the approved `scripts/worktree` helper
    (`createWorktree`, `src/app/git.mjs`), which today has no caller.
    Avoozl SHALL remove a task's worktree and its local branch after the
@@ -5045,6 +5083,31 @@ Avoozl page, whatever harness runs it, so that I never need another UI.
 4. A task's `session` pin MAY name a harness.
 5. A headless machine SHALL get only the CLI: `avoozl status` and
    `avoozl runner status --json`. Avoozl SHALL host no other UI.
+
+Added 2026-11-18 (owner approval of the simplification audit, item 8 and
+F7 in `docs/simplification-audit.md`): one roles table. Today a role's
+model is picked in seven places, and the worker's is on Settings ›
+Delivery while the others are on Settings › Models.
+
+6. `.avoozl.json` SHALL hold one `roles` table with one row per role:
+   `worker`, `falsifier`, `planner`, `planReviewer`, `retro` and
+   `reviewDraft`. A row MAY set `harness` and `model`; the `worker` and
+   `falsifier` rows MAY also set `agent`. A missing key or `auto` keeps
+   that role's default.
+7. Settings › Models SHALL be the only page that picks a role's harness,
+   agent or model. Settings › Delivery SHALL keep only delivery choices.
+8. Avoozl SHALL read the older keys into the table silently, with no
+   warning: `models.<role>`, `harnesses.<role>`, `delivery.agent`,
+   `delivery.model`, `delivery.investigate.agent`,
+   `delivery.investigate.model` and `flow.retro.model`. A `roles` value
+   SHALL win over an older key.
+9. Saving Settings › Models SHALL write `roles` and remove the older keys
+   of criterion 8 from the same file.
+10. A task's `session` pin SHALL still win over its role's row. The
+    existing checks SHALL hold against the table: a named plan reviewer
+    model differs from a named planner model, and a review role with
+    `distinctFrom: model` needs a named worker model that differs from its
+    own.
 
 ### Requirement 99: Cross-model plan review
 

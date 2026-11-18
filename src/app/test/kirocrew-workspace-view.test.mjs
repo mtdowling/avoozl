@@ -445,7 +445,7 @@ test("the folder picker lists folders under home only, and only for a person", a
     );
 });
 
-test("a person edits a workspace's name, folder, run limit, on/off and default", async (t) => {
+test("a person edits a workspace's name, folder, on/off and default", async (t) => {
   const { root, home, call } = await backend(t);
   for (const id of ["one", "two"])
     assert.equal(
@@ -462,6 +462,7 @@ test("a person edits a workspace's name, folder, run limit, on/off and default",
     input: {
       id: "two",
       name: "  Second  ",
+      // Old input: accepted and ignored (R6.3).
       maxConcurrentRuns: 5,
       enabled: false,
       default: true,
@@ -474,7 +475,7 @@ test("a person edits a workspace's name, folder, run limit, on/off and default",
       max: named.body.result.maxConcurrentRuns,
       enabled: named.body.result.enabled,
     },
-    { name: "Second", max: 5, enabled: false },
+    { name: "Second", max: undefined, enabled: false },
   );
   let listed = (await call({ operation: "workspaces.list" })).body.result;
   assert.equal(listed.defaultWorkspace, "two");
@@ -492,12 +493,11 @@ test("a person edits a workspace's name, folder, run limit, on/off and default",
   );
   assert.equal(moved.body.result.name, "Second");
 
-  // Refused: a blank name, a bad limit, a relative or missing folder, an
+  // Refused: a blank name, a relative or missing folder, an
   // empty folder, another workspace's folder, an unknown ID.
   fs.mkdirSync(path.join(home, "empty"));
   const refused = [
     [{ id: "two", name: "  " }, 400],
-    [{ id: "two", maxConcurrentRuns: 99 }, 400],
     [{ id: "two", root: "relative" }, 400],
     [{ id: "two", root: path.join(root, "nope") }, 400],
     [{ id: "two", root: "~/empty" }, 400],
@@ -514,7 +514,7 @@ test("a person edits a workspace's name, folder, run limit, on/off and default",
   const two = listed.items.find((item) => item.id === "two");
   assert.deepEqual(
     [two.name, two.maxConcurrentRuns, two.root],
-    ["Second", 5, fs.realpathSync(path.join(home, "moved"))],
+    ["Second", undefined, fs.realpathSync(path.join(home, "moved"))],
   );
   for (const kind of ["app-token", "agent-tool"])
     assert.equal(

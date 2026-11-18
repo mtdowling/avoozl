@@ -1542,7 +1542,7 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
   - Built: `reconcileDeliveries` in `src/app/delivery.mjs` ends the first gone attempt since the last person retry as `vanished` (outside the retry count) and marks its binding lost, so the next tick opens attempt 2 in the same worktree with the last report quoted; a second vanish, or a gone batch, opens the decision. Test: `src/app/test/stock-kirocrew.test.mjs`.
 - [x] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
-  - Changed 2026-11-17 (#508): there is no Lanes page. Delivery shows a machine badge and counts. In code, `lanes.local` (default 3) still seeds `delivery.concurrency` (`delivery.mjs`); the owner dropped the 3-lane and 50% CPU rules as requirements, so this default is a setting, not a rule.
+  - Changed 2026-11-17 (#508): there is no Lanes page. Delivery shows a machine badge and counts. In code, `lanes.local` (default 3) sets `delivery.concurrency` (`delivery.mjs`) and lives in the machine file since 2026-11-18 (Requirement 6.3); the owner dropped the 3-lane and 50% CPU rules as requirements, so this default is a setting, not a rule.
   - `lanes.local` default 3; a fourth ready task waits.
 
 - [x] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7, 41.1, 41.2, 41.3, 41.5, 41.9 [R86, R87.10, R88] (§4.26)
@@ -1836,6 +1836,9 @@ approved.
 - [x] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
 - [x] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)
 - [x] 50.3 Settings › Models picks harness and model per role; a `session` pin may name a harness, after avoozl-p57 [R98.3, R98.4] (§4.28)
+- [ ] 50.4 One `roles` table for harness, agent and model; Settings › Models is the only place to pick them, after 50.3 [R98.6, R98.7, R98.8, R98.9, R98.10] (§4.28)
+  - Added 2026-11-18 (audit item 8, F7). Another change is reworking Settings › Models; merge main often and fit the table into its layout.
+  - `resolveRoles` in `chat-models.mjs` maps the older keys silently; `chatModel`, `roleHarness` and the delivery policy read through it; `roles` in the config schema; Settings › Models gains the worker's and falsifier's rows; Settings › Delivery loses Writer; screenshots in `docs/evidence/simplify-roles/`.
 
 - [x] avoozl-p60 P60 Proof: a process session is watched and steered from the Avoozl page, after 50.1, 50.2, 50.3 [R98] (§4.28)
   - Setup: one `process` session on a scratch repository.
@@ -2037,7 +2040,7 @@ proof or run a real workspace to get past that wait.
   - Next decision: use validated journal recovery for the private pilot, or repair the failed invariant before authorizing that rollout.
 
 
-- [ ] avoozl-p67 P67 Proof: fork source and upstream permissions, after avoozl-p66, 42.1, 42.2, 56.9, 56.10 [R102.7, R102.8, R102.12, R102.19, R102.21] (§4.32)
+- [x] avoozl-p67 P67 Proof: fork source and upstream permissions, after avoozl-p66, 42.1, 42.2, 56.9, 56.10 [R102.7, R102.8, R102.12, R102.19, R102.21] (§4.32)
   - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real project settings.
   - Action: register a pre-PR fork head, checkpoint there, then discover a fork PR head. Rebuild from both while keeping the source branch out of upstream. Move the base and require a refreshed check/review; let the maintainer merge. Try an unregistered source and a private-plan reference on every public surface. Export twice; exercise a divergent mirror import.
   - Expected: fork branches work without upstream copies, source push rights never permit target merge, the exact checked/approved head is accepted from the maintainer merge, public/private homes remain separate, untrusted fetches and leaks are refused. Retry export creates nothing new; import is not forwarded upstream.
