@@ -2090,3 +2090,12 @@ The owner waived screenshot review.
 - [x] 59.1 Remove Trace; task details get a Timeline of Avoozl's task steps, after 55.4 [R106.1, R106.2, R106.3, R106.4, R106.5, R106.6, R106.7, R106.8, R106.9] (§4.35)
   - Built: PR #469 (`ba0d7963`). Merged 2026-11-17; `src/app/task-steps.mjs`, the Timeline box in `TaskDrawer.tsx` and `OldTraceLink.tsx` for old `?trace=` links.
   - `task-steps.mjs` builds the steps from stored records and `taskDetailView` returns them; the Timeline box shows them above the history list, with builds by phase. The Trace nav entry, page, drawer, Done work list, `radar.trace`, `trace.done` and the Trace buttons are removed; old links open Delivery or the task's details. Tests for the steps, redirects, nav and zero GitHub calls; screenshots (phone and desktop, light and dark, full app shell) under `docs/evidence/trace-into-task/`.
+
+## Phase 60: Spec pull requests are adopted into their spec
+
+Owner decision 2026-11-18 (Requirement 107, design §4.36). One build task.
+Another change adds context to the Needs you items; merge main often and put
+the spec pull request item through the same list, not a second one.
+
+- [ ] 60.1 Adopt spec-only pull requests into their spec, out of Triage, with a Proposed change box, a PR chip and a Decisions item, after 58.1, 57.6 [R107.1, R107.2, R107.3, R107.4, R107.5, R107.6, R107.7, R107.8, R107.9] (§4.36)
+  - `spec-pull-requests.mjs` detects, links and adopts; the Triage read gains changed file paths; Approve records the revision, merges after checks, and Reject and Request changes act on the pull request. Tests and screenshots under `docs/evidence/spec-pr-adoption/`.

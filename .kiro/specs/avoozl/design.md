@@ -4707,6 +4707,82 @@ cases for the redirects, the nav, and the box; `trace.test.mjs`,
 shortcut: a task made before the pivot with no plan approval receipt shows
 Spec approved without a time; upgrade only if such tasks matter.
 
+### 4.36 Spec pull requests are adopted into their spec
+
+Added 2026-11-18 (Requirement 107). Extends §4.5 (Triage), §4.32 (approval
+as a commit) and §4.33 (review findings).
+
+**Detect (`src/app/spec-pull-requests.mjs`, pure).** The Triage search
+(`untriaged.mjs`) already returns each pull request. Its GraphQL node gains
+`headRefName`, `reviewDecision` and `files(first: 100) { totalCount nodes
+{ path } }`. `specPullOf(entry, repo)` returns `{ spec }` only for an open
+pull request in a `planning` or `both` repository whose file list is complete
+(`nodes.length === totalCount`) and whose paths all start with
+`.kiro/specs/<name>/` for one `<name>`. No extra call, no polling.
+
+**Link.** `specPullLink(entry, repo, owners, permission)` answers `own`
+(head branch equals `workingBranch(spec)`, or the author is in `owners`, the
+login of `github.currentUser()` read once per tick), `allowed` (`actorAllowed`
+with the author's permission, read once per author and kept) or `person`
+(needs **Review as spec**). `untriagedView` drops an item whose pull request
+is adopted and adds `specPull: { spec }` to an item that is a spec pull
+request but not adopted, so the row shows **Review as spec** and no other
+spec button.
+
+**Adopt.** The tick, after `refreshUntriaged`, runs `adoptSpecPulls` for each
+`own` or `allowed` spec pull request, and the operation `specpr.adopt` runs
+it for one pull request a person chose. For a head commit not yet imported it
+reads the revision files and the critique of the spec folder at that commit
+with `blobTexts` (one GraphQL call), checks the hash (`specHash`), and then:
+
+| Step                | What it writes                                                                                  |
+| ------------------- | ----------------------------------------------------------------------------------------------- |
+| Receipt             | `receipts` row `spec-pr:<repo>#<n>`: spec, head, hash, files, author, draft, branch, base, link |
+| Draft revision      | `createSpecPlan` for a new folder, else `saveSpecPlan`; both leave the plan a draft            |
+| Review choice       | `decidePlanReview` with `review`, so ask mode does not wait; mode `off` is respected           |
+
+`Operations.readSpec` and `specHomes` overlay an adopted spec's stored files
+over the folder on disk (or add the folder when none exists), so every reader,
+including the review step's settle check, sees the revision the pull request
+holds. `planReviewStep` marks that revision read-only for a planner answer:
+its answers become findings, never edits to a local folder. The overlay
+drops when the pull request is no longer open.
+
+**Show.** `specpr.view` returns, per adopted pull request, the facts of
+criterion 4 from the receipt, the cached search item (checks, draft) and
+`planReviewSummary`; the diff is `diffSpec` of the approved files against the
+receipt's files. `specList` adds `pull` to the item for the **PR** chip.
+`conflicts.view` adds one `spec-pull` item per adopted pull request with the
+same fields, so Decisions renders the evidence inline. The Overview's
+**Proposed change** box and that item share one component.
+
+**Act (person only).**
+
+```text
+Approve:         draft? refuse ─▶ head == receipt.head and hash == plan.hash? else refuse
+                 ─▶ record spec-approval:<plan>:<hash> as open on this pull request
+                 ─▶ when checks on that head pass: mergePullRequest(sha, repository's method)
+                 ─▶ reconcileApproval re-hashes the merge commit; equal ─▶ approve (approvePlan)
+Reject:          confirm + reason ─▶ comment naming the reason ─▶ close the pull request
+Request changes: one comment with the open findings of the current round
+```
+
+Approve reuses `spec-approval.mjs` state (`open`, then `merged` or
+`changed`) instead of opening an approval pull request: the author's pull
+request is the commit that approves. `Status:` lines are outside the hash, so
+the merged files may still say Draft; Avoozl's approval receipt is the record.
+The merge waits for a passing rollup on the exact head, read from the cached
+search item, so it adds no poll; the tick merges the next time it sees green.
+
+**Tests.** `src/app/test/spec-pull-requests.test.mjs` (detect, link, adopt,
+Triage exclusion, approve then merge, reject, request changes, zero extra
+GitHub calls on a read) with a fake GitHub that records every call;
+`kirocrew-app/ui/test` cases for the chip, the box and the Decisions item.
+
+shortcut: one spec folder per pull request and at most 100 changed files; a
+larger or two-folder pull request stays in Triage. Upgrade if such pull
+requests are common.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
