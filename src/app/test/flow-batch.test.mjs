@@ -9,8 +9,10 @@ import path from "node:path";
 import test from "node:test";
 import { checkRuns, drainCheckRuns } from "../check-runs.mjs";
 import { FLOW_DEFAULTS, FLOW_KEYS, flowSection, listSpans } from "../flow.mjs";
+import { commitWorkerChanges } from "../git.mjs";
 import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
+import { BATCH_ON_PROCESS } from "../worker-briefs.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -343,4 +345,70 @@ test("batching has no setting, and an old flow.batch is ignored", async (t) => {
   });
   assert.equal(saved.flow.localChecksFirst, false);
   await tick(ops);
+});
+
+// WP3.3: a `process` child makes no commits, so a group on it runs as single
+// tasks; the same group on a chat is the one-session handoff tested above.
+test("a group on process runs as single tasks and lands one commit each, with the reason shown", async (t) => {
+  const ids = ["a1", "a2", "a3"],
+    { root, store, ops } = setup(t, grouped(ids));
+  store.put("projects", {
+    ...store.get("projects", "app"),
+    executor: "process",
+  });
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({ version: 1, delivery: { concurrency: 3, retries: 1 } }),
+  );
+  const workers = workersOf(await tick(ops));
+  assert.deepEqual(workers.map((d) => d.task).sort(), ids);
+  for (const worker of workers) {
+    assert.equal(worker.executor, "process");
+    assert.equal(worker.batch, undefined, "dispatched as a single task");
+    assert.match(worker.brief, /\.avoozl\/result\.json/);
+    assert.doesNotMatch(worker.brief, /one commit per task/);
+  }
+  const reason = BATCH_ON_PROCESS;
+  const view = await ops.execute("delivery.view", {});
+  for (const id of ids)
+    assert.equal(view.items.find((i) => i.id === id).alone, reason, id);
+  const detail = await ops.execute("task.detail", { id: "a2" });
+  assert.equal(detail.delivery.alone, reason);
+  // Each child edits; Avoozl commits for it and reports its HEAD.
+  for (const worker of workers) {
+    const slot = "child-" + worker.task;
+    await ops.execute("session.bind", {
+      taskId: worker.task,
+      slot,
+      role: "worker",
+      attempt: worker.attempt,
+      source: "tick",
+      title: worker.title,
+    });
+    const { path: worktree } = await ops.execute("worktree.prepare", {
+      taskId: worker.task,
+    });
+    fs.writeFileSync(path.join(worktree, worker.task + ".txt"), "x\n");
+    const commit = await commitWorkerChanges(worktree, "Do " + worker.task);
+    await ops.execute(
+      "session.report",
+      { taskId: worker.task, kind: "done", commit },
+      undefined,
+      as(slot),
+    );
+  }
+  const slots = workers.map((d) => "child-" + d.task),
+    landed = () =>
+      ids.filter(
+        (id) => store.read().tasks.find((x) => x.id === id).integration,
+      ).length;
+  for (let round = 0; round < 12 && landed() < ids.length; round++) {
+    await tick(ops, slots);
+    await drainCheckRuns(store);
+  }
+  assert.equal(landed(), ids.length, "each task landed");
+  // One commit per task on the base branch, whatever order they landed in.
+  const checkout = store.get("projects", "app").root,
+    subjects = git(checkout, "log", "--format=%s", "main").split("\n");
+  for (const id of ids) assert.ok(subjects.includes("Do " + id), id);
 });
