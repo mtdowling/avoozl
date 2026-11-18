@@ -23,8 +23,8 @@ export const HELP_GROUPS = Object.freeze([
         { usage: "init PATH", about: "Create an empty workspace" },
       ),
       entry(
-        "seed --workspace PATH [--example product-launch]",
-        "Install an example pack, once",
+        "seed --workspace PATH [--example ID]",
+        "Install an example once; with no ID, draft Recipe Box spec folders",
         {
           usage: "seed --workspace PATH",
           about: "Install the example pack (optional)",
