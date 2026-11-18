@@ -2116,3 +2116,13 @@ merge main often and keep to `flow-batch.mjs` and the call sites.
 
 - [x] 61.1 Planner batch groups replace `size: "small"` and `flow.batch`, after 12.8 [R108.1, R108.2, R108.3, R108.4, R108.5, R108.6, R108.7, R108.8, R108.9, R108.10, R108.11, R108.12] (§4.37)
   - `parseSpec` reads `batches` and approval stores `batch` on each member; `flow-batch.mjs` dispatches a planner group as one handoff when every open member is ready, checks the rules in code and runs a rule-breaking group alone with its reason; split on failure as before. `flow.batch`, `size`, the Batching box and `BATCH_BY` are removed, and old values are ignored. Delivery shows a batched handoff as one In progress card; task details link to the batch. The planner prompt says when to group. Tests and screenshots under `docs/evidence/agent-batching/`.
+
+## Phase 62: One intake list
+
+Owner decision 2026-11-18 (Requirement 109, design §4.38;
+`docs/simplification-audit.md` item 6). One build task. Other
+simplification items run in parallel and touch settings files; merge main
+often and keep theirs on a clash.
+
+- [ ] 62.1 GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 56.14, 44.6 [R109.1, R109.2, R109.3, R109.4, R109.5, R109.6, R109.7, R109.8, R109.9, R50.6] (§4.38)
+  - `github-sources.mjs` reads `via: github` entries and old `github.issueIntake` entries as one list and writes sources, moving old keys once on the first write; `validateSource` takes the GitHub kind; `sourceMap` leaves it out; `github configure` and Repository setup write a source. `github.queue` is ignored. Intake sources lists each GitHub source in the shared box with a link to Repository setup. Tests and screenshots under `docs/evidence/simplify-intake/{before,after}/`.

@@ -4915,6 +4915,89 @@ screenshots under `docs/evidence/agent-batching/`.
 shortcut: a group holds tasks of one spec only; upgrade if the planner
 needs to batch across specs.
 
+### 4.38 One intake list
+
+Added 2026-11-18 (Requirement 109; `docs/simplification-audit.md` item 6,
+F5). Changes §4.12's source list and the issue intake keys of §4.4.
+
+**Why.** Five paths turned an issue into work: `github.issueIntake` (a
+ready label, an assignee and `github sync`), `github.queue` (label
+behaviors), a repository's `rules`, `intake.sources` (plugin and MCP), and
+Triage. `github.queue` has only the settings diff left as a reader of the
+key: nothing writes its table and nothing ingests its items. `github.issueIntake` is the GitHub half of
+a source under another name. Rules and Triage stay: rules say what a match
+does, and Triage is what no source covers.
+
+**Shape.** A GitHub source is one more `intake.sources` entry:
+
+```json
+{
+  "intake": {
+    "sources": {
+      "github-example-app": {
+        "via": "github",
+        "repository": "example/app",
+        "project": "app",
+        "label": "avoozl:ready",
+        "assignee": "example-bot",
+        "autoStart": false,
+        "provider": null,
+        "model": null,
+        "allowedActors": [],
+        "minimumPermission": "write"
+      }
+    }
+  }
+}
+```
+
+| Kind | Keys only it takes | Where it may live | Read by |
+| --- | --- | --- | --- |
+| `github` | `project`, `workspaceRepository`, `label`, `managedLabel`, `assignee`, `autoStart`, `provider`, `model` | `.avoozl.json` | `github_repositories`, `github sync` |
+| `plugin:<id>` | `labelFields`, `assigneeField` | either | the tick's `poll` |
+| `mcp` | `labelFields`, `assigneeField` | either | `intake.submit` |
+
+All kinds take `repository`, `allowedActors` and `minimumPermission`.
+
+**Load.** `github-sources.mjs` owns the GitHub kind. `githubSources(value)`
+returns the file's GitHub sources by GitHub repository: each `via: github`
+entry, then each old `github.issueIntake` entry not already named, as the
+source it describes, with id `github-<owner>-<name>`. An `enabled: false`
+entry is no source. `github.queue` is not read. The settings diff
+(`desiredActions`, `appliedActions` in `repository-settings.mjs`) compares
+these sources with the `github_repositories` rows, so an old file and its
+moved form compare the same and neither is flagged.
+
+**Write.** `updateGitHubIssueIntake`, `updateUnifiedRepository` and the
+first write of a new file go through one `writeGitHubSource(value, entry,
+{remove})`. It first moves every old entry into `intake.sources` and
+deletes `github.issueIntake` and `github.queue`, then adds, replaces or
+removes the one source. So the move happens once, on the first write, and
+nothing writes the old keys after it.
+
+**Pipeline.** GitHub items still come from `github sync` and the Triage
+read and are stored as source `github`. `sourceMap` leaves GitHub sources
+out, so poll and `intake.submit` never see them, and `source:` still names
+a plugin or MCP source. Radar intake, Radar escalations and back-links read
+`github_repositories` and `github.repositories`, which do not change.
+
+**Settings.** Intake sources lists each GitHub source in the shared
+`SourceBox` with Comes from GitHub, Work lands in, Ready label, Assignee,
+Starts on its own, Who counts, and Issue Radar escalations (the
+repository's `crewLabels.needsHuman`, when set). Its action opens
+Repository setup. The GitHub box stays as the Triage reader. The Add dialog
+keeps plugin and MCP: adding a GitHub source makes GitHub labels, which
+Repository setup does.
+
+**Tests.** `intake.test.mjs`: GitHub keys and refusals, a machine-scope
+GitHub source listed as unused, `sourceMap` without GitHub.
+`github-sources.test.mjs`: an old entry loaded, a disabled one dropped, ids
+and clashes, the move on write. `repository-settings.test.mjs`: an old file
+and its moved file not flagged; `github configure` and Repository setup
+write a source; queue ignored. A Radar test on a migrated repository. UI
+tests for the GitHub entry; screenshots under
+`docs/evidence/simplify-intake/`.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
