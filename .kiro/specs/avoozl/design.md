@@ -4682,6 +4682,108 @@ write a source; queue ignored. A Radar test on a migrated repository. UI
 tests for the GitHub entry; before and after screenshots checked outside
 git, not kept in it.
 
+### 4.40 Task facts live in tasks.md
+
+Added 2026-11-18 (Requirement 111). Replaces `avoozl/manifest.json`; changes
+§6.8, §6.9 and the manifest keys of §4.32.6, §4.35 and §4.37.
+
+**Why.** Two files described each task: the title in `tasks.md`, its
+repository, edges, checks and acceptance in a JSON file keyed by the same ID.
+A person read one and then hunted for the other. One file is easier to
+review, and Kiro chats, Claude Code and Codex write Markdown bullets without
+a second file to keep in step.
+
+**Shape.** The first child of a task item is a `Facts:` bullet. Subtasks
+follow it. Spec-wide defaults are front-matter at the top of `tasks.md`:
+
+```markdown
+---
+repo: avoozl
+checks: npm test, git diff --check
+---
+- [ ] lt-1.2 Queue table and records
+  - Facts:
+    - after: lt-1.1
+    - checks: npm test
+    - done:
+      - Tests load a valid file and get every default
+      - An unknown key is refused, and the message names the key
+  - [ ] lt-1.2.1 Add the queue migration
+    - Facts:
+      - repo: nupp
+      - done:
+        - The migration runs twice with no change the second time
+```
+
+| Key | Was (manifest) | Value |
+| --- | --- | --- |
+| `kind` | `kind` | `leaf` (the default) or `package` |
+| `repo` | `repository` | one text |
+| `summary`, `completion`, `phase`, `batch`, `authority`, `route`, `type`, `milestone`, `iteration`, `scope`, `track`, `acceptFrom`, `verify`, `ship` | the same name | one text |
+| `done` | `acceptance` | list |
+| `checks`, `sequence`, `supports`, `tags`, `resources`, `paths`, `labels` | the same name | list |
+| `after` | `requires` | list; an entry may end `:<completion>` |
+| `manual`, `investigate` | the same name | `true` or `false` |
+| `session`, `needs`, `tracker` | the same name | one line of JSON |
+| `plan`, `summary`, `step` | an epic's entry | text, in an epic folder |
+
+A list is `key: a, b` or `key:` with nested bullets. Nested bullets keep a
+comma inside an item, and the converter writes them for `done` always.
+
+**Front-matter keys.** `repo`, `checks`, `completion` (defaults for leaves);
+`ship`, `integrationBranch`, `integrationSync`, `forwardTarget`,
+`publicBranch`, `kind: epic` (the spec); `phase-<id>: <title>` and
+`batch-<id>: <reason>`. A batch group's members each write `batch: <id>`, so
+the group's task list is read from the members and its reason sits once in
+front-matter. This is the simplest home: no heading carries prose, a task's
+bullet names its own group, and a reader sees both without a second file.
+
+**Reader.** `spec-facts.mjs` turns `tasks.md` into the object `parseSpec`
+already read from the manifest, `{tasks, ship, phases, batches, ...}`, plus
+the line of each bullet. `parseSpec`, `lintSpec`, `proposeSpecWork`, the
+spec page, review tabs, graph, spec pull request adoption, import and the
+plan-review view take the facts from it. A default fills a leaf's missing
+`repo`, `checks` and `completion`; a package takes none. Diagnostics name
+`tasks.md` and the bullet's line. A leftover `avoozl/manifest.json` is one
+error, `spec.manifest-left`, and nothing reads the file.
+
+**Lint codes** (errors): `facts.unknown-key`, `facts.twice`,
+`facts.duplicate-key`, `facts.value`, `facts.misplaced`, `facts.stray`,
+`facts.missing`, `spec.manifest-left`. The rules the manifest had keep their
+codes.
+
+**Revision hash.** The hash covers the prose files without `Status:`,
+`tasks.md` without checkbox marks, `Facts:` bullets and its front-matter, and
+the parsed facts written as one canonical JSON text: the text the old
+manifest held (version 1, each task's keys in a fixed order, tasks in
+`tasks.md` order, defaults filled in). Layout is outside the hash, content is
+inside it. A pure conversion therefore hashes as before: every approval, issue
+marker and receipt that names the hash holds, and nothing is approved again.
+This is exact for a manifest written in that canonical form, which the
+repository's specs and Avoozl's own writers used. A spec whose old manifest
+used another key order gets a new hash once, and the conversion report says
+so before the change merges. Avoozl parses a revision once, keeps it in
+SQLite, and parses again only when the hash changes. Ticks stay outside it.
+
+**Removed.** `avoozl/manifest.json` and everything that read or wrote it,
+`spec-manifest.mjs` (the manifest drafted from marker bullets), the review
+tabs' manifest tab, and the marker bullets (`_Repository: x_`) the steering
+file taught. The planner prompt and the steering file teach `Facts:`.
+
+**Conversion.** `scripts/convert-facts.mjs` ran once on a copy of each spec
+in this repository, and the manifests were deleted in the same change. It is
+not shipped as a command, and no reader accepts the old file. A test keeps
+the repository's before and after parse equal, using the saved old manifests
+under the test's fixtures.
+
+**Tests.** `spec-facts.test.mjs`: each key, each refusal with its line,
+defaults and packages, an epic folder, a batch group, a leftover manifest.
+`spec-plans.test.mjs` and the fixtures write `Facts:`. A hash test: the same
+spec in old layout (built in the test) and new layout hashes the same, and a
+changed fact changes it. A conversion test parses every spec in the repo
+before and after and compares tasks and proposals. `templates.test.mjs`:
+the planner text names `Facts:` and not the manifest.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
@@ -5404,8 +5506,7 @@ P18 checks them (F39).
 .kiro/specs/<name>/
   requirements.md   (feature spec)   or   bugfix.md   (bugfix spec)
   design.md
-  tasks.md
-  avoozl/manifest.json
+  tasks.md             (each task's facts: a Facts: bullet, §4.40)
   avoozl/critique.md   (planner critique, optional)
 ```
 
@@ -5416,18 +5517,18 @@ P18 checks them (F39).
   usual numbering) becomes `<name>.<token>`; any other token (`w3.reactor-timers`)
   is used as is, which keeps migrated IDs. IDs are unique across the namespace.
 - **Mapping.** One `tasks.md` ID is one Avoozl task and, in a GitHub mode, one
-  issue. The manifest keys every entry by that ID and holds kind, repository,
-  edges, checks, completion, milestone, iteration, and `authority` for
-  opt-in local tasks.
+  issue. The task's `Facts:` bullet holds kind, repository, edges, checks,
+  completion, milestone, iteration, and `authority` for opt-in local tasks
+  (changed 2026-11-18, §4.40: there is no manifest file).
 - **Waves.** Kiro computes its own waves from `tasks.md` when it runs all
-  tasks (F47). Avoozl ignores them: its graph comes only from the manifest.
+  tasks (F47). Avoozl ignores them: its graph comes only from the `Facts:` bullets.
   `tasks.md` checkbox marks are not Avoozl state either.
 - **Bugfix specs.** A `bugfix.md` spec maps the same way. Its unchanged
   behavior clauses become acceptance on the fix leaves.
 - **Validation** refuses: a missing folder; a missing `design.md` or
   `tasks.md`; neither or both of `requirements.md` and `bugfix.md`; an item
-  with no ID; an ID used twice; a manifest entry with no `tasks.md` item, or
-  an item with no manifest entry; and after approval, an approved ID whose
+  with no ID; an ID used twice; an item with no `Facts:` bullet, a leftover
+  `avoozl/manifest.json`, and the other §4.40 refusals; and after approval, an approved ID whose
   item text changed without a new approval. Kiro's **Sync Files** can add or
   mark tasks (F48); a renumbered item fails this check instead of silently
   moving an issue to other work. (**Inferred** that Sync Files may renumber.)
@@ -5437,7 +5538,7 @@ P18 checks them (F39).
   steering inclusion modes (**Verified** for steering in Kiro's docs). Front-matter
   stays part of the revision hash like any other text. Avoozl reads only a
   top-level one-line `category:`; it never writes it, never stores it in the
-  manifest, and never guesses one, so a plan without it is Uncategorized.
+  facts, and never guesses one, so a plan without it is Uncategorized.
   Kiro's spec folders are flat, so grouping is by category, not by folder
   nesting. Whether Kiro, or Spec Builder, keeps front-matter when it
   regenerates a spec file is **Unverified**: Kiro's spec docs do not mention

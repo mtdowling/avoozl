@@ -8604,6 +8604,41 @@
         "56.14",
         "44.6"
       ]
+    },
+    "64.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 64 (Task facts move into tasks.md). See R111; §4.40.",
+      "acceptance": [
+        "Facts bullets replace avoozl/manifest.json, convert this repository's specs, after 61.1, 62.1",
+        "`spec-facts.mjs` reads `Facts:` bullets and front-matter into the parse; lint refuses each bad shape with its file and line; a leftover manifest is an error; the revision hash is unchanged by a pure conversion; every spec here is converted and its manifest deleted; tests cover each rule and the before and after parse."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "61.1",
+        "62.1"
+      ]
+    },
+    "64.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 64 (Task facts move into tasks.md). See R111.10; §4.40.",
+      "acceptance": [
+        "Convert the Nupp plans to Facts bullets, after 64.1",
+        "The Nupp plans branch `avoozl-plans` is converted in one pull request, tested on a copy first, merged after its checks, with no Nupp code repository touched."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "64.1"
+      ]
     }
   }
 }

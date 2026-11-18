@@ -2038,3 +2038,15 @@ often and keep theirs on a clash.
 
 - [ ] 63.1 GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 56.14, 44.6 [R110.1, R110.2, R110.3, R110.4, R110.5, R110.6, R110.7, R110.8, R110.9, R50.6] (§4.39)
   - `github-sources.mjs` reads `via: github` entries and old `github.issueIntake` entries as one list and writes sources, moving old keys once on the first write; `validateSource` takes the GitHub kind; `sourceMap` leaves it out; `github configure` and Repository setup write a source. `github.queue` is ignored. Intake sources lists each GitHub source in the shared box with a link to Repository setup. Tests; before and after screenshots checked outside git, not kept in it.
+
+## Phase 64: Task facts move into tasks.md
+
+Owner decision 2026-11-18 (Requirement 111, design §4.40). Two tasks: the
+build in this repository, then the Nupp plans. Other spec pull requests may
+still touch `avoozl/manifest.json`; merge main often, keep their changes
+and convert them too.
+
+- [ ] 64.1 Facts bullets replace `avoozl/manifest.json`, convert this repository's specs, after 61.1, 62.1 [R111.1, R111.2, R111.3, R111.4, R111.5, R111.6, R111.7, R111.8, R111.9, R111.10, R111.11] (§4.40)
+  - `spec-facts.mjs` reads `Facts:` bullets and front-matter into the object `parseSpec` read from the manifest, with lint codes and lines; `specHash` stops reading the manifest and hashes prose plus canonical parsed facts, so a converted spec keeps its hash; the manifest readers, `spec-manifest.mjs`, the manifest review tab, the planner prompt and the steering file change; every spec here is converted once and its `manifest.json` deleted; tests cover each rule and the before and after parse.
+- [ ] 64.2 Convert the Nupp plans to Facts bullets, after 64.1 [R111.10] (§4.40)
+  - In the Nupp plans repository, branch `avoozl-plans`, run the converter on a copy, check the parse and the hashes, convert in one pull request and merge it after its checks. Touch no Nupp code repository. Report a question if those specs fall under person-only approval.
