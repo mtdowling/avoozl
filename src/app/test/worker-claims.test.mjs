@@ -21,6 +21,10 @@ import {
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
+// The worker's machine config is written under this folder, never the real one.
+delete process.env.KIROCREW_HOME;
+process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-claim-home-");
+
 const SPEC = "demo",
   DRIVER = "d".repeat(16),
   DEF = "b".repeat(64),
