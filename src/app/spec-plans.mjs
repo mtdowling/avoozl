@@ -17,6 +17,7 @@ import { fail } from "./store.mjs";
 import { validateProposal, writeRevision } from "./plans.mjs";
 import { lintPlan } from "./plan-quality.mjs";
 import {
+  factName,
   factsLines,
   factsText,
   readFacts,
@@ -613,7 +614,7 @@ export function parseSpec({
             "spec.epic-task-fields",
             "tasks.md",
             line,
-            `Epic entry "${item.key}" holds ${extra.map((key) => `"${key}"`).join(", ")}. An epic entry holds only "plan", "summary" and "step".`,
+            `Epic entry "${item.key}" holds ${extra.map((key) => `"${factName(key)}"`).join(", ")}. An epic entry holds only "plan", "summary" and "step".`,
             { entry: item.key },
           ),
         );

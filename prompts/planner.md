@@ -74,6 +74,7 @@ completion: integrated
         - Invalid JSON names the file and line.
   - [ ] 1.2 Report unknown keys
     - Facts:
+      - summary: Validate the loaded value and report each unknown key.
       - after: 1.1
       - done:
         - An unknown key is reported with its path.

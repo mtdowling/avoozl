@@ -90,3 +90,13 @@ export const tasksWithFacts = (
 // The fixture's tasks.md line of a text.
 export const lineIn = (text, needle) =>
   text.slice(0, text.indexOf(needle)).split("\n").length;
+
+// A files object for a manifest-shaped value: one tasks.md item per task key,
+// each with its Facts bullet. For tests that store approvals directly.
+export const factsFiles = (manifest) =>
+  withFacts({
+    "tasks.md": Object.keys(manifest.tasks ?? {})
+      .map((key) => `- [ ] ${key} Task ${key}\n`)
+      .join(""),
+    [MANIFEST]: JSON.stringify(manifest),
+  });

@@ -323,10 +323,13 @@ test("changing the reviewed foreign dependency still holds a consumer for review
   await approve(w, "left");
   await approve(w, "right");
   const plan = w.store.get("plans", "left"),
-    file = path.join(w.root, ".kiro/specs/left/avoozl/manifest.json"),
-    manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  manifest.tasks["left-finish"].requires = ["left-start"];
-  fs.writeFileSync(file, JSON.stringify(manifest));
+    file = path.join(w.root, ".kiro/specs/left/tasks.md");
+  fs.writeFileSync(
+    file,
+    fs
+      .readFileSync(file, "utf8")
+      .replace(/(left-finish[^\n]*\n(?:\s+-.*\n)*?\s+- after:) right-step/, "$1 left-start"),
+  );
   await w.ops.execute("plan.save", { id: "left", expectedHash: plan.hash });
   await approve(w, "left");
   const task = w.store.read().tasks.find((row) => row.id === "left-finish");

@@ -36,6 +36,8 @@ const KEYS = {
   after: { as: "requires", type: "after" },
   sequence: { as: "sequence", type: "list" },
   supports: { as: "supports", type: "list" },
+  // A private task's reverse edge into a public one (RC25.9).
+  unblocks: { as: "unblocks", type: "list" },
   manual: { as: "manual", type: "bool" },
   investigate: { as: "investigate", type: "bool" },
   phase: { as: "phase", type: "text" },
@@ -545,6 +547,9 @@ export function factsText(manifest) {
 const FACT_OF = Object.fromEntries(
   Object.entries(KEYS).map(([fact, spec]) => [spec.as, fact]),
 );
+
+// The fact name a parsed key is written as, such as repo for repository.
+export const factName = (key) => FACT_OF[key] ?? key;
 
 // The Facts bullet for one entry in the manifest's key names, as lines. The
 // Facts bullet sits at column `indent`. `kind: leaf` is left out. Lists are

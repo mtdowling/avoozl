@@ -5,13 +5,14 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { COMMIT, workspace } from "./radar-fixture.mjs";
-import { specFiles, writeSpec } from "./spec-fixture.mjs";
+import { specFiles, withFacts, writeSpec } from "./spec-fixture.mjs";
 
 const SOURCE = "example/code";
 const MIRROR = "example/code-private";
 const PLANS = "avoozl-plans";
 
-const files = (title) => ({
+const files = (title) =>
+  withFacts({
   ...specFiles(),
   "tasks.md": `# Tasks\n\n- [ ] 1 Goal\n  - [ ] 1.1 ${title}\n`,
   "avoozl/manifest.json": JSON.stringify({
@@ -31,7 +32,7 @@ const files = (title) => ({
       },
     },
   }),
-});
+  });
 
 // The mirror block sits on the entry named by `key`: the source (the usual
 // shape, writes go to the mirror) or the mirror itself, where nothing maps

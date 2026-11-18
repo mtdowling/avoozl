@@ -177,28 +177,23 @@ test("the spec reader knows epic folders and refuses the old plan forms", (t) =>
     old.diagnostics.some(
       (d) =>
         d.code === "spec.epic-task-fields" &&
-        /"kind", "repository"/.test(d.message),
+        /"kind", "repo"/.test(d.message),
     ),
   );
   writeSpec(root, "member-plan", {
     "requirements.md": "# Old\n",
-    "tasks.md": "# Plans\n\n- [ ] 1 Alpha\n",
-    "avoozl/manifest.json": JSON.stringify({
-      kind: "epic",
-      tasks: { 1: { memberPlan: "alpha" } },
-    }),
+    "tasks.md":
+      "---\nkind: epic\n---\n# Plans\n\n- [ ] 1 Alpha\n  - Facts:\n    - memberPlan: alpha\n",
   });
   const memberPlan = lint(ops, "member-plan");
-  assert.deepEqual(codes(memberPlan), [["spec.epic-task-fields", "error"]]);
-  assert.match(
-    memberPlan.diagnostics[0].message,
-    /rename "memberPlan" to "plan"/,
-  );
+  assert.deepEqual(codes(memberPlan).sort(), [
+    ["facts.schema", "error"],
+    ["facts.unknown-key", "error"],
+  ]);
   writeSpec(root, "epic-bugfix", {
     "bugfix.md": "# Fix\n",
     "requirements.md": null,
-    "tasks.md": "# Plans\n",
-    "avoozl/manifest.json": '{"kind":"epic","tasks":{}}',
+    "tasks.md": "---\nkind: epic\n---\n# Plans\n",
   });
   assert.ok(
     lint(ops, "epic-bugfix").diagnostics.some(
@@ -207,32 +202,44 @@ test("the spec reader knows epic folders and refuses the old plan forms", (t) =>
   );
 
   // The old plan forms are errors, never loaded under another name.
-  plan(root, "old", {
-    tasks: "- [ ] 1 Parent\n  - [ ] 1.1 Child\n- [ ] 2 Grouped\n",
-    entries: {
-      1: { kind: "epic", summary: "Goal.", requires: ["1.1"] },
-      1.1: leaf(),
-      2: leaf({ epic: "W1" }),
-    },
-    extra: { epics: ["W1"] },
+  writeSpec(root, "old", {
+    "requirements.md": requirements("Plan old"),
+    "tasks.md": [
+      "---",
+      "epics: W1",
+      "checks: npm test",
+      "---",
+      "# Tasks",
+      "",
+      "- [ ] 1 Parent",
+      "  - Facts:",
+      "    - kind: epic",
+      "    - after: 1.1",
+      "  - [ ] 1.1 Child",
+      "    - Facts:",
+      "      - done: It works",
+      "- [ ] 2 Grouped",
+      "  - Facts:",
+      "    - epic: W1",
+      "    - done: It works",
+      "",
+    ].join("\n"),
   });
   const legacy = lint(ops, "old");
-  assert.deepEqual(codes(legacy).sort(), [
-    ["spec.entry-epic", "error"],
-    ["spec.entry-epic", "error"],
-    ["spec.kind-epic", "error"],
-  ]);
-  assert.equal(legacy.canApprove, false);
   assert.deepEqual(
-    legacy.diagnostics
-      .filter((d) => d.entry)
-      .map((d) => d.entry)
+    codes(legacy)
+      .filter(([, severity]) => severity === "error")
       .sort(),
-    ["1", "2"],
+    [
+      ["facts.unknown-key", "error"],
+      ["facts.unknown-key", "error"],
+      ["spec.kind-epic", "error"],
+    ],
   );
+  assert.equal(legacy.canApprove, false);
   assert.ok(
-    !legacy.proposals.some((p) => ["1", "2"].includes(p.specKey)),
-    "neither loads",
+    !legacy.proposals.some((p) => p.specKey === "1"),
+    "the old parent does not load",
   );
 });
 

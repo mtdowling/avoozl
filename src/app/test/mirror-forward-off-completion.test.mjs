@@ -12,12 +12,13 @@ import { linkedBranchName } from "../github-plans-repo.mjs";
 import { refreshProjectedReadiness } from "../github-projection.mjs";
 import { queryTasks } from "../../query.mjs";
 import { COMMIT, workspace } from "./radar-fixture.mjs";
-import { specFiles } from "./spec-fixture.mjs";
+import { specFiles, withFacts } from "./spec-fixture.mjs";
 
 const REPO = "example/code";
 const PLANS = "avoozl-plans";
 
-const files = (title, requires) => ({
+const files = (title, requires) =>
+  withFacts({
   ...specFiles(),
   "tasks.md": `# Tasks\n\n- [ ] 1 Goal\n  - [ ] 1.1 ${title}\n`,
   "avoozl/manifest.json": JSON.stringify({
@@ -40,7 +41,7 @@ const files = (title, requires) => ({
       },
     },
   }),
-});
+  });
 
 // The policy key is the mirror itself: issues and pull requests live there.
 async function setup(t, forward) {

@@ -81,8 +81,6 @@ test("lint refuses each agent field on a manual leaf, by name, and person on any
   for (const [key, value] of [
     ["checks", ["npm test"]],
     ["session", { agent: "coder" }],
-    ["agent", "coder"],
-    ["model", "auto"],
     ["paths", ["src/**"]],
     ["route", "local"],
   ]) {

@@ -88,7 +88,7 @@ function lintWith(t, extra) {
   return lintSpec({
     spec: readSpecFolder(root, "config"),
     plan: { id: "config" },
-  }).diagnostics.filter((d) => d.code === "manifest.schema");
+  }).diagnostics.filter((d) => d.code === "facts.schema");
 }
 
 test("the manifest lint accepts good epic values and refuses bad ones", (t) => {

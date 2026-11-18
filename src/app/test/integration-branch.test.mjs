@@ -184,7 +184,7 @@ test("spec lint: an old manifest stays valid, a bad field is one error", (t) => 
     { integrationSync: "off" },
   ]) {
     const found = lintWith(t, extra).diagnostics.filter(
-      (d) => d.code === "manifest.schema",
+      (d) => d.code === "facts.schema",
     );
     assert.equal(found.length, 1, JSON.stringify(extra));
     assert.match(found[0].message, /integration/i);
