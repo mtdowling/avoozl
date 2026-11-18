@@ -14,11 +14,16 @@
 // own GH_CONFIG_DIR, one command at a time; its token is never read here.
 //
 //   env KIROCREW_HOME=<harness>/home node scripts/proof-p7-live.mjs \
-//     --root DIR [--repo avoozl-scratch/p07-label-intake] preflight|setup|run|respond
+//     --root DIR [--repo avoozl-scratch/p07-label-intake] preflight|setup|run|dispatch|respond
 //
 // `preflight` reads only. `setup` makes the checkout and the workspace.
-// `run` writes the eight issues and runs the ticks (part A). `respond` reads
-// back the responder session's reply after the test harness ran (part B).
+// `run` writes the eight issues and runs the ticks (part A). `dispatch`
+// (part B) runs one tick and opens its responder chat on a running test Kiro
+// Crew (--harness DIR --port N, with a saved sign-in cookie), the way the
+// avoozl-tick cron does: take the request, open the chat in a folder, bind
+// it, send the brief. That crew's cron ticks only its own default workspace,
+// so this script stands in for the cron on this one workspace. `respond`
+// runs one more tick and reads back the reply.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -38,6 +43,8 @@ const { values, positionals } = parseArgs({
     root: { type: "string" },
     repo: { type: "string", default: "avoozl-scratch/p07-label-intake" },
     second: { type: "string", default: "avoozlbot" },
+    harness: { type: "string" },
+    port: { type: "string" },
     "second-config": {
       type: "string",
       default: path.join(os.homedir(), ".config", "gh-avoozl-test"),
@@ -45,9 +52,12 @@ const { values, positionals } = parseArgs({
   },
 });
 const phase = positionals[0];
-if (!values.root || !["preflight", "setup", "run", "respond"].includes(phase)) {
+if (
+  !values.root ||
+  !["preflight", "setup", "run", "dispatch", "respond"].includes(phase)
+) {
   console.error(
-    "Usage: env KIROCREW_HOME=<harness>/home node scripts/proof-p7-live.mjs --root DIR preflight|setup|run|respond",
+    "Usage: env KIROCREW_HOME=<harness>/home node scripts/proof-p7-live.mjs --root DIR preflight|setup|run|dispatch|respond",
   );
   process.exit(2);
 }
@@ -462,7 +472,7 @@ async function setup() {
   fs.mkdirSync(ROOT, { recursive: true });
   if (!fs.existsSync(CODE))
     sh("git", ["clone", "-q", `https://github.com/${REPO}.git`, CODE]);
-  if (!fs.existsSync(path.join(WS, "workspace.sqlite")))
+  if (!fs.existsSync(path.join(WS, ".avoozl", "local", "workspace.sqlite")))
     avoozl("init", WS, "--name", "p7");
   const registered = avoozl("workspace", "list");
   if (!registered.includes(WS)) avoozl("workspace", "add", "p7", "--root", WS);
@@ -674,8 +684,15 @@ async function run() {
 async function respond() {
   const c = report.cases.find((x) => x.expect === "respond");
   const issue = readIssues([c.number])[c.number];
+  await tick("tick 4 (after the reply)");
   const { Store } = await import("../src/app/store.mjs");
-  const store = new Store(path.join(WS, "workspace.sqlite"));
+  const { workspaceConfig } = await import("../src/app/config.mjs");
+  const store = new Store(
+    workspaceConfig({
+      workspace: WS,
+      env: { ...process.env, AVOOZL_WORKSPACE: WS },
+    }).dbPath,
+  );
   let responses, bindings;
   try {
     responses = store.list("github_responses");
@@ -705,4 +722,107 @@ async function respond() {
   console.log(`part B: ${report.partB}`);
 }
 
-await { preflight, setup, run, respond }[phase]();
+// Part B's chat: the test crew's own HTTP routes, with its sign-in cookie,
+// the routes the cron's ScriptContext calls (POST /api/chat/slots,
+// /api/chat/folders, /api/chat?ws=1).
+function crew(method, route, body) {
+  if (!values.harness || !(values.port || process.env.AVOOZL_HARNESS_PORT))
+    throw Error("Name the running test crew with --harness DIR --port N.");
+  const out = sh(
+    "/bin/bash",
+    [
+      path.join(REPO_DIR, "scripts", "live-harness", "harness.sh"),
+      "api",
+      method,
+      route,
+      ...(body ? [JSON.stringify(body)] : []),
+    ],
+    {
+      env: {
+        ...process.env,
+        AVOOZL_HARNESS_DIR: values.harness,
+        AVOOZL_HARNESS_PORT: values.port || process.env.AVOOZL_HARNESS_PORT,
+      },
+    },
+  );
+  return JSON.parse(out || "null");
+}
+
+// The responder's folder. The tick names `Avoozl/<project>`, and this
+// workspace's project is `code`; on a shared test crew another proof's
+// project may be named `code` too, so the chat opens in a folder of its own.
+const P7_FOLDER = ["Avoozl P7", "p07-label-intake"];
+
+async function dispatch() {
+  const github = await avoozlClient(),
+    { store, ops } = await openWorkspace(github);
+  try {
+    const result = await ops.execute("workspace.tick", { cron: true });
+    const all = result?.dispatch || [];
+    step("tick 3 (dispatch)", {
+      dispatch: all.map((x) => ({ role: x.role, task: x.task, id: x.id })),
+    });
+    const d = all.find((x) => x.role === "responder");
+    if (!d) throw Error("The tick dispatched no responder.");
+    const taken = await ops.execute("executor.kirocrew.take", {
+      id: d.id,
+      version: d.version,
+    });
+    const request = { ...taken.configuration, ...taken.request };
+    // Folders: find or create each part, then give the leaf the checkout.
+    let folders = crew("GET", "/api/chat/folders"),
+      parent = "";
+    folders = Array.isArray(folders) ? folders : folders?.folders || [];
+    for (const name of P7_FOLDER) {
+      let match = folders.find(
+        (f) => f.name === name && (f.parent_id || "") === parent,
+      );
+      if (!match) {
+        const made = crew("POST", "/api/chat/folders", {
+          name,
+          ...(parent ? { parent_id: parent } : {}),
+        });
+        match = made?.folder || made;
+      }
+      if (!match?.id) throw Error("No chat folder: " + JSON.stringify(match));
+      parent = match.id;
+    }
+    crew("PATCH", `/api/chat/folders/${parent}`, { project_dir: CODE });
+    const opened = crew("POST", "/api/chat/slots", {
+      name: request.title,
+      title: request.title,
+      folder_id: parent,
+      agent: request.agent,
+    });
+    const slot = opened?.key;
+    if (!slot)
+      throw Error("The test crew opened no chat: " + JSON.stringify(opened));
+    await ops.execute("session.bind", {
+      taskId: request.task,
+      slot,
+      title: request.title,
+      source: "tick",
+      role: request.role,
+      attempt: request.attempt,
+      permissionClass: request.permissionClass || "read",
+      executor: "kirocrew",
+      requestId: request.id,
+      claimToken: taken.claimToken,
+    });
+    const sent = crew("POST", "/api/chat?ws=1", {
+      slot,
+      message: request.brief,
+    });
+    step("responder opened", {
+      slot,
+      agent: opened.agent ?? request.agent,
+      folder: P7_FOLDER.join("/"),
+      title: request.title,
+      sent,
+    });
+  } finally {
+    store.close();
+  }
+}
+
+await { preflight, setup, run, dispatch, respond }[phase]();

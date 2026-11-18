@@ -296,13 +296,13 @@ new `plans_intake_*` tools. No earlier task changes.
   - Check token scopes and show the fix command; choose mode and pick or create the private planning repository; turn on issues; pick or create a private org or user Project; make sure Status has Todo, In progress, Done, and Deferred (a template Project usually lacks only Deferred), map them through `statusValues` in the proposed `.avoozl.json` diff, never remove or rename an option, and keep every existing option `id`; read the Project's built-in workflows (`workflows { name enabled }`) and put on the checklist every one whose `enabled` differs from the recommendation (Auto-add sub-issues on; Auto-add on with a managed-label filter; Item added → Todo on; Pull request linked → In progress on; Item closed → Done on; Pull request merged → Done on; Auto-close issue on; Auto-archive off), plus the columns and filter it cannot read; never delete a workflow (L12); Release from spec milestones, Wave (number), optional Iteration, a Board view `Board by release` with a column per Status and grouped by Release, and an optional `Table by wave` grouped by Wave (no Roadmap view). Views: REST views with `group_by` first; on failure, GraphQL `createProjectV2View` and a "Group by …, then Save" checklist item; create the `Epic` issue type when allowed; create managed labels; propose the `.avoozl.json` diff for review. One preview of every write, one confirmation, idempotent by name, no delete or rename, per-step permission failures reported while the rest runs; end with the checklist of what the API cannot do (limits L1–L13). Changed 2026-11-12: no Ready, In review, or Blocked options; workflow check added; Auto-close issue now recommended on (a drag to Done closes as done, judged by 3.11).
   - Built: `daabf20` and `ff10c5c` (receipt `docs/evidence/phase3-wizard.md`, `9ee39d8`).
 
-- [ ] avoozl-p7 P7 Proof: configurable GitHub label intake on a public repository [R10, R11, R27.1]
+- [x] avoozl-p7 P7 Proof: configurable GitHub label intake on a public repository [R10, R11, R27.1]
   - Setup: a new public test repository; policy with one `deliver` rule (`labelsAll` two labels, `labelsNone` a pause label, assignee filter) and one `respond` rule; an allowed actor and a second account without permission.
   - Action: apply labels in eight combinations, including from the disallowed account, then edit one matched issue's body.
   - Expected: only the combinations the rules describe match; the disallowed account's labels cause no match and no write; the edited issue is quarantined; trigger and managed labels never overlap.
   - Failure means: the rules engine or actor check is wrong.
   - Next decision: decide whether a GitHub search query form is needed beyond structured rules.
-  - Open: Skipped by the owner; not run.
+  - Built: pass, receipt `docs/evidence/proof-p7.md`.
 - [ ] avoozl-p8 P8 Proof: single-repo projection with sub-issues and dependencies [R13]
   - Setup: single-repo mode; an approved three-leaf graph with a parent epic targeting one repository, in a spec folder in that repository; the owner has an `Epic` issue type.
   - Action: preview, apply, then apply again.
