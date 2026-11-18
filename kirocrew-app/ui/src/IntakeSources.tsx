@@ -11,12 +11,14 @@
 // source is changed by removing it and adding it again.
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useAppApi } from './host.ts'
-import { Card, EmptyState, Input } from '@kirocrew/app-sdk/ui'
-import Badge, { type BadgeVariant } from './Badge.tsx'
-import { DangerBtn, IconLabel, SectionHeading } from './controls.tsx'
+import { Card } from './ui/Card'
+import { EmptyState } from './ui/EmptyState'
+import { Input } from './ui/Input'
+import Badge, { type BadgeVariant } from './ui/Badge.tsx'
+import { DangerBtn, IconLabel, SectionHeading } from './ui/controls.tsx'
 import { Modal } from './Modal.tsx'
-import { RadioFold } from './RadioFold.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import { RadioFold } from './ui/RadioFold.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { CircleAlert, Plus, Settings, Trash2 } from './icons.ts'
 import {
   DEFAULT_PERMISSION,

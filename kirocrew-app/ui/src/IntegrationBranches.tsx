@@ -2,9 +2,9 @@
 // tasks merged into it, how far it is behind the default branch, and the state
 // of its head's checks. Read only. Nothing shows without a branch.
 import { useCallback, useMemo } from 'react'
-import { Card } from '@kirocrew/app-sdk/ui'
-import Badge, { type BadgeVariant } from './Badge.tsx'
-import { SectionHeading } from './controls.tsx'
+import { Card } from './ui/Card'
+import Badge, { type BadgeVariant } from './ui/Badge.tsx'
+import { SectionHeading } from './ui/controls.tsx'
 import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
 import { branchLine, releaseClient } from './release-api.ts'

@@ -3,8 +3,8 @@
 // never looks unchanged for lack of data. Compact: the title, one line cut
 // short (the whole of it in a tooltip), then small buttons.
 import type { ReactNode } from 'react'
-import { Card } from '@kirocrew/app-sdk/ui'
-import { Tooltip } from './Tooltip.tsx'
+import { Card } from './ui/Card'
+import { Tooltip } from './ui/Tooltip.tsx'
 
 export default function SetupCard(props: { id: string; title: string; line: string; action?: ReactNode; children?: ReactNode }) {
   return (

@@ -9,7 +9,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavSlotHost } from './nav-slot.tsx'
 import { ChevronDown } from './icons.ts'
 import { NAV_PILL } from './nav-style.ts'
-import Badge from './Badge.tsx'
+import Badge from './ui/Badge.tsx'
 
 export interface NavChild {
   key: string

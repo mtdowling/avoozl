@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
-import { DangerBtn, TipBtn } from './controls.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
+import { DangerBtn, TipBtn } from './ui/controls.tsx'
 import {
   canSupersede,
   githubReviewLabel,

@@ -7,7 +7,7 @@
 // the Refresh countdown ends, when the window gains focus, and not while hidden
 // (panel-api.ts). Every view is built from the shared parts in PanelParts.tsx.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ConfirmProvider } from './controls.tsx'
+import { ConfirmProvider } from './ui/controls.tsx'
 import { railFor } from './dashboard-api.ts'
 import { recapSince, type Away } from './recap-api.ts'
 import { useAppApi, useNavigate } from './host.ts'
@@ -39,7 +39,7 @@ import { StopLineButton } from './StopLine.tsx'
 import { nameFor } from './instance-api.ts'
 import { useInstance } from './InstanceName.tsx'
 import { relativeTime } from './task-api.ts'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref, viewsClient } from './views-api.ts'
 import { errorMessage, readPageState, workspaceClient, type WorkspaceList } from './workspace-api.ts'
 

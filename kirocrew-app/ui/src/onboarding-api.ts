@@ -7,7 +7,7 @@
 // free of JSX and runtime imports so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
-import type { ConfirmCopy } from './controls.tsx'
+import type { ConfirmCopy } from './ui/controls.tsx'
 import type { GitHubSettings, Policy, SetupInput, SetupResult } from './settings-api.ts'
 import type { PlannedWrite, SpecList, SpecSummary } from './plans-api.ts'
 

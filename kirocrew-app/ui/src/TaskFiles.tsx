@@ -3,11 +3,11 @@
 // writes: the reads are task.files and task.diff.
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from './host.ts'
-import Badge from './Badge.tsx'
+import Badge from './ui/Badge.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
 import { ExternalLink, Folder, GitBranch, RefreshCw } from './icons.ts'
-import { IconBtn, SectionBox } from './controls.tsx'
+import { IconBtn, SectionBox } from './ui/controls.tsx'
 import {
   EDITORS,
   STATUS_LETTER,

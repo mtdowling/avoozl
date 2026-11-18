@@ -3,8 +3,9 @@
 // before step 3's button and nothing runs before step 4's approval. Cancel
 // is on every step; on step 4 it also removes the entry step 3 declared.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
 import {
   addInput,
   applyPreview,
@@ -29,10 +30,10 @@ import {
 } from './plugins-api.ts'
 import { PackChanges } from './PackImport.tsx'
 import { errorMessage } from './workspace-api.ts'
-import { IconLabel } from './controls.tsx'
-import { PairedCard } from './PairedCards.tsx'
+import { IconLabel } from './ui/controls.tsx'
+import { PairedCard } from './ui/PairedCards.tsx'
 import { FormSection } from './FormSection.tsx'
-import { RadioFold } from './RadioFold.tsx'
+import { RadioFold } from './ui/RadioFold.tsx'
 import { Folder, GitBranch, Laptop, Package, Plus, Users } from './icons.ts'
 import { Facts, Parts } from './PluginsSettings.tsx'
 import { Modal } from './Modal.tsx'

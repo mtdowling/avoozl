@@ -3,8 +3,8 @@
 // until Approve change and apply, and that is off until the spec is approved
 // again. A claimed issue is only ever commented on.
 import { useEffect, useState } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import Badge from './ui/Badge.tsx'
 import { Modal } from './Modal.tsx'
 import { ACTION_LABEL, ISSUE_STATE_LABEL, projectionClient, writing, type SpecChange } from './projection-api.ts'
 import { errorMessage } from './workspace-api.ts'
