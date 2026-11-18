@@ -41,7 +41,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -227,13 +227,12 @@ function ScopeStep(props: { form: PluginForm; set: (patch: Partial<PluginForm>) 
               'A folder must be a path inside the repository, written relative to it.',
             ),
             fields: (
-              <label className="flex items-start gap-2 text-sm">
-                <Checkbox drop={4} checked={props.confirmPublic} onChange={(e) => props.setConfirmPublic(e.target.checked)} />
+              <Switch label="Publish it in .avoozl.json" align="start" size="sm" checked={props.confirmPublic} onChange={props.setConfirmPublic}>
                 <span>
                   Publish it in .avoozl.json
                   <Hint size="xs" block>Anyone who can read the repository sees this plugin’s id, source and config.</Hint>
                 </span>
-              </label>
+              </Switch>
             ),
           },
         ]}

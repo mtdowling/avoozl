@@ -88,7 +88,7 @@ test('nothing is written before the confirm; each create button writes once', { 
   await page.until(enabled('Create issues (held)…'))
   assert.deepEqual(await calls(), ['plan.issues.preview'])
   // Choosing a batch previews again with it; still no write.
-  await page.evaluate(`document.querySelector('[data-batches] input').click()`)
+  await page.evaluate(`document.querySelector('[data-batches] [role="switch"]').click()`)
   await page.until(`window.__harness.calls.length === 2 && ${enabled('Create issues (held)…')}`)
   assert.deepEqual(await page.evaluate('window.__harness.calls[1].input.batches'), [['S1', 'S2', 'S3']])
   assert.match(await page.evaluate(`document.querySelector('[data-projection-dialog]').textContent`), /3 tasks batched into 1 issue/)

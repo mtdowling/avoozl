@@ -35,7 +35,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 // Spec Builder resolves symlinks (/tmp is /private/tmp on macOS).
 const samePath = (left: string, right: string) => {
@@ -256,16 +256,15 @@ export default function NewPlanDrawer(props: {
               <Hint size="xs">No repositories yet. Add one in Settings › Repositories, then come back.</Hint>
             ) : (
               repositories.map((repo) => (
-                <label key={repo.id} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={form.repositories.includes(repo.id)}
-                    onChange={(event) =>
-                      set({ repositories: event.target.checked ? [...form.repositories, repo.id] : form.repositories.filter((id) => id !== repo.id) })
-                    }
-                  />
+                <Switch
+                  key={repo.id}
+                  label={repo.name || repo.id}
+                  checked={form.repositories.includes(repo.id)}
+                  onChange={(on) => set({ repositories: on ? [...form.repositories, repo.id] : form.repositories.filter((id) => id !== repo.id) })}
+                >
                   <span>{repo.name || repo.id}</span>
                   {repo.github && <Hint size="xs">{repo.github}</Hint>}
-                </label>
+                </Switch>
               ))
             )}
             {tried && repositories && repositories.length > 0 && !form.repositories.length && (
