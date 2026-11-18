@@ -92,11 +92,12 @@ person.
 - [x] lt-4.3 Local resource slots shared across workspaces, after lt-4.1 [LT13.1, LT13.2, LT13.3] (§D14)
   - `resource_slots` in the supervisor's machine database; a train takes every slot its platforms use before full validation and releases them at its end; a worker check needing a held slot waits with the train named.
   - Done when: Tests: two workspaces on one machine database, one `windows-vm` slot: the second train waits until the first ends; a worker check waits with "waiting for windows-vm (train-…)"; a crashed holder's slot is freed by the taker (with lt-2.4).
-- [ ] lt-4.4 CI fallback for platforms without a local environment, after lt-4.2 [LT7.7] (§D9.3)
+- [x] lt-4.4 CI fallback for platforms without a local environment, after lt-4.2 [LT7.7] (§D9.3)
   - Optimistic: the trunk push's run counts for that platform; gated: one `workflow_dispatch` on `avoozl-validate/<train>` with the platform input, pushed as a plain new branch, then the ref is deleted.
   - Done when: Fake-GitHub tests: a gated train with a CI-only platform dispatches exactly one run naming every CI-only platform, waits for it, counts as validated only on success, and deletes the ref; an optimistic train makes no dispatch and reads the push's run.
-- [ ] lt-4.5 Avoozl's own `test.yml` accepts the validation dispatch, after lt-4.4 [LT8.8] (§D16.1)
+- [x] lt-4.5 Avoozl's own `test.yml` accepts the validation dispatch, after lt-4.4 [LT8.8] (§D16.1)
   - `.github/workflows/test.yml` gains `workflow_dispatch` with a `platforms` input that limits the matrix legs to the named platforms (`linux-x64` to `ubuntu-latest`, `windows-x64` to `windows-latest`, `macos-arm64` to `macos-latest`); `push` stays `branches: [main]`; the job name, the matrix key and the docs-only skip are unchanged.
+  - Built against the sharded `test.yml` (plan job, lint, per-system shard jobs, required checks `test (<os>)`): the plan job's `legs` step sets an unrequested system's shards to `[]`, and its required check passes with nothing to run. The test below reads those names instead of one job `test` with a matrix.
   - Done when: A test reads `test.yml` and finds the input, `push` on `main` only, the job `test` with matrix `os` values unchanged, and the platform-to-runner mapping above; one dispatch run on a scratch branch with `platforms=linux-x64,windows-x64` runs only those two legs, linked in the pull request; the scratch branch is deleted afterward.
 
 ## Phase 5: Landing

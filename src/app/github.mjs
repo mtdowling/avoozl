@@ -1935,6 +1935,19 @@ export class GitHubClient {
     );
   }
 
+  // Starts a `workflow_dispatch` run of `workflow` (a file name or ID) on
+  // `ref` with string `inputs`. GitHub answers 204 with no run ID: find the
+  // run with workflowRuns by its head commit and event.
+  dispatchWorkflow(value, workflow, ref, inputs = {}) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "POST",
+      `/repos/${owner}/${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`,
+      { body: { ref, inputs } },
+    );
+  }
+
   createRuleset(value, body) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
