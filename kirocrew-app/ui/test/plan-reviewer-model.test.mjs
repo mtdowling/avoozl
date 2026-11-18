@@ -22,7 +22,7 @@ for (const width of [390, 1280]) {
     await page.open(harness.url({ page: 'models' }), { width, height: 800 })
     await page.until(`Boolean(document.querySelector('#avoozl-model-planReviewer'))`)
     await page.until(`document.querySelector('#avoozl-model-planReviewer').value === 'auto (no reviewer)'`)
-    assert.equal(await page.evaluate(`document.querySelector('[data-model-role="planReviewer"] label').textContent`), 'Plan reviewer')
+    assert.equal(await page.evaluate(`document.querySelector('[data-model-role="planReviewer"] > span').textContent`), 'Plan reviewer')
     assert.match(await page.evaluate(`document.querySelector('[data-model-role="planReviewer"]').textContent`), /different model/)
     await page.evaluate(`document.querySelector('#avoozl-model-planReviewer').focus()`)
     await page.until(`document.querySelector('#avoozl-model-planReviewer').getAttribute('aria-expanded') === 'true'`)
@@ -34,7 +34,7 @@ for (const width of [390, 1280]) {
     await page.evaluate(`document.querySelector('[data-models-save]').click()`)
     await page.until(`document.querySelector('[data-models-settings]').textContent.includes('Saved to .avoozl.json.')`)
     assert.deepEqual(await page.evaluate(`window.__harness.calls.filter((call) => call.operation === 'models.settings.update').map((call) => call.input)`), [{
-      models: { planner: 'fake-writer', planReviewer: 'fake-reviewer' }, expectedHash: 'models-before',
+      models: { planner: 'fake-writer', planReviewer: 'fake-reviewer' }, harnesses: {}, expectedHash: 'models-before',
     }])
     assert.equal(await page.evaluate(`document.querySelector('#avoozl-model-planReviewer').value`), 'fake-reviewer')
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)

@@ -6,7 +6,8 @@ import {
 } from "./flow-ci-view.mjs";
 import { readEffectiveCIConfig } from "./flow-ci.mjs";
 import { currentPlanReview } from "./plan-review-tools.mjs";
-import { chatModel, validatePlanReview } from "./chat-models.mjs";
+import { chatModel, roleHarness, validatePlanReview } from "./chat-models.mjs";
+import { listHarnessDefinitions } from "./harness-definitions.mjs";
 import { completePlanReviewWriter } from "./plan-review-authorship.mjs";
 import { sessionStartHold } from "./session-request-eligibility.mjs";
 import {
@@ -1064,6 +1065,7 @@ export class Operations {
     this.plansRoot = plansRoot;
     this.tickPolicy = {};
     this.planReviewOptions = planReviewOptions;
+    this.configDirectory = configDirectory;
     // Specs read from the plans branch on the last tick (RC25.2).
     this.privateSpecs = [];
     this.privateSpecsAt = 0;
@@ -3380,6 +3382,7 @@ export class Operations {
                 ? []
                 : newPlanStarts(store, {
                     model: chatModel(config, "planner"),
+                    harness: roleHarness(config, "planner"),
                   }),
               review = await planReviewStep(store, {
                 workspaceRoot: this.workspaceRoot,
@@ -3652,7 +3655,11 @@ export class Operations {
     // Settings > Flow (§8.4) and the retros (§4.11).
     // Settings › Models: Avoozl's own chats' models, in .avoozl.json.
     if (name === "models.settings.get")
-      return this.settingsFile().readModelSettings();
+      return {
+        ...this.settingsFile().readModelSettings(),
+        // This machine's harness definitions a role may pick (R98.3).
+        harnessDefinitions: listHarnessDefinitions(this.configDirectory),
+      };
     if (name === "models.settings.update") {
       if (context.caller || context.mcp)
         fail("Only a person changes chat models, in Settings.", 403);

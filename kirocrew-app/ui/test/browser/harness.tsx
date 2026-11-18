@@ -1056,12 +1056,23 @@ if (query.get('page') === 'workspaces') {
 
 // The app shell answers too, so Settings › Models can be shot in place.
 if (query.get('page') === 'models' || query.get('page') === 'app') {
-  let settings = { filename: '.avoozl.json', exists: true, hash: 'models-before', models: { planner: 'fake-writer' } }
+  let settings = {
+    filename: '.avoozl.json',
+    exists: true,
+    hash: 'models-before',
+    models: { planner: 'fake-writer' },
+    harnesses: {},
+    harnessDefinitions: [
+      { name: 'claude-code', approved: true },
+      { name: 'codex', approved: false },
+    ],
+  }
   answer('GET /api/models', () => ['fake-writer', 'fake-reviewer'])
   answer('models.settings.get', () => settings)
   answer('models.settings.update', (body) => {
     state.calls.push(body)
-    settings = { ...settings, hash: 'models-after', models: (body.input as { models: typeof settings.models }).models }
+    const input = body.input as { models: typeof settings.models; harnesses?: typeof settings.harnesses }
+    settings = { ...settings, hash: 'models-after', models: input.models, harnesses: input.harnesses ?? settings.harnesses }
     return settings
   })
 }

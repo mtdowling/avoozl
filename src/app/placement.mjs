@@ -5,6 +5,7 @@
 import { fail } from "./store.mjs";
 import { isCrewId, LOCAL, tagError } from "./crews.mjs";
 import { refuseTrackedProviders } from "./provider-health.mjs";
+import { isHarnessName } from "./chat-models.mjs";
 
 export const PLACED_ROLES = Object.freeze(["worker", "checks", "reviewer"]);
 export const ROUTER_TIMEOUT_SECONDS = 90;
@@ -32,7 +33,8 @@ export function placedRole(role) {
 // Validation. Every bad key is named in one error (P33 action 6).
 
 // A manifest task's `session` (R53.1): a pin that wins over the routing
-// prompt. {agent?, model?, crew?}. Throws.
+// prompt. {agent?, model?, crew?, harness?}; `harness` is `kirocrew` or a
+// harness definition's name (R98.4). Throws.
 export function validateSession(value, at = "session") {
   const errors = [];
   if (!record(value)) fail(`${at} must be an object.`);
@@ -41,7 +43,7 @@ export function validateSession(value, at = "session") {
       errors.push(
         `${at}.choices was removed: pin one model, or let the routing prompt spread tasks.`,
       );
-    else if (!["agent", "model", "crew"].includes(key))
+    else if (!["agent", "model", "crew", "harness"].includes(key))
       errors.push(`${at}.${key} is not a session setting.`);
   for (const key of ["agent", "model"])
     if (
@@ -53,6 +55,11 @@ export function validateSession(value, at = "session") {
       );
   if (value.crew !== undefined && !isCrewId(value.crew))
     errors.push(`${at}.crew must be a crew id.`);
+  if (
+    value.harness !== undefined &&
+    (!isHarnessName(value.harness) || value.harness === "auto")
+  )
+    errors.push(`${at}.harness must be kirocrew or a harness name.`);
   if (errors.length) fail(errors.join(" "));
   return value;
 }

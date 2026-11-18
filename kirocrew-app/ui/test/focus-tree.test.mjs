@@ -166,6 +166,8 @@ test('Frontier, drill two levels, Back, Forward, the modal and Esc', { skip }, a
   await rooted('task:B3')
   // Keyboard focus follows the new root; arrows move between cards.
   await page.until(`document.activeElement?.dataset.treeNode === 'B3'`)
+  // B3 had focus before Enter: wait out the new root's focus frame.
+  await page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
   await page.key('ArrowRight', 'ArrowRight', 39)
   assert.equal(await page.evaluate(`document.activeElement.dataset.treeNode`), 'B4')
   await page.evaluate(`document.querySelector('[data-graph-nav="back"]').click()`)
@@ -212,4 +214,110 @@ test('the jump box roots the tree on a spec; a phone shows one column', { skip }
   assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no sideways scroll')
   await page.evaluate(`(() => { const i = document.querySelector('[data-graph-jump]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'search'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`)
   await page.until(`Boolean(document.querySelector('#avoozl-graph-jump-error'))`)
+})
+
+test('which press pans: middle anywhere, left off a control, never touch', async () => {
+  const { panPress } = await import('../src/drag-pan.ts')
+  assert.equal(panPress({ pointerType: 'mouse', button: 0 }, false), true)
+  assert.equal(panPress({ pointerType: 'mouse', button: 0 }, true), false, 'left on a card')
+  assert.equal(panPress({ pointerType: 'mouse', button: 1 }, true), true, 'middle on a card')
+  assert.equal(panPress({ pointerType: 'mouse', button: 2 }, false), false)
+  assert.equal(panPress({ pointerType: 'touch', button: 0 }, false), false, 'touch scrolls natively')
+})
+
+// A point in the tree's scroll box: on empty space, or on a card's middle.
+const spot = (card) =>
+  page.evaluate(`(() => {
+    const box = document.querySelector('[data-tree-scroll]').getBoundingClientRect()
+    const card = ${JSON.stringify(card ?? null)}
+    if (card) {
+      // Scrolled into sight first, and the point must land on the card.
+      const node = document.querySelector('[data-tree-node="' + card + '"]')
+      node.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      const r = node.querySelector('rect:last-of-type').getBoundingClientRect()
+      const at = { x: Math.round(r.left + r.width / 3), y: Math.round(r.top + r.height / 2) }
+      return document.elementFromPoint(at.x, at.y)?.closest('[data-tree-node]') === node ? at : null
+    }
+    // Whole pixels, clear of any card or edge by a few pixels each way.
+    const clear = (x, y) => [[0, 0], [-4, 0], [4, 0], [0, -4], [0, 4]].every(([dx, dy]) => {
+      const at = document.elementFromPoint(x + dx, y + dy)
+      return at && !at.closest('[data-tree-card], [data-tree-edge]') && at.closest('[data-tree-scroll]')
+    })
+    for (let y = Math.ceil(box.top) + 40; y < box.bottom - 8; y += 6)
+      for (let x = Math.floor(box.right) - 16; x > box.left + 8; x -= 6) if (clear(x, y)) return { x, y }
+    return null
+  })()`)
+const scrolled = () => page.evaluate(`(() => { const b = document.querySelector('[data-tree-scroll]'); return { left: b.scrollLeft, top: b.scrollTop } })()`)
+const cursorAt = (x, y) => page.evaluate(`getComputedStyle(document.elementFromPoint(${x}, ${y})).cursor`)
+
+test('drag to pan the Focus tree: left on empty space, middle anywhere; a drag never drills', { skip }, async () => {
+  // A box smaller than the spec's tree, so it overflows both ways.
+  await openGraph()
+  await page.evaluate(`(() => { const i = document.querySelector('[data-graph-jump]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'billing'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`)
+  await rooted('spec:billing')
+  await page.evaluate(`(document.querySelector('[data-tree-scroll]').style.cssText += ';width:480px;max-height:150px', true)`)
+  // Past the new root's scroll-into-view frame, then from the top left.
+  await page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
+  await page.evaluate(`(document.querySelector('[data-tree-scroll]').scrollTo(0, 0), true)`)
+  assert.equal(await page.evaluate(`(() => { const b = document.querySelector('[data-tree-scroll]'); return b.scrollWidth > b.clientWidth + 100 && b.scrollHeight > b.clientHeight + 40 })()`), true, 'the tree overflows')
+  const empty = await spot()
+  assert.ok(empty, 'an empty spot in the box')
+  assert.equal(await cursorAt(empty.x, empty.y), 'grab')
+  // Left drag on empty space pans, and the cursor grabs while it moves.
+  let at = await scrolled()
+  await page.drag(empty.x, empty.y, empty.x - 80, 8, empty.y - 30, 'left', false)
+  await page.until(`document.querySelector('[data-tree-scroll]').hasAttribute('data-panning')`)
+  assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-tree-scroll]')).cursor`), 'grabbing')
+  assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-tree-node="B2"]')).cursor`), 'grabbing', 'over a card too')
+  await page.release(empty.x - 80, empty.y - 30)
+  assert.deepEqual(await scrolled(), { left: at.left + 80, top: at.top + 30 })
+  assert.equal(await page.evaluate(`document.querySelector('[data-tree-scroll]').hasAttribute('data-panning')`), false)
+  assert.equal(await page.evaluate(`document.querySelector('[data-focus-tree]').dataset.focusTree`), 'spec:billing')
+  // A left drag that starts on a card does not pan, and the card is the
+  // pointer's again.
+  const card = await spot('B2')
+  assert.ok(card, 'B2 in sight')
+  assert.equal(await cursorAt(card.x, card.y), 'pointer')
+  at = await scrolled()
+  await page.drag(card.x, card.y, card.x - 60, 8, card.y - 20)
+  assert.deepEqual(await scrolled(), at, 'no pan from a card')
+  // A middle drag over a card pans, and neither drills nor opens it.
+  const over = await spot('B3')
+  assert.ok(over, 'B3 in sight')
+  at = await scrolled()
+  await page.drag(over.x, over.y, over.x + 50, 8, over.y + 20, 'middle')
+  const moved = await scrolled()
+  assert.ok(moved.left < at.left || moved.top < at.top, `middle drag panned: ${JSON.stringify([at, moved])}`)
+  at = moved
+  await page.evaluate('new Promise((r) => setTimeout(r, 100))')
+  assert.equal(await page.evaluate(`document.querySelector('[data-focus-tree]').dataset.focusTree`), 'spec:billing', 'no drill')
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-graph-item]'))`), false, 'no modal')
+  // The wheel still scrolls as before.
+  await page.wheel(empty.x, empty.y, 20)
+  await page.until(`document.querySelector('[data-tree-scroll]').scrollTop > ${at.top}`)
+  // A short press that moves under the threshold is still a click: it drills.
+  const b2 = await spot('B2')
+  await page.drag(b2.x, b2.y, b2.x + 2, 2, b2.y + 1)
+  await rooted('task:B2')
+  // All tasks pans with a middle drag too, and the drag opens nothing.
+  await page.evaluate(`document.querySelector('[data-graph-tab="all"]').click()`)
+  await page.until(`Boolean(document.querySelector('[data-graph-view] [data-node="B2"]'))`)
+  // Any task node whose middle is in sight on the canvas.
+  const node = await page.evaluate(`(() => {
+    for (const n of document.querySelectorAll('[data-graph-view] [data-node]')) {
+      const r = n.getBoundingClientRect()
+      const at = { id: n.dataset.node, x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }
+      if (!n.getAttribute('aria-label').includes('collapsed') && document.elementFromPoint(at.x, at.y)?.closest('[data-node]') === n) return at
+    }
+    return null
+  })()`)
+  assert.ok(node, 'a task node in sight in All tasks')
+  const before = await page.evaluate(`document.querySelector('[data-graph-view] svg[role="group"] > g').getAttribute('transform')`)
+  await page.drag(node.x, node.y, node.x + 40, 8, node.y + 10, 'middle', false)
+  await page.until(`document.querySelector('[data-graph-view] svg[role="group"]').hasAttribute('data-panning')`)
+  assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-graph-view] [data-node="${node.id}"]')).cursor`), 'grabbing')
+  await page.release(node.x + 40, node.y + 10, 'middle')
+  assert.notEqual(await page.evaluate(`document.querySelector('[data-graph-view] svg[role="group"] > g').getAttribute('transform')`), before, 'All tasks panned')
+  await page.evaluate('new Promise((r) => setTimeout(r, 100))')
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-focus-tree]'))`), false, 'no drill')
 })
