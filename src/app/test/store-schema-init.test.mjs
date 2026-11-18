@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -148,4 +150,32 @@ test("opening a complete schema can read alongside another connection's writer",
     reader?.close();
     writer.close();
   }
+});
+
+test("opening waits for another process's exclusive lock instead of failing", async () => {
+  const file = filename();
+  new Store(file).close();
+  // Another process holds the file exclusively for a moment, as a tick's
+  // writer can while a CLI command opens the workspace.
+  const holder = spawn(
+    process.execPath,
+    [
+      "-e",
+      `const { DatabaseSync } = require("node:sqlite");
+const db = new DatabaseSync(${JSON.stringify(file)});
+db.exec("PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE; CREATE TABLE IF NOT EXISTS held(a); COMMIT;");
+console.log("locked");
+setTimeout(() => db.close(), 300);`,
+    ],
+    { stdio: ["ignore", "pipe", "inherit"] },
+  );
+  const exited = once(holder, "exit");
+  await once(holder.stdout, "data");
+  const store = new Store(file);
+  try {
+    healthy(store.db);
+  } finally {
+    store.close();
+  }
+  await exited;
 });
