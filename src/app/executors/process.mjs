@@ -32,16 +32,14 @@ import { healthContext, providerOf } from "../provider-health.mjs";
 import { taskRepository } from "../../work-model.mjs";
 import { hasRemoteTask } from "../remote-runner.mjs";
 import { addEvidence } from "../evidence.mjs";
+import { processRow } from "../role-table.mjs";
 
 export const PROCESS_EXECUTOR = "process";
 // The harness a `process` project runs when it names none.
 export const DEFAULT_HARNESS = "claude-code";
 const CONSUMER = "supervisor";
 
-// The executor a project's sessions run on: its `executor` setting, else
-// `kirocrew` (R93.5; a repository opts in, as the Nupp compiler's does).
-export const projectExecutor = (project) =>
-  project?.executor === PROCESS_EXECUTOR ? PROCESS_EXECUTOR : "kirocrew";
+export { projectExecutor } from "../role-table.mjs";
 
 function withDatabase(stateDirectory, use) {
   const db = openSupervisorDatabase(stateDirectory);
@@ -127,61 +125,21 @@ const LOW = new Set(["low", "out"]);
 // R97.3: every role runs on `process`. A Kiro Crew chat gets its role's
 // prompt from its agent file; a child gets the same prompt file at the top
 // of its brief. A worker's brief already holds its steps (processSteps).
-const reviewRole = (role) => /^review:/.test(role);
-const reportsVerdict = (role) => role === "verifier" || reviewRole(role);
-function rolePromptName(role) {
-  if (reviewRole(role)) return "reviewer";
-  return ["verifier", "retro", "planner"].includes(role) ? role : null;
-}
-
-// What a child does instead of the Avoozl tools it cannot reach (R96.1): a
-// sandboxed child has no database, so its report is the result file.
-const RESULT_LIMIT =
-  "Write no other file, keep the result file under 8 KB, then exit.";
-// A verdict child runs unattended, so only the project's allow-list runs in
-// its shell, and a command line runs only when every part of it is listed
-// (P59: a verifier that chained `od` and `cat` onto the check was refused
-// and reported blocked).
-function allowedShell(allowCommands) {
-  if (!allowCommands?.length)
-    return "Your shell runs no command here: read files with your file tools.";
-  return `Your shell runs only these commands, one per call, with no ; && | or $(...): ${allowCommands
-    .map((command) => `\`${command.join(" ")}\``)
-    .join(", ")}. Read files with your file tools.`;
-}
-function processFinish(role, allowCommands) {
-  if (reportsVerdict(role))
-    return [
-      "You run without Avoozl's tools, so these steps replace the worktree and plans_report steps above.",
-      "1. Avoozl already added the detached worktree at the commit: it is the current folder. Do not run git worktree add, and read only there.",
-      allowedShell(allowCommands),
-      '2. Instead of calling plans_report, write .avoozl/result.json in the current folder: {"state": "done", "report": {<every field of the plans_report input except taskId and commit>}}, or {"state": "blocked", "text": "<why>"} if you cannot judge the commit. Avoozl reads the commit from the folder itself.',
-      RESULT_LIMIT,
-    ];
-  if (role === "retro")
-    return [
-      'You run without Avoozl\'s tools. Instead of answering in chat, write your one JSON reply to .avoozl/result.json in the current folder as {"state": "done", "report": <the reply object>}.',
-      RESULT_LIMIT,
-    ];
-  if (role === "planner")
-    return [
-      "You run without Avoozl's tools. Write the spec folder's files as above, but skip plans_create_plan, plans_save_plan and every other plans_* call: Avoozl stores the folder once it lints clean. Then exit.",
-    ];
-  return [];
-}
+// The role table (role-table.mjs) holds each role's prompt and finish.
+const reportsVerdict = (role) => processRow(role)?.verdict === true;
 
 // The brief a `process` child reads: its role's prompt, the brief, then how
 // it finishes. A worker's brief is passed as it is. `allowCommands` is the
 // project's allow-list, which a verdict child is told.
 export function processBrief(role, brief, { allowCommands } = {}) {
-  const prompt = rolePromptName(role);
-  if (!prompt) return brief;
+  const row = processRow(role);
+  if (!row?.prompt) return brief;
   return [
-    rolePrompt(prompt).trim(),
+    rolePrompt(row.prompt).trim(),
     "",
     brief,
     "",
-    ...processFinish(role, allowCommands),
+    ...(row.finish?.(allowCommands) ?? []),
   ]
     .join("\n")
     .trim();
@@ -290,7 +248,8 @@ export async function commitChildWork(binding, worktree) {
 // stored by the tick's plan import, so its result records nothing.
 const VERDICT_FIELDS = ["verdict", "findings", "closures", "checks", "text"];
 export async function finishProcessSession(ops, binding, result, store = null) {
-  if (binding.role === "retro") {
+  const hands = processRow(binding.role)?.hands;
+  if (hands === "reply") {
     if (!store) return null;
     const { recordRetroReply } = await import("../flow-retro.mjs");
     return recordRetroReply(
@@ -303,7 +262,7 @@ export async function finishProcessSession(ops, binding, result, store = null) {
           : "",
     );
   }
-  if (binding.role === "planner") return null;
+  if (hands === "folder") return null;
   // A plan-less worker's task is not in a plan: its own runner reads HEAD,
   // runs the checks and pushes (R90.2).
   if (store && hasRemoteTask(store, binding.taskId))
@@ -407,8 +366,9 @@ export async function drainProcessRequests(
         continue;
       }
       const project = sessionProject(store, request);
+      const row = processRow(request.role);
       const worktree =
-        request.role === "worker" &&
+        row?.folder === "worktree" &&
         request.permissionClass === "write" &&
         prepareWorktree &&
         !hasRemoteTask(store, request.task)
@@ -426,10 +386,10 @@ export async function drainProcessRequests(
                 );
                 throw error;
               })
-            : // A retro reads only its brief: a scratch folder of its own.
-              request.role === "retro" && !request.worktree
-              ? fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-retro-"))
-              : request.role === "planner" && request.worktree
+            : // A scratch role reads only its brief: a folder of its own.
+              row?.folder === "scratch" && !request.worktree
+              ? fs.mkdtempSync(path.join(os.tmpdir(), row.scratch))
+              : row?.folder === "spec" && request.worktree
                 ? (fs.mkdirSync(request.worktree, { recursive: true }),
                   request.worktree)
                 : request.worktree;
@@ -501,7 +461,7 @@ export async function drainProcessRequests(
         let committed = true;
         if (
           status.startsWith("exited ") &&
-          binding.role === "worker" &&
+          processRow(binding.role)?.folder === "worktree" &&
           binding.permissionClass === "write"
         )
           await commitChildWork(
@@ -528,7 +488,10 @@ export async function drainProcessRequests(
           );
           // A retro that wrote no good result still ends its retro, as
           // failed, so the next one can start.
-          if (result?.state || (result && binding.role === "retro"))
+          if (
+            result?.state ||
+            (result && processRow(binding.role)?.hands === "reply")
+          )
             await finishProcessSession(ops, binding, result, store).catch(
               (error) =>
                 errors.push({ id: binding.slot, error: error.message }),
@@ -540,20 +503,21 @@ export async function drainProcessRequests(
           })?.root;
           if (verdictSession(binding, checkout))
             await removeDetached(checkout, binding.worktree);
-          if (binding.role === "retro" && !binding.worktree) {
+          const row = processRow(binding.role);
+          if (row?.folder === "scratch" && !binding.worktree) {
             const scratch = withDatabase(
               stateDirectory,
               (db) => childRecord(db, binding.slot)?.worktree,
             );
             if (
               scratch &&
-              path.basename(scratch).startsWith("avoozl-retro-") &&
+              path.basename(scratch).startsWith(row.scratch) &&
               path.dirname(scratch) === path.resolve(os.tmpdir())
             )
               fs.rmSync(scratch, { recursive: true, force: true });
           }
           // The supervisor's result folder must not stay in a spec folder.
-          if (binding.role === "planner" && binding.worktree) {
+          if (row?.folder === "spec" && binding.worktree) {
             const folder = path.join(binding.worktree, ".avoozl");
             fs.rmSync(path.join(folder, "result.json"), { force: true });
             try {

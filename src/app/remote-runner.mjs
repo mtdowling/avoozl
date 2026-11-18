@@ -513,7 +513,7 @@ export async function runnerTick(
             task: id,
             role: "worker",
             title: `avoozl:${id} remote task`,
-            ...(config.executor === "process" ? { executor: "process" } : {}),
+            executor: config.executor === "process" ? "process" : "kirocrew",
             ...kirocrewDetachedSession("remote"),
             agent: record.envelope.agent,
             ...(record.envelope.model ? { model: record.envelope.model } : {}),
