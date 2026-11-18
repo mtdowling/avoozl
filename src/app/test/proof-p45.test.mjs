@@ -127,7 +127,10 @@ test("P45 (1)–(3): findings first, a falsifier, the gate, Needs you, and small
   for (const id of ["a1", "a3"]) {
     assert.equal(byTask.get(id).investigate, true);
     assert.match(byTask.get(id).brief, /Investigate first/);
-    assert.match(byTask.get(id).brief, /"kind": "findings"/);
+    assert.match(
+      byTask.get(id).brief,
+      new RegExp(`runner report ${id} findings --file`),
+    );
   }
   for (const id of ["a1", "a2", "a3"])
     await w.bind(id, "w-" + id, {

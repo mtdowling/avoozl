@@ -31,6 +31,7 @@ function build(executor, kind) {
     return workerBrief(TASK, PROJECT, {
       attempt: 1,
       investigate: kind === "investigate",
+      findingsVia: { executor, cliReport },
       steps: cell.steps({ task: TASK, project: PROJECT, cliReport }),
     });
   if (kind === "batch") return cell.brief(null, DATA, LEAF, "");

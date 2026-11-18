@@ -43,8 +43,6 @@ test('Retros has Retros and Proposals pages, Flow keeps its charts, and every wr
   for (const part of ['data-prompt-drift', 'Approve rebase'])
     assert.ok(memory.includes(part), part)
   assert.doesNotMatch(memory, /LessonsView|Export lessons|sharePreview/)
-  // A failed lessons export says why (RC30.5).
-  assert.match(memory, /value\.lessonsExport\?\.error && \(/)
 })
 
 test('the plugin card shows suggested changes and no lessons pack', () => {
