@@ -1631,7 +1631,7 @@ GitHub, and a race between two workers shows exactly one claim wins.
 
 - [x] 43.1 Worker mode on the plan-less runner role, after avoozl-p52, avoozl-p61 [R90.1, R90.2] (§4.26)
   - Envelope with IDs only; repository and checks from the worker's own `.avoozl.json`; the worker reads `HEAD`, runs checks, pushes the branch.
-- [ ] 43.2 Pull minimal offers and qualified task refs, after 43.1 [R90.3, R90.5, R102.7] (§4.32)
+- [x] 43.2 Pull minimal offers and qualified task refs, after 43.1 [R90.3, R90.5, R102.7] (§4.32)
   - Read authorized offers from the spec journal, not ready issues. Resolve source repository/ref/SHA including forks separately from target/base; at most one offer per free lane. An unregistered URL cannot create a clone or command.
 
 - [ ] 43.3 Canonical claim reservation and generation acknowledgment, after 43.2 [R90.4, R102.14] (§4.32)
