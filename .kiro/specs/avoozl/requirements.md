@@ -857,9 +857,9 @@ assignees alone, so that tagging an issue gets it answered, broken into
 sub-issues, fanned out, and delivered in dependency order without me filing or
 starting anything.
 
-The idea is similar to the public glorp project (watch issues, dispatch agents,
-track to merge). Avoozl reuses none of its code, skills, or text; it builds the
-idea on Kiro Crew and Issue Radar. (**Proposed**)
+The idea is to watch issues, dispatch agents and track to merge. Avoozl builds
+it on Kiro Crew and Issue Radar and reuses no outside code, skills, or text.
+(**Proposed**)
 
 #### Acceptance criteria
 
