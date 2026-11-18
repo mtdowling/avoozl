@@ -311,6 +311,50 @@ export function withChildOutput(row, result) {
     : { ...result, outputValue: read.value };
 }
 
+// A review draft child (NK4.3): its draft is posted as a pending review,
+// as this session, with plans_post_review_draft's own checks, and only for
+// the head its snapshot was read at. A head that moved since keeps the
+// draft on its receipt, marked, and posts nothing. A line comment outside
+// the snapshot's diffs is dropped, since GitHub refuses a whole draft for it.
+async function finishReviewDraft(ops, binding, result, store) {
+  const receipt = store.get("receipts", binding.taskId),
+    draft = result.outputValue,
+    head = store.get("session_bindings", binding.slot)?.snapshotHead ?? null;
+  let current = null;
+  try {
+    current =
+      (
+        await ops.github?.pullRequestFeedback(receipt.repository, [
+          receipt.number,
+        ])
+      )?.[receipt.number]?.head ?? null;
+  } catch {
+    // Unreadable: the receipt's head is the one the draft is posted for.
+  }
+  if (!head || head !== receipt.headSha || (current && current !== head)) {
+    store.put("receipts", {
+      ...receipt,
+      state: "stale",
+      heldDraft: { ...draft, head },
+      staleAt: new Date().toISOString(),
+    });
+    return { posted: false, stale: true };
+  }
+  const { commentsInDiff } = await import("../pull-request-snapshot.mjs");
+  const { kept, dropped } = commentsInDiff(result.worktree, draft.comments);
+  if (dropped)
+    store.put("receipts", {
+      ...store.get("receipts", receipt.id),
+      droppedComments: dropped,
+    });
+  return ops.execute(
+    "reviewdraft.post",
+    { body: draft.body, ...(kept.length ? { comments: kept } : {}) },
+    undefined,
+    { caller: cliReportCaller(binding) },
+  );
+}
+
 // Record a child's result as its session's report, as `runner report` does
 // for a chat (R96.2, R96.3): matched by the supervisor's record, the text
 // kept as data, and a done report's commit read from the worktree's HEAD,
@@ -336,6 +380,10 @@ export async function finishProcessSession(ops, binding, result, store = null) {
           : "",
     );
   }
+  if (hands === "review-draft")
+    return result.state === "done"
+      ? finishReviewDraft(ops, binding, result, store)
+      : null;
   if (hands === "folder") return null;
   // The same operation a chat's tool call runs, as the supervisor's record of
   // this session (NK5.1), so it gets the same checks. A blocked result
