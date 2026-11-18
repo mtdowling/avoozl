@@ -12,6 +12,7 @@ import {
 } from "./views-api.ts";
 import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
+import { Box } from './ui/Box'
 
 const HEAD = ["Issue", "Crew", "Phase", "Claimed", "Last update", "PR"];
 
@@ -27,12 +28,11 @@ function Row({
   cost?: Cost[string];
 }) {
   return (
-    <tr
+    <Box
       data-radar-group-row
-      className="border-t align-top"
-      style={{ borderColor: "var(--border)" }}
+      as="tr" css-border-color="border" border="t" alignTop
     >
-      <td className="py-1 pr-2">
+      <Box as="td" py="1" pr="2">
         {linkHref(row.url) ? (
           <TextLink
             href={linkHref(row.url)}
@@ -49,23 +49,23 @@ function Row({
           {row.repository} #{row.number}
         </Hint>{" "}
         {row.stale && <Badge variant="warning">Stale</Badge>}
-      </td>
-      <td className="py-1 pr-2">
+      </Box>
+      <Box as="td" py="1" pr="2">
         {row.crewName ?? row.crewId ?? "no crew named"}
         {cost && cost.stages.length > 0 && (
           <Hint data-radar-cost size="xs" block>
             {cost.credits.toFixed(1)} credits, {cost.turns} turns
           </Hint>
         )}
-      </td>
-      <td className="py-1 pr-2">
+      </Box>
+      <Box as="td" py="1" pr="2">
         {row.phase ?? "claim label, no claim comment"}
-      </td>
-      <td className="py-1 pr-2">{relativeTime(row.claimedAt ?? null, now)}</td>
-      <td className="py-1 pr-2">
+      </Box>
+      <Box as="td" py="1" pr="2">{relativeTime(row.claimedAt ?? null, now)}</Box>
+      <Box as="td" py="1" pr="2">
         {relativeTime(row.updated ?? row.issueUpdatedAt ?? null, now)}
-      </td>
-      <td className="py-1">
+      </Box>
+      <Box as="td" py="1">
         {linkHref(row.prUrl) ? (
           <TextLink
             href={linkHref(row.prUrl)}
@@ -78,8 +78,8 @@ function Row({
         ) : (
           ""
         )}
-      </td>
-    </tr>
+      </Box>
+    </Box>
   );
 }
 
@@ -87,10 +87,9 @@ function Row({
 // then crew, phase, times and PR, wrapping inside the card.
 function PhoneRow({ row, now }: { row: RadarClaim; now: number }) {
   return (
-    <li
+    <Box
       data-radar-group-row
-      className="border-t py-1.5 text-sm"
-      style={{ borderColor: "var(--border)", overflowWrap: "anywhere" }}
+      as="li" css-border-color="border" css-overflow-wrap="anywhere" border="t" py="1.5" size="sm"
     >
       {linkHref(row.url) ? (
         <TextLink href={linkHref(row.url)} target="_blank" rel="noreferrer" aria-label={`Open issue ${row.number} on GitHub`}>
@@ -105,7 +104,7 @@ function PhoneRow({ row, now }: { row: RadarClaim; now: number }) {
         {relativeTime(row.updated ?? row.issueUpdatedAt ?? null, now)}
         {row.pr ? ` · PR #${row.pr}` : ""}
       </Hint>
-    </li>
+    </Box>
   );
 }
 
@@ -122,34 +121,34 @@ export default function RadarFlightGroups({
   return (
     <div data-radar-groups>
       {groups.map((group) => (
-        <section
+        <Box
           key={group.instanceId ?? "none"}
           data-radar-group={group.instanceId ?? "none"}
-          className="mt-2"
+          as="section" mt="2"
         >
-          <h5
-            className="text-xs font-semibold"
+          <Box
+            as="h5" size="xs" weight="semibold"
             title={group.instanceId ?? "These issues have no Avoozl marker."}
           >
             {group.name}
             {group.own ? " (this one)" : ""} ({group.rows.length})
-          </h5>
+          </Box>
           {phone ? (
-            <ul className="m-0 list-none p-0">
+            <Box as="ul" m0 listNone p="0">
               {group.rows.map((row) => (
                 <PhoneRow key={`${row.repository}#${row.number}`} row={row} now={now} />
               ))}
-            </ul>
+            </Box>
           ) : (
-          <table className="w-full text-left text-sm">
+          <Box as="table" wFull align="left" size="sm">
             <thead>
-              <tr className="text-xs text-muted">
+              <Box as="tr" size="xs" tone="muted">
                 {HEAD.map((name) => (
-                  <th key={name} scope="col" className="pr-2 font-normal">
+                  <Box key={name} scope="col" as="th" pr="2" weight="normal">
                     {name}
-                  </th>
+                  </Box>
                 ))}
-              </tr>
+              </Box>
             </thead>
             <tbody>
               {group.rows.map((row) => (
@@ -161,9 +160,9 @@ export default function RadarFlightGroups({
                 />
               ))}
             </tbody>
-          </table>
+          </Box>
           )}
-        </section>
+        </Box>
       ))}
     </div>
   );

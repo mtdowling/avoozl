@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { MODE_CARDS } from './settings-api.ts'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 const OPEN = 'var(--ok)'
 const MERGED = 'var(--tile-purple, var(--accent))'
@@ -51,49 +52,41 @@ function PullIcon({ color }: { color: string }) {
   )
 }
 
-const box: CSSProperties = {
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  background: 'var(--card)',
-  minWidth: 0,
-  overflow: 'hidden',
-}
 
 // One repository in GitHub's look: a header with owner/name, then rows.
 function Repo({ name, locked, children }: { name: string; locked?: boolean; children: ReactNode }) {
   return (
-    <div style={box} className="flex-1 text-[11px] leading-4">
-      <div
-        className="flex items-center gap-1 px-2 py-1 font-semibold"
-        style={{ background: 'var(--bg-elevated, transparent)', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}
+    <Box css-border="1px-solid-border" css-border-radius="6" css-background="card" css-min-width="0" css-overflow="hidden" flex1 size="11" leading4>
+      <Box
+        css-background="bg-elevated-transparent" css-border-bottom="1px-solid-border" css-color="text" flex items="center" gap="1" px="2" py="1" weight="semibold"
       >
         {locked && <Lock />}
-        <span className="truncate">{name}</span>
-      </div>
+        <Box as="span" truncate>{name}</Box>
+      </Box>
       <Stack>{children}</Stack>
-    </div>
+    </Box>
   )
 }
 
 function Row({ icon, title, pill, sub }: { icon: ReactNode; title: string; pill: ReactNode; sub?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 px-2 py-1" style={{ borderTop: '1px solid var(--border)' }}>
-      <div className="flex items-center gap-1">
+    <Box css-border-top="1px-solid-border" flex flexCol gap="0.5" px="2" py="1">
+      <Box flex items="center" gap="1">
         {icon}
-        <span className="min-w-0 flex-1 truncate" style={{ color: 'var(--text)' }}>
+        <Box as="span" css-color="text" minW0 flex1 truncate>
           {title}
-        </span>
+        </Box>
         {pill}
-      </div>
-      {sub && <div className="truncate text-muted">{sub}</div>}
-    </div>
+      </Box>
+      {sub && <Box truncate tone="muted">{sub}</Box>}
+    </Box>
   )
 }
 
 function PlansRepoPicture() {
   return (
     <div aria-hidden="true">
-    <div className="flex gap-3">
+    <Box flex gap="3">
       <Repo name="acme/plans" locked>
         <Row icon={<IssueIcon color={OPEN} />} title="Add login" pill={<Pill color={OPEN}>Open</Pill>} sub="#12 · spec 1.2" />
       </Repo>
@@ -105,22 +98,22 @@ function PlansRepoPicture() {
           sub="branch avoozl/1.2"
         />
       </Repo>
-    </div>
+    </Box>
       {/* The linked branch: merging its pull request closes the planning issue. */}
-      <div className="mt-1.5 flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--accent)' }}>
+      <Box css-color="accent" mt="1.5" flex items="center" gap="1.5" size="11">
         <svg width={64} height={10} viewBox="0 0 64 10" style={{ flex: 'none' }}>
           <path d="M62 5H4" fill="none" stroke="currentColor" strokeWidth={1.4} strokeDasharray="3 2" />
           <path d="M6 1 1 5l5 4" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <span>linked branch avoozl/1.2 closes #12 on merge</span>
-      </div>
+      </Box>
     </div>
   )
 }
 
 function SingleRepoPicture() {
   return (
-    <div className="flex" aria-hidden="true">
+    <Box flex aria-hidden="true">
       <Repo name="acme/app">
         <Row icon={<IssueIcon color={OPEN} />} title="Add login" pill={<Pill color={OPEN}>Open</Pill>} sub="#12 · spec 1.2" />
         <Row
@@ -134,18 +127,18 @@ function SingleRepoPicture() {
           }
         />
       </Repo>
-    </div>
+    </Box>
   )
 }
 
 function LocalPicture() {
   return (
-    <div className="flex" aria-hidden="true">
+    <Box flex aria-hidden="true">
       <Repo name="This Mac · Avoozl workspace">
         <Row icon={<IssueIcon color={OPEN} />} title="Add login" pill={<Pill color={MERGED}>Done</Pill>} sub="task 1.2 · in the database" />
         <Row icon={<PullIcon color={MERGED} />} title="avoozl/1.2 → main" pill={<Pill color={MERGED}>Merged</Pill>} sub="merged in your checkout" />
       </Repo>
-    </div>
+    </Box>
   )
 }
 
@@ -170,45 +163,45 @@ const MAKES: Record<string, string> = {
 
 export function RoleHelp() {
   return (
-    <details className="text-sm" data-role-help>
-      <summary className="cursor-pointer font-medium">What the roles make</summary>
-      <div className="mt-2 flex flex-col gap-4">
+    <Box as="details" size="sm" data-role-help>
+      <Box as="summary" cursorPointer weight="medium">What the roles make</Box>
+      <Box mt="2" flex flexCol gap="4">
         {MODE_CARDS.map((card) => {
           const Picture = PICTURE[card.mode]
           return (
-            <div key={card.mode} className="flex min-w-0 flex-col gap-2" data-role-outcome={card.mode}>
+            <Box key={card.mode} flex minW0 flexCol gap="2" data-role-outcome={card.mode}>
               <div>
-                <span className="font-semibold">{card.title}</span>
+                <Box as="span" weight="semibold">{card.title}</Box>
                 <Hint as="p" size="xs">{MAKES[card.mode]}</Hint>
               </div>
-              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
-                <div className="rounded-md p-2.5" style={{ background: 'var(--bg-elevated, transparent)' }}>
+              <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-280px-1fr" grid gap="3">
+                <Box css-background="bg-elevated-transparent" rounded="md" p="2.5">
                   <Picture />
-                  <p className="mt-2 text-[11px] text-muted">{CAPTION[card.mode]}</p>
-                </div>
-                <div className="flex flex-col gap-2 text-xs">
+                  <Box as="p" mt="2" size="11" tone="muted">{CAPTION[card.mode]}</Box>
+                </Box>
+                <Box flex flexCol gap="2" size="xs">
                   <div>
-                    <span className="font-semibold">Use it when</span>
-                    <ul className="mt-1 flex flex-col gap-0.5 pl-4" style={{ listStyle: 'disc' }}>
+                    <Box as="span" weight="semibold">Use it when</Box>
+                    <Box as="ul" css-list-style="disc" mt="1" flex flexCol gap="0.5" pl="4">
                       {card.useWhen.map((item) => (
                         <li key={item}>{item}</li>
                       ))}
-                    </ul>
+                    </Box>
                   </div>
-                  <dl className="grid gap-x-3 gap-y-1" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+                  <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1">
                     {card.facts.map(([label, text]) => (
-                      <div key={label} className="contents">
+                      <Box key={label} contents>
                         <Hint as="dt">{label}</Hint>
                         <dd>{text}</dd>
-                      </div>
+                      </Box>
                     ))}
-                  </dl>
-                </div>
-              </div>
-            </div>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
           )
         })}
-      </div>
-    </details>
+      </Box>
+    </Box>
   )
 }

@@ -16,6 +16,8 @@ const ROLES = new Set([
   "responder",
   "planner",
   "retro",
+  // A page-opened assistant (session-open.mjs).
+  "assist",
   "pr-review",
   // A review draft chat (review-draft.mjs, RC20).
   "review-draft",
@@ -184,6 +186,9 @@ export function bindSession(
         // A spec review binds to its revision-bound round, not a task.
         (["plan-review", "plan-answer"].includes(role) &&
           store.get("review_rounds", named)?.spec) ||
+        // A page-opened assistant binds to its record (session-open.mjs).
+        (role === "assist" &&
+          store.get("receipts", named)?.kind === "assist-session") ||
         // A conflict fix chat binds to its attempt (radar-conflict-fix.mjs).
         (role === "conflict-fix" &&
           store.get("receipts", named)?.kind === "conflict-fix") ||

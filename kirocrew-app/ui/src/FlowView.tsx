@@ -47,8 +47,8 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
-const BAR: CSSProperties = { display: 'flex', height: 12, borderRadius: 4, overflow: 'hidden', background: 'color-mix(in srgb, var(--muted) 15%, transparent)' }
 
 // A stacked bar by stage, scaled to `scale` ms (the longest bar shown).
 export function StageBar({ stages, scale, label }: { stages: Record<string, number>; scale: number; label: string }) {
@@ -59,11 +59,11 @@ export function StageBar({ stages, scale, label }: { stages: Record<string, numb
     <div style={{ width: `${Math.max(4, scale ? (100 * total) / scale : 100)}%` }}>
       <Tooltip text={text} display="block">
         {(describedBy) => (
-          <div role="img" aria-label={text} aria-describedby={describedBy} tabIndex={0} style={BAR}>
+          <Box role="img" aria-label={text} aria-describedby={describedBy} tabIndex={0} css-display="flex" css-height="12" css-border-radius="4" css-overflow="hidden" css-background="mix-muted-15%-transparent">
             {parts.map((p) => (
               <span key={p.stage} style={{ width: `${p.share * 100}%`, background: p.color, display: 'block', height: '100%' }} />
             ))}
-          </div>
+          </Box>
         )}
       </Tooltip>
     </div>
@@ -72,14 +72,14 @@ export function StageBar({ stages, scale, label }: { stages: Record<string, numb
 
 export function StageLegend() {
   return (
-    <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted" aria-label="Stages">
+    <Box as="ul" flex flexWrap gapX="3" gapY="1" size="xs" tone="muted" aria-label="Stages">
       {STAGES.map((stage) => (
-        <li key={stage} className="inline-flex items-center gap-1">
+        <Box key={stage} as="li" inlineFlex items="center" gap="1">
           <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 2, background: STAGE_COLORS[stage], display: 'inline-block' }} />
           {STAGE_LABELS[stage]}
-        </li>
+        </Box>
       ))}
-    </ul>
+    </Box>
   )
 }
 
@@ -129,10 +129,10 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
   return (
     <Stack gap={2} data-line-banner>
       {stops.map((stop) => (
-        <div key={stop.id} role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm" style={{ borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 10%, var(--card))' }}>
+        <Box key={stop.id} role="alert" css-border-color="danger" css-background="mix-danger-10%-card" flex flexWrap items="center" gap="3" rounded="lg" border="all" p="3" size="sm">
           <CircleAlert size={18} aria-hidden="true" style={{ color: 'var(--danger)', flex: 'none' }} />
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5" style={{ minWidth: '14rem' }}>
-            <span style={{ overflowWrap: 'anywhere' }}>{bannerText(stop)}</span>
+          <Box css-min-width="14rem" flex minW0 flex1 flexCol gap="0.5">
+            <Box as="span" css-overflow-wrap="anywhere">{bannerText(stop)}</Box>
             {stop.manual && (
               <Hint size="xs" data-line-pulled>
                 Pulled by {stop.by?.name ?? 'someone'}, {relativeTime(stop.openedAt, Date.now())}. Only a person can resume it.
@@ -143,7 +143,7 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
                 Run anyway by {stop.runAnyway.by}, {relativeTime(stop.runAnyway.at, Date.now())}.
               </Hint>
             )}
-          </div>
+          </Box>
           <Row gap={2} align="start">
             {stop.fixTaskId && (
               <IconLabel icon={DetailsIcon} tooltip="Open the fix task's details in the drawer" onClick={() => drawer.openTask(stop.fixTaskId!)}>
@@ -161,7 +161,7 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
               </IconLabel>
             )}
           </Row>
-        </div>
+        </Box>
       ))}
       {error && (
         <ErrorText role="alert" size="sm">
@@ -181,19 +181,19 @@ function MetricCards({ view }: { view: FlowViewModel }) {
         <Card key={card.key} className="flex flex-col gap-1" style={{ minWidth: 0 }}>
           <Tooltip text={card.tip}>
             {(describedBy) => (
-              <span aria-describedby={describedBy} tabIndex={0} className="text-xs text-muted" style={{ width: 'fit-content', overflowWrap: 'anywhere', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.75rem' }}>
+              <Box aria-describedby={describedBy} tabIndex={0} as="span" css-width="fit-content" css-overflow-wrap="anywhere" css-font-weight="700" css-text-transform="uppercase" css-font-size="0.75rem" size="xs" tone="muted">
                 {card.title}
-              </span>
+              </Box>
             )}
           </Tooltip>
           {card.empty ? (
             <Hint size="sm">{card.empty}</Hint>
           ) : (
             <>
-              <span className="text-xl font-semibold tabular-nums" style={{ overflowWrap: 'anywhere', fontSize: '1.25rem' }}>
+              <Box as="span" css-overflow-wrap="anywhere" css-font-size="1.25rem" textXl weight="semibold" tabularNums>
                 {card.value}
-              </span>
-              <span className="text-xs text-muted tabular-nums">{card.was ? `was ${card.was}` : 'no earlier window'}</span>
+              </Box>
+              <Box as="span" size="xs" tone="muted" tabularNums>{card.was ? `was ${card.was}` : 'no earlier window'}</Box>
             </>
           )}
         </Card>
@@ -212,16 +212,16 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
     <Card className="flex flex-col gap-2">
       <SectionHeading title="Time per task" />
       <StageLegend />
-      <ul className="flex flex-col gap-1.5">
+      <Box as="ul" flex flexCol gap="1.5">
         {shown.map((task) => {
           const name = (
-            <span className="min-w-0 truncate">
-              <span className="tabular-nums">{task.taskId}</span> <Hint>{task.title}</Hint>
-            </span>
+            <Box as="span" minW0 truncate>
+              <Box as="span" tabularNums>{task.taskId}</Box> <Hint>{task.title}</Hint>
+            </Box>
           )
           const bar = <StageBar stages={task.stages} scale={scale} label={task.taskId} />
           const info = (
-            <span className="inline-flex items-center gap-1.5 whitespace-nowrap tabular-nums">
+            <Box as="span" inlineFlex items="center" gap="1.5" whitespace="nowrap" tabularNums>
               {task.coarse && (
                 <Tooltip text="Built from phase markers or events, not from tool calls">
                   {(describedBy) => (
@@ -240,26 +240,26 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
                   </button>
                 )}
               </Tooltip>
-            </span>
+            </Box>
           )
           // Narrow screens: the bar gets its own full-width row.
           return narrow ? (
-            <li key={task.taskId} className="flex flex-col gap-1 text-sm" data-flow-bar={task.taskId}>
-              <span className="flex items-center justify-between gap-2">
+            <Box key={task.taskId} as="li" flex flexCol gap="1" size="sm" data-flow-bar={task.taskId}>
+              <Box as="span" flex items="center" justify="between" gap="2">
                 {name}
                 {info}
-              </span>
+              </Box>
               {bar}
-            </li>
+            </Box>
           ) : (
-            <li key={task.taskId} className="grid items-center gap-2 text-sm" style={{ gridTemplateColumns: 'minmax(6rem, 14rem) minmax(0, 1fr) auto' }} data-flow-bar={task.taskId}>
+            <Box key={task.taskId} as="li" css-grid-template-columns="minmax-6rem-14rem-minmax-0-1fr-auto" grid items="center" gap="2" size="sm" data-flow-bar={task.taskId}>
               {name}
               {bar}
               {info}
-            </li>
+            </Box>
           )
         })}
-      </ul>
+      </Box>
       <ShowMore {...pages.more('flow-bars', tasks.length)} />
       <Hint as="p" size="xs">(coarse) marks bars built from reports, not tool calls.</Hint>
     </Card>
@@ -278,7 +278,7 @@ function Records({ view }: { view: FlowViewModel }) {
       ))}
       {view.flaky.slice(0, 10).map((r) => (
         <span key={r.id}>
-          Flaky: <code className="text-xs">{r.check}</code> failed, then passed on {r.commit.slice(0, 7)}.
+          Flaky: <Box as="code" size="xs">{r.check}</Box> failed, then passed on {r.commit.slice(0, 7)}.
         </span>
       ))}
     </Card>
@@ -309,7 +309,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
   const [order, setOrder] = useState(FLOW_ORDER)
   const choices = useMemo(() => (all ? flowChoices(all, view?.phases) : null), [all, view?.phases])
   return (
-    <section aria-labelledby="avoozl-flow-title" className="flex flex-col gap-3.5">
+    <Box aria-labelledby="avoozl-flow-title" as="section" flex flexCol gap="3.5">
       <ViewHeading id="avoozl-flow-title" view="flow">
         Flow
       </ViewHeading>
@@ -332,7 +332,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
             <Card className="flex items-start gap-2 text-sm">
               <Gauge size={18} aria-hidden="true" style={{ color: STAGE_COLORS[view.bottleneck.stage], flex: 'none' }} />
               <span>
-                <span className="font-semibold">Biggest bottleneck: {STAGE_LABELS[view.bottleneck.stage]}</span>, {Math.round(view.bottleneck.share * 100)}% of lead time
+                <Box as="span" weight="semibold">Biggest bottleneck: {STAGE_LABELS[view.bottleneck.stage]}</Box>, {Math.round(view.bottleneck.share * 100)}% of lead time
                 {view.bottleneck.repository ? ` in ${view.bottleneck.repository}` : ''} (median {duration(view.bottleneck.medianMs)} per task).
               </span>
             </Card>
@@ -351,7 +351,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
           <Records view={view} />
         </>
       )}
-    </section>
+    </Box>
   )
 }
 
@@ -369,35 +369,35 @@ export function TimingFold({
 }) {
   if (!timing) return <Hint as="p" size="sm">No timing yet: Avoozl records it from the task's first dispatch.</Hint>
   return (
-    <div className="flex flex-col gap-2 text-sm" data-timing-fold>
+    <Box flex flexCol gap="2" size="sm" data-timing-fold>
       <Row gap={2} wrap={false}>
-        <div className="min-w-0 flex-1">
+        <Box minW0 flex1>
           <StageBar stages={timing.stages} scale={0} label={timing.taskId} />
-        </div>
-        <span className="tabular-nums">{duration(timing.leadMs)}</span>
+        </Box>
+        <Box as="span" tabularNums>{duration(timing.leadMs)}</Box>
       </Row>
       {timing.batch && <Hint size="xs">Ran in {timing.batch}.</Hint>}
-      <ul className="flex flex-col gap-0.5">
+      <Box as="ul" flex flexCol gap="0.5">
         {timing.spans.map((span) => (
-          <li key={span.id} className="flex items-center gap-2">
+          <Box key={span.id} as="li" flex items="center" gap="2">
             <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: STAGE_COLORS[span.stage as keyof typeof STAGE_COLORS] ?? 'var(--muted)', flex: 'none' }} />
             <span>{STAGE_LABELS[span.stage as keyof typeof STAGE_LABELS] ?? span.stage}</span>
-            {span.detail && <code className="text-xs">{span.detail}</code>}
-            <span className="tabular-nums">{duration(span.lengthMs)}</span>
+            {span.detail && <Box as="code" size="xs">{span.detail}</Box>}
+            <Box as="span" tabularNums>{duration(span.lengthMs)}</Box>
             <Hint size="xs">{SOURCE_TEXT[span.source]}</Hint>
-          </li>
+          </Box>
         ))}
-      </ul>
+      </Box>
       {timing.versions && timing.versions.length > 0 && (
-        <ul className="flex flex-col gap-0.5 text-xs text-muted" data-timing-versions>
+        <Box as="ul" flex flexCol gap="0.5" size="xs" tone="muted" data-timing-versions>
           {timing.versions.map((v) => (
-            <li key={v.attempt} style={{ overflowWrap: 'anywhere' }}>
+            <Box key={v.attempt} as="li" css-overflow-wrap="anywhere">
               Attempt {v.attempt} ran on {Object.values(v.prompts).join(', ') || 'the built-in prompts'}
               {Object.keys(v.skills).length ? `; skills ${Object.entries(v.skills).map(([target, sha]) => `${target}@${sha.slice(0, 8)}`).join(', ')}` : ''}.
-            </li>
+            </Box>
           ))}
-        </ul>
+        </Box>
       )}
-    </div>
+    </Box>
   )
 }

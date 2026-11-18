@@ -4502,7 +4502,7 @@ write in the tick.
 **Run, check, split.** Unchanged from §4.11: `batchBrief`, one commit and
 one `done` per task, checks and review on the last commit, `splitBatch` on
 failure with no attempt cost and `batchSplit` on each delivery. The
-`flow_batches` record gains `reason`. Landing trains (the `landing-trains`
+`flow_batches` record gains `reason`. Merge batches (the `merge-batches`
 spec) do the test-once and bisect on landing; batching adds no landing
 step.
 

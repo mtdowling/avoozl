@@ -20,6 +20,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 const STATE_TEXT: Record<string, string> = {
   found: "Found",
@@ -90,10 +91,9 @@ export default function MirrorSetup(props: {
   const chosen = result ? tickedIds(result.lines, unticked) : [];
 
   return (
-    <div
+    <Box
       data-mirror-setup
-      className="flex flex-col gap-2 rounded-lg border p-3"
-      style={{ borderColor: "var(--border)" }}
+      css-border-color="border" flex flexCol gap="2" rounded="lg" border="all" p="3"
     >
       <SectionHeading level={4} title="Set up the mirror" className="mb-0" />
       <Hint as="p" size="sm">
@@ -103,7 +103,7 @@ export default function MirrorSetup(props: {
       </Hint>
       <Row gap={2}>
         {MIRROR_BUTTONS.map((button) => (
-          <span key={button.kind} className="inline-flex items-center gap-1.5">
+          <Box key={button.kind} as="span" inlineFlex items="center" gap="1.5">
             <Btn
               type="button"
               disabled={busy || !names.repository || !names.source}
@@ -113,33 +113,32 @@ export default function MirrorSetup(props: {
               {button.label}
             </Btn>
             <InfoTip text={button.about} label={`About ${button.label}`} />
-          </span>
+          </Box>
         ))}
       </Row>
       {error && (
-        <p
+        <Box
           role="alert"
-          className="text-sm"
-          style={{ color: "var(--danger, #c0392b)" }}
+          as="p" css-color="danger-c0392b" size="sm"
         >
           {error}
-        </p>
+        </Box>
       )}
       {result && (
         <Stack data-mirror-run={run?.kind} gap={2}>
-          <p className="text-sm font-medium">
+          <Box as="p" size="sm" weight="medium">
             {result.applied ? "Result" : "Dry run"}: {result.repository} from{" "}
             {result.source}. {result.writes}{" "}
             {result.writes === 1 ? "write" : "writes"} left.
-          </p>
-          {result.refused && <p className="text-sm">{result.detail}</p>}
+          </Box>
+          {result.refused && <Box as="p" size="sm">{result.detail}</Box>}
           <Stack as="ul" gap={1} data-mirror-lines>
             {result.lines.map((line) => (
-              <li
+              <Box
                 key={line.id}
                 data-mirror-line={line.id}
                 data-status={line.status}
-                className="flex items-start gap-2 text-sm"
+                as="li" flex items="start" gap="2" size="sm"
               >
                 <Switch
                   label={`Write ${LINE_NAMES[line.id] ?? line.id}`}
@@ -151,10 +150,10 @@ export default function MirrorSetup(props: {
                   }
                   onChange={() => toggle(line.id)}
                 />
-                <span className="min-w-0 flex-1">
-                  <span className="font-medium">
+                <Box as="span" minW0 flex1>
+                  <Box as="span" weight="medium">
                     {LINE_NAMES[line.id] ?? line.id}
-                  </span>{" "}
+                  </Box>{" "}
                   <Hint size="xs">
                     {STATE_TEXT[line.state] ?? line.state}
                   </Hint>
@@ -164,23 +163,23 @@ export default function MirrorSetup(props: {
                       ? ` Needs: ${line.permission}.`
                       : ""}
                   </Hint>
-                </span>
-              </li>
+                </Box>
+              </Box>
             ))}
           </Stack>
           {result.applied && (
-            <ul data-mirror-applied className="flex flex-col gap-1 text-sm">
+            <Box data-mirror-applied as="ul" flex flexCol gap="1" size="sm">
               {result.applied.map((row) => (
                 <li key={row.id}>
                   {LINE_NAMES[row.id] ?? row.id}: {row.status}. {row.detail}
                 </li>
               ))}
-            </ul>
+            </Box>
           )}
           {result.next === "radar-values" && (
-            <p className="text-sm">
+            <Box as="p" size="sm">
               Next: enter the Radar values on Settings › Issue Radar.
-            </p>
+            </Box>
           )}
           {!result.applied && (
             <Row gap={2} align="start">
@@ -207,6 +206,6 @@ export default function MirrorSetup(props: {
           )}
         </Stack>
       )}
-    </div>
+    </Box>
   );
 }

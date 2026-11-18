@@ -45,8 +45,9 @@ const verdictFinish = (allowCommands) => [
 //   access   what the child may do to files
 //   folder   how the drain makes the child's folder: worktree (the task's),
 //            detached (a worktree at the commit), scratch (an empty folder),
-//            spec (the spec folder the request names), snapshot (a scratch
-//            folder `snapshot(store, request)` fills with {path: text})
+//            spec (the spec folder the request names), given (the folder the
+//            request names, used as it is: the workspace root), snapshot (a
+//            scratch folder `snapshot(store, request)` fills with {path: text})
 //   scratch  the name prefix of a scratch or snapshot folder in the temp
 //            folder, which the drain removes once the child exits
 //   output   {limit, validate}: the one output file under .avoozl/output/ a
@@ -60,6 +61,21 @@ const verdictFinish = (allowCommands) => [
 //   finish   the lines that replace the Avoozl tools in a child's brief
 //   offline  true when the child gets no network, whatever its project
 //            allows: it reads only its folder and brief
+// A plan review's output file: {findings: [...], summary?}. The findings'
+// own rules are plans_submit_review's.
+function planReviewOutput(text) {
+  const value = JSON.parse(text);
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    !Array.isArray(value.findings) ||
+    Object.keys(value).some((key) => !["findings", "summary"].includes(key))
+  )
+    throw Error('write {"findings": [...], "summary"?: "..."}');
+  return value;
+}
+
 // A review draft's snapshot: the pull request its receipt names, read with
 // Avoozl's own GitHub client before the child starts (NK4.1).
 async function reviewDraftSnapshot(store, request, { github }) {
@@ -230,17 +246,40 @@ export const ROLE_TABLE = Object.freeze({
     process: true,
     access: "write",
   },
+  // Plan review reads the plan snapshot Avoozl prepares and hands back its
+  // findings and summary in an output file. A round counts only with a
+  // served model the harness output names (NK3.3, NK5.2).
   planReviewer: {
     setting: "planReviewer",
     roles: ["plan-review"],
-    process: false,
+    prompt: "plan-review",
+    process: true,
     access: "read",
+    hands: "plan-review",
+    served: true,
+    // shortcut: a byte limit for the file only; the 50 findings and every
+    // field limit are plans_submit_review's own, applied when it is recorded.
+    output: { limit: 1_048_576, validate: planReviewOutput },
+    finish: () => [
+      'You run without Avoozl\'s tools. Instead of calling plans_submit_review, write your findings to .avoozl/output/review.json in the current folder as {"findings": [<each finding as plans_submit_review takes it>], "summary": "<optional>"}, then write .avoozl/result.json as {"state": "done", "output": "review.json"}. Avoozl fills in the plan and revision.',
+      "Write no other file, then exit.",
+    ],
   },
+  // The plan answer edits only its spec folder; on exit Avoozl stores the
+  // revision as this session's and records each answer (NK5.3).
   planAnswer: {
     setting: "planAnswer",
     roles: ["plan-answer"],
-    process: false,
+    prompt: "planner",
+    process: true,
     access: "write",
+    folder: "spec",
+    hands: "plan-answer",
+    finish: () => [
+      "You run without Avoozl's tools, so skip plans_plan_review, plans_save_plan and plans_answer_review: the findings are in your brief, and the current folder is your spec folder.",
+      'Edit the spec files here for each finding you fix. Then write .avoozl/result.json as {"state": "done", "report": {"answers": [{"id": "<finding id>", "action": "fixed" | "answered", "text": "<what you changed, or why not>"}]}}. Avoozl stores your edited folder as the new revision and names it on each fixed answer. If you changed no file, answer every finding "answered".',
+      RESULT_LIMIT,
+    ],
   },
   // A review draft reads the pull request snapshot and hands back its body
   // and line comments; Avoozl posts the pending review for the recorded
@@ -285,6 +324,20 @@ export const ROLE_TABLE = Object.freeze({
       "You run without Avoozl's tools or network. The pull request is in pull-request/ in the current folder: read pull-request/README.md first. Do not run gh.",
       'Write your whole review, each comment with its file and line, to .avoozl/output/review.md, then write .avoozl/result.json as {"state": "done", "output": "review.md"}. Avoozl keeps it with this session and posts nothing.',
       "Write no other file, then exit.",
+    ],
+  },
+  // The page's Open chat on a machine with no Kiro Crew (standalone-web SW7):
+  // a read-only child in the workspace root that answers and proposes.
+  assist: {
+    setting: "assist",
+    roles: ["assist"],
+    prompt: "assist",
+    process: true,
+    access: "read",
+    folder: "given",
+    hands: "folder",
+    finish: () => [
+      "You run without Avoozl's tools. Answer in your reply, then exit. Write no file.",
     ],
   },
 });

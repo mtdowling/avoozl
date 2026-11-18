@@ -10,6 +10,7 @@ import { useNavSlotHost } from './nav-slot.tsx'
 import { ChevronDown } from './icons.ts'
 import { NAV_PILL } from './nav-style.ts'
 import Badge from './ui/Badge.tsx'
+import { Box } from './ui/Box'
 
 export interface NavChild {
   key: string
@@ -38,9 +39,6 @@ const CARD = { position: 'relative', overflow: 'hidden', border: '1px solid var(
 // their own height.
 const OPEN_MIN = 96
 const OPEN_CARD = { ...CARD, flex: '1 1 0%', minHeight: OPEN_MIN, display: 'flex', flexDirection: 'column' } as const
-// Sub-pages and slot content line up with the header: 12px in from the
-// card, like the header's own icon; a row's text is 8px further in.
-const BODY = { display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 12px 8px', minHeight: 0, flex: '1 1 auto', overflowY: 'auto' } as const
 
 // Hover and keyboard focus use Kiro Crew's theme variables, as in Radar's
 // sidebar. The selected item keeps its tint; a hover on it only deepens it.
@@ -125,15 +123,15 @@ export function NavAccordion(props: {
                 }
               }}
             >
-              <span data-nav-label style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>{group.label}</span>
+              <Box data-nav-label as="span" css-flex="1" css-min-width="0" css-display="flex" css-align-items="center" css-overflow="hidden">{group.label}</Box>
               {kids && (
-                <span aria-hidden="true" data-nav-chevron style={{ transform: expanded ? 'none' : 'rotate(-90deg)' }}>
+                <Box aria-hidden="true" data-nav-chevron as="span" css-transform={expanded ? 'none' : 'rotate-90deg'}>
                   <ChevronDown size={14} />
-                </span>
+                </Box>
               )}
             </button>
             {expanded && kids && (
-              <div data-nav-children={group.key} style={BODY}>
+              <Box data-nav-children={group.key} css-display="flex" css-flex-direction="column" css-gap="2" css-padding="2px-12px-8px" css-min-height="0" css-flex="1-1-auto" css-overflow-y="auto">
                 {kids.map((item) => {
                   const selected = here && props.child === item.key
                   return (
@@ -149,12 +147,12 @@ export function NavAccordion(props: {
                       }}
                     >
                       <span data-nav-text>{item.label}</span>
-                      {item.count ? <span data-nav-count style={{ flexShrink: 0, display: 'inline-flex' }}><Badge variant="warning">{item.count}</Badge></span> : null}
+                      {item.count ? <Box data-nav-count as="span" css-flex-shrink="0" css-display="inline-flex"><Badge variant="warning">{item.count}</Badge></Box> : null}
                     </button>
                   )
                 })}
                 {group.slot && <div data-nav-slot={group.key} ref={slotRef(group.key)} style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: kids.length ? 6 : 2 }} />}
-              </div>
+              </Box>
             )}
           </div>
         )

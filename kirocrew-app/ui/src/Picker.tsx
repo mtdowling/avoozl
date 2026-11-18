@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type R
 import { selectStyle } from './FilterSelect.tsx'
 import { pickIndex, pickKey, pickLabel, pickMatches, type PickItem } from './picker.ts'
 import { LAYER } from './layers.ts'
+import { Box } from './ui/Box'
 
 export function Picker(props: {
   id?: string
@@ -127,24 +128,24 @@ export function Picker(props: {
               style={i === active ? { background: 'color-mix(in srgb, var(--text) 10%, transparent)' } : undefined}
             >
               {props.plain ? (
-                <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                <Box as="span" minW0 flex1 truncate>{item.title}</Box>
               ) : (
                 <>
-                  <span className="shrink-0 text-xs text-muted">{item.id}</span>
-                  <span className="min-w-0 flex-1 truncate">{item.title !== item.id ? item.title : ''}</span>
+                  <Box as="span" shrink0 size="xs" tone="muted">{item.id}</Box>
+                  <Box as="span" minW0 flex1 truncate>{item.title !== item.id ? item.title : ''}</Box>
                 </>
               )}
-              {item.spec && <span className="shrink-0 text-xs text-muted">{item.spec}</span>}
+              {item.spec && <Box as="span" shrink0 size="xs" tone="muted">{item.spec}</Box>}
               {item.state && (
-                <span className="shrink-0 rounded border px-1 text-xs" style={{ borderColor: 'var(--border)' }}>
+                <Box as="span" css-border-color="border" shrink0 rounded="base" border="all" px="1" size="xs">
                   {item.state}
-                </span>
+                </Box>
               )}
             </li>
           ))}
         </ul>
-        {total === 0 && <p className="px-2 py-1 text-xs text-muted">No match.</p>}
-        {total > shown.length && <p className="px-2 py-1 text-xs text-muted">{total - shown.length} more; type to narrow.</p>}
+        {total === 0 && <Box as="p" px="2" py="1" size="xs" tone="muted">No match.</Box>}
+        {total > shown.length && <Box as="p" px="2" py="1" size="xs" tone="muted">{total - shown.length} more; type to narrow.</Box>}
       </div>
     </div>
   )

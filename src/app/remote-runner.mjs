@@ -16,7 +16,7 @@ import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { execFile, spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { enforce, pushLines } from "./content-rules.mjs";
 import { fail } from "./store.mjs";
@@ -34,13 +34,10 @@ import {
 
 const run = promisify(execFile);
 const TASKS = "runner.tasks";
-const HOSTS = "runner.remote";
 const NAME = /^[A-Za-z][A-Za-z0-9._-]{0,63}$/;
 const TASK_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
 const SHA = /^[0-9a-f]{40}$/;
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
-const CHAT_PATH = /^\/chat\?sid=[A-Za-z0-9._%:-]{1,300}$/;
-const MAX_BRIEF = 8000;
 const MAX_ENVELOPE = 32 * 1024;
 const ENVELOPE_KEYS = [
   "version",
@@ -54,10 +51,9 @@ const ENVELOPE_KEYS = [
   "spec",
 ];
 const SPEC = /^[a-z0-9][a-z0-9-]{0,79}$/;
-// A runner takes envelopes over SSH. A worker (R90.1) takes them only from
-// its own pull; both hold no plans and share the task tick.
-export const HOLDS_TASKS = (config) =>
-  config?.role === "runner" || config?.role === "worker";
+// A worker (R90.1) holds no plans: it takes tasks only from its own pull and
+// runs them on the task tick.
+export const HOLDS_TASKS = (config) => config?.role === "worker";
 const TERMINAL = new Set(["pushed", "failed"]);
 export const REMOTE_AGENTS = ["kirocrew-worker"];
 
@@ -94,7 +90,7 @@ export function readRunnerConfig(workspaceRoot, env = process.env) {
   if (block === undefined || block?.role === undefined) return null;
   if (!block || typeof block !== "object" || Array.isArray(block))
     fail(".avoozl.json runner must be an object.");
-  if (block.role === "runner" || block.role === "worker") {
+  if (block.role === "worker") {
     const repos = block.repos || {},
       checks = block.checks || {};
     for (const [id, repo] of Object.entries(repos))
@@ -126,28 +122,12 @@ export function readRunnerConfig(workspaceRoot, env = process.env) {
         : null,
       // A worker's own pull: where the journals are, which source
       // repositories it may fetch, and how many tasks it runs at once.
-      ...(block.role === "worker"
-        ? {
-            pools: poolsOf(block.pools),
-            sources: (sourceRegistry(block.sources), block.sources ?? {}),
-            lanes: lanesOf(block.lanes),
-          }
-        : {}),
+      pools: poolsOf(block.pools),
+      sources: (sourceRegistry(block.sources), block.sources ?? {}),
+      lanes: lanesOf(block.lanes),
     };
   }
-  if (block.role === "driver") {
-    const hosts = block.hosts || {};
-    for (const [id, host] of Object.entries(hosts))
-      if (
-        !NAME.test(id) ||
-        (host.via === "local"
-          ? !Array.isArray(host.argv) || !host.argv.length
-          : typeof host.ssh !== "string" || !/^[\w.@-]{1,200}$/.test(host.ssh))
-      )
-        fail(`runner.hosts.${id} needs an ssh host (user@host).`);
-    return { role: "driver", hosts };
-  }
-  fail('runner.role is "runner", "worker" or "driver".');
+  fail('runner.role is "worker".');
 }
 
 const workerTaskBrief = ({ spec, taskId }) =>
@@ -169,23 +149,12 @@ export function validateEnvelope(value, config) {
     );
   if (typeof value.baseCommit !== "string" || !SHA.test(value.baseCommit))
     fail("Envelope baseCommit is a full lowercase SHA.");
-  const worker = config.role === "worker";
-  if (worker) {
-    // IDs only (R90.1): a worker's brief is built here from the spec in its
-    // own checkout, so nothing the offer says is read as an instruction.
-    if (value.brief !== undefined)
-      fail("A worker envelope carries IDs only, no brief.");
-    if (typeof value.spec !== "string" || !SPEC.test(value.spec))
-      fail("A worker envelope names its spec ID.");
-  } else if (value.spec !== undefined) fail("Envelope field spec is unknown.");
-  else if (
-    typeof value.brief !== "string" ||
-    !value.brief.trim() ||
-    value.brief.length > MAX_BRIEF ||
-    // eslint-disable-next-line no-control-regex
-    /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value.brief)
-  )
-    fail(`Envelope brief is 1-${MAX_BRIEF} printable characters.`);
+  // IDs only (R90.1): a worker's brief is built here from the spec in its
+  // own checkout, so nothing the offer says is read as an instruction.
+  if (value.brief !== undefined)
+    fail("A worker envelope carries IDs only, no brief.");
+  if (typeof value.spec !== "string" || !SPEC.test(value.spec))
+    fail("A worker envelope names its spec ID.");
   const checks = value.checks ?? [];
   if (
     !Array.isArray(checks) ||
@@ -203,8 +172,8 @@ export function validateEnvelope(value, config) {
     taskId: value.taskId,
     repo: value.repo,
     baseCommit: value.baseCommit,
-    brief: worker ? workerTaskBrief(value) : value.brief,
-    ...(worker ? { spec: value.spec } : {}),
+    brief: workerTaskBrief(value),
+    spec: value.spec,
     checks,
     agent,
     ...(value.model ? { model: value.model } : {}),
@@ -239,10 +208,9 @@ export function acceptEnvelope(store, workspaceRoot, text, { pulled } = {}) {
   const config = readRunnerConfig(workspaceRoot);
   if (!HOLDS_TASKS(config))
     fail('This workspace is not a runner (.avoozl.json runner.role "runner").');
-  // R90.7: an SSH push is for a machine with no GitHub access. A worker
-  // takes work only from its own pull.
-  if (config.role === "worker" && !pulled)
-    fail("A worker takes offers it pulls, not an envelope pushed over SSH.");
+  // An envelope is taken only from an acknowledged claim (worker pull).
+  if (!pulled)
+    fail("A worker takes only a task whose claim the driver acknowledged.");
   if (typeof text !== "string" || text.length > MAX_ENVELOPE)
     fail("An envelope is at most 32 KiB.");
   const envelope = validateEnvelope(parse(text, "The envelope"), config),
@@ -622,218 +590,4 @@ export async function runnerTick(
     notify,
     observe: [],
   };
-}
-
-// --- Driver side -----------------------------------------------------------
-
-// A transport runs the runner command somewhere and returns its output. SSH
-// is the real one. `via: "local"` runs the same argv on this machine, for
-// tests and for hosts where ssh to itself is refused.
-export function commandFor(host, args) {
-  return host.via === "local"
-    ? [...host.argv, ...args]
-    : [
-        "ssh",
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "ConnectTimeout=10",
-        "-o",
-        "ServerAliveInterval=5",
-        "-o",
-        "ServerAliveCountMax=2",
-        host.ssh,
-        "--",
-        host.command || "avoozl",
-        ...args,
-      ];
-}
-
-export function transportFor(host) {
-  return {
-    run(args, stdin = "", { timeoutMs = 30000 } = {}) {
-      const argv = commandFor(host, args);
-      return new Promise((resolve) => {
-        const child = spawn(argv[0], argv.slice(1), {
-          env: { ...process.env, ...(host.env || {}) },
-          stdio: ["pipe", "pipe", "pipe"],
-        });
-        let stdout = "",
-          stderr = "";
-        const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
-        child.stdout.on("data", (d) => (stdout += d));
-        child.stderr.on("data", (d) => (stderr += d));
-        child.on("error", (error) => {
-          clearTimeout(timer);
-          resolve({ code: 127, stdout, stderr: error.message });
-        });
-        child.on("close", (code) => {
-          clearTimeout(timer);
-          resolve({ code: code ?? 124, stdout, stderr: stderr.slice(-500) });
-        });
-        child.stdin.on("error", () => {});
-        child.stdin.end(stdin);
-      });
-    },
-  };
-}
-
-function driverHost(workspaceRoot, name) {
-  const config = readRunnerConfig(workspaceRoot);
-  if (config?.role !== "driver")
-    fail('This workspace is not a driver (runner.role "driver").');
-  const host = config.hosts[name];
-  if (!host)
-    fail(`Host ${String(name).slice(0, 40)} is not in runner.hosts.`, 404);
-  return host;
-}
-
-const savedHosts = (store) => store.getMeta(HOSTS) || {};
-function saveHost(store, name, patch) {
-  store.transaction(() => {
-    const all = savedHosts(store);
-    all[name] = { ...(all[name] || {}), ...patch };
-    store.setMeta(HOSTS, all);
-  });
-}
-
-// Push one envelope. The envelope goes on stdin; the remote command line is
-// fixed text, so nothing in the envelope reaches a remote shell.
-export async function handoff(
-  store,
-  workspaceRoot,
-  { host: name, envelope },
-  transport,
-) {
-  const host = driverHost(workspaceRoot, name),
-    text = JSON.stringify(envelope);
-  if (text.length > MAX_ENVELOPE) fail("An envelope is at most 32 KiB.");
-  const reply = await (transport || transportFor(host)).run(
-    ["runner", "accept", "-"],
-    text,
-  );
-  if (reply.code !== 0)
-    fail(
-      `Host ${name} refused the task (exit ${reply.code}): ${reply.stderr.trim().slice(0, 300)}`,
-      502,
-    );
-  const accepted = parse(reply.stdout, "The runner's answer");
-  saveHost(store, name, {
-    handed: {
-      ...(savedHosts(store)[name]?.handed || {}),
-      [envelope.taskId]: now(),
-    },
-  });
-  return accepted;
-}
-
-// Read a runner's status reply and keep only the fields the driver shows.
-function readStatus(text) {
-  const value = parse(text, "The runner's status");
-  if (value?.version !== 1 || !Array.isArray(value.tasks))
-    fail("The runner's status is not version 1.");
-  return value.tasks.slice(0, 500).map((t) => ({
-    taskId: String(t.taskId).slice(0, 100),
-    state: String(t.state).slice(0, 20),
-    branch: typeof t.branch === "string" ? t.branch.slice(0, 200) : null,
-    commit: SHA.test(t.commit || "") ? t.commit : null,
-    ok: t.ok === true,
-    error: typeof t.error === "string" ? t.error.slice(0, 300) : null,
-    checks: (Array.isArray(t.checks) ? t.checks : [])
-      .slice(0, 10)
-      .map((c) => ({ id: String(c.id).slice(0, 64), exit: Number(c.exit) })),
-    updatedAt: String(t.updatedAt || "").slice(0, 40),
-    worker:
-      t.worker && CHAT_PATH.test(t.worker.path || "")
-        ? {
-            chatKey: String(t.worker.chatKey).slice(0, 300),
-            crewId: String(t.worker.crewId).slice(0, 100),
-            path: t.worker.path,
-            status:
-              typeof t.worker.status === "string"
-                ? t.worker.status.slice(0, 20)
-                : null,
-          }
-        : null,
-  }));
-}
-
-// Pull a runner's status. A dropped link keeps the last answer and marks it
-// stale; the next pull that works replaces it. Nothing is lost or resent.
-export async function pullStatus(
-  store,
-  workspaceRoot,
-  { host: name },
-  transport,
-) {
-  const host = driverHost(workspaceRoot, name);
-  const reply = await (transport || transportFor(host)).run([
-    "runner",
-    "status",
-    "--json",
-  ]);
-  if (reply.code !== 0) {
-    saveHost(store, name, {
-      stale: true,
-      error: `exit ${reply.code}: ${reply.stderr.trim().slice(0, 200)}`,
-      failedAt: now(),
-    });
-    return { host: name, ok: false, stale: true };
-  }
-  let tasks;
-  try {
-    tasks = readStatus(reply.stdout);
-  } catch (error) {
-    saveHost(store, name, {
-      stale: true,
-      error: error.message,
-      failedAt: now(),
-    });
-    return { host: name, ok: false, stale: true };
-  }
-  saveHost(store, name, { tasks, stale: false, error: null, lastOkAt: now() });
-  return { host: name, ok: true, tasks: tasks.length };
-}
-
-// Remote workers for In flight: every task a host reports that has a worker
-// and is not finished. The link is built here from the driver's own
-// `dashboardUrl` for that host; it never carries a token.
-export function remoteView(store, workspaceRoot) {
-  const config = readRunnerConfig(workspaceRoot);
-  if (config?.role !== "driver") return { workers: [] };
-  const workers = [];
-  for (const [name, saved] of Object.entries(savedHosts(store))) {
-    const host = config.hosts[name];
-    if (!host) continue;
-    for (const task of saved.tasks || [])
-      if (task.worker && !TERMINAL.has(task.state))
-        workers.push({
-          host: name,
-          crewId: task.worker.crewId,
-          taskId: task.taskId,
-          state: task.state,
-          chatKey: task.worker.chatKey,
-          status: task.worker.status,
-          updatedAt: task.updatedAt,
-          attachUrl: host.dashboardUrl
-            ? host.dashboardUrl.replace(/\/+$/, "") + task.worker.path
-            : null,
-          stale: Boolean(saved.stale),
-          lastOkAt: saved.lastOkAt ?? null,
-        });
-  }
-  return { workers };
-}
-
-// The tick's driver step: pull every host, never throw.
-export async function driverTick(store, workspaceRoot) {
-  let config;
-  try {
-    config = readRunnerConfig(workspaceRoot);
-  } catch {
-    return;
-  }
-  if (config?.role !== "driver") return;
-  for (const name of Object.keys(config.hosts))
-    await pullStatus(store, workspaceRoot, { host: name }).catch(() => {});
 }

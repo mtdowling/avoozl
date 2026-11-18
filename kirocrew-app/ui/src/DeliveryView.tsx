@@ -52,6 +52,7 @@ import { RailBlock, RailChips, RailDivider, RailRow, RailStyle } from './NavRail
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
+import { Box } from './ui/Box'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -80,13 +81,13 @@ function LaneCardView(props: {
   const done = card.item?.complete ?? false
   return (
     <li data-lane-card>
-      <div style={{ overflowWrap: 'break-word' }}>
+      <Box css-overflow-wrap="break-word">
           {/* In a narrow lane the title wraps below its icon rather than split words. */}
           <div className={`flex items-start gap-2 ${props.compact ? 'flex-wrap' : ''}`}>
             {props.phase && <StateIcon phase={props.phase} />}
             <TaskTitleLink id={card.id} title={card.title} className={`${props.compact ? 'text-sm' : 'text-base'} font-semibold leading-tight`} />
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+          <Box mt="1" flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
             <span>{card.id}</span>
             {card.epic && <Badge>{card.epic}</Badge>}
             {card.plan && <span>{card.plan}{card.phase ? ` · ${card.phase.title}` : ''}</span>}
@@ -103,39 +104,39 @@ function LaneCardView(props: {
             {card.deferred && <Badge>deferred</Badge>}
             {card.review && <Badge>review</Badge>}
             {card.planArchived && <Badge>Archived</Badge>}
-          </div>
+          </Box>
           {card.subIssue && (
-            <p className="mt-1 text-xs" style={{ color: 'var(--warning, var(--muted))' }} data-sub-issue>
+            <Box as="p" css-color="warning-muted" mt="1" size="xs" data-sub-issue>
               {card.subIssue.reason}
-            </p>
+            </Box>
           )}
           {card.batch && (
-            <div className="mt-1.5 text-xs" data-batch-card={card.batch.id}>
-              <div className="flex flex-wrap items-center gap-1.5">
+            <Box mt="1.5" size="xs" data-batch-card={card.batch.id}>
+              <Box flex flexWrap items="center" gap="1.5">
                 <Badge>Batch of {card.batch.members.length}</Badge>
                 {card.batch.reason && <Hint>{card.batch.reason}</Hint>}
-              </div>
-              <ul className="mt-1 flex flex-col gap-0.5" aria-label="Tasks in this batch">
+              </Box>
+              <Box as="ul" mt="1" flex flexCol gap="0.5" aria-label="Tasks in this batch">
                 {card.batch.members.map((member) => (
                   <li key={member.id} data-batch-member={member.id}>
                     <TaskTitleLink id={member.id} title={`${member.id} ${member.title}`} className="text-xs" />
                   </li>
                 ))}
-              </ul>
-            </div>
+              </Box>
+            </Box>
           )}
           {card.alone && (
-            <p className="mt-1 text-xs text-muted" data-runs-alone>
+            <Box as="p" mt="1" size="xs" tone="muted" data-runs-alone>
               Runs alone: {card.alone}
-            </p>
+            </Box>
           )}
           {card.item && (
-            <div className="mt-1.5">
+            <Box mt="1.5">
               <ReviewRuns item={card.item} compact onInfo={() => drawer.openTask(card.id)} />
-            </div>
+            </Box>
           )}
           {card.handSetReview && (
-            <div className="mt-1.5">
+            <Box mt="1.5">
               <HandSetReview
                 compact
                 workspaceId={workspaceId}
@@ -144,10 +145,10 @@ function LaneCardView(props: {
                 revision={props.revision}
                 onChanged={() => act(() => Promise.resolve())}
               />
-            </div>
+            </Box>
           )}
           {card.sessions.length > 0 && (
-            <ul className="mt-1.5 flex flex-col gap-1 text-xs">
+            <Box as="ul" mt="1.5" flex flexCol gap="1" size="xs">
               {card.sessions.map((session) => (
                 <li key={session.slot}>
                   {session.link ? (
@@ -159,9 +160,9 @@ function LaneCardView(props: {
                   )}
                 </li>
               ))}
-            </ul>
+            </Box>
           )}
-          <div className="mt-1.5 flex flex-wrap gap-2">
+          <Box mt="1.5" flex flexWrap gap="2">
             {props.ready && canStartNow(card) && (
               <IconLabel icon={Play} disabled={busy} tooltip={START_TIP} onClick={() => props.onStart(card.id)} {...label('Start now')} />
             )}
@@ -194,8 +195,8 @@ function LaneCardView(props: {
               </Tooltip>
             )}
             <IconLabel icon={DetailsIcon} tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(card.id)} {...label('Details')} />
-          </div>
-      </div>
+          </Box>
+      </Box>
     </li>
   )
 }
@@ -428,7 +429,7 @@ function DeliveryFilters(props: {
               active={filter.state === state.id}
               onClick={() => set({ state: filter.state === state.id ? undefined : state.id })}
               attrs={{ 'data-rail-state': state.id }}
-              trail={<span style={{ fontSize: 12, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{states.get(state.id) ?? 0}</span>}
+              trail={<Box as="span" css-font-size="12" css-color="muted" css-font-variant-numeric="tabular-nums">{states.get(state.id) ?? 0}</Box>}
             />
           ))}
           <RailDivider />
@@ -518,7 +519,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
   const revision = value?.graph?.revision ?? 0
 
   return (
-    <section aria-labelledby="avoozl-delivery-title" className="flex flex-col gap-3.5">
+    <Box aria-labelledby="avoozl-delivery-title" as="section" flex flexCol gap="3.5">
       <ViewHeading
         id="avoozl-delivery-title"
         view="delivery"
@@ -532,9 +533,9 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
             <>
               {/* One row: Start now and its box, Refresh, then Stop the line. */}
               {startable.length > 0 && (
-                <div data-start-now-picker style={{ minWidth: '14rem' }}>
+                <Box data-start-now-picker css-min-width="14rem">
                   <Picker inline label="Start now" items={startable} value="" keep={false} onPick={start} placeholder="Find a ready task" maxWidth="24rem" />
-                </div>
+                </Box>
               )}
               <Tooltip text="Refresh">
                 <button type="button" data-delivery-refresh aria-label="Refresh" onClick={() => void reload()} disabled={busy || acting} style={{ ...NAV_ICON, color: 'var(--muted)' }}>
@@ -613,7 +614,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
           )}
         </>
       )}
-    </section>
+    </Box>
   )
 }
 
@@ -623,13 +624,13 @@ function ContentReports({ reports }: { reports: ContentReport[] }) {
   return (
     <Card>
       <SectionHeading title="Content rule reports" className="mb-2" />
-      <p className="mt-1 text-xs text-muted">
+      <Box as="p" mt="1" size="xs" tone="muted">
         A rule set whose action is report lets the content through and records the match here. Change the set to block once
         its rules are right.
-      </p>
-      <ul className="mt-2 flex flex-col gap-1 text-sm">
+      </Box>
+      <Box as="ul" mt="2" flex flexCol gap="1" size="sm">
         {reports.map((report) => (
-          <li key={report.id} className="flex flex-wrap items-center gap-1.5">
+          <Box key={report.id} as="li" flex flexWrap items="center" gap="1.5">
             <Badge>{report.set}</Badge>
             <span>
               Rule {report.rule} at {report.target}
@@ -637,9 +638,9 @@ function ContentReports({ reports }: { reports: ContentReport[] }) {
             </span>
             {report.taskId && <Hint size="xs">{report.taskId}</Hint>}
             {report.at && <Hint size="xs">{report.at.slice(0, 16).replace('T', ' ')}</Hint>}
-          </li>
+          </Box>
         ))}
-      </ul>
+      </Box>
     </Card>
   )
 }

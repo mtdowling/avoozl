@@ -31,6 +31,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 function Field(props: {
   id: string
@@ -41,7 +42,7 @@ function Field(props: {
   required?: boolean
 }) {
   return (
-    <label htmlFor={props.id} className="flex flex-col gap-1 text-sm">
+    <Box htmlFor={props.id} as="label" flex flexCol gap="1" size="sm">
       <span>{props.label}</span>
       <Input
         id={props.id}
@@ -50,7 +51,7 @@ function Field(props: {
         required={props.required}
         onChange={(event) => props.onChange(event.target.value)}
       />
-    </label>
+    </Box>
   )
 }
 
@@ -66,16 +67,16 @@ function WorkspaceRow(props: {
       className={selected ? 'bg-accent/10' : ''}
       title={
         <button type="button" aria-pressed={selected} onClick={props.onSelect} className="flex min-w-0 flex-wrap items-center gap-x-2 text-left">
-          <span className="font-medium">{workspace.name}</span>
+          <Box as="span" weight="medium">{workspace.name}</Box>
           <Hint size="xs">{workspace.id}</Hint>
-          <span className="inline-flex gap-1">
+          <Box as="span" inlineFlex gap="1">
             {workspace.served && <Badge variant="info">This backend</Badge>}
             <Tooltip text={workspaceState(workspace.state).tip}>
               <span data-workspace-state={workspace.state}>
                 <Badge variant={workspaceState(workspace.state).variant}>{workspaceState(workspace.state).label}</Badge>
               </span>
             </Tooltip>
-          </span>
+          </Box>
         </button>
       }
       facts={[{ label: 'Folder', value: workspace.root, mono: true, truncate: true }]}
@@ -209,34 +210,34 @@ export default function WorkspaceView(
     })
 
   return (
-    <section aria-labelledby="avoozl-workspace-title" className="flex flex-col gap-3.5">
-      <h2 id="avoozl-workspace-title" className="text-lg font-semibold">
+    <Box aria-labelledby="avoozl-workspace-title" as="section" flex flexCol gap="3.5">
+      <Box id="avoozl-workspace-title" as="h2" size="lg" weight="semibold">
         Workspace
-      </h2>
+      </Box>
       {error && (
         <ErrorText role="alert" size="sm">
           {error}
         </ErrorText>
       )}
-      <p role="status" className="sr-only">
+      <Box role="status" as="p" srOnly>
         {busy ? 'Working…' : ''}
-      </p>
+      </Box>
 
       <Card>
         <Row gap={2}>
           <SectionHeading title={`Your workspaces (${list?.items.length ?? 0})`} className="mb-0" />
-          <span className="flex-1" />
+          <Box as="span" flex1 />
           <Btn type="button" primary data-add-workspace onClick={() => setDialog('add')}>
             <Plus size={14} aria-hidden="true" /> Add a workspace
           </Btn>
         </Row>
-        <p className="mt-1 text-sm text-muted">The workspaces on this computer. The one you pick is the one the other tabs show.</p>
+        <Box as="p" mt="1" size="sm" tone="muted">The workspaces on this computer. The one you pick is the one the other tabs show.</Box>
         {list === null ? (
-          <p className="mt-2 text-sm text-muted">Loading…</p>
+          <Box as="p" mt="2" size="sm" tone="muted">Loading…</Box>
         ) : list.items.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">No workspaces yet. Add one.</p>
+          <Box as="p" mt="2" size="sm" tone="muted">No workspaces yet. Add one.</Box>
         ) : (
-          <ul className="mt-2 flex flex-col">
+          <Box as="ul" mt="2" flex flexCol>
             {list.items.map((workspace) => (
               <WorkspaceRow
                 key={workspace.id}
@@ -246,13 +247,13 @@ export default function WorkspaceView(
                 onEdit={() => openEdit(workspace)}
               />
             ))}
-          </ul>
+          </Box>
         )}
-        <div className="mt-3">
+        <Box mt="3">
           <Btn onClick={() => void loadList()} disabled={busy}>
             Refresh
           </Btn>
-        </div>
+        </Box>
       </Card>
 
       {dialog === 'add' && (
@@ -311,19 +312,19 @@ export default function WorkspaceView(
               onChange={(id) => setDraft({ ...draft, id })}
             />
             <Field id="avoozl-ws-name" label="Name (optional)" value={draft.name} onChange={(name) => setDraft({ ...draft, name })} />
-            <h4 className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted" data-add-how>
+            <Box as="h4" mt="2" size="xs" weight="semibold" uppercase trackingWide tone="muted" data-add-how>
               How to add:
-            </h4>
-            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 15rem), 1fr))' }}>
-              <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="add">
-                <span className="text-sm font-medium">Add existing</span>
+            </Box>
+            <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-15rem-1fr" grid gap="2">
+              <Box css-border-color="border" flex flexCol gap="1.5" rounded="base" border="all" p="3" data-choice="add">
+                <Box as="span" size="sm" weight="medium">Add existing</Box>
                 <Hint as="p" size="xs">The folder already has Avoozl specs (an .avoozl.json and its database). Avoozl lists it; nothing in it changes.</Hint>
-              </div>
-              <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="init">
-                <span className="text-sm font-medium">Start new</span>
+              </Box>
+              <Box css-border-color="border" flex flexCol gap="1.5" rounded="base" border="all" p="3" data-choice="init">
+                <Box as="span" size="sm" weight="medium">Start new</Box>
                 <Hint as="p" size="xs">Creates an empty workspace in the folder: an .avoozl.json and a new database. Refused if one is already there.</Hint>
-              </div>
-            </div>
+              </Box>
+            </Box>
           </Stack>
         </Modal>
       )}
@@ -420,13 +421,13 @@ export default function WorkspaceView(
             </>
           }
         >
-          <ul id="avoozl-ws-remove-lines" className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }} data-remove-lines>
+          <Box id="avoozl-ws-remove-lines" as="ul" css-list-style="disc" flex flexCol gap="1" pl="5" size="sm" data-remove-lines>
             {removeLines(removing).map((line) => (
-              <li key={line} style={{ overflowWrap: 'anywhere' }}>
+              <Box key={line} as="li" css-overflow-wrap="anywhere">
                 {line}
-              </li>
+              </Box>
             ))}
-          </ul>
+          </Box>
           {error && (
             <ErrorText role="alert" size="sm">
               {error}
@@ -434,6 +435,6 @@ export default function WorkspaceView(
           )}
         </Modal>
       )}
-    </section>
+    </Box>
   )
 }

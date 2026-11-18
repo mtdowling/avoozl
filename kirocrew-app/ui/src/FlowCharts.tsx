@@ -19,6 +19,7 @@ import {
 import { StageLegend } from './FlowView.tsx'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 const W = 300,
   H = 90,
@@ -42,7 +43,7 @@ function Line({ points, value, format, color }: { points: SeriesPoint[]; value: 
   const last = known.at(-1)
   return (
     <Stack gap={1}>
-      <span className="text-lg font-semibold tabular-nums">{last === undefined ? '–' : format(last)}</span>
+      <Box as="span" size="lg" weight="semibold" tabularNums>{last === undefined ? '–' : format(last)}</Box>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={points.map((p, i) => `${p.key}: ${values[i] === null ? 'none' : format(values[i]!)}`).join(', ')} preserveAspectRatio="none">
         <line x1={0} x2={W} y1={H - PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={1} />
         {path.map((run, i) => (
@@ -58,22 +59,22 @@ function Line({ points, value, format, color }: { points: SeriesPoint[]; value: 
 function StageMix({ points }: { points: SeriesPoint[] }) {
   return (
     <Stack gap={1}>
-      <div className="flex items-end gap-1" style={{ height: H }} role="img" aria-label="Stage mix per period">
+      <Box css-height="90" flex items="end" gap="1" role="img" aria-label="Stage mix per period">
         {points.map((p) => {
           const total = STAGES.reduce((sum, s) => sum + p.stages[s], 0)
           return (
             <Tooltip key={p.key} text={`${p.key}: ${STAGES.filter((s) => p.stages[s]).map((s) => `${STAGE_LABELS[s]} ${duration(p.stages[s])}`).join(', ') || 'no time'}`}>
               {(describedBy) => (
-                <div tabIndex={0} aria-describedby={describedBy} className="flex flex-col-reverse overflow-hidden rounded-sm" style={{ height: H, width: 14, background: 'color-mix(in srgb, var(--muted) 12%, transparent)' }}>
+                <Box tabIndex={0} aria-describedby={describedBy} css-height="90" css-width="14" css-background="mix-muted-12%-transparent" flex flexColReverse overflow="hidden" rounded="sm">
                   {STAGES.filter((s) => p.stages[s]).map((s) => (
                     <span key={s} style={{ height: `${(100 * p.stages[s]) / (total || 1)}%`, background: STAGE_COLORS[s], display: 'block' }} />
                   ))}
-                </div>
+                </Box>
               )}
             </Tooltip>
           )
         })}
-      </div>
+      </Box>
     </Stack>
   )
 }
@@ -82,20 +83,20 @@ function Bars({ rows }: { rows: UsageRow[] }) {
   const value = (r: UsageRow) => r.credits || r.input + r.output,
     max = Math.max(...rows.map(value), 0) || 1
   return (
-    <div className="flex items-end gap-1" style={{ height: H }} role="img" aria-label={rows.map((r) => `${r.key}: ${usageText(r)}`).join(', ')}>
+    <Box css-height="90" flex items="end" gap="1" role="img" aria-label={rows.map((r) => `${r.key}: ${usageText(r)}`).join(', ')}>
       {rows.map((r) => (
         <span key={r.key} className="rounded-sm" style={{ display: 'block', flex: 'none', height: Math.max(2, Math.round((H * value(r)) / max)), width: 14, background: 'var(--accent)' }} />
       ))}
-    </div>
+    </Box>
   )
 }
 
 function Chart({ title, children, empty }: { title: string; children: React.ReactNode; empty?: boolean }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-lg border p-3" style={{ borderColor: 'var(--border)' }}>
+    <Box css-border-color="border" flex minW0 flexCol gap="1" rounded="lg" border="all" p="3">
       <SectionHeading level={4} title={title} />
       {empty ? <Hint size="sm">Nothing finished in this window yet.</Hint> : children}
-    </div>
+    </Box>
   )
 }
 
@@ -104,13 +105,13 @@ export type Unit = 'day' | 'week'
 // By day or by week, for every chart over time.
 function UnitPicker({ unit, onUnit }: { unit: Unit; onUnit: (unit: Unit) => void }) {
   return (
-    <div role="radiogroup" aria-label="Group by" className="inline-flex gap-1 rounded-lg p-1" style={{ background: 'var(--bg-elevated)' }}>
+    <Box role="radiogroup" aria-label="Group by" css-background="bg-elevated" inlineFlex gap="1" rounded="lg" p="1">
       {(['day', 'week'] as const).map((u) => (
         <button key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onUnit(u)} className="rounded-md px-2.5 py-1 text-xs font-medium" style={{ background: unit === u ? 'var(--card)' : 'transparent', color: 'var(--text)', boxShadow: unit === u ? 'inset 0 0 0 1px var(--accent)' : 'none' }}>
           {u === 'day' ? 'By day' : 'By week'}
         </button>
       ))}
-    </div>
+    </Box>
   )
 }
 
@@ -120,7 +121,7 @@ export function FlowCharts({ view, unit, onUnit }: { view: FlowViewModel; unit: 
   return (
     <Card className="flex flex-col gap-3">
       <SectionHeading title="Over time" actions={<UnitPicker unit={unit} onUnit={onUnit} />} />
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 16rem), 1fr))' }} data-flow-charts>
+      <Box css-grid-template-columns="repeat-auto-fill-minmax-min-100%-16rem-1fr" grid gap="3" data-flow-charts>
         <Chart title="Lead time (median)" empty={none}>
           <Line points={points} value={(p) => p.leadTimeMs} format={duration} color="var(--accent)" />
         </Chart>
@@ -142,7 +143,7 @@ export function FlowCharts({ view, unit, onUnit }: { view: FlowViewModel; unit: 
         <Chart title="Stage mix" empty={none}>
           <StageMix points={points} />
         </Chart>
-      </div>
+      </Box>
       {!none && <StageLegend />}
     </Card>
   )
@@ -150,17 +151,17 @@ export function FlowCharts({ view, unit, onUnit }: { view: FlowViewModel; unit: 
 
 function UsageTable({ title, rows }: { title: string; rows: UsageRow[] }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <Box flex minW0 flexCol gap="1">
       <Hint size="xs">{title}</Hint>
-      <ul className="flex flex-col gap-0.5 text-sm">
+      <Box as="ul" flex flexCol gap="0.5" size="sm">
         {rows.slice(0, 8).map((r) => (
-          <li key={r.key} className="flex flex-wrap justify-between gap-x-3">
-            <span className="min-w-0 truncate">{STAGE_LABELS[r.key as keyof typeof STAGE_LABELS] ?? r.key}</span>
-            <span className="tabular-nums text-muted">{usageText(r)}</span>
-          </li>
+          <Box key={r.key} as="li" flex flexWrap justify="between" gapX="3">
+            <Box as="span" minW0 truncate>{STAGE_LABELS[r.key as keyof typeof STAGE_LABELS] ?? r.key}</Box>
+            <Box as="span" tabularNums tone="muted">{usageText(r)}</Box>
+          </Box>
         ))}
-      </ul>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -178,21 +179,21 @@ export function UsagePanel({ view, unit }: { view: FlowViewModel; unit: Unit }) 
         <Hint as="p" size="sm">{message}</Hint>
       ) : (
         <>
-          <p className="text-sm">
-            Total: <span className="tabular-nums">{usageText(usage.total)}</span> over {usage.total.turns} turns.
-          </p>
+          <Box as="p" size="sm">
+            Total: <Box as="span" tabularNums>{usageText(usage.total)}</Box> over {usage.total.turns} turns.
+          </Box>
           {rows.length > 0 && (
-            <div className="flex min-w-0 flex-col gap-1">
+            <Box flex minW0 flexCol gap="1">
               <Hint size="xs">{unit === 'day' ? 'By day' : 'By week'}</Hint>
               <Bars rows={rows} />
-            </div>
+            </Box>
           )}
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 16rem), 1fr))' }}>
+          <Box css-grid-template-columns="repeat-auto-fill-minmax-min-100%-16rem-1fr" grid gap="4">
             <UsageTable title="By stage" rows={usage.byStage} />
             <UsageTable title="By model" rows={usage.byModel} />
             <UsageTable title="By spec" rows={usage.byPlan} />
             <UsageTable title="By task (top 8)" rows={usage.byTask} />
-          </div>
+          </Box>
         </>
       )}
     </Card>

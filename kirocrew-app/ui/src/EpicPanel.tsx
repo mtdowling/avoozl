@@ -11,6 +11,7 @@ import type { Drill } from './graph-layout.ts'
 import type { EpicView, viewsClient } from './views-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 const bar = (done: number, total: number) => (total ? Math.round((done / total) * 100) : 0)
 
@@ -37,42 +38,42 @@ export function EpicPanel(props: {
           )
         }
       />
-      <div className="mt-1 flex flex-wrap items-center gap-2">
+      <Box mt="1" flex flexWrap items="center" gap="2">
         <Badge>{value.complete ? 'done' : value.approved ? 'approved' : 'draft'}</Badge>
         <Hint size="xs">
           {value.progress.done} of {value.progress.total} tasks done across {value.members.length} specs
         </Hint>
-      </div>
-      <div className="mt-2 grid gap-4 text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(16rem, 1fr))' }}>
-        <div className="flex flex-col gap-2" style={{ maxWidth: '75ch' }}>
+      </Box>
+      <Box css-grid-template-columns="repeat-auto-fit-minmax-16rem-1fr" mt="2" grid gap="4" size="sm">
+        <Box css-max-width="75ch" flex flexCol gap="2">
           {value.goal && (
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Goal</h4>
-              <p className="mt-1 whitespace-pre-wrap">{value.goal}</p>
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Goal</Box>
+              <Box as="p" mt="1" whitespace="pre-wrap">{value.goal}</Box>
             </div>
           )}
           {value.done && (
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">What done means</h4>
-              <p className="mt-1 whitespace-pre-wrap">{value.done}</p>
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">What done means</Box>
+              <Box as="p" mt="1" whitespace="pre-wrap">{value.done}</Box>
             </div>
           )}
           {value.decisions.length > 0 && (
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Open decisions</h4>
-              <ul className="mt-1 list-disc pl-5">
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Open decisions</Box>
+              <Box as="ul" mt="1" listDisc pl="5">
                 {value.decisions.map((d) => (
                   <li key={d.taskId}>
                     {d.title}: {d.decision}
                   </li>
                 ))}
-              </ul>
+              </Box>
             </div>
           )}
-        </div>
+        </Box>
         <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Member specs</h4>
-          <ul className="mt-1 flex flex-col gap-1">
+          <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Member specs</Box>
+          <Box as="ul" mt="1" flex flexCol gap="1">
             {value.members.map((member) => (
               <li key={member.plan}>
                 <button
@@ -80,22 +81,22 @@ export function EpicPanel(props: {
                   className="w-full rounded px-1 py-0.5 text-left hover:bg-accent/10"
                   onClick={() => props.onDrill({ kind: 'plan', id: member.plan, title: member.title })}
                 >
-                  <span className="flex justify-between gap-2">
-                    <span className="truncate">{member.title}</span>
-                    <span className="shrink-0 text-xs text-muted">
+                  <Box as="span" flex justify="between" gap="2">
+                    <Box as="span" truncate>{member.title}</Box>
+                    <Box as="span" shrink0 size="xs" tone="muted">
                       {member.status}
                       {!member.confirmed && ' · not confirmed'} · {member.progress.done}/{member.progress.total}
-                    </span>
-                  </span>
-                  <span className="mt-0.5 block h-1 overflow-hidden rounded" style={{ background: 'var(--border)' }}>
+                    </Box>
+                  </Box>
+                  <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
                     <span className="block h-full" style={{ width: `${bar(member.progress.done, member.progress.total)}%`, background: 'var(--ok)' }} />
-                  </span>
+                  </Box>
                 </button>
               </li>
             ))}
-          </ul>
+          </Box>
         </div>
-      </div>
+      </Box>
     </Card>
   )
 }

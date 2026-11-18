@@ -12,6 +12,7 @@ import { clearable, releaseClient, type GateRow, type GateState } from './releas
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 const VARIANT: Record<GateState, BadgeVariant> = { open: 'info', failed: 'danger', unknown: 'warning', done: 'success', cleared: 'success' }
 
@@ -19,27 +20,27 @@ export function GateList(props: { gates: GateRow[]; busy?: boolean; onClear?: (t
   const [asking, setAsking] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   return (
-    <div className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <Box css-display="flex" css-flex-direction="column" css-gap="8" flex flexCol gap="2">
       {props.gates.map((gate) => (
-        <div key={gate.taskId} data-gate={gate.state} className="flex flex-col gap-1 text-sm" style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 12px' }}>
+        <Box key={gate.taskId} data-gate={gate.state} css-display="flex" css-flex-direction="column" css-gap="4" css-border-top="1px-solid-border" css-padding-top="8" flex flexCol gap="1" size="sm">
+          <Box css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-gap="4px-12px" flex flexWrap items="baseline" gapX="3" gapY="1">
             <Badge variant={VARIANT[gate.state]}>{gate.state}</Badge>
-            <span className="font-medium" style={{ overflowWrap: 'anywhere' }}>
+            <Box as="span" css-overflow-wrap="anywhere" weight="medium">
               {gate.title}
-            </span>
+            </Box>
             <Hint size="xs">{gate.taskId}</Hint>
-          </div>
-          <span className="text-muted" data-gate-tracker style={{ overflowWrap: 'anywhere' }}>
+          </Box>
+          <Box as="span" css-overflow-wrap="anywhere" tone="muted" data-gate-tracker>
             {gate.tracker} · {gate.item} · done when {gate.done}
-          </span>
+          </Box>
           <Hint size="xs" data-gate-checks>
             Last check {gate.lastCheck ?? 'never'}
             {gate.nextCheck ? ` · next ${gate.nextCheck}` : ''}
           </Hint>
           {gate.evidence && (
-            <span className="text-xs text-muted" data-gate-evidence style={{ overflowWrap: 'anywhere' }}>
+            <Box as="span" css-overflow-wrap="anywhere" size="xs" tone="muted" data-gate-evidence>
               {gate.evidence}
-            </span>
+            </Box>
           )}
           {gate.link && (
             <a href={linkHref(gate.link)} target="_blank" rel="noreferrer" className="text-xs" style={{ overflowWrap: 'anywhere' }}>
@@ -53,7 +54,7 @@ export function GateList(props: { gates: GateRow[]; busy?: boolean; onClear?: (t
           )}
           {gate.held.length > 0 && <Hint size="xs">Holds {gate.held.join(', ')}</Hint>}
           {props.onClear && clearable(gate) && (
-            <div className="flex flex-wrap items-center gap-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+            <Box css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" flex flexWrap items="center" gap="2">
               {asking === gate.taskId ? (
                 <>
                   <input aria-label={`Why clear ${gate.taskId}`} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why it can be cleared" style={{ flex: '1 1 160px', minWidth: 0 }} />
@@ -66,11 +67,11 @@ export function GateList(props: { gates: GateRow[]; busy?: boolean; onClear?: (t
                   Clear
                 </Btn>
               )}
-            </div>
+            </Box>
           )}
-        </div>
+        </Box>
       ))}
-    </div>
+    </Box>
   )
 }
 
@@ -102,9 +103,9 @@ export default function TrackerGates(props: { workspaceId: string | null }) {
         <SectionHeading title="Tracker gates" className="mb-0" />
         <Hint as="p" size="xs">Tasks that wait on an item outside GitHub. Avoozl reads each one and never clears it. A clear is your order, recorded with your name.</Hint>
         {failure && (
-          <p role="alert" className="text-sm" style={{ color: 'var(--danger)' }}>
+          <Box role="alert" as="p" css-color="danger" size="sm">
             {failure}
-          </p>
+          </Box>
         )}
         <GateList gates={gates} busy={busy} onClear={(taskId, reason) => void clear(taskId, reason)} />
       </Card>
