@@ -39,16 +39,24 @@ const lower = (value) => String(value).toLowerCase();
 const PASS = new Set(["success", "neutral", "skipped"]);
 
 // The pull request for an entry: by number, else the open one for its head
-// branch and base. A fork's head is `owner:branch`.
+// branch and base. A fork's head is `owner:branch`; a fork in the target's
+// own organization shares that owner, so only a pull request whose head
+// repository is the source counts.
 async function findPull(github, target, entry, base) {
   if (entry.pr) return github.pullRequest(target, entry.pr);
   const { repository, branch } = entry.source,
     head = `${repository.split("/")[0]}:${branch}`,
-    found = await github.listPullRequests(target, {
-      state: "all",
-      head,
-      base,
-    });
+    found = (
+      await github.listPullRequests(target, {
+        state: "all",
+        head,
+        base,
+      })
+    ).filter(
+      (pull) =>
+        !pull.head?.repo?.full_name ||
+        lower(pull.head.repo.full_name) === lower(repository),
+    );
   // Newest first: an open one wins, else the newest merged one.
   const open = found.find((pull) => pull.state === "open");
   return open ?? found.find((pull) => pull.merged_at) ?? null;
@@ -82,6 +90,7 @@ async function requiredChecks(github, target, base, declared) {
 //   checks      check names required in addition to the repository's rules
 //   method      merge method (default "merge")
 //   intent(spec, entries) -> {journal, input, options} as in directSteps
+//   store       the workspace, whose content rules check every push
 export function pullSteps({
   github,
   registry,
@@ -95,6 +104,7 @@ export function pullSteps({
   env,
   machine,
   configFile,
+  store,
 }) {
   if (typeof intent !== "function")
     fail("Pull request landing writes an intent before every merge.", 400);
@@ -136,18 +146,67 @@ export function pullSteps({
       ];
     };
   let current = null; // the pull request the last prepare settled on
+  // Every required check at `candidate`: its result, whether it is still
+  // pending, and whether it failed.
+  const headChecks = async (candidate, branch) => {
+    const required = await requiredChecks(github, target, branch, declared);
+    if (!required.length) return { required, results: [] };
+    const [runs, status] = await Promise.all([
+      github.checkRuns(target, candidate),
+      github.commitStatus(target, candidate),
+    ]);
+    return {
+      required,
+      results: required.map((name) => {
+        const run = runs.find((r) => r.name === name),
+          state = status.statuses.find((s) => s.context === name);
+        if (run)
+          return {
+            command: name,
+            conclusion: run.conclusion ?? "pending",
+            pending: run.status !== "completed",
+          };
+        if (state)
+          return {
+            command: name,
+            conclusion: state.state,
+            pending: state.state === "pending",
+          };
+        return { command: name, conclusion: "missing", pending: true };
+      }),
+    };
+  };
+  const passing = (r) =>
+    !r.pending && (PASS.has(r.conclusion) || r.conclusion === "success");
   return {
     log,
     async readBase() {
       return (await github.branchHead(target, base)).oid;
     },
     // Someone else merged exactly this head: record their landing once.
+    // The evidence is the required checks GitHub shows on that head, read
+    // here, so a later tick with fresh steps records it too. A head whose
+    // required checks did not all pass is recorded without evidence.
     async observe(entry) {
       const pull = await findPull(github, target, entry, entry.base);
       if (!pull?.merged_at || pull.head?.sha !== entry.commit) return null;
-      const ref = { ...refOf(entry, entry.base), pr: pull.number },
+      const { results } = await headChecks(entry.commit, entry.base),
+        passed =
+          results.length && results.every(passing)
+            ? results.map((r) => ({
+                name: r.command,
+                conclusion: r.conclusion,
+              }))
+            : [],
+        ref = { ...refOf(entry, entry.base), pr: pull.number },
         { pushed } = await landWithIntents(
-          intents(entry, entry.commit, pull.base?.sha ?? entry.commit, ref),
+          intents(
+            entry,
+            entry.commit,
+            pull.base?.sha ?? entry.commit,
+            ref,
+            passed,
+          ),
           async () => true,
         );
       if (!pushed) return null;
@@ -179,16 +238,23 @@ export function pullSteps({
           env,
           machine,
           configFile,
+          store,
         });
         pull = await github.pullRequest(target, pull.number);
       }
       if (!pull) {
-        const fork = lower(ref.source.repository) !== lower(target);
+        const fork = lower(ref.source.repository) !== lower(target),
+          [sourceOwner, sourceName] = ref.source.repository.split("/"),
+          // GitHub needs head_repo when the fork and the target have the
+          // same owner (a fork inside the target's organization).
+          sameOwner =
+            fork && lower(sourceOwner) === lower(target.split("/")[0]);
         pull = await github.createPullRequest(target, {
           title: `Land ${entry.key}`,
           head: fork
-            ? `${ref.source.repository.split("/")[0]}:${ref.source.branch}`
+            ? `${sourceOwner}:${ref.source.branch}`
             : ref.source.branch,
+          ...(sameOwner ? { head_repo: sourceName } : {}),
           base: entry.base,
           body: entry.tasks
             .map((t) => `Avoozl-Task: ${t.task}@${t.definition}`)
@@ -212,34 +278,13 @@ export function pullSteps({
     },
     async check(candidate, [entry]) {
       const { pull } = current,
-        required = await requiredChecks(github, target, entry.base, declared);
+        { required, results } = await headChecks(candidate, entry.base);
       if (!required.length)
         return {
           ok: false,
           checks: [{ command: "no required check", exitCode: 1 }],
         };
-      const [runs, status] = await Promise.all([
-          github.checkRuns(target, candidate),
-          github.commitStatus(target, candidate),
-        ]),
-        results = required.map((name) => {
-          const run = runs.find((r) => r.name === name),
-            state = status.statuses.find((s) => s.context === name);
-          if (run)
-            return {
-              command: name,
-              conclusion: run.conclusion ?? "pending",
-              pending: run.status !== "completed",
-            };
-          if (state)
-            return {
-              command: name,
-              conclusion: state.state,
-              pending: state.state === "pending",
-            };
-          return { command: name, conclusion: "missing", pending: true };
-        }),
-        shown = results.map(({ command, conclusion }) => ({
+      const shown = results.map(({ command, conclusion }) => ({
           command,
           conclusion,
           exitCode: PASS.has(conclusion) || conclusion === "success" ? 0 : 1,
