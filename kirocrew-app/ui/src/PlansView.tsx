@@ -988,10 +988,9 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
 
 // One GitHub link: opens a new tab with no opener (R92.9).
 function GithubLink(props: { link: { url: string }; children: ReactNode }) {
-  const href = safeHref(props.link.url)
-  if (!href) return <>{props.children}</>
+  if (!safeHref(props.link.url)) return <>{props.children}</>
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2" style={{ overflowWrap: 'anywhere' }} data-spec-link>
+    <a href={safeHref(props.link.url)!} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2" style={{ overflowWrap: 'anywhere' }} data-spec-link>
       {props.children}
     </a>
   )
