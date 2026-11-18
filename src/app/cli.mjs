@@ -20,7 +20,7 @@ import { LinkStore } from "./serve-auth.mjs";
 import { standaloneUiDirectory } from "./ui-bundle.mjs";
 import { contentHook } from "./public-crews.mjs";
 import { runSupervisor } from "./supervisor.mjs";
-import { machineStatus } from "./machine-status.mjs";
+import { machineStatus, serveStatus } from "./machine-status.mjs";
 import { workspaceStatus } from "./workspace-status.mjs";
 import { PROGRAM, helpCommands, helpPointer, helpText } from "./cli-help.mjs";
 import {
@@ -514,19 +514,12 @@ try {
     const machine = machineAvoozlPaths();
     if (positionals[0] === "link") {
       // A new owner link for the server already running on this machine.
-      let origin;
-      try {
-        origin = JSON.parse(
-          fs.readFileSync(
-            path.join(machine.stateDirectory, "serve.json"),
-            "utf8",
-          ),
-        ).origin;
-      } catch {
+      const running = serveStatus(machine.stateDirectory);
+      if (!running.running || !running.origin)
         throw Error(
           "No avoozl serve is running on this machine. Start it with: avoozl serve",
         );
-      }
+      const origin = running.origin;
       const links = new LinkStore(machine.stateDirectory);
       try {
         console.log(`${origin}/login?token=${links.make()}`);
