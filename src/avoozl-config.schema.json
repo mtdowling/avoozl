@@ -1088,6 +1088,22 @@
         }
       }
     },
+    "notifications": {
+      "type": "object",
+      "description": "Where this machine sends notifications when no Kiro Crew does. Machine file only (~/.config/avoozl/config.json): .avoozl.json refuses it, since a webhook URL may hold a secret.",
+      "additionalProperties": false,
+      "properties": {
+        "sinks": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/commandSink" },
+              { "$ref": "#/$defs/webhookSink" }
+            ]
+          }
+        }
+      }
+    },
     "serve": {
       "type": "object",
       "additionalProperties": false,
@@ -1188,6 +1204,34 @@
       "properties": {
         "harness": { "$ref": "#/$defs/harnessName" },
         "model": { "$ref": "#/$defs/chatModel" }
+      }
+    },
+    "commandSink": {
+      "type": "object",
+      "description": "Runs an argument list, never a shell, with the title and the small JSON payload appended.",
+      "additionalProperties": false,
+      "required": ["kind", "argv"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,40}$" },
+        "kind": { "const": "command" },
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 60000 }
+      }
+    },
+    "webhookSink": {
+      "type": "object",
+      "description": "Posts the small JSON payload once to an https URL, or http to this machine.",
+      "additionalProperties": false,
+      "required": ["kind", "url"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,40}$" },
+        "kind": { "const": "webhook" },
+        "url": { "type": "string" },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 60000 }
       }
     },
     "harnessRole": {

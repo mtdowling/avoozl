@@ -184,11 +184,21 @@ export const ROLE_TABLE = Object.freeze({
     process: false,
     access: "read",
   },
+  // The plan answer edits only its spec folder; on exit Avoozl stores the
+  // revision as this session's and records each answer (NK5.3).
   planAnswer: {
     setting: "planAnswer",
     roles: ["plan-answer"],
-    process: false,
+    prompt: "planner",
+    process: true,
     access: "write",
+    folder: "spec",
+    hands: "plan-answer",
+    finish: () => [
+      "You run without Avoozl's tools, so skip plans_plan_review, plans_save_plan and plans_answer_review: the findings are in your brief, and the current folder is your spec folder.",
+      'Edit the spec files here for each finding you fix. Then write .avoozl/result.json as {"state": "done", "report": {"answers": [{"id": "<finding id>", "action": "fixed" | "answered", "text": "<what you changed, or why not>"}]}}. Avoozl stores your edited folder as the new revision and names it on each fixed answer. If you changed no file, answer every finding "answered".',
+      RESULT_LIMIT,
+    ],
   },
   reviewDraft: {
     setting: "reviewDraft",
