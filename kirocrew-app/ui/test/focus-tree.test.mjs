@@ -180,30 +180,39 @@ test('Frontier, drill two levels, Back, Forward, the modal and Esc', { skip }, a
   await page.evaluate(`document.querySelector('[data-tree-node="Y3"]').focus()`)
   await page.evaluate(`(document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true })), true)`)
   await rooted('task:S3')
-  // O opens the modal in place; Esc closes it and focus returns to the card.
+  // O opens the full task details, the view Specs opens, not the summary
+  // modal; Esc closes them and focus returns to the card.
+  const details = `Boolean(document.querySelector('[data-task-modal] [data-section-box="task-links"]'))`
   await page.evaluate(`document.querySelector('[data-tree-node="S3"]').focus()`)
   await page.key('o', 'KeyO', 79)
-  await page.until(`Boolean(document.querySelector('[data-graph-item="task:S3"]'))`)
+  await page.until(details)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-graph-item]'))`), false, 'no summary modal')
+  assert.ok(await page.evaluate(`document.querySelectorAll('[data-task-modal] [data-section-box]').length >= 9`), 'every section')
   assert.equal(await page.evaluate(`document.querySelector('[data-focus-tree]').dataset.focusTree`), 'task:S3', 'the graph stays')
   await page.key('Escape', 'Escape', 27)
-  await page.until(`!document.querySelector('[data-graph-item]')`)
+  await page.until(`!document.querySelector('[data-task-modal]')`)
   await page.until(`document.activeElement?.dataset.treeNode === 'S3'`)
-  // The ↗ on a card opens it too, without drilling.
+  // The ↗ on a card opens them too, without drilling; Back closes them.
   await page.evaluate(`document.querySelector('[data-tree-open="S6"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`)
-  await page.until(`Boolean(document.querySelector('[data-graph-item="task:S6"]'))`)
+  await page.until(details)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-graph-item]'))`), false, 'no summary modal')
   assert.equal(await page.evaluate(`document.querySelector('[data-focus-tree]').dataset.focusTree`), 'task:S3')
-  await page.key('Escape', 'Escape', 27)
-  await page.until(`!document.querySelector('[data-graph-item]')`)
+  await page.evaluate(`(document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true })), true)`)
+  await page.until(`!document.querySelector('[data-task-modal]')`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-focus-tree]').dataset.focusTree`), 'task:S3', 'Back closed the details, not the tree step')
   // All tasks: a click drills into the task's tree.
   await page.evaluate(`document.querySelector('[data-graph-tab="all"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-graph-view] [data-node="B2"]'))`)
   await page.evaluate(`document.querySelector('[data-graph-view] [data-node="B2"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))`)
   await rooted('task:B2')
-  // One graph.view read for all of it. The others are Refresh's rate and the
-  // nav's own counts, which every page change reads (App.tsx).
+  // One graph.view read for the Graph itself, plus the task details' own
+  // reads each of the two times they opened (TaskDrawer.tsx). The others are
+  // Refresh's rate and the nav's own counts, which every page change reads (App.tsx).
   const ops = await page.evaluate('window.__ops')
-  assert.equal(ops.filter((op) => op === 'graph.view').length, 1, ops.join(','))
-  assert.deepEqual([...new Set(ops)].filter((op) => !['graph.view', 'github.settings.get', 'conflicts.view', 'untriaged.view'].includes(op)), [], ops.join(','))
+  const detailReads = ['task.detail', 'task.notes.list', 'task.files', 'task.evidence', 'budget.receipt']
+  assert.equal(ops.filter((op) => op === 'graph.view').length, 1 + 2, ops.join(','))
+  assert.equal(ops.filter((op) => op === 'task.detail').length, 2, ops.join(','))
+  assert.deepEqual([...new Set(ops)].filter((op) => !['graph.view', 'github.settings.get', 'conflicts.view', 'untriaged.view', ...detailReads].includes(op)), [], ops.join(','))
 })
 
 test('the jump box roots the tree on a spec; a phone shows one column', { skip }, async () => {

@@ -352,7 +352,7 @@ function operationRow(name, input, result) {
       targetId: ids[0] || null,
     };
   }
-  // Manual tasks and Links and notes (§4.16). A removed entry stays here.
+  // Manual tasks and task links (§4.16). A removed entry stays here.
   if (name === "task.manual.complete") {
     const taskId = text(input?.taskId, 200);
     return {
@@ -373,13 +373,12 @@ function operationRow(name, input, result) {
     ["task.notes.add", "task.notes.edit", "task.notes.remove"].includes(name)
   ) {
     const taskId = text(input?.taskId, 200),
-      what = result?.kind === "link" ? "link" : "note",
       verb = { add: "Added", edit: "Edited", remove: "Removed" }[
         name.slice("task.notes.".length)
       ];
     return {
       kind: "task.note",
-      summary: `${verb} a ${what} ${verb === "Added" ? "to" : "on"} ${taskId}`,
+      summary: `${verb} a link ${verb === "Added" ? "to" : "on"} ${taskId}`,
       targetId: taskId,
     };
   }
