@@ -273,3 +273,36 @@ test("conflicts.resolver defaults to rules, accepts chat and refuses other value
     /conflicts\.resolver must be one of rules, chat/,
   );
 });
+
+test("pullRequests keys load with defaults, and a template placeholder must be known", () => {
+  const ok = setup({
+    repo: trains({
+      pullRequests: { commentTemplate: "Landed as {position}." },
+    }),
+    global: { machine: macNative },
+  }).load();
+  const s = trainSettings(ok.config, "main");
+  assert.equal(s.pullRequests.mode, "review-only");
+  assert.equal(s.pullRequests.commentTemplate, "Landed as {position}.");
+  const dflt = setup({ repo: trains(), global: { machine: macNative } }).load();
+  assert.match(
+    trainSettings(dflt.config, "main").pullRequests.commentTemplate,
+    /\{train\}/,
+  );
+  assert.throws(
+    () =>
+      setup({
+        repo: trains({ pullRequests: { commentTemplate: "Hi {name}" } }),
+        global: { machine: macNative },
+      }).load(),
+    /\{name\}.*not a placeholder/,
+  );
+  assert.throws(
+    () =>
+      setup({
+        repo: trains({ pullRequests: { mode: "always" } }),
+        global: { machine: macNative },
+      }).load(),
+    /pullRequests\.mode must be one of review-only/,
+  );
+});

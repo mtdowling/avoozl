@@ -278,7 +278,7 @@ person.
 
 ## Phase 8: Review pull requests
 
-- [ ] lt-8.1 Review pull requests only on request, after lt-p3 [LT1.6, LT9.1] (§D3)
+- [x] lt-8.1 Review pull requests only on request, after lt-p3 [LT1.6, LT9.1] (§D3)
   - Facts:
     - summary: Phase 8 (Review pull requests). Review pull requests only on request. See LT1.6, LT9.1; §D3.
     - done:
