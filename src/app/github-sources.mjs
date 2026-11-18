@@ -101,7 +101,10 @@ export function validateGitHubSource(value, where) {
   for (const key of Object.keys(value))
     if (!GITHUB_SOURCE_KEYS.includes(key))
       fail(`${where}.${key} is not a GitHub source setting.`);
-  if (typeof value.repository !== "string" || !REPOSITORY.test(value.repository))
+  if (
+    typeof value.repository !== "string" ||
+    !REPOSITORY.test(value.repository)
+  )
     fail(`${where}.repository must be an owner/name GitHub repository.`);
   return {
     repository: value.repository,
@@ -223,8 +226,9 @@ export function writeGitHubSources(value, { upsert = null, remove = [] } = {}) {
       delete sources[id];
     }
   if (upsert)
-    sources[keep ?? githubSourceId(upsert.repository, new Set(Object.keys(sources)))] =
-      sourceEntry(upsert.repository, upsert.settings);
+    sources[
+      keep ?? githubSourceId(upsert.repository, new Set(Object.keys(sources)))
+    ] = sourceEntry(upsert.repository, upsert.settings);
   const intake = record(value.intake) ? value.intake : {};
   if (Object.keys(sources).length) value.intake = { ...intake, sources };
   else if (record(value.intake)) {

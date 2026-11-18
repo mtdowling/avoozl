@@ -4514,7 +4514,9 @@ export class Operations {
             // A GitHub source (§4.39): its repository's read, and the Issue
             // Radar escalation label its Triage rows open first with.
             if (source?.via === "github") {
-              const read = reads.find((r) => same(r.repository, source.repository)),
+              const read = reads.find((r) =>
+                  same(r.repository, source.repository),
+                ),
                 configured = Object.entries(policy?.repositories || {}).find(
                   ([repository]) => same(repository, source.repository),
                 )?.[1];

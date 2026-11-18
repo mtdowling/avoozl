@@ -1119,12 +1119,7 @@ export class RepositorySettings {
     return this.writeApplied(value, before.hash, ["github"]);
   }
 
-  updateUnifiedRepository({
-    id,
-    previousRepository,
-    project,
-    issueIntake,
-  }) {
+  updateUnifiedRepository({ id, previousRepository, project, issueIntake }) {
     const before = this.readFile(),
       value = this.updateValue(before);
     value.version = 1;

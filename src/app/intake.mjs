@@ -287,8 +287,7 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
       else if (githubSeen.has(key))
         row.error = `Intake source ${row.id} names GitHub repository ${row.source.repository}, which source ${githubSeen.get(key)} already reads.`;
       else githubSeen.set(key, row.id);
-    }
-    else if (row.source.plugin && !pluginIds().has(row.source.plugin))
+    } else if (row.source.plugin && !pluginIds().has(row.source.plugin))
       row.error = `Intake source ${row.id} names plugin ${row.source.plugin}, which no plugins entry declares.`;
     else if (repositories && row.source.via !== GITHUB_VIA) {
       const repository = repositories.find(
@@ -345,7 +344,9 @@ export function editSource(
       )
     : entry?.via === GITHUB_VIA;
   if (github)
-    fail("A GitHub source is set in Repository setup, where its labels are made.");
+    fail(
+      "A GitHub source is set in Repository setup, where its labels are made.",
+    );
   if (scope === "repository" && !remove && !confirmPublic) {
     const error = Error(
       "Avoozl cannot tell whether this repository is private. Its .avoozl.json may publish this source's id and plugin. Declare it on this machine instead, or confirm.",

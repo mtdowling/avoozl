@@ -77,7 +77,10 @@ test("source ids use source id letters and stay unique", () => {
     githubSourceId("a/b", new Set(["github-a-b", "github-a-b-2"])),
     "github-a-b-3",
   );
-  assert.match(githubSourceId(`o/${"x".repeat(100)}`), /^[a-z][a-z0-9-]{0,60}$/);
+  assert.match(
+    githubSourceId(`o/${"x".repeat(100)}`),
+    /^[a-z][a-z0-9-]{0,60}$/,
+  );
 });
 
 test("a write moves old entries once, then upserts and removes by repository", () => {
@@ -123,7 +126,10 @@ test("Intake sources lists GitHub sources; poll and submit never see them", (t) 
     settingsFile = path.join(temporaryDirectory(), "plugins.json"),
     options = { workspaceRoot, settingsFile };
   t.after(() => fs.rmSync(workspaceRoot, { recursive: true, force: true }));
-  fs.writeFileSync(path.join(workspaceRoot, ".avoozl.json"), JSON.stringify(OLD));
+  fs.writeFileSync(
+    path.join(workspaceRoot, ".avoozl.json"),
+    JSON.stringify(OLD),
+  );
   fs.writeFileSync(
     settingsFile,
     JSON.stringify({
