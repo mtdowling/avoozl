@@ -129,3 +129,39 @@ test("a GitHub journal is taken over only by the spec issue's single assignee", 
     1,
   );
 });
+
+test("a public-home spec is taken over with opaque IDs and replays to its own", async (t) => {
+  const github = new FakeGitHub();
+  github.login = "maintainer";
+  github.permissions.set("maintainer", "admin");
+  const repository = github.repository.bind(github);
+  github.repository = async (value) => ({
+    ...(await repository(value)),
+    private: false,
+  });
+  const w = await workspace(t, { github });
+  const published = await w.ops.execute("spec.publish", { planId: w.plan.id });
+  await github.addAssignees(REPOSITORY, published.number, ["maintainer"]);
+  const result = await w.ops.execute("spec.takeover", { planId: w.plan.id });
+  assert.equal(result.ok, true);
+  const bodies = github.comments
+    .filter((c) => c.number === published.number)
+    .map((c) => c.body);
+  assert.equal(bodies.length, 1);
+  // No readable spec or task ID reaches the public journal.
+  const taskIds = w.store
+    .read()
+    .tasks.filter((task) => task.planId === w.plan.id)
+    .map((task) => task.id);
+  for (const name of [w.plan.id, ...taskIds])
+    assert.ok(!bodies[0].includes(name), name);
+  // A retry replays the opaque record back to this spec: nothing new.
+  const again = await w.ops.execute("spec.takeover", { planId: w.plan.id });
+  assert.equal(again.existing, true);
+  const held = await revalidateSpecs(w.store, {
+    github,
+    workspaceRoot: w.root,
+    planIds: [w.plan.id],
+  });
+  assert.equal(held.plans.size, 0);
+});
