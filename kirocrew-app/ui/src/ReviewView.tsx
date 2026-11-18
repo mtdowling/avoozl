@@ -7,9 +7,8 @@
 // overlap stack in line order. A card click scrolls to and highlights its
 // lines; a click on highlighted text selects its card. Moved or removed
 // findings list first. A narrow view puts each card after its block.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { Markdown } from './Markdown.tsx'
-import { blocks } from './markdown.ts'
 import { SmallBtn } from './controls.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { CircleAlert, Info, MessageSquare } from './icons.ts'
@@ -26,10 +25,8 @@ import {
   SEVERITY_LABEL,
   STATES,
   TAB_LABEL,
-  blockFor,
   blocksIn,
   chipCounts,
-  stackCards,
   filterFindings,
   lineText,
   openCounts,
@@ -47,8 +44,17 @@ import {
 const PROSE = '72ch'
 // Below this width the text and the rail do not fit side by side.
 const WIDE = 720
-const HIT_STYLE = `[data-review-doc] [data-review-hit]{background:color-mix(in srgb,var(--accent) 14%,transparent);box-shadow:-3px 0 0 var(--accent);border-radius:4px}
-[data-review-doc] [data-source-line]{cursor:default}`
+// Every block a finding is anchored to is tinted by its severity and can be
+// focused; the open finding's block is stronger.
+const HIT_STYLE = `[data-review-doc] [data-review-anchor]{cursor:pointer;border-radius:4px;box-shadow:-3px 0 0 var(--hit,var(--accent));background:color-mix(in srgb,var(--hit,var(--accent)) 10%,transparent)}
+${SEVERITIES.map((s) => `[data-review-doc] [data-review-anchor][data-review-sev=${s}]{--hit:${SEVERITY_INK[s]}}`).join('\n')}
+[data-review-doc] [data-review-anchor]:hover{background:color-mix(in srgb,var(--hit,var(--accent)) 16%,transparent)}
+[data-review-doc] [data-review-anchor]:focus-visible{outline:2px solid var(--hit,var(--accent));outline-offset:2px}
+[data-review-doc] [data-review-hit]{background:color-mix(in srgb,var(--hit,var(--accent)) 24%,transparent)!important}
+[data-toc-item][aria-current=location]{color:var(--text-strong,var(--text));font-weight:600;box-shadow:inset 2px 0 0 var(--accent)}`
+const SEVERITY_ORDER: Record<string, number> = { blocker: 0, warn: 1, info: 2 }
+// Smooth unless the person asked for less motion: then a jump.
+const motion = (): ScrollBehavior => (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth')
 const lineOf = (el: Element) => Number(el.getAttribute('data-source-line'))
 
 function Chat(props: { label: string; link: ChatLink | null; attr: string }) {
@@ -433,44 +439,53 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   const placed = inFile.filter((f) => !f.anchor.moved)
   const text = file && data ? renderText(file, data.files[file]) : ''
 
-  // The rail beside the text: measure each anchor's block and each card,
-  // then stack the cards (stackCards). Narrow: cards go inline instead.
+  // The side column beside the text (below it on a phone): Contents, from
+  // the document's headings, and Comments, the findings for this file.
   const row = useRef<HTMLDivElement>(null)
   const doc = useRef<HTMLDivElement>(null)
-  const area = useRef<HTMLDivElement>(null)
   const cardEls = useRef(new Map<string, HTMLElement>())
   const [wide, setWide] = useState(!phone)
-  const [tops, setTops] = useState<Record<string, number>>({})
-  const [areaHeight, setAreaHeight] = useState(0)
+  const [side, setSide] = useState<'contents' | 'comments'>('comments')
   const [selected, setSelected] = useState<string | null>(null)
   const scrollTo = useRef<'text' | 'card' | null>(null)
   const blockEls = () => [...(doc.current?.querySelectorAll('[data-source-line]') ?? [])].sort((a, b) => lineOf(a) - lineOf(b)) as HTMLElement[]
-  const placedKey = placed.map((f) => f.id).join(' ')
-  const layout = useCallback(() => {
-    const width = row.current?.clientWidth ?? 0
-    if (width) setWide(width >= WIDE)
-    const box = area.current
-    if (!box || !doc.current) return
-    const els = blockEls(),
-      lines = els.map(lineOf),
-      base = box.getBoundingClientRect().top
-    const cards = placed.map((f) => {
-      const el = els[blockFor(lines, f.anchor.lineStart)]
-      return { id: f.id, want: el ? Math.round(el.getBoundingClientRect().top - base) : 0, line: f.anchor.lineStart, height: cardEls.current.get(f.id)?.offsetHeight ?? 0 }
-    })
-    const next = stackCards(cards)
-    setTops((previous) => (JSON.stringify(previous) === JSON.stringify(next) ? previous : next))
-    setAreaHeight(Math.max(0, ...cards.map((c) => next[c.id] + c.height)))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [placedKey, text])
-  useLayoutEffect(() => {
-    layout()
-  })
+  const placedKey = placed.map((f) => `${f.id}:${f.severity}:${f.anchor.lineStart}-${f.anchor.lineEnd}`).join(' ')
   useEffect(() => {
-    const observer = new ResizeObserver(() => layout())
-    for (const el of [row.current, doc.current, ...cardEls.current.values()]) if (el) observer.observe(el)
+    const measure = () => {
+      const width = row.current?.clientWidth ?? 0
+      if (width) setWide(width >= WIDE)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    if (row.current) observer.observe(row.current)
     return () => observer.disconnect()
-  }, [layout, wide, data])
+  }, [data, tab])
+  // The document's headings, in order, and the one the reader is in.
+  const [toc, setToc] = useState<{ id: number; level: number; text: string }[]>([])
+  const [current, setCurrent] = useState<number | null>(null)
+  const headingEls = () => [...(doc.current?.querySelectorAll('[role="heading"]') ?? [])] as HTMLElement[]
+  useEffect(() => {
+    const found = headingEls().map((el, id) => ({ id, level: Number(el.getAttribute('aria-level')) || 1, text: el.textContent?.trim() ?? '' }))
+    setToc((before) => (JSON.stringify(before) === JSON.stringify(found) ? before : found))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, data])
+  useEffect(() => {
+    // The page's pane scrolls, not the window: listen in the capture phase.
+    const onScroll = () => {
+      const els = headingEls()
+      let at: number | null = null
+      for (let i = 0; i < els.length; i++) if (els[i].getBoundingClientRect().top <= 96) at = i
+      setCurrent(at ?? (els.length ? 0 : null))
+    }
+    onScroll()
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true })
+    return () => document.removeEventListener('scroll', onScroll, { capture: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toc])
+  const goHeading = (id: number) => {
+    headingEls()[id]?.scrollIntoView({ block: 'start', behavior: motion() })
+    setCurrent(id)
+  }
   // A new tab clears the selection, unless All findings sent the person
   // there to see one finding: then that one is selected and scrolled to.
   const jump = useRef<string | null>(null)
@@ -485,37 +500,56 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
     set({ file: finding.anchor.file })
   }
 
-  // The selected finding's lines are highlighted; a card click also scrolls
-  // to them, and a text click brings its card into view.
+  // Each anchored block is tinted by its worst finding's severity and takes
+  // focus; the selected finding's blocks are stronger. A text click or Enter
+  // opens Comments and brings the card into view; a card click scrolls to
+  // the text.
   useEffect(() => {
-    const els = blockEls()
-    for (const el of els) el.removeAttribute('data-review-hit')
+    const els = blockEls(),
+      lines = els.map(lineOf)
+    for (const el of els) {
+      for (const name of ['data-review-hit', 'data-review-anchor', 'data-review-sev', 'tabindex', 'aria-label']) el.removeAttribute(name)
+      // A heading keeps its own role; any other block is a button while tinted.
+      if (el.hasAttribute('data-review-role')) el.removeAttribute('role')
+      el.removeAttribute('data-review-role')
+    }
+    const byBlock = new Map<number, ReviewFinding[]>()
+    for (const f of placed) for (const at of blocksIn(lines, f.anchor.lineStart, f.anchor.lineEnd)) byBlock.set(at, [...(byBlock.get(at) ?? []), f])
+    for (const [at, list] of byBlock) {
+      const worst = [...list].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])[0]
+      els[at].setAttribute('data-review-anchor', worst.id)
+      els[at].setAttribute('data-review-sev', worst.severity)
+      els[at].setAttribute('tabindex', '0')
+      if (!els[at].hasAttribute('role')) {
+        els[at].setAttribute('role', 'button')
+        els[at].setAttribute('data-review-role', '')
+      }
+      els[at].setAttribute('aria-label', `${list.length} review ${list.length === 1 ? 'comment' : 'comments'} on this text. Open ${worst.claim}`)
+    }
     const finding = placed.find((f) => f.id === selected)
     if (!finding) return
-    const lines = els.map(lineOf),
-      hit = blocksIn(lines, finding.anchor.lineStart, finding.anchor.lineEnd).map((i) => els[i])
+    const hit = blocksIn(lines, finding.anchor.lineStart, finding.anchor.lineEnd).map((i) => els[i])
     for (const el of hit) el.setAttribute('data-review-hit', 'true')
-    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (scrollTo.current === 'text') hit[0]?.scrollIntoView({ block: 'center', behavior: still ? 'auto' : 'smooth' })
-    if (scrollTo.current === 'card') cardEls.current.get(finding.id)?.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' })
+    if (scrollTo.current === 'text') hit[0]?.scrollIntoView({ block: 'center', behavior: motion() })
+    if (scrollTo.current === 'card') cardEls.current.get(finding.id)?.scrollIntoView({ block: 'nearest', behavior: motion() })
     scrollTo.current = null
   })
   const pick = (id: string) => {
     scrollTo.current = 'text'
     setSelected(id)
   }
-  const pickText = (target: EventTarget) => {
-    const el = (target as Element).closest?.('[data-source-line]')
-    if (!el || (target as Element).closest('a, button')) return
-    const els = blockEls(),
-      lines = els.map(lineOf),
-      at = els.indexOf(el as HTMLElement),
-      found = placed.find((f) => blocksIn(lines, f.anchor.lineStart, f.anchor.lineEnd).includes(at))
-    if (!found) return
+  // The block a click or key reached, and the finding it opens: the one the
+  // block is tinted for.
+  const openAnchor = (target: EventTarget) => {
+    const el = (target as Element).closest?.('[data-review-anchor]')
+    if (!el || (target as Element).closest('a, button')) return false
+    const id = el.getAttribute('data-review-anchor')
+    if (!id || !placed.some((f) => f.id === id)) return false
     scrollTo.current = 'card'
-    setSelected(found.id)
+    setSide('comments')
+    setSelected(id)
+    return true
   }
-  const firstLine = text ? (blocks(text)[0]?.line ?? 0) : 0
   const card = (finding: ReviewFinding, style?: CSSProperties) => (
     <FindingCard
       key={finding.id}
@@ -645,7 +679,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               ))}
             </section>
           ) : (
-          <div ref={row} data-review-layout={wide ? 'rail' : 'inline'} style={{ display: 'flex', alignItems: 'flex-start', gap: 20, minWidth: 0 }}>
+          <div ref={row} data-review-layout={wide ? 'rail' : 'inline'} style={{ display: 'flex', flexDirection: wide ? 'row' : 'column', alignItems: wide ? 'flex-start' : 'stretch', gap: 20, minWidth: 0 }}>
             <section
               role="tabpanel"
               id="review-tab-panel"
@@ -653,55 +687,63 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               aria-label={file ? undefined : 'No file'}
               data-review-doc={file ?? ''}
               className="min-w-0"
-              style={{ flex: '1 1 0', minWidth: 0, border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'var(--card, var(--bg))' }}
+              style={{ flex: '1 1 0', minWidth: 0, width: wide ? undefined : '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'var(--card, var(--bg))' }}
             >
-              {!wide && movedGroup && <div style={{ marginBottom: 12 }}>{movedGroup}</div>}
-              <div ref={doc} onClick={(event) => pickText(event.target)}>
-                {file ? (
-                  <Markdown
-                    text={text}
-                    measure={PROSE}
-                    after={
-                      wide
-                        ? undefined
-                        : (line, next) => {
-                            const here = placed.filter((f) => (f.anchor.lineStart >= line || line === firstLine) && (next === null || f.anchor.lineStart < next))
-                            return here.length ? (
-                              <div data-inline-cards={line} className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                {here.map((f) => card(f))}
-                              </div>
-                            ) : null
-                          }
-                    }
-                  />
-                ) : (
-                  <p className="m-0 text-sm text-muted">This revision has no spec files.</p>
-                )}
-              </div>
-              {!wide && inFile.length === 0 && (
-                <p className="m-0 mt-2 text-sm text-muted" data-review-empty>
-                  {data.findings.length === 0 ? 'No findings.' : 'No finding in this file matches these filters.'}
-                </p>
-              )}
-            </section>
-            {wide && (
-              <aside
-                aria-label="Findings"
-                data-review-rail
-                className="flex min-w-0 flex-col gap-2"
-                style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: '0 0 340px', width: 340 }}
+              <div
+                ref={doc}
+                onClick={(event) => openAnchor(event.target)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' || event.target !== (event.target as Element).closest('[data-review-anchor]')) return
+                  if (openAnchor(event.target)) event.preventDefault()
+                }}
               >
-                {movedGroup}
-                <div ref={area} data-review-area style={{ position: 'relative', height: areaHeight }}>
-                  {placed.map((f) => card(f, { position: 'absolute', left: 0, right: 0, top: tops[f.id] ?? 0 }))}
+                {file ? <Markdown text={text} measure={PROSE} /> : <p className="m-0 text-sm text-muted">This revision has no spec files.</p>}
+              </div>
+            </section>
+            <aside
+              aria-label="Side column"
+              data-review-rail
+              className="flex min-w-0 flex-col gap-2"
+              style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, ...(wide ? { flex: '0 0 340px', width: 340, position: 'sticky', top: 8, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' } : { width: '100%' }) }}
+            >
+              <DocTabs
+                tabs={['contents', 'comments']}
+                current={side}
+                counts={{ comments: inFile.length }}
+                onPick={(next) => setSide(next as 'contents' | 'comments')}
+                bar={{ label: 'Side column', attr: 'data-review-side-tab', prefix: 'review-side', labels: { contents: 'Contents', comments: 'Comments' } }}
+              />
+              {side === 'contents' ? (
+                <nav id="review-side-panel" role="tabpanel" aria-labelledby="review-side-contents" aria-label="Contents" data-review-contents className="flex flex-col" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {toc.length === 0 ? (
+                    <p className="m-0 text-sm text-muted">This file has no headings.</p>
+                  ) : (
+                    toc.map((h) => (
+                      <button
+                        key={h.id}
+                        type="button"
+                        data-toc-item={h.id}
+                        aria-current={current === h.id ? 'location' : undefined}
+                        onClick={() => goHeading(h.id)}
+                        style={{ textAlign: 'left', border: 0, background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: 13, padding: '4px 8px', paddingLeft: 8 + (h.level - 1) * 12, borderRadius: 4 }}
+                      >
+                        {h.text}
+                      </button>
+                    ))
+                  )}
+                </nav>
+              ) : (
+                <div id="review-side-panel" role="tabpanel" aria-labelledby="review-side-comments" data-review-comments className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {movedGroup}
+                  {placed.map((f) => card(f))}
+                  {inFile.length === 0 && (
+                    <p className="m-0 text-sm text-muted" data-review-empty>
+                      {data.findings.length === 0 ? 'No findings.' : 'No finding in this file matches these filters.'}
+                    </p>
+                  )}
                 </div>
-                {inFile.length === 0 && (
-                  <p className="m-0 text-sm text-muted" data-review-empty>
-                    {data.findings.length === 0 ? 'No findings.' : 'No finding in this file matches these filters.'}
-                  </p>
-                )}
-              </aside>
-            )}
+              )}
+            </aside>
           </div>
           )}
         </>

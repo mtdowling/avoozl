@@ -41,6 +41,9 @@ try {
         ['moved', [click('[data-open-review]'), 'wait', click('[data-review-tab="design.md"]')]],
         // All findings: every file's findings in one list.
         ['all', [click('[data-open-review]'), 'wait', click('[data-review-tab="all"]')]],
+        // Side column on Contents, then a highlight clicked (Comments opens on its card).
+        ['contents', [click('[data-open-review]'), 'wait', click('[data-review-side-tab="contents"]')]],
+        ['highlight', [click('[data-open-review]'), 'wait', click('[data-review-side-tab="contents"]'), click('[data-review-doc] [data-source-line="7"]')]],
       ]) {
         const url = harness.url({ page: 'app', radar: '1', specs: '1', review: '1', theme })
         const run = async (height) => {
@@ -60,7 +63,7 @@ try {
           for (const step of steps)
             if (step === 'wait') await page.until(`Boolean(document.querySelector('[data-finding-card]'))`, 30000)
             else await page.evaluate(step)
-          if (name !== 'before') await page.until(`Boolean(document.querySelector('[data-finding-card]'))`, 30000)
+          if (name !== 'before' && name !== 'contents') await page.until(`Boolean(document.querySelector('[data-finding-card]'))`, 30000)
           await settle()
         }
         // Tall enough for the whole view: the app scrolls inside its own pane.
