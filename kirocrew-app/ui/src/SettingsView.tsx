@@ -40,6 +40,7 @@ import {
   type SettingsForm,
   LOCAL_HIDDEN_LINE,
   SUB_ISSUE_LINE,
+  OLD_LABEL_NOTE,
   isGitHubMode,
   rateLines,
   usageRows,
@@ -66,9 +67,9 @@ import { CoderPicker } from './CoderPicker.tsx'
 import { ReleaseModePicker } from './ReleaseMode.tsx'
 import SetupWizard from './SetupWizard.tsx'
 import RadarValuesScreen from './RadarValues.tsx'
-import { CrewsRulesSettings } from './CrewsRulesSettings.tsx'
+import { AVOOZL_LABELS_LINE, AvoozlLabelFields, CREW_PART_TEXT, ConflictFields, MergeMethodFields, ReviewRulesFields } from './CrewsRulesSettings.tsx'
 import WorkflowMap, { focusField } from './WorkflowMap.tsx'
-import { type Jump } from './workflow-map.ts'
+import { type Jump, type JumpField } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
 import Onboard from './Onboard.tsx'
 import { AddRepository, REPOSITORIES_LINE, RepositoryList, repositoryRows, useReveal, type AddedRole } from './RepositoriesSettings.tsx'
@@ -111,6 +112,8 @@ export const SETTINGS_TABS = [
   // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's editor.
   { key: 'repositories', label: 'Repository setup' },
   { key: 'github', label: 'GitHub' },
+  // Everything Avoozl and Issue Radar crews share. Phase 45 is paused, so it stays whole.
+  { key: 'radar', label: 'Issue Radar' },
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
@@ -126,9 +129,11 @@ export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   workspaces: 'The Avoozl workspaces on this machine, each a folder with its own task database, and the settings that stay on this computer.',
   github:
-    "The GitHub settings of the selected workspace, for every repository in it: new-task authority, the Project board and Set up GitHub, which creates what's missing after showing each change.",
+    "The GitHub settings of the selected workspace, for every repository in it: new tasks and issues, sync pace, the Project board, Set up GitHub, which creates what's missing after showing each change, and the GitHub calls Avoozl made.",
+  radar:
+    'How Avoozl hands work to Issue Radar crews and reads their labels, one repository at a time. Who codes is set per repository in Repository setup. Save only writes .avoozl.json.',
   repositories:
-    "Each repository's role says where its tasks live. Its coder, labels, Crews and rules, Workflow map, checks and reviews are tabs under its name. Save only writes .avoozl.json.",
+    "Each repository's role says where its tasks live. Its coder, labels, Workflow map, checks and reviews are tabs under its name. Issue Radar settings have their own page. Save only writes .avoozl.json.",
   plugins:
     'A plugin can bring a team’s settings pack, content rules, a tracker, an intake source or a delivery route. Each one runs or imports only after you approve it on this machine.',
   content:
@@ -144,14 +149,12 @@ const REPOSITORY_TABS = [
   { key: 'triggers', label: 'Triggers and labels' },
   { key: 'checks', label: 'Checks' },
   { key: 'reviews', label: 'Reviews' },
-  { key: 'crews', label: 'Crews and rules' },
   { key: 'map', label: 'Workflow map' },
 ] as const
 type RepositoryTab = (typeof REPOSITORY_TABS)[number]['key']
 
 export const REPOSITORY_BLURBS: Record<RepositoryTab, string> = {
   map: 'The path work takes in this repository, drawn from its settings. Nothing here is edited; a value opens its field.',
-  crews: 'Issue Radar crews on this repository: the review rules crews read, and the planning and conflict labels. Defaults show in each field.',
   mode: 'Which repository this is, the branch pull requests merge into, and who writes the code.',
   triggers: "A rule starts its action when an allowed person's label makes an issue match its line. No label name is built in.",
   checks:
@@ -782,25 +785,29 @@ export function RepositoryEditor(props: {
   workspaceId: string
   planningRepository: string
   onChange: (repository: RepositoryForm) => void
+  // A Workflow map value that lives on Settings › Issue Radar.
+  onOpenRadar?: (jump: RadarJump) => void
 }) {
   const { repository, choices } = props
   const api = useAppApi()
   const inspectRepository = useMemo(() => inspectClient(api), [api])
   // Each sub-tab is a Back step; a repository starts on Mode.
-  const [tab, setTab] = useSteppedState<RepositoryTab>(
+  const [asked, setTab] = useSteppedState<RepositoryTab>(
     `settings-repo-tab-${props.index}`,
     'inner',
     (previous) => `Back to ${REPOSITORY_TABS.find((t) => t.key === previous)?.label ?? previous}`,
     'mode',
     false,
   )
+  // A remembered tab that left (Crews and rules) starts on Mode.
+  const tab: RepositoryTab = REPOSITORY_TABS.some((t) => t.key === asked) ? asked : 'mode'
   const [inspect, setInspect] = useState<RepositoryInspect | null>(null)
   const id = `avoozl-settings-repo-${props.index}`
   // A jump from the Workflow map: open the sub-tab, then any closed fold
   // around the field, then focus it.
   const [pending, setPending] = useState<Jump | null>(null)
   useEffect(() => {
-    if (!pending || tab !== pending.tab) return
+    if (!pending || pending.tab === 'radar' || tab !== pending.tab) return
     setPending(null)
     focusField(id, pending)
   }, [pending, tab, id])
@@ -851,13 +858,6 @@ export function RepositoryEditor(props: {
             <div style={grid()}>
               <Text id={`${id}-release-capacity`} label="Release N" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} help={RELEASE_N_HELP} placeholder="2" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
             </div>
-            {(repository.coder || defaultCoder(props.mode)) === 'issue-radar' && (
-              <>
-                <Field id={`${id}-release-mode`} label="Release mode" raw="release.mode">
-                  <ReleaseModePicker id={`${id}-release-mode`} mode={repository.releaseMode} onMode={(value) => set({ releaseMode: value })} />
-                </Field>
-              </>
-            )}
           </Section>
         )}
         {tab === 'triggers' && (
@@ -924,21 +924,6 @@ export function RepositoryEditor(props: {
               workspaceId={props.workspaceId}
               onChange={(untriaged) => set({ untriaged })}
             />
-            <Section level="sub" title="Issue Radar labels" blurb="Labels Issue Radar puts on issues it claims. Avoozl only reads them.">
-              <div style={grid(200)}>
-                {choices.crewLabels.map((key) => (
-                  <Text
-                    key={key}
-                    id={`${id}-crew-${key}`}
-                    label={CREW_LABELS[key] ?? key}
-                    raw={`crewLabels.${key}`}
-                    rule={{ required: false, blank: "blank: Issue Radar's default" }}
-                    value={repository.crewLabels[key] ?? ''}
-                    onChange={(value) => set({ crewLabels: { ...repository.crewLabels, [key]: value } })}
-                  />
-                ))}
-              </div>
-            </Section>
             <Section
               level="sub"
               title="Who counts"
@@ -973,11 +958,6 @@ export function RepositoryEditor(props: {
             </Section>
           </div>
         )}
-        {tab === 'crews' && (
-          <Section level="sub" title="Crews and rules" blurb={REPOSITORY_BLURBS.crews}>
-            <CrewsRulesSettings id={id} repository={repository} set={set} />
-          </Section>
-        )}
         {tab === 'map' && (
           <Section level="sub" title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
             <WorkflowMap
@@ -986,6 +966,7 @@ export function RepositoryEditor(props: {
               repository={repository}
               planningRepository={props.planningRepository}
               onJump={(jump) => {
+                if (jump.tab === 'radar') return props.onOpenRadar?.({ repository: name, field: jump.field })
                 setTab(jump.tab)
                 setPending(jump)
               }}
@@ -1018,28 +999,23 @@ export function RepositoryEditor(props: {
 
 const MODE_TITLES: Record<string, string> = { local: 'Local only', 'plans-repo': 'Plans repository', 'single-repo': 'Single repository' }
 
-// The label each Issue Radar crew must scope to, from the saved policy, and
+// The label an Issue Radar crew must scope to, from the saved policy, and
 // a link to Issue Radar, where the user sets it (R17.4). Nothing else.
-function CrewScopes({ crews }: { crews: CrewScope[] }) {
-  if (!crews.length) return null
+function CrewScope({ crew }: { crew: CrewScope | undefined }) {
+  if (!crew)
+    return (
+      <p className="text-sm" data-radar-none>
+        No Issue Radar crew codes this repository. Who codes is set for each repository in Repository setup.
+      </p>
+    )
   return (
-    <Card>
-      <Section title="Issue Radar crews" blurb="Scope each crew to its repository's ready label in Issue Radar, so it codes only what Avoozl marks ready.">
-        <ul className="flex flex-col gap-1 text-sm">
-          {crews.map((crew) => (
-            <li key={crew.repository}>
-              {crew.repository}: scope its crew to{' '}
-              {crew.label ? <code>{crew.label}</code> : <span className="text-danger">no ready label yet; name one in Repositories</span>}{' '}
-              in{' '}
-              <a href={linkHref(crew.link)} target="_top" className="underline">
-                Issue Radar
-              </a>
-              .
-            </li>
-          ))}
-        </ul>
-      </Section>
-    </Card>
+    <p className="text-sm" data-crew-scope={crew.repository}>
+      Scope its crew to {crew.label ? <code>{crew.label}</code> : <span className="text-danger">no ready label yet; name one under Handoff to Avoozl</span>} in{' '}
+      <a href={linkHref(crew.link)} target="_top" className="underline">
+        Issue Radar
+      </a>
+      .
+    </p>
   )
 }
 
@@ -1056,6 +1032,7 @@ function RepositoriesTab(props: {
   onOpenPlans?: () => void
   // The file's own mode when the roles disagree (R105.8).
   rolesNote?: string | null
+  onOpenRadar?: (jump: RadarJump) => void
 }) {
   const { form, choices, rolesNote } = props
   const api = useAppApi()
@@ -1117,6 +1094,7 @@ function RepositoriesTab(props: {
         workspaceId={props.workspaceId}
         planningRepository={form.planningRepository}
         onChange={setEntry}
+        onOpenRadar={props.onOpenRadar}
       />
     ) : row.github ? (
       <Section title={`${row.name} settings`} blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
@@ -1250,7 +1228,6 @@ function WorkspaceGitHub(props: {
   choices: SettingsChoices
   set: (change: Partial<SettingsForm>) => void
   setup: ReactNode
-  crews: ReactNode
 }) {
   const { form, choices, set } = props
   const shown = visibleSettings(form.mode)
@@ -1270,9 +1247,9 @@ function WorkspaceGitHub(props: {
       </Card>
     )
   return (
-    <Card>
-      <Section title="GitHub settings" blurb="For every repository in this workspace. Save only writes .avoozl.json.">
-        <div className="flex flex-col gap-4">
+    <>
+      <Card>
+        <Section title="New tasks and issues" blurb="Who owns a new task, and how its GitHub issue is made. For every repository in this workspace.">
           <div style={grid()}>
             <Choice
               id="avoozl-settings-authority"
@@ -1286,9 +1263,6 @@ function WorkspaceGitHub(props: {
               onChange={(value) => set({ defaultAuthority: value })}
             />
             <Text id="avoozl-settings-epic" label="Epic issue type" raw="epicIssueType" rule={{ required: false, blank: 'blank: epics get no issue type' }} placeholder="Epic" width="md" value={form.epicIssueType} onChange={(value) => set({ epicIssueType: value })} />
-            <Text id="avoozl-settings-cache" label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={{ required: false, blank: 'blank: 60. 0 turns the cache off' }} placeholder="60" type="number" width="sm" value={form.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
-            <Text id="avoozl-settings-writes-minute" label="GitHub writes a minute" raw="writesPerMinute" rule={{ required: false, blank: 'blank: 60. At most 80' }} placeholder="60" type="number" width="sm" value={form.writesPerMinute} onChange={(value) => set({ writesPerMinute: value })} />
-            <Text id="avoozl-settings-writes-hour" label="GitHub writes an hour" raw="writesPerHour" rule={{ required: false, blank: 'blank: 400. At most 500' }} placeholder="400" type="number" width="sm" value={form.writesPerHour} onChange={(value) => set({ writesPerHour: value })} />
             {shown.has('subIssueCap') && (
               <Text id="avoozl-settings-sub-issues" label="Sub-issues per parent" raw="subIssues.maxPerParent" rule={{ required: false, blank: SUB_ISSUE_LINE }} placeholder="100" type="number" width="sm" value={form.maxPerParent} onChange={(value) => set({ maxPerParent: value })} />
             )}
@@ -1297,14 +1271,140 @@ function WorkspaceGitHub(props: {
             <input type="checkbox" checked={form.includeDone} onChange={(event) => set({ includeDone: event.target.checked })} />
             Make issues for tasks already done when a spec is approved <span className="text-xs text-muted">issues.includeDone</span>
           </label>
-          <ProjectFields form={form} choices={choices} set={set} />
-          <Section level="sub" title="Set up GitHub" blurb="Creates the labels, Project and fields the settings above name. It reads GitHub first and shows every write before making one.">
-            {props.setup}
+        </Section>
+      </Card>
+      <Card>
+        <Section title="Sync pace" blurb="How long Avoozl keeps GitHub's answers, and how fast it writes. Every write from the app, CLI and tick shares these limits.">
+          <div style={grid()}>
+            <Text id="avoozl-settings-cache" label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={{ required: false, blank: 'blank: 60. 0 turns the cache off' }} placeholder="60" type="number" width="sm" value={form.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
+            <Text id="avoozl-settings-writes-minute" label="GitHub writes a minute" raw="writesPerMinute" rule={{ required: false, blank: 'blank: 60. At most 80' }} placeholder="60" type="number" width="sm" value={form.writesPerMinute} onChange={(value) => set({ writesPerMinute: value })} />
+            <Text id="avoozl-settings-writes-hour" label="GitHub writes an hour" raw="writesPerHour" rule={{ required: false, blank: 'blank: 400. At most 500' }} placeholder="400" type="number" width="sm" value={form.writesPerHour} onChange={(value) => set({ writesPerHour: value })} />
+          </div>
+        </Section>
+      </Card>
+      <Card>
+        <ProjectFields form={form} choices={choices} set={set} />
+      </Card>
+      <Card>
+        <Section title="Set up GitHub" blurb="Creates the labels, Project and fields the settings above name. It reads GitHub first and shows every write before making one.">
+          {props.setup}
+        </Section>
+      </Card>
+    </>
+  )
+}
+
+// A jump from the Workflow map to a field on Settings › Issue Radar. Kept
+// here until the page opens, so the page can pick the repository and focus it.
+export interface RadarJump {
+  repository: string
+  field: JumpField
+}
+let radarJump: RadarJump | null = null
+
+// Settings › Issue Radar: what Avoozl and Issue Radar crews share, for one
+// repository at a time. It edits the same form as the GitHub page, so the
+// one Save bar writes it. The crew and its Radar values are read, never
+// written: only the person enters them in Issue Radar.
+function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; workspaceId: string; set: (change: Partial<SettingsForm>) => void }) {
+  const { form, settings, set } = props
+  const names = form.repositories.map((r) => r.name.trim())
+  const [picked, setPicked] = useState(() => (radarJump && names.includes(radarJump.repository) ? radarJump.repository : (names[0] ?? '')))
+  const field = useRef(radarJump?.field ?? null)
+  radarJump = null
+  const index = Math.max(0, names.indexOf(picked))
+  const repository = form.repositories[index]
+  const id = `avoozl-settings-repo-${index}`
+  useEffect(() => {
+    if (!field.current) return
+    const jump: Jump = { tab: 'radar', field: field.current }
+    field.current = null
+    focusField(id, jump)
+  }, [id])
+  if (!isGitHubMode(form.mode) || !repository)
+    return (
+      <Card>
+        <Section title="Issue Radar" blurb="Issue Radar crews code GitHub issues. These settings apply once a repository has a GitHub role in Repository setup.">
+          {null}
+        </Section>
+      </Card>
+    )
+  const setRepository = (change: Partial<RepositoryForm>) => set({ repositories: form.repositories.map((entry, at) => (at === index ? { ...entry, ...change } : entry)) })
+  const part = { id, repository, set: setRepository }
+  const radarCoder = (repository.coder || defaultCoder(form.mode)) === 'issue-radar'
+  const crews = visibleSettings(form.mode).has('issueRadarCrews') ? (settings.crews ?? []) : []
+  const crew = crews.find((entry) => entry.repository === repository.name.trim())
+  return (
+    <div className="flex flex-col gap-3.5" data-radar-settings>
+      {names.length > 1 && (
+        <Card>
+          <Section title="Repository" blurb="Each repository has its own Issue Radar settings. Pick the one to edit.">
+            <label className="flex flex-wrap items-center gap-2 text-sm" htmlFor="avoozl-radar-repository">
+              Repository
+              <select id="avoozl-radar-repository" value={names[index]} onChange={(event) => setPicked(event.target.value)} className="min-w-0 rounded border px-2 py-1" style={selectStyle}>
+                {names.map((name, at) => (
+                  <option key={`${name}-${at}`} value={name}>
+                    {name || '(no name yet)'}
+                  </option>
+                ))}
+              </select>
+            </label>
           </Section>
-          {props.crews}
-        </div>
-      </Section>
-    </Card>
+        </Card>
+      )}
+      <Card>
+        <Section title="Radar crew" blurb="The Issue Radar crew that codes this repository, and how Avoozl releases issues to it.">
+          <div className="flex flex-col gap-3">
+            <CrewScope crew={crew} />
+            {radarCoder ? (
+              <Field id={`${id}-release-mode`} label="Release mode" raw="release.mode">
+                <ReleaseModePicker id={`${id}-release-mode`} mode={repository.releaseMode} onMode={(value) => setRepository({ releaseMode: value })} />
+              </Field>
+            ) : (
+              <p className="text-xs text-muted">Release mode applies only when Issue Radar codes this repository.</p>
+            )}
+          </div>
+        </Section>
+      </Card>
+      {crew && <RadarValuesScreen key={crew.repository} workspaceId={props.workspaceId} repositories={[crew.repository]} />}
+      <Card>
+        <Section title="Handoff to Avoozl" blurb={`${AVOOZL_LABELS_LINE} ${OLD_LABEL_NOTE}`}>
+          <AvoozlLabelFields {...part} note={false} />
+        </Section>
+      </Card>
+      <Card>
+        <Section title="Labels Radar uses" blurb="Labels Issue Radar puts on issues it claims. Avoozl only reads them.">
+          <div style={grid(200)}>
+            {settings.choices.crewLabels.map((key) => (
+              <Text
+                key={key}
+                id={`${id}-crew-${key}`}
+                label={CREW_LABELS[key] ?? key}
+                raw={`crewLabels.${key}`}
+                rule={{ required: false, blank: "blank: Issue Radar's default" }}
+                value={repository.crewLabels[key] ?? ''}
+                onChange={(value) => setRepository({ crewLabels: { ...repository.crewLabels, [key]: value } })}
+              />
+            ))}
+          </div>
+        </Section>
+      </Card>
+      <Card>
+        <Section title="Crew review rules" blurb={CREW_PART_TEXT.rules.blurb}>
+          <ReviewRulesFields {...part} />
+        </Section>
+      </Card>
+      <Card>
+        <Section title="Crew pull-request conflicts" blurb={CREW_PART_TEXT.conflicts.blurb}>
+          <ConflictFields {...part} />
+        </Section>
+      </Card>
+      <Card>
+        <Section title={CREW_PART_TEXT.merge.title} blurb={CREW_PART_TEXT.merge.blurb}>
+          <MergeMethodFields {...part} />
+        </Section>
+      </Card>
+    </div>
   )
 }
 
@@ -1314,7 +1414,6 @@ export function ProjectFields({ form, choices, set }: { form: SettingsForm; choi
   return (
     <div>
       <Section
-        level="sub"
         title="Project fields"
         blurb="The GitHub Project board Avoozl adds managed issues to and fills with Release, Wave and Avoozl state. People move Status; Avoozl never writes it. Leave every field blank to turn Project sync off."
       >
@@ -1370,7 +1469,7 @@ function sharedSetup(form: SettingsForm) {
 }
 
 // The tabs that edit `.avoozl.json`: one form, one Save, kept across tabs.
-function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlans?: () => void }) {
+function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlans?: () => void; onTab?: (tab: SettingsTab) => void }) {
   const { workspaceId, tab } = props
   const api = useAppApi()
   const client = useMemo(() => settingsClient(api), [api])
@@ -1451,21 +1550,19 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           onRegistryChanged={reload}
           onOpenPlans={props.onOpenPlans}
           rolesNote={settings.rolesNote}
+          onOpenRadar={(jump) => {
+            radarJump = jump
+            props.onTab?.('radar')
+          }}
         />
+      ) : tab === 'radar' ? (
+        <RadarSettings form={form} settings={settings} workspaceId={workspaceId} set={set} />
       ) : (
         <WorkspaceGitHub
           form={form}
           choices={choices}
           set={set}
           setup={<SetupWizard workspaceId={workspaceId} client={client} settings={settings} shared={sharedSetup(form)} onSaved={reload} />}
-          crews={
-            visibleSettings(form.mode).has('issueRadarCrews') ? (
-              <>
-                <CrewScopes crews={settings.crews ?? []} />
-                <RadarValuesScreen workspaceId={workspaceId} repositories={(settings.crews ?? []).map((crew) => crew.repository)} />
-              </>
-            ) : null
-          }
         />
       )}
       {tab === 'github' && <RateBlock rate={settings.rate} />}
@@ -1523,33 +1620,35 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   if (tab === 'delivery') return <DeliverySettings workspaceId={workspaceId} />
   return (
     <div className="flex flex-col gap-3.5">
-      <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
+      <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} onTab={props.onTab} />
     </div>
   )
 }
 
-// The last GitHub rate-limit numbers, then the calls of the last hour by source.
+// The last GitHub rate-limit numbers, then the calls of the last hour by
+// source, all in one bordered section.
 export function RateBlock({ rate }: { rate: RateView | undefined }) {
   const lines = rateLines(rate),
     rows = usageRows(rate)
+  if (!lines.length && !rows.length) return null
   return (
-    <>
-      {lines.length > 0 && (
-        <div className="text-xs text-muted" data-github-rate>
-          <p className="font-medium">GitHub calls, last known</p>
-          {lines.map((line) => (
-            <p key={line}>{line}</p>
-          ))}
-        </div>
-      )}
-      {rows.length > 0 && (
-        <Card>
-          <Section title="GitHub calls in the last hour" blurb={`${rate?.hourCalls ?? 0} calls by source. Calls count against the limit; 304s and cached answers do not. Click a heading to sort.`}>
+    <Card>
+      <Section title="GitHub calls" blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source. Calls count against the limit; 304s and cached answers do not.">
+        {lines.length > 0 && (
+          <div className="flex flex-col gap-1 text-xs text-muted" data-github-rate>
+            {lines.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        )}
+        {rows.length > 0 && (
+          <>
+            <p className="text-xs text-muted">{rate?.hourCalls ?? 0} calls in the last hour. Click a heading to sort.</p>
             <UsageTable rows={rows} />
-          </Section>
-        </Card>
-      )}
-    </>
+          </>
+        )}
+      </Section>
+    </Card>
   )
 }
 
