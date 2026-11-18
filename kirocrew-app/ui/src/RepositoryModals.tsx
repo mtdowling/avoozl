@@ -6,6 +6,7 @@
 import { useState, type ReactNode } from 'react'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import { Modal } from './Modal.tsx'
+import { FormSection } from './FormSection.tsx'
 import MirrorSetup from './MirrorSetup.tsx'
 import { selectStyle } from './FilterSelect.tsx'
 import { MIRROR_ROLE, MIRROR_ROLE_LABEL, MIRROR_ROLE_LINE, ROLE_OPTIONS, mirrorSourceProblem, type RepositoryEdit, type RepositoryForm } from './settings-api.ts'
@@ -22,6 +23,8 @@ export function RoleChoice(props: {
   onChange: (role: string, source: string) => void
   // Why the role cannot change, when it cannot.
   fixed?: string | null
+  // A heading above already says Role: the label is for screen readers only.
+  titled?: boolean
 }) {
   const { role, source } = props
   const line = role === MIRROR_ROLE ? MIRROR_ROLE_LINE : ROLE_OPTIONS.find((option) => option.value === role)?.line
@@ -29,7 +32,7 @@ export function RoleChoice(props: {
   return (
     <div className="flex flex-col gap-1.5" data-role-choice>
       <label htmlFor={`${props.id}-role`} className="flex flex-col gap-1 text-sm">
-        <span className="font-medium">Role</span>
+        <span className={props.titled ? 'sr-only' : 'font-medium'}>Role</span>
         <select
           id={`${props.id}-role`}
           value={role}
@@ -65,14 +68,30 @@ export function RoleChoice(props: {
   )
 }
 
+function Facts({ facts }: { facts: [string, ReactNode][] }) {
+  return (
+    <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+      {facts.map(([label, value]) => (
+        <div key={label} style={{ display: 'contents' }}>
+          <dt className="text-muted">{label}</dt>
+          <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+            {value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
 export function ViewRepository(props: { row: RepositoryRow; roleText: string; entry: RepositoryForm | null; onClose: () => void; onReveal: (folder: string) => void; githubUrl: string | null }) {
   const { row, entry } = props
-  const facts: [string, ReactNode][] = [
+  const where: [string, ReactNode][] = [
     ['Role', props.roleText],
     ['Folder', row.folder ?? 'No folder on this computer'],
     ['Tasks land on', <code key="b">{row.branch}</code>],
     ['GitHub', row.github ? (props.githubUrl ? <a href={linkHref(props.githubUrl)} target="_blank" rel="noopener noreferrer" className="underline">{row.github}</a> : row.github) : 'No GitHub remote'],
   ]
+  const facts: [string, ReactNode][] = []
   if (entry) {
     facts.push(
       ['Who codes', entry.coder || 'Workspace default'],
@@ -91,22 +110,20 @@ export function ViewRepository(props: { row: RepositoryRow; roleText: string; en
       attrs={{ 'data-repository-view': row.key }}
       focusClose
     >
-      <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
-        {facts.map(([label, value]) => (
-          <div key={label} style={{ display: 'contents' }}>
-            <dt className="text-muted">{label}</dt>
-            <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
-              {value}
-            </dd>
+      <FormSection title="Repository">
+        <Facts facts={where} />
+        {row.folder && (
+          <div>
+            <Btn type="button" onClick={() => props.onReveal(row.folder!)}>
+              Open folder in Finder
+            </Btn>
           </div>
-        ))}
-      </dl>
-      {row.folder && (
-        <div>
-          <Btn type="button" onClick={() => props.onReveal(row.folder!)}>
-            Open folder in Finder
-          </Btn>
-        </div>
+        )}
+      </FormSection>
+      {facts.length > 0 && (
+        <FormSection title="Settings">
+          <Facts facts={facts} />
+        </FormSection>
       )}
     </Modal>
   )
@@ -167,21 +184,24 @@ export function EditRepository(props: {
         </>
       }
     >
-      <RoleChoice
-        id="avoozl-repo-edit"
-        name={row.name}
-        github={row.github}
-        role={role}
-        source={source}
-        fixed={fixed}
-        onChange={(nextRole, nextSource) => {
-          setRole(nextRole)
-          setSource(nextSource)
-        }}
-      />
-      {role === MIRROR_ROLE && row.github && !problem && (
-        <MirrorSetup workspaceId={props.workspaceId} repository={row.github} source={source} onApplied={props.onApplied} />
-      )}
+      <FormSection title="Role">
+        <RoleChoice
+          id="avoozl-repo-edit"
+          name={row.name}
+          github={row.github}
+          role={role}
+          source={source}
+          fixed={fixed}
+          titled
+          onChange={(nextRole, nextSource) => {
+            setRole(nextRole)
+            setSource(nextSource)
+          }}
+        />
+        {role === MIRROR_ROLE && row.github && !problem && (
+          <MirrorSetup workspaceId={props.workspaceId} repository={row.github} source={source} onApplied={props.onApplied} />
+        )}
+      </FormSection>
       {props.settings(entry, setEntry)}
     </Modal>
   )
