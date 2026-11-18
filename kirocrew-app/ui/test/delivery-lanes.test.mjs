@@ -97,3 +97,34 @@ test("Delivery's nav filters: the task search sits under the Filters header, abo
   })()`)
   assert.deepEqual(got, { inBlock: true, afterHead: true, beforeAll: true, below: true })
 })
+
+test('Delivery entries have only a top rule in the lane color, on a lane with the app background', { skip }, async () => {
+  for (const width of [1280, 390]) {
+    await openDelivery(width)
+    const got = await page.evaluate(`(() => {
+      const lanes = [...document.querySelectorAll('[data-lane-columns] > section')]
+      return lanes.map((lane) => {
+        const probe = document.createElement('i')
+        probe.style.color = getComputedStyle(lane).getPropertyValue('--lane-line')
+        lane.append(probe)
+        const line = getComputedStyle(probe).color
+        probe.remove()
+        const entries = [...lane.querySelectorAll('[data-lane-card]')].map((li) => {
+          const s = getComputedStyle(li)
+          return { top: s.borderTopWidth + ' ' + s.borderTopColor, others: [s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth], padX: [s.paddingLeft, s.paddingRight] }
+        })
+        return { background: getComputedStyle(lane).backgroundColor, line, entries }
+      })
+    })()`)
+    const pageBg = await page.evaluate(`getComputedStyle(document.body).backgroundColor`)
+    assert.ok(got.some((lane) => lane.entries.length), 'some lane has entries')
+    for (const lane of got) {
+      assert.equal(lane.background, pageBg, `lane background is the app background at ${width}`)
+      for (const entry of lane.entries) {
+        assert.deepEqual(entry.others, ['0px', '0px', '0px'], 'no side or bottom border')
+        assert.equal(entry.top, `1px ${lane.line}`, 'top border is the lane color')
+        assert.deepEqual(entry.padX, ['0px', '0px'], 'no side padding')
+      }
+    }
+  }
+})

@@ -76,14 +76,13 @@ function LaneCardView(props: {
   const done = card.item?.complete ?? false
   return (
     <li data-lane-card>
-      <Card style={props.compact ? { padding: 10 } : undefined}>
-        <div className={props.compact ? undefined : 'p-1'} style={{ overflowWrap: 'break-word' }}>
+      <div style={{ overflowWrap: 'break-word' }}>
           {/* In a narrow lane the title wraps below its icon rather than split words. */}
           <div className={`flex items-start gap-2 ${props.compact ? 'flex-wrap' : ''}`}>
             {props.phase && <StateIcon phase={props.phase} />}
-            <TaskTitleLink id={card.id} title={card.title} className={`${props.compact ? 'text-sm' : 'text-base'} font-semibold leading-snug`} />
+            <TaskTitleLink id={card.id} title={card.title} className={`${props.compact ? 'text-sm' : 'text-base'} font-semibold leading-tight`} />
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
             <span>{card.id}</span>
             {card.epic && <Badge>{card.epic}</Badge>}
             {card.plan && <span>{card.plan}{card.phase ? ` · ${card.phase.title}` : ''}</span>}
@@ -102,17 +101,17 @@ function LaneCardView(props: {
             {card.planArchived && <Badge>Archived</Badge>}
           </div>
           {card.subIssue && (
-            <p className="mt-2 text-xs" style={{ color: 'var(--warning, var(--muted))' }} data-sub-issue>
+            <p className="mt-1 text-xs" style={{ color: 'var(--warning, var(--muted))' }} data-sub-issue>
               {card.subIssue.reason}
             </p>
           )}
           {card.item && (
-            <div className="mt-2.5">
+            <div className="mt-1.5">
               <ReviewRuns item={card.item} compact onInfo={() => drawer.openTask(card.id)} />
             </div>
           )}
           {card.handSetReview && (
-            <div className="mt-2.5">
+            <div className="mt-1.5">
               <HandSetReview
                 compact
                 workspaceId={workspaceId}
@@ -124,7 +123,7 @@ function LaneCardView(props: {
             </div>
           )}
           {card.sessions.length > 0 && (
-            <ul className="mt-2.5 flex flex-col gap-1 text-xs">
+            <ul className="mt-1.5 flex flex-col gap-1 text-xs">
               {card.sessions.map((session) => (
                 <li key={session.slot}>
                   {session.link ? (
@@ -138,7 +137,7 @@ function LaneCardView(props: {
               ))}
             </ul>
           )}
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-1.5 flex flex-wrap gap-2">
             {props.ready && canStartNow(card) && (
               <IconLabel icon={Play} disabled={busy} tooltip={START_TIP} onClick={() => props.onStart(card.id)} {...label('Start now')} />
             )}
@@ -172,8 +171,7 @@ function LaneCardView(props: {
             )}
             <IconLabel icon={DetailsIcon} tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(card.id)} {...label('Details')} />
           </div>
-        </div>
-      </Card>
+      </div>
     </li>
   )
 }
@@ -220,6 +218,13 @@ export function StateIcon({ phase }: { phase: 'running' | 'reviewing' }) {
 
 const LANE_GAP = 16
 
+// The shared lane entry: no box, only a top rule in the lane's own color
+// (--lane-line, set on the lane), flush to the lane's edges.
+const LANE_CSS = `
+[data-lane-card]{list-style:none;margin:0;padding:6px 0;border:0;border-top:1px solid var(--lane-line);line-height:1.3}
+[data-lane-card] :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+`
+
 // The width a box has, kept current as it resizes.
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null)
@@ -264,16 +269,18 @@ export function DeliveryBoard(props: {
   const single = columns === 1
   const compact = !single && laneWidth(width, columns, LANE_GAP) < LANE_LABEL_WIDTH
   const list = (id: string, cards: LaneCard[], phase?: 'running' | 'reviewing') => (
-    <ul className="flex flex-col gap-3">
+    <ul className="flex flex-col">
       {pages.take(id, cards).map((card) => props.card(card, phase, compact))}
       {pages.more(id, cards.length).left > 0 && (
-        <li>
+        <li className={compact ? 'px-2' : 'px-3'}>
           <ShowMore {...pages.more(id, cards.length)} />
         </li>
       )}
     </ul>
   )
   return (
+    <>
+      <style>{LANE_CSS}</style>
     <div
       ref={ref}
       data-lane-columns={columns}
@@ -287,12 +294,12 @@ export function DeliveryBoard(props: {
           <section
             key={lane.id}
             aria-label={`${lane.label}: ${cards.length}`}
-            className={`flex min-w-0 flex-col gap-3 rounded-lg border ${compact ? 'p-2' : 'p-3'}`}
-            style={{ background: laneBackground(lane.tint), borderColor: 'var(--border)', color: 'var(--text)' }}
+            className={`flex min-w-0 flex-col gap-2 rounded-lg border ${compact ? 'py-2' : 'py-3'}`}
+            style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', ['--lane-line' as string]: laneBackground(lane.tint) }}
           >
             <button
               type="button"
-              className="flex items-center gap-2 text-left text-sm font-semibold"
+              className={`flex items-center gap-2 text-left text-sm font-semibold ${compact ? 'px-2' : 'px-3'}`}
               aria-expanded={!shut}
               onClick={() => {
                 const next = new Set(folded)
@@ -308,17 +315,17 @@ export function DeliveryBoard(props: {
             </button>
             {!shut &&
               (cards.length === 0 ? (
-                <p className="text-xs text-muted">None</p>
+                <p className={`text-xs text-muted ${compact ? 'px-2' : 'px-3'}`}>None</p>
               ) : lane.id === 'in-progress' ? (
                 <>
                   {props.machines?.length ? (
-                    <p className="text-xs text-muted" data-machine-counts>
+                    <p className={`text-xs text-muted ${compact ? 'px-2' : 'px-3'}`} data-machine-counts>
                       {props.machines.map(loadLabel).join(' · ')}
                     </p>
                   ) : null}
                   {progressGroups(lanes).map((group) => (
                     <div key={group.id} className="flex flex-col gap-2" role="group" aria-label={`${group.label}: ${group.cards.length}`}>
-                      <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+                      <h4 className={`flex items-center gap-1.5 ${compact ? 'px-2' : 'px-3'} text-xs font-semibold uppercase tracking-wide text-muted`}>
                         {group.label} <Badge>{group.cards.length}</Badge>
                       </h4>
                       {list(`${lane.id}:${group.id}`, group.cards, group.id)}
@@ -332,6 +339,7 @@ export function DeliveryBoard(props: {
         )
       })}
     </div>
+    </>
   )
 }
 
