@@ -14,7 +14,6 @@ const PAGES = {
   flow: "Flow",
   models: "Models",
   delivery: "Delivery",
-  budgets: "Budgets",
 };
 
 test("per-workspace pages carry the workspace name", () => {

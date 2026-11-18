@@ -87,7 +87,6 @@ import type { DeliverySettings as DeliveryRead } from './delivery-api.ts'
 import { Fold } from './controls.tsx'
 import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
 import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
-import { redirectSettings } from './nav-api.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
 import { ErrorText } from './ui/ErrorText'
@@ -1724,8 +1723,7 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
 }
 
 // Settings is one accordion: one section open at a time, each change of
-// section a Back step. A section name from an older link lands on the section
-// that took over (redirectSettings).
+// section a Back step.
 export default function SettingsView(props: {
   workspaceId: string | null
   workspaceName?: string | null
@@ -1737,7 +1735,7 @@ export default function SettingsView(props: {
 }) {
   const { workspaceId } = props
   const [own, setOwn] = useState<SettingsTab>(SETTINGS_HOME)
-  const asked = redirectSettings(props.tab ?? own)
+  const asked = props.tab ?? own
   // A remembered section that no longer exists falls back to Workspaces.
   const tab: SettingsTab = SETTINGS_TABS.some((t) => t.key === asked) ? (asked as SettingsTab) : SETTINGS_HOME
   const choose = (next: SettingsTab) => (props.onTab ? props.onTab(next) : setOwn(next))

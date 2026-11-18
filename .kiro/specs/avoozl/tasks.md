@@ -55,20 +55,6 @@ at every write and approval boundary. It changes no earlier task: tasks
 in 10.3. Like Phase 9 it starts after Phase 2's proofs pass; 10.6 and 10.7
 also wait for the tasks that built their boundaries.
 
-Change note (2026-11-12, crew placement, Requirements 41–42). New Phase 11
-picks the crew for each worker, checks, and reviewer session and adds the
-Routing page. It changes no earlier task. With no rules every session runs
-on this machine, as today.
-
-Change note (2026-11-13, owner decision: routing went overboard,
-Requirements 41, 42, 53, 72). Rules, presets, the scorer, smart pick,
-weighted choices, the Providers tab and its thresholds form are removed.
-Routing is one opt-in prompt: one routing agent call per tick picks a crew
-and a model for every ready task among the options that pass hard checks.
-New tasks 11.14–11.17 replace 11.2–11.4, 11.8, 11.11 and 11.12; P29 is
-rewritten for the prompt and P33 is superseded. Phase 30's 30.1, 30.2 and
-30.5 change to match.
-
 Change note (2026-11-12, Avoozl manages this spec). Avoozl's spec reader
 needs an ID token on every item, and `P1` is not one, so each proof item
 now starts with `avoozl-p<N>` and keeps its P number in the title. Avoozl
@@ -100,11 +86,6 @@ in 14.7 and 14.8 with their results unchanged, and R49.1 now also shows
 the tab in Local only mode when a non-GitHub source is declared. Like
 Phases 9–13 it starts after Phase 2's proofs; its tasks also wait for the
 tasks they extend.
-
-Change note (2026-11-13, agent and model per task, Requirement 53). Phase
-11 gains 11.11, 11.12, and P33: a routing rule or manifest task may set the
-writer's agent and model, or weighted choices among several. It changes no
-earlier task. With no `session` set, every session opens as today.
 
 Change note (2026-11-13, pull request feedback, Requirement 54). New Phase
 15 sends failed checks, review, conflicts, and auto-merge state on an
@@ -434,7 +415,7 @@ applies to both.
 
 ## Phase 5: Removal
 
-- [x] 5.1 Delete the agent host, scheduler, providers, routing, approvals, run capabilities, external sessions, and telemetry; keep old tables read-only. [R1.1, R26.1] (§9)
+- [x] 5.1 Delete the agent host, scheduler, providers, approvals, run capabilities, external sessions, and telemetry; keep old tables read-only. [R1.1, R26.1] (§9)
   - Built: `c594e39` (receipt `docs/evidence/phase5-agent-host-targets-removal.md`, `6561d9f`).
 - [x] 5.2 Delete OpenHands integration, Canvas app and backend, and their docs. [R1.3] (§9)
   - Built: `f31f057` (receipt `docs/evidence/phase5-openhands-vscode-removal.md`, `c7a1a81`).
@@ -668,97 +649,31 @@ numbered after Phase 9 because task IDs never move.
   - Next decision: narrow the boundaries to GitHub writes and diffs only, or move matching into a plugin child process instead of a worker thread.
   - Built: pass, `src/app/test/proof-p28.test.mjs`, in the publish commit `ac3825f`.
 
-## Phase 11: Crew placement
+## Phase 11: Retired
 
-Starts when Phase 2's proofs pass and 10.4 (brief checks) has landed, like
-Phases 9 and 10, and does not wait for Phases 3–8. Everything except opening
-real remote sessions builds and proves against fake crews: a test-only crew
-driver that plays the instance list, headroom readings, and remote sessions.
-Opening sessions on a real remote crew waits for Kiro Crew's MC-10 (design
-§7.1), a required upstream ask (11.10); until then 11.5 ships behind the
-inert path in §4.10, the Routing page says so, and the rest works on `local`
-and in Preview. Changed 2026-11-12 (owner answers, design §4.10): remote
-pushes on public and private repositories alike, router instructions
-machine-local only, MC-10 required with attach to every chat, and
-configurable chat and stale limits. It is numbered after Phase 10 because task
-IDs never move.
+Retired 2026-11-18 (owner decision). The tasks keep their IDs so that
+references hold; nothing in them exists.
 
-- [ ] 11.1 Crew registry [R41.1, R41.3, R41.6] (§4.10, F77–F82)
-  - New `src/app/crews.mjs` lists crews from Kiro Crew's `GET /api/instances` plus `local`; tags (`os`, `arch`, `tools`, `trust`), `gitHosts`, and `chatLimit` from machine-local settings only (`crews.<id>`), `chatLimit` per crew with 3 for `local` and 2 for a remote crew when unset; a crew without settings is `trust:remote` with no git hosts; readings for `local` from `os.freemem`, `os.loadavg`, and `fs.statfs`, for a remote from its headroom snapshot (F80), each with source and `measured_at`; stale after `crewStaleSeconds` (machine-local, 120 when unset); minimum memory and disk read from Kiro Crew's `remote_dispatch_memory_gb` and `_disk_gb`, never stored in Avoozl. First, call `session_create` with `crew` from the tick script cron and from the app backend against one connected crew and record the refusal codes in the receipt, settling F78.
-  - Built (registry only): `src/app/crews.mjs` (`listCrews`, `localReading`, `recordCrewSnapshot`, machine-local `crews.<id>` and `crewStaleSeconds`), `3068954`. Not checked off: the live `session_create` call with `crew` waits on MC-10, so F78 stays Inferred, and the app backend is not granted `GET /api/instances` or headroom yet; only `local` shows on a real install.
-  - 2026-11-17: F78 settled from Kiro Crew source and docs (cron and app refused `owner_only`). `src/app/crew-reader.mjs` reads `GET /api/instances` and each crew's headroom through the proxy route and records the snapshot or the refusal; Kiro Crew refuses both to an app token (MC-12), so 11.1 stays unticked until that changes. Wiring `readCrews` into the tick or app backend is a one-line call in a file other tasks own.
-- [x] 11.2 Routing rules (superseded 2026-11-13 by 11.14–11.17) [R41.2–R41.5, R41.8, R41.12, R22.5] (§4.10)
-  - `routing.rules`, `routing.pick`, and `routing.router` in `.avoozl.json` (workspace and repository) and machine-local settings; validation per §4.4 and §4.10 (refuse a crew id or router instructions in a tracked file, an unknown tag key, a missing plugin route, a rule without `id`); `evaluatePlacement(task, role, crews, readings)` per §4.10 steps 1–4, returning the allowed set, the removed crews each with the rule or check that removed it, and the route; route precedence manifest task, first matching rule, repository, workspace; categories from front-matter only.
-  - Built: `src/app/placement.mjs` (`validateRouting`, `validateTrackedRouting`, `evaluatePlacement`, `routingConfig`), `3068954`. Repository rules live under `projects.<id>.routing`. `kinds` match the manifest `type`. A rule's `route` shows in Preview and on the page; the tick still delivers by each task's own route. Plugin routes are checked when saved through the page or CLI.
-- [x] 11.3 Scorer and presets (superseded 2026-11-13 by 11.14–11.17) [R41.6] (§4.10)
-  - The §4.10 formula with `balanced` (default), `keep local`, and `spread out`, editable weights shown as Custom; per-tick slot reservation so one batch spreads; ties to `local`, then crew id; unavailable crews per §4.10; all allowed crews unavailable means the task waits with no decision.
-  - Built: `scoreCrew`, `pickCrew`, presets and custom weights in `src/app/placement.mjs`; per-tick reservation in `src/app/routing.mjs` `placeOne`, `3068954`. With no rule only an owner-set local chat limit applies.
-- [x] 11.4 Model router, off by default (superseded 2026-11-13 by 11.14–11.17) [R41.7] (§4.10)
-  - The tool-less `avoozl-router` agent in `kirocrew-app/agents/`, one local session per tick batch on the owner's model, brief checked at the `brief` boundary, instructions from machine-local settings only (`routing.router.instructions`), never a tracked file; reply `[{session, crew, reason}]` schema-checked; a crew outside the allowed set ignored; timeout (default 90 seconds), malformed reply, or refused model falls back to the scorer and records why; the tick never waits on the router.
-  - Built: `kirocrew-app/agents/avoozl-router.json`, `src/app/router.mjs` (one batch session, reply read by `observeRouterReplies`, fallback on time limit, malformed reply, or ended session), `f34fc7a`. P29 action 4.
-- [x] 11.5 Dispatch and fetch-back [R41.5, R41.11, R41.13, R40.3] (§4.10, §4.9, F83)
-  - `plans_tick` intents carry `crew`; `tick.py` opens on `local` as today and, only when MC-10 exists, on the chosen remote crew; fetchability check (repository remote host in the crew's `gitHosts`, base commit on that remote, earlier attempt branch for a retry); remote briefs carry clone URL, base commit, and task branch instead of a checkout path, pass content rules and the leak screen, and tell the worker to push its task branch before `done`, on public and private repositories alike (visibility plays no part; repository policy and content rules still apply); Avoozl fetches the branch, checks the reported commit, then verifies, reviews, and integrates as for a local worker; content-rule sets gain `remote` (`forbid` by default for sets covering `diff`, else `allow`; built-in sets `allow`).
-  - Built: dispatch carries `crew` only when MC-10 is reported (`src/app/delivery.mjs` `planReadyDispatches`, `kirocrew-app/crons/tick.py`); fetchability in `src/app/routing.mjs` `fetchInfo`/`fetchableWhy`; remote briefs `remoteSteps`; fetch-back at `done` (`fetchBack`, `src/app/handback.mjs`); content-rule sets gain `remote`, `3068954`. Inert until MC-10: every session runs on `local`. Checks and review sessions always run here.
-- [x] 11.6 Recording and recovery [R41.9, R41.10, R41.14, R8] (§4.10, F79, F81)
-  - Bindings store `crew`, remote slot key, applied rules, readings or router reason, and time; the Delivery view shows the crew; an unreachable crew's sessions show "crew unreachable" and stay bound; no timer re-places them; the tick reconciles with the crew's session state when it answers again before new dispatch there; Retry and the bounded retry policy place afresh; no use of Kiro Crew's own `work_item` placement; the In flight card's Attach opens every Avoozl chat, local (`/chat?sid=<slot>`) or remote (through MC-10, from the binding's crew and slot key).
-  - Built: bindings store `crew`, `placement` (rules, reading or router reason, time), `agent`, `sessionReason`; unreachable crews keep their bindings and do not hold the tick; Delivery shows the crew and "crew unreachable"; Attach links remote chats only from MC-10's link pattern (Inferred), `3068954`, `6a9cf83`.
-- [x] 11.7 No-fit decisions [R41.8] (§4.10, §8.3)
-  - One decision per task naming each crew and the rule or check that removed it, in yellow on the Routing page and in Conflicts; it closes by itself when a rule or crew change makes the task fit; never run the session elsewhere.
-  - Built: `placement_decisions`, `openNoFit`/`closeNoFit` in `src/app/routing.mjs`, `no-fit` items in Conflicts, `3068954`.
-- [x] 11.8 Routing page per §8.3 (superseded 2026-11-13 by 11.14–11.17) [R42, R20.4, R41.14] (§8.3)
-  - Removed 2026-11-14 (#153): there is no Routing page and Settings has no Routing section. `redirectSettings` sends an old Routing link to Repository setup.
-  - Sections Crews, Rules, Smart pick, Model router, Preview, each with a heading and one short line and an empty-state line; rule rows "When <match> -> <route> on <crews>" with drag to reorder and a side form with Required and Optional markers and placeholders; checkbox pickers for labels, roles, routes, and tags; per-crew Chat limit (placeholder 3 for `local`, 2 remote) and one Stale after field (placeholder 120 s), both saved on this machine; the router instructions box marked as saved on this machine only; until MC-10 ships, one neutral line saying remote placement waits on Kiro Crew; red, confirmed delete and remove on the right; Preview read-only with route, crew, reason, and "why not"; Settings links here and stops listing delivery routes; every edit through the shared operations with expected revisions (CLI `avoozl routing …` and MCP `plans_routing_*`); yellow only for no fit and unavailable content-rule sets. Check the page by drawing it and looking at it.
-  - Built: `kirocrew-app/ui/src/RoutingView.tsx`, `routing-api.ts`, operations `routing.view`, `routing.preview`, `routing.update`, `crews.update`, CLI `avoozl routing` and `avoozl crews set`, MCP `plans_view` actions `routing` and `routing_preview` (edits are person-only), `6a9cf83`. Drawn at three widths in light and dark.
-- [x] 11.9 Fake crew driver and docs [R41.13, R24.2] (§4.10)
-  - A test-only driver under `test/fixtures/crews/` playing the instance list, headroom snapshots, remote sessions, and an unreachable crew; public docs use only fake crew names and "a private git host"; extend the 7.4 scan to the crew fixtures.
-  - Built: `src/app/test/fixtures/crews/` (driver, workspace, fake ssh), fake names and `.example.test` hosts only; the release scan covers the fixtures, `f34fc7a`, `13c365c`.
-- [x] 11.13 Hand-back over SSH [R41.15] (§4.10 Hand-back over SSH)
-  - Per-crew machine-local `delivery: handback | push` (default `handback`), `sshHost`, and `worktreeRoot`; the hand-back brief names the folder and forbids a push or GitHub write; at `done` fetch the task branch over SSH with Avoozl's own `known_hosts` (accept-new on first use, yes after), check the reported commit, fast-forward the local task branch, then the `diff` boundary, checks, review, and integration run here; a crew missing either setting is "work not fetchable"; tests use a fake ssh command and a local repository, never a real host.
-  - Built: `src/app/handback.mjs`, crew `delivery`/`sshHost`/`worktreeRoot`, `src/app/test/handback.test.mjs` with a fake ssh command, `3068954`, `13c365c`. A pull-request leaf on a hand-back crew needs a local chat that pushes; that chat is not built.
-- [x] 11.14 One routing prompt, off by default, after 11.1 [R41.2–R41.4, R41.7, R41.8] (§4.10 One routing prompt, Hard checks, The routing agent)
-  - Removed 2026-11-15 (#282, task 45.3): the routing agent and its chat are gone. `src/app/routing.mjs` keeps manifest pins, capacity and provider hard checks; the one-time key migration (11.17) stays.
-  - Machine-local `routing` `{enabled, prompt, model}`, refused in `.avoozl.json` with the old `rules`, `pick`, `router` and `projects.<id>.routing` keys; manifest `needs` (crew tags) and `session` pins `{agent, model, crew}`, `choices` refused; hard checks per §4.10 (pin, where the commit is, needs, agent, online, ready, reach, out, review model) that only remove; options = crews with room × models that passed; one tool-less `avoozl-router` session per tick for every task with more than one option, its brief holding the prompt, this tick's facts and each task's options with task text fenced as untrusted data; reply `[{task, crew, model, reason}]` validated against each task's options; an answer used in one tick after the checks run again, then spent; a bad, missing or late reply, or a pick outside its options, falls back to local and writes one `routing.fallback` Activity row; the routing session does not count toward local's chat limit; crews' `ready` from the crew snapshot; Kiro Crew's model list read on every backend pass; the agent ID and MCP names kept.
-  - Built: `src/app/placement.mjs` (`validateRouting`, `validateSession`, `validateNeeds`, `crewChecks`, `modelChecks`), `src/app/router.mjs` (`PROMPT_EXAMPLES`, `routerBrief`, `openRouter`, `recordRouterReply`, `spendRouter`, `logFallback`), `src/app/routing.mjs` (`hardChecks`, `placeOne`, `routingFacts`, `recordModelList`), tests `src/app/test/placement.test.mjs`.
-- [x] 11.15 Pins win and retries keep their model, after 11.14 [R53] (§4.10 Agent and model per session)
-  - The writer's session from the manifest pin, then the routing agent's pick, then `delivery`, then Kiro Crew's default; a retry keeps its model unless it is out; Pick again clears it; checks and review roles keep their own agent and model on `local`; the binding records how each was chosen.
-  - Built: `src/app/routing.mjs` `hardChecks`, `placeOne`; `src/app/delivery.mjs` `planReadyDispatches`, `planVerifierDispatches`.
-- [x] 11.16 Settings › Routing, after 11.14 [R42, R72.17] (§8.3)
-  - Removed 2026-11-14 (#153): no Settings › Routing section. See 11.8.
-  - Routing moves from a top-level page into Settings; sections Routing prompt (switch, prompt with canned examples, the routing agent's model, the last call's outcome), Providers (health, usage, a credits limit per provider, one Low at), Crews (with each check's result, the crew side form, Stale after), and Preview (a dry run with options, ruled-out reasons and the brief); the Rules, Smart pick and Model router sections and the Providers tab are removed; the Switch model button and dialog stay. Check the page by drawing it and looking at it.
-  - Built: `kirocrew-app/ui/src/RoutingView.tsx`, `routing-api.ts`, `SettingsView.tsx` tab `routing`, tests `kirocrew-app/ui/test/routing.test.mjs`. Not drawn: this machine has no browser for the screenshot harness.
-- [x] 11.17 One-time migration of the old keys, after 11.14 (§4.10 One routing prompt)
-  - `scripts/migrate-routing.mjs <file>` turns old rules, presets and router instructions into prompt lines (into a machine file's `routing.prompt`; printed for a tracked file), drops the removed provider keys, keeps a copy beside each changed file, and is idempotent; delete it once the owner's machines are migrated.
-  - Built: `scripts/migrate-routing.mjs`, `src/app/test/migrate-routing.test.mjs`. Run on this machine's `~/.config/avoozl/config.json` and workspace files: nothing to migrate.
-- [x] 11.18 No fallback when routing is on, after 11.14 [R41.7, R41.7a, R42.3] (§4.10 Routing failures, §8.3)
-  - Removed 2026-11-15 (#282): there is no routing agent to fall back from. See 11.14.
-  - A failed router (error, timeout, bad reply, pick outside the options or none, content rule on the brief, router model out, no folder) holds the task Ready and marked; backoff 1, 2, 4, 8, then 15 minutes; 3 failures in a row open one Needs you item with person-only Retry now (`routing.retry`) and Turn routing off (`routing.turnOff`); Activity `routing.failed` and `routing.recovered`; `routing.view` `health` {failures, lastSuccessAt, lastError, retryAt}; the Graph shows the mark.
-  - Settings › Routing: an older backend's reply (captured from the code before PR #33, and none at all) shows the out-of-date line; each Settings tab has an error boundary.
-  - Built: `src/app/routing-health.mjs`, `src/app/router.mjs`, `src/app/routing.mjs` `placeOne`, `turnRoutingOff`; tests `src/app/test/placement.test.mjs` (one per failure case, each asserting no crew and no placement), P29 action 4; `kirocrew-app/ui/test/routing-page.test.mjs` draws the page in Chrome for an empty and a blank `.avoozl.json`, old keys, routing on, failures, and two older backends, failing on any thrown error or boundary. Router chats have no budget cap (§4.17), so "router over budget" cannot happen; a dropped router dispatch fails at the 90-second limit.
-- [ ] 11.10 MC-10 upstream ask [R41.14] (§4.10, §7.1, F77–F79)
-  - File the standalone request with Kiro Crew (an owner grant letting the Avoozl app and its tick cron open, message, read, and close remote sessions it opened, with a binding that survives a hub restart, and attach to each from the In flight card); change no Kiro Crew code; when it ships, record its contract in §7.1, switch 11.5's remote path on, and run P29 case 13 against one real crew.
-  - Open: filed as kirodotdev/KiroCrew#36335 (open); waits on Kiro Crew.
-
-- [ ] avoozl-p29 P29 Proof: crew placement by one routing prompt with fake crews [R41, R42] (§4.10, §8.3). Rewritten 2026-11-13 for the routing prompt; the rule-based version's receipt is `docs/evidence/phase11-p29-crew-placement.md`.
-  - Setup: an isolated temporary workspace with a sample repository in the test tree and a bare git remote on host `git.example.test`; the fake crew driver with `local` (`os:macos`, `trust:local`, limit 2), `fake-linux` (`os:linux`, `trust:remote`, `gitHosts: ["git.example.test"]`, limit 2), and `fake-windows` (`os:windows`, `trust:remote`, same host, limit 1), both reporting ready; a fake terms file set `fake-diff` covering `diff`; an approved spec with leaves `c1` (label `compliance`), `t1` (type `test`, needs `os:windows`), `w1`–`w4` (plain), and `u1` (needs `os:linux`, `arch:arm64`); a fake routing agent whose reply the test writes.
-  - Action: (1) tick with routing off; (2) turn on the prompt "Keep compliance work local. Spread the rest across crews.", preview, tick, answer the one call (c1, w3, w4 local; w1, w2 fake-linux), tick, then tag `fake-linux` `arch:arm64`; (3) let `fake-windows`'s reading go 3 minutes stale, have `t1` report a failure, and tick; (4) let a call go silent past 90 seconds, then answer one with malformed text; (5) commit a new base only locally; (6) put a prompt, then old rules, in the workspace's `.avoozl.json`; (7) pin `w2`, `w3` to `fake-linux`, make it unreachable while `w2` runs, bring it back, retry `w3`; (8) turn on `fake-diff`; (9) turn Kiro Crew's remote dispatch switch off; (10) set `fake-linux`'s chat limit to 1 and `crewStaleSeconds` to 60, then clear both; (12) run a pinned remote leaf with a public remote; (13) Attach a local and a remote session; (14) run with no MC-10; (15) report `fake-windows` as not approving its own tools.
-  - Expected: (1) every session opens on `local`, at most 2 at once, and no routing call opens; (2) Preview opens nothing, calls no agent, and shows each task's options and the brief; `t1` takes `fake-windows`, its only option, without a call; one call carries the other five; the next tick places c1, w3 local and w1, w2 on fake-linux with the agent's reason; w4 waits with no room, the answer is spent, and no stale answer is reused; `u1` waits with one no-fit decision naming every crew, closed by itself after the tag; (3) `t1`'s retry waits without a decision, then runs on `fake-windows` when fresh; (4) neither runs anywhere: the task stays Ready, marked "routing failed" with the reason, Settings › Routing shows the error and 1 failure, no call opens inside the backoff, Retry now asks again, and only Turn routing off runs it on `local` (changed 2026-11-14: no fallback); (5) local is the only option and fake-linux is ruled out as "work not fetchable"; (6) validation refuses each file and names the key; (7) `w2` keeps its binding and shows "crew unreachable", nothing re-places it, `w3`'s retry is placed on `fake-linux`, and `w2`'s pushed branch integrates; (8) and (9) remote crews are ruled out with the reason; (10) `fake-linux` takes at most 1 session, a 70-second reading is not online, and both defaults return as placeholders; (12) placement is the same as for a private remote and the `diff` boundary checks the branch at `done`; (13) each chat opens; (14) remote crews are ruled out as waiting on MC-10 and every session runs on `local`; (15) `fake-windows` is never offered.
-  - Failure means: the routing agent can pick an option the checks removed, or an old answer places a task on facts that changed.
-  - Next decision: drop the agent call and keep only manifest pins. MC-10 is required either way (owner, 2026-11-12).
-  - Built: pass with fake crews, `src/app/test/proof-p29.test.mjs`, receipt `docs/evidence/phase11-routing-prompt.md`. Not checked off: typing into a remote chat and the live check wait on MC-10.
-- [x] 11.11 Agent and model per session, after 11.2 and 11.3 (superseded 2026-11-13 by 11.14–11.17) [R53.1–R53.10, R53.12, R53.13] (§4.10)
-  - `session` (`{agent, model}` or `choices` of 1–10 `{agent, model, weight}`) on routing rules and manifest tasks, validated per R53.8; `chooseSession(task, role, rules, policy, running)` with the R53.3 order and the R53.4 weighted pick reserved per tick; the router may rank choices with fallback; crews without the agent ruled out as "agent not installed"; `distinctFrom: model` skips colliding writer choices, else one decision; retries keep the last agent and model, **Pick again** clears it; `tick.py` passes `agent` and `model` to `open_session`; bindings gain `agent`, `model`, `modelUsed`, `sessionReason`; Issue Radar and plugin routes ignore `session`; no `session` anywhere means no change.
-  - Built: `chooseSession` in `src/app/placement.mjs`, manifest `session`, `labels`, `paths`, and `type` carried onto tasks, Pick again (`delivery.pickAgain`), `3068954`, `f34fc7a`. The router ranking choices is built in `chooseSession` but the tick does not ask for it yet.
-- [x] 11.12 Session fields on the Routing page, after 11.8 and 11.11 (superseded 2026-11-13 by 11.14–11.17) [R53.11] (§4.10, §8.3)
-  - Rule rows read "... as <agent / model>" or "as <N> choices"; a **Session** group in the side form with Optional markers, default placeholders, and an add-choice row with weight; Preview shows each task's agent, model, and how they were chosen; the Delivery view and In flight card show agent and model and offer **Pick again**; a note on Issue Radar and plugin route rules that `session` does not apply. Check the page by drawing it and looking at it.
-  - Built: rule rows "as <agent / model>" or "as N choices", a Session group with choices and weights, Preview agent, model, and reason, Pick again on the In flight card and the Delivery card, the does-not-apply note, `6a9cf83`. Settings > Delivery holds the writer's agent and model and Phase 15's `delivery.prFeedback` and `delivery.feedbackRounds`.
-
-- [x] avoozl-p33 P33 Proof: agent and model per task with fake crews and fake agents [R53] (§4.10) (superseded 2026-11-13: rules and weighted choices are removed; pins and model picks prove in P29 and P44, and `src/app/test/proof-p33.test.mjs` is deleted)
-  - Setup: the P29 workspace and fake crew driver, with every chat limit set to 10, where `fake-linux` lacks agent `alt-worker`; a review role `correctness` on `model-r` with `distinctFrom: model`; leaves `h1` (label `hard`), `r1`–`r6` (plain), `m1` (manifest `session: {model: "model-m"}`), and `q1` (label `hard`, Issue Radar route).
-  - Action: (1) tick with no `session`; (2) add rule `hard-parts` (`hard` -> `model-a`) and rule `routine` with choices `model-b` weight 2 and `model-c` weight 1, then preview and tick; (3) fail `r1` and let it retry, then press **Pick again** on `r2` after a failure; (4) change `routine` to choices `model-r` and `model-c`; (5) set `hard-parts` to agent `alt-worker` and release `h1` with only `fake-linux` allowed; (6) put weight 0 and 11 choices in `.avoozl.json`.
-  - Expected: (1) every session opens as before with Kiro Crew's default agent and `auto`; (2) `h1` runs on `model-a`, `m1` on `model-m` though `routine` matches it, `r1`–`r6` split 4 to 2 between `model-b` and `model-c`, `q1` opens no session and its rule shows the does-not-apply note, and Preview shows each reason; (3) `r1`'s retry keeps its model and `r2` is picked afresh; (4) no writer runs on `model-r`; (5) `h1` waits with one no-fit decision naming "agent not installed"; (6) validation refuses the file and names each key. Every binding records agent, model, and reason.
-  - Failure means: one rule set cannot pick crew and model together and stay deterministic.
-  - Next decision: keep one model per repository and drop `choices`.
-  - Built: pass, `src/app/test/proof-p33.test.mjs`, receipt `docs/evidence/phase11-p33-agent-model.md`.
+- [x] 11.1 Retired 2026-11-18
+- [x] 11.2 Retired 2026-11-18
+- [x] 11.3 Retired 2026-11-18
+- [x] 11.4 Retired 2026-11-18
+- [x] 11.5 Retired 2026-11-18
+- [x] 11.6 Retired 2026-11-18
+- [x] 11.7 Retired 2026-11-18
+- [x] 11.8 Retired 2026-11-18
+- [x] 11.9 Retired 2026-11-18
+- [x] 11.13 Retired 2026-11-18
+- [x] 11.14 Retired 2026-11-18
+- [x] 11.15 Retired 2026-11-18
+- [x] 11.16 Retired 2026-11-18
+- [x] 11.17 Retired 2026-11-18
+- [x] 11.18 Retired 2026-11-18
+- [x] 11.10 Retired 2026-11-18
+- [x] avoozl-p29 P29 Retired 2026-11-18
+- [x] 11.11 Retired 2026-11-18
+- [x] 11.12 Retired 2026-11-18
+- [x] avoozl-p33 P33 Retired 2026-11-18
 
 ## Phase 12: Flow
 
@@ -979,8 +894,7 @@ task IDs never move.
 - [x] 16.6 Docs and plugin skill, after 16.5 [R55.10] (§4.14)
   - `docs/plugins.md` covers bundles, the pack, and intake; the app ships an `avoozl-plugin` skill; the sample `sdk-team` bundle under the test fixtures uses the generic triage labels needs-triage, p0–p3, and response-requested.
   - Built: `837497b` (docs and skill `a675b9a`).
-- [ ] 16.7 Crew placement defaults in packs, after 11.2 and 16.3 [R55.4] (§4.10, §4.14)
-  - Add the routing rules of §4.10 as a pack key once they exist, with the same allowlist, validator, and preview.
+- [x] 16.7 Retired 2026-11-18
 
 - [x] avoozl-p35 P35 Proof: one bundle plugin with a pack, rules, a tracker, and an intake source [R55] (§4.14)
   - Setup: an isolated temporary workspace in single-repo mode with one repository `o/sdk` and a Project; the sample `sdk-team` plugin from the test tree; a fake intake file, terms file, and record file outside the repository, named by environment variables.
@@ -1322,10 +1236,10 @@ per-chat model change (F126); everything proves with fakes for Kiro Crew.
 - [x] 30.1 Provider health from usage and errors, after 12.12 [R72.1–R72.4, R72.17, R72.18] (§4.20, F127, F128)
   - Machine-local `providers` settings (`lowPercent`, `cooldownMinutes`, `windowHours`, `limits`, `groups`, `fallback`) with validation, refused in `.avoozl.json`; `provider_health` rows; usage marks after each usage read; error marks from the timing row read (kind first, then words, kind stored only); recovery by a later turn or the cooldown; person marks until undone; `providers.view` and person-only `providers.settings.update` and `provider.health.clear`.
   - Built: `bd54c3e`, PR #13 (`src/app/provider-health.mjs`, `providers.view`, `providers.settings.update`, `provider.health.clear`).
-  - Changed 2026-11-13 (11.14): settings are `lowPercent` and `limits` only; the window (5 h) and cooldown (30 min) are fixed, providers come from the model ID, and the removed keys are refused. `providerFacts` reads each provider's level and usage live for the brief and Settings › Routing.
-- [x] 30.2 Routing skips low and out, after 30.1 and 11.11 [R72.5–R72.7] (§4.20)
+  - Changed 2026-11-13 (11.14): settings are `lowPercent` and `limits` only; the window (5 h) and cooldown (30 min) are fixed, providers come from the model ID, and other keys are dropped. `providerFacts` reads each provider's level and usage live.
+- [x] 30.2 New work skips out models, after 30.1 and 11.11 [R72.5–R72.7] (§4.20)
   - `chooseSession` drops `out` and then `low` choices; the replacement, then `fallback`, for no rule or nothing left; never a review role's model; wait with a reason when nothing is healthy; retries keep a model until it is out; the dispatch path without rules does the same; Preview shows it.
-  - Built: `bd54c3e`, PR #13 (`chooseSession` in `src/app/placement.mjs`).
+  - Built: `bd54c3e`, PR #13 (session pins).
   - Changed 2026-11-13 (11.14): `out` is a hard check and never offered, with a person's replacement offered instead; `low` stays an option and is a fact in the routing brief; the fallback list is gone. `healthyChoices` and `chooseSession` are removed (`placement.mjs` `modelChecks`).
 - [x] 30.3 Switch running chats, after 30.1 [R72.8–R72.11] (§4.20, F126)
   - The backend's pass over live tick sessions on an `out` model; target choice; `POST /api/chat/slots/<slot>/model`; `deferred` read as switching at the next turn; binding `model` and `switches`; `provider_switches` records and the `onSwitchRecorded` activity hook writing one `model.switch` row per record; a refusal not retried; the served-model gate across switches.
@@ -1342,7 +1256,7 @@ per-chat model change (F126); everything proves with fakes for Kiro Crew.
 
 - [x] avoozl-p44 P44 Proof: provider health and switching [R72] (§4.20)
   - Changed 2026-11-13 (11.14): there is no fallback list or weighted rule. Routing is off (every chat on the delivery model `alpha-1`) unless an action turns the prompt on, and Kiro Crew lists `alpha-1`, `beta-1`, `gamma-1`. Expected (1): every task is local on `alpha-1`; (2): `alpha-1` stays an option and the brief reads "alpha-1: 85% used, low"; (3): `alpha-1` is never offered, and with routing off the task waits with no no-fit decision until a person's Switch model replacement is offered. The rest is unchanged. Built: pass, `src/app/test/proof-p44.test.mjs`.
-  - Setup: an isolated temporary workspace with one repository and fake crews; machine `providers` with `limits` `alpha-1` 100 credits, `fallback` `gamma-1`, `cooldownMinutes` 30; a routing rule giving routine leaves weighted choices `alpha-1` (weight 2) and `beta-1`; a review role on `delta-1` with `distinctFrom: model`; a fake usage feed, fake session rows, and a fake Kiro Crew model change that answers `deferred` for a busy chat and 404 for one slot.
+  - Setup: an isolated temporary workspace with one repository and fake crews; machine `providers` with `limits` `alpha-1` 100 credits, `fallback` `gamma-1`, `cooldownMinutes` 30; a review role on `delta-1` with `distinctFrom: model`; a fake usage feed, fake session rows, and a fake Kiro Crew model change that answers `deferred` for a busy chat and 404 for one slot.
   - Action: (1) with no `providers`, tick and preview; (2) feed `alpha-1` 85 credits; tick; (3) feed 20 more; read health; tick; (4) feed a session row of kind `usage_limit` from a `beta-1` chat, then a 429 row twice from an `alpha-2` chat; (5) let 31 minutes pass, and feed a later `beta-1` turn; (6) retry a task whose kept model is `alpha-1` while it is low, then while it is out; (7) run the backend pass with `alpha-1` out and chats on it, one busy and one whose slot answers 404; (8) review a switched writer; (9) preview and confirm Switch model from provider `alpha` to `gamma-1` with Also new tasks, then confirm with a stale hash; (10) call the switch, undo and settings save from MCP, an app token and an agent tool; (11) read Needs you; undo the mark.
   - Expected: (1) picks match the earlier ticks exactly; (2) `alpha-1` is low and new tasks take `beta-1`; (3) `alpha-1` is out, no new session opens on it, and Preview says why; (4) provider `beta` is out and `alpha-2` goes low then out, with no row text stored; (5) both clear; (6) the retry keeps `alpha-1` while low and moves off it when out, saying so; (7) both chats are asked to switch to a healthy model not on the review role's model, the busy one is recorded `deferred`, the refused one `refused` once and never retried, the sessions and worktrees are untouched, and each switch reaches the activity hook; (8) the verdict counts and is refused only when a reviewer model equals one of the writer's; (9) preview writes nothing, the confirm queues one switch per chat and marks the provider out with `gamma-1` for new tasks, and the stale hash gets 409; (10) every call is refused, MCP with the person-only refusal; (11) one `provider-out` item per out mark shows the switched count, and Undo clears the person's mark.
   - Failure means: a task can open on an out provider, a switch loses a chat's work, or a non-person can switch models.
@@ -1364,26 +1278,14 @@ and §8.9). Numbered after Phase 30 because task IDs never move.
   - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.
   - Built: `2456191`, PR #11 (`Picker.tsx`, `picker.ts`; `kirocrew-app/ui/test/picker.test.mjs`).
 
-## Phase 32: Remote relay
+## Phase 32: Retired
 
-Owner decision 2026-11-13 (Requirement 41.16–41.24, design §4.10 Remote
-relay). An opt-in stopgap until MC-10: the person opens one relay chat,
-the tick only queues remote worker picks, and the relay opens them with
-`crew=` on the person's turns (F129–F132). Numbered after Phase 31 because
-task IDs never move.
+Retired 2026-11-18 (owner decision). The tasks keep their IDs so that
+references hold; nothing in them exists.
 
-- [x] 32.1 Relay setting, queue, and tool, after 11.11 and 11.13 [R41.16–R41.20, R41.22–R41.24] (§4.10 Remote relay, F129–F131)
-  - Removed 2026-11-15 (#282, task 45.3): the remote relay. `plans_relay` actions answer "Remote relay was removed" and change nothing.
-  - `routing.remoteRelay` validated in the workspace file only; `relayActive` off with MC-10; `placeOne` keeps a worker's remote picks while it is on; the tick moves `relay: true` dispatches and messages for relayed workers to the `routing.relay` queue, skips queued tasks, counts them against crew limits, and drops the queue when off or with MC-10; the relayed brief's `AVOOZL-REPORT` step; `relay.call` (`plans_relay` register, pending, brief, opened, refused, reply) with one relay only; relayed bindings skipped by the roster and session reads; `reportSession` for the relay that opened a worker; refusal codes read from Kiro Crew's text; person-only `relay.forget`; the `avoozl-relay` agent with four tools.
-- [x] 32.2 Routing page and Needs you, after 32.1 and 11.12 [R41.20, R41.21, R42.3] (§4.10 Remote relay, §8.3)
-  - The Remote relay block in Crews: the setting, the stopgap line, both catches, status lines with turns today and the last refusal, Open relay chat through the app SDK's `openChat` on `avoozl-relay`, Go to relay chat, and a confirmed Forget; Preview's line for relayed picks; `conflicts.view` `needs-human` items with reason `relay`.
-
-- [x] avoozl-p47 P47 Proof: Remote relay with a fake relay and a fake crew [R41.16–R41.24] (§4.10 Remote relay)
-  - Setup: the P29 workspace and crew driver with MC-10 missing, `routing.remoteRelay: "on"`, and a worker rule that allows only Linux crews; a fake Kiro Crew whose `session_create` with `crew=` refuses with Kiro Crew's own text on a turn the owner did not send; a fake relay that runs the `avoozl-relay` loop through `relay.call`.
-  - Action: (1) tick twice; (2) run a relay turn the owner did not send; (3) register and pull from another chat and with no caller; (4) run the owner's turn; (5) the w1 worker pushes and replies with orders to the relay and then its report line; another chat hands a reply back; the relay hands it back; tick; (6) repeat with the setting off and with MC-10 present; (7) refuse one request for a chat the owner did not open, Forget it as a session and as a person, register a new relay; refuse another for a full crew.
-  - Expected: (1) nothing opens, not even on local; two requests queue once each; Needs you says to open the relay chat; (2) nothing opens; the tasks wait; Needs you says to send any message, linking the chat; (3) refused; (4) each worker opens on `fake-linux` with the brief unchanged (the report line, the clone URL, no local path), binds with the relay's slot, nothing waits, two turns count, and nothing is held for the roster; (5) only the report line counts and the worker's binding reports done with its commit; the other chat is refused; a verifier opens here on that commit, no non-worker session carries a crew, and nothing integrates without the normal pipeline; (6) off places as before the relay; with MC-10 the worker goes straight to `fake-linux` without the relay, which is shown ignored; turning it off drops the queue; (7) the request waits with the Forget advice; a session's Forget is refused; the new relay gets the request; the full-crew refusal drops it.
-  - Failure means: a remote pick runs on local, the relay acts on worker text, or a chat other than the relay reports for a relayed worker.
-  - Next decision: drop the relay when MC-10 ships, or keep it for crews MC-10 cannot reach.
+- [x] 32.1 Retired 2026-11-18
+- [x] 32.2 Retired 2026-11-18
+- [x] avoozl-p47 P47 Retired 2026-11-18
 
 ## Phase 33: Only open tasks get issues
 
@@ -1411,7 +1313,7 @@ isolated temporary workspaces, a fake GitHub and fake workers.
   - Built: PR #42 (`baseHead`, `mergeState` and `reviewDecision` in the pull request reads; `base-moved` in `src/app/github-feedback.mjs`; `asksForcePush` in `briefAllowed` and the tick; `rebaseForIntegration` merges forward). The stacked pull request brief and the commit-message leak message no longer ask for a force push.
 - [x] 34.4 Corrections and rules, after 28.3 [R78] (§4.24)
   - The `corrections` table and its four sources, the retro grouping and rule proposal, the steering leaf, and corrections in Flow and PDCA.
-  - Built: PR #42 (`src/app/corrections.mjs`; changes requested from pull request feedback, `delivery.retry` and `delivery.pickAgain` with `reason`, reverts read from the landing branch; retro proposal type `rule` and `deliverRetroRule`). shortcut: PDCA matches later corrections by kind and repository, not by meaning; the next retro reads them and judges.
+  - Built: PR #42 (`src/app/corrections.mjs`; changes requested from pull request feedback, `delivery.retry` with `reason`, reverts read from the landing branch; retro proposal type `rule` and `deliverRetroRule`). shortcut: PDCA matches later corrections by kind and repository, not by meaning; the next retro reads them and judges.
 - [x] 34.5 Fix-work share, after 12.11 [R79] (§4.11)
   - The fix-work rule, the Flow card and charts, and the retro payload.
   - Built: PR #42 (`isFixWork`, `metrics.fixWork`, `fixShare` per day and week, `fixWork` in the retro payload; leaves of a bugfix spec carry `specType`, and issue intake keeps the issue type).
@@ -1575,7 +1477,7 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
   - Generalize RC16 from epic-only integration; Prepare and qualified-ref resolution agree on the exact spec base. Merge the landed target back with a merge commit; preserve verified but unlanded portions and unfinished task refs.
 
 - [x] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
-  - From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner.
+  - From ba04389 and 70c2236, updated to the new loop; screenshots for the owner.
   - Removed 2026-11-17 (owner): Settings › Budgets.
 - [ ] 41.8 Nupp AGENTS.md clause for Avoozl-run work, after 41.3 [R91.5, R94.4a] (§4.26)
   - Nupp's AGENTS.md tells agents to rebase, fast-forward merge, push and delete the worktree. Propose a clause for work Avoozl runs: edit, commit nothing (or only locally, as the project config says), and stop; no merge, push or worktree removal. Check the copy on `core-dev`, not only `main`. Proposed as a Nupp change, not made from Avoozl's repository.
@@ -2024,7 +1926,7 @@ proof or run a real workspace to get past that wait.
   - One previewed, paced, idempotent backfill adds crew:avoozl to open projected task issues with no crew: label; claimed issues are left alone with one Needs you row. Send to Issue Radar refuses crew:avoozl issues. Tests cover no hand-over write, backfill retry and the claimed skip.
 
 - [x] 56.14 Issue Radar escalations open first in intake, after 56.8, 56.12 [R103.8, R103.9, R103.10, R103.11] (§4.32)
-  - Keep plan-me routing. Trusted escalations (the repository's needs-human label) sort first in Untriaged (Intake for a Radar-coded repository until 45.6) with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.
+  - Keep the plan-me path. Trusted escalations (the repository's needs-human label) sort first in Untriaged (Intake for a Radar-coded repository until 45.6) with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.
   - Person-only start. A per-repository escalation rule, off by default, drafts locally with zero GitHub writes; approval and dispatch stay person-only. Take-over writes crew:avoozl and never removes the needs-human label; a live crew claim asks to confirm. No Radar API or grant. Tests cover order, buttons, zero-write draft and one label write.
 
 - [x] 56.15 Reanchor a held journal by a person's record, after 56.2 [R102.26] (§4.32)
@@ -2136,3 +2038,15 @@ often and keep theirs on a clash.
 
 - [ ] 63.1 GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 56.14, 44.6 [R110.1, R110.2, R110.3, R110.4, R110.5, R110.6, R110.7, R110.8, R110.9, R50.6] (§4.39)
   - `github-sources.mjs` reads `via: github` entries and old `github.issueIntake` entries as one list and writes sources, moving old keys once on the first write; `validateSource` takes the GitHub kind; `sourceMap` leaves it out; `github configure` and Repository setup write a source. `github.queue` is ignored. Intake sources lists each GitHub source in the shared box with a link to Repository setup. Tests; before and after screenshots checked outside git, not kept in it.
+
+## Phase 64: Task facts move into tasks.md
+
+Owner decision 2026-11-18 (Requirement 111, design §4.40). Two tasks: the
+build in this repository, then the Nupp plans. Other spec pull requests may
+still touch `avoozl/manifest.json`; merge main often, keep their changes
+and convert them too.
+
+- [ ] 64.1 Facts bullets replace `avoozl/manifest.json`, convert this repository's specs, after 61.1, 62.1 [R111.1, R111.2, R111.3, R111.4, R111.5, R111.6, R111.7, R111.8, R111.9, R111.10, R111.11] (§4.40)
+  - `spec-facts.mjs` reads `Facts:` bullets and front-matter into the object `parseSpec` read from the manifest, with lint codes and lines; `specHash` stops reading the manifest and hashes prose plus canonical parsed facts, so a converted spec keeps its hash; the manifest readers, `spec-manifest.mjs`, the manifest review tab, the planner prompt and the steering file change; every spec here is converted once and its `manifest.json` deleted; tests cover each rule and the before and after parse.
+- [ ] 64.2 Convert the Nupp plans to Facts bullets, after 64.1 [R111.10] (§4.40)
+  - In the Nupp plans repository, branch `avoozl-plans`, run the converter on a copy, check the parse and the hashes, convert in one pull request and merge it after its checks. Touch no Nupp code repository. Report a question if those specs fall under person-only approval.

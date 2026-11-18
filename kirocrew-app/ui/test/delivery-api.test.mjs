@@ -259,15 +259,14 @@ test('the state icons are labelled, theme-colored, and still under reduced motio
 
 
 // Task 41.6: Delivery is a Dashboards page again, with its filters in the
-// left nav as rail rows and chips, no native dropdown and no Routing part.
-test('Delivery is a Dashboards page with nav rail filters and no Routing part', async () => {
-  const { DASHBOARD_PAGES, redirectTab } = await import('../src/nav-api.ts')
+// left nav as rail rows and chips, no native dropdown.
+test('Delivery is a Dashboards page with nav rail filters', async () => {
+  const { DASHBOARD_PAGES } = await import('../src/nav-api.ts')
   assert.ok(DASHBOARD_PAGES.some((page) => page.key === 'delivery'))
-  assert.deepEqual(redirectTab('delivery'), { tab: 'delivery' })
   const view = readFileSync(new URL('../src/DeliveryView.tsx', import.meta.url), 'utf8')
   assert.match(view, /<NavSlotFor section="dashboard">/)
   assert.match(view, /<RailChips id="epics"/)
-  assert.doesNotMatch(view, /<select|FilterBar id=|routing|Pick again|Radar|driver/i)
+  assert.doesNotMatch(view, /<select|FilterBar id=|Radar|driver/i)
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
   assert.match(app, /tab === 'delivery' \? \(\s*<DeliveryView workspaceId=\{active\} \/>/)
   assert.match(app, /t\.key === 'dashboard'/)

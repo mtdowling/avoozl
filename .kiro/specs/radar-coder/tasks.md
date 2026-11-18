@@ -47,8 +47,8 @@ Requirement RC1. The Radar path starts with one setting and four label names. No
   - `coder: issue-radar | worker` accepted in single-repo and plans-repo mode (the plans-repo refusal in `github-policy.mjs` is removed); `radar.planLabel`, `radar.conflictLabel`, `radar.clearPlanLabel` in the repository policy; two equal label names among planning, needs-human, claim, ready and conflict refused naming both; `src/app/test/radar-coder-policy.test.mjs`.
   - Done when: `issue-radar` validates in plans-repo mode; a policy with two equal label names is refused naming both; defaults are `to plan`, `ready`, `crew: in progress`, `merge conflict`; `npm test` passes.
 - [x] rc-1.2 Plan only the planning label, Untriaged off for Radar-coded repositories, after rc-1.1 [RC1.2, RC1.5, RC1.8] (§D3)
-  - The Untriaged read lists no plain open issue for a `coder: issue-radar` repository; an issue with the planning label and an allowed labeler goes to Intake; the plan-me routing of PR 67 is untouched; Intake row action **Plan this** starts a planner chat; `src/app/test/radar-coder-intake.test.mjs`.
-  - Done when: No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me routing tests of PR 67 still pass unchanged.
+  - The Untriaged read lists no plain open issue for a `coder: issue-radar` repository; an issue with the planning label and an allowed labeler goes to Intake; the plan-me path of PR 67 is untouched; Intake row action **Plan this** starts a planner chat; `src/app/test/radar-coder-intake.test.mjs`.
+  - Done when: No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me tests of PR 67 still pass unchanged.
 - [x] rc-1.3 Source issue becomes the parent, planning label cleared only by setting, after rc-1.2 [RC1.4, RC1.6, RC1.7] (§D3)
   - After projection the source issue is the parent of the projected issues and has no ready label; `radar.clearPlanLabel` (default off) removes the planning label; one Needs you row says to clear the needs-human label, shown once; Avoozl never writes the claim or needs-human labels.
   - Done when: A fake-GitHub test shows the source is the parent, no claim or needs-human write ever happens, and the Needs you row appears once across three ticks.
@@ -317,14 +317,12 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
 - [ ] rc-12.2 Remove worker dispatch and `coder: worker` (retired), after rc-12.1 [RC11.2, RC11.3] (§D13)
   - The tick opens no Avoozl worker for any repository; `worker` is refused as a `coder` value with the retired banner of RC1.1; tests removed with the code.
   - Done when: No repository opens a worker; a repository set to `worker` shows the banner.
-- [ ] rc-12.3 Retire crew routing and placement for Radar-coded repositories, after rc-12.2 [RC11.2] (§D13)
-  - Routing, placement and the router prompt are removed. The Routing nav entry is already gone (RC8.1); the code is removed here, with `coder: worker`.
-  - Done when: No routing call is made for a Radar-coded repository; the Routing section is hidden only when no repository needs it.
+- [x] rc-12.3 Retired 2026-11-18
 - [ ] rc-12.4 Retire runner mode, after rc-12.1 [RC11.2] (§D13)
   - Remove `remote-runner.mjs`, its operations and CLI, the Remote badge and Attach for runners, and their tests.
   - Done when: `npm test` passes; the removed names appear nowhere in the app.
 - [ ] rc-12.5 Retire the remote relay, after rc-12.1 [RC11.2] (§D13)
-  - Remove the relay queue, `plans_relay`, the `avoozl-relay` agent and the Routing relay block, and their tests.
+  - Remove the relay queue, `plans_relay`, the `avoozl-relay` agent and their tests.
   - Done when: `npm test` passes; the relay agent is not in the built app.
 - [ ] rc-12.6 Retire per-task worker budgets and the worker Files and diff fold, after rc-12.2 [RC11.2] (§D13)
   - Removed 2026-11-17 (owner): per-task budgets are gone for every chat. The worker Files and diff fold is removed with the worker drawer parts.

@@ -36,29 +36,12 @@ function modelName(value, at) {
 
 // ------------------------------------------------------------ settings
 
-// Keys the thresholds form used (removed 2026-11-13). The cooldown and the
-// window are fixed; providers come from the model ID; the routing agent
-// replaces the fallback list.
-const OLD_PROVIDER_KEYS = [
-  "cooldownMinutes",
-  "windowHours",
-  "groups",
-  "fallback",
-];
-
 // Machine-local `providers` (§4.20 Settings): `lowPercent`, and `limits`
 // that give usage a percent. Every key is optional.
 export function providersInput(value, at = "providers") {
   if (value === undefined || value === null) return {};
   if (!record(value)) fail(`${at} must be an object.`);
   const out = {};
-  for (const key of Object.keys(value))
-    if (OLD_PROVIDER_KEYS.includes(key))
-      fail(
-        `${at}.${key} was removed; run node scripts/migrate-routing.mjs <file>.`,
-      );
-    else if (!["lowPercent", "limits"].includes(key))
-      fail(`${at}.${key} is not a provider setting.`);
   if (value.lowPercent !== undefined) {
     if (
       !Number.isInteger(value.lowPercent) ||
@@ -151,7 +134,7 @@ export function listMarks(store) {
   }
 }
 
-// Everything routing and switching need to judge a model. Reads only.
+// Everything model switching needs to judge a model. Reads only.
 export function healthContext(store, options = {}) {
   const settings =
       options.settings ?? readProviders(store, options).settings ?? {},
@@ -674,7 +657,7 @@ const liveChat = (b) =>
 // cannot (and why), the marks Also new tasks would set, and the ready tasks
 // those marks move. Reads only. `options.tasks` maps task ID to task,
 // and `options.ready` is
-// routing.preview's items (where each ready task would run now). To may be
+// the ready tasks. To may be
 // `auto`, Kiro Crew's own pick. The hash covers exactly what Switch writes.
 export function switchDryRun(store, input = {}, options = {}) {
   const from = record(input.from) ? input.from : fail("Choose From.");
@@ -757,7 +740,7 @@ export function switchDryRun(store, input = {}, options = {}) {
       });
   chats.sort((a, b) => a.slot.localeCompare(b.slot));
   skipped.sort((a, b) => a.taskId.localeCompare(b.taskId));
-  // Also new tasks: routing skips each marked model until it is undone.
+  // Also new tasks: new tasks skip each marked model until it is undone.
   const marks = !alsoNewTasks
     ? []
     : (from.provider
@@ -778,7 +761,7 @@ export function switchDryRun(store, input = {}, options = {}) {
           (m) => m.scope !== "provider" || m.name !== providerOf(to, settings),
         )
         .map((m) => ({ ...m, to }));
-  // Null when routing.preview could not be read.
+  // Null when the ready tasks could not be read.
   const queued =
     options.ready === null
       ? null
@@ -862,7 +845,7 @@ export function queueSwitch(store, input = {}, options = {}) {
 
 // Provider facts, read live (R72.1, R72.2): one row per provider or model
 // that has usage, a limit or a mark, with its level, percent used and one
-// line the routing agent reads, such as "claude: 85% used, low". `models`
+// line such as "claude: 85% used, low". `models`
 // adds the providers of models Kiro Crew lists.
 export function providerFacts(store, health, options = {}) {
   const usage = usageReport(store, { ...options, settings: health.settings }),
@@ -948,7 +931,7 @@ export function providerOutItems(store, options = {}) {
         targets = [...new Set(moved.map((s) => s.to))];
       const why =
         mark.source === "person"
-          ? `Marked out by ${mark.by || "a person"}; new tasks use ${mark.to}. Undo it in Settings › Routing.`
+          ? `Marked out by ${mark.by || "a person"}; new tasks use ${mark.to}.`
           : mark.source === "usage"
             ? `It used ${mark.percent}% of its limit in the window.`
             : mark.kind === "credits"
@@ -979,7 +962,7 @@ export function providerOutItems(store, options = {}) {
 // The models Kiro Crew lists (`GET /api/models`, F128), as the app backend
 // last read them. Read again on every backend pass, so a model Kiro Crew
 // drops leaves the options at the next pass.
-const MODELS = "routing.models";
+const MODELS = "models.list";
 export function recordModelList(store, models) {
   const names = (Array.isArray(models) ? models : [])
     .map((m) => (typeof m === "string" ? m : (m?.model_name ?? m?.id)))

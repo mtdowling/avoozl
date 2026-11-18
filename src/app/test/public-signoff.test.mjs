@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { principalAllows } from "../app-backend.mjs";
-import { cliRefusal, mcpRefusal } from "../mcp-policy.mjs";
+import { cliRefusal, mcpRefusal, agentSessionNote } from "../mcp-policy.mjs";
 import {
   AUDIT_FRESH_MS,
   NO_RULES,
@@ -181,19 +181,16 @@ test("the sign-off lapses when any hashed item changes, and withdraw holds again
   assert.equal(publicHold(w.store, REPO), PUBLIC_HELD);
 });
 
-test("only a person signs off: agents, app tokens, MCP and agent CLIs are refused", () => {
+test("only a person signs off: agents, app tokens, MCP and supervisor children are refused", () => {
   for (const name of ["publiccrews.signoff", "radar.signoff"]) {
     for (const kind of ["app-token", "agent-tool", "none"])
       assert.equal(principalAllows({ kind }, name), false, `${name} ${kind}`);
     assert.equal(principalAllows({ kind: "owner-session" }, name), true);
     assert.match(mcpRefusal(name, {}), /Only a person signs off/);
-    assert.ok(
-      cliRefusal(
-        name,
-        {},
-        { env: { KIROCREW_SPAWNED: "1", KIRO_SESSION_ID: "s" } },
-      ),
-      name,
-    );
+    assert.ok(cliRefusal(name, {}, { env: { AVOOZL_CHILD: "1" } }), name);
+    // The CLI in an agent session runs it and says so (R83.1).
+    const agent = { KIROCREW_SPAWNED: "1", KIRO_SESSION_ID: "s" };
+    assert.equal(cliRefusal(name, {}, { env: agent }), null, name);
+    assert.match(agentSessionNote(name, {}, agent), /agent session/);
   }
 });

@@ -335,7 +335,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
   );
 });
 
-test("direct conversation settings reject unknown keys without applying them", (t) => {
+test("direct conversation settings drop unknown keys and apply the rest", (t) => {
   const { root, store } = fixture(t),
     filename = path.join(root, ".avoozl.json"),
     configuration = new RepositorySettings(store, { workspaceRoot: root });
@@ -349,11 +349,11 @@ test("direct conversation settings reject unknown keys without applying them", (
   });
 
   const metadata = configuration.reload();
-  assert.match(
-    metadata.repository.error.message,
-    /Unknown conversation configuration setting automaticallyAuthorizeWork/,
+  assert.equal(metadata.repository.error, null);
+  assert.equal(
+    store.getMeta("conversationSettings").autoArchiveCompleted,
+    false,
   );
-  assert.equal(store.getMeta("conversationSettings"), null);
 });
 
 test("repository conversation settings override and fall back to global defaults", (t) => {

@@ -44,7 +44,6 @@ try {
     ['flow', 'Flow'],
     ['models', 'Models'],
     ['plugins', 'Plugins'],
-    ['budgets', 'Budgets'],
     ['workspaces', 'Workspaces'],
   ]
   for (const theme of ['light', 'dark'])

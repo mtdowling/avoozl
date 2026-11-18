@@ -3,8 +3,7 @@
 //
 // A correction is a person telling an agent it got something wrong: changes
 // requested on its pull request, work sent back from a decision with a
-// reason, a revert of an integrated agent commit, or Pick again with a
-// reason. Each is one `corrections` row {id, taskId, by, kind, summary, at},
+// reason, or a revert of an integrated agent commit. Each is one `corrections` row {id, taskId, by, kind, summary, at},
 // keyed so the same event is recorded once. The summary is at most 300
 // characters and passes the secret screen and the content rules first; a
 // match is saved redacted, never with the matched text.
@@ -22,7 +21,6 @@ export const CORRECTION_KINDS = Object.freeze([
   "changes-requested",
   "sent-back",
   "reverted",
-  "pick-again",
 ]);
 export const RULES_FILE = ".kiro/steering/avoozl-rules.md";
 export const REDACTED = "Redacted by content rules";
