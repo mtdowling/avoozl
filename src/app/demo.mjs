@@ -695,8 +695,7 @@ function seedState(store, now) {
       };
     }
   });
-  // Local workers are retired: crews on GitHub do the coding, so the sample
-  // holds no worker session and no running local delivery.
+  // The sample holds no worker session and no running local delivery.
   const running = "meal-planner.1.1",
     review = "recipe-import.2.1";
   store.transaction(() => {

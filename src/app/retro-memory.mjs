@@ -2,12 +2,10 @@
 // prompt override file, skill files the sessions loaded, and the content
 // rules at the `proposal` boundary. Operations binds it once per store;
 // without a binding (old callers, most tests) retros run as before Phase 28.
-// Binding also exports the removed lessons store once (RC30.5).
 import fs from "node:fs";
 import path from "node:path";
 import { check as checkContent, findingText } from "./content-rules.mjs";
 import { workspaceIdentity } from "./identity.mjs";
-import { LESSONS_DATABASE, exportLessons } from "./lessons-export.mjs";
 import {
   historicTexts,
   overridesPath,
@@ -47,19 +45,6 @@ export function bindRetroMemory(
     loadPluginFolders,
     shipped,
   };
-  // The removed lessons store's one-time export; a failure is kept for the
-  // Proposals view to show, and the store stays for the next try. With no
-  // store file it reads nothing and writes nothing.
-  if (fs.existsSync(path.join(configDirectory, LESSONS_DATABASE)))
-    try {
-      binding.lessonsExport = exportLessons({
-        configDirectory,
-        workspaceRoot,
-        workspaceId: workspaceIdentity(store),
-      });
-    } catch (error) {
-      binding.lessonsExport = { error: error.message };
-    }
   bound.set(store, binding);
   return binding;
 }
