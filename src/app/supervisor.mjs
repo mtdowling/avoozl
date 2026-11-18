@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
+import { readServeConfig } from "./serve-config.mjs";
 import { fail } from "./store.mjs";
 import { withoutPushCredentials } from "./git.mjs";
 import { WorkspaceRegistry, machineAvoozlPaths } from "./host-config.mjs";
@@ -21,6 +22,7 @@ import {
   fillHarnessArgv,
   harnessPermission,
   loadHarnessDefinition,
+  readRoleProblem,
 } from "./harness-definitions.mjs";
 import {
   catalogWorkspaceRoots,
@@ -42,7 +44,9 @@ const TICK_MAIN = fileURLToPath(
 const INTEGRATOR_MAIN = fileURLToPath(
   new URL("./integrator-main.mjs", import.meta.url),
 );
+const SERVE_MAIN = fileURLToPath(new URL("./serve-main.mjs", import.meta.url));
 const INTEGRATOR_SCAN_MS = 30_000;
+const SERVE_SCAN_MS = 5_000;
 const SESSION = /^process-[0-9a-f-]{36}$/;
 // Placeholders the supervisor fills itself; a request cannot set them.
 const OWN_VALUES = [
@@ -68,6 +72,7 @@ export function supervisorPaths(stateDirectory) {
     log: path.join(root, "supervisor.log"),
     tickLog: path.join(root, "tick.log"),
     integratorLog: path.join(root, "integrator.log"),
+    serveLog: path.join(root, "serve.log"),
     children: path.join(root, "children"),
   };
 }
@@ -612,6 +617,8 @@ export function startSupervisor({
   env = process.env,
   // Workspaces that get an integrator; tests pass their own.
   integratorRetryMs = 5000,
+  // The standalone page's server child (SW9): restarted this long after it exits.
+  serveRetryMs = 2000,
   integratorRoots = () =>
     trainWorkspaceRoots({ stateDirectory, configDirectory }),
 }) {
@@ -710,6 +717,59 @@ export function startSupervisor({
     }
   };
 
+  // The standalone page's server (SW9), when the machine file has
+  // `serve.enabled`. It ends with the supervisor, which restarts it on the same
+  // fixed port. This process itself never listens.
+  let serveChild = null,
+    serveRetryAt = 0,
+    serveRead = 0,
+    serveConfig = { enabled: false, port: 0 };
+  const hostServe = () => {
+    const now = Date.now();
+    if (now >= serveRead) {
+      serveConfig = readServeConfig(configDirectory);
+      serveRead = now + SERVE_SCAN_MS;
+    }
+    const alive =
+      Boolean(serveChild) &&
+      serveChild.exitCode === null &&
+      serveChild.signalCode === null;
+    if (
+      alive &&
+      (!serveConfig.enabled || serveChild.wantedPort !== serveConfig.port)
+    ) {
+      serveChild.kill("SIGTERM");
+      return;
+    }
+    if (!serveConfig.enabled || alive || now < serveRetryAt) return;
+    const out = fs.openSync(paths.serveLog, "a", 0o600);
+    let child;
+    try {
+      child = spawn(
+        process.execPath,
+        [
+          SERVE_MAIN,
+          "--state-directory",
+          path.resolve(stateDirectory),
+          "--config-directory",
+          path.resolve(configDirectory),
+          "--port",
+          String(serveConfig.port),
+        ],
+        { stdio: ["ignore", out, out], env, windowsHide: true },
+      );
+    } finally {
+      fs.closeSync(out);
+    }
+    serveChild = child;
+    child.wantedPort = serveConfig.port;
+    const ended = () => {
+      serveRetryAt = Date.now() + serveRetryMs;
+    };
+    child.once("exit", ended);
+    child.once("error", ended);
+  };
+
   const start = (row, message = null) => {
     const folder = path.join(paths.children, row.session_id);
     const log = path.join(folder, "log");
@@ -725,6 +785,9 @@ export function startSupervisor({
         name: row.harness,
       });
       hash = definition.hash;
+      // A read-only child that cannot write its result never starts (NK6.1).
+      if (row.permission_class === "read" && readRoleProblem(definition))
+        fail(readRoleProblem(definition), 409);
       fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
       // Each run writes its own result; one from an earlier run never counts.
       fs.mkdirSync(path.join(row.worktree, ".avoozl"), { recursive: true });
@@ -942,6 +1005,7 @@ export function startSupervisor({
       start(row, queuedMessage(db, row.session_id));
     if (tickIntervalMs) tick();
     integrate();
+    hostServe();
   };
 
   const schedule = () => {
@@ -960,6 +1024,7 @@ export function startSupervisor({
     closed = true;
     clearTimeout(timer);
     for (const { child } of integrators.values()) child.kill("SIGTERM");
+    serveChild?.kill("SIGTERM");
     db.close();
     lock.release();
   };
@@ -972,6 +1037,13 @@ export function startSupervisor({
     holder: lock.holder,
     database: paths.database,
     ticking: () => Boolean(ticking),
+    // The standalone page's server child, or null: its pid.
+    serve: () =>
+      serveChild &&
+      serveChild.exitCode === null &&
+      serveChild.signalCode === null
+        ? { pid: serveChild.pid }
+        : null,
     // Running integrators by workspace root, with their pids.
     integrators: () =>
       [...integrators]

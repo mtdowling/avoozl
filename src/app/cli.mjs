@@ -20,7 +20,7 @@ import { LinkStore } from "./serve-auth.mjs";
 import { standaloneUiDirectory } from "./ui-bundle.mjs";
 import { contentHook } from "./public-crews.mjs";
 import { runSupervisor } from "./supervisor.mjs";
-import { machineStatus } from "./machine-status.mjs";
+import { machineStatus, serveStatus } from "./machine-status.mjs";
 import { workspaceStatus } from "./workspace-status.mjs";
 import { PROGRAM, helpCommands, helpPointer, helpText } from "./cli-help.mjs";
 import {
@@ -101,6 +101,8 @@ try {
           "skipped",
           "refused",
           "off",
+          "release",
+          "discard",
           // Removed 2026-11-18; still parsed so an old command keeps its
           // other arguments, and ignored.
           "as-person",
@@ -514,19 +516,12 @@ try {
     const machine = machineAvoozlPaths();
     if (positionals[0] === "link") {
       // A new owner link for the server already running on this machine.
-      let origin;
-      try {
-        origin = JSON.parse(
-          fs.readFileSync(
-            path.join(machine.stateDirectory, "serve.json"),
-            "utf8",
-          ),
-        ).origin;
-      } catch {
+      const running = serveStatus(machine.stateDirectory);
+      if (!running.running || !running.origin)
         throw Error(
           "No avoozl serve is running on this machine. Start it with: avoozl serve",
         );
-      }
+      const origin = running.origin;
       const links = new LinkStore(machine.stateDirectory);
       try {
         console.log(`${origin}/login?token=${links.make()}`);
@@ -1052,12 +1047,19 @@ try {
         2,
       ),
     );
-  } else if (command === "claim")
+  } else if (command === "claim") {
+    // A manual claim is a person's: not from an agent the supervisor started.
+    if (process.env.AVOOZL_CHILD)
+      throw Error(
+        "A claim is a person's. This command is running inside an agent the supervisor started.",
+      );
     console.log(
       JSON.stringify(
         await localOrRequest("runner.claim", {
           taskId: positionals[0],
           slot: options.slot,
+          ...(options.release ? { release: true } : {}),
+          ...(options.discard ? { discard: true } : {}),
           ...(options.title ? { title: options.title } : {}),
           ...(options.model ? { model: options.model } : {}),
         }),
@@ -1065,7 +1067,7 @@ try {
         2,
       ),
     );
-  else if (command === "report")
+  } else if (command === "report")
     console.log(
       JSON.stringify(
         await localOrRequest("session.report", {
@@ -1409,8 +1411,18 @@ try {
               )
               .join("\n") || "Nothing waits to land.",
       );
-    } else if (action !== "submit")
-      throw Error("Choose landing submit or status.");
+    } else if (action === "review")
+      console.log(
+        JSON.stringify(
+          await localOrRequest("landing.review", {
+            taskId: need(positionals[1], "landing review TASK"),
+          }),
+          null,
+          2,
+        ),
+      );
+    else if (action !== "submit")
+      throw Error("Choose landing submit, review or status.");
     else
       console.log(
         JSON.stringify(

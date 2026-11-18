@@ -80,6 +80,31 @@ export function builtFiles(folder) {
   return files;
 }
 
+// The routes of Kiro Crew's own gateway that the page also calls (D2, D9). With
+// no Kiro Crew, each answers in the shape the page reads, empty or refused with
+// "Needs Kiro Crew", never as a failure of the server.
+const NEEDS = (what) => `Needs Kiro Crew: ${what} works only inside Kiro Crew.`;
+export const KIROCREW_ROUTES = new Map([
+  ["GET /api/models", [200, { models: [], needsKiroCrew: true }]],
+  ["GET /api/chat/slots", [200, []]],
+  ["GET /api/usage/turns", [200, []]],
+  [
+    "POST /api/reveal",
+    [
+      200,
+      { ok: false, copy: null, error: NEEDS("Reveal in the file manager") },
+    ],
+  ],
+  [
+    "GET /api/apps/spec-builder/specs",
+    [200, { specs: [], needsKiroCrew: true }],
+  ],
+  [
+    "POST /api/apps/spec-builder/specs",
+    [409, { error: NEEDS("Spec Builder"), needsKiroCrew: true }],
+  ],
+]);
+
 function writeFileSync0600(file, text) {
   fs.writeFileSync(file, text, { mode: 0o600 });
   if (process.platform !== "win32") fs.chmodSync(file, 0o600);
@@ -213,6 +238,8 @@ export async function startServe({
           "{}",
         );
       }
+      const crew = KIROCREW_ROUTES.get(`POST ${url.pathname}`);
+      if (crew && who.kind === "session") return json(res, ...crew);
       if (url.pathname !== COMMAND_PATH)
         return json(res, 404, { error: "Not found." });
       const chunks = [];
@@ -244,6 +271,13 @@ export async function startServe({
       return json(res, 405, { error: "Use GET." });
     if (url.pathname === "/")
       return reply(res, 302, headers({ Location: APP_PATH }));
+    const crew = KIROCREW_ROUTES.get(`GET ${url.pathname}`);
+    if (crew) return json(res, ...crew);
+    if (url.pathname.startsWith("/api/apps/issue-radar/"))
+      return json(res, 409, {
+        error: NEEDS("Issue Radar"),
+        needsKiroCrew: true,
+      });
     if (url.pathname !== APP_PATH && !url.pathname.startsWith(`${APP_PATH}/`))
       return json(res, 404, { error: "Not found." });
     const name = url.pathname.slice(APP_PATH.length).replace(/^\//, ""),

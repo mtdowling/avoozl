@@ -162,8 +162,22 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   // The older `models` key reads into the table (R98.8).
   assert.deepEqual(before.roles, { retro: { model: "m1" } });
   assert.deepEqual(before.harnessDefinitions, [
-    { name: "fake-cli", approved: true, model: true },
-    { name: "other-cli", approved: false, model: false },
+    {
+      name: "fake-cli",
+      approved: true,
+      model: true,
+      readRoles:
+        "fake-cli names no resultAllow, so a read-only session cannot write its result file.",
+      proved: [],
+    },
+    {
+      name: "other-cli",
+      approved: false,
+      model: false,
+      readRoles:
+        "other-cli names no resultAllow, so a read-only session cannot write its result file.",
+      proved: [],
+    },
   ]);
   await assert.rejects(
     ops.execute(

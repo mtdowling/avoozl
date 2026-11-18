@@ -9,6 +9,7 @@ import { git } from "./git.mjs";
 import { branchNameProblem } from "./integration-branch.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
 import { runCheckAt } from "./flow-line.mjs";
+import { composeTrain } from "./integrator-schedule.mjs";
 import { enqueueLanding, pausedBy } from "./landing-queue.mjs";
 import { leaseSettings, trainSettings } from "./landing-config.mjs";
 import {
@@ -673,9 +674,17 @@ export function planTrain(
       held,
       startsAt: new Date(waitedUntil).toISOString(),
     };
-  // Truncating at maxBranches never cuts a dependency out: an entry is queued
-  // after the entries it was built on.
-  return { state: "start", members: ready.slice(0, trigger.maxBranches), held };
+  // Composition keeps an entry after the entries it was built on, so cutting
+  // at maxBranches never cuts a dependency out.
+  const composed = composeTrain(ready, {
+    overlap: settings.scheduling?.overlap ?? "same-train",
+    maxBranches: trigger.maxBranches,
+  });
+  return {
+    state: "start",
+    members: composed.members,
+    held: [...held, ...composed.held],
+  };
 }
 
 // Opens a train for `members` and marks each entry `in-train`, in one

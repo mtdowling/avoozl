@@ -24,6 +24,7 @@ export const ROLES = [
   { key: 'issuePlanner', label: 'Issue planner', line: 'Breaks a labeled issue into a spec and critiques it.', agent: false, model: false },
   { key: 'planAnswer', label: 'Spec review answer', line: 'Answers a spec review’s findings in the spec folder.', agent: false, model: false },
   { key: 'prReview', label: 'Pull request review', line: 'Reviews a pull request a person asked about.', agent: false, model: false },
+  { key: 'assist', label: 'Assistant', line: 'Answers from the page’s Open chat buttons when Kiro Crew is not running. Read-only.', agent: false, model: false },
 ] as const
 export type Role = (typeof ROLES)[number]['key']
 export interface RoleRow {
@@ -34,7 +35,7 @@ export interface RoleRow {
 export type RoleTable = Partial<Record<Role, RoleRow>>
 // What each role may do to files: the worker writes code and the planner
 // writes spec files; the others only read.
-export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = { worker: 'write', falsifier: 'read', planner: 'write', planReviewer: 'read', retro: 'read', reviewDraft: 'read', verifier: 'read', reviewer: 'read', responder: 'read', taskSummary: 'read', issuePlanner: 'write', planAnswer: 'write', prReview: 'read' }
+export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = { worker: 'write', falsifier: 'read', planner: 'write', planReviewer: 'read', retro: 'read', reviewDraft: 'read', verifier: 'read', reviewer: 'read', responder: 'read', taskSummary: 'read', issuePlanner: 'write', planAnswer: 'write', prReview: 'read', assist: 'read' }
 // The Kiro Crew chat; any other harness is a supervisor child.
 export const KIROCREW_HARNESS = 'kirocrew'
 // The agent each agent role opens on when none is picked.
@@ -46,6 +47,10 @@ export interface HarnessDefinition {
   approved: boolean
   // The file sets `model`, so a session can name one.
   model?: boolean
+  // Why it cannot run a read-only role (it names no resultAllow), or null.
+  readRoles?: string | null
+  // The role classes a live proof ran it in.
+  proved?: ('read' | 'write')[]
 }
 
 export interface ModelSettings {
@@ -74,12 +79,14 @@ export function toRoles(form: RoleTable): RoleTable {
 
 // The harness choices: the project's default, the Kiro Crew chat, then this
 // machine's definitions. A saved name with no file here still shows.
-export function harnessOptions(definitions: HarnessDefinition[], current: string) {
+// A definition that cannot run a read-only role is not offered for one.
+export function harnessOptions(definitions: HarnessDefinition[], current: string, access: 'read' | 'write' = 'write', host?: string) {
   const options = [
     { value: 'auto', label: 'auto (project default)' },
-    { value: KIROCREW_HARNESS, label: 'Kiro Crew chat' },
+    { value: KIROCREW_HARNESS, label: host === 'standalone' ? 'Kiro Crew chat (Needs Kiro Crew)' : 'Kiro Crew chat' },
     ...definitions
       .filter((d) => d.name !== KIROCREW_HARNESS && d.name !== 'auto')
+      .filter((d) => access === 'write' || !d.readRoles || d.name === current)
       .map((d) => ({ value: d.name, label: d.approved ? d.name : `${d.name} (not approved)` })),
   ]
   if (current && !options.some((o) => o.value === current)) options.push({ value: current, label: `${current} (not on this machine)` })
@@ -120,5 +127,13 @@ export function roleProblem(role: Role, form: RoleTable, definitions: HarnessDef
   if (agent && !AGENT.test(agent)) return 'The agent is an agent name: letters, digits, . _ : or -.'
   if (isSet(row.model) && !harnessTakesModel(row.harness, definitions)) return `${row.harness} takes no model. Set the model to auto.`
   if (role === 'planReviewer' && isSet(row.model) && row.model === form.planner?.model) return 'The reviewer must use a different model than the planner.'
+  const picked = definitions.find((d) => d.name === row.harness)
+  if (ROLE_ACCESS[role] === 'read' && picked?.readRoles) return picked.readRoles
   return null
+}
+
+// What a definition's list entry says about its proofs, per role class.
+export function provedLine(d: HarnessDefinition): string {
+  const proved = d.proved ?? []
+  return (['read', 'write'] as const).map((c) => `${c}: ${proved.includes(c) ? 'proved' : 'not proved'}`).join(', ')
 }

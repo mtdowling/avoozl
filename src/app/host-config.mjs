@@ -1,3 +1,4 @@
+import { validateServe } from "./serve-config.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -226,6 +227,7 @@ export function normalizeHostConfig(
   assertSafeConfig(value, source);
   const port = value.port ?? 9428;
   assertInteger(port, "port", { minimum: 0, maximum: 65535 });
+  validateServe(value.serve, source);
   if (value.workspaces != null && !record(value.workspaces))
     throw Error("workspaces must be an object.");
   const workspaces = Object.fromEntries(

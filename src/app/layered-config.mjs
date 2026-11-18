@@ -1,3 +1,4 @@
+import { validateNotifications } from "./notification-sinks.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -397,6 +398,7 @@ export function loadLayeredConfig({
   validateRunnerRole(config.runner);
   validatePlanReview(config.planReview);
   validateLanes(config.lanes);
+  validateNotifications(config.notifications);
   conflictRounds(config.landing);
   for (const layer of fileLayers)
     if (layer.filename === files.repository)
