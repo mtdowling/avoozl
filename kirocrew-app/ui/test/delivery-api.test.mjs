@@ -3,6 +3,7 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import {
   LANES,
+  LANE_LABEL_WIDTH,
   LANE_MIN_WIDTH,
   deliveryLanes,
   drawnLane,
@@ -11,6 +12,7 @@ import {
   laneBackground,
   laneForState,
   laneColumns,
+  laneWidth,
   laneOf,
   progressGroups,
   resumeStatus,
@@ -214,15 +216,23 @@ test('Start now is offered only on local-route cards Avoozl codes itself', () =>
   assert.equal(canStartNow(card('c', { deferred: true })), false)
 })
 
-test('lanes wrap 4, 2, 1 per row and never go under their minimum width', () => {
+test('all four lanes share one row above phone width; a phone stacks them', () => {
   const at = (n, gap = 16) => n * LANE_MIN_WIDTH + (n - 1) * gap
-  assert.equal(laneColumns(at(4), 4), 4)
+  // The narrowest board above phone width: a 768 px window beside the left
+  // nav, in the full app shell with the host's stylesheet (measured).
+  const smallest = 408
+  assert.ok(at(4) <= smallest, `four lanes fit a ${smallest} px board`)
+  for (const width of [smallest, 728, 984, 1144]) assert.equal(laneColumns(width, 4), 4, `${width} px`)
+  // A phone: 1 per row whatever the width.
+  assert.equal(laneColumns(at(4), 4, 16, true), 1)
+  // Too narrow even for the minimum: 2, then 1, never sideways scroll.
   assert.equal(laneColumns(at(4) - 1, 4), 2)
-  assert.equal(laneColumns(at(3), 4), 2)
   assert.equal(laneColumns(at(2) - 1, 4), 1)
-  assert.equal(laneColumns(200, 4), 1)
   // One lane shown (a state filter) takes the whole row.
   assert.equal(laneColumns(at(4), 1), 1)
+  // Narrow lanes draw icon-only buttons; wide ones keep their words.
+  assert.ok(laneWidth(smallest, 4) < LANE_LABEL_WIDTH)
+  assert.ok(laneWidth(984, 4) >= LANE_LABEL_WIDTH)
 })
 
 test('the lane rule is the one the Avoozl state Project field uses', async () => {

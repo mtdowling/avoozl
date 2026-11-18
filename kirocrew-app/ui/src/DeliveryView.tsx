@@ -12,6 +12,7 @@ import { useRead } from './useRead.ts'
 import {
   DONE_LANE,
   LANES,
+  LANE_LABEL_WIDTH,
   canStartNow,
   chipCounts,
   deliveryLanes,
@@ -20,6 +21,7 @@ import {
   laneBackground,
   laneColumns,
   laneForState,
+  laneWidth,
   progressGroups,
   resumeStatus,
   type DrawnLaneId,
@@ -57,19 +59,23 @@ function LaneCardView(props: {
   ready: boolean
   phase?: 'running' | 'reviewing'
   graph: Graph | null
+  // A narrow lane: buttons show their icons alone.
+  compact?: boolean
 }) {
   const { card, busy, act, client, workspaceId } = props
+  const label = (text: string) => (props.compact ? { 'aria-label': text, children: null } : { children: text })
   const drawer = useTaskDrawer()
   const local = card.authority === 'local'
   const issue = safeHref(card.issue?.url ?? null)
   const done = card.item?.complete ?? false
   return (
-    <li>
-      <Card>
-        <div className="p-1">
-          <div className="flex items-start gap-2">
+    <li data-lane-card>
+      <Card style={props.compact ? { padding: 10 } : undefined}>
+        <div className={props.compact ? undefined : 'p-1'} style={{ overflowWrap: 'break-word' }}>
+          {/* In a narrow lane the title wraps below its icon rather than split words. */}
+          <div className={`flex items-start gap-2 ${props.compact ? 'flex-wrap' : ''}`}>
             {props.phase && <StateIcon phase={props.phase} />}
-            <TaskTitleLink id={card.id} title={card.title} className="text-base font-semibold leading-snug" />
+            <TaskTitleLink id={card.id} title={card.title} className={`${props.compact ? 'text-sm' : 'text-base'} font-semibold leading-snug`} />
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted">
             <span>{card.id}</span>
@@ -123,14 +129,10 @@ function LaneCardView(props: {
           )}
           <div className="mt-3 flex flex-wrap gap-2">
             {props.ready && canStartNow(card) && (
-              <IconLabel icon={Play} disabled={busy} tooltip={START_TIP} onClick={() => props.onStart(card.id)}>
-                Start now
-              </IconLabel>
+              <IconLabel icon={Play} disabled={busy} tooltip={START_TIP} onClick={() => props.onStart(card.id)} {...label('Start now')} />
             )}
             {card.deliveryState === 'decision' && (
-              <IconLabel icon={RotateCcw} disabled={busy} tooltip={RETRY_TIP} onClick={() => act(() => client.retry(workspaceId, card.id))}>
-                Retry
-              </IconLabel>
+              <IconLabel icon={RotateCcw} disabled={busy} tooltip={RETRY_TIP} onClick={() => act(() => client.retry(workspaceId, card.id))} {...label('Retry')} />
             )}
             {!done && local && props.canDefer && !card.deferred && (
               <IconLabel
@@ -138,9 +140,8 @@ function LaneCardView(props: {
                 disabled={busy}
                 tooltip={DEFER_TIP}
                 onClick={() => act(() => client.updateTask(workspaceId, card.id, { status: 'deferred' }, props.revision))}
-              >
-                Defer
-              </IconLabel>
+                {...label('Defer')}
+              />
             )}
             {!done && local && card.deferred && props.resume && (
               <IconLabel
@@ -148,9 +149,8 @@ function LaneCardView(props: {
                 disabled={busy}
                 tooltip={RESUME_TIP}
                 onClick={() => act(() => client.updateTask(workspaceId, card.id, { status: props.resume }, props.revision))}
-              >
-                Resume
-              </IconLabel>
+                {...label('Resume')}
+              />
             )}
             {!done && !local && issue && (
               <Tooltip text="Open the issue; move its Project card to Deferred to pause it">
@@ -159,9 +159,7 @@ function LaneCardView(props: {
                 </a>
               </Tooltip>
             )}
-            <IconLabel icon={DetailsIcon} tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(card.id)}>
-              Details
-            </IconLabel>
+            <IconLabel icon={DetailsIcon} tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(card.id)} {...label('Details')} />
           </div>
         </div>
       </Card>
@@ -235,25 +233,26 @@ function storage(): Storage | null {
   }
 }
 
-// The lanes, sharing the width: 4, 2 or 1 per row as the page narrows.
+// The lanes, sharing the width: all in one row above phone width, 1 per row on a phone.
 export function DeliveryBoard(props: {
   lanes: Record<LaneId, LaneCard[]>
   only?: DrawnLaneId
   narrow: boolean
-  card: (card: LaneCard, phase?: 'running' | 'reviewing') => ReactNode
+  card: (card: LaneCard, phase?: 'running' | 'reviewing', compact?: boolean) => ReactNode
   // A filter change: every lane starts over at its first page.
   reset?: string
 }) {
   const { lanes, narrow } = props
   const { ref, width } = useWidth<HTMLDivElement>()
   const drawn = props.only === 'done' ? [DONE_LANE] : LANES.filter((lane) => !props.only || lane.id === props.only)
-  const columns = laneColumns(width, drawn.length, LANE_GAP)
+  const columns = laneColumns(width, drawn.length, LANE_GAP, narrow)
   const [folded, setFolded] = useState<Set<DrawnLaneId>>(new Set(['waiting']))
   const pages = usePages(props.reset ?? '')
   const single = columns === 1
+  const compact = !single && laneWidth(width, columns, LANE_GAP) < LANE_LABEL_WIDTH
   const list = (id: string, cards: LaneCard[], phase?: 'running' | 'reviewing') => (
     <ul className="flex flex-col gap-3">
-      {pages.take(id, cards).map((card) => props.card(card, phase))}
+      {pages.take(id, cards).map((card) => props.card(card, phase, compact))}
       {pages.more(id, cards.length).left > 0 && (
         <li>
           <ShowMore {...pages.more(id, cards.length)} />
@@ -265,6 +264,7 @@ export function DeliveryBoard(props: {
     <div
       ref={ref}
       data-lane-columns={columns}
+      data-lane-compact={compact || undefined}
       style={{ display: 'grid', gap: LANE_GAP, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, alignItems: 'start' }}
     >
       {drawn.map((lane) => {
@@ -274,7 +274,7 @@ export function DeliveryBoard(props: {
           <section
             key={lane.id}
             aria-label={`${lane.label}: ${cards.length}`}
-            className="flex min-w-0 flex-col gap-3 rounded-lg border p-3"
+            className={`flex min-w-0 flex-col gap-3 rounded-lg border ${compact ? 'p-2' : 'p-3'}`}
             style={{ background: laneBackground(lane.tint), borderColor: 'var(--border)', color: 'var(--text)' }}
           >
             <button
@@ -518,11 +518,12 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
             only={laneForState(filter.state)}
             narrow={narrow}
             reset={JSON.stringify(filter)}
-            card={(card, phase) => (
+            card={(card, phase, compact) => (
               <LaneCardView
                 key={card.id}
                 card={card}
                 phase={phase}
+                compact={compact}
                 ready={lanes.ready.includes(card)}
                 canDefer={canDefer}
                 resume={resume}
