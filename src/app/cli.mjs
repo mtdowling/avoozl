@@ -1427,8 +1427,18 @@ try {
               )
               .join("\n") || "Nothing waits to land.",
       );
-    } else if (action !== "submit")
-      throw Error("Choose landing submit or status.");
+    } else if (action === "review")
+      console.log(
+        JSON.stringify(
+          await localOrRequest("landing.review", {
+            taskId: need(positionals[1], "landing review TASK"),
+          }),
+          null,
+          2,
+        ),
+      );
+    else if (action !== "submit")
+      throw Error("Choose landing submit, review or status.");
     else
       console.log(
         JSON.stringify(

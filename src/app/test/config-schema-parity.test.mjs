@@ -1,3 +1,8 @@
+import {
+  COMMAND_SINK_KEYS,
+  NOTIFICATIONS_KEYS,
+  WEBHOOK_SINK_KEYS,
+} from "../notification-sinks.mjs";
 // src/avoozl-config.schema.json is what an editor checks a `.avoozl.json`
 // against, so a key the loader accepts and the schema lacks is flagged in a
 // valid file (simplification audit §2.3, F19). These tests hold the schema to
@@ -105,6 +110,9 @@ const PAIRS = [
   ["#/properties/planReview", PLAN_REVIEW_KEYS],
   ["#/properties/lanes", Object.keys(DEFAULT_LANES)],
   ["#/properties/lease", Object.keys(LEASE_KEYS)],
+  ["#/properties/notifications", NOTIFICATIONS_KEYS],
+  ["#/$defs/commandSink", COMMAND_SINK_KEYS],
+  ["#/$defs/webhookSink", WEBHOOK_SINK_KEYS],
   ["#/properties/serve", SERVE_KEYS],
   [
     "#/properties/machine/properties/platforms/additionalProperties",
@@ -227,6 +235,7 @@ const OPEN = new Map([
       "packs",
       "machine",
       "lease",
+      "notifications",
       "serve",
       // Still parsed by layered-config.mjs so old files load (audit D8).
       "ahp",

@@ -50,6 +50,7 @@ import { linkHref } from './views-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
+import { Box } from './ui/Box'
 
 // Graphs larger than this open with every group collapsed to one node.
 const COLLAPSE_ABOVE = 60
@@ -195,17 +196,17 @@ function Node(props: {
 
 function Legend() {
   return (
-    <ul aria-label="Node colors" className="flex flex-wrap gap-3 text-xs text-muted">
+    <Box aria-label="Node colors" as="ul" flex flexWrap gap="3" size="xs" tone="muted">
       {STATES.map((state) => (
-        <li key={state.id} className="flex items-center gap-1">
+        <Box key={state.id} as="li" flex items="center" gap="1">
           <svg width={10} height={10} aria-hidden="true">
             <rect width={10} height={10} rx={2} style={{ fill: STATE_COLOR[state.id] }} />
           </svg>
           {state.label}
-        </li>
+        </Box>
       ))}
       <li>Solid arrow: waiting · faded arrow: met · dashed arrow: sequence</li>
-    </ul>
+    </Box>
   )
 }
 
@@ -231,7 +232,7 @@ function Details(props: {
             </>
           }
         />
-        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
+        <Box mt="1" flex flexWrap items="center" gap="1.5" size="sm">
           <Hint size="xs">{task.id}</Hint>
           <Badge>{task.kind}</Badge>
           <Authority owner={task} />
@@ -242,11 +243,11 @@ function Details(props: {
           {task.review && <Badge>review</Badge>}
           {task.planArchived && <Badge>Archived</Badge>}
           {task.handSetReview && <Badge variant="warning">set by hand</Badge>}
-        </div>
+        </Box>
         {task.handSetReview && (
-          <p className="mt-1 text-sm" data-hand-set-review>
+          <Box as="p" mt="1" size="sm" data-hand-set-review>
             {noSessionLabel(task.noSession)}.{task.nextAction ? ` Next: ${task.nextAction}` : ''} All details has Discuss, Mark done and Back to planned.
-          </p>
+          </Box>
         )}
         <dl className="mt-2 grid gap-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr', columnGap: 12 }}>
           {task.repository && (
@@ -559,10 +560,10 @@ export default function GraphView({
     !lit || (lit.up.has(from) && lit.up.has(to)) || (lit.down.has(from) && lit.down.has(to))
 
   return (
-    <section
+    <Box
       aria-labelledby={bare ? undefined : 'avoozl-graph-title'}
       aria-label={bare ? 'All tasks' : undefined}
-      className="flex flex-col gap-3.5"
+      as="section" flex flexCol gap="3.5"
       data-graph-view
     >
       {!bare && (
@@ -584,13 +585,13 @@ export default function GraphView({
               <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy} />
             </Row>
           )}
-          <p role="status" className="mt-2 text-sm text-muted">
+          <Box role="status" as="p" mt="2" size="sm" tone="muted">
             {busy
               ? 'Loading…'
               : summary
                 ? `${summary.tasks} of ${full!.total} tasks · ${summary.blocking} blocking edges · ${summary.ready} ready · ${layout?.waves ?? 0} waves`
                 : ''}
-          </p>
+          </Box>
         </FilterBar>
       )}
       {workspaceId && drill?.kind === 'epic' && drill.id && (
@@ -607,26 +608,26 @@ export default function GraphView({
                 <IconLabel icon={ArrowLeft} tooltip={backLabel(stack) ?? undefined} onClick={() => back()} aria-label={backLabel(stack) ?? 'Back'}>
                   Back
                 </IconLabel>
-                <nav aria-label="Graph drill-in" className="flex flex-wrap items-center gap-1 text-sm" data-graph-crumbs>
+                <Box aria-label="Graph drill-in" as="nav" flex flexWrap items="center" gap="1" size="sm" data-graph-crumbs>
                   {drillCrumbs(stack, drill).map(({ at, label }) => (
-                    <span key={at} className="inline-flex items-center gap-1">
+                    <Box key={at} as="span" inlineFlex items="center" gap="1">
                       <button type="button" className="truncate underline" style={{ maxWidth: '14rem' }} onClick={() => back(at)}>
                         {label}
                       </button>
                       <Hint aria-hidden="true">
                         ›
                       </Hint>
-                    </span>
+                    </Box>
                   ))}
                   <span className="truncate font-medium" aria-current="page" style={{ maxWidth: 'min(28rem, 60vw)' }}>
                     {drillLabel(drill)}
                   </span>
-                </nav>
+                </Box>
               </>
             )}
             <TipBtn tooltip="Fold each group into one box" onClick={() => setCollapsed(new Set(groupKeys))}>Collapse all</TipBtn>
             <TipBtn tooltip="Show every task inside each group" onClick={() => setCollapsed(new Set())}>Expand all</TipBtn>
-            <span className="grow" />
+            <Box as="span" grow />
             <TipBtn tooltip="Zoom out" onClick={() => zoom(1 / 1.25)} aria-label="Zoom out">
               −
             </TipBtn>
@@ -638,9 +639,9 @@ export default function GraphView({
             </TipBtn>
             <TipBtn tooltip="Fit the whole graph in view" onClick={fit}>Fit</TipBtn>
           </Row>
-          <div className="mt-2">
+          <Box mt="2">
             <Legend />
-          </div>
+          </Box>
           <div
             ref={canvas}
             className="mt-2 overflow-hidden rounded border"
@@ -765,6 +766,6 @@ export default function GraphView({
           onSelect={selectId}
         />
       )}
-    </section>
+    </Box>
   )
 }
