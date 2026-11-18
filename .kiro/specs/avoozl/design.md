@@ -5219,35 +5219,53 @@ codes.
 
 **Revision hash.** The hash covers the prose files without `Status:`,
 `tasks.md` without checkbox marks, `Facts:` bullets and its front-matter, and
-the parsed facts written as one canonical JSON text: the text the old
-manifest held (version 1, each task's keys in a fixed order, tasks in
-`tasks.md` order, defaults filled in). Layout is outside the hash, content is
-inside it. A pure conversion therefore hashes as before: every approval, issue
-marker and receipt that names the hash holds, and nothing is approved again.
-This is exact for a manifest written in that canonical form, which the
-repository's specs and Avoozl's own writers used. A spec whose old manifest
-used another key order gets a new hash once, and the conversion report says
-so before the change merges. Avoozl parses a revision once, keeps it in
-SQLite, and parses again only when the hash changes. Ticks stay outside it.
+the parsed facts written as one JSON text in the shape the old manifest had
+(version 1, tasks in `tasks.md` order, each task's keys in bullet order,
+defaults filled in where they sit in a manifest). Defaults in front-matter or
+on each task, and a list inline or as bullets, hash the same. A conversion
+that keeps the old manifest's text exactly keeps its hash; five of this
+repository's eight specs did. The other three could not: one manifest listed
+tasks in another order than `tasks.md`, two escaped `§` as `\u00a7`, and
+neither survives the move. Avoozl parses a revision once, keeps it in SQLite,
+and parses again only when the hash changes. Ticks stay outside it.
 
-**Removed.** `avoozl/manifest.json` and everything that read or wrote it,
-`spec-manifest.mjs` (the manifest drafted from marker bullets), the review
-tabs' manifest tab, and the marker bullets (`_Repository: x_`) the steering
-file taught. The planner prompt and the steering file teach `Facts:`.
+**Approval carry-over.** Owner decision 2026-11-18. When `plan.save` stores
+a new revision of an approved spec, and the approved receipt's stored files
+and the new files have the same prose without `Status:`, the same `tasks.md`
+text without marks and facts, the same spec-wide facts and the same parsed
+tasks (line numbers aside), Avoozl records a new approval at the new hash
+with `carriedFrom` naming the old one. It opens no approval pull request and
+changes no issue: the plan keeps `issueHash`, the hash its issues were
+projected at, until a normal approval clears it. Any difference, or a check
+that refuses the revision, leaves a draft for a normal approval. The spec
+page's Approvals list shows "carried from". The old manifest is read only
+from a receipt or revision stored in SQLite (`spec-legacy.mjs`), never from
+disk. A rebuild from GitHub after the database is lost still needs a person
+to approve a spec whose issues name the old hash.
 
-**Conversion.** `scripts/convert-facts.mjs` ran once on a copy of each spec
-in this repository, and the manifests were deleted in the same change. It is
-not shipped as a command, and no reader accepts the old file. A test keeps
-the repository's before and after parse equal, using the saved old manifests
-under the test's fixtures.
+**Removed.** `avoozl/manifest.json` and everything that read it from disk or
+wrote it, `spec-manifest.mjs` (the manifest drafted from marker bullets), the
+review tabs' manifest tab, and the marker bullets (`_Repository: x_`) the
+steering file taught. The planner prompt and the steering file teach
+`Facts:`; the old steering text counts as an older Avoozl copy, so New spec
+offers the new one over it. Keys nothing reads, such as a task's `agent`,
+`model`, `size` and `budget`, are unknown facts now.
+
+**Conversion.** A one-off script folded each manifest into its `tasks.md` on
+a copy, the old and new parses were compared, and the manifests were deleted
+in the same change. It is not shipped as a command, and no disk reader
+accepts the old file. `spec-conversion.test.mjs` keeps the proof: a digest of
+the old reader's tasks for each spec, checked while the spec is unchanged
+since the conversion.
 
 **Tests.** `spec-facts.test.mjs`: each key, each refusal with its line,
 defaults and packages, an epic folder, a batch group, a leftover manifest.
 `spec-plans.test.mjs` and the fixtures write `Facts:`. A hash test: the same
 spec in old layout (built in the test) and new layout hashes the same, and a
-changed fact changes it. A conversion test parses every spec in the repo
-before and after and compares tasks and proposals. `templates.test.mjs`:
-the planner text names `Facts:` and not the manifest.
+changed fact changes it. `spec-carry.test.mjs`: the same content carries;
+one character changed in prose, `after`, `checks` or `done` does not.
+`spec-conversion.test.mjs` as above. `kirocrew-planner.test.mjs`: the
+planner prompt's example folder lints clean.
 
 ## 5. Local workflow
 

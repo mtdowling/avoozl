@@ -26,6 +26,7 @@ import {
 import { frontMatter, withoutFrontMatter } from "../front-matter.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { integrationOf } from "./integration-branch.mjs";
+import { currentFiles } from "./spec-legacy.mjs";
 import { checkForwardTarget } from "./mirror-policy.mjs";
 
 export const SPECS_DIRECTORY = path.join(".kiro", "specs");
@@ -220,14 +221,13 @@ export function readSpecFolder(root, name) {
     const text = read(file);
     if (text !== undefined) files[file] = text;
   }
-  // Not a revision file and not hashed: kept so lint can say to delete it.
-  const left = read(MANIFEST);
-  if (left !== undefined) files[MANIFEST] = left;
   return {
     name,
     folder,
     exists: true,
     files,
+    // Not read and not hashed: lint says to delete it.
+    ...(read(MANIFEST) !== undefined ? { leftover: true } : {}),
     hash: specHash(files),
     critique: read(CRITIQUE) ?? null,
   };
@@ -419,17 +419,19 @@ export function unchangedClauses(text) {
   return clauses;
 }
 
-// Structure, IDs, and manifest coverage. Returns the diagnostics and the
-// proposals built from items that have a valid manifest entry.
+// Structure, IDs, and Facts coverage. Returns the diagnostics and the
+// proposals built from items that have valid facts.
 export function parseSpec({
   name,
   folder = `.kiro/specs/${name}/`,
   exists,
-  files,
+  files: given,
   leftover = false,
 }) {
   const diagnostics = [],
-    proposals = [];
+    proposals = [],
+    // A record stored before Requirement 111 is read in its own layout.
+    files = currentFiles(given);
   if (!exists) {
     diagnostics.push(
       diagnostic(
@@ -480,7 +482,7 @@ export function parseSpec({
       );
   // The manifest is gone (Requirement 111.1): a leftover file is an error
   // and nothing reads it.
-  if (leftover || files[MANIFEST] !== undefined)
+  if (leftover)
     diagnostics.push(
       diagnostic(
         "spec.manifest-left",
@@ -1006,17 +1008,61 @@ export function lintSpec({
   };
 }
 
+// Whether two revisions say the same thing (design §4.40): the same prose
+// without Status lines, the same tasks.md text without marks and Facts, the
+// same spec-wide facts, and the same parsed tasks. `before` may be a record
+// stored in the old layout. Line numbers are left out: Facts bullets add
+// lines. Any difference at all is not the same content.
+// JSON with object keys sorted: key order is layout, not content.
+const canonical = (value) =>
+  JSON.stringify(value, (_, item) =>
+    item && typeof item === "object" && !Array.isArray(item)
+      ? Object.fromEntries(
+          Object.keys(item)
+            .sort()
+            .map((key) => [key, item[key]]),
+        )
+      : item,
+  );
+
+export function sameSpecContent(name, before, after) {
+  const read = (given) => {
+    const files = currentFiles(given),
+      text = files["tasks.md"] ?? "",
+      parsed = parseSpec({ name, exists: true, files }),
+      { tasks: _tasks, ...spec } = specFacts(files),
+      unlined = (rows = []) =>
+        rows.map(
+          ({ line: _line, lineStart: _start, lineEnd: _end, ...rest }) => rest,
+        );
+    return canonical({
+      prose: ["requirements.md", "bugfix.md", "design.md"].map((file) =>
+        files[file] === undefined ? null : withoutStatus(files[file]),
+      ),
+      tasks: withoutStatus(
+        withoutMarks(withoutFacts(text, specItems(name, text))),
+      ),
+      spec,
+      kind: parsed.kind ?? null,
+      proposals: unlined(parsed.proposals),
+      members: unlined(parsed.members),
+      errors: parsed.diagnostics.filter((d) => d.severity === "error").length,
+    });
+  };
+  return read(before) === read(after);
+}
+
 // The facts of a folder's tasks.md, keyed as the manifest was: {tasks,
 // phases, batches, ship, ...}. Diagnostics are lintSpec's.
 export function specFacts(files = {}) {
-  const text = files["tasks.md"] ?? "";
+  const text = currentFiles(files)["tasks.md"] ?? "";
   return readFacts(text, specItems("x", text)).manifest;
 }
 
 // Whether a folder's tasks.md front-matter says `kind: epic` (Requirement
 // 59.1, 111.4).
 export function isEpicFolder(files = {}) {
-  const text = files["tasks.md"];
+  const text = currentFiles(files)["tasks.md"];
   return typeof text === "string" && readFacts(text, []).isEpic;
 }
 

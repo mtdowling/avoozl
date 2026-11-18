@@ -1012,7 +1012,7 @@ try {
     command === "crews"
   )
     throw Error(
-      "Crew placement was retired: every session runs on this machine. Pin a task's agent, model or harness in its manifest `session`.",
+      "Crew placement was retired: every session runs on this machine. Pin a task's agent, model or harness in its `session` fact in tasks.md.",
     );
   else if (command === "verify" && positionals[0] === "allow")
     console.log(

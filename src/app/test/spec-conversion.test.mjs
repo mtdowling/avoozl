@@ -11,10 +11,10 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  REVISION_FILES,
   lintSpec,
   listSpecFolders,
   readSpecFolder,
+  withoutMarks,
 } from "../spec-plans.mjs";
 
 const root = path.resolve(fileURLToPath(import.meta.url), "../../../..");
@@ -41,8 +41,12 @@ for (const [name, old] of Object.entries(before))
   test(`.kiro/specs/${name} parses as it did before the conversion`, (t) => {
     const spec = readSpecFolder(root, name);
     if (!spec.exists) return t.skip("removed since the conversion");
+    // Only tasks.md (without marks) and bugfix.md shape the tasks.
     const files = sha(
-      JSON.stringify(REVISION_FILES.map((file) => spec.files[file] ?? null)),
+      JSON.stringify([
+        withoutMarks(spec.files["tasks.md"] ?? ""),
+        spec.files["bugfix.md"] ?? null,
+      ]),
     );
     if (files !== old.files) return t.skip("edited since the conversion");
     const lint = lintSpec({ spec, plan: { id: name } });

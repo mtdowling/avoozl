@@ -81,7 +81,7 @@ export const OLD_TOOLS = {
   ],
   plans_propose_work: [
     "plan.propose",
-    "Propose adjacent work discovered while implementing. On a spec plan, {id, proposal:{id,title,kind?,repository?,requires?,acceptance,checks?,completion?}, expectedHash?} adds one tasks.md item and its manifest entry. On a design, {id, fact:{kind?,text,quote,derivation?,reasoning?,acceptance?}, expectedHash?} records one cited fact. Either stays a draft and is not executable until an authorized approval.",
+    "Propose adjacent work discovered while implementing. On a spec plan, {id, proposal:{id,title,kind?,repository?,requires?,acceptance,checks?,completion?}, expectedHash?} adds one tasks.md item with its Facts bullet. On a design, {id, fact:{kind?,text,quote,derivation?,reasoning?,acceptance?}, expectedHash?} records one cited fact. Either stays a draft and is not executable until an authorized approval.",
   ],
   plans_specs: [
     "plan.specs",
@@ -93,7 +93,7 @@ export const OLD_TOOLS = {
   ],
   plans_lint_plan: [
     "plan.lint",
-    "Run deterministic checks on a stored revision: spec folder files, task IDs, manifest coverage, task schema, projects, and dependencies. Returns diagnostics with file and line and never edits or approves the plan.",
+    "Run deterministic checks on a stored revision: spec folder files, task IDs, Facts bullets, task schema, projects, and dependencies. Returns diagnostics with file and line and never edits or approves the plan.",
   ],
   plans_project_preview: [
     "github.project.preview",

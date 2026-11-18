@@ -1,48 +1,48 @@
 {
   "avoozl": {
-    "files": "a4fcf4a3536a9da22bb417e93b8aeac44152dd06711801443b3635e136466a48",
+    "files": "7ae85a8a7f54430fc738cc50a18ad5ae3316dad9c1be234ddcf59eefd3a5e668",
     "proposals": "1dea389742bd6af5184b91712721a1c845322e5afa5c4678d7e9547daecb750d",
     "count": 433,
     "hashBefore": "59172ef64fd966642e1dec3614d5512137012ca055b62fb2fae235aa4051ebbc"
   },
   "avoozl-next": {
-    "files": "f6f3df280d724090b35b42ecdd11d692f327b095b860a5af76a1928bd4506fcf",
+    "files": "d70bc8c98bd308e17215e867e22ce38cf0b393a8e23d41284ad59a89ad5f1f13",
     "proposals": "a248d1b1ed93604da75ad1019204d4632d7baf126e5bc9d5c0743d387b07c1b9",
     "count": 18,
     "hashBefore": "cc0dcc208e951a300be50564d9146eff638f552bf4477297169f65fb8c156e8b"
   },
   "landing-trains": {
-    "files": "eefd8e65c11d3189cae15d4072da800c180dd80a906bb742ada0b2a79ccc4ffb",
+    "files": "de98aca4e102f5f59ef6eb21f812b751def38b6d232972310dca8c06c612a07b",
     "proposals": "cd8faf9efa113c51c3352f96e6aab96c3d0ea4e72e3de1f43fe2ed45ccaafa6c",
     "count": 33,
     "hashBefore": "87fc1ed3040dba7318f430a26cd23e1168356165310761526b661c3a32fd9c3a"
   },
   "radar-coder": {
-    "files": "26a10aaa6ff539f77a8265ef1184c2502cf0bd86c0d1aa970320cf9115165a77",
+    "files": "c42be3491207ba1e677a196fac4a875828412b43b61cbe7abb8d19d06dd3d5a3",
     "proposals": "c2f2a6f22281248e7c1d8050dbf102bf0f9c94a8608c3c0624b1b18706040925",
     "count": 168,
     "hashBefore": "4a802c96e8df77b4e2a61d5f9bc56d7717c07c98e4bf40f8c4ce2b72adee0292"
   },
   "standalone-web": {
-    "files": "182dc4add490d08ba87e846b933fe259dc66305b39d1a51320a77a711200cf34",
+    "files": "56afc5231598cf50ce30211ba555662d26cd08961c92b565f6504a5d4c96fc55",
     "proposals": "585a7521bc5e7348429b37d7754f75cae2dad7ac69e3914f4f419492e80df03f",
     "count": 6,
     "hashBefore": "a51145d1714ebe24ce4bb8f76d8484c389d6e85f70131f977f56bee530927c2c"
   },
   "ui-components": {
-    "files": "3444ede946aa061d863b08f4d6351f7f2a7884ebe1d0736c5e9523dd359c535b",
+    "files": "e9fbafeaf6d0d47e7124f45c58a58287805e9b1fcc71e7a285872b3f2c1cb7d7",
     "proposals": "10a551988d6900cb83ad3c6a1fa6bc3059b37ee113e5dc03d9dacf34b7149a92",
     "count": 11,
     "hashBefore": "44768284aecce206096414d3935ce45940cb8cdbbcfcb23ea908efbe6344784a"
   },
   "without-kirocrew": {
-    "files": "f21df8a1bfa3c0a04a80ce9a4f12abe46b0e9b11a89636846cef7987fce783e5",
+    "files": "e26909cdb37564e8357832b1eb566c301811f519a9ac50e6bd80dfb8cba992d0",
     "proposals": "137949f6eb17911655228a6e09e87d0aef7934eae762e32974a15b2040e40649",
     "count": 17,
     "hashBefore": "89b5574b97dadba8ac530d21da96e8e8ff750fb8623763a27dfc41070010e8e6"
   },
   "worker-paths": {
-    "files": "346a67fbabfece9bd0d4f757073d1aef70ec866721a1b01e8aa2f85082c02a74",
+    "files": "3f7881e1f860e55761ad25732a5fe938378e6f6fd2365995e5cc89c8630e82f4",
     "proposals": "15d7c739cb27c873e4b5117cb07a6745d79a466610f8ce3c4e6df02879a98295",
     "count": 17,
     "hashBefore": "aaf54a4c688e20260eafa1f552433f6d93cd143c8c0e27aab69da37bac8b54f1"

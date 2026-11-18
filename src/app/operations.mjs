@@ -570,6 +570,7 @@ import {
   epicMembers,
   findSpecFolder,
   lintSpec,
+  sameSpecContent,
   specFacts,
   linkSpecPlan,
   listSpecFolders,
@@ -2117,6 +2118,51 @@ export class Operations {
   // Whether a plan's current text is the one last approved.
   // Every check plan.approve makes before it writes, shared with
   // plan.approveMany so a batch keeps each one. Throws on the first failure.
+  // A revision with the same content as the approved one it replaces, such
+  // as a spec moved from avoozl/manifest.json to Facts bullets, keeps that
+  // approval (design §4.40): a new receipt names the hash it was carried
+  // from. No approval pull request opens and no issue changes. Any
+  // difference, or a check that refuses it, leaves a draft to approve as
+  // usual. Returns the approved plan, or null.
+  carryApproval(previous, saved) {
+    if (
+      !previous?.spec ||
+      previous.state !== "approved" ||
+      !saved ||
+      saved.hash === previous.hash ||
+      saved.state !== "draft"
+    )
+      return null;
+    const receipt = this.store.get("approvals", previous.approvalId);
+    if (
+      receipt?.hash !== previous.hash ||
+      !receipt.files ||
+      !sameSpecContent(previous.spec, receipt.files, saved.files || {})
+    )
+      return null;
+    try {
+      const expectedRevision = this.store.read().revision,
+        input = { id: saved.id, expectedHash: saved.hash, expectedRevision },
+        { specQuality, proposals } = this.approvalChecks(input);
+      approvePlan(this.store, {
+        ...input,
+        approvedBy: receipt.approvedBy,
+        operator: this.operator,
+        evidence: `Carried from ${previous.hash}: the same content in another layout.`,
+        carriedFrom: previous.hash,
+        githubPolicy: this.githubPolicy(),
+        ...(specQuality
+          ? {
+              proposals,
+              declaredDependencies: specQuality.declaredDependencies,
+            }
+          : {}),
+      });
+    } catch {
+      return null;
+    }
+    return this.store.get("plans", saved.id);
+  }
   approvalChecks(input) {
     const plan = this.store.get("plans", input.id);
     if (!plan) fail("Plan not found.", 404);
@@ -3212,7 +3258,7 @@ export class Operations {
       name === "delivery.pickAgain"
     )
       fail(
-        "Crew placement was retired: every session runs on this machine. Pin a task's agent, model or harness in its manifest session.",
+        "Crew placement was retired: every session runs on this machine. Pin a task's agent, model or harness in its session fact in tasks.md.",
         410,
       );
     // Retired tool names remain resolvable for existing clients.
@@ -5742,7 +5788,7 @@ export class Operations {
           previousHash: plan.hash,
           caller: context.caller,
         });
-        return saved;
+        return this.carryApproval(plan, saved) ?? saved;
       }
       // An old-style plan whose spec folder now exists: link it as a draft.
       if (plan && !plan.spec && input.spec !== undefined) {

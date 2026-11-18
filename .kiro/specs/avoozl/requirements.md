@@ -6229,11 +6229,13 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
    leaf, SHALL hold with the file named `tasks.md`.
 6. The revision hash SHALL cover the spec's prose and its parsed facts, not
    their layout. A spec converted from the manifest to `Facts:` bullets,
-   with nothing else changed, SHALL have the same hash as before, so every
-   approval, issue marker and receipt that names the hash still holds and
-   the owner approves nothing again. Checkbox marks and `Status:` SHALL stay
-   outside the hash. A test SHALL prove it on a copy of every spec in this
-   repository.
+   with nothing else changed, SHALL NOT need a person's approval again: it
+   keeps its hash where the old manifest's text allows, and otherwise its
+   approval is carried to the new hash with `carriedFrom` recorded, no
+   approval pull request and no issue change. Any other difference SHALL
+   need a normal approval. Checkbox marks and `Status:` SHALL stay outside
+   the hash. Tests SHALL prove both on copies. (Changed 2026-11-18: owner
+   decision on the carry-over.)
 7. Avoozl SHALL parse a spec once, store its revision, and parse again only
    when the revision changes, as it did. Ticks SHALL stay outside the hash.
 8. The spec page, the review tabs, the graph, spec pull request adoption,

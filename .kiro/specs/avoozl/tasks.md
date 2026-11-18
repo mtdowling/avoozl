@@ -5699,7 +5699,7 @@ build in this repository, then the Nupp plans. Other spec pull requests may
 still touch `avoozl/manifest.json`; merge main often, keep their changes
 and convert them too.
 
-- [ ] 64.1 Facts bullets replace `avoozl/manifest.json`, convert this repository's specs, after 61.1, 62.1 [R111.1, R111.2, R111.3, R111.4, R111.5, R111.6, R111.7, R111.8, R111.9, R111.10, R111.11] (§4.40)
+- [x] 64.1 Facts bullets replace `avoozl/manifest.json`, convert this repository's specs, after 61.1, 62.1 [R111.1, R111.2, R111.3, R111.4, R111.5, R111.6, R111.7, R111.8, R111.9, R111.10, R111.11] (§4.40)
   - Facts:
     - summary: Phase 64 (Task facts move into tasks.md). See R111; §4.40.
     - done:
