@@ -16,6 +16,8 @@ export function settleActionOf(item: ConflictItem): SettleAction | null {
   // Status review set by hand: the drawer offers Discuss, Mark done and
   // Back to planned; no settle action fits it.
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return null
+  // The Crew Mode hold has its own button, Let the tick run it.
+  if (item.kind === 'needs-human' && item.reason === 'crew-mode') return null
   if (item.kind === 'needs-human') return item.reason === 'blocked' ? 'unblock' : 'reviewed'
   if (item.kind === 'decision') return 'settle'
   return null
@@ -111,6 +113,8 @@ export function noActionReason(item: ConflictItem): string | null {
   // A source conflict Avoozl asked about carries its own buttons (ConflictFixActions.tsx).
   if (item.kind === 'needs-human' && item.reason === 'conflict-fix') return null
   if (item.kind === 'spec-pull') return null
+  // The Crew Mode hold carries its own button (ConflictsView.tsx).
+  if (item.kind === 'needs-human' && item.reason === 'crew-mode') return null
   // A merge method the repository refuses (RC28.7) is fixed in GitHub's settings.
   if (item.kind === 'needs-human' && item.reason === 'merge-method')
     return 'Change the GitHub setting it names, or change the merge method on the Landing tab in Repository setup. The row clears on the next check.'
@@ -151,6 +155,7 @@ export function whyLine(item: ConflictItem): string {
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'review-draft') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'tracker-gate') return item.detail
+  if (item.kind === 'needs-human' && item.reason === 'crew-mode') return item.detail
   if (item.kind === 'needs-human')
     return item.reason === 'blocked' ? 'Marked blocked: nothing starts until you unblock it.' : 'New or edited: it waits for your review before it can start.'
   if (item.kind === 'review') return item.detail

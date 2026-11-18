@@ -738,6 +738,24 @@ if (query.get('page') === 'app' && query.get('inline') === '1') installInlineFix
 // with Plan this and Deliver this) and one in Needs you with the same two
 // buttons. &escalations=before: the same issues as main's backend sends
 // them, with no escalation fields (task 56.14's before/after shots).
+// &crewmode=1: a workspace a Crew Mode conductor drove, held for a person.
+if (query.get('page') === 'app' && query.get('crewmode') === '1') {
+  answer('conflicts.view', () => ({
+    revision: 1,
+    items: [
+      {
+        kind: 'needs-human',
+        reason: 'crew-mode',
+        id: 'crew-mode',
+        taskId: null,
+        title: 'Crew Mode dispatch is gone',
+        detail: 'This workspace\'s .avoozl.json says "runner": "crew-mode", so a conductor used to start its tasks. Avoozl starts nothing here until you let the tick run it.',
+        hash: 'h1',
+      },
+    ],
+  }))
+  answer('delivery.runner.release', () => ({ released: true }))
+}
 if (query.get('page') === 'app' && query.get('escalations')) {
   const after = query.get('escalations') === 'after'
   const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }

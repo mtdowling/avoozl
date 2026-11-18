@@ -42,6 +42,7 @@ export function askLine(item: ConflictItem): string {
       if (item.reason === 'conflict-fix') return 'Choose whether Avoozl resolves the source conflict or you do.'
       if (item.reason === 'forward') return 'Read the exact public diff, then forward it or not.'
       if (item.reason === 'crew') return 'Answer on GitHub. The crew picks the issue up again when the label comes off.'
+      if (item.reason === 'crew-mode') return 'Choose Let the tick run it. Avoozl then starts this workspace\'s ready tasks; until then it starts none.'
       if (item.reason === 'review') return 'Read the task, then mark it reviewed so it may start.'
       return 'Read the reason and act where the row says.'
     default:
