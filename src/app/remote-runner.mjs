@@ -22,6 +22,7 @@ import { enforce, pushLines } from "./content-rules.mjs";
 import { fail } from "./store.mjs";
 import { queueNotifications } from "./notifications.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
+import { checkpointBranch } from "./working-heads.mjs";
 
 const run = promisify(execFile);
 const TASKS = "runner.tasks";
@@ -42,7 +43,13 @@ const ENVELOPE_KEYS = [
   "checks",
   "agent",
   "model",
+  "spec",
 ];
+const SPEC = /^[a-z0-9][a-z0-9-]{0,79}$/;
+// A runner takes envelopes over SSH. A worker (R90.1) takes them only from
+// its own pull; both hold no plans and share the task tick.
+export const HOLDS_TASKS = (config) =>
+  config?.role === "runner" || config?.role === "worker";
 const TERMINAL = new Set(["pushed", "failed"]);
 export const REMOTE_AGENTS = ["kirocrew-worker"];
 
@@ -73,7 +80,7 @@ export function readRunnerConfig(workspaceRoot, env = process.env) {
   if (block === undefined || block?.role === undefined) return null;
   if (!block || typeof block !== "object" || Array.isArray(block))
     fail(".avoozl.json runner must be an object.");
-  if (block.role === "runner") {
+  if (block.role === "runner" || block.role === "worker") {
     const repos = block.repos || {},
       checks = block.checks || {};
     for (const [id, repo] of Object.entries(repos))
@@ -88,7 +95,7 @@ export function readRunnerConfig(workspaceRoot, env = process.env) {
       )
         fail(`runner.checks.${id} needs an argv list of strings.`);
     return {
-      role: "runner",
+      role: block.role,
       crewId: block.crewId || "local",
       repos,
       checks,
@@ -114,8 +121,11 @@ export function readRunnerConfig(workspaceRoot, env = process.env) {
         fail(`runner.hosts.${id} needs an ssh host (user@host).`);
     return { role: "driver", hosts };
   }
-  fail('runner.role is "runner" or "driver".');
+  fail('runner.role is "runner", "worker" or "driver".');
 }
+
+const workerTaskBrief = ({ spec, taskId }) =>
+  `Task ${taskId} of spec ${spec}. Read the spec's requirements, design and tasks files in this worktree and do only that task.`;
 
 // Check an envelope field by field. Unknown keys are refused so a newer
 // driver cannot slip a field an older runner would ignore.
@@ -133,7 +143,16 @@ export function validateEnvelope(value, config) {
     );
   if (typeof value.baseCommit !== "string" || !SHA.test(value.baseCommit))
     fail("Envelope baseCommit is a full lowercase SHA.");
-  if (
+  const worker = config.role === "worker";
+  if (worker) {
+    // IDs only (R90.1): a worker's brief is built here from the spec in its
+    // own checkout, so nothing the offer says is read as an instruction.
+    if (value.brief !== undefined)
+      fail("A worker envelope carries IDs only, no brief.");
+    if (typeof value.spec !== "string" || !SPEC.test(value.spec))
+      fail("A worker envelope names its spec ID.");
+  } else if (value.spec !== undefined) fail("Envelope field spec is unknown.");
+  else if (
     typeof value.brief !== "string" ||
     !value.brief.trim() ||
     value.brief.length > MAX_BRIEF ||
@@ -158,7 +177,8 @@ export function validateEnvelope(value, config) {
     taskId: value.taskId,
     repo: value.repo,
     baseCommit: value.baseCommit,
-    brief: value.brief,
+    brief: worker ? workerTaskBrief(value) : value.brief,
+    ...(worker ? { spec: value.spec } : {}),
     checks,
     agent,
     ...(value.model ? { model: value.model } : {}),
@@ -189,10 +209,14 @@ function update(store, id, patch) {
 // `avoozl runner accept`: record the task once. The same envelope again is
 // a no-op; a different one under the same task ID is refused, so a task is
 // never claimed twice and never changed after it started.
-export function acceptEnvelope(store, workspaceRoot, text) {
+export function acceptEnvelope(store, workspaceRoot, text, { pulled } = {}) {
   const config = readRunnerConfig(workspaceRoot);
-  if (config?.role !== "runner")
+  if (!HOLDS_TASKS(config))
     fail('This workspace is not a runner (.avoozl.json runner.role "runner").');
+  // R90.7: an SSH push is for a machine with no GitHub access. A worker
+  // takes work only from its own pull.
+  if (config.role === "worker" && !pulled)
+    fail("A worker takes offers it pulls, not an envelope pushed over SSH.");
   if (typeof text !== "string" || text.length > MAX_ENVELOPE)
     fail("An envelope is at most 32 KiB.");
   const envelope = validateEnvelope(parse(text, "The envelope"), config),
@@ -231,10 +255,10 @@ const chatKey = (slot) =>
 // absolute URL: the driver builds the link from its own settings.
 export function runnerStatus(store, workspaceRoot) {
   const config = readRunnerConfig(workspaceRoot);
-  if (config?.role !== "runner") fail("This workspace is not a runner.");
+  if (!HOLDS_TASKS(config)) fail("This workspace is not a runner.");
   return {
     version: 1,
-    role: "runner",
+    role: config.role,
     crewId: config.crewId,
     at: now(),
     tasks: Object.entries(tasksOf(store)).map(([taskId, record]) => ({
@@ -280,7 +304,10 @@ function workerBrief(record, { worktree, branch, command }) {
 
 async function startWorktree(store, config, id, record) {
   const repo = config.repos[record.envelope.repo].path,
-    branch = `avoozl/remote/${id}`.replace(/[^A-Za-z0-9._/-]/g, "-"),
+    // A worker pushes to the task's checkpoint ref (R90.2, §4.32.8).
+    branch = record.envelope.spec
+      ? checkpointBranch(record.envelope.spec, id)
+      : `avoozl/remote/${id}`.replace(/[^A-Za-z0-9._/-]/g, "-"),
     worktree = path.join(
       path.dirname(repo),
       `${path.basename(repo)}-remote-worktrees`,
@@ -316,7 +343,7 @@ async function startWorktree(store, config, id, record) {
 export async function reportDone(store, workspaceRoot, { taskId, state }) {
   const config = readRunnerConfig(workspaceRoot),
     record = tasksOf(store)[taskId];
-  if (config?.role !== "runner") fail("This workspace is not a runner.");
+  if (!HOLDS_TASKS(config)) fail("This workspace is not a runner.");
   if (!record) fail("Task not found.", 404);
   if (!["done", "blocked"].includes(state)) fail("State is done or blocked.");
   if (!["starting", "working"].includes(record.state))
@@ -364,7 +391,7 @@ export async function runnerTick(
   { roster = null, bindings = [], command } = {},
 ) {
   const config = readRunnerConfig(workspaceRoot);
-  if (config?.role !== "runner") return null;
+  if (!HOLDS_TASKS(config)) return null;
   const dispatch = [],
     notify = [];
   for (const id of Object.keys(tasksOf(store))) {
