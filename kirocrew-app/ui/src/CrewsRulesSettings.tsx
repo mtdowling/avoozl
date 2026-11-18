@@ -11,6 +11,9 @@ import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
 import { RadioFold } from './RadioFold.tsx'
 import { SHIP_CHOICES } from './delivery-api.ts'
 import { AVOOZL_LABELS, CONFLICT_ACTIONS, CONFLICT_ACTION_TEXT, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string; help?: string }) {
   const note = valueSource(props.value, props.fallback, props.unit)
@@ -57,7 +60,7 @@ export function AutoMergeFields({ id, repository, set, inherited = null }: Part 
   const value = own ?? (inherited === 'manual' ? 'manual' : 'auto-merge')
   const unknown = repository.autoMerge && !own ? repository.autoMerge : null
   return (
-    <div id={`${id}-auto-merge`} className="flex flex-col gap-1">
+    <Stack id={`${id}-auto-merge`} gap={1}>
       <RadioFold
         name={`${id}-auto-merge`}
         label="Who merges"
@@ -83,13 +86,13 @@ export function AutoMergeFields({ id, repository, set, inherited = null }: Part 
           ),
         }))}
       />
-      {value === 'manual' && <p className="text-xs text-muted">Briefs tell writers not to turn on auto-merge.</p>}
+      {value === 'manual' && <Hint as="p" size="xs">Briefs tell writers not to turn on auto-merge.</Hint>}
       {unknown && (
-        <p role="alert" className="text-xs text-danger" data-ship-unknown>
+        <ErrorText role="alert" size="xs" data-ship-unknown>
           .avoozl.json has landing.autoMerge "{unknown}", which Avoozl does not accept. Pick one above and save.
-        </p>
+        </ErrorText>
       )}
-    </div>
+    </Stack>
   )
 }
 
@@ -109,10 +112,10 @@ export function ReviewRulesFields({ id, repository, set }: Part) {
           fields: (
             <div className="flex min-w-0 flex-col gap-1">
               <label htmlFor={`${id}-rules`} className="text-sm font-medium">
-                Review rules <span className="text-xs text-muted">radar.reviewRules</span>
+                Review rules <Hint size="xs">radar.reviewRules</Hint>
               </label>
               <textarea id={`${id}-rules`} rows={6} value={repository.reviewRules} onChange={(event) => set({ reviewRules: event.target.value })} className="min-w-0 rounded border px-2 py-1 text-sm" style={{ borderColor: 'var(--border)', background: 'transparent', color: 'inherit' }} />
-              <span className="text-xs text-muted">{valueSource(repository.reviewRules ? 'your text' : '', "Avoozl's built-in rules")}</span>
+              <Hint size="xs">{valueSource(repository.reviewRules ? 'your text' : '', "Avoozl's built-in rules")}</Hint>
             </div>
           ),
         },
@@ -123,7 +126,7 @@ export function ReviewRulesFields({ id, repository, set }: Part) {
 
 export function ConflictFields({ id, repository, set }: Part) {
   return (
-    <div className="flex flex-col gap-3" data-conflicts>
+    <Stack gap={3} data-conflicts>
       <div id={`${id}-on-source-conflict`}>
         <RadioFold
           name={`${id}-on-source-conflict`}
@@ -138,7 +141,7 @@ export function ConflictFields({ id, repository, set }: Part) {
         />
       </div>
       <Line id={`${id}-max-attempts`} label="Attempts per conflict" raw="conflicts.maxAttempts" type="number" help="After this many, the conflict waits for you. 0 asks you at once." value={repository.maxAttempts} fallback={CONFLICT_DEFAULTS.maxAttempts} onChange={(value) => set({ maxAttempts: value })} />
-    </div>
+    </Stack>
   )
 }
 
@@ -164,11 +167,11 @@ export const AVOOZL_LABELS_LINE = "Labels Avoozl reads or writes for its own wor
 
 export function AvoozlLabelFields({ id, repository, set, note = true }: Part & { note?: boolean }) {
   return (
-    <div className="flex flex-col gap-3" data-avoozl-labels>
+    <Stack gap={3} data-avoozl-labels>
       {note && (
-        <p className="text-xs text-muted">
+        <Hint as="p" size="xs">
           {AVOOZL_LABELS_LINE} {OLD_LABEL_NOTE}
-        </p>
+        </Hint>
       )}
       {AVOOZL_LABELS.map((entry) => (
         <Line
@@ -182,13 +185,13 @@ export function AvoozlLabelFields({ id, repository, set, note = true }: Part & {
           onChange={(value) => set(labelChange(repository, entry.key, value))}
         />
       ))}
-    </div>
+    </Stack>
   )
 }
 
 export function CrewsRulesSettings(props: Part) {
   return (
-    <div className="flex flex-col gap-4" data-crews-rules>
+    <Stack gap={4} data-crews-rules>
       <FieldBox title="Review rules" blurb={CREW_PART_TEXT.rules.blurb}>
         <ReviewRulesFields {...props} />
       </FieldBox>
@@ -201,6 +204,6 @@ export function CrewsRulesSettings(props: Part) {
       <Fold title="Avoozl labels" id={`${props.id}-crews-advanced`}>
         <AvoozlLabelFields {...props} />
       </Fold>
-    </div>
+    </Stack>
   )
 }

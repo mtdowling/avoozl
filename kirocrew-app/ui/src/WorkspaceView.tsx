@@ -24,6 +24,10 @@ import { Modal } from './Modal.tsx'
 import { Pencil, Plus, Trash2 } from './icons.ts'
 import { FolderField } from './FolderPicker.tsx'
 import ListItem from './ListItem.tsx'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 function Field(props: {
   id: string
@@ -60,7 +64,7 @@ function WorkspaceRow(props: {
       title={
         <button type="button" aria-pressed={selected} onClick={props.onSelect} className="flex min-w-0 flex-wrap items-center gap-x-2 text-left">
           <span className="font-medium">{workspace.name}</span>
-          <span className="text-xs text-muted">{workspace.id}</span>
+          <Hint size="xs">{workspace.id}</Hint>
           <span className="inline-flex gap-1">
             {workspace.served && <Badge variant="info">This backend</Badge>}
             <Tooltip text={workspaceState(workspace.state).tip}>
@@ -207,22 +211,22 @@ export default function WorkspaceView(
         Workspace
       </h2>
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
       <p role="status" className="sr-only">
         {busy ? 'Working…' : ''}
       </p>
 
       <Card>
-        <div className="flex flex-wrap items-center gap-2">
+        <Row gap={2}>
           <SectionHeading title={`Your workspaces (${list?.items.length ?? 0})`} className="mb-0" />
           <span className="flex-1" />
           <Btn type="button" primary data-add-workspace onClick={() => setDialog('add')}>
             <Plus size={14} aria-hidden="true" /> Add a workspace
           </Btn>
-        </div>
+        </Row>
         <p className="mt-1 text-sm text-muted">The workspaces on this computer. The one you pick is the one the other tabs show.</p>
         {list === null ? (
           <p className="mt-2 text-sm text-muted">Loading…</p>
@@ -270,17 +274,17 @@ export default function WorkspaceView(
             </>
           }
         >
-          <p id="avoozl-ws-add-line" className="text-sm text-muted">
+          <Hint id="avoozl-ws-add-line" as="p" size="sm">
             A workspace is a folder with your specs. Pick one that already has them, or start a new one.
-          </p>
+          </Hint>
           {error && (
-            <p role="alert" className="text-sm text-danger">
+            <ErrorText role="alert" size="sm">
               {error}
-            </p>
+            </ErrorText>
           )}
-          <form
+          <Stack
             id="avoozl-ws-form"
-            className="flex flex-col gap-2"
+            as="form" gap={2}
             onSubmit={(event) => {
               event.preventDefault()
               void submitWorkspace('add')
@@ -310,14 +314,14 @@ export default function WorkspaceView(
             <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 15rem), 1fr))' }}>
               <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="add">
                 <span className="text-sm font-medium">Add existing</span>
-                <p className="text-xs text-muted">The folder already has Avoozl specs (an .avoozl.json and its database). Avoozl lists it; nothing in it changes.</p>
+                <Hint as="p" size="xs">The folder already has Avoozl specs (an .avoozl.json and its database). Avoozl lists it; nothing in it changes.</Hint>
               </div>
               <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="init">
                 <span className="text-sm font-medium">Start new</span>
-                <p className="text-xs text-muted">Creates an empty workspace in the folder: an .avoozl.json and a new database. Refused if one is already there.</p>
+                <Hint as="p" size="xs">Creates an empty workspace in the folder: an .avoozl.json and a new database. Refused if one is already there.</Hint>
               </div>
             </div>
-          </form>
+          </Stack>
         </Modal>
       )}
 
@@ -346,13 +350,13 @@ export default function WorkspaceView(
             </>
           }
         >
-          <p id="avoozl-ws-edit-line" className="text-sm text-muted">
+          <Hint id="avoozl-ws-edit-line" as="p" size="sm">
             ID {current.id}. The ID cannot change: tasks, receipts and chats name it.
-          </p>
-          <form
+          </Hint>
+          <Stack
             id="avoozl-ws-edit-form"
             data-edit-form
-            className="flex flex-col gap-3"
+            as="form" gap={3}
             onSubmit={(event) => {
               event.preventDefault()
               saveEdit()
@@ -361,7 +365,7 @@ export default function WorkspaceView(
             <FormSection title="Workspace">
               <Field id="avoozl-ws-edit-name" label="Name" value={edit.name} required onChange={(name) => setEdit({ ...edit, name })} />
               <FolderField id="avoozl-ws-edit-root" label="Folder" value={edit.root} required client={client} onChange={(root) => setEdit({ ...edit, root })} />
-              <p className="text-xs text-muted">Change it after you move the folder. The new folder must hold this workspace.</p>
+              <Hint as="p" size="xs">Change it after you move the folder. The new folder must hold this workspace.</Hint>
             </FormSection>
             <FormSection title="Running">
               <label className="flex items-center gap-2 text-sm">
@@ -374,16 +378,16 @@ export default function WorkspaceView(
               </label>
             </FormSection>
             {editCheck.error && (
-              <p className="text-sm text-danger" data-edit-error>
+              <ErrorText size="sm" data-edit-error>
                 {editCheck.error}
-              </p>
+              </ErrorText>
             )}
             {error && (
-              <p role="alert" className="text-sm text-danger">
+              <ErrorText role="alert" size="sm">
                 {error}
-              </p>
+              </ErrorText>
             )}
-          </form>
+          </Stack>
         </Modal>
       )}
       {removing && (
@@ -423,9 +427,9 @@ export default function WorkspaceView(
             ))}
           </ul>
           {error && (
-            <p role="alert" className="text-sm text-danger">
+            <ErrorText role="alert" size="sm">
               {error}
-            </p>
+            </ErrorText>
           )}
         </Modal>
       )}

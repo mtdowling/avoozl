@@ -8,6 +8,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { ReviewWorking, REVIEW_POLL_MS } from './PlanReviewSummary.tsx'
 import { taskClient, type TaskSummary } from './task-api.ts'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 const PROSE_MEASURE = '80ch'
 
@@ -42,7 +44,7 @@ export function TaskSummaryBox(props: { workspaceId: string; id: string; summary
   if (!props.summary) return null
   const failed = now === 'error' || now?.state === 'failed'
   return (
-    <div data-task-summary className="flex flex-col gap-2">
+    <Stack data-task-summary gap={2}>
       {working || (now !== 'error' && now?.state === 'none') ? (
         <ReviewWorking model={null} title="AI working" label="Writing a short summary of this task…" />
       ) : now && now !== 'error' && now.state === 'ready' ? (
@@ -50,13 +52,13 @@ export function TaskSummaryBox(props: { workspaceId: string; id: string; summary
           {now.text}
         </p>
       ) : failed ? (
-        <p className="m-0 text-sm text-muted" data-task-summary-fallback>
+        <Hint as="p" size="sm" flush data-task-summary-fallback>
           Summary unavailable{' '}
           <button type="button" className="underline underline-offset-2" style={{ background: 'none', border: 0, padding: 0, color: 'var(--accent)', cursor: 'pointer' }} data-task-summary-retry onClick={() => ask(true)}>
             Retry
           </button>
-        </p>
+        </Hint>
       ) : null}
-    </div>
+    </Stack>
   )
 }

@@ -33,6 +33,9 @@ import type { Drill } from './graph-layout.ts'
 import { linkHref, type TaskLinks } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Empty, HomeBox, HomePair, HomeSection, HomeStyle, PrLink, Tiles } from './HomeParts.tsx'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
 
 export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'delivery' | 'landing' | 'flow'
 
@@ -81,14 +84,14 @@ function NeedCard({ item, attach, onAnswer, onInfo, onAsk, onTitle }: { item: At
         <SmallBtn primary onClick={onAnswer} attrs={{ 'aria-label': `${answerLabel(item)}: ${item.title}`, 'data-home-answer': item.kind }}>
           {answerLabel(item)}
         </SmallBtn>
-        <span className="flex gap-1">
+        <Row as="span" gap={1} wrap={false} align="start">
           {item.href && <IconLink icon={ExternalLink} to={item.href} label={`Open the issue for ${item.title}`} external />}
           {attach && <IconLink icon={CirclePlus} to={attach} label={`Session: the chat for ${item.title}`} />}
           {(item.group || item.taskId) && (
             <IconBtn icon={DetailsIcon} label={`Details for ${item.title}`} tooltip={item.group ? 'Why these tasks need review, and the list of them' : 'Open the task details'} onClick={onInfo} />
           )}
           <IconBtn icon={MessageSquare} label={`Ask in a chat about ${item.title}`} tooltip="Ask in a chat: a new chat seeded with this item's full context" onClick={onAsk} />
-        </span>
+        </Row>
       </span>
     </li>
   )
@@ -107,7 +110,7 @@ function LandingQueueList({ landing }: { landing: { value: LandingView | null; e
             <span data-home-num>{row.position + 1}</span>
             <span data-home-row-main>
               {first ? <TaskTitleLink id={first.id} title={first.title} /> : row.key}
-              {rest.length > 0 && <span className="text-xs text-muted"> and {rest.length} more</span>}
+              {rest.length > 0 && <Hint size="xs"> and {rest.length} more</Hint>}
               <span data-home-sub>
                 {row.base} · {row.held}
               </span>
@@ -134,7 +137,7 @@ function CiHealthList({ ci, loading }: { ci: CiHealth; loading: boolean }) {
       </li>
       {ci.repositories.length === 0 && (
         <li data-home-row>
-          <span data-home-row-main className="text-muted">No CI runs recorded yet. They fill in as pull requests close.</span>
+          <Hint data-home-row-main>No CI runs recorded yet. They fill in as pull requests close.</Hint>
         </li>
       )}
       {ci.repositories.map((row) => (
@@ -213,9 +216,9 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
       </span>
       <span className="min-w-0 flex-1" style={{ flexBasis: '12rem' }}>
         <span className="font-medium">{row.title}</span>{' '}
-        <span className="text-xs text-muted">
+        <Hint size="xs">
           {row.repository} #{row.number}
-        </span>{' '}
+        </Hint>{' '}
         {row.stale && <Badge variant="warning">Stale</Badge>}
         <span data-rail className="ml-1 inline-flex items-center gap-0.5 align-middle" role="img" aria-label={railFor(row).map((step) => `${step.label} ${step.state === 'done' ? 'done' : step.state === 'now' ? 'now' : 'next'}`).join(', ')}>
           {railFor(row).map((step) => (
@@ -227,14 +230,14 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
             />
           ))}
         </span>
-        <span className="block text-xs text-muted">
+        <Hint size="xs" block>
           {row.crewName ?? row.crewId ?? 'no crew named'} · {row.phase ?? 'claim label, no claim comment'}
           {row.updated ? ` · updated ${relativeTime(row.updated, now)}` : ''}
-        </span>
+        </Hint>
         {cost && cost.stages.length > 0 && (
-          <span data-radar-cost className="block text-xs text-muted">
+          <Hint data-radar-cost size="xs" block>
             Credits: {cost.stages.map((entry) => `${entry.stage} ${entry.credits.toFixed(1)}`).join(', ')} (total {cost.credits.toFixed(1)}, {cost.turns} turns)
-          </span>
+          </Hint>
         )}
       </span>
       <span data-in-flight-actions className="flex items-center justify-end gap-3" style={{ flex: '0 0 11rem' }}>
@@ -326,7 +329,7 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
             >
               <i data-check-dot={dot.dot} aria-hidden="true" style={{ display: 'block', flex: '0 0 auto', width: 8, height: 8, borderRadius: 999, background: dot.color }} />
               PR #{links.pr.number}
-              {links.pr.state === 'merged' || links.pr.state === 'closed' ? <span className="text-muted">{links.pr.state}</span> : null}
+              {links.pr.state === 'merged' || links.pr.state === 'closed' ? <Hint>{links.pr.state}</Hint> : null}
             </a>
           </Tooltip>
         </span>
@@ -380,9 +383,9 @@ function SendMessage({ title, onSend, onClose }: { title: string; onSend: (text:
           {state.kind === 'sending' ? 'Sending…' : 'Send'}
         </SmallBtn>
         <SmallBtn onClick={onClose}>Close</SmallBtn>
-        <span role="status" className="text-xs text-muted" data-send-state={state.kind}>
+        <Hint role="status" size="xs" data-send-state={state.kind}>
           {state.kind === 'queued' ? 'Queued; it goes in when the run ends.' : state.kind === 'error' ? state.message : ''}
-        </span>
+        </Hint>
       </span>
     </form>
   )
@@ -402,22 +405,22 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
       </span>
       <span className="min-w-0 flex-1" style={{ flexBasis: '12rem' }}>
         <TaskTitleLink id={row.taskId} title={row.title} className="font-medium" />{' '}
-        <span className="text-xs text-muted">
+        <Hint size="xs">
           {row.taskId}
           {row.epic ? ` · ${row.epic}` : ''} · attempt {row.attempt}
-        </span>{' '}
-        {row.focus && <span className="block text-xs text-muted">{row.focus}</span>}
+        </Hint>{' '}
+        {row.focus && <Hint size="xs" block>{row.focus}</Hint>}
         {processRow ? (
-          <span className="block text-xs text-muted" data-process-status>
+          <Hint size="xs" block data-process-status>
             {child ? processLine(child) : 'process · no supervisor record'} · {row.model ?? 'model not named'} · running {duration(row.startedAt, now)}
-          </span>
+          </Hint>
         ) : (
-          <span className="block text-xs text-muted">
+          <Hint size="xs" block>
             {row.session.agent ? `${row.session.agent} / ` : ''}
             {row.model ?? 'model not named'}
             {remote ? ` · on ${row.session.crew}` : ''} · running {duration(row.startedAt, now)} ·{' '}
             {row.session.crewUnreachable ? 'crew unreachable' : (row.status ?? 'not observed')} {relativeTime(row.lastAt, now)}
-          </span>
+          </Hint>
         )}
         {row.links && <FlightChips links={row.links} title={row.title} />}
         {processRow && (
@@ -442,9 +445,9 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
           <IconBtn icon={MessageSquare} label={`Send message to the ${row.role} for ${row.title}`} tooltip="Send message" onClick={() => setWriting((open) => !open)} />
         )}
         {processRow ? (
-          child?.attach ? <CopyAttach command={child.attach} title={row.title} /> : <span className="text-xs text-muted">No attach command</span>
+          child?.attach ? <CopyAttach command={child.attach} title={row.title} /> : <Hint size="xs">No attach command</Hint>
         ) : !href ? (
-          <span className="text-xs text-muted">Session waits on Kiro Crew</span>
+          <Hint size="xs">Session waits on Kiro Crew</Hint>
         ) : (
         <a
           href={linkHref(href)}
@@ -570,9 +573,9 @@ export default function DashboardView(props: {
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
       <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
       {(error || chat.error) && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error ?? chat.error}
-        </p>
+        </ErrorText>
       )}
       {cards.map((card) => (
         <SetupCard

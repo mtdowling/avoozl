@@ -9,6 +9,7 @@ import { Modal } from './Modal.tsx'
 import { describeWrite, writesByRepository } from './plans-api.ts'
 import { UNDO, confirmLines, headline, preflightFailures, projectionClient, toggleBatch, type ProjectionDetail } from './projection-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { Hint } from './ui/Hint'
 
 type Client = ReturnType<typeof projectionClient>
 
@@ -97,10 +98,10 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
             {error}
           </p>
         )}
-        {!preview && !error && <p className="text-muted">Reading what the projection would write…</p>}
+        {!preview && !error && <Hint as="p">Reading what the projection would write…</Hint>}
         {preview && !confirm && (
           <>
-            <p className="text-muted">{headline(preview, batches)}</p>
+            <Hint as="p">{headline(preview, batches)}</Hint>
             {blocked?.map((item) => (
               <p key={item.code}>
                 <Badge variant="danger">blocked</Badge> {item.message}
@@ -111,16 +112,16 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
                 <legend className="font-medium">Preflight for Create and release</legend>
                 {preview.preflight.items.map((item) => (
                   <p key={item.id} data-preflight-item={item.status}>
-                    <Badge variant={item.status === 'ok' ? 'success' : item.status === 'fail' ? 'danger' : 'info'}>{item.status === 'unverified' ? 'cannot verify' : item.status}</Badge> {item.label}. <span className="text-muted">{item.detail}</span>
+                    <Badge variant={item.status === 'ok' ? 'success' : item.status === 'fail' ? 'danger' : 'info'}>{item.status === 'unverified' ? 'cannot verify' : item.status}</Badge> {item.label}. <Hint>{item.detail}</Hint>
                   </p>
                 ))}
               </fieldset>
             )}
-            {preview.simulated && <p className="text-muted">This spec is not approved yet. The list shows what approval would write.</p>}
+            {preview.simulated && <Hint as="p">This spec is not approved yet. The list shows what approval would write.</Hint>}
             {(preview.suggestedBatches?.length ?? 0) > 0 && (
               <fieldset className="flex flex-col gap-1 border-0 p-0" data-batches>
                 <legend className="font-medium">Batches</legend>
-                <p className="text-muted">Small tasks in one wave can share one issue. Each task keeps its own ID.</p>
+                <Hint as="p">Small tasks in one wave can share one issue. Each task keeps its own ID.</Hint>
                 {preview.suggestedBatches!.map((group) => (
                   <label key={group.join()} className="flex items-start gap-2">
                     <input
@@ -137,7 +138,7 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
               </fieldset>
             )}
             {writes === 0 ? (
-              <p className="text-muted">GitHub already matches this revision.</p>
+              <Hint as="p">GitHub already matches this revision.</Hint>
             ) : (
               writesByRepository(preview.writes).map(([name, list]) => (
                 <div key={name}>
@@ -160,9 +161,9 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
               </p>
             ))}
             {[...preview.notes, ...(preview.project.problems ?? [])].map((note) => (
-              <p key={note} className="text-muted">
+              <Hint key={note} as="p">
                 {note}
-              </p>
+              </Hint>
             ))}
           </>
         )}
@@ -177,7 +178,7 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
               ))}
             </ul>
             <p className="mt-2 text-muted">{confirm === 'held' ? 'Crews are not released. Your release mode in Settings decides when.' : UNDO}</p>
-            {confirm === 'held' && <p className="text-muted">{UNDO}</p>}
+            {confirm === 'held' && <Hint as="p">{UNDO}</Hint>}
           </div>
         )}
       </div>

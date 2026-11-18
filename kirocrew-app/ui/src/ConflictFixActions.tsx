@@ -4,6 +4,7 @@
 import { Check, X } from './icons.ts'
 import { DangerBtn, IconLabel } from './controls.tsx'
 import type { ConflictItem } from './views-api.ts'
+import { Row } from './ui/Row'
 
 type Fix = NonNullable<ConflictItem['conflictFix']>
 type Action = Fix['actions'][number]
@@ -16,7 +17,7 @@ const DONE: Record<Action, string> = {
 export function ConflictFixActions(props: { fix: Fix; busy: boolean; onDecide: (action: Action, text: string) => void }) {
   const { fix, busy } = props
   return (
-    <div className="flex flex-wrap items-center gap-2" data-conflict-fix-actions>
+    <Row gap={2} data-conflict-fix-actions>
       {fix.actions.includes('resolve') && (
         <IconLabel icon={Check} tooltip="You fix the conflict on the branch yourself. Avoozl stops watching this conflict." disabled={busy} onClick={() => props.onDecide('resolve', DONE.resolve)}>
           Resolve myself
@@ -33,6 +34,6 @@ export function ConflictFixActions(props: { fix: Fix; busy: boolean; onDecide: (
           Dismiss
         </DangerBtn>
       )}
-    </div>
+    </Row>
   )
 }

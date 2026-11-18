@@ -34,6 +34,9 @@ import {
   type ModelSettings,
   type RoleHarnesses,
 } from './models-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 const hasModel = (role: HarnessRole): role is ModelRole => role !== 'worker'
 const HIDDEN = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' } as const
@@ -71,11 +74,11 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
   }, [client])
   if (error)
     return (
-      <p role="alert" className="text-sm text-danger">
+      <ErrorText role="alert" size="sm">
         {error}
-      </p>
+      </ErrorText>
     )
-  if (!value) return <p className="text-sm text-muted">Loading…</p>
+  if (!value) return <Hint as="p" size="sm">Loading…</Hint>
   const choices = (role: ModelRole) => modelOptions(list, form[role] ?? '').map((option) =>
     role === 'planReviewer' && option.value === 'auto' ? { ...option, label: 'auto (no reviewer)' } : option,
   )
@@ -107,7 +110,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
     if (hasModel(role)) setForm({ ...form, [role]: 'auto' })
   }
   return (
-    <div className="flex flex-col gap-4" data-models-settings>
+    <Stack gap={4} data-models-settings>
       <style href="avoozl-models-rows" precedence="default">
         {ROW_CSS}
       </style>
@@ -122,10 +125,10 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
             </li>
           ))}
         </ul>
-        {definitions.length === 0 && <span className="text-xs text-muted">No harness files here. Roles run as Kiro Crew chats or on their project’s executor.</span>}
+        {definitions.length === 0 && <Hint size="xs">No harness files here. Roles run as Kiro Crew chats or on their project’s executor.</Hint>}
       </FormSection>
       <FormSection title="Roles" blurb="Each role runs on its default until you set it here. A task’s session.harness pin wins over the role’s harness.">
-        <div className="flex flex-col gap-3">
+        <Stack gap={3}>
           {HARNESS_ROLES.map((role) => {
             const harness = harnesses[role.key] || 'auto'
             const set = roleIsSet(role.key, form, harnesses)
@@ -136,9 +139,9 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
               <div key={role.key} data-model-role={role.key} data-source={set ? 'set here' : 'default'} className="min-w-0 text-sm">
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="font-medium">{role.label}</span>
-                  <span className="text-xs text-muted" data-role-access={ROLE_ACCESS[role.key]}>
+                  <Hint size="xs" data-role-access={ROLE_ACCESS[role.key]}>
                     {ROLE_ACCESS[role.key] === 'write' ? 'Writes files' : 'Read-only'}
-                  </span>
+                  </Hint>
                 </div>
                 <FieldRow id={`avoozl-harness-${role.key}`} label="Harness">
                   <Picker
@@ -150,14 +153,14 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                     placeholder="Type to find a harness, or auto"
                     plain
                   />
-                  {picked && !picked.approved && <span className="text-xs text-danger">Not approved: it will not start until its hash is approved.</span>}
+                  {picked && !picked.approved && <ErrorText as="span" size="xs">Not approved: it will not start until its hash is approved.</ErrorText>}
                 </FieldRow>
                 {hasModel(role.key) ? (
                   <FieldRow id={`avoozl-model-${role.key}`} label="Model">
                     {modelFree ? (
-                      <span className="text-xs text-muted" data-no-model>
+                      <Hint size="xs" data-no-model>
                         {harness} takes no model.
-                      </span>
+                      </Hint>
                     ) : (
                       <Picker
                         id={`avoozl-model-${role.key}`}
@@ -191,9 +194,9 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                     </span>
                   )}
                   {problem && (
-                    <span role="alert" className="text-danger" data-role-problem>
+                    <ErrorText role="alert" as="span" data-role-problem>
                       {problem}
-                    </span>
+                    </ErrorText>
                   )}
                   {CHAT_ONLY.has(role.key) && harness !== 'auto' && harness !== KIROCREW_HARNESS && (
                     <span data-harness-pending>Saved. This role still runs as a Kiro Crew chat until it can run on a harness.</span>
@@ -202,11 +205,11 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
               </div>
             )
           })}
-        </div>
+        </Stack>
       </FormSection>
-      <p className="text-xs text-muted" data-models-person-only>
+      <Hint as="p" size="xs" data-models-person-only>
         Kiro Crew chats run as you. Avoozl refuses person-only actions in them, but that only slows an agent down: it is not a lock.
-      </p>
+      </Hint>
       <SaveFooter
         dirty={changed}
         saving={saving}
@@ -221,6 +224,6 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
           setMessage(null)
         }}
       />
-    </div>
+    </Stack>
   )
 }

@@ -68,6 +68,10 @@ ol {
 .gap-1 { gap: 4px; }
 .gap-2 { gap: 8px; }
 .gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.items-end { align-items: flex-end; }
+.m-0 { margin: 0; }
+.block { display: block; }
 .p-4 { padding: 16px; }
 .px-4 { padding-left: 16px; padding-right: 16px; }
 .py-3 { padding-top: 12px; padding-bottom: 12px; }

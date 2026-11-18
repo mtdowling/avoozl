@@ -156,7 +156,7 @@ test('a GitHub intake row links owner/repo#N to the item, from stored data', () 
   assert.equal(githubItem(github({ link: 'javascript:alert(1)' })).href, 'https://github.com/nupp-lang/foo/pull/12')
   assert.equal(githubItem(github({ source: 'plugin' })), null)
   assert.equal(githubItem(github({ redacted: true })), null)
-  assert.match(source('ActivityView.tsx'), /<a href=\{linkHref\(item\.href\)\} target="_blank" rel="noopener noreferrer"/)
+  assert.match(source('ActivityView.tsx'), /<TextLink href=\{linkHref\(item\.href\)\} target="_blank" rel="noopener noreferrer"/)
 })
 
 test('the tick is a source with its own label and filter row', () => {

@@ -11,6 +11,7 @@ import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
 import { DRAFT_STATE_TEXT, releaseClient, type DraftState } from './release-api.ts'
 import { linkHref } from './views-api.ts'
+import { Hint } from './ui/Hint'
 
 const VARIANT: Partial<Record<DraftState, BadgeVariant>> = { waiting: 'warning', stale: 'danger', submitted: 'success', chat: 'info', queued: 'info' }
 
@@ -39,7 +40,7 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
     <div data-review-drafts>
       <Card className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <SectionHeading title="Review drafts" className="mb-0" />
-        <p className="text-xs text-muted">Draft reviews Avoozl made when someone added the review label. Each one waits on GitHub, seen only by that person, until they submit it.</p>
+        <Hint as="p" size="xs">Draft reviews Avoozl made when someone added the review label. Each one waits on GitHub, seen only by that person, until they submit it.</Hint>
         {(value?.searches ?? []).map((search) => (
           <div key={search.label} data-draft-search className="flex flex-wrap items-center gap-2 text-sm" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             <span>On GitHub:</span>
@@ -72,7 +73,7 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
             )}
           </div>
         ))}
-        {!shown.length && <p className="text-sm text-muted">No draft matches these filters.</p>}
+        {!shown.length && <Hint as="p" size="sm">No draft matches these filters.</Hint>}
       </Card>
     </div>
   )

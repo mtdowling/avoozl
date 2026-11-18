@@ -7,6 +7,7 @@ import { Tooltip } from './Tooltip.tsx'
 import { Fold, IconLabel } from './controls.tsx'
 import { Marker } from './SettingsView.tsx'
 import { Check, Copy } from './icons.ts'
+import { Hint } from './ui/Hint'
 
 const boxStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
@@ -53,7 +54,7 @@ export default function PromptInstructions(props: {
         <span className="font-medium">Your instructions</span>
         <Marker rule={{ required: false }} />
       </label>
-      <span className="text-xs text-muted">Added after the built-in prompt.</span>
+      <Hint size="xs">Added after the built-in prompt.</Hint>
       <textarea
         id={props.id}
         rows={3}
@@ -63,7 +64,7 @@ export default function PromptInstructions(props: {
         className="rounded border px-2 py-1 text-sm"
         style={boxStyle}
       />
-      {props.note && <span className="text-xs text-muted">{props.note}</span>}
+      {props.note && <Hint size="xs">{props.note}</Hint>}
       <Tooltip text=".avoozl.json key">
         <code className="text-[11px] text-muted" style={{ overflowWrap: 'anywhere', opacity: 0.8 }}>
           {props.raw}

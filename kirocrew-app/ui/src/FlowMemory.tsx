@@ -25,6 +25,10 @@ import {
   type Proposal,
   type ProposalsModel,
 } from './flow-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 const LINE = { add: 'var(--success, #1a7f37)', del: 'var(--danger)', hunk: 'var(--muted)', same: 'var(--text)' } as const
 
@@ -54,7 +58,7 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
       <span className="flex flex-wrap items-center gap-2" style={{ overflowWrap: 'anywhere' }}>
         <Badge>{proposal.type}</Badge>
         <code className="text-xs">{proposalText(proposal)}</code>
-        <span className="text-muted">{directionText(proposal)}</span>
+        <Hint>{directionText(proposal)}</Hint>
         <button type="button" className="text-xs underline" data-proposal-retro={proposal.retro} onClick={onOpenRetro}>
           From {proposal.retro}
         </button>
@@ -62,7 +66,7 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
         {proposal.revertOf && <Badge>revert</Badge>}
         {proposal.pdca?.mixed && <Badge variant="warning">mixed window</Badge>}
       </span>
-      {proposal.base && <span className="text-xs text-muted">Base {proposal.base.slice(0, 12)}</span>}
+      {proposal.base && <Hint size="xs">Base {proposal.base.slice(0, 12)}</Hint>}
       <DiffBlock diff={proposal.diff} label={`Diff of ${proposalText(proposal)}`} />
       <span className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
         Evidence: {evidenceText(proposal)}
@@ -75,14 +79,14 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
           {pdca ? ` · ${pdca}` : ''}
         </span>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        <Row gap={2} align="start">
           <Btn type="button" disabled={busy} onClick={() => onDecide(proposal, 'reject')}>
             Reject
           </Btn>
           <Btn type="button" primary disabled={busy} onClick={() => onDecide(proposal, 'approve')}>
             Approve
           </Btn>
-        </div>
+        </Row>
       )}
     </li>
   )
@@ -94,13 +98,13 @@ function DriftBlock({ drift, target, busy, onRebase }: { drift: PromptDrift; tar
       <span className="font-medium">
         The built-in {target} § {drift.section} changed under your override.
       </span>
-      <span className="text-xs text-muted">Sessions keep your override until you approve the rebase.</span>
+      <Hint size="xs">Sessions keep your override until you approve the rebase.</Hint>
       <span className="text-xs font-medium">Built-in: old to new</span>
       <DiffBlock diff={drift.diffs.builtIn} label="Built-in change" />
       <span className="text-xs font-medium">Your override against the old built-in</span>
       <DiffBlock diff={drift.diffs.override} label="Override" />
       {drift.conflict ? (
-        <span className="text-xs text-danger">The override does not merge onto the new text. Revert it, or approve a new proposal later.</span>
+        <ErrorText as="span" size="xs">The override does not merge onto the new text. Revert it, or approve a new proposal later.</ErrorText>
       ) : (
         <>
           <span className="text-xs font-medium">Rebased override</span>
@@ -122,27 +126,27 @@ function PromptVersions({ prompts, busy, onRevert, onRebase }: { prompts: Prompt
   return (
     <Card className="flex flex-col gap-2" data-prompt-versions>
       <SectionHeading title="Prompt versions" />
-      <p className="text-xs text-muted">Overrides live on this computer, for this workspace only. Locked sections always use the built-in text.</p>
-      <ul className="flex flex-col gap-2">
+      <Hint as="p" size="xs">Overrides live on this computer, for this workspace only. Locked sections always use the built-in text.</Hint>
+      <Stack as="ul" gap={2}>
         {prompts.map((p) => (
           <li key={p.target} className="flex flex-col gap-1.5 text-sm">
-            <span className="flex flex-wrap items-center gap-2">
+            <Row as="span" gap={2}>
               <code className="text-xs">{p.target}</code>
-              <span className="text-muted">{p.active ? `override ${p.version.split('+')[1] ?? ''}` : 'built-in'}</span>
-              {p.versions.length > 0 && <span className="text-xs text-muted">last change {relativeTime(p.versions.at(-1)!.at, Date.now())}</span>}
+              <Hint>{p.active ? `override ${p.version.split('+')[1] ?? ''}` : 'built-in'}</Hint>
+              {p.versions.length > 0 && <Hint size="xs">last change {relativeTime(p.versions.at(-1)!.at, Date.now())}</Hint>}
               {p.drift.length > 0 && <Badge variant="warning">built-in changed</Badge>}
               {p.versions.length > 0 && (
                 <Button type="button" variant="danger" disabled={busy} onClick={() => onRevert(p)}>
                   Revert
                 </Button>
               )}
-            </span>
+            </Row>
             {p.drift.map((d) => (
               <DriftBlock key={d.section} drift={d} target={p.target} busy={busy} onRebase={() => onRebase(p, d)} />
             ))}
           </li>
         ))}
-      </ul>
+      </Stack>
     </Card>
   )
 }
@@ -171,11 +175,11 @@ export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { wo
   useScrollTo(target ? `[data-proposal="${target.retro}:${target.proposal ?? ''}"]` : null, Boolean(proposals), onSeen)
   if (error)
     return (
-      <p role="alert" className="text-sm text-danger">
+      <ErrorText role="alert" size="sm">
         {error}
-      </p>
+      </ErrorText>
     )
-  if (!value || !workspaceId) return <p className="text-sm text-muted">Loading…</p>
+  if (!value || !workspaceId) return <Hint as="p" size="sm">Loading…</Hint>
   const changes = value.proposals
   const decide = (p: Proposal & { retro: string }, decision: 'approve' | 'reject') =>
     act(async () => {
@@ -189,16 +193,16 @@ export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { wo
       await client.decide(workspaceId, { retroId: p.retro, proposalId: p.id, decision, ...(expectedHash ? { expectedHash } : {}), ...(confirmRemoval ? { confirmRemoval: true } : {}) })
     })
   return (
-    <div className="flex flex-col gap-3" data-flow-proposals>
+    <Stack gap={3} data-flow-proposals>
       {message && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {message}
-        </p>
+        </ErrorText>
       )}
       {value.lessonsExport?.error && (
-        <p role="alert" className="text-sm text-danger" data-lessons-export>
+        <ErrorText role="alert" size="sm" data-lessons-export>
           {value.lessonsExport.error}
-        </p>
+        </ErrorText>
       )}
       {!value.available && (
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
@@ -217,11 +221,11 @@ export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { wo
       )}
       <Card className="flex flex-col gap-2">
         <SectionHeading title="Proposals" />
-        <p className="text-xs text-muted">A retro may propose a change to settings, specs, rules, or what agents are told. Nothing changes until you approve it.</p>
+        <Hint as="p" size="xs">A retro may propose a change to settings, specs, rules, or what agents are told. Nothing changes until you approve it.</Hint>
         {!changes.length ? (
-          <p className="text-sm text-muted">No proposals yet. A retro runs after 10 finished tasks.</p>
+          <Hint as="p" size="sm">No proposals yet. A retro runs after 10 finished tasks.</Hint>
         ) : (
-          <ul className="flex flex-col gap-3">
+          <Stack as="ul" gap={3}>
             {changes.map((p) => (
               <ProposalCard
                 key={`${p.retro}:${p.id}`}
@@ -232,12 +236,12 @@ export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { wo
                 onOpenRetro={() => onOpenRetro?.(p.retro)}
               />
             ))}
-          </ul>
+          </Stack>
         )}
         {value.dropped.length > 0 && (
-          <span className="text-xs text-muted">
+          <Hint size="xs">
             Dropped: {value.dropped.map((d) => `${d.retro} ${d.key ?? d.index} (${d.reason})`).join('; ')}
-          </span>
+          </Hint>
         )}
       </Card>
       <PromptVersions
@@ -254,7 +258,7 @@ export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { wo
       {value.notes.filter((n) => !n.plugin).length > 0 && (
         <Card className="flex flex-col gap-2">
           <SectionHeading title="Suggested skill changes" />
-          <p className="text-xs text-muted">For skills no plugin owns. Copy one to its owner; Avoozl sends nothing.</p>
+          <Hint as="p" size="xs">For skills no plugin owns. Copy one to its owner; Avoozl sends nothing.</Hint>
           {value.notes
             .filter((n) => !n.plugin)
             .map((n) => (
@@ -262,7 +266,7 @@ export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { wo
             ))}
         </Card>
       )}
-    </div>
+    </Stack>
   )
 }
 
@@ -274,7 +278,7 @@ export function SkillNoteCard({ note }: { note: { file: string; diff: string; su
       <span className="font-medium">
         Suggested change to <code className="text-xs">{note.file}</code>
       </span>
-      <span className="text-xs text-muted">{note.summary}</span>
+      <Hint size="xs">{note.summary}</Hint>
       <DiffBlock diff={note.diff} label={`Suggested change to ${note.file}`} />
       <div>
         <Btn
