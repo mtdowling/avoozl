@@ -25,6 +25,15 @@ import {
 } from "./integrator-conflicts.mjs";
 import { validateByCi } from "./integrator-ci.mjs";
 import {
+  bisectBoundaries,
+  checkoutClean,
+  confirmFailures,
+  failedSuites,
+  revertRange,
+  runSuites,
+} from "./integrator-failure.mjs";
+import { openLineStop } from "./flow-line.mjs";
+import {
   addLandingWorktree,
   removeLandingWorktree,
   stackMembers,
@@ -40,7 +49,7 @@ import {
 } from "./integrator-validation.mjs";
 import { conflictRounds } from "./landing-config.mjs";
 import { journalChecks, landWithIntents } from "./landing-trains.mjs";
-import { markLanded, syncBase } from "./pr-landing.mjs";
+import { markLanded, sendFailureBack, syncBase } from "./pr-landing.mjs";
 import { releaseSlots, takeSlots } from "./resource-slots.mjs";
 import { mergeBaseBack } from "./spec-base.mjs";
 import { specAuthority } from "./spec-takeover.mjs";
@@ -192,6 +201,12 @@ async function deleteBatchBranch(root, url, branch, recorded, env) {
   }
 }
 
+const trunkRedNotice = (target) => ({
+  channel: "failure",
+  title: `Landing on ${target} stopped: its validation fails without the train`,
+  text: `The suites that failed also fail on the trunk before this train, so no task was blamed. Fix ${target} or the validation machine.`,
+});
+
 // Runs one train when the trigger says so. Returns {state, train?, ...}.
 //   ctx: {project, target, settings, config, lease, workspaceRoot, github,
 //         env, machine, configFile, now, run, slots: {db, counts, workspace},
@@ -257,6 +272,215 @@ export async function runTrain(store, ctx) {
     }));
   }
 
+  // A red full validation (LT10.1, LT10.2): rerun the failing suites, then
+  // bisect the member boundaries to the culprit. {culprit: null} when only
+  // flaky suites failed.
+  async function handleRed(dir, results, outcomes, candidate, baseHead) {
+    const runner = ctx.runSuites ?? runSuites,
+      options = {
+        ...(ctx.timeoutFor ? { timeoutFor: ctx.timeoutFor } : {}),
+        ...(ctx.run ? { run: ctx.run } : {}),
+        env: project.checksEnv,
+      },
+      failures = results
+        .filter((r) => !r.ok)
+        .map((r) => ({ platform: r.platform, names: failedSuites(r) })),
+      confirmed = await step(store, id, "rerun", async () => ({
+        ...(await confirmFailures(dir, failures, {
+          spec: (p) => settings.validation.full[p],
+          environment: (p) => platforms[p] ?? null,
+          reruns: settings.failure.flakyReruns,
+          run: runner,
+          options,
+        })),
+      }));
+    patch(store, id, (t) => ({
+      flaky: [...(t.flaky ?? []), ...confirmed.flaky],
+    }));
+    if (!confirmed.persistent.length) return { culprit: null };
+    const stacked = outcomes.filter((o) => o.state === "stacked"),
+      probeFails = async (boundary) => {
+        await checkoutClean(dir, boundary);
+        for (const p of confirmed.persistent) {
+          const r = await runner(
+            dir,
+            p.platform,
+            settings.validation.full[p.platform],
+            platforms[p.platform] ?? null,
+            { names: p.names, ...options },
+          );
+          if (!r.ok) return true;
+        }
+        return false;
+      },
+      found = await step(store, id, "bisect", async () => ({
+        ...(await bisectBoundaries(
+          stacked.map((o) => ({ key: o.key, boundary: o.boundary })),
+          probeFails,
+        )),
+      })),
+      culprit = stacked[found.index];
+    // A culprit at the first boundary is only believable when the trunk
+    // before the train passes: else the platform or the trunk is red.
+    const trunkRed = found.index === 0 && (await probeFails(baseHead));
+    await checkoutClean(
+      dir,
+      outcomes.filter((o) => o.boundary).at(-1).boundary,
+    );
+    if (trunkRed) {
+      patch(store, id, (t) => ({
+        notes: [
+          ...(t.notes ?? []),
+          "the failing suites also fail on the trunk before the train",
+        ],
+      }));
+      return { culprit: null, trunkRed: true };
+    }
+    patch(store, id, (t) => ({
+      bisects: [...t.bisects, ...found.probes],
+      culprits: [...t.culprits, culprit.key],
+      ...(found.interaction ? { interaction: true } : {}),
+    }));
+    return {
+      culprit,
+      persistent: confirmed.persistent,
+      interaction: found.interaction,
+      excerpt: results.find((r) => !r.ok && r.excerpt)?.excerpt ?? "",
+    };
+  }
+
+  // The culprit's task gets the failing suites, their platform and a bounded
+  // log excerpt, up to `failure.retries` times, then Needs you; `eject` goes
+  // straight to Needs you (LT10.5).
+  function dealWithCulprit(verdict, result) {
+    const entry = store.get(
+        TABLE,
+        `${project.id}\0${target}\0${verdict.culprit.key}`,
+      ),
+      failing = verdict.persistent.flatMap((p) =>
+        (p.names ?? ["the platform command"]).map(
+          (n) => `${n} on ${p.platform}`,
+        ),
+      ),
+      eject = settings.failure.action === "eject",
+      sent = sendFailureBack(
+        store,
+        {
+          entry: {
+            ...entry,
+            checks: failing.map((command) => ({ command, exitCode: 1 })),
+            excerpt: verdict.excerpt,
+          },
+        },
+        {
+          rounds: eject ? 0 : settings.failure.retries,
+          now: Date.now(),
+          where: "the integrator train",
+        },
+      );
+    store.put(TABLE, {
+      ...entry,
+      state: sent.messages.length ? "returned" : "ejected",
+      train: null,
+      reason: `validation failed: ${failing.join("; ")}`,
+      finishedAt: new Date().toISOString(),
+    });
+    result.messages.push(...sent.messages);
+    result.notify.push(...sent.notify);
+    return failing;
+  }
+
+  // Under `optimistic` the trunk is already pushed: `revert` pushes one
+  // fast-forward revert of the culprit's range and checks it is green;
+  // `fix-forward` opens Stop the line and a fix task first in line (LT10.4).
+  async function repairTrunk(
+    dir,
+    verdict,
+    outcomes,
+    { candidate, baseHead, url, env, result },
+  ) {
+    const failing = dealWithCulprit(verdict, result),
+      stacked = outcomes.filter((o) => o.state === "stacked"),
+      at = stacked.findIndex((o) => o.key === verdict.culprit.key),
+      from = at > 0 ? stacked[at - 1].boundary : baseHead,
+      task = verdict.culprit.key;
+    if (settings.failure.trunk === "fix-forward") {
+      const opened = openLineStop(store, project, {
+        check: failing[0] ?? "full validation",
+        culprit: task,
+        commit: verdict.culprit.boundary,
+        from,
+        to: verdict.culprit.boundary,
+        tail: verdict.excerpt?.split("\n").slice(-20).join("\n"),
+        config: ctx.config,
+      });
+      result.notify.push(...opened.notify);
+      return { validated: false, head: null };
+    }
+    const revert = await step(store, id, "revert", async () => {
+      const commit = await revertRange(dir, {
+        onto: candidate,
+        from,
+        to: verdict.culprit.boundary,
+        message: `Revert ${task}\n\nAvoozl reverted ${task} after ${failing.join(", ")} failed on the pushed train.`,
+      });
+      return { commit, result: commit ? "ok" : "conflict" };
+    });
+    const fail = (text) => {
+      result.notify.push({
+        channel: "failure",
+        task,
+        title: `The trunk is red and ${task} could not be reverted`,
+        text,
+      });
+      return { validated: false, head: null };
+    };
+    if (!revert.commit)
+      return fail(
+        `Reverting ${task} conflicts with later work on ${target}. Fix ${failing.join(", ")} by hand.`,
+      );
+    // The revert must make the failing suites pass before it is pushed.
+    const runner = ctx.runSuites ?? runSuites;
+    for (const p of verdict.persistent) {
+      const r = await runner(
+        dir,
+        p.platform,
+        settings.validation.full[p.platform],
+        platforms[p.platform] ?? null,
+        {
+          names: p.names,
+          ...(ctx.run ? { run: ctx.run } : {}),
+          env: project.checksEnv,
+        },
+      );
+      if (!r.ok)
+        return fail(
+          `Reverting ${task} did not make ${p.platform} pass, so nothing was pushed.`,
+        );
+    }
+    const landed = await withWorkLock(
+      store,
+      {
+        id: `landing:${project.id}\0${target}`,
+        projectId: project.id,
+        kind: "integration",
+      },
+      () =>
+        guardedFastForward(root, {
+          url,
+          branch: target,
+          base: candidate,
+          candidate: revert.commit,
+          env,
+        }),
+    );
+    if (!landed)
+      return fail(
+        `The trunk moved while ${task} was reverted, so nothing was pushed.`,
+      );
+    return { validated: true, head: revert.commit };
+  }
+
   async function execute() {
     const { policy } = settings,
       maxRebases = settings.failure.maxRebases,
@@ -276,7 +500,9 @@ export async function runTrain(store, ctx) {
         .list(TABLE)
         .filter((e) => e.projectId === project.id && e.base === target);
     let members = plan.members,
-      rebases = 0;
+      rebases = 0,
+      bisects = 0,
+      rerun = null;
     const result = { messages: [], notify: [] };
     for (;;) {
       const dir = await addLandingWorktree(root, baseHead);
@@ -380,20 +606,35 @@ export async function runTrain(store, ctx) {
         local = needed.filter((p) => platforms[p]),
         viaCi = needed.filter((p) => !platforms[p]);
 
-      const validate = async (where) => {
-        const out = { ok: true, checks: [] };
-        if (local.length) {
-          held = await takePlatformSlots(ctx, id, local, platforms);
+      // Full validation of the local platforms; `only` ({platform: suites|null})
+      // reruns just those platforms and suites after a failure was dropped.
+      const validate = async (where, only = null) => {
+        const out = { ok: true, checks: [], results: [] },
+          names = only ? local.filter((p) => only[p] !== undefined) : local;
+        if (names.length) {
+          held = await takePlatformSlots(ctx, id, names, platforms);
           patch(store, id, { slots: held });
-          const results = await step(store, id, `full ${where}`, async () => {
-            const done = await runPlatforms(dir, local, settings, platforms, {
-              ...checkOptions,
-              env: project.checksEnv,
-            });
+          const stepped = await step(store, id, `full ${where}`, async () => {
+            const options = { ...checkOptions, env: project.checksEnv },
+              done = only
+                ? await Promise.all(
+                    names.map(async (p) => {
+                      const r = await (ctx.runSuites ?? runSuites)(
+                        dir,
+                        p,
+                        settings.validation.full[p],
+                        platforms[p] ?? null,
+                        { names: only[p], ...options },
+                      );
+                      return { ...r.result, platform: p, ok: r.ok };
+                    }),
+                  )
+                : await runPlatforms(dir, names, settings, platforms, options);
             return { done, result: done.every((r) => r.ok) ? "ok" : "failed" };
           });
-          for (const r of results.done) {
+          for (const r of stepped.done) {
             recordPlatformResult(store, id, r);
+            out.results.push(r);
             out.checks.push({
               command: `full ${r.platform}`,
               exitCode: r.exitCode,
@@ -430,11 +671,62 @@ export async function runTrain(store, ctx) {
         exitCode: c.exitCode,
       }));
       if (policy === "gated") {
-        const full = await validate("on the stack");
+        let full = await validate("on the stack", rerun);
+        if (!full.ok) {
+          const verdict = await handleRed(
+            dir,
+            full.results,
+            stack.members,
+            candidate,
+            baseHead,
+          );
+          if (verdict.trunkRed) {
+            result.notify.push(trunkRedNotice(target));
+            endTrain(store, id, "failed");
+            return { state: "ended", train: store.get(TRAINS, id), ...result };
+          }
+          if (verdict.culprit) {
+            bisects += 1;
+            if (bisects > settings.failure.maxBisects) {
+              patch(store, id, (t) => ({
+                notes: [...(t.notes ?? []), "too many bisects"],
+              }));
+              endTrain(store, id, "failed");
+              return {
+                state: "ended",
+                train: store.get(TRAINS, id),
+                reason: "too many bisects",
+                ...result,
+              };
+            }
+            // Drop the culprit, restack the rest and check again: the cheap
+            // checks, then only the suites that failed (LT10.3).
+            await dealWithCulprit(verdict, result);
+            rerun = Object.fromEntries(
+              verdict.persistent.map((p) => [p.platform, p.names]),
+            );
+            members = stackedEntries
+              .filter((e) => e.key !== verdict.culprit.key)
+              .map((e) => store.get(TABLE, e.id));
+            await removeLandingWorktree(root, dir);
+            worktrees.delete(dir);
+            if (!members.length) {
+              endTrain(store, id, "failed");
+              return {
+                state: "ended",
+                train: store.get(TRAINS, id),
+                ...result,
+              };
+            }
+            continue;
+          }
+          // Only flaky suites failed: the train goes on.
+          full = { ok: true, checks: full.checks, results: full.results };
+        }
         let ci = { state: "passed" };
         if (viaCi.length) ci = await ciValidate({ candidate });
         if (viaCi.length) recordCi(ci);
-        if (!full.ok || ci.state !== "passed") {
+        if (ci.state !== "passed") {
           endTrain(store, id, "failed");
           return { state: "ended", train: store.get(TRAINS, id), ...result };
         }
@@ -510,15 +802,49 @@ export async function runTrain(store, ctx) {
       patch(store, id, { pushed: candidate, validated: false });
 
       // Optimistic: full validation on the pushed head, after the push.
-      let validated = true;
+      let validated = true,
+        landedEntries = stackedEntries,
+        outcome = "landed",
+        finalHead = candidate;
       if (policy === "optimistic") {
         const full = await validate("on the pushed head");
         let ci = { state: "passed" };
         if (viaCi.length) ci = await ciValidate({ pushed: candidate });
         if (viaCi.length) recordCi(ci);
         validated = full.ok && ci.state === "passed";
+        if (!full.ok) {
+          const verdict = await handleRed(
+            dir,
+            full.results,
+            stack.members,
+            candidate,
+            baseHead,
+          );
+          if (verdict.trunkRed) {
+            result.notify.push(trunkRedNotice(target));
+            validated = false;
+          } else if (!verdict.culprit) validated = ci.state === "passed";
+          else {
+            const repaired = await repairTrunk(dir, verdict, stack.members, {
+              candidate,
+              baseHead,
+              url,
+              env,
+              result,
+            });
+            landedEntries = stackedEntries.filter(
+              (e) => e.key !== verdict.culprit.key,
+            );
+            outcome = "partly-landed";
+            validated = repaired.validated && ci.state === "passed";
+            finalHead = repaired.head ?? candidate;
+          }
+        }
       }
-      await finishLanded(stackedEntries, stack.members, candidate, validated);
+      await finishLanded(landedEntries, stack.members, candidate, validated, {
+        outcome: validated ? outcome : "failed",
+        head: finalHead,
+      });
       return {
         state: "landed",
         train: store.get(TRAINS, id),
@@ -531,7 +857,13 @@ export async function runTrain(store, ctx) {
   // After the trunk push: each landed task is integrated at its boundary, the
   // trunk is merged back into each spec's working branch, each batch branch
   // is deleted if it still shows the recorded head, and the worktrees go.
-  async function finishLanded(stackedEntries, outcomes, candidate, validated) {
+  async function finishLanded(
+    stackedEntries,
+    outcomes,
+    candidate,
+    validated,
+    { outcome, head },
+  ) {
     const at = new Date().toISOString();
     for (const entry of stackedEntries) {
       const boundary =
@@ -594,8 +926,8 @@ export async function runTrain(store, ctx) {
         });
     }
     // Stop the line counts this head only when the train is validated.
-    patch(store, id, { validated });
-    endTrain(store, id, validated ? "landed" : "failed");
+    patch(store, id, { validated, pushed: head });
+    endTrain(store, id, outcome);
   }
 }
 

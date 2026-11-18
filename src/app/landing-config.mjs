@@ -117,11 +117,18 @@ function checkValue(spec, value, at, fail) {
       const here = `${at}.${name}`;
       if (!isRecord(entry)) fail(`${here} must be an object.`);
       for (const key of Object.keys(entry))
-        if (!["command", "results"].includes(key))
+        if (!["command", "results", "suiteArgs"].includes(key))
           fail(`${here}.${key} is not a known setting.`);
       checkArgv(entry.command, `${here}.command`, fail);
       if (entry.results !== undefined && typeof entry.results !== "string")
         fail(`${here}.results must be a relative path.`);
+      if (entry.suiteArgs !== undefined) {
+        checkArgv(entry.suiteArgs, `${here}.suiteArgs`, fail);
+        if (!entry.suiteArgs.some((a) => a.includes("{suite}")))
+          fail(
+            `${here}.suiteArgs must hold {suite}, where the suite name goes.`,
+          );
+      }
     }
   } else if (spec.rules) {
     if (!isRecord(value)) fail(`${at} must map globs to platform names.`);

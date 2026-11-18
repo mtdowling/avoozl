@@ -244,6 +244,27 @@ function openStop(
   return stop;
 }
 
+// Opens the line stop a failed integrator train needs under `fix-forward`
+// (landing-trains LT10.4): the same stop and first-in-line fix task a red
+// trunk check opens. Returns {stop, notify}.
+export function openLineStop(
+  store,
+  project,
+  { check, culprit, commit, from, to, tail, config, now = Date.now() },
+) {
+  const notify = [],
+    scope = flowPolicy(config || {}).for(project.id).stopTheLine.scope,
+    stop = openStop(store, project, {
+      check,
+      culprit: { culprit, commit, range: { from, to }, runs: 0 },
+      notify,
+      now,
+      scope,
+      tail,
+    });
+  return { stop, notify };
+}
+
 const fixOpen = (store, id) => {
   const task = store.read().tasks.find((t) => t.id === id);
   return (

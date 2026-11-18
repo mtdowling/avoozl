@@ -19,158 +19,16 @@ import { specAuthority, takeOverSpec } from "../spec-takeover.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
-
-process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
-
-const git = (cwd, ...args) =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const node = (code) => [process.execPath, "-e", code];
-const leaf = (id, planId = "s1") => ({
-  id,
-  title: "Task " + id,
-  scope: "catalog",
-  status: "planned",
-  epic: "sample",
-  track: "catalog",
-  tags: [],
-  acceptance: [id + " works."],
-  repository: "app",
-  planId,
-});
-
-// `full` is the full-validation command; it runs in the landing worktree and
-// can read ORIGIN (the bare remote's path) from its own script text.
-async function workspace(
-  t,
-  { policy = "gated", full, cheap, trigger = {}, maxRebases } = {},
-) {
-  const root = temporaryDirectory("avoozl-engine-"),
-    origin = path.join(root, "origin.git"),
-    checkout = path.join(root, "app");
-  git(root, "init", "--bare", "-b", "main", origin);
-  git(root, "clone", "-q", origin, checkout);
-  for (const [k, v] of [
-    ["user.name", "Test"],
-    ["user.email", "test@example.com"],
-  ])
-    git(checkout, "config", k, v);
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-qm", "Start");
-  git(checkout, "push", "-q", "origin", "main");
-  const config = {
-    landing: {
-      trains: {
-        ci: { workflow: "ci.yml" },
-        trigger: { minBranches: 1, cooldownSeconds: 0, ...trigger },
-        validation: {
-          cheap: [cheap ?? node("0")],
-          full: { "macos-arm64": { command: full ?? node("0") } },
-        },
-        ...(maxRebases === undefined ? {} : { failure: { maxRebases } }),
-        targets: { main: { policy } },
-      },
-    },
-    machine: { platforms: { "macos-arm64": { kind: "native" } } },
-  };
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  t.after(() => store.close());
-  bindContentRules(store, {
-    workspaceRoot: root,
-    configFile: path.join(root, "m.json"),
-  });
-  store.importSnapshot({
-    ...snapshot(),
-    tasks: [leaf("t1"), leaf("t2", "s2"), leaf("t3"), leaf("t4")],
-    edges: [],
-  });
-  store.put("projects", {
-    id: "app",
-    root: fs.realpathSync.native(checkout),
-    baseBranch: "main",
-    landing: "train",
-    checks: [node("0")],
-    worktreeRoot: path.join(root, "wt"),
-  });
-  for (const spec of ["s1", "s2"]) {
-    store.put("plans", {
-      id: spec,
-      spec,
-      hash: digest("plan " + spec),
-      state: "approved",
-    });
-    store.put("receipts", {
-      id: `spec-journal:${spec}`,
-      kind: "spec-journal",
-      planId: spec,
-      home: "local",
-    });
-    await takeOverSpec(store, { workspaceRoot: root, actor: "Operator" }, spec);
-  }
-  const w = {
-    root,
-    origin,
-    checkout: fs.realpathSync.native(checkout),
-    store,
-    config,
-  };
-  w.settings = () => requireTrainSettings(config, "main");
-  return w;
-}
-
-// A task branch with one commit from `from`, queued as a batch branch.
-async function queued(w, id, { file = `${id}.txt`, from = "main" } = {}) {
-  const wt = path.join(w.root, "wt", id);
-  git(w.checkout, "worktree", "add", "-q", "-b", `avoozl/${id}`, wt, from);
-  fs.writeFileSync(path.join(wt, file), id + "\n");
-  git(wt, "add", ".");
-  git(wt, "commit", "-qm", `Do ${id}`);
-  const commit = git(wt, "rev-parse", "HEAD"),
-    task = w.store.read().tasks.find((x) => x.id === id);
-  w.store.put("task_worktrees", {
-    id,
-    taskId: id,
-    path: wt,
-    branch: `avoozl/${id}`,
-    repository: "app",
-  });
-  w.store.put("task_deliveries", {
-    id,
-    taskId: id,
-    state: "done",
-    commit,
-    attempts: [],
-    verifications: [],
-  });
-  await queueBatch(w.store, {
-    project: w.store.get("projects", "app"),
-    task,
-    commit,
-    config: w.config,
-    machine: {},
-  });
-  return { commit, wt };
-}
-
-const train = (w, extra = {}) =>
-  runTrain(w.store, {
-    project: w.store.get("projects", "app"),
-    target: "main",
-    settings: w.settings(),
-    config: w.config,
-    lease: { leaseId: "lease-1" },
-    workspaceRoot: w.root,
-    machine: {},
-    ...extra,
-  });
-const trunk = (w) => git(w.origin, "rev-parse", "main");
-const queue = (w) => landingQueue(w.store, { projectId: "app", base: "main" });
-
-// A command that records, when it runs, what the remote trunk is.
-const probe = (w, log) =>
-  node(
-    `const {execFileSync}=require('child_process');require('fs').appendFileSync(${JSON.stringify(log)}, execFileSync('git',['rev-parse','main'],{cwd:${JSON.stringify(w.origin)},encoding:'utf8'}))`,
-  );
+import {
+  git,
+  node,
+  probe,
+  queue,
+  queued,
+  train,
+  trunk,
+  workspace,
+} from "./integrator-fixture.mjs";
 
 test("gated: the trunk is pushed only after full validation passed on the stack", async (t) => {
   const log = path.join(temporaryDirectory("avoozl-engine-log-"), "log"),
@@ -211,7 +69,7 @@ test("gated: the trunk is pushed only after full validation passed on the stack"
   assert.equal(git(w.checkout, "worktree", "list").split("\n").length, 1);
 });
 
-test("gated: a failing full validation pushes nothing and requeues the members in order", async (t) => {
+test("gated: a validation that fails on the trunk itself pushes nothing, blames no task and requeues them in order", async (t) => {
   const w = await workspace(t, { full: node("process.exit(1)") }),
     start = trunk(w);
   await queued(w, "t1");
@@ -224,6 +82,7 @@ test("gated: a failing full validation pushes nothing and requeues the members i
     queue(w).map((e) => e.key),
     ["t1", "t2"],
   );
+  assert.match(result.notify[0].title, /validation fails without the train/);
   assert.ok(
     git(w.origin, "branch", "--list", "avoozl-batch/*").includes(
       "avoozl-batch/t1",

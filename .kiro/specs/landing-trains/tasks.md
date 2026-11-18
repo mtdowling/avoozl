@@ -118,10 +118,10 @@ person.
 
 ## Phase 6: Failure
 
-- [ ] lt-6.1 Flaky reruns and the boundary bisect over failing suites, after lt-4.2, lt-3.2 [LT10.1, LT10.2] (§D11.1)
+- [x] lt-6.1 Flaky reruns and the boundary bisect over failing suites, after lt-4.2, lt-3.2 [LT10.1, LT10.2] (§D11.1)
   - Rerun failing suites `failure.flakyReruns` times; record flakes; bisect boundaries with only the still-failing suites on only the failing platforms; an unplaceable failure names the last member.
   - Done when: Tests with a fake suite runner: a suite that fails then passes is recorded `flaky` and the train continues; in a train of ten with member 7 bad the bisect probes at most four boundaries, each probe runs only the failing suite on the failing platform, and names member 7; with no results file each probe runs the whole command; every probe passing names the last member and records the interaction.
-- [ ] lt-6.2 Land the good branches; return, eject, revert or fix forward, after lt-6.1, lt-5.1 [LT10.3, LT10.4, LT10.5, LT16.5] (§D11.2)
+- [x] lt-6.2 Land the good branches; return, eject, revert or fix forward, after lt-6.1, lt-5.1 [LT10.3, LT10.4, LT10.5, LT16.5] (§D11.2)
   - Gated: drop the culprit, restack, cheap checks, rerun the failed suites, land, up to `maxBisects`. Optimistic: `revert` pushes one fast-forward revert of the culprit's range; `fix-forward` pulls Stop the line for the target and puts a fix task first. `failure.action` `return` sends the culprit's chat the suites, platform and a log excerpt of at most 200 lines through `sendFailureBack`, up to `retries`; `eject` opens Needs you. `landNext` halving stays for `direct`.
   - Done when: Real-git tests: gated with one culprit lands nine and returns one; gated with a second culprit after the first restack stops at `maxBisects`; optimistic `revert` leaves the trunk green with one revert commit and no forced update; `fix-forward` opens a stop and a fix task first in line; `return` sends the excerpt and counts rounds, then ejects; `eject` opens one Needs you item; a `direct` repository still halves.
 - [ ] lt-p3 Proof: a red train lands the rest, after lt-p2, lt-6.1, lt-6.2 [LT10] (§D11)
