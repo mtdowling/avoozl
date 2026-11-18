@@ -43,7 +43,7 @@ const ROW_CSS = '[data-model-role]{display:grid;grid-template-columns:minmax(0,1
 // shortcut: these roles cannot run as a harness child yet (rows of
 // src/app/role-table.mjs with process: false); drop a role here when its task
 // lands.
-const CHAT_ONLY = new Set<Role>(['falsifier', 'planReviewer', 'reviewDraft', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview'])
+const CHAT_ONLY = new Set<Role>(['planReviewer', 'reviewDraft', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview'])
 
 export default function ModelsSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()

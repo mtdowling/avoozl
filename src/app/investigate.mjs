@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import path from "node:path";
 import { roleRun } from "./role-table.mjs";
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
@@ -529,11 +531,22 @@ export function investigationStep(
       })
     )
       continue;
+    const run = roleRun("falsifier", { config, task, project });
+    let commit = null;
+    if (run.executor === "process")
+      try {
+        commit = headOf(
+          store.get("task_worktrees", task.id)?.path ?? project.root,
+        );
+      } catch {
+        // No readable code yet: the next tick tries again.
+        continue;
+      }
     dispatch.push(
       kirocrewRequest(store, {
         task: task.id,
         role: "falsifier",
-        ...roleRun("falsifier", { config, task, project }),
+        ...run,
         attempt,
         // Kiro Crew keys a chat by its title, so a later worker attempt's
         // round 1 gets its own name (P50: it reused attempt 1's chat).
@@ -543,16 +556,36 @@ export function investigationStep(
             200,
           ),
         // Its brief names the checkout, so no folder project is needed
-        // (R88.2, as for the worker).
+        // (R88.2, as for the worker). A `process` child reads a detached
+        // copy that Avoozl adds before it starts (NK2.1).
         ...kirocrewDetachedSession(project.id),
         agent: settings.agent,
         ...(model ? { model } : {}),
         checkout: project.root,
+        ...(run.executor === "process"
+          ? {
+              commit,
+              worktree: path.join(
+                project.worktreeRoot ||
+                  path.join(path.dirname(project.root), ".avoozl-worktrees"),
+                `avoozl-${task.id}-falsify-${attempt}`,
+              ),
+            }
+          : {}),
         brief,
       }),
     );
   }
   return { dispatch, messages, notify };
+}
+
+// The commit a `process` falsifier reads: the task's code as it is now.
+function headOf(folder) {
+  return execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: folder,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  }).trim();
 }
 
 // The falsifier session opened for a round: the newest one bound since

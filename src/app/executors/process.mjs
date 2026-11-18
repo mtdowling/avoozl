@@ -182,10 +182,11 @@ async function prepareDetached(checkout, worktree, commit) {
   return worktree;
 }
 
-// A verdict session whose folder is its own detached worktree, not the
-// checkout (the shape planVerifierDispatches gives a `process` project).
+// A read session whose folder is its own detached worktree, not the
+// checkout (the shape planVerifierDispatches gives a `process` project, and
+// the falsifier's).
 const verdictSession = (session, checkout) =>
-  reportsVerdict(session.role) &&
+  processRow(session.role)?.folder === "detached" &&
   session.permissionClass === "read" &&
   Boolean(session.commit && session.worktree && checkout) &&
   path.resolve(session.worktree) !== path.resolve(checkout);
@@ -263,6 +264,29 @@ export async function finishProcessSession(ops, binding, result, store = null) {
     );
   }
   if (hands === "folder") return null;
+  // A falsifier's verdict is its done report, with no commit: it judges
+  // findings, not code. A commit field in its report is passed on, so
+  // session.report refuses it as it refuses a chat's (NK2.1).
+  if (hands === "falsifier") {
+    const { commit, ...falsifier } = result.report ?? {};
+    return ops.execute(
+      "session.report",
+      result.state === "done"
+        ? {
+            taskId: binding.taskId,
+            kind: "done",
+            falsifier,
+            ...(commit !== undefined ? { commit } : {}),
+          }
+        : {
+            taskId: binding.taskId,
+            kind: "blocked",
+            text: result.text || "The falsifier reported blocked.",
+          },
+      undefined,
+      { caller: cliReportCaller(binding) },
+    );
+  }
   // A plan-less worker's task is not in a plan: its own runner reads HEAD,
   // runs the checks and pushes (R90.2).
   if (store && hasRemoteTask(store, binding.taskId))
