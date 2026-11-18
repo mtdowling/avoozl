@@ -39,7 +39,7 @@ of the other specs.
 - [ ] nk-2.1 The falsifier as a child, after nk-1.1 [NK2.1, NK2.5] (§D2)
   - The falsifier's row: a detached copy at the commit, read class, `report` with verdict, evidence and confidence, recorded with no commit. This needs wp-1.2 of `worker-paths`, so that a `process` worker's findings exist for it to judge.
   - Done when: Tests on both executors: a falsifier's verdict opens or holds the same gate; a `process` falsifier's report with a commit field is refused; it writes no file but its result; with every role on `process`, a task with investigate first reaches Go ahead and lands.
-- [ ] nk-2.2 The responder and the task summary as children, after nk-1.1 [NK2.2, NK2.3, NK2.5] (§D2)
+- [x] nk-2.2 The responder and the task summary as children, after nk-1.1 [NK2.2, NK2.3, NK2.5] (§D2)
   - Their rows: the responder's reply is posted by Avoozl after today's checks; the summary is stored on the task; both read-only.
   - Done when: Tests on both executors with a fake GitHub: one reply is posted for one request and none for a blocked result; a reply that matches a content rule is held as it is for a chat; the summary is stored and shown; neither child has a credential or a network path.
 - [ ] nk-2.3 The issue planner's critique as a child, after nk-1.1 [NK2.4] (§D2)
