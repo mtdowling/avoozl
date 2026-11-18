@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fail } from "./store.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
+import { RESULT_BYTES } from "./supervisor.mjs";
 
 const slotKey = (slot) =>
   slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;
@@ -91,36 +92,61 @@ export const cliReportCaller = (binding) => ({
   sessionKey: `dashboard:${slotKey(binding.slot)}`,
 });
 
-// `avoozl runner report TASK done|blocked [--token T]`, run from the
+// A findings file (`runner report TASK findings --file PATH`): a regular file
+// of at most the result file's size (R96.1), read as JSON data. Avoozl's
+// findings validator (findingsInput) judges its fields when it is reported.
+export function readFindingsFile(file) {
+  if (typeof file !== "string" || !file)
+    fail("Name the findings file: --file PATH.");
+  let stat;
+  try {
+    stat = fs.lstatSync(file);
+  } catch {
+    fail(`The findings file ${file} does not exist.`);
+  }
+  if (!stat.isFile()) fail("The findings file is not a regular file.");
+  if (stat.size > RESULT_BYTES)
+    fail(`The findings file is over ${RESULT_BYTES} bytes.`);
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    fail("The findings file is not valid JSON.");
+  }
+}
+
+// `avoozl runner report TASK done|blocked|findings [--token T]`, run from the
 // worktree; with no token it speaks for a command-line claim. `ops` is an
 // Operations on this workspace's store. The commit of a done report is read
 // from the worktree's HEAD, never taken from the caller.
 export async function reportByToken(
   store,
   ops,
-  { taskId, state, token, cwd, text },
+  { taskId, state, token, cwd, text, file },
 ) {
-  if (!["done", "blocked"].includes(state)) fail("State is done or blocked.");
+  if (!["done", "blocked", "findings"].includes(state))
+    fail("State is done, blocked or findings.");
   const binding =
       token === undefined
         ? matchClaimReport(store, { taskId, cwd })
         : matchCliReport(store, { taskId, token, cwd }),
     input =
-      state === "done"
-        ? {
-            taskId,
-            kind: "done",
-            commit: await new Promise((resolve, reject) =>
-              execFile("git", ["rev-parse", "HEAD"], { cwd }, (error, out) =>
-                error ? reject(error) : resolve(out.trim()),
+      state === "findings"
+        ? { taskId, kind: "findings", findings: readFindingsFile(file) }
+        : state === "done"
+          ? {
+              taskId,
+              kind: "done",
+              commit: await new Promise((resolve, reject) =>
+                execFile("git", ["rev-parse", "HEAD"], { cwd }, (error, out) =>
+                  error ? reject(error) : resolve(out.trim()),
+                ),
               ),
-            ),
-          }
-        : {
-            taskId,
-            kind: "blocked",
-            text: text || "The worker reported blocked.",
-          };
+            }
+          : {
+              taskId,
+              kind: "blocked",
+              text: text || "The worker reported blocked.",
+            };
   return ops.execute("session.report", input, undefined, {
     caller: cliReportCaller(binding),
   });

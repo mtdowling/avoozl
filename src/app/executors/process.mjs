@@ -31,6 +31,7 @@ import { sessionStartHold } from "../session-request-eligibility.mjs";
 import { healthContext, providerOf } from "../provider-health.mjs";
 import { taskRepository } from "../../work-model.mjs";
 import { hasRemoteTask } from "../remote-runner.mjs";
+import { addEvidence } from "../evidence.mjs";
 
 export const PROCESS_EXECUTOR = "process";
 // The harness a `process` project runs when it names none.
@@ -96,6 +97,20 @@ export function processExecutor({
       withDatabase(stateDirectory, (db) => childStatus(db, sessionId)),
     stop: (sessionId) =>
       withDatabase(stateDirectory, (db) => stopChild(db, sessionId)),
+  });
+}
+
+// A decision on findings (Go ahead, Investigate again, Stop) resumes the
+// child: its findings report is history (the investigation row keeps it) and its run is open again.
+function reopenAfterFindings(store, slot) {
+  const binding = store.get("session_bindings", slot);
+  if (binding?.report?.kind !== "findings") return;
+  const { report, ...open } = binding;
+  void report;
+  store.put("session_bindings", {
+    ...open,
+    status: "working",
+    statusAt: new Date().toISOString(),
   });
 }
 
@@ -309,6 +324,13 @@ export async function finishProcessSession(ops, binding, result, store = null) {
         (error, out) => (error ? reject(error) : resolve(out.trim())),
       ),
     );
+  if (result.state === "findings")
+    return ops.execute(
+      "session.report",
+      { taskId: binding.taskId, kind: "findings", findings: result.report },
+      undefined,
+      { caller: cliReportCaller(binding) },
+    );
   const input =
     result.state === "done"
       ? {
@@ -372,6 +394,7 @@ export async function drainProcessRequests(
           request.slot ?? request.sessionId,
           request.text,
         );
+        if (outcome === "accepted") reopenAfterFindings(store, request.slot);
         completeSessionRequest(
           store,
           {
@@ -456,6 +479,13 @@ export async function drainProcessRequests(
         },
         { consumer: CONSUMER },
       );
+      if (request.investigateSkipped)
+        addEvidence(store, request.task, {
+          kind: "note",
+          source: "avoozl",
+          text: `Investigate first was skipped: ${request.investigateSkipped}.`,
+          key: `investigate-skipped:${request.task}`,
+        });
     } catch (error) {
       errors.push({ id: request.id, error: error.message });
     }
@@ -533,9 +563,15 @@ export async function drainProcessRequests(
             }
           }
         }
+        // A child that exited with findings waits for Go ahead, as a chat
+        // does: idle, not closed (WP3.2).
+        const waiting =
+          status.startsWith("exited ") &&
+          store.get("session_bindings", binding.slot)?.report?.kind ===
+            "findings";
         recordSessionStatus(store, {
           slot: binding.slot,
-          status: bindingStatus(status),
+          status: waiting ? "idle" : bindingStatus(status),
         });
       } catch (error) {
         // An unreadable record is not evidence the child is gone.

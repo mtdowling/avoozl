@@ -40,7 +40,12 @@ import {
   splitBatch,
   waitingForBatch,
 } from "./flow-batch.mjs";
-import { git, integrateRun, prepareTaskWorktree } from "./git.mjs";
+import {
+  git,
+  integrateRun,
+  prepareTaskWorktree,
+  worktreeChanges,
+} from "./git.mjs";
 import {
   isPullRequestLanding,
   queuePullRequest,
@@ -927,7 +932,7 @@ export async function reportSession(
     const worktree = store.get("task_worktrees", task.id);
     if (
       worktree?.path &&
-      (await git(worktree.path, ["status", "--porcelain"]).catch(() => ""))
+      (await worktreeChanges(worktree.path).catch(() => ""))
     )
       fail(
         "Findings come before any change: the task's worktree has changes. Undo them, report findings, and wait for Go ahead.",
@@ -1916,6 +1921,7 @@ export function workerBrief(
     repositoryLine = null,
     outside = outsideSource(task),
     investigate = false,
+    findingsVia = null,
     linksAndNotes = "",
   },
 ) {
@@ -1934,7 +1940,9 @@ export function workerBrief(
     ...(linksAndNotes ? ["", linksAndNotes] : []),
     "",
     // Investigate first (R75.1): findings before any change.
-    ...(investigate ? investigateLines(task) : []),
+    ...(investigate
+      ? investigateLines(task, findingsVia?.executor, findingsVia?.cliReport)
+      : []),
     ...steps,
   ];
   if (attempt > 1)
@@ -2204,25 +2212,20 @@ function composeLeafBrief(
   const token = issueReportToken(store, { taskId: task.id, attempt });
   // The pair table (worker-briefs.mjs) picks the steps. A Crew Mode relay is
   // always a chat; a declined pair runs as the kind its cell names.
-  const { cell } = briefCell(
-    relay ? "kirocrew" : executor,
-    investigate ? "investigate" : "single",
-  );
+  const via = relay ? "kirocrew" : executor,
+    { cell } = briefCell(via, investigate ? "investigate" : "single"),
+    cliReport =
+      !relay && token
+        ? {
+            worktree: options.worktree?.path || worktreePath(task, project),
+            token,
+            workspace: contentBinding(store)?.workspaceRoot ?? null,
+          }
+        : null;
   return workerBrief(task, project, {
     ...options,
-    steps: cell.steps({
-      task,
-      project,
-      relay,
-      cliReport:
-        !relay && token
-          ? {
-              worktree: options.worktree?.path || worktreePath(task, project),
-              token,
-              workspace: contentBinding(store)?.workspaceRoot ?? null,
-            }
-          : null,
-    }),
+    findingsVia: { executor: via, cliReport },
+    steps: cell.steps({ task, project, relay, cliReport }),
   });
 }
 
@@ -2251,10 +2254,19 @@ function keptAgent(store, taskId, policy) {
   return (last?.interrupted && last.agent) || policy.agent;
 }
 
+// shortcut: a harness definition that loads always names `resume`
+// (parseHarnessDefinition refuses one without), so the default is true. A
+// caller that knows better passes `resumable(harnessName)`; drop the option
+// if the loader ever allows a definition with no `resume`.
+const NO_RESUME =
+  "its harness definition has no resume command, so Avoozl cannot send Go ahead to the child";
+const harnessOf = (run, leaf) => run.harness ?? leaf.project.harness ?? null;
+
 // The tick's worker dispatches for ready leaves. Reads only. A plans-repo
 // brief that names the planning repository is never sent; the tick's linked
 // branch step has already opened a decision for it.
 export function planReadyDispatches(store, policy, options = {}) {
+  const resumable = options.resumable ?? (() => true);
   const data = store.read(),
     planning = options.github?.planningRepository,
     workspaceRoot = contentBinding(store)?.workspaceRoot,
@@ -2277,10 +2289,15 @@ export function planReadyDispatches(store, policy, options = {}) {
       pin = leaf.task.session || {};
     // Investigate first (R75.5): never for a batch, whose brief is one
     // stretch of small tasks, and never where the pair table declines it.
-    const investigate =
-        !leaf.batch &&
-        !briefCell(run.executor, "investigate").declined &&
-        investigates(policy, leaf.task),
+    const wants = !leaf.batch && investigates(policy, leaf.task),
+      // A child is resumed with Go ahead, so its harness must resume
+      // (WP3.2); with none the task is coded without the step.
+      skipped =
+        wants && run.executor === "process" && !resumable(harnessOf(run, leaf))
+          ? NO_RESUME
+          : null,
+      investigate =
+        wants && !skipped && !briefCell(run.executor, "investigate").declined,
       ship = shipMode(policy, leaf.task, store);
     let brief;
     if (leaf.batch) {
@@ -2340,6 +2357,7 @@ export function planReadyDispatches(store, policy, options = {}) {
         ),
         ...(leaf.batch ? { batch: leaf.batch } : {}),
         ...(investigate ? { investigate: true } : {}),
+        ...(skipped ? { investigateSkipped: skipped } : {}),
         // A worker on `process` runs as a supervisor child (R93.5), on the
         // harness its pin or Settings › Models names, else its project's
         // (R98.3, R98.4); other roles move in Phase 49.

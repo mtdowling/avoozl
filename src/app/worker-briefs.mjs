@@ -68,11 +68,8 @@ export const WORKER_BRIEFS = Object.freeze({
   }),
   process: Object.freeze({
     single: cell({ steps: childSteps }),
-    // wp-1.2 gives a child findings by the result file.
-    investigate: declined(
-      "a process child cannot report findings yet",
-      "single",
-    ),
+    // Findings go in the result file; Go ahead resumes the child.
+    investigate: cell({ steps: childSteps }),
     batch: declined(BATCH_ON_PROCESS, "single"),
     round: cell({
       finish:
