@@ -9,7 +9,7 @@ import { git } from "./git.mjs";
 import { branchNameProblem } from "./integration-branch.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
 import { runCheckAt } from "./flow-line.mjs";
-import { enqueueLanding } from "./landing-queue.mjs";
+import { enqueueLanding, pausedBy } from "./landing-queue.mjs";
 import { leaseSettings, trainSettings } from "./landing-config.mjs";
 import {
   endLandingLease,
@@ -431,7 +431,16 @@ export function integratorStatus(store, { config, now = Date.now() } = {}) {
             }
           : { state: "none" },
         train: lease?.train ?? null,
-        trigger: null,
+        trigger: settings.error
+          ? null
+          : triggerSummary(
+              planTrain(store, {
+                projectId: project.id,
+                target,
+                settings,
+                now,
+              }),
+            ),
       };
     }),
   };
@@ -499,3 +508,202 @@ export async function runIntegrator(
     finish();
   }
 }
+
+// ---- Train records and the back-to-back trigger (lt-3.1, D2, D6) ----
+
+const TRAINS = "landing_trains";
+const trainId = () => `train-${randomUUID().replace(/-/g, "").slice(0, 12)}`;
+const queuedMs = (entry) => Date.parse(entry.queuedAt) || 0;
+
+const trainsOf = (store, projectId, target) =>
+  store
+    .list(TRAINS)
+    .filter((t) => t.projectId === projectId && t.target === target);
+
+// The train running for a target: one without an outcome. At most one.
+export const runningTrain = (store, projectId, target) =>
+  trainsOf(store, projectId, target).find((t) => !t.outcome) ?? null;
+
+// When the target's last train ended, in ms, or 0.
+export const lastTrainEnd = (store, projectId, target) =>
+  Math.max(
+    0,
+    ...trainsOf(store, projectId, target).map(
+      (t) => Date.parse(t.endedAt) || 0,
+    ),
+  );
+
+// The queued entries of one target in queue order, split into those a train
+// may take now and those held, each held one with its reason (LT4.2). An entry
+// is ready when it is queued, its head passed the cheap checks, no open stop
+// pauses it, and every entry it was built on is in the same train or already
+// landed. `ready` is what remains after holds, in queue order.
+export function readyEntries(store, { projectId, base }) {
+  const all = store
+      .list(TABLE)
+      .filter((e) => e.projectId === projectId && e.base === base),
+    queued = all
+      .filter((e) => e.state === "queued")
+      .sort((a, b) => a.seq - b.seq),
+    held = new Map();
+  let ready = [];
+  for (const entry of queued) {
+    if (entry.cheap?.commit !== entry.commit)
+      held.set(entry.key, "its cheap checks have not passed at this head");
+    else {
+      const stop = pausedBy(store, entry);
+      if (stop) held.set(entry.key, `paused by stop ${stop.id}`);
+      else ready.push(entry);
+    }
+  }
+  // An entry built on a queued entry that is not going with it waits.
+  for (let changed = true; changed; ) {
+    changed = false;
+    const keys = new Set(ready.map((e) => e.key));
+    ready = ready.filter((entry) => {
+      const missing = (entry.builtOn ?? []).find(
+        (key) =>
+          !keys.has(key) &&
+          all.some(
+            (e) =>
+              e.key === key && (e.state === "queued" || e.state === "in-train"),
+          ),
+      );
+      if (missing === undefined) return true;
+      held.set(
+        entry.key,
+        `built on ${missing}, which is queued outside this train`,
+      );
+      changed = true;
+      return false;
+    });
+  }
+  return { ready, held: [...held].map(([key, reason]) => ({ key, reason })) };
+}
+
+// Whether a train starts now, and with whom (D6). Pure over the store and the
+// clock.
+//   {state: "running", train}       a train is running: trains never overlap
+//   {state: "cooldown", until}      the last train ended less than
+//                                    `cooldownSeconds` ago
+//   {state: "wait", why, ready, held, startsAt?}
+//   {state: "start", members, held} members in queue order, at most
+//                                    `maxBranches`
+export function planTrain(
+  store,
+  { projectId, target, settings, now = Date.now() },
+) {
+  const running = runningTrain(store, projectId, target);
+  if (running) return { state: "running", train: running.id };
+  const { trigger } = settings,
+    cooled =
+      lastTrainEnd(store, projectId, target) + trigger.cooldownSeconds * 1000;
+  if (now < cooled)
+    return { state: "cooldown", until: new Date(cooled).toISOString() };
+  const { ready, held } = readyEntries(store, { projectId, base: target });
+  if (!ready.length)
+    return { state: "wait", why: "nothing is ready", ready: 0, held };
+  const waitedUntil = queuedMs(ready[0]) + trigger.maxWaitMinutes * 60000;
+  if (ready.length < trigger.minBranches && now < waitedUntil)
+    return {
+      state: "wait",
+      why: `${ready.length} of ${trigger.minBranches} ready branches; a smaller train starts at ${new Date(waitedUntil).toISOString()}`,
+      ready: ready.length,
+      held,
+      startsAt: new Date(waitedUntil).toISOString(),
+    };
+  // Truncating at maxBranches never cuts a dependency out: an entry is queued
+  // after the entries it was built on.
+  return { state: "start", members: ready.slice(0, trigger.maxBranches), held };
+}
+
+// Opens a train for `members` and marks each entry `in-train`, in one
+// transaction. Refuses a second train for the target.
+export function startTrain(
+  store,
+  {
+    projectId,
+    target,
+    policy,
+    members,
+    baseHead,
+    leaseId = null,
+    now = Date.now(),
+  },
+) {
+  if (!members.length) fail("A train has at least one member.", 400);
+  return store.transaction(() => {
+    if (runningTrain(store, projectId, target))
+      fail(`A train is already running for ${target}.`, 409);
+    const id = trainId(),
+      at = new Date(now).toISOString();
+    for (const entry of members) {
+      const current = store.get(TABLE, entry.id);
+      if (current?.state !== "queued")
+        fail(`${entry.key} is no longer queued.`, 409);
+      store.put(TABLE, { ...current, state: "in-train", train: id });
+    }
+    return store.put(TRAINS, {
+      id,
+      projectId,
+      target,
+      policy,
+      baseHead,
+      leaseId,
+      startedAt: at,
+      members: members.map((e) => ({
+        key: e.key,
+        task: e.tasks?.[0]?.task ?? e.key,
+        spec: e.spec,
+        originalHead: e.commit,
+        cutFrom: null,
+        boundary: null,
+        state: "stacking",
+      })),
+      steps: [],
+      checks: {},
+      bisects: [],
+      culprits: [],
+      pushed: null,
+      ci: null,
+      worktrees: [],
+      slots: [],
+      outcome: null,
+    });
+  });
+}
+
+// Ends a train with its outcome (landed, partly-landed, failed, abandoned).
+// Members that did not land go back to `queued`, in their place.
+export function endTrain(
+  store,
+  trainRecordId,
+  outcome,
+  { now = Date.now() } = {},
+) {
+  if (!["landed", "partly-landed", "failed", "abandoned"].includes(outcome))
+    fail(`A train ends landed, partly-landed, failed or abandoned.`, 400);
+  return store.transaction(() => {
+    const train = store.get(TRAINS, trainRecordId);
+    if (!train || train.outcome) return train;
+    for (const member of train.members) {
+      const entry = store.get(
+        TABLE,
+        `${train.projectId}\0${train.target}\0${member.key}`,
+      );
+      if (entry?.state === "in-train" && entry.train === train.id)
+        store.put(TABLE, { ...entry, state: "queued", train: null });
+    }
+    return store.put(TRAINS, {
+      ...train,
+      outcome,
+      endedAt: new Date(now).toISOString(),
+    });
+  });
+}
+
+// A plan as `integrator status` shows it: members by key.
+const triggerSummary = (plan) => ({
+  ...plan,
+  ...(plan.members ? { members: plan.members.map((e) => e.key) } : {}),
+});
