@@ -2,7 +2,7 @@
   "name": "avoozl",
   "version": "0.1.0",
   "displayName": "Avoozl",
-  "description": "Local-first planning and GitHub delivery inside Kiro Crew.",
+  "description": "Approve a spec; Avoozl runs it with coding agents, checks each commit itself, and lands it.",
   "author": "mtdowling",
   "license": "MIT",
   "iconPath": "assets/icon.png",

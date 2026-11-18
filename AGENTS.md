@@ -1,10 +1,11 @@
 # Working on Avoozl
 
-Avoozl is a local planning application with a Kiro Crew app page, CLI, and MCP
-interface. Its agent sessions run in Kiro Crew chats or as process harnesses
-under its supervisor. It pushes and merges by each repository's `landing`
-setting, after checks pass on the exact head. UI, CLI, and MCP share operations
-in `src/app/operations.mjs`.
+Approve a spec; Avoozl runs it with coding agents, checks each commit itself,
+and lands it. It is a local application with a Kiro Crew app page, CLI, and
+MCP interface. Its agent sessions run in Kiro Crew chats or as process
+harnesses under its supervisor. It pushes and merges by each repository's
+`landing` setting, after checks pass on the exact head. UI, CLI, and MCP
+share operations in `src/app/operations.mjs`.
 SQLite owns execution state; Markdown owns design prose.
 
 Keep application source independent of workspace paths and data. Tests use
