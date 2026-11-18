@@ -1245,33 +1245,53 @@ try {
   ) {
     // The driver offers a task to a worker login and reserves the claims its
     // workers ask for (R90.4): each a person's own act at this machine.
-    const planId = need(positionals[1], `spec ${positionals[0]} SPEC ...`);
+    // `spec claims release SPEC TASK` and `spec claims status SPEC`.
+    const sub =
+        positionals[0] === "claims" &&
+        ["release", "status"].includes(positionals[1])
+          ? positionals.splice(1, 1)[0]
+          : null,
+      planId = need(positionals[1], `spec ${positionals[0]} SPEC ...`);
     console.log(
       JSON.stringify(
         await localOrRequest(
-          `spec.${positionals[0]}`,
-          positionals[0] === "offer"
-            ? {
-                planId,
-                task: need(
-                  positionals[2],
-                  "spec offer SPEC TASK --worker LOGIN --repository OWNER/REPO --branch B --commit SHA --base SHA",
-                ),
-                worker: need(options.worker, "--worker LOGIN"),
-                repository: need(options.repository, "--repository OWNER/REPO"),
-                branch: need(options.branch, "--branch B"),
-                commit: need(options.commit, "--commit SHA"),
-                base: need(options.base, "--base SHA"),
-              }
-            : {
-                planId,
-                claims: need(
-                  options.claims,
-                  "spec claims SPEC --claims OWNER/REPO --base BRANCH [--cap N]",
-                ),
-                base: need(options.base, "--base BRANCH"),
-                ...(options.cap ? { cap: Number(options.cap) } : {}),
-              },
+          sub ? `spec.claims.${sub}` : `spec.${positionals[0]}`,
+          sub === "status"
+            ? { planId }
+            : sub === "release"
+              ? {
+                  planId,
+                  task: need(
+                    positionals[2],
+                    "spec claims release SPEC TASK --claims OWNER/REPO",
+                  ),
+                  claims: need(options.claims, "--claims OWNER/REPO"),
+                }
+              : positionals[0] === "offer"
+                ? {
+                    planId,
+                    task: need(
+                      positionals[2],
+                      "spec offer SPEC TASK --worker LOGIN --repository OWNER/REPO --branch B --commit SHA --base SHA",
+                    ),
+                    worker: need(options.worker, "--worker LOGIN"),
+                    repository: need(
+                      options.repository,
+                      "--repository OWNER/REPO",
+                    ),
+                    branch: need(options.branch, "--branch B"),
+                    commit: need(options.commit, "--commit SHA"),
+                    base: need(options.base, "--base SHA"),
+                  }
+                : {
+                    planId,
+                    claims: need(
+                      options.claims,
+                      "spec claims SPEC --claims OWNER/REPO --base BRANCH [--cap N]",
+                    ),
+                    base: need(options.base, "--base BRANCH"),
+                    ...(options.cap ? { cap: Number(options.cap) } : {}),
+                  },
         ),
         null,
         2,

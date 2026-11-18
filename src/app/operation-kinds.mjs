@@ -246,6 +246,8 @@ const EXECUTE = new Set([
   "worker.claim",
   "spec.offer",
   "spec.claims",
+  "spec.claims.release",
+  "spec.claims.status",
   "worker.setup",
   "notifications.deliver",
   "batch.start",

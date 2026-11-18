@@ -17,6 +17,8 @@ export const PERSON_ONLY = new Map([
   ["spec.takeover", person("Only a person takes over a spec.")],
   ["spec.offer", person("Only a person offers a task to a worker.")],
   ["spec.claims", person("Only a person reserves worker claims.")],
+  ["spec.claims.release", person("Only a person releases a worker claim.")],
+  ["spec.claims.status", person("Only a person reads worker claims.")],
   [
     "repository.setup",
     person("Only a person applies repository setup.", (input) =>
