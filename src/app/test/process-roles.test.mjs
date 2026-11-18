@@ -49,6 +49,32 @@ test("Claude Code's read class is dontAsk and may write only its result file", (
     [path.resolve(tmp), path.join(path.resolve(worktree), ".avoozl")],
     "never the task folder itself",
   );
+  // The harness's own cache folders from project config (P59: Claude Code
+  // writes its config folder at start), but none inside the task folder.
+  const cache = path.join(os.tmpdir(), "avoozl-read-claude-config");
+  assert.deepEqual(
+    harnessPermission(definition, {
+      permissionClass: "read",
+      worktree,
+      tmp,
+      cacheDirs: [cache],
+    }).writeRoots,
+    [
+      path.resolve(tmp),
+      path.join(path.resolve(worktree), ".avoozl"),
+      path.resolve(cache),
+    ],
+  );
+  assert.throws(
+    () =>
+      harnessPermission(definition, {
+        permissionClass: "read",
+        worktree,
+        tmp,
+        cacheDirs: [path.join(worktree, "cache")],
+      }),
+    /overlaps the task folder/,
+  );
 });
 
 test("a role child's brief holds its prompt, the brief, and how it finishes", () => {

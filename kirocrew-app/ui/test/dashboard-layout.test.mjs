@@ -49,7 +49,7 @@ test('six tiles link to their views, and only Needs you turns warm, only when so
       ['Running', 1, 'lanes'],
       ['Needs you', 1, 'waiting'],
       ['Waiting', 2, 'graph'],
-      ['Landing queue', 1, 'delivery'],
+      ['Landing queue', 1, 'landing'],
       ['Landed this week', 4, 'flow'],
     ],
   )
