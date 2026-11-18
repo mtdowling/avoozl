@@ -49,7 +49,6 @@ const example = () => ({
       checkout: "../app",
       folder: "Avoozl/example-app",
       baseBranch: "main",
-      coder: "worker",
       allowedActors: ["maintainer-login"],
       minimumPermission: "maintain",
       requiredChecks: ["build", "test"],
@@ -91,23 +90,16 @@ test("the design example validates and keeps every value", () => {
   assert.equal(policy.mode, "plans-repo");
   assert.equal(policy.defaultAuthority, "github");
   assert.equal(policy.project.statusValues.deferred, "Deferred");
-  assert.equal(app.coder, "worker");
+  assert.equal("coder" in app, false);
   assert.equal(app.rules.length, 3);
   assert.equal(app.managedLabels.ready, "agent:ready");
   assert.deepEqual(normalizeGitHubPolicy(undefined).repositories, {});
   assert.equal(normalizeGitHubPolicy({}).defaultAuthority, "local");
-  assert.equal(
-    normalizeGitHubPolicy({
-      mode: "single-repo",
-      repositories: { "a/b": { baseBranch: "main" } },
-    }).repositories["a/b"].coder,
-    "issue-radar",
-  );
 });
 
 // `concurrency` only set Avoozl's retired local workers. An old file keeps
 // reading without error, any value, and nothing reads it: release.capacity is
-// the one knob, defaulting to 2 for Issue Radar and 1 otherwise.
+// the one knob, defaulting to 1. An old `coder` is ignored too.
 test("an old repository concurrency is accepted, any value, and ignored", () => {
   for (const concurrency of [2, 0, 500, "x", null]) {
     const policy = normalizeGitHubPolicy({
@@ -117,7 +109,7 @@ test("an old repository concurrency is accepted, any value, and ignored", () => 
       },
     });
     assert.equal(policy.repositories["example/app"].concurrency, undefined);
-    assert.equal(policy.repositories["example/app"].release.capacity, 2);
+    assert.equal(policy.repositories["example/app"].release.capacity, 1);
     assert.equal(policy.repositories["example/old"].release.capacity, 1);
   }
 });
@@ -135,7 +127,6 @@ test("validation refuses each §4.4 violation", () => {
       /needs github.planningRepository/,
     ],
     [{ defaultAuthority: "github" }, /needs a github.mode/],
-    [app((repo) => (repo.coder = "crew")), /coder must be/],
     [app((repo) => delete repo.baseBranch), /default branch/],
     [
       app((_repo, value) => (value.project.statusValues.ready = "Ready")),

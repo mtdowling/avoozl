@@ -538,7 +538,12 @@ function taskRow({
 }) {
   const { issue, marker, config, labels, section } = entry,
     open = issue.state === "open",
-    ready = open && labelNames(issue).includes(labels.ready),
+    // No ready label goes on a task issue any more (R91.6), so a readiness
+    // already held is kept; a wiped database gets it from the next tick.
+    ready =
+      open &&
+      (labelNames(issue).includes(labels.ready) ||
+        existing?.dispatch?.ready === true),
     applied = marker.applied.project || {},
     base = { ...design, ...(existing ? structuredClone(existing) : {}) };
   // Keep a stored legacy kind that reads the same, so a rerun changes nothing.

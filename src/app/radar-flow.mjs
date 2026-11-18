@@ -1,96 +1,14 @@
 // Flow from GitHub data (RC8.5, design D10): Ready to Claim, Claim to PR, PR
-// to green, green to merge, and flow efficiency, for the issues crews have
-// finished. The times are GitHub's (radar-events.mjs); the arithmetic is
-// flow-github.mjs. Reads only. The reading is cached, since each issue costs
-// a few GitHub calls.
+// to green, green to merge, and flow efficiency, for the issues crews
+// finished. Crews no longer code Avoozl's tasks (R91.6), so nothing new is
+// read: the view shows rows cached before, plus every stored build
+// observation. The arithmetic is flow-github.mjs.
 import { flowFromEvents } from "./flow-github.mjs";
-import { flowTimes, readIssueFacts } from "./radar-events.mjs";
-import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
-import {
-  buildView,
-  observationsFor,
-  receiptReader,
-} from "./build-receipt-read.mjs";
+import { buildView, observationsFor } from "./build-receipt-read.mjs";
 import { peekInstance } from "./instance.mjs";
-import { projectedMarker } from "./github-sync.mjs";
 
 export const FLOW_INTERVAL_MS = 10 * 60 * 1000;
-// shortcut: the latest 20 closed issues carrying the ready label or Avoozl's
-// managed label. The tick takes ready off a closed issue Avoozl projected, so
-// the managed label finds those; an issue that lost both is not found.
-export const FLOW_LIMIT = 20;
 const META = "radarFlow";
-const MANAGED_LABEL_DEFAULT = "avoozl:managed";
-
-// One repository's finished issues as flow rows: closed, with a merged pull
-// request the claim named. An issue with no pull request is not a delivery.
-async function readRows(github, repository, settings, readReceipt) {
-  const label = settings.managedLabels?.ready ?? READY_LABEL_DEFAULT,
-    managed = settings.managedLabels?.managed ?? MANAGED_LABEL_DEFAULT,
-    found = new Map();
-  for (const name of new Set([label, managed]))
-    for (const issue of await github.listIssues(repository, {
-      state: "closed",
-      label: name,
-    }))
-      found.set(issue.number, issue);
-  const issues = [...found.values()]
-      .sort((a, b) => a.number - b.number)
-      .slice(-FLOW_LIMIT),
-    rows = [];
-  for (const { number } of issues) {
-    const facts = await readIssueFacts(github, repository, number, settings);
-    if (facts.pull?.merged_at) {
-      // Every build observation of a merged pull request (R101.4); kept after the
-      // first read, so a repeat costs no call.
-      const builds = await readReceipt(facts.pull);
-      rows.push({
-        ...flowTimes(facts),
-        pullNumber: facts.pull.number,
-        instance: projectedMarker(facts.issue?.body)?.instance ?? null,
-        ...(builds ? { builds } : {}),
-      });
-    }
-  }
-  return rows;
-}
-
-export async function refreshFlow(
-  store,
-  github,
-  policy,
-  { now = Date.now(), force = false } = {},
-) {
-  const old = store.getMeta(META) ?? { readAt: null, repositories: {} };
-  if (!policy?.mode || !github) return old;
-  if (!force && old.readAt && now - Date.parse(old.readAt) < FLOW_INTERVAL_MS)
-    return old;
-  const next = { readAt: new Date(now).toISOString(), repositories: {} },
-    readerFor = receiptReader(store, github);
-  for (const [repository, settings] of Object.entries(
-    policy.repositories || {},
-  )) {
-    if (settings.coder !== "issue-radar") continue;
-    try {
-      next.repositories[repository] = {
-        rows: await readRows(
-          github,
-          repository,
-          settings,
-          readerFor(repository),
-        ),
-        error: null,
-      };
-    } catch (error) {
-      next.repositories[repository] = {
-        rows: old.repositories?.[repository]?.rows ?? [],
-        error: `GitHub could not be read: ${error.message}`,
-      };
-    }
-  }
-  store.setMeta(META, next);
-  return next;
-}
 
 // `radar.flow`: the cached rows, computed. A repository that was never
 // read is simply absent.

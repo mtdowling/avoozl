@@ -275,7 +275,7 @@ test("a review branch derived from private plans is never approved into the code
   assert.equal(github.created.length, 0);
 });
 
-test("a proved public review branch in a mirror keeps default-branch approval", async (t) => {
+test("a proved public review branch in a mirror keeps the plain approval", async (t) => {
   const { root, store } = fixture(t),
     github = new FakeGitHub(),
     git = (...args) =>
@@ -319,9 +319,8 @@ test("a proved public review branch in a mirror keeps default-branch approval", 
     ops.specList().items.find((item) => item.name === "public-one").home,
     "main",
   );
-  const target = ops.approvalPullRequestTarget(plan);
-  assert.equal(target.repository.id, "acme/app-private");
-  assert.equal(target.ref, undefined);
+  // A main-branch home approves by the local receipt (R86.8, R91.6).
+  assert.equal(ops.approvalPullRequestTarget(plan), null);
 });
 
 test("a public spec that requires a private task is named, one that does not passes", async () => {

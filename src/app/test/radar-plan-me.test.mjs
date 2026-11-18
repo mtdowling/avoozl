@@ -412,11 +412,3 @@ test("radar.crews reads on demand and reports what GitHub cannot show", async (t
   );
   assert.deepEqual(view.unseen, ["paused", "machine", "chat"]);
 });
-
-test("radar.flow reads finished issues once and shows stage times", async (t) => {
-  const { ops } = workspace(t, fakeGitHub([recorded(16)])),
-    view = await ops.execute("radar.flow", {});
-  // The recorded issue is open, so nothing has finished.
-  assert.equal(view.count, 0);
-  assert.deepEqual(view.repositories, [REPO]);
-});

@@ -81,10 +81,10 @@ test('the radio fold-out is real radios with motion off under reduced motion, an
   assert.deepEqual(MODE_CARDS.map((card) => card.mode), ['local', 'plans-repo', 'single-repo'])
   for (const card of MODE_CARDS) {
     assert.ok(card.useWhen.length >= 3)
-    assert.equal(card.facts.length, 4)
+    assert.equal(card.facts.length, 3)
   }
   assert.equal(MODE_CARDS[1].line, 'Specs and their related issues live in a private planning repository; code and pull requests live in the code repositories.')
-  assert.match(MODE_CARDS[1].facts[3][1], /Radar crew opens pull requests only in its own repository/)
+  assert.match(MODE_CARDS[1].facts[2][1], /only in the planning repository/)
   assert.match(MODE_CARDS[2].facts[0][1], /Closes #N/)
   // One radiogroup of real radio inputs; the whole header is the label.
   assert.match(fold, /role="radiogroup"/)
@@ -114,12 +114,12 @@ test('no mode is Local only', () => {
 
 test('each mode shows only the settings it reads, and Local only keeps the rest', () => {
   const local = visibleSettings('local')
-  for (const key of ['triggers', 'requiredChecks', 'pullRequestReviews', 'projectFields', 'setupGitHub', 'coder', 'planningRepository', 'issueRadarCrews'])
+  for (const key of ['triggers', 'requiredChecks', 'pullRequestReviews', 'projectFields', 'setupGitHub', 'planningRepository'])
     assert.ok(!local.has(key), key)
   for (const key of ['landingBranch', 'workerChats', 'reviewerChats', 'localChecks']) assert.ok(local.has(key), key)
   const single = visibleSettings('single-repo')
   assert.ok(!single.has('planningRepository'))
-  assert.ok(single.has('issueRadarCrews') && single.has('setupGitHub'))
+  assert.ok(single.has('setupGitHub'))
   const plans = visibleSettings('plans-repo')
   assert.ok(plans.has('planningRepository') && !plans.has('issueRadarCrews'))
   assert.equal(LOCAL_HIDDEN_LINE, 'Labels, checks, reviews and the Project board only apply to GitHub modes.')
@@ -207,11 +207,10 @@ test('GitHub: every group is its own tab and bordered section, and Radar setting
   // GitHub calls is a bordered section of its own.
   assert.match(settings, /<Card>\s*<Section title="GitHub calls"/)
   const radar = settings.slice(settings.indexOf('function RadarSettings('), settings.indexOf('export function ProjectFields'))
-  assert.match(radar, /<CrewScope crew=\{crew\} \/>/)
-  assert.match(radar, /<RadarValuesScreen key=\{crew\.repository\}/)
+  // The crew scope and Radar values were Radar coding (R91.6).
+  assert.doesNotMatch(radar, /CrewScope|RadarValuesScreen|ReleaseModePicker/)
   assert.match(settings, /tab === 'radar' \? \(\s*<RadarSettings/)
   assert.match(settings, /\n  radar:\s*\n?\s*['"]/)
-  assert.doesNotMatch(source('RadarValues.tsx'), /FieldBox/)
   assert.equal(redirectSettings('issue-radar'), 'radar')
   assert.equal(redirectSettings('radar-values'), 'radar')
   assert.equal(redirectSettings('github'), 'github')
@@ -297,16 +296,16 @@ const body = (start) => {
   return settings.slice(at, settings.indexOf('\n}\n', at))
 }
 
-test('Settings › Issue Radar holds every Radar setting, each in its own section box with one line', () => {
+test('Settings › Issue Radar holds every Radar intake setting, each in its own section box with one line', () => {
   const page = body('function RadarSettings(')
   const titles = [...page.matchAll(/<Section title=\{?["']?([^"'}]+)/g)].map((m) => m[1])
-  assert.deepEqual(titles, ['Issue Radar', 'Repository', 'Radar crew', 'Handoff to Avoozl', 'Labels Radar uses', 'Crew review rules', 'Crew pull-request conflicts', 'CREW_PART_TEXT.merge.title'])
+  assert.deepEqual(titles, ['Issue Radar', 'Repository', 'Handoff to Avoozl', 'Labels Radar uses', 'Crew review rules', 'Crew pull-request conflicts', 'CREW_PART_TEXT.merge.title'])
   assert.equal((page.match(/<Section title=/g) ?? []).length, (page.match(/<Section title=[^>]*blurb=/g) ?? []).length)
-  for (const part of ['<CrewScope ', '<ReleaseModePicker', '<RadarValuesScreen', '<AvoozlLabelFields', 'crewLabels.${key}', '<ReviewRulesFields', '<ConflictFields', '<MergeMethodFields'])
+  for (const part of ['<AvoozlLabelFields', 'crewLabels.${key}', '<ReviewRulesFields', '<ConflictFields', '<MergeMethodFields'])
     assert.ok(page.includes(part), part)
   // Each section box is a Card around one Section; nothing loose between them.
   const tops = [...page.slice(page.indexOf('data-radar-settings')).matchAll(/\n {6}(<\w+|\{\w+)/g)].map((m) => m[1])
-  assert.deepEqual(tops, ['{names', '<Card', '{crew', '<Card', '<Card', '<Card', '<Card', '<Card'])
+  assert.deepEqual(tops, ['{names', '<Card', '<Card', '<Card', '<Card', '<Card'])
   // The repository editor keeps no Radar field and no Crews and rules tab.
   const editor = body('export function RepositoryEditor(')
   assert.doesNotMatch(editor, /CrewsRulesSettings|ReleaseModePicker|crewLabels|Issue Radar labels|tab === 'crews'/)

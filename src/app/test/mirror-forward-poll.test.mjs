@@ -17,11 +17,6 @@ import { mirrorForwardRows } from "../mirror-forward.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 import { throughClient } from "./crew-label-client.mjs";
-import { setRadarHandoverPaused } from "../coder-adapter.mjs";
-
-// These tests cover the Radar hand-over kept while Phase 45 is paused
-// (R103.4 pauses it in the product).
-setRadarHandoverPaused(false);
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
@@ -283,6 +278,8 @@ function gate(t, { at = SOURCE } = {}) {
         repository: { nameWithOwner: at },
       },
     ],
+    // Every leaf is the Avoozl worker's, on its linked branch (R91.6).
+    branchPullRequests: async () => [],
     pullRequestReviews: async () => [],
     checkRuns: async () => [{ id: 1, name: "build", conclusion: "success" }],
     commitStatus: async () => ({ statuses: [] }),

@@ -15,7 +15,7 @@ export type EditTab = (typeof EDIT_TABS)[number]['key']
 // The entry fields each tab edits. Role is on General and the public
 // repository on Mirror; both are kept apart from the entry.
 export const EDIT_TAB_FIELDS: Record<EditTab, readonly (keyof RepositoryForm)[]> = {
-  general: ['name', 'coder'],
+  general: ['name'],
   landing: ['baseBranch', 'releaseCapacity', 'requiredChecks', 'pullRequestReviews', 'reviewApprovals'],
   github: ['cacheSeconds', 'rules', 'managedLabels', 'untriaged', 'minimumPermission', 'allowedActors', 'priority'],
   mirror: ['mirror'],

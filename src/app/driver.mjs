@@ -18,7 +18,6 @@ import {
   MACHINE_ID,
   parseMarker,
   planningIdentity,
-  radarIssueRepository,
   renderMarker,
   requireNamespace,
 } from "./github-marker.mjs";
@@ -259,8 +258,6 @@ function planIssueConfig(store, plan, identity) {
   const own =
       projectId && configs.find((entry) => entry.projectId === projectId),
     config =
-      // An `issue-radar` code repository holds its own plan issue (D4.1).
-      (own && radarIssueRepository(identity, own.id) ? own : null) ||
       (identity.mode === "plans-repo"
         ? configs.find((entry) => same(entry.id, identity.planningRepository))
         : null) ||

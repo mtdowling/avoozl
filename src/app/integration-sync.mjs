@@ -20,10 +20,7 @@ const keyOf = (repository, branch) => `${repository}@${branch}`;
 export function syncTargets(store, policy) {
   const targets = [],
     problems = [],
-    registered = Object.keys(policy?.repositories || {}),
-    radar = registered.filter(
-      (id) => policy.repositories[id].coder === "issue-radar",
-    );
+    registered = Object.keys(policy?.repositories || {});
   const plans = store
     .list("plans")
     .filter((plan) => plan.approvalId && !plan.deletedAt)
@@ -57,12 +54,12 @@ export function syncTargets(store, policy) {
       problems.push(
         `${plan.spec}: its tasks name two or more repositories (${named.join(", ")}), so Avoozl cannot pick one for ${wanted.branch}.`,
       );
-    else if (named.length === 0 && radar.length !== 1)
+    else if (named.length === 0 && registered.length !== 1)
       problems.push(
-        `${plan.spec}: its tasks name no repository and there is not exactly one Issue Radar repository for ${wanted.branch}.`,
+        `${plan.spec}: its tasks name no repository and there is not exactly one registered repository for ${wanted.branch}.`,
       );
     else {
-      const repository = named[0] ?? radar[0];
+      const repository = named[0] ?? registered[0];
       if (!registered.includes(repository))
         problems.push(
           `${plan.spec}: ${repository} is not a registered repository.`,

@@ -1,8 +1,6 @@
-// rc-4.1: release capacity per repository and per scope. Fake GitHub only.
-// Nearby inputs checked: N=0; N larger than the eligible tasks; five eligible
-// tasks with N=2; a claimed issue (keeps its slot, never touched); two
-// scopes; an unknown scope name; a repeated tick; ready labels not ours that
-// count against N; defaults for issue-radar and worker; invalid settings.
+// rc-4.1: release capacity per repository and per scope: the pure engine and
+// the settings checks. The ready-label release to Issue Radar crews went with
+// Who codes (R91.6).
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -11,169 +9,13 @@ import {
   releaseFor,
   scopeLabelOf,
 } from "../radar-coder-release.mjs";
-import {
-  CLAIM,
-  READY,
-  labelsOf,
-  leaf,
-  setup,
-} from "./radar-coder-release-fixture.mjs";
-import { setRadarHandoverPaused } from "../coder-adapter.mjs";
-
-// These tests cover the Radar hand-over kept while Phase 45 is paused
-// (R103.4 pauses it in the product).
-setRadarHandoverPaused(false);
+import { CLAIM, READY, leaf, setup } from "./radar-coder-release-fixture.mjs";
 
 const five = () => ["a", "b", "c", "d", "e"].map((id) => leaf("leaf-" + id));
-
-test("with N=2 and five eligible tasks, two get the label in graph order", async (t) => {
-  const w = await setup(t, { release: { capacity: 2 } }, five());
-  await w.tick();
-  assert.deepEqual(w.readyIds(), w.approved.taskIds.slice(0, 2));
-});
-
-test("a second tick writes nothing", async (t) => {
-  const w = await setup(t, { release: { capacity: 2 } }, five());
-  await w.tick();
-  const labels = w.github.labels.length,
-    updated = w.github.updated.length,
-    created = w.github.created.length;
-  await w.tick();
-  await w.tick();
-  assert.equal(w.github.labels.length, labels);
-  assert.equal(w.github.updated.length, updated);
-  assert.equal(w.github.created.length, created);
-});
-
-test("a claimed issue keeps its slot and its labels; a freed slot goes to the next task", async (t) => {
-  const w = await setup(t, { release: { capacity: 2 } }, five());
-  await w.tick();
-  const [first, second, third] = w.approved.taskIds;
-  w.issueOf(first).labels.push({ name: CLAIM });
-  await w.tick();
-  assert.deepEqual(w.readyIds(), [first, second]);
-  // The claimed issue is never touched, even with an old label write pending.
-  assert.equal(
-    w.github.labels.some(([kind, , l]) => kind === "remove" && l === READY),
-    false,
-  );
-  assert.deepEqual(w.readyIds(), [first, second]);
-  assert.equal(labelsOf(w.issueOf(third)).includes(READY), false);
-  // The claimed issue's task is blocked by nothing now; a claim on a second
-  // issue keeps both slots, so the third still waits.
-  w.issueOf(second).labels.push({ name: CLAIM });
-  await w.tick();
-  assert.deepEqual(w.readyIds(), [first, second]);
-  assert.equal(labelsOf(w.issueOf(first)).includes(CLAIM), true);
-});
 
 // Live run of Proof 4: a crew claimed an issue and opened its pull request;
 // the task then left the ready queue (in review), and its slot was given to
 // the next task while the claimed issue still held the label.
-test("an open holder whose task left the ready queue still counts against N", async (t) => {
-  const w = await setup(t, { release: { capacity: 1 } }, five());
-  await w.tick();
-  const [first, second] = w.approved.taskIds;
-  w.issueOf(first).labels.push({ name: CLAIM });
-  w.store.mutate("In review", (data) => {
-    data.tasks.find((task) => task.id === first).status = "review";
-  });
-  await w.tick();
-  assert.equal(labelsOf(w.issueOf(first)).includes(READY), true);
-  assert.equal(labelsOf(w.issueOf(second)).includes(READY), false);
-});
-
-test("N=0 releases nothing", async (t) => {
-  const w = await setup(t, { release: { capacity: 0 } }, five());
-  await w.tick();
-  assert.deepEqual(w.readyIds(), []);
-  assert.equal(
-    w.github.labels.some(([kind]) => kind === "add" && false),
-    false,
-  );
-});
-
-test("N larger than the eligible tasks labels every eligible task and no more", async (t) => {
-  const w = await setup(t, { release: { capacity: 9 } }, [
-    leaf("free-one"),
-    leaf("free-two"),
-    leaf("later", { requires: ["free-one"] }),
-  ]);
-  await w.tick();
-  assert.deepEqual(w.readyIds(), w.approved.taskIds.slice(0, 2));
-});
-
-test("two scopes release independently, each up to its own N", async (t) => {
-  const tasks = [
-      leaf("code-a"),
-      leaf("code-b"),
-      leaf("docs-a", { scope: "docs-ready" }),
-      leaf("docs-b", { scope: "docs-ready" }),
-      leaf("docs-c", { scope: "docs-ready" }),
-    ],
-    w = await setup(
-      t,
-      {
-        release: {
-          capacity: 1,
-          scopes: [{ label: "docs-ready", capacity: 2 }],
-        },
-      },
-      tasks,
-    );
-  await w.tick();
-  const [codeA, codeB, docsA, docsB, docsC] = w.approved.taskIds,
-    has = (id, label) => labelsOf(w.issueOf(id)).includes(label);
-  assert.deepEqual(
-    [codeA, codeB].filter((id) => has(id, READY)),
-    [codeA],
-  );
-  assert.deepEqual(
-    [docsA, docsB, docsC].filter((id) => has(id, "docs-ready")),
-    [docsA, docsB],
-  );
-  assert.equal(has(docsA, READY), false);
-  // Claiming a docs issue frees nothing in the code scope.
-  w.issueOf(docsA).labels.push({ name: CLAIM });
-  await w.tick();
-  assert.equal(has(codeB, READY), false);
-  assert.equal(has(docsC, "docs-ready"), false);
-});
-
-test("a task naming an unknown scope falls back to the repository's ready label", async (t) => {
-  const w = await setup(t, { release: { capacity: 1 } }, [
-    leaf("odd", { scope: "nobody" }),
-  ]);
-  await w.tick();
-  assert.deepEqual(w.readyIds(), w.approved.taskIds);
-});
-
-test("ready issues Avoozl does not own count against N", async (t) => {
-  const w = await setup(t, { release: { capacity: 2 } }, five());
-  w.github.created.push({
-    id: 700,
-    repository: "example/code",
-    node_id: "issue-700",
-    number: 700,
-    state: "open",
-    title: "Someone's",
-    body: "no marker",
-    labels: [{ name: "avoozl" }, { name: READY }],
-    assignees: [],
-  });
-  await w.tick();
-  assert.equal(w.readyIds().length, 1);
-});
-
-test("N defaults to 2 for issue-radar and to no cap for worker", async (t) => {
-  const radar = await setup(t, {}, five());
-  await radar.tick();
-  assert.equal(radar.readyIds().length, 2);
-  const worker = await setup(t, {}, five(), "worker");
-  await worker.tick();
-  assert.equal(worker.readyIds().length, 5);
-});
-
 test("bad release settings are refused", async (t) => {
   for (const [release, message] of [
     [{ capacity: -1 }, /release\.capacity must be a whole number/],
@@ -205,22 +47,12 @@ test("planRelease: claimed holders keep their label even above the cap", () => {
 });
 
 test("releaseFor: defaults and fallbacks", () => {
-  assert.equal(releaseFor({}, "single-repo").capacity, 2);
-  assert.equal(
-    releaseFor({ coder: "worker" }, "single-repo").capacity,
-    Infinity,
-  );
-  // The retired `concurrency` key is ignored.
-  assert.equal(
-    releaseFor({ coder: "worker", concurrency: 3 }).capacity,
-    Infinity,
-  );
-  assert.equal(releaseFor({ concurrency: 9 }, "single-repo").capacity, 2);
+  assert.equal(releaseFor({}).capacity, Infinity);
+  // An old file's `coder` and the retired `concurrency` key are ignored.
+  assert.equal(releaseFor({ coder: "issue-radar" }).capacity, Infinity);
+  assert.equal(releaseFor({ concurrency: 3 }).capacity, Infinity);
   assert.deepEqual(
-    releaseFor(
-      { release: { capacity: 4, scopes: [{ label: "d" }] } },
-      "single-repo",
-    ),
+    releaseFor({ release: { capacity: 4, scopes: [{ label: "d" }] } }),
     {
       capacity: 4,
       mode: "automatic",

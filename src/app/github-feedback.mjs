@@ -1,7 +1,7 @@
 // Pull request feedback (design §4.13, Requirement 54, tasks 15.1–15.4).
 // Each tick reads the open pull request of every leaf an Avoozl worker
-// codes on its linked branch (plans-repo leaves and single-repo `coder:
-// worker` leaves, never Issue Radar's), finds failed checks, changes
+// codes on its linked branch (plans-repo and single-repo leaves), finds
+// failed checks, changes
 // requested, comments by allowed actors, conflicts, and auto-merge off, and
 // sends what is new to the leaf's writer once: one message per pull request
 // per tick. Avoozl writes nothing to GitHub here; only the worker acts.

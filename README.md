@@ -349,10 +349,11 @@ still reads the old `routing.rules`, `routing.pick` and `routing.router` keys.
 
 ## Coders
 
-A task's executor is a Kiro Crew chat or a process harness (see **Settings >
-Models**). The `coder` setting and the Issue Radar hand-over are still in the
-code, but Issue Radar stays off Avoozl's own task issues, and the `worker`
-coder gets upkeep only.
+The Avoozl worker is the only coder. A task's executor is a Kiro Crew chat or
+a process harness, chosen per role in **Settings > Models**. Issue Radar is an
+intake source only: its escalations show first in Triage, and it stays off
+Avoozl's own issues. An old `coder` key in `.avoozl.json` still loads and is
+ignored.
 
 ## Pull request feedback
 
