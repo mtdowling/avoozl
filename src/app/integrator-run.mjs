@@ -657,6 +657,8 @@ export async function runTrain(store, ctx) {
             workflow: settings.ci.workflow,
             train: id,
             platforms: viaCi,
+            capacity: settings.capacity?.ci,
+            jobPlatforms: settings.ci.jobPlatforms,
             policy,
             root,
             url,
@@ -668,7 +670,11 @@ export async function runTrain(store, ctx) {
             ...(ctx.ciOptions ?? {}),
             ...extra,
           });
-          return { ...out, result: out.state === "passed" ? "ok" : out.state };
+          return {
+            ...out,
+            result: out.state === "passed" ? "ok" : out.state,
+            detail: out.waited,
+          };
         });
 
       let checks = cheap.checks.map((c) => ({

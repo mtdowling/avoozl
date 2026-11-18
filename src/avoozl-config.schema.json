@@ -450,6 +450,27 @@
                 "waitForLastTrain": {
                   "type": "boolean",
                   "default": false
+                },
+                "jobPlatforms": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "capacity": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "ci": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 32
+                  }
                 }
               }
             },
@@ -679,6 +700,27 @@
                       "waitForLastTrain": {
                         "type": "boolean",
                         "default": false
+                      },
+                      "jobPlatforms": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  },
+                  "capacity": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "ci": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 32
+                        }
                       }
                     }
                   },

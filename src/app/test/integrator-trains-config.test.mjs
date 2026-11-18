@@ -302,3 +302,31 @@ test("scheduling.overlap defaults to same-train and refuses other values", () =>
     /scheduling\.overlap must be one of same-train, serialize/,
   );
 });
+
+test("capacity.ci and ci.jobPlatforms load, and bad counts are refused", () => {
+  const ok = setup({
+    repo: trains({
+      ci: { jobPlatforms: { "test (macos)": "macos-arm64" } },
+      capacity: { ci: { "macos-arm64": 2 } },
+    }),
+    global: { machine: macNative },
+  }).load();
+  const s = trainSettings(ok.config, "main");
+  assert.deepEqual(s.capacity.ci, { "macos-arm64": 2 });
+  assert.equal(s.ci.jobPlatforms["test (macos)"], "macos-arm64");
+  assert.deepEqual(
+    trainSettings(
+      setup({ repo: trains(), global: { machine: macNative } }).load().config,
+      "main",
+    ).capacity,
+    { ci: {} },
+  );
+  assert.throws(
+    () =>
+      setup({
+        repo: trains({ capacity: { ci: { "macos-arm64": 0 } } }),
+        global: { machine: macNative },
+      }).load(),
+    /capacity\.ci\.macos-arm64 must be a whole number 1–32/,
+  );
+});
