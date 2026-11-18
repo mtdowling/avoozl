@@ -1299,8 +1299,8 @@ if (query.get('page') === 'models' || query.get('page') === 'app') {
     models: { planner: 'fake-writer' },
     harnesses: {},
     harnessDefinitions: [
-      { name: 'claude-code', approved: true },
-      { name: 'codex', approved: false },
+      { name: 'claude-code', approved: true, model: true },
+      { name: 'codex', approved: false, model: false },
     ],
   }
   answer('GET /api/models', () => ['fake-writer', 'fake-reviewer'])
