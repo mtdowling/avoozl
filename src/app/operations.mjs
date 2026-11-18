@@ -484,6 +484,7 @@ import {
   driverTick,
   handoff,
   pullStatus,
+  claimWork,
   pullWork,
   remoteView,
   readRunnerConfig,
@@ -579,7 +580,10 @@ import {
 } from "./spec-plans.mjs";
 import { publishSpec } from "./spec-publication.mjs";
 import { specLinks } from "./scm-links.mjs";
-import { takeOverSpec } from "./spec-takeover.mjs";
+import { specAuthority, takeOverSpec } from "./spec-takeover.mjs";
+import { publishOffer, reserveClaims } from "./worker-claims.mjs";
+import { driverIdOf } from "./spec-scheduler.mjs";
+import { taskDefinition } from "./task-outcomes.mjs";
 import { repositorySetup } from "./repository-setup.mjs";
 import { reanchorSpec, resumeSpec } from "./spec-reanchor.mjs";
 import {
@@ -3151,6 +3155,8 @@ export class Operations {
       return handoff(store, this.workspaceRoot, input);
     if (name === "remote.pull")
       return pullStatus(store, this.workspaceRoot, input);
+    if (name === "worker.claim")
+      return claimWork(store, this.workspaceRoot, this.github);
     if (name === "worker.setup") {
       const config = readRunnerConfig(this.workspaceRoot);
       if (config?.role !== "worker")
@@ -6619,6 +6625,62 @@ export class Operations {
             this.configuration?.updateExecutionProject(project);
           },
         },
+      );
+    }
+    // The driver's side of worker claims (R90.4): offer a task to a worker
+    // login, and reserve and acknowledge the requests. A person's own act at
+    // this machine; no session or MCP caller.
+    if (name === "spec.offer" || name === "spec.claims") {
+      if (context.caller || context.mcp)
+        fail("Only a person drives worker offers and claims.", 403);
+      const authority = await specAuthority(
+          store,
+          {
+            github: this.github,
+            workspaceRoot: this.workspaceRoot,
+            actor: this.operator,
+          },
+          input.planId,
+        ),
+        driver = driverIdOf(store, input.planId);
+      if (!driver) fail("Take over the spec first.", 409);
+      const driving = {
+        driver,
+        owner: authority.owner,
+        login: authority.login,
+        spec: input.planId,
+      };
+      if (name === "spec.claims")
+        return reserveClaims({
+          ...driving,
+          github: this.github,
+          journal: authority.journal,
+          options: authority.options,
+          claims: input.claims,
+          base: input.base,
+          ...(input.cap ? { cap: input.cap } : {}),
+        });
+      const task = store.read().tasks.find((t) => t.id === input.task);
+      if (!task) fail("Task not found.", 404);
+      return publishOffer(
+        authority.journal,
+        {
+          ...driving,
+          task: task.id,
+          definition: taskDefinition({
+            id: task.id,
+            title: task.title,
+            acceptance: task.acceptance ?? null,
+          }),
+          worker: input.worker,
+          ref: {
+            repository: input.repository,
+            branch: input.branch,
+            commit: input.commit,
+          },
+          base: input.base,
+        },
+        authority.options,
       );
     }
     if (name === "spec.takeover") {

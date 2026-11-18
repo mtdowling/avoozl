@@ -1634,7 +1634,7 @@ GitHub, and a race between two workers shows exactly one claim wins.
 - [x] 43.2 Pull minimal offers and qualified task refs, after 43.1 [R90.3, R90.5, R102.7] (§4.32)
   - Read authorized offers from the spec journal, not ready issues. Resolve source repository/ref/SHA including forks separately from target/base; at most one offer per free lane. An unregistered URL cannot create a clone or command.
 
-- [ ] 43.3 Canonical claim reservation and generation acknowledgment, after 43.2 [R90.4, R102.14] (§4.32)
+- [x] 43.3 Canonical claim reservation and generation acknowledgment, after 43.2 [R90.4, R102.14] (§4.32)
   - Reserve one task ref in the spec's canonical claim namespace before acknowledging a worker. A worker without write access requests reservation. Race two forks with identically named branches: one acknowledgment, no loser execution; an over-cap request never starts. Comments are not CAS.
 
 - [ ] 43.4 Person-only release and stale-claim status, after 43.3 [R90.6, R102.14] (§4.32)
