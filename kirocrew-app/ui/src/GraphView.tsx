@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
 import { Tooltip } from './Tooltip.tsx'
+import { EdgeList } from './EdgeList.tsx'
 import { DRAG_SLOP } from './drag-pan.ts'
 import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
@@ -286,33 +287,22 @@ function Details(props: {
               </dd>
             </>
           )}
-          <dt className="text-muted">Waits on</dt>
-          <dd>
-            {waitsOn.length === 0
-              ? 'nothing'
-              : waitsOn.map((item, i) => (
-                  <span key={item.id}>
-                    {i > 0 && ', '}
-                    <button type="button" className="underline" onClick={() => props.onSelect(item.id)}>
-                      {item.id}
-                    </button>{' '}
-                    <span className="text-muted">({item.satisfied ? 'met' : 'waiting'})</span>
-                  </span>
-                ))}
-          </dd>
-          <dt className="text-muted">Blocks</dt>
-          <dd>
-            {blocks.length === 0
-              ? 'nothing'
-              : blocks.map((item, i) => (
-                  <span key={item.id}>
-                    {i > 0 && ', '}
-                    <button type="button" className="underline" onClick={() => props.onSelect(item.id)}>
-                      {item.id}
-                    </button>
-                  </span>
-                ))}
-          </dd>
+          {waitsOn.length > 0 && (
+            <>
+              <dt className="text-muted">Waits on</dt>
+              <dd>
+                <EdgeList label="Waits on" items={waitsOn.map((item) => ({ id: item.id, text: item.id, note: item.satisfied ? 'met' : 'waiting' }))} onOpen={props.onSelect} />
+              </dd>
+            </>
+          )}
+          {blocks.length > 0 && (
+            <>
+              <dt className="text-muted">Blocks</dt>
+              <dd>
+                <EdgeList label="Blocks" items={blocks.map((item) => ({ id: item.id, text: item.id }))} onOpen={props.onSelect} />
+              </dd>
+            </>
+          )}
         </dl>
       </div>
     </Card>

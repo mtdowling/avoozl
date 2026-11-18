@@ -80,8 +80,10 @@ export interface TaskSummary {
   hash: string
 }
 
-// The task details tabs. One rule for all: every tab shows; a tab with
-// nothing to show says so in a muted line (tabHasData).
+// The task details tabs. One rule for all: a tab or section with no data is
+// not drawn at all, with no empty-state line (tabHasData, visibleTabs).
+// Links stays because Add link lives there; Overview and Details always
+// have the task's own fields.
 export const TASK_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'timeline', label: 'Timeline' },
@@ -94,14 +96,17 @@ export type TaskTab = (typeof TASK_TABS)[number]['key']
 export const TASK_TAB_KEYS = TASK_TABS.map((tab) => tab.key)
 export const TASK_TAB_PARAM = 'task-tab'
 
-// Whether a tab has anything to show. Overview, Links (Add link) and Details
-// always do.
+// Whether a tab has anything to show.
 export function tabHasData(tab: TaskTab, detail: TaskDetail, reviewRunCount: number): boolean {
   if (tab === 'timeline') return Boolean(detail.steps?.length || detail.timeline.length)
   if (tab === 'work') return Boolean(detail.delivery)
   if (tab === 'review') return reviewRunCount > 0 || Boolean(detail.task.handSetReview)
   return true
 }
+
+// The tabs to draw, in order. An address or link that names a hidden tab
+// lands on Overview.
+export const visibleTabs = (detail: TaskDetail, reviewRunCount: number) => TASK_TABS.filter((tab) => tabHasData(tab.key, detail, reviewRunCount))
 
 // One GitHub item a task links to. The backend builds `url` from validated
 // fields only.

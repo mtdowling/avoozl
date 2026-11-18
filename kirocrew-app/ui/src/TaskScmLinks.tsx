@@ -25,8 +25,8 @@ function Out(props: { to: string | null | undefined; children: ReactNode }) {
   )
 }
 
-function Item({ link }: { link: ScmLink | null }) {
-  return link ? <Out to={link.url}>{scmLabel(link)}</Out> : <span className="text-muted">none</span>
+function Item({ link }: { link: ScmLink }) {
+  return <Out to={link.url}>{scmLabel(link)}</Out>
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -55,14 +55,18 @@ export function Checks({ checks }: { checks: ScmChecks }) {
   )
 }
 
+// A row with nothing to show is not drawn; with no rows at all, nothing is.
 export function TaskScmLinks({ links }: { links: TaskScmLinks | null | undefined }) {
   const set = links ?? null
+  if (!set || !(set.branch || set.worktree || set.pr || set.checks || set.landed || set.issue || set.source)) return null
   return (
     <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }} data-scm-links>
-      <Row label="Branch">
-        <Item link={set?.branch ?? null} />
-      </Row>
-      {set?.worktree && (
+      {set.branch && (
+        <Row label="Branch">
+          <Item link={set.branch} />
+        </Row>
+      )}
+      {set.worktree && (
         <Row label="Worktree">
           <code className="text-xs" style={{ overflowWrap: 'anywhere' }} data-worktree-path>
             {set.worktree.path}
@@ -70,24 +74,30 @@ export function TaskScmLinks({ links }: { links: TaskScmLinks | null | undefined
           <span className="text-xs text-muted">on this machine</span>
         </Row>
       )}
-      <Row label="Pull request">
-        {set?.pr ? (
+      {set.pr && (
+        <Row label="Pull request">
           <span>
             <Out to={set.pr.url}>{scmLabel(set.pr)}</Out>
             {set.pr.state !== 'unknown' && <span className="text-xs text-muted"> · {set.pr.state}</span>}
           </span>
-        ) : (
-          <span className="text-muted">none</span>
-        )}
-      </Row>
-      <Row label="Checks">{set?.checks ? <Checks checks={set.checks} /> : <span className="text-muted">none</span>}</Row>
-      <Row label="Landed">
-        <Item link={set?.landed ?? null} />
-      </Row>
-      <Row label="Issue">
-        <Item link={set?.issue ?? null} />
-      </Row>
-      {set?.source && (
+        </Row>
+      )}
+      {set.checks && (
+        <Row label="Checks">
+          <Checks checks={set.checks} />
+        </Row>
+      )}
+      {set.landed && (
+        <Row label="Landed">
+          <Item link={set.landed} />
+        </Row>
+      )}
+      {set.issue && (
+        <Row label="Issue">
+          <Item link={set.issue} />
+        </Row>
+      )}
+      {set.source && (
         <Row label="Came from">
           <Item link={set.source} />
         </Row>

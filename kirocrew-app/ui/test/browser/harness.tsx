@@ -43,7 +43,8 @@ import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
 import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
-import { answerIntake } from './intake-fixture.ts'
+import type { EditTab } from '../../src/repo-edit-tabs.ts'
+import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
@@ -166,7 +167,14 @@ answer('task.summary.request', (body) => {
   if ((body.input as { retry?: boolean }).retry) return summaryAt('working')
   return summaryAt(query.get('summary') === 'failed' || summaryAsks < 2 ? 'working' : 'ready')
 })
+// The spec file the task came from: 40 lines, the task's own at 20–21.
+const SPEC_LINES = Array.from({ length: 40 }, (_, i) => `Spec line ${i + 1}`)
+answer('document.get', () => ({ id: '.kiro/specs/team/tasks.md', title: 'tasks.md', text: SPEC_LINES.join('\n') }))
 const baseDetail = () => ({
+  origin: {
+    kind: 'spec', label: 'Spec task', text: 'From .kiro/specs/team/tasks.md, lines 20–21.', spec: null, plan: null,
+    sources: [{ document: '.kiro/specs/team/tasks.md', title: null, lineStart: 20, lineEnd: 21, checked: null, readable: true }],
+  },
   summary: summaryAt(query.get('summary') ?? 'none'),
   revision: 1,
   task: {
@@ -213,7 +221,7 @@ const baseDetail = () => ({
 answer('task.detail', () => baseDetail())
 answer('task.evidence', () => ({
   taskId: 'team-review',
-  entries: [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],
+  entries: query.get('evidence') === 'none' ? [] : [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],
 }))
 answer('task.notes.list', () => ({
   taskId: 'team-review',
@@ -566,6 +574,12 @@ if (query.get('page') === 'app') {
     ] }))
   // Add repository and Set up GitHub and import specs read a folder the same way.
   if (roles) {
+    // Save writes are recorded in __harness.calls.
+    if (!replyFor('github.settings.update'))
+      answer('github.settings.update', (body) => {
+        state.calls.push(body)
+        return replyFor('github.settings.get')!({})
+      })
     answer('repositories.detect', (body) => ({ root: (body.input as { folder: string }).folder, id: 'new-service', baseBranch: 'main', remote: 'git@github.com:acme/new-service.git', github: 'acme/new-service' }))
     answer('repositories.configure', (body) => ({ id: (body.input as { id: string }).id, name: (body.input as { id: string }).id, localCheckout: (body.input as { localCheckout: string }).localCheckout, github: 'acme/new-service', baseBranch: 'main' }))
     answer('onboarding.inspect', (body) => ({
@@ -1257,13 +1271,14 @@ if (query.get('page') === 'github-flow' || (query.get('page') === 'app' && query
         }
       : {}),
   }))
-// ?page=repo-mode: one repository's Edit body on its Mode and branch tab.
+// ?page=repo-mode: one repository's Edit body on its Landing tab.
 function RepoModePage() {
   const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('acme/recipe-box'))
+  const [tab, setTab] = useState<EditTab>('landing')
   const choices = { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] }
   return (
     <NavHistoryProvider>
-      <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" onChange={setRepository} />
+      <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" tab={tab} onTab={setTab} onChange={setRepository} />
     </NavHistoryProvider>
   )
 }
@@ -1682,6 +1697,12 @@ if (page === 'forward') {
 }
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
+// &plugins=many|none: Settings > Plugins with eight plugins, or none.
+if (query.get('plugins')) {
+  const many = query.get('plugins') === 'many'
+  const rows = Array.from({ length: 8 }, (_, i) => ({ ...PLUGINS[i % 2], id: `${PLUGINS[i % 2].id}-${i + 1}` }))
+  answer('plugins.list', () => ({ supportedContracts: [1], routes: [], plugins: many ? rows : [] }))
+}
 
 // ?page=panel&sid=<chat>&state=full|empty: the side panel on sample reads.
 // window.__panel holds what the reads return, so a test can change it and see

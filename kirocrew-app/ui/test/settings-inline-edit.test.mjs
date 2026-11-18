@@ -119,6 +119,9 @@ for (const width of [1280, 390]) {
     await page.until(`Boolean(document.querySelector('[data-repository-list]'))`)
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-repository-list] input, [data-repository-list] select').length`), 0, 'no fields in the list')
     assert.ok(await page.evaluate(`(() => { const b = document.querySelector('[data-repository-list] button[aria-label="Edit recipe-box"]'); if (b) b.click(); return Boolean(b) })()`))
+    // The default branch is on the dialog's Landing tab.
+    await page.until(`Boolean(document.querySelector('dialog[data-repository-edit] [role=tab][data-tab="landing"]'))`)
+    await page.evaluate(`document.querySelector('dialog[data-repository-edit] [role=tab][data-tab="landing"]').click()`)
     await page.until(`Boolean(document.getElementById('avoozl-settings-repo-0-base'))`)
     const save = `[...document.querySelectorAll('dialog[data-repository-edit] [data-modal-footer] button')].find((b) => b.textContent.trim() === 'Save')`
     await set('#avoozl-settings-repo-0-base', 'develop')

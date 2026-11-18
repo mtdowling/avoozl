@@ -48,15 +48,15 @@ export type JumpField =
   | 'needsHuman'
   | 'actors'
   | 'permission'
-// `radar` is Settings › Issue Radar, a page of its own; the other two are
-// tabs of the repository's editor.
+// `radar` is Settings › Issue Radar, a page of its own; the others are
+// tabs of the repository's Edit dialog (repo-edit-tabs.ts).
 export interface Jump {
-  tab: 'mode' | 'triggers' | 'radar'
+  tab: 'general' | 'landing' | 'github' | 'radar'
   field: JumpField
 }
 const TAB: Record<JumpField, Jump['tab']> = {
-  coder: 'mode',
-  capacity: 'mode',
+  coder: 'general',
+  capacity: 'landing',
   releaseMode: 'radar',
   plan: 'radar',
   conflict: 'radar',
@@ -66,8 +66,8 @@ const TAB: Record<JumpField, Jump['tab']> = {
   ready: 'radar',
   claim: 'radar',
   needsHuman: 'radar',
-  actors: 'triggers',
-  permission: 'triggers',
+  actors: 'github',
+  permission: 'github',
 }
 const jump = (field: JumpField): Jump => ({ tab: TAB[field], field })
 

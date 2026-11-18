@@ -24,6 +24,7 @@ test('the drawer shows where the task came from with a reader', () => {
   const drawer = readFileSync(new URL('../src/TaskDrawer.tsx', import.meta.url), 'utf8')
   assert.match(drawer, /<Row label="Came from">/)
   assert.match(drawer, /tasks\.document\(props\.workspaceId, source\.document\)/)
+  assert.match(drawer, /<SnippetBox/)
   assert.match(drawer, /no longer in this workspace/)
 })
 
@@ -95,10 +96,12 @@ test('the full-file reader is a trapped, closable modal over the page', () => {
   assert.match(readFileSync(new URL('../src/Modal.tsx', import.meta.url), 'utf8'), /narrow\s*\? \{ width: '100%', height: '100%'/)
   // The drawer opens it from the path link, Open full file and the excerpt.
   assert.match(drawer, /data-origin-path/)
-  assert.equal((drawer.match(/setFull\(/g) ?? []).length >= 4, true)
-  // Came from shows the whole file with the cited lines marked.
-  assert.match(drawer, /<CitedFile\s+text=\{reading\.text\}/)
-  assert.doesNotMatch(drawer, /sourceExcerpt\(/)
+  assert.equal((drawer.match(/setFull\(/g) ?? []).length >= 2, true)
+  // Came from shows a snippet, not the whole file; the header is the shared
+  // SnippetBox with Open full file on its right, and no Hide or Read buttons.
+  assert.match(drawer, /sourceExcerpt\(read\.text, source, SNIPPET_CONTEXT\)/)
+  assert.match(drawer, /const SNIPPET_CONTEXT = 3/)
+  assert.doesNotMatch(drawer, /<CitedFile|'Hide'|'Read'/)
 })
 
 test('a citation marks a range, a task block, or a heading through its section', async () => {

@@ -1,9 +1,12 @@
 // Settings > Repository setup: what one repository row opens. View is a
-// read-only dialog of its details. Edit is a dialog with its role and
-// settings, Save and Cancel; the settings editor itself comes from the page
-// (`settings`), so this file holds no policy logic. A private mirror is one of
-// the role choices, with a field naming its public repository.
+// read-only dialog of its details. Edit is a dialog of tabs (repo-edit-tabs.ts)
+// holding every setting, with one Save and Cancel for all of them; the
+// settings editor itself comes from the page (`settings`), so this file holds
+// no policy logic. A private mirror is one of the role choices, its public
+// repository named on the Mirror tab.
 import { useState, type ReactNode } from 'react'
+import { Tabs, TabPanel } from './Tabs.tsx'
+import { EDIT_TABS, dirtyTabs, errorTabs, type EditTab } from './repo-edit-tabs.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import { Modal } from './Modal.tsx'
 import { FormSection } from './FormSection.tsx'
@@ -25,6 +28,8 @@ export function RoleChoice(props: {
   fixed?: string | null
   // A heading above already says Role: the label is for screen readers only.
   titled?: boolean
+  // false: the public repository's field is elsewhere (Edit's Mirror tab).
+  withSource?: boolean
 }) {
   const { role, source } = props
   const line = role === MIRROR_ROLE ? MIRROR_ROLE_LINE : ROLE_OPTIONS.find((option) => option.value === role)?.line
@@ -53,7 +58,7 @@ export function RoleChoice(props: {
         </select>
       </label>
       {(props.fixed || line) && <span className="text-xs text-muted">{props.fixed || line}</span>}
-      {role === MIRROR_ROLE && (
+      {role === MIRROR_ROLE && props.withSource !== false && (
         <label htmlFor={`${props.id}-source`} className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Public repository</span>
           <Input id={`${props.id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => props.onChange(role, event.target.value)} style={{ maxWidth: '24rem' }} />
@@ -129,15 +134,25 @@ export function ViewRepository(props: { row: RepositoryRow; roleText: string; en
   )
 }
 
+// What the page puts in the Edit dialog: which tabs its settings fill, and
+// the open tab's part. General and Mirror (with a GitHub remote) always show;
+// the dialog adds its own role and public-repository parts above the page's.
+export interface EditSettings {
+  tabs: readonly EditTab[]
+  body: ReactNode
+}
+
 export function EditRepository(props: {
   row: RepositoryRow
   workspaceId: string
   // The role now, and the public repository if it is a mirror.
   role: string
   source: string
-  // The editor for the repository's settings. It edits `entry` (null: the
-  // saved one) and reports changes through `setEntry`.
-  settings: (entry: RepositoryForm | null, setEntry: (entry: RepositoryForm) => void) => ReactNode
+  // The saved entry, for the unsaved-changes dots.
+  saved: RepositoryForm | null
+  // The editor for the repository's settings, on `tab`. It edits `entry`
+  // (null: the saved one) and reports changes through `setEntry`.
+  settings: (view: { entry: RepositoryForm | null; setEntry: (entry: RepositoryForm) => void; tab: EditTab; setTab: (tab: EditTab) => void }) => EditSettings
   // Writes .avoozl.json; the reason it did not, or null.
   onSave: (edit: RepositoryEdit) => Promise<string | null>
   // A mirror setup applied: read the settings again.
@@ -148,11 +163,17 @@ export function EditRepository(props: {
   const [role, setRole] = useState(props.role)
   const [source, setSource] = useState(props.source)
   const [entry, setEntry] = useState<RepositoryForm | null>(null)
+  const [tab, setTab] = useState<EditTab>('general')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const changed = role !== props.role || source !== props.source || entry !== null
-  const problem = role === MIRROR_ROLE ? mirrorSourceProblem(source, row.github) : null
+  const mirror = role === MIRROR_ROLE
+  const problem = mirror ? mirrorSourceProblem(source, row.github) : null
   const fixed = !row.github ? 'No GitHub remote, so its tasks stay local.' : null
+  const settings = props.settings({ entry, setEntry, tab, setTab })
+  const shown = EDIT_TABS.filter((t) => t.key === 'general' || (t.key === 'mirror' ? Boolean(row.github) : settings.tabs.includes(t.key)))
+  const dirty = dirtyTabs({ saved: props.saved, entry, roleChanged: role !== props.role, sourceChanged: source !== props.source })
+  const errors = errorTabs(entry, problem)
   const save = async () => {
     setBusy(true)
     setError(null)
@@ -161,6 +182,8 @@ export function EditRepository(props: {
     if (failure) setError(failure)
     else props.onClose()
   }
+  const id = 'avoozl-repo-edit'
+  // Only the tab bar and the open tab's panel sit between title and footer.
   return (
     <Modal
       id="avoozl-repo-edit"
@@ -184,25 +207,57 @@ export function EditRepository(props: {
         </>
       }
     >
-      <FormSection title="Role">
-        <RoleChoice
-          id="avoozl-repo-edit"
-          name={row.name}
-          github={row.github}
-          role={role}
-          source={source}
-          fixed={fixed}
-          titled
-          onChange={(nextRole, nextSource) => {
-            setRole(nextRole)
-            setSource(nextSource)
-          }}
-        />
-        {role === MIRROR_ROLE && row.github && !problem && (
-          <MirrorSetup workspaceId={props.workspaceId} repository={row.github} source={source} onApplied={props.onApplied} />
+      <Tabs
+        id={`${id}-tabs`}
+        label={`Settings of ${row.name}`}
+        tabs={shown.map((t) => ({ key: t.key, label: t.label, dirty: dirty.has(t.key), error: errors.has(t.key) }))}
+        current={tab}
+        onPick={setTab}
+      />
+      <TabPanel id={`${id}-tabs`} current={tab}>
+        {tab === 'general' && (
+          <FormSection title="Role">
+            <RoleChoice id={id} name={row.name} github={row.github} role={role} source={source} fixed={fixed} titled withSource={false} onChange={(nextRole) => setRole(nextRole)} />
+            {mirror && (
+              <p className="text-xs">
+                <button type="button" className="underline" onClick={() => setTab('mirror')}>
+                  Name its public repository on the Mirror tab
+                </button>
+              </p>
+            )}
+            <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }} data-repository-folder>
+              <dt className="text-muted">Folder</dt>
+              <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+                {row.folder ? <code>{row.folder}</code> : 'No folder on this computer'}
+              </dd>
+            </dl>
+          </FormSection>
         )}
-      </FormSection>
-      {props.settings(entry, setEntry)}
+        {tab === 'mirror' &&
+          (mirror ? (
+            <FormSection title="Public repository" blurb="This repository is a private copy of a public one. Crews work here, in private.">
+              <label htmlFor={`${id}-source`} className="flex flex-col gap-1 text-sm">
+                <span className="sr-only">Public repository</span>
+                <Input id={`${id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => setSource(event.target.value)} style={{ maxWidth: '24rem' }} />
+                {problem && (
+                  <span role="alert" className="text-xs text-danger">
+                    {problem}
+                  </span>
+                )}
+              </label>
+              {row.github && !problem && <MirrorSetup workspaceId={props.workspaceId} repository={row.github} source={source} onApplied={props.onApplied} />}
+            </FormSection>
+          ) : (
+            <FormSection title="Set up a mirror" blurb="Make this repository a private copy of a public one, so crews work in private.">
+              <div>
+                <Btn type="button" onClick={() => setRole(MIRROR_ROLE)}>
+                  Set up mirror
+                </Btn>
+              </div>
+            </FormSection>
+          ))}
+        {tab === 'mirror' && mirror ? null : settings.body}
+      </TabPanel>
     </Modal>
   )
 }
