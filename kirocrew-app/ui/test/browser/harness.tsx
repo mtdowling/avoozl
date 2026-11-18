@@ -154,7 +154,20 @@ const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', f
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
 
 // A manual task waiting for a person, with links (R61).
+// The AI summary (?summary=none|working|ready|failed): what task.detail
+// carries, and what task.summary.request answers. A request for a summary that
+// is not written yet answers working, then ready on the next one.
+const SUMMARY_TEXT = 'Team review is the last gate before cutover. It is waiting on you: the protocol tests passed, and nothing else blocks it. Cutover starts once you mark it done.'
+const summaryAt = (name: string) => ({ state: name, text: name === 'ready' ? SUMMARY_TEXT : null, hash: 'h1' })
+let summaryAsks = 0
+answer('task.summary.request', (body) => {
+  state.calls.push(body)
+  summaryAsks++
+  if ((body.input as { retry?: boolean }).retry) return summaryAt('working')
+  return summaryAt(query.get('summary') === 'failed' || summaryAsks < 2 ? 'working' : 'ready')
+})
 answer('task.detail', () => ({
+  summary: summaryAt(query.get('summary') ?? 'none'),
   revision: 1,
   task: {
     id: 'team-review', title: 'Review with team', summary: 'The team reviews the results before cutover.',

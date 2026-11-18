@@ -23,7 +23,8 @@
     "agents/avoozl-review-draft.json",
     "agents/avoozl-plan-review.json",
     "agents/avoozl-plan-answer-read.json",
-    "agents/avoozl-conflict-fix.json"
+    "agents/avoozl-conflict-fix.json",
+    "agents/avoozl-task-summary.json"
   ],
   "mcpServers": {
     "avoozl": {

@@ -137,7 +137,6 @@ test('the editor choice is kept in the page storage, Kiro by default', () => {
 
 test('the drawer has a Files box with no write', () => {
   const drawer = source('TaskDrawer.tsx')
-  assert.match(drawer, /label: 'Files'/)
   assert.match(drawer, /<SectionBox id="files" title="Files">/)
   assert.match(drawer, /<TaskFiles workspaceId=\{workspaceId\} taskId=\{task\.id\} active \/>/)
   const files = source('TaskFiles.tsx')

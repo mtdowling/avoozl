@@ -77,6 +77,8 @@ test('page: the Timeline box is open and lists the steps, a failed attempt, a sk
   await page.open(harness.url({ modal: 'task-drawer', theme: 'light' }), { width: 1280, height: 900 })
   await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
   await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
+  await page.until(`Boolean(document.querySelector('[data-tab="timeline"]'))`)
+  await page.evaluate(`document.querySelector('[data-tab="timeline"]').click()`)
   await page.until(`document.querySelectorAll('[data-task-step]').length > 0`)
   const rows = await page.evaluate(
     `[...document.querySelectorAll('[data-task-step]')].map((li) => [li.dataset.taskStep, li.dataset.state, li.querySelector('[data-step-time]').textContent, li.textContent])`,
