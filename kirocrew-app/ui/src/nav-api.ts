@@ -2,13 +2,14 @@
 // JSX so node can test it directly.
 
 // The nav row: Dashboards, Specs, Needs you,
-// Flow, Activity, Settings. Dashboards' key stays 'dashboard' (its Home), so
+// Flow, Retros, Activity, Settings. Dashboards' key stays 'dashboard' (its Home), so
 // an older link or Back step to Home still lands there.
 export const TABS = [
   { key: 'dashboard', label: 'Dashboards' },
   { key: 'plans', label: 'Specs' },
   { key: 'waiting', label: 'Needs you' },
   { key: 'flow', label: 'Flow' },
+  { key: 'retros', label: 'Retros' },
   { key: 'activity', label: 'Activity' },
   { key: 'settings', label: 'Settings' },
 ] as const
@@ -18,9 +19,8 @@ export type NavTab = (typeof TABS)[number]['key']
 // The sub-pages of a nav section that has them. Settings' own list is
 // SETTINGS_TABS (SettingsView.tsx). Each is a page of its own, shown by the
 // left nav, never by a tab bar in the content.
-export type FlowTab = 'overview' | 'retros' | 'proposals'
-export const FLOW_TABS: { key: FlowTab; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
+export type RetrosPage = 'retros' | 'proposals'
+export const RETROS_PAGES: { key: RetrosPage; label: string }[] = [
   { key: 'retros', label: 'Retros' },
   { key: 'proposals', label: 'Proposals' },
 ]
@@ -75,6 +75,11 @@ export function redirectTab(key: string): Place {
       return { tab: 'waiting', open: { 'waiting-section': 'triage' } }
     case 'routing':
       return { tab: 'settings' }
+    // Flow's own Retros and Proposals tabs moved to the Retros pill (owner
+    // note 2026-11-17); an older link or Back step that names one lands there.
+    case 'flow:retros':
+    case 'flow:proposals':
+      return { tab: 'retros', open: { 'retros-page': key.slice(5) } }
     // Trace is gone (R106): its steps are the Timeline box in task details.
     case 'trace':
       return { tab: 'delivery' }
@@ -86,8 +91,11 @@ export function redirectTab(key: string): Place {
 // A Settings section that no longer exists lands on the section that took
 // over: Routing's job (crews and placement) is gone with local workers, and
 // the instance name is edited from the nav footer, and Where tasks live is a
-// role per repository in Repository setup (R105.6).
+// role per repository in Repository setup (R105.6). Older names for the
+// Radar values screen open Settings › Issue Radar.
 export function redirectSettings(key: string): string {
+  // Crews and rules, a tab of each repository, moved there too.
+  if (key === 'issue-radar' || key === 'radar-values' || key === 'crews' || key === 'crews-rules') return 'radar'
   return key === 'routing' ? 'repositories' : key === 'instance' ? 'workspaces' : key
 }
 

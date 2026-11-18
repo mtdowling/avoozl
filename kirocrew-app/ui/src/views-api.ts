@@ -451,6 +451,9 @@ export function viewsClient(api: AppApi) {
     return reply.result
   }
   return {
+    // Send message on a `process` session (R98.2): queued for the supervisor.
+    sendSession: (workspaceId: string, slot: string, text: string) =>
+      run<{ id: string; state: 'queued'; slot: string; taskId: string }>('session.send', { slot, text }, workspaceId),
     decidePlanReview: (workspaceId: string, planId: string, revisionHash: string, action: 'review' | 'skip') =>
       run<unknown>('plan.review.decide', { planId, revisionHash, action }, workspaceId),
     graph: (workspaceId: string, filter: GraphFilter = {}) => {
@@ -460,6 +463,7 @@ export function viewsClient(api: AppApi) {
       return run<Graph>('graph.view', input, workspaceId)
     },
     remote: (workspaceId: string) => run<{ workers: RemoteWorker[] }>('remote.view', {}, workspaceId),
+    landing: (workspaceId: string) => run<LandingView>('landing.view', {}, workspaceId),
     epic: (workspaceId: string, id: string) => run<EpicView>('epic.get', { id }, workspaceId),
     delivery: (workspaceId: string) =>
       run<{ revision: number; items: DeliveryItem[] }>('delivery.view', {}, workspaceId).then(
@@ -569,6 +573,22 @@ export function graphSummary(graph: Graph) {
 
 // Only http(s) links are clickable. Evidence and PR text comes from agents and
 // GitHub, so anything else (javascript:, file:, data:) renders as plain text.
+// One portion in a landing queue, or one that landed (landing.view). Read
+// from Avoozl's own store; `url` is the pull request's GitHub page.
+export interface LandingRow {
+  key: string
+  base: string
+  repository: string | null
+  tasks: { id: string; title: string }[]
+  pr: number | null
+  url: string | null
+}
+export interface LandingView {
+  queue: (LandingRow & { position: number; queuedAt: string | null; held: string })[]
+  landed: (LandingRow & { at: string })[]
+  landedThisWeek: number
+}
+
 export function safeHref(value: unknown): string | null {
   if (typeof value !== 'string') return null
   try {

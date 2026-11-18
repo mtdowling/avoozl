@@ -161,8 +161,14 @@ export async function revalidate(
 
 // A person's take over: only the effective owner, and only on a journal
 // that is not held. Writes the next generation with a new driver id. A
-// concurrent takeover makes the journal conflict and hold.
-export async function takeOver(journal, { by, owner, spec }, options = {}) {
+// concurrent takeover makes the journal conflict and hold. The first
+// generation also names `sources`, the spec's Radar issues
+// (radar-backlinks.mjs), once.
+export async function takeOver(
+  journal,
+  { by, owner, spec, sources = [] },
+  options = {},
+) {
   if (by?.kind !== "person")
     fail(
       "Take over is a person's action; Avoozl never takes over by itself.",
@@ -190,6 +196,7 @@ export async function takeOver(journal, { by, owner, spec }, options = {}) {
         spec,
         generation,
         driver,
+        ...(generation === 1 && sources.length ? { sources } : {}),
       },
       options,
     );

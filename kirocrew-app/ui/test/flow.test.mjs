@@ -74,7 +74,7 @@ test('the page wires the Flow tab, its icon, the banner, the Timing fold and Set
   assert.match(flow, /<ViewHeading id="avoozl-flow-title" view="flow">/)
   // The banner sits above every other Dashboard section.
   const banner = dashboard.indexOf('<LineBanner'),
-    firstSection = dashboard.indexOf('<Pair')
+    firstSection = dashboard.indexOf('<Tiles')
   assert.ok(banner > 0 && banner < firstSection)
   assert.ok(drawer.indexOf('<SectionBox id="timing"') > drawer.indexOf('<SectionBox id="delivery"'))
   for (const key of ['flow.stopTheLine.scope', 'flow.localChecksFirst', 'flow.batch.max', 'flow.batch.by', 'flow.retro.everyTasks', 'flow.retro.slowFactor', 'flow.retro.instructions'])
@@ -82,7 +82,7 @@ test('the page wires the Flow tab, its icon, the banner, the Timing fold and Set
   assert.match(settings, /Saved on this machine only\./)
   for (const title of ['Timing', 'Pause on a broken check', 'Local checks first', 'Batching', 'Retro']) assert.match(settings, new RegExp(`<Section title="${title}"`))
   // Approve is not red; Run anyway asks first.
-  assert.match(flow, /<Btn type="button" primary disabled=\{busy\} onClick=\{\(\) => onDecide\(retro, proposal, 'approve'\)\}>/)
+  assert.match(source('FlowMemory.tsx'), /<Btn type="button" primary disabled=\{busy\} onClick=\{\(\) => onDecide\(proposal, 'approve'\)\}>/)
   assert.match(flow, /title: 'Run anyway\?'/)
 })
 

@@ -162,6 +162,7 @@ import {
   landingNeedsYou,
 } from "./integration-head.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
+import { landingView } from "./landing-view.mjs";
 import { epicsView } from "./epics-view.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
@@ -269,6 +270,7 @@ import {
   updateGitPlugin,
 } from "./plugins.mjs";
 import { pluginHealth } from "./plugin-session.mjs";
+import { queueSessionSend } from "./session-send.mjs";
 import { rebuiltRows } from "./trackers.mjs";
 import { SUPPORTED_CONTRACTS } from "./plugin-contract.mjs";
 import {
@@ -3028,6 +3030,16 @@ export class Operations {
     if (name === "session.request")
       return requestSession(store, input, workspaceRepositories(store));
     if (name === "session.status") return recordSessionStatus(store, input);
+    // Send message on a `process` session (R98.2): a person's message,
+    // queued for the supervisor. An agent or MCP caller cannot steer a child.
+    if (name === "session.send") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person sends a message to a process session, in the Avoozl page.",
+          403,
+        );
+      return queueSessionSend(store, input);
+    }
     if (name === "reply.post")
       return postReply(store, this.github, input, context.caller, {
         roots: machineRoots(store, this.workspaceRoot),
@@ -4034,6 +4046,8 @@ export class Operations {
     // default branch, head checks, acceptance. Landing is a person's approval
     // of one head; Avoozl never merges the branch.
     if (name === "integration.view") return integrationView(store);
+    // The landing queues and recent landings, from the store only (Home).
+    if (name === "landing.view") return landingView(store, this.read());
     if (name === "integration.land") {
       if (context.caller || context.mcp)
         fail(

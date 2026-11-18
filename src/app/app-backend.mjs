@@ -190,6 +190,7 @@ export const APP_OPERATIONS = new Set([
   "radar.releasestep",
   "radar.armed",
   "integration.view",
+  "landing.view",
   "gap.preview",
   "gap.accept",
   "integration.land",
@@ -312,6 +313,8 @@ export const APP_OPERATIONS = new Set([
   "plan.delete.preview",
   "plan.archive",
   "plan.unarchive",
+  // Send message on a `process` session (R98.2).
+  "session.send",
   // Manual tasks, task links, and workflow templates (§4.16).
   "task.manual.complete",
   "task.manual.reopen",

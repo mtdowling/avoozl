@@ -1,5 +1,5 @@
-// Source-level checks for the Dashboard rows and the badge colors. The page
-// has no CSS of its own, so these read the source the host renders.
+// Source-level checks for Home's rows and the badge colors. Home's own CSS
+// is HomeParts.tsx's HOME_CSS; these read the source the host renders.
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import test from 'node:test'
@@ -7,35 +7,77 @@ import test from 'node:test'
 const src = new URL('../src/', import.meta.url)
 const source = (name) => readFileSync(new URL(name, src), 'utf8')
 const dashboard = source('DashboardView.tsx')
+const parts = source('HomeParts.tsx')
 
-// The Section titles inside each <Pair>, in order. A card's loading stand-in
-// has the same title, so each title counts once.
-function rows() {
-  return [...dashboard.matchAll(/<Pair height=\{ROW_HEIGHT\.(\w+)\}>([\s\S]*?)<\/Pair>/g)].map((m) => ({
-    row: m[1],
-    titles: [...new Set([...m[2].matchAll(/<Section\s+title=\{?[`"]([^`"($]+)/g)].map((t) => t[1].trim()))],
+// The section ids inside each <HomePair>, in order.
+function pairs() {
+  return [...dashboard.matchAll(/<HomePair id="([\w-]+)">([\s\S]*?)<\/HomePair>/g)].map((m) => ({
+    pair: m[1],
+    sections: [...m[2].matchAll(/<HomeSection\s+id="([\w-]+)"/g)].map((t) => t[1]),
   }))
 }
 
-test('Home has the heading, then Needs you beside In flight, the Release queue and epic progress', () => {
-  assert.deepEqual(rows(), [{ row: 'flight', titles: ['Needs you', 'In flight'] }])
+test('Home: the tiles, Needs you full width, then Landing queue beside CI health and Recently landed beside Stuck or quiet', () => {
+  assert.deepEqual(pairs(), [
+    { pair: 'landing-ci', sections: ['landing-queue', 'ci-health'] },
+    { pair: 'landed-stuck', sections: ['landed', 'stuck'] },
+    { pair: 'flight-progress', sections: ['in-flight', 'progress-by-epic'] },
+  ])
   // The nav says Home, so the heading is for screen readers only; Refresh
-  // is in the header's More menu.
+  // is in the nav.
   assert.match(dashboard, /<h2 id="avoozl-dashboard-title" className="sr-only">\s*Home\s*<\/h2>/)
   assert.match(dashboard, /usePublishRefresh\(useRefreshCountdown\(workspaceId, refreshHome, busy\)\)/)
   assert.doesNotMatch(dashboard, /<ViewHeading/)
-  // The state buttons and the Untriaged count went with Delivery and Intake.
   assert.doesNotMatch(dashboard, /StateCounts|UntriagedStat|Show them in Delivery|Up next/)
-  const order = ['<Pair', '<ReleaseQueue', 'data-progress-by-epic', '<IntegrationBranches']
+  const order = ['<LineBanner', '<Tiles', '<HomeSection\n        id="needs-you"', '<HomePair id="landing-ci"', '<HomePair id="landed-stuck"', '<HomePair id="flight-progress"', '<ReleaseQueue', '<IntegrationBranches']
   const at = order.map((text) => dashboard.indexOf(text))
+  assert.ok(at.every((n) => n > 0), JSON.stringify(at))
   assert.deepEqual([...at].sort((a, b) => a - b), at, order.join(' < '))
-  assert.ok(at.every((n) => n > 0))
-  // Release queue and Progress by epic share one row; only a phone stacks them.
-  const pair = dashboard.slice(dashboard.indexOf('data-dashboard-row="queue-progress"'), dashboard.indexOf('<IntegrationBranches'))
-  assert.match(pair, /style=\{phone \? undefined : \{ display: 'grid', gridTemplateColumns: 'minmax\(0, 1fr\) minmax\(0, 1fr\)'/)
-  assert.ok(pair.includes('<ReleaseQueue') && pair.includes('data-progress-by-epic'))
-  // No yellow: needs-you is the only state that asks for the owner.
+  // No yellow before the kind labels: needs-you's warm color lives in the CSS.
   assert.doesNotMatch(dashboard.slice(0, dashboard.indexOf('const KIND_LABEL')), /warn|yellow|amber/i)
+})
+
+test('six tiles link to their views, and only Needs you turns warm, only when something waits', async () => {
+  const { homeTiles } = await import('../src/home-api.ts')
+  const counts = { ready: 3, running: 0, waiting: 2, 'needs-you': 0, done: 0, deferred: 0, draft: 0 }
+  const summary = (attention) => ({ counts, attention, inFlight: [{}], radarFlight: [] })
+  const tiles = homeTiles(summary([{}]), { queue: [{}], landed: [], landedThisWeek: 4 })
+  assert.deepEqual(
+    tiles.map((t) => [t.label, t.value, t.target]),
+    [
+      ['Ready', 3, 'graph'],
+      ['Running', 1, 'lanes'],
+      ['Needs you', 1, 'waiting'],
+      ['Waiting', 2, 'graph'],
+      ['Landing queue', 1, 'delivery'],
+      ['Landed this week', 4, 'flow'],
+    ],
+  )
+  assert.deepEqual(tiles.filter((t) => t.warm).map((t) => t.key), ['needs-you'])
+  assert.deepEqual(homeTiles(summary([]), null).filter((t) => t.warm), [])
+  // Unread reads show a dash, not a zero.
+  assert.ok(homeTiles(null, null).every((t) => t.value === null))
+  assert.match(parts, /\[data-home-tile\]\[data-warm\] \[data-home-tile-value\]\{color:var\(--tile-orange,var\(--warning\)\)\}/)
+})
+
+test('phones stack every row to one column, and nothing moves under reduced motion', () => {
+  assert.match(parts, /@media \(max-width:767px\)\{[^\n]*\[data-home-needs\],\[data-home-pair\]\{grid-template-columns:minmax\(0,1fr\)\}/)
+  assert.match(parts, /\[data-home-needs\]\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/)
+  assert.match(parts, /@media \(prefers-reduced-motion:reduce\)\{\[data-home-tile\]\{transition:none\}\}/)
+  assert.match(parts, /\[data-home-head\] h3\{[^}]*text-transform:uppercase/)
+})
+
+test('every #N link opens GitHub in a new tab with noopener noreferrer', () => {
+  for (const text of [dashboard, parts]) {
+    for (const m of text.matchAll(/target="_blank"[^>]*/g)) assert.match(m[0], /rel="noopener noreferrer"/, m[0])
+    assert.doesNotMatch(text, /rel="noreferrer"/)
+  }
+  assert.match(parts, /<a data-home-pr href=\{linkHref\(url\)\} target="_blank" rel="noopener noreferrer"/)
+})
+
+test('a section with no data yet says so in one line', () => {
+  for (const line of ['Landing data is not available from this backend yet.', 'CI data is not available from this backend yet.', 'Nothing has landed yet.', 'Nothing waits to land.'])
+    assert.ok(dashboard.includes(line), line)
 })
 
 test('an empty Home explains what to set up with a button, instead of hiding cards', () => {
@@ -47,29 +89,12 @@ test('an empty Home explains what to set up with a button, instead of hiding car
   assert.doesNotMatch(source('ReleaseQueue.tsx'), /Nothing to show for a workspace with no Issue Radar plan: no card/)
 })
 
-test('Needs you rows act with icon buttons, and epic rows open the plan graph drilled in', () => {
-  assert.match(dashboard, /<IconBtn icon=\{DetailsIcon\}/)
+test('Needs you cards have one answer button and Ask, and epic rows open the plan graph drilled in', () => {
+  assert.match(dashboard, /<SmallBtn primary onClick=\{onAnswer\}[^>]*>\s*\{answerLabel\(item\)\}/)
   assert.match(dashboard, /<IconBtn icon=\{MessageSquare\} label=\{`Ask in a chat about/)
-  assert.match(dashboard, /icon=\{item\.tab === 'waiting' \? Check : ExternalLink\}/)
+  assert.match(dashboard, /attention\.slice\(0, NEEDS_SHOWN\)/)
   assert.match(dashboard, /props\.onDrill\?\.\(\{ kind: 'epic', id: entry\.epic, title \}\)/)
-  // The running count shows only when an epic has a chat running.
   assert.match(dashboard, /\{entry\.running > 0 && \(/)
-})
-
-test('wide rows have one fixed height; narrow rows stack with no height', () => {
-  assert.match(dashboard, /export const WIDE = '\(min-width: 1024px\)'/)
-  assert.match(
-    dashboard,
-    /style=\{wide \? \{ gridTemplateColumns: 'minmax\(0, 1fr\) minmax\(0, 1fr\)', height \} : undefined\}/,
-  )
-  assert.match(dashboard, /ROW_HEIGHT = \{ flight: '\d+rem' }/)
-})
-
-test('each card fills its row and scrolls inside itself', () => {
-  assert.match(dashboard, /<Card className="flex h-full min-h-0 flex-col">/)
-  assert.match(dashboard, /<div data-scroll className="min-h-0 flex-1 overflow-y-auto">/)
-  // Every card on the Dashboard goes through Section, so every card scrolls.
-  assert.equal(dashboard.match(/<Card\b/g).length, 1)
 })
 
 // The owner removed these cards twice; this fails if either comes back.
