@@ -45,7 +45,8 @@ function generate(config) {
     stats = { added: 0, changed: 0, removed: 0, newTasks: 0 };
   try {
     for (const file of new Set([
-      ...planFiles(config.plansRoot),
+      // No plans root yet means no Markdown plan files.
+      ...(fs.existsSync(config.plansRoot) ? planFiles(config.plansRoot) : []),
       ...Object.keys(store.read().documents).filter(
         (id) => !store.read().documents[id].managed,
       ),

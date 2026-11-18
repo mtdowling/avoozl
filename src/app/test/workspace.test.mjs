@@ -25,8 +25,15 @@ test("initialization starts empty, refuses replacement, and paths survive moving
   assert.equal(fs.existsSync(path.join(original, "workspace.json")), false);
   const savedConfig = JSON.parse(fs.readFileSync(repositoryConfig, "utf8"));
   assert.equal(savedConfig.$schema, REPOSITORY_CONFIG_SCHEMA_URL);
-  assert.equal(savedConfig.dbPath, ".avoozl/local/workspace.sqlite");
-  assert.equal(savedConfig.documents, "plans");
+  // Only what the person chose is written: no default and no host.
+  assert.deepEqual(Object.keys(savedConfig), [
+    "$schema",
+    "version",
+    "name",
+    "namespace",
+    "port",
+  ]);
+  assert.equal(savedConfig.port, 9477);
   assert.match(savedConfig.namespace, /^avz_[a-z2-7]{16}$/);
   let config = workspaceConfig({ workspace: original }),
     store = new Store(config.dbPath);
@@ -44,6 +51,96 @@ test("initialization starts empty, refuses replacement, and paths survive moving
   store = new Store(config.dbPath);
   assert.equal(store.read().project.name, "A team project");
   store.close();
+});
+
+test("a new workspace has the documented layout and no default-valued keys", async (t) => {
+  const root = path.join(temporary(t), "plans");
+  const result = initializeWorkspace(root, { name: "My plans" });
+  assert.equal(result.port, 9428);
+  assert.deepEqual(
+    Object.keys(
+      JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8")),
+    ),
+    ["$schema", "version", "name", "namespace"],
+  );
+  assert.deepEqual(fs.readdirSync(root).sort(), [
+    ".avoozl",
+    ".avoozl.json",
+    ".kiro",
+  ]);
+  assert.deepEqual(fs.readdirSync(path.join(root, ".kiro", "specs")), []);
+  const config = workspaceConfig({ workspace: root });
+  assert.equal(
+    config.dbPath,
+    path.join(root, ".avoozl", "local", "workspace.sqlite"),
+  );
+  assert.equal(config.plansRoot, path.join(root, "plans"));
+  assert.equal(config.port, 9428);
+  // Operations given the documents root do not make it until a document is
+  // published there, and reindexing reads a missing root as empty.
+  const store = new Store(config.dbPath);
+  try {
+    const ops = new Operations(store, {
+      workspaceRoot: root,
+      plansRoot: config.plansRoot,
+    });
+    assert.deepEqual(await ops.execute("query"), []);
+    assert.deepEqual((await ops.execute("plan.specs")).items, []);
+  } finally {
+    store.close();
+  }
+  const { stdout } = await exec(process.execPath, [
+    path.join(applicationRoot, "cli.mjs"),
+    "generate",
+    "--workspace",
+    root,
+  ]);
+  assert.deepEqual(JSON.parse(stdout), {
+    added: 0,
+    changed: 0,
+    removed: 0,
+    newTasks: 0,
+  });
+  assert.equal(fs.existsSync(path.join(root, "plans")), false);
+});
+
+test("a workspace file written by an earlier init loads as before", (t) => {
+  const earlier = (documents) => {
+    const root = temporary(t);
+    initializeWorkspace(root, { name: "Earlier" });
+    const file = path.join(root, ".avoozl.json"),
+      saved = JSON.parse(fs.readFileSync(file, "utf8"));
+    fs.writeFileSync(
+      file,
+      JSON.stringify(
+        {
+          ...saved,
+          dbPath: ".avoozl/local/workspace.sqlite",
+          documents,
+          port: 9431,
+          host: "127.0.0.1",
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    return { root, config: workspaceConfig({ workspace: root }) };
+  };
+  const plans = earlier("plans");
+  assert.equal(plans.config.plansRoot, path.join(plans.root, "plans"));
+  assert.equal(
+    plans.config.dbPath,
+    path.join(plans.root, ".avoozl", "local", "workspace.sqlite"),
+  );
+  assert.equal(plans.config.port, 9431);
+  assert.equal(plans.config.endpoint, "http://127.0.0.1:9431");
+  assert.equal(plans.config.name, "Earlier");
+  const inPlace = earlier(".");
+  assert.equal(inPlace.config.plansRoot, inPlace.root);
+  const store = new Store(inPlace.config.dbPath);
+  assert.equal(store.read().project.name, "Earlier");
+  store.close();
+  assert.throws(() => initializeWorkspace(inPlace.root), /already exists/);
 });
 
 test("init on a configuration with no database keeps its namespace", (t) => {
@@ -196,9 +293,19 @@ test("application, plans, state, and working repository can use independent dire
         )
       ).stdout,
     );
-  assert.equal((await cli(["seed"])).existing, false);
-  assert.equal((await cli(["seed"])).existing, true);
-  assert.equal((await cli(["query"])).length, 8);
+  // A layout the person chose is written, as a portable relative path.
+  const saved = JSON.parse(
+    fs.readFileSync(path.join(workspace, ".avoozl.json"), "utf8"),
+  );
+  assert.equal(saved.dbPath, "../database/tasks.sqlite");
+  assert.equal(saved.documents, "../designs");
+  assert.equal("port" in saved, false);
+  assert.equal("host" in saved, false);
+  const legacy = ["seed", "--example", "product-launch"];
+  assert.equal((await cli(legacy)).existing, false);
+  assert.equal((await cli(legacy)).existing, true);
+  const rows = await cli(["query"]);
+  assert.equal(rows.length, 8);
   assert(fs.existsSync(path.join(plans, "examples/product-launch.md")));
   assert(!fs.existsSync(path.join(applicationRoot, "state")));
 });
@@ -224,7 +331,7 @@ test("source changes preserve portable document IDs across filesystem separators
   const root = temporary(t);
   initializeWorkspace(root);
   const config = workspaceConfig({ workspace: root });
-  fs.mkdirSync(path.join(config.plansRoot, "design"));
+  fs.mkdirSync(path.join(config.plansRoot, "design"), { recursive: true });
   fs.writeFileSync(
     path.join(config.plansRoot, "design", "plan.md"),
     "# Design\n\n[Next](next.md)\n",
