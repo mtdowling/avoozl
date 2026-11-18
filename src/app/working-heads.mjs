@@ -24,7 +24,7 @@ import { createHash } from "node:crypto";
 import { git } from "./git.mjs";
 export { withoutPushCredentials } from "./git.mjs";
 import { branchNameProblem } from "./integration-branch.mjs";
-import { pushLines } from "./content-rules.mjs";
+import { enforce, pushLines } from "./content-rules.mjs";
 import { globalAvoozlConfigPath } from "./layered-config.mjs";
 import { privacyHits, privacyRules } from "./privacy.mjs";
 import { fail } from "./store.mjs";
@@ -486,13 +486,15 @@ export function privacyScan(root, { base, head, refs, machine, configFile }) {
 // Pushes an exact commit to a branch of a registered source repository,
 // checkpoint or working head alike. The content scan runs first over
 // everything the remote does not have; any hit refuses the push before it is
-// made. A plain push only: a non-fast-forward is refused by git, never
+// made. With `store`, the workspace's content rules at the diff boundary
+// check the same range, commit messages and ref name (R102.12), so a
+// private plan's names never reach a pushed branch. A plain push only: a non-fast-forward is refused by git, never
 // forced. Avoozl's own process pushes; agents have no credentials for it.
 export async function pushHead(
   root,
   { repository, branch, commit },
   registry,
-  { scan = privacyScan, since, env, machine, configFile } = {},
+  { scan = privacyScan, since, env, machine, configFile, store } = {},
 ) {
   const { url } = registry.get(repository);
   branchOf(branch, "pushed");
@@ -530,6 +532,18 @@ export async function pushHead(
     fail(
       `The content scan refused this push, nothing was pushed: rule ${[...new Set(hits.map((hit) => hit.rule))].join(", ")} in ${[...new Set(hits.map((hit) => hit.target))].slice(0, 5).join(", ")}.`,
       422,
+    );
+  // Throws 422 naming the rule, never the text, on a match.
+  if (store)
+    enforce(
+      store,
+      {
+        boundary: "diff",
+        repository,
+        target: `push:${repository}:${branch}`,
+        added: pushLines(root, base, commit, [branch]),
+      },
+      { mode: "refuse" },
     );
   try {
     await git(

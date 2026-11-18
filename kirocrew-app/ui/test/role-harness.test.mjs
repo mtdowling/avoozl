@@ -49,8 +49,8 @@ for (const width of [390, 1280]) {
     await page.evaluate(pick('avoozl-harness-reviewDraft', 'claude-code'))
     await page.until(`Boolean(document.querySelector('[data-model-role="reviewDraft"] [data-harness-pending]'))`)
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-model-role="retro"] [data-harness-pending]'))`), false)
-    await page.until(`!document.querySelector('[data-models-save]').disabled`)
-    await page.evaluate(`document.querySelector('[data-models-save]').click()`)
+    await page.until(`document.querySelector('[data-save-footer] [data-save]')?.disabled === false`)
+    await page.evaluate(`document.querySelector('[data-save-footer] [data-save]').click()`)
     await page.until(`document.querySelector('[data-models-settings]').textContent.includes('Saved to .avoozl.json.')`)
     const calls = await page.evaluate(`window.__harness.calls.filter((call) => call.operation === 'models.settings.update').map((call) => call.input)`)
     assert.deepEqual(calls.at(-1), {
