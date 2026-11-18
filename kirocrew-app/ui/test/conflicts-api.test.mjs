@@ -91,3 +91,13 @@ test('the source-conflict choices call conflictfix.decide', async () => {
     [['conflictfix.decide', 'resolve', 3], ['conflictfix.decide', 'dismiss', 3]],
   )
 })
+
+test('a failing tick is a Needs you row with its own words', async () => {
+  const { CONFLICT_TABS, noActionReason, settleActionOf } = await import('../src/conflicts-api.ts')
+  const { CONFLICT_LABELS } = await import('../src/views-api.ts')
+  const item = { kind: 'tick-failed', id: 'tick-failed', taskId: null, title: 'The tick failed 3 times in a row', detail: 'boom.' }
+  assert.equal(CONFLICT_LABELS['tick-failed'], 'Tick failed')
+  assert.equal(settleActionOf(item), null)
+  assert.match(noActionReason(item), /clears after the first tick that works/)
+  assert.ok(CONFLICT_TABS.find((tab) => tab.key === 'needs-human').keep(item))
+})

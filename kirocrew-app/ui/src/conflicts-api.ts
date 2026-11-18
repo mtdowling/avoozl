@@ -98,6 +98,8 @@ export function noActionReason(item: ConflictItem): string | null {
   if (item.kind === 'content-match') return null
   // Findings and Ready to merge carry their own actions (ConflictsView.tsx).
   if (item.kind === 'investigation' || item.kind === 'ready-to-merge' || item.kind === 'routing-failed' || item.kind === 'branch-landing') return null
+  if (item.kind === 'tick-failed')
+    return 'Fix the error shown. Avoozl runs the tick again by itself, and this row clears after the first tick that works.'
   // A forward row carries its own button (ConflictsView.tsx ForwardButton).
   if (item.kind === 'needs-human' && item.reason === 'forward') return null
   // A public branch ready to land (RC26.4): a person merges it on GitHub.
@@ -132,7 +134,7 @@ export const CONFLICT_TABS: { key: string; label: string; keep: (item: ConflictI
   { key: 'all', label: 'All', keep: () => true },
   { key: 'github-conflict', label: 'GitHub edits', keep: (item) => item.kind === 'github-conflict' },
   { key: 'decision', label: 'Decisions', keep: (item) => ['decision', 'content-match', 'content-unavailable'].includes(item.kind) },
-  { key: 'needs-human', label: 'Needs you', keep: (item) => ['needs-human', 'review', 'investigation', 'ready-to-merge', 'routing-failed', 'branch-landing'].includes(item.kind) },
+  { key: 'needs-human', label: 'Needs you', keep: (item) => ['needs-human', 'review', 'investigation', 'ready-to-merge', 'routing-failed', 'tick-failed', 'branch-landing'].includes(item.kind) },
   { key: 'other', label: 'Sessions and resources', keep: (item) => ['stale-session', 'resource', 'tracker-conflict'].includes(item.kind) },
 ]
 

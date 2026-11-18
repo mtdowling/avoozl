@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ACTIVITY_FILTER_STORE, filterActive, filterChoices, githubItem, retentionAutosave, retentionInput, rowTarget } from '../src/activity-api.ts'
+import { ACTIVITY_FILTER_STORE, SOURCE_LABELS, filterActive, filterChoices, githubItem, retentionAutosave, retentionInput, rowTarget } from '../src/activity-api.ts'
 import { PAGE } from '../src/paging.ts'
 
 const src = new URL('../src/', import.meta.url)
@@ -157,4 +157,13 @@ test('a GitHub intake row links owner/repo#N to the item, from stored data', () 
   assert.equal(githubItem(github({ source: 'plugin' })), null)
   assert.equal(githubItem(github({ redacted: true })), null)
   assert.match(source('ActivityView.tsx'), /<a href=\{linkHref\(item\.href\)\} target="_blank" rel="noopener noreferrer"/)
+})
+
+test('the tick is a source with its own label and filter row', () => {
+  assert.equal(SOURCE_LABELS.tick, 'Tick')
+  const page = { items: [], total: 3, sources: ['local', 'tick'], kinds: ['tick.failed'], actors: ['avoozl'], counts: { source: { local: 1, tick: 2 } }, retentionDays: 30 }
+  assert.deepEqual(filterChoices(page, {}).sources, [
+    { value: 'local', label: 'This workspace', count: 1 },
+    { value: 'tick', label: 'Tick', count: 2 },
+  ])
 })

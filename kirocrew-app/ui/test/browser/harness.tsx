@@ -17,7 +17,7 @@ import { Tooltip } from '../../src/Tooltip.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
 import GraphView from '../../src/GraphView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
-import Onboard from '../../src/Onboard.tsx'
+import SetupRepository from '../../src/Onboard.tsx'
 import { Modal } from '../../src/Modal.tsx'
 import { specGraph } from './spec-graph-fixture.ts'
 import { installInlineFixture } from './settings-inline-fixture.ts'
@@ -285,7 +285,7 @@ const repoEdit = (edited: boolean) =>
 
 export const SCENARIOS: Record<string, Scenario> = {
   'add-plugin': own('Add plugin', <AddPlugin workspaceId="w" client={idle} supported={[1]} onChanged={async () => undefined} />),
-  onboard: own('Onboard', <Onboard workspaceId="w" disabled={null} onChanged={async () => undefined} />),
+  onboard: shown((close) => <SetupRepository workspaceId="w" folder="/work/avoozl" onChanged={async () => undefined} onClose={close} />),
   'repo-edit': repoEdit(false),
   'repo-edit-unsaved': repoEdit(true),
   'setup-github': shown((close) => <SetupDialog workspaceId="w" client={idle} form={setupForm({})} set={() => undefined} first={null} onClose={close} onSaved={async () => undefined} />),
@@ -550,6 +550,24 @@ if (query.get('page') === 'app') {
       { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main' },
       { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
     ] }))
+  // Add repository and Set up GitHub and import specs read a folder the same way.
+  if (roles) {
+    answer('repositories.detect', (body) => ({ root: (body.input as { folder: string }).folder, id: 'new-service', baseBranch: 'main', remote: 'git@github.com:acme/new-service.git', github: 'acme/new-service' }))
+    answer('repositories.configure', (body) => ({ id: (body.input as { id: string }).id, name: (body.input as { id: string }).id, localCheckout: (body.input as { localCheckout: string }).localCheckout, github: 'acme/new-service', baseBranch: 'main' }))
+    answer('onboarding.inspect', (body) => ({
+      root: (body.input as { folder: string }).folder,
+      baseBranch: 'main',
+      currentBranch: 'main',
+      remote: 'git@github.com:acme/new-service.git',
+      github: 'acme/new-service',
+      id: 'new-service',
+      settingsFile: false,
+      specs: ['search-v2'],
+      registered: { id: 'new-service', localCheckout: (body.input as { folder: string }).folder, github: 'acme/new-service', baseBranch: 'main', planning: false },
+      visibility: 'private',
+      githubError: null,
+    }))
+  }
   answer('github.settings.get', () => ({
     filename: '.avoozl.json',
     exists: true,
@@ -936,7 +954,10 @@ if (query.get('page') === 'app' && query.get('publiccrews')) {
 // ?page=app&radar=1: the Dashboard has one live Issue Radar claim.
 if (query.get('radar') === '1') {
   answer('delivery.view', () => ({ revision: 1, items: [] }))
-  answer('conflicts.view', () => ({ revision: 1, items: [] }))
+  answer('conflicts.view', () => ({
+    revision: 1,
+    items: query.get('tickfail') === '1' ? [{ kind: 'tick-failed', id: 'tick-failed', taskId: null, title: 'The tick failed 3 times in a row', detail: 'database is locked. Nothing is dispatched, merged or read from GitHub until a tick works.', failures: 3, openedAt: '2026-11-13T11:30:00Z', planArchived: null }] : [],
+  }))
   answer('plan.list', () => ({ items: [] }))
   answer('remote.view', () => ({ workers: [] }))
   const noMetrics = { tasks: 0, leadTimeMs: null, flowEfficiency: null, firstPassRate: null, changeFailureRate: null, integrationsPerDay: null, timeToFixMs: null }
@@ -1238,8 +1259,6 @@ if (query.get('page') === 'workspaces') {
     items = items.map((item) => (item.id === id ? { ...item, ...change } : item))
     return items.find((item) => item.id === id)
   })
-  answer('workspace.tick.health', () => ({ lastRun: null, lock: null }))
-  answer('workspace.tick.log', () => ({ items: [] }))
 }
 
 // The folder picker's reads (workspaces.browse) on every page: a small home
@@ -1356,16 +1375,26 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
   const kinds = ['dispatch', 'settings', 'github.close', 'approve', 'board.move', 'label', 'stop', 'resume', 'session.end', 'plugin.sync']
   const sources = ['local', 'github', 'mcp', 'plugin']
   const actors = ['mira', 'worker-chat', 'octo-reviewer', 'github-actions']
-  const all = Array.from({ length: 24 }, (_, at) => {
+  const base = Array.from({ length: 24 }, (_, at) => {
     const seq = 24 - at
     return { seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') - at * 3600e3).toISOString(), source: sources[at % 4], actor: actors[(at * 3) % 4], kind: kinds[at % kinds.length], summary: `${kinds[at % kinds.length]} entry ${seq}`, targetId: null, link: null, redacted: false }
   })
   // New items from GitHub: the owner/repo#N text links to the item.
   if (query.get('ghitems') === '1') {
-    all[1] = { ...all[1], source: 'github', kind: 'intake.item', summary: 'New pr nupp-lang/foo#12 from github', link: null }
-    all[5] = { ...all[5], source: 'github', kind: 'intake.item', summary: 'New issue nupp-lang/bar#7 from github', link: 'https://github.com/nupp-lang/bar/issues/7' }
+    base[1] = { ...base[1], source: 'github', kind: 'intake.item', summary: 'New pr nupp-lang/foo#12 from github', link: null }
+    base[5] = { ...base[5], source: 'github', kind: 'intake.item', summary: 'New issue nupp-lang/bar#7 from github', link: 'https://github.com/nupp-lang/bar/issues/7' }
     kinds.push('intake.item')
   }
+  // The tick's own rows: a failure with a count, a stall and a recovery.
+  const tickRow = (seq: number, hours: number, kind: string, summary: string) => ({ seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') + hours * 3600e3).toISOString(), source: 'tick', actor: 'avoozl', kind, summary, targetId: null, link: null, redacted: false })
+  const all = [
+    tickRow(27, 2, 'tick.recovered', 'Tick works again after 5 failures'),
+    tickRow(26, 1.5, 'tick.failed', 'Tick failed 5 times in a row: database is locked'),
+    tickRow(25, 0.5, 'tick.stalled', 'Tick had not run for 42 min; it is running again'),
+    ...base,
+  ]
+  sources.push('tick')
+  kinds.push('tick.failed', 'tick.recovered', 'tick.stalled')
   const count = (key: 'source' | 'kind' | 'actor') => {
     const out: Record<string, number> = {}
     for (const row of all) out[row[key]] = (out[row[key]] ?? 0) + 1
