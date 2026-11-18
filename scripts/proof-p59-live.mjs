@@ -534,13 +534,16 @@ async function snapshotState() {
         executor: r.executor,
         state: r.state,
       })),
-      retros: store.list("flow_retros").map((r) => ({
-        id: r.id,
-        state: r.state,
-        bottleneck: r.bottleneck,
-        proposals: (r.proposals || []).length,
-        error: r.error,
-      })),
+      retros: store
+        .list("flow_retros")
+        .sort((a, b) => a.n - b.n)
+        .map((r) => ({
+          id: r.id,
+          state: r.state,
+          bottleneck: r.bottleneck,
+          proposals: (r.proposals || []).length,
+          error: r.error,
+        })),
       plans: store.list("plans").map((p) => ({
         id: p.id,
         state: p.state,
