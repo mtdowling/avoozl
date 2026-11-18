@@ -24,7 +24,8 @@ if (!chrome) {
 const set = (selector, value) =>
   `(() => { const el = document.querySelector(${JSON.stringify(selector)}); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()`
 const PAGES = {
-  delivery: { label: 'Delivery', ready: 'avoozl-delivery-agent', edit: set('#avoozl-delivery-agent', 'my-agent') },
+  delivery: { label: 'Delivery', ready: 'avoozl-delivery-investigate', edit: set('#avoozl-delivery-rounds', '4') },
+  models: { label: 'Models', ready: null, wait: "Boolean(document.querySelector('[data-models-settings]'))", edit: null },
   content: { label: 'Content rules', ready: null, wait: `Boolean(document.querySelector('[data-rule-details]'))`, edit: `(() => { const l = [...document.querySelectorAll('[data-rule-details] label')].find((x) => x.textContent.includes('Incoming items')); l.querySelector('input').click(); return true })()` },
   plugins: { label: 'Plugins', ready: null, wait: `Boolean(document.querySelector('[data-plugins-layout] button'))`, edit: null },
   repositories: { label: 'Repository setup', ready: 'avoozl-settings-repo-0-base', edit: set('#avoozl-settings-repo-0-base', 'develop') },
