@@ -563,11 +563,11 @@ if (query.get('page') === 'app') {
     ? { mode: 'single-repo', defaultAuthority: 'github', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
     : roles === 'local'
       ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
-      : { mode: 'plans-repo', planningRepository: 'acme/plans', defaultAuthority: 'github', epicIssueType: 'Epic', project: { owner: 'acme', number: 7 }, repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code' }, 'acme/recipe-api': { baseBranch: 'main', role: 'code' } } }
+      : { mode: 'plans-repo', planningRepository: 'acme/plans', defaultAuthority: 'github', epicIssueType: 'Epic', project: { owner: 'acme', number: 7 }, repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code', coder: 'worker', requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'], merge: { method: 'squash' }, rules: [{ id: 'ready', action: 'plan', match: 'label:ready -label:blocked' }], untriaged: { triageLabels: ['needs-triage'] } }, 'acme/recipe-api': { baseBranch: 'main', role: 'code', minimumPermission: 'write' } } }
   if (roles)
     answer('repositories.list', () => ({ items: [
-      { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main' },
-      { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main' },
+      { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main', landing: 'pr', harness: 'kiro' },
+      { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main', landing: 'train' },
       { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
     ] }))
   // Add repository and Set up GitHub and import specs read a folder the same way.
