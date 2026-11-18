@@ -1635,7 +1635,7 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
         action={<Btn onClick={() => props.onTab('workspaces')}>Open Workspaces</Btn>}
       />
     )
-  if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('github')} />
+  if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('github')} onOpenRepositories={() => props.onTab('repositories')} />
   if (tab === 'content') return <ContentRulesSettings workspaceId={workspaceId} />
   if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />
   if (tab === 'models') return <ModelsSettings workspaceId={workspaceId} />

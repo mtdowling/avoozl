@@ -4432,21 +4432,47 @@ export class Operations {
     if (name === "intake.view") return viewItem(store, input);
     if (name === "intake.sources") {
       const counts = sourceCounts(store),
-        none = { total: 0, untriaged: 0, lastAt: null };
+        none = { total: 0, untriaged: 0, lastAt: null },
+        policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        reads = githubReads(store),
+        same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
       return {
         sources: declaredSources(this.pluginOptions, store).map(
-          ({ id, scope, entry, error }) => ({
-            id,
-            scope,
-            entry,
-            error,
-            state: id ? sourceRowOf(store, `source:${id}`) : null,
-            items: (id && counts.get(id)) || none,
-          }),
+          ({ id, scope, entry, error, source }) => {
+            // A GitHub source (§4.39): its repository's read, and the Issue
+            // Radar escalation label its Triage rows open first with.
+            if (source?.via === "github") {
+              const read = reads.find((r) =>
+                  same(r.repository, source.repository),
+                ),
+                configured = Object.entries(policy?.repositories || {}).find(
+                  ([repository]) => same(repository, source.repository),
+                )?.[1];
+              return {
+                id,
+                scope,
+                entry,
+                error,
+                state: read
+                  ? { cursor: null, readAt: read.checkedAt, error: read.error }
+                  : null,
+                items: null,
+                escalationLabel: configured?.crewLabels?.needsHuman ?? null,
+              };
+            }
+            return {
+              id,
+              scope,
+              entry,
+              error,
+              state: id ? sourceRowOf(store, `source:${id}`) : null,
+              items: (id && counts.get(id)) || none,
+            };
+          },
         ),
         github: {
-          mode: readGitHubPolicyOrNull(this.workspaceRoot)?.mode ?? null,
-          repositories: githubReads(store),
+          mode: policy?.mode ?? null,
+          repositories: reads,
           items: counts.get("github") || none,
         },
       };
