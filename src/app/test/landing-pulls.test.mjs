@@ -328,8 +328,8 @@ test("a fork in the target's own organization names its head repository", async 
   const result = await landNext(x.store, Q, x.steps);
   assert.equal(result.state, "landed");
   assert.equal(github.calls.created.length, 1);
-  assert.equal(github.calls.created[0].input.head, "acme:avoozl/s/work");
-  assert.equal(github.calls.created[0].input.head_repo, "app-fork");
+  assert.equal(github.calls.created[0].input.head, "avoozl/s/work");
+  assert.equal(github.calls.created[0].input.head_repo, "acme/app-fork");
 });
 
 test("a fork under another owner sends no head repository", async (t) => {
@@ -337,4 +337,47 @@ test("a fork under another owner sends no head repository", async (t) => {
     x = await setup(t, github);
   await landNext(x.store, Q, x.steps);
   assert.equal("head_repo" in github.calls.created[0].input, false);
+});
+
+test("an open pull request from a same-org fork is found by its head repository", async (t) => {
+  const github = fakeGithub({ reviews: [approval("r1")] }),
+    lists = [];
+  github.pr.head = {
+    sha: COMMIT,
+    ref: "avoozl/s/work",
+    repo: { full_name: "acme/app-fork" },
+  };
+  github.listPullRequests = async (repo, input) => {
+    lists.push(input);
+    return [
+      {
+        number: 3,
+        state: "open",
+        head: {
+          sha: COMMIT,
+          ref: "other",
+          repo: { full_name: "acme/app-fork" },
+        },
+      },
+      github.pr,
+    ];
+  };
+  const x = await setup(t, github, {
+    registry: sourceRegistry({
+      "acme/app": { url: "https://example.invalid/acme/app.git" },
+      "acme/app-fork": {
+        url: "https://example.invalid/acme/app-fork.git",
+        parent: "acme/app",
+      },
+    }),
+  });
+  x.store.put("landing_queue", {
+    ...landingQueue(x.store, Q)[0],
+    source: { repository: "acme/app-fork", branch: "avoozl/s/work" },
+  });
+  const result = await landNext(x.store, Q, x.steps);
+  assert.equal(result.state, "landed");
+  assert.equal(github.calls.created.length, 0);
+  assert.equal(result.entry.pr, 7);
+  assert.equal("head" in lists[0], false);
 });
