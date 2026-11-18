@@ -44,6 +44,7 @@ import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
+import { landingFixture } from './landing-fixture.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { ForwardScreen } from '../../src/ForwardScreen.tsx'
 import forwardLive from './forward-live-replies.json'
@@ -453,6 +454,10 @@ answer('untriaged.view', () => ({
 if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
 // &graph=drafts: the same, plus one draft spec's tasks (graph-chains.ts).
 if (query.get('graph') === 'drafts') answer('graph.view', () => draftsGraph)
+
+// Dashboards › Landing queue: empty by default; &landing=1 has two bases
+// with every hold reason (landing-queue-shots.mjs).
+answer('landing.queue', () => (query.get('landing') === '1' ? landingFixture : { bases: [], readAt: '2026-11-17T12:00:00Z' }))
 
 function DeepLinkPage() {
   return (

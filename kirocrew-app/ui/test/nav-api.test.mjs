@@ -25,11 +25,11 @@ test('removed pages go to the page that took over, never nowhere', () => {
   for (const t of TABS) assert.deepEqual(redirectTab(t.key), { tab: t.key })
 })
 
-test('Dashboards holds Home, Graph, Lanes and CI; an old Home link lands on Dashboards > Home', () => {
-  assert.deepEqual(DASHBOARD_PAGES.map((p) => p.label), ['Home', 'Graph', 'Delivery', 'Lanes', 'CI'])
+test('Dashboards holds Home, Graph, Lanes, CI and Landing queue; an old Home link lands on Dashboards > Home', () => {
+  assert.deepEqual(DASHBOARD_PAGES.map((p) => p.label), ['Home', 'Graph', 'Delivery', 'Lanes', 'CI', 'Landing queue'])
   assert.deepEqual(redirectTab('dashboard'), { tab: 'dashboard' })
   assert.equal(dashboardPage('dashboard'), 'home')
-  for (const page of ['graph', 'delivery', 'lanes', 'ci']) {
+  for (const page of ['graph', 'delivery', 'lanes', 'ci', 'landing']) {
     assert.equal(redirectTab(page).tab, page)
     assert.equal(navTab(page), 'dashboard')
     assert.equal(dashboardPage(page), page)
@@ -37,6 +37,9 @@ test('Dashboards holds Home, Graph, Lanes and CI; an old Home link lands on Dash
   }
   assert.equal(dashboardTab('home'), 'dashboard')
   assert.equal(tabLabel('graph'), 'Graph')
+  assert.equal(tabLabel('landing'), 'Landing queue')
+  // A Dashboards page, not its own nav pill.
+  assert.ok(!TABS.some((t) => t.key === 'landing'))
   assert.equal(tabLabel('dashboard'), 'Home')
 })
 

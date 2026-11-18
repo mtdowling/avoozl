@@ -30,22 +30,23 @@ export const WAITING_SECTIONS: { key: WaitingSection; title: string; line: strin
   { key: 'triage', title: 'Triage', line: 'New issues and pull requests nothing covers yet. You choose which become work.' },
   { key: 'radar', title: 'Issue Radar', line: 'Issues you sent to an Issue Radar crew, or that one is holding.' },
 ]
-// Dashboards' pages. Home is the 'dashboard' tab itself; Graph, Delivery, Lanes and CI
-// are pages of their own that light Dashboards in the nav.
-export type DashboardPage = 'home' | 'graph' | 'delivery' | 'lanes' | 'ci'
+// Dashboards' pages. Home is the 'dashboard' tab itself; Graph, Delivery, Lanes, CI
+// and Landing queue are pages of their own that light Dashboards in the nav.
+export type DashboardPage = 'home' | 'graph' | 'delivery' | 'lanes' | 'ci' | 'landing'
 export const DASHBOARD_PAGES: { key: DashboardPage; label: string }[] = [
   { key: 'home', label: 'Home' },
   { key: 'graph', label: 'Graph' },
   { key: 'delivery', label: 'Delivery' },
   { key: 'lanes', label: 'Lanes' },
   { key: 'ci', label: 'CI' },
+  { key: 'landing', label: 'Landing queue' },
 ]
-export type Tab = NavTab | 'graph' | 'delivery' | 'lanes' | 'ci'
-export const dashboardTab = (page: string): Tab => (['graph', 'delivery', 'lanes', 'ci'].includes(page) ? (page as Tab) : 'dashboard')
-export const dashboardPage = (tab: Tab): DashboardPage | null =>
-  tab === 'dashboard' ? 'home' : tab === 'graph' || tab === 'delivery' || tab === 'lanes' || tab === 'ci' ? tab : null
+export type Tab = NavTab | 'graph' | 'delivery' | 'lanes' | 'ci' | 'landing'
+const PAGES: string[] = ['graph', 'delivery', 'lanes', 'ci', 'landing']
+export const dashboardTab = (page: string): Tab => (PAGES.includes(page) ? (page as Tab) : 'dashboard')
+export const dashboardPage = (tab: Tab): DashboardPage | null => (tab === 'dashboard' ? 'home' : PAGES.includes(tab) ? (tab as DashboardPage) : null)
 
-const PAGE_LABEL: Record<string, string> = { graph: 'Graph', delivery: 'Delivery', lanes: 'Lanes', ci: 'CI', dashboard: 'Home' }
+const PAGE_LABEL: Record<string, string> = { graph: 'Graph', delivery: 'Delivery', lanes: 'Lanes', ci: 'CI', landing: 'Landing queue', dashboard: 'Home' }
 export const tabLabel = (key: Tab) => PAGE_LABEL[key] ?? TABS.find((t) => t.key === key)?.label ?? key
 // The nav entry that is lit for a page.
 export const navTab = (key: Tab): NavTab => (dashboardPage(key) ? 'dashboard' : (key as NavTab))

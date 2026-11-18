@@ -20,6 +20,7 @@ import { DASHBOARD_PAGES, FLOW_TABS, TABS, WAITING_SECTIONS, dashboardPage, dash
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
 import LanesView from './LanesView.tsx'
+import LandingQueueView from './LandingQueueView.tsx'
 import DeliveryView from './DeliveryView.tsx'
 import { VIEW_ICONS } from './icons.ts'
 import ActivityView from './ActivityView.tsx'
@@ -431,6 +432,8 @@ function AvoozlPage() {
           <LanesView workspaceId={active} />
         ) : tab === 'ci' ? (
           <Placeholder view="ci" title="CI" line="Coming later: each open pull request's checks and CI wait. Avoozl caches its one batched pull-request read, but no page reads it yet." />
+        ) : tab === 'landing' ? (
+          <LandingQueueView workspaceId={active} />
         ) : tab === 'activity' ? (
           <ActivityView workspaceId={active} />
         ) : (

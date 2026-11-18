@@ -163,6 +163,7 @@ import {
 } from "./integration-head.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import { epicsView } from "./epics-view.mjs";
+import { landingQueueView } from "./landing-queue-view.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
   checkIntegrationBranch,
@@ -3569,6 +3570,9 @@ export class Operations {
       return graphView(store, this.read(), input, folders);
     }
     if (name === "delivery.view") return deliveryView(store, this.read());
+    // Dashboards › Landing queue: per base, in order, with hold reasons;
+    // from the store only, so Refresh never calls GitHub (44.5).
+    if (name === "landing.queue") return landingQueueView(store, this.read());
     if (name === "conflicts.view") {
       const data = this.read(),
         view = conflictsView(store, data),
