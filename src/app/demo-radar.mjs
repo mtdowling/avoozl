@@ -12,7 +12,6 @@
 // Local workers are retired: the sample has no worker rows. Crews are Issue
 // Radar crews on three made-up machines.
 import { epicsView } from "./epics-view.mjs";
-import { renderProvenance } from "./github-provenance.mjs";
 
 export const DEMO_FIXTURES_VERSION = 1;
 export const CLAIM_LABEL = "crew: in progress";
@@ -199,14 +198,6 @@ export function radarOverlay(now, repository) {
       ],
     },
     approvedAt: iso(now, 40),
-    // The leaf issues carry Avoozl's provenance marker.
-    provenance: (spec, task) =>
-      renderProvenance({
-        spec,
-        tasks: [task],
-        commit: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
-        approvedBy: "demo-owner",
-      }),
   };
 }
 

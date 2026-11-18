@@ -9,15 +9,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { planningIdentity } from "../github-marker.mjs";
-import { parseProvenance } from "../github-provenance.mjs";
 import { refreshProjectedReadiness } from "../github-projection.mjs";
-import { verifyIssue } from "../verify-issue.mjs";
 import {
   BATCH,
   BATCH_SPEC,
   approvedSpec,
   mergeAndClose,
-  reader,
   workspace,
 } from "./radar-fixture.mjs";
 
@@ -50,21 +47,6 @@ for (const mode of ["single-repo", "plans-repo"])
         github.created.some((other) => managed(other).taskId === id),
         false,
       );
-    const parsed = parseProvenance(issue.body);
-    assert.equal(parsed.problem, null);
-    assert.deepEqual(parsed.marker.tasks, BATCH);
-    const result = await verifyIssue("example/code#" + issue.number, {
-      read: reader(
-        github,
-        issue,
-        mode === "plans-repo" ? "example/planning" : "example/code",
-        BATCH_SPEC,
-      ),
-    });
-    assert.deepEqual(
-      result.checks.filter((check) => check.status !== "ok"),
-      [],
-    );
     // One checklist line per member, outside the managed section.
     const [outside] = issue.body.split("<!-- avoozl:managed:start -->");
     for (const id of BATCH)

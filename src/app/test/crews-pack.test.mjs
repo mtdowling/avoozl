@@ -9,7 +9,6 @@ import { Operations } from "../operations.mjs";
 import { packPreview, validatePack } from "../plugin-pack.mjs";
 import { validateManifest } from "../plugins.mjs";
 import { radarValues } from "../radar-values.mjs";
-import { CREW_PROMPT } from "../radar-crew-prompt.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -26,18 +25,18 @@ const refused = (mutate, pattern) => {
   assert.throws(() => validatePack(pack), pattern);
 };
 
-test("the shipped sdk-team example validates and its prompt is the shipped line", () => {
+test("the shipped sdk-team example validates and names no agent or prompt", () => {
   const pack = validatePack(example());
-  assert.equal(pack.settings.crews.prompt, CREW_PROMPT);
-  assert.equal(pack.settings.crews.agent, "avoozl-crew");
+  assert.equal(pack.settings.crews.agent, undefined);
+  assert.equal(pack.settings.crews.prompt, undefined);
 });
 
 test("a crews section with a bad value is refused by name", () => {
   refused((c) => (c.count = 0), /count/);
   refused((c) => (c.count = 9), /count/);
-  refused((c) => (c.agent = "other-agent"), /agent/);
+  refused((c) => (c.agent = "avoozl-crew"), /crews\.agent/);
   refused((c) => (c.models = []), /models/);
-  refused((c) => (c.prompt = "run anything"), /crew prompt/);
+  refused((c) => (c.prompt = "run anything"), /crews\.prompt/);
   refused((c) => (c.surprise = true), /crews\.surprise/);
   refused((c) => (c.labels.extra = "x"), /labels\.extra/);
   refused((c) => (c.labels.plan = c.labels.ready), /./);
@@ -70,7 +69,6 @@ test("the preview lists each value as a setting, creates nothing in Radar and fi
   const entry = preview.next.github.repositories[REPO];
   assert.deepEqual(entry.radar.crew, {
     count: 2,
-    agent: "avoozl-crew",
     models: ["model-a", "model-b"],
     template: "sdk-change",
   });
@@ -228,7 +226,7 @@ test("a pack with a private name is refused, and a clean one imports only after 
   assert.equal(entry.radar.crew.count, 2);
   assert.equal(entry.managedLabels.ready, "ready");
   // Only settings were written; no crew exists anywhere to create.
-  assert.equal(entry.radar.crew.agent, "avoozl-crew");
+  assert.equal(entry.radar.crew.agent, undefined);
 });
 
 test("the shipped sdk-team example folder has a manifest plugins add accepts", () => {

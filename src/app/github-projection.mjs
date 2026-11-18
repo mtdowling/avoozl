@@ -52,7 +52,6 @@ import {
 } from "./radar-coder-release.mjs";
 import { rankEligible } from "./release-ranking-step.mjs";
 import { adapterFor, coderForTask, RADAR_HANDOVER } from "./coder-adapter.mjs";
-import { plansNameForIssue } from "./github-plans-repo.mjs";
 import {
   assertPlanningLink,
   radarIssueRepository,
@@ -63,7 +62,6 @@ import {
 import { instanceIdentity, peekInstanceId } from "./instance.mjs";
 import { epicOfPlan } from "./epics.mjs";
 import { crewAgentInstructions } from "./agent-instructions.mjs";
-import { projectsMarkedIssues, provenanceWriter } from "./radar-provenance.mjs";
 import { resolveBatchGroups } from "./radar-coder-batch.mjs";
 import { finishSource, planSource, sourceParent } from "./radar-source.mjs";
 import {
@@ -1133,8 +1131,6 @@ async function project(
       new Set([...held, ...phaseHeld.keys()]),
     ),
     machine = machineIdentity(store).id,
-    verified = new Set(),
-    provenance = new Map(),
     managedByRepository = new Map(),
     issueTypes = new Map(),
     notes = new Set(),
@@ -1159,24 +1155,8 @@ async function project(
         );
       previewOnly.add(config.id);
     }
-    if (!verified.has(config.id)) {
-      const remote = await github.repository(config);
-      // The plans repository name is written with the provenance marker
-      // (RC3.1); the gate runs now so nothing is written for a refused
-      // repository.
-      provenance.set(
-        config.id,
-        provenanceWriter(store, {
-          identity,
-          plan,
-          config,
-          plans: plansNameForIssue(store, identity, config, remote),
-        }),
-      );
-      verified.add(config.id);
-    }
     const lead = leadOf.get(task.id);
-    if (lead && !projectsMarkedIssues(identity, config.id))
+    if (lead && identity?.repositories?.[config.id]?.coder !== "issue-radar")
       fail(`Batches are for issue-radar repositories, not ${config.id}.`, 409);
     // A batch member has no issue of its own; the lead's carries it.
     if (lead && lead !== task.id) {
@@ -1908,10 +1888,6 @@ async function project(
             markerOptions,
           ) +
           "\n" +
-          // The provenance line follows the managed marker (RC2.10).
-          (provenance.get(config.id)
-            ? provenance.get(config.id)(ids) + "\n"
-            : "") +
           (item.memberTasks ? checklist(item.memberTasks) + "\n" : "") +
           item.section,
         assignees: config.assignee ? [config.assignee] : undefined,
