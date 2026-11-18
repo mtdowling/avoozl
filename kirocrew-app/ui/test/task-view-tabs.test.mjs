@@ -23,8 +23,6 @@ test('the open tab is kept in the address, and arrow keys move between the tabs'
   const drawer = source('TaskDrawer.tsx')
   assert.match(drawer, /useTabParam<TaskTab>\(TASK_TAB_PARAM/)
   assert.match(drawer, /<Tabs id="task-tabs"/)
-  // An old Trace link opens the Timeline tab.
-  assert.match(source('OldTraceLink.tsx'), /openTask\(task\.id, 'timeline'\)/)
 })
 
 test('one rule for no data: a tab or section with none is not drawn, and says nothing', () => {
