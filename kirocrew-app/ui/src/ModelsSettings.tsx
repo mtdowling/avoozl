@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Picker } from './Picker.tsx'
 import { optionItems } from './picker.ts'
-import { SmallBtn } from './controls.tsx'
+import { SaveFooter } from './SaveFooter.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { modelOptions } from './flow-api.ts'
@@ -129,17 +129,19 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
       <p className="text-xs text-muted" data-models-person-only>
         Kiro Crew chats run as you. Avoozl refuses person-only actions in them, but that only slows an agent down: it is not a lock.
       </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <SmallBtn primary onClick={() => void save()} disabled={saving || !changed} attrs={{ 'data-models-save': true }}>
-          {saving ? 'Saving…' : 'Save'}
-        </SmallBtn>
-        {message?.error && (
-          <span role="alert" className="text-sm text-danger">
-            {message.error}
-          </span>
-        )}
-        {message?.ok && <span className="text-xs text-muted">{message.ok}</span>}
-      </div>
+      <SaveFooter
+        dirty={changed}
+        saving={saving}
+        error={message?.error}
+        ok={message?.ok}
+        note="Writes .avoozl.json."
+        onSave={() => void save()}
+        onDiscard={() => {
+          setForm(value.models)
+          setHarnesses(value.harnesses ?? {})
+          setMessage(null)
+        }}
+      />
     </div>
   )
 }
