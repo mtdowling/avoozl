@@ -167,12 +167,16 @@ export function reviewLink(place: ReviewPlace): string {
 }
 
 // The spec page's tabs in the address. Review is ?view=review&plan=P (above);
-// every other tab is ?plan=P&tab=T, and the Overview is ?plan=P alone.
+// every other tab is the spec id plus tab=T, and the Overview is the spec id alone.
 export interface SpecPlace {
   plan: string
   tab: string
 }
-export const specTabLink = (plan: string, tab: string) => (tab === 'overview' ? `?plan=${encodeURIComponent(plan)}` : `?plan=${encodeURIComponent(plan)}&tab=${encodeURIComponent(tab)}`)
+export function specTabLink(plan: string, tab: string): string {
+  const query = new URLSearchParams({ plan })
+  if (tab !== 'overview') query.set('tab', tab)
+  return '?' + query.toString()
+}
 export function parseSpecTab(search: string): SpecPlace | null {
   const query = new URLSearchParams(search)
   const plan = query.get('plan'),

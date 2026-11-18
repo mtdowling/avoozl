@@ -1990,7 +1990,7 @@ export default function PlansView(props: {
   // Kiro Crew's route. A pasted ?view=review&plan=P link opens it once.
   const [review, setReview] = useState<ReviewPlace | null>(null)
   // The other tabs: Overview, Tasks and one per spec document, in the address
-  // as ?plan=P&tab=T. Review is ?view=review&plan=P. Back and Forward walk them.
+  // as the spec id plus tab=T. Review has its own link. Back and Forward walk them.
   const [specAt, setSpecAt] = useState<{ plan: string; tab: string }>({ plan: '', tab: 'overview' })
   const reviewLinkRead = useRef(false)
   const readAddress = useCallback(() => {
