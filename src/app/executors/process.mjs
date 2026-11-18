@@ -52,7 +52,13 @@ function withDatabase(stateDirectory, use) {
 
 // `projectFor(task)` names the task's project record, whose `harness` and
 // `sandbox` ({writeRoots, allowCommands, network}) shape the child.
-export function processExecutor({ stateDirectory, projectFor = () => null }) {
+// `harnessFor(task, role)` names the harness a request asked for (R98.3,
+// R98.4), or null for the project's.
+export function processExecutor({
+  stateDirectory,
+  projectFor = () => null,
+  harnessFor = () => null,
+}) {
   return createExecutor({
     start(role, task, worktree, brief, model, permissionClass) {
       if (!worktree) throw Error("A process session needs the task worktree.");
@@ -66,7 +72,7 @@ export function processExecutor({ stateDirectory, projectFor = () => null }) {
           role,
           task,
           worktree,
-          harness: project.harness ?? DEFAULT_HARNESS,
+          harness: harnessFor(task, role) ?? project.harness ?? DEFAULT_HARNESS,
           permissionClass,
           model,
           brief: processBrief(role, brief),
@@ -313,7 +319,10 @@ export async function drainProcessRequests(
   const startHold = (request) => {
     if (request.operation === "send") return null;
     health ??= healthContext(store);
-    const harness = sessionProject(store, request)?.harness ?? DEFAULT_HARNESS;
+    const harness =
+      request.harness ??
+      sessionProject(store, request)?.harness ??
+      DEFAULT_HARNESS;
     return planQuotaHold(health, { model: request.model, harness });
   };
   for (const pending of pendingSessionRequests(store, PROCESS_EXECUTOR)) {
@@ -372,6 +381,8 @@ export async function drainProcessRequests(
         sessionId = await processExecutor({
           stateDirectory,
           projectFor: () => project,
+          // The harness the request names (R98.3, R98.4), else the project's.
+          harnessFor: () => request.harness ?? null,
         }).start(
           request.role,
           request.task,
