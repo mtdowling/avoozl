@@ -16,6 +16,7 @@ import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // here reads or writes that row; the tick turns it into dispatches and
 // messages (investigationStep).
 import { fail } from "./store.mjs";
+import { cliCommand } from "./report-command.mjs";
 import { listSessionBindings, quietStep } from "./session-bindings.mjs";
 import { taskRepository } from "../work-model.mjs";
 import { flowOnDecision } from "./flow.mjs";
@@ -196,7 +197,7 @@ export function investigateLines(
       ? ` --workspace ${JSON.stringify(cliReport.workspace)}`
       : "",
     report = cliReport
-      ? `write your findings as {${FINDINGS_SHAPE}} to a file outside the worktree, then run exactly: avoozl runner report ${task.id} findings --file <that file> --token ${cliReport.token}${where}`
+      ? `write your findings as {${FINDINGS_SHAPE}} to a file outside the worktree, then run exactly: ${cliCommand()} runner report ${task.id} findings --file <that file> --token ${cliReport.token}${where}`
       : `call plans_report with {"input": {"taskId": "${task.id}", "kind": "findings", "findings": {${FINDINGS_SHAPE}}}}`;
   return [
     "Investigate first. Before you change any file:",

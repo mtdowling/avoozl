@@ -36,7 +36,7 @@ of the other specs.
 - [x] wp-1.3 A batch on `process` runs as single tasks, after wp-1.1 [WP3.3] (§D3)
   - The batch rules gain "the worker's executor makes commits"; a group that fails it runs as single tasks with the stated reason, where a group that breaks a rule is shown today.
   - Done when: Tests: a three-task group on `process` starts three sessions and lands three commits, and the page and `avoozl show` give the reason; the same group on `kirocrew` still runs in one chat with one commit per task.
-- [ ] wp-1.4 A report command that needs no `PATH`, and no MCP tool in a worker's brief, after wp-1.1, wp-1.2 [WP4.1, WP4.3, WP4.5] (§D5)
+- [x] wp-1.4 A report command that needs no `PATH`, and no MCP tool in a worker's brief, after wp-1.1, wp-1.2 [WP4.1, WP4.3, WP4.5] (§D5)
   - One helper gives the brief the Node binary and the running CLI's path, quoted for a shell; the batch brief and the investigate lines use the command-line report; the README says a worker needs no MCP sharing.
   - Done when: A test runs the report command taken from a built brief in a shell with an empty `PATH`, against the source checkout and against the built app package, and both record the report; a search of every `kirocrew` worker brief in the pair table finds no `plans_`; `plans_report` from a verifier and from an MCP client Avoozl did not start still works.
 
@@ -67,7 +67,7 @@ of the other specs.
 
 ## Phase 3: One remote route
 
-- [ ] wp-3.1 A worker machine pulls and claims on its own tick, after wp-1.1 [WP5.2] (§D8)
+- [x] wp-3.1 A worker machine pulls and claims on its own tick, after wp-1.1 [WP5.2] (§D8)
   - On `runner.role: "worker"` the tick pulls offers, requests claims for its free lanes and starts acknowledged tasks, before `runnerTick`; `avoozl worker pull` and `avoozl worker claim` call the same functions.
   - Done when: Tests with a fake GitHub and a fake driver: a worker with two free lanes and three offers claims two and starts two with no command run by hand; a request with no acknowledgment starts nothing; a tick with no GitHub records one line and starts nothing; the hand-run commands give the same result as one tick.
 - [ ] wp-3.2 The driver checks a pulled result on its tick, after wp-3.1 [WP5.3] (§D8)

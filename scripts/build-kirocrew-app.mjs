@@ -8,6 +8,7 @@ import { rolldown } from "rolldown";
 import { build } from "vite";
 import { buildAgents } from "../src/app/executors/kirocrew/build-agents.mjs";
 import { writeUiStamp } from "../src/app/ui-bundle.mjs";
+import { buildStandalone } from "./build-standalone.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
   app = path.join(root, "kirocrew-app"),
@@ -37,6 +38,14 @@ await build({
 });
 // The installed backend refuses a page built from other source (ui-bundle.mjs).
 writeUiStamp(ui);
+// The standalone page (SW2). A failure is reported and fails the build at the
+// end, after everything else is built.
+let standaloneError = null;
+try {
+  await buildStandalone({ ui });
+} catch (error) {
+  standaloneError = error;
+}
 
 // Kiro Crew installs the app by copying kirocrew-app, and refuses entry points
 // that resolve outside it, so the CLI and its npm dependencies are copied in.
@@ -91,3 +100,9 @@ fs.writeFileSync(
     2,
   ) + "\n",
 );
+if (standaloneError) {
+  console.error(
+    `The standalone page did not build: ${standaloneError.message}`,
+  );
+  process.exitCode = 1;
+}

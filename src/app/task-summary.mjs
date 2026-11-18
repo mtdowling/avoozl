@@ -7,6 +7,8 @@ import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 import { roleRun } from "./role-table.mjs";
 import { callerSlot } from "./delivery.mjs";
 import { fail } from "./store.mjs";
+import { enforce as enforceContent } from "./content-rules.mjs";
+import { taskRepository } from "../work-model.mjs";
 
 // The AI summary on a task's Overview tab. One receipt per task, keyed by a
 // hash of the inputs the summary was written from (task text, state, attempts,
@@ -114,6 +116,13 @@ export function requestTaskSummary(
   return { state: "working", text: null, hash: view.hash };
 }
 
+// The project of the task a summary is for, whose executor it runs on.
+function projectOf(store, receipt) {
+  const task = store.read().tasks.find((t) => t.id === receipt.taskId);
+  const id = taskRepository(task);
+  return id ? (store.get("projects", id) ?? null) : null;
+}
+
 // The tick's dispatch entries: one per queued summary with no chat yet. The
 // chat needs no checkout, so it opens without a project folder.
 export function taskSummaryDispatches(store, { config } = {}) {
@@ -134,7 +143,7 @@ export function taskSummaryDispatches(store, { config } = {}) {
       kirocrewRequest(store, {
         task: r.id,
         role: SUMMARY_ROLE,
-        ...roleRun("taskSummary", { config }),
+        ...roleRun("taskSummary", { config, project: projectOf(store, r) }),
         attempt: r.attempt,
         title: `avoozl:task-summary ${r.taskId} (attempt ${r.attempt})`,
         ...kirocrewDetachedSession(),
@@ -168,6 +177,18 @@ export function submitTaskSummary(store, input = {}, caller) {
   const text = typeof input.summary === "string" ? input.summary.trim() : "";
   if (!text || text.length > MAX_TEXT || CONTROL.test(text))
     fail(`Write a summary of 1–${MAX_TEXT} printable characters.`);
+  // Content rules (NK2.5): the summary is model text shown on the page, so
+  // it is screened before it is stored, from a chat or a child alike.
+  enforceContent(
+    store,
+    {
+      boundary: "notes",
+      repository: null,
+      target: `summary:${receipt.taskId}`,
+      text,
+    },
+    { mode: "refuse", taskId: receipt.taskId },
+  );
   store.put("receipts", {
     ...receipt,
     state: "done",
