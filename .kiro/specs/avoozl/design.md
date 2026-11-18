@@ -4582,6 +4582,8 @@ file reads as moved. Upgrade if reviews of split files show it often.
 
 ### 4.34 A role per repository decides where tasks live
 
+**Status 2026-11-18.** The picker described below changed (#484): Repository setup is a compact list with a read-only role badge and View, Edit and Remove icon buttons, not an in-place picker. The role is chosen in Edit and in Add repository. A fifth choice, `mirror` ("Private mirror of a public repository", a private copy that crews work in), is part of that choice and replaces the separate Mirror box. The planning row and the one "Tasks live in" line are unchanged.
+
 Added 2026-11-17 (Requirement 105). Replaces the **Where tasks live**
 Settings page and the mode choice of §4.4. The three modes stay as the
 derived result; only the way a person sets them changes.

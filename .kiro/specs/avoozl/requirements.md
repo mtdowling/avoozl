@@ -5654,6 +5654,8 @@ per file on the spec page.
 
 ### Requirement 105: Where tasks live follows from each repository's role
 
+**Status 2026-11-18.** Criterion 4 changed (#484): Repository setup is a compact list with a read-only role badge and View, Edit and Remove icon buttons, not an in-place picker. The role is chosen in Edit and in Add repository. A fifth choice, `mirror` ("Private mirror of a public repository", a private copy that crews work in), is part of that choice and replaces the separate Mirror box. Criterion 5 and the one "Tasks live in" line are unchanged.
+
 Added 2026-11-17 (owner request). Design §4.34. Extends Requirement 28.
 Where they conflict it supersedes the part of Requirement 28.1 that says a
 workspace configures the mode: a person now picks a role per repository and
