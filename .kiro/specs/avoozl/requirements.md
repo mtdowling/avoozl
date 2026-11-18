@@ -3584,16 +3584,16 @@ Over budget badges, receipts and Settings › Budgets are gone. Criteria 1 to
 stays: the per-turn usage reads and `flow_usage` of Requirement 43, which
 feed Flow's usage charts (tokens and credits per task, stage and model), and
 the plan-quota rule of Requirement 94.6a, which stops new sessions when plan
-quota runs low. A budget key left in `.avoozl.json`, a repository entry or a
-manifest SHALL be ignored with one warning and never be an error, so an
-existing workspace still loads.
+quota runs low. No compatibility work (owner, 2026-11-17): the config schema
+has no budget key, and a leftover one is skipped silently so a workspace still
+loads.
 
 #### Acceptance criteria
 
 1. Avoozl SHALL have no budget, spend cap, budget hold, price table or
    Settings › Budgets page, and SHALL pass no spend cap to a harness.
 2. WHEN `.avoozl.json`, `projects.<id>`, a manifest or a leaf holds a
-   `budget` or `prices` key THEN Avoozl SHALL ignore it, warn once, and load.
+   `budget` or `prices` key THEN Avoozl SHALL skip it silently and load.
 3. Flow's usage charts and the plan-quota stop SHALL work as before.
 
 ### Requirement 68: Retros propose prompt and skill changes

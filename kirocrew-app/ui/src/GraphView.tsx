@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
 import { Tooltip } from './Tooltip.tsx'
+import { DRAG_SLOP } from './drag-pan.ts'
 import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
@@ -367,6 +368,7 @@ export default function GraphView({
   const canvas = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; y: number; view: View; moved: boolean } | null>(null)
   const moved = useRef(false)
+  const [panning, setPanning] = useState(false)
 
   const groupKeys = useMemo(
     () => [...new Set((graph?.tasks ?? []).map((t) => groupKey(t.group ?? null)))],
@@ -522,24 +524,37 @@ export default function GraphView({
     selectId(focus)
   }, [graph, focus])
 
-  // Drag anywhere to pan. A drag that moves is not a click on a node.
+  // Drag anywhere to pan, with the left or the middle button. A drag that
+  // moves is not a click on a node, and a middle drag opens no link.
   const onPointerDown = (event: PointerEvent<SVGSVGElement>) => {
-    if (event.button !== 0) return
-    drag.current = { x: event.clientX, y: event.clientY, view, moved: false }
     moved.current = false
+    if (event.button !== 0 && event.button !== 1) return
+    // No autoscroll on a middle press.
+    if (event.button === 1) event.preventDefault()
+    drag.current = { x: event.clientX, y: event.clientY, view, moved: false }
   }
   const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
     const start = drag.current
     if (!start) return
     const dx = event.clientX - start.x
     const dy = event.clientY - start.y
-    if (!start.moved && Math.hypot(dx, dy) < 4) return
-    if (!start.moved) event.currentTarget.setPointerCapture(event.pointerId)
+    if (!start.moved && Math.hypot(dx, dy) < DRAG_SLOP) return
+    if (!start.moved) {
+      event.currentTarget.setPointerCapture(event.pointerId)
+      setPanning(true)
+    }
     start.moved = moved.current = true
     setView({ ...start.view, x: start.view.x + dx, y: start.view.y + dy })
   }
   const onPointerUp = () => {
     drag.current = null
+    setPanning(false)
+  }
+  const noLinkAfterDrag = (event: MouseEvent) => {
+    if (event.button === 1 && moved.current) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
   }
 
   const highlighted = (from: string, to: string) => selected !== null && (from === selected || to === selected)
@@ -652,8 +667,12 @@ export default function GraphView({
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
-              style={{ cursor: 'grab', userSelect: 'none' }}
+              onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+              onAuxClickCapture={noLinkAfterDrag}
+              data-panning={panning || undefined}
+              style={{ cursor: panning ? 'grabbing' : 'grab', userSelect: 'none' }}
             >
+              {panning && <style>{'[data-graph-view] svg[data-panning] *{cursor:grabbing!important}'}</style>}
               <defs>
                 <marker id="avoozl-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={7} markerHeight={7} orient="auto">
                   <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--muted)' }} />

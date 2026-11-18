@@ -1,5 +1,6 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { projectExecutor } from "./executors/process.mjs";
+import { harnessExecutor, roleHarness } from "./chat-models.mjs";
 import {
   kirocrewDetachedSession,
   kirocrewRemoteSession,
@@ -2196,11 +2197,27 @@ export function leafBrief(store, data, leaf, options = {}) {
   );
 }
 
+// The executor a worker runs on: its task's `session.harness` pin (R98.4),
+// else the worker harness saved in Settings › Models (R98.3), else its
+// project's executor (R93.5). Returns {executor, harness?}.
+export function workerExecutor(task, project, harnesses) {
+  const named = task.session?.harness ?? roleHarness({ harnesses }, "worker");
+  return named
+    ? harnessExecutor(named)
+    : { executor: projectExecutor(project) };
+}
+
 function composeLeafBrief(
   store,
   data,
   leaf,
-  { relay = false, remote = null, investigate = false, ship = null } = {},
+  {
+    relay = false,
+    remote = null,
+    investigate = false,
+    ship = null,
+    executor = projectExecutor(leaf.project),
+  } = {},
 ) {
   const { task, project, attempt, delivery } = leaf,
     options = {
@@ -2249,7 +2266,7 @@ function composeLeafBrief(
   const token = issueReportToken(store, { taskId: task.id, attempt });
   // A supervisor child (R96.1): no database, no commit, no CLI report; its
   // brief ends with the result file.
-  if (!relay && projectExecutor(project) === "process")
+  if (!relay && executor === "process")
     return workerBrief(task, project, {
       ...options,
       steps: processSteps(task),
@@ -2382,6 +2399,9 @@ export function planReadyDispatches(store, policy, options = {}) {
       target = remote && {
         ...remoteTarget(routing, leaf, remote),
       };
+    const run = remote
+      ? { executor: "kirocrew" }
+      : workerExecutor(leaf.task, leaf.project, options.harnesses);
     // How the work comes back (handback.mjs), read again at `done`.
     if (target)
       where.placement.back = {
@@ -2394,8 +2414,18 @@ export function planReadyDispatches(store, policy, options = {}) {
     const investigate = !leaf.batch && investigates(policy, leaf.task),
       ship = shipMode(policy, leaf.task),
       brief = leaf.batch
-        ? batchBrief(store, data, leaf, leafBrief(store, data, leaf, { ship }))
-        : leafBrief(store, data, leaf, { remote: target, investigate, ship });
+        ? batchBrief(
+            store,
+            data,
+            leaf,
+            leafBrief(store, data, leaf, { ship, executor: run.executor }),
+          )
+        : leafBrief(store, data, leaf, {
+            remote: target,
+            investigate,
+            ship,
+            executor: run.executor,
+          });
     if (
       taskRoute(leaf.task) === "github" &&
       findPlanningLeak([["brief", brief]], planning)
@@ -2439,9 +2469,10 @@ export function planReadyDispatches(store, policy, options = {}) {
         ),
         ...(leaf.batch ? { batch: leaf.batch } : {}),
         ...(investigate ? { investigate: true } : {}),
-        // A project on `process` runs its worker as a supervisor child
-        // (R93.5); other roles move in Phase 49.
-        executor: remote ? "kirocrew" : projectExecutor(leaf.project),
+        // A worker on `process` runs as a supervisor child (R93.5), on the
+        // harness its pin or Settings › Models names, else its project's
+        // (R98.3, R98.4); other roles move in Phase 49.
+        ...run,
         // A local worker opens with `project: false` (R88.2, §4.26 Work): its
         // brief names the worktree, so the sidebar folder needs no project
         // directory. shortcut: with the routing prompt on, routing.mjs still
