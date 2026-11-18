@@ -3514,6 +3514,12 @@ message queues a `send`; Settings › Models picks a harness and model per
 role; a task's `session` pin may name a harness. Headless machines have
 `avoozl status` and `avoozl runner status --json` only.
 
+Proposed change, 2026-11-18 (draft, not approved): the
+`standalone-web` spec would add a second host for the same page,
+`avoozl serve`, bound to `127.0.0.1` only and signed in by a one-time owner
+link, for machines with no Kiro Crew. This paragraph stands until that spec
+is approved.
+
 **Steps and exits.**
 
 | Phase | Step                                    | Exit                                                                                              |

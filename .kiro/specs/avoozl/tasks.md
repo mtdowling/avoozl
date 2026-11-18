@@ -1824,7 +1824,9 @@ Requirement 97.3 (design §4.28).
 ## Phase 50: Kiro Crew stays the only UI
 
 Requirement 98 (design §4.28). Screen changes wait for the owner's
-screenshots review.
+screenshots review. A draft spec, `.kiro/specs/standalone-web/`, proposes a
+loopback-only second host for this page; it changes nothing here until
+approved.
 
 - [x] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
 - [x] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)

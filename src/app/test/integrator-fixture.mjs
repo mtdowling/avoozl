@@ -36,12 +36,24 @@ const leaf = (id, planId = "s1") => ({
 // can read ORIGIN (the bare remote's path) from its own script text.
 export async function workspace(
   t,
-  { policy = "gated", full, cheap, trigger = {}, maxRebases } = {},
+  {
+    policy = "gated",
+    full,
+    cheap,
+    trigger = {},
+    maxRebases,
+    files = {},
+    hooks = [],
+  } = {},
 ) {
   const root = temporaryDirectory("avoozl-engine-"),
     origin = path.join(root, "origin.git"),
     checkout = path.join(root, "app");
   git(root, "init", "--bare", "-b", "main", origin);
+  for (const [name, text] of hooks) {
+    const file = path.join(origin, "hooks", name);
+    fs.writeFileSync(file, text, { mode: 0o755 });
+  }
   git(root, "clone", "-q", origin, checkout);
   for (const [k, v] of [
     ["user.name", "Test"],
@@ -49,6 +61,8 @@ export async function workspace(
   ])
     git(checkout, "config", k, v);
   fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
+  for (const [name, text] of Object.entries(files))
+    fs.writeFileSync(path.join(checkout, name), text);
   git(checkout, "add", ".");
   git(checkout, "commit", "-qm", "Start");
   git(checkout, "push", "-q", "origin", "main");
@@ -122,13 +136,14 @@ export async function workspace(
 export async function queued(
   w,
   id,
-  { file = `${id}.txt`, from = "main" } = {},
+  { file = `${id}.txt`, from = "main", write = null } = {},
 ) {
   const wt = path.join(w.root, "wt", id);
   // A task queued again (sent back and fixed) commits on its own worktree.
   if (!fs.existsSync(wt))
     git(w.checkout, "worktree", "add", "-q", "-b", `avoozl/${id}`, wt, from);
-  fs.writeFileSync(path.join(wt, file), id + "\n");
+  if (write) write(wt);
+  else fs.writeFileSync(path.join(wt, file), id + "\n");
   git(wt, "add", ".");
   git(wt, "commit", "-qm", `Do ${id}`);
   const commit = git(wt, "rev-parse", "HEAD"),

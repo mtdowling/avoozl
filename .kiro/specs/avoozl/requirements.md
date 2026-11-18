@@ -4987,6 +4987,12 @@ harness can read, so that a role behaves the same on every executor.
 
 Added 2026-11-15. Design §4.28.
 
+Proposed change, 2026-11-18 (draft, not approved):
+`.kiro/specs/standalone-web/` would let `avoozl serve` host this same page on
+`127.0.0.1` only, for a machine with no Kiro Crew (SW1 to SW11 there). Kiro
+Crew's page stays as it is. Until that spec is approved, criterion 5 stands
+as written; on approval it changes as SW11.2 says.
+
 **User story:** As the owner, I want to watch and steer every session in the
 Avoozl page, whatever harness runs it, so that I never need another UI.
 
