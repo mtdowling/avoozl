@@ -203,6 +203,7 @@ const OPEN = new Map([
       "github",
       "models",
       "harnesses",
+      "roles",
       "planReview",
       "lanes",
       "landing",
