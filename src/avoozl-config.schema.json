@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://avoozl.dev/schema/repository-config-v1.json",
+  "$id": "https://raw.githubusercontent.com/mtdowling/avoozl/main/src/avoozl-config.schema.json",
   "title": "Avoozl repository configuration",
   "description": "Shareable, non-secret policy stored as .avoozl.json at a repository root. Machine host configuration remains in ~/.config/avoozl/config.json and machine state remains under .avoozl/local.",
   "type": "object",
@@ -159,6 +159,28 @@
         }
       }
     },
+    "harnesses": {
+      "type": "object",
+      "description": "The harness each role's chat runs on: kirocrew for a Kiro Crew chat, or a harness definition's name for a supervisor child. A role left out, or auto, runs on its project's executor. A task's session.harness pin wins.",
+      "additionalProperties": false,
+      "properties": {
+        "worker": {
+          "$ref": "#/$defs/harnessName"
+        },
+        "planner": {
+          "$ref": "#/$defs/harnessName"
+        },
+        "planReviewer": {
+          "$ref": "#/$defs/harnessName"
+        },
+        "retro": {
+          "$ref": "#/$defs/harnessName"
+        },
+        "reviewDraft": {
+          "$ref": "#/$defs/harnessName"
+        }
+      }
+    },
     "planReview": {
       "type": "object",
       "description": "Cross-model draft review. Auto skips review until a reviewer is named and its model can be shown to differ from the writer's.",
@@ -271,6 +293,15 @@
                       },
                       "results": {
                         "type": "string"
+                      },
+                      "suiteArgs": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "Arguments that run one suite; one must hold {suite}."
                       }
                     }
                   }
@@ -467,6 +498,15 @@
                             },
                             "results": {
                               "type": "string"
+                            },
+                            "suiteArgs": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "description": "Arguments that run one suite; one must hold {suite}."
                             }
                           }
                         }
@@ -767,31 +807,36 @@
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
           "default": "kirocrew-worker"
         },
+        "model": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$",
+          "description": "The worker's model. Review roles with distinctFrom model must differ from it."
+        },
         "runner": {
           "description": "Who starts worker sessions for ready leaves: the tick's script cron, or a Crew Mode conductor that claims them through avoozl next and claim. The tick verifies and integrates either way.",
           "enum": ["tick", "crew-mode"],
           "default": "tick"
         },
-        "investigate": {
-          "description": "Investigate before coding (design 4.21): the worker reports findings, a falsifier tries to refute them, and coding starts only at minConfidence.",
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "mode": {
-              "enum": ["all", "not-small", "off"],
-              "default": "not-small"
-            },
-            "minConfidence": {
-              "enum": ["medium", "high"],
-              "default": "high"
-            },
-            "agent": {
-              "type": "string"
-            },
-            "model": {
-              "type": "string"
-            }
+        "prFeedback": {
+          "type": "boolean",
+          "default": true,
+          "description": "Send a pull request's review comments and failed checks back to the worker."
+        },
+        "feedbackRounds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 5
+        },
+        "reviewers": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/deliveryReviewer"
           }
+        },
+        "investigate": {
+          "$ref": "#/$defs/deliveryInvestigate"
         },
         "ship": {
           "description": "Who merges a finished pull request: the writer turns on GitHub auto-merge, or a person merges it (design 4.25).",
@@ -807,11 +852,36 @@
               "concurrency": {
                 "deprecated": true,
                 "description": "Ignored. lanes.local in the machine file is the one limit for chats."
+              },
+              "reviewers": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "$ref": "#/$defs/deliveryReviewer"
+                }
+              },
+              "prFeedback": {
+                "type": "boolean"
+              },
+              "feedbackRounds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20
+              },
+              "investigate": {
+                "$ref": "#/$defs/deliveryInvestigate"
+              },
+              "ship": {
+                "enum": ["auto-merge", "manual"]
               }
             }
-          }
+          },
+          "description": "One repository's own delivery settings, by project ID, over the workspace's."
         }
       }
+    },
+    "flow": {
+      "$ref": "#/$defs/flow"
     },
     "ahpPort": {
       "type": "integer",
@@ -940,12 +1010,16 @@
       "type": "string",
       "pattern": "^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$"
     },
+    "harnessName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,60}$"
+    },
     "runner": {
       "type": "object",
-      "description": "Runner mode over SSH, off unless role is set. A runner runs tasks a driver hands it. Machine paths (repos) and a local stand-in for ssh belong in ~/.config/avoozl/config.json.",
+      "description": "Runner mode, off unless role is set. A runner runs tasks a driver hands it over SSH; a worker pulls its own offers from spec journals. Machine paths (repos) and a local stand-in for ssh belong in ~/.config/avoozl/config.json.",
       "properties": {
         "role": {
-          "enum": ["runner", "driver"]
+          "enum": ["runner", "worker", "driver"]
         },
         "crewId": {
           "type": "string",
@@ -956,6 +1030,15 @@
           "items": {
             "type": "string"
           }
+        },
+        "executor": {
+          "description": "What runs the session: a Kiro Crew chat, or a process child of the supervisor.",
+          "enum": ["kirocrew", "process"],
+          "default": "kirocrew"
+        },
+        "workerMode": {
+          "description": "How an unattended worker's tool calls are approved. Off unless set.",
+          "enum": ["trust", "trust_reads"]
         },
         "remote": {
           "type": "string"
@@ -1003,6 +1086,67 @@
               }
             }
           }
+        },
+        "pools": {
+          "type": "array",
+          "description": "Worker role: the spec journals this worker pulls offers from.",
+          "items": {
+            "type": "object",
+            "required": ["spec", "repository", "target", "issue", "base"],
+            "properties": {
+              "spec": {
+                "type": "string"
+              },
+              "repository": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+              },
+              "target": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+              },
+              "claims": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+              },
+              "issue": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "base": {
+                "type": "string",
+                "minLength": 1
+              },
+              "visibility": {
+                "enum": ["public", "private"],
+                "default": "public"
+              }
+            }
+          }
+        },
+        "sources": {
+          "type": "object",
+          "description": "Worker role: the source repositories this worker may fetch, by owner/name.",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["url"],
+            "properties": {
+              "url": {
+                "type": "string",
+                "minLength": 1
+              },
+              "parent": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "lanes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16,
+          "default": 1,
+          "description": "Worker role: how many tasks this worker runs at once."
         }
       }
     },
@@ -1243,6 +1387,23 @@
             }
           }
         },
+        "checksEnv": {
+          "type": "array",
+          "description": "Names of environment variables the checks may read.",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          }
+        },
+        "worktreeHelper": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 hash of the approved worktree helper script."
+        },
+        "landing": {
+          "description": "How verified work reaches the base branch. direct: Avoozl merges and fast-forwards the base. pr: Avoozl opens a pull request and merges it once its checks pass. train: the integrator lands batches. off, or absent: Avoozl pushes nothing and the commit waits for a person.",
+          "enum": ["direct", "pr", "train", "off"]
+        },
         "planning": {
           "type": "boolean",
           "default": false,
@@ -1252,6 +1413,62 @@
           "type": "boolean",
           "default": true,
           "description": "Agents may create worktrees and prepare changes in this checkout."
+        },
+        "executor": {
+          "description": "What runs this project's sessions: a Kiro Crew chat, or a process child of the supervisor.",
+          "enum": ["kirocrew", "process"]
+        },
+        "harness": {
+          "$ref": "#/$defs/harnessName",
+          "description": "The harness definition a process session uses."
+        },
+        "sandbox": {
+          "type": "object",
+          "description": "What a process session may write, run and reach.",
+          "additionalProperties": false,
+          "properties": {
+            "writeRoots": {
+              "type": "array",
+              "description": "Absolute folders the session may write besides its worktree. Never the home folder, the filesystem root or the git directory.",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "allowCommands": {
+              "type": "array",
+              "description": "Commands the session may run without asking, each an argv list of plain words. git push is never allowed.",
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "network": {
+              "description": "off, or the localhost ports the session may reach.",
+              "oneOf": [
+                {
+                  "const": "off"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^localhost:[1-9][0-9]{0,4}$"
+                  }
+                }
+              ],
+              "default": "off"
+            }
+          }
+        },
+        "flow": {
+          "$ref": "#/$defs/flow",
+          "description": "This repository's own flow settings, over the workspace's. Settings > Flow writes it."
         }
       },
       "additionalProperties": false
@@ -1305,6 +1522,59 @@
           "default": 60,
           "description": "How long GitHub answers stay fresh, in seconds. Inside it Avoozl makes no GitHub call for a read. 0 turns the cache off. A repository may set its own."
         },
+        "writesPerMinute": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 80,
+          "default": 60,
+          "description": "The most GitHub writes Avoozl makes in a minute."
+        },
+        "writesPerHour": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 500,
+          "default": 400,
+          "description": "The most GitHub writes Avoozl makes in an hour."
+        },
+        "subIssues": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "maxPerParent": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 100,
+              "description": "How many sub-issues Avoozl links under one parent issue. GitHub's own limit is 100."
+            }
+          }
+        },
+        "issues": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "includeDone": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether a task already done when its spec is approved gets an issue."
+            }
+          }
+        },
+        "specReviewers": {
+          "type": ["object", "null"],
+          "description": "The GitHub logins asked to review each spec's approval pull request, by spec folder name. With none, the repository's own CODEOWNERS and rules decide.",
+          "propertyNames": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,79}$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "maxItems": 10,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}$"
+            }
+          }
+        },
         "repositories": {
           "type": "object",
           "propertyNames": {
@@ -1352,6 +1622,11 @@
               "type": ["string", "null"],
               "minLength": 1,
               "description": "Single-select field Avoozl fills with its Delivery state. Blank: Avoozl skips it."
+            },
+            "phase": {
+              "type": ["string", "null"],
+              "minLength": 1,
+              "description": "Text field Avoozl fills with each task's phase."
             }
           },
           "additionalProperties": false
@@ -1408,22 +1683,37 @@
         },
         "radar": {
           "type": "object",
-          "description": "Issue Radar labels. Planning, needs-human, claim, ready, conflict and approval names must all differ.",
+          "description": "Avoozl's workflow labels. Planning, needs-human, claim, ready, conflict, approval, review, drafted and waiting-on-tracker names must all differ.",
           "properties": {
             "planLabel": {
               "type": "string",
               "minLength": 1,
-              "default": "to plan"
+              "default": "avoozl:plan"
             },
             "conflictLabel": {
               "type": "string",
               "minLength": 1,
-              "default": "merge conflict"
+              "default": "avoozl:merge-conflict"
             },
             "approvalLabel": {
               "type": "string",
               "minLength": 1,
-              "default": "plan approved"
+              "default": "avoozl:plan-approved"
+            },
+            "reviewLabel": {
+              "type": "string",
+              "minLength": 1,
+              "default": "avoozl:review"
+            },
+            "draftedLabel": {
+              "type": "string",
+              "minLength": 1,
+              "default": "avoozl:drafted"
+            },
+            "trackerLabel": {
+              "type": "string",
+              "minLength": 1,
+              "default": "avoozl:waiting-on-tracker"
             },
             "clearPlanLabel": {
               "type": "boolean",
@@ -1493,6 +1783,20 @@
             "minLength": 1
           }
         },
+        "pullRequestReviews": {
+          "type": ["object", "null"],
+          "description": "GitHub pull request reviews as a leaf's review verdict. Present means on.",
+          "additionalProperties": false,
+          "properties": {
+            "approvals": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 1,
+              "description": "How many allowed approvals the head commit needs."
+            }
+          }
+        },
         "conflicts": {
           "type": "object",
           "additionalProperties": false,
@@ -1508,6 +1812,17 @@
               "maximum": 10,
               "default": 1,
               "description": "Resolver attempts per conflict (one pull request at one head commit) before a person is asked."
+            }
+          }
+        },
+        "merge": {
+          "type": "object",
+          "description": "How a crew pull request lands when Avoozl arms auto-merge.",
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "enum": ["squash", "merge"],
+              "default": "squash"
             }
           }
         },
@@ -1639,11 +1954,114 @@
           },
           "additionalProperties": false
         },
+        "crewLabels": {
+          "type": "object",
+          "description": "Issue Radar's own labels, which Avoozl reads and never writes.",
+          "additionalProperties": false,
+          "properties": {
+            "claim": {
+              "type": "string",
+              "minLength": 1,
+              "default": "crew: in progress"
+            },
+            "needsHuman": {
+              "type": "string",
+              "minLength": 1,
+              "default": "crew: needs human"
+            }
+          }
+        },
+        "approval": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "decisionRecord": {
+              "type": "boolean",
+              "default": false,
+              "description": "Add a decision record to the approval pull request."
+            }
+          }
+        },
+        "acceptedLabel": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "A label an allowed actor adds to say a skipped issue may be planned."
+        },
         "rules": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/githubRule"
           }
+        },
+        "stackedPullRequests": {
+          "type": "boolean",
+          "default": false
+        },
+        "commentSteering": {
+          "type": ["object", "null"],
+          "description": "Relay a comment that names mention, by an allowed actor, to the running leaf's worker. Off unless present.",
+          "additionalProperties": false,
+          "required": ["mention"],
+          "properties": {
+            "mention": {
+              "type": "string",
+              "pattern": "^@[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:/[A-Za-z0-9._-]{1,100})?$",
+              "description": "A GitHub @name or @org/team."
+            }
+          }
+        },
+        "discussions": {
+          "type": ["object", "null"],
+          "description": "Answer discussions in these categories whose author is allowed. Off unless present.",
+          "additionalProperties": false,
+          "required": ["categories"],
+          "properties": {
+            "categories": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "untriaged": {
+          "type": "object",
+          "description": "What the Triage list shows for this repository.",
+          "additionalProperties": false,
+          "properties": {
+            "filter": {
+              "type": ["string", "null"],
+              "description": "A GitHub search line that narrows the list."
+            },
+            "triageLabels": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "ignoreOlderThanDays": {
+              "type": ["integer", "null"],
+              "minimum": 1,
+              "maximum": 3650
+            },
+            "notify": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
+        "mirror": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/githubMirror"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1651,7 +2069,7 @@
     "githubRule": {
       "type": "object",
       "required": ["id", "action"],
-      "description": "Matches when every labelsAll label, one labelsAny label (when given), no labelsNone label, and the assignee and author hold, and the newest event that made it true came from an allowed actor.",
+      "description": "Matches when its match line holds, or when every labelsAll label, one labelsAny label (when given), no labelsNone label, and the assignee and author hold, and the newest event that made it true came from an allowed actor.",
       "properties": {
         "id": {
           "type": "string",
@@ -1667,6 +2085,11 @@
             "resume",
             "quarantine"
           ]
+        },
+        "match": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A GitHub search line, such as label:bug no:assignee. It replaces labelsAll, labelsAny, labelsNone and assignee; a rule sets match or those, never both, and needs at least one positive label either way."
         },
         "labelsAll": {
           "type": "array",
@@ -1707,6 +2130,9 @@
       },
       "anyOf": [
         {
+          "required": ["match"]
+        },
+        {
           "required": ["labelsAll"]
         },
         {
@@ -1714,6 +2140,87 @@
         }
       ],
       "additionalProperties": false
+    },
+    "githubMirror": {
+      "type": "object",
+      "description": "Crews work a private mirror of a public repository; Avoozl forwards finished work to the source.",
+      "additionalProperties": false,
+      "required": ["source", "mirror"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "mirror": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "description": "The private mirror. It must differ from source."
+        },
+        "forwardTo": {
+          "type": "string",
+          "pattern": "^(source|fork:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$",
+          "default": "source"
+        },
+        "forward": {
+          "description": "auto needs at least one trusted person.",
+          "enum": ["off", "nudge", "auto"],
+          "default": "nudge"
+        },
+        "branchPrefix": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_][A-Za-z0-9._/-]*$",
+          "default": "avoozl/"
+        },
+        "squash": {
+          "type": "boolean",
+          "default": true
+        },
+        "trustedPersons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "plansBranch": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_][A-Za-z0-9._/-]*$",
+          "default": "avoozl-plans",
+          "description": "Must differ from the default branch and not start with branchPrefix."
+        },
+        "forwardTarget": {
+          "description": "branch needs publicBranch.",
+          "enum": ["each", "branch", "batch"],
+          "default": "each"
+        },
+        "publicBranch": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[A-Za-z0-9._/-]+$"
+        },
+        "forwardMaxFileBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "forwardExclude": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": "Relative paths or patterns never forwarded, such as docs/private/ or **/*.pem."
+        },
+        "forwardAllow": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      }
     },
     "githubIssueIntake": {
       "type": "object",
@@ -1736,6 +2243,11 @@
           "type": "string",
           "minLength": 1,
           "default": "avoozl:ready"
+        },
+        "managedLabel": {
+          "type": "string",
+          "minLength": 1,
+          "default": "avoozl:managed"
         },
         "enabled": {
           "type": "boolean",
@@ -1851,6 +2363,195 @@
         }
       },
       "additionalProperties": false
+    },
+    "flow": {
+      "type": "object",
+      "description": "Flow settings: what a failure stops, when a retro runs, what counts as CI waste, and what verification protects. The retro instructions are saved on each machine, never here.",
+      "additionalProperties": false,
+      "properties": {
+        "stopTheLine": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scope": {
+              "description": "What a failed check on the base stops: the tasks that depend on it, its repository, or all new work.",
+              "enum": ["dependents", "repo", "all"],
+              "default": "dependents"
+            }
+          }
+        },
+        "localChecksFirst": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run the declared checks locally before pushing."
+        },
+        "retro": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "everyTasks": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 10
+            },
+            "slowFactor": {
+              "type": "number",
+              "minimum": 1.1,
+              "maximum": 20,
+              "default": 3
+            },
+            "model": {
+              "$ref": "#/$defs/chatModel",
+              "default": "auto",
+              "description": "The older place for the retro's model; models.retro wins."
+            }
+          }
+        },
+        "ci": {
+          "type": "object",
+          "description": "What counts as steady CI waste.",
+          "additionalProperties": false,
+          "properties": {
+            "windowDays": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90,
+              "default": 7
+            },
+            "docsOnlyMinutes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 60
+            },
+            "waitShare": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1,
+              "default": 0.4
+            },
+            "minPullRequests": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 5
+            },
+            "classes": {
+              "type": "object",
+              "description": "Path globs for each file class of a pull request's changed paths. A class's list replaces the built-in one.",
+              "propertyNames": {
+                "enum": ["tests", "spec", "docs", "ci", "other"]
+              },
+              "additionalProperties": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              }
+            }
+          }
+        },
+        "verify": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "checkTimeoutSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 86400,
+              "default": 1200
+            },
+            "protectedPaths": {
+              "type": "array",
+              "maxItems": 50,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "description": "Path globs a worker's commit may not change, beyond the built-in ones. A repository adds to the workspace's list."
+            },
+            "checkTimeouts": {
+              "type": "object",
+              "description": "A check's command to its own timeout in seconds.",
+              "maxProperties": 100,
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 86400
+              }
+            }
+          }
+        },
+        "lessons": {
+          "deprecated": true,
+          "description": "Ignored. The lessons store was removed. Files that still set it load as before."
+        },
+        "batch": {
+          "deprecated": true,
+          "description": "Ignored. The planner decides batches. Files that still set it load as before."
+        }
+      }
+    },
+    "deliveryInvestigate": {
+      "description": "Investigate before coding (design 4.21): the worker reports findings, a falsifier tries to refute them, and coding starts only at minConfidence.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": ["all", "not-small", "off"],
+          "default": "not-small"
+        },
+        "minConfidence": {
+          "enum": ["medium", "high"],
+          "default": "high"
+        },
+        "agent": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "default": "avoozl-falsifier"
+        },
+        "model": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+        }
+      }
+    },
+    "deliveryReviewer": {
+      "type": "object",
+      "description": "One review role for a finished pull request. With distinctFrom model, its model must be named and differ from delivery.model.",
+      "additionalProperties": false,
+      "required": ["id", "focus", "agent"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "not": {
+            "const": "checks"
+          }
+        },
+        "focus": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "agent": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "model": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$"
+        },
+        "distinctFrom": {
+          "enum": ["model", "session"],
+          "default": "model"
+        }
+      }
     }
   }
 }

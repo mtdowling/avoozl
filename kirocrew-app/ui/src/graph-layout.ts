@@ -24,19 +24,12 @@
 // of JSX so node
 // can test it directly.
 import type { Graph, GraphTask } from './views-api.ts'
-import { nodeState as sharedNodeState } from '../../../src/delivery-lanes.mjs'
+import { NODE_STATES, nodeState as sharedNodeState } from '../../../src/delivery-lanes.mjs'
 
 export type NodeState = 'ready' | 'running' | 'waiting' | 'needs-you' | 'done' | 'deferred' | 'draft'
 
-export const STATES: { id: NodeState; label: string }[] = [
-  { id: 'ready', label: 'Ready' },
-  { id: 'running', label: 'Running' },
-  { id: 'waiting', label: 'Waiting' },
-  { id: 'needs-you', label: 'Needs you' },
-  { id: 'done', label: 'Done' },
-  { id: 'deferred', label: 'Deferred' },
-  { id: 'draft', label: 'Draft' },
-]
+// The words are shared with the CLI's `query` and `show` (src/delivery-lanes.mjs).
+export const STATES: { id: NodeState; label: string }[] = NODE_STATES.map(([id, label]) => ({ id, label }))
 
 // Sizes in SVG pixels. The page draws with SPACING; `layoutGraph` takes
 // another set only so a test can compare against the looser v2 drawing.

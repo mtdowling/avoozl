@@ -329,8 +329,9 @@ export function loadHarnessDefinition({ configDirectory, name }) {
 }
 
 // The definitions in this machine's config, for Settings › Models: each
-// file's name and whether its exact bytes are approved. Reads only; a bad
-// file still lists, and is refused when a session loads it.
+// file's name, whether its exact bytes are approved, and whether it can take
+// a model (`model` is set). Reads only; a bad file still lists, and is
+// refused when a session loads it.
 export function listHarnessDefinitions(configDirectory) {
   if (typeof configDirectory !== "string" || !configDirectory) return [];
   const directory = path.join(path.resolve(configDirectory), HARNESS_DIRECTORY);
@@ -342,14 +343,20 @@ export function listHarnessDefinitions(configDirectory) {
     .map((entry) => entry.name.slice(0, -".json".length))
     .filter((name) => NAME.test(name))
     .sort()
-    .map((name) => ({
-      name,
-      approved:
-        approvals[name] ===
-        harnessDefinitionHash(
-          fs.readFileSync(path.join(directory, `${name}.json`)),
-        ),
-    }));
+    .map((name) => {
+      const bytes = fs.readFileSync(path.join(directory, `${name}.json`));
+      let model = false;
+      try {
+        model = JSON.parse(bytes.toString("utf8"))?.model !== undefined;
+      } catch {
+        // A bad file lists without a model; a session refuses it.
+      }
+      return {
+        name,
+        approved: approvals[name] === harnessDefinitionHash(bytes),
+        model,
+      };
+    });
 }
 
 // Record a person's approval of one exact hash. Callers enforce that a

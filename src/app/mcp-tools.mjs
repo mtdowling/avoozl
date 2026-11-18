@@ -113,7 +113,7 @@ const tools = {
   },
   plans_plan: {
     summary:
-      "Plans and their Kiro spec folders. Approval and delete are a person's, in the app.",
+      "Plans and their Kiro spec folders. Approval and delete are a person's, in the app; delegates lists who a person let approve for them.",
     actions: {
       list: ["plan.list", "stored plans"],
       table: ["plan.table", "plans grouped with progress"],
@@ -130,6 +130,10 @@ const tools = {
       batches: [
         "plan.approvalBatches",
         "draft specs in the order they can be approved: {writes?, ids?}",
+      ],
+      delegates: [
+        "approval.delegates",
+        "who may approve on a person's behalf, and every grant",
       ],
       project_preview: [
         "github.project.preview",

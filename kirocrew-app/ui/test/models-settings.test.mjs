@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
-import { HARNESS_ROLES, MODEL_ROLES, harnessOptions, toHarnesses, toModels } from '../src/models-api.ts'
+import { HARNESS_ROLES, MODEL_ROLES, harnessOptions, harnessTakesModel, roleIsSet, roleProblem, toHarnesses, toModels } from '../src/models-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
@@ -62,5 +62,24 @@ test('every role picks a harness: auto, the Kiro Crew chat, or this machine\u201
     ],
   )
   assert.deepEqual(toHarnesses({ worker: 'claude-code', planner: 'auto', retro: '' }), { worker: 'claude-code' })
-  assert.match(source('ModelsSettings.tsx'), /hasModel\(role\.key\) && \(/)
+})
+
+test('a role is default until a harness or model is set, and an unusable combo is a problem', () => {
+  const defs = [
+    { name: 'claude-code', approved: true, model: true },
+    { name: 'plain-cli', approved: true, model: false },
+  ]
+  assert.equal(roleIsSet('retro', {}, {}), false)
+  assert.equal(roleIsSet('retro', { retro: 'auto' }, { retro: 'auto' }), false)
+  assert.equal(roleIsSet('retro', { retro: 'm1' }, {}), true)
+  assert.equal(roleIsSet('worker', { retro: 'm1' }, { worker: 'claude-code' }), true)
+  assert.equal(harnessTakesModel('plain-cli', defs), false)
+  assert.equal(harnessTakesModel('claude-code', defs), true)
+  assert.equal(harnessTakesModel('kirocrew', defs), true)
+  assert.equal(harnessTakesModel('auto', defs), true)
+  assert.match(roleProblem('retro', { retro: 'm1' }, { retro: 'plain-cli' }, defs), /plain-cli takes no model/)
+  assert.equal(roleProblem('retro', { retro: 'm1' }, { retro: 'claude-code' }, defs), null)
+  assert.equal(roleProblem('retro', { retro: 'auto' }, { retro: 'plain-cli' }, defs), null)
+  assert.match(roleProblem('planReviewer', { planner: 'm1', planReviewer: 'm1' }, {}, defs), /different model/)
+  assert.equal(roleProblem('planReviewer', { planner: 'm1', planReviewer: 'm2' }, {}, defs), null)
 })

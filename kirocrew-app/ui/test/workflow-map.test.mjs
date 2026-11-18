@@ -34,7 +34,7 @@ test('single repository: three lanes with the saved label names', () => {
   const epic = Object.fromEntries(cards(built, 'epic').map((card) => [card.key, card]))
   assert.equal(valueOf(epic['epic-plan-label'], 'Planning label').text, 'shape-it')
   assert.equal(valueOf(epic['epic-approve'], 'Approval label').text, 'ship-it')
-  assert.equal(valueOf(epic['epic-punt'], 'Needs-human label').text, 'wants-person')
+  assert.equal(valueOf(epic['epic-punt'], 'Escalation label').text, 'wants-person')
   assert.equal(valueOf(epic['epic-claim'], 'Claim label').text, 'taken')
   assert.equal(valueOf(epic['epic-plan-label'], 'Allowed people').text, 'sam, lee')
   // Who codes is gone (R91.6): the worker builds, and no card names a coder.
@@ -222,4 +222,15 @@ test('page: a value jumps to its field, opening the fold around it', { skip }, a
   await page.evaluate(`document.querySelector('[data-step="epic-plan-label"] [data-value="Planning label"] button').click()`)
   await page.until(`document.activeElement?.id === 't-label-planLabel'`)
   assert.equal(await page.evaluate(`document.querySelector('[data-fold] ').open`), true)
+})
+
+test('the escalation label Avoozl recommends is one name in the page and the docs', async () => {
+  const { readFileSync } = await import('node:fs')
+  const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  const name = /RECOMMENDED_ESCALATION_LABEL = '([^']+)'/.exec(read('../src/SettingsView.tsx'))?.[1]
+  assert.equal(name, 'crew: needs avoozl')
+  // Issue Radar skips an issue only when its label starts with crew:.
+  assert.match(name, /^crew: /)
+  for (const doc of ['../../../docs/policies.md', '../../../docs/dogfood-checklist.md', '../../../docs/overview.md'])
+    assert.ok(read(doc).includes(name), doc)
 })

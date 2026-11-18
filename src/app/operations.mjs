@@ -18,6 +18,13 @@ import {
 } from "./executors/kirocrew.mjs";
 import { approvedSpecDependency } from "../spec-dependencies.mjs";
 import { approvalBatches, approveMany } from "./approval-batches.mjs";
+import {
+  approvalDelegation,
+  delegationEvidence,
+  grantDelegate,
+  listDelegates,
+  revokeDelegate,
+} from "./approval-delegation.mjs";
 import { planReviewSummary } from "./plan-review-summary.mjs";
 import { addItemContext } from "./needs-you-context.mjs";
 import {
@@ -308,6 +315,20 @@ import {
 import { clearGate, gateNeedsYou } from "./gate-clear.mjs";
 import { gateRows } from "./gate-view.mjs";
 import { handOff, readCrews } from "./radar-handoff.mjs";
+import {
+  adoptPull,
+  mergeApprovedPulls,
+  pullFor,
+  pullSpecs,
+  recordPullApproval,
+  rejectPull,
+  requestChanges,
+  roleOf,
+  specPullOf,
+  specPullNeedsYou,
+  specPullView,
+  syncSpecPulls,
+} from "./spec-pull-requests.mjs";
 import { readCrewStrip } from "./radar-crews.mjs";
 import { flowView, readFlowConfig, readFlowPolicy } from "./flow.mjs";
 import { usageView } from "./flow-usage.mjs";
@@ -410,6 +431,7 @@ import {
   conflictsView,
   deliveryView,
   graphView,
+  withGraphState,
   ownership,
   plansTableView,
   epicView,
@@ -1592,19 +1614,29 @@ export class Operations {
             })),
             errors: [],
           };
+    const adopted = pullSpecs(this.store, roots[0] ?? null);
     return {
       roots,
       mirror,
       errors: merged.errors,
-      homes: merged.specs.map(({ home, spec }) => ({
-        home,
-        spec,
-        root:
-          spec.root ??
-          (home === "main"
-            ? publicSpecs.find((entry) => entry.spec === spec).root
-            : null),
-      })),
+      homes: [
+        ...merged.specs
+          .filter(
+            ({ spec }) => !adopted.some((pull) => pull.name === spec.name),
+          )
+          .map(({ home, spec }) => ({
+            home,
+            spec,
+            root:
+              spec.root ??
+              (home === "main"
+                ? publicSpecs.find((entry) => entry.spec === spec).root
+                : null),
+          })),
+        // An adopted spec pull request replaces the checkout's folder, or
+        // adds the folder it proposes (R107.3).
+        ...adopted.map((spec) => ({ home: "main", spec, root: spec.root })),
+      ].sort((a, b) => a.spec.name.localeCompare(b.spec.name)),
     };
   }
   // Every spec folder the mode reads, linted, with its stored plan. Each
@@ -1662,6 +1694,7 @@ export class Operations {
           epic: quality.epic,
           ...(quality.members ? { members: quality.members } : {}),
           hash: disk.hash,
+          ...(disk.pull ? { pull: disk.pull } : {}),
           files: Object.keys(disk.files),
           counts: quality.counts,
           taskCount: quality.taskCount,
@@ -1681,11 +1714,49 @@ export class Operations {
       ...(homeErrors.length ? { homeErrors } : {}),
     };
   }
+  // Store a spec folder as a draft plan: `plan.create` with a spec, and
+  // each folder of a spec-folder example. It approves nothing.
+  createSpecDraft(input, context = {}) {
+    const store = this.store,
+      spec = this.readSpec(input.spec);
+    if (spec.exists && (context.caller || context.mcp))
+      enforceSpec(store, spec, { mode: "refuse" });
+    const previousHash = store.get("plans", input.id || input.spec)?.hash;
+    const created = createSpecPlan(
+      store,
+      { ...input, ...(spec.home ? { home: spec.home } : {}) },
+      spec,
+    );
+    recordPlanReviewWriter(store, created, {
+      previousHash,
+      caller: context.caller,
+    });
+    return created;
+  }
+  // Where a spec-folder example is written: the workspace's own folder, and
+  // only when that is where this workspace reads its specs. An example never
+  // writes into a code repository or a separate planning checkout.
+  exampleSpecRoot() {
+    const roots = this.specRoots();
+    if (
+      !this.workspaceRoot ||
+      roots.length !== 1 ||
+      path.resolve(roots[0]) !== path.resolve(this.workspaceRoot)
+    )
+      fail(
+        "This example installs spec folders in the workspace's own .kiro/specs/, and this workspace reads its specs from a repository. Nothing was installed.",
+        409,
+      );
+    return roots[0];
+  }
   // A folder on disk, or else a private spec read from the plans branch
   // (RC25.2). A private spec has no `root`, so nothing writes it to disk.
   // shortcut: spec edits that write files (manifest, status) refuse a private
   // spec for now; they move to a contents write when Spec Builder needs them.
   readSpec(name) {
+    // An adopted spec pull request's files stand for the folder (R107.3).
+    const adopted = pullFor(this.store, name);
+    if (adopted) return this.pullSpec(adopted);
     const policy = readGitHubPolicyOrNull(this.workspaceRoot),
       mirror = mirrorOf(policy),
       local = locateLocalSpec(
@@ -1710,6 +1781,19 @@ export class Operations {
           ref: privateSpec.ref ?? privateSpec.plansRef,
         }
       : local;
+  }
+  // The folder an adopted spec pull request holds. Its root is the planning
+  // checkout when there is one, which the review chat reads beside it.
+  pullSpec(receipt) {
+    let root = null;
+    try {
+      root = this.specRoots()[0] ?? null;
+    } catch {
+      root = null;
+    }
+    return pullSpecs(this.store, root).find(
+      (spec) => spec.name === receipt.spec,
+    );
   }
   // One folder of the mode's spec roots by name, for the checks that read
   // another folder: an epic's members, a plan's epic (Requirement 59.3).
@@ -1807,6 +1891,12 @@ export class Operations {
   // The approval pull request target when approving this plan needs one,
   // else null.
   approvalGateTarget(plan) {
+    // An adopted spec pull request is the approval's commit (R107.6).
+    if (
+      !this.planApproved(plan) &&
+      pullFor(this.store, plan.spec)?.hash === plan.hash
+    )
+      return { pull: true };
     const target = this.approvalPullRequestTarget(plan);
     // A revision with no recorded approval always opens one, even when its
     // files already say Approved (an edit after an earlier approval): the
@@ -1846,9 +1936,37 @@ export class Operations {
       401,
     );
   }
-  async approvalPullRequest(plan, { approvedBy, quality }) {
+  // The person a grant names: the signed-in GitHub login when GitHub is in
+  // play, since a gated approval records a login, else the operator.
+  async personLogin() {
+    if (
+      readGitHubPolicyOrNull(this.workspaceRoot)?.mode &&
+      this.github?.available?.()
+    ) {
+      if (!this.approverLogin)
+        try {
+          this.approverLogin = (await this.github.currentUser())?.login || null;
+        } catch {}
+      if (this.approverLogin) return this.approverLogin;
+    }
+    return this.operator;
+  }
+  async approvalPullRequest(plan, { approvedBy, quality, delegation = null }) {
     const target = this.approvalGateTarget(plan);
     if (!target) return null;
+    if (target.pull) {
+      const state = recordPullApproval(this.store, plan, approvedBy);
+      if (!state) return null;
+      const merged = await reconcileApproval(this.store, {
+        github: this.github,
+        repository: state.repository,
+        planId: plan.id,
+        hash: plan.hash,
+      });
+      if (merged?.state === "merged") return { merged };
+      approvalChangedAtMerge(merged);
+      return { pending: { ...merged, repository: state.repository } };
+    }
     const ids = {
         github: this.github,
         repository: target.repository,
@@ -1870,6 +1988,7 @@ export class Operations {
         ...(target.ref ? { ref: target.ref } : {}),
         reviewers: this.specReviewers(plan),
         specIssue: await this.linkableSpecIssue(plan, target.repository),
+        delegation,
       });
     return { pending: state };
   }
@@ -1919,12 +2038,35 @@ export class Operations {
         approvedBy: pull.approvedBy,
       }).catch(() => {});
   }
+  // The tick's pass over spec pull requests (design §4.36): adopt, refresh,
+  // and merge the ones a person approved once their checks pass. It reads the
+  // Triage cache and calls GitHub only as spec-pull-requests.mjs says.
+  async specPullTick(policy) {
+    const owners = [];
+    try {
+      const login = (await this.github.currentUser())?.login;
+      if (login) owners.push(login);
+    } catch {
+      // Without a login only the working branch counts as own.
+    }
+    await syncSpecPulls(
+      this.store,
+      this.github,
+      policy,
+      readCache(this.store),
+      {
+        owners,
+      },
+    );
+    await mergeApprovedPulls(this.store, this.github, policy);
+  }
   // The tick's pass over merged approval pull requests and Avoozl's own
   // older claims (RC19.5). Approving on a Radar source issue went with Who
   // codes (R91.6).
   async approvalTick() {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot);
     if (!policy?.mode || !this.github?.available?.()) return;
+    await this.specPullTick(policy).catch(() => {});
     await this.recordMergedApprovals().catch(() => {});
     const plans = this.store.list("plans");
     await releaseClaims({
@@ -2851,7 +2993,10 @@ export class Operations {
     if (name === "client.describe") return describeWorkspace(store);
     if (name === "workspace.examples") return listExamples();
     if (name === "workspace.seed")
-      return seedExample(store, input, expectedRevision);
+      return seedExample(store, input, expectedRevision, {
+        specRoot: () => this.exampleSpecRoot(),
+        createDraft: (spec) => this.createSpecDraft({ spec }, context),
+      });
     if (
       [
         "task.update",
@@ -3551,6 +3696,7 @@ export class Operations {
       view.items.push(...crewLabelNeedsYou(store));
       view.items.push(...reviewDraftNeedsYou(store));
       view.items.push(...planReviewNeedsYou(store));
+      view.items.push(...specPullNeedsYou(store));
       view.items.push(...gateNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
       view.items.push(...integratorNeedsYou(store));
@@ -4501,6 +4647,37 @@ export class Operations {
         );
       return crewLabelBackfill(store, this.github, input);
     }
+    // Spec pull requests (R107): the view reads the store only.
+    if (name === "specpr.view") return { items: specPullView(store) };
+    if (name.startsWith("specpr.") && name !== "specpr.view") {
+      if (context.caller || context.mcp)
+        fail("Only a person acts on a spec pull request, from the page.", 403);
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      if (name === "specpr.adopt") {
+        const repository = String(input.repository ?? ""),
+          entry = (
+            readCache(store).repositories?.[repository]?.items || []
+          ).find((item) => item.number === input.number),
+          found = entry && specPullOf(entry, roleOf(policy, repository));
+        if (!found)
+          fail("That pull request is not a spec-only pull request.", 404);
+        const receipt = await adoptPull(store, this.github, {
+          repository,
+          entry,
+          spec: found.spec,
+          link: "person",
+          actor: this.operator,
+        });
+        if (!receipt)
+          fail("The pull request holds no spec files to review.", 409);
+        return { id: receipt.id, spec: receipt.spec };
+      }
+      if (name === "specpr.reject")
+        return rejectPull(store, this.github, input);
+      if (name === "specpr.requestChanges")
+        return requestChanges(store, this.github, input);
+      fail(`Unknown operation ${name}.`, 404);
+    }
     if (name === "untriaged.handoff") {
       if (context.caller || context.mcp)
         fail(
@@ -4568,12 +4745,15 @@ export class Operations {
             return settings;
           });
     if (name === "publication.retry") return { retryRequested: true };
-    if (name === "query")
-      return queryTasks(this.read(), {
+    if (name === "query") {
+      // Each row says the state the page shows for it, beside its status.
+      const data = this.read();
+      return queryTasks(data, {
         scope: "all",
         ...input,
         claimed: claimedOrNone(store),
-      });
+      }).map(withGraphState(store, data));
+    }
     if (name === "search.result") {
       const run = store.get("runs", input.id);
       if (!run || !run.prompt?.startsWith("NUPP_PROMPT_SEARCH"))
@@ -4652,7 +4832,8 @@ export class Operations {
       });
       return { view, explanation: view.caption };
     }
-    if (name === "task.get") return this.detail(input.id);
+    if (name === "task.get")
+      return withGraphState(store, this.read())(this.detail(input.id));
     if (name === "report.save")
       return store.mutate(
         "Save report " + (input.title || ""),
@@ -5615,19 +5796,7 @@ export class Operations {
     if (name === "plan.create") {
       assertPlanAnswerWrite(store, { id: input.id || input.spec }, context);
       if (input.spec === undefined) return createPlan(store, input);
-      const spec = this.readSpec(input.spec);
-      if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
-      const previousHash = store.get("plans", input.id || input.spec)?.hash;
-      const created = createSpecPlan(
-        store,
-        { ...input, ...(spec.home ? { home: spec.home } : {}) },
-        spec,
-      );
-      recordPlanReviewWriter(store, created, {
-        previousHash,
-        caller: context.caller,
-      });
-      return created;
+      return this.createSpecDraft(input, context);
     }
     if (name === "plan.save") {
       assertPlanAnswerWrite(store, { id: input.id }, context);
@@ -5865,17 +6034,24 @@ export class Operations {
       };
     }
     if (name === "plan.approve") {
+      // A named delegate approves as the person who granted it (R109).
+      let delegation = approvalDelegation(store, {
+        delegate: input.delegate,
+        approvedBy: input.approvedBy,
+      });
       const { plan, extraction, specQuality, proposals, quality } =
         this.approvalChecks(input);
+      const approvedBy = delegation?.onBehalfOf ?? input.approvedBy;
       let approver =
           plan.spec && !extraction
-            ? await this.specApprover(plan, input.approvedBy)
-            : input.approvedBy?.trim() || this.operator,
+            ? await this.specApprover(plan, approvedBy)
+            : approvedBy?.trim() || this.operator,
         evidence = input.evidence;
       if (plan.spec && !extraction) {
         const gate = await this.approvalPullRequest(plan, {
           approvedBy: approver,
           quality,
+          delegation,
         });
         if (gate?.pending)
           return {
@@ -5886,16 +6062,22 @@ export class Operations {
               repository: gate.pending.repository,
               number: gate.pending.number,
               branch: gate.pending.branch,
+              // The adopted pull request merges itself once checks pass.
+              ...(gate.pending.pull ? { adopted: true } : {}),
             },
           };
         if (gate?.merged) {
           approver = gate.merged.approvedBy;
           evidence = evidence || approvalEvidence(gate.merged);
+          delegation ??= approvalDelegation(store, { state: gate.merged });
         }
       }
+      const { delegate: _delegate, ...rest } = input;
       const approved = approvePlan(store, {
-        ...input,
-        evidence,
+        ...rest,
+        evidence:
+          evidence || (delegation ? delegationEvidence(delegation) : evidence),
+        delegation,
         githubPolicy: this.githubPolicy(),
         ...(extraction ? { extraction, proposals } : {}),
         ...(specQuality
@@ -5913,6 +6095,19 @@ export class Operations {
     }
     // Several specs at once, all or none (approval-batches.mjs).
     if (name === "plan.approveMany") return approveMany(this, input);
+    // Who may approve on a person's behalf (approval-delegation.mjs, R109).
+    if (name === "approval.delegates") return listDelegates(store);
+    if (name === "approval.delegate.grant")
+      return grantDelegate(store, {
+        identity: input.identity,
+        onBehalfOf: input.onBehalfOf?.trim() || (await this.personLogin()),
+        note: input.note,
+      });
+    if (name === "approval.delegate.revoke")
+      return revokeDelegate(store, {
+        identity: input.identity,
+        revokedBy: await this.personLogin(),
+      });
     if (name === "plan.approvalBatches") return approvalBatches(this, input);
     if (name === "plan.extract.get")
       return getExtraction(store, input.id || input.extractionId);

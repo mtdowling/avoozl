@@ -1,6 +1,6 @@
 # Epic types
 
-Avoozl is for epics: approved goals that need many changes in a set order. Maintenance, triage and one-off pull request handling belong to Issue Radar crews or to your team's coder. Avoozl can hand each task of an epic to any coder.
+Most specs are light: one task or a few, each landing as its own change. An epic is the large kind: a goal that needs many changes in a set order, often across specs and repositories.
 
 Four shapes of epic come up often. Three have a template in `examples/epic-templates/`. Copy a template folder to `.kiro/specs/<your-name>/`, replace the text in angle brackets, and approve it like any spec.
 

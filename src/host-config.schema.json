@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://avoozl.dev/schema/host-config-v1.json",
+  "$id": "https://raw.githubusercontent.com/mtdowling/avoozl/main/src/host-config.schema.json",
   "title": "Avoozl machine host configuration",
   "description": "Machine-local, non-secret registration for the workspaces served by one Avoozl host.",
   "type": "object",

@@ -12,6 +12,9 @@ pushes and lands the work, and the Issue Radar path is removed. Superseded
 here: the Issue Radar coder and handoff (RC1–RC6, RC10, RC14, RC15), the
 retirement of Avoozl's workers (RC11; Phase 12 is cancelled), labels and
 claims as coordination, and the separate conflict-fix chat (RC28).
+Superseded 2026-11-18 by an owner decision: the epics-only scope statement
+and its one-pull-request rule of thumb (RC13.1, RC13.2, RC13.4). Avoozl takes specs
+of any size, and a light spec with one task becomes one pull request.
 Still in force: the mirror and its forward pull request flow for a public
 repository with private plans (RC24–RC26, shipped as the "Private mirror"
 repository role), integration branches (RC16), the approval pull request only

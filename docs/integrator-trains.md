@@ -1,7 +1,5 @@
 # Integrator trains: repository setup
 
-Status: first cut, not yet run against a live repository.
-
 With `landing: train`, Avoozl pushes each verified task as a batch branch
 (`avoozl-batch/<task>` by default) and queues it. One integrator then stacks
 the ready branches on the trunk, validates the stack once, and lands it. The
