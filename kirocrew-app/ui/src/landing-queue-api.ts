@@ -4,7 +4,7 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
-import type { BadgeVariant } from './Badge.tsx'
+import type { BadgeVariant } from './ui/Badge.tsx'
 
 export type HoldKind = 'stopped' | 'off' | 'review' | 'failing' | 'pending' | 'conflict' | 'path' | 'behind' | 'next' | 'train' | 'held' | 'waiting'
 

@@ -7,11 +7,11 @@
 // overlap stack in line order. A card click scrolls to and highlights its
 // lines; a click on highlighted text selects its card. Moved or removed
 // findings list first. A narrow view puts each card after its block.
-import { Tabs } from './Tabs.tsx'
+import { Tabs } from './ui/Tabs.tsx'
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Markdown } from './Markdown.tsx'
-import { SmallBtn } from './controls.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import { SmallBtn } from './ui/controls.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { CircleAlert, Info, MessageSquare } from './icons.ts'
 import { usePhone } from './list-detail.ts'
 import { ResizeHandle } from './ResizeHandle.tsx'

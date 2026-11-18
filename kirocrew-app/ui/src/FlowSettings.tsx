@@ -4,8 +4,9 @@
 // instructions are saved on this machine only (flow.instructions.update).
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Card, Input } from '@kirocrew/app-sdk/ui'
-import { ChoiceCards, SectionHeading } from './controls.tsx'
+import { Card } from './ui/Card'
+import { Input } from './ui/Input'
+import { ChoiceCards, SectionHeading } from './ui/controls.tsx'
 import { Section } from './SettingsView.tsx'
 import { CheckRow, FieldGrid as SharedGrid, FieldRow, Marker, RawKey } from './FieldRow.tsx'
 import { useRead } from './useRead.ts'

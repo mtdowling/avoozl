@@ -5,9 +5,10 @@
 // no policy logic. A private mirror is one of the role choices, its public
 // repository named on the Mirror tab.
 import { useState, type ReactNode } from 'react'
-import { Tabs, TabPanel } from './Tabs.tsx'
+import { Tabs, TabPanel } from './ui/Tabs.tsx'
 import { EDIT_TABS, dirtyTabs, errorTabs, type EditTab } from './repo-edit-tabs.ts'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
 import { Modal } from './Modal.tsx'
 import { FormSection } from './FormSection.tsx'
 import MirrorSetup from './MirrorSetup.tsx'

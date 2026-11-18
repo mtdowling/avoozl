@@ -2,7 +2,7 @@
 // before anything is pushed. Forward sends the hash that was shown; a change
 // after display brings the new one back and asks again.
 import { useEffect, useState } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
 import { useAppApi } from './host.ts'
 import { Modal } from './Modal.tsx'
 import { errorMessage } from './workspace-api.ts'

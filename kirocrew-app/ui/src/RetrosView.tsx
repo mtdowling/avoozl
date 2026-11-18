@@ -6,10 +6,10 @@
 // each proposal links back. Writes are the same ones Flow had: Run a retro
 // now, and the decisions. The retro's settings stay in Settings > Flow.
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { Card } from '@kirocrew/app-sdk/ui'
+import { Card } from './ui/Card'
 import { useAppApi } from './host.ts'
-import Badge from './Badge.tsx'
-import { IconLabel, SectionHeading, ViewHeading } from './controls.tsx'
+import Badge from './ui/Badge.tsx'
+import { IconLabel, SectionHeading, ViewHeading } from './ui/controls.tsx'
 import { CirclePlus, Play } from './icons.ts'
 import { CopyAttach } from './DashboardView.tsx'
 import { ProposalsView, useScrollTo } from './FlowMemory.tsx'

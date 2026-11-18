@@ -105,7 +105,7 @@ test('the home page has no Recently completed or Recent activity card, and reads
 })
 
 test('wave badges use the wave variant, which maps to Kiro purple, not yellow', () => {
-  const badge = source('Badge.tsx')
+  const badge = source('ui/Badge.tsx')
   assert.match(badge, /wave: \{ variant: 'aim' \}/)
   assert.doesNotMatch(badge.match(/wave: \{[^}]*\}/)[0], /warn/)
   // Only `warning` maps to the host's yellow.

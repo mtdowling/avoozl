@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { missingClasses } from "./class-tokens.mjs";
 import { checkDigest, kirocrewStylesheet } from "./kirocrew-css.mjs";
 
 const src = new URL("../src/", import.meta.url);
@@ -23,31 +24,6 @@ const files = readdirSync(src, { recursive: true }).filter((name) =>
   name.endsWith(".tsx"),
 );
 const source = (name) => readFileSync(new URL(name, src), "utf8");
-
-// Static class tokens from className="..." and className={`...`}, without
-// the ${...} parts.
-export function classTokens(text) {
-  const tokens = new Set();
-  for (const match of text.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\})/g)) {
-    const value = (match[1] ?? match[2]).replace(/\$\{[^}]*\}/g, " ");
-    for (const token of value.split(/\s+/)) if (token) tokens.add(token);
-  }
-  return tokens;
-}
-
-const escape = (token) => token.replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`);
-
-// Each class the sources use that the stylesheet lacks, with the files that use it.
-export function missingClasses(css, sources) {
-  const users = new Map();
-  for (const [name, text] of Object.entries(sources))
-    for (const token of classTokens(text))
-      if (!css.includes(`.${escape(token)}`))
-        users.set(token, [...(users.get(token) ?? []), name]);
-  return [...users]
-    .map(([token, names]) => `${token}: ${names.join(", ")}`)
-    .sort();
-}
 
 test("every class the page uses is defined by the host CSS", async () => {
   const css = await kirocrewStylesheet();
