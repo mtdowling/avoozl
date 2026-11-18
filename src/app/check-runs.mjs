@@ -14,6 +14,7 @@ import path from "node:path";
 import { commandEvidence, git, withWorkLock } from "./git.mjs";
 import { openStops, putSpan, readFlowPolicy } from "./flow.mjs";
 import { contentBinding } from "./content-rules.mjs";
+import { machineSlotGate } from "./resource-slots.mjs";
 import {
   checkTimeout,
   outputTail,
@@ -194,6 +195,16 @@ async function drainProject(store, projectId, options) {
             .filter((r) => r.state === "queued" && r.projectId === projectId)
             .sort((a, b) => (a.queuedAt < b.queuedAt ? -1 : 1))[0];
           if (!next) return;
+          // A check that runs through a platform wrapper whose slot a train
+          // holds waits, with the train named, and is tried again next pass.
+          const wait = await slotWaitOf(store, project, next, options);
+          if (wait) {
+            if (next.waiting !== wait)
+              store.transaction(() =>
+                store.put("flow_records", { ...next, waiting: wait }),
+              );
+            return;
+          }
           await runOne(store, project, next, options);
         }
       },
@@ -204,12 +215,20 @@ async function drainProject(store, projectId, options) {
   }
 }
 
+async function slotWaitOf(store, project, record, options) {
+  const gate = options.slotGate ?? machineSlotGate(store);
+  if (!gate) return null;
+  const task = store.read().tasks.find((t) => t.id === record.taskId);
+  return gate(task ? declaredArgv(task, project) : []);
+}
+
 async function runOne(store, project, record, options) {
   const task = store.read().tasks.find((t) => t.id === record.taskId),
     startedAt = new Date().toISOString();
   store.transaction(() =>
     store.put("flow_records", {
       ...record,
+      waiting: undefined,
       state: "running",
       pid: process.pid,
       startedAt,
