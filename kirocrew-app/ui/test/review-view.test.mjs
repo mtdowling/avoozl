@@ -160,6 +160,33 @@ test('at 390 the side column sits under the document with the same two tabs', { 
   assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no page overflow')
 })
 
+test('the side column resizes from its left edge: drag, keys, double-click; a phone has no handle and puts it under the text', { skip }, async () => {
+  await page.evaluate(`localStorage.clear()`)
+  // Wide enough that 200 px more still leaves the text its minimum.
+  await openReview(1440, false)
+  // The side column's tab bar keeps its height in the scrolling column.
+  assert.ok(await page.evaluate(`document.querySelector('[data-review-side-tabs]').getBoundingClientRect().height > 20`), 'Contents and Comments show')
+  const width = () => page.evaluate(`Math.round(document.querySelector('[data-review-rail]').getBoundingClientRect().width)`)
+  const start = await width()
+  const handle = await page.evaluate(`(() => { const h = document.querySelector('[data-review-side-handle]'); const r = h.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 60, role: h.getAttribute('role') } })()`)
+  assert.equal(handle.role, 'separator')
+  await page.drag(handle.x, handle.y, handle.x - 200)
+  await page.until(`Math.abs(Math.round(document.querySelector('[data-review-rail]').getBoundingClientRect().width) - ${start + 200}) <= 4`).catch(() => undefined)
+  const dragged = await width()
+  assert.ok(Math.abs(dragged - start - 200) <= 4, `${start} -> ${dragged}`)
+  assert.equal(await page.evaluate(`localStorage.getItem('avoozl:review-side-width')`), String(dragged))
+  await page.evaluate(`document.querySelector('[data-review-side-handle]').focus()`)
+  await page.key('ArrowRight', 'ArrowRight', 39)
+  await page.until(`Math.round(document.querySelector('[data-review-rail]').getBoundingClientRect().width) === ${dragged - 16}`)
+  const now = await page.evaluate(`(() => { const r = document.querySelector('[data-review-side-handle]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 60 } })()`)
+  await page.doubleClick(now.x, now.y)
+  await page.until(`Math.round(document.querySelector('[data-review-rail]').getBoundingClientRect().width) === ${start}`)
+  await openReview(390, false)
+  assert.equal(await page.evaluate(`document.querySelector('[data-review-side-handle]')`), null)
+  assert.equal(await page.evaluate(`document.querySelector('[data-review-rail]').getBoundingClientRect().top >= document.querySelector('[data-review-doc]').getBoundingClientRect().bottom - 1`), true)
+  assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no page overflow')
+})
+
 test('Reject needs a reason, and each action records the revision on screen', { skip }, async () => {
   await openReview(1280, false)
   await click('[data-finding-card="f-blocker"] [data-finding-action="reject"]')
