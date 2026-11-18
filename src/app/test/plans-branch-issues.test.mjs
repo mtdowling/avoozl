@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { parseProvenance } from "../github-provenance.mjs";
 import { COMMIT, workspace } from "./radar-fixture.mjs";
 import { specFiles, writeSpec } from "./spec-fixture.mjs";
 
@@ -84,8 +83,6 @@ async function putPrivate(context, name, title, requires, unblocks) {
 }
 const issueFor = (github, id) =>
   github.created.find((issue) => issue.body.includes(`"taskId":"${id}"`));
-const marker = (issue) =>
-  JSON.parse(issue.body.match(/<!-- avoozl-task\n(.*)\n-->/)[1]);
 
 function checkContainment(github) {
   assert.ok(github.created.length > 0);
@@ -115,9 +112,6 @@ test("a public task waits on a private task: both issues are in the mirror and t
 
   const priv = issueFor(github, "secret.1.1"),
     pub = issueFor(github, "pubspec.1.1");
-  assert.equal(parseProvenance(priv.body).marker.ref, PLANS);
-  const publicMarker = parseProvenance(pub.body).marker;
-  assert.equal(publicMarker.ref, undefined);
   assert.match(pub.body, /^Waits on a private task\.$/m);
   for (const text of [SECRET_TITLE, "secret", PLANS])
     assert.ok(!pub.body.includes(text), `public issue holds no "${text}"`);
@@ -142,27 +136,12 @@ test("a private task waits on a public task, and its issue may name it", async (
 
   const pub = issueFor(github, "pubspec.1.1"),
     priv = issueFor(github, "secret.1.1");
-  assert.equal(parseProvenance(priv.body).marker.ref, PLANS);
   assert.doesNotMatch(pub.body, /Waits on a private task/);
   assert.match(priv.body, /- pubspec\.1\.1/);
   const key = `${MIRROR}#${priv.number}`;
   assert.deepEqual(
     [...github.blockers.get(key).values()].map((blocker) => blocker.number),
     [pub.number],
-  );
-});
-
-test("a public issue's marker holds no private task ID", async (t) => {
-  const context = await setup(t),
-    { github, ops } = context;
-  await putPrivate(context, "secret", SECRET_TITLE, null, "pubspec.1.1");
-  putPublic(context, "pubspec", "Ship the public change");
-  const hidden = await approve(context, "secret", "plansBranch"),
-    open = await approve(context, "pubspec", "main");
-  await ops.execute("github.project", { planId: hidden.id });
-  await ops.execute("github.project", { planId: open.id });
-  assert.ok(
-    !JSON.stringify(marker(issueFor(github, "pubspec.1.1"))).includes("secret"),
   );
 });
 

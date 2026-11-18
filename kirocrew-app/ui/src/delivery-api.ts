@@ -36,8 +36,17 @@ export function progressGroups(lanes: Record<LaneId, LaneCard[]>) {
   return PROGRESS_GROUPS.map((group) => ({ ...group, cards: lanes[group.id] })).filter((group) => group.cards.length)
 }
 
-// The narrowest a lane gets before the row wraps to fewer lanes.
-export const LANE_MIN_WIDTH = 320
+// The narrowest a lane gets before the row wraps to fewer lanes. Small, so
+// all four lanes share one row on any page wider than a phone, even beside
+// the left nav or zoomed in; cards wrap their text to fit.
+export const LANE_MIN_WIDTH = 88
+
+// A lane narrower than this draws its cards' buttons as icons alone (their
+// tooltips and names stay), so a word never pushes a button out of its card.
+export const LANE_LABEL_WIDTH = 160
+
+// The width each of `columns` lanes gets in a row `width` wide.
+export const laneWidth = (width: number, columns: number, gap = 16) => (width - (columns - 1) * gap) / columns
 
 // A lane's background: a little of its tint over the card color, so text in
 // var(--text) stays readable in light and dark themes.
@@ -208,9 +217,11 @@ export function filterLanes(lanes: Record<LaneId, LaneCard[]>, filter: TaskFilte
 // for done work (the Dashboard's Done count opens it), else the four lanes.
 export const DONE_LANE = { id: 'done' as const, label: 'Done', tint: 'var(--ok)' }
 
-// Lanes per row for a given width: 4, then 2, then 1, so lanes never squeeze
-// a card below LANE_MIN_WIDTH and the row never scrolls sideways.
-export function laneColumns(width: number, lanes: number, gap = 16): number {
+// Lanes per row: 1 on a phone; else every lane in one row, falling back to
+// 2, then 1, only when lanes would go under LANE_MIN_WIDTH, so the row never
+// scrolls sideways.
+export function laneColumns(width: number, lanes: number, gap = 16, phone = false): number {
+  if (phone) return 1
   for (const columns of [4, 2, 1]) {
     const n = Math.min(columns, lanes)
     if (n * LANE_MIN_WIDTH + (n - 1) * gap <= width) return n

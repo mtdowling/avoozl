@@ -9,7 +9,7 @@ import { fail } from "./store.mjs";
 const item = (id, label, status, detail) => ({ id, label, status, detail });
 
 // shortcut: the spec item reads Avoozl's approval record and the plan's own
-// files, not the default branch; the crew's verify-issue still reads GitHub.
+// files, not the default branch.
 // Read the branch here when a stale record causes a wrong pass.
 export function preflight({
   store,
