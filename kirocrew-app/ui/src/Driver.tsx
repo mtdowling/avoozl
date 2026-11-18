@@ -12,7 +12,7 @@ import { IconLabel } from './controls.tsx'
 import { Button } from './Button.tsx'
 import { ExternalLink, KeyRound, Laptop, Lock, Send } from './icons.ts'
 import { Tooltip } from './Tooltip.tsx'
-import { useInstance } from './InstanceName.tsx'
+import { InstanceNickname, useInstance } from './InstanceName.tsx'
 import { handoffLine } from './instance-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
@@ -472,7 +472,8 @@ export function ThisComputer(props: { workspaceId: string | null }) {
   useEffect(() => {
     if (status?.machine) setForm({ label: status.machine.label ?? '', heartbeat: status.machine.heartbeatMinutes ? String(status.machine.heartbeatMinutes) : '' })
   }, [status?.machine?.label, status?.machine?.heartbeatMinutes])
-  if (!props.workspaceId || !status?.enabled || !status.machine) return null
+  if (!props.workspaceId) return null
+  const machine = status?.enabled ? status.machine : null
   const save = async () => {
     const checked = toMachineSettings(form)
     if (checked.error || !checked.input) return setError(checked.error ?? null)
@@ -491,6 +492,9 @@ export function ThisComputer(props: { workspaceId: string | null }) {
         <h4 id="avoozl-this-computer" className="text-base font-semibold">
           This computer
         </h4>
+        <InstanceNickname workspaceId={props.workspaceId} />
+        {machine && (
+          <>
         <p className="text-xs text-muted">These stay on this machine. The label shows in plan issues so people can tell your machines apart.</p>
         <div className="flex flex-wrap gap-4">
           <label className="flex flex-col gap-1 text-sm" htmlFor="avoozl-machine-label">
@@ -503,7 +507,7 @@ export function ThisComputer(props: { workspaceId: string | null }) {
           </label>
         </div>
         <p className="text-xs text-muted">
-          Machine ID <code>{status.machine.id}</code>
+          Machine ID <code>{machine.id}</code>
         </p>
         <p className="text-xs text-muted">
           In Local only mode the driver lock guards only workspaces that open this database or a copy of it. It cannot see another machine, and there is no
@@ -519,6 +523,8 @@ export function ThisComputer(props: { workspaceId: string | null }) {
           <p role="alert" className="text-sm text-danger">
             {error}
           </p>
+        )}
+          </>
         )}
       </section>
     </Card>

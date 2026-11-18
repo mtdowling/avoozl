@@ -1,6 +1,6 @@
 // The instance name in a real Chrome (harness ?page=app): the header shows it
 // for one instance and nothing else does; with a second instance In flight
-// shows it too; the nav footer's modal renames it. Skipped when no Chrome is found.
+// shows it too; Settings > This computer renames it. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
@@ -40,13 +40,16 @@ test('two instances: In flight carries the name', { skip }, async () => {
 })
 
 const NAME = `document.querySelector('[data-left-nav] [data-instance-name]').textContent`
-const MODAL = `document.querySelector('[data-modal="avoozl-instance-name"]')`
-const type = (text) => `(() => { const i = ${MODAL}.querySelector('input'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, ${JSON.stringify(text)}); i.dispatchEvent(new Event('input', { bubbles: true })) })()`
-const openModal = async () => {
-  await open()
-  await page.until(`Boolean(document.querySelector('[data-left-nav] [data-instance-edit]'))`)
-  await page.evaluate(`document.querySelector('[data-left-nav] [data-instance-edit]').click()`)
-  await page.until(`Boolean(${MODAL})`)
+const FIELD = `document.querySelector('#avoozl-instance-nickname')`
+const type = (text) => `(() => { const i = ${FIELD}; const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, ${JSON.stringify(text)}); i.dispatchEvent(new Event('input', { bubbles: true })) })()`
+const SAVE = `document.querySelector('[data-save-footer] [data-save]')`
+const openThisComputer = async (query = {}) => {
+  await open(query)
+  await page.until(`Boolean(${tab('Settings')})`)
+  await page.evaluate(`${tab('Settings')}.click()`)
+  await page.until(`Boolean(document.querySelector('[data-nav-item="settings/workspaces"]'))`)
+  await page.evaluate(`document.querySelector('[data-nav-item="settings/workspaces"]').click()`)
+  await page.until(`Boolean(${FIELD})`)
 }
 
 test('Settings has no Instance name page, and an old link opens Settings home', { skip }, async () => {
@@ -58,45 +61,38 @@ test('Settings has no Instance name page, and an old link opens Settings home', 
   assert.equal(await page.evaluate(`document.body.innerText.includes('Instance name')`), false)
 })
 
-test('the footer pencil opens the modal; Save persists and the footer shows it', { skip }, async () => {
-  await openModal()
-  assert.equal(await page.evaluate(`document.querySelector('[data-instance-edit]').getAttribute('aria-label')`), 'Edit instance name')
+test('the footer shows the name read-only: no edit control', { skip }, async () => {
+  await open()
+  await page.until(`Boolean(document.querySelector('[data-left-nav] [data-instance-name]'))`)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-instance-edit]'))`), false)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-left-nav] [data-brand-card] button'))`), false)
+})
+
+test('This computer shows the nickname; Save renames and the footer updates', { skip }, async () => {
+  await openThisComputer()
+  assert.equal(await page.evaluate(`${FIELD}.value`), 'Mira')
+  assert.equal(await page.evaluate(`Boolean(${SAVE})`), false)
   await page.evaluate(type('Juno'))
-  await page.evaluate(`${MODAL}.querySelector('[data-modal-footer] button[type=submit]').click()`)
-  await page.until(`!${MODAL}`)
+  await page.until(`Boolean(${SAVE})`)
+  await page.evaluate(`${SAVE}.click()`)
   await page.until(`${NAME} === 'Juno'`)
   assert.equal(await page.evaluate(`document.body.innerText.includes('inst-')`), false)
 })
 
-test('an invalid name shows the rule and cannot be saved; Cancel and Esc change nothing', { skip }, async () => {
-  await openModal()
+test('an invalid nickname shows the rule and cannot be saved; Discard restores it', { skip }, async () => {
+  await openThisComputer()
   await page.evaluate(type('bad/name'))
-  await page.until(`${MODAL}.innerText.includes('1 to 24 letters')`)
-  assert.equal(await page.evaluate(`${MODAL}.querySelector('button[type=submit]').disabled`), true)
-  await page.evaluate(`[...${MODAL}.querySelectorAll('[data-modal-footer] button')].find((b) => b.textContent.trim() === 'Cancel').click()`)
-  await page.until(`!${MODAL}`)
-  assert.equal(await page.evaluate(NAME), 'Mira')
-  await page.evaluate(`document.querySelector('[data-left-nav] [data-instance-edit]').click()`)
-  await page.until(`Boolean(${MODAL})`)
-  await page.evaluate(type('Other'))
-  await page.key('Escape', 'Escape', 27)
-  await page.until(`!${MODAL}`)
-  assert.equal(await page.evaluate(NAME), 'Mira')
+  await page.until(`document.querySelector('[data-instance-nickname]').innerText.includes('1 to 24 letters')`)
+  assert.equal(await page.evaluate(`${SAVE}.disabled`), true)
+  await page.evaluate(`document.querySelector('[data-save-footer] [data-discard]').click()`)
+  await page.until(`${FIELD}.value !== 'bad/name'`)
+  assert.equal(await page.evaluate(NAME), await page.evaluate(`${FIELD}.value`))
 })
 
-test('Enter saves', { skip }, async () => {
-  await openModal()
-  await page.evaluate(type('Nova'))
-  await page.evaluate(`${MODAL}.querySelector('form').requestSubmit()`)
-  await page.until(`${NAME} === 'Nova'`)
-})
-
-test('a phone has the pencil in the menu footer', { skip }, async () => {
+test('a phone menu footer shows the name with no pencil', { skip }, async () => {
   await page.open(harness.url({ page: 'app', radar: '1' }), { width: 390, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
   await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-  await page.until(`Boolean(document.querySelector('[data-top-rail-footer] [data-instance-edit]'))`)
-  await page.evaluate(`document.querySelector('[data-top-rail-footer] [data-instance-edit]').click()`)
-  await page.until(`Boolean(${MODAL})`)
-  assert.equal(await page.evaluate(`${MODAL}.querySelector('input').value`), 'Mira')
+  await page.until(`Boolean(document.querySelector('[data-top-rail-footer] [data-instance-name]'))`)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-instance-edit]'))`), false)
 })
