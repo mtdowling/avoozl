@@ -177,3 +177,60 @@ test("no two trains exist for one target at any step", (t) => {
   assert.equal(w.store.get("landing_queue", "app\0main\0a").state, "queued");
   assert.equal(w.store.get("landing_queue", "app\0main\0a").seq, 1);
 });
+
+test("waitForLastTrain holds the next train until the last train's CI run concluded", (t) => {
+  const mk = (waitForLastTrain) => {
+    const w = setup(t, { minBranches: 1, cooldownSeconds: 0 });
+    w.settings.ci = { workflow: "ci.yml", waitForLastTrain };
+    w.add("a");
+    const train = w.start(w.plan(T0).members, T0);
+    endTrain(w.store, train.id, "landed", { now: T0 + 1000 });
+    w.store.put("landing_trains", {
+      ...w.store.get("landing_trains", train.id),
+      pushed: sha(500),
+      endedAt: new Date(T0 + 1000).toISOString(),
+    });
+    w.add("b");
+    return { w, train };
+  };
+  // Off: the next train starts before the conclusion.
+  assert.equal(mk(false).w.plan(T0 + 5000).state, "start");
+  // On: it waits, then starts once the run concluded.
+  const { w, train } = mk(true);
+  const held = w.plan(T0 + 5000);
+  assert.equal(held.state, "wait");
+  assert.match(held.why, new RegExp(`CI run of ${train.id}`));
+  w.store.put("landing_trains", {
+    ...w.store.get("landing_trains", train.id),
+    ci: { run: 9, conclusion: "success" },
+  });
+  assert.equal(w.plan(T0 + 6000).state, "start");
+  // A run that is never read does not stop landing for ever.
+  const stuck = mk(true).w;
+  assert.equal(stuck.plan(T0 + 61 * 60000).state, "start");
+});
+
+test("stop the line counts only validated trains' heads", async (t) => {
+  const { unvalidatedTrainHead } = await import("../train-heads.mjs");
+  const w = setup(t);
+  w.store.put("landing_trains", {
+    id: "train-1",
+    projectId: "app",
+    pushed: sha(7),
+    validated: false,
+  });
+  assert.equal(unvalidatedTrainHead(w.store, "app", sha(7)), true);
+  assert.equal(
+    unvalidatedTrainHead(w.store, "app", sha(8)),
+    false,
+    "a head no train pushed",
+  );
+  assert.equal(unvalidatedTrainHead(w.store, "other", sha(7)), false);
+  w.store.put("landing_trains", {
+    id: "train-1",
+    projectId: "app",
+    pushed: sha(7),
+    validated: true,
+  });
+  assert.equal(unvalidatedTrainHead(w.store, "app", sha(7)), false);
+});

@@ -102,10 +102,10 @@ person.
 
 ## Phase 5: Landing
 
-- [ ] lt-5.1 Gated and optimistic policies, the guarded push, a moved trunk, and no force push anywhere, after lt-3.3, lt-4.2 [LT8.1, LT8.2, LT8.3, LT8.4, LT8.5, LT3.8, LT3.10, LT16.2, LT16.3, LT16.4, LT16.6, LT16.7] (§D10.1, §D10.2, §D10.3, §D10.4)
+- [x] lt-5.1 Gated and optimistic policies, the guarded push, a moved trunk, and no force push anywhere, after lt-3.3, lt-4.2 [LT8.1, LT8.2, LT8.3, LT8.4, LT8.5, LT3.8, LT3.10, LT16.2, LT16.3, LT16.4, LT16.6, LT16.7] (§D10.1, §D10.2, §D10.3, §D10.4)
   - Each policy's step order; intents for every spec through its driver's journal before the push; `guardedFastForward` inside `withWorkLock`; on a moved trunk, rebase with the cut rule and recheck, up to `failure.maxRebases`; after landing: integrated at each boundary, `mergeBaseBack`, each batch branch deleted only if the remote still shows its recorded head, worktree removed.
   - Done when: Real-git tests: gated pushes only after full validation passes and never on a failure; optimistic pushes after cheap checks and then runs full validation on the pushed head; a train with tasks of two drivers writes two intents, both read back before the push; a trunk moved during the train is rebased onto and pushed after rechecks, and after `maxRebases` moves the train fails with "trunk kept moving" and members requeue; a batch branch pushed to during the train is kept and its new head queued; no push in any test is forced; a test scanning every `git push` argv in `src/` finds no `--force`, `-f`, `--force-with-lease` or `+` refspec.
-- [ ] lt-5.2 Watch the train's one CI run, after lt-5.1, lt-4.4 [LT8.6, LT8.7, LT4.6] (§D10, §D9.3)
+- [x] lt-5.2 Watch the train's one CI run, after lt-5.1, lt-4.4 [LT8.6, LT8.7, LT4.6] (§D10, §D9.3)
   - Read `ci.workflow`'s run for the pushed head through the pacer and record it on the train; validated only when every needed platform passed; `ci.waitForLastTrain` holds the next train until that conclusion.
   - Done when: Fake-GitHub tests: the run ID and conclusion land on the train record; a train with a CI-only platform is validated only after the run passes; with `waitForLastTrain` false the next train starts before the conclusion and with true it waits; Stop the line counts only validated trains' heads.
 - [ ] lt-p2 Proof: ten branches land in one train, after lt-p1, lt-1.2, lt-3.2, lt-3.3, lt-4.2, lt-5.1, lt-5.2 [LT1, LT4, LT5, LT6, LT8] (§D7, §D10)
@@ -118,10 +118,10 @@ person.
 
 ## Phase 6: Failure
 
-- [ ] lt-6.1 Flaky reruns and the boundary bisect over failing suites, after lt-4.2, lt-3.2 [LT10.1, LT10.2] (§D11.1)
+- [x] lt-6.1 Flaky reruns and the boundary bisect over failing suites, after lt-4.2, lt-3.2 [LT10.1, LT10.2] (§D11.1)
   - Rerun failing suites `failure.flakyReruns` times; record flakes; bisect boundaries with only the still-failing suites on only the failing platforms; an unplaceable failure names the last member.
   - Done when: Tests with a fake suite runner: a suite that fails then passes is recorded `flaky` and the train continues; in a train of ten with member 7 bad the bisect probes at most four boundaries, each probe runs only the failing suite on the failing platform, and names member 7; with no results file each probe runs the whole command; every probe passing names the last member and records the interaction.
-- [ ] lt-6.2 Land the good branches; return, eject, revert or fix forward, after lt-6.1, lt-5.1 [LT10.3, LT10.4, LT10.5, LT16.5] (§D11.2)
+- [x] lt-6.2 Land the good branches; return, eject, revert or fix forward, after lt-6.1, lt-5.1 [LT10.3, LT10.4, LT10.5, LT16.5] (§D11.2)
   - Gated: drop the culprit, restack, cheap checks, rerun the failed suites, land, up to `maxBisects`. Optimistic: `revert` pushes one fast-forward revert of the culprit's range; `fix-forward` pulls Stop the line for the target and puts a fix task first. `failure.action` `return` sends the culprit's chat the suites, platform and a log excerpt of at most 200 lines through `sendFailureBack`, up to `retries`; `eject` opens Needs you. `landNext` halving stays for `direct`.
   - Done when: Real-git tests: gated with one culprit lands nine and returns one; gated with a second culprit after the first restack stops at `maxBisects`; optimistic `revert` leaves the trunk green with one revert commit and no forced update; `fix-forward` opens a stop and a fix task first in line; `return` sends the excerpt and counts rounds, then ejects; `eject` opens one Needs you item; a `direct` repository still halves.
 - [ ] lt-p3 Proof: a red train lands the rest, after lt-p2, lt-6.1, lt-6.2 [LT10] (§D11)

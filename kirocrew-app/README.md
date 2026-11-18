@@ -14,6 +14,17 @@ npm run build:kirocrew-app
 kirocrew app install /absolute/path/to/avoozl/kirocrew-app
 ```
 
+Update the same way, since `kirocrew app update` copies the package without
+building it:
+
+```sh
+npm run build && kirocrew app update avoozl
+```
+
+The build stamps `ui/dist/build.json` with a hash of `ui/src`. When the
+installed page was not built from the `ui/src` installed with it, or there is
+no page, the app backend answers every page request with that command.
+
 Enable the installed app from Kiro Crew's App Store after reviewing its trust
 request. `bin/avoozl.mjs` runs only `app-backend` (the default), `mcp`, and
 the Crew Mode runner commands `next`, `claim`, `report`, and `retry`. Each

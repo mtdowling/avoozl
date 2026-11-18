@@ -153,8 +153,19 @@ export function outputTail(text, dir = "\u0000") {
   return tail.length > TAIL_CHARS ? tail.slice(-TAIL_CHARS) : tail;
 }
 
+// The last `lines` lines of output, redacted like a check's tail, for a log
+// excerpt sent back to a worker (landing-trains LT10.5).
+export function outputExcerpt(text, dir = "\u0000", lines = 200) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .filter((line) => line.trim())
+    .slice(-lines)
+    .map((line) => redactLine(line, dir))
+    .join("\n");
+}
+
 // Why a check that ended without an exit code did not run (R38.1).
-function notRunCause(result, elapsed, timeoutMs) {
+export function notRunCause(result, elapsed, timeoutMs) {
   if (result.signal && elapsed >= timeoutMs)
     return `timed out after ${Math.round(timeoutMs / 1000)} s`;
   if (result.signal) return `stopped by ${result.signal}`;
