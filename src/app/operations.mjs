@@ -164,6 +164,7 @@ import {
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import { landingView } from "./landing-view.mjs";
 import { epicsView } from "./epics-view.mjs";
+import { integratorNeedsYou } from "./landing-lease.mjs";
 import { landingQueueView } from "./landing-queue-view.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
@@ -3604,6 +3605,7 @@ export class Operations {
       view.items.push(...planReviewNeedsYou(store));
       view.items.push(...gateNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
+      view.items.push(...integratorNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
