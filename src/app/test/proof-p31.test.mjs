@@ -4,7 +4,7 @@
 // `workspace.tick`, and the `untriaged.view` operation the page calls. The
 // fake GitHub answers every read and records any call that would write.
 // Action (8), the live read-only count, runs only with AVOOZL_P31_LIVE set
-// (scripts/proof-p31-live.mjs); it is not part of `npm test`.
+// (a live script in git history); it is not part of `npm test`.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
