@@ -23,6 +23,7 @@ import {
 } from "./demo.mjs";
 
 export const NEEDS_KIROCREW = "Needs Kiro Crew";
+import { requiredReader } from "./needs-kirocrew.mjs";
 
 // The page also runs the tick, reads its health, reads the Graph,
 // Delivery and Conflicts views, edits the GitHub settings, and runs Set up GitHub. The cron and agents reach `workspace.tick`
@@ -305,20 +306,19 @@ function machineOperation(registry, config, operation, input, home) {
   }
 }
 
-// Operations that cannot run without one Kiro Crew reader, by the context
-// key that holds it. `untriaged.crews` and `radar.crews` already answer an
-// absent reader with an unavailable view (radar-handoff.mjs).
-const NEEDS_READER = new Map([
-  ["untriaged.handoff", ["crewReader", "Send to Issue Radar"]],
-  ["flow.stop", ["sessionStopper", "Stop all agents for Kiro Crew chats"]],
-]);
-
+// Operations that cannot run without one Kiro Crew reader, from the one
+// table of what needs Kiro Crew (needs-kirocrew.mjs). `untriaged.crews` and
+// `radar.crews` answer an absent reader with an unavailable view instead.
 function missingReader(context, operation, input) {
-  const [key, what] = NEEDS_READER.get(operation) || [];
+  const needed = requiredReader(operation);
   // Only a full stop reaches Kiro Crew chats; a plain stop is Avoozl's own.
-  if (!key || context[key] || (operation === "flow.stop" && !input.full))
+  if (
+    !needed ||
+    context[needed.reader] ||
+    (operation === "flow.stop" && !input.full)
+  )
     return null;
-  return `${NEEDS_KIROCREW}: ${what} works only inside Kiro Crew.`;
+  return `${NEEDS_KIROCREW}: ${needed.what} works only inside Kiro Crew.`;
 }
 
 // Everything a dispatch needs, built once per server. `readers` holds the
