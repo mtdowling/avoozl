@@ -177,7 +177,8 @@ the approved graph. Avoozl keeps readiness, verification and integration; the
 conductor starts workers and reports what happened.
 
 - Turn it on in the workspace's `.avoozl.json`:
-  `"delivery": {"runner": "crew-mode", "concurrency": 2}`. With runner
+  `"delivery": {"runner": "crew-mode"}`. How many chats run at once is
+  `lanes.local` in this machine's `~/.config/avoozl/config.json`. With runner
   `crew-mode` the tick opens no worker sessions; it still verifies and
   integrates. Show the user the change before you save it.
 - The app ships an `AgentSpawn` hook, `hooks/avoozl-runner.json` in the

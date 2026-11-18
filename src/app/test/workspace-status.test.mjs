@@ -97,7 +97,6 @@ test("status says a named workspace is registered, by path, by ID and from the e
     default: true,
     enabled: true,
     state: "closed",
-    maxConcurrentRuns: 2,
   };
   for (const [args, extra, from, named] of [
     [["--workspace", directory], {}, "--workspace", directory],
@@ -128,7 +127,6 @@ test("status with no workspace named keeps the machine view alone", () => {
   assert.deepEqual(Object.keys(status), [
     "host",
     "port",
-    "maxConcurrentRuns",
     "defaultWorkspace",
     "configPath",
     "catalogPath",

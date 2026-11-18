@@ -44,13 +44,12 @@ export const HELP_GROUPS = Object.freeze([
       ),
       entry("examples --workspace PATH", "List available example packs"),
       entry("workspace list", "The workspaces registered on this machine"),
-      entry("workspace add ID --root PATH [--max-concurrent-runs 2]"),
+      entry("workspace add ID --root PATH"),
       entry(
         "workspace adopt ID --root PATH",
         "Adopt an existing stopped workspace in place",
       ),
       entry("workspace remove|start|drain|resume|stop|set-default ID"),
-      entry("workspace concurrency ID LIMIT", "Zero pauses new dispatch"),
       entry("workspace rebuild", "Rebuild the catalog from configuration"),
       entry(
         "project configure ID --root PATH [--branch main] [--worktrees PATH] [--json CONFIG]",

@@ -288,8 +288,9 @@ test("the caller identity is read only on the app's stdio MCP transport", async 
 
 test("the tick dispatches ready local leaves by rank, then graph order, within limits", async (t) => {
   // Nearby inputs: no delivery policy, a GitHub-routed leaf, a blocked
-  // dependent, an unregistered repository, a repository limit of 0, and the
-  // workspace limit. Planning writes nothing.
+  // dependent, an unregistered repository, an ignored repository limit of 0,
+  // the old delivery.concurrency and the machine's lanes. Planning writes
+  // nothing.
   const tasks = [
     leaf("late", { rank: 5 }),
     leaf("deep"),
@@ -333,7 +334,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
       (d) => d.task,
     ),
     ["urgent", "late"],
-    "the workspace limit",
+    "the old delivery.concurrency counts as lanes",
   );
   const [intent] = planned.dispatch;
   assert.deepEqual(
@@ -355,20 +356,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
   assert.match(intent.brief, /plans_prepare_worktree/);
   assert.match(intent.brief, /plans_report/);
 
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    JSON.stringify({
-      version: 1,
-      delivery: { concurrency: 4, repositories: { app: { concurrency: 1 } } },
-    }),
-  );
-  assert.deepEqual(
-    (await ops.execute("workspace.tick", { sessions: [] })).dispatch.map(
-      (d) => d.task,
-    ),
-    ["urgent"],
-    "the repository limit",
-  );
+  // A per-repository concurrency is old input: accepted and ignored (R6.3).
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
@@ -377,10 +365,39 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
     }),
   );
   assert.deepEqual(
-    (await ops.execute("workspace.tick", { sessions: [] })).dispatch,
-    [],
+    (await ops.execute("workspace.tick", { sessions: [] })).dispatch.map(
+      (d) => d.task,
+    ),
+    ["urgent", "late", "shallow", "deep"],
+    "a repository concurrency limits nothing",
   );
+  // The machine file's lanes win over the old delivery.concurrency.
+  const xdg = temporaryDirectory("avoozl-lanes-"),
+    saved = process.env.XDG_CONFIG_HOME;
+  t.after(() => {
+    if (saved === undefined) delete process.env.XDG_CONFIG_HOME;
+    else process.env.XDG_CONFIG_HOME = saved;
+  });
+  process.env.XDG_CONFIG_HOME = xdg;
+  fs.mkdirSync(path.join(xdg, "avoozl"));
+  fs.writeFileSync(
+    path.join(xdg, "avoozl", "config.json"),
+    JSON.stringify({ version: 1, lanes: { local: 1 } }),
+  );
+  assert.deepEqual(
+    (await ops.execute("workspace.tick", { sessions: [] })).dispatch.map(
+      (d) => d.task,
+    ),
+    ["urgent"],
+    "this machine's lanes",
+  );
+  fs.rmSync(path.join(xdg, "avoozl", "config.json"));
 
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({ version: 1, delivery: { concurrency: 1 } }),
+  );
+  await ops.execute("workspace.tick", { sessions: [] });
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({ version: 1, delivery: { concurrency: 2, extra: true } }),
@@ -390,8 +407,8 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
   assert.match(invalid.policy.error, /delivery\.extra/);
   assert.deepEqual(
     invalid.dispatch.map((d) => d.task),
-    [],
-    "the last valid policy (repository limit 0) still applies",
+    ["urgent"],
+    "the last valid policy (one lane) still applies",
   );
 });
 

@@ -11,14 +11,13 @@ import { findChrome, launch } from './browser/chrome.mjs'
 const { editChanges, editDraft } = await import('../src/workspace-api.ts')
 
 test('Save sends only the changed fields and checks the form first', () => {
-  const ws = { id: 'launch', name: 'Launch', root: '/plans/launch', enabled: true, state: 'closed', served: true, maxConcurrentRuns: 2 }
+  const ws = { id: 'launch', name: 'Launch', root: '/plans/launch', enabled: true, state: 'closed', served: true }
   const draft = editDraft(ws, false)
   assert.deepEqual(editChanges(ws, false, draft), { change: null, error: null }, 'nothing changed')
-  assert.deepEqual(editChanges(ws, false, { ...draft, name: ' New ', root: '~/plans/launch', maxConcurrentRuns: '4', enabled: false, default: true }).change, {
+  assert.deepEqual(editChanges(ws, false, { ...draft, name: ' New ', root: '~/plans/launch', enabled: false, default: true }).change, {
     id: 'launch',
     name: 'New',
     root: '~/plans/launch',
-    maxConcurrentRuns: 4,
     enabled: false,
     default: true,
   })
@@ -27,8 +26,6 @@ test('Save sends only the changed fields and checks the form first', () => {
     ['name', 'x'.repeat(161), /160/],
     ['root', '', /folder/],
     ['root', 'relative/path', /full path/],
-    ['maxConcurrentRuns', '65', /0 to 64/],
-    ['maxConcurrentRuns', '1.5', /0 to 64/],
   ])
     assert.match(editChanges(ws, false, { ...draft, [field]: value }).error ?? '', error, `${field}=${value}`)
   assert.equal(editChanges(ws, false, { ...draft, root: 'C:\\plans' }).error, null, 'a Windows path')
@@ -70,6 +67,8 @@ async function openEdit() {
 
 test('the pencil edits the name and picks a folder with Browse; Save sends the change', { skip }, async () => {
   await openEdit()
+  // No "Agents at once": nothing enforced it; lanes are a machine setting (R6.3).
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-ws-edit-limit'))`), false)
   assert.equal(await value('#avoozl-ws-edit-name'), 'Product launch')
   assert.equal(await value('#avoozl-ws-edit-root'), '/plans/launch')
   assert.equal(await saveDisabled(), true, 'nothing to save yet')
@@ -84,11 +83,9 @@ test('the pencil edits the name and picks a folder with Browse; Save sends the c
   await click('[data-folder="launch"]')
   await page.until(`document.querySelector('#avoozl-ws-edit-root').value === '/me/plans/launch'`)
   await click('[data-folder-done]')
-  await type('#avoozl-ws-edit-limit', '3')
-  await wait()
   await click('[data-edit-save]')
   await page.until(`!document.querySelector('[data-edit-workspace-modal]')`)
-  assert.deepEqual(await page.evaluate('window.__wsCalls'), [`update launch ${JSON.stringify({ name: 'Launch plans', root: '/me/plans/launch', maxConcurrentRuns: 3 })}`])
+  assert.deepEqual(await page.evaluate('window.__wsCalls'), [`update launch ${JSON.stringify({ name: 'Launch plans', root: '/me/plans/launch' })}`])
   assert.match(await page.evaluate(`document.querySelector('[data-edit-workspace="launch"]').closest('li').textContent`), /Launch plans/)
   assert.deepEqual(page.errors, [])
 })

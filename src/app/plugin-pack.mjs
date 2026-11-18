@@ -39,8 +39,7 @@ export const PACK_SETTINGS = Object.freeze({
     "priorityLabels",
     "waitingLabels",
     "managedLabels",
-    // Accepted so an old pack still imports; nothing reads it (Release N,
-    // release.capacity, is the one knob).
+    // Accepted so an old pack still imports; it writes nothing (R6.3).
     "concurrency",
   ],
   project: ["fields", "statusValues"],
@@ -206,7 +205,8 @@ function units(settings, current, repositories) {
   const list = [];
   const github = record(current.github) ? current.github : {};
   for (const key of Object.keys(settings.repositories ?? {}))
-    if (!repositories.length)
+    if (key === "concurrency") continue;
+    else if (!repositories.length)
       list.push({
         path: ["github", "repositories", "*", key],
         skip: "No GitHub repository is chosen. Add one in Settings > Repositories, then preview again.",
@@ -248,7 +248,7 @@ function units(settings, current, repositories) {
   for (const set of settings.contentRules?.sets ?? [])
     list.push({ path: ["contentRules", "sets", set.id], value: set });
   for (const [key, value] of Object.entries(settings.delivery ?? {}))
-    list.push({ path: ["delivery", key], value });
+    if (key !== "concurrency") list.push({ path: ["delivery", key], value });
   for (const key of Object.keys(FLOW_KEYS)) {
     const value = readKey(settings.flow, key);
     if (value !== undefined)
