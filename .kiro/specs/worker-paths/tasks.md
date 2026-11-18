@@ -73,7 +73,7 @@ of the other specs.
 - [x] wp-3.2 The driver checks a pulled result on its tick, after wp-3.1 [WP5.3] (§D8)
   - The tick calls `worker-results.mjs` for each acknowledged claim: fetch the ref, check the diff against declared and protected paths, run the checks on that head, queue it to land.
   - Done when: Tests: a pushed result lands with no command run by hand; a result that touches a protected path, and one whose checks fail on the driver, each become a failed attempt on the driver with the reason; a result for a claim the driver did not acknowledge is ignored; `worker-results.mjs` has an importer that is not a test.
-- [ ] wp-3.3 Remove runner mode over SSH, after wp-3.2 [WP5.1, WP5.4, WP5.5] (§D8)
+- [x] wp-3.3 Remove runner mode over SSH, after wp-3.2 [WP5.1, WP5.4, WP5.5] (§D8)
   - The roles `runner` and `driver`, the SSH transport and `driverTick` go; `remote.accept`, `remote.handoff` and `remote.pull` answer with their replacement; the worker cases of `remote-runner.test.mjs` move to `worker-mode.test.mjs`.
   - Done when: Tests: a file with `runner.role: "runner"` or `"driver"` is refused naming the key and worker pull; an envelope is taken only from an acknowledged claim; a search of `src/` finds no `ssh` argv outside the plugin and mirror code; the pull request lists what the deleted tests covered and where it is covered now.
 

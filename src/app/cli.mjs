@@ -868,17 +868,13 @@ try {
       ),
     );
   else if (command === "runner") {
-    // Runner mode over SSH (R84). `accept` and `status` run on the runner,
-    // started by the driver's ssh; `handoff` and `pull` run on the driver.
+    // `status` and `report` run on a worker machine (and `status` on any one).
+    // The SSH commands were removed; their operations answer with the
+    // replacement.
     const action = positionals[0];
     let result;
-    if (action === "accept")
-      result = await localOrRequest("remote.accept", {
-        envelope: fs.readFileSync(
-          positionals[1] === "-" || !positionals[1] ? 0 : positionals[1],
-          "utf8",
-        ),
-      });
+    if (["accept", "handoff", "pull"].includes(action))
+      result = await localOrRequest(`remote.${action}`, {});
     else if (action === "status")
       // A runner reports its remote tasks; any other machine reports the
       // supervisor and its children (R98.5).
@@ -914,18 +910,6 @@ try {
           taskId: positionals[1],
           state,
         });
-    } else if (action === "handoff") {
-      need(
-        positionals[1] && options.host,
-        "runner handoff ENVELOPE.json --host NAME",
-      );
-      result = await localOrRequest("remote.handoff", {
-        host: options.host,
-        envelope: JSON.parse(fs.readFileSync(positionals[1], "utf8")),
-      });
-    } else if (action === "pull") {
-      need(options.host, "runner pull --host NAME");
-      result = await localOrRequest("remote.pull", { host: options.host });
     } else throw Error("Use runner accept|status|report|handoff|pull.");
     console.log(JSON.stringify(result, null, 2));
   } else if (command === "worker") {

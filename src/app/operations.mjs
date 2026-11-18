@@ -488,13 +488,8 @@ import {
 } from "./provider-health.mjs";
 import { claimTask, nextView } from "./runner.mjs";
 import {
-  acceptEnvelope,
-  driverTick,
-  handoff,
-  pullStatus,
   claimWork,
   pullWork,
-  remoteView,
   readRunnerConfig,
   reportDone,
   runnerStatus,
@@ -3187,16 +3182,14 @@ export class Operations {
       });
     }
     // Runner mode over SSH (R84): off unless .avoozl.json has `runner`.
-    if (name === "remote.accept")
-      return acceptEnvelope(store, this.workspaceRoot, input.envelope);
+    // shortcut: no machine reports remote workers to a driver now, so the
+    // list is always empty. The page's In flight and Delivery still read it;
+    // remove it with their remote rows, which need new screenshots.
+    if (name === "remote.view") return { workers: [] };
     if (name === "remote.status")
       return runnerStatus(store, this.workspaceRoot);
     if (name === "remote.report")
       return reportDone(store, this.workspaceRoot, input);
-    if (name === "remote.handoff")
-      return handoff(store, this.workspaceRoot, input);
-    if (name === "remote.pull")
-      return pullStatus(store, this.workspaceRoot, input);
     if (name === "worker.claim")
       return claimWork(store, this.workspaceRoot, this.github);
     if (name === "worker.setup") {
@@ -3207,7 +3200,6 @@ export class Operations {
     }
     if (name === "worker.pull")
       return pullWork(store, this.workspaceRoot, this.github);
-    if (name === "remote.view") return remoteView(store, this.workspaceRoot);
     if (name === "instance.view") return instanceView(store);
     if (name === "instance.rename") {
       renameInstance(store, input.name);
@@ -3342,7 +3334,6 @@ export class Operations {
       });
       if (remote) return remote;
       await this.refreshPrivateSpecs();
-      if (input.cron === true) await driverTick(store, this.workspaceRoot);
       if (input.cron === true) {
         const driving = Object.keys(store.getMeta("specDrivers") ?? {}),
           journalFor = async (planId) => {
