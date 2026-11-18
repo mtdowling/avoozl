@@ -9,7 +9,7 @@
 // findings list first. A narrow view puts each card after its block.
 import { Tabs } from './ui/Tabs.tsx'
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
-import { Markdown } from './Markdown.tsx'
+import { Markdown } from './ui/Markdown.tsx'
 import { SmallBtn } from './ui/controls.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { CircleAlert, Info, MessageSquare } from './icons.ts'

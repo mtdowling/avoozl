@@ -4,7 +4,7 @@
 // blocks. It scrolls the cited blocks into view, with no animation under
 // prefers-reduced-motion.
 import { useEffect, useRef } from 'react'
-import { Markdown } from './Markdown.tsx'
+import { Markdown } from './ui/Markdown.tsx'
 import { useMedia } from './use-media.ts'
 import { citedNodes } from './task-api.ts'
 

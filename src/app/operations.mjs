@@ -513,6 +513,11 @@ function claimedOrNone(store) {
   }
 }
 import { deliverNotifications } from "./notifications.mjs";
+import {
+  markKirocrewSeen,
+  needsKirocrewItems,
+  runOn,
+} from "./needs-kirocrew.mjs";
 import { flushOutbox } from "./outbox.mjs";
 import {
   configureWorkspaceRepository,
@@ -3093,6 +3098,7 @@ export class Operations {
         }
         return stampPrompts(store, result);
       });
+    if (name === "executor.kirocrew.take") markKirocrewSeen(store);
     if (name === "executor.kirocrew.take")
       return takeKirocrewRequest(store, input, context, (request, queued) =>
         sessionStartHold(store, request, queued, {
@@ -3683,6 +3689,16 @@ export class Operations {
       view.items.push(...forwardAuditRows(store));
       view.items.push(...publicCrewAuditRows(store));
       view.items.push(...publicBranchRows(store));
+      // A role waiting on Kiro Crew on a machine with none, with this
+      // machine's approved harnesses for Run on (NK8.2).
+      view.items.push(
+        ...needsKirocrewItems(
+          store,
+          listHarnessDefinitions(this.configDirectory)
+            .filter((d) => d.approved)
+            .map((d) => d.name),
+        ),
+      );
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
@@ -3753,6 +3769,21 @@ export class Operations {
         // This machine's harness definitions a role may pick (R98.3).
         harnessDefinitions: listHarnessDefinitions(this.configDirectory),
       };
+    // Run on (NK8.2): a person moves a role that waits on Kiro Crew to one
+    // of this machine's approved harnesses.
+    if (name === "needskirocrew.runon") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person chooses where a role runs, in the Avoozl app.",
+          403,
+        );
+      return runOn(store, input, {
+        settings: this.settingsFile(),
+        approved: listHarnessDefinitions(this.configDirectory)
+          .filter((d) => d.approved)
+          .map((d) => d.name),
+      });
+    }
     if (name === "models.settings.update") {
       if (context.caller || context.mcp)
         fail("Only a person changes chat models, in Settings.", 403);
