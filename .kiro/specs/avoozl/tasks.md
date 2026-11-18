@@ -1637,7 +1637,7 @@ GitHub, and a race between two workers shows exactly one claim wins.
 - [x] 43.3 Canonical claim reservation and generation acknowledgment, after 43.2 [R90.4, R102.14] (§4.32)
   - Reserve one task ref in the spec's canonical claim namespace before acknowledging a worker. A worker without write access requests reservation. Race two forks with identically named branches: one acknowledgment, no loser execution; an over-cap request never starts. Comments are not CAS.
 
-- [ ] 43.4 Person-only release and stale-claim status, after 43.3 [R90.6, R102.14] (§4.32)
+- [x] 43.4 Person-only release and stale-claim status, after 43.3 [R90.6, R102.14] (§4.32)
   - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.claimStaleAfter.
 
 - [x] 43.5 Verify fetched worker results before integration, after 43.2 [R90.2, R102.6, R102.7] (§4.32)

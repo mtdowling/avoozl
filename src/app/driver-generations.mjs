@@ -65,12 +65,13 @@ export function driverState(replay) {
     intents: new Map(),
     offers: [],
     claims: [],
+    released: [],
     voided: new Set(),
     outcomes: [],
     ignored: [],
   };
   const seen = new Set();
-  for (const { id, record } of replay.records) {
+  for (const { id, record, at } of replay.records) {
     if (record.kind === "generation") {
       state.generation = record.generation;
       state.driver = record.driver ?? null;
@@ -86,8 +87,18 @@ export function driverState(replay) {
     else if (record.kind === "intent")
       state.intents.set(record.op, { id, ...record });
     else if (record.kind === "offer") state.offers.push({ id, ...record });
-    else if (record.kind === "claim") state.claims.push({ id, ...record });
-    else if (record.kind === "void") state.voided.add(record.voids);
+    else if (record.kind === "claim" && record.released) {
+      // The claim on that task ends; its claim ref is the driver's to delete.
+      const task = record.tasks[0].task;
+      state.claims = state.claims.filter((c) => c.tasks[0].task !== task);
+      state.released.push({ id, at, ...record });
+    } else if (record.kind === "claim") {
+      // The latest claim on a task stands: a carried claim replaces the one
+      // an earlier generation wrote.
+      const task = record.tasks[0].task;
+      state.claims = state.claims.filter((c) => c.tasks[0].task !== task);
+      state.claims.push({ id, at, ...record });
+    } else if (record.kind === "void") state.voided.add(record.voids);
     else if (record.kind === "outcome")
       for (const entry of record.outcomes) {
         // One effective outcome per task, definition, kind and commit.

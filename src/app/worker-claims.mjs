@@ -32,6 +32,11 @@ const SPEC = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const TASK = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
 const DIGEST = /^[0-9a-f]{64}$/;
 
+// One operation ID per claim event on a task, so a claim after a release is a
+// new record, not a retry of the first.
+export const claimOp = (state, task) =>
+  `claim.${task}.g${state.generation}.${state.released.filter((r) => r.tasks[0].task === task).length}`;
+
 export const claimBranch = (spec, task) => `avoozl/${spec}/claim/${task}`;
 
 export const requestBody = ({ spec, task, definition, generation }) =>
@@ -167,7 +172,7 @@ export async function reserveClaims({
     const written = await appendRecord(
       journal,
       {
-        op: `claim.${request.task}.g${state.generation}`,
+        op: claimOp(state, request.task),
         kind: "claim",
         spec,
         driver,
