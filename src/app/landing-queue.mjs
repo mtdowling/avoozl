@@ -143,6 +143,36 @@ function finish(store, entry, state, extra = {}) {
   });
 }
 
+// Keeps why the head waits (checks or review) on its queued entry, so the
+// Landing queue page can say so from the store (task 44.5). Written only
+// when the reason, candidate or check list changes, not on every tick.
+function noteWait(store, entry, candidate, verdict) {
+  const waiting = {
+    reason: verdict.reason === "review" ? "review" : "checks",
+    candidate,
+    checks: (verdict.checks ?? []).map(({ command, conclusion }) => ({
+      command,
+      conclusion: conclusion ?? null,
+    })),
+  };
+  const before = entry.waiting;
+  if (
+    before &&
+    JSON.stringify({ ...before, since: undefined }) === JSON.stringify(waiting)
+  )
+    return entry;
+  // The checks ran outside any lock: write only onto the same entry still
+  // queued, so a withdrawal meanwhile is never undone.
+  return store.transaction(() => {
+    const now = store.get(TABLE, entry.id);
+    if (now?.state !== "queued" || now.commit !== entry.commit) return entry;
+    return store.put(TABLE, {
+      ...now,
+      waiting: { ...waiting, since: new Date().toISOString() },
+    });
+  });
+}
+
 const running = new Map();
 
 // Takes a waiting portion out of its queue, e.g. when its base moved and
@@ -247,7 +277,7 @@ export async function landNext(
         return {
           state: "waiting",
           entries,
-          entry: entries[0],
+          entry: noteWait(store, entries[0], candidate, verdict),
           checks: verdict.checks ?? [],
         };
       if (entries.length > 1) {

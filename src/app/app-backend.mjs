@@ -171,6 +171,7 @@ export const APP_OPERATIONS = new Set([
   "chat.context",
   "graph.view",
   "delivery.view",
+  "landing.queue",
   "conflicts.view",
   "plan.review.get",
   "plan.review.decide",
