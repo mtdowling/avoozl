@@ -13,6 +13,7 @@ import { cliReportCaller } from "../report-match.mjs";
 import {
   childRecord,
   childResult,
+  readChildOutput,
   childStatus,
   openSupervisorDatabase,
   requestChild,
@@ -255,6 +256,57 @@ export async function commitChildWork(binding, worktree) {
   );
 }
 
+// A role's snapshot (NK4.1): a scratch folder of its own that the row's
+// `snapshot(store, request)` fills, as {relative path: text}. Its files are
+// left read-only, and a read-only child's only write root in it is
+// `.avoozl/` (harnessPermission), so the child cannot change what it reads.
+async function fillSnapshot(store, row, request) {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), row.scratch));
+  try {
+    writeSnapshot(folder, await row.snapshot(store, request));
+    return folder;
+  } catch (error) {
+    fs.rmSync(folder, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+// Write {relative path: text} under `folder`, each file read-only. A path
+// that leaves the folder, or names `.avoozl/`, is refused.
+export function writeSnapshot(folder, files) {
+  const root = path.resolve(folder);
+  for (const [name, text] of Object.entries(files)) {
+    const file = path.resolve(root, name);
+    if (
+      !file.startsWith(root + path.sep) ||
+      path.relative(root, file).split(path.sep)[0] === ".avoozl"
+    )
+      throw Error(`The snapshot path ${name} is outside its folder.`);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, text, { mode: 0o444 });
+  }
+  return root;
+}
+
+// A role whose row names an output file (NK3) reads it once, now that the
+// child has exited, with the row's limit and validator. A done result that
+// fails becomes blocked with the reason, so it takes the same path a bad
+// result file does. A result naming an output for a role with none is
+// refused the same way.
+export function withChildOutput(row, result) {
+  if (result.state !== "done") return result;
+  const output = row?.output;
+  if (!output && !result.output) return result;
+  const read = !output
+    ? { problem: "This role writes no output file." }
+    : !result.output
+      ? { problem: "The result names no output file." }
+      : readChildOutput(result.worktree, result.output, output);
+  return read.problem
+    ? { ...result, state: "blocked", text: read.problem }
+    : { ...result, outputValue: read.value };
+}
+
 // Record a child's result as its session's report, as `runner report` does
 // for a chat (R96.2, R96.3): matched by the supervisor's record, the text
 // kept as data, and a done report's commit read from the worktree's HEAD,
@@ -265,6 +317,7 @@ export async function commitChildWork(binding, worktree) {
 // stored by the tick's plan import, so its result records nothing.
 const VERDICT_FIELDS = ["verdict", "findings", "closures", "checks", "text"];
 export async function finishProcessSession(ops, binding, result, store = null) {
+  result = withChildOutput(processRow(binding.role), result);
   const hands = processRow(binding.role)?.hands;
   if (hands === "reply") {
     if (!store) return null;
@@ -406,11 +459,24 @@ export async function drainProcessRequests(
       }
       const project = sessionProject(store, request);
       const row = processRow(request.role);
-      const worktree =
-        row?.folder === "worktree" &&
-        request.permissionClass === "write" &&
-        prepareWorktree &&
-        !hasRemoteTask(store, request.task)
+      // A snapshot role reads a folder Avoozl fills before it starts (NK4.1).
+      const snapshot =
+        row?.folder === "snapshot" && !request.worktree
+          ? await fillSnapshot(store, row, request).catch((error) => {
+              releaseSessionRequest(
+                store,
+                { id: request.id, claimToken, reason: "before-open" },
+                owner,
+              );
+              throw error;
+            })
+          : null;
+      const worktree = snapshot
+        ? snapshot
+        : row?.folder === "worktree" &&
+            request.permissionClass === "write" &&
+            prepareWorktree &&
+            !hasRemoteTask(store, request.task)
           ? (await prepareWorktree(store, { taskId: request.task })).path
           : verdictSession(request, project?.root)
             ? await prepareDetached(
@@ -547,7 +613,7 @@ export async function drainProcessRequests(
           if (verdictSession(binding, checkout))
             await removeDetached(checkout, binding.worktree);
           const row = processRow(binding.role);
-          if (row?.folder === "scratch" && !binding.worktree) {
+          if (row?.scratch && !binding.worktree) {
             const scratch = withDatabase(
               stateDirectory,
               (db) => childRecord(db, binding.slot)?.worktree,

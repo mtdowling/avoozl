@@ -45,7 +45,13 @@ const verdictFinish = (allowCommands) => [
 //   access   what the child may do to files
 //   folder   how the drain makes the child's folder: worktree (the task's),
 //            detached (a worktree at the commit), scratch (an empty folder),
-//            spec (the spec folder the request names)
+//            spec (the spec folder the request names), snapshot (a scratch
+//            folder `snapshot(store, request)` fills with {path: text})
+//   scratch  the name prefix of a scratch or snapshot folder in the temp
+//            folder, which the drain removes once the child exits
+//   output   {limit, validate}: the one output file under .avoozl/output/ a
+//            child may name in its result, at most `limit` bytes, checked
+//            by `validate(text)`, which throws its reason (NK3)
 //   hands    how the result is recorded: report (session.report), reply (the
 //            retro's reply), folder (the stored folder; nothing to record),
 //            post-reply (reply.post, as the session), summary
