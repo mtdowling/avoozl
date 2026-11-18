@@ -6,7 +6,7 @@
 // screen it fills the screen. The task drawer opens it for a task's source.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Markdown } from './Markdown.tsx'
+import { Markdown } from './ui/Markdown.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { useMedia } from './use-media.ts'
 import { PROSE_MEASURE } from './PlansView.tsx'
@@ -19,7 +19,7 @@ import { insideWorkspace, lineText, taskClient } from './task-api.ts'
 import { CITED_STYLE, markCited } from './CitedFile.tsx'
 import { useReveal } from './RepositoriesSettings.tsx'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 

@@ -128,7 +128,7 @@ test('headings get anchors for the plan outline, and prose has a readable measur
   )
   assert.match(heads[1].id, /^avoozl-doc-design-one-\d+$/)
   assert.match(source('PlansView.tsx'), /export const PROSE_MEASURE = '80ch'/)
-  assert.match(source('Markdown.tsx'), /id=\{idPrefix \? headingId\(idPrefix, block\.text, i\) : undefined\}/)
+  assert.match(source('ui/Markdown.tsx'), /id=\{idPrefix \? headingId\(idPrefix, block\.text, i\) : undefined\}/)
 })
 
 test('the spec view keeps its details in a box on the Overview tab, with Edit and Discuss', () => {

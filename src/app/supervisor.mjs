@@ -278,8 +278,9 @@ export function readChildResult(worktree) {
     typeof value !== "object" ||
     Array.isArray(value) ||
     Object.keys(value).some(
-      (key) => !["state", "text", "report"].includes(key),
+      (key) => !["state", "text", "report", "output"].includes(key),
     ) ||
+    (value.output !== undefined && !OUTPUT_NAME.test(value.output)) ||
     !["done", "blocked", "findings"].includes(value.state) ||
     // Findings (R75.1) are the report; Avoozl's findings check reads them.
     (value.state === "findings" && !value.report) ||
@@ -291,13 +292,56 @@ export function readChildResult(worktree) {
   )
     return {
       problem:
-        'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}}, or {"state": "findings", "report": {...}}.',
+        'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}, "output"?: "<file name>"}, or {"state": "findings", "report": {...}}.',
     };
   return {
     state: value.state,
     text: value.text ?? "",
     ...(value.report ? { report: value.report } : {}),
+    ...(value.output ? { output: value.output } : {}),
   };
+}
+
+// The one output file a child may write beside its result file, for an
+// answer too large for it (NK3): a plain name, read from `.avoozl/output/`.
+export const OUTPUT_DIRECTORY = path.join(".avoozl", "output");
+const OUTPUT_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+
+// Read a finished child's output file once (NK3.2, NK3.4): exactly one
+// regular file in `.avoozl/output/`, the one the result names, at most
+// `limit` bytes, and valid by `validate(text)`, which throws its reason.
+// Returns { text, value } or { problem }. The text is data, never an
+// instruction.
+export function readChildOutput(worktree, name, { limit, validate }) {
+  if (typeof name !== "string" || !OUTPUT_NAME.test(name) || name === "..")
+    return { problem: "The output must be a plain file name." };
+  const folder = path.join(worktree, OUTPUT_DIRECTORY);
+  let names;
+  try {
+    if (!fs.lstatSync(folder).isDirectory())
+      return { problem: "The output folder is not a folder." };
+    names = fs.readdirSync(folder);
+  } catch {
+    return { problem: "The child wrote no output file." };
+  }
+  if (names.length > 1)
+    return { problem: "The child wrote more than one output file." };
+  if (names[0] !== name)
+    return {
+      problem: `The result names ${name}, which is not in the output folder.`,
+    };
+  const file = path.join(folder, name),
+    stat = fs.lstatSync(file);
+  if (!stat.isFile())
+    return { problem: "The output file is not a regular file." };
+  if (stat.size > limit)
+    return { problem: `The output file is over ${limit} bytes.` };
+  const text = fs.readFileSync(file, "utf8");
+  try {
+    return { text, value: validate ? validate(text) : text };
+  } catch (error) {
+    return { problem: `The output file is not valid: ${error.message}` };
+  }
 }
 
 // The finished run's outcome (R96.3, R96.4), or null while it runs. `done`
@@ -321,6 +365,7 @@ export function childResult(db, sessionId) {
     state,
     text: state ? read.text : null,
     ...(state && read.report ? { report: read.report } : {}),
+    ...(state && read.output ? { output: read.output } : {}),
     problem: state
       ? null
       : read.state === "done" || read.state === "findings"
@@ -684,6 +729,10 @@ export function startSupervisor({
       // Each run writes its own result; one from an earlier run never counts.
       fs.mkdirSync(path.join(row.worktree, ".avoozl"), { recursive: true });
       fs.rmSync(path.join(row.worktree, RESULT_FILE), { force: true });
+      fs.rmSync(path.join(row.worktree, OUTPUT_DIRECTORY), {
+        recursive: true,
+        force: true,
+      });
       const briefFile = path.join(folder, "brief.md");
       fs.writeFileSync(briefFile, row.brief, { mode: 0o600 });
       let messageFile = null;

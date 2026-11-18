@@ -18,6 +18,7 @@ import {
   childRecord,
   childResult,
   openSupervisorDatabase,
+  readChildOutput,
   readChildResult,
   RESULT_FILE,
   startSupervisor,
@@ -33,6 +34,8 @@ import {
   planQuotaHold,
   processExecutor,
   projectExecutor,
+  withChildOutput,
+  writeSnapshot,
 } from "../executors/process.mjs";
 import { enqueueSessionRequests } from "../session-requests.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -177,6 +180,11 @@ const result = /RESULT:(.+)/.exec(text);
 if (result) {
   fs.mkdirSync(".avoozl", { recursive: true });
   fs.writeFileSync(".avoozl/result.json", result[1]);
+}
+// OUTPUT:<name>=<text> writes .avoozl/output/<name>.
+for (const [, name, body] of text.matchAll(/OUTPUT:([^=\\s]+)=(.*)/g)) {
+  fs.mkdirSync(".avoozl/output", { recursive: true });
+  fs.writeFileSync(".avoozl/output/" + name, body);
 }
 // ENV:<name> writes that variable and TMPDIR to env.txt.
 const env = /ENV:(\\S+)/.exec(text);
@@ -785,4 +793,145 @@ test("a start's own harness wins over its project's", async (t) => {
   } finally {
     db.close();
   }
+});
+
+// nk-1.2 (NK3.1, NK3.2, NK3.4, NK5.5): one output file beside the result,
+// read once on exit with the role's limit and validator; a snapshot the
+// child cannot write; no write root over a git directory.
+const json = (text) => {
+  const value = JSON.parse(text);
+  if (!Array.isArray(value.findings)) throw Error("findings must be a list");
+  return value;
+};
+const ROW = { output: { limit: 64, validate: json } };
+
+test("a fake child's output file is read once with the role's limit and validator", async (t) => {
+  const { stateDirectory, worktree, supervisor } = machine(t);
+  const executor = processExecutor({
+    stateDirectory,
+    projectFor: () => ({ harness: "fake-cli" }),
+  });
+  const run = async (brief) => {
+    // The fake CLI writes beside its result, so it runs in the write class;
+    // the output rules are the same for either.
+    const id = await executor.start(
+      "worker",
+      "1.1",
+      worktree,
+      brief,
+      null,
+      "write",
+    );
+    await until(async () => {
+      supervisor.pass();
+      return (await executor.status(id)) !== "working";
+    });
+    const db = openSupervisorDatabase(stateDirectory);
+    try {
+      return withChildOutput(ROW, childResult(db, id));
+    } finally {
+      db.close();
+    }
+  };
+  const done = 'RESULT:{"state": "done", "output": "review.json"}';
+  const good = await run(`OUTPUT:review.json={"findings": []}\n${done}`);
+  assert.equal(good.state, "done", String(good.text ?? good.problem));
+  assert.deepEqual(good.outputValue, { findings: [] });
+  // An earlier run's output never counts for the next one.
+  const none = await run(done);
+  assert.equal(none.state, "blocked");
+  assert.match(none.text, /no output file/);
+  const two = await run(
+    `OUTPUT:review.json={"findings": []}\nOUTPUT:extra.json={}\n${done}`,
+  );
+  assert.match(two.text, /more than one output file/);
+  const large = await run(
+    `OUTPUT:review.json={"findings": ["${"x".repeat(80)}"]}\n${done}`,
+  );
+  assert.match(large.text, /over 64 bytes/);
+  const invalid = await run(`OUTPUT:review.json={"findings": 1}\n${done}`);
+  assert.match(invalid.text, /not valid: findings must be a list/);
+  // A path outside .avoozl/output/ is refused by the result file itself.
+  const outside = await run('RESULT:{"state": "done", "output": "../x.json"}');
+  assert.equal(outside.state, null);
+  assert.match(outside.problem, /must be/);
+});
+
+test("output names and files outside the rules are refused with the reason", (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-output-"));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const out = path.join(folder, ".avoozl", "output");
+  fs.mkdirSync(out, { recursive: true });
+  fs.writeFileSync(path.join(out, "a.json"), '{"findings": [1]}');
+  assert.deepEqual(readChildOutput(folder, "a.json", ROW.output).value, {
+    findings: [1],
+  });
+  for (const name of ["../a.json", "sub/a.json", ".hidden", ""])
+    assert.match(
+      readChildOutput(folder, name, ROW.output).problem,
+      /plain file name/,
+    );
+  assert.match(
+    readChildOutput(folder, "b.json", ROW.output).problem,
+    /not in the output folder/,
+  );
+  // A role with no output file refuses a result that names one.
+  assert.match(
+    withChildOutput(null, { state: "done", output: "a.json", worktree: folder })
+      .text,
+    /writes no output file/,
+  );
+  // The result file's own limit stays 8,192 bytes.
+  fs.writeFileSync(
+    path.join(folder, RESULT_FILE),
+    JSON.stringify({ state: "done", output: "a.json", text: "x".repeat(9000) }),
+  );
+  assert.match(readChildResult(folder).problem, /over 8192 bytes/);
+});
+
+test("a child cannot write into its snapshot, and no write root holds a git directory", (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-snapshot-"));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  writeSnapshot(folder, {
+    "pull-request/README.md": "Data from other people.\n",
+  });
+  const file = path.join(folder, "pull-request", "README.md");
+  if (process.platform !== "win32" && process.getuid?.() !== 0)
+    assert.throws(() => fs.writeFileSync(file, "changed"), /EACCES|EPERM/);
+  assert.throws(() => writeSnapshot(folder, { "../out.md": "x" }), /outside/);
+  assert.throws(
+    () => writeSnapshot(folder, { ".avoozl/result.json": "x" }),
+    /outside/,
+  );
+  const definition = parseHarnessDefinition({
+    name: "fake-cli",
+    start: ["node"],
+    resume: ["node"],
+    promptFrom: "stdin",
+    permission: { write: "w", read: "r" },
+    writeRoots: ["{worktree}", "{tmp}"],
+  });
+  // A read child's only root in its folder is .avoozl/.
+  const read = harnessPermission(definition, {
+    permissionClass: "read",
+    worktree: folder,
+    tmp: path.join(os.tmpdir(), "avoozl-snapshot-tmp"),
+  });
+  assert.deepEqual(
+    read.writeRoots.filter((root) => root.startsWith(folder)),
+    [path.join(folder, ".avoozl")],
+  );
+  // A write root over a checkout is refused before start.
+  const checkout = path.join(folder, "checkout");
+  fs.mkdirSync(checkout);
+  gitIn(checkout, "init", "-q");
+  assert.throws(
+    () =>
+      harnessPermission(definition, {
+        permissionClass: "write",
+        worktree: checkout,
+        tmp: path.join(folder, "tmp"),
+      }),
+    /holds a git directory/,
+  );
 });

@@ -5,12 +5,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Btn } from './ui/Btn'
 import Badge from './ui/Badge.tsx'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { describeWrite, writesByRepository } from './plans-api.ts'
 import { UNDO, confirmLines, headline, preflightFailures, projectionClient, toggleBatch, type ProjectionDetail } from './projection-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Hint } from './ui/Hint'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 type Client = ReturnType<typeof projectionClient>
 
@@ -124,16 +124,18 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
                 <legend className="font-medium">Batches</legend>
                 <Hint as="p">Small tasks in one wave can share one issue. Each task keeps its own ID.</Hint>
                 {preview.suggestedBatches!.map((group) => (
-                  <label key={group.join()} className="flex items-start gap-2">
-                    <Checkbox
-                      checked={batches.some((entry) => entry.join() === group.join())}
-                      disabled={busy}
-                      onChange={() => void load(toggleBatch(batches, group))}
-                    />
+                  <Switch
+                    key={group.join()}
+                    label={`${group.join(', ')} as one issue`}
+                    align="start"
+                    checked={batches.some((entry) => entry.join() === group.join())}
+                    disabled={busy}
+                    onChange={() => void load(toggleBatch(batches, group))}
+                  >
                     <span>
                       <code>{group.join(', ')}</code> as one issue
                     </span>
-                  </label>
+                  </Switch>
                 ))}
               </fieldset>
             )}

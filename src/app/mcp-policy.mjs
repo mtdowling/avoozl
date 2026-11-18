@@ -166,6 +166,10 @@ export const PERSON_ONLY = new Map([
   ["flow.settings.update", person("Only a person changes flow settings.")],
   ["models.settings.update", person("Only a person changes chat models.")],
   [
+    "needskirocrew.runon",
+    person("Only a person chooses the harness a waiting role runs on."),
+  ],
+  [
     "activity.settings.update",
     person("Only a person changes how long activity is kept."),
   ],
@@ -284,7 +288,7 @@ const proposalsPage =
 const removed = "Removed; the operation has no handler.";
 const page = "App page rendering only.";
 const remote =
-  "Runner mode (R84) runs over ssh and the CLI; no MCP tool hands off, accepts or reports a remote task.";
+  "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.";
 export const NOT_ON_MCP = new Map([
   ...[
     "remote.accept",

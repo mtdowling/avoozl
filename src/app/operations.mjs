@@ -488,13 +488,8 @@ import {
 import { nextView } from "./runner.mjs";
 import { manualClaim } from "./manual-claim.mjs";
 import {
-  acceptEnvelope,
-  driverTick,
-  handoff,
-  pullStatus,
   claimWork,
   pullWork,
-  remoteView,
   readRunnerConfig,
   reportDone,
   runnerStatus,
@@ -514,6 +509,11 @@ function claimedOrNone(store) {
   }
 }
 import { deliverNotifications } from "./notifications.mjs";
+import {
+  markKirocrewSeen,
+  needsKirocrewItems,
+  runOn,
+} from "./needs-kirocrew.mjs";
 import { flushOutbox } from "./outbox.mjs";
 import {
   configureWorkspaceRepository,
@@ -594,6 +594,7 @@ import { publishSpec } from "./spec-publication.mjs";
 import { specLinks } from "./scm-links.mjs";
 import { specAuthority, takeOverSpec } from "./spec-takeover.mjs";
 import { publishOffer, reserveClaims } from "./worker-claims.mjs";
+import { workerResultsStep } from "./worker-result-step.mjs";
 import {
   checkStaleClaims,
   claimStaleMs,
@@ -2235,6 +2236,24 @@ export class Operations {
       review: planReviewSummary(this.store, plan.id),
     };
   }
+  // The driver's step for worker machines' pushed results (WP5.3).
+  async workerResults(store, driving, journalFor) {
+    const config = loadLayeredConfig({
+        workspaceRoot: this.workspaceRoot,
+      }).config,
+      result = await workerResultsStep(store, {
+        driving,
+        journalFor,
+        github: this.github,
+        sources: config.runner?.sources ?? {},
+        protectedPaths:
+          readFlowPolicy(this.workspaceRoot).workspace.verify?.protectedPaths ??
+          [],
+      });
+    queueNotifications(store, result.notify);
+    return result;
+  }
+
   // This workspace's saved config, which names each role's executor
   // (Settings › Models); none when there is no file or it does not load.
   savedConfig() {
@@ -3094,6 +3113,7 @@ export class Operations {
         }
         return stampPrompts(store, result);
       });
+    if (name === "executor.kirocrew.take") markKirocrewSeen(store);
     if (name === "executor.kirocrew.take")
       return takeKirocrewRequest(store, input, context, (request, queued) =>
         sessionStartHold(store, request, queued, {
@@ -3220,16 +3240,14 @@ export class Operations {
       });
     }
     // Runner mode over SSH (R84): off unless .avoozl.json has `runner`.
-    if (name === "remote.accept")
-      return acceptEnvelope(store, this.workspaceRoot, input.envelope);
+    // shortcut: no machine reports remote workers to a driver now, so the
+    // list is always empty. The page's In flight and Delivery still read it;
+    // remove it with their remote rows, which need new screenshots.
+    if (name === "remote.view") return { workers: [] };
     if (name === "remote.status")
       return runnerStatus(store, this.workspaceRoot);
     if (name === "remote.report")
       return reportDone(store, this.workspaceRoot, input);
-    if (name === "remote.handoff")
-      return handoff(store, this.workspaceRoot, input);
-    if (name === "remote.pull")
-      return pullStatus(store, this.workspaceRoot, input);
     if (name === "worker.claim")
       return claimWork(store, this.workspaceRoot, this.github);
     if (name === "worker.setup") {
@@ -3240,7 +3258,6 @@ export class Operations {
     }
     if (name === "worker.pull")
       return pullWork(store, this.workspaceRoot, this.github);
-    if (name === "remote.view") return remoteView(store, this.workspaceRoot);
     if (name === "instance.view") return instanceView(store);
     if (name === "instance.rename") {
       renameInstance(store, input.name);
@@ -3393,13 +3410,9 @@ export class Operations {
       });
       if (remote) return remote;
       await this.refreshPrivateSpecs();
-      if (input.cron === true) await driverTick(store, this.workspaceRoot);
-      // Stale worker claims reach Needs you; nothing releases them (R90.6).
-      if (input.cron === true)
-        await checkStaleClaims(store, {
-          workspaceRoot: this.workspaceRoot,
-          driving: Object.keys(store.getMeta("specDrivers") ?? {}),
-          journalFor: async (planId) => {
+      if (input.cron === true) {
+        const driving = Object.keys(store.getMeta("specDrivers") ?? {}),
+          journalFor = async (planId) => {
             const journal = journalOf(
               store,
               { github: this.github, workspaceRoot: this.workspaceRoot },
@@ -3415,8 +3428,20 @@ export class Operations {
                   },
                 }
               : null;
-          },
+          };
+        // Stale worker claims reach Needs you; nothing releases them (R90.6).
+        await checkStaleClaims(store, {
+          workspaceRoot: this.workspaceRoot,
+          driving,
+          journalFor,
         }).catch(() => 0);
+        // What worker machines pushed is fetched, checked and landed here
+        // (R90.2, worker-paths WP5.3); a result that fails is a failed attempt.
+        if (driving.length)
+          await this.workerResults(store, driving, journalFor).catch(
+            () => null,
+          );
+      }
       const result = await tick(store, {
         workspaceRoot: this.workspaceRoot,
         memory: this.tickPolicy,
@@ -3714,6 +3739,16 @@ export class Operations {
       view.items.push(...forwardAuditRows(store));
       view.items.push(...publicCrewAuditRows(store));
       view.items.push(...publicBranchRows(store));
+      // A role waiting on Kiro Crew on a machine with none, with this
+      // machine's approved harnesses for Run on (NK8.2).
+      view.items.push(
+        ...needsKirocrewItems(
+          store,
+          listHarnessDefinitions(this.configDirectory)
+            .filter((d) => d.approved)
+            .map((d) => d.name),
+        ),
+      );
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
@@ -3784,6 +3819,21 @@ export class Operations {
         // This machine's harness definitions a role may pick (R98.3).
         harnessDefinitions: listHarnessDefinitions(this.configDirectory),
       };
+    // Run on (NK8.2): a person moves a role that waits on Kiro Crew to one
+    // of this machine's approved harnesses.
+    if (name === "needskirocrew.runon") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person chooses where a role runs, in the Avoozl app.",
+          403,
+        );
+      return runOn(store, input, {
+        settings: this.settingsFile(),
+        approved: listHarnessDefinitions(this.configDirectory)
+          .filter((d) => d.approved)
+          .map((d) => d.name),
+      });
+    }
     if (name === "models.settings.update") {
       if (context.caller || context.mcp)
         fail("Only a person changes chat models, in Settings.", 403);

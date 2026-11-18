@@ -278,13 +278,18 @@ test("no view imports a Kiro Crew file by path (SW1.2)", () => {
   assert.deepEqual(pathImports(path.join(ui, "src")), []);
 });
 
-test("no view, and no file but the host shim, tests which host it runs in (SW1.2)", () => {
+test("no view tests which build it runs in (SW1.2); the host comes from instance.view (SW10.3)", () => {
   const dir = path.join(ui, "src");
   const found = [];
   for (const name of fs.readdirSync(dir, { recursive: true }))
     if (/\.tsx?$/.test(name) && !name.startsWith(`standalone${path.sep}`)) {
       const text = fs.readFileSync(path.join(dir, name), "utf8");
-      if (/standalone/i.test(text.replace(/\/\/.*$/gm, ""))) found.push(name);
+      if (
+        /__[A-Z_]*STANDALONE|isStandalone|import\.meta\.env|process\.env/.test(
+          text,
+        )
+      )
+        found.push(name);
     }
   assert.deepEqual(found, []);
 });

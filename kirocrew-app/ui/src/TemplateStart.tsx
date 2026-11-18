@@ -14,7 +14,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 const fieldStyle = {
   borderColor: 'var(--border)',
@@ -52,13 +52,9 @@ function InputField(props: {
         {props.repositories.map((repo) => {
           const chosen = Array.isArray(props.value) ? props.value : []
           return (
-            <label key={repo.id} className="flex items-center gap-2">
-              <Checkbox
-                checked={chosen.includes(repo.id)}
-                onChange={(event) => props.onChange(event.target.checked ? [...chosen, repo.id] : chosen.filter((v) => v !== repo.id))}
-              />
+            <Switch key={repo.id} label={repo.name || repo.id} checked={chosen.includes(repo.id)} onChange={(on) => props.onChange(on ? [...chosen, repo.id] : chosen.filter((v) => v !== repo.id))}>
               <span>{repo.name || repo.id}</span>
-            </label>
+            </Switch>
           )
         })}
         {missing && <ErrorText as="span" size="xs">Pick at least one repository.</ErrorText>}
@@ -235,15 +231,9 @@ export function TemplateStart(props: {
           ) : (
             <Hint as="p" size="xs">Reading…</Hint>
           )}
-          <label className="flex items-start gap-2">
-            <Checkbox drop={4}
-              checked={props.importSettings}
-              disabled={!preview}
-              onChange={(event) => props.onImportSettings(event.target.checked)}
-              data-import-settings
-            />
+          <Switch label="Import these settings" align="start" checked={props.importSettings} disabled={!preview} onChange={props.onImportSettings} data-import-settings>
             <span>Import these settings</span>
-          </label>
+          </Switch>
         </section>
       )}
     </Stack>

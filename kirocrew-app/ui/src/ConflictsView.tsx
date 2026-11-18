@@ -56,7 +56,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter, write: writeConflictFilter, empty: {} as ConflictFilter }
 
@@ -531,12 +531,7 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
   return (
     <li className="border-t first:border-t-0" style={{ borderColor: 'var(--border)' }} data-conflict-row>
       <div className="flex items-start gap-2 px-1 py-1.5" style={{ background: props.focused ? 'var(--accent-subtle, var(--bg-elevated))' : undefined, borderRadius: 6 }}>
-        <Checkbox
-          aria-label={`Select ${item.title}`}
-          checked={props.selected}
-          disabled={!props.selectable}
-          onChange={(event) => props.onSelect(event.target.checked)} drop={3}
-        />
+        <Switch label={`Select ${item.title}`} checked={props.selected} disabled={!props.selectable} onChange={props.onSelect} />
         <div className="flex min-w-0 flex-1 flex-col items-stretch gap-0.5">
           <button
             type="button"
@@ -823,18 +818,19 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                   <span className="ml-auto">{workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />}</span>
                 </FilterPanel>
                 <div className="flex flex-wrap items-center gap-2 text-sm" data-bulk-bar>
-                  <label className="flex items-center gap-1.5 text-xs">
-                    <Checkbox
-                      aria-label={`Select the ${shown.length} shown`}
-                      checked={allShown}
-                      onChange={(event) => {
-                        const next = new Set(selected)
-                        for (const item of shown) event.target.checked ? next.add(itemKey(item)) : next.delete(itemKey(item))
-                        setSelected(next)
-                      }}
-                    />
+                  <Switch
+                    label={`Select the ${shown.length} shown`}
+                    size="xs"
+                    gap={1.5}
+                    checked={allShown}
+                    onChange={(on) => {
+                      const next = new Set(selected)
+                      for (const item of shown) on ? next.add(itemKey(item)) : next.delete(itemKey(item))
+                      setSelected(next)
+                    }}
+                  >
                     Select the {shown.length} shown
-                  </label>
+                  </Switch>
                   {matching.length > shown.length && (
                     <TipBtn tooltip="Select every matching item, including ones not shown yet" type="button" onClick={() => setSelected(new Set(matching.map(itemKey)))} disabled={allMatching}>
                       Select all {matching.length} matching

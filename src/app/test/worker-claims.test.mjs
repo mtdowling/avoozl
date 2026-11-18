@@ -19,6 +19,8 @@ import {
   reserveClaims,
 } from "../worker-claims.mjs";
 import { snapshot } from "./fixtures.mjs";
+import { checkpointBranch } from "../working-heads.mjs";
+import { workerResultsStep } from "../worker-result-step.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 // The worker's machine config is written under this folder, never the real one.
@@ -474,4 +476,195 @@ test("a worker tick with no GitHub records one line and starts nothing", async (
   assert.equal(lines.length, 1);
   assert.match(lines[0].skipped, /no GitHub/);
   assert.deepEqual(accepted(ws), []);
+});
+
+// Worker-paths WP5.3: the driver's tick fetches and checks what a worker
+// pushed, and lands it with no command run by hand.
+const commitAs = (cwd, message) =>
+  git(
+    cwd,
+    "-c",
+    "user.name=W",
+    "-c",
+    "user.email=w@example.com",
+    "commit",
+    "-qm",
+    message,
+  );
+
+// A target, a fork, the driver's own checkout, and a store holding task t1
+// of spec `demo` with its project. `push` adds the worker's checkpoint.
+async function driverWorld(
+  t,
+  { files = { "b.txt": "b\n" }, claim = true } = {},
+) {
+  const dir = temporaryDirectory("avoozl-driver-results-"),
+    target = path.join(dir, "target.git"),
+    fork = path.join(dir, "fork.git"),
+    seed = path.join(dir, "seed"),
+    root = path.join(dir, "driver");
+  git(dir, "init", "--bare", "-b", "main", target);
+  fs.mkdirSync(seed);
+  git(seed, "init", "-q", "-b", "main");
+  fs.writeFileSync(path.join(seed, "a.txt"), "a\n");
+  git(seed, "add", ".");
+  commitAs(seed, "Start");
+  git(seed, "remote", "add", "origin", target);
+  git(seed, "push", "-q", "origin", "main");
+  const base = git(seed, "rev-parse", "HEAD");
+  git(dir, "clone", "-q", "--bare", target, fork);
+  fs.mkdirSync(root);
+  git(root, "init", "-q", "-b", "main");
+  git(root, "config", "user.name", "Driver");
+  git(root, "config", "user.email", "driver@example.com");
+  const store = new Store(path.join(dir, "workspace.sqlite"));
+  t.after(() => store.close());
+  store.importSnapshot({
+    ...snapshot(),
+    tasks: [
+      {
+        id: "t1",
+        title: "Task t1",
+        kind: "leaf",
+        scope: "catalog",
+        status: "planned",
+        epic: "sample",
+        track: "catalog",
+        tags: [],
+        acceptance: ["Works."],
+        repository: "example/code",
+        paths: ["b.txt"],
+      },
+    ],
+    edges: [],
+  });
+  store.put("projects", {
+    id: "example/code",
+    repository: "example/code",
+    root,
+    baseBranch: "main",
+    checks: [["node", "-e", "process.exit(0)"]],
+  });
+  const w = world(),
+    { journal } = await started(w);
+  await publishOffer(
+    journal,
+    {
+      driver: DRIVER,
+      owner: OWNER,
+      login: "owner",
+      spec: SPEC,
+      task: "t1",
+      definition: DEF,
+      worker: "worker-a",
+      ref: {
+        repository: "fork/code",
+        branch: "avoozl/demo/work",
+        commit: base,
+      },
+      base,
+    },
+    OPTIONS,
+  );
+  if (claim) {
+    await ask(w, "worker-a");
+    const reserved = await reserveClaims({ ...driving(w, journal), cap: 1 });
+    assert.equal(reserved.acknowledged.length, 1);
+  }
+  const sources = {
+      "example/code": { url: target },
+      "fork/code": { url: fork, parent: "example/code" },
+    },
+    push = (named = files) => {
+      git(seed, "checkout", "-q", "-B", checkpointBranch(SPEC, "t1"), base);
+      for (const [name, text] of Object.entries(named)) {
+        fs.mkdirSync(path.dirname(path.join(seed, name)), { recursive: true });
+        fs.writeFileSync(path.join(seed, name), text);
+      }
+      git(seed, "add", ".");
+      commitAs(seed, "Do t1");
+      git(seed, "push", "-q", "-f", fork, checkpointBranch(SPEC, "t1"));
+      return git(seed, "rev-parse", "HEAD");
+    },
+    step = (extra = {}) =>
+      workerResultsStep(store, {
+        driving: [SPEC],
+        journalFor: async () => ({ journal, options: OPTIONS }),
+        sources,
+        ...extra,
+      });
+  return { store, root, base, push, step, sources };
+}
+
+test("a pushed result lands on the driver's tick with no command run by hand", async (t) => {
+  const d = await driverWorld(t);
+  // Nothing pushed yet: the task waits.
+  assert.deepEqual((await d.step()).waiting, ["t1"]);
+  const head = d.push();
+  const result = await d.step();
+  assert.deepEqual(result.landed, ["t1"]);
+  assert.equal(
+    git(d.root, "rev-parse", "refs/heads/avoozl/demo/work^2"),
+    head,
+    "the working branch merged the verified head",
+  );
+  // The same head is judged once.
+  assert.deepEqual((await d.step()).landed, []);
+});
+
+test("a result that touches a protected path, and one whose checks fail, are failed attempts with the reason", async (t) => {
+  const guarded = await driverWorld(t);
+  guarded.push({ "b.txt": "b\n" });
+  const held = await guarded.step({ protectedPaths: ["b.txt"] });
+  assert.equal(held.failed[0].outcome, "protected");
+  assert.match(held.failed[0].cause, /protected/);
+  assert.equal(held.notify.length, 1);
+  assert.equal(guarded.store.get("task_deliveries", "t1").state, "decision");
+  assert.equal(guarded.store.get("task_deliveries", "t1").attempts.length, 1);
+
+  const failing = await driverWorld(t);
+  failing.push();
+  failing.store.put("projects", {
+    ...failing.store.get("projects", "example/code"),
+    checks: [["node", "-e", "process.exit(3)"]],
+  });
+  const rejected = await failing.step();
+  assert.equal(rejected.failed[0].outcome, "rejected");
+  const delivery = failing.store.get("task_deliveries", "t1");
+  assert.equal(delivery.state, "failed");
+  assert.match(delivery.attempts[0].cause, /rejected: checks/);
+  assert.equal(
+    spawnHas(failing.root, "refs/heads/avoozl/demo/work"),
+    false,
+    "nothing landed",
+  );
+});
+
+test("a result for a claim the driver did not acknowledge is ignored", async (t) => {
+  const d = await driverWorld(t, { claim: false });
+  d.push();
+  const result = await d.step();
+  assert.deepEqual(result, { landed: [], failed: [], waiting: [], notify: [] });
+  assert.equal(d.store.get("task_deliveries", "t1"), null);
+});
+
+const spawnHas = (cwd, ref) => {
+  try {
+    git(cwd, "rev-parse", "--verify", "--quiet", ref);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+test("worker-results.mjs has an importer that is not a test", () => {
+  const sources = fs
+    .readdirSync(new URL("..", import.meta.url))
+    .filter((name) => name.endsWith(".mjs"))
+    .filter((name) =>
+      /worker-results\.mjs/.test(
+        fs.readFileSync(new URL(`../${name}`, import.meta.url), "utf8"),
+      ),
+    );
+  assert.ok(sources.includes("worker-result-step.mjs"), sources.join(", "));
 });

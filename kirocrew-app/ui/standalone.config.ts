@@ -53,7 +53,7 @@ const EMPTY_ID = "\0avoozl-left-out";
 // added to this list, after checking the build stays within its budget.
 const UI_ID = "\0avoozl-kirocrew-ui";
 const UI_PARTS = (site: string) => `
-export { Card, CardTitle, Btn, Input, Badge, EmptyState, PageHeader } from ${JSON.stringify(posix(path.join(site, "components", "ui")))}
+export { Card, CardTitle, Btn, Input, Badge, EmptyState, PageHeader, Toggle } from ${JSON.stringify(posix(path.join(site, "components", "ui")))}
 export { default as SegmentedControl } from ${JSON.stringify(posix(path.join(site, "components", "SegmentedControl")))}
 `;
 

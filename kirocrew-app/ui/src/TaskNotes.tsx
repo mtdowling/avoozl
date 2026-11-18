@@ -11,7 +11,7 @@ import { Btn } from './ui/Btn'
 import { Input } from './ui/Input'
 import Badge from './ui/Badge.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { DangerBtn, ICON, IconLabel } from './ui/controls.tsx'
 import { Ban, Check, ClipboardCheck, ExternalLink, Pencil, Plus, RotateCcw, Trash2, X } from './icons.ts'
@@ -23,7 +23,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 // A save a content rule blocked: the decisions to allow, and the save to
 // run again once allowed.
@@ -165,10 +165,9 @@ function EntryView(props: {
           {props.onGitHub && (
             <Tooltip text="List it in the issue's managed section on GitHub. Off by default: a link may point at things not meant for the repository.">
               {(describedBy) => (
-                <label className="inline-flex items-center gap-1.5 text-xs" aria-describedby={describedBy}>
-                  <Checkbox checked={entry.onIssue} disabled={props.busy} onChange={(event) => props.onShow(entry, event.target.checked)} />
+                <Switch label="Show on the issue" inline size="xs" gap={1.5} describedBy={describedBy} checked={entry.onIssue} disabled={props.busy} onChange={(on) => props.onShow(entry, on)}>
                   Show on the issue
-                </label>
+                </Switch>
               )}
             </Tooltip>
           )}
