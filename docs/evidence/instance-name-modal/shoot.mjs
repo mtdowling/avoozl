@@ -3,10 +3,13 @@
 //   node ../../docs/evidence/instance-name-modal/shoot.mjs
 import { buildHarness } from '../../../kirocrew-app/ui/test/browser/build.mjs'
 import { findChrome, launch } from '../../../kirocrew-app/ui/test/browser/chrome.mjs'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const out = path.dirname(fileURLToPath(import.meta.url))
+// Outside git: <repo>/.avoozl-shots/instance-name-modal.
+const out = fileURLToPath(new URL('../../../.avoozl-shots/instance-name-modal', import.meta.url))
+fs.mkdirSync(out, { recursive: true })
 const harness = await buildHarness()
 const browser = await launch(findChrome())
 const page = await browser.page()

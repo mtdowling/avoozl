@@ -10,7 +10,7 @@
     "build:agents": "node src/app/executors/kirocrew/build-agents.mjs",
     "check:agents": "node src/app/executors/kirocrew/build-agents.mjs --check",
     "prepack": "npm run build",
-    "pretest": "npm run check:agents && npm run build",
+    "pretest": "node scripts/check-no-images.mjs && npm run check:agents && npm run build",
     "workspace": "node cli.mjs",
     "test": "node scripts/run-tests.mjs",
     "test:map": "node scripts/build-test-map.mjs",

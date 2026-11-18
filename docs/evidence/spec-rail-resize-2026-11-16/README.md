@@ -1,5 +1,7 @@
 # Spec view: resizable right rail (2026-11-16)
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 The spec details rail (Epic, Category, Repositories, Phases, Progress, Dates)
 has a handle on its left edge. It reuses the nav and list columns'
 `ResizeHandle`, now with `edge="left"`: drag left to widen, Left and Right

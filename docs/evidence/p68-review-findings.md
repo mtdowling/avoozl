@@ -1,5 +1,7 @@
 # P68 live: a person reads, decides and approves a reviewed spec
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Proof P68 (Requirement 104, design §4.33), run 2026-11-17 16:59–19:35 UTC
 on a Mac, with real Kiro Crew chats in a throwaway Kiro Crew 0.12.2.4 (own
 home and port), on Avoozl `main` at `01c5b9f9` plus the fixes below. The
@@ -70,22 +72,22 @@ From the real Avoozl page in the throwaway Kiro Crew.
 
 | | Light | Dark |
 |---|---|---|
-| Review view, 1280 | ![](p68-review-findings/desktop-light-review.png) | ![](p68-review-findings/desktop-dark-review.png) |
-| A card click lights its lines, 1280 | ![](p68-review-findings/desktop-light-click.png) | ![](p68-review-findings/desktop-dark-click.png) |
-| Review view, 390 (cards inline) | ![](p68-review-findings/phone-light-review.png) | ![](p68-review-findings/phone-dark-review.png) |
-| A card click, 390 | ![](p68-review-findings/phone-light-click.png) | ![](p68-review-findings/phone-dark-click.png) |
-| After decisions and approval, 1280 | ![](p68-review-findings/desktop-light-after-decisions.png) | ![](p68-review-findings/desktop-dark-after-decisions.png) |
-| After decisions and approval, 390 | ![](p68-review-findings/phone-light-after-decisions.png) | ![](p68-review-findings/phone-dark-after-decisions.png) |
+| Review view, 1280 | checked, not kept in git | checked, not kept in git |
+| A card click lights its lines, 1280 | checked, not kept in git | checked, not kept in git |
+| Review view, 390 (cards inline) | checked, not kept in git | checked, not kept in git |
+| A card click, 390 | checked, not kept in git | checked, not kept in git |
+| After decisions and approval, 1280 | checked, not kept in git | checked, not kept in git |
+| After decisions and approval, 390 | checked, not kept in git | checked, not kept in git |
 
 Desktop light, in order:
-1. Blocker filter: ![](p68-review-findings/desktop-light-filter-blocker.png)
-2. Warn filter: ![](p68-review-findings/desktop-light-filter-warn.png)
-3. Decided: ![](p68-review-findings/desktop-light-decided.png)
-4. Approve open: ![](p68-review-findings/desktop-light-approve-open.png)
-5. Changed while open: ![](p68-review-findings/desktop-light-changed-while-open.png)
-6. Review anyway pressed: ![](p68-review-findings/desktop-light-review-anyway.png)
-7. Settled after round 2: ![](p68-review-findings/desktop-light-settled.png)
-8. Approved: ![](p68-review-findings/desktop-light-approved.png)
+1. Blocker filter: checked, not kept in git
+2. Warn filter: checked, not kept in git
+3. Decided: checked, not kept in git
+4. Approve open: checked, not kept in git
+5. Changed while open: checked, not kept in git
+6. Review anyway pressed: checked, not kept in git
+7. Settled after round 2: checked, not kept in git
+8. Approved: checked, not kept in git
 
 The Approve dialog's in-place update was captured at desktop light only.
 
@@ -108,10 +110,10 @@ headless Chrome, as in run 2.
 
 | | Light |
 |---|---|
-| Changed while open, 1280 | ![](p68-review-findings/run3-desktop-light-5-changed-while-open.png) |
-| Review anyway pressed | ![](p68-review-findings/run3-desktop-light-6-review-anyway.png) |
-| Round limit note, second update | ![](p68-review-findings/run3-desktop-light-7-settled.png) |
-| Approved | ![](p68-review-findings/run3-desktop-light-8-after-approve.png) |
+| Changed while open, 1280 | checked, not kept in git |
+| Review anyway pressed | checked, not kept in git |
+| Round limit note, second update | checked, not kept in git |
+| Approved | checked, not kept in git |
 
 ## Bugs found
 

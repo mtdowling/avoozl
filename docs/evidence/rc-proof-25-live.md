@@ -1,5 +1,7 @@
 # Proof 25 (rc-p25), live: forward targets and protections
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Run on 2026-11-15 on `main` at `78445c7` (plus this PR), through the throwaway
 harness gateway (port 5694) with `forward` set to `nudge`. Each mirror change
 was a pull request merged in the mirror from a branch named `avoozl/<task>`;
