@@ -53,7 +53,7 @@ Use `avoozl help` to inspect the installed CLI surface before choosing commands.
   the template's starter folder. Keep its phases, task IDs and manual tasks.
 - A manual task (`"manual": true`, completion `person`) is a step only a
   person does, such as a team review. Never start, claim or mark one done:
-  `plans_view {action: "next"}` lists it under `needsYou` with reason `manual`. Tell the user
+  `plans_next` lists it under `needsYou` with reason `manual`. Tell the user
   to open it in the task drawer and press **Mark done**.
 - Read a task's links with `plans_task` action `notes`. Add a link to the
   task you are bound to with action `add_note`, input
@@ -73,7 +73,7 @@ Steps 1 to 4 of local delivery. The chat you are in runs these steps. Two
   `<root>/.kiro/specs/<name>/`.
 - Ask only for what you cannot read: the outcome, and which repositories are in
   scope when more than one could be. Do not ask for task breakdowns.
-- Search for overlapping work with `plans_query` and `plans_task {action: "duplicates"}`.
+- Search for overlapping work with `plans_query` and `plans_duplicates`.
 - Choose a spec name: lowercase letters, digits, and hyphens, at most 80
   characters, not already in `plans_plan {action: "specs"}`. The name is also the plan ID and
   the prefix of the spec's numbered task IDs.
@@ -93,8 +93,8 @@ the draft brief below. Wait for it to finish. It writes `requirements.md` (or
 `bugfix.md`), `design.md`, `tasks.md`, and `avoozl/manifest.json` in the spec
 folder.
 
-Store the revision: `plans_plan {action: "create"}` with `spec` (the name) and `prompt`
-(the goal); for a spec that is already stored, `plans_plan {action: "save"}` with its `id`
+Store the revision: `plans_create_plan` with `spec` (the name) and `prompt`
+(the goal); for a spec that is already stored, `plans_save_plan` with its `id`
 and `expectedHash`. Avoozl reads the folder from disk. Note the returned
 `hash`: it is the folder revision, and it does not change when only
 `avoozl/critique.md` changes.
@@ -117,7 +117,7 @@ when Kiro Crew can scope an agent's file reads to named roots.
 
 Read `avoozl/critique.md`. When it has findings, fix the spec by opening a new
 draft session with the findings as data, store the new revision with
-`plans_plan {action: "save"}`, then critique it in a new session. Stop after two critique
+`plans_save_plan`, then critique it in a new session. Stop after two critique
 rounds and show the user what remains.
 
 ### 4. Validate
@@ -180,11 +180,11 @@ conductor starts workers and reports what happened.
   workspace's checkouts with the runner steering and the current buckets, and
   prints nothing anywhere else. Kiro Crew runs hook files from `~/.kiro/hooks/`;
   ask the user before you add it there.
-- The conductor follows the runner rule that `plans_view {action: "next"}` returns: start
+- The conductor follows the runner rule that `plans_next` returns: start
   `ready`; wait while `running` is not empty; ask the user about `needsYou`;
   stop only when every leaf is `done`. It claims each worker with
-  `plans_session {action: "claim"}` (or `avoozl claim`) and relays results with
-  `plans_session {action: "report"}` and the worker's `slot`.
+  `plans_claim_task` (or `avoozl claim`) and relays results with
+  `plans_report` and the worker's `slot`.
 - Decisions and failures arrive as Avoozl notifications with a link to the
   session. When the user decides to resume a stopped leaf, call
   `plans_task {action: "retry"}`. Never retry on your own.
@@ -206,12 +206,12 @@ When a deliver rule matched an issue and the user wants it delivered:
 
 1. Read the issue snapshot and decide one thing: is it one bounded leaf in one
    repository with observable acceptance? Record the answer with
-   `plans_github {action: "classify"}` `{repository, number, kind, reason}`. Bounded ends
+   `plans_classify_issue` `{repository, number, kind, reason}`. Bounded ends
    here: the issue stays its own leaf.
 2. Broad: run a draft planner session on a new spec folder, then an isolated
    critique session, as in Plan a goal. The spec's one top-level package item
    is the issue itself; nest every child under it. Then call
-   `plans_github {action: "draft_children"}` `{repository, number, spec}`.
+   `plans_draft_children` `{repository, number, spec}`.
 3. The next GitHub sync (or `plans_github {action: "advance"}`) posts one preview
    comment on the issue. Nothing else is written. An allowed actor approves
    by removing and adding the trigger label; then Avoozl creates the

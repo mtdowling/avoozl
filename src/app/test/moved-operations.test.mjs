@@ -14,7 +14,7 @@ import { temporaryDirectory } from "./temporary.mjs";
 // Names removed on 2026-11-18 (R56.3): the old one-tool-per-operation names,
 // the moved-operation stubs, plans_relay and plans_andon_*. A sample, with a
 // name of each kind.
-const REMOVED = `plans_update_task plans_report plans_tick plans_next
+const REMOVED = `plans_update_task plans_bind_session plans_tick plans_flow
 plans_start_run plans_send_message plans_metrics plans_targets plans_relay
 plans_andon_status plans_andon_raise`.split(/\s+/);
 

@@ -243,7 +243,7 @@ export async function commitChildWork(binding, worktree) {
 // kept as data, and a done report's commit read from the worktree's HEAD,
 // never from the child. Avoozl's own commit of the child's edits (R94.4a)
 // comes before this read. A verdict role's report fields come from the
-// file's `report`, which session.report checks as it does plans_session (action: report); a
+// file's `report`, which session.report checks as it does plans_report; a
 // retro's reply is recorded as its chat reply is; a planner's folder is
 // stored by the tick's plan import, so its result records nothing.
 const VERDICT_FIELDS = ["verdict", "findings", "closures", "checks", "text"];

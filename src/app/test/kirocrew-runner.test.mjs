@@ -322,7 +322,7 @@ test("a worker whose conductor skipped the claim cannot report, and its task sta
   assert.deepEqual(ids((await next(ops)).ready), ["a"]);
 });
 
-test("plans_view next puts every local leaf in one bucket with what it waits on", async (t) => {
+test("plans_next puts every local leaf in one bucket with what it waits on", async (t) => {
   // Nearby inputs: a dependent of an unfinished leaf, a blocked leaf, a leaf
   // in review, a worker's open question, an accepted leaf, an integrated leaf,
   // a deferred leaf, an epic (not a leaf), a GitHub-routed leaf, and capacity 1.
@@ -438,13 +438,9 @@ test("every runner write goes through Operations.execute, whichever surface call
     { attestedCaller: true },
   );
   assert.equal(claimed.body.result.structuredContent.binding.conductor, "c");
-  const listed = await handleMcp(
-    tool("plans_view.next", {}, "dashboard:c"),
-    ops,
-    {
-      attestedCaller: true,
-    },
-  );
+  const listed = await handleMcp(tool("plans_next", {}, "dashboard:c"), ops, {
+    attestedCaller: true,
+  });
   assert.deepEqual(ids(listed.body.result.structuredContent.running).sort(), [
     "a",
     "b",

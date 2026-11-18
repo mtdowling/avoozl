@@ -100,7 +100,7 @@ Do not use capture as a discovery channel. `task.capture` / `plans_intake {actio
 
 ## Avoid duplicate tasks
 
-Search current tasks and use `task.duplicates` / MCP `plans_task {action: "duplicates"}`
+Search current tasks and use `task.duplicates` / MCP `plans_duplicates`
 before creating work. Reuse an existing task when extraction coverage shows
 that it already describes the same deliverable. This adds document context
 without replacing the canonical task's status or acceptance. Capture can set
@@ -136,7 +136,7 @@ After a plan edit, reconcile affected task records and design links in the same 
 
 ## Agent sessions and reconnects
 
-Agent sessions run in Kiro Crew; Avoozl starts none. The tick opens a session for a ready leaf, or ask for one with `plans_session {action: "request"}`. Crew Mode conductors use `plans_view {action: "next"}` and `plans_session {action: "claim"}`. Steer, answer, or stop the work in the task's Kiro Crew session. Do not start additional sessions merely because the tools exist.
+Agent sessions run in Kiro Crew; Avoozl starts none. The tick opens a session for a ready leaf, or ask for one with `plans_session {action: "request"}`. Crew Mode conductors use `plans_next` and `plans_claim_task`. Steer, answer, or stop the work in the task's Kiro Crew session. Do not start additional sessions merely because the tools exist.
 
 During a disconnect, continue already authorized local work and retry reads with bounded backoff. Inspect the session binding, handoff, and recorded evidence before resuming. Never launch a replacement worker because a check-in is stale.
 
@@ -149,8 +149,8 @@ For operation arguments, task-block examples, validation/integration, models and
 ```
 
 MCP exposes the same workflow through tools including `plans_query`,
-`plans_activity`, `plans_task {action: "update"}`, `plans_plan {action: "get"}`, `plans_review {action: "extract"}`,
-`plans_review {action: "extraction"}`, `plans_review {action: "submit_extraction"}`, `plans_review {action: "dispose_fact"}`,
+`plans_activity`, `plans_task {action: "update"}`, `plans_get_plan`, `plans_review {action: "extract"}`,
+`plans_review {action: "extraction"}`, `plans_submit_extraction`, `plans_review {action: "dispose_fact"}`,
 `plans_approve_plan`, `plans_task {action: "handoff"}`, `plans_run {action: "get"}`, `plans_task {action: "validate"}`
 and `plans_task {action: "integrate"}`. Inspect `tools/list` for each tool's current input
 schema. Approval and integration remain subject to the user's authorization.

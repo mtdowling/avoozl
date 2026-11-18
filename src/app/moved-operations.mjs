@@ -10,7 +10,7 @@ import { sessionUrl } from "./notifications.mjs";
 const SESSIONS =
   "Agent sessions run in Kiro Crew. Steer, answer, interrupt, or resume the task's Kiro Crew session itself.";
 const DISPATCH =
-  "Avoozl no longer starts agents. The tick opens Kiro Crew sessions for ready leaves; ask for one with plans_session (action: request) {taskId, repository, agent}, or run Crew Mode rounds with plans_view (action: next) and plans_session (action: claim).";
+  "Avoozl no longer starts agents. The tick opens Kiro Crew sessions for ready leaves; ask for one with plans_session (action: request) {taskId, repository, agent}, or run Crew Mode rounds with plans_next and plans_claim_task.";
 const BINDINGS =
   "Kiro Crew sessions are bound to tasks with plans_session (action: bind); rebuild lost bindings from session titles with plans_session (action: rediscover).";
 const RUNTIME = "Kiro Crew owns models, usage, and concurrency.";

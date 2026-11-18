@@ -1,5 +1,5 @@
 // Crew Mode runner support (design §5.1, task 2.14). A Crew Mode conductor
-// drives rounds from `next` and reports through `claim` and plans_session (action: report); the
+// drives rounds from `next` and reports through `claim` and plans_report; the
 // tick still verifies and integrates. Every write goes through
 // Operations.execute, so the conductor's CLI, the MCP server and the app
 // backend share one writer.
@@ -75,7 +75,7 @@ const phase = (binding, delivery) =>
         ? "working"
         : "recording";
 
-// plans_view (action: next) / `avoozl next`: every local leaf, and with a plans-repo
+// plans_next / `avoozl next`: every local leaf, and with a plans-repo
 // `github` policy every plans-repo leaf, in exactly one bucket. A plans-repo
 // leaf is ready only once the tick has created its linked branch.
 export function nextView(store, { policy, github = null }) {

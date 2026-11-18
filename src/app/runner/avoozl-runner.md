@@ -15,13 +15,13 @@ through Avoozl's one writer.
 
 ## Commands
 
-- What to do: `AVOOZL next` (tool `plans_view {action: "next"}`)
+- What to do: `AVOOZL next` (tool `plans_next`)
 - Claim a task for the worker you just started:
-  `AVOOZL claim TASK_ID --slot WORKER_SESSION_KEY` (tool `plans_session {action: "claim"}`)
+  `AVOOZL claim TASK_ID --slot WORKER_SESSION_KEY` (tool `plans_claim_task`)
 - Record a worker's result:
   `AVOOZL report TASK_ID --slot WORKER_SESSION_KEY --kind done --commit FULL_SHA`,
   or `--kind blocked --text WHY`, or `--kind question --text QUESTION`
-  (tool `plans_session {action: "report"}` with `slot`)
+  (tool `plans_report` with `slot`)
 - Resume a stopped task, only when the user says so: `AVOOZL retry TASK_ID`
 
 ## Each round

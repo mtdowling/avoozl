@@ -28,7 +28,8 @@
       "glob",
       "execute_bash",
       "thinking",
-      "@avoozl:avoozl/plans_session"
+      "@avoozl:avoozl/plans_conflict_check",
+      "@avoozl:avoozl/plans_conflict_report"
     ],
     "allowedTools": [],
     "toolsSettings": {
@@ -56,14 +57,14 @@
       "glob",
       "execute_bash",
       "thinking",
-      "@avoozl:avoozl/plans_session"
+      "@avoozl:avoozl/plans_report"
     ],
     "allowedTools": [
       "fs_read",
       "grep",
       "glob",
       "thinking",
-      "@avoozl:avoozl/plans_session"
+      "@avoozl:avoozl/plans_report"
     ],
     "includeMcpJson": false
   },
@@ -80,11 +81,14 @@
       "@avoozl:avoozl/plans_workspace",
       "@avoozl:avoozl/plans_query",
       "@avoozl:avoozl/plans_get_task",
-      "@avoozl:avoozl/plans_task",
+      "@avoozl:avoozl/plans_duplicates",
       "@avoozl:avoozl/plans_documents",
       "@avoozl:avoozl/plans_get_document",
-      "@avoozl:avoozl/plans_plan",
-      "@avoozl:avoozl/plans_github",
+      "@avoozl:avoozl/plans_get_plan",
+      "@avoozl:avoozl/plans_classify_issue",
+      "@avoozl:avoozl/plans_draft_children",
+      "@avoozl:avoozl/plans_create_plan",
+      "@avoozl:avoozl/plans_save_plan",
       "@avoozl:avoozl/plans_plan_review",
       "@avoozl:avoozl/plans_answer_review"
     ],
@@ -106,7 +110,7 @@
       "grep",
       "glob",
       "thinking",
-      "@avoozl:avoozl/plans_session"
+      "@avoozl:avoozl/plans_post_reply"
     ],
     "allowedTools": [],
     "includeMcpJson": false
@@ -129,9 +133,9 @@
       "glob",
       "execute_bash",
       "thinking",
-      "@avoozl:avoozl/plans_session"
+      "@avoozl:avoozl/plans_post_review_draft"
     ],
-    "allowedTools": ["@avoozl:avoozl/plans_session"],
+    "allowedTools": ["@avoozl:avoozl/plans_post_review_draft"],
     "toolsSettings": {
       "execute_bash": {
         "denyByDefault": true,
@@ -154,14 +158,14 @@
       "glob",
       "execute_bash",
       "thinking",
-      "@avoozl:avoozl/plans_session"
+      "@avoozl:avoozl/plans_report"
     ],
     "allowedTools": [
       "fs_read",
       "grep",
       "glob",
       "thinking",
-      "@avoozl:avoozl/plans_session"
+      "@avoozl:avoozl/plans_report"
     ],
     "includeMcpJson": false
   },
@@ -175,14 +179,14 @@
       "glob",
       "execute_bash",
       "thinking",
-      "@avoozl:avoozl/plans_session"
+      "@avoozl:avoozl/plans_report"
     ],
     "allowedTools": [
       "fs_read",
       "grep",
       "glob",
       "thinking",
-      "@avoozl:avoozl/plans_session"
+      "@avoozl:avoozl/plans_report"
     ],
     "includeMcpJson": false
   },
@@ -195,14 +199,14 @@
       "grep",
       "glob",
       "thinking",
-      "@avoozl:avoozl/plans_review"
+      "@avoozl:avoozl/plans_submit_review"
     ],
     "allowedTools": [
       "fs_read",
       "grep",
       "glob",
       "thinking",
-      "@avoozl:avoozl/plans_review"
+      "@avoozl:avoozl/plans_submit_review"
     ],
     "includeMcpJson": false
   },
@@ -215,7 +219,7 @@
       "grep",
       "glob",
       "thinking",
-      "@avoozl:avoozl/plans_plan",
+      "@avoozl:avoozl/plans_get_plan",
       "@avoozl:avoozl/plans_plan_review",
       "@avoozl:avoozl/plans_answer_review"
     ],
@@ -224,7 +228,7 @@
       "grep",
       "glob",
       "thinking",
-      "@avoozl:avoozl/plans_plan",
+      "@avoozl:avoozl/plans_get_plan",
       "@avoozl:avoozl/plans_plan_review",
       "@avoozl:avoozl/plans_answer_review"
     ],
@@ -234,8 +238,8 @@
     "name": "avoozl-task-summary",
     "model": "auto",
     "description": "Avoozl Task summary: writes a short plain summary of one task for its details page.",
-    "tools": ["@avoozl:avoozl/plans_session"],
-    "allowedTools": ["@avoozl:avoozl/plans_session"],
+    "tools": ["@avoozl:avoozl/plans_submit_task_summary"],
+    "allowedTools": ["@avoozl:avoozl/plans_submit_task_summary"],
     "includeMcpJson": false
   }
 ]

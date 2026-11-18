@@ -743,7 +743,7 @@ Find only material gaps: incorrect authority boundaries, unsafe failure behavior
 Existing feedback to avoid repeating:
 ${JSON.stringify(existing.map((thread) => ({ quote: thread.quote, comment: thread.comment, state: thread.state })))}
 
-Use plans_review (action: submit) once with:
+Use plans_submit_review once with:
 {"input":{"planId":"${plan.id}","revisionHash":"${plan.hash}","comments":[{"quote":"exact unique passage","severity":"blocking|important|suggestion|question","comment":"why this materially matters","suggestion":"optional exact replacement"}]}}
 
 The quote must occur exactly once in the supplied design. Do not edit or approve the plan.`;

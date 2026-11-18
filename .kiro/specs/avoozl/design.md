@@ -625,9 +625,9 @@ tick.py:run(ctx)
   becomes blocking.
 
 New MCP tools (**Proposed**, `plans_` prefix kept for consistency):
-`plans_maintain {action: "tick"}`, `plans_session {action: "bind"}`, `plans_session {action: "status"}`, `plans_session {action: "report"}`
-(worker, verifier, responder reports), `plans_session {action: "worktree"}`,
-`plans_project_preview`, `plans_session {action: "reply"}`, `plans_github {action: "rebuild"}`.
+`plans_maintain {action: "tick"}`, `plans_session {action: "bind"}`, `plans_session {action: "status"}`, `plans_report`
+(worker, verifier, responder reports), `plans_prepare_worktree`,
+`plans_project_preview`, `plans_post_reply`, `plans_github {action: "rebuild"}`.
 
 ### 4.7 Security and exposure
 
@@ -646,7 +646,7 @@ New MCP tools (**Proposed**, `plans_` prefix kept for consistency):
   Briefs quote them inside a fenced block labeled as data and restate the task's
   own acceptance criteria from the approved manifest.
 - The responder agent has read tools only and no shell write or `gh` write; its
-  reply reaches GitHub through `plans_session {action: "reply"}`, which Avoozl screens for
+  reply reaches GitHub through `plans_post_reply`, which Avoozl screens for
   secrets and absolute paths before posting.
 - Content rules (§4.9) check every write and approval against the rule sets
   `.avoozl.json` names; the terms stay out of Git, and findings never log
@@ -906,16 +906,16 @@ list never lands in a repository.
 | `plan`: approval         | Every spec file and `avoozl/manifest.json` at the exact folder hash          | `lintSpec`, as `content.match` diagnostics                                                 | Approval is refused; the diagnostic opens a decision                                                                    |
 | `github`: issues         | Title and whole body (marker included) of every create or update             | Projection (§6.3), before the write                                                        | Nothing written for that issue; decision                                                                                |
 | `github`: Project fields | Release and Iteration values                                                 | Project sync (§6.7), before the write                                                      | Nothing written for that item; decision                                                                                 |
-| `github`: comments       | Breakdown previews, published summaries, steering replies, responder replies | Each comment writer, `plans_session {action: "reply"}`                                                    | Avoozl's own comment: decision. A responder reply: refused in-call (F69)                                                |
+| `github`: comments       | Breakdown previews, published summaries, steering replies, responder replies | Each comment writer, `plans_post_reply`                                                    | Avoozl's own comment: decision. A responder reply: refused in-call (F69)                                                |
 | `github`: pull requests  | Candidate pull request titles, bodies, and commit messages                   | Each tick, as `pullRequestLeak` does (task 4.8)                                            | Completion blocked; decision; the worker is told the rule id and location                                               |
 | `brief`                  | Worker, verifier, and reviewer briefs                                        | Before `send_to_session`                                                                   | Brief not sent; decision                                                                                                |
-| `diff`                   | Added lines of the worker's diff against its base                            | `plans_session {action: "report"}` `done`; pre-push hook; local integration; open pull request diffs each tick | `done` refused in-call; push stopped; integration held with a decision; GitHub-route completion blocked with a decision |
+| `diff`                   | Added lines of the worker's diff against its base                            | `plans_report` `done`; pre-push hook; local integration; open pull request diffs each tick | `done` refused in-call; push stopped; integration held with a decision; GitHub-route completion blocked with a decision |
 
 Why the diff is checked four times: added lines only, so content already in
 the repository never blocks new work. A public repository shows a branch the
 moment it is pushed, so a check at merge time is too late there. The
 pre-push hook (`avoozl content check --push`, installed in each worktree
-Avoozl prepares) is the gate that stops a push. `plans_session {action: "report"} done` catches
+Avoozl prepares) is the gate that stops a push. `plans_report done` catches
 the same lines when the worker forgets to push. Integration and the open
 pull request check are the backstop for a worktree Avoozl did not prepare,
 or a hook that was skipped. (**Inferred**: a `pre-push` hook in a linked
@@ -1149,7 +1149,7 @@ marked so.
 | F93 | **Verified (source).** Session control refuses an app's own cron (`_app_owned_cron_refusal`), so the tick cannot use `session_read_message`; and that read returns only `index`, `role`, `content`, and `ts`, without `meta`.                                                                                                                                                   | Kiro Crew `dashboard/session_control_parts/caller_access.py`; `session_status.py` `read_messages`                                          |
 | F94 | **Verified (source).** A slot the app does not own answers 404 to the app token, so a Crew Mode conductor's workers and the owner's own chats give the app no tool rows. Remote sessions are out of reach for the app (F77).                                                                                                                                                    | `slot_ownership.py` `deny_app_slot_access`; F77                                                                                            |
 | F95 | **Verified (live, 2026-11-12, public repository).** GitHub check runs carry `started_at` and `completed_at`; pull request reviews carry `submitted_at`.                                                                                                                                                                                                                         | REST `commits/{sha}/check-runs`, `pulls/{n}/reviews`                                                                                       |
-| F96 | **Verified.** Avoozl already records the events timing needs: session bindings with role, attempt, `boundAt`, and `statusAt`; `plans_session {action: "report"}` with `progress`, `done`, `blocked`, and `question`; verifier entries `{command, exitCode}`; `integrateRun` reruns the checks on the integrated commit (F63); and the `events` table with `at`.                                     | `src/app/session-bindings.mjs`, `src/app/delivery.mjs` `reportSession`, `src/app/store.mjs`                                                |
+| F96 | **Verified.** Avoozl already records the events timing needs: session bindings with role, attempt, `boundAt`, and `statusAt`; `plans_report` with `progress`, `done`, `blocked`, and `question`; verifier entries `{command, exitCode}`; `integrateRun` reruns the checks on the integrated commit (F63); and the `events` table with `at`.                                     | `src/app/session-bindings.mjs`, `src/app/delivery.mjs` `reportSession`, `src/app/store.mjs`                                                |
 | F97 | **Verified.** Task 5.1 deleted `telemetry.mjs` with the host and providers; the run-era `usage_samples` and `provider_events` tables stay read-only.                                                                                                                                                                                                                            | §9; task 5.1                                                                                                                               |
 
 So per-call detail is partly there: for sessions the tick opens on this
@@ -1186,7 +1186,7 @@ Rules:
 
 - **Source order.** Tool calls when readable, then phase markers, then
   events. A worker span with neither tool calls nor markers is `coding`.
-- **Phase markers (fallback).** `plans_session {action: "report"}` `progress` takes an optional
+- **Phase markers (fallback).** `plans_report` `progress` takes an optional
   `phase` (`coding`, `tests`, `commands`, `ci-wait`). Avoozl stamps the time
   it receives the marker; the worker sends one when it switches. The worker
   brief asks for markers only when Avoozl cannot read the session's tool
@@ -2716,7 +2716,7 @@ and the secret screen first; a blocked entry is saved redacted. The drawer
 reads it through `task.evidence`. On GitHub one comment per pull request,
 found again by its marker, holds the text summary and is updated in place.
 Entries are screened at the `evidence` content boundary. A worker attaches
-files through `plans_session {action: "report"}` `evidence: [{kind: "file", path, note?}]` and
+files through `plans_report` `evidence: [{kind: "file", path, note?}]` and
 notes as `{kind: "note", text}`; a check entry may carry `logTail`.
 shortcut: GitHub's API cannot upload a file to a comment, so
 `github.evidence.attach` is not built and the comment names attached files
@@ -2827,7 +2827,7 @@ runner tick). This section makes that the only shape.
 | 1   | Avoozl pushes and merges. Per repository: `landing: direct \| pr \| off`. It lands only after checks pass on the updated head. Never force push. Avoozl's own repository honors the owner-selected policy; do not restore its disabled required-check gate (R87.8) |
 | 2   | A vanished worker chat is resumed once, automatically, in the same worktree, only when Kiro Crew reports the chat gone. Never because it went quiet or its lease expired. A second vanish goes to Needs you       |
 | 3   | More lanes come from remote hosts. Changed 2026-11-18: the 50% CPU rule and the fixed three lanes are dropped as rules; `lanes.local` (default 3) is a setting in the machine file (§4.26 Lanes)                                                                     |
-| 4   | Only runner mode skipped Kiro Crew's project folder and MCP sharing. A local worker used `leaf.project`, and `plans_session {action: "report"}` needed MCP sharing. Phase 40 adds the CLI report and `project: false` with the worktree path in the brief |
+| 4   | Only runner mode skipped Kiro Crew's project folder and MCP sharing. A local worker used `leaf.project`, and `plans_report` needed MCP sharing. Phase 40 adds the CLI report and `project: false` with the worktree path in the brief |
 | 5   | Kiro Crew's push-to-main policy checks chat shell commands. The tick is not a chat. Phase 40's proof shows a tick push goes through                                                                               |
 | 6   | Nupp lands `direct` on public `core-dev` from the start, with `scripts/worktree` and `scripts/test-changed`. Plans stay in a private planning workspace. No private mirror, forwarding or leak scan for this setup; the pre-push content rule is the one leak guard. The freeze on public `core-dev` is lifted |
 | 7   | Phase order and exits as in the table at the end of this section. Added the same day: worker machines pull work through GitHub (Phase 43), and the landing queue panel comes before remaining shared Radar removal (Phase 44; revised by §4.32)                                                                                                                                                 |
@@ -3184,7 +3184,7 @@ draft revision stored (planner, Spec Builder import, From a goal, reload)
   ─▶ mode? off: nothing │ ask: Needs you (Review | Skip) │ auto ─┐
   ─▶ model check: reviewer named, writer known, the two differ ─┤
        └─ fails ─▶ Review skipped + reason (Review anyway: person only)
-  ─▶ reviewer chat (read-only, reviewer model) ─▶ plans_review {action: "submit"}
+  ─▶ reviewer chat (read-only, reviewer model) ─▶ plans_submit_review
   ─▶ planner chat: fixed <hash> | answered <reason>, per finding
   ─▶ next round while rounds allow and the planner wrote a new revision
   ─▶ Approve dialog: reviewed by M at H: N found, N fixed, N for you
@@ -3228,7 +3228,7 @@ the revision, plus a clean detached worktree per repository the manifest
 names at its default branch head, as reviews of a commit do (§4.10). The
 brief quotes the files as data, lists the other spec folders (name, state,
 hash) for `conflict` findings, and names the six kinds. The session is bound
-to the plan and revision (`run.review`), so `plans_review {action: "submit"}` takes
+to the plan and revision (`run.review`), so `plans_submit_review` takes
 findings only for that revision. The worktrees are removed when the round
 ends.
 
@@ -4789,7 +4789,7 @@ the planner text names `Facts:` and not the manifest.
 | 5. Approve       | User in the Plans view                                                                                                                                                                    | Approves the exact revision hash; stable IDs freeze                                                                                                                                                                                                       | Always (Requirement 4.8)                  |
 | 6. Ready         | Tick                                                                                                                                                                                      | Computes ready leaves                                                                                                                                                                                                                                     |                                           |
 | 7. Dispatch      | Crew Mode conductor (preferred, §5.1); tick and script cron as fallback                                                                                                                   | The conductor asks Avoozl for ready leaves and opens one worker session per leaf, up to capacity; the fallback opens `kirocrew-worker` sessions from the tick. The brief names the task ID, acceptance, checks, and the worktree tool                     |                                           |
-| 8. Work          | Worker session                                                                                                                                                                            | Calls `plans_session {action: "worktree"}` (branch `avoozl/<task-id>`), implements, commits, reports `done` with the commit SHA through `plans_session {action: "report"}`                                                                                                                | Worker reports `question`                 |
+| 8. Work          | Worker session                                                                                                                                                                            | Calls `plans_prepare_worktree` (branch `avoozl/<task-id>`), implements, commits, reports `done` with the commit SHA through `plans_report`                                                                                                                | Worker reports `question`                 |
 | 9. Complex leaf  | Worker session                                                                                                                                                                            | May call `task_run` on a spec it writes for the leaf; Task Runner steps stay inside that run (F5, F6)                                                                                                                                                     |                                           |
 | 10. Verify       | Tick queues a check run that Avoozl makes itself (an `avoozl-verifier` session only for a bar that needs judgment), plus one session per review role when the repository names any (§5.2) | Runs the leaf's declared checks as argv on the exact SHA in a clean worktree and records exit codes and output tails; review roles report verdicts and findings on the same SHA                                                                           | Checks fail after the retry bound         |
 | 11. Integrate    | Tick (`integrateRun`)                                                                                                                                                                     | Rebases and merges into the local integration branch                                                                                                                                                                                                      | Rebase conflict the worker cannot resolve |
@@ -4969,7 +4969,7 @@ decision 2026-11-13.
    role's focus, and the role's open findings from earlier rounds, quoted as
    data. It names no other role's verdict. The reviewer adds a detached
    worktree at C, reads, and edits nothing.
-4. A reviewer reports through `plans_session {action: "report"}` kind `done` with `commit`,
+4. A reviewer reports through `plans_report` kind `done` with `commit`,
    `verdict`, `findings`, and `closures`:
 
    ```json
@@ -4987,7 +4987,7 @@ decision 2026-11-13.
    }
    ```
 
-   `plans_session {action: "report"}` refuses, so the reviewer can correct it in the same
+   `plans_report` refuses, so the reviewer can correct it in the same
    session: a commit other than C; a finding with no path; `approved` with a
    defect listed or left open; `changes-requested` with no defect; an open
    finding with no closure; a closure that fails the changed-files check.
@@ -5133,9 +5133,9 @@ label added ─▶ tick: rule match? actor allowed? snapshot frozen?
   quarantines the issue until a new trigger event (existing behavior, kept).
 - **Classify.** The planner answers one question with a reason: is this one
   bounded leaf in one repository with observable acceptance? The answer is a
-  `plans_session {action: "report"}`; Avoozl records it as evidence.
+  `plans_report`; Avoozl records it as evidence.
 - **Broad issue approval.** With `autoPublishChildren: false` the planner posts a
-  preview comment through `plans_session {action: "reply"}`, adds the `decision` label, and
+  preview comment through `plans_post_reply`, adds the `decision` label, and
   waits; an allowed actor re-applies the trigger label to approve that exact
   preview hash. With `true`, children publish after deterministic validation
   passes and no decision is open (Requirement 9).
@@ -6161,7 +6161,7 @@ with a `remote` field.
 | Last answer kept, marked stale     | A dropped link must not make workers vanish     |
 
 shortcut: the report call is not tied to the worker's session, and checks run
-inside the tick. Upgrade both once `plans_session {action: "report"}`-style caller identity and a
+inside the tick. Upgrade both once `plans_report`-style caller identity and a
 separate check job exist.
 
 ### 6.14 Crews on public repositories

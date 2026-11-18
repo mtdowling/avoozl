@@ -1,6 +1,6 @@
 import { nativeDispatch } from "./executor-fixture.mjs";
 // Task 4.3: the respond action. A matched issue snapshot gets the configured
-// responding label and one read-only responder session; plans_session reply
+// responding label and one read-only responder session; plans_post_reply
 // screens the reply, posts at most one comment and removes the label.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -131,7 +131,7 @@ test("a matched issue gets the label and one read-only responder session", async
   assert.equal(nativeDispatch(w.store, dispatch).folder, "Avoozl/code");
   assert.match(dispatch.title, /^avoozl:respond-\w+ respond example\/code#7$/);
   assert.match(dispatch.brief, /```issue-snapshot\nTitle: How do I run/);
-  assert.match(dispatch.brief, /plans_session with \{"action": "reply"/);
+  assert.match(dispatch.brief, /plans_post_reply/);
   assert.deepEqual(labels(w.github), [["add", 7, LABEL]]);
 
   const again = await w.tick();
@@ -334,14 +334,14 @@ test("the screen passes ordinary replies", () => {
     assert.deepEqual(screenReply(body), [], body);
 });
 
-test("the responder agent has read tools and plans_session reply only", () => {
+test("the responder agent has read tools and plans_post_reply only", () => {
   const manifest = JSON.parse(
       fs.readFileSync(path.join(app, "app.json"), "utf8"),
     ),
     file = manifest.agents.find((a) => a.endsWith("avoozl-responder.json")),
     spec = JSON.parse(fs.readFileSync(path.join(app, file), "utf8"));
   assert.deepEqual(spec.tools.toSorted(), [
-    "@avoozl:avoozl/plans_session reply",
+    "@avoozl:avoozl/plans_post_reply",
     "fs_read",
     "glob",
     "grep",

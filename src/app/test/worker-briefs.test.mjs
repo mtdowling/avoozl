@@ -88,7 +88,7 @@ test("a `process` brief asks for no commit, push or runner report", () => {
       /\bgit (commit|push)\b/i,
       /\bpush (it|the|your|to)\b/i,
       /runner report/,
-      /plans_session/,
+      /plans_report/,
     ])
       assert.doesNotMatch(rest, pattern, `process ${kind}: ${pattern}`);
   }

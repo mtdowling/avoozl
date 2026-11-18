@@ -112,7 +112,7 @@ test("each grouped tool lists its actions as an enum", async (t) => {
     tools.filter((tool) => /^Deprecated/.test(tool.description)),
     [],
   );
-  for (const name of ["plans_update_task", "plans_report", "plans_relay"])
+  for (const name of ["plans_update_task", "plans_tick", "plans_relay"])
     assert.ok(!tools.some((tool) => tool.name === name), name);
   assert.match(
     tools.find((tool) => tool.name === "plans_approve_plan").description,

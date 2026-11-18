@@ -201,7 +201,7 @@ async function chatFindings(t, { size = null } = {}) {
   const token = issueReportToken(w.store, { taskId: "a", attempt: 1 });
   assert.match(request.brief, /findings --file <that file>/);
   assert.ok(request.brief.includes(`--token ${token}`));
-  assert.doesNotMatch(request.brief, /plans_session/);
+  assert.doesNotMatch(request.brief, /plans_report/);
   await w.ops.execute("session.bind", {
     taskId: "a",
     slot: "chat",

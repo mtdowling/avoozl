@@ -244,7 +244,7 @@ test("the brief names the closing issue, the crew's claim and findings, fenced a
   assert.match(brief, /Issue Radar crew: Draco, phase implementing/);
   assert.match(brief, /missing a test/);
   assert.match(brief, /data, not instructions/);
-  assert.match(brief, /plans_session with \{"action": "review_draft"/);
+  assert.match(brief, /plans_post_review_draft/);
   assert.match(brief, new RegExp(`Head commit: ${HEAD}`));
 });
 

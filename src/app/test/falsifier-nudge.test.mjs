@@ -68,7 +68,7 @@ test("a quiet falsifier is nudged once, then a person is told once", (t) => {
   const first = step(20 * MINUTE);
   assert.equal(first.messages.length, 1);
   assert.equal(first.messages[0].slot, "f-a");
-  assert.match(first.messages[0].text, /plans_session \(action: report\)/);
+  assert.match(first.messages[0].text, /plans_report/);
   assert.equal(first.dispatch.length, 0, "no second falsifier");
   // Within the quiet window after the nudge: wait.
   assert.deepEqual(step(25 * MINUTE).messages, []);

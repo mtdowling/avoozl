@@ -188,7 +188,7 @@ because a task's `approvedSource` would cite prose that never made the claim.
 
 Extraction runs like the review pipeline (`src/app/operations.mjs:670`):
 background, read-only, bound to one `revisionHash`, one
-`plans_review {action: "submit_extraction"}` call per round, and unable to approve. If the document
+`plans_submit_extraction` call per round, and unable to approve. If the document
 changes mid-run the extraction goes stale.
 
 Extraction is triggered by triage, by explicit request, and by a revision
@@ -398,7 +398,7 @@ was extracted.
 | `queue.design.triage` | `plans_review {action: "triage_design"}` | Extract an untriaged design, or set it aside as context |
 | `plan.extract` | `plans_review {action: "extract"}` | Extract a revision, with coverage |
 | `plan.extract.get` | `plans_review {action: "extraction"}` | Pipeline state, rounds, facts, coverage |
-| `plan.extraction.submit` | `plans_review {action: "submit_extraction"}` | One fact list from one round |
+| `plan.extraction.submit` | `plans_submit_extraction` | One fact list from one round |
 | `plan.extraction.dispose` | `plans_review {action: "dispose_fact"}` | Reject, edit, or reuse a fact |
 | `plan.preview` | `plans_preview` | Extended with `extractionId` |
 | `plan.approve` | `plans_approve` | Extended with `extractionId` |

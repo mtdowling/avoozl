@@ -222,11 +222,11 @@ for the other chats:
 
 1. Let Kiro Crew tell Avoozl which chat is calling. A worker that opens a
    pull request, and every verifier, reviewer and investigation chat, reports
-   with `plans_session {action: "report"}`, and Kiro Crew names the caller only to MCP servers
+   with `plans_report`, and Kiro Crew names the caller only to MCP servers
    it shares. Open **MCP Management**, find `avoozl:avoozl`, turn on
    sharing, and press **Approve sharing**. Then restart the gateway
    (**Settings › About › Restart gateway**). Without this, such a chat can do
-   its work but `plans_session {action: "report"}` refuses it. A shared server runs outside the
+   its work but `plans_report` refuses it. A shared server runs outside the
    chat sandbox, with your access.
 
 2. After the first tick, open the chat folder **Avoozl** › _repository ID_

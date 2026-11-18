@@ -42,7 +42,7 @@ export const ACTIVE = new Set([
   "merge",
 ]);
 export const SOURCES = Object.freeze(["tool-calls", "markers", "events"]);
-// The phases a worker may mark with plans_session (action: report) progress (R43.5).
+// The phases a worker may mark with plans_report progress (R43.5).
 export const PHASES = Object.freeze(["coding", "tests", "commands", "ci-wait"]);
 
 // ---------------------------------------------------------------- settings
@@ -435,7 +435,7 @@ function ensureWorkerStart(store, binding) {
   });
 }
 
-// plans_session (action: report), as it is taken: phase markers, waiting on a question, and
+// plans_report, as it is taken: phase markers, waiting on a question, and
 // the end of an attempt (R43.3, R43.5). Called after the report is stored.
 export function flowOnReport(
   store,

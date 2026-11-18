@@ -21,7 +21,7 @@ const KEPT_TOOLS = `plans_activate_visualization plans_activity
 plans_approve_plan plans_audit plans_documents plans_get_document
 plans_get_task plans_list_visualizations plans_present plans_query
 plans_status plans_visualize plans_workspace`.split(/\s+/);
-const REMOVED_TOOLS = `plans_update_task plans_report plans_tick
+const REMOVED_TOOLS = `plans_update_task plans_bind_session plans_tick
 plans_send_message plans_andon_raise plans_relay`.split(/\s+/);
 
 // A child environment with no Avoozl-family variable from this machine.

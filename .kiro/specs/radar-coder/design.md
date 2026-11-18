@@ -810,7 +810,7 @@ person adds `avoozl:review` on a PR
           ▼
       read-only chat `avoozl-review-draft` (brief: PR, linked issues, crew claims, spec tasks)
           ▼
-      plans_session {action: "review_draft"} ─▶ POST /pulls/{n}/reviews, no `event` (PENDING)
+      plans_post_review_draft ─▶ POST /pulls/{n}/reviews, no `event` (PENDING)
           ▼
       remove `avoozl:review`, add `avoozl:drafted`, Needs you "Your draft review is waiting"
           ▼
@@ -1345,10 +1345,10 @@ tick: radarMerge read (RC5.3) -> conflicting crew pull requests
  receipt (queued) -> resolver chat        one Waiting on you row:
    worktree on the PR branch              Resolve myself / Dismiss
    git merge origin/<base>, resolve, checks, commit
-   plans_session {action: "conflict_check"}  --fail--> plans_session {action: "conflict_report"} {ok: false} -> row
+   plans_conflict_check  --fail--> plans_conflict_report {ok: false} -> row
    | ok
    push HEAD:<branch> (no force)
-   plans_session {action: "conflict_report"} {ok: true, commit, files}
+   plans_conflict_report {ok: true, commit, files}
    v
  Avoozl: head == commit, first parent == old head, commit passed the check
    -> arm auto-merge, labels off, one PR comment, activity, task mark
@@ -1365,7 +1365,7 @@ folder, with the checkout path and the declared checks in its brief.
 
 ### D33.1 The drop check
 
-`conflictfix.check` (MCP `plans_session {action: "conflict_check"}`), called by the bound chat with
+`conflictfix.check` (MCP `plans_conflict_check`), called by the bound chat with
 its worktree path and any lines it removed on purpose, runs in that worktree:
 HEAD must be a merge commit whose first parent is the old head; the base side is
 HEAD's second parent. For each file changed on both sides since their merge

@@ -208,7 +208,7 @@ extra step.
 1. A worker on `kirocrew` SHALL finish, and report findings, a block or a
    question, only with `avoozl runner report` and the token in its brief. A
    worker on `process` SHALL do so only with the result file. No worker
-   brief SHALL name `plans_session {action: "report"}` or any other MCP tool as the way to
+   brief SHALL name `plans_report` or any other MCP tool as the way to
    finish.
 2. `avoozl runner report` SHALL accept `findings` with `--file PATH`, beside
    `done` and `blocked`. It SHALL refuse a file over the size limit of
@@ -222,7 +222,7 @@ extra step.
 4. A worker's brief SHALL NOT tell it to push, open or edit a pull request,
    or turn on auto-merge (Requirement 86.3). This criterion is met by task
    45.4 of the avoozl spec; this spec's last proof SHALL check it.
-5. `plans_session {action: "report"}` SHALL stay for the roles that are not the worker, and for
+5. `plans_report` SHALL stay for the roles that are not the worker, and for
    an MCP client Avoozl did not start. The README SHALL say that a worker
    needs no MCP sharing.
 

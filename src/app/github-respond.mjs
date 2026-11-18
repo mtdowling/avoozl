@@ -4,7 +4,7 @@ import { kirocrewSession } from "./executors/kirocrew.mjs";
 // The respond action (R27.2, R27.3; design §4.7, §6.2). For each frozen
 // snapshot of an issue a `respond` rule matched, the tick adds the
 // repository's configured `responding` label and opens one read-only
-// responder session. The session's only way to GitHub is plans_session (action: reply),
+// responder session. The session's only way to GitHub is plans_post_reply,
 // which screens the reply for secrets and machine paths, posts at most one
 // comment, and removes the label. A session that ends without a reply has its
 // label removed by the next tick.
@@ -158,13 +158,13 @@ export function machineRoots(store, workspaceRoot) {
   ].filter(Boolean);
 }
 
-// plans_session (action: reply): the bound responder session posts its one reply. The
+// plans_post_reply: the bound responder session posts its one reply. The
 // issue comes from the caller's binding, never from the input.
 export async function postReply(store, github, input = {}, caller, options) {
   const own = callerSlot(caller);
   if (!own)
     fail(
-      "plans_session (action: reply) needs the calling session's identity from the Kiro Crew gateway.",
+      "plans_post_reply needs the calling session's identity from the Kiro Crew gateway.",
       403,
     );
   const binding = listSessionBindings(store).find(
@@ -265,7 +265,7 @@ function responderBrief(record, { kind = "issue" } = {}) {
     quoted,
     mark,
     "",
-    `Post the reply once: call plans_session with {"action": "reply", "input": {"body": "<your reply>"}}. It is your only way to GitHub.`,
+    `Post the reply once: call plans_post_reply with {"input": {"body": "<your reply>"}}. It is your only way to GitHub.`,
     "Do not change files, branches, labels or pull requests.",
     "Name files by their path inside the repository. Never include an absolute or home path, a token, a password, or a URL with credentials: Avoozl refuses such a reply and posts nothing.",
     "On a public repository, quote only files of this repository. Avoozl refuses a reply that quotes another repository on this machine, a plans repository included.",

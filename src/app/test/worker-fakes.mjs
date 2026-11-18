@@ -7,15 +7,12 @@ import path from "node:path";
 import { readChildResult, RESULT_FILE } from "../supervisor.mjs";
 
 // The way a chat finishes, read from its brief: the command-line report with
-// a token, a runner-machine report, a plans_session report call, or "report done".
+// a token, a runner-machine report, a plans_report call, or "report done".
 const CHAT_FINISH = [
   [/runner report (\S+) done --token (\S+)/, "cli"],
   [/runner report (\S+) --state done/, "machine"],
-  [
-    /plans_session with \{"action": "report", "input": \{"taskId": "([^"]+)", "kind": "done"/,
-    "mcp",
-  ],
-  [/plans_session \(action: report\) for that task with kind "done"/, "mcp"],
+  [/plans_report with \{"input": \{"taskId": "([^"]+)", "kind": "done"/, "mcp"],
+  [/plans_report for that task with kind "done"/, "mcp"],
   [/report done again/, "message"],
 ];
 

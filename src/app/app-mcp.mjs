@@ -47,9 +47,7 @@ function cronTick(message) {
   const { name, arguments: args } = message.params || {};
   const input = args?.input;
   return (
-    input?.cron === true &&
-    name === "plans_maintain" &&
-    args.action === "tick"
+    input?.cron === true && name === "plans_maintain" && args.action === "tick"
   );
 }
 
