@@ -40,6 +40,8 @@ export interface UntriagedItem {
   // A person's Plan this and Deliver this, for an item from another source
   // or an Issue Radar escalation.
   start?: { plan: boolean; deliver: boolean }
+  // A pull request that only changes one spec (R107): Review as spec.
+  specPull?: { spec: string } | null
   // An Issue Radar escalation (R103.8): a crew's needs-human label on an
   // issue a trusted person filed. Listed first; Plan this and Deliver this
   // take it into Avoozl through GitHub intake.
@@ -204,6 +206,15 @@ export function untriagedClient(api: AppApi) {
       api
         .post<{ result: { name: string; agent: string; message: string } }>(COMMAND_PATH, {
           operation: 'untriaged.plan',
+          input: { repository: item.repository, number: item.number },
+          workspaceId,
+        })
+        .then((reply) => reply.result),
+    // Review as spec (R107.2): a person adopts a spec-only pull request.
+    adoptSpec: (workspaceId: string, item: Pick<UntriagedItem, 'repository' | 'number'>) =>
+      api
+        .post<{ result: { id: string; spec: string } }>(COMMAND_PATH, {
+          operation: 'specpr.adopt',
           input: { repository: item.repository, number: item.number },
           workspaceId,
         })
