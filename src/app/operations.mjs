@@ -453,7 +453,6 @@ import {
   retryDelivery,
   approveIntegration,
   readyCandidates,
-  pickAgain,
   reviewRoles as deliveryReviewRoles,
   startNow,
 } from "./delivery.mjs";
@@ -465,14 +464,6 @@ import {
   switchPreview,
   updateProviders,
 } from "./provider-health.mjs";
-import {
-  routingPreview,
-  routingView,
-  turnRoutingOff,
-  updateCrews,
-  updateRouting,
-} from "./routing.mjs";
-import { retryRoutingNow } from "./routing-health.mjs";
 import { claimTask, nextView } from "./runner.mjs";
 import {
   acceptEnvelope,
@@ -1015,8 +1006,7 @@ export class Operations {
       reviewOptions = {},
       // Tests can delay isolated review-view preparation without opening chats.
       planReviewOptions = {},
-      // Placement hooks (§4.10): {localReading, sshCommand, knownHosts};
-      // tests pass fakes, nothing else does.
+      // {now} for the provider operations; tests fix the clock.
       placement = {},
       pluginSettingsFile = pluginSettingsPath(),
       // The spec driver lock (§6.10): {settingsFile, now?, sleep?}. The
@@ -1132,14 +1122,6 @@ export class Operations {
         await session.close();
       }
     });
-  }
-  routingHooks() {
-    return {
-      ...(this.placement.localReading
-        ? { local: this.placement.localReading() }
-        : {}),
-      ...(this.placement.now ? { now: this.placement.now() } : {}),
-    };
   }
   // What the provider operations need: the clock and each session's review
   // roles, so a switch never breaks review distinctness (R72.9).
@@ -3009,7 +2991,6 @@ export class Operations {
           "skills lists up to 20 absolute paths of SKILL.md files you loaded.",
         );
       const result = await reportSession(store, report, context.caller, {
-        placement: this.placement,
         local: context.local === true,
         flow: readFlowPolicy(this.workspaceRoot),
         policy: readDeliveryPolicy(this.workspaceRoot).delivery,
@@ -3086,55 +3067,16 @@ export class Operations {
           github: readGitHubPolicyOrNull(this.workspaceRoot),
         }),
       );
-    // Routing (§4.10, §8.3): one view, a read-only Preview, and the edits.
-    if (name === "routing.view")
-      return {
-        ...routingView(store, this.read(), {
-          workspaceRoot: this.workspaceRoot,
-          person: !(context.caller || context.mcp),
-          ...this.routingHooks(),
-        }),
-        // The expected revision a tracked edit names.
-        configHash: this.settingsFile().readFile().hash,
-      };
-    if (name === "routing.preview")
-      return routingPreview(store, this.read(), {
-        workspaceRoot: this.workspaceRoot,
-        policy: readDeliveryPolicy(this.workspaceRoot).delivery,
-        github: readGitHubPolicyOrNull(this.workspaceRoot),
-        readyCandidates: () =>
-          readyCandidates(store, {
-            github: readGitHubPolicyOrNull(this.workspaceRoot),
-          }),
-        ...this.routingHooks(),
-      });
+    // Crew placement was retired (§4.10); old clients get one clear answer.
     if (
-      ["routing.update", "crews.update"].includes(name) &&
-      (context.caller || context.mcp)
+      name.startsWith("routing.") ||
+      name === "crews.update" ||
+      name === "delivery.pickAgain"
     )
       fail(
-        "Only a person changes the routing prompt and crew settings, in Settings › Routing or the CLI.",
-        403,
+        "Crew placement was retired: every session runs on this machine. Pin a task's agent, model or harness in its manifest session.",
+        410,
       );
-    if (name === "routing.update") {
-      const result = updateRouting(this.settingsFile(), store, input);
-      this.configuration?.reload();
-      return result;
-    }
-    if (name === "crews.update") return updateCrews(store, input);
-    // Needs you after repeated routing failures: Retry now, Turn routing off.
-    if (name === "routing.retry") {
-      if (context.caller || context.mcp)
-        fail("Only a person retries routing, in the Avoozl page.", 403);
-      return retryRoutingNow(store);
-    }
-    if (name === "routing.turnOff") {
-      if (context.caller || context.mcp)
-        fail("Only a person turns routing off, in the Avoozl page.", 403);
-      const result = turnRoutingOff(store, this.routingHooks());
-      this.configuration?.reload();
-      return result;
-    }
     // Retired tool names remain resolvable for existing clients.
     if (name === "relay.call" || name === "relay.forget")
       fail(
@@ -3152,17 +3094,14 @@ export class Operations {
     if (name === "provider.switch.dryRun") {
       const github = readGitHubPolicyOrNull(this.workspaceRoot);
       let ready = [];
+      // Each ready task with the model its worker would open on.
       if (input.alsoNewTasks === true)
         try {
-          ready = (
-            await routingPreview(store, this.read(), {
-              workspaceRoot: this.workspaceRoot,
-              policy: readDeliveryPolicy(this.workspaceRoot).delivery,
-              github,
-              readyCandidates: () => readyCandidates(store, { github }),
-              ...this.routingHooks(),
-            })
-          ).items;
+          const model = readDeliveryPolicy(this.workspaceRoot).delivery?.model;
+          ready = readyCandidates(store, { github }).map((task) => ({
+            taskId: task.id,
+            model: task.session?.model ?? model ?? null,
+          }));
         } catch {
           // The dry run still answers; the page says the list is unread.
           ready = null;
@@ -3174,7 +3113,6 @@ export class Operations {
     if (name === "provider.health.clear") return clearMark(store, input);
     if (name === "providers.settings.update")
       return updateProviders(store, input);
-    if (name === "delivery.pickAgain") return pickAgain(store, input);
     // The task's evidence bundle (§4.22): read only.
     if (name === "task.evidence")
       return taskEvidence(store, {
@@ -3284,7 +3222,6 @@ export class Operations {
         github: this.github,
         breakdownHooks: () => this.breakdownHooks({ locked: true }),
         plugins: this.plugins,
-        placement: this.placement,
       });
       if (result.skipped) return result;
       if (Array.isArray(input.sessions) || input.cron === true)

@@ -326,31 +326,6 @@ test("a member that already ran alone keeps the rest of its group alone", async 
   );
 });
 
-test("a group whose member cannot run on the leader's crew runs alone", async (t) => {
-  const { ops } = setup(
-    t,
-    grouped(["a1", "a2", "a3"]).map((task) =>
-      task.id === "a2" ? { ...task, needs: ["os:windows"] } : task,
-    ),
-    {
-      // a2 must run on a Windows crew; local is not one.
-      placement: {
-        localReading: () => ({
-          source: "test",
-          measuredAt: new Date().toISOString(),
-          memFreeGb: 32,
-          diskFreeGb: 500,
-          loadPerCpu: 0.1,
-          cpuCount: 8,
-        }),
-      },
-    },
-  );
-  const workers = workersOf(await tick(ops));
-  assert.equal(workers.length, 1);
-  assert.equal(workers[0].batch, undefined);
-});
-
 test("batching has no setting, and an old flow.batch is ignored", async (t) => {
   assert.deepEqual(
     Object.keys(FLOW_KEYS).filter((key) => key.startsWith("batch")),

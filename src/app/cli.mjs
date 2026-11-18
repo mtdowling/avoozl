@@ -990,56 +990,13 @@ try {
         2,
       ),
     );
-  else if (command === "routing") {
-    // Routing (§8.3): view, read-only preview, and validated edits with the
-    // expected revision read first, as the page does.
-    const action = positionals[0] || "view";
-    let result;
-    if (action === "view") result = await localOrRequest("routing.view", {});
-    else if (action === "preview")
-      result = await localOrRequest("routing.preview", {});
-    else if (action === "set") {
-      if (!options.file)
-        throw Error(
-          "Name the routing JSON: avoozl routing set --file ROUTING.json ({enabled, prompt, model}).",
-        );
-      const view = await localOrRequest("routing.view", {});
-      result = await localOrRequest("routing.update", {
-        where: "machine",
-        routing: JSON.parse(fs.readFileSync(options.file, "utf8")),
-        expectedHash: view.machineHash,
-      });
-    } else throw Error("Choose routing view, preview, or set.");
-    console.log(JSON.stringify(result, null, 2));
-  } else if (command === "crews" && positionals[0] === "set") {
-    if (!options.file)
-      throw Error(
-        "Name the crews JSON: avoozl crews set --file CREWS.json [--stale SECONDS].",
-      );
-    const view = await localOrRequest("routing.view", {});
-    console.log(
-      JSON.stringify(
-        await localOrRequest("crews.update", {
-          crews: JSON.parse(fs.readFileSync(options.file, "utf8")),
-          ...(options.stale !== undefined
-            ? {
-                staleSeconds:
-                  options.stale === "" ? null : Number(options.stale),
-              }
-            : {}),
-          expectedHash: view.machineHash,
-        }),
-        null,
-        2,
-      ),
-    );
-  } else if (command === "pick-again")
-    console.log(
-      JSON.stringify(
-        await localOrRequest("delivery.pickAgain", { taskId: positionals[0] }),
-        null,
-        2,
-      ),
+  else if (
+    command === "routing" ||
+    command === "pick-again" ||
+    command === "crews"
+  )
+    throw Error(
+      "Crew placement was retired: every session runs on this machine. Pin a task's agent, model or harness in its manifest `session`.",
     );
   else if (command === "verify" && positionals[0] === "allow")
     console.log(
@@ -2126,10 +2083,6 @@ try {
   report TASK_ID --slot SESSION --kind done|blocked|question|progress [--commit SHA] [--text TEXT]
   retry TASK_ID [--dismiss FINDING --reason TEXT] Resume a leaf that stopped for a decision
   verify allow TASK_ID --reason TEXT  Let one held commit's protected paths land
-  pick-again TASK_ID                    The next attempt picks its agent and model afresh
-  routing [view|preview]                Crews and checks, the routing prompt, providers; a dry run on ready tasks
-  routing set --file ROUTING.json       This machine's routing: {enabled, prompt, model}
-  crews set --file CREWS.json [--stale SECONDS]  This machine's crew tags, limits, and hand-back
   app-backend --workspace PATH          Kiro Crew app backend on 127.0.0.1 ($PORT)
   supervisor [--tick-seconds N]         This machine's owner of process children (one per machine); --tick-seconds runs the tick too (headless)
   supervisor unit [launchd|systemd] [--write [--force]]  Print or write the unit that runs the supervisor and tick at login
@@ -2145,12 +2098,11 @@ Use --workspace PATH or AVOOZL_WORKSPACE to choose data independently
 of the application checkout. --db, --documents, --port, --operator and --url
 override workspace configuration. A person-only operation run inside an agent
 session needs --as-person. UI, CLI and MCP share application operations.`);
-  else if (["task", "checks", "crews"].includes(command))
+  else if (["task", "checks"].includes(command))
     throw Error(
       {
         task: "Choose task supersede.",
         checks: "Choose checks run.",
-        crews: "Choose crews set.",
       }[command],
     );
   else {

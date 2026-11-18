@@ -8,7 +8,6 @@ import test from "node:test";
 import {
   EDIT_ONLY_STEP,
   localSteps,
-  remoteSteps,
   workerBrief,
 } from "../delivery.mjs";
 import { batchBrief } from "../flow-batch.mjs";
@@ -63,16 +62,6 @@ test("worker briefs say edit, commit and report, never push, merge or comment", 
     }),
     "batch",
   );
-  // A hand-back crew's commit is fetched from its folder, so it names the
-  // branch tip it left there.
-  const handback = remoteSteps(TASK, {
-    url: "https://git.example.test/app.git",
-    base: "0".repeat(40),
-    folder: "/work/app-a",
-  }).join("\n");
-  assert.ok(handback.includes(EDIT_ONLY_STEP));
-  for (const pattern of PUBLISH)
-    assert.doesNotMatch(handback.split(EDIT_ONLY_STEP).join(""), pattern);
   // The shipped standing rules carry no publishing step of their own.
   editsAndReportsOnly(rolePrompt("worker"), "worker.md", { boundary: false });
 });

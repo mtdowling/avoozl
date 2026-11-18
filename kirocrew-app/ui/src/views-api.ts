@@ -57,9 +57,6 @@ export interface GraphTask extends TaskOwner {
   // one. Older backends omit them.
   manual?: boolean
   needsYou?: { reason: string; manual?: boolean } | null
-  // Ready, held because routing failed (R41.7); it never runs here instead.
-  // Older backends omit it.
-  routingFailed?: { why: string; retryAt: number | null } | null
 }
 
 export interface GraphEdge {
@@ -720,7 +717,6 @@ export const CONFLICT_LABELS: Record<string, string> = {
   'content-match': 'Content rule',
   'content-unavailable': 'Rule set unavailable',
   'provider-out': 'Provider out',
-  'routing-failed': 'Routing failed',
   'tick-failed': 'Tick failed',
   investigation: 'Findings',
   'ready-to-merge': 'Ready to merge',

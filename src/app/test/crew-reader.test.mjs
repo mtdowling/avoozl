@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import { crewRead, readCrews } from "../crew-reader.mjs";
-import { crewSnapshot, listCrews } from "../crews.mjs";
+import { crewSnapshot } from "../crews.mjs";
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -29,10 +29,6 @@ test("an app token is refused: no snapshot, the refusal is recorded", async () =
   );
   assert.equal(crewRead(s).code, "owner_only");
   assert.equal(crewSnapshot(s) ?? null, null);
-  assert.deepEqual(
-    listCrews({ snapshot: crewSnapshot(s) }).map((c) => c.id),
-    ["local"],
-  );
 });
 
 test("a thrown call records unreachable", async () => {
@@ -77,14 +73,10 @@ test("a granted read records crews and their headroom", async () => {
     "/api/instances/box-1/proxy/api/chat/headroom",
     "/api/instances/box-2/proxy/api/chat/headroom",
   ]);
-  const crews = listCrews({ snapshot: crewSnapshot(s) }).filter(
-    (c) => c.id !== "local",
-  );
-  assert.deepEqual(
-    crews.map((c) => [c.id, c.available, c.why]),
-    [
-      ["box-1", true, null],
-      ["box-2", false, "crew unreachable"],
-    ],
-  );
+  const snapshot = crewSnapshot(s);
+  assert.deepEqual(snapshot.instances, [
+    { id: "box-1", name: "Box" },
+    { id: "box-2", name: "Off", reachable: false },
+  ]);
+  assert.equal(snapshot.headroom["box-1"].mem_free_gb, 20);
 });

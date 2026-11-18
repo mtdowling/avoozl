@@ -3,7 +3,6 @@
 // `observe`. Old or read-only workspaces may lack newer tables; those read as
 // empty rather than failing the view.
 import { tickFailedItems } from "./tick-activity.mjs";
-import { routingFailedItems, routingHealth } from "./routing-health.mjs";
 import { providerOutItems } from "./provider-health.mjs";
 import { investigationItems } from "./investigate.mjs";
 import { queryTasks, reviewSettled, statusComplete } from "../model.mjs";
@@ -39,7 +38,6 @@ import { listSpans, taskFlow } from "./flow.mjs";
 import { taskSteps } from "./task-steps.mjs";
 import { observationsForTask } from "./build-receipt-read.mjs";
 import { avoozlState } from "../delivery-lanes.mjs";
-import { attachLink } from "./routing.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import { fail } from "./store.mjs";
 import { linkSets } from "./scm-links.mjs";
@@ -290,7 +288,6 @@ export function graphView(store, data, input = {}, folders = []) {
     live = liveSessions(store),
     archivedOf = archivedPlanOf(store),
     manual = manualWaitingIds(data, registered),
-    routingMarks = routingHealth(store).marks,
     counts = new Map();
   // One state per node for the Graph drawing. Needs-you comes first among
   // open tasks so a person sees it even on a running or deferred task.
@@ -416,8 +413,6 @@ export function graphView(store, data, input = {}, folders = []) {
       manual: isManual(task),
       manualDone: isManual(task) ? (task.manualDone ?? null) : null,
       // Spend against the cap (§4.17), or null with no usage.
-      // Ready, held by routing: {why, retryAt}. Never runs locally instead.
-      routingFailed: routingMarks[task.id] ?? null,
       // Status review with no session, run or delivery behind it.
       noSession: statusWithoutSession(task, live, claimed),
       handSetReview: statusWithoutSession(task, live, claimed) !== null,
@@ -948,9 +943,9 @@ export function deliveryView(store, data) {
           // A child has no Kiro Crew chat to open; In flight shows its
           // attach command instead.
           link:
-            binding.executor === "process"
+            binding.executor === "process" || binding.crew
               ? null
-              : attachLink(store, binding, sessionUrl(binding.slot)),
+              : sessionUrl(binding.slot),
           ...(processDetails.has(binding.slot)
             ? { process: processDetails.get(binding.slot) }
             : {}),
@@ -1217,25 +1212,8 @@ export function conflictsView(store, data) {
     const task = item.taskId ? byId.get(item.taskId) : null;
     items.push({ ...item, ...(task ? ownership(task) : {}) });
   }
-  // No crew fits (§4.10, R41.8): yellow, one per task.
-  for (const decision of optionalList(store, "placement_decisions")) {
-    if (decision.state !== "open") continue;
-    const task = byId.get(decision.taskId);
-    items.push({
-      kind: "no-fit",
-      id: decision.id,
-      taskId: decision.taskId,
-      ...ownership(task),
-      title: `No crew fits ${decision.taskId}`,
-      detail: `${decision.why}. ${decision.text}.`,
-      removed: decision.removed ?? [],
-      openedAt: decision.openedAt ?? null,
-    });
-  }
   // A provider or model that is out (§4.20, R72.16): one item per mark.
   items.push(...providerOutItems(store));
-  // Routing failed three times in a row (§4.10, R41.7).
-  items.push(...routingFailedItems(store));
   // The tick failed three times in a row.
   items.push(...tickFailedItems(store));
   // Ready to merge under manual ship (§4.25, R80.3, R80.4): a pull request

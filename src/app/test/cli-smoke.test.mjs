@@ -11,7 +11,16 @@ const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url)),
   source = fs.readFileSync(new URL("../cli.mjs", import.meta.url), "utf8");
 
 // Commands the help leaves out on purpose: hooks a session runs for itself.
-const UNLISTED = new Set(["help", "register-session", "session-hook"]);
+// The hooks are unlisted; routing, crews and pick-again were retired with
+// crew placement and answer with one line saying so.
+const UNLISTED = new Set([
+  "help",
+  "register-session",
+  "session-hook",
+  "routing",
+  "crews",
+  "pick-again",
+]);
 // Processes that never exit; their own tests start and drive them.
 const LONG_RUNNING = new Set(["app-backend", "supervisor"]);
 // Command paths of the same kind: the integrator loops until stopped.

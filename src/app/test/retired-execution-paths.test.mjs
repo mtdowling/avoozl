@@ -1,11 +1,70 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { kirocrewConfiguration } from "../executors/kirocrew.mjs";
 import { groupedCall, GROUPED_TOOLS } from "../mcp-tools.mjs";
 import { Operations } from "../operations.mjs";
-import { fixture } from "./fixtures.mjs";
-import { workspace, PROMPT } from "./fixtures/crews/workspace.mjs";
+import { validateNeeds, validateSession } from "../placement.mjs";
+import { Store } from "../store.mjs";
+import { fixture, snapshot } from "./fixtures.mjs";
+import { temporaryDirectory } from "./temporary.mjs";
+
+// The machine file the tick used to read crews and the routing prompt from.
+const XDG = temporaryDirectory("avoozl-retired-xdg-");
+process.env.XDG_CONFIG_HOME = XDG;
+const MACHINE = path.join(XDG, "avoozl", "config.json");
+
+const git = (cwd, ...args) =>
+  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+const leaf = (id, extra = {}) => ({
+  id,
+  title: "Task " + id,
+  kind: "leaf",
+  scope: "catalog",
+  status: "planned",
+  epic: "sample",
+  track: "catalog",
+  tags: [],
+  acceptance: ["Works."],
+  repository: "app",
+  planId: "p1",
+  planHash: "h1",
+  ...extra,
+});
+
+function workspace(t, tasks, tracked = {}) {
+  const root = temporaryDirectory("avoozl-retired-"),
+    checkout = path.join(root, "app");
+  fs.mkdirSync(checkout);
+  git(checkout, "init", "-b", "main");
+  git(checkout, "config", "user.name", "Test");
+  git(checkout, "config", "user.email", "test@example.com");
+  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
+  git(checkout, "add", ".");
+  git(checkout, "commit", "-m", "Start");
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  t.after(() => store.close());
+  store.importSnapshot({ ...snapshot(), tasks, edges: [] });
+  store.put("approvals", { id: "approval-1", planId: "p1", hash: "h1" });
+  store.put("projects", {
+    id: "app",
+    root: fs.realpathSync.native(checkout),
+    baseBranch: "main",
+    checks: [["git", "status"]],
+  });
+  const file = path.join(root, ".avoozl.json");
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      version: 1,
+      delivery: { concurrency: 5, retries: 1, model: "model-d" },
+      ...tracked,
+    }),
+  );
+  return { root, file, store, ops: new Operations(store, { workspaceRoot: root }) };
+}
 
 test("retired relay aliases resolve and refuse without changing state", async (t) => {
   const { root, store } = fixture(t),
@@ -30,37 +89,73 @@ test("retired relay aliases resolve and refuse without changing state", async (t
   assert.deepEqual(store.getMeta("routing.relay"), before);
 });
 
-test("legacy relay configuration is readable but cannot be enabled again", async (t) => {
-  const env = await workspace(t, { ids: ["w1"] }),
-    file = path.join(env.root, ".avoozl.json");
-  const value = JSON.parse(fs.readFileSync(file, "utf8"));
-  value.routing = { remoteRelay: "on" };
-  fs.writeFileSync(file, JSON.stringify(value));
-  const view = await env.ops.execute("routing.view", {});
-  assert.equal("relay" in view, false);
-  await assert.rejects(
-    env.ops.execute("routing.update", {
-      where: "workspace",
-      routing: { remoteRelay: "on" },
-      expectedHash: view.configHash,
-    }),
-    /Remote relay was removed/,
-  );
+test("routing and crew operations answer that placement was retired", async (t) => {
+  const env = workspace(t, [], { routing: { remoteRelay: "on" } });
+  for (const name of [
+    "routing.view",
+    "routing.preview",
+    "routing.update",
+    "routing.retry",
+    "routing.turnOff",
+    "crews.update",
+    "delivery.pickAgain",
+  ])
+    await assert.rejects(
+      env.ops.execute(name, { where: "workspace", routing: {} }),
+      (e) => e.status === 410 && /Crew placement was retired/.test(e.message),
+      name,
+    );
   assert.equal(
-    JSON.parse(fs.readFileSync(file, "utf8")).routing.remoteRelay,
+    JSON.parse(fs.readFileSync(env.file, "utf8")).routing.remoteRelay,
     "on",
     "refusal never rewrites an existing configuration",
   );
 });
 
-test("multiple permitted models dispatch workers without a router or relay", async (t) => {
-  const env = await workspace(t, { ids: ["w1"], machine: PROMPT });
-  env.store.setMeta("routing.models", { models: ["model-a", "model-b"] });
-  const result = await env.ops.execute("workspace.tick", {
-    cron: true,
-    sessions: [],
+test("old machine crews and routing are ignored; pins still steer", async (t) => {
+  fs.mkdirSync(path.dirname(MACHINE), { recursive: true });
+  // This used to hold every local session (chat limit 0) and turn the
+  // routing prompt on; now nothing reads it.
+  fs.writeFileSync(
+    MACHINE,
+    JSON.stringify({
+      version: 1,
+      crews: { local: { chatLimit: 0 }, box: { gitHosts: ["x.test"] } },
+      crewStaleSeconds: 30,
+      routing: { enabled: true, prompt: "Send everything to box." },
+    }),
+  );
+  t.after(() => fs.rmSync(MACHINE, { force: true }));
+  const env = workspace(t, [
+    leaf("a"),
+    leaf("b", { session: { agent: "agent-p", model: "model-p" } }),
+  ]);
+  env.store.setMeta("routing.models", { models: ["model-x"] });
+  const result = await env.ops.execute("workspace.tick", { sessions: [] }),
+    workers = Object.fromEntries(
+      result.dispatch
+        .filter((d) => d.role === "worker")
+        .map((d) => [d.task, d]),
+    );
+  assert.deepEqual(Object.keys(workers).sort(), ["a", "b"]);
+  assert.ok(result.dispatch.every((d) => d.role !== "router" && !d.crew));
+  assert.equal(workers.a.model, "model-d");
+  assert.equal(workers.b.model, "model-p");
+  assert.equal(kirocrewConfiguration(env.store, workers.b).agent, "agent-p");
+  assert.equal(workers.a.placement, undefined);
+});
+
+test("a manifest may not name a crew or crew tags", () => {
+  assert.deepEqual(validateSession({ model: "m", harness: "kirocrew" }), {
+    model: "m",
+    harness: "kirocrew",
   });
-  assert.ok(result.dispatch.some((d) => d.role === "worker"));
-  assert.ok(result.dispatch.every((d) => d.role !== "router" && !d.relay));
-  assert.equal(env.store.getMeta("routing.router.batch"), null);
+  assert.throws(
+    () => validateSession({ crew: "box" }),
+    /session\.crew: crew placement was retired/,
+  );
+  assert.throws(
+    () => validateNeeds(["os:linux"]),
+    /needs: crew placement was retired/,
+  );
 });
