@@ -54,10 +54,10 @@ for (const dark of [false, true]) {
     await page.evaluate(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes('Needs you')).click()`)
     await settle()
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-section][data-open]').length`), 1, 'only Needs you is open')
-    await page.evaluate(`document.querySelector('[data-top-rail-list] [data-nav-item="waiting/intake"]').click()`)
+    await page.evaluate(`document.querySelector('[data-top-rail-list] [data-nav-item="waiting/triage"]').click()`)
     await settle()
     assert.equal(await box('[data-top-rail-list]'), null, 'picking collapses the rail')
-    assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Needs you · Planning and intake/)
+    assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Needs you · Triage/)
     assert.ok((await box('[data-avoozl-pane]')).height > 100, 'the page shows again')
   })
 

@@ -57,7 +57,7 @@ try {
           await page.screenshot(file)
           console.log(file)
         }
-        await pick('Planning and intake')
+        await pick('Triage')
         await shot('intake')
         await pick('Decisions')
         // Open the crew row so its actions show beside the list.
