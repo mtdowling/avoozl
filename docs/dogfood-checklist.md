@@ -27,7 +27,7 @@ setting on the entry for `mtdowling/avoozl`. If that entry does not exist, the
 setting lands on an entry named after the mirror, and sync then compares the
 mirror with itself and shows a false "has diverged" row.
 
-1. Open **Settings > Repositories** and add or edit the entry for
+1. Open **Settings > Repository setup** and add or edit the entry for
    `mtdowling/avoozl`. Set **Allowed actors** to your GitHub login.
 2. Set **Required checks** to `test (ubuntu-latest)`, `test (macos-latest)`
    and `test (windows-latest)`.
@@ -38,10 +38,13 @@ the line that asks you to name a CI check.
 
 ## 2. Create setup (real)
 
-1. In **Settings > Repositories**, find the **Mirror** box.
-2. Enter `mtdowling/avoozl` as **Public repository** and
-   `mtdowling/avoozl-mirror` as **Private mirror**.
-3. Press **Create setup**. It shows a dry run and writes nothing.
+1. In **Settings > Repository setup**, press **Add repository** (or **Edit**
+   on the mirror's row).
+2. Choose the role **Private mirror of a public repository**, and enter
+   `mtdowling/avoozl` as **Public repository**. The mirror is
+   `mtdowling/avoozl-mirror`.
+3. Press **Create setup** in the dialog. It shows a dry run and writes
+   nothing.
 4. Check the lines against this list (before step 1 the `branch-rule` line asks
    for a check name and is not ticked):
 

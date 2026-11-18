@@ -335,7 +335,7 @@ can see it. Edit it on the pull request's Files tab and submit it yourself.
 Avoozl's own labels all start with `avoozl:` by default: `avoozl:plan`,
 `avoozl:ready`, `avoozl:plan-approved`, `avoozl:merge-conflict`,
 `avoozl:review` and `avoozl:drafted`. Each one can be renamed per repository
-under **Settings › Repositories › Crews and rules**. A repository that used
+under **Settings › Issue Radar**. A repository that used
 the old defaults (`to plan`, `ready`, `plan approved`, `merge conflict`)
 without setting them now reads the new names. Set the old name to keep it.
 
@@ -643,6 +643,12 @@ a person-only act is the sandbox the supervisor wraps it in:
 macOS uses `sandbox-exec`; Linux uses bubblewrap (`bwrap`). A machine with
 neither, such as Windows, runs a harness only after you allow that harness on
 that machine (the same opt-in that lets it write outside the task folder).
+
+A harness whose own sandbox cannot run inside Avoozl's (Codex on macOS, where
+a nested `sandbox-exec` fails) may set `permission.write` to exactly
+`danger-full-access`. Avoozl then starts it only inside its own sandbox,
+with write roots, and refuses it everywhere else, including on a machine
+that opted in. Every other bypass value stays refused.
 
 ### Files are private to you
 

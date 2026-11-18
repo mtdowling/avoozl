@@ -186,7 +186,7 @@ test('page: issue-radar single repository shows the configured labels, and no ho
   for (const name of ['shape-it', 'ship-it', 'rebase-me', 'go-crew', 'taken', 'wants-person', 'sam, lee']) assert.ok(text.includes(name), name)
   assert.doesNotMatch(text, /to plan|plan approved/)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-lane]').length`), 3)
-  assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
+  assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `no sideways scroll: ${(await page.overflow()).join('; ')}`)
   assert.ok((await shown(page, '[data-who-tag]')).every((tag) => ['You', 'Radar crew', 'Avoozl', 'GitHub'].includes(tag)))
   assert.ok((await shown(page, '[data-status-tag]')).includes('fake-tested'))
   assert.match(await page.evaluate(`document.querySelector('[data-workflow-blurb]').textContent`), /read from its saved settings/)

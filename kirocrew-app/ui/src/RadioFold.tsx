@@ -77,7 +77,8 @@ export function RadioFold<K extends string>(props: {
                 className="mt-1.5 flex-none"
                 style={{ accentColor: 'var(--accent)', width: 16, height: 16 }}
               />
-              <span className="flex min-w-0 flex-col gap-0.5">
+              {/* A title can end in a long raw key; let it break on a phone. */}
+              <span className="flex min-w-0 flex-col gap-0.5" style={{ overflowWrap: 'anywhere' }}>
                 <span className="flex items-center gap-2 text-base font-semibold">
                   {Icon && <Icon size={16} aria-hidden="true" style={{ flex: 'none', color: open ? 'var(--accent)' : 'var(--muted)' }} />}
                   {section.title}

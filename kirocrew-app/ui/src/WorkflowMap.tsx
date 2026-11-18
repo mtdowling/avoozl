@@ -135,7 +135,7 @@ export default function WorkflowMap(props: {
       )}
       {map.labels.length > 0 && (
         <Card>
-          <div className="overflow-x-auto" data-labels-table>
+          <div className="overflow-x-auto" style={{ overflowX: 'auto' }} data-labels-table>
             <table className="w-full text-left text-xs">
               <caption className="pb-1 text-left text-sm font-semibold">Labels</caption>
               <thead>
