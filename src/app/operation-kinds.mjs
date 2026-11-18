@@ -176,8 +176,6 @@ const DRAFT = new Set([
 
 const EXECUTE = new Set([
   "intake.submit",
-  "idea.capture",
-  "idea.append",
   "driver.open",
   "driver.context",
   "run.start",

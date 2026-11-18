@@ -175,16 +175,3 @@ test("the aicommander command runs the same CLI", (t) => {
     /Avoozl/,
   );
 });
-
-// Ideas were removed (RC30.3); their public MCP actions stay as stubs that
-// return "Ideas were removed from Avoozl." (mcp-tools.test.mjs runs them).
-test("plans_intake still lists the removed ideas actions as stubs", async () => {
-  const { GROUPED_TOOLS } = await import("../mcp-tools.mjs");
-  const actions = GROUPED_TOOLS.plans_intake.actions;
-  assert.deepEqual(
-    [actions.capture_idea?.[0], actions.add_idea_note?.[0]],
-    ["idea.capture", "idea.append"],
-  );
-  for (const name of ["capture_idea", "add_idea_note"])
-    assert.match(actions[name][1], /^removed:/);
-});

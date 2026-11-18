@@ -518,9 +518,6 @@ Avoozl was first released as AICommander. These names keep working:
   to spec folders.
 - An `.avoozl.json` with no `role` keys, which gets its roles from its
   stored `github.mode`.
-- `.avoozl.json` keys of settings that no longer exist (`coder`,
-  `routing.remoteRelay`, `flow.batch`), which load and are ignored.
-  `node scripts/migrate-routing.mjs <file>` reads old routing keys.
 
 ## Develop
 

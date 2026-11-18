@@ -370,10 +370,6 @@ export const HELP_GROUPS = Object.freeze([
         "Read the matched line again from its source",
       ),
       entry(
-        "andon",
-        "Where the old andon gate went (rule actions and flow stop)",
-      ),
-      entry(
         "routing",
         "Retired with crew placement: every session runs on this machine",
       ),
