@@ -97,8 +97,8 @@ function helperHash(value, id) {
 }
 
 function landingOf(value, id) {
-  if (!["direct", "pr", "off"].includes(value))
-    fail(`Project ${id} landing must be direct, pr or off.`);
+  if (!["direct", "pr", "train", "off"].includes(value))
+    fail(`Project ${id} landing must be direct, pr, train or off.`);
   return value;
 }
 

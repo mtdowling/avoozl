@@ -65,6 +65,9 @@ export function enqueueLanding(
     driver = null,
     source = null,
     pr = null,
+    // Integrator-train fields (branch, forkPoint, builtOn, footprint,
+    // cheap); `direct` and `pr` entries have none.
+    extra = {},
   },
   { now = Date.now() } = {},
 ) {
@@ -88,6 +91,7 @@ export function enqueueLanding(
       driver,
       ...(source ? { source } : {}),
       ...(pr ? { pr } : {}),
+      ...extra,
       seq,
       state: "queued",
       queuedAt: new Date(now).toISOString(),
