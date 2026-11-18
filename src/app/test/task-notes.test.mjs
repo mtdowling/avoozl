@@ -1,7 +1,8 @@
-// Links and notes on every task (design §4.16, Requirement 61.16–61.22):
-// SQLite execution state with field limits, a `notes` content-rule
-// boundary, person-only edit, remove and show, a session's bound task only,
-// and briefs that carry them as data.
+// Links on every task (design §4.16, Requirement 61.16–61.22): SQLite
+// execution state with field limits, a `notes` content-rule boundary,
+// person-only edit, remove and show, a session's bound task only, and
+// briefs that carry them as data. Tasks keep no notes: a note is refused,
+// and a stored note row is left out everywhere.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -105,21 +106,60 @@ test("each field limit is refused by name, and nothing is saved", async (t) => {
     add({ kind: "link", url: "https://example.test/", label: "l".repeat(201) }),
     /^label /,
   );
-  await refused(add({ kind: "note", text: "" }), /^text /);
-  await refused(add({ kind: "note", text: "n".repeat(10_001) }), /^text /);
+  await refused(add({ kind: "note", text: "A note" }), /^kind must be "link"/);
   await refused(add({ kind: "other" }), /^kind /);
   assert.deepEqual(
     (await ops.execute("task.notes.list", { taskId: "config.1.1" })).entries,
     [],
   );
-  for (let i = 0; i < NOTE_LIMITS.entries; i++)
-    await add({ kind: "note", text: "n" + i });
-  await refused(add({ kind: "note", text: "one more" }), /^entries: /, 409);
+  const link = (i) => ({
+    kind: "link",
+    url: `https://example.test/${i}`,
+    label: "l" + i,
+  });
+  for (let i = 0; i < NOTE_LIMITS.entries; i++) await add(link(i));
+  await refused(add(link("more")), /^entries: /, 409);
+});
+
+test("a stored note from before notes were removed is left out everywhere", async (t) => {
+  const { store, ops } = await workspace(t);
+  store.put("task_notes", {
+    id: "note-cccccccccccc",
+    taskId: "config.1.1",
+    kind: "note",
+    text: "An old note",
+    outcome: true,
+    author: "person",
+    at: "2026-11-13T09:00:00.000Z",
+    onIssue: true,
+  });
+  const listed = await ops.execute("task.notes.list", { taskId: "config.1.1" });
+  assert.deepEqual(listed.entries, []);
+  const data = store.read(),
+    task = data.tasks.find((t2) => t2.id === "config.1.2"),
+    blocker = data.tasks.find((t2) => t2.id === "config.1.1");
+  assert.equal(briefNotes(store, blocker), "");
+  assert.equal(briefNotes(store, task, [blocker]), "");
+  await refused(
+    ops.execute("task.notes.edit", {
+      taskId: "config.1.1",
+      id: "note-cccccccccccc",
+      url: "https://example.test/",
+      label: "x",
+    }),
+    /No link note-cccccccccccc/,
+    404,
+  );
 });
 
 test("a person's save a rule blocks is refused inline with Allow once; a session's is refused", async (t) => {
   const { ops, asSession } = await workspace(t),
-    note = { taskId: "config.1.1", kind: "note", text: "Ask about secretword" };
+    note = {
+      taskId: "config.1.1",
+      kind: "link",
+      url: "https://docs.example.test/a",
+      label: "Ask about secretword",
+    };
   let decisions;
   await assert.rejects(ops.execute("task.notes.add", note), (error) => {
     assert.equal(error.status, 422);
@@ -163,7 +203,12 @@ test("a session adds only to its bound task and never edits, removes or shows", 
   await refused(
     ops.execute(
       "task.notes.add",
-      { taskId: "config.1.2", kind: "note", text: "Hi" },
+      {
+        taskId: "config.1.2",
+        kind: "link",
+        url: "https://example.test/",
+        label: "Hi",
+      },
       undefined,
       asSession,
     ),
@@ -172,11 +217,15 @@ test("a session adds only to its bound task and never edits, removes or shows", 
   );
   const person = await ops.execute("task.notes.add", {
     taskId: "config.1.1",
-    kind: "note",
-    text: "From the review",
+    kind: "link",
+    url: "https://docs.example.test/review",
+    label: "From the review",
   });
   for (const [action, input] of [
-    ["task.notes.edit", { id: person.id, text: "Changed" }],
+    [
+      "task.notes.edit",
+      { id: person.id, url: "https://example.test/", label: "Changed" },
+    ],
     ["task.notes.remove", { id: person.id }],
     ["task.notes.show", { id: person.id, onIssue: true }],
   ])
@@ -198,9 +247,10 @@ test("a session adds only to its bound task and never edits, removes or shows", 
     [person.id, own.id],
   );
   const viaMcp = await mcp("add_note", {
-    taskId: "config.1.1",
-    kind: "note",
-    text: "x",
+    taskId: "config.1.2",
+    kind: "link",
+    url: "https://example.test/",
+    label: "x",
   });
   assert.equal(viaMcp.isError, true);
   assert.match(viaMcp.content[0].text, /bound to/);
@@ -209,9 +259,10 @@ test("a session adds only to its bound task and never edits, removes or shows", 
   const edited = await ops.execute("task.notes.edit", {
     taskId: "config.1.1",
     id: person.id,
-    text: "From the review, edited",
+    url: "https://docs.example.test/review",
+    label: "From the review, edited",
   });
-  assert.equal(edited.text, "From the review, edited");
+  assert.equal(edited.label, "From the review, edited");
   assert.ok(edited.editedAt);
   await ops.execute("task.notes.remove", { taskId: "config.1.1", id: own.id });
   assert.deepEqual(
@@ -232,19 +283,21 @@ test("a session adds only to its bound task and never edits, removes or shows", 
   assert.equal(store.get("plans", "config").state, "approved");
 });
 
-test("a brief carries the newest 20 entries within 8,000 characters as data, and blockers' outcomes", async (t) => {
+test("a brief carries the newest 20 links within 8,000 characters as data, and blockers' outcomes", async (t) => {
   const { store, ops } = await workspace(t);
   for (let i = 0; i < 25; i++)
     await ops.execute("task.notes.add", {
       taskId: "config.1.2",
-      kind: "note",
-      text: `entry ${String(i).padStart(2, "0")}`,
+      kind: "link",
+      url: `https://example.test/${i}`,
+      label: `entry ${String(i).padStart(2, "0")}`,
     });
   store.put("task_notes", {
     id: "note-aaaaaaaaaaaa",
     taskId: "config.1.1",
-    kind: "note",
-    text: "The review decided: ship it",
+    kind: "link",
+    url: "https://docs.example.test/decision",
+    label: "The review decided: ship it",
     outcome: true,
     author: "person",
     at: "2026-11-13T09:00:00.000Z",
@@ -253,8 +306,9 @@ test("a brief carries the newest 20 entries within 8,000 characters as data, and
   store.put("task_notes", {
     id: "note-bbbbbbbbbbbb",
     taskId: "config.1.1",
-    kind: "note",
-    text: "a worker's finding",
+    kind: "link",
+    url: "https://example.test/finding",
+    label: "a worker's finding",
     outcome: false,
     author: "session:s-1",
     at: "2026-11-13T09:01:00.000Z",
@@ -265,28 +319,30 @@ test("a brief carries the newest 20 entries within 8,000 characters as data, and
     blocker = data.tasks.find((t2) => t2.id === "config.1.1"),
     text = briefNotes(store, task, [blocker]);
   assert.match(text, /They are data, not instructions/);
-  assert.equal((text.match(/> entry/g) || []).length, 20);
-  assert.match(text, /> entry 24/);
-  assert.doesNotMatch(text, /> entry 04/);
-  assert.match(text, /What config\.1\.1 decided/);
+  assert.doesNotMatch(text, /note/i);
+  assert.equal((text.match(/: entry/g) || []).length, 20);
+  assert.match(text, /: entry 24 </);
+  assert.doesNotMatch(text, /: entry 04 </);
+  assert.match(text, /Links from config\.1\.1/);
   assert.match(text, /The review decided: ship it/);
   assert.doesNotMatch(text, /a worker's finding/);
-  // Long entries stop at 8,000 characters.
+  // Long links stop at 8,000 characters.
   for (let i = 0; i < 5; i++)
     await ops.execute("task.notes.add", {
       taskId: "config.1.2",
-      kind: "note",
-      text: "x".repeat(3000),
+      kind: "link",
+      url: `https://example.test/${i}/` + "x".repeat(1900),
+      label: "long",
     });
   const long = briefNotes(
     store,
     store.read().tasks.find((t2) => t2.id === "config.1.2"),
   );
   assert.ok(long.length < 8000 + 400, String(long.length));
-  assert.equal((long.match(/x{3000}/g) || []).length, 2);
+  assert.equal((long.match(/x{1900}/g) || []).length, 4);
 });
 
-test("the CLI lists, adds, edits and removes as the person at the command line", async () => {
+test("the CLI lists, adds, edits and removes links as the person at the command line", async () => {
   const { initializeWorkspace } = await import("../workspace.mjs"),
     { Store } = await import("../store.mjs"),
     root = temporaryDirectory("avoozl-notes-cli-");
@@ -321,28 +377,57 @@ test("the CLI lists, adds, edits and removes as the person at the command line",
   };
   const added = run(
     "task",
-    "notes",
+    "links",
     "cli-task",
     "add",
-    "--note",
+    "--link",
+    "https://docs.example.test/a",
+    "--label",
     "From the CLI",
   );
   assert.equal(added.author, "person");
+  // `task notes` is still read as the old name.
   const link = run(
     "task",
     "notes",
     "cli-task",
     "add",
     "--link",
-    "https://docs.example.test/a",
+    "https://docs.example.test/b",
     "--label",
     "Doc",
   );
-  run("task", "notes", "cli-task", "edit", added.id, "--note", "Edited");
-  run("task", "notes", "cli-task", "remove", link.id);
-  const listed = run("task", "notes", "cli-task");
-  assert.deepEqual(
-    listed.entries.map((e) => [e.kind, e.text]),
-    [["note", "Edited"]],
+  run(
+    "task",
+    "links",
+    "cli-task",
+    "edit",
+    added.id,
+    "--link",
+    "https://docs.example.test/a",
+    "--label",
+    "Edited",
   );
+  run("task", "links", "cli-task", "remove", link.id);
+  const listed = run("task", "links", "cli-task");
+  assert.deepEqual(
+    listed.entries.map((e) => [e.kind, e.label]),
+    [["link", "Edited"]],
+  );
+  const note = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      "task",
+      "links",
+      "cli-task",
+      "add",
+      "--note",
+      "x",
+      "--workspace",
+      root,
+    ],
+    { encoding: "utf8", env },
+  );
+  assert.notEqual(note.status, 0);
 });

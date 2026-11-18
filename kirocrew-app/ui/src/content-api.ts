@@ -48,7 +48,7 @@ export const BOUNDARY_LABELS: Record<string, string> = {
   brief: 'Session briefs',
   diff: 'Worker diffs',
   intake: 'Incoming items',
-  notes: 'Task links and notes',
+  notes: 'Task links',
 }
 
 // One line on what each boundary checks, from content-rules.mjs and its callers.
@@ -59,7 +59,7 @@ export const BOUNDARY_HINTS: Record<string, string> = {
   diff: 'Lines a worker adds, checked before a push.',
   intake: 'Items that come in from a plugin source or MCP. Only checked when you tick it.',
   proposal: "A retro's proposals, their diffs and evidence.",
-  notes: 'Each link and note on a task, when it is saved.',
+  notes: 'Each link on a task, when it is saved.',
 }
 
 export const BOUNDARIES = Object.keys(BOUNDARY_LABELS)
