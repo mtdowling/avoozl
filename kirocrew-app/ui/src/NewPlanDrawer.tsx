@@ -16,7 +16,7 @@ import { TemplateStart, templateKey, type InputValues } from './TemplateStart.ts
 import { missingInputs, notesClient, type TemplateSummary } from './notes-api.ts'
 import { importInput, pluginsClient, type PackPreview } from './plugins-api.ts'
 import { ICON } from './ui/controls.tsx'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { errorMessage, workspaceClient, type Repository } from './workspace-api.ts'
 import {
   EMPTY_NEW_PLAN,
