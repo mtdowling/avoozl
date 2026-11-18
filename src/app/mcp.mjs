@@ -133,7 +133,7 @@ export const OLD_TOOLS = {
   ],
   plans_approve_plan: [
     "plan.approve",
-    "Extract an explicitly authorized revision into tasks atomically. Requires expectedHash and expectedRevision; the reviewed document hash and database revision are the authorization. approvedBy and evidence are optional: approvedBy defaults to the workspace operator, and evidence records a real statement when there is one. For a spec plan, retitled lists approved task IDs whose tasks.md item text may change in this approval.",
+    "Extract an explicitly authorized revision into tasks atomically. Requires expectedHash and expectedRevision; the reviewed document hash and database revision are the authorization. approvedBy and evidence are optional: approvedBy defaults to the workspace operator, and evidence records a real statement when there is one. For a spec plan, retitled lists approved task IDs whose tasks.md item text may change in this approval. Refused here unless delegate names an approval delegate a person granted; it then approves on that person's behalf and the receipt records the delegation.",
   ],
   plans_start_run: [
     "run.start",

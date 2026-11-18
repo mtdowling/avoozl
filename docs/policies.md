@@ -616,6 +616,13 @@ the gateway's environment and adds `KIROCREW_TERMINAL=1`, which Avoozl does
 not trust because an agent could set it. This is a speed bump: code that unsets
 those variables gets past it.
 
+Approval has one sanctioned way past it that needs no claim to be the
+person: approval delegation. A person runs `approval delegate NAME`; then
+`plan approve ... --delegate NAME` and `plan.approve` with `delegate` work
+from an agent session and over MCP, approving as that person, and each
+receipt records the delegate and the grant. With no active grant the delegate
+is refused. Granting and revoking are themselves person-only.
+
 For a Kiro Crew chat it stays a speed bump. The chat runs as you, with your
 files, your `gh` login and your network, so nothing stops a determined agent
 from writing the database or calling `gh` itself.

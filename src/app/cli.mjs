@@ -1699,7 +1699,7 @@ try {
     }
   } else if (command === "plan" && positionals[0] === "approve") {
     const usage =
-        "plan approve PLAN... [--batch N] [--yes --expect HASHES] --as-person",
+        "plan approve PLAN... [--batch N] [--yes --expect HASHES] [--delegate NAME] --as-person",
       names = positionals.slice(1);
     if (!names.length && options.batch === undefined) need(undefined, usage);
     const listed = await localOrRequest("plan.approvalBatches", {}),
@@ -1736,7 +1736,7 @@ try {
         );
       if (selection.missing.length)
         console.log(
-          `Warning: these need specs left out of the selection: ${selection.missing.join(", ")}.`,
+          `${selection.waiting} ${selection.waiting === 1 ? "task waits" : "tasks wait"} on draft specs left out of the selection, and ${selection.waiting === 1 ? "starts" : "start"} only once they are approved: ${selection.missing.join(", ")}. Approving the selection does not need them.`,
         );
       for (const failure of selection.failures)
         console.log(
@@ -1745,9 +1745,13 @@ try {
       const workspace = options.workspace
         ? ` --workspace ${JSON.stringify(options.workspace)}`
         : "";
+      const delegate =
+        typeof options.delegate === "string"
+          ? ` --delegate ${options.delegate}`
+          : " --as-person";
       console.log("To approve exactly these revisions, run:");
       console.log(
-        `  avoozl plan approve ${options.batch !== undefined ? `--batch ${options.batch} ` : ""}${names.join(" ")}${names.length ? " " : ""}--yes --expect ${chosen.map(short).join(",")}${workspace} --as-person`,
+        `  avoozl plan approve ${options.batch !== undefined ? `--batch ${options.batch} ` : ""}${names.join(" ")}${names.length ? " " : ""}--yes --expect ${chosen.map(short).join(",")}${workspace}${delegate}`,
       );
       if (!selection.ok) process.exitCode = 1;
     } else {
@@ -1773,6 +1777,9 @@ try {
           id: entry.id,
           expectedHash: entry.hash,
         })),
+        ...(typeof options.delegate === "string"
+          ? { delegate: options.delegate }
+          : {}),
       });
       if (result.pending) {
         console.log(
@@ -1783,7 +1790,10 @@ try {
             `  https://github.com/${pull.repository}/pull/${pull.number}  (${pull.specs.length} specs)`,
           );
       } else if (result.ok) {
-        console.log(`Approved ${result.approved.length} specs:`);
+        const by = result.approved[0]?.delegation;
+        console.log(
+          `Approved ${result.approved.length} specs${by ? ` as delegate ${by.delegate} on behalf of ${by.onBehalfOf}` : ""}:`,
+        );
         for (const entry of chosen)
           console.log(`  ${entry.spec}  ${short(entry)}  ${entry.tasks} tasks`);
       } else {
@@ -1793,6 +1803,41 @@ try {
         process.exitCode = 1;
       }
     }
+  } else if (command === "approval") {
+    // Approval delegation (R109): who may approve on a person's behalf.
+    const usage =
+      "approval delegates | approval delegate NAME [--on-behalf-of LOGIN] [--note TEXT] | approval revoke NAME";
+    if (positionals[0] === "delegates") {
+      const found = await localOrRequest("approval.delegates", {});
+      if (options.json) console.log(JSON.stringify(found, null, 2));
+      else if (!found.delegates.length)
+        console.log("No approval delegates. Only a person approves.");
+      else
+        for (const entry of found.delegates)
+          console.log(
+            `${entry.identity} approves on behalf of ${entry.onBehalfOf} since ${entry.grantedAt}${entry.note ? ` (${entry.note})` : ""}`,
+          );
+    } else if (positionals[0] === "delegate") {
+      const granted = await localOrRequest("approval.delegate.grant", {
+        identity: need(positionals[1], usage),
+        ...(typeof options["on-behalf-of"] === "string"
+          ? { onBehalfOf: options["on-behalf-of"] }
+          : {}),
+        ...(typeof options.note === "string" ? { note: options.note } : {}),
+      });
+      console.log(
+        `${granted.identity} may approve specs on behalf of ${granted.onBehalfOf}. Revoke with: avoozl approval revoke ${granted.identity}`,
+      );
+    } else if (positionals[0] === "revoke") {
+      const revoked = await localOrRequest("approval.delegate.revoke", {
+        identity: need(positionals[1], usage),
+      });
+      console.log(`${revoked.identity} may no longer approve specs.`);
+      for (const pull of revoked.openApprovalPullRequests)
+        console.log(
+          `  Still open, opened by it: https://github.com/${pull.repository}/pull/${pull.number}`,
+        );
+    } else need(undefined, usage);
   } else if (command === "plan" && positionals[0] === "delete") {
     const id = need(
         positionals[1],

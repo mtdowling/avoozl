@@ -18,6 +18,13 @@ import {
 } from "./executors/kirocrew.mjs";
 import { approvedSpecDependency } from "../spec-dependencies.mjs";
 import { approvalBatches, approveMany } from "./approval-batches.mjs";
+import {
+  approvalDelegation,
+  delegationEvidence,
+  grantDelegate,
+  listDelegates,
+  revokeDelegate,
+} from "./approval-delegation.mjs";
 import { planReviewSummary } from "./plan-review-summary.mjs";
 import { addItemContext } from "./needs-you-context.mjs";
 import {
@@ -1929,7 +1936,22 @@ export class Operations {
       401,
     );
   }
-  async approvalPullRequest(plan, { approvedBy, quality }) {
+  // The person a grant names: the signed-in GitHub login when GitHub is in
+  // play, since a gated approval records a login, else the operator.
+  async personLogin() {
+    if (
+      readGitHubPolicyOrNull(this.workspaceRoot)?.mode &&
+      this.github?.available?.()
+    ) {
+      if (!this.approverLogin)
+        try {
+          this.approverLogin = (await this.github.currentUser())?.login || null;
+        } catch {}
+      if (this.approverLogin) return this.approverLogin;
+    }
+    return this.operator;
+  }
+  async approvalPullRequest(plan, { approvedBy, quality, delegation = null }) {
     const target = this.approvalGateTarget(plan);
     if (!target) return null;
     if (target.pull) {
@@ -1966,6 +1988,7 @@ export class Operations {
         ...(target.ref ? { ref: target.ref } : {}),
         reviewers: this.specReviewers(plan),
         specIssue: await this.linkableSpecIssue(plan, target.repository),
+        delegation,
       });
     return { pending: state };
   }
@@ -6011,17 +6034,24 @@ export class Operations {
       };
     }
     if (name === "plan.approve") {
+      // A named delegate approves as the person who granted it (R109).
+      let delegation = approvalDelegation(store, {
+        delegate: input.delegate,
+        approvedBy: input.approvedBy,
+      });
       const { plan, extraction, specQuality, proposals, quality } =
         this.approvalChecks(input);
+      const approvedBy = delegation?.onBehalfOf ?? input.approvedBy;
       let approver =
           plan.spec && !extraction
-            ? await this.specApprover(plan, input.approvedBy)
-            : input.approvedBy?.trim() || this.operator,
+            ? await this.specApprover(plan, approvedBy)
+            : approvedBy?.trim() || this.operator,
         evidence = input.evidence;
       if (plan.spec && !extraction) {
         const gate = await this.approvalPullRequest(plan, {
           approvedBy: approver,
           quality,
+          delegation,
         });
         if (gate?.pending)
           return {
@@ -6039,11 +6069,15 @@ export class Operations {
         if (gate?.merged) {
           approver = gate.merged.approvedBy;
           evidence = evidence || approvalEvidence(gate.merged);
+          delegation ??= approvalDelegation(store, { state: gate.merged });
         }
       }
+      const { delegate: _delegate, ...rest } = input;
       const approved = approvePlan(store, {
-        ...input,
-        evidence,
+        ...rest,
+        evidence:
+          evidence || (delegation ? delegationEvidence(delegation) : evidence),
+        delegation,
         githubPolicy: this.githubPolicy(),
         ...(extraction ? { extraction, proposals } : {}),
         ...(specQuality
@@ -6061,6 +6095,19 @@ export class Operations {
     }
     // Several specs at once, all or none (approval-batches.mjs).
     if (name === "plan.approveMany") return approveMany(this, input);
+    // Who may approve on a person's behalf (approval-delegation.mjs, R109).
+    if (name === "approval.delegates") return listDelegates(store);
+    if (name === "approval.delegate.grant")
+      return grantDelegate(store, {
+        identity: input.identity,
+        onBehalfOf: input.onBehalfOf?.trim() || (await this.personLogin()),
+        note: input.note,
+      });
+    if (name === "approval.delegate.revoke")
+      return revokeDelegate(store, {
+        identity: input.identity,
+        revokedBy: await this.personLogin(),
+      });
     if (name === "plan.approvalBatches") return approvalBatches(this, input);
     if (name === "plan.extract.get")
       return getExtraction(store, input.id || input.extractionId);

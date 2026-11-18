@@ -113,7 +113,7 @@ export const HELP_GROUPS = Object.freeze([
     entries: [
       entry(
         "plan batches [--writes]",
-        "Draft specs in approval order: batch 1 needs no unapproved spec; a loop shares a batch",
+        "Draft specs in dependency order; any spec may be approved alone, and a task that waits on a draft spec stays held",
       ),
       entry(
         "plan review SPEC [--start] [--json]",
@@ -124,8 +124,20 @@ export const HELP_GROUPS = Object.freeze([
         "Decide one review finding; reject needs --note (a person only)",
       ),
       entry(
-        "plan approve PLAN... [--batch N] [--yes --expect HASHES]",
-        "Preview approving specs together; --yes approves all or none (a person only)",
+        "plan approve PLAN... [--batch N] [--yes --expect HASHES] [--delegate NAME]",
+        "Preview approving exactly these specs; --yes approves all or none (a person, or a delegate a person granted)",
+      ),
+      entry(
+        "approval delegates",
+        "Who may approve on a person's behalf, and every grant and revocation",
+      ),
+      entry(
+        "approval delegate NAME [--on-behalf-of LOGIN] [--note TEXT]",
+        "Let NAME (an agent) approve specs on your behalf (a person only)",
+      ),
+      entry(
+        "approval revoke NAME",
+        "Stop NAME approving on your behalf (a person only)",
       ),
       entry(
         "plan delete PLAN_OR_SPEC [--yes] [--retire] [--delete-spec-folder]",
