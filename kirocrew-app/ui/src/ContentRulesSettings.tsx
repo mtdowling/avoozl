@@ -42,6 +42,7 @@ import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { useMedia } from './use-media.ts'
+import { PairedCard, PairedCards } from './PairedCards.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 
 type Client = ReturnType<typeof contentClient>
@@ -69,6 +70,7 @@ function HelpLink({ children = 'How rules work' }: { children?: ReactNode }) {
 const panelStyle = {
   border: '1px solid var(--border)',
   borderRadius: 10,
+  padding: 12,
   background: 'color-mix(in srgb, var(--text) 4%, var(--card, var(--bg)))',
 }
 
@@ -109,7 +111,8 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
     </IconLabel>
   )
   return (
-    <nav aria-label="Rule sets" className="flex flex-col gap-3 p-3" style={panelStyle} data-rule-panel>
+    <PairedCard label="Rule sets" width="18rem" style={panelStyle}>
+      <div className="flex flex-col gap-3" data-rule-panel>
       <div className="flex flex-col items-start gap-2">
         <h3 className="text-sm font-semibold">Your rule sets</h3>
         {!(value && !value.sets.length) && add}
@@ -159,7 +162,8 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
           ))}
         </ul>
       </div>
-    </nav>
+      </div>
+    </PairedCard>
   )
 }
 
@@ -929,12 +933,9 @@ export default function ContentRulesSettings({ workspaceId }: { workspaceId: str
       </div>
       {error && <p className="text-xs text-danger">{error}</p>}
       {value?.error && <p className="text-xs text-danger">.avoozl.json contentRules is invalid, so every check blocks: {value.error}</p>}
-      <div
-        data-content-layout
-        style={wide ? { display: 'grid', gridTemplateColumns: 'minmax(14rem, 18rem) minmax(0, 1fr)', gap: 16, alignItems: 'start' } : { display: 'flex', flexDirection: 'column', gap: 12 }}
-      >
+      <PairedCards paired={wide} attrs={{ 'data-content-layout': '' }}>
         <SetList value={value} selection={chosen} onSelect={setSelection} />
-        <div className="min-w-0 rounded-lg border p-4" style={{ borderColor: 'var(--border)', background: 'var(--card, var(--bg))' }}>
+        <PairedCard label="Rule set details" grow={1}>
           {!value ? (
             <p className="text-sm text-muted">Reading rule sets…</p>
           ) : builtin ? (
@@ -953,8 +954,8 @@ export default function ContentRulesSettings({ workspaceId }: { workspaceId: str
               }}
             />
           ) : null}
-        </div>
-      </div>
+        </PairedCard>
+      </PairedCards>
       <HowRulesWork />
     </div>
   )

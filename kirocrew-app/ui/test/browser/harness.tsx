@@ -1677,6 +1677,23 @@ if (query.get('plugins')) {
   const rows = Array.from({ length: 8 }, (_, i) => ({ ...PLUGINS[i % 2], id: `${PLUGINS[i % 2].id}-${i + 1}` }))
   answer('plugins.list', () => ({ supportedContracts: [1], routes: [], plugins: many ? rows : [] }))
 }
+// &rules=many|one: Settings > Content rules with fourteen rule sets, or one.
+if (query.get('rules')) {
+  const count = query.get('rules') === 'many' ? 14 : 1
+  const sets = Array.from({ length: count }, (_, i) => ({ id: i ? `codenames-${i + 1}` : 'codenames', action: i % 3 ? 'block' : 'report', source: 'file', boundaries: ['plan', 'github'], available: true, ruleCount: 2 }))
+  answer('content.rules', () => ({
+    error: null,
+    configHash: 'h1',
+    mode: 'single-repo',
+    builtins: [
+      { id: 'secrets', appliesAt: 'Every write' },
+      { id: 'private-paths', appliesAt: 'Mirror pushes' },
+    ],
+    choices: { repositories: ['recipe-box'], plugins: [] },
+    sets,
+  }))
+  answer('content.terms.get', (body) => ({ id: (body.input as { id: string }).id, file: '~/.avoozl/codenames.terms', from: 'machine', editable: true, exists: true, text: 'zebra: zebra falcon\nheron: blue heron\n' }))
+}
 
 // ?page=panel&sid=<chat>&state=full|empty: the side panel on sample reads.
 // window.__panel holds what the reads return, so a test can change it and see
