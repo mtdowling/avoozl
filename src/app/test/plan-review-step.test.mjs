@@ -50,9 +50,8 @@ function setup(t, { writer = true, rounds = 1, mode = "auto" } = {}) {
     files = {
       "requirements.md": "# Requirements\n\nThe app reads a file.\n",
       "design.md": "# Design\n\nUse src/missing.mjs.\n",
-      "tasks.md": "# Tasks\n\n- [ ] 1.1 Read the file\n",
-      "avoozl/manifest.json":
-        '{"version":1,"tasks":{"1.1":{"repository":"app"}}}\n',
+      "tasks.md":
+        "# Tasks\n\n- [ ] 1.1 Read the file\n  - Facts:\n    - repo: app\n",
     };
   let folder = {
     name: "reader",

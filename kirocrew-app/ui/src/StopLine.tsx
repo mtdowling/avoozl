@@ -22,11 +22,11 @@ import { viewsClient } from './views-api.ts'
 import { workspaceClient, errorMessage } from './workspace-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
+import { SelectField } from './ui/SelectField'
 
 const FILL = { display: 'inline-flex', alignItems: 'center', gap: 6 }
 // Stopped: a red frame on a red tint, the text in the theme's own color.
 const STOPPED = { ...FILL, borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 16%, var(--card, var(--bg)))', color: 'var(--text)', borderWidth: 2 }
-const FIELD = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)', maxWidth: '100%' }
 
 interface Choices {
   repositories: string[]
@@ -192,14 +192,14 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
     repo: choices?.repositories.length ? (
       <label className="flex min-w-0 flex-col gap-1 text-sm">
         {required('Repository')}
-        <select value={form.repository} onChange={(e) => set({ repository: e.target.value })} className="rounded border px-2 py-1 text-sm" style={FIELD} data-stop-target>
+        <SelectField value={form.repository} onChange={(e) => set({ repository: e.target.value })} look="field" maxWidth="100%" data-stop-target>
           <option value="">Choose…</option>
           {choices.repositories.map((id) => (
             <option key={id} value={id}>
               {id}
             </option>
           ))}
-        </select>
+        </SelectField>
       </label>
     ) : (
       empty('No repository is registered.')

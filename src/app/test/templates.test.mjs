@@ -9,6 +9,7 @@ import path from "node:path";
 import test from "node:test";
 import { inspectPlugin, validateManifest } from "../plugins.mjs";
 import { checkInputs, fill, readTemplates } from "../templates.mjs";
+import { specFacts } from "../spec-plans.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const FIXTURE = path.join(
@@ -61,9 +62,12 @@ test("the sample template is valid and runs as nothing", () => {
     template.phases.map((p) => p.id),
     ["inventory", "codegen", "runtime", "protocol-tests", "review", "cutover"],
   );
-  const manifestText = template.starterFiles["avoozl/manifest.json"],
-    review = JSON.parse(fill(manifestText, { sdk: "x", repository: "r" }))
-      .tasks["team-review"];
+  const review = specFacts({
+    "tasks.md": fill(template.starterFiles["tasks.md"], {
+      sdk: "x",
+      repository: "r",
+    }),
+  }).tasks["team-review"];
   assert.equal(review.manual, true);
   assert.deepEqual(review.requires, ["protocol-tests-proof"]);
   assert.deepEqual(
@@ -122,13 +126,19 @@ test("an unknown key, input or placeholder makes the template and its plugin inv
 
 test("a starter that does not lint, or phases that do not match it, are refused", () => {
   let plugin = copy();
-  const manifest = path.join(plugin.dir, "starter", "avoozl", "manifest.json"),
-    value = json(manifest);
-  value.tasks["team-review"].checks = ["npm test"];
-  save(manifest, value);
+  const tasks = path.join(plugin.dir, "starter", "tasks.md");
+  fs.writeFileSync(
+    tasks,
+    fs
+      .readFileSync(tasks, "utf8")
+      .replace(
+        "    - manual: true",
+        "    - manual: true\n    - checks: npm test",
+      ),
+  );
   invalid(
     plugin.folder,
-    /starter\/avoozl\/manifest\.json line \d+: Manual task "sdk-rewrite\.team-review" has "checks"|has "checks"/,
+    /starter\/tasks\.md line \d+: Manual task "(sdk-rewrite\.)?team-review" has "checks"/,
   );
 
   plugin = copy();
