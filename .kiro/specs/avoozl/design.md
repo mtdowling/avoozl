@@ -5724,6 +5724,26 @@ approved revision. A plan record gains `epic` (from front-matter, or null).
 A task gains `phase` (ID and title) and loses `epic`; its epic is always
 its plan's epic, so a task cannot disagree with its plan.
 
+**Epics from before Requirement 59.** Changed 2026-11-19: approving an epic
+folder used to drop every `epics` row with no `planId`, and published tasks
+still named those rows in their old `epic` value (an Inbox, the W1–W7 waves
+of one plan). Such rows stay, each with an owner, and are not cross-plan
+epics, since they have no member list:
+
+- A **plan epic** (`kind: "plan"`) is owned by one plan: the spec folder its
+  `context.document` lies in, or else the one plan every task naming it
+  comes from (`planId`, then its source and context documents). `planId`
+  names that plan.
+- A **doc epic** (`kind: "doc"`) has no single owning plan. It stands for
+  itself: `planId` is its own ID.
+
+No write drops an `epics` row that a stored task names: commit puts it
+back from the stored snapshot, or else from the last import's baseline,
+which still has the rows an older approval dropped. Commit then gives each
+row with no `planId` its owner. Opening a writable database that has such
+a row, or lacks a baseline row a task names, makes that one commit, so a
+second open or run changes nothing.
+
 **GitHub layering.** Projection order (§6.3) adds two parent kinds before
 tasks:
 

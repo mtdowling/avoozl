@@ -3,7 +3,9 @@
 // manifest and tasks.md headings, two-sided membership, and the reads.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { crossPlanEpics } from "../epics.mjs";
 import { Operations } from "../operations.mjs";
+import { Store } from "../store.mjs";
 import { frontMatter } from "../../front-matter.mjs";
 import { headingPhases, lintSpec, readSpecFolder } from "../spec-plans.mjs";
 import { fixture } from "./fixtures.mjs";
@@ -391,4 +393,173 @@ test("a task names no epic, and its phase is {id, title}", async (t) => {
     ops.execute("task.update", { id: "sample-task", title: "y".repeat(241) }),
     /1–240/,
   );
+});
+
+// Epic rows from before Requirement 59 and tasks that name them, written
+// as an older Avoozl left them: no planId, and no commit to give one.
+function writeLegacy(store) {
+  const data = structuredClone(store.read()),
+    task = (id, epic, extra = {}) => ({
+      id,
+      title: `Task ${id}`,
+      scope: "catalog",
+      status: "planned",
+      track: "catalog",
+      epic,
+      ...extra,
+    });
+  data.epics = [
+    ...(data.epics || []),
+    {
+      id: "W1",
+      title: "Core execution",
+      color: "#a7b8ff",
+      context: { document: ".kiro/specs/alpha/design.md", lineStart: 3 },
+    },
+    { id: "grouped", title: "Grouped", scope: "catalog" },
+    { id: "inbox", title: "Inbox", scope: "catalog" },
+    { id: "mixed", title: "Mixed", scope: "catalog" },
+    { id: "unnamed", title: "Named by no task", scope: "catalog" },
+  ];
+  data.tasks.push(
+    task("w1-task", "W1"),
+    task("grouped-task", "grouped", {
+      contextDocuments: [".kiro/specs/alpha/design.md", "AGENTS.md"],
+    }),
+    task("inbox-task", "inbox"),
+    task("mixed-a", "mixed", {
+      contextDocuments: [".kiro/specs/alpha/design.md"],
+    }),
+    task("mixed-b", "mixed", {
+      contextDocuments: [".kiro/specs/beta/design.md"],
+    }),
+  );
+  data.revision += 1;
+  store.write(data);
+}
+
+const owners = (store) =>
+  Object.fromEntries(
+    store.read().epics.map((epic) => [epic.id, [epic.kind, epic.planId]]),
+  );
+
+test("an epic from before Requirement 59 gets its plan on open, once", async (t) => {
+  const { root, store, ops } = workspace(t);
+  plan(root, "alpha", { tasks: "- [ ] 1 One\n", entries: { 1: leaf() } });
+  plan(root, "beta", { tasks: "- [ ] 1 One\n", entries: { 1: leaf() } });
+  await approve(ops, "alpha");
+  await approve(ops, "beta");
+  writeLegacy(store);
+  const before = store.read().revision;
+  store.close();
+
+  const opened = new Store(store.filename);
+  assert.deepEqual(owners(opened), {
+    W1: ["plan", "alpha"],
+    grouped: ["plan", "alpha"],
+    inbox: ["doc", "inbox"],
+    mixed: ["doc", "mixed"],
+    unnamed: ["doc", "unnamed"],
+  });
+  const w1 = opened.read().epics.find((epic) => epic.id === "W1");
+  assert.equal(w1.color, "#a7b8ff", "the row keeps what it had");
+  assert.equal(opened.read().revision, before + 1);
+  assert.match(opened.read().changelog[0].summary, /Requirement 59/);
+  assert.equal(
+    crossPlanEpics(opened.read()).length,
+    0,
+    "an owned row from before Requirement 59 is no cross-plan epic",
+  );
+
+  opened.close();
+  const again = new Store(store.filename);
+  t.after(() => again.close());
+  assert.equal(
+    again.read().revision,
+    before + 1,
+    "a second open writes nothing",
+  );
+});
+
+test("a commit gives each epic from before Requirement 59 its plan", async (t) => {
+  const { root, store, ops } = workspace(t);
+  plan(root, "alpha", { tasks: "- [ ] 1 One\n", entries: { 1: leaf() } });
+  await approve(ops, "alpha");
+  writeLegacy(store);
+  store.mutate("Any change", () => {});
+  assert.deepEqual(owners(store).W1, ["plan", "alpha"]);
+  assert.deepEqual(owners(store).inbox, ["doc", "inbox"]);
+});
+
+test("approving an epic folder keeps every epic a stored task names", async (t) => {
+  const { root, store, ops } = workspace(t);
+  plan(root, "alpha", {
+    front: "epic: rewrite",
+    tasks: "- [ ] 1 One\n",
+    entries: { 1: leaf() },
+  });
+  epic(root, "rewrite", ["alpha"]);
+  await approve(ops, "alpha");
+  writeLegacy(store);
+  await approve(ops, "rewrite");
+  const named = new Set(
+    store
+      .read()
+      .tasks.map((task) => task.epic)
+      .filter(Boolean),
+  );
+  const rows = new Set(store.read().epics.map((epic) => epic.id));
+  for (const id of named) assert.ok(rows.has(id), `epic ${id} is kept`);
+  assert.deepEqual(
+    store.read().epics.map((epic) => epic.id),
+    ["W1", "grouped", "inbox", "mixed", "unnamed", "rewrite"],
+  );
+  assert.deepEqual(
+    crossPlanEpics(store.read()).map((epic) => epic.id),
+    ["rewrite"],
+  );
+
+  // No write drops a named row; a row no task names may go.
+  store.mutate("Drop epics", (data) => {
+    data.epics = data.epics.filter((epic) => epic.id === "rewrite");
+  });
+  assert.deepEqual(
+    store
+      .read()
+      .epics.map((epic) => epic.id)
+      .sort(),
+    ["W1", "grouped", "inbox", "mixed", "rewrite"],
+  );
+});
+
+test("an epic an older approval dropped comes back from the import baseline", async (t) => {
+  const { root, store, ops } = workspace(t);
+  plan(root, "alpha", { tasks: "- [ ] 1 One\n", entries: { 1: leaf() } });
+  await approve(ops, "alpha");
+  writeLegacy(store);
+  // What an approval before this rule left: the imported rows are in the
+  // baseline only, and tasks still name them.
+  const imported = store.read().epics,
+    data = structuredClone(store.read());
+  data.epics = [];
+  data.revision += 1;
+  store.write(data);
+  store.setMeta("baselineMetadata", {
+    ...store.getMeta("baselineMetadata"),
+    epics: imported,
+  });
+  store.close();
+
+  const opened = new Store(store.filename);
+  assert.deepEqual(owners(opened), {
+    W1: ["plan", "alpha"],
+    grouped: ["plan", "alpha"],
+    inbox: ["doc", "inbox"],
+    mixed: ["doc", "mixed"],
+  });
+  const revision = opened.read().revision;
+  opened.close();
+  const again = new Store(store.filename);
+  t.after(() => again.close());
+  assert.equal(again.read().revision, revision, "a second open writes nothing");
 });
