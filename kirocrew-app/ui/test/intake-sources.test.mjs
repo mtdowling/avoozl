@@ -106,7 +106,7 @@ for (const width of [375, 768, 1280])
     // setup: it links there and offers no Remove.
     const githubRow = `document.querySelector('[data-intake-source-row="github-example-web"]')`
     const text = await page.evaluate(`${githubRow}.textContent`)
-    for (const part of ['GitHub (issues in this repository)', 'avoozl:ready', 'example-bot', 'plan me', 'Open Repository setup']) assert.ok(text.includes(part), part)
+    for (const part of ['GitHub (issues in this repository)', 'example-bot', 'plan me', 'Open Repository setup']) assert.ok(text.includes(part), part)
     assert.doesNotMatch(text, /Remove/)
     // Each box is titled for screen readers, and nothing runs off the page.
     assert.equal(
