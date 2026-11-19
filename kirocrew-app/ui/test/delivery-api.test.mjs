@@ -301,7 +301,7 @@ test('the state icons are labelled, theme-colored, and still under reduced motio
   const icon = view.slice(view.indexOf('export function StateIcon'), view.indexOf('const LANE_GAP'))
   assert.match(icon, /useMedia\('\(prefers-reduced-motion: reduce\)'\)/)
   // Each animation is drawn only when motion is allowed.
-  assert.equal((icon.match(/\{!still && \(\s*<animateTransform/g) ?? []).length, 2)
+  assert.equal((icon.match(/\{!still && \(?\s*<animateTransform/g) ?? []).length, 2)
   assert.match(icon, /aria-label=\{label\}/)
   assert.match(icon, /<title>\{label\}<\/title>/)
   assert.doesNotMatch(icon, /--warn|#[0-9a-f]{3,6}\b/i)
@@ -317,7 +317,7 @@ test('Delivery is a Dashboards page with nav rail filters', async () => {
   assert.ok(DASHBOARD_PAGES.some((page) => page.key === 'delivery'))
   const view = readFileSync(new URL('../src/DeliveryView.tsx', import.meta.url), 'utf8')
   assert.match(view, /<NavSlotFor section="dashboard">/)
-  assert.match(view, /<RailChips id="epics"/)
+  assert.match(view, /<RailChips\s+id="epics"/)
   assert.doesNotMatch(view, /<select|FilterBar id=|Radar|driver/i)
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
   assert.match(app, /tab === 'delivery' \? \(\s*<DeliveryView workspaceId=\{active\} \/>/)
