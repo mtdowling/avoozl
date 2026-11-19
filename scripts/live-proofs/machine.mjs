@@ -6,6 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
+import { claudeBinaries } from "../real-claude.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -106,13 +107,22 @@ export function proofRun({ tag, prefix, script, proxyPort }) {
     command: positionals[0] ?? "prove",
     backendFor: Number(values["backend-for"] || 600),
     harness: agent === "claude" ? "claude-code" : "fake-cli",
-    claude:
-      process.env[`${prefix}_CLAUDE`] ||
-      spawnSync("command -v claude", {
-        shell: true,
-        encoding: "utf8",
-      }).stdout.trim() ||
-      "claude",
+    // The shim on PATH exports the Bedrock credentials under the real HOME;
+    // the sandboxed child runs the real binary (real-claude.mjs).
+    ...((binaries) => ({
+      claude: binaries.exportWith || "claude",
+      claudeChild: binaries.child,
+    }))(
+      claudeBinaries({
+        named: process.env[`${prefix}_CLAUDE`] || null,
+        onPath:
+          spawnSync("command -v claude", {
+            shell: true,
+            encoding: "utf8",
+          }).stdout.trim() || null,
+        home: os.homedir(),
+      }),
+    ),
     model: process.env[`${prefix}_MODEL`] || "global.anthropic.claude-sonnet-5",
     proxyPort: Number(process.env[`${prefix}_PROXY_PORT`] || proxyPort),
     paths,
@@ -178,8 +188,12 @@ export async function proofHarness(run, machine, fakeAgent) {
       "AWS_SECRET_ACCESS_KEY",
       "AWS_SESSION_TOKEN",
     ];
-    definition.start[0] = run.claude;
-    definition.resume[0] = run.claude;
+    if (!run.claudeChild)
+      throw Error(
+        "No real Claude Code binary found (a launcher fails in the sandbox). Name it with the proof's _CLAUDE variable.",
+      );
+    definition.start[0] = run.claudeChild;
+    definition.resume[0] = run.claudeChild;
     bytes = JSON.stringify(definition, null, 2) + "\n";
   } else {
     const file = path.join(run.root, "fake-agent.mjs");
@@ -254,7 +268,7 @@ export function agentEnv(run, { noProxy = "" } = {}) {
   ).Credentials;
   return {
     ...env,
-    PATH: `${path.dirname(run.claude)}:${env.PATH}`,
+    PATH: `${path.dirname(run.claudeChild)}:${env.PATH}`,
     CLAUDE_CONFIG_DIR: run.paths.claudeConfig,
     CLAUDE_CODE_USE_BEDROCK: "1",
     AWS_REGION: settings.env?.AWS_REGION || "us-west-2",

@@ -649,6 +649,9 @@ async function prove() {
       if (settled(state) && fix === "integrated") break;
       // No fix is coming: #2 went to the owner (its reproduction could not run).
       if (settled(state) && !state.fixes[2] && state.items[2]?.owner) break;
+      // Every run failed: nothing more will happen (see each child's log).
+      if (settled(state) && state.runs.every((run) => run.state === "failed"))
+        break;
       if (Date.now() > end) break;
       await sleep(5000);
     }
