@@ -133,3 +133,13 @@ test('a bundle plugin lists its parts, and Import waits for approval and accepta
   assert.deepEqual(importInput(preview, true, false), { id: 'sdk-team', repositories: ['o/sdk'], previewHash: 'h', acceptLowered: true, confirmPublic: false })
   assert.equal(shortValue('x'.repeat(100)).length, 80)
 })
+
+test('a card says a code plugin runs on node and lists each kind with its features', async () => {
+  const { capabilityLine, runsAs } = await import('../src/plugins-api.ts')
+  assert.equal(runsAs(['intake', 'rules']), 'node')
+  assert.equal(runsAs([]), 'nothing: settings only')
+  assert.equal(runsAs(undefined), undefined)
+  assert.equal(capabilityLine({ intake: [] }), 'intake')
+  assert.equal(capabilityLine({ intake: ['actor'], rules: [] }), 'intake, actor; rules')
+  assert.equal(capabilityLine({}), undefined)
+})

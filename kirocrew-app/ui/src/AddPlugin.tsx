@@ -17,6 +17,7 @@ import {
   partTitles,
   PLUGIN_SOURCES,
   PLUGIN_STEPS,
+  capabilityLine,
   pluginsClient,
   previewInput,
   previewProblem,
@@ -121,11 +122,7 @@ function SourceFields({ form, set }: { form: PluginForm; set: (patch: Partial<Pl
 function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: number[]; set: (patch: Partial<PluginForm>) => void; problem: string | null }) {
   const { form, preview, set } = props
   const fromManifest = preview.contract !== undefined
-  const capabilities = preview.capabilities
-    ? Object.entries(preview.capabilities)
-        .map(([k, v]) => `${k}: ${v.length ? v.join(', ') : 'none'}`)
-        .join('; ') || 'none'
-    : undefined
+  const capabilities = preview.capabilities ? (capabilityLine(preview.capabilities) ?? 'none') : undefined
   const facts: [string, string | undefined][] = [
     ['Source', `${PLUGIN_SOURCES.find((x) => x.key === form.where)?.title}: ${locationOf(form)}${form.where === 'git' ? ` at ${form.ref}` : ''}`],
     ['Commit found', preview.commit],

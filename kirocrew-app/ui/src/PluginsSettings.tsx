@@ -9,6 +9,8 @@ import Badge from './ui/Badge.tsx'
 import {
   CONTRACT_LABEL,
   canApprove,
+  capabilityLine,
+  runsAs,
   PLUGIN_PARTS,
   partsOf,
   pluginsClient,
@@ -35,14 +37,11 @@ import { Box } from './ui/Box'
 // What a person reviews before approving (R34.4). Every value is the
 // plugin's own text, rendered as text.
 export function Facts({ row }: { row: PluginRow }) {
-  const capabilities = Object.entries(row.capabilities ?? {})
-    .map(([kind, list]) => `${kind}: ${list.length ? list.join(', ') : 'none'}`)
-    .join('; ')
   const facts: [string, string | undefined][] = [
     ['Version', row.version],
     [CONTRACT_LABEL, row.contract === undefined ? undefined : String(row.contract)],
-    ['Runs code as', row.kinds?.length ? row.kinds.join(', ') : row.kinds ? 'nothing: settings only' : undefined],
-    ['Capabilities', capabilities || undefined],
+    ['Runs code as', runsAs(row.kinds)],
+    ['Capabilities', capabilityLine(row.capabilities)],
     ['Declared in', row.source === 'machine' ? 'this machine' : '.avoozl.json'],
     ['Git', row.git ? [row.git.url, row.git.subdir].filter(Boolean).join(' : ') : undefined],
     ['Ref', row.git?.ref],

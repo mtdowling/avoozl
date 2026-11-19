@@ -153,6 +153,15 @@ export const partsOf = (row: { provides?: string[]; kinds?: string[] }) => row.p
 export const partTitles = (row: { provides?: string[]; kinds?: string[] }) =>
   partsOf(row).map((part) => PLUGIN_PARTS[part]?.title ?? part)
 
+// Each code part runs in a Node child process, so the runtime is node; a
+// plugin of data parts only runs nothing.
+export const runsAs = (kinds: string[] | undefined): string | undefined =>
+  kinds === undefined ? undefined : kinds.length ? 'node' : 'nothing: settings only'
+
+// Each kind with its optional features: "intake", or "intake, actor".
+export const capabilityLine = (capabilities: Record<string, string[]> | undefined): string | undefined =>
+  capabilities ? Object.entries(capabilities).map(([kind, list]) => [kind, ...list].join(', ')).join('; ') || undefined : undefined
+
 // The preview's lines by action, for the summary above the table.
 export function packCounts(changes: PackChange[]): Record<PackChange['action'], number> {
   const counts = { create: 0, change: 0, keep: 0, skip: 0 }
