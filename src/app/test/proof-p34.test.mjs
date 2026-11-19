@@ -15,6 +15,9 @@ import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { deliveryView } from "../page-views.mjs";
 import { nextView } from "../runner.mjs";
 import { fixture } from "./fixtures.mjs";
+import { guardGitHub } from "../content-rules.mjs";
+import { asActor } from "../github-posted.mjs";
+import { postingActor } from "../operations.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -864,4 +867,62 @@ test("P34 pace: unchanged, settled pull requests are read again after 2 then 4 m
     1,
   );
   assert.equal(w.github.writes.length, 0);
+});
+
+test("P34 a review the person submits from a draft is feedback; an agent's post is not", async (t) => {
+  const w = workspace(t, { mode: "single-repo" });
+  const c = w.github.open(LIB, "avoozl/c");
+  await w.step();
+  // The draft goes out through the guard as reviewdraft.post sends it; a
+  // comment an agent posts through the same guard is marked.
+  const sent = [];
+  const guarded = guardGitHub(
+    {
+      async createPendingReview(_repository, _number, input) {
+        sent.push(input.body);
+        return { id: 71 };
+      },
+      async createIssueComment(_repository, _number, body) {
+        sent.push(body);
+        return { id: 72 };
+      },
+    },
+    w.store,
+  );
+  const draft = { caller: { sessionKey: "dashboard:slot-d" }, mcp: true };
+  await asActor(postingActor("reviewdraft.post", draft), () =>
+    guarded.createPendingReview(LIB, c.number, {
+      commit_id: c.head,
+      body: "Rename it, @bob.",
+    }),
+  );
+  await asActor(postingActor("reply.post", draft), () =>
+    guarded.createIssueComment(LIB, c.number, "Done, @alice."),
+  );
+  w.github.touch(c, {
+    reviews: [
+      {
+        id: 71,
+        state: "COMMENTED",
+        body: sent[0],
+        url: `${c.url}#pullrequestreview-71`,
+        login: "alice",
+        commit: c.head,
+      },
+    ],
+    comments: [
+      {
+        id: 72,
+        body: sent[1],
+        url: `${c.url}#issuecomment-72`,
+        login: "alice",
+        commit: null,
+      },
+    ],
+  });
+  const [message, ...rest] = w.toWorker(await w.step(), "c");
+  assert.deepEqual(rest, []);
+  assert.match(message.text, /Rename it, @bob\./);
+  assert.doesNotMatch(message.text, /Done, @/);
+  assert.deepEqual(w.github.writes, []);
 });

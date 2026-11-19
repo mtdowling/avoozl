@@ -213,12 +213,19 @@ Avoozl installs a `pre-push` hook in each task worktree it prepares, so a
 matching line stops the push. It cannot stop a merge on GitHub; a required
 commit status would.
 
-Every comment, review, review line comment and pull request body Avoozl
-posts goes through the same write path, which breaks each `@login` mention
-with a zero-width space after the `@` (code spans, fences and HTML comments
-stay as written) and adds a hidden `<!-- avoozl:posted -->` marker. A post
-notifies nobody, and a comment that carries the marker never starts or
-resumes work: comment steering and pull request feedback skip it.
+Every comment, review, review line comment and pull request body goes
+through the same write path. When an agent or Avoozl's own automation (the
+tick) writes it, the path breaks each `@login` mention with a zero-width
+space after the `@` (code spans, fences and HTML comments stay as written)
+and adds a hidden `<!-- avoozl:posted -->` marker. Such a post notifies
+nobody, and a comment that carries the marker never starts or resumes work:
+comment steering and pull request feedback skip it.
+
+A write you start yourself, from the Avoozl page or with a CLI command
+outside an agent session, goes out as written: its mentions notify, and it
+has no marker. A review draft is yours too, since GitHub publishes it only
+when you submit it, so its review counts as feedback. Content rules check
+every write either way. A write whose caller Avoozl cannot tell is marked.
 
 ## Use GitHub pull-request reviews as the review gate
 
