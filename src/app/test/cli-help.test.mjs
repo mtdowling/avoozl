@@ -28,7 +28,7 @@ function cli(...args) {
   const home = temporaryDirectory("avoozl-cli-help-"),
     env = { ...process.env, HOME: home, XDG_CONFIG_HOME: home };
   for (const key of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)(_|$)/.test(key)) delete env[key];
+    if (/^AVOOZL(_|$)/.test(key)) delete env[key];
   return spawnSync(process.execPath, [CLI, ...args], {
     env,
     cwd: home,

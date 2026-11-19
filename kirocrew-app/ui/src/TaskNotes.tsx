@@ -25,6 +25,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainLink } from './ui/Plain'
 
 // A save a content rule blocked: the decisions to allow, and the save to
 // run again once allowed.
@@ -132,16 +133,15 @@ function EntryView(props: {
           </Row>
         </Stack>
       ) : href ? (
-        <a
+        <PlainLink
           href={linkHref(href)}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm underline"
-          style={{ overflowWrap: 'anywhere' }}
+          css-overflow-wrap="anywhere" inlineFlex items="center" gap="1" size="sm" underline
         >
           <ExternalLink size={ICON} aria-hidden="true" />
           {entry.label}
-        </a>
+        </PlainLink>
       ) : (
         <Box as="span" size="sm">{entry.label}</Box>
       )}
@@ -318,7 +318,7 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
         </form>
       ) : (
         <div>
-          <Btn type="button" onClick={() => setAdding(true)} data-add-link style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Btn type="button" onClick={() => setAdding(true)} data-add-link css-display="inline-flex" css-align-items="center" css-gap="6">
             <Plus size={ICON} aria-hidden="true" />
             Add link
           </Btn>
@@ -419,7 +419,7 @@ export function MarkDoneDialog(props: {
             disabled={busy || problems.some(Boolean)}
             onClick={() => void submit()}
             data-mark-done-confirm
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            css-display="inline-flex" css-align-items="center" css-gap="6"
           >
             <ClipboardCheck size={ICON} aria-hidden="true" />
             {choice === 'done' ? 'Mark done' : choice === 'skipped' ? 'Mark skipped' : 'Mark refused'}

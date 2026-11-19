@@ -32,6 +32,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 function Field(props: {
   id: string
@@ -66,7 +67,7 @@ function WorkspaceRow(props: {
     <ListItem
       className={selected ? 'bg-accent/10' : ''}
       title={
-        <button type="button" aria-pressed={selected} onClick={props.onSelect} className="flex min-w-0 flex-wrap items-center gap-x-2 text-left">
+        <PlainButton type="button" aria-pressed={selected} onClick={props.onSelect} flex minW0 flexWrap items="center" gapX="2" align="left">
           <Box as="span" weight="medium">{workspace.name}</Box>
           <Hint size="xs">{workspace.id}</Hint>
           <Box as="span" inlineFlex gap="1">
@@ -77,21 +78,20 @@ function WorkspaceRow(props: {
               </span>
             </Tooltip>
           </Box>
-        </button>
+        </PlainButton>
       }
       facts={[{ label: 'Folder', value: workspace.root, mono: true, truncate: true }]}
       actions={
         <Tooltip text={`Edit ${workspace.name}`}>
-          <button
+          <PlainButton
             type="button"
             data-edit-workspace={workspace.id}
             aria-label={`Edit ${workspace.name}`}
             onClick={props.onEdit}
-            className="rounded border"
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: 'transparent', borderColor: 'var(--border)', color: 'var(--text)', cursor: 'pointer' }}
+            css-display="inline-flex" css-align-items="center" css-justify-content="center" css-width="28" css-height="28" css-background="transparent" css-border-color="border" css-color="text" css-cursor="pointer" rounded="base" border="all"
           >
             <Pencil size={14} aria-hidden="true" />
-          </button>
+          </PlainButton>
         </Tooltip>
       }
     />
@@ -344,7 +344,7 @@ export default function WorkspaceView(
           footer={
             <>
               {/* Remove sits at the footer's left, red; it asks first. */}
-              <Button type="button" variant="danger" data-remove-workspace onClick={() => setDialog({ remove: current.id })} disabled={busy} style={{ order: -1, marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Button type="button" variant="danger" data-remove-workspace onClick={() => setDialog({ remove: current.id })} disabled={busy} css-order={-1} css-margin-right="auto" css-display="inline-flex" css-align-items="center" css-gap="6">
                 <Trash2 size={14} aria-hidden="true" />
                 Remove
               </Button>

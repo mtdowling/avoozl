@@ -51,6 +51,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
+import { PlainButton, PlainInput, PlainTextarea } from './ui/Plain'
 
 type Client = ReturnType<typeof contentClient>
 type Selection = { kind: 'set' | 'builtin'; id: string } | { kind: 'new' }
@@ -67,18 +68,11 @@ function openHelp() {
 
 function HelpLink({ children = 'How rules work' }: { children?: ReactNode }) {
   return (
-    <button type="button" className="inline-flex items-center gap-1 text-xs underline" onClick={openHelp} data-help-link>
+    <PlainButton type="button" inlineFlex items="center" gap="1" size="xs" underline onClick={openHelp} data-help-link>
       <BookOpen size={12} aria-hidden="true" />
       {children}
-    </button>
+    </PlainButton>
   )
-}
-
-const panelStyle = {
-  border: '1px solid var(--border)',
-  borderRadius: 10,
-  padding: 12,
-  background: 'color-mix(in srgb, var(--text) 4%, var(--card, var(--bg)))',
 }
 
 // ---------------------------------------------------------------------------
@@ -118,7 +112,7 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
     </IconLabel>
   )
   return (
-    <PairedCard label="Rule sets" width="18rem" style={panelStyle}>
+    <PairedCard label="Rule sets" width="18rem" tinted>
       <Stack gap={3} data-rule-panel>
       <Box flex flexCol items="start" gap="2">
         <Box as="h3" size="sm" weight="semibold">Your rule sets</Box>
@@ -375,7 +369,7 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
       ))}
     </SelectField>
   ) : (
-    <input value={row.name} aria-label={`Rule name on line ${index + 1}`} placeholder="rule-name" onChange={(e) => props.onChange({ ...row, name: e.target.value })} style={fieldStyle} />
+    <PlainInput value={row.name} aria-label={`Rule name on line ${index + 1}`} placeholder="rule-name" onChange={(e) => props.onChange({ ...row, name: e.target.value })} css-border="1px-solid-border" css-border-radius="6" css-background="card-bg" css-color="text" css-padding="4px-8px" css-font-size="13" css-min-width="0" css-width="100%" />
   )
   const kind = (
     <SelectField value={current} aria-label={`Kind on line ${index + 1}`} onChange={(e) => switchKind(e.target.value as RowKind)} look="row">
@@ -477,13 +471,12 @@ function TryIt({ rows }: { rows: TermRow[] }) {
       <Box as="label" flex flexCol gap="1" size="sm">
         Try it
         <Hint size="xs">Paste some text. Matches light up. Nothing here is saved or sent.</Hint>
-        <textarea
+        <PlainTextarea
           value={sample}
           onChange={(e) => setSample(e.target.value)}
           rows={3}
           placeholder="Notes from the zebra falcon sync"
-          className="rounded border px-2 py-1 text-sm"
-          style={{ borderColor: 'var(--border)', background: 'var(--card, var(--bg))', color: 'var(--text)' }}
+          css-border-color="border" css-background="card-bg" css-color="text" rounded="base" border="all" px="2" py="1" size="sm"
         />
       </Box>
       {sample && (

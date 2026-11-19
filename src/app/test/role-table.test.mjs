@@ -52,7 +52,6 @@ test("no module outside the Kiro Crew executor defaults a request to kirocrew", 
   // Readers of stored bindings, and messages to a bound session, from
   // before bindings named an executor. Neither starts a session.
   const reading = new Set([
-    "integrator-trains.mjs",
     "landing-conflicts.mjs",
     "tick.mjs",
     "session-bindings.mjs",
@@ -116,9 +115,9 @@ test("a pin wins over the saved harness, which wins over the project", () => {
     }),
     { executor: "process", harness: "codex" },
   );
-  // A role that cannot run as a child yet ignores the project's executor.
+  // With every role able to run as a child, the project's executor applies.
   assert.deepEqual(roleRun("prReview", { project }), {
-    executor: "kirocrew",
+    executor: "process",
   });
 });
 
@@ -126,12 +125,13 @@ test("the four roles already on process keep their briefs and rows", () => {
   for (const role of ["verifier", "review:security", "retro", "planner"])
     assert.ok(processRow(role), role);
   assert.equal(rowFor("review:x"), ROLE_TABLE.reviewer);
-  assert.equal(processRow("pr-review"), null);
+  // A chat that is not in the table (the conflict fix R91.6 removes).
+  assert.equal(processRow("conflict-fix"), null);
   assert.equal(processRow("worker").folder, "worktree");
   assert.match(
     processBrief("verifier", "BRIEF", { allowCommands: [["npm", "test"]] }),
     /`npm test`[\s\S]*result\.json/,
   );
   assert.equal(processBrief("worker", "BRIEF"), "BRIEF");
-  assert.equal(processBrief("pr-review", "BRIEF"), "BRIEF");
+  assert.equal(processBrief("conflict-fix", "BRIEF"), "BRIEF");
 });

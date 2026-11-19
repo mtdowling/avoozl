@@ -51,6 +51,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { TreeStyle } from './ui/PageStyles'
+import { PlainButton, PlainInput } from './ui/Plain'
 
 // Theme variables only (Radar's rule): go is the accent, a hold is warn.
 const COLOR: Record<NodeState, string> = {
@@ -271,7 +272,7 @@ export default function GraphPage(props: {
               onJump()
             }}
           >
-            <input
+            <PlainInput
               list="avoozl-graph-jump-list"
               value={jump}
               onChange={(e) => {
@@ -283,8 +284,7 @@ export default function GraphPage(props: {
               aria-invalid={jumpError ? true : undefined}
               aria-describedby={jumpError ? 'avoozl-graph-jump-error' : undefined}
               data-graph-jump
-              className="w-40 rounded-sm border px-2.5 py-1 text-[11px] md:w-52"
-              style={{ background: 'var(--card)', borderColor: 'var(--border-strong, var(--border))', color: 'var(--text)', fontFamily: MONO }}
+              css-background="card" css-border-color="border-strong-border" css-color="text" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" w40 rounded="sm" border="all" px="2.5" py="1" size="11" mdW52
             />
           </form>
           <datalist id="avoozl-graph-jump-list">
@@ -358,18 +358,17 @@ function NavArrow(props: { label: string; icon: 'back' | 'forward'; disabled: bo
   return (
     <Tooltip text={props.disabled ? `${props.label}: nothing there` : `${props.label} in the Graph`}>
       {(describedBy) => (
-        <button
+        <PlainButton
           type="button"
           aria-label={props.label}
           aria-describedby={describedBy}
           aria-disabled={props.disabled || undefined}
           data-graph-nav={props.icon}
           onClick={() => !props.disabled && props.onClick()}
-          className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border"
-          style={{ borderColor: 'var(--border)', color: props.disabled ? 'var(--muted)' : 'var(--text)', opacity: props.disabled ? 0.4 : 1, background: 'transparent' }}
+          css-border-color="border" css-color={props.disabled ? 'muted' : 'text'} css-opacity={props.disabled ? '0.4' : '1'} css-background="transparent" inlineFlex h7 w7 cursorPointer items="center" justify="center" rounded="md" border="all"
         >
           <Icon size={13} aria-hidden="true" />
-        </button>
+        </PlainButton>
       )}
     </Tooltip>
   )
@@ -442,13 +441,12 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
   const why = `avoozl-frontier-why-${task.id}`
   return (
     <Box css-max-width="820" css-border-color="border" css-background="card" mb="2" rounded="[3px]" border="all" data-frontier-row={task.id}>
-      <button
+      <PlainButton
         type="button"
         aria-expanded={open}
         aria-controls={why}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full cursor-pointer items-baseline gap-2.5 px-3.5 py-2.5 text-left"
-        style={{ background: 'transparent' }}
+        css-background="transparent" flex wFull cursorPointer items="baseline" gap="2.5" px="3.5" py="2.5" align="left"
       >
         <Box as="span" css-color={props.unlocked ? 'accent' : 'warn-muted'} flexNone size="12" weight="bold">
           {task.id}
@@ -457,7 +455,7 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
           {task.title}
         </Box>
         <Chip task={task} />
-      </button>
+      </PlainButton>
       {open && (
         <Box id={why} css-padding-left="30" css-line-height="1.6" px="3.5" pb="3" text105px tone="muted" data-frontier-why>
           {props.unlocked ? (
@@ -476,13 +474,13 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
             </>
           )}
           {' · '}
-          <button type="button" className="cursor-pointer underline underline-offset-2" style={{ color: 'var(--accent)', background: 'transparent' }} onClick={() => props.onOpenTree(task.id)}>
+          <PlainButton type="button" css-color="accent" css-background="transparent" cursorPointer underline underlineOffset2 onClick={() => props.onOpenTree(task.id)}>
             open tree →
-          </button>
+          </PlainButton>
           {' · '}
-          <button type="button" className="cursor-pointer underline underline-offset-2" style={{ color: 'var(--accent)', background: 'transparent' }} onClick={() => props.onOpen(task.id)}>
+          <PlainButton type="button" css-color="accent" css-background="transparent" cursorPointer underline underlineOffset2 onClick={() => props.onOpen(task.id)}>
             details
-          </button>
+          </PlainButton>
         </Box>
       )}
     </Box>
@@ -552,9 +550,9 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
           {rootTitle(graph, root)}
         </Box>
         {root.kind === 'task' && (
-          <button type="button" className="cursor-pointer underline underline-offset-2" style={{ color: 'var(--accent)', background: 'transparent', letterSpacing: 0 }} onClick={() => props.onOpen(root)}>
+          <PlainButton type="button" css-color="accent" css-background="transparent" css-letter-spacing="0" cursorPointer underline underlineOffset2 onClick={() => props.onOpen(root)}>
             details
-          </button>
+          </PlainButton>
         )}
       </Box>
       <div
@@ -578,7 +576,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                 const draft = node.state === 'draft'
                 const waits = layout.edges.filter((e) => e.to === node.id)
                 return (
-                  <li key={node.id} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined} style={{ opacity: faded ? 0.5 : draft ? 0.65 : 1 }}>
+                  <Box key={node.id} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined} as="li" css-opacity={faded ? 0.5 : draft ? 0.65 : 1}>
                     <div
                       role="button"
                       tabIndex={node.id === cursor ? 0 : -1}
@@ -597,13 +595,12 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                         <span className="ml-auto text-[9px]" style={{ color: COLOR[node.state], letterSpacing: '.1em' }}>
                           {tree.ghosts.has(node.id) ? 'MET' : STATE_CHIP[node.state]}
                         </span>
-                        <button
+                        <PlainButton
                           type="button"
                           tabIndex={-1}
                           aria-label={`Open ${node.id} details`}
                           data-tree-open={node.id}
-                          className="inline-flex cursor-pointer items-center p-0.5"
-                          style={{ color: 'var(--muted)', background: 'transparent' }}
+                          css-color="muted" css-background="transparent" inlineFlex cursorPointer items="center" p="0.5"
                           onClick={(e) => {
                             e.stopPropagation()
                             setCursor(node.id)
@@ -611,7 +608,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                           }}
                         >
                           <ExternalLink size={13} aria-hidden="true" />
-                        </button>
+                        </PlainButton>
                       </Box>
                       <Box as="span" css-color="text" size="11">
                         {task.title}
@@ -629,7 +626,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                         </Box>
                       )}
                     </div>
-                  </li>
+                  </Box>
                 )
               })}
           </Box>
@@ -763,9 +760,9 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
   )
   const openTree = (id: string) => props.onTree({ kind: 'task', id })
   const link = (id: string) => (
-    <button type="button" className="cursor-pointer underline" style={{ background: 'transparent', color: 'var(--text)' }} onClick={() => props.onTree({ kind: 'task', id })}>
+    <PlainButton type="button" css-background="transparent" css-color="text" cursorPointer underline onClick={() => props.onTree({ kind: 'task', id })}>
       {id}
-    </button>
+    </PlainButton>
   )
   return (
     <Modal

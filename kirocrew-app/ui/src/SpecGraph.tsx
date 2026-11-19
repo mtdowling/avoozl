@@ -10,6 +10,7 @@ import { linkHref, type Graph } from './views-api.ts'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
+import { PlainLink } from './ui/Plain'
 
 type Mode = 'frontier' | 'tree'
 
@@ -66,9 +67,9 @@ export function SpecGraph(props: { graph: Graph | null; planId: string; only?: M
               </Row>
             )}
             {href && (
-              <a href={linkHref(href)} className="ml-auto text-xs underline underline-offset-2" style={{ color: 'var(--accent)' }} data-spec-graph-open>
+              <PlainLink href={linkHref(href)} css-color="accent" ml="auto" size="xs" underline underlineOffset2 data-spec-graph-open>
                 Open in Graph →
-              </a>
+              </PlainLink>
             )}
           </Row>
           <Box minW0 overflow="x-auto" data-spec-graph-body>

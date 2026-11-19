@@ -24,6 +24,7 @@ import { Modal } from './ui/Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export interface ReaderTarget {
   document: string
@@ -139,9 +140,9 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
           {line && (
             <Tooltip text={`Scroll back to ${line.toLowerCase()}`}>
               {(describedBy) => (
-                <button type="button" className="text-xs text-muted hover:underline" onClick={toLine} aria-describedby={describedBy}>
+                <PlainButton type="button" size="xs" tone="muted" hoverUnderline onClick={toLine} aria-describedby={describedBy}>
                   {line}
-                </button>
+                </PlainButton>
               )}
             </Tooltip>
           )}
@@ -197,11 +198,11 @@ function Outline(props: { headings: { level: number; text: string; id: string }[
   return (
     <Box as="ul" mt="1" flex flexCol gap="0.5">
       {props.headings.map((h) => (
-        <li key={h.id} className="truncate" style={{ paddingLeft: (h.level - 1) * 12 }}>
+        <Box key={h.id} as="li" css-padding-left={(h.level - 1) * 12} truncate>
           <button type="button" className={`text-left hover:underline ${h.level === 1 ? 'font-medium' : 'text-xs text-muted'}`} onClick={() => props.onJump(h.id)}>
             {h.text}
           </button>
-        </li>
+        </Box>
       ))}
     </Box>
   )

@@ -28,8 +28,8 @@ import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
+import { PlainTextarea } from './ui/Plain'
 
-const fieldStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
 function Field({ id, label, children, hint }: { id: string; label: string; children: ReactNode; hint?: string }) {
   return (
@@ -43,14 +43,13 @@ function Field({ id, label, children, hint }: { id: string; label: string; child
 
 function Area(props: { id: string; value: string; onChange: (value: string) => void; rows?: number; placeholder?: string }) {
   return (
-    <textarea
+    <PlainTextarea
       id={props.id}
       rows={props.rows ?? 3}
       value={props.value}
       placeholder={props.placeholder}
       onChange={(event) => props.onChange(event.target.value)}
-      className="rounded border px-2 py-1 text-sm"
-      style={fieldStyle}
+      css-border-color="border" css-color="text" css-background="card-transparent" rounded="base" border="all" px="2" py="1" size="sm"
     />
   )
 }

@@ -14,7 +14,7 @@ import NewPlanDrawer from './NewPlanDrawer.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
 import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
-import { COMPACT_BTN, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './ui/controls.tsx'
+import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, usePages } from './ui/controls.tsx'
 import { Archive, ArchiveRestore, ArrowUpDown, CaseSensitive, Clock, Layers, ListChecks, ListFilter, Tag, X, ClipboardCheck, DetailsIcon, Download, ExternalLink, FileText, FolderOpen, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, type LucideIcon } from './icons.ts'
 import { MoreMenu } from './MoreMenu.tsx'
 import { useReveal } from './RepositoriesSettings.tsx'
@@ -108,6 +108,7 @@ import { Checkbox } from './ui/Checkbox'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { DetailsStyle, SpecRailStyle } from './ui/PageStyles'
+import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
 
 // Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
@@ -146,9 +147,9 @@ function RailSection(props: { title: string; edit?: { label: string; onClick: ()
         <Box as="h4" css-margin="0" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase" css-color="muted">{props.title}</Box>
         {props.edit && (
           <Tooltip text="Edit">
-            <button type="button" data-rail-edit aria-label={props.edit.label} onClick={props.edit.onClick} style={{ display: 'inline-flex', padding: 2 }}>
+            <PlainButton type="button" data-rail-edit aria-label={props.edit.label} onClick={props.edit.onClick} css-display="inline-flex" css-padding="2">
               <Pencil size={13} aria-hidden="true" />
-            </button>
+            </PlainButton>
           </Tooltip>
         )}
       </Box>
@@ -307,13 +308,13 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
         title="GitHub preview"
         actions={
           <Row gap={2} align="start">
-            <TipBtn style={COMPACT_BTN} tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
+            <TipBtn {...COMPACT} tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
               {projection ? 'Preview again' : 'Preview GitHub writes'}
             </TipBtn>
-            <TipBtn primary style={COMPACT_BTN} tooltip="Preview, choose batches and create the issues. Nothing is written until you confirm." onClick={props.onProject} disabled={busy}>
+            <TipBtn primary {...COMPACT} tooltip="Preview, choose batches and create the issues. Nothing is written until you confirm." onClick={props.onProject} disabled={busy}>
               Project to GitHub…
             </TipBtn>
-            <TipBtn style={COMPACT_BTN} tooltip="What an edited spec would do to each issue. Writes nothing until you apply it." onClick={props.onChanged} disabled={busy}>
+            <TipBtn {...COMPACT} tooltip="What an edited spec would do to each issue. Writes nothing until you apply it." onClick={props.onChanged} disabled={busy}>
               Spec changed…
             </TipBtn>
           </Row>
@@ -392,9 +393,9 @@ function SpecAiSummary(props: { plan: SpecPlan; spec: SpecSummary; onRetry?: () 
         <Hint as="p" size="sm" flush data-spec-summary-fallback>
           Summary unavailable{' '}
           {props.onRetry && (
-            <button type="button" className="underline underline-offset-2" style={{ background: 'none', border: 0, padding: 0, color: 'var(--accent)', cursor: 'pointer' }} data-spec-summary-retry onClick={props.onRetry}>
+            <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="accent" css-cursor="pointer" underline underlineOffset2 data-spec-summary-retry onClick={props.onRetry}>
               Retry
-            </button>
+            </PlainButton>
           )}
         </Hint>
       )}
@@ -455,7 +456,7 @@ function SpecDetail(props: {
         title="Summary"
         actions={
           plan && props.onReview ? (
-            <TipBtn style={COMPACT_BTN} tooltip="Read each review finding beside the spec text and decide it." onClick={props.onReview} data-open-review="">
+            <TipBtn {...COMPACT} tooltip="Read each review finding beside the spec text and decide it." onClick={props.onReview} data-open-review="">
               Open review{plan.review?.found ? ` (${plan.review.found})` : ''}
             </TipBtn>
           ) : undefined
@@ -630,9 +631,9 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
               <Box as="ul" mt="1" flex flexCol gap="0.5" size="sm">
                 {group.tasks.map((task) => (
                   <Box key={task.id} as="li" flex items="baseline" justify="between" gap="3">
-                    <button type="button" className="min-w-0 truncate text-left hover:underline" onClick={() => props.onOpenTask(task.id)}>
+                    <PlainButton type="button" minW0 truncate align="left" hoverUnderline onClick={() => props.onOpenTask(task.id)}>
                       {task.title}
-                    </button>
+                    </PlainButton>
                     <Box as="span" shrink0 size="xs" tone="muted">{STATES.find((state) => state.id === nodeState(task))?.label}</Box>
                   </Box>
                 ))}
@@ -765,13 +766,13 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: 
       <NavSlotFor section="plans">
         <div role="search" aria-label="Filter specs" data-nav-filters="avoozl-plans" data-filter-panel="avoozl-plans" data-rail>
           <RailStyle />
-          <input
+          <PlainInput
             type="search"
             aria-label="Search specs"
             placeholder="Search specs"
             value={filter.q ?? ''}
             onChange={(event) => set({ q: event.target.value })}
-            style={{ width: '100%', boxSizing: 'border-box', marginBottom: 12, fontSize: 13, padding: '6px 12px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            css-width="100%" css-box-sizing="border-box" css-margin-bottom="12" css-font-size="13" css-padding="6px-12px" css-border-radius="6" css-background="bg" css-color="text" css-border="1px-solid-border"
           />
           <RailBlock first id="sort" icon={ArrowUpDown} title="Sort">
             <RailSortList fields={SORTS} sort={order.sort} dir={order.dir} onSort={(sort) => props.onOrder(sort === order.sort ? { sort, dir: order.dir === 'asc' ? 'desc' : 'asc' } : { sort, dir: SORT_FIRST[sort] })} />
@@ -782,9 +783,9 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: 
             title="Filters"
             action={
               active && (
-                <button type="button" data-rail-icon onClick={() => props.onChange({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+                <PlainButton type="button" data-rail-icon onClick={() => props.onChange({})} css-gap="2" css-align-items="center" css-font-size="12">
                   <X size={11} aria-hidden="true" /> Clear
-                </button>
+                </PlainButton>
               )
             }
           >
@@ -818,9 +819,9 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: 
       <Box flex minW0 items="center" gap="1.5" px="1" data-filter-status>
         {props.children}
         {active && (
-          <button type="button" className="text-xs underline" onClick={() => props.onChange({})} data-filter-clear-inline>
+          <PlainButton type="button" size="xs" underline onClick={() => props.onChange({})} data-filter-clear-inline>
             Clear filters
-          </button>
+          </PlainButton>
         )}
       </Box>
     </>
@@ -837,7 +838,7 @@ export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
 function PlansActions(props: { onNewPlan: () => void; onRefresh: () => void; busy: boolean }) {
   return (
     <>
-      <IconLabel style={COMPACT_BTN} icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
+      <IconLabel look={COMPACT} icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
         New spec
       </IconLabel>
       <IconBtn icon={RefreshCw} label="Refresh specs" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
@@ -876,7 +877,7 @@ function RowButtons(props: {
         <IconBtn icon={ArchiveRestore} label={`Unarchive ${row.name}`} tooltip={UNARCHIVE_TIP} disabled={props.busy} onClick={props.onUnarchive} />
       )}
       {props.onDelete && actions.deletable && (
-        <IconBtn icon={Trash2} label={`Delete ${row.name}`} tooltip="Delete this spec. You confirm first; it stays in history." disabled={props.busy} onClick={props.onDelete} style={dangerStyle} />
+        <IconBtn icon={Trash2} label={`Delete ${row.name}`} tooltip="Delete this spec. You confirm first; it stays in history." disabled={props.busy} onClick={props.onDelete} look={DANGER} />
       )}
     </Box>
   )
@@ -924,14 +925,13 @@ export function SpecList(props: {
         const selected = row.key === props.selected
         const batch = row.planId ? batchOf.get(row.planId) : undefined
         const button = (
-          <button
+          <PlainButton
             type="button"
             data-plan-row={row.key}
             data-spec-chip={chip}
             aria-current={selected ? 'true' : undefined}
             onClick={() => props.onOpen(row)}
-            className="flex w-full min-w-0 flex-col items-stretch gap-0.5 px-2 py-1.5 text-left"
-            style={{ background: selected ? 'var(--accent-subtle, var(--bg-elevated))' : 'none', border: 0, borderRadius: 6, color: 'inherit', cursor: 'pointer' }}
+            css-background={selected ? 'accent-subtle-bg-elevated' : 'none'} css-border="0" css-border-radius="6" css-color="inherit" css-cursor="pointer" flex wFull minW0 flexCol items="stretch" gap="0.5" px="2" py="1.5" align="left"
           >
             <Box as="span" flex minW0 items="center" gap="2">
               {chip === 'draft' ? (
@@ -965,7 +965,7 @@ export function SpecList(props: {
               {batch !== undefined && <Badge>Batch {batch}</Badge>}
               {row.archived && <Badge>Archived</Badge>}
             </Box>
-          </button>
+          </PlainButton>
         )
         return (
           <Box key={row.key} as="li" css-border-color="border" flex items="center" gap="1" border="t" firstBorderT0>
@@ -1124,7 +1124,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
                 aria-describedby={describedBy}
                 disabled={props.busy || !primaryButton.onClick}
                 onClick={primaryButton.onClick}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: 0 }}
+                css-display="inline-flex" css-align-items="center" css-gap="4" css-padding="4px-10px" css-font-size="12" css-font-weight="500" css-border-radius="8" css-border="0"
               >
                 <PrimaryIcon size={13} aria-hidden="true" />
                 {primaryButton.label}
@@ -1167,9 +1167,9 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
 function GithubLink(props: { link: { url: string }; children: ReactNode }) {
   if (!safeHref(props.link.url)) return <>{props.children}</>
   return (
-    <a href={safeHref(props.link.url)!} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2" style={{ overflowWrap: 'anywhere' }} data-spec-link>
+    <PlainLink href={safeHref(props.link.url)!} target="_blank" rel="noopener noreferrer" css-overflow-wrap="anywhere" underline underlineOffset2 data-spec-link>
       {props.children}
-    </a>
+    </PlainLink>
   )
 }
 
@@ -1218,9 +1218,9 @@ function LinksSection(props: { links: SpecLinks | null | undefined; loading: boo
                 <Tooltip text={dot.label}>
                   {(describedBy) =>
                     pull.checks?.url && safeHref(pull.checks.url) ? (
-                      <a href={safeHref(pull.checks.url)!} target="_blank" rel="noopener noreferrer" aria-label={dot.label} aria-describedby={describedBy} data-check-dot={pull.checks.dot} className="inline-flex shrink-0">
+                      <PlainLink href={safeHref(pull.checks.url)!} target="_blank" rel="noopener noreferrer" aria-label={dot.label} aria-describedby={describedBy} data-check-dot={pull.checks.dot} inlineFlex shrink0>
                         <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: dot.color }} />
-                      </a>
+                      </PlainLink>
                     ) : (
                       <span role="img" aria-label={dot.label} aria-describedby={describedBy} data-check-dot={pull.checks?.dot ?? 'none'} className="inline-flex shrink-0" style={{ width: 8, height: 8, borderRadius: '50%', background: dot.color }} />
                     )
@@ -1294,9 +1294,9 @@ function SpecRail(props: {
       {row.kind !== 'epic' && (
         <RailSection title="Epic" edit={edit('epic')}>
           {row.epic ? (
-            <button type="button" className="text-left underline" onClick={() => props.onDrill({ kind: 'epic', id: row.epic!, title: row.epicTitle ?? row.epic! })}>
+            <PlainButton type="button" align="left" underline onClick={() => props.onDrill({ kind: 'epic', id: row.epic!, title: row.epicTitle ?? row.epic! })}>
               {row.epicTitle ?? row.epic}
-            </button>
+            </PlainButton>
           ) : (
             <span style={{ color: muted }}>No epic</span>
           )}
@@ -1335,7 +1335,7 @@ function SpecRail(props: {
               return (
                 <li key={id ?? '(none)'}>
                   <Tooltip text={`Show only ${phase.title} in the Graph`} display="block">
-                    <button type="button" className="w-full rounded px-1 py-0.5 text-left hover:bg-accent/10" onClick={() => props.onDrill({ kind: 'phase', plan: row.planId, id, title: phase.title })}>
+                    <PlainButton type="button" wFull rounded="base" px="1" py="0.5" align="left" hoverBgAccent10 onClick={() => props.onDrill({ kind: 'phase', plan: row.planId, id, title: phase.title })}>
                       <Box as="span" flex justify="between" gap="2">
                         <Box as="span" truncate>{phase.title}</Box>
                         <span className="shrink-0" style={{ color: muted }}>
@@ -1343,9 +1343,9 @@ function SpecRail(props: {
                         </span>
                       </Box>
                       <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
-                        <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
+                        <Box as="span" css-width={`${percent}%`} css-background="ok" block hFull />
                       </Box>
-                    </button>
+                    </PlainButton>
                   </Tooltip>
                 </li>
               )
@@ -1366,15 +1366,14 @@ function SpecRail(props: {
         </Box>
         {row.planId && leaves.length > 0 && (
           <Tooltip text="Show this spec's live dependency tree in the Graph" display="block">
-            <button
+            <PlainButton
               type="button"
-              className="mt-2 text-left underline underline-offset-2"
-              style={{ color: 'var(--accent)' }}
+              css-color="accent" mt="2" align="left" underline underlineOffset2
               data-spec-open-tree={row.planId}
               onClick={() => props.onDrill({ kind: 'spec', id: row.planId!, title: row.name })}
             >
               open tree →
-            </button>
+            </PlainButton>
           </Tooltip>
         )}
       </RailSection>
@@ -1392,9 +1391,9 @@ function SpecRail(props: {
           <Stack as="ul" gap={1}>
             {decisions.map((task) => (
               <li key={task.id}>
-                <button type="button" className="text-left underline" onClick={() => props.onOpenTask(task.id)}>
+                <PlainButton type="button" align="left" underline onClick={() => props.onOpenTask(task.id)}>
                   {task.title}
-                </button>
+                </PlainButton>
                 <span className="block" style={{ color: muted }}>{task.decision}</span>
               </li>
             ))}
@@ -1407,9 +1406,9 @@ function SpecRail(props: {
             <Stack as="ul" gap={1}>
               {tabs.map((tab) => (
                 <li key={tab.file}>
-                  <button type="button" className="font-medium hover:underline" onClick={() => jump(`avoozl-doc-${tab.file}`)}>
+                  <PlainButton type="button" weight="medium" hoverUnderline onClick={() => jump(`avoozl-doc-${tab.file}`)}>
                     {tab.label}
-                  </button>
+                  </PlainButton>
                   <Stack as="ul">
                     {outline(tab.text, docPrefix(tab.file), 2)
                       .filter((h) => h.level === 2)
@@ -1479,7 +1478,7 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
       onDismiss={() => props.onDone(null)}
       footer={
         <>
-          <Btn type="button" primary data-archive-confirm style={COMPACT_BTN} disabled={busy} onClick={() => void run()}>
+          <Btn type="button" primary data-archive-confirm {...COMPACT} disabled={busy} onClick={() => void run()}>
             Archive spec
           </Btn>
         </>
@@ -1513,7 +1512,7 @@ function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () =>
           do not start, and it is hidden unless Show archived is on.
         </Hint>
       </Box>
-      <IconLabel style={COMPACT_BTN} icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
+      <IconLabel look={COMPACT} icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
         Unarchive
       </IconLabel>
     </Box>
@@ -1564,7 +1563,7 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
       onDismiss={() => props.onDone(null)}
       footer={
         <>
-          <Button type="button" variant="danger" disabled={!preview || busy || blocked} onClick={() => void run()} style={COMPACT_BTN}>
+          <Button type="button" variant="danger" disabled={!preview || busy || blocked} onClick={() => void run()} {...COMPACT}>
             Delete spec
           </Button>
         </>
@@ -1718,7 +1717,7 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
           Approve exactly revision{' '}
           {base ? (
             <Tooltip text={`Show changes since ${base.approved ? 'the approved' : 'the previous'} revision ${shortHash(base.hash)}`}>
-              <button type="button" className="underline" style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }} aria-expanded={showDiff} onClick={() => setShowDiff(!showDiff)} data-revision-diff-toggle><code>{shortHash(plan.hash)}</code></button>
+              <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" underline aria-expanded={showDiff} onClick={() => setShowDiff(!showDiff)} data-revision-diff-toggle><code>{shortHash(plan.hash)}</code></PlainButton>
             </Tooltip>
           ) : <Tooltip text={plan.hash}><code>{shortHash(plan.hash)}</code></Tooltip>}
           . Review findings are evidence for your decision; they do not block approval.

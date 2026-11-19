@@ -170,10 +170,10 @@ import {
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import { landingView } from "./landing-view.mjs";
 import { epicsView } from "./epics-view.mjs";
-import { integratorNeedsYou } from "./landing-lease.mjs";
-import { landingQueueView } from "./landing-queue-view.mjs";
-import { reviewBranch } from "./integrator-review.mjs";
-import { integratorStatus, submitBranch } from "./integrator-trains.mjs";
+import {
+  landingQueueView,
+  landingWaitNeedsYou,
+} from "./landing-queue-view.mjs";
 import {
   checkIntegrationBranch,
   requireIntegrationBranch,
@@ -310,7 +310,11 @@ import {
   refreshUntriaged,
   untriagedView,
 } from "./untriaged.mjs";
-import { requestReviewChat, reviewChats } from "./pr-review.mjs";
+import {
+  requestReviewChat,
+  reviewChats,
+  showReviewChat,
+} from "./pr-review.mjs";
 import {
   postReviewDraft,
   reviewDraftNeedsYou,
@@ -3402,12 +3406,6 @@ export class Operations {
         mcp: context.mcp === true,
         local: context.local === true,
       });
-    // Queue a branch Avoozl did not start (landing-trains, LT1.4).
-    if (name === "landing.submit")
-      return submitBranch(store, this.workspaceRoot, input);
-    // Open the review pull request for a queued batch branch (LT1.6).
-    if (name === "landing.review")
-      return reviewBranch(store, { github: this.github, taskId: input.taskId });
     if (name === "delivery.retry")
       return retryDelivery(store, input, {
         caller: context.caller,
@@ -3580,11 +3578,6 @@ export class Operations {
         contentBinding(store)?.plugins.clear();
       return result;
     }
-    // The integrator's leases and running trains, from the store (LT2.5).
-    if (name === "integrator.status")
-      return integratorStatus(store, {
-        config: loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config,
-      });
     if (name === "workspace.tick.health") return tickHealth(store);
     if (name === "workspace.tick.log") return tickLog(store, input);
     if (name === "highlight.languages")
@@ -3721,7 +3714,12 @@ export class Operations {
       };
     // Dashboards › Landing queue: per base, in order, with hold reasons;
     // from the store only, so Refresh never calls GitHub (44.5).
-    if (name === "landing.queue") return landingQueueView(store, this.read());
+    if (name === "landing.queue")
+      return landingQueueView(store, this.read(), {
+        config: this.workspaceRoot
+          ? loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config
+          : null,
+      });
     if (name === "conflicts.view") {
       const data = this.read(),
         view = conflictsView(store, data),
@@ -3737,7 +3735,7 @@ export class Operations {
       view.items.push(...gateNeedsYou(store));
       if (this.kirocrewAbsent) view.items.push(...kirocrewPinNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
-      view.items.push(...integratorNeedsYou(store));
+      view.items.push(...landingWaitNeedsYou(store, this.read()));
       view.items.push(...syncNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
@@ -4661,6 +4659,7 @@ export class Operations {
     }
     // Code review (§8.5): queue one review chat for a pull request; the
     // tick cron opens it. Person-only, like Send to Issue Radar.
+    if (name === "review.chat.show") return showReviewChat(store, input.id);
     if (name === "review.chat") {
       if (context.caller || context.mcp)
         fail(
@@ -6819,8 +6818,6 @@ export class Operations {
         store,
         this.github,
         {
-          branchPrefix: loadLayeredConfig({ workspaceRoot: this.workspaceRoot })
-            .config.landing?.trains?.branchPrefix,
           ...input,
         },
         {

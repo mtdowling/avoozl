@@ -11,6 +11,7 @@ import Badge from './ui/Badge.tsx'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export function FolderField(props: {
   id: string
@@ -70,9 +71,9 @@ export function FolderField(props: {
           placeholder={props.placeholder}
           required={props.required}
           onChange={(event) => props.onChange(event.target.value)}
-          style={{ flex: 1, minWidth: 0 }}
+          css-flex="1" css-min-width="0"
         />
-        <Btn type="button" data-folder-browse aria-expanded={open} aria-controls={`${props.id}-browser`} onClick={toggle} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <Btn type="button" data-folder-browse aria-expanded={open} aria-controls={`${props.id}-browser`} onClick={toggle} css-display="inline-flex" css-align-items="center" css-gap="6" css-flex-shrink="0">
           <FolderOpen size={14} aria-hidden="true" /> Browse
         </Btn>
       </Row>
@@ -80,7 +81,7 @@ export function FolderField(props: {
       {open && (
         <Box id={`${props.id}-browser`} data-folder-browser css-border-color="border" flex flexCol rounded="base" border="all">
           <Box css-border-color="border" flex items="center" gap="2" border="b" px="2" py="1">
-            <Btn type="button" data-folder-up aria-label="Up one folder" disabled={!listing?.parent || loading} onClick={() => listing?.parent && pick(listing.parent)} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 6px' }}>
+            <Btn type="button" data-folder-up aria-label="Up one folder" disabled={!listing?.parent || loading} onClick={() => listing?.parent && pick(listing.parent)} css-display="inline-flex" css-align-items="center" css-padding="0-6px">
               <ArrowUp size={14} aria-hidden="true" />
             </Btn>
             <Box as="span" css-overflow-wrap="anywhere" minW0 flex1 size="xs" tone="muted" data-folder-at>
@@ -97,17 +98,16 @@ export function FolderField(props: {
             {listing && listing.folders.length === 0 && <Box as="li" px="2" py="1" size="xs" tone="muted">No folders here.</Box>}
             {listing?.folders.map((folder) => (
               <li key={folder.path}>
-                <button
+                <PlainButton
                   type="button"
                   data-folder={folder.name}
                   onClick={() => pick(folder.path)}
-                  className="flex w-full items-center gap-2 px-2 py-1 text-left text-sm"
-                  style={{ background: 'none', border: 0, color: 'var(--text)', cursor: 'pointer' }}
+                  css-background="none" css-border="0" css-color="text" css-cursor="pointer" flex wFull items="center" gap="2" px="2" py="1" align="left" size="sm"
                 >
                   <Folder size={14} aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }} />
                   <Box as="span" minW0 flex1 truncate>{folder.name}</Box>
                   {folder.workspace && <Badge variant="info">Workspace</Badge>}
-                </button>
+                </PlainButton>
               </li>
             ))}
             {listing?.truncated && <Box as="li" px="2" py="1" size="xs" tone="muted">Only the first 500 folders show. Type the rest of the path.</Box>}

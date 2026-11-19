@@ -1,21 +1,21 @@
-// Direct landing: exact verified portions and bounded trains (Requirement
-// 87.1, 87.2, 87.4, 87.9, 102.13 and 102.15, design §4.32.5 and §4.32.7,
-// task 41.3). Plugs the git and check steps into the per-base landing queue
-// (landing-queue.mjs).
+// Direct landing in merge batches (Requirements MB1 to MB6; 87.1, 87.2,
+// 87.4, 87.9, 102.13 and 102.15). Plugs the git and check steps into the
+// per-base landing queue (landing-queue.mjs).
 //
-// - A portion is an exact commit on a spec's working branch that passed its
+// - A member is an exact commit on a spec's working branch that passed its
 //   checks (`verifiedEvidence`, working-heads.mjs), with each task's
-//   definition. Nothing else enters the queue.
-// - A train is up to four tasks one driver schedules, possibly from several
-//   specs. A landing worktree merges them, in queue order, with the current
-//   base; the queue checks that exact candidate, halves a failed train and
-//   lands a passing one (landing-queue.mjs).
+//   definition. Nothing else enters the queue. Waiting members are local
+//   refs under refs/avoozl/land/ (`holdMember`); only the base is pushed.
+// - A merge batch is up to the base's size limit of members, possibly from
+//   several specs and drivers. A landing worktree stacks them, in queue
+//   order, on the base; the queue checks that exact candidate, finds the
+//   culprit of a failed one and lands a passing one (landing-queue.mjs).
 // - Declared append-only `landing.unionPaths` merge with union semantics,
-//   only in that landing worktree. Any other conflict refuses the portion.
-//   The union result still has to pass every check.
+//   only in that landing worktree. Any other conflict sends the later
+//   member back. The union result still has to pass every check.
 // - Before the push, the outgoing range is scanned (`privacyScan`); a hit
 //   fails the candidate like a check, so nothing is pushed.
-// - Each spec in the train gets an intent, read back before the push
+// - Each spec in the batch gets an intent, read back before the push
 //   (`landIntent`, driver-generations.mjs). The push is a guarded
 //   fast-forward from the recorded base; never forced.
 import fs from "node:fs";
@@ -29,7 +29,6 @@ import { privacyScan, verifiedEvidence } from "./working-heads.mjs";
 import { mergeBaseBack } from "./spec-base.mjs";
 import { fail } from "./store.mjs";
 
-export const TRAIN_TASKS = 4;
 const DIGEST = /^[0-9a-f]{64}$/;
 const NO_PROMPT = { GIT_TERMINAL_PROMPT: "0" };
 
@@ -113,10 +112,23 @@ export async function unionMerge(dir, file) {
   }
 }
 
-// Merges each portion, in order, into `baseHead` in a fresh detached
-// landing worktree. {candidate} or {conflict: files, key}. The worktree is
-// removed before returning; its commits stay in `root`.
-export async function mergeTrain(root, entries, baseHead, unionPaths = []) {
+// A waiting member is a local ref in the checkout that lands, at its
+// verified commit. `refs/avoozl/` is not under `refs/heads/`, so a plain
+// push never sends it and no CI runs on it (MB6). A worker machine's result
+// is fetched into the same ref.
+export const memberRef = (key) =>
+  `refs/avoozl/land/${String(key).replace(/[^A-Za-z0-9._-]/g, "_")}`;
+
+export const holdMember = (root, entry) =>
+  git(root, ["update-ref", memberRef(entry.key), entry.commit]);
+
+export const dropMember = (root, entry) =>
+  git(root, ["update-ref", "-d", memberRef(entry.key)]).catch(() => {});
+
+// Stacks each member, in order, on `baseHead` in a fresh detached landing
+// worktree. {candidate} or {conflict: files, key}. The worktree is removed
+// before returning; its commits stay in `root`.
+export async function stackMembers(root, entries, baseHead, unionPaths = []) {
   const union = new Set(unionPaths),
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-landing-"));
   try {
@@ -132,7 +144,7 @@ export async function mergeTrain(root, entries, baseHead, unionPaths = []) {
           "--quiet",
           "-m",
           message,
-          entry.commit,
+          memberRef(entry.key),
         ]);
         continue;
       } catch {}
@@ -225,17 +237,24 @@ export function directSteps({
       await git(root, ["fetch", "--quiet", url, `refs/heads/${branch}`], {
         env: environment,
       });
-      return mergeTrain(root, entries, baseHead, unionPaths);
+      for (const entry of entries) await holdMember(root, entry);
+      return stackMembers(root, entries, baseHead, unionPaths);
     },
-    async check(candidate, entries, baseHead) {
+    // `only` names the checks to run again (a rerun or a bisect step); the
+    // content scan is one of them. Every selected check runs, so the failing
+    // ones are all known.
+    async check(candidate, entries, baseHead, only) {
+      const wanted = (name) => !only || only.includes(name);
       // The outgoing data first: everything the base lacks.
-      const hits = await scan(root, {
-        base: baseHead,
-        head: candidate,
-        refs: [branch],
-        machine,
-        configFile,
-      });
+      const hits = wanted("content scan")
+        ? await scan(root, {
+            base: baseHead,
+            head: candidate,
+            refs: [branch],
+            machine,
+            configFile,
+          })
+        : [];
       if (hits.length)
         return {
           ok: false,
@@ -249,11 +268,17 @@ export function directSteps({
         };
       const out = [];
       for (const argv of checks) {
+        if (!wanted(argv.join(" "))) continue;
         const result = await run({ root, checksEnv }, candidate, argv);
-        out.push({ command: argv.join(" "), exitCode: result.exitCode });
-        if (result.exitCode !== 0) return { ok: false, checks: out };
+        out.push({
+          command: argv.join(" "),
+          exitCode: result.exitCode,
+          ...(result.exitCode !== 0 && result.tail
+            ? { tail: result.tail }
+            : {}),
+        });
       }
-      return { ok: true, checks: out };
+      return { ok: out.every((c) => c.exitCode === 0), checks: out };
     },
     async land({ entries, candidate, baseHead, checks: passed = [] }) {
       const specs = [...new Set(entries.map((e) => e.spec))],

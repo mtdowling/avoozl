@@ -11,6 +11,7 @@ import type { FieldRule } from './settings-api.ts'
 import { Hint } from './ui/Hint'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export const FIELD_WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 export type FieldWidth = keyof typeof FIELD_WIDTH
@@ -88,7 +89,7 @@ export function FieldRow(props: {
   children: ReactNode
 }) {
   const note = props.note ?? props.rule?.blank
-  const control = <div style={{ display: 'flex', minWidth: 0, maxWidth: props.width ? (FIELD_WIDTH[props.width as FieldWidth] ?? props.width) : undefined, flexDirection: 'column' }}>{props.children}</div>
+  const control = <Box css-display="flex" css-min-width="0" css-max-width={props.width ? (FIELD_WIDTH[props.width as FieldWidth] ?? props.width) : undefined} css-flex-direction="column">{props.children}</Box>
   const label = (
     <Box htmlFor={props.id} as="label" css-column-gap="8" css-row-gap="2" css-align-content="flex-start" css-align-self="start" flex flexWrap items="baseline" data-field-label>
       <Box as="span" weight="medium">{props.label}</Box>
@@ -116,9 +117,9 @@ export function FieldRow(props: {
       {control}
       {lines}
       {props.onReset && (
-        <button type="button" className="self-start text-xs underline" style={{ color: 'var(--accent)' }} onClick={props.onReset} data-field-reset={props.id}>
+        <PlainButton type="button" css-color="accent" self="start" size="xs" underline onClick={props.onReset} data-field-reset={props.id}>
           Reset to default{props.defaultText ? ` (${props.defaultText})` : ''}
-        </button>
+        </PlainButton>
       )}
       {props.raw ? <RawKey name={props.raw} /> : props.align ? <span /> : null}
     </div>
@@ -142,8 +143,8 @@ export function CheckRow(props: { id?: string; label: ReactNode; checked: boolea
 // Fields on a grid: as many columns as fit, each at least `min`.
 export function FieldGrid({ children, min = '13rem', align, group }: { children: ReactNode; min?: string; align?: boolean; group?: string }) {
   return (
-    <div data-field-grid data-flow-group={group} style={{ display: 'grid', columnGap: 16, rowGap: align ? 4 : 12, gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${min}), 1fr))`, alignItems: 'start' }}>
+    <Box data-field-grid data-flow-group={group} css-display="grid" css-column-gap="16" css-row-gap={align ? '4' : '12'} css-grid-template-columns={`repeat(auto-fill, minmax(min(100%, ${min}), 1fr))`} css-align-items="start">
       {children}
-    </div>
+    </Box>
   )
 }

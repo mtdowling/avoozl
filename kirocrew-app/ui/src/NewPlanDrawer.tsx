@@ -37,6 +37,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainTextarea } from './ui/Plain'
 
 // Spec Builder resolves symlinks (/tmp is /private/tmp on macOS).
 const samePath = (left: string, right: string) => {
@@ -44,7 +45,6 @@ const samePath = (left: string, right: string) => {
   return plain(left) === plain(right)
 }
 
-const fieldStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
 function Field(props: { id: string; label: string; need: 'required' | 'optional'; hint?: string; problem?: string | null; children: ReactNode }) {
   return (
@@ -273,23 +273,21 @@ export default function NewPlanDrawer(props: {
             )}
           </Box>
           <Field id="avoozl-new-plan-goal" need="required" label="What you want" hint="The planner's first prompt: the goal, who it is for, and what done looks like." problem={tried && !form.goal.trim() ? 'Say what you want.' : null}>
-            <textarea
+            <PlainTextarea
               id="avoozl-new-plan-goal"
               rows={6}
               value={form.goal}
               onChange={(event) => set({ goal: event.target.value })}
-              className="rounded border px-2 py-1 text-sm"
-              style={fieldStyle}
+              css-border-color="border" css-color="text" css-background="card-transparent" rounded="base" border="all" px="2" py="1" size="sm"
             />
           </Field>
           <Field id="avoozl-new-plan-context" need="optional" label="Links and context" hint="Files, issues and notes the planner should read.">
-            <textarea
+            <PlainTextarea
               id="avoozl-new-plan-context"
               rows={4}
               value={form.context}
               onChange={(event) => set({ context: event.target.value })}
-              className="rounded border px-2 py-1 text-sm"
-              style={fieldStyle}
+              css-border-color="border" css-color="text" css-background="card-transparent" rounded="base" border="all" px="2" py="1" size="sm"
             />
           </Field>
     </>
@@ -312,11 +310,11 @@ export default function NewPlanDrawer(props: {
       footer={
         <>
           {tried && start === null && (
-            <span role="alert" className="mr-auto text-xs text-danger" style={{ order: -1 }} data-start-problem>
+            <Box role="alert" as="span" css-order={-1} mrAuto size="xs" tone="danger" data-start-problem>
               Pick Blank, From template or From a goal.
-            </span>
+            </Box>
           )}
-          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || start === null || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || start === null || repositories === null || steering !== null} css-display="inline-flex" css-align-items="center" css-gap="6">
             {start === 'template' || start === 'goal' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
             {busy ? 'Opening…' : start === 'template' || start === 'goal' ? 'Open a planner chat' : start === 'blank' ? 'Open in Spec Builder' : 'Pick how to start'}
           </Btn>
@@ -349,7 +347,7 @@ export default function NewPlanDrawer(props: {
               aria-describedby={nameIssue ? 'avoozl-new-plan-name-problem' : undefined}
               onChange={(event) => set({ name: event.target.value })}
               onBlur={() => setNameTouched(true)}
-              style={{ maxWidth: '24rem' }}
+              css-max-width="24rem"
             />
           </Field>
           <Field id="avoozl-new-plan-category" need="optional" label="Category" hint="Pick one, or New category to name one. Left blank, the spec is Uncategorized.">
@@ -367,7 +365,7 @@ export default function NewPlanDrawer(props: {
               }}
             />
             {newCategory && (
-              <Input id="avoozl-new-plan-category-new" aria-label="New category" value={form.category} placeholder="Platform" onChange={(event) => set({ category: event.target.value })} style={{ maxWidth: '18rem' }} />
+              <Input id="avoozl-new-plan-category-new" aria-label="New category" value={form.category} placeholder="Platform" onChange={(event) => set({ category: event.target.value })} css-max-width="18rem" />
             )}
           </Field>
           <Field
@@ -391,7 +389,7 @@ export default function NewPlanDrawer(props: {
               }}
             />
             {newEpic && (
-              <Input id="avoozl-new-plan-epic-new" aria-label="New epic folder name" value={form.epic} placeholder="rewrite" onChange={(event) => set({ epic: event.target.value })} style={{ maxWidth: '18rem' }} />
+              <Input id="avoozl-new-plan-epic-new" aria-label="New epic folder name" value={form.epic} placeholder="rewrite" onChange={(event) => set({ epic: event.target.value })} css-max-width="18rem" />
             )}
           </Field>
           <RadioFold<Start>
@@ -413,13 +411,12 @@ export default function NewPlanDrawer(props: {
                 fields: (
                   <Stack gap={3}>
           <Field id="avoozl-new-plan-phases" need="optional" label="Phases" hint="One per line; each becomes a heading in tasks.md. Left blank, the planner picks them.">
-            <textarea
+            <PlainTextarea
               id="avoozl-new-plan-phases"
               rows={3}
               value={form.phases}
               onChange={(event) => set({ phases: event.target.value })}
-              className="rounded border px-2 py-1 text-sm"
-              style={fieldStyle}
+              css-border-color="border" css-color="text" css-background="card-transparent" rounded="base" border="all" px="2" py="1" size="sm"
             />
           </Field>
           {sharedFields}
@@ -488,7 +485,7 @@ export default function NewPlanDrawer(props: {
           )}
           {fallback && (
             <div>
-              <Btn type="button" disabled={busy} onClick={() => void plannerChat()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Btn type="button" disabled={busy} onClick={() => void plannerChat()} css-display="inline-flex" css-align-items="center" css-gap="6">
                 <MessageSquare size={ICON} aria-hidden="true" />
                 Use an Avoozl planner chat instead
               </Btn>

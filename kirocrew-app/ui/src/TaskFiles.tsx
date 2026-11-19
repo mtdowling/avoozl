@@ -38,6 +38,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 // A diff longer than this many lines shows its start, then a button.
 export const DIFF_LINES = 1500
@@ -83,12 +84,11 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
       {props.nodes.map((node) =>
         node.file ? (
           <li key={node.path}>
-            <button
+            <PlainButton
               type="button"
               aria-current={props.selected === node.path ? 'true' : undefined}
               onClick={() => props.onPick(node.path)}
-              className="flex w-full min-w-0 items-center gap-2 rounded px-1 py-0.5 text-left text-sm"
-              style={{ paddingLeft: 4 + props.depth * 14, background: props.selected === node.path ? 'var(--bg-elevated)' : undefined, color: node.change ? 'var(--text)' : 'var(--muted)' }}
+              css-padding-left={4 + props.depth * 14} css-background={props.selected === node.path ? 'bg-elevated' : undefined} css-color={node.change ? 'text' : 'muted'} flex wFull minW0 items="center" gap="2" rounded="base" px="1" py="0.5" align="left" size="sm"
               data-file={node.path}
             >
               {node.change ? <StatusBadge change={node.change} /> : <Box as="span" css-width="18" aria-hidden="true" />}
@@ -98,14 +98,14 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
                 {node.change?.untracked && <Hint size="xs"> (not committed)</Hint>}
               </Box>
               {node.change && <Counts change={node.change} />}
-            </button>
+            </PlainButton>
           </li>
         ) : (
           <li key={node.path}>
-            <div className="flex items-center gap-1 px-1 py-0.5 text-sm text-muted" style={{ paddingLeft: 4 + props.depth * 14 }}>
+            <Box css-padding-left={4 + props.depth * 14} flex items="center" gap="1" px="1" py="0.5" size="sm" tone="muted">
               <Folder size={14} aria-hidden="true" />
               <Box as="span" truncate>{node.name}</Box>
-            </div>
+            </Box>
             <Tree nodes={node.children} depth={props.depth + 1} selected={props.selected} onPick={props.onPick} />
           </li>
         ),
@@ -209,9 +209,9 @@ function Diff(props: { diff: DiffView; layout: 'unified' | 'split' }) {
         {props.layout === 'split' ? <SplitDiff lines={shown} /> : <UnifiedDiff lines={shown} />}
       </Box>
       {shown.length < lines.length && (
-        <button type="button" className="self-start text-xs underline" onClick={() => setFull(true)}>
+        <PlainButton type="button" self="start" size="xs" underline onClick={() => setFull(true)}>
           Show the other {lines.length - shown.length} lines
-        </button>
+        </PlainButton>
       )}
     </Stack>
   )
@@ -276,10 +276,10 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
   // Open in editor needs the files on this machine: the task's own worktree.
   const local = view.mode === 'worktree' && !view.remote && view.worktree
   const branchLink = github && (
-    <a href={safeHref(github)!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm underline" data-github-branch>
+    <PlainLink href={safeHref(github)!} target="_blank" rel="noreferrer" inlineFlex items="center" gap="1" size="sm" underline data-github-branch>
       <GitBranch size={14} aria-hidden="true" />
       {view.branch} on GitHub
-    </a>
+    </PlainLink>
   )
   if (view.mode === 'none')
     return (
@@ -318,10 +318,10 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
       <Box flex flexWrap items="center" gap="2" size="xs">
         <Hint>{view.mode === 'worktree' ? 'Its worktree' : `Its branch ${view.branch}`} against where it left its base.</Hint>
         {local ? (
-          <a href={editorHref(editor, view.worktree!)!} className="inline-flex items-center gap-1 underline" data-open-worktree>
+          <PlainLink href={editorHref(editor, view.worktree!)!} inlineFlex items="center" gap="1" underline data-open-worktree>
             <ExternalLink size={14} aria-hidden="true" />
             Open worktree in {EDITORS.find((e) => e.key === editor)!.label}
-          </a>
+          </PlainLink>
         ) : (
           branchLink
         )}
@@ -368,10 +368,10 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
               onChange={(key) => setLayout(key as 'unified' | 'split')}
             />
             {fileHref && (
-              <a href={editorHref(editor, fileTarget!.path, fileTarget!.line)!} className="inline-flex items-center gap-1 text-xs underline" data-open-file>
+              <PlainLink href={editorHref(editor, fileTarget!.path, fileTarget!.line)!} inlineFlex items="center" gap="1" size="xs" underline data-open-file>
                 <ExternalLink size={14} aria-hidden="true" />
                 Open in {EDITORS.find((e) => e.key === editor)!.label}
-              </a>
+              </PlainLink>
             )}
           </Row>
           {diff.error ? (

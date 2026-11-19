@@ -20,6 +20,7 @@ import { StageLegend } from './FlowView.tsx'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 const W = 300,
   H = 90,
@@ -85,7 +86,7 @@ function Bars({ rows }: { rows: UsageRow[] }) {
   return (
     <Box css-height="90" flex items="end" gap="1" role="img" aria-label={rows.map((r) => `${r.key}: ${usageText(r)}`).join(', ')}>
       {rows.map((r) => (
-        <span key={r.key} className="rounded-sm" style={{ display: 'block', flex: 'none', height: Math.max(2, Math.round((H * value(r)) / max)), width: 14, background: 'var(--accent)' }} />
+        <Box key={r.key} as="span" css-display="block" css-flex="none" css-height={Math.max(2, Math.round((H * value(r)) / max))} css-width="14" css-background="accent" rounded="sm" />
       ))}
     </Box>
   )
@@ -107,9 +108,9 @@ function UnitPicker({ unit, onUnit }: { unit: Unit; onUnit: (unit: Unit) => void
   return (
     <Box role="radiogroup" aria-label="Group by" css-background="bg-elevated" inlineFlex gap="1" rounded="lg" p="1">
       {(['day', 'week'] as const).map((u) => (
-        <button key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onUnit(u)} className="rounded-md px-2.5 py-1 text-xs font-medium" style={{ background: unit === u ? 'var(--card)' : 'transparent', color: 'var(--text)', boxShadow: unit === u ? 'inset 0 0 0 1px var(--accent)' : 'none' }}>
+        <PlainButton key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onUnit(u)} css-background={unit === u ? 'card' : 'transparent'} css-color="text" css-box-shadow={unit === u ? 'inset-0-0-0-1px-accent' : 'none'} rounded="md" px="2.5" py="1" size="xs" weight="medium">
           {u === 'day' ? 'By day' : 'By week'}
-        </button>
+        </PlainButton>
       ))}
     </Box>
   )
@@ -119,7 +120,7 @@ export function FlowCharts({ view, unit, onUnit }: { view: FlowViewModel; unit: 
   const points = view.series?.[unit] ?? [],
     none = !points.length
   return (
-    <Card className="flex flex-col gap-3">
+    <Card flex flexCol gap="3">
       <SectionHeading title="Over time" actions={<UnitPicker unit={unit} onUnit={onUnit} />} />
       <Box css-grid-template-columns="repeat-auto-fill-minmax-min-100%-16rem-1fr" grid gap="3" data-flow-charts>
         <Chart title="Lead time (median)" empty={none}>
@@ -173,7 +174,7 @@ export function UsagePanel({ view, unit }: { view: FlowViewModel; unit: Unit }) 
   const message = usageMessage(usage)
   const rows = unit === 'day' ? usage?.byDay ?? [] : usage?.byWeek ?? []
   return (
-    <Card className="flex flex-col gap-3" data-usage-card>
+    <Card flex flexCol gap="3" data-usage-card>
       <SectionHeading title="Tokens and credits" />
       {message || !usage ? (
         <Hint as="p" size="sm">{message}</Hint>

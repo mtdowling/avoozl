@@ -138,8 +138,7 @@ test("avoozl public-crews stop runs the same operation from the CLI", () => {
     cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url)),
     env = { ...process.env, XDG_CONFIG_HOME: config };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE|KIROCREW)(_|$)|^PORT$/.test(name))
-      delete env[name];
+    if (/^(AVOOZL|KIROCREW)(_|$)|^PORT$/.test(name)) delete env[name];
   delete env.KIRO_SESSION_ID;
   const run = (args) =>
     spawnSync(process.execPath, [cli, ...args], { encoding: "utf8", env });

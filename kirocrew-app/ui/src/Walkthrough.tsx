@@ -11,6 +11,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { WalkStyle } from './ui/PageStyles'
+import { PlainButton } from './ui/Plain'
 
 export interface WalkStep {
   title: string
@@ -60,25 +61,24 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
         </Stack>
       </Box>
       <Row gap={3}>
-        <Btn type="button" onClick={() => go(at - 1)} disabled={at === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <Btn type="button" onClick={() => go(at - 1)} disabled={at === 0} css-display="inline-flex" css-align-items="center" css-gap="6">
           <ArrowLeft size={ICON} aria-hidden="true" />
           Back
         </Btn>
         <Box flex items="center" gap="1.5" role="group" aria-label="Steps">
           {props.steps.map((s, i) => (
-            <button
+            <PlainButton
               key={s.title}
               type="button"
               aria-label={`Step ${i + 1}: ${s.title}`}
               aria-current={i === at ? 'step' : undefined}
               onClick={() => go(i)}
-              className="rounded-full"
-              style={{ width: 9, height: 9, background: i === at ? 'var(--accent)' : 'var(--border)' }}
+              css-width="9" css-height="9" css-background={i === at ? 'accent' : 'border'} rounded="full"
             />
           ))}
         </Box>
         {at < last ? (
-          <Btn type="button" primary onClick={() => go(at + 1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Btn type="button" primary onClick={() => go(at + 1)} css-display="inline-flex" css-align-items="center" css-gap="6">
             Next
             <ArrowRight size={ICON} aria-hidden="true" />
           </Btn>

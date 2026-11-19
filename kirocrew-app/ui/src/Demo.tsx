@@ -14,6 +14,7 @@ import { fixturesClient, type DemoFixtures } from './demo-fixtures.ts'
 import { errorMessage } from './workspace-api.ts'
 import { TAGLINE } from '../../../src/work-split.mjs'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 interface Demo {
   active: boolean
@@ -145,7 +146,7 @@ export function DemoControls() {
           aria-describedby={describedBy}
           aria-pressed={stopped}
           onClick={() => demo.setStopExample(stopped ? 'running' : 'stopped')}
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, padding: 0, color: stopped ? 'var(--ok, inherit)' : 'var(--danger, inherit)' }}
+          css-display="inline-flex" css-align-items="center" css-justify-content="center" css-width="28" css-height="28" css-padding="0" css-color={stopped ? 'ok-inherit' : 'danger-inherit'}
         >
           <Icon size={14} aria-hidden="true" />
         </Btn>
@@ -186,9 +187,9 @@ export function DemoBar() {
           {DEMO_INTRO}
         </Box>
         <DemoControls />
-        <button type="button" data-demo-exit onClick={() => void demo.exit()} className="text-xs font-semibold" style={{ background: 'none', border: 0, color: 'var(--accent)', cursor: 'pointer', padding: '2px 4px' }}>
+        <PlainButton type="button" data-demo-exit onClick={() => void demo.exit()} css-background="none" css-border="0" css-color="accent" css-cursor="pointer" css-padding="2px-4px" size="xs" weight="semibold">
           Exit demo
-        </button>
+        </PlainButton>
         {notice}
       </Box>
     )

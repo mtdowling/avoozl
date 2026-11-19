@@ -105,10 +105,7 @@ test("only AVOOZL_* variables name the workspace and its paths", () => {
     db({ AVOOZL_DB: "a.sqlite" }).dbPath,
     path.resolve(workspace, "a.sqlite"),
   );
-  assert.equal(
-    db({ AICOMMANDER_DB: "b.sqlite" }).dbPath,
-    db({}).dbPath,
-  );
+  assert.equal(db({ AICOMMANDER_DB: "b.sqlite" }).dbPath, db({}).dbPath);
 });
 
 test("package.json names only the avoozl command", () => {

@@ -24,7 +24,7 @@ test('every drawer section is a SectionBox, open at first, inside the shared tab
   const controls = source('ui/controls.tsx')
   const box = controls.slice(controls.indexOf('export function SectionBox'), controls.indexOf('// A row of picture-less radio cards'))
   assert.match(box, /useState\(props\.open \?\? true\)/)
-  assert.match(box, /<Card className=/)
+  assert.match(box, /<Card flex flexCol/)
   assert.match(box, /<button\s+type="button"\s+aria-expanded=\{open\}\s+aria-controls=\{body\}/)
   assert.match(box, /hidden=\{!open\}/)
   assert.doesNotMatch(box, /warning|yellow|#[0-9a-f]{3,6}/i)

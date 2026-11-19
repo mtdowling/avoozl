@@ -88,7 +88,7 @@ import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api
 import { COMMAND_PATH, errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
 import type { DeliverySettings as DeliveryRead } from './delivery-api.ts'
 import { Fold } from './ui/controls.tsx'
-import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './ui/controls.tsx'
+import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading } from './ui/controls.tsx'
 import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
@@ -100,6 +100,7 @@ import { TextLink } from './ui/TextLink'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 // Fields share a row and wrap; each keeps a readable width.
 const grid = (min = 220): CSSProperties => ({
@@ -328,8 +329,7 @@ function MatchField(props: {
           aria-describedby={current?.error ? errorId : undefined}
           spellCheck={false}
           autoComplete="off"
-          className="font-mono"
-          style={{ fontFamily: 'var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace)' }}
+          css-font-family="mono-ui-monospace-SFMono-Regular-Menlo-monospace" fontMono
           onChange={(event) => props.onChange(event.target.value)}
         />
         <Box as="span" size="xs" tone="muted">{MATCH_HELP}</Box>
@@ -659,9 +659,9 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
     <Box flex flexCol gap="2" size="sm">
       <p>{reviewRuleText(props.inspect)}</p>
       {link && (
-        <a href={linkHref(link)} target="_blank" rel="noreferrer" className="self-start text-xs underline">
+        <PlainLink href={linkHref(link)} target="_blank" rel="noreferrer" self="start" size="xs" underline>
           Change it on GitHub
-        </a>
+        </PlainLink>
       )}
       {props.deprecated && (
         <Box css-border-color="border" flex flexWrap items="center" gap="2" rounded="base" border="all" p="2" size="xs">
@@ -1700,10 +1700,10 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
               const right = col.key !== 'source'
               return (
                 <Box key={col.key} scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} as="th" css-text-align={right ? 'right' : 'left'} css-padding="4px-8px" css-font-weight="500" css-border-bottom="1px-solid-border">
-                  <button type="button" data-sort={col.key} className="inline-flex items-center gap-1 font-medium" style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', padding: 0 }} onClick={() => setSort(nextUsageSort(sort, col.key))}>
+                  <PlainButton type="button" data-sort={col.key} css-background="none" css-border="0" css-color="inherit" css-cursor="pointer" css-padding="0" inlineFlex items="center" gap="1" weight="medium" onClick={() => setSort(nextUsageSort(sort, col.key))}>
                     {col.label}
                     <Box aria-hidden="true" as="span" size="xs" tone="muted">{on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</Box>
-                  </button>
+                  </PlainButton>
                 </Box>
               )
             })}

@@ -39,8 +39,8 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainLink } from './ui/Plain'
 
-const FIELD = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)', maxWidth: '100%' }
 
 // The driver status for one spec, read again every minute and after each
 // action here.
@@ -92,9 +92,9 @@ export function DriverBanner(props: { workspaceId: string; spec: DriverSpec | nu
         {issueUrl && (
           <>
             {' '}
-            <a href={safeHref(issueUrl) ?? undefined} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline">
+            <PlainLink href={safeHref(issueUrl) ?? undefined} target="_blank" rel="noreferrer" inlineFlex items="center" gap="1" underline>
               Plan issue #{spec.issue?.number} <ExternalLink size={12} aria-hidden="true" />
-            </a>
+            </PlainLink>
           </>
         )}
       </Box>
@@ -168,7 +168,7 @@ function FileField(props: { id: string; value: string; onChange: (value: string)
   return (
     <Box as="label" flex flexCol gap="1" size="sm" htmlFor={props.id}>
       Export file <Hint size="xs">(full path to {'<spec>'}.avoozl-driver.json)</Hint>
-      <Input id={props.id} value={props.value} onChange={(event) => props.onChange(event.target.value)} style={FIELD} placeholder="/path/to/s1.avoozl-driver.json" />
+      <Input id={props.id} value={props.value} onChange={(event) => props.onChange(event.target.value)} css-border-color="border" css-color="text" css-background="card-transparent" css-max-width="100%" placeholder="/path/to/s1.avoozl-driver.json" />
     </Box>
   )
 }
@@ -317,7 +317,7 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
         )}
         <Box as="label" flex flexCol gap="1" htmlFor="avoozl-driver-force-name">
           Type <code>{spec.spec}</code> to confirm
-          <Input id="avoozl-driver-force-name" value={typed} onChange={(event) => setTyped(event.target.value)} style={FIELD} autoComplete="off" />
+          <Input id="avoozl-driver-force-name" value={typed} onChange={(event) => setTyped(event.target.value)} css-border-color="border" css-color="text" css-background="card-transparent" css-max-width="100%" autoComplete="off" />
         </Box>
         {error && (
           <ErrorText role="alert">
@@ -440,7 +440,7 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
           {step !== 'reassign' && (
             <Box as="label" mt="1" flex flexCol gap="1" htmlFor="avoozl-driver-folder">
               Folder <Hint size="xs">(full path)</Hint>
-              <Input id="avoozl-driver-folder" value={folder} onChange={(event) => setFolder(event.target.value)} style={FIELD} placeholder="/path/to/a/folder" />
+              <Input id="avoozl-driver-folder" value={folder} onChange={(event) => setFolder(event.target.value)} css-border-color="border" css-color="text" css-background="card-transparent" css-max-width="100%" placeholder="/path/to/a/folder" />
             </Box>
           )}
           {file && <Box as="p" mt="1">Written: <code>{file}</code></Box>}
@@ -454,9 +454,9 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
               : 'Assign the plan issue to the person who takes over. Avoozl does not reassign it. Your other machine needs no reassignment: press Take over there.'}
           </Hint>
           {step === 'reassign' && issueUrl && (
-            <a href={safeHref(issueUrl) ?? undefined} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 underline">
+            <PlainLink href={safeHref(issueUrl) ?? undefined} target="_blank" rel="noreferrer" mt="1" inlineFlex items="center" gap="1" underline>
               Reassign it on GitHub <ExternalLink size={12} aria-hidden="true" />
-            </a>
+            </PlainLink>
           )}
         </li>
         {error && (
@@ -505,11 +505,11 @@ export function ThisComputer(props: { workspaceId: string | null }) {
         <Row gap={4} align="start">
           <Box as="label" flex flexCol gap="1" size="sm" htmlFor="avoozl-machine-label">
             Machine label <Hint size="xs">(optional)</Hint>
-            <Input id="avoozl-machine-label" maxLength={LABEL_MAX} value={form.label} onChange={(event) => setForm({ ...form, label: event.target.value })} style={FIELD} placeholder="laptop" />
+            <Input id="avoozl-machine-label" maxLength={LABEL_MAX} value={form.label} onChange={(event) => setForm({ ...form, label: event.target.value })} css-border-color="border" css-color="text" css-background="card-transparent" css-max-width="100%" placeholder="laptop" />
           </Box>
           <Box as="label" flex flexCol gap="1" size="sm" htmlFor="avoozl-machine-heartbeat">
             Heartbeat minutes <Hint size="xs">(optional)</Hint>
-            <Input id="avoozl-machine-heartbeat" inputMode="numeric" value={form.heartbeat} onChange={(event) => setForm({ ...form, heartbeat: event.target.value })} style={FIELD} placeholder={String(HEARTBEAT_PLACEHOLDER)} />
+            <Input id="avoozl-machine-heartbeat" inputMode="numeric" value={form.heartbeat} onChange={(event) => setForm({ ...form, heartbeat: event.target.value })} css-border-color="border" css-color="text" css-background="card-transparent" css-max-width="100%" placeholder={String(HEARTBEAT_PLACEHOLDER)} />
           </Box>
         </Row>
         <Hint as="p" size="xs">

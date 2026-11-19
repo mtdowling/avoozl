@@ -15,6 +15,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainTextarea } from './ui/Plain'
 
 function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string; help?: string }) {
   const note = valueSource(props.value, props.fallback, props.unit)
@@ -51,7 +52,7 @@ export const CREW_PART_TEXT = {
 } as const
 
 // The landing block's mode values (landing.mode).
-export const LANDING_MODES = ['direct', 'pr', 'train', 'off'] as const
+export const LANDING_MODES = ['direct', 'pr', 'off'] as const
 
 // Who merges (landing.autoMerge): one radio fold-out, the writer, Avoozl
 // and the person for each. Blank follows `inherited`, the older workspace
@@ -115,7 +116,7 @@ export function ReviewRulesFields({ id, repository, set }: Part) {
               <Box htmlFor={`${id}-rules`} as="label" size="sm" weight="medium">
                 Review rules <Hint size="xs">radar.reviewRules</Hint>
               </Box>
-              <textarea id={`${id}-rules`} rows={6} value={repository.reviewRules} onChange={(event) => set({ reviewRules: event.target.value })} className="min-w-0 rounded border px-2 py-1 text-sm" style={{ borderColor: 'var(--border)', background: 'transparent', color: 'inherit' }} />
+              <PlainTextarea id={`${id}-rules`} rows={6} value={repository.reviewRules} onChange={(event) => set({ reviewRules: event.target.value })} css-border-color="border" css-background="transparent" css-color="inherit" minW0 rounded="base" border="all" px="2" py="1" size="sm" />
               <Hint size="xs">{valueSource(repository.reviewRules ? 'your text' : '', "Avoozl's built-in rules")}</Hint>
             </Box>
           ),

@@ -4,6 +4,7 @@
 // listed here is refused by name, so a new operation fails closed until it is
 // classified.
 const OBSERVE = new Set([
+  "review.chat.show",
   "client.describe",
   "workspace",
   "workspace.examples",
@@ -66,7 +67,6 @@ const OBSERVE = new Set([
   "graph.view",
   "delivery.view",
   "landing.queue",
-  "integrator.status",
   "conflicts.view",
   "panel.view",
   "untriaged.view",
@@ -282,8 +282,6 @@ const PROTECT = new Set([
   "task.merge",
   "task.supersede",
   "delivery.retry",
-  "landing.submit",
-  "landing.review",
   "verify.allow",
   "task.start",
   "route.cancel",

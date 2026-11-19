@@ -214,3 +214,43 @@ test("without a take over nothing is queued or pushed", async (t) => {
   );
   assert.equal(git(w.origin, "rev-parse", "main"), start);
 });
+
+test("the tick lands a merge batch, then each landed member's ref is gone and the remote holds only main", async (t) => {
+  const w = await workspace(t);
+  w.store.put("projects", {
+    ...w.store.get("projects", "app"),
+    repository: "acme/app",
+  });
+  const config = {
+    github: {
+      repositories: {
+        "acme/app": { baseBranch: "main", landing: { mergeBatch: 2 } },
+      },
+    },
+  };
+  const first = verified(w, "t1"),
+    second = verified(w, "t2");
+  await integrateVerified(w.store);
+  const at = git(w.checkout, "for-each-ref", "refs/avoozl/land");
+  assert.equal(at, "", "refs are made when the batch is built");
+  const result = await landDirect(w.store, {
+    workspaceRoot: w.root,
+    rounds: 2,
+    machine: {},
+    config,
+  });
+  assert.deepEqual(result.notify, []);
+  const landed = git(w.origin, "rev-parse", "main");
+  for (const { commit } of [first, second])
+    git(w.origin, "merge-base", "--is-ancestor", commit, landed);
+  assert.equal(
+    git(w.origin, "rev-list", "--count", "--merges", "main"),
+    "2",
+    "one merge commit per member in one push",
+  );
+  assert.equal(
+    git(w.origin, "for-each-ref", "--format=%(refname)"),
+    "refs/heads/main",
+  );
+  assert.equal(git(w.checkout, "for-each-ref", "refs/avoozl/land"), "");
+});

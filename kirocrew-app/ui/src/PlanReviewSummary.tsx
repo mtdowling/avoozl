@@ -9,6 +9,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { WorkingStyle } from './ui/PageStyles'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 export function reviewStateLabel(review?: Summary | null): string {
   if (!review || review.state === 'not-reviewed') return 'Not reviewed'
@@ -96,8 +97,8 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
         <Box as="p" m0 data-review-counts>{reviewCounts(review)}</Box>
         {review?.revisionHash && (href || props.onOpenReview) && (
           href
-            ? <a href={linkHref(href)} className="self-start underline" data-open-review onClick={(event) => { if (!props.onOpenReview) return; event.preventDefault(); props.onOpenReview() }}>Open review</a>
-            : <button type="button" className="self-start underline" style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }} data-open-review onClick={props.onOpenReview}>Open review</button>
+            ? <PlainLink href={linkHref(href)} self="start" underline data-open-review onClick={(event) => { if (!props.onOpenReview) return; event.preventDefault(); props.onOpenReview() }}>Open review</PlainLink>
+            : <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" self="start" underline data-open-review onClick={props.onOpenReview}>Open review</PlainButton>
         )}
       </Box>
       {error && <ErrorText role="alert" flush>{error}</ErrorText>}

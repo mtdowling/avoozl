@@ -31,6 +31,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 const LINE = { add: 'var(--success, #1a7f37)', del: 'var(--danger)', hunk: 'var(--muted)', same: 'var(--text)' } as const
 
@@ -60,9 +61,9 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
         <Badge>{proposal.type}</Badge>
         <Box as="code" size="xs">{proposalText(proposal)}</Box>
         <Hint>{directionText(proposal)}</Hint>
-        <button type="button" className="text-xs underline" data-proposal-retro={proposal.retro} onClick={onOpenRetro}>
+        <PlainButton type="button" size="xs" underline data-proposal-retro={proposal.retro} onClick={onOpenRetro}>
           From {proposal.retro}
-        </button>
+        </PlainButton>
         {proposal.removesCheck && <Badge variant="warning">removes a check</Badge>}
         {proposal.revertOf && <Badge>revert</Badge>}
         {proposal.pdca?.mixed && <Badge variant="warning">mixed window</Badge>}
@@ -125,7 +126,7 @@ function DriftBlock({ drift, target, busy, onRebase }: { drift: PromptDrift; tar
 
 function PromptVersions({ prompts, busy, onRevert, onRebase }: { prompts: PromptRow[]; busy: boolean; onRevert: (p: PromptRow) => void; onRebase: (p: PromptRow, d: PromptDrift) => void }) {
   return (
-    <Card className="flex flex-col gap-2" data-prompt-versions>
+    <Card flex flexCol gap="2" data-prompt-versions>
       <SectionHeading title="Prompt versions" />
       <Hint as="p" size="xs">Overrides live on this computer, for this workspace only. Locked sections always use the built-in text.</Hint>
       <Stack as="ul" gap={2}>
@@ -215,7 +216,7 @@ export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { wo
           />
         </Box>
       )}
-      <Card className="flex flex-col gap-2">
+      <Card flex flexCol gap="2">
         <SectionHeading title="Proposals" />
         <Hint as="p" size="xs">A retro may propose a change to settings, specs, rules, or what agents are told. Nothing changes until you approve it.</Hint>
         {!changes.length ? (
@@ -252,7 +253,7 @@ export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { wo
         onRebase={(p, d) => void act(() => client.rebasePrompt(workspaceId, { target: p.target, section: d.section, hash: d.hash! }))}
       />
       {value.notes.filter((n) => !n.plugin).length > 0 && (
-        <Card className="flex flex-col gap-2">
+        <Card flex flexCol gap="2">
           <SectionHeading title="Suggested skill changes" />
           <Hint as="p" size="xs">For skills no plugin owns. Copy one to its owner; Avoozl sends nothing.</Hint>
           {value.notes

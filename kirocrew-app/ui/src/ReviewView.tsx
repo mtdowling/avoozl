@@ -46,6 +46,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { REVIEW_ACCENT, ReviewCss } from './ui/PageStyles'
+import { PlainButton, PlainTextarea } from './ui/Plain'
 
 const PROSE = '72ch'
 // Below this width the text and the rail do not fit side by side.
@@ -211,9 +212,9 @@ function FindingCard(props: {
               {finding.answer.action === 'fixed' && finding.answer.revisionHash ? (
                 <>
                   Fixed in{' '}
-                  <button type="button" className="underline" data-fixed-revision style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer', font: 'inherit' }} onClick={() => props.onRevision(finding.answer!.revisionHash!)}>
+                  <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" css-font="inherit" underline data-fixed-revision onClick={() => props.onRevision(finding.answer!.revisionHash!)}>
                     <code>{shortHash(finding.answer.revisionHash)}</code>
-                  </button>
+                  </PlainButton>
                   .
                 </>
               ) : (
@@ -239,13 +240,12 @@ function FindingCard(props: {
           <Box css-display="flex" css-flex-direction="column" css-gap="4" css-margin-top="2">
             <Box as="label" css-font-size="12">
               {asking === 'reject' ? 'Reason (required)' : 'Note (optional)'}
-              <textarea
+              <PlainTextarea
                 data-finding-note
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={2}
-                className="mt-0.5 w-full rounded border p-1 text-sm"
-                style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)', boxSizing: 'border-box', width: '100%', borderRadius: 6, marginTop: 2 }}
+                css-border-color="border" css-background="bg" css-color="text" css-box-sizing="border-box" css-width="100%" css-border-radius="6" css-margin-top="2" mt="0.5" wFull rounded="base" border="all" p="1" size="sm"
               />
             </Box>
             <Box css-display="flex" css-flex-wrap="wrap" css-gap="6">
@@ -686,16 +686,16 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                     <Hint as="p" size="sm" flush>This file has no headings.</Hint>
                   ) : (
                     toc.map((h) => (
-                      <button
+                      <PlainButton
                         key={h.id}
                         type="button"
                         data-toc-item={h.id}
                         aria-current={current === h.id ? 'location' : undefined}
                         onClick={() => goHeading(h.id)}
-                        style={{ textAlign: 'left', border: 0, background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: 13, padding: '4px 8px', paddingLeft: 8 + (h.level - 1) * 12, borderRadius: 4 }}
+                        css-text-align="left" css-border="0" css-background="transparent" css-color="text" css-cursor="pointer" css-font-size="13" css-padding="4px-8px" css-padding-left={8 + (h.level - 1) * 12} css-border-radius="4"
                       >
                         {h.text}
-                      </button>
+                      </PlainButton>
                     ))
                   )}
                 </Box>

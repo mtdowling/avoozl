@@ -54,6 +54,7 @@ import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 import { LaneStyle } from './ui/PageStyles'
+import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -190,9 +191,9 @@ function LaneCardView(props: {
             )}
             {!done && !local && issue && (
               <Tooltip text="Open the issue; move its Project card to Deferred to pause it">
-                <a href={linkHref(issue)} target="_blank" rel="noreferrer" className="self-center text-xs underline">
+                <PlainLink href={linkHref(issue)} target="_blank" rel="noreferrer" self="center" size="xs" underline>
                   Defer on the board
-                </a>
+                </PlainLink>
               </Tooltip>
             )}
             <IconLabel icon={DetailsIcon} tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(card.id)} {...label('Details')} />
@@ -401,20 +402,20 @@ function DeliveryFilters(props: {
           title="Filters"
           action={
             active && (
-              <button type="button" data-rail-icon onClick={() => props.onChange({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+              <PlainButton type="button" data-rail-icon onClick={() => props.onChange({})} css-gap="2" css-align-items="center" css-font-size="12">
                 <X size={11} aria-hidden="true" /> Clear
-              </button>
+              </PlainButton>
             )
           }
         >
           {/* The search sits under the Filters header, above All states. */}
-          <input
+          <PlainInput
             type="search"
             aria-label="Search tasks"
             placeholder="Task name or ID"
             value={filter.q ?? ''}
             onChange={(event) => set({ q: event.target.value || undefined })}
-            style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8, fontSize: 13, padding: '6px 12px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            css-width="100%" css-box-sizing="border-box" css-margin-bottom="8" css-font-size="13" css-padding="6px-12px" css-border-radius="6" css-background="bg" css-color="text" css-border="1px-solid-border"
           />
           <RailRow label="All states" active={!filter.state} onClick={() => set({ state: undefined })} attrs={{ 'data-rail-state': '' }} />
           {STATES.filter((state) => states.has(state.id) || filter.state === state.id).map((state) => (

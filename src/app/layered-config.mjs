@@ -9,7 +9,7 @@ import { validateLanes } from "./lanes.mjs";
 import {
   assertNoMachineKeys,
   conflictRounds,
-  validateTrains,
+  validateLandingConfig,
 } from "./landing-config.mjs";
 import { deriveGitHubKeys } from "./repository-roles.mjs";
 
@@ -330,7 +330,7 @@ export function loadLayeredConfig({
   for (const layer of fileLayers)
     if (layer.filename === files.repository)
       assertNoMachineKeys(layer.value, layer.filename, files.global);
-  const { warnings } = validateTrains(config, {
+  validateLandingConfig(config, {
     repository: files.repository,
     global: files.global,
   });
@@ -341,7 +341,7 @@ export function loadLayeredConfig({
       layers.filter(({ filename }) => filename !== files.repository),
     ),
     files,
-    warnings,
+    warnings: [],
     sources: layers.map(({ label, filename }) => ({ label, filename })),
     localConfigured: fileLayers.some(
       ({ filename }) => filename !== files.global,

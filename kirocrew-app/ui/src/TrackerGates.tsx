@@ -13,6 +13,7 @@ import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { PlainInput, PlainLink } from './ui/Plain'
 
 const VARIANT: Record<GateState, BadgeVariant> = { open: 'info', failed: 'danger', unknown: 'warning', done: 'success', cleared: 'success' }
 
@@ -43,9 +44,9 @@ export function GateList(props: { gates: GateRow[]; busy?: boolean; onClear?: (t
             </Box>
           )}
           {gate.link && (
-            <a href={linkHref(gate.link)} target="_blank" rel="noreferrer" className="text-xs" style={{ overflowWrap: 'anywhere' }}>
+            <PlainLink href={linkHref(gate.link)} target="_blank" rel="noreferrer" css-overflow-wrap="anywhere" size="xs">
               Open in the tracker
-            </a>
+            </PlainLink>
           )}
           {gate.cleared && (
             <Hint size="xs" data-gate-cleared>
@@ -57,7 +58,7 @@ export function GateList(props: { gates: GateRow[]; busy?: boolean; onClear?: (t
             <Box css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" flex flexWrap items="center" gap="2">
               {asking === gate.taskId ? (
                 <>
-                  <input aria-label={`Why clear ${gate.taskId}`} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why it can be cleared" style={{ flex: '1 1 160px', minWidth: 0 }} />
+                  <PlainInput aria-label={`Why clear ${gate.taskId}`} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why it can be cleared" css-flex="1-1-160px" css-min-width="0" />
                   <Btn type="button" disabled={props.busy || !reason.trim()} onClick={() => props.onClear?.(gate.taskId, reason.trim())}>
                     Confirm clear
                   </Btn>
@@ -99,7 +100,7 @@ export default function TrackerGates(props: { workspaceId: string | null }) {
   }
   return (
     <div data-tracker-gates>
-      <Card className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <Card css-display="flex" css-flex-direction="column" css-gap="8" flex flexCol gap="2">
         <SectionHeading title="Tracker gates" className="mb-0" />
         <Hint as="p" size="xs">Tasks that wait on an item outside GitHub. Avoozl reads each one and never clears it. A clear is your order, recorded with your name.</Hint>
         {failure && (

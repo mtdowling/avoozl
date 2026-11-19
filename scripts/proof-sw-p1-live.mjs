@@ -15,11 +15,15 @@
 //   node scripts/proof-sw-p1-live.mjs --root DIR preflight
 //   node scripts/proof-sw-p1-live.mjs --root DIR [--agent claude|fake] [--port N] [--receipt FILE]
 //
-// Claude Code is the binary SWP1_CLAUDE names, else `claude` on PATH, and it
-// signs in with ANTHROPIC_API_KEY (the definition keeps that one variable): the
-// run spends that key's money on one small task. `--agent fake` runs a
-// scripted agent instead, to check this script's plumbing only; it never counts
-// as the proof.
+// Claude Code runs on Bedrock, as in P59 and nk-p1: it is the binary SWP1_CLAUDE
+// names, else `claude` on PATH, confined by sandbox-exec, and it reaches only
+// Bedrock through a loopback proxy (scripts/live-proofs/p57-model-proxy.mjs).
+// The short-lived keys come from `claude default-credential-export` and the
+// region from ~/.claude/settings.json, both read once before the isolated home
+// is set; they live in the supervisor's environment only, never in an argument
+// or a file. It runs from a terminal outside Kiro Crew, since sandbox-exec
+// cannot nest. `--agent fake` runs a scripted agent instead, to check this
+// script's plumbing only; it never counts as the proof.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
@@ -68,6 +72,41 @@ const P = {
   shots: path.join(ROOT, "shots"),
 };
 const TASK = ["swp1-one", "notes/one.txt", "alpha"];
+const MODEL = process.env.SWP1_MODEL || "global.anthropic.claude-sonnet-5";
+const PROXY_PORT = Number(process.env.SWP1_PROXY_PORT || 18462);
+P.claudeConfig = path.join(ROOT, "claude-config");
+P.proxyLog = path.join(ROOT, "proxy.log");
+// The supervisor's environment for Claude Code (Bedrock sign-in, the proxy and
+// the run's own Claude config folder); set once, before the isolated home.
+let AGENT_ENV = null;
+function bedrockEnvironment() {
+  const claude = claudeBinary();
+  const settings = JSON.parse(
+    fs.readFileSync(
+      path.join(realEnv.HOME ?? os.homedir(), ".claude", "settings.json"),
+      "utf8",
+    ),
+  );
+  const creds = JSON.parse(
+    execFileSync(claude, ["default-credential-export"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      env: realEnv,
+    }),
+  ).Credentials;
+  return {
+    PATH: `${path.dirname(claude)}:${realEnv.PATH}`,
+    CLAUDE_CONFIG_DIR: P.claudeConfig,
+    CLAUDE_CODE_USE_BEDROCK: "1",
+    AWS_REGION: settings.env?.AWS_REGION || "us-west-2",
+    AWS_ACCESS_KEY_ID: creds.AccessKeyId,
+    AWS_SECRET_ACCESS_KEY: creds.SecretAccessKey,
+    AWS_SESSION_TOKEN: creds.SessionToken,
+    HTTPS_PROXY: `http://localhost:${PROXY_PORT}`,
+    https_proxy: `http://localhost:${PROXY_PORT}`,
+    NO_PROXY: "",
+  };
+}
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const results = [];
 
@@ -143,7 +182,7 @@ fs.writeFileSync(".avoozl/result.json", JSON.stringify({ state: "done", text: "W
 async function setup(port) {
   if (fs.existsSync(ROOT) && fs.readdirSync(ROOT).length)
     throw Error(`${ROOT} is not empty; the proof runs once on a fresh root.`);
-  for (const dir of [ROOT, P.wt, P.shots, HOME])
+  for (const dir of [ROOT, P.wt, P.shots, HOME, P.claudeConfig])
     fs.mkdirSync(dir, { recursive: true });
   event("setup.start", { root: ROOT, agent: AGENT, port });
   git(ROOT, "init", "-q", "--bare", "-b", "main", P.origin);
@@ -166,6 +205,7 @@ async function setup(port) {
     concurrency: 1,
     retries: 1,
     investigate: { mode: "off" },
+    model: MODEL,
   };
   fs.writeFileSync(
     path.join(P.ws, ".avoozl.json"),
@@ -189,6 +229,14 @@ async function setup(port) {
         "utf8",
       ),
     );
+    // Bedrock sign-in, as in P57, P59 and nk-p1.
+    definition.keepEnv = [
+      ...definition.keepEnv.filter((name) => name !== "ANTHROPIC_API_KEY"),
+      "AWS_REGION",
+      "AWS_ACCESS_KEY_ID",
+      "AWS_SECRET_ACCESS_KEY",
+      "AWS_SESSION_TOKEN",
+    ];
     definition.start[0] =
       definition.resume[0] =
       definition.attach[0] =
@@ -265,7 +313,11 @@ async function setup(port) {
       worktreeRoot: P.wt,
       executor: "process",
       harness: name,
-      sandbox: { allowCommands: [["node", "check.mjs"]] },
+      sandbox: {
+        writeRoots: [P.claudeConfig],
+        allowCommands: [["node", "check.mjs"]],
+        network: [`localhost:${PROXY_PORT}`],
+      },
     });
     store.put("plans", {
       id: "swp1",
@@ -301,7 +353,12 @@ function startSupervisor() {
   const child = spawn(
     process.execPath,
     [CLI, "supervisor", "--tick-seconds", "3"],
-    { stdio: ["ignore", out, out], env: process.env, detached: true },
+    {
+      stdio: ["ignore", out, out],
+      // Claude Code's Bedrock sign-in reaches only this process, by environment.
+      env: AGENT_ENV ? { ...process.env, ...AGENT_ENV } : process.env,
+      detached: true,
+    },
   );
   fs.closeSync(out);
   child.unref();
@@ -781,7 +838,37 @@ async function preflight() {
             "the Claude Code binary (SWP1_CLAUDE or PATH)",
             Boolean(claudeBinary()),
           ],
-          ["ANTHROPIC_API_KEY is set", Boolean(realEnv.ANTHROPIC_API_KEY)],
+          [
+            "~/.claude/settings.json is readable",
+            fs.existsSync(
+              path.join(
+                realEnv.HOME ?? os.homedir(),
+                ".claude",
+                "settings.json",
+              ),
+            ),
+          ],
+          [
+            "`claude default-credential-export` gives short-lived keys",
+            (() => {
+              try {
+                bedrockEnvironment();
+                return true;
+              } catch {
+                return false;
+              }
+            })(),
+          ],
+          [
+            "sandbox-exec works here (a terminal outside Kiro Crew)",
+            Boolean((await imp("src/app/sandbox.mjs")).sandboxKind()),
+          ],
+          [
+            "the model proxy script",
+            fs.existsSync(
+              path.join(REPO, "scripts", "live-proofs", "p57-model-proxy.mjs"),
+            ),
+          ],
         ]
       : []),
   ];
@@ -791,10 +878,14 @@ async function preflight() {
 }
 
 async function prove() {
-  if (AGENT === "claude" && (!claudeBinary() || !realEnv.ANTHROPIC_API_KEY))
-    throw Error(
-      "Run `preflight`: Claude Code and ANTHROPIC_API_KEY are needed.",
-    );
+  if (AGENT === "claude") {
+    if (!(await imp("src/app/sandbox.mjs")).sandboxKind())
+      throw Error(
+        "sandbox-exec cannot run here (inside another sandbox?). Run sw-p1 from a terminal outside Kiro Crew; `preflight` lists what is missing.",
+      );
+    // Read once, before the isolated home is set: short-lived keys, in memory.
+    AGENT_ENV = bedrockEnvironment();
+  }
   const { findChrome, launch } = await imp(
     "kirocrew-app/ui/test/browser/chrome.mjs",
   );
@@ -803,6 +894,20 @@ async function prove() {
   isolate();
   const port = values.port ? Number(values.port) : await freePort();
   const machine = await setup(port);
+  let proxy = null;
+  if (AGENT === "claude") {
+    proxy = spawn(
+      process.execPath,
+      [
+        path.join(REPO, "scripts", "live-proofs", "p57-model-proxy.mjs"),
+        String(PROXY_PORT),
+        P.proxyLog,
+      ],
+      { stdio: "ignore" },
+    );
+    await sleep(1000);
+    event("proxy.start", { pid: proxy.pid, port: PROXY_PORT });
+  }
   let supervisor = startSupervisor();
   try {
     await until(
@@ -818,6 +923,7 @@ async function prove() {
   } finally {
     await browser.close();
     await stopSupervisor(supervisor);
+    if (proxy) proxy.kill("SIGTERM");
   }
   const pass = results.length === 5 && results.every((r) => r.pass);
   const report = {

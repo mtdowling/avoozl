@@ -12,7 +12,10 @@ import table from './box.json'
 
 type Flags = keyof typeof table.flags
 type Scales = { [K in keyof typeof table.scales]: keyof (typeof table.scales)[K] }
-type Styles = { [K in keyof typeof table.styles as `css-${K}`]?: keyof (typeof table.styles)[K] }
+type Free = (typeof table.free)[number]
+type Styles = { [K in keyof typeof table.styles as `css-${K}`]?: K extends Free ? keyof (typeof table.styles)[K] | number | (string & {}) : keyof (typeof table.styles)[K] } & {
+  [K in Free as K extends keyof typeof table.styles ? never : `css-${K}`]?: number | string
+}
 
 export type BoxTag =
   | 'div' | 'span' | 'p' | 'ul' | 'ol' | 'li' | 'section' | 'header' | 'footer' | 'nav' | 'article' | 'aside' | 'main' | 'figure'
@@ -25,9 +28,15 @@ export type BoxProps = Omit<HTMLAttributes<HTMLElement>, 'className' | 'style'> 
 const FLAGS = table.flags as Record<string, string>
 const SCALES = table.scales as Record<string, Record<string, string>>
 const STYLES = table.styles as Record<string, Record<string, string | number>>
+// Geometry a view computes from data (a bar's width, a row's indent, a
+// layer's z-index) is passed as the value itself; every other style value is
+// named in the table.
+const FREE = new Set<string>(table.free)
 const camel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
 
-export const Box = forwardRef<HTMLElement, BoxProps>(function Box({ as = 'div', ...props }, ref) {
+// Splits look props from the element's own: the look becomes className and
+// style, the rest pass through. Shared by Box and the Plain* parts.
+export function lookProps<T extends object>(props: T): Record<string, unknown> {
   const classes: string[] = []
   const style: Record<string, string | number> = {}
   const rest: Record<string, unknown> = {}
@@ -37,15 +46,19 @@ export const Box = forwardRef<HTMLElement, BoxProps>(function Box({ as = 'div', 
     } else if (key in SCALES) {
       const cls = SCALES[key][String(value)]
       if (cls) classes.push(cls)
-    } else if (key.startsWith('css-') && key.slice(4) in STYLES) {
-      const css = STYLES[key.slice(4)][String(value)]
-      if (css !== undefined) style[camel(key.slice(4))] = css
+    } else if (key.startsWith('css-') && (key.slice(4) in STYLES || FREE.has(key.slice(4)))) {
+      const name = key.slice(4)
+      const css = STYLES[name]?.[String(value)] ?? (FREE.has(name) && (typeof value === 'number' || typeof value === 'string') ? value : undefined)
+      if (css !== undefined) style[camel(name)] = css
     } else rest[key] = value
   }
-  return createElement(as, {
-    ...rest,
-    className: classes.join(' ') || undefined,
-    style: Object.keys(style).length ? (style as CSSProperties) : undefined,
-    ref: ref as Ref<HTMLElement>,
-  })
+  if (classes.length) rest.className = classes.join(' ')
+  if (Object.keys(style).length) rest.style = style as CSSProperties
+  return rest
+}
+
+export type LookProps = { [K in Flags]?: boolean } & { [K in keyof Scales]?: Scales[K] } & Styles
+
+export const Box = forwardRef<HTMLElement, BoxProps>(function Box({ as = 'div', ...props }, ref) {
+  return createElement(as, { ...lookProps(props), ref: ref as Ref<HTMLElement> })
 })

@@ -21,6 +21,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainLink } from './ui/Plain'
 export { repositoryRows, type RepositoryRow } from './repository-rows.ts'
 
 export const REPOSITORIES_LINE =
@@ -89,9 +90,9 @@ export function RepositoryList(props: {
                 <Badge>{props.roleText(row)}</Badge>
               </span>
               {githubHref(row.github) ? (
-                <a href={linkHref(githubHref(row.github)!)} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate text-xs underline" data-github-link>
+                <PlainLink href={linkHref(githubHref(row.github)!)} target="_blank" rel="noopener noreferrer" minW0 truncate size="xs" underline data-github-link>
                   {row.github}
-                </a>
+                </PlainLink>
               ) : (
                 <Hint size="xs" data-github-link>
                   {row.github ?? 'Local only'}
@@ -211,7 +212,7 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
             <Box htmlFor="avoozl-repo-folder" as="label" srOnly>
               Folder
             </Box>
-            <Input id="avoozl-repo-folder" value={folder} placeholder="/path/to/my-service" onChange={(event) => setFolder(event.target.value)} style={{ minWidth: '18rem' }} />
+            <Input id="avoozl-repo-folder" value={folder} placeholder="/path/to/my-service" onChange={(event) => setFolder(event.target.value)} css-min-width="18rem" />
             <TipBtn tooltip="Read the folder's branch and GitHub remote. Changes nothing." onClick={() => void detect()} disabled={busy || !folder.trim() || Boolean(props.disabled)}>
               Check folder
             </TipBtn>

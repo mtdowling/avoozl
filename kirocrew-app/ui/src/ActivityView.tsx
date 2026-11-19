@@ -39,6 +39,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
+import { PlainButton, PlainInput } from './ui/Plain'
 
 
 function When({ at, now }: { at: string; now: number }) {
@@ -79,9 +80,9 @@ function Target({ row }: { row: ActivityRow }) {
   if (!target) return <Hint>{row.targetId ?? ''}</Hint>
   if (target.kind === 'task')
     return (
-      <button type="button" className="underline" onClick={() => drawer.openTask(target.id)} aria-label={`View task ${target.id}`} data-activity-task>
+      <PlainButton type="button" underline onClick={() => drawer.openTask(target.id)} aria-label={`View task ${target.id}`} data-activity-task>
         {target.id}
-      </button>
+      </PlainButton>
     )
   return (
     <TextLink href={linkHref(target.href)} target="_blank" rel="noopener noreferrer" data-activity-link>
@@ -213,7 +214,7 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
           Keep activity (days)
         </Box>
         <Tooltip text="Saved to .avoozl.json. Each tick deletes rows older than this. Blank uses the default.">
-          <input
+          <PlainInput
             id="avoozl-activity-keep"
             type="number"
             min={1}
@@ -232,7 +233,7 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
             }}
             aria-invalid={parsed.error ? true : undefined}
             aria-describedby={parsed.error ? 'avoozl-activity-keep-error' : undefined}
-            style={{ width: '4.5rem', boxSizing: 'border-box', fontSize: 13, padding: '4px 8px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            css-width="4.5rem" css-box-sizing="border-box" css-font-size="13" css-padding="4px-8px" css-border-radius="6" css-background="bg" css-color="text" css-border="1px-solid-border"
           />
         </Tooltip>
         <Box as="span" css-font-size="13" css-color="muted">days</Box>
@@ -324,9 +325,9 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
             title="Source"
             action={
               filterActive(filter) && (
-                <button type="button" data-rail-icon onClick={() => setFilter({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+                <PlainButton type="button" data-rail-icon onClick={() => setFilter({})} css-gap="2" css-align-items="center" css-font-size="12">
                   <X size={11} aria-hidden="true" /> Clear
-                </button>
+                </PlainButton>
               )
             }
           >
@@ -356,9 +357,9 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
         {filterActive(filter) && (
           <>
             {' · '}
-            <button type="button" className="underline" onClick={() => setFilter({})} data-filter-clear-inline>
+            <PlainButton type="button" underline onClick={() => setFilter({})} data-filter-clear-inline>
               Clear filters
-            </button>
+            </PlainButton>
           </>
         )}
       </Hint>
