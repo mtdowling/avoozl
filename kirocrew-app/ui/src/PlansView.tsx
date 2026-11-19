@@ -109,6 +109,7 @@ import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { DetailsStyle, SpecRailStyle } from './ui/PageStyles'
 import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
+import { PILL, cell } from './ui/looks/PlansView.ts'
 
 // Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
@@ -186,12 +187,6 @@ function MenuItem(props: { icon: LucideIcon; label: string; tooltip?: string; on
   return props.tooltip ? <Tooltip text={props.tooltip} display="block">{item}</Tooltip> : item
 }
 
-// The state pill: Draft, Approved, Done and the rest, in theme colors.
-const PILL: Record<string, { color: string; background: string }> = {
-  approved: { color: 'var(--accent)', background: 'var(--accent-subtle, color-mix(in srgb, var(--accent) 12%, transparent))' },
-  done: { color: 'var(--ok)', background: 'color-mix(in srgb, var(--ok) 14%, transparent)' },
-  changed: { color: 'var(--warning, #b7791f)', background: 'color-mix(in srgb, var(--warning, #b7791f) 14%, transparent)' },
-}
 function StatePill(props: { status: string; archived?: boolean }) {
   const look = PILL[props.status] ?? { color: 'var(--muted)', background: 'var(--bg-hover)' }
   return (
@@ -729,7 +724,6 @@ function Now({ now }: { now: PlanRow['now'] }) {
   return parts.length ? <Box as="span" inlineFlex flexWrap gap="1">{parts}</Box> : <Hint size="xs">—</Hint>
 }
 
-const cell: CSSProperties = { padding: '8px 10px', borderTop: '1px solid var(--border)', verticalAlign: 'middle' }
 const head: CSSProperties = { padding: '6px 10px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }
 
 // The Specs list's sort and filters: search, sort, status, what a spec
