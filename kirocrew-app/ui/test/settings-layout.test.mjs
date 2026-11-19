@@ -302,7 +302,7 @@ test('Settings › Issue Radar holds every Radar intake setting, each in its own
     assert.ok(page.includes(part), part)
   // Each section box is a Card around one Section; nothing loose between them.
   const tops = [...page.slice(page.indexOf('data-radar-settings')).matchAll(/\n {6}(<\w+|\{\w+)/g)].map((m) => m[1])
-  assert.deepEqual(tops, ['{names', '<Card', '<Card', '<Card'])
+  assert.deepEqual(tops, ['{names', '<Card', '<Card'])
   // The repository editor keeps no Radar field and no Crews and rules tab.
   const editor = body('export function RepositoryEditor(')
   assert.doesNotMatch(editor, /CrewsRulesSettings|ReleaseModePicker|crewLabels|Issue Radar labels|tab === 'crews'/)
