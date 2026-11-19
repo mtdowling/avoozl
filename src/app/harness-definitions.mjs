@@ -504,7 +504,7 @@ function readUnconfined(configDirectory) {
 // Person only: refused for any other actor and inside a worker child, and
 // recorded in Activity. It names the approved hash, so a changed file needs
 // a new opt-in. shortcut: callers pass the actor; once an operation exposes
-// this, list it in PERSON_ONLY (mcp-policy.mjs) so MCP can never reach it.
+// this, give its entry a person() policy (operation-table.mjs) so MCP can never reach it.
 export function allowUnconfinedWrites({
   store,
   configDirectory,

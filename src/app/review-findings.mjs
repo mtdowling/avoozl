@@ -194,7 +194,7 @@ export function findingFields(thread, plan, context, revisionHash) {
 
 // Appends a person's action to a plan-review finding. Defer also stores a
 // follow-up; it makes no task and no issue. Only a person reaches this:
-// plan.review.finding.decide and plan.review.dispose are in PERSON_ONLY.
+// plan.review.finding.decide and plan.review.dispose have a person() policy.
 export function recordFindingDecision(
   store,
   { id, action, revisionHash, note, by, at = new Date().toISOString() },

@@ -12,17 +12,20 @@ import {
   helpPointer,
   helpText,
 } from "../cli-help.mjs";
+import { COMMANDS } from "../cli-commands.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
-const CLI = fileURLToPath(new URL("../../../cli.mjs", import.meta.url)),
-  source = fs.readFileSync(new URL("../cli.mjs", import.meta.url), "utf8");
+const CLI = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));
 
-// Every command name the CLI's dispatch compares against.
+// Every command word the CLI's table runs. `help` is answered by cli.mjs, and
+// a retired command runs but is no longer listed.
 const dispatched = [
   ...new Set(
-    [...source.matchAll(/command === "([a-z][a-z-]*)"/g)].map(([, c]) => c),
+    COMMANDS.filter((entry) => entry.help.length).map(
+      (entry) => entry.command.split(" ")[0],
+    ),
   ),
-].filter((command) => command !== "help");
+].filter((command) => command !== "OPERATION");
 
 function cli(...args) {
   const home = temporaryDirectory("avoozl-cli-help-"),
