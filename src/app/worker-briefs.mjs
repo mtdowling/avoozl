@@ -29,7 +29,8 @@ const declined = (reason, fallback) => cell({ declined: reason, fallback });
 // `ctx` is { task, project, relay, cliReport }.
 const chatSteps = ({ task, project, relay, cliReport }) =>
   localSteps(task, project, { relay, cliReport });
-const childSteps = ({ task }) => processSteps(task);
+const childSteps = ({ task, project }) =>
+  processSteps(task, { allowCommands: project?.sandbox?.allowCommands ?? [] });
 
 // A task a worker machine pulled (R90): its worktree and branch, then the
 // executor's own steps, then the driver's text as data.

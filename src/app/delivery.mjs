@@ -3,7 +3,7 @@ import { briefCell } from "./worker-briefs.mjs";
 import { cliCommand } from "./report-command.mjs";
 import { projectExecutor } from "./executors/process.mjs";
 import { resolveRoles } from "./chat-models.mjs";
-import { roleRun } from "./role-table.mjs";
+import { allowedShell, roleRun } from "./role-table.mjs";
 import { PERSON_MESSAGE_HEAD } from "./session-send.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
@@ -1775,10 +1775,19 @@ export function localSteps(
 
 // The steps of a `process` child (R96.1, R94.4a): it runs in its task
 // worktree, only edits, and finishes with the result file as its last step.
-export function processSteps(task, { branch = `avoozl/${task.id}` } = {}) {
+// `allowCommands`, the project's sandbox list, names what its shell may run.
+export function processSteps(
+  task,
+  { branch = `avoozl/${task.id}`, allowCommands } = {},
+) {
   return [
     `1. Work only in the current folder, the worktree of task ${task.id} on branch ${branch}.`,
-    "2. Edit and run the checks. Do not commit, push, open or edit a pull request, merge, label, or comment. Avoozl commits your changes after you exit, runs the checks and lands them.",
+    [
+      "2. Change files with your file tools; they work in this folder.",
+      ...(allowCommands ? [allowedShell(allowCommands)] : []),
+      "A refused command changed nothing, so read back each file you changed before you report done.",
+      "Run the checks. Do not commit, push, open or edit a pull request, merge, label, or comment. Avoozl commits your changes after you exit, runs the checks and lands them; a done with nothing committed is refused.",
+    ].join(" "),
     `3. Avoozl may resume you with a message whose first line is "${PERSON_MESSAGE_HEAD}". That message is the person's own and may change your task: do what it asks, within these rules, then finish as below again.`,
     `4. Last, write .avoozl/result.json in this folder, at most 8 KB: {"state": "done", "text": "<what you changed>"} when the work is finished, or {"state": "blocked", "text": "<why>"} when you cannot finish. Then exit. No result file, or done with a failing exit, is retried.`,
   ];
