@@ -1,6 +1,6 @@
-// `avoozl status` with a workspace named by --workspace or AVOOZL_WORKSPACE
-// reports that workspace, registered on this machine or not, beside the
-// machine view. Naming a workspace is never ignored.
+// `avoozl status` with a workspace named by --workspace or an accepted
+// environment alias reports that workspace, registered on this machine or
+// not, beside the machine view. Naming a workspace is never ignored.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -20,7 +20,8 @@ function machine() {
   const root = temporaryDirectory("avoozl-workspace-status-"),
     env = { ...process.env };
   for (const key of Object.keys(env))
-    if (/^(AVOOZL|KIROCREW)(_|$)/.test(key)) delete env[key];
+    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE|KIROCREW)(_|$)/.test(key))
+      delete env[key];
   Object.assign(env, {
     HOME: path.join(root, "home"),
     XDG_CONFIG_HOME: path.join(root, "config"),
@@ -100,6 +101,13 @@ test("status says a named workspace is registered, by path, by ID and from the e
     [["--workspace", directory], {}, "--workspace", directory],
     [["--workspace", "status-fixture"], {}, "--workspace", "status-fixture"],
     [[], { AVOOZL_WORKSPACE: directory }, "AVOOZL_WORKSPACE", directory],
+    [
+      [],
+      { AICOMMANDER_WORKSPACE: directory },
+      "AICOMMANDER_WORKSPACE",
+      directory,
+    ],
+    [[], { NUPP_WORKSPACE: directory }, "NUPP_WORKSPACE", directory],
   ]) {
     const status = cli({ ...env, ...extra }, "status", ...args);
     assert.equal(status.workspace.named, named);

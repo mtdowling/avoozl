@@ -45,7 +45,11 @@ export function operatorName({ configured, workspaceRoot } = {}) {
 export function workspaceConfig(options = {}) {
   const env = options.env || process.env;
   const workspaceRoot = path.resolve(
-    options.workspace || env.AVOOZL_WORKSPACE || process.cwd(),
+    options.workspace ||
+      env.AVOOZL_WORKSPACE ||
+      env.AICOMMANDER_WORKSPACE ||
+      env.NUPP_WORKSPACE ||
+      process.cwd(),
   );
   const loaded = loadLayeredConfig({
       workspaceRoot,

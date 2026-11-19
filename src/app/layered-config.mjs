@@ -198,12 +198,19 @@ function deepMerge(left, right) {
 
 function environmentLayer(env) {
   const value = {
-    dbPath: env.AVOOZL_DB,
-    documents: env.AVOOZL_DOCUMENTS,
-    operator: env.AVOOZL_OPERATOR,
-    port: env.AVOOZL_PORT,
-    host: env.AVOOZL_HOST,
-    url: env.AVOOZL_URL,
+    dbPath: env.AVOOZL_DB ?? env.AICOMMANDER_DB ?? env.NUPP_WORKSPACE_DB,
+    documents:
+      env.AVOOZL_DOCUMENTS ??
+      env.AICOMMANDER_DOCUMENTS ??
+      env.NUPP_WORKSPACE_DOCUMENTS ??
+      env.NUPP_WORKSPACE_DOCS,
+    operator:
+      env.AVOOZL_OPERATOR ??
+      env.AICOMMANDER_OPERATOR ??
+      env.NUPP_WORKSPACE_OPERATOR,
+    port: env.AVOOZL_PORT ?? env.AICOMMANDER_PORT ?? env.NUPP_WORKSPACE_PORT,
+    host: env.AVOOZL_HOST ?? env.AICOMMANDER_HOST ?? env.NUPP_WORKSPACE_HOST,
+    url: env.AVOOZL_URL ?? env.AICOMMANDER_URL ?? env.NUPP_WORKSPACE_URL,
   };
   for (const [key, child] of Object.entries(value))
     if (!child) delete value[key];

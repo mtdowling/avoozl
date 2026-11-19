@@ -30,6 +30,7 @@ import {
 } from "./supervisor-unit.mjs";
 import { reportByToken } from "./report-match.mjs";
 import { HOLDS_TASKS, readRunnerConfig } from "./remote-runner.mjs";
+import { movedCommand } from "./moved-operations.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
 import { reconcileSource } from "./source-sync.mjs";
@@ -153,14 +154,29 @@ try {
     positionals.unshift(...(hasCommand ? [command] : []));
     command = "help";
   }
+  // A removed command form answers with one line naming its replacement
+  // and changes nothing (moved-operations.mjs, worker-paths WP7).
+  const moved = movedCommand(command, options);
+  if (moved) {
+    console.log(moved);
+    process.exit(1);
+  }
   const env = options.env || process.env;
-  const requestedWorkspace = options.workspace || env.AVOOZL_WORKSPACE;
+  const requestedWorkspace =
+    options.workspace ||
+    env.AVOOZL_WORKSPACE ||
+    env.AICOMMANDER_WORKSPACE ||
+    env.NUPP_WORKSPACE;
   // Where the workspace was named, for `status` to say so.
   const requestedFrom = options.workspace
     ? "--workspace"
     : env.AVOOZL_WORKSPACE
       ? "AVOOZL_WORKSPACE"
-      : undefined;
+      : env.AICOMMANDER_WORKSPACE
+        ? "AICOMMANDER_WORKSPACE"
+        : env.NUPP_WORKSPACE
+          ? "NUPP_WORKSPACE"
+          : undefined;
   let registeredWorkspaceId = null,
     configOptions = options;
   if (

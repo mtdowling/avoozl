@@ -66,6 +66,10 @@ export const NARROW_TOOLS = {
     "worktree.prepare",
     "Narrow tool for worker chats. Create or return a leaf's isolated worktree on branch avoozl/<task-id>: {taskId}. A retry returns the same worktree with its commits; nothing is removed or reset.",
   ],
+  plans_bind_session: [
+    "session.bind",
+    "Compatibility name for binding a Kiro Crew session slot to a task: {taskId, slot, role?, attempt?, title?}.",
+  ],
   plans_report: [
     "session.report",
     "Narrow tool for worker, verifier, reviewer and falsifier chats. Report on your bound task from its worker, verifier, falsifier, or review session: {taskId, kind: progress|done|blocked|question|findings, text?, commit?, checks?, verdict?, findings?, closures?}. A local worker's done needs no commit: Avoozl reads HEAD of its task worktree and refuses a different one. Other done reports need the full commit SHA; a verifier's done also lists checks: [{command, exitCode}], one per declared check, and a check it could not run as {command, exitCode: null, notRun: reason}. A review's done names the commit it judged with verdict approved|changes-requested, findings [{id, kind: defect|observation, paths, text}], and closures [{finding: \"<attempt>:<role>:<id>\", state: fixed|unchanged, note?}] for every open finding of its role. blocked and question need text. A progress report may mark phase coding|tests|commands|ci-wait for timing, and a check entry may add durationMs. A worker told to investigate first reports kind findings with findings {read, cause, plan, check, confidence: low|medium|high}, changes no file, and reports done only after Avoozl's Go ahead; a falsifier's done has no commit and carries falsifier {verdict: stands|refuted, evidence, confidence}. Any report may attach evidence: [{kind: file, path, note?}] (an image or video of at most 20 MB, by absolute path) or [{kind: note, text}]. Only the session bound to the task's newest attempt may report.",
@@ -101,6 +105,10 @@ export const NARROW_TOOLS = {
   plans_claim_task: [
     "runner.claim",
     "Refused over MCP: a manual claim is a person's, with avoozl claim TASK at the command line. The tick starts every other task.",
+  ],
+  plans_retry_delivery: [
+    "delivery.retry",
+    "Compatibility name for retrying a task after a person resolves its delivery hold: {taskId, dismiss?}.",
   ],
   plans_plan_review: [
     "plan.review.findings",

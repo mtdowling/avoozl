@@ -1,6 +1,5 @@
-// No backward compatibility until Avoozl has other users (AGENTS.md): only
-// AVOOZL_* variables and the `avoozl` command, the narrow plans_* tools a
-// role names, and an unknown top-level settings key is a load error.
+// The renamed application keeps its existing command, environment and
+// narrow plans_* tool names as compatibility interfaces.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -70,6 +69,8 @@ test("the stdio MCP server lists no old plan-file tool", () => {
     "plans_get_task",
     "plans_documents",
     "plans_get_document",
+    "plans_bind_session",
+    "plans_retry_delivery",
   ])
     assert.ok(names.has(name), name);
   for (const name of [
@@ -86,7 +87,7 @@ test("the stdio MCP server lists no old plan-file tool", () => {
     assert.ok(!names.has(name), name);
 });
 
-test("only AVOOZL_* variables name the workspace and its paths", () => {
+test("renamed and legacy environment prefixes name the workspace and its paths", () => {
   const { dir, workspace } = setup("Compat env");
   assert.equal(
     workspaceConfig({ env: cleanEnv(dir, { AVOOZL_WORKSPACE: workspace }) })
@@ -94,7 +95,7 @@ test("only AVOOZL_* variables name the workspace and its paths", () => {
     workspace,
   );
   for (const name of ["AICOMMANDER_WORKSPACE", "NUPP_WORKSPACE"])
-    assert.notEqual(
+    assert.equal(
       workspaceConfig({ env: cleanEnv(dir, { [name]: workspace }) })
         .workspaceRoot,
       workspace,
@@ -105,14 +106,25 @@ test("only AVOOZL_* variables name the workspace and its paths", () => {
     db({ AVOOZL_DB: "a.sqlite" }).dbPath,
     path.resolve(workspace, "a.sqlite"),
   );
-  assert.equal(db({ AICOMMANDER_DB: "b.sqlite" }).dbPath, db({}).dbPath);
+  assert.equal(
+    db({ AICOMMANDER_DB: "b.sqlite" }).dbPath,
+    path.resolve(workspace, "b.sqlite"),
+  );
+  assert.equal(
+    db({ NUPP_WORKSPACE_DOCS: "notes" }).plansRoot,
+    path.resolve(workspace, "notes"),
+  );
+  assert.equal(
+    db({ AVOOZL_DB: "current.sqlite", AICOMMANDER_DB: "old.sqlite" }).dbPath,
+    path.resolve(workspace, "current.sqlite"),
+  );
 });
 
-test("package.json names only the avoozl command", () => {
+test("package.json keeps the aicommander command alias", () => {
   const pkg = JSON.parse(
     fs.readFileSync(path.join(root, "package.json"), "utf8"),
   );
-  assert.deepEqual(Object.keys(pkg.bin), ["avoozl"]);
+  assert.deepEqual(Object.keys(pkg.bin).sort(), ["aicommander", "avoozl"]);
 });
 
 test("an unknown top-level key fails to load, naming the file and key", () => {

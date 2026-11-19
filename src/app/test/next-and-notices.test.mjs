@@ -218,32 +218,25 @@ test("every claim and next goes through Operations.execute, and MCP may not clai
   );
 });
 
-test("the removed Crew Mode report command is refused as unknown and changes nothing", async (t) => {
-  // worker-paths WP7.1 (owner decision 2026-11-18): removed commands are
-  // deleted, not answered.
+test("the removed Crew Mode command forms answer with the manual path and change nothing", async (t) => {
   const { root, store } = setup(t);
-  let out;
-  try {
-    execFileSync(
-      process.execPath,
-      [
-        cli,
-        "report",
-        "a",
-        "--slot",
-        "s",
-        "--kind",
-        "done",
-        "--workspace",
-        root,
-      ],
-      { encoding: "utf8", env: isolatedEnv(root) },
-    );
-  } catch (error) {
-    out = error;
+  for (const args of [
+    ["report", "a", "--slot", "s", "--kind", "done"],
+    ["claim", "a", "--slot", "s"],
+    ["next", "--hook"],
+  ]) {
+    let out;
+    try {
+      execFileSync(process.execPath, [cli, ...args, "--workspace", root], {
+        encoding: "utf8",
+        env: isolatedEnv(root),
+      });
+    } catch (error) {
+      out = error;
+    }
+    assert.equal(out?.status, 1, args.join(" "));
+    assert.match(out.stdout, /avoozl claim TASK.*avoozl runner report/);
   }
-  assert.equal(out?.status, 1);
-  assert.match(out.stderr, /Unknown command or operation report/);
   assert.deepEqual(store.list("session_bindings"), []);
 });
 

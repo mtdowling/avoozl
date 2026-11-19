@@ -80,7 +80,8 @@ function setup(t) {
 function run(root, args, env = {}) {
   const clean = { ...process.env, XDG_CONFIG_HOME: config, ...env };
   for (const name of Object.keys(clean))
-    if (/^(AVOOZL_(?!CHILD)|KIROCREW)/.test(name)) delete clean[name];
+    if (/^(AVOOZL_(?!CHILD)|AICOMMANDER|NUPP_WORKSPACE|KIROCREW)/.test(name))
+      delete clean[name];
   return spawnSync(process.execPath, [cli, ...args, "--workspace", root], {
     encoding: "utf8",
     env: clean,
