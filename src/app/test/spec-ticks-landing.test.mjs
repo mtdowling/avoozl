@@ -25,15 +25,12 @@ const TASKS = [
   "# Tasks",
   "",
   "- [ ] 1 Parent",
-  "  - Facts:",
-  "    - kind: package",
+  "  - $kind: package",
   "  - [ ] 1.1 First",
-  "    - Facts:",
-  "      - done: It works",
+  "    - $done: It works",
   "    - A summary.",
   "  - [ ] 1.2 Second",
-  "    - Facts:",
-  "      - done: It works",
+  "    - $done: It works",
   "",
 ].join("\n");
 const mainOf = (w) => git(w.origin, "rev-parse", "main");
@@ -225,11 +222,11 @@ test("landing ticks the task in the same commit, touches only its line, and tick
   );
 });
 
-test("a person's Built line, like a tick, leaves the revision hash alone", () => {
+test("a person's $built fact, like a tick, leaves the revision hash alone", () => {
   const sha = "0123456789abcdef0123456789abcdef01234567",
     text = tick(TASKS, 1).replace(
-      "      - done: It works\n    - A summary.",
-      `      - done: It works\n      - Built: ${sha.slice(0, 12)}\n    - A summary.`,
+      "    - $done: It works\n    - A summary.",
+      `    - $done: It works\n    - $built: ${sha.slice(0, 12)}\n    - A summary.`,
     );
   assert.notEqual(text, tick(TASKS, 1));
   assert.equal(specHash({ "tasks.md": text }), specHash({ "tasks.md": TASKS }));

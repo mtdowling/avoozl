@@ -1,26 +1,24 @@
 # Manual tasks and task links
 
 A manual task is a step only a person does, such as a team review before a
-cutover. Mark it with `manual: true` in its facts in `tasks.md`:
+cutover. Mark it with `$manual: true` in `tasks.md`:
 
 ```markdown [tasks.md]
 - [ ] team-review Review with the team
-  - Facts:
-    - manual: true
-    - repo: sdk
-    - after: protocol-tests-proof
-    - done:
-      - The team agreed the results are good enough to cut over
+  - $manual: true
+  - $repo: sdk
+  - $after: protocol-tests-proof
+  - $done: The team agreed the results are good enough to cut over
 ```
 
-A manual task needs `done` and a `repo`. `manual: true` is the one way to say a
+A manual task needs `$done` and a `$repo`. `$manual: true` is the one way to say a
 person does a task. It completes by a person and takes no `completion` default.
 
 ## Lint rules
 
 Lint refuses `session`, `batch`, `paths` and `route` on a manual task, by name.
-It also refuses `completion: person` anywhere, and names `manual: true` as the
-fix.
+It also refuses `$completion: person` anywhere, and names `$manual: true` as
+the fix.
 
 ## Running a manual task
 
@@ -74,5 +72,5 @@ Manual tasks and links are tested with a fake GitHub and have not run live.
 
 ## See also
 
-- [Specs](specs.md) for the `Facts:` bullets
+- [Specs](specs.md) for the `$` fact bullets
 - [Content rules](content-rules.md) for the check on each link

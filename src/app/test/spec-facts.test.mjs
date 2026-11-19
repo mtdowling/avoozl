@@ -1,9 +1,9 @@
-// Facts bullets in tasks.md (Requirement 111, design §4.40): each key, each
-// refusal at its line, defaults, packages, epic folders, and the revision
+// `$key:` fact bullets in tasks.md (Requirement 111, design §4.40): each
+// key, each refusal at its line, defaults, packages, epic folders, and the revision
 // hash a pure conversion keeps.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { factsLines, readFacts } from "../spec-facts.mjs";
+import { factsLines, readFacts, withoutFacts } from "../spec-facts.mjs";
 import { parseSpec, specHash, specItems } from "../spec-plans.mjs";
 import { workerBrief } from "../delivery.mjs";
 import { foldManifest, legacyHash } from "./legacy-facts.mjs";
@@ -23,7 +23,7 @@ const codes = (parsed) =>
   parsed.diagnostics.map((d) => `${d.code} ${d.file}:${d.lineStart}`);
 const lines = (...rows) => rows.join("\n") + "\n";
 
-test("the owner's example reads defaults, own facts and nested lists", () => {
+test("the owner's example reads defaults, own facts and repeated lists", () => {
   const parsed = parse(
     lines(
       "---",
@@ -31,19 +31,15 @@ test("the owner's example reads defaults, own facts and nested lists", () => {
       "completion: integrated",
       "---",
       "- [ ] lt-1.2 Queue table and records",
-      "  - Facts:",
-      "    - kind: package",
-      "    - after: lt-1.2.1",
-      "    - done:",
-      "      - Tests load a valid file and get every default",
-      "      - An unknown key is refused, and the message names the key",
+      "  - $kind: package",
+      "  - $after: lt-1.2.1",
+      "  - $done: Tests load a valid file and get every default",
+      "  - $done: An unknown key is refused, and the message names the key",
       "  - [ ] lt-1.2.1 Add the queue migration",
-      "    - Facts:",
-      "      - repo: nupp",
-      "      - completion: integrated",
-      "      - done:",
-      "        - The migration runs twice with no change the second time",
+      "    - $repo: nupp",
       "    - A free note stays a note.",
+      "    - $completion: integrated",
+      "    - $done: The migration runs twice with no change the second time",
     ),
   );
   assert.deepEqual(codes(parsed), []);
@@ -51,15 +47,75 @@ test("the owner's example reads defaults, own facts and nested lists", () => {
   assert.equal(parent.kind, "package");
   assert.equal(parent.repository, undefined, "a package takes no default");
   assert.deepEqual(parent.requires, ["lt-1.2.1"]);
+  assert.deepEqual(parent.acceptance, [
+    "Tests load a valid file and get every default",
+    "An unknown key is refused, and the message names the key",
+  ]);
   assert.equal(child.parent, "lt-1.2");
   assert.equal(child.repository, "nupp", "a task's own fact wins");
   assert.equal(child.checks, undefined, "a task never names checks");
   assert.deepEqual(child.acceptance, [
     "The migration runs twice with no change the second time",
   ]);
+  assert.equal(child.summary, "- A free note stays a note.");
 });
 
-test("every key the reader uses round-trips through Facts bullets", () => {
+test("a list fact written again adds to it; $done keeps its commas", () => {
+  const text = lines(
+      "- [ ] 1.1 Read",
+      "  - $after: 0.1, 0.2",
+      "  - $after: 0.3",
+      "  - $done: It reads, parses, and reports",
+      "  - $done: It stops",
+      "  - $paths: src/a.mjs, src/b.mjs",
+    ),
+    { manifest, problems } = readFacts(text, specItems("config", text));
+  assert.deepEqual(problems, []);
+  assert.deepEqual(manifest.tasks["1.1"], {
+    kind: "leaf",
+    requires: ["0.1", "0.2", "0.3"],
+    acceptance: ["It reads, parses, and reports", "It stops"],
+    paths: ["src/a.mjs", "src/b.mjs"],
+  });
+});
+
+test("a $built fact is skipped and stays outside the revision hash", () => {
+  const plain = lines("- [x] 1.1 Read", "  - $done: It reads"),
+    built = lines(
+      "- [x] 1.1 Read",
+      "  - $done: It reads",
+      "  - $built: abc1234",
+    ),
+    items = (text) => specItems("config", text);
+  assert.deepEqual(readFacts(built, items(built)).problems, []);
+  assert.deepEqual(
+    readFacts(built, items(built)).manifest,
+    readFacts(plain, items(plain)).manifest,
+  );
+  assert.equal(
+    withoutFacts(built, items(built)),
+    withoutFacts(plain, items(plain)),
+  );
+});
+
+test("a fenced $ line is text, not a fact", () => {
+  const text = lines(
+      "- [ ] 1.1 Read",
+      "  - $done: It reads",
+      "  - An example:",
+      "    ```markdown",
+      "    - $done: Not a fact",
+      "    ```",
+      "```",
+      "- $after: 2",
+      "```",
+    ),
+    { manifest, problems } = readFacts(text, specItems("config", text));
+  assert.deepEqual(problems, []);
+  assert.deepEqual(manifest.tasks["1.1"].acceptance, ["It reads"]);
+});
+
+test("every key the reader uses round-trips through fact bullets", () => {
   const entry = {
     kind: "leaf",
     repository: "app",
@@ -92,74 +148,60 @@ test("every key the reader uses round-trips through Facts bullets", () => {
     { manifest, problems } = readFacts(text, specItems("config", text));
   assert.deepEqual(problems, []);
   assert.deepEqual(manifest.tasks["1.1"], entry);
+  assert.ok(
+    text
+      .split("\n")
+      .slice(1, -1)
+      .every((row) => /^ {2}- \$[a-zA-Z]+:/.test(row)),
+    text,
+  );
 });
 
 test("each wrong shape is refused at its line in tasks.md", () => {
   const cases = [
     [
-      lines(
-        "- [ ] 1.1 Read",
-        "  - Facts:",
-        "    - colour: blue",
-        "    - done: It reads",
-        "    - repo: app",
-      ),
-      ["facts.unknown-key tasks.md:3"],
-      /Unknown fact key "colour"/,
+      lines("- [ ] 1.1 Read", "  - $colour: blue", "  - $done: It reads"),
+      ["facts.unknown-key tasks.md:2"],
+      /Unknown fact "\$colour"/,
     ],
     [
       lines(
         "- [ ] 1.1 Read",
-        "  - Facts:",
-        "    - done: It reads",
-        "    - done: It reads twice",
-        "    - repo: app",
+        "  - $repo: app",
+        "  - $done: It reads",
+        "  - $repo: web",
       ),
       ["facts.duplicate-key tasks.md:4"],
       /written twice/,
     ],
     [
-      lines(
-        "- [ ] 1.1 Read",
-        "  - A note first",
-        "  - Facts:",
-        "    - done: It reads",
-        "    - repo: app",
-      ),
+      lines("- [ ] 1.1 Read", "  - A note first", "    - $done: It reads"),
       ["facts.missing tasks.md:1", "facts.misplaced tasks.md:3"],
-      /no Facts: bullet/,
+      /directly under its task item/,
     ],
     [
       lines(
         "- [ ] 1.1 Read",
-        "  - Facts:",
-        "    - done: It reads",
-        "    - repo: app",
-        "  - Facts:",
-        "    - done: Again",
+        "  - $done:",
+        "    - It reads",
+        "    - It parses",
+        "  - $repo: app",
       ),
-      ["facts.misplaced tasks.md:5"],
-      /first child of a task item, and a task has one/,
+      [
+        "facts.schema tasks.md:2",
+        "facts.value tasks.md:2",
+        "facts.value tasks.md:3",
+      ],
+      /one bullet on one line/,
     ],
     [
-      lines(
-        "- [ ] 1.1 Read",
-        "  - Facts:",
-        "    - done: It reads",
-        "    - repo: app",
-        "  - repo: app",
-      ),
-      ["facts.stray tasks.md:5"],
-      /"repo:" is a fact/,
+      lines("- [ ] 1.1 Read", "  - $done: It reads", "  - repo: app"),
+      ["facts.stray tasks.md:3"],
+      /"repo:" reads as a fact. Write it as "\$repo:"/,
     ],
     [
-      lines(
-        "- [ ] 1.1 Read",
-        "  - Facts:",
-        "    - done: It reads",
-        "    - manual: yes",
-      ),
-      ["facts.value tasks.md:4"],
+      lines("- [ ] 1.1 Read", "  - $done: It reads", "  - $manual: yes"),
+      ["facts.value tasks.md:3"],
       /manual is true or false/,
     ],
     [
@@ -168,12 +210,15 @@ test("each wrong shape is refused at its line in tasks.md", () => {
         "colour: blue",
         "---",
         "- [ ] 1.1 Read",
-        "  - Facts:",
-        "    - done: It reads",
-        "    - repo: app",
+        "  - $done: It reads",
       ),
       ["facts.unknown-key tasks.md:2"],
       /Unknown front-matter key "colour"/,
+    ],
+    [
+      lines("- [ ] 1.1 Read", "  - Read it."),
+      ["facts.missing tasks.md:1"],
+      /has no facts. Add a "\$done:" bullet under it/,
     ],
   ];
   for (const [text, expected, message] of cases) {
@@ -194,10 +239,9 @@ test("a manual leaf takes no completion default", () => {
       "completion: integrated",
       "---",
       "- [ ] 1.1 Review with the team",
-      "  - Facts:",
-      "    - manual: true",
-      "    - repo: app",
-      "    - done: The team agreed",
+      "  - $manual: true",
+      "  - $repo: app",
+      "  - $done: The team agreed",
     ),
   );
   assert.deepEqual(codes(parsed), []);
@@ -209,11 +253,10 @@ test("completion person is refused in facts and front-matter, naming manual", ()
   const fact = parse(
       lines(
         "- [ ] 1.1 Review with the team",
-        "  - Facts:",
-        "    - manual: true",
-        "    - completion: person",
-        "    - repo: app",
-        "    - done: The team agreed",
+        "  - $manual: true",
+        "  - $completion: person",
+        "  - $repo: app",
+        "  - $done: The team agreed",
       ),
     ),
     front = parse(
@@ -222,15 +265,14 @@ test("completion person is refused in facts and front-matter, naming manual", ()
         "completion: person",
         "---",
         "- [ ] 1.1 Review with the team",
-        "  - Facts:",
-        "    - manual: true",
-        "    - repo: app",
-        "    - done: The team agreed",
+        "  - $manual: true",
+        "  - $repo: app",
+        "  - $done: The team agreed",
       ),
     );
-  assert.deepEqual(codes(fact), ["facts.person-completion tasks.md:4"]);
+  assert.deepEqual(codes(fact), ["facts.person-completion tasks.md:3"]);
   assert.deepEqual(codes(front), ["facts.person-completion tasks.md:2"]);
-  assert.match(fact.diagnostics[0].message, /manual: true/);
+  assert.match(fact.diagnostics[0].message, /\$manual: true/);
 });
 
 // A task's own summary bullets say what it delivers.
@@ -240,14 +282,11 @@ const described = lines(
   "completion: integrated",
   "---",
   "- [ ] 1 Load configuration",
-  "  - Facts:",
-  "    - kind: package",
-  "    - after: 1.1",
+  "  - $kind: package",
+  "  - $after: 1.1",
   "  - The loader and its tests.",
   "  - [ ] 1.1 Read the config file",
-  "    - Facts:",
-  "      - done:",
-  "        - A missing file yields defaults.",
+  "    - $done: A missing file yields defaults.",
   "    - Per file: read config.json from the working directory,",
   "      then parse it.",
   "      - Keep comments out.",
@@ -293,7 +332,7 @@ test("a summary that repeats the title is refused and never reaches the brief", 
         },
       );
   assert.deepEqual(codes(repeating), [
-    "task.summary-repeats-title tasks.md:18",
+    "task.summary-repeats-title tasks.md:15",
   ]);
   assert.match(repeating.diagnostics[0].message, /repeats the title/);
   const kept = repeating.proposals.find((p) => p.specKey === "1.1");
@@ -314,14 +353,14 @@ test("a summary that repeats the title is refused and never reaches the brief", 
 test("a checks fact or front-matter default is refused: tasks run the repository's", () => {
   const fact = parse(
       described.replace(
-        "      - done:",
-        "      - checks: npm test\n      - done:",
+        "    - $done:",
+        "    - $checks: npm test\n    - $done:",
       ),
     ),
     front = parse(
       described.replace("completion: integrated", "checks: npm test"),
     );
-  assert.deepEqual(codes(fact), ["facts.removed-key tasks.md:12"]);
+  assert.deepEqual(codes(fact), ["facts.removed-key tasks.md:10"]);
   assert.deepEqual(codes(front), ["facts.removed-key tasks.md:3"]);
   for (const parsed of [fact, front])
     assert.match(
@@ -332,12 +371,9 @@ test("a checks fact or front-matter default is refused: tasks run the repository
 
 test("a summary fact is refused, naming the line to delete", () => {
   const parsed = parse(
-    described.replace(
-      "      - done:",
-      "      - summary: Read it.\n      - done:",
-    ),
+    described.replace("    - $done:", "    - $summary: Read it.\n    - $done:"),
   );
-  assert.deepEqual(codes(parsed), ["facts.removed-key tasks.md:12"]);
+  assert.deepEqual(codes(parsed), ["facts.removed-key tasks.md:10"]);
   assert.match(parsed.diagnostics[0].message, /Delete this line/);
 });
 
@@ -352,7 +388,7 @@ test("a long title stays whole and is refused over the limit", () => {
   const over = parse(
     described.replace("1.1 Read the config file", `1.1 ${long.repeat(2)}`),
   );
-  assert.deepEqual(codes(over), ["task.title-length tasks.md:10"]);
+  assert.deepEqual(codes(over), ["task.title-length tasks.md:9"]);
 });
 
 test("an epic folder reads its rows from facts", () => {
@@ -362,13 +398,11 @@ test("an epic folder reads its rows from facts", () => {
       "kind: epic",
       "---",
       "- [ ] 1 Native runtime",
-      "  - Facts:",
-      "    - plan: native-runtime",
+      "  - $plan: native-runtime",
       "  - Direction and work",
       "- [ ] 2 Review it",
-      "  - Facts:",
-      "    - plan: native-runtime",
-      "    - step: review",
+      "  - $plan: native-runtime",
+      "  - $step: review",
     ),
   );
   assert.equal(parsed.kind, "epic");
@@ -421,12 +455,12 @@ test("a pure conversion keeps the revision hash; a changed fact changes it", () 
   const spelled = foldManifest(old, { defaults: false }).files;
   assert.notEqual(spelled["tasks.md"], converted["tasks.md"]);
   assert.equal(specHash(spelled), specHash(converted));
-  // An inline list and nested bullets are the same content.
+  // An inline list and repeated bullets are the same content.
   const nested = {
     ...converted,
     "tasks.md": converted["tasks.md"].replace(
-      "      - after: 1.1",
-      "      - after:\n        - 1.1",
+      "  - $after: 1.1, 1.2",
+      "  - $after: 1.1\n  - $after: 1.2",
     ),
   };
   assert.notEqual(nested["tasks.md"], converted["tasks.md"]);
@@ -441,8 +475,8 @@ test("a pure conversion keeps the revision hash; a changed fact changes it", () 
   const changed = {
     ...converted,
     "tasks.md": converted["tasks.md"].replace(
-      "- An unknown key is reported with its path.",
-      "- An unknown key is reported with its JSON path.",
+      "$done: An unknown key is reported with its path.",
+      "$done: An unknown key is reported with its JSON path.",
     ),
   };
   assert.notEqual(specHash(changed), specHash(converted));
@@ -465,7 +499,7 @@ test("an old record's summary folds into the item's summary", () => {
     parsed = parseSpec({ name: "config", exists: true, files: converted });
   assert.match(
     converted["tasks.md"],
-    /1\.1 Read the config file\n {4}- Facts:\n(?: {6}.*\n)+ {4}- Parse config\.json from the working directory\./,
+    /1\.1 Read the config file\n(?: {4}- \$.*\n)+ {4}- Parse config\.json from the working directory\./,
   );
   assert.deepEqual(codes(parsed), []);
   assert.equal(

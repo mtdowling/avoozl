@@ -232,8 +232,7 @@ test("a fact breaking the task schema is refused at its Facts line", () => {
   const root = temporaryDirectory(),
     text = [
       "- [ ] 1.1 Read the config file",
-      "  - Facts:",
-      "    - completion: integrated",
+      "  - $completion: integrated",
       "",
     ].join("\n");
   writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
@@ -588,14 +587,14 @@ test("nesting under a leaf, or a parent fact, is refused at its line", () => {
   ]);
   const named = temporaryDirectory(),
     parented = specFiles()["tasks.md"].replace(
-      "    - Facts:\n      - done:\n        - A missing",
-      "    - Facts:\n      - parent: 1\n      - done:\n        - A missing",
+      "    - $done: A missing",
+      "    - $parent: 1\n    - $done: A missing",
     );
   writeSpec(named, "config", { "tasks.md": parented });
   const result = lint(named);
   assert.deepEqual(
     result.diagnostics.map((d) => [d.code, d.file, d.lineStart]),
-    [["facts.unknown-key", "tasks.md", lineOf(parented, "- parent: 1")]],
+    [["facts.unknown-key", "tasks.md", lineOf(parented, "- $parent: 1")]],
   );
 });
 
@@ -1180,9 +1179,9 @@ const withBatch = (front, members) => {
   let text = specFiles()["tasks.md"];
   for (const [key, group] of Object.entries(members))
     text = text.replace(
-      new RegExp(`(- \\[ \\] ${key.replace(".", "\\.")} .*\\n\\s*- Facts:\\n)`),
+      new RegExp(`(- \\[ \\] ${key.replace(".", "\\.")} .*\\n)`),
       (head) =>
-        `${head}${" ".repeat(key.includes(".") ? 6 : 4)}- batch: ${group}\n`,
+        `${head}${" ".repeat(key.includes(".") ? 4 : 2)}- $batch: ${group}\n`,
     );
   return { "tasks.md": front ? `---\n${front}\n---\n${text}` : text };
 };

@@ -184,7 +184,7 @@ test("the spec reader knows epic folders and refuses the old plan forms", (t) =>
   writeSpec(root, "member-plan", {
     "requirements.md": "# Old\n",
     "tasks.md":
-      "---\nkind: epic\n---\n# Plans\n\n- [ ] 1 Alpha\n  - Facts:\n    - memberPlan: alpha\n",
+      "---\nkind: epic\n---\n# Plans\n\n- [ ] 1 Alpha\n  - $memberPlan: alpha\n",
   });
   const memberPlan = lint(ops, "member-plan");
   assert.deepEqual(codes(memberPlan).sort(), [
@@ -213,16 +213,13 @@ test("the spec reader knows epic folders and refuses the old plan forms", (t) =>
       "# Tasks",
       "",
       "- [ ] 1 Parent",
-      "  - Facts:",
-      "    - kind: epic",
-      "    - after: 1.1",
+      "  - $kind: epic",
+      "  - $after: 1.1",
       "  - [ ] 1.1 Child",
-      "    - Facts:",
-      "      - done: It works",
+      "    - $done: It works",
       "- [ ] 2 Grouped",
-      "  - Facts:",
-      "    - epic: W1",
-      "    - done: It works",
+      "  - $epic: W1",
+      "  - $done: It works",
       "",
     ].join("\n"),
   });

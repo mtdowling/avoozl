@@ -1,5 +1,5 @@
-// Task facts in tasks.md (Requirement 111, design §4.40). Each task item
-// carries one `Facts:` bullet as its first child; spec-wide values are
+// Task facts in tasks.md (Requirement 111, design §4.40). A task's facts are
+// `$key: value` bullets directly under its item; spec-wide values are
 // front-matter at the top of the file. This turns both into the object the
 // manifest used to hold, `{tasks, ship, phases, batches, ...}`, plus the line
 // of every bullet, so parseSpec checks them as it always did.
@@ -8,21 +8,25 @@
 //   repo: avoozl
 //   ---
 //   - [ ] 1.2 Queue table
-//     - Facts:
-//       - after: 1.1
-//       - done:
-//         - The migration runs twice with no change
+//     - $after: 1.1
+//     - $done: The migration runs twice with no change
+//     - Add the queue table and its migration.
 //
 // This module imports nothing from spec-plans.mjs: callers pass the checklist
 // items, so the two files do not import each other.
 
 const FENCE = /^\s*(```|~~~)/;
 const BULLET = /^(\s*)[-*+][ \t]+(.*?)\s*$/;
-const FACTS = /^Facts:$/;
+// A task fact: a bullet that reads `$key: value`.
+const FACT = /^\$([A-Za-z][A-Za-z0-9]*):[ \t]*(.*)$/;
+// A note that reads like a fact with its `$` left off.
+const NOTE = /^([A-Za-z][A-Za-z0-9]*):/;
 const OPEN = /^\uFEFF?---[ \t]*$/;
 const CLOSE = /^(?:---|\.\.\.)[ \t]*$/;
 const STATUS = /^Status:/;
-const BUILT = "Built";
+const BUILT = "built";
+const ONE_LINE = (key) =>
+  `A fact is one bullet on one line. Write another "$${key}:" bullet for each value, and nothing under it.`;
 
 // Fact key -> {as: the manifest key it is stored under, type}. `after` is a
 // list of task IDs, each with an optional `:<completion>`.
@@ -69,7 +73,7 @@ const KEYS = {
 const FACT_KEYS = Object.keys(KEYS);
 // A person's task is `manual: true`; `completion: person` is not written.
 const PERSON =
-  "A task a person does is `manual: true`, which completes by a person. Write that, and delete this line.";
+  "A task a person does is `$manual: true`, which completes by a person. Write that, and delete this line.";
 // Facts that are gone, and what to do with a line that still has one.
 const CHECKS = "Every task runs the repository's checks; delete this line.";
 const REMOVED = {
@@ -253,7 +257,7 @@ function readFront(rows) {
 // mark, parent, title}. Returns
 //   manifest     the object parseSpec checks, `tasks` keyed by item key
 //   problems     [{code, line, message, key?}] in file order
-//   lineOf(key)  the line of the key's Facts bullet, else its item line
+//   lineOf(key)  the line of the key's first fact, else its item line
 //   lineOfFact(key, fact)
 //   isEpic
 //   factLines    the tasks.md line numbers a revision hash leaves out
@@ -264,9 +268,7 @@ export function readFacts(text, items) {
     front = readFront(rows),
     problems = [...front.problems],
     byLine = new Map(items.map((item) => [item.line, item])),
-    skip = new Set(),
-    facts = new Map(),
-    accepted = new Set();
+    skip = new Set();
   for (let at = 0; at < front.lines; at++) skip.add(at + 1);
   const isEpic = front.values.kind === "epic";
   if (front.values.kind !== undefined && front.values.kind !== "epic")
@@ -278,91 +280,80 @@ export function readFacts(text, items) {
       ),
     );
 
-  // The Facts bullet of each item: the first non-blank line after it, when it
-  // is a deeper bullet that reads `Facts:`.
-  for (const item of items) {
-    let at = item.line;
-    while (at < rows.length && !rows[at].trim()) at++;
-    if (at >= rows.length) continue;
-    const bullet = BULLET.exec(rows[at]);
-    if (
-      !bullet ||
-      !FACTS.test(bullet[2]) ||
-      bullet[1].length <= indentOf(rows[item.line - 1])
-    )
-      continue;
-    accepted.add(at + 1);
-    facts.set(item.line, { line: at + 1, indent: bullet[1].length, item });
-  }
-
-  // Read each block.
+  // Each item's facts: its direct child bullets that read `$key: value`. A
+  // sub-item's bullets are its own, and a fenced block holds none.
+  const fenced = new Set();
+  let fence = false;
+  rows.forEach((raw, index) => {
+    if (FENCE.test(raw)) {
+      fence = !fence;
+      fenced.add(index + 1);
+    } else if (fence) fenced.add(index + 1);
+  });
   const tasks = {},
     lines = new Map(),
     factLine = new Map();
-  for (const { line, indent, item } of facts.values()) {
-    let end = line;
-    const children = [];
-    for (let at = line; at < rows.length; at++) {
-      if (!rows[at].trim()) continue;
-      if (indentOf(rows[at]) <= indent) break;
-      end = at + 1;
-      children.push(at);
-    }
-    for (let at = line; at < end; at++) skip.add(at + 1);
-    skip.add(line);
-    const entry = {},
+  for (const item of items) {
+    const base = indentOf(rows[item.line - 1] ?? ""),
+      entry = {},
       seen = new Map();
-    let childIndent = null;
-    for (let n = 0; n < children.length; n++) {
-      const at = children[n],
-        bullet = BULLET.exec(rows[at]);
-      if (!bullet) {
-        problems.push(
-          problem(
-            "facts.value",
-            at + 1,
-            "Write each fact as a bullet, key: value.",
-            {
-              key: item.key,
-            },
-          ),
-        );
+    let child = null,
+      fact = null;
+    for (let at = item.line; at < rows.length; at++) {
+      const raw = rows[at],
+        line = at + 1;
+      if (!raw.trim()) continue;
+      const indent = indentOf(raw);
+      if (indent <= base && !fenced.has(line)) break;
+      if (fenced.has(line)) {
+        fact = null;
         continue;
       }
-      childIndent ??= bullet[1].length;
-      if (bullet[1].length !== childIndent) continue;
-      const nested = [];
-      while (
-        n + 1 < children.length &&
-        indentOf(rows[children[n + 1]]) > childIndent
-      ) {
-        n++;
-        const inner = BULLET.exec(rows[children[n]]);
-        nested.push({
-          line: children[n] + 1,
-          text: inner ? inner[2] : rows[children[n]].trim(),
-        });
+      child ??= indent;
+      if (indent > child) {
+        // A fact is one line: what is nested under it is reported once.
+        if (fact) {
+          skip.add(line);
+          if (!fact.nested) {
+            fact.nested = true;
+            problems.push(
+              problem("facts.value", line, ONE_LINE(fact.key), {
+                key: item.key,
+              }),
+            );
+          }
+        }
+        continue;
       }
-      const match = /^([A-Za-z][A-Za-z0-9]*):[ \t]*(.*)$/.exec(bullet[2]);
+      fact = null;
+      const bullet = BULLET.exec(raw);
+      if (!bullet || byLine.has(line)) continue;
+      const match = FACT.exec(bullet[2]);
       if (!match) {
-        problems.push(
-          problem("facts.value", at + 1, "Write each fact as key: value.", {
-            key: item.key,
-          }),
-        );
+        const note = NOTE.exec(bullet[2])?.[1];
+        if (note && Object.hasOwn(KEYS, note))
+          problems.push(
+            problem(
+              "facts.stray",
+              line,
+              `"${note}:" reads as a fact. Write it as "$${note}:", or rename this note.`,
+              { key: item.key },
+            ),
+          );
         continue;
       }
+      skip.add(line);
+      fact = { key: match[1], nested: false };
+      if (!lines.has(item.key)) lines.set(item.key, line);
       const [, key, inline] = match,
         spec = Object.hasOwn(KEYS, key) ? KEYS[key] : null;
-      // The commit that landed a ticked task (Requirement 113.14). Inside
-      // the Facts block the revision hash skips its text, and it is not a
-      // manifest value, so writing it never needs a new approval.
+      // The commit that landed a ticked task (Requirement 113.14). The
+      // revision hash skips its text, and it is not a manifest value, so
+      // writing it never needs a new approval.
       if (key === BUILT) continue;
       if (Object.hasOwn(REMOVED, key)) {
         problems.push(
-          problem("facts.removed-key", at + 1, REMOVED[key], {
-            key: item.key,
-          }),
+          problem("facts.removed-key", line, REMOVED[key], { key: item.key }),
         );
         continue;
       }
@@ -370,89 +361,72 @@ export function readFacts(text, items) {
         problems.push(
           problem(
             "facts.unknown-key",
-            at + 1,
-            `Unknown fact key "${key}". Known keys: ${FACT_KEYS.join(", ")}.`,
+            line,
+            `Unknown fact "$${key}". Known facts: ${FACT_KEYS.map((name) => `$${name}`).join(", ")}.`,
             { key: item.key },
           ),
         );
         continue;
       }
-      if (seen.has(key)) {
+      const list = spec.type === "list" || spec.type === "after";
+      if (seen.has(key) && !list) {
         problems.push(
           problem(
             "facts.duplicate-key",
-            at + 1,
-            `Fact "${key}" is written twice (lines ${seen.get(key)} and ${at + 1}). Keep one.`,
+            line,
+            `Fact "$${key}" is written twice (lines ${seen.get(key)} and ${line}). Keep one.`,
             { key: item.key },
           ),
         );
         continue;
       }
-      seen.set(key, at + 1);
-      const read = readValue(key, spec, inline.trim(), nested);
+      // `$done` is one result per bullet, so a comma in it is text.
+      const value = inline.trim(),
+        read =
+          key === "done"
+            ? value
+              ? { value: [value] }
+              : { error: "$done needs a result someone can check." }
+            : readValue(key, spec, value, []);
       if (read.error) {
         problems.push(
-          problem("facts.value", at + 1, read.error, { key: item.key }),
+          problem("facts.value", line, read.error, { key: item.key }),
         );
         continue;
       }
       if (key === "completion" && read.value === "person") {
         problems.push(
-          problem("facts.person-completion", at + 1, PERSON, {
-            key: item.key,
-          }),
+          problem("facts.person-completion", line, PERSON, { key: item.key }),
         );
         continue;
       }
+      // A list fact written again adds to the list.
+      if (seen.has(key)) {
+        entry[spec.as] = [...entry[spec.as], ...read.value];
+        continue;
+      }
+      seen.set(key, line);
       entry[spec.as] = read.value;
-      factLine.set(`${item.key}\0${spec.as}`, at + 1);
+      factLine.set(`${item.key}\0${spec.as}`, line);
     }
-    if (item.key && tasks[item.key] === undefined) {
+    if (item.key && lines.has(item.key) && tasks[item.key] === undefined)
       tasks[item.key] = entry;
-      lines.set(item.key, line);
-    }
   }
 
-  // A Facts bullet that is not an item's first child, and a fact outside one.
-  let fenced = false,
-    owner = null,
-    misplaced = null;
+  // A fact bullet that is not a direct child of a task item.
   rows.forEach((raw, index) => {
-    const line = index + 1;
-    if (FENCE.test(raw)) fenced = !fenced;
-    if (fenced || skip.has(line)) return;
-    // The children of a misplaced Facts bullet are reported once, with it.
-    if (misplaced !== null && raw.trim() && indentOf(raw) > misplaced) return;
-    misplaced = null;
-    if (byLine.has(line)) {
-      owner = { item: byLine.get(line), indent: indentOf(raw) };
+    const line = index + 1,
+      bullet = BULLET.exec(raw),
+      match = bullet && FACT.exec(bullet[2]);
+    if (!match || line <= front.lines || fenced.has(line) || skip.has(line))
       return;
-    }
-    if (/^#{1,6}\s/.test(raw)) owner = null;
-    const bullet = BULLET.exec(raw);
-    if (!bullet) return;
-    if (FACTS.test(bullet[2]) && !accepted.has(line)) {
-      misplaced = bullet[1].length;
-      problems.push(
-        problem(
-          "facts.misplaced",
-          line,
-          "Facts: is the first child of a task item, and a task has one. Move it directly under its item.",
-        ),
-      );
-    } else if (
-      owner &&
-      bullet[1].length > owner.indent &&
-      Object.hasOwn(KEYS, /^([A-Za-z][A-Za-z0-9]*):/.exec(bullet[2])?.[1] ?? "")
-    )
-      problems.push(
-        problem(
-          "facts.stray",
-          line,
-          `"${bullet[2].split(":")[0]}:" is a fact. Write it under the task's Facts: bullet, or rename this note.`,
-          { key: owner.item.key },
-        ),
-      );
+    problems.push(
+      problem(
+        "facts.misplaced",
+        line,
+        `"$${match[1]}:" is a task fact. Write it as a bullet directly under its task item.`,
+      ),
+    );
   });
 
   // Defaults fill a leaf; a package takes none. A task keeps its facts in the
@@ -528,7 +502,7 @@ export function readFacts(text, items) {
 }
 
 // The description bullets of each item in tasks.md: its child bullets other
-// than the Facts bullet, nested checklist items and a `Done when:` bullet,
+// than its facts, nested checklist items and a `Done when:` bullet,
 // each with its nested lines, as written. Returns item line ->
 // [{line, text}], for items that have any. They are not facts: the revision
 // hash reads them only as tasks.md text.
@@ -555,7 +529,7 @@ export function itemBullets(text, items) {
         own =
           bullet &&
           !itemLines.has(at + 1) &&
-          !FACTS.test(bullet[2]) &&
+          !FACT.test(bullet[2]) &&
           !/^Done when:/.test(bullet[2])
             ? { line: at + 1, lines: [] }
             : null;
@@ -610,9 +584,8 @@ function lineOfItem(items, key, lines) {
   return lines.get(key) ?? items.find((item) => item.key === key)?.line ?? 1;
 }
 
-// tasks.md without its facts: the front-matter block and every Facts bullet
-// with its children, so the text is what the file said before they were
-// added. Line numbers are not kept: the revision hash reads this.
+// tasks.md without its facts: the front-matter block and every fact bullet,
+// so the text is what the file said before they were added. Line numbers are not kept: the revision hash reads this.
 export function withoutFacts(text, items) {
   const { skip } = readFacts(text, items);
   return String(text)
@@ -647,12 +620,12 @@ const FACT_OF = Object.fromEntries(
 // The fact name a parsed key is written as, such as repo for repository.
 export const factName = (key) => FACT_OF[key] ?? key;
 
-// The Facts bullet for one entry in the manifest's key names, as lines. The
-// Facts bullet sits at column `indent`. `kind: leaf` is left out. Lists are
-// nested bullets, except short inline lists of plain items.
+// The fact bullets for one entry in the manifest's key names, as lines at
+// column `indent`. `kind: leaf` is left out. A short list of plain items is
+// one bullet; any other list, and `done` always, is one bullet per item.
 export function factsLines(entry, { indent = 2 } = {}) {
-  const pad = " ".repeat(indent),
-    out = [`${pad}- Facts:`],
+  const pad = `${" ".repeat(indent)}- $`,
+    out = [],
     keys = Object.keys(entry);
   for (const key of keys) {
     const fact = FACT_OF[key],
@@ -669,21 +642,17 @@ export function factsLines(entry, { indent = 2 } = {}) {
       const items = value.map((item) =>
         typeof item === "string" ? item : `${item.task}:${item.condition}`,
       );
-      // Short plain lists go on one line; `done` is always one bullet each.
       if (
-        fact !== "done" &&
-        items.length &&
-        items.every((item) => item && !/[,\r\n]/.test(item)) &&
-        items.join(", ").length <= 80
-      )
-        out.push(`${pad}  - ${fact}: ${items.join(", ")}`);
-      else {
-        out.push(`${pad}  - ${fact}:`);
-        for (const item of items) out.push(`${pad}    - ${line(item)}`);
-      }
+        fact === "done" ||
+        items.some((item) => !item || /,/.test(item)) ||
+        items.join(", ").length > 80
+      ) {
+        if (!items.length && fact !== "done") out.push(`${pad}${fact}:`);
+        for (const item of items) out.push(`${pad}${fact}: ${line(item)}`);
+      } else out.push(`${pad}${fact}: ${items.join(", ")}`);
     } else if (spec.type === "json")
-      out.push(`${pad}  - ${fact}: ${JSON.stringify(value)}`);
-    else out.push(`${pad}  - ${fact}: ${line(String(value))}`);
+      out.push(`${pad}${fact}: ${JSON.stringify(value)}`);
+    else out.push(`${pad}${fact}: ${line(String(value))}`);
   }
   return out;
 }

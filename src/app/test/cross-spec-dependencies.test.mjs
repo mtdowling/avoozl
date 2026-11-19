@@ -304,7 +304,7 @@ test("changing the reviewed foreign dependency still holds a consumer for review
     fs
       .readFileSync(file, "utf8")
       .replace(
-        /(left-finish[^\n]*\n(?:\s+-.*\n)*?\s+- after:) right-step/,
+        /(left-finish[^\n]*\n(?:\s+-.*\n)*?\s+- \$after:) right-step/,
         "$1 left-start",
       ),
   );

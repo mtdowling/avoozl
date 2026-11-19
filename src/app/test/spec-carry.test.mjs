@@ -76,7 +76,7 @@ test("the same content in the Facts layout keeps its approval", async (t) => {
 
 for (const [what, file, from, to] of [
   ["prose", "design.md", "A loader, then", "A loader. then"],
-  ["after", "tasks.md", "      - after: 1.1", "      - after: 1"],
+  ["after", "tasks.md", "    - $after: 1.1", "    - $after: 1"],
   [
     "summary",
     "tasks.md",

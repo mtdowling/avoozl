@@ -131,7 +131,7 @@ test("a starter that does not lint, or phases that do not match it, are refused"
     tasks,
     fs
       .readFileSync(tasks, "utf8")
-      .replace("    - manual: true", "    - manual: true\n    - paths: src/**"),
+      .replace("  - $manual: true", "  - $manual: true\n  - $paths: src/**"),
   );
   invalid(
     plugin.folder,

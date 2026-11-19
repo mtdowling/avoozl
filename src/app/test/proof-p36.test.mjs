@@ -387,23 +387,20 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
       "# Tasks",
       "",
       "- [ ] 1 Parent",
-      "  - Facts:",
-      "    - kind: epic",
-      "    - after: 1.1",
+      "  - $kind: epic",
+      "  - $after: 1.1",
       "  - [ ] 1.1 Child",
-      "    - Facts:",
-      "      - done: It works",
+      "    - $done: It works",
       "- [ ] 2 Grouped",
-      "  - Facts:",
-      "    - epic: W1",
-      "    - done: It works",
+      "  - $epic: W1",
+      "  - $done: It works",
       "",
     ].join("\n"),
   });
   writeSpec(root, "old-epic", {
     "requirements.md": "# Old epic\n\nThe goal.\n",
     "tasks.md":
-      "---\nkind: epic\n---\n# Plans\n\n- [ ] 1 alpha\n  - Facts:\n    - plan: alpha\n    - repo: plans\n",
+      "---\nkind: epic\n---\n# Plans\n\n- [ ] 1 alpha\n  - $plan: alpha\n  - $repo: plans\n",
   });
   const old = await lint(ops, "old"),
     oldEpic = await lint(ops, "old-epic");

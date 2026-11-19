@@ -77,7 +77,7 @@ Steps 1 to 4 of local delivery. The chat you are in runs these steps. Two
   plans in `plan` facts; each member's front-matter says `epic: <epic>`. A
   phase is a group of tasks inside one plan: a `## ` heading in `tasks.md`, or
   a `phase` fact. Read them with `plans_plan` `epics` and `epic`.
-  Never write `kind: epic` on a task inside a plan, an `epic` value on a task, or an
+  Never write `$kind: epic` on a task inside a plan, an `$epic` fact on a task, or an
   `epics` list: Avoozl refuses them.
 
 ### 2. Draft in a planner session
@@ -86,7 +86,7 @@ Open a new Kiro Crew session on the `avoozl/avoozl-planner` agent, for example
 with `spawn_run` and `include_memory: false`, in the planning repository. Send
 the draft brief below. Wait for it to finish. It writes `requirements.md` (or
 `bugfix.md`), `design.md` and `tasks.md` in the spec folder, with each task's
-facts in a `Facts:` bullet under it. A spec folder never holds
+facts in `$key:` bullets under it. A spec folder never holds
 `avoozl/manifest.json`.
 
 Store the revision: `plans_create_plan` with `spec` (the name) and `prompt`
@@ -176,7 +176,7 @@ The tick starts every ready task. A person may take one by hand with
 ## Planner
 
 Planner sessions cannot load this skill. The `avoozl-planner` agent's own
-prompt carries the spec file formats, the `Facts:` keys, and the critique
+prompt carries the spec file formats, the `$` task facts, and the critique
 format, so a brief only names the mode, the folder, and the goal.
 
 ## Waiting on CI

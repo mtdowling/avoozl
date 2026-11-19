@@ -2,11 +2,11 @@
 //
 //   <planning root>/.kiro/specs/<name>/
 //     requirements.md or bugfix.md, design.md, tasks.md
-//                            each task's facts are a `Facts:` bullet in
+//                            each task's facts are `$key:` bullets in
 //                            tasks.md (spec-facts.mjs, Requirement 111)
 //     avoozl/critique.md     planner critique, outside the revision hash
 //
-// The reader turns tasks.md and its Facts bullets into the proposals lintPlan and
+// The reader turns tasks.md and its fact bullets into the proposals lintPlan and
 // approvePlan already check. Validation is deterministic: the same files give
 // the same diagnostics, each with its file and line.
 import fs from "node:fs";
@@ -28,7 +28,11 @@ import {
 import { frontMatter, withoutFrontMatter } from "../front-matter.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { integrationOf } from "./integration-branch.mjs";
-import { currentFiles } from "./spec-legacy.mjs";
+import {
+  currentFiles,
+  foldFactsBlocks,
+  hasFactsBlocks,
+} from "./spec-legacy.mjs";
 import { checkForwardTarget } from "./mirror-policy.mjs";
 import { repeatsTitle } from "./title-repeat.mjs";
 
@@ -53,8 +57,9 @@ const NAMED = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/;
 // `P1`, `P2b`: a proof or other lettered item, namespaced like a number.
 const LETTERED = /^[A-Z]\d+[a-z]?$/;
 const CHECKBOX = /^\s*[-*+] \[([ xX~-])\]\*?[ \t]+(.*)$/;
-// A "Built:" line under a checked item names the work that already landed.
-const BUILT = /^\s+(?:[-*+]\s+)?Built:\s*(.+?)\s*$/;
+// A "Built:" note or "$built:" fact under a checked item names the work that
+// already landed.
+const BUILT = /^\s+(?:[-*+]\s+)?(?:Built|\$built):\s*(.+?)\s*$/;
 const TITLE_LIMIT = 240;
 // An epic row's lifecycle step (Requirement 59.1, design §4.32.6).
 const EPIC_STEPS = ["design", "review", "implement"];
@@ -106,7 +111,11 @@ export function withoutStatus(text) {
 // checkbox marks, Facts bullets and front-matter, and the parsed facts as
 // `factsText` writes them. Layout is outside it, content is inside it
 // (Requirement 111.6): a spec converted from the old manifest keeps its hash.
-export function specHash(files) {
+export function specHash(given) {
+  // A record stored with `Facts:` blocks hashes as its `$` layout does.
+  const files = hasFactsBlocks(given["tasks.md"])
+    ? { ...given, "tasks.md": foldFactsBlocks(given["tasks.md"]) }
+    : given;
   return digest(
     [
       ...REVISION_FILES.filter((file) => files[file] !== undefined).map(
@@ -219,6 +228,7 @@ export function readSpecFolder(root, name) {
     files,
     // Not read and not hashed: lint says to delete it.
     ...(read(MANIFEST) !== undefined ? { leftover: true } : {}),
+    ...(hasFactsBlocks(files["tasks.md"]) ? { factsBlocks: true } : {}),
     hash: specHash(files),
     critique: read(CRITIQUE) ?? null,
   };
@@ -340,7 +350,7 @@ export function headingPhases(text) {
 
 const PHASE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,59}$/;
 
-// Items checked [x] in tasks.md, with the first "Built:" line under each.
+// Items checked [x] in tasks.md, with the first "$built:" fact under each.
 // Approval reads these for tasks it creates (plans.mjs); a tick on the base
 // branch completes an existing task (spec-ticks.mjs). [~] and [-] are Kiro's
 // queued and running marks and stay planned.
@@ -397,6 +407,7 @@ export function parseSpec({
   exists,
   files: given,
   leftover = false,
+  factsBlocks = false,
 }) {
   const diagnostics = [],
     proposals = [],
@@ -458,7 +469,17 @@ export function parseSpec({
         "spec.manifest-left",
         MANIFEST,
         1,
-        `Delete ${folder}${MANIFEST}. Task facts are Facts: bullets in tasks.md now.`,
+        `Delete ${folder}${MANIFEST}. Task facts are $key: bullets in tasks.md now.`,
+      ),
+    );
+  // So are `Facts:` blocks on disk; a stored record is read in their place.
+  if (factsBlocks)
+    diagnostics.push(
+      diagnostic(
+        "facts.block",
+        "tasks.md",
+        1,
+        "Write each task fact as a `$key: value` bullet directly under its task, in place of its Facts: bullet.",
       ),
     );
 
@@ -576,7 +597,7 @@ export function parseSpec({
             "facts.missing",
             "tasks.md",
             item.line,
-            `Item "${item.key}" has no Facts: bullet. Name its member plan in "plan".`,
+            `Item "${item.key}" has no facts. Name its member plan in "$plan:".`,
             { taskId: item.id },
           ),
         );
@@ -675,7 +696,7 @@ export function parseSpec({
           "facts.missing",
           "tasks.md",
           item.line,
-          `Task "${item.key}" has no Facts: bullet. Add one as its first child.`,
+          `Task "${item.key}" has no facts. Add a "$done:" bullet under it.`,
           { taskId: item.id },
         ),
       );
@@ -691,7 +712,7 @@ export function parseSpec({
           "spec.kind-epic",
           "tasks.md",
           line,
-          `Task "${item.key}" has "kind: epic". Inside a plan a parent is a package: write "kind: package". An epic is its own spec folder that lists plans.`,
+          `Task "${item.key}" has "$kind: epic". Inside a plan a parent is a package: write "$kind: package". An epic is its own spec folder that lists plans.`,
           { taskId: item.id, entry: item.key },
         ),
       );
@@ -706,7 +727,7 @@ export function parseSpec({
           "task.parent-kind",
           "tasks.md",
           item.line,
-          `Task "${item.key}" is nested under "${parentKey}", which is not a package. Write "kind: package" in the Facts of "${parentKey}", or stop nesting this item.`,
+          `Task "${item.key}" is nested under "${parentKey}", which is not a package. Write "$kind: package" under "${parentKey}", or stop nesting this item.`,
           { taskId: item.id },
         ),
       );
