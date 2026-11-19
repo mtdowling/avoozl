@@ -1,6 +1,4 @@
 {
-  "avoozl-tree-node": ["FocusTree.tsx"],
-  "avoozl-tree-row": ["FocusTree.tsx"],
   "pe-2": ["WorkflowMap.tsx"],
   "sm:w-1/3": ["ReleaseQueue.tsx"],
   "sm:w-28": ["ReleaseQueue.tsx"]

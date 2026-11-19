@@ -157,6 +157,10 @@ export function landingQueueView(
       reviewPr: entry.reviewPr ?? null,
       branch: first?.branch ?? null,
       checks: first?.checks ?? null,
+      // A check of this entry that ran with no isolation.
+      unsandboxed: (entry.checks ?? []).some(
+        (check) => check?.isolation === "unconfined",
+      ),
       ...extra,
     };
   };

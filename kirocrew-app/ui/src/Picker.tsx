@@ -126,9 +126,9 @@ export function Picker(props: {
         border="all"
         shadow
       >
-        <ul ref={list} id={listId} role="listbox" aria-label={typeof props.label === 'string' ? props.label : undefined} className="flex flex-col p-1">
+        <Box ref={list} id={listId} role="listbox" aria-label={typeof props.label === 'string' ? props.label : undefined} as="ul" flex flexCol p="1">
           {shown.map((item, i) => (
-            <li
+            <Box
               key={item.id}
               id={`${id}-opt-${i}`}
               role="option"
@@ -139,8 +139,15 @@ export function Picker(props: {
                 choose(item)
               }}
               onMouseEnter={() => setActive(i)}
-              className="flex cursor-pointer items-baseline gap-2 rounded px-1.5 py-0.5"
-              style={i === active ? { background: 'color-mix(in srgb, var(--text) 10%, transparent)' } : undefined}
+              as="li"
+              css-background={i === active ? 'mix-text-10%-transparent' : undefined}
+              flex
+              cursorPointer
+              items="baseline"
+              gap="2"
+              rounded="base"
+              px="1.5"
+              py="0.5"
             >
               {props.plain ? (
                 <Box as="span" minW0 flex1 truncate>
@@ -166,9 +173,9 @@ export function Picker(props: {
                   {item.state}
                 </Box>
               )}
-            </li>
+            </Box>
           ))}
-        </ul>
+        </Box>
         {total === 0 && (
           <Box as="p" px="2" py="1" size="xs" tone="muted">
             No match.

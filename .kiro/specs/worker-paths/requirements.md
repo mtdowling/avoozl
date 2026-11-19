@@ -4,8 +4,6 @@ category: Planning
 
 # Requirements: one way to run a worker
 
-Status: Approved
-
 Approved 2026-11-18, with the five defaults of design D10. The owner
 granted approval delegation to Claude, which recorded the approval on the
 owner's behalf against this revision in the workspace that holds this

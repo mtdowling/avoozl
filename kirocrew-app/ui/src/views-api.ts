@@ -387,8 +387,9 @@ export interface ConflictItem extends TaskOwner {
   // A needs-human item: why it waits on a person. 'crew': an Issue Radar
   // crew asked for one on an issue no task owns (R52.10). 'hand-set-review':
   // status running or review with no live session behind it. 'review-draft':
-  // a review draft made from the review label (RC20).
-  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'forward' | 'forward-audit' | 'public-branch'
+  // a review draft made from the review label (RC20). 'disk': a volume too
+  // full for a worktree.
+  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'forward' | 'forward-audit' | 'public-branch' | 'disk'
   // A crew's needs-human row for a trusted escalation (R103.8): the GitHub
   // item, what the crew wrote, and Intake's Plan this and Deliver this.
   item?: { source: 'github'; id: string }

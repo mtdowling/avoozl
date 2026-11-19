@@ -21,6 +21,7 @@ import { machineAvoozlPaths } from "./host-config.mjs";
 import {
   fillHarnessArgv,
   harnessPermission,
+  harnessReads,
   loadHarnessDefinition,
   readRoleProblem,
 } from "./harness-definitions.mjs";
@@ -167,6 +168,7 @@ export function requestChild(db, request) {
       source: "allowCommands",
     }),
     network: request.network ?? "off",
+    readable: absolutePaths(request.readable, "readable"),
   };
   sandboxNetwork(settings.network === "off" ? undefined : settings.network);
   const now = stamp();
@@ -533,6 +535,20 @@ function update(db, sessionId, fields) {
   ).run(...keys.map((k) => fields[k]), stamp(), sessionId);
 }
 
+// Git's own user config under home, which a confined child still reads.
+const GIT_USER_CONFIG = [".gitconfig", path.join(".config", "git")];
+
+// Absolute paths a request names, or [].
+function absolutePaths(value, label) {
+  if (value === undefined || value === null) return [];
+  if (
+    !Array.isArray(value) ||
+    value.some((item) => typeof item !== "string" || !path.isAbsolute(item))
+  )
+    fail(`Request ${label} must be absolute paths.`);
+  return value.map((item) => path.resolve(item));
+}
+
 // The worktree's shared git directory, which no write root may cover
 // (R94.4a), or null outside a repository.
 function gitCommonDir(worktree) {
@@ -765,6 +781,20 @@ export function startSupervisor({
         }),
         readable: [promptFile],
         writable: [log],
+        // Home is confined to the session's own folders, the harness's
+        // config, git's user config and what the repository lists.
+        home: env.HOME || os.homedir(),
+        readRoots: [
+          row.worktree,
+          ...(values.tmp ? [values.tmp] : []),
+          ...(values.project_cache_dirs ?? []),
+          ...(gitCommonDir(row.worktree) ? [gitCommonDir(row.worktree)] : []),
+          ...harnessReads(definition, env.HOME || os.homedir()),
+          ...GIT_USER_CONFIG.map((file) =>
+            path.join(env.HOME || os.homedir(), file),
+          ),
+          ...(settings.readable ?? []),
+        ],
         network: sandboxNetwork(
           !settings.network || settings.network === "off"
             ? undefined

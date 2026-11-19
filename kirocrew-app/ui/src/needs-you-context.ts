@@ -38,6 +38,7 @@ export function askLine(item: ConflictItem): string {
       if (item.reason === 'forward') return 'Read the exact public diff, then forward it or not.'
       if (item.reason === 'crew') return 'Answer on GitHub. The crew picks the issue up again when the label comes off.'
       if (item.reason === 'review') return 'Read the task, then mark it reviewed so it may start.'
+      if (item.reason === 'disk') return 'Free space on that volume. The work resumes by itself on the next tick.'
       return 'Read the reason and act where the row says.'
     default:
       return 'Read the reason and act where the row says.'

@@ -22,6 +22,7 @@ import os from "node:os";
 import path from "node:path";
 import { git } from "./git.mjs";
 import { changedPaths, pathVerdict, runEach } from "./verify.mjs";
+import { requireDiskSpace } from "./disk-space.mjs";
 import {
   checkpointBranch,
   fetchExact,
@@ -106,6 +107,13 @@ export async function verifyWorkerResult({
       commit,
       rules: [...new Set(hits.map((hit) => hit.rule))],
     });
+  // Room for the worktree first: a full volume holds the result.
+  try {
+    requireDiskSpace(null, os.tmpdir(), `The check of ${commit.slice(0, 12)}`);
+  } catch (error) {
+    if (!error.lowDisk) throw error;
+    return held("low-disk", { commit, ...error.lowDisk });
+  }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-verify-")),
     tree = path.join(dir, "tree");
   let results;

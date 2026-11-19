@@ -197,7 +197,7 @@ export const CSS_FormSectionStyle = '[data-form-section] ~ [data-form-section] {
 export const CSS_ModelRowsStyle =
   '[data-model-role]{display:grid;grid-template-columns:minmax(0,1fr);gap:8px 16px}@media (min-width:1000px){[data-model-role]{grid-template-columns:11rem minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 10rem}}[data-model-role]~[data-model-role]{border-top:1px solid var(--border);padding-top:12px}'
 
-export const CSS_TreeStyle = `.avoozl-tree-node:focus-visible > rect:last-of-type{stroke:var(--accent);stroke-width:2.5}.avoozl-tree-row:focus-visible{outline:2px solid var(--accent);outline-offset:1px}[data-tree-scroll][data-panning] *{cursor:grabbing!important}`
+export const CSS_TreeStyle = `[data-tree-node]:focus-visible > rect:last-of-type{stroke:var(--accent);stroke-width:2.5}[data-tree-row]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}[data-tree-scroll][data-panning] *{cursor:grabbing!important}`
 
 export const CSS_NeedsContextStyle = '[data-needs-context] :is(dl,dd,h4,p,ul){margin:0}[data-needs-context] dd{margin-left:0}'
 

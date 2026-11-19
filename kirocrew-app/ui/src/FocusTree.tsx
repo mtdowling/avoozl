@@ -680,7 +680,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                 const waits = layout.edges.filter((e) => e.to === node.id)
                 return (
                   <Box key={node.id} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined} as="li" css-opacity={faded ? 0.5 : draft ? 0.65 : 1}>
-                    <div
+                    <Box
                       role="button"
                       tabIndex={node.id === cursor ? 0 : -1}
                       aria-label={`${node.id}, ${STATE_WORD[node.state]}${faded ? ', satisfied' : ''}${isRoot ? ', root' : ''}: ${task.title}`}
@@ -688,13 +688,19 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                       onClick={() => props.onReRoot({ kind: 'task', id: node.id })}
                       onKeyDown={(e) => onKey(e, node.id)}
                       onFocus={() => setCursor(node.id)}
-                      className="avoozl-tree-row flex cursor-pointer flex-col gap-0.5 rounded-[3px] border px-3 py-2"
-                      style={{
-                        background: 'var(--card)',
-                        borderColor: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))',
-                        borderWidth: isRoot ? 2 : 1,
-                        borderStyle: draft ? 'dashed' : 'solid',
-                      }}
+                      data-tree-row
+                      css-background="card"
+                      css-border-color={isRoot ? 'accent' : 'border-strong-border'}
+                      css-border-width={isRoot ? '2' : '1'}
+                      css-border-style={draft ? 'dashed' : 'solid'}
+                      flex
+                      cursorPointer
+                      flexCol
+                      gap="0.5"
+                      rounded="[3px]"
+                      border="all"
+                      px="3"
+                      py="2"
                     >
                       <Box as="span" flex items="baseline" gap="2">
                         <Box
@@ -736,15 +742,15 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                         <Box as="span" size="10" tone="muted">
                           waits on{' '}
                           {waits.map((e, i) => (
-                            <span key={e.from} style={e.satisfied ? { textDecoration: 'line-through' } : undefined}>
+                            <Box key={e.from} as="span" css-text-decoration={e.satisfied ? 'line-through' : undefined}>
                               {i > 0 && ' · '}
                               {e.from}
                               {e.kind === 'sequence' ? ' (sequence)' : ''}
-                            </span>
+                            </Box>
                           ))}
                         </Box>
                       )}
-                    </div>
+                    </Box>
                   </Box>
                 )
               })}
@@ -800,7 +806,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                   data-root={isRoot || undefined}
                   data-draft={draft || undefined}
                 >
-                  <g
+                  <SvgG
                     role="button"
                     tabIndex={node.id === cursor ? 0 : -1}
                     aria-label={`${node.id}, ${STATE_WORD[node.state]}${faded ? ', satisfied' : ''}${isRoot ? ', root' : ''}: ${task.title}`}
@@ -808,8 +814,8 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                     onClick={() => props.onReRoot({ kind: 'task', id: node.id })}
                     onKeyDown={(e) => onKey(e, node.id)}
                     onFocus={() => setCursor(node.id)}
-                    style={{ cursor: 'pointer', outline: 'none' }}
-                    className="avoozl-tree-node"
+                    css-cursor="pointer"
+                    css-outline="none"
                   >
                     {isRoot && <SvgRect x={-4} y={-4} width={CARD.w + 8} height={CARD.h + 8} rx={6} fill="none" css-stroke="accent" css-opacity="0.35" />}
                     <SvgRect
@@ -837,7 +843,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                     <SvgText x={11} y={39} fontSize={11.5} css-fill="muted">
                       {clip(task.title, 24)}
                     </SvgText>
-                  </g>
+                  </SvgG>
                   <SvgG
                     role="button"
                     tabIndex={-1}

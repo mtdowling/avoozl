@@ -228,6 +228,26 @@ needs to start plus the names in `checksEnv`, and never a push or GitHub
 token. An older list of commands, `[["npm","test"]]`, still loads, each
 check named by its command.
 
+Checks run in the repository's isolation. By default each runs in the
+process sandbox (sandbox-exec on macOS, bubblewrap on Linux): it writes only
+its folder, its own temp folder, a cache folder and the paths you list, and
+the network is off. Set it in Settings › Repository setup › Landing, or with
+`project configure`:
+
+```sh
+node cli.mjs project configure code --workspace ~/plans \
+  --json '{"isolation":{"run":"sandbox","network":"on","prepare":["npm","ci"]}}'
+```
+
+`run` is `sandbox`, `container` (with `image`, run by docker or podman
+with no network unless it is on and no home folder) or `unconfined`, which
+needs this machine's opt-in; a machine with no sandbox runs checks
+unconfined, and the Landing page and the task's timeline then say "not
+sandboxed". `prepare` runs once per worktree and commit, before the
+checks and outside isolation. As an example, a repository whose checks
+drive Linux and Windows VMs, such as Nupp's, would use the sandbox with the
+network on.
+
 Checkout paths are per machine, so they are kept out of `.avoozl.json`. Then
 turn on Autopilot, Avoozl's name for delivery, with the `delivery` block in
 `.avoozl.json`:

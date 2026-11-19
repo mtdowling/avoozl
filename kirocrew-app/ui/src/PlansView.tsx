@@ -840,7 +840,13 @@ export function ProgressBar({ tasks }: { tasks: { total: number; done: number } 
         css-box-shadow="inset-0-0-0-1px-mix-border-60%-transparent"
         mt="1"
       >
-        <div style={fill} />
+        <Box
+          css-width={`${shown}%`}
+          css-height="100%"
+          css-border-radius="999"
+          css-background="linear-gradient-90deg-mix-ok-70%-card-ok"
+          css-transition={still ? 'none' : 'width-700ms-cubic-bezier-0.2-0.8-0.2-1'}
+        />
       </Box>
     </Box>
   )
@@ -885,8 +891,6 @@ function Now({ now }: { now: PlanRow['now'] }) {
     <Hint size="xs">—</Hint>
   )
 }
-
-const head: CSSProperties = { padding: '6px 10px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }
 
 // The Specs list's sort and filters: search, sort, status, what a spec
 // has, kind, batch, archived, epic and category. They sit in the left nav
@@ -3015,7 +3019,7 @@ export default function PlansView(props: {
     </>
   ) : null
   return (
-    <section ref={pageRef} aria-labelledby="avoozl-plans-title" className="flex flex-col gap-3.5">
+    <Box ref={pageRef} aria-labelledby="avoozl-plans-title" as="section" flex flexCol gap="3.5">
       {singleApproval && singleApproval.workspaceId === workspace && (
         <ApproveSpecDialog
           workspaceId={singleApproval.workspaceId}
@@ -3124,7 +3128,7 @@ export default function PlansView(props: {
           list={specList}
           detail={
             !row ? null : (
-              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop} style={phone ? undefined : { flex: '1 1 0%', minHeight: 0 }}>
+              <Box css-flex={phone ? undefined : '1-1-0%'} css-min-height={phone ? undefined : '0'} flex flexCol data-spec-detail={row.key} ref={detailTop}>
                 {reviewing && workspace ? (
                   <>
                     {specHeader}
@@ -3134,7 +3138,7 @@ export default function PlansView(props: {
                 ) : (
                   specContent
                 )}
-              </div>
+              </Box>
             )
           }
         />
@@ -3163,6 +3167,6 @@ export default function PlansView(props: {
           )}
         </>
       )}
-    </section>
+    </Box>
   )
 }

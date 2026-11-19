@@ -218,6 +218,9 @@ export function directSteps({
   machine,
   configFile,
   checksEnv,
+  // The repository's id and isolation: each check runs under it.
+  projectId,
+  isolation,
   run = runCheckAt,
   scan = privacyScan,
 }) {
@@ -287,10 +290,17 @@ export function directSteps({
       const out = [];
       for (const check of checks) {
         if (!wanted(check.name) || !checkApplies(check, files)) continue;
-        const result = await run({ root, checksEnv }, candidate, check.argv);
+        const result = await run(
+          { id: projectId, root, checksEnv, isolation },
+          candidate,
+          check.argv,
+        );
         out.push({
           name: check.name,
           command: check.argv.join(" "),
+          ...(result.isolation !== undefined
+            ? { isolation: result.isolation }
+            : {}),
           exitCode: result.exitCode,
           ...(result.exitCode !== 0 && result.tail
             ? { tail: result.tail }

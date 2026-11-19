@@ -4,13 +4,11 @@ completion: integrated
 ---
 # Tasks: the remaining Avoozl work
 
-Status: Draft
-
 Status 2026-11-18 (spec audit). Phases 1 to 3 are built, under the PRs named
-on each ticked task, except `an-p3`, which waits on the main spec's proof P49.
-In Phase 4, `an-4.1` and `an-4.3` are superseded (Ideas and the lessons store
-were removed) and `an-4.2` and `an-4.4` are still open. Nothing here is
-approved or projected.
+on each ticked task. Phase 3 and `an-p3` are superseded: public crews are
+removed except the content hook (triage-agent TA11.3). In Phase 4, `an-4.1`
+and `an-4.3` are superseded (Ideas and the lessons store
+were removed) and `an-4.2` and `an-4.4` are still open.
 
 Ordered by phase. Each phase ends with a proof; a phase starts after the
 proofs it depends on pass (each task's `after` fact says which).
@@ -25,8 +23,8 @@ workspace data, credentials or personal plans in the repository (AGENTS.md);
 no force push; land by task branch, pull request and `gh pr merge --merge`
 once Linux, macOS and Windows pass.
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts. Task IDs start with `an-` so they never collide with `rc-` or
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts. Task IDs start with `an-` so they never collide with `rc-` or
 the IDs of `.kiro/specs/avoozl/`. The `design.md` section "Owner steps" lists
 what needs a person.
 
@@ -91,6 +89,10 @@ Requirement AN2 (RC25, D30). The mirror itself (settings, sync, tracking, forwar
 
 ## Phase 3: Crews on public repositories
 
+Superseded 2026-11-18 (owner decision): public crews are removed except the
+content hook, which becomes a general pre-tool-use command (triage-agent
+TA11.3, task ta-5.2). Until ta-5.2 lands the code below still runs.
+
 Requirement AN3 (R85, §6.14).
 
 - [x] an-3.1 Hook command: scan a crew's writes before they run [AN3.1] (§6.14)
@@ -106,6 +108,7 @@ Requirement AN3 (R85, §6.14).
     - after: an-3.1
   - Built: PR #397 (main spec task 39.2).
   - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
+  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command (triage-agent TA11.3); ta-5.2 deletes the rest of this work.
 - [x] an-3.3 Public crew checklist, sign-off and handoff gate, after an-3.1 and an-3.2 [AN3.1] (§6.14)
   - Facts:
     - done:
@@ -113,6 +116,7 @@ Requirement AN3 (R85, §6.14).
     - after: an-3.1, an-3.2
   - Built: PR #420 (main spec task 39.3).
   - `publiccrews.signoff`, the Public crews card, the `untriaged.handoff` check; person-only; lapse on a changed hash.
+  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command (triage-agent TA11.3); ta-5.2 deletes the rest of this work.
 - [x] an-3.4 Stop public crews, after an-3.2 [AN3.1] (§6.14)
   - Facts:
     - done:
@@ -120,6 +124,7 @@ Requirement AN3 (R85, §6.14).
     - after: an-3.2
   - Built: PR #410 (main spec task 39.4).
   - `publiccrews.stop` in the app, the CLI and MCP policy (person only to resume).
+  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command (triage-agent TA11.3); ta-5.2 deletes the rest of this work.
 - [x] an-3.5 Public docs and the upstream requests, after an-3.3 and an-3.4 [AN3.1] (§6.14)
   - Facts:
     - done:
@@ -127,18 +132,19 @@ Requirement AN3 (R85, §6.14).
     - after: an-3.3, an-3.4
   - Built: PR #425 (main spec task 39.5).
   - `docs/public-crews.md` (now `docs/content-hook.md`) in generic terms; limits stated; requests drafted, none filed.
-- [ ] an-p3 Proof: a public crew's leak is stopped, deleted and alerted, after an-3.1, an-3.2, an-3.3, an-3.4, an-3.5 [AN3.2] (§6.14)
+- [x] an-p3 Proof: a public crew's leak is stopped, deleted and alerted, after an-3.1, an-3.2, an-3.3, an-3.4, an-3.5 [AN3.2] (§6.14)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/`.
     - after: an-3.1, an-3.2, an-3.3, an-3.4, an-3.5
   - Setup: an isolated Kiro Crew home, a scratch repository, a fake terms file with one canary, a test crew agent with the hook. Action: (1) the crew posts a comment, opens a pull request and publishes a commit, each with the canary; (2) it publishes a commit with the canary in a file; (3) it writes a comment through a script; (4) the tick runs; (5) hand an issue to a crew before and after sign-off. Expected: (1) and (2) refused with rule set, id and place and no text; (3) goes through, then the tick deletes it, pulls the cord and notifies once; (4) a clean comment stays; (5) refused before sign-off, accepted after, refused again when the hook changes.
+  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command (triage-agent TA11.3, ta-5.2); not run.
 
 ## Phase 4: Named proofs for shipped features
 
 Requirement AN4. The parts of each proof already have tests; each task adds the one named proof test and a receipt. These tasks touch only test files and `docs/evidence/`, so they can run beside any other phase.
 
-- [ ] an-4.1 Proof P38: the Specs name and ideas [AN4.1] (§8.7, §8.8)
+- [x] an-4.1 Proof P38: the Specs name and ideas [AN4.1] (§8.7, §8.8)
   - Facts:
     - done:
       - The named test passes and a receipt under `docs/evidence/` records setup, action, observation and verdict.
@@ -149,7 +155,7 @@ Requirement AN4. The parts of each proof already have tests; each task adds the 
     - done:
       - The named test passes and a receipt under `docs/evidence/` records the run.
   - Run steps 1 to 8 of `avoozl-p39` as `src/app/test/proof-p39.test.mjs`, reusing `flow-andon.test.mjs`; where a step dispatches a worker, check the Radar release instead (no `ready` label in the stopped scope).
-- [ ] an-4.3 Proof P42: add the Share steps 13 and 14 [AN4.2] (§4.18, R28.9)
+- [x] an-4.3 Proof P42: add the Share steps 13 and 14 [AN4.2] (§4.18, R28.9)
   - Facts:
     - done:
       - The extended test passes; the receipt names steps 13 and 14.

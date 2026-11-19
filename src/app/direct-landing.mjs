@@ -16,6 +16,7 @@
 //   `sendConflictBack`; each for the repository's `conflicts.maxAttempts` rounds.
 // - A queued task whose base moved is withdrawn by integrateVerified
 //   (`stillQueued`, pr-landing.mjs), merged with the base and verified again.
+import os from "node:os";
 import { git, removeLandedTaskWorktree } from "./git.mjs";
 import { enqueueLanding, landingQueue, landNext } from "./landing-queue.mjs";
 import { directSteps, dropMember } from "./merge-batch.mjs";
@@ -34,6 +35,7 @@ import { specAuthority } from "./spec-takeover.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
 import { fail } from "./store.mjs";
 import { repositoryChecks } from "./repository-checks.mjs";
+import { requireDiskSpace } from "./disk-space.mjs";
 
 const ERRORS = "directLandingErrors";
 export const isDirectLanding = (project) => project?.landing === "direct";
@@ -95,6 +97,13 @@ export async function landDirect(
       queue = landingQueue(store, { projectId: project.id, base });
     if (!queue.length) continue;
     const head = queue[0];
+    // A landing candidate needs a worktree: a full volume holds the queue.
+    try {
+      requireDiskSpace(store, os.tmpdir(), `Landing on ${project.id}`);
+    } catch (error) {
+      if (error.lowDisk) continue;
+      throw error;
+    }
     try {
       const setting = landingSettings(config, project.repository, project),
         record = sizeRecord(store, { projectId: project.id, base }),
@@ -124,6 +133,8 @@ export async function landDirect(
           repository: project.repository || `local/${project.id}`,
           checks: repositoryChecks(project),
           checksEnv: project.checksEnv,
+          projectId: project.id,
+          isolation: project.isolation,
           unionPaths: config?.landing?.unionPaths ?? [],
           env,
           machine,

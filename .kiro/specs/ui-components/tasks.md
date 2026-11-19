@@ -4,8 +4,6 @@ completion: integrated
 ---
 # Tasks: the page draws with components, not class strings
 
-Status: Approved
-
 Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
 brackets (`UC1` to `UC5`, in `requirements.md`); `D` sections refer to this
@@ -19,8 +17,8 @@ touched at 390 and 1280 px, light and dark, before and after, taken in Kiro
 Crew (UC5.2, R92.12); screenshots are shown to the owner and never
 committed (AGENTS.md).
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts. Task IDs start with `uc-` so they never collide with the IDs
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts. Task IDs start with `uc-` so they never collide with the IDs
 of the other specs.
 
 ## Phase 1: Stop the growth
