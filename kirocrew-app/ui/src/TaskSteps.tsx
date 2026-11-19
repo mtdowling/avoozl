@@ -6,23 +6,23 @@ import { buildMedian } from './radar-flow-api.ts'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { DOT } from './ui/looks/TaskSteps.ts'
+import { TONE } from './ui/tones.ts'
 
 function Step({ steps, index }: { steps: TaskStep[]; index: number }) {
   const step = steps[index],
     wait = afterPrevious(steps, index),
-    dot = step.failed ? { border: 'var(--danger)', background: 'var(--danger)' } : DOT[step.state]
+    dot = step.failed ? { border: TONE.danger, background: TONE.danger } : DOT[step.state]
   return (
     <Box data-task-step={step.key} data-state={step.state} as="li" flex gap="3" pb="3">
-      <span
+      <Box
         aria-hidden="true"
-        style={{
-          flex: '0 0 12px',
-          height: 12,
-          marginTop: 4,
-          borderRadius: 6,
-          border: `2px ${step.state === 'skipped' ? 'dashed' : 'solid'} ${dot.border}`,
-          background: dot.background,
-        }}
+        as="span"
+        css-flex="0-0-12px"
+        css-height="12"
+        css-margin-top="4"
+        css-border-radius="6"
+        css-border={`2px ${step.state === 'skipped' ? 'dashed' : 'solid'} ${dot.border}`}
+        css-background={dot.background}
       />
       <Box as="span" minW0 flex1>
         <Box as="span" flex flexWrap items="baseline" gapX="2">

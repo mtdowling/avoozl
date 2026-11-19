@@ -21,8 +21,9 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
 
-const LINE = { add: 'var(--success, #1a7f37)', del: 'var(--danger)', hunk: 'var(--muted)', same: 'var(--text)' } as const
+const LINE = { add: TONE.successOrGreen, del: TONE.danger, hunk: TONE.muted, same: TONE.text } as const
 
 export function DiffBlock({ diff, label }: { diff: string | undefined; label: string }) {
   const lines = diffLines(diff)

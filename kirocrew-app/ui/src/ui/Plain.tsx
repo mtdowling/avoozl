@@ -2,7 +2,16 @@
 // props as Box (box.json), for the controls that are not Kiro Crew's Btn or
 // Input: text-styled buttons, row buttons, inline links, raw fields. Each
 // takes its element's own props and a ref, and no `className` or `style`.
-import { forwardRef, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type InputHTMLAttributes, type SVGProps, type TextareaHTMLAttributes } from 'react'
+import {
+  forwardRef,
+  type AnchorHTMLAttributes,
+  type ButtonHTMLAttributes,
+  type ImgHTMLAttributes,
+  type InputHTMLAttributes,
+  type SVGProps,
+  type VideoHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from 'react'
 import { lookProps, type LookProps } from './Box'
 
 // A native prop that shares a look prop's name (an input's `size`) gives way to the look prop.
@@ -41,4 +50,12 @@ export const SvgRect = forwardRef<SVGRectElement, Svg<SVGRectElement>>(function 
 })
 export const SvgText = forwardRef<SVGTextElement, Svg<SVGTextElement>>(function SvgText(props, ref) {
   return <text ref={ref} {...lookProps(props)} />
+})
+
+// An image or a video with the look props.
+export const PlainImg = forwardRef<HTMLImageElement, Plain<ImgHTMLAttributes<HTMLImageElement>>>(function PlainImg(props, ref) {
+  return <img ref={ref} {...lookProps(props)} />
+})
+export const PlainVideo = forwardRef<HTMLVideoElement, Plain<VideoHTMLAttributes<HTMLVideoElement>>>(function PlainVideo(props, ref) {
+  return <video ref={ref} {...lookProps(props)} />
 })

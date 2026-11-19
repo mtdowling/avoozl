@@ -128,6 +128,7 @@ import { DetailsStyle, SpecRailStyle } from './ui/PageStyles'
 import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
 import { PILL, cell } from './ui/looks/PlansView.ts'
 import { Glyph } from './ui/Glyph'
+import { TONE } from './ui/tones.ts'
 
 // Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
@@ -194,7 +195,7 @@ export function SpecCard(props: { title: string; id?: string; actions?: ReactNod
 
 function RailSection(props: { title: string; edit?: { label: string; onClick: () => void }; children: ReactNode; attrs?: Record<string, string> }) {
   return (
-    <section data-rail-section={props.title} {...props.attrs} style={{ paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid var(--border)' }}>
+    <Box data-rail-section={props.title} {...props.attrs} as="section" css-padding-bottom="14" css-margin-bottom="14" css-border-bottom="1px-solid-border">
       <Box css-display="flex" css-align-items="center" css-justify-content="space-between" css-gap="8" css-margin-bottom="8">
         <Box as="h4" css-margin="0" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase" css-color="muted">
           {props.title}
@@ -208,7 +209,7 @@ function RailSection(props: { title: string; edit?: { label: string; onClick: ()
         )}
       </Box>
       {props.children}
-    </section>
+    </Box>
   )
 }
 
@@ -253,14 +254,24 @@ function MenuItem(props: { icon: LucideIcon; label: string; tooltip?: string; on
 }
 
 function StatePill(props: { status: string; archived?: boolean }) {
-  const look = PILL[props.status] ?? { color: 'var(--muted)', background: 'var(--bg-hover)' }
+  const look = PILL[props.status] ?? { color: TONE.muted, background: TONE.bgHover }
   return (
-    <span
+    <Box
+      as="span"
       data-spec-state={props.status}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 500, lineHeight: '18.6px', ...look }}
+      css-display="inline-flex"
+      css-align-items="center"
+      css-gap={4}
+      css-padding="2px 8px"
+      css-border-radius={999}
+      css-font-size={12}
+      css-font-weight="500"
+      css-line-height="18.6px"
+      css-color={look.color}
+      css-background={look.background}
     >
       {props.archived ? 'Archived' : (STATUS_LABEL[props.status] ?? props.status)}
-    </span>
+    </Box>
   )
 }
 
@@ -732,7 +743,7 @@ export function ProgressBar({ tasks }: { tasks: { total: number; done: number } 
     width: `${shown}%`,
     height: '100%',
     borderRadius: 999,
-    background: 'linear-gradient(90deg, color-mix(in srgb, var(--ok) 70%, var(--card)), var(--ok))',
+    background: TONE.okBar,
     transition: still ? 'none' : 'width 700ms cubic-bezier(0.2, 0.8, 0.2, 1)',
   }
   return (
@@ -1237,17 +1248,23 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
   const PrimaryIcon = primaryButton.icon
   const titleRef = useDetailTitleRef()
   const pad = props.flush ? 0 : 12
-  const divider = { borderBottom: '1px solid var(--border)', marginLeft: props.flush ? 0 : -12, paddingLeft: props.flush ? 0 : 24, paddingRight: pad }
+  const divider = { borderBottom: TONE.hairline, marginLeft: props.flush ? 0 : -12, paddingLeft: props.flush ? 0 : 24, paddingRight: pad }
   return (
     <header data-spec-header>
       <Box css-padding={`20px ${pad}px 0`} css-margin-left={props.flush ? 0 : -12} css-padding-left={props.flush ? '0' : '24'}>
-        <h1
+        <Box
           id="avoozl-plan-title"
           ref={titleRef ?? undefined}
-          style={{ margin: 0, fontSize: 27, fontWeight: 700, lineHeight: 1.25, color: 'var(--text-strong, var(--text))', overflowWrap: 'anywhere' }}
+          as="h1"
+          css-margin="0"
+          css-font-size="27"
+          css-font-weight="700"
+          css-line-height="1.25"
+          css-color="text-strong-text"
+          css-overflow-wrap="anywhere"
         >
           {row.name}
-        </h1>
+        </Box>
         <Box
           data-spec-meta
           as="p"
@@ -1369,7 +1386,7 @@ function GithubLink(props: { link: { url: string }; children: ReactNode }) {
 // local, so a private spec issue shows here and nowhere public.
 function LinksSection(props: { links: SpecLinks | null | undefined; loading: boolean }) {
   const links = props.links
-  const muted = 'var(--muted)'
+  const muted = TONE.muted
   const none = (
     <Box as="span" css-color={muted}>
       {props.loading ? '…' : 'None'}
@@ -1510,7 +1527,7 @@ function SpecRail(props: {
   const repositories = [...new Set(leaves.map((t) => t.repository).filter((name): name is string => Boolean(name)))].sort()
   const decisions = (graph?.tasks ?? []).filter((t) => t.decision)
   const tabs = documentTabs(docs)
-  const muted = 'var(--muted)'
+  const muted = TONE.muted
   const date = (label: string, at: string | null | undefined) => (
     <Box flex items="baseline" justify="between" gap="3" data-rail-date={label}>
       <Box as="span" css-color={muted}>
@@ -1908,7 +1925,7 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
       <Box as="table" css-table-layout="fixed" css-border-collapse="collapse" css-min-width={props.phone ? undefined : '30rem'} wFull size="sm">
         <colgroup>
           {columns.map((width, at) => (
-            <col key={at} style={{ width }} />
+            <Box key={at} as="col" css-width={width} />
           ))}
         </colgroup>
         <thead>

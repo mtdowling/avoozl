@@ -16,6 +16,7 @@ import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 import { NeedsContextStyle } from './ui/PageStyles'
 import { PlainButton } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
 
 // The spec's title; it opens Specs on that spec when a stored plan exists.
 export function SpecLink({ spec }: { spec: NonNullable<ItemContext['spec']> }) {
@@ -60,7 +61,7 @@ export function TaskLink({ task }: { task: { id: string; title: string } }) {
   )
 }
 
-const DIFF_INK: Record<DiffLine['kind'], string | undefined> = { same: undefined, add: 'var(--success, var(--text))', remove: 'var(--danger)' }
+const DIFF_INK: Record<DiffLine['kind'], string | undefined> = { same: undefined, add: TONE.successText, remove: TONE.danger }
 const DIFF_MARK: Record<DiffLine['kind'], string> = { same: ' ', add: '+', remove: '−' }
 
 // Task text, old against new, or the text with its file path and lines.

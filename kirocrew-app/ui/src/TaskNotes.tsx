@@ -25,6 +25,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { PlainLink } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
 
 // A save a content rule blocked: the decisions to allow, and the save to
 // run again once allowed.
@@ -267,9 +268,15 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; refresh?
         </Stack>
       )}
       {adding ? (
-        <form
-          className="flex flex-col gap-2 rounded border p-2"
-          style={{ borderColor: 'var(--border)' }}
+        <Box
+          as="form"
+          css-border-color="border"
+          flex
+          flexCol
+          gap="2"
+          rounded="base"
+          border="all"
+          p="2"
           aria-label="Add link"
           data-add-link-form
           onSubmit={(event) => {
@@ -302,7 +309,7 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; refresh?
               Cancel
             </Btn>
           </Row>
-        </form>
+        </Box>
       ) : (
         <div>
           <Btn type="button" onClick={() => setAdding(true)} data-add-link css-display="inline-flex" css-align-items="center" css-gap="6">

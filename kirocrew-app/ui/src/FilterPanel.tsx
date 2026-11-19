@@ -4,7 +4,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
-import { FilterSelect, selectStyle } from './FilterSelect.tsx'
+import { FilterSelect } from './FilterSelect.tsx'
+import { selectStyle } from './ui/looks/FilterSelect.ts'
 import { Picker } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
 import { ListFilter, X } from './icons.ts'
@@ -18,6 +19,8 @@ import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import type { LookProps } from './ui/Box'
+import { PlainInput } from './ui/Plain'
 
 export type FilterField = (
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
@@ -40,7 +43,7 @@ export type FilterField = (
   primary?: boolean
 }
 
-const numberStyle = { ...selectStyle, width: '4.5rem' }
+const numberStyle = { ...selectStyle, 'css-width': '4.5rem' } as const satisfies LookProps
 
 const whole = (value: string) => {
   const n = Number(value)
@@ -53,14 +56,18 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
     return (
       <Box htmlFor={fieldId} as="label" flex flexCol gap="1" size="sm">
         <span>{field.label}</span>
-        <input
+        <PlainInput
           id={fieldId}
           type="search"
           value={field.value}
           placeholder={field.placeholder}
           onChange={(event) => field.onChange(event.target.value)}
-          className="rounded border px-2 py-1 text-sm"
-          style={selectStyle}
+          {...selectStyle}
+          rounded="base"
+          border="all"
+          px="2"
+          py="1"
+          size="sm"
         />
       </Box>
     )
@@ -90,7 +97,7 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
         {field.label}
       </Box>
       <Row as="span" gap={1} wrap={false}>
-        <input
+        <PlainInput
           aria-label={`${field.label} from`}
           type="number"
           min={1}
@@ -98,11 +105,15 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
           value={field.min ?? ''}
           placeholder="1"
           onChange={(event) => field.onChange(whole(event.target.value), field.max)}
-          className="rounded border px-2 py-1 text-sm"
-          style={numberStyle}
+          {...numberStyle}
+          rounded="base"
+          border="all"
+          px="2"
+          py="1"
+          size="sm"
         />
         <Hint>to</Hint>
-        <input
+        <PlainInput
           aria-label={`${field.label} to`}
           type="number"
           min={1}
@@ -110,8 +121,12 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
           value={field.max ?? ''}
           placeholder={String(field.limit || '')}
           onChange={(event) => field.onChange(field.min, whole(event.target.value))}
-          className="rounded border px-2 py-1 text-sm"
-          style={numberStyle}
+          {...numberStyle}
+          rounded="base"
+          border="all"
+          px="2"
+          py="1"
+          size="sm"
         />
       </Row>
     </Box>
@@ -120,20 +135,31 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
 
 // A field drawn on the one-line row: no label above it, 24px tall. The
 // label is the field's name for a screen reader, and a select's All choice.
-const INLINE = { ...selectStyle, height: 24, boxSizing: 'border-box' as const, padding: '0 6px', fontSize: 12.5, borderRadius: 6, minWidth: 0 }
+const INLINE = {
+  ...selectStyle,
+  'css-height': '24',
+  'css-box-sizing': 'border-box',
+  'css-padding': '0-6px',
+  'css-font-size': '12.5',
+  'css-border-radius': '6',
+  'css-min-width': '0',
+} as const satisfies LookProps
 function InlineField({ id, field }: { id: string; field: FilterField }) {
   const fieldId = `${id}-${field.key}`
   if (field.kind === 'search')
     return (
-      <input
+      <PlainInput
         id={fieldId}
         type="search"
         aria-label={field.label}
         value={field.value}
         placeholder={field.placeholder}
         onChange={(event) => field.onChange(event.target.value)}
-        className="border"
-        style={{ ...INLINE, flex: '1 1 8rem', width: '8rem', maxWidth: '16rem' }}
+        {...INLINE}
+        css-flex="1-1-8rem"
+        css-width="8rem"
+        css-max-width="16rem"
+        border="all"
       />
     )
   if (field.kind === 'select')

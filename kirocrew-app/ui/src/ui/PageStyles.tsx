@@ -221,6 +221,10 @@ const REVIEW_CARD = `[data-finding-card] [data-card-btn]{display:inline-flex;ali
 [data-finding-card] [data-clamp]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}`
 export const CSS_ReviewCss = REVIEW_HIT + REVIEW_CARD
 
+// A release row's state and title columns from the small breakpoint up, the
+// widths Kiro Crew's stylesheet has no class for (sm:w-28, sm:w-1/3).
+export const CSS_ReleaseRowStyle = '@media (min-width:40rem){[data-release-state]{width:7rem}[data-release-title]{width:33.333333%}}'
+
 export function CitedStyle() {
   return <style>{CSS_CitedStyle}</style>
 }
@@ -291,4 +295,8 @@ export function PanningStyle() {
 
 export function ReviewCss() {
   return <style>{CSS_ReviewCss}</style>
+}
+
+export function ReleaseRowStyle() {
+  return <style>{CSS_ReleaseRowStyle}</style>
 }

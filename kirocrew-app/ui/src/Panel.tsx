@@ -43,6 +43,7 @@ import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref } from './views-api.ts'
 import { errorMessage, readPageState, workspaceClient, type WorkspaceList } from './workspace-api.ts'
 import { Box } from './ui/Box'
+import { TONE } from './ui/tones.ts'
 
 const AVOOZL_PAGE = '/apps/avoozl'
 
@@ -642,7 +643,7 @@ export default function AvoozlPanel() {
                             css-width="16"
                             css-height="8"
                             css-border-radius="3"
-                            css-background={step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)'}
+                            css-background={step.state === 'done' ? TONE.ok : step.state === 'now' ? TONE.accent : TONE.border}
                           />
                         ))}
                       </Box>
