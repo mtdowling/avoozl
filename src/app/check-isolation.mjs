@@ -16,6 +16,7 @@
 //             outside isolation, with the checks' environment allowlist.
 //
 // Every check record names the isolation it ran under.
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -261,4 +262,43 @@ export async function prepareChecks(project, dir, { run } = {}) {
   });
   if (result.exitCode === 0) prepared.add(key);
   return result;
+}
+
+// How long the visibility probe may take: the first run pulls the image.
+const PROBE_TIMEOUT_MS = 300_000;
+// Exit codes the probe's own command gives: found, or not there.
+const PROBE_EXITS = new Set([0, 1]);
+
+// Why a container check in `dir` would run against an empty folder, or
+// null. A folder the container VM does not share (on a Mac, Colima's
+// mounts) mounts empty, so a file Avoozl writes there with random content
+// must read back the same inside the container setup the checks use. A
+// probe that cannot start, or a runtime error, is left to the checks to
+// report. `run` is commandEvidence or a test's fake.
+export async function containerBlindness(
+  project,
+  dir,
+  { run, env = project?.checksEnv } = {},
+) {
+  if (isolationOf(project).run !== "container") return null;
+  const name = `.avoozl-probe-${crypto.randomBytes(8).toString("hex")}`,
+    file = path.join(dir, name),
+    content = crypto.randomBytes(16).toString("hex");
+  fs.writeFileSync(file, content);
+  try {
+    const result = await (run ?? (await import("./git.mjs")).commandEvidence)(
+      dir,
+      ["sh", "-c", 'test -f "$1" && cat "$1"', "sh", file],
+      {
+        timeoutMs: PROBE_TIMEOUT_MS,
+        env,
+        isolate: checkOptions(project, dir).isolate,
+      },
+    );
+    if (String(result.stdout ?? "").trim() === content) return null;
+    if (!PROBE_EXITS.has(result.exitCode)) return null;
+    return `The container cannot see ${dir}; share it with the container VM (for Colima, its mounts setting).`;
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
 }

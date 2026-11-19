@@ -6,7 +6,11 @@
 // off the tick; delivery judges the record they leave.
 import { PUBLISH_RULES, secretReason } from "./content-rules.mjs";
 import { commandEvidence, git } from "./git.mjs";
-import { checkOptions, prepareChecks } from "./check-isolation.mjs";
+import {
+  checkOptions,
+  containerBlindness,
+  prepareChecks,
+} from "./check-isolation.mjs";
 import { fail } from "./store.mjs";
 
 // Protected by default in every repository (R86.6): CI workflows and the
@@ -210,36 +214,41 @@ export function notRunCause(result, elapsed, timeoutMs) {
   );
 }
 
+// Each check (a {name, argv} or a bare argv) recorded as not run, for `why`.
+export const notRunChecks = (checks, why) =>
+  checks.map((check) => {
+    const argv = Array.isArray(check) ? check : check.argv;
+    return {
+      name: Array.isArray(check) ? argv.join(" ") : check.name,
+      command: argv.join(" "),
+      exitCode: null,
+      notRun: why,
+    };
+  });
+
 // Run each check in `dir`, one at a time, each with its own timeout. A
 // check is {name, argv}, or a bare argv named by its command. Each result
 // carries the check's name, for display its command, and the isolation it
 // ran under. With `project`, its `prepare` runs first and each check runs
-// in the project's isolation (check-isolation.mjs); a failed prepare runs
-// no check.
+// in the project's isolation (check-isolation.mjs); a failed prepare, or a
+// container that cannot see `dir`, runs no check.
 export async function runEach(
   dir,
   checks,
   { timeoutFor, run = commandEvidence, env, project } = {},
 ) {
-  const out = [];
+  const out = [],
+    notRunAll = (why) => notRunChecks(checks, why.slice(0, 300));
   if (project && checks.length) {
     const ready = await prepareChecks(project, dir, {
       run: run === commandEvidence ? undefined : run,
     });
     if (ready && ready.exitCode !== 0)
-      return checks.map((check) => {
-        const argv = Array.isArray(check) ? check : check.argv;
-        return {
-          name: Array.isArray(check) ? argv.join(" ") : check.name,
-          command: argv.join(" "),
-          exitCode: null,
-          notRun:
-            `prepare failed: ${notRunCause(ready, 0, 1) || "exit " + ready.exitCode}`.slice(
-              0,
-              300,
-            ),
-        };
-      });
+      return notRunAll(
+        `prepare failed: ${notRunCause(ready, 0, 1) || "exit " + ready.exitCode}`,
+      );
+    const blind = await containerBlindness(project, dir, { run, env });
+    if (blind) return notRunAll(blind);
   }
   const isolate = project ? checkOptions(project, dir).isolate : undefined;
   for (const check of checks) {

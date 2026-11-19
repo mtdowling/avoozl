@@ -561,7 +561,12 @@ Every check runs in the repository's `isolation`:
   `readable` where those would hide a file it needs.
 - `container`: `docker` or `podman` runs `image` with the folder mounted
   at the same path, `--network none` unless the network is on, the same
-  environment allowlist, and no home folder.
+  environment allowlist, and no home folder. Before the checks, Avoozl
+  writes a file with random content in the folder and reads it back in the
+  same container. A runtime in a VM mounts a folder the VM does not share
+  as empty (on a Mac, Colima shares only its `mounts`), so when the content
+  does not match, no check runs, and each is recorded as not run because
+  the container cannot see the folder.
 - `unconfined`: no isolation. Only with this machine's opt-in,
   `"checks": true` in `harness-unconfined.json` in Avoozl's config
   folder. A machine with no sandbox runs a `sandbox` check unconfined too.
