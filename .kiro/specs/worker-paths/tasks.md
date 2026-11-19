@@ -110,7 +110,7 @@ of the other specs.
     - done:
       - Tests: a file with `runner.role: "runner"` or `"driver"` is refused naming the key and worker pull; an envelope is taken only from an acknowledged claim; a search of `src/` finds no `ssh` argv outside the plugin and mirror code; the pull request lists what the deleted tests covered and where it is covered now.
     - after: wp-3.2
-  - The roles `runner` and `driver`, the SSH transport and `driverTick` go; `remote.accept`, `remote.handoff` and `remote.pull` answer with their replacement; the worker cases of `remote-runner.test.mjs` move to `worker-mode.test.mjs`.
+  - The roles `runner` and `driver`, the SSH transport and `driverTick` go; `remote.accept`, `remote.handoff` and `remote.pull` are deleted and refused as unknown; the worker cases of `remote-runner.test.mjs` move to `worker-mode.test.mjs`.
 
 - [x] wp-p3 Proof: two workspaces, one driver and one worker, with only ticks, after wp-3.3 [WP5] (§D8)
   - Facts:
@@ -143,12 +143,12 @@ of the other specs.
 
 ## Phase 5: Names
 
-- [x] wp-5.1 Removed commands answer with their replacement, after wp-2.2, wp-3.3, wp-4.2 [WP7.1, WP7.2, WP7.3] (§D7, §D8, §D9)
+- [x] wp-5.1 Removed commands and operations are refused as unknown, after wp-2.2, wp-3.3, wp-4.2 [WP7.1, WP7.2, WP7.3] (§D7, §D8, §D9)
   - Facts:
     - done:
-      - A test calls each removed command and operation and gets one line naming its replacement and no change to the workspace; the help test passes; the `plans_*` tool names, the environment aliases and the `aicommander` command pass their existing tests.
+      - (Changed 2026-11-19, owner decision: no replacement messages.) A test calls each removed command and operation and gets the generic unknown error and no change to the workspace; the help test passes; the `plans_*` tools a shipped agent, prompt or brief names, the `AVOOZL_*` variables and the `avoozl` command pass their existing tests.
     - after: wp-2.2, wp-3.3, wp-4.2
-  - Every command and operation this spec removes, and `register-session` and `session-hook`, answers through `moved-operations.mjs`; the help table drops them.
+  - Every command and operation this spec removes, and `register-session` and `session-hook`, is deleted; a call to one gets the generic unknown error, and the help table drops them.
 - [x] wp-5.2 One meaning for each word, and the product spec says the same, after wp-5.1 [WP8, WP9] (§D1)
   - Facts:
     - done:
