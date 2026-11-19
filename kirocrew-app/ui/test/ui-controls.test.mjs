@@ -2,138 +2,97 @@
 // Checkbox in src/ui/ draw them (UC1.1, UC1.3). Each keeps its label, its
 // aria-describedby and its keyboard behavior. The render checks skip when no
 // Chrome is found.
-import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { after, before, test } from "node:test";
-import { fileURLToPath } from "node:url";
-import { buildHarness } from "./browser/build.mjs";
-import { findChrome, launch } from "./browser/chrome.mjs";
+import assert from 'node:assert/strict'
+import { readdirSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import { after, before, test } from 'node:test'
+import { fileURLToPath } from 'node:url'
+import { buildHarness } from './browser/build.mjs'
+import { findChrome, launch } from './browser/chrome.mjs'
 
-const src = fileURLToPath(new URL("../src/", import.meta.url));
+const src = fileURLToPath(new URL('../src/', import.meta.url))
 const views = readdirSync(src, { recursive: true })
-  .map((name) => name.split(path.sep).join("/"))
-  .filter((name) => /\.tsx$/.test(name) && !name.startsWith("ui/"));
+  .map((name) => name.split(path.sep).join('/'))
+  .filter((name) => /\.tsx$/.test(name) && !name.startsWith('ui/'))
 
-test("no view renders a raw <select> or checkbox", () => {
-  const raw = views.filter((name) =>
-    /<select\b|type=["']checkbox["']/.test(
-      readFileSync(path.join(src, name), "utf8"),
-    ),
-  );
-  assert.deepEqual(raw, []);
-});
+test('no view renders a raw <select> or checkbox', () => {
+  const raw = views.filter((name) => /<select\b|type=["']checkbox["']/.test(readFileSync(path.join(src, name), 'utf8')))
+  assert.deepEqual(raw, [])
+})
 
-const chrome = findChrome();
-const skip = chrome
-  ? false
-  : "no Chrome found; set AVOOZL_CHROME to run the controls test";
-const entry = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "browser",
-  "ui-parts.tsx",
-);
-let harness, browser, page;
+const chrome = findChrome()
+const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the controls test'
+const entry = path.join(path.dirname(fileURLToPath(import.meta.url)), 'browser', 'ui-parts.tsx')
+let harness, browser, page
 before(async () => {
-  if (skip) return;
-  harness = await buildHarness({ entry });
-  browser = await launch(chrome);
-  page = await browser.page();
-});
+  if (skip) return
+  harness = await buildHarness({ entry })
+  browser = await launch(chrome)
+  page = await browser.page()
+})
 after(async () => {
-  await browser?.close();
-  harness?.remove();
-});
+  await browser?.close()
+  harness?.remove()
+})
 
-for (const theme of ["light", "dark"])
-  test(
-    `SelectField and Checkbox keep label, description and keyboard in ${theme}`,
-    { skip },
-    async () => {
-      await page.open(harness.url({ theme }), {
-        width: 600,
-        height: 500,
-        dark: theme === "dark",
-      });
-      await page.until(
-        `Boolean(document.querySelector('[data-part="select"]'))`,
-      );
-      const state = await page.evaluate(`(() => {
+for (const theme of ['light', 'dark'])
+  test(`SelectField and Checkbox keep label, description and keyboard in ${theme}`, { skip }, async () => {
+    await page.open(harness.url({ theme }), {
+      width: 600,
+      height: 500,
+      dark: theme === 'dark',
+    })
+    await page.until(`Boolean(document.querySelector('[data-part="select"]'))`)
+    const state = await page.evaluate(`(() => {
       const select = document.querySelector('[data-part="select"]')
       const box = document.querySelector('[data-part="checkbox"]')
       select.focus()
       const focused = document.activeElement === select
       box.click()
       return { name: select.labels[0].textContent.trim(), described: select.getAttribute('aria-describedby'), value: select.value, focused, checked: box.checked, boxLabel: box.labels[0].textContent.trim(), boxDescribed: box.getAttribute('aria-describedby') }
-    })()`);
-      assert.equal(state.name.startsWith("Mode"), true);
-      assert.deepEqual(
-        [state.described, state.value, state.focused],
-        ["part-help", "b", true],
-      );
-      assert.deepEqual(
-        [state.checked, state.boxLabel, state.boxDescribed],
-        [true, "Confirm", "part-help"],
-      );
-    },
-  );
+    })()`)
+    assert.equal(state.name.startsWith('Mode'), true)
+    assert.deepEqual([state.described, state.value, state.focused], ['part-help', 'b', true])
+    assert.deepEqual([state.checked, state.boxLabel, state.boxDescribed], [true, 'Confirm', 'part-help'])
+  })
 
-for (const theme of ["light", "dark"])
-  test(
-    `Switch keeps its visible label, aria-checked and keyboard in ${theme}`,
-    { skip },
-    async () => {
-      await page.open(harness.url({ theme }), {
-        width: 600,
-        height: 500,
-        dark: theme === "dark",
-      });
-      await page.until(
-        `Boolean(document.querySelector('[data-part="switch"]'))`,
-      );
-      const read = `(() => { const s = document.querySelector('[data-part="switch"] [role="switch"]'); return { checked: s.getAttribute('aria-checked'), name: s.getAttribute('aria-label'), described: s.getAttribute('aria-describedby'), text: document.querySelector('[data-part="switch"]').textContent.trim() } })()`;
-      const first = await page.evaluate(read);
-      assert.deepEqual(first, {
-        checked: "false",
-        name: "Send feedback",
-        described: "part-help",
-        text: "Send feedback",
-      });
-      // A click on the text flips it, as a checkbox's label does.
-      await page.evaluate(
-        `document.querySelector('[data-part="switch"] > span, [data-part="switch"]').click()`,
-      );
-      assert.equal((await page.evaluate(read)).checked, "true");
-      // Space on the focused switch flips it back.
-      await page.evaluate(
-        `document.querySelector('[data-part="switch"] [role="switch"]').focus()`,
-      );
-      await page.key(" ", "Space", 32);
-      await page.until(
-        `document.querySelector('[data-part="switch"] [role="switch"]').getAttribute('aria-checked') === 'false'`,
-      );
-    },
-  );
+for (const theme of ['light', 'dark'])
+  test(`Switch keeps its visible label, aria-checked and keyboard in ${theme}`, { skip }, async () => {
+    await page.open(harness.url({ theme }), {
+      width: 600,
+      height: 500,
+      dark: theme === 'dark',
+    })
+    await page.until(`Boolean(document.querySelector('[data-part="switch"]'))`)
+    const read = `(() => { const s = document.querySelector('[data-part="switch"] [role="switch"]'); return { checked: s.getAttribute('aria-checked'), name: s.getAttribute('aria-label'), described: s.getAttribute('aria-describedby'), text: document.querySelector('[data-part="switch"]').textContent.trim() } })()`
+    const first = await page.evaluate(read)
+    assert.deepEqual(first, {
+      checked: 'false',
+      name: 'Send feedback',
+      described: 'part-help',
+      text: 'Send feedback',
+    })
+    // A click on the text flips it, as a checkbox's label does.
+    await page.evaluate(`document.querySelector('[data-part="switch"] > span, [data-part="switch"]').click()`)
+    assert.equal((await page.evaluate(read)).checked, 'true')
+    // Space on the focused switch flips it back.
+    await page.evaluate(`document.querySelector('[data-part="switch"] [role="switch"]').focus()`)
+    await page.key(' ', 'Space', 32)
+    await page.until(`document.querySelector('[data-part="switch"] [role="switch"]').getAttribute('aria-checked') === 'false'`)
+  })
 
-for (const theme of ["light", "dark"])
-  test(
-    `StatTile shows value, label and sub line, warm only when asked, in ${theme}`,
-    { skip },
-    async () => {
-      await page.open(harness.url({ theme }), {
-        width: 600,
-        height: 700,
-        dark: theme === "dark",
-      });
-      await page.until(`Boolean(document.querySelector('[data-part="tile"]'))`);
-      const read = (part) =>
-        `(() => { const t = document.querySelector('[data-part="${part}"]'); const v = t.querySelector('[data-stat-tile-value]'); return { tag: t.tagName, name: t.getAttribute('aria-label'), text: [...t.children].map((c) => c.textContent), valueColor: getComputedStyle(v).color, labelColor: getComputedStyle(t.querySelector('[data-stat-tile-label]')).color } })()`;
-      const warm = await page.evaluate(read("tile"));
-      const cool = await page.evaluate(read("tile-cool"));
-      assert.deepEqual(
-        [warm.tag, warm.name, warm.text],
-        ["BUTTON", "Needs you: 3", ["3", "Needs you", "2 decisions"]],
-      );
-      assert.notEqual(warm.valueColor, cool.valueColor);
-    },
-  );
+for (const theme of ['light', 'dark'])
+  test(`StatTile shows value, label and sub line, warm only when asked, in ${theme}`, { skip }, async () => {
+    await page.open(harness.url({ theme }), {
+      width: 600,
+      height: 700,
+      dark: theme === 'dark',
+    })
+    await page.until(`Boolean(document.querySelector('[data-part="tile"]'))`)
+    const read = (part) =>
+      `(() => { const t = document.querySelector('[data-part="${part}"]'); const v = t.querySelector('[data-stat-tile-value]'); return { tag: t.tagName, name: t.getAttribute('aria-label'), text: [...t.children].map((c) => c.textContent), valueColor: getComputedStyle(v).color, labelColor: getComputedStyle(t.querySelector('[data-stat-tile-label]')).color } })()`
+    const warm = await page.evaluate(read('tile'))
+    const cool = await page.evaluate(read('tile-cool'))
+    assert.deepEqual([warm.tag, warm.name, warm.text], ['BUTTON', 'Needs you: 3', ['3', 'Needs you', '2 decisions']])
+    assert.notEqual(warm.valueColor, cool.valueColor)
+  })

@@ -501,8 +501,9 @@ export async function mirrorForwardRunStep(
         const head = (
           await github.branch(
             mirror.source,
-            (await github.repository(parseRepository(mirror.source)))
-              ?.default_branch,
+            (
+              await github.repository(parseRepository(mirror.source))
+            )?.default_branch,
           )
         )?.commit?.sha;
         if (head === record.conflictBase) continue;

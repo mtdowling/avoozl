@@ -35,7 +35,9 @@ async function openDelivery(width) {
     await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
     await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
   }
-  await page.evaluate(`(() => { const h = document.querySelector('${scope} [data-nav-head][data-nav-group="dashboard"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`)
+  await page.evaluate(
+    `(() => { const h = document.querySelector('${scope} [data-nav-head][data-nav-group="dashboard"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`,
+  )
   await page.until(`Boolean(document.querySelector('${scope} [data-nav-item="dashboard/delivery"]'))`)
   await page.evaluate(`document.querySelector('${scope} [data-nav-item="dashboard/delivery"]').click()`)
   await page.until(`document.querySelectorAll('[data-lane-columns] > section').length > 0`, 30000)
@@ -117,7 +119,10 @@ test('Delivery entries have only a top rule in the lane color, on a lane with th
       })
     })()`)
     const pageBg = await page.evaluate(`getComputedStyle(document.body).backgroundColor`)
-    assert.ok(got.some((lane) => lane.entries.length), 'some lane has entries')
+    assert.ok(
+      got.some((lane) => lane.entries.length),
+      'some lane has entries',
+    )
     for (const lane of got) {
       assert.equal(lane.background, pageBg, `lane background is the app background at ${width}`)
       for (const entry of lane.entries) {

@@ -482,9 +482,7 @@ async function until(what, check, minutes) {
     for (const task of now.tasks)
       if (task.investigation === "needs-you")
         await withStore(async (store) => {
-          await (
-            await operations(store)
-          ).execute(
+          await (await operations(store)).execute(
             "investigation.decide",
             { taskId: task.id, action: "go" },
             undefined,

@@ -111,10 +111,15 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
             ))}
             {preview.preflight && (
               <Box as="fieldset" flex flexCol gap="1" border="0" p="0" data-preflight>
-                <Box as="legend" weight="medium">Preflight for Create and release</Box>
+                <Box as="legend" weight="medium">
+                  Preflight for Create and release
+                </Box>
                 {preview.preflight.items.map((item) => (
                   <p key={item.id} data-preflight-item={item.status}>
-                    <Badge variant={item.status === 'ok' ? 'success' : item.status === 'fail' ? 'danger' : 'info'}>{item.status === 'unverified' ? 'cannot verify' : item.status}</Badge> {item.label}. <Hint>{item.detail}</Hint>
+                    <Badge variant={item.status === 'ok' ? 'success' : item.status === 'fail' ? 'danger' : 'info'}>
+                      {item.status === 'unverified' ? 'cannot verify' : item.status}
+                    </Badge>{' '}
+                    {item.label}. <Hint>{item.detail}</Hint>
                   </p>
                 ))}
               </Box>
@@ -122,7 +127,9 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
             {preview.simulated && <Hint as="p">This spec is not approved yet. The list shows what approval would write.</Hint>}
             {(preview.suggestedBatches?.length ?? 0) > 0 && (
               <Box as="fieldset" flex flexCol gap="1" border="0" p="0" data-batches>
-                <Box as="legend" weight="medium">Batches</Box>
+                <Box as="legend" weight="medium">
+                  Batches
+                </Box>
                 <Hint as="p">Small tasks in one wave can share one issue. Each task keeps its own ID.</Hint>
                 {preview.suggestedBatches!.map((group) => (
                   <Switch
@@ -180,7 +187,9 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
                 <li key={line}>{line}</li>
               ))}
             </Box>
-            <Box as="p" mt="2" tone="muted">{confirm === 'held' ? 'Crews are not released. Your release mode in Settings decides when.' : UNDO}</Box>
+            <Box as="p" mt="2" tone="muted">
+              {confirm === 'held' ? 'Crews are not released. Your release mode in Settings decides when.' : UNDO}
+            </Box>
             {confirm === 'held' && <Hint as="p">{UNDO}</Hint>}
           </div>
         )}

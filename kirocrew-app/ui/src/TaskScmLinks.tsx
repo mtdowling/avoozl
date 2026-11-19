@@ -12,7 +12,6 @@ import { Box } from './ui/Box'
 import { PlainLink } from './ui/Plain'
 import { DOT } from './ui/looks/TaskScmLinks.ts'
 
-
 function Out(props: { to: string | null | undefined; children: ReactNode }) {
   const href = safeHref(props.to ?? null)
   if (!href) return <>{props.children}</>
@@ -31,7 +30,9 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
       <Hint as="dt">{label}</Hint>
-      <Box as="dd" minW0 breakWords>{children}</Box>
+      <Box as="dd" minW0 breakWords>
+        {children}
+      </Box>
     </>
   )
 }

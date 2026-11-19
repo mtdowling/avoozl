@@ -1,18 +1,4 @@
 {
-  "index.mjs": [
-    "@kirocrew/app-sdk",
-    "@kirocrew/app-sdk/ui",
-    "lucide-react",
-    "react",
-    "react-dom",
-    "react/jsx-runtime"
-  ],
-  "panel.mjs": [
-    "@kirocrew/app-sdk",
-    "@kirocrew/app-sdk/ui",
-    "lucide-react",
-    "react",
-    "react-dom",
-    "react/jsx-runtime"
-  ]
+  "index.mjs": ["@kirocrew/app-sdk", "@kirocrew/app-sdk/ui", "lucide-react", "react", "react-dom", "react/jsx-runtime"],
+  "panel.mjs": ["@kirocrew/app-sdk", "@kirocrew/app-sdk/ui", "lucide-react", "react", "react-dom", "react/jsx-runtime"]
 }

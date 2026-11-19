@@ -63,7 +63,12 @@ for (const theme of ['light', 'dark'])
     for (const row of others) assert.notEqual(row.color, drafts[0].color, row.name)
     assert.match(await page.evaluate(`document.querySelector('[data-spec-legend]')?.textContent ?? ''`), /Grey titles are drafts/)
     // The legend sits at the top of the list, above the first row.
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-spec-legend]').compareDocumentPosition(document.querySelector('[data-spec-list]')) & Node.DOCUMENT_POSITION_FOLLOWING)`), true)
+    assert.equal(
+      await page.evaluate(
+        `Boolean(document.querySelector('[data-spec-legend]').compareDocumentPosition(document.querySelector('[data-spec-list]')) & Node.DOCUMENT_POSITION_FOLLOWING)`,
+      ),
+      true,
+    )
     // The selected row's tint keeps the contrast too.
     await page.evaluate(`document.querySelector('[data-plan-row][data-spec-chip="draft"]').click()`)
     await page.evaluate('new Promise((r) => setTimeout(r, 300))')

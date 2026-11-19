@@ -47,7 +47,11 @@ test('heading titles and their buttons share one vertical center', { timeout: 12
   if (!url || !chrome) return t.skip('set AVOOZL_UI_URL and AVOOZL_CHROME')
   const port = 9400 + Math.floor(Math.random() * 400)
   const profile = mkdtempSync(path.join(tmpdir(), 'avoozl-align-'))
-  const proc = spawn(chrome, [`--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1', `--user-data-dir=${profile}`, '--headless', '--no-sandbox', '--disable-gpu', 'about:blank'], { stdio: 'ignore' })
+  const proc = spawn(
+    chrome,
+    [`--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1', `--user-data-dir=${profile}`, '--headless', '--no-sandbox', '--disable-gpu', 'about:blank'],
+    { stdio: 'ignore' },
+  )
   t.after(() => proc.kill('SIGKILL'))
   let targets = []
   for (let i = 0; i < 50 && !targets.length; i++) {

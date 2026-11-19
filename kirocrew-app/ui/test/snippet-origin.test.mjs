@@ -11,8 +11,14 @@ import { sourceExcerpt } from '../src/task-api.ts'
 test('the snippet is the task lines and 3 either side', () => {
   const text = Array.from({ length: 40 }, (_, i) => `l${i + 1}`).join('\n')
   const rows = sourceExcerpt(text, { lineStart: 20, lineEnd: 21 }, 3)
-  assert.deepEqual(rows.map((r) => r.number), [17, 18, 19, 20, 21, 22, 23, 24])
-  assert.deepEqual(rows.filter((r) => r.hit).map((r) => r.number), [20, 21])
+  assert.deepEqual(
+    rows.map((r) => r.number),
+    [17, 18, 19, 20, 21, 22, 23, 24],
+  )
+  assert.deepEqual(
+    rows.filter((r) => r.hit).map((r) => r.number),
+    [20, 21],
+  )
 })
 
 test('the header is the shared SnippetBox: one toggle button, the action beside it', () => {

@@ -5,7 +5,21 @@ import test from 'node:test'
 import { recapSince, sinceText } from '../src/recap-api.ts'
 import { panelModel } from '../src/panel-api.ts'
 
-const crewClaim = { repository: 'o/r', number: 5, title: 'T', url: null, crewId: 'abc', crewName: 'Draco', phase: 'CI', pr: 9, prUrl: null, updated: null, commentUrl: null, stale: false, noMarker: false }
+const crewClaim = {
+  repository: 'o/r',
+  number: 5,
+  title: 'T',
+  url: null,
+  crewId: 'abc',
+  crewName: 'Draco',
+  phase: 'CI',
+  pr: 9,
+  prUrl: null,
+  updated: null,
+  commentUrl: null,
+  stale: false,
+  noMarker: false,
+}
 
 test('a waiting row with no direct action gets a deep link into the page', () => {
   const model = panelModel({ conflicts: [{ kind: 'content-match', taskId: 'S1', id: 'd1', title: 'Matched', detail: 'd' }] })
@@ -34,8 +48,14 @@ test('recap since you left: tasks finished after, and waiting rows that are new'
   })
   const away = { at: Date.parse('2026-11-14T11:00:00Z'), waitingKeys: [model.waiting[0].key] }
   const recap = recapSince(model, away, now)
-  assert.deepEqual(recap.finished.map((row) => row.taskId), ['S2'])
-  assert.deepEqual(recap.needsYou.map((row) => row.title), ['New'])
+  assert.deepEqual(
+    recap.finished.map((row) => row.taskId),
+    ['S2'],
+  )
+  assert.deepEqual(
+    recap.needsYou.map((row) => row.title),
+    ['New'],
+  )
   assert.equal(recap.since, '1 h ago')
   // Away less than a minute, or nothing new: no recap.
   assert.equal(recapSince(model, { ...away, at: now - 20_000 }, now), null)

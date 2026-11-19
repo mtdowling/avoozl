@@ -17,7 +17,10 @@ const browser = await launch(findChrome())
 const wait = (page, ms = 500) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 try {
   const page = await browser.page()
-  for (const [width, height] of [[1280, 1500], [390, 2200]])
+  for (const [width, height] of [
+    [1280, 1500],
+    [390, 2200],
+  ])
     for (const theme of ['light', 'dark']) {
       const phone = width < 768
       const scope = phone ? '[data-top-rail-list]' : '[data-left-nav]'

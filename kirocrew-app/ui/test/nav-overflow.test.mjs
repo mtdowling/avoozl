@@ -45,7 +45,9 @@ const OVERFLOWS = (width) => `(() => {
 })()`
 
 const open = async (width, text) => {
-  await page.evaluate(`(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes(${JSON.stringify(text)})); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`)
+  await page.evaluate(
+    `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes(${JSON.stringify(text)})); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`,
+  )
   await wait()
 }
 
@@ -73,16 +75,21 @@ for (const [width, height] of [
       assert.deepEqual(pill, { first: true, cut: true, inMain: false })
       const lefts = {}
       for (const section of ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings']) {
-        if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+          await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await open(width, section)
         assert.deepEqual(await page.evaluate(OVERFLOWS(width)), [], `${section} open`)
-        const left = await page.evaluate(`(() => { const s = document.querySelector('${scope(width)} [data-nav-section][data-open]'); const row = s?.querySelector('[data-nav-children] > [data-nav-item]'); return row ? Math.round(row.getBoundingClientRect().left - s.getBoundingClientRect().left) : null })()`)
+        const left = await page.evaluate(
+          `(() => { const s = document.querySelector('${scope(width)} [data-nav-section][data-open]'); const row = s?.querySelector('[data-nav-children] > [data-nav-item]'); return row ? Math.round(row.getBoundingClientRect().left - s.getBoundingClientRect().left) : null })()`,
+        )
         if (left !== null) lefts[section] = left
       }
       assert.ok(Object.keys(lefts).length >= 4, JSON.stringify(lefts))
       assert.equal(new Set(Object.values(lefts)).size, 1, `rows start at one x in every section: ${JSON.stringify(lefts)}`)
       // The Needs you count is whole and inside its pill's header.
-      const count = await page.evaluate(`(() => { const c = document.querySelector('${scope(width)} [data-nav-count]'), h = c.closest('[data-nav-head]'); const a = c.getBoundingClientRect(), b = h.getBoundingClientRect(); return { inside: a.left >= b.left && a.right <= b.right, text: c.textContent } })()`)
+      const count = await page.evaluate(
+        `(() => { const c = document.querySelector('${scope(width)} [data-nav-count]'), h = c.closest('[data-nav-head]'); const a = c.getBoundingClientRect(), b = h.getBoundingClientRect(); return { inside: a.left >= b.left && a.right <= b.right, text: c.textContent } })()`,
+      )
       assert.deepEqual(count, { inside: true, text: '12' })
     })
 
@@ -127,7 +134,9 @@ for (const [width, height] of [
       assert.deepEqual(got.chips, got.heads, `chips line up with the headers: ${JSON.stringify(got)}`)
       assert.equal(got.keep, got.heads[0], `Keep activity lines up with the headers: ${JSON.stringify(got)}`)
       assert.deepEqual(await page.evaluate(OVERFLOWS(width)), [], 'nothing passes the pill')
-      const heights = await page.evaluate(`(() => { const nav = document.querySelector('${scope(width)}'); return { heads: [...new Set([...nav.querySelectorAll('[data-nav-head]')].map((h) => Math.round(h.getBoundingClientRect().height)))], rows: [...new Set([...nav.querySelectorAll('[data-nav-children] > [data-nav-item]')].map((h) => Math.round(h.getBoundingClientRect().height)))], workspace: Math.round(nav.querySelector('[data-workspace-pill]').getBoundingClientRect().height) } })()`)
+      const heights = await page.evaluate(
+        `(() => { const nav = document.querySelector('${scope(width)}'); return { heads: [...new Set([...nav.querySelectorAll('[data-nav-head]')].map((h) => Math.round(h.getBoundingClientRect().height)))], rows: [...new Set([...nav.querySelectorAll('[data-nav-children] > [data-nav-item]')].map((h) => Math.round(h.getBoundingClientRect().height)))], workspace: Math.round(nav.querySelector('[data-workspace-pill]').getBoundingClientRect().height) } })()`,
+      )
       assert.deepEqual(heights, { heads: [32], rows: heights.rows.length ? [32] : [], workspace: 32 })
     })
 
@@ -147,10 +156,15 @@ for (const [width, height] of [
         await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
       }
       await open(width, 'Activity')
-      if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+      if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
       await page.until(`Boolean(document.querySelector('#avoozl-activity-title'))`)
       // No Refresh in the page's own heading row.
-      assert.equal(await page.evaluate(`document.querySelector('#avoozl-activity-title').closest('div, header')?.querySelectorAll('[data-refresh]').length ?? 0`), 0, 'no Refresh in the heading')
+      assert.equal(
+        await page.evaluate(`document.querySelector('#avoozl-activity-title').closest('div, header')?.querySelectorAll('[data-refresh]').length ?? 0`),
+        0,
+        'no Refresh in the heading',
+      )
       if (width < 768) {
         await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await page.until(`Boolean(document.querySelector('[data-top-rail-list] [data-refresh]'))`)
@@ -168,7 +182,24 @@ for (const [width, height] of [
 // Home's reads, by name. A new read on Home (or one that calls GitHub) has
 // to be added here on purpose. landing.view reads Avoozl's own store only
 // (landing-view.test.mjs checks it makes no GitHub call).
-const HOME_READS = new Set(['workspaces.list', 'instance.view', 'flow.view', 'graph.view', 'delivery.view', 'conflicts.view', 'plan.list', 'radar.crews', 'repositories.list', 'github.settings.get', 'untriaged.view', 'radar.releasequeue', 'gate.list', 'integration.view', 'review.drafts', 'landing.view'])
+const HOME_READS = new Set([
+  'workspaces.list',
+  'instance.view',
+  'flow.view',
+  'graph.view',
+  'delivery.view',
+  'conflicts.view',
+  'plan.list',
+  'radar.crews',
+  'repositories.list',
+  'github.settings.get',
+  'untriaged.view',
+  'radar.releasequeue',
+  'gate.list',
+  'integration.view',
+  'review.drafts',
+  'landing.view',
+])
 
 test('Home sends only its own reads, and shows its cards before the slow Radar read lands', { skip }, async () => {
   await page.open(harness.url({ page: 'app', theme: 'light', needs: '3', slowradar: '1' }), { width: 1280, height: 800 })
@@ -176,7 +207,10 @@ test('Home sends only its own reads, and shows its cards before the slow Radar r
   await page.until(`document.body.textContent.includes('Needs you (3)')`, 10000)
   await wait(600)
   const ops = await page.evaluate('window.__ops || []')
-  assert.deepEqual(ops.filter((op) => !HOME_READS.has(op)), [])
+  assert.deepEqual(
+    ops.filter((op) => !HOME_READS.has(op)),
+    [],
+  )
   assert.ok(ops.includes('radar.crews'), 'Radar was asked')
   // The landing and CI row is there too, not held back behind Radar.
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-home-pair="landing-ci"]'))`), true)

@@ -35,13 +35,7 @@ export function SectionRule() {
   return <hr data-section-rule className="my-3 border-0 border-t" style={{ borderColor: 'var(--border)', borderTopWidth: 1, borderTopStyle: 'solid' }} />
 }
 
-export function RadioFold<K extends string>(props: {
-  name: string
-  label: string
-  value: K
-  onChange: (value: K) => void
-  sections: RadioSection<K>[]
-}) {
+export function RadioFold<K extends string>(props: { name: string; label: string; value: K; onChange: (value: K) => void; sections: RadioSection<K>[] }) {
   return (
     <Stack role="radiogroup" aria-label={props.label} data-radio-fold={props.name}>
       <style>{MOTION}</style>
@@ -62,11 +56,7 @@ export function RadioFold<K extends string>(props: {
               opacity: section.disabled ? 0.65 : 1,
             }}
           >
-            <label
-              htmlFor={id}
-              className="flex items-start gap-3"
-              style={{ padding: open ? 11 : 12, cursor: section.disabled ? 'not-allowed' : 'pointer' }}
-            >
+            <label htmlFor={id} className="flex items-start gap-3" style={{ padding: open ? 11 : 12, cursor: section.disabled ? 'not-allowed' : 'pointer' }}>
               <input
                 id={id}
                 type="radio"

@@ -34,7 +34,9 @@ try {
         await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
       }
-      await page.evaluate(`(() => { const h = document.querySelector('${scope} [data-nav-head][data-nav-group="dashboard"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`)
+      await page.evaluate(
+        `(() => { const h = document.querySelector('${scope} [data-nav-head][data-nav-group="dashboard"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`,
+      )
       await page.until(`Boolean(document.querySelector('${scope} [data-nav-item="dashboard/delivery"]'))`)
       await page.evaluate(`document.querySelector('${scope} [data-nav-item="dashboard/delivery"]').click()`)
       await page.until(`Boolean(document.querySelector('[data-lane-columns]'))`, 30000)

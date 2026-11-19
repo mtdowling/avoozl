@@ -11,7 +11,6 @@ import { CitedStyle } from './ui/PageStyles'
 
 export const CITED_CLASS = 'avoozl-cited'
 
-
 // A rendered block's tag for citedNodes: Markdown draws headings as
 // role="heading" with aria-level, so they read as h1 to h6.
 export function blockTag(node: HTMLElement): string {

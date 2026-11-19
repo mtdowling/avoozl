@@ -56,7 +56,9 @@ try {
       }
       await shoot('list')
       for (const [name, prefix] of Object.entries(PICKS)) {
-        const ok = await page.evaluate(`(() => { const b = [...document.querySelectorAll('[data-conflict-pick]')].find((b) => b.dataset.conflictPick.startsWith(${JSON.stringify(prefix)})); b?.click(); return Boolean(b) })()`)
+        const ok = await page.evaluate(
+          `(() => { const b = [...document.querySelectorAll('[data-conflict-pick]')].find((b) => b.dataset.conflictPick.startsWith(${JSON.stringify(prefix)})); b?.click(); return Boolean(b) })()`,
+        )
         if (!ok) {
           console.error(`${name} ${width} ${theme}: no row`)
           process.exitCode = 1

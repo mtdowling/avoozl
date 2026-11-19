@@ -33,49 +33,96 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
     <Card flex flexCol gap="2">
       <Stack data-github-flow gap={2}>
         <SectionHeading title="From GitHub" />
-        {issues && <Hint as="p" size="sm">{summaryLine(view)}. Times are GitHub's.</Hint>}
+        {issues && (
+          <Hint as="p" size="sm">
+            {summaryLine(view)}. Times are GitHub's.
+          </Hint>
+        )}
         <Box as="ul" m0 flex listNone flexCol gap="1.5" p="0" hidden={!issues}>
           {rows.map((row, index) => (
             <Box key={row.name} data-flow-stage={row.name} as="li" flex flexWrap items="center" gap="2" size="sm">
-              <Box as="span" css-flex="0-0-9rem">{row.name}</Box>
-              <Box
-                aria-hidden="true"
-                as="span" css-flex="1-1-6rem" css-height="8" css-border-radius="4" css-background="mix-muted-15%-transparent"
-              >
+              <Box as="span" css-flex="0-0-9rem">
+                {row.name}
+              </Box>
+              <Box aria-hidden="true" as="span" css-flex="1-1-6rem" css-height="8" css-border-radius="4" css-background="mix-muted-15%-transparent">
                 <Box
-                  as="span" css-display="block" css-height="100%" css-border-radius="4" css-width={`${(100 * (view.median?.[index] ?? 0)) / widest}%`} css-background={row.slowest ? 'accent' : 'muted'}
+                  as="span"
+                  css-display="block"
+                  css-height="100%"
+                  css-border-radius="4"
+                  css-width={`${(100 * (view.median?.[index] ?? 0)) / widest}%`}
+                  css-background={row.slowest ? 'accent' : 'muted'}
                 />
               </Box>
-              <Box as="span" tabularNums>{row.median}</Box>
+              <Box as="span" tabularNums>
+                {row.median}
+              </Box>
               {row.slowest && <Badge variant="warning">Slowest</Badge>}
             </Box>
           ))}
         </Box>
         {view.builds && view.builds.count > 0 && (
           <Stack data-flow-builds gap={1}>
-            <Box as="h3" m0 size="sm" weight="semibold">Builds</Box>
-            <Hint as="p" size="xs">{buildsLine(view.builds)}. From every build record of each merged pull request.</Hint>
+            <Box as="h3" m0 size="sm" weight="semibold">
+              Builds
+            </Box>
+            <Hint as="p" size="xs">
+              {buildsLine(view.builds)}. From every build record of each merged pull request.
+            </Hint>
             <Box as="ul" css-margin="0" css-padding="0" css-list-style="none" m0 flex listNone flexCol gap="1" p="0" data-flow-build-prs>
               {view.builds.recent.map((row) => (
-                <Box key={`${row.repository}-${row.pr}`} data-flow-build-pr={row.pr} as="li" css-display="flex" css-flex-wrap="wrap" css-gap="0-12px" css-overflow-wrap="anywhere" flex flexWrap items="center" gapX="3" size="sm">
-                  <span>{row.repository ? `${row.repository} ` : ''}#{row.pr}</span>
-                  <Box as="span" tabularNums>{buildMedian(row.totalMs)}</Box>
-                  <Hint data-flow-costliest>
-                    costliest {costliestLine(row)}
-                  </Hint>
+                <Box
+                  key={`${row.repository}-${row.pr}`}
+                  data-flow-build-pr={row.pr}
+                  as="li"
+                  css-display="flex"
+                  css-flex-wrap="wrap"
+                  css-gap="0-12px"
+                  css-overflow-wrap="anywhere"
+                  flex
+                  flexWrap
+                  items="center"
+                  gapX="3"
+                  size="sm"
+                >
+                  <span>
+                    {row.repository ? `${row.repository} ` : ''}#{row.pr}
+                  </span>
+                  <Box as="span" tabularNums>
+                    {buildMedian(row.totalMs)}
+                  </Box>
+                  <Hint data-flow-costliest>costliest {costliestLine(row)}</Hint>
                   {row.failedMs > 0 && <Badge variant="danger">{buildMedian(row.failedMs)} failed</Badge>}
                 </Box>
               ))}
             </Box>
-            <Hint as="p" size="xs" flush>Median per phase, target and start, without failed attempts.</Hint>
+            <Hint as="p" size="xs" flush>
+              Median per phase, target and start, without failed attempts.
+            </Hint>
             <Box as="ul" css-margin="0" css-padding="0" css-list-style="none" m0 flex listNone flexCol gap="1" p="0">
               {view.builds.byPhase.map((row) => (
-                <Box key={`${row.phase}-${row.target}-${row.start}`} data-flow-build={row.phase} as="li" css-display="flex" css-flex-wrap="wrap" css-gap="0-12px" css-overflow-wrap="anywhere" flex flexWrap gapX="3" size="sm">
+                <Box
+                  key={`${row.phase}-${row.target}-${row.start}`}
+                  data-flow-build={row.phase}
+                  as="li"
+                  css-display="flex"
+                  css-flex-wrap="wrap"
+                  css-gap="0-12px"
+                  css-overflow-wrap="anywhere"
+                  flex
+                  flexWrap
+                  gapX="3"
+                  size="sm"
+                >
                   <span>{row.phase}</span>
                   <span>{row.target}</span>
                   <Hint>{row.start}</Hint>
-                  <Box as="span" tabularNums>{buildMedian(row.medianMs)}</Box>
-                  <Hint>{row.count} {row.count === 1 ? 'build' : 'builds'}</Hint>
+                  <Box as="span" tabularNums>
+                    {buildMedian(row.medianMs)}
+                  </Box>
+                  <Hint>
+                    {row.count} {row.count === 1 ? 'build' : 'builds'}
+                  </Hint>
                 </Box>
               ))}
             </Box>
@@ -90,15 +137,23 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
                     ) : (
                       <span>No instance</span>
                     )}
-                    <Box as="span" tabularNums>{buildMedian(row.medianMs)}</Box>
-                    <Hint>{row.count} {row.count === 1 ? 'pull request' : 'pull requests'}, {span(row.totalMs)} in all</Hint>
+                    <Box as="span" tabularNums>
+                      {buildMedian(row.medianMs)}
+                    </Box>
+                    <Hint>
+                      {row.count} {row.count === 1 ? 'pull request' : 'pull requests'}, {span(row.totalMs)} in all
+                    </Hint>
                   </Box>
                 ))}
               </Box>
             )}
           </Stack>
         )}
-        {view.skipped.length > 0 && <Hint as="p" size="xs">Left out for a missing or unordered time: {view.skipped.map((s) => `#${s.number}`).join(', ')}.</Hint>}
+        {view.skipped.length > 0 && (
+          <Hint as="p" size="xs">
+            Left out for a missing or unordered time: {view.skipped.map((s) => `#${s.number}`).join(', ')}.
+          </Hint>
+        )}
         {[...view.errors.map((e) => `${e.repository}: ${e.error}`), ...(error ? [error] : [])].map((text) => (
           <ErrorText key={text} role="alert" size="xs">
             {text}

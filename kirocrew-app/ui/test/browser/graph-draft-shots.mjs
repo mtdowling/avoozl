@@ -57,7 +57,9 @@ try {
       if (!before) {
         await page.evaluate(`document.querySelector('[data-graph-tab="frontier"]').click()`)
         await page.until(`Boolean(document.querySelector('[data-frontier]'))`)
-        await page.evaluate(`(() => { const i = document.querySelector('[data-graph-jump]'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, 'M2'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`)
+        await page.evaluate(
+          `(() => { const i = document.querySelector('[data-graph-jump]'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, 'M2'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`,
+        )
         await page.until(`document.querySelector('[data-focus-tree]')?.dataset.focusTree === 'task:M2'`)
         await shoot('3-tree-M2')
         await page.evaluate(`document.querySelector('[data-tree-node="M2"]').focus()`)

@@ -41,7 +41,8 @@ test('two instances: In flight carries the name', { skip }, async () => {
 
 const NAME = `document.querySelector('[data-left-nav] [data-instance-name]').textContent`
 const FIELD = `document.querySelector('#avoozl-instance-nickname')`
-const type = (text) => `(() => { const i = ${FIELD}; const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, ${JSON.stringify(text)}); i.dispatchEvent(new Event('input', { bubbles: true })) })()`
+const type = (text) =>
+  `(() => { const i = ${FIELD}; const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, ${JSON.stringify(text)}); i.dispatchEvent(new Event('input', { bubbles: true })) })()`
 const SAVE = `document.querySelector('[data-save-footer] [data-save]')`
 const openThisComputer = async (query = {}) => {
   await open(query)

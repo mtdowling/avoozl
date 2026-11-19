@@ -33,11 +33,14 @@ test('Page Down and End scroll the pane under the mouse, not the page, and skip 
   await page.until(`Boolean(document.querySelector('[data-spec-details-box]'))`)
   // Fill the details box so it can scroll, and bring it into view.
   await page.evaluate(`document.querySelector('[data-spec-details-box]').style.maxHeight = '120px'`)
-  await page.evaluate(`(() => { const body = document.querySelector('[data-spec-body]'), box = document.querySelector('[data-spec-details-box]'); body.scrollTop += box.getBoundingClientRect().top - body.getBoundingClientRect().top - 20 })()`)
+  await page.evaluate(
+    `(() => { const body = document.querySelector('[data-spec-body]'), box = document.querySelector('[data-spec-details-box]'); body.scrollTop += box.getBoundingClientRect().top - body.getBoundingClientRect().top - 20 })()`,
+  )
   const box = await page.evaluate(`(() => { const r = document.querySelector('[data-spec-details-box]').getBoundingClientRect(); return { x: r.left + 40, y: r.top + 40 } })()`)
   await page.evaluate(`document.activeElement?.blur()`)
   await page.hover(box.x, box.y)
-  const tops = () => page.evaluate(`[document.querySelector('[data-spec-details-box]').scrollTop, document.querySelector('[data-spec-body]').scrollTop, document.scrollingElement.scrollTop]`)
+  const tops = () =>
+    page.evaluate(`[document.querySelector('[data-spec-details-box]').scrollTop, document.querySelector('[data-spec-body]').scrollTop, document.scrollingElement.scrollTop]`)
   const [, bodyBefore, winBefore] = await tops()
   await page.key('PageDown', 'PageDown', 34)
   const [details, body, win] = await tops()
