@@ -222,7 +222,7 @@
       "$ref": "#/$defs/planningRepository"
     },
     "plugins": {
-      "description": "Route and tracker plugins this repository declares (design \u00a74.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
+      "description": "Plugins this repository declares (design \u00a74.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
       "type": "array",
       "items": {
         "type": "object",
@@ -277,7 +277,7 @@
       }
     },
     "intake": {
-      "description": "Every source that brings work in (design \u00a74.12, \u00a74.39): GitHub repositories (via github, set in Repository setup), tracker plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
+      "description": "Every source that brings work in (design \u00a74.12, \u00a74.39): GitHub repositories (via github, set in Repository setup), intake plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -296,7 +296,7 @@
             "properties": {
               "via": {
                 "type": "string",
-                "description": "github for a GitHub repository whose issues may start work, plugin:<id> for a tracker plugin with poll, or mcp for callers of intake.submit.",
+                "description": "github for a GitHub repository whose issues may start work, plugin:<id> for a plugin that provides intake, or mcp for callers of intake.submit.",
                 "pattern": "^(github|mcp|plugin:[a-z][a-z0-9-]{0,60})$"
               },
               "repository": {
@@ -1044,14 +1044,62 @@
           "minLength": 1
         },
         "checks": {
-          "type": "array",
-          "items": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "string"
+          "description": "The repository's checks: a check name to its command arguments, or to {run, paths}. A check with paths runs only for a change that touches one of them. Every task runs these; tasks never name checks. An older list of argument arrays still loads, each check named by its command.",
+          "oneOf": [
+            {
+              "type": "object",
+              "maxProperties": 50,
+              "propertyNames": {
+                "pattern": "^[a-z][a-z0-9-]{0,39}$"
+              },
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["run"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "run": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "paths": {
+                        "type": "array",
+                        "maxItems": 50,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              }
             }
-          }
+          ]
         },
         "checksEnv": {
           "type": "array",
@@ -1087,6 +1135,46 @@
         "harness": {
           "$ref": "#/$defs/harnessName",
           "description": "The harness definition a process session uses."
+        },
+        "isolation": {
+          "type": "object",
+          "description": "How the repository's checks run. A person sets it in Settings > Repository setup.",
+          "additionalProperties": false,
+          "properties": {
+            "run": {
+              "enum": ["sandbox", "container", "unconfined"],
+              "default": "sandbox",
+              "description": "sandbox: the process sandbox, writing only the check's folder, its temp and cache folders and the writable paths. container: docker or podman with image. unconfined: no isolation, only with this machine's opt-in."
+            },
+            "image": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The container image, needed when run is container."
+            },
+            "network": {
+              "enum": ["off", "on"],
+              "default": "off",
+              "description": "Whether a check reaches the network."
+            },
+            "readable": {
+              "type": "array",
+              "maxItems": 50,
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Absolute paths a check may also read."
+            },
+            "writable": {
+              "type": "array",
+              "maxItems": 50,
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Absolute paths a check may also write."
+            },
+            "prepare": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 },
+              "description": "A command run once per worktree and commit before its checks, outside isolation, such as npm ci."
+            }
+          }
         },
         "sandbox": {
           "type": "object",
@@ -1328,7 +1416,7 @@
         },
         "radar": {
           "type": "object",
-          "description": "Avoozl's workflow labels. Planning, needs-human, claim, ready, conflict, approval, review, drafted and waiting-on-tracker names must all differ.",
+          "description": "Avoozl's workflow labels. Planning, needs-human, claim, ready, conflict, approval, review and drafted names must all differ.",
           "properties": {
             "planLabel": {
               "type": "string",
@@ -1355,11 +1443,6 @@
               "minLength": 1,
               "default": "avoozl:drafted"
             },
-            "trackerLabel": {
-              "type": "string",
-              "minLength": 1,
-              "default": "avoozl:waiting-on-tracker"
-            },
             "clearPlanLabel": {
               "type": "boolean",
               "default": false
@@ -1372,39 +1455,6 @@
             "showPlansRepo": {
               "type": "boolean",
               "description": "Show the plans repository name in issues. Unset: on for a private code repository, off for a public one."
-            },
-            "reviewRules": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 4000,
-              "description": "Review rules Set up proposes for AGENTS.md in a pull request. Unset: the built-in rules."
-            },
-            "crew": {
-              "type": "object",
-              "description": "What Set up shows for an Issue Radar crew. Avoozl creates no crew.",
-              "properties": {
-                "count": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 8,
-                  "description": "Batch size: how many crews Set up shows. Not a concurrency setting."
-                },
-                "models": {
-                  "type": "array",
-                  "minItems": 1,
-                  "maxItems": 8,
-                  "items": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 80
-                  }
-                },
-                "template": {
-                  "type": "string",
-                  "pattern": "^[a-z][a-z0-9-]{0,60}$"
-                }
-              },
-              "additionalProperties": false
             }
           },
           "additionalProperties": false
@@ -1445,12 +1495,8 @@
         "conflicts": {
           "type": "object",
           "additionalProperties": false,
-          "description": "What Avoozl does with a conflict: merges the base in and fixes it, or only asks a person.",
+          "description": "How many times a landing conflict goes back to the worker before it asks a person.",
           "properties": {
-            "onSourceConflict": {
-              "enum": ["fix", "ask"],
-              "default": "fix"
-            },
             "maxAttempts": {
               "type": "integer",
               "minimum": 0,
@@ -2063,7 +2109,7 @@
             },
             "checkTimeouts": {
               "type": "object",
-              "description": "A check's command to its own timeout in seconds.",
+              "description": "A check's name to its own timeout in seconds. A key written as the check's command still matches.",
               "maxProperties": 100,
               "additionalProperties": {
                 "type": "integer",

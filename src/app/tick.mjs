@@ -74,7 +74,6 @@ import { refreshProjectedReadiness } from "./github-projection.mjs";
 import { planningIdentity } from "./github-marker.mjs";
 import { syncProject } from "./github-project.mjs";
 import { reviewDispatches } from "./pr-review.mjs";
-import { publicCrewAudit } from "./public-crews.mjs";
 import { respondStep } from "./github-respond.mjs";
 import { steeringStep } from "./github-steering.mjs";
 import { feedbackStep } from "./github-feedback.mjs";
@@ -85,12 +84,7 @@ import { findPlanningLeak } from "./github-plans-repo.mjs";
 import { plannerStep } from "./github-planner.mjs";
 import { intakeNotices, syncGitHubIssues } from "./github-sync.mjs";
 import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
-import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
-import {
-  conflictFixDispatches,
-  conflictFixStep,
-} from "./radar-conflict-fix.mjs";
 import {
   RATE_LIMIT_TEXT,
   githubGate,
@@ -118,7 +112,7 @@ import { mirrorBatchStep, publicBranchStep } from "./mirror-forward-batch.mjs";
 import { mirrorPublicPollStep } from "./mirror-forward-poll.mjs";
 import { headStep } from "./integration-head.mjs";
 import { namespaceOf } from "./radar-plan-me.mjs";
-import { pluginHealth, recordHealth } from "./plugin-session.mjs";
+import { recordHealth } from "./plugin-session.mjs";
 import { repositoryPlugins } from "./plugins.mjs";
 import {
   pollSources,
@@ -127,20 +121,6 @@ import {
   validateIntake,
 } from "./intake.mjs";
 import { settleUnavailable, validateContentRules } from "./content-rules.mjs";
-import { statusComplete } from "../query.mjs";
-import {
-  completionReached,
-  isGate,
-  pluginId,
-  taskAuthority,
-  taskKind,
-  taskRepository,
-  taskRoute,
-} from "../work-model.mjs";
-import { gateStep } from "./gate-step.mjs";
-import { gateLabelStep } from "./gate-label.mjs";
-import { routeResultNotes, routeStep } from "./routes.mjs";
-import { heldByTrackers, trackerStep } from "./trackers.mjs";
 import {
   driverStep,
   recheckDrivers,
@@ -683,78 +663,6 @@ async function pollStep(store, plugins, planned, workspaceRoot) {
   purgeClosed(store);
 }
 
-// [id, kind] for each plugin an unfinished task names as its route or its
-// authority.
-function referencedPlugins(data) {
-  const found = new Map(),
-    complete = (status) => statusComplete(data, status);
-  for (const task of data.tasks) {
-    if (completionReached(task, undefined, complete)) continue;
-    const route = pluginId(taskRoute(task)),
-      authority = pluginId(taskAuthority(task));
-    if (route && taskKind(task) === "leaf")
-      found.set(`${route}\0route`, [route, "route"]);
-    if (authority) found.set(`${authority}\0tracker`, [authority, "tracker"]);
-  }
-  // A gate's plugin, until its gate is done or cleared (RC23.6).
-  for (const task of data.tasks)
-    if (
-      isGate(task) &&
-      task.gate?.plugin &&
-      !completionReached(task, undefined, complete)
-    )
-      found.set(`${task.gate.plugin}\0gate`, [task.gate.plugin, "gate"]);
-  return [...found.values()];
-}
-
-// Route plugins (§4.8): only the cron submits remote leaves and reads their
-// status. A plugin failure parks its own leaves and is reported once.
-// Order: a health check of every plugin an unfinished task names (so a
-// missing or unapproved one shows on its tasks before anything calls it),
-// then route submissions and statuses, then tracker reads, projection and
-// closes. Returns the report and the tasks held from dispatch this tick.
-async function pluginStep(store, plugins, planned, workspaceRoot) {
-  const session = plugins.open();
-  let held;
-  try {
-    for (const [id, kind] of referencedPlugins(store.read()))
-      await session.use(id, kind);
-    const routes = await routeStep(store, session, {
-      skip: heldByTrackers(store.read(), session),
-      notes: (data, task) => [
-        ...blockerNotes(data, task),
-        ...routeResultNotes(data, task),
-      ],
-    });
-    planned.notify.push(...routes.notify);
-    const trackers = await trackerStep(store, session, {
-      namespace: planningIdentity(workspaceRoot).namespace,
-    });
-    planned.notify.push(...trackers.notify);
-    // Tracker gates, before release: a done gate frees its dependents in
-    // this same pass (RC23.7).
-    const gates = await gateStep(store, session);
-    planned.notify.push(...gates.notify);
-    held = heldByTrackers(store.read(), session);
-  } finally {
-    await session.close();
-  }
-  const report = session.report(),
-    before = pluginHealth(store);
-  for (const row of report)
-    if (
-      row.state === "unavailable" &&
-      before.get(row.id)?.reason !== row.reason
-    )
-      planned.notify.push({
-        channel: "failure",
-        title: `Avoozl parked plugin ${row.id}`,
-        text: `${row.reason} Its tasks wait as "needs you"; every other task keeps moving. The next tick tries again.`,
-      });
-  recordHealth(store, report);
-  return { report, held };
-}
-
 // The specs of these task IDs.
 function plansOf(store, taskIds) {
   const wanted = new Set(taskIds),
@@ -984,70 +892,6 @@ async function runTick(
           ...(await intakeStep(store, github, workspaceRoot, breakdownHooks))
             .notify,
         );
-      // The public crew audit (R85.6, R85.7, §6.14): what a crew wrote on a
-      // public repository since the last pass, checked with content rules.
-      if (script && github)
-        try {
-          const step = await publicCrewAudit(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-          });
-          planned.notify.push(...step.notify);
-          for (const text of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not audit a public crew",
-              text,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not audit a public crew",
-            text: error.message,
-          });
-        }
-      // The waiting label on tracker gates and their gate-only dependents
-      // (RC23.4): written from state, so a quiet tick makes no call.
-      if (script && github)
-        try {
-          const step = await gateLabelStep(
-            store,
-            github,
-            readGitHubPolicyOrNull(workspaceRoot),
-          );
-          for (const text of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not label a tracker gate",
-              text,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not label a tracker gate",
-            text: error.message,
-          });
-        }
-      // A resolver chat that is already running is finished (RC28).
-      if (script && github)
-        try {
-          const step = await conflictFixStep(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-            delivery: delivery || {},
-          });
-          planned.notify.push(...step.notify);
-          for (const text of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not fix a source conflict",
-              text,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not fix a source conflict",
-            text: error.message,
-          });
-        }
       // Review drafts by label (RC20): new labels, and drafts waiting on a
       // person. Dispatch of the chats waits for the roster check below. A
       // read that fails keeps the last state and is tried next tick (design
@@ -1225,14 +1069,6 @@ async function runTick(
           ? await projectStep(store, github, workspaceRoot)
           : { result: null, notify: [] };
       planned.notify.push(...project.notify);
-      // Remote leaves, after this tick's completions released them and
-      // before local dispatch, so a route's result reaches its dependents'
-      // briefs in this same tick.
-      const pluginResult =
-          script && delivery && plugins
-            ? await pluginStep(store, plugins, planned, workspaceRoot)
-            : null,
-        pluginReport = pluginResult?.report;
       // Incoming items from plugin sources (§4.12): one poll per source,
       // before dispatch, so a delivered item's leaf can start this tick.
       if (script && plugins)
@@ -1302,11 +1138,7 @@ async function runTick(
       const requested = unobserved.length
           ? []
           : planDispatches(store, bindings).filter((d) => !held.has(d.task)),
-        readySkip = new Set([
-          ...requested.map((d) => d.task),
-          ...(pluginResult?.held || []),
-          ...held,
-        ]),
+        readySkip = new Set([...requested.map((d) => d.task), ...held]),
         // Ranking, release and repository-wide path holds (spec-scheduler.mjs).
         schedule =
           unobserved.length || !delivery || delivery.runner !== "tick"
@@ -1375,7 +1207,6 @@ async function runTick(
                 ...reviewDispatches(store, { config: roleConfig }),
                 ...reviewDraftDispatches(store, { config: roleConfig }),
                 ...taskSummaryDispatches(store, { config: roleConfig }),
-                ...conflictFixDispatches(store),
               ]
             : [];
       // Read each spec's plan issue again right before its dispatches; a
@@ -1552,7 +1383,6 @@ async function runTick(
           ? { held: { reason: "unobserved", slots: unobserved } }
           : {}),
         ...(project.result ? { project: project.result } : {}),
-        ...(pluginReport?.length ? { plugins: pluginReport } : {}),
       };
     });
     recordRun(store, {

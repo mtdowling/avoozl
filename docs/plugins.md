@@ -2,35 +2,31 @@
 
 A plugin adds to Avoozl without changing Avoozl itself. One plugin can
 bundle several parts, so a team installs one plugin and gets its settings,
-its content rules, its tracker and its intake source together:
+its content rules and its intake source together:
 
-| Part       | What it is                                                                | Runs code |
-| ---------- | ------------------------------------------------------------------------- | --------- |
-| `pack`     | Settings a person previews and copies into `.avoozl.json` once            | No        |
-| `rules`    | Content rule sets supplied while Avoozl runs                              | Yes       |
-| `tracker`  | A task tracker that keeps Avoozl's task records                           | Yes       |
-| `intake`   | An intake source: the tracker kind's `poll`, which brings outside work in | Yes       |
-| `route`    | A delivery route for tasks that are not run by a local worker             | Yes       |
-| `gate`     | A read-only check of an outside item that a tracker gate waits on         | Yes       |
-| `template` | A workflow template that starts a new spec from a reusable folder         | No        |
+| Part       | What it is                                                        | Runs code |
+| ---------- | ----------------------------------------------------------------- | --------- |
+| `pack`     | Settings a person previews and copies into `.avoozl.json` once    | No        |
+| `rules`    | Content rule sets supplied while Avoozl runs                      | Yes       |
+| `intake`   | An intake source: its `poll` brings outside work in               | Yes       |
+| `template` | A workflow template that starts a new spec from a reusable folder | No        |
 
-Local and GitHub are the only built-in routes and trackers. Everything
-else, including any integration that must stay private, is a separate
-package or folder that plugs in here.
+Avoozl's own worker paths deliver every task, and each task's record is
+local or a GitHub issue. A plugin cannot add a delivery route or a task
+tracker. A manifest that lists `route`, `tracker` or `gate` is refused when
+it loads.
 
 The examples on this page are the test-only plugins in Avoozl's own test
-tree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, rules, a
-tracker and an intake source; `sdk-templates/` holds one workflow template;
-`fake-route/`, `fake-tracker/`, `fake-gate/` and `fake-rules/` each provide one part. Read them alongside this guide. These
+tree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, rules and
+an intake source; `sdk-templates/` holds one workflow template;
+`fake-intake/` and `fake-rules/` each provide one part. Read them alongside this guide. These
 fakes are the only plugins tested so far; no real plugin has run live.
 
 ## A pack's `crews` section
 
-A pack can carry a `crews` section for Issue Radar: `count`, `models`,
-`labels` (`plan`, `ready`, `conflict`), `reviewRules` and `template`. The
-labels and review rules go to each chosen repository's settings, and the
-crew values show in Set up. A pack creates no crew: you create it in Issue
-Radar with the values Set up shows. Content rules screen the section before
+A pack can carry a `crews` section for Issue Radar with one key, `labels`
+(`plan`, `ready`, `conflict`). The labels go to each chosen repository's
+settings. A pack creates no crew. Content rules screen the section before
 it is previewed or imported. `examples/sdk-team/` is a
 sample (a manifest and a pack) with made-up values; add it with `--path`.
 
@@ -44,27 +40,27 @@ for the parts that run code, and, with a pack, `avoozl-pack.json`:
   "id": "sdk-team",
   "version": "1.0.0",
   "contract": 1,
-  "provides": ["pack", "rules", "tracker", "intake"],
-  "capabilities": { "tracker": ["actor", "poll"], "rules": [] },
+  "provides": ["pack", "rules", "intake"],
+  "capabilities": { "intake": ["actor"], "rules": [] },
   "pack": "avoozl-pack.json",
   "entry": "index.mjs"
 }
 ```
 
 - `id` is lowercase letters, digits and dashes. `local` and `github` are
-  reserved. Tasks name the plugin as `plugin:<id>`.
+  reserved. An intake source names the plugin as `plugin:<id>`.
 - `version` changes whenever you release a new build.
 - `contract` is the contract version: which version of Avoozl's plugin
   interface this plugin was built for. It is not the plugin's own version.
   Settings shows it as **Contract version**. This Avoozl supports contract
   version `1`.
-- `provides` lists the parts: `pack`, `rules`, `tracker`, `intake`,
-  `route`, `gate`, `lessons` and `template`. `intake` runs as the `tracker` kind and needs the `poll`
-  capability. A manifest written before `provides` lists `kinds` instead
-  (`route`, `tracker`, `rules`), and each kind is its own part. With
-  `provides`, leave `kinds` out; if you keep it, it must match.
-- `capabilities` lists optional features per kind. A tracker may list
-  `edges`, `subtasks`, `actor`, `pause` and `poll`. A route lists none yet.
+- `provides` lists the parts: `pack`, `rules`, `intake` and `template`
+  (`lessons` is still accepted and does nothing). A manifest written before
+  `provides` lists `kinds` instead (`intake`, `rules`), and each kind is its
+  own part. With `provides`, leave `kinds` out; if you keep it, it must
+  match.
+- `capabilities` lists optional features per kind. An intake part may list
+  `actor`. Rules list none.
 - `pack` names the pack file inside the folder; it defaults to
   `avoozl-pack.json`.
 - `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides
@@ -72,74 +68,15 @@ for the parts that run code, and, with a pack, `avoozl-pack.json`:
   `entry`; Avoozl refuses one that names an entry, and never starts a
   process for it.
 
-The entry module exports one object per kind: `route`, `tracker`, or
-`rules`. Each
+The entry module exports one object per kind: `intake` or `rules`. Each
 method takes `(params, { config })` and returns a JSON value or a promise of
 one:
 
 ```js
-export const route = {
-  submit({ task, brief }, { config }) { ... },
-  status({ id }, { config }) { ... },
-  completion({ id }, { config }) { ... },
-  cancel({ id }, { config }) { ... },
+export const intake = {
+  poll({ cursor, limit }, { config }) { ... },
 };
 ```
-
-## The `gate` part
-
-A tracker gate is a task whose facts have `completion: tracker` and a
-`tracker` reference, one line of JSON: `{ "plugin": "<id>", "item": "<id or URL>", "done":
-"<what counts as done, in plain words>" }`. No crew builds it. Avoozl reads
-the outside item through the plugin and releases the tasks that require the
-gate when the plugin says `done`.
-
-A `gate` part exports `gate` with one read-only call:
-
-```js
-export const gate = {
-  status({ ref }, { config }) {
-    // ref is { item, done }. Return the state of the outside item.
-    return { state: "open", evidence: "In review.", link: "https://..." };
-  },
-};
-```
-
-- `state` is `open`, `done`, `failed` or `unknown`. `evidence` is plain text
-  of at most 500 characters. `link` is an http or https URL.
-- The plugin has no call that writes to the outside item.
-- Avoozl runs content rules over `evidence` and `link` before it stores or
-  shows them, and treats them as data, never as instructions.
-- A call that throws, takes longer than 30 seconds, or returns a value outside
-  this shape counts as `unknown`. A sign-in that expired is `unknown` with the
-  evidence "sign-in expired".
-- Each tick reads the gates that are due. The gap after a read is 1, 2, 5 and
-  15 minutes, then 30 minutes, and starts again when the state changes. A
-  `done` is recorded once and is never undone. If the outside item later
-  reads differently, Avoozl adds one note and changes nothing else.
-- Credentials stay in the plugin's own sign-in or in an environment variable
-  its `config` names with an `Env` key. They never go in `.avoozl.json`, a
-  spec's task facts, an issue or the evidence.
-
-What a person sees and does:
-
-- Avoozl puts `avoozl:waiting-on-tracker` (`radar.trackerLabel`) on the gate's
-  issue and on tasks held only by gates. It triggers nothing.
-- Waiting on you gets one row for a failed gate or one unknown twice in a row.
-  Avoozl never clears a gate.
-- Clear a gate by taking the label off its issue, with `avoozl gate clear TASK
-  --reason TEXT`, the matching MCP call, or the Clear button in the Release
-  queue. The person must pass the repository's actor check. The clear is kept
-  as an order (who, how, when, why, last state), not as verified completion,
-  and the brief of each released task says so. Someone who is not allowed gets
-  the label put back and one row.
-- `avoozl gate list` and the MCP read show each gate's state, last and next
-  check, evidence, link and what it holds, as the Release queue does.
-
-Examples, by role only. Each would be its own package, outside this
-repository: a ticket tracker, a check that a code review shipped to a live
-release on a private code host, and a managed remote harness task. The only
-plugin in this repository is `fake-gate/`, which tests use.
 
 ## Declaring and approving a plugin
 
@@ -152,10 +89,10 @@ A `plugins` entry declares each plugin, either in the repository's
 {
   "plugins": [
     {
-      "id": "fake-route",
-      "path": "../fake-route",
+      "id": "fake-intake",
+      "path": "../fake-intake",
       "contract": 1,
-      "config": { "stateFile": "route-state.json" }
+      "config": { "intakeFile": "intake.json" }
     }
   ]
 }
@@ -194,8 +131,8 @@ A `plugins` entry declares each plugin, either in the repository's
 
 ```json
 {
-  "id": "fake-route",
-  "git": "https://git.example.com/team/fake-route.git",
+  "id": "fake-intake",
+  "git": "https://git.example.com/team/fake-intake.git",
   "ref": "v1.0.0",
   "subdir": "plugin",
   "contract": 1
@@ -227,7 +164,7 @@ A plugin **shared with the repo** puts its entry in `.avoozl.json`, where
 it is committed and reviewed like any other change. Each computer still
 approves it for itself. Because a shared entry is the same on every
 computer, its `config` holds no machine path: name an environment variable
-(`termsFileEnv`, `stateFileEnv`) that holds each computer's own path, as the
+(`termsFileEnv`, `intakeFileEnv`) that holds each computer's own path, as the
 `sdk-team` sample does.
 
 ## How Avoozl runs a plugin
@@ -245,72 +182,8 @@ computer, its `config` holds no machine path: name an environment variable
   and escapes it in views.
 - When a plugin is missing, unapproved, disabled, crashes, times out, replies
   with the wrong shape, or expects an unsupported contract, Avoozl marks it
-  unavailable for that tick. Its tasks show "needs you" with the reason, and
-  every other task keeps moving. The next tick tries again. A plugin's tasks
-  never fall back to another route or tracker on their own.
-
-## Route kind
-
-A task whose facts say `route: plugin:<id>` is delivered by
-that route instead of a local worker session. One graph can mix routes, for
-example a local leaf, then a remote one, then a local one.
-
-| Call                    | Reply                                                                            |
-| ----------------------- | -------------------------------------------------------------------------------- |
-| `submit({task, brief})` | `{id, link}`: the remote ID and a link to the work                               |
-| `status({id})`          | `{state, link?, reason?}`: `queued`, `running`, `needs-person`, `failed`, `done` |
-| `completion({id})`      | `{pr?, answer?}`: a pull request link, an answer, or both                        |
-| `cancel({id})`          | `{cancelled}`                                                                    |
-
-- `submit` gets the task's own title, summary, acceptance and checks, and a
-  brief. Make it idempotent by task ID.
-- The tick reads `status` every tick until the work is done. `needs-person`
-  shows the task as "needs you" with your link.
-- A remote task is done only when `status` says `done` and `completion`
-  returns its result. Each dependent's brief quotes that result as data.
-- `failed` stops the task for a person. `route.resubmit` starts it again.
-
-## Tracker kind
-
-A task with `"authority": "plugin:<id>"` keeps its record in that tracker,
-the way a GitHub task keeps its record in an issue. SQLite only caches it:
-direct edits are refused, and changes go through the spec and projection.
-
-| Call                               | Reply                                                                                  |
-| ---------------------------------- | -------------------------------------------------------------------------------------- |
-| `project({task, desired, marker})` | `{id, link, marker}`: create or update the record, idempotent by namespace and task ID |
-| `read({ids})`                      | `{records: [...]}`: each record's state and fields                                     |
-| `list({namespace})`                | `{records: [...]}`: every record carrying this namespace, for rebuild                  |
-| `close({id, reason})`              | `{closed}`: close with reason `completed` or `not_planned`                             |
-
-Each record in a `read` or `list` reply has:
-
-- `id`, `link`, `state` (`open` or `closed`), and `closeReason` when closed;
-- `fields`: the managed values as they are in the tracker now: `title`,
-  `section` (the managed description section) and `tags`, plus `blockedBy`
-  with the `edges` capability;
-- `marker`: the namespace, task ID and last applied values Avoozl stored with
-  the record, returned unchanged;
-- with the `actor` capability, `closedBy` and `pausedBy`: who closed or paused
-  it; with `pause`, `paused`.
-
-Rules a tracker plugin must follow:
-
-- **Store the marker.** Keep the `marker` from `project` with the record (a
-  hidden field or a managed description section) and return it unchanged from
-  `project`, `read` and `list`. A plugin that does not is refused as a
-  tracker.
-- **Edges.** Without the `edges` capability, the graph stays in Avoozl: its
-  edges come from the approved spec. With `edges`, `desired.blockedBy` lists
-  the record IDs that block this one; store them as the tracker's own links.
-- **Edit only managed fields.** Avoozl changes the title, the managed section,
-  managed tags and, with `edges`, blocking links. A field a person changed is a
-  conflict that Avoozl reports and leaves alone.
-- **Completion is Avoozl's.** Avoozl decides a task is done and then calls
-  `close(id, "completed")`. A close or pause by someone else is judged with
-  the actor you report, against the entry's `config.allowedActors`. Without
-  the `actor` capability, every outside close holds the task's dependents for
-  a person.
+  unavailable for that tick. Its intake source or rule sets show the reason,
+  and every task keeps moving. The next tick tries again.
 
 ## Rules kind
 
@@ -374,14 +247,14 @@ file:
 
 What a pack may set, and where each lands in `.avoozl.json`:
 
-| Pack key                     | Sets                                                                                                                                                                                                                    |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pack key                     | Sets                                                                                                                                                                       |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`. |
-| `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                                                                                |
-| `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                                                  |
-| `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                                               |
-| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`.                                                                                                                            |
-| `settings.flow`              | Flow settings, such as `retro.everyTasks`                                                                                                                                                |
+| `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                                   |
+| `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                     |
+| `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                  |
+| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`.                                                                                                                    |
+| `settings.flow`              | Flow settings, such as `retro.everyTasks`                                                                                                                                  |
 
 - Every key is checked with the same rules Settings uses. Any other key is
   refused by name, such as `Pack key settings.repositories.autoMerge is not
@@ -478,17 +351,16 @@ does. See [Manual tasks and task links](policies.md#manual-tasks-and-task-links)
 
 ## Intake part
 
-An intake source is a tracker kind with the `poll` capability, listed in
-`provides` as `intake`. The fake tracker (`fake-tracker/`) is the example:
-its `poll` reads a JSON file of items and returns those changed since the
-cursor.
+An intake source is the `intake` part. Its one call is `poll`. The fake
+intake plugin (`fake-intake/`) is the example: its `poll` reads a JSON file
+of items and returns those changed since the cursor.
 
 | Call                    | Reply                                                                  |
 | ----------------------- | ---------------------------------------------------------------------- |
 | `poll({cursor, limit})` | `{items, cursor, more}`: items changed since `cursor`, at most `limit` |
 
 ```js
-export const tracker = {
+export const intake = {
   poll({ cursor, limit }, { config }) {
     const changed = readItems(config).filter(
       (item) => !cursor || mark(item) > cursor,
@@ -522,9 +394,7 @@ export const tracker = {
   `write`). Without the `actor` capability nobody counts, so your items only
   list, pause or quarantine. A close counts as an order only when
   `closedBy` is the trigger's actor and that actor counts.
-- A plugin that provides `intake` but not `tracker` is never asked to
-  `project`, `read`, `list` or `close`. Avoozl writes nothing back to an
-  intake source.
+- Avoozl writes nothing back to an intake source.
 
 Declare the source under `intake.sources`, in `.avoozl.json` or in this
 machine's `plugins.json` when its name must stay private:
@@ -534,7 +404,7 @@ machine's `plugins.json` when its name must stay private:
   "intake": {
     "sources": {
       "tickets": {
-        "via": "plugin:fake-tracker",
+        "via": "plugin:fake-intake",
         "repository": "example/app",
         "labelFields": ["component"],
         "minimumPermission": "write"
@@ -555,7 +425,6 @@ show in the **Intake** tab with their source.
 
 Copy the fake plugins' approach: keep the remote system in a file or a local
 stand-in, declare the plugin in a temporary `plugins.json`, approve its hash,
-and run ticks. Avoozl's proof P26 does exactly this with the two fakes,
-proof P35 installs, previews, imports and polls the `sdk-team` bundle, and
-proof P37 starts a spec from the `sdk-templates` template.
-Proof P32 polls the fake tracker as an intake source.
+and run ticks. Avoozl's proof P35 installs, previews, imports and polls the
+`sdk-team` bundle, proof P37 starts a spec from the `sdk-templates`
+template, and proof P32 polls the fake intake plugin as an intake source.

@@ -334,12 +334,6 @@ function operationRow(name, input, result) {
       targetId: stop?.scope === "task" ? stop.taskId : null,
     };
   }
-  if (name === "publiccrews.stop")
-    return {
-      kind: "andon.pull",
-      summary: `Stopped public crews on ${(result?.stops ?? []).length} repositories`,
-      targetId: null,
-    };
   if (name === "flow.resume")
     return {
       kind: "andon.resume",
@@ -543,11 +537,8 @@ export function tickSnapshot(store) {
   const tasks = {};
   for (const task of data.tasks) {
     const github = pickVerdict(task.githubVerdict),
-      tracker = pickVerdict(task.trackerVerdict),
-      conflicts = fields(task.projectionConflicts),
-      trackerConflicts = fields(task.tracker?.conflicts);
-    if (github || tracker || conflicts.length || trackerConflicts.length)
-      tasks[task.id] = { github, tracker, conflicts, trackerConflicts };
+      conflicts = fields(task.projectionConflicts);
+    if (github || conflicts.length) tasks[task.id] = { github, conflicts };
   }
   const all = (sql) => {
     try {
@@ -630,34 +621,15 @@ export function recordTickChanges(store, before, after) {
           key,
         });
     }
-    const t = now.tracker,
-      pt = was.tracker;
-    if (
-      t &&
-      (t.state !== pt?.state || t.key !== pt?.key) &&
-      t.state === "order"
-    )
-      add({
-        source: "plugin",
-        kind: "plugin.close",
-        actor: t.actor,
-        summary: `${id} closed in its tracker (${String(t.reason ?? "closed")})`,
-        targetId: id,
-        key: `tracker:${id}:${t.state}:${t.key ?? ""}`,
-      });
-    for (const [list, prior, source, kind] of [
-      [now.conflicts, was.conflicts, "github", "github.conflict"],
-      [now.trackerConflicts, was.trackerConflicts, "plugin", "plugin.conflict"],
-    ])
-      for (const field of list)
-        if (!(prior || []).includes(field))
-          add({
-            source,
-            kind,
-            summary: `${field} on ${id} was changed outside Avoozl`,
-            targetId: id,
-            key: `${kind}:${id}:${field}:${(prior || []).join(",")}`,
-          });
+    for (const field of now.conflicts)
+      if (!(was.conflicts || []).includes(field))
+        add({
+          source: "github",
+          kind: "github.conflict",
+          summary: `${field} on ${id} was changed outside Avoozl`,
+          targetId: id,
+          key: `github.conflict:${id}:${field}:${(was.conflicts || []).join(",")}`,
+        });
   }
   for (const [id, now] of Object.entries(after.board)) {
     const was = before.board[id] || {};

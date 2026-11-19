@@ -1,13 +1,10 @@
 ---
 completion: integrated
-checks: npm test
 integrationBranch: rewrite/my-epic
 integrationSync: weekly
 ---
 
 # Tasks
-
-Status: Draft
 
 - [ ] port-module-a Port the first module behind the new interface
   - Facts:

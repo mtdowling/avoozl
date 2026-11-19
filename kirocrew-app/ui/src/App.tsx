@@ -326,7 +326,7 @@ function AvoozlPage() {
     <WorkspacePill list={list} value={workspaceId} onChange={setWorkspaceId} onManage={openWorkspaces} />
   )
   return (
-    <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
+    <Box {...{ [APP_ATTR]: '' }} css-display="contents">
       <ConfirmProvider>
         <SpecLinkContext.Provider value={openSpec}>
           <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
@@ -355,7 +355,7 @@ function AvoozlPage() {
                 />
               )}
               {/* Desktop: the left nav, then the page. A phone has the hamburger. */}
-              <div className={`flex min-h-0 flex-1 ${phone ? 'flex-col' : 'px-6'}`} style={showRail ? { display: 'none' } : undefined} data-shell>
+              <Box css-display={showRail ? 'none' : undefined} flex minH0 flex1 flexCol={phone} px={phone ? undefined : '6'} data-shell>
                 {!phone && <LeftNav groups={groups} value={navTab(tab)} child={child} onPick={pickNav} top={pill} brand={<BrandCard workspaceId={active} />} />}
                 <Box flex minH0 minW0 flex1 flexCol pb={phone ? undefined : '2'} data-shell-main>
                   <Box flex flexWrap items="center" gap="3" pb="2" px={phone ? '4' : '2'} data-main-top>
@@ -377,12 +377,16 @@ function AvoozlPage() {
                       {error}
                     </Box>
                   )}
-                  <div
+                  <Box
                     ref={(element) => {
                       nav.scroller.current = element
                     }}
                     data-avoozl-pane
-                    className={`flex-1 min-h-0 overflow-y-auto pb-8 ${phone ? 'px-4' : 'px-2'}`}
+                    flex1
+                    minH0
+                    overflow="y-auto"
+                    pb="8"
+                    px={phone ? '4' : '2'}
                   >
                     {needsWorkspace ? (
                       <EmptyState
@@ -452,13 +456,13 @@ function AvoozlPage() {
                         onOpenPlans={() => chooseTab('plans')}
                       />
                     )}
-                  </div>
+                  </Box>
                 </Box>
-              </div>
+              </Box>
             </Box>
           </TaskDrawerProvider>
         </SpecLinkContext.Provider>
       </ConfirmProvider>
-    </div>
+    </Box>
   )
 }

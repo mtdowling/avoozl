@@ -138,12 +138,17 @@ function SourceSnippet(props: { source: OriginSource; workspaceId: string; open:
       ) : (
         <Box as="ol" css-border-color="border" m0 listNone overflow="x-auto" border="t" p="0" fontMono aria-label={`Lines from ${source.document}`} data-snippet-lines>
           {rows.map((row) => (
-            <li
+            <Box
               key={row.number}
               data-snippet-line={row.number}
               data-hit={row.hit ? 'true' : undefined}
-              className="flex gap-3 px-2 py-px"
-              style={row.hit ? { background: 'color-mix(in srgb, var(--accent) 12%, transparent)', boxShadow: 'inset 3px 0 0 var(--accent)' } : undefined}
+              as="li"
+              css-background={row.hit ? 'mix-accent-12%-transparent' : undefined}
+              css-box-shadow={row.hit ? 'inset-3px-0-0-accent' : undefined}
+              flex
+              gap="3"
+              px="2"
+              py="px"
             >
               <Box as="span" w8 shrink0 selectNone align="right" tone="muted">
                 {row.number}
@@ -151,7 +156,7 @@ function SourceSnippet(props: { source: OriginSource; workspaceId: string; open:
               <Box as="span" css-overflow-wrap="anywhere" whitespace="pre-wrap">
                 {row.text || ' '}
               </Box>
-            </li>
+            </Box>
           ))}
         </Box>
       )}
@@ -207,9 +212,9 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
           ))}
       </Box>
       {origin.prompt && (
-        <blockquote className="border-l-2 pl-2 text-xs text-muted" style={{ borderColor: 'var(--border)' }}>
+        <Box as="blockquote" css-border-color="border" borderL2 pl="2" size="xs" tone="muted">
           {origin.prompt}
-        </blockquote>
+        </Box>
       )}
       {origin.sources
         .filter((source) => source.readable)
@@ -712,7 +717,7 @@ function TaskPanel(props: {
                   {task.checks.length > 0 && (
                     <div>
                       <Box as="h4" size="sm" weight="semibold">
-                        Checks
+                        Repository checks
                       </Box>
                       <Box as="ul" mt="1" flex flexCol gap="1" size="sm">
                         {task.checks.map((line, i) => (

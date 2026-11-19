@@ -6,15 +6,20 @@
 import { fail } from "./store.mjs";
 import { taskAuthority } from "../work-model.mjs";
 
-const ACTIONS = new Set(["reviewed", "unblock", "dismiss", "settle"]);
+const ACTIONS = new Set([
+  "reviewed",
+  "unblock",
+  "dismiss",
+  "settle",
+  "reopen",
+  "keep",
+]);
 const MAX_ITEMS = 500;
 
 function lockReason(task) {
   const authority = taskAuthority(task);
   if (authority === "github")
     return "GitHub owns this task. Settle it on its issue.";
-  if (authority.startsWith("plugin:"))
-    return `${authority} owns this task. Settle it in its record.`;
   return null;
 }
 
@@ -30,7 +35,7 @@ function openStatus(data) {
 export function settleConflicts(store, input = {}, expectedRevision) {
   const { action, items, answer } = input;
   if (!ACTIONS.has(action))
-    fail("Choose reviewed, unblock, dismiss or settle.");
+    fail("Choose reviewed, unblock, dismiss, settle, reopen or keep.");
   if (
     !Array.isArray(items) ||
     !items.length ||
@@ -86,6 +91,25 @@ export function settleConflicts(store, input = {}, expectedRevision) {
           }
           task.needsReview = false;
           delete task.reviewPrior;
+        } else if (action === "reopen" || action === "keep") {
+          // A done task whose tick was taken out of tasks.md on the base
+          // branch (spec-ticks.mjs): reopen it, or keep it done.
+          if (!task.untick) {
+            refuse("Its tick was not taken out.");
+            continue;
+          }
+          if (action === "reopen") {
+            if (!status) {
+              refuse("This workspace has no open status to return it to.");
+              continue;
+            }
+            task.status = status;
+            delete task.acceptanceEvidence;
+            delete task.archivedAt;
+            if (task.integration?.into && !task.integration.landedAt)
+              delete task.integration;
+          }
+          delete task.untick;
         } else if (action === "unblock") {
           if (task.status !== "blocked") {
             refuse("It is not blocked.");

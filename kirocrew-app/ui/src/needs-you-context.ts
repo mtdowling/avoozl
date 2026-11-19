@@ -22,8 +22,8 @@ export function askLine(item: ConflictItem): string {
       return 'Approve this exact head, then merge the branch on GitHub yourself.'
     case 'github-conflict':
       return 'Choose whose value stays: Avoozl’s or the edit made on GitHub.'
-    case 'tracker-conflict':
-      return 'Change the field where the tracker owns it, or change the spec.'
+    case 'untick':
+      return 'Reopen the task, or keep it done.'
     case 'stale-session':
       return 'Read why the chat ended, then retry the delivery or dismiss this row.'
     case 'content-match':
@@ -37,10 +37,10 @@ export function askLine(item: ConflictItem): string {
       return 'Choose who drives this work: start it here, or wait for its pull request.'
     case 'needs-human':
       if (item.reason === 'blocked') return 'Unblock the task, or leave it blocked.'
-      if (item.reason === 'conflict-fix') return 'Choose whether Avoozl resolves the source conflict or you do.'
       if (item.reason === 'forward') return 'Read the exact public diff, then forward it or not.'
       if (item.reason === 'crew') return 'Answer on GitHub. The crew picks the issue up again when the label comes off.'
       if (item.reason === 'review') return 'Read the task, then mark it reviewed so it may start.'
+      if (item.reason === 'disk') return 'Free space on that volume. The work resumes by itself on the next tick.'
       return 'Read the reason and act where the row says.'
     default:
       return 'Read the reason and act where the row says.'

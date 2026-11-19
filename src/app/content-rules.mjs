@@ -26,7 +26,7 @@ import { globalAvoozlConfigPath } from "./layered-config.mjs";
 import { queueNotifications } from "./notifications.mjs";
 import { PRIVACY_SET, privacyHits, privacyRules } from "./privacy.mjs";
 import { fail } from "./store.mjs";
-import { postedText } from "./github-posted.mjs";
+import { personPosting, postedText } from "./github-posted.mjs";
 
 // `intake` screens incoming items (design §4.12) and runs only for a set
 // that names it, so GitHub intake is unchanged unless the owner asks.
@@ -2088,11 +2088,6 @@ const GITHUB_WRITES = {
     extra: [args[1]?.message, args[1]?.head, args[1]?.base],
     target: `merge:${repositoryOf(args[0])}:${sha256(args[1]?.message).slice(0, 12)}`,
   }),
-  armAutoMerge: (args) => ({
-    text: [],
-    extra: [args[3]?.headline, args[3]?.body],
-    target: `merge:${repositoryOf(args[0])}:${args[1]}`,
-  }),
   createCommitStatus: (args) => ({
     text: [],
     extra: [args[2]?.description, args[2]?.context, args[2]?.target_url],
@@ -2111,7 +2106,8 @@ const GITHUB_WRITES = {
 };
 
 // The writes whose text is a post: each gets broken mentions and the
-// posted marker (github-posted.mjs) before content rules read it.
+// posted marker (github-posted.mjs) before content rules read it, unless a
+// person's own operation writes it.
 const POSTS = {
   createIssueComment: (args) => [args[0], args[1], postedText(args[2])],
   updateIssueComment: (args) => [args[0], args[1], postedText(args[2])],
@@ -2169,7 +2165,7 @@ export function guardGitHub(github, store) {
       const value = Reflect.get(target, name, receiver);
       if (typeof value !== "function" || !GITHUB_WRITES[name]) return value;
       return function guarded(...given) {
-        const head = POSTS[name]?.(given) ?? [],
+        const head = (!personPosting() && POSTS[name]?.(given)) || [],
           args = [...head, ...given.slice(head.length)],
           shape = GITHUB_WRITES[name](args),
           text = [...shape.text, ...(shape.extra || [])]

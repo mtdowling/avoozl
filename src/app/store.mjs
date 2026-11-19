@@ -158,8 +158,6 @@ export class Store {
    CREATE TABLE IF NOT EXISTS task_deliveries(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_linked_branches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS app_notifications(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS route_submissions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS gate_records(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS mirror_forward(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS plugin_health(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS content_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
@@ -219,6 +217,21 @@ export class Store {
         "FROM incoming_items WHERE json_extract(body,'$.record.kind')='idea'";
       if (this.db.prepare(`SELECT 1 ${idea} LIMIT 1`).get())
         this.db.exec(`DELETE ${idea}`);
+      // The public crew sign-off and audit were removed: drop their records
+      // and the stops they pulled. Writes only when one is left.
+      const publicMeta =
+          "FROM meta WHERE key IN ('publicSignoff','publicCrewAuditCursors','publicCrewAudit')",
+        publicStops =
+          "FROM flow_stops WHERE json_extract(body,'$.by.name')='public crew audit' OR json_extract(body,'$.reason')='Stop public crews was pressed.'";
+      if (
+        this.db.prepare(`SELECT 1 ${publicMeta} LIMIT 1`).get() ||
+        this.db.prepare(`SELECT 1 ${publicStops} LIMIT 1`).get()
+      ) {
+        this.db.exec("BEGIN IMMEDIATE");
+        this.db.exec(`DELETE ${publicMeta}`);
+        this.db.exec(`DELETE ${publicStops}`);
+        this.db.exec("COMMIT");
+      }
     } catch (error) {
       // SQLite can roll a transaction back itself after some failures.
       try {
@@ -306,6 +319,8 @@ export class Store {
           value.summary ??= value.prose;
           delete value.prose;
         }
+        // Every task runs its repository's checks; a row's own is ignored.
+        delete value.checks;
         data.tasks.push(value);
       } else if (row.kind === "document") data.documents[row.id] = value;
       else if (row.kind === "edge") data.edges.push(value);
@@ -551,8 +566,6 @@ export class Store {
         "task_deliveries",
         "github_linked_branches",
         "app_notifications",
-        "route_submissions",
-        "gate_records",
         "mirror_forward",
         "plugin_health",
         "content_decisions",
@@ -606,8 +619,6 @@ export class Store {
         "task_deliveries",
         "github_linked_branches",
         "app_notifications",
-        "route_submissions",
-        "gate_records",
         "mirror_forward",
         "plugin_health",
         "content_decisions",
@@ -659,8 +670,6 @@ export class Store {
         "task_deliveries",
         "github_linked_branches",
         "app_notifications",
-        "route_submissions",
-        "gate_records",
         "mirror_forward",
         "plugin_health",
         "content_decisions",
@@ -726,8 +735,6 @@ export class Store {
         "task_deliveries",
         "github_linked_branches",
         "app_notifications",
-        "route_submissions",
-        "gate_records",
         "mirror_forward",
         "plugin_health",
         "content_decisions",

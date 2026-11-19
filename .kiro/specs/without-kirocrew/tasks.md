@@ -1,11 +1,8 @@
 ---
 repo: avoozl
 completion: integrated
-checks: npm test, git diff --check
 ---
 # Tasks: everything runs without Kiro Crew
-
-Status: Approved
 
 Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
@@ -18,16 +15,15 @@ its text.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces and state folders, a fake GitHub, and fake executors of both
-kinds; run `npm test` and `git diff --check` before landing, and `npm run
-test:ui` for UI changes; no real workspace data, machine configuration,
-credentials or personal plans in the repository (AGENTS.md). A role's task
-reads each limit from the tool the chat calls today and does not copy a
-number from this spec. Screen changes need phone and desktop, light and
-dark screenshots for owner approval before merge (R92.12). Screenshots are
-shown to the owner and never committed (AGENTS.md).
+kinds; Avoozl runs the repository's checks; no real workspace data, machine
+configuration, credentials or personal plans in the repository (AGENTS.md).
+A role's task reads each limit from the tool the chat calls today and does
+not copy a number from this spec. Screen changes need phone and desktop,
+light and dark screenshots for owner approval before merge (R92.12).
+Screenshots are shown to the owner and never committed (AGENTS.md).
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts. Task IDs start with `nk-` so they never collide with the IDs
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts. Task IDs start with `nk-` so they never collide with the IDs
 of the other specs.
 
 ## Phase 1: The seam
@@ -36,7 +32,6 @@ of the other specs.
   - Facts:
     - done:
       - The source test fails on a module outside the `kirocrew` executor that defaults a request to `kirocrew`; a test fails when `HARNESS_ROLES` holds a role no dispatch reads; the tests of the four roles that already run on `process` pass with their assertions unchanged; a harness saved for the plan reviewer and for review drafts is the one their requests name; screenshots of Settings › Models at 390 and 1280 px, light and dark, go to the owner.
-    - checks: npm test, npm run test:ui, git diff --check
   - `src/app/role-table.mjs` with one row per role, read by `processFinish`, the drain's folder rule and `finishProcessSession`; the verifier, reviewers, planner and retro move into it unchanged; every dispatch takes its executor from the pin, `harnesses.<role>` and the project; Settings › Models lists every role.
 - [x] nk-1.2 Output files and snapshots for a child, after nk-1.1 [NK3.1, NK3.2, NK3.4, NK5.5] (§D3, §D4)
   - Facts:

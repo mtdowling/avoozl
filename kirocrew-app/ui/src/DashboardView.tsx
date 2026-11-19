@@ -8,10 +8,9 @@ import { answerLabel, ciHealth, homeTiles, landedRows, stuckRows, QUIET_MS, type
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { plansClient } from './plans-api.ts'
-import { CONFLICT_LABELS, viewsClient, type ConflictItem, type LandingView, type RadarClaim, type RadarCrewStrip } from './views-api.ts'
+import { CONFLICT_LABELS, viewsClient, type ConflictItem, type LandingView, type RadarClaim } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
-import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
 import SetupCard from './SetupCard.tsx'
 import { useInstance } from './InstanceName.tsx'
@@ -19,7 +18,6 @@ import { nameFor } from './instance-api.ts'
 import { setupCards } from './setup-api.ts'
 import { useSetupFacts } from './setup-facts.ts'
 import ReleaseQueue from './ReleaseQueue.tsx'
-import TrackerGates from './TrackerGates.tsx'
 import RadarFlightGroups from './RadarFlightGroups.tsx'
 import IntegrationBranches from './IntegrationBranches.tsx'
 import ReviewDrafts from './ReviewDrafts.tsx'
@@ -239,7 +237,7 @@ const roleLabel = (row: InFlight) => ROLE_LABEL[row.role] ?? (row.role === 'work
 // A live Issue Radar claim, read from GitHub: any machine's crew. GitHub
 // does not show whether the crew is paused, which machine it runs on, or
 // its chat, so there is no Session here.
-export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: number; cost?: RadarCrewStrip['cost'][string] }) {
+export function RadarFlightRow({ row, now }: { row: RadarClaim; now: number }) {
   return (
     <Box data-radar-flight-row as="li" css-border-color="border" flex flexWrap items="start" gap="2" border="t" py="2" firstBorderT0>
       <Box data-in-flight-role as="span" css-flex="0-0-7.5rem">
@@ -267,17 +265,16 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
             .join(', ')}
         >
           {railFor(row).map((step) => (
-            <i
+            <Box
               key={step.label}
               data-rail-step={step.state}
               title={step.label}
-              style={{
-                display: 'block',
-                width: 16,
-                height: 8,
-                borderRadius: 3,
-                background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)',
-              }}
+              as="i"
+              css-display="block"
+              css-width="16"
+              css-height="8"
+              css-border-radius="3"
+              css-background={step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)'}
             />
           ))}
         </Box>
@@ -285,11 +282,6 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
           {row.crewName ?? row.crewId ?? 'no crew named'} · {row.phase ?? 'claim label, no claim comment'}
           {row.updated ? ` · updated ${relativeTime(row.updated, now)}` : ''}
         </Hint>
-        {cost && cost.stages.length > 0 && (
-          <Hint data-radar-cost size="xs" block>
-            Credits: {cost.stages.map((entry) => `${entry.stage} ${entry.credits.toFixed(1)}`).join(', ')} (total {cost.credits.toFixed(1)}, {cost.turns} turns)
-          </Hint>
-        )}
       </Box>
       <Box data-in-flight-actions as="span" css-flex="0-0-11rem" flex items="center" justify="end" gap="3">
         {linkHref(row.url) && (
@@ -375,7 +367,17 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
               css-text-decoration="none"
               aria-label={`Pull request ${links.pr.number} for ${title}${links.pr.state === 'open' || links.pr.state === 'unknown' ? '' : `, ${links.pr.state}`}. ${dot.label}`}
             >
-              <i data-check-dot={dot.dot} aria-hidden="true" style={{ display: 'block', flex: '0 0 auto', width: 8, height: 8, borderRadius: 999, background: dot.color }} />
+              <Box
+                data-check-dot={dot.dot}
+                aria-hidden="true"
+                as="i"
+                css-display="block"
+                css-flex="0-0-auto"
+                css-width="8"
+                css-height="8"
+                css-border-radius="999"
+                css-background={dot.color}
+              />
               PR #{links.pr.number}
               {links.pr.state === 'merged' || links.pr.state === 'closed' ? <Hint>{links.pr.state}</Hint> : null}
             </PlainLink>
@@ -661,7 +663,6 @@ export default function DashboardView(props: {
       </Box>
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
-      <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
       {(error || chat.error) && (
         <ErrorText role="alert" size="sm">
           {error ?? chat.error}
@@ -800,12 +801,12 @@ export default function DashboardView(props: {
                       On the line ({summary.radarFlight.length}): Ready, Claimed, PR, CI, Merge
                     </Box>
                     {summary.radarGroups.length > 0 ? (
-                      <RadarFlightGroups groups={summary.radarGroups} now={now} cost={summary.radarCrewStrip?.cost} />
+                      <RadarFlightGroups groups={summary.radarGroups} now={now} />
                     ) : (
                       <>
                         <Box as="ul" m0 listNone p="0">
                           {pages.take('radar', summary.radarFlight).map((row) => (
-                            <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} cost={summary.radarCrewStrip?.cost[`${row.repository}#${row.number}`]} />
+                            <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} />
                           ))}
                         </Box>
                         <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
@@ -815,15 +816,6 @@ export default function DashboardView(props: {
                       Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat.
                     </Box>
                   </>
-                )}
-                {summary.radarCrewStrip && summary.radarCrewStrip.crews.length > 0 && (
-                  <Box data-crews-strip as="p" my="2" size="xs" tone="muted">
-                    <Box as="span" weight="semibold">
-                      Crews:
-                    </Box>{' '}
-                    {summary.radarCrewStrip.counts.onDuty} on duty, {summary.radarCrewStrip.counts.working} working, {summary.radarCrewStrip.counts.paused} paused.{' '}
-                    {summary.radarCrewStrip.crews.map((crew) => `${crew.name} (${crew.status ?? 'unknown'})`).join(', ')}
-                  </Box>
                 )}
               </>
             )}
@@ -915,7 +907,6 @@ export default function DashboardView(props: {
           </HomeBox>
         </HomeSection>
       </HomePair>
-      <TrackerGates workspaceId={workspaceId} />
       <ReleaseQueue workspaceId={workspaceId} onOpenSettings={() => props.onOpenSettings?.('repositories')} />
       <IntegrationBranches workspaceId={workspaceId} />
       <ReviewDrafts workspaceId={workspaceId} />

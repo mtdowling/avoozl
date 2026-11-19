@@ -36,6 +36,7 @@ import { addEvidence } from "../evidence.mjs";
 import { processRow } from "../role-table.mjs";
 import { loadHarnessDefinition } from "../harness-definitions.mjs";
 import { sessionServedModel } from "../process-view.mjs";
+import { requireDiskSpace } from "../disk-space.mjs";
 
 const PROCESS_EXECUTOR = "process";
 // The harness a `process` project runs when it names none.
@@ -89,6 +90,8 @@ export function processExecutor({
             project_cache_dirs: sandbox.writeRoots ?? [],
           },
           allowCommands: sandbox.allowCommands,
+          // Home paths the repository lets its checks and sessions read.
+          readable: project.isolation?.readable ?? [],
           // A role that reads only its folder gets no network (NK2.2).
           network: offline ? undefined : sandbox.network,
         }),
@@ -177,10 +180,12 @@ export function sessionProject(store, { task: taskId, repository, worktree }) {
 // A verdict role reads one exact commit (R94.4: read-only). The child cannot
 // write the git directory, so Avoozl adds the detached worktree its brief
 // names before it starts, and removes it after the result is read.
-async function prepareDetached(checkout, worktree, commit) {
+async function prepareDetached(checkout, worktree, commit, store = null) {
   if (!checkout) throw Error("A verdict session needs the project checkout.");
-  if (!fs.existsSync(worktree))
+  if (!fs.existsSync(worktree)) {
+    requireDiskSpace(store, path.dirname(worktree), `The worktree ${worktree}`);
     await git(checkout, ["worktree", "add", "--detach", worktree, commit]);
+  }
   const head = await git(worktree, ["rev-parse", "HEAD"]);
   if (head !== commit)
     throw Error(
@@ -829,12 +834,27 @@ export async function drainProcessRequests(
             request.permissionClass === "write" &&
             prepareWorktree &&
             !hasRemoteTask(store, request.task)
-          ? (await prepareWorktree(store, { taskId: request.task })).path
+          ? (
+              await prepareWorktree(store, { taskId: request.task }).catch(
+                (error) => {
+                  // A full volume holds the start: the request is released
+                  // and tried again on a later tick.
+                  if (error.lowDisk)
+                    releaseSessionRequest(
+                      store,
+                      { id: request.id, claimToken, reason: "before-open" },
+                      owner,
+                    );
+                  throw error;
+                },
+              )
+            ).path
           : verdictSession(request, project?.root)
             ? await prepareDetached(
                 project.root,
                 request.worktree,
                 request.commit,
+                store,
               ).catch((error) => {
                 releaseSessionRequest(
                   store,

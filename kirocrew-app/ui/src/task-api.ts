@@ -22,6 +22,7 @@ export interface TaskDetail {
     // The task's own summary: its spec item's bullets, or an issue's body.
     summary: string
     acceptance: string[]
+    // The repository's checks, which every task runs.
     checks: string[]
     epic: string | null
     epicTitle: string | null
@@ -294,7 +295,7 @@ export interface SettleResult {
   refused: { taskId: string; slot?: string; reason: string }[]
 }
 
-export type SettleAction = 'reviewed' | 'unblock' | 'dismiss' | 'settle'
+export type SettleAction = 'reviewed' | 'unblock' | 'dismiss' | 'settle' | 'reopen' | 'keep'
 
 export function taskClient(api: AppApi) {
   const run = async <T>(operation: string, input: Record<string, unknown>, workspaceId: string, expectedRevision?: number) => {
@@ -379,7 +380,6 @@ export interface TaskForm {
   summary: string
   repository: string
   acceptance: string
-  checks: string
   prerequisites: Prerequisite[]
 }
 
@@ -392,7 +392,7 @@ const lines = (text: string) =>
     .filter(Boolean)
 
 export function emptyForm(): TaskForm {
-  return { id: '', title: '', summary: '', repository: '', acceptance: '', checks: '', prerequisites: [] }
+  return { id: '', title: '', summary: '', repository: '', acceptance: '', prerequisites: [] }
 }
 
 export function formFrom(detail: TaskDetail): TaskForm {
@@ -402,7 +402,6 @@ export function formFrom(detail: TaskDetail): TaskForm {
     summary: detail.task.summary,
     repository: detail.task.repository ?? '',
     acceptance: detail.task.acceptance.join('\n'),
-    checks: detail.task.checks.join('\n'),
     prerequisites: detail.waitsOn
       .filter((link) => link.kind === 'requires' || link.kind === 'sequence')
       .map((link) => ({ id: link.id, kind: link.kind as Prerequisite['kind'], condition: link.condition ?? '' })),
@@ -420,7 +419,6 @@ export function taskInput(form: TaskForm, original: TaskForm | null): Record<str
   set('title', form.title.trim(), original?.title.trim())
   set('summary', form.summary.trim(), original?.summary.trim())
   set('acceptance', lines(form.acceptance), original ? lines(original.acceptance) : undefined)
-  set('checks', lines(form.checks), original ? lines(original.checks) : undefined)
   set('repository', form.repository.trim() || undefined, original ? original.repository.trim() || undefined : undefined)
   if (input.repository === undefined) delete input.repository
   const requires = (list: Prerequisite[]) => list.filter((p) => p.kind === 'requires').map((p) => (p.condition ? { task: p.id, condition: p.condition } : p.id))
@@ -430,7 +428,7 @@ export function taskInput(form: TaskForm, original: TaskForm | null): Record<str
   if (!original) {
     input.create = true
     input.needsReview = true
-  } else if (['title', 'summary', 'acceptance', 'checks'].some((key) => key in input)) input.needsReview = true
+  } else if (['title', 'summary', 'acceptance'].some((key) => key in input)) input.needsReview = true
   return input
 }
 

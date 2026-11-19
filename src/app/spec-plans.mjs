@@ -353,8 +353,9 @@ export function headingPhases(text) {
 const PHASE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,59}$/;
 
 // Items checked [x] in tasks.md, with the first "Built:" line under each.
-// Only an approval of the stored revision reads these (plans.mjs): [~] and
-// [-] are Kiro's queued and running marks and stay planned.
+// Approval reads these for tasks it creates (plans.mjs); a tick on the base
+// branch completes an existing task (spec-ticks.mjs). [~] and [-] are Kiro's
+// queued and running marks and stay planned.
 export function checkedItems(name, text) {
   const lines = text.split("\n"),
     items = specItems(name, text),
@@ -477,12 +478,17 @@ export function parseSpec({
     byKey = new Map();
   for (const item of items) {
     if (!item.key) {
+      // A tick completes the task it names (spec-ticks.mjs): with no ID it
+      // names none.
+      const ticked = item.mark === "x";
       diagnostics.push(
         diagnostic(
-          "task.missing-id",
+          ticked ? "task.ticked-unknown-id" : "task.missing-id",
           "tasks.md",
           item.line,
-          `Start this item with a task ID, such as "- [ ] 1.2 ${item.title.slice(0, 60)}".`,
+          ticked
+            ? `This item is ticked [x] but has no task ID, so it completes no task. Start it with a task ID, such as "- [x] 1.2 ${item.title.slice(0, 60)}".`
+            : `Start this item with a task ID, such as "- [ ] 1.2 ${item.title.slice(0, 60)}".`,
         ),
       );
       continue;
@@ -1414,7 +1420,8 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
   if (!proposal || typeof proposal !== "object" || Array.isArray(proposal))
     fail("Describe one proposed task as a JSON object.");
   // Its summary goes under the item as bullets.
-  const { id: given, title, summary, ...entry } = proposal;
+  // A task never names checks; an older caller's list is ignored.
+  const { id: given, title, summary, checks: _checks, ...entry } = proposal;
   if (
     typeof given !== "string" ||
     !(NAMED.test(given) || NUMBERED.test(given) || LETTERED.test(given))

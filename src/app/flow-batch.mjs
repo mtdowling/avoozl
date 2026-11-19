@@ -14,7 +14,6 @@ import { cliCommand } from "./report-command.mjs";
 import { issueReportToken } from "./report-match.mjs";
 import { contentBinding } from "./content-rules.mjs";
 import {
-  isGate,
   isManual,
   taskAuthority,
   taskCompletion,
@@ -56,8 +55,7 @@ function groupProblem(store, data, task, members, approved, config) {
     (t) =>
       taskKind(t) !== "leaf" ||
       isManual(t) ||
-      isGate(t) ||
-      ["person", "tracker"].includes(taskCompletion(t)) ||
+      taskCompletion(t) === "person" ||
       taskRoute(t) !== "local" ||
       taskAuthority(t) !== "local",
   );
@@ -234,7 +232,6 @@ export function batchBrief(store, data, leaf, brief) {
         task.acceptance?.length
           ? `   Acceptance: ${[].concat(task.acceptance).join("; ")}`
           : null,
-        task.checks?.length ? `   Checks: ${task.checks.join("; ")}` : null,
       ]),
       "",
       ...run,

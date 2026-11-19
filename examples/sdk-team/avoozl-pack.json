@@ -1,16 +1,12 @@
 {
-  "description": "Two Issue Radar crews for an SDK team: the labels, the review rules and the models to enter in Radar. A pack creates no crew.",
+  "description": "The labels an SDK team's Issue Radar crews and Avoozl share.",
   "settings": {
     "crews": {
-      "count": 2,
-      "models": ["model-a", "model-b"],
       "labels": {
         "plan": "to plan",
         "ready": "ready",
         "conflict": "merge conflict"
-      },
-      "reviewRules": "- Open one pull request per issue, and name the issue in it with `Closes #N`.\n- Say what you skipped or did not check.",
-      "template": "sdk-change"
+      }
     }
   }
 }

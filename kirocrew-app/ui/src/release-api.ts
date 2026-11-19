@@ -87,12 +87,6 @@ export function branchLine(row: IntegrationBranch): string {
   return `${row.tasksMerged} of ${row.tasksTotal} tasks merged · ${behind} · ${checks}${row.accepted ? ' · accepted' : ''}`
 }
 
-export interface ArmedPull {
-  repository: string
-  number: number
-  armedAt: string
-}
-
 // Review drafts made from the review label (RC20.6), from
 // src/app/review-draft.mjs reviewDraftsView.
 export type DraftState = 'queued' | 'chat' | 'waiting' | 'stale' | 'submitted' | 'discarded' | 'replaced' | 'ended' | 'refused' | 'closed'
@@ -131,29 +125,6 @@ export const DRAFT_STATE_TEXT: Record<DraftState, string> = {
   closed: 'Pull request closed',
 }
 
-// Tracker gates (RC23.11), from src/app/gate-view.mjs gateRows.
-export type GateState = 'open' | 'failed' | 'unknown' | 'done' | 'cleared'
-export interface GateRow {
-  taskId: string
-  title: string
-  tracker: string | null
-  item: string | null
-  done: string | null
-  state: GateState
-  lastCheck: string | null
-  nextCheck: string | null
-  evidence: string | null
-  link: string | null
-  cleared: { actor: string; how: string; at: string; reason: string; lastState: string } | null
-  needsYou: boolean
-  held: string[]
-}
-
-// Waiting on you lists only a failed gate or one unknown twice (RC23.9).
-export const waitingGates = (rows: GateRow[]): GateRow[] => rows.filter((row) => row.needsYou)
-// A gate a person can still clear.
-export const clearable = (row: GateRow): boolean => row.state !== 'done' && row.state !== 'cleared'
-
 export interface ReleaseQueue {
   repositories: QueueRepository[]
 }
@@ -165,16 +136,11 @@ export function releaseClient(api: AppApi) {
   }
   return {
     queue: (workspaceId: string) => run<ReleaseQueue>('radar.releasequeue', {}, workspaceId),
-    // Pull requests Avoozl armed that are still open, and the person-only Disarm (RC5.4).
-    armed: (workspaceId: string) => run<{ pullRequests: ArmedPull[] }>('radar.armed', {}, workspaceId),
-    disarm: (workspaceId: string, repository: string, pullRequest: number) => run<unknown>('radar.disarm', { repository, pullRequest }, workspaceId),
     // Integration branches (RC16.8) and the person-only landing approval (RC16.6).
     branches: (workspaceId: string) => run<{ branches: IntegrationBranch[] }>('integration.view', {}, workspaceId),
     land: (workspaceId: string, repository: string, branch: string, head: string) => run<unknown>('integration.land', { repository, branch, head }, workspaceId),
     drafts: (workspaceId: string, filter: { repository?: string; state?: string } = {}) =>
       run<ReviewDrafts>('review.drafts', Object.fromEntries(Object.entries(filter).filter(([, value]) => value)), workspaceId),
-    gates: (workspaceId: string) => run<{ gates: GateRow[] }>('gate.list', {}, workspaceId),
-    clearGate: (workspaceId: string, taskId: string, reason: string) => run<{ cleared: boolean; state: string }>('gate.clear', { taskId, reason }, workspaceId),
     // One click releases the next phase of a spec that has none yet.
     step: (workspaceId: string, planId: string) => run<{ planId: string; phase: string; title: string }>('radar.releasestep', { planId }, workspaceId),
   }

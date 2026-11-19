@@ -2,7 +2,7 @@
 // why, what answering unblocks, and the evidence Avoozl holds. It comes before
 // every button, so nothing is approved without it. Theme variables only.
 import type { ReactNode } from 'react'
-import { SeverityBadges } from './SeverityBadges.tsx'
+import { SeverityBadges } from './ui/SeverityBadges.tsx'
 import { checkDot } from './dashboard-api.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
@@ -96,9 +96,9 @@ export function TaskText(props: { title: string; context: ItemContext | undefine
       >
         {evidence.kind === 'diff'
           ? evidence.lines.map((line, i) => (
-              <span key={i} data-diff={line.kind} style={{ display: 'block', color: DIFF_INK[line.kind] }}>
+              <Box key={i} data-diff={line.kind} as="span" css-display="block" css-color={DIFF_INK[line.kind]}>
                 {DIFF_MARK[line.kind]} {line.text}
-              </span>
+              </Box>
             ))
           : evidence.lines.join('\n')}
       </Box>

@@ -67,7 +67,7 @@ export const HELP_GROUPS = Object.freeze([
       ),
       entry(
         "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
-        "Preview repository setup for landing; --yes applies it",
+        "Preview repository setup for landing; --checks names the required GitHub checks, not the repository's own checks; --yes applies it",
       ),
       entry(
         "workspace-repo configure PATH [--branch avoozl-workspace] [--directory .avoozl]",
@@ -271,14 +271,6 @@ export const HELP_GROUPS = Object.freeze([
         "Resume dispatch while a line stop stays open (a person only)",
       ),
       entry(
-        "public-crews stop",
-        "Stop public crews: pull the cord on every public repository and list the crews to pause",
-      ),
-      entry(
-        "gate clear TASK --reason TEXT",
-        "Clear a tracker gate as an order (the GitHub login of this machine must be allowed)",
-      ),
-      entry(
         "content allow DECISION_ID --reason TEXT",
         "Allow one blocked write once (a person only)",
       ),
@@ -288,7 +280,7 @@ export const HELP_GROUPS = Object.freeze([
       ),
       entry(
         "rebuild [--repository OWNER/REPO]",
-        "Rebuild GitHub tasks from their issues and tracker plugin tasks from their records",
+        "Rebuild GitHub tasks from their issues",
       ),
     ],
   },
@@ -341,10 +333,6 @@ export const HELP_GROUPS = Object.freeze([
         "One epic: goal, what done means, member plans, open decisions",
       ),
       entry("github status", "Show repository and machine registration"),
-      entry(
-        "gate list [--json]",
-        "Tracker gates: state, last and next check, and what each holds",
-      ),
       entry(
         "review drafts [--repository OWNER/REPO] [--state STATE] [--json]",
         "Review drafts made from the review label, and the GitHub search for them",

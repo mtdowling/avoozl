@@ -6,7 +6,6 @@ import test from "node:test";
 import { deliveryPolicy, shipMode } from "../delivery.mjs";
 import { mergeMethodOf, normalizeGitHubPolicy } from "../github-policy.mjs";
 import { applyLandingModes, landingSettings } from "../landing-config.mjs";
-import { conflictSettings } from "../radar-conflict-fix.mjs";
 import { effectiveShip } from "../radar-merge-path.mjs";
 
 // A store with only the project rows these readers touch.
@@ -109,7 +108,6 @@ test("older keys map to the block, and the block wins over them", () => {
     shipMode(deliveryPolicy(old), { repository: "app" }, store),
     "manual",
   );
-  assert.equal(conflictSettings(repositoryOf(old, "o/app"), 1).maxAttempts, 1);
 
   const next = structuredClone(old);
   next.github.repositories["o/app"].landing = {
@@ -141,7 +139,6 @@ test("older keys map to the block, and the block wins over them", () => {
     ),
     "manual",
   );
-  assert.equal(conflictSettings(settings, 1).maxAttempts, 3);
   // The tick copies the mode onto the checkout's project row.
   assert.deepEqual(
     applyLandingModes(store, next).map((p) => p.landing),
@@ -175,7 +172,6 @@ test("the block is validated, and 0 tries asks at once", () => {
       .repositories["o/app"].conflicts.maxAttempts,
     0,
   );
-  assert.equal(conflictSettings({}).maxAttempts, 2);
   // A normalized policy normalizes to itself.
   const once = normalizeGitHubPolicy(
     entry({ landing: { method: "merge", autoMerge: false } }),

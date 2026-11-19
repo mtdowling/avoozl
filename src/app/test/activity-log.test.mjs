@@ -390,7 +390,7 @@ test("activity.list counts each source, kind and actor over the whole log", asyn
   assert.deepEqual(read.counts.actor, { octo: 1 });
 });
 
-test("the tick's snapshot diff records each GitHub and plugin change once", (t) => {
+test("the tick's snapshot diff records each GitHub and intake change once", (t) => {
   const { store } = setup(t);
   const before = tickSnapshot(store);
   store.mutate("verdicts", (data) => {
@@ -406,7 +406,6 @@ test("the tick's snapshot diff records each GitHub and plugin change once", (t) 
       issue: "https://github.com/acme/app/issues/8",
     };
     data.tasks[1].projectionConflicts = [{ field: "title" }];
-    data.tasks[0].tracker = { conflicts: [{ field: "status" }] };
   });
   store.put("receipts", {
     id: "project-item:a2",
@@ -451,7 +450,6 @@ test("the tick's snapshot diff records each GitHub and plugin change once", (t) 
     "github:github.label",
     "github:github.pr-merged",
     "plugin:intake.item",
-    "plugin:plugin.conflict",
   ]);
   const stored = everything(store);
   for (const text of [

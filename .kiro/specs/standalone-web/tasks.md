@@ -1,28 +1,22 @@
 ---
 repo: avoozl
 completion: integrated
-checks: npm test, git diff --check
 ---
 # Tasks: a standalone web view
-
-Status: Approved
 
 Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
 brackets (`SW1` to `SW12`, in `requirements.md`); `D` sections refer to this
 spec's `design.md`, `R` numbers to `.kiro/specs/avoozl/requirements.md`.
 
-Rules for every task: work in a task worktree; tests use isolated temporary
-workspaces and state folders; run `npm test` and `git diff --check` before
-landing, and `npm run test:ui` for UI changes; no real workspace data,
-machine configuration, credentials or personal plans in the repository
-(AGENTS.md). Screen changes need phone and desktop, light and dark
-screenshots for owner approval before merge (R92.12), shown to the owner and never committed (AGENTS.md). Before landing a task
-that touches the server, run the D10 search and explain every hit in the
-pull request.
+Rules for every task: work in a task worktree; tests use isolated temporary workspaces and state folders; Avoozl runs the
+repository's checks; no real workspace data, machine configuration, credentials or personal plans in the repository
+(AGENTS.md). Screen changes need phone and desktop, light and dark screenshots for owner approval before merge (R92.12), shown
+to the owner and never committed (AGENTS.md). Before landing a task that touches the server, run the D10 search and explain
+every hit in the pull request.
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts. Task IDs start with `sw-` so they never collide with the IDs
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts. Task IDs start with `sw-` so they never collide with the IDs
 of the other specs. SW11.1 is done by the pull request that adds this spec;
 SW11.2 is a spec edit made when the owner approves it.
 
@@ -37,7 +31,6 @@ SW11.2 is a spec edit made when the owner approves it.
   - Facts:
     - done:
       - The fetch refuses a tree whose digest differs, and the Kiro Crew bundle still builds with no source to fetch; no Kiro Crew file is in git and a compare of the cache with the release is clean; the contract test fails naming a moved path or export; the version test fails on a package that differs from the pin's lockfile; the build test fails on a file under `standalone/` that exports an SDK name, and the source test on a view importing a Kiro Crew file by path; the import-specifier fixture for `dist/index.mjs` and `dist/panel.mjs` matches; `host-classes.test.mjs` runs against the built stylesheet with no skip and passes; the variable test finds every `var(--…)` name for the default palette in both modes; the script is within its budget and holds no dashboard module; the build lists every `<style>` text and fails on one built at run time; the release scan fails with a notice removed; the class check against the pin's own stylesheet, built without the Avoozl page, runs and fails on a planted class Kiro Crew lacks (SW12.9); the README names the pin (SW12.8); the path scan finds no home folder or worktree path in `dist/standalone/`; screenshots of Home, Specs and Settings at 390 and 1280 px, light and dark, beside the same views in a running Kiro Crew at the pinned release, go to the owner.
-    - checks: npm test, npm run test:ui, git diff --check
   - `kirocrew-pin.json` and `scripts/fetch-kirocrew-ui.mjs`; `src/standalone/` with `main.tsx`, `host.ts` and `app.css`; `vite build --mode standalone` into `dist/standalone/` with aliases into the fetched source, the left-out table and the size budget; the packages Kiro Crew's parts import as UI dev dependencies at the pin's versions; the standalone header with the theme control and Sign out; Kiro Crew's notices in `THIRD_PARTY_NOTICES.md`.
 - [x] sw-1.3 `avoozl serve` on loopback with the owner link, after sw-1.1, sw-1.2 [SW3, SW4, SW5.3, SW5.4, SW5.5] (§D5, §D10)
   - Facts:
@@ -49,7 +42,6 @@ SW11.2 is a spec edit made when the owner approves it.
   - Facts:
     - done:
       - UI tests on the standalone page: Ask for help in Settings › Content rules opens the dialog with the message and the `assist` role, and Start, with a fake `process` executor, records one read-only session request in the workspace root and shows its process view; `openChat` with `autoSend: true` starts nothing until Start; with no approved harness the dialog offers Copy and starts nothing; `session.open` from MCP and from an `agent-tool` principal is refused; every SW10.1 feature shows "Needs Kiro Crew" and no error; a pinned `kirocrew` task opens one Needs you item across three ticks; with notices on and a fake `Notification`, two new Needs you items give two notices and a reload gives none; screenshots go to the owner.
-    - checks: npm test, npm run test:ui, git diff --check
     - after: sw-1.3
   - The Start a session dialog behind the chat launcher's navigation (SW1.5); the `session.open` operation (person-only) and the `assist` role with `prompts/assist.md`; "Needs Kiro Crew" states on the page from `instance.view`; Settings › Notifications on the standalone page; a task pinned to `kirocrew` with no Kiro Crew waits with one Needs you item.
 - [x] sw-1.5 The supervisor hosts the page, after sw-1.3 [SW9] (§D8)

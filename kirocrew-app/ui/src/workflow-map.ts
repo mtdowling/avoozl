@@ -33,7 +33,7 @@ export const WORKFLOW_STATUS: Record<string, StepTag> = {
 
 // Where a value is set. `tab` is a repository dialog sub-tab; `field` names the
 // input the page focuses.
-export type JumpField = 'plan' | 'conflict' | 'onSourceConflict' | 'mergeMethod' | 'autoMerge' | 'approval' | 'ready' | 'claim' | 'needsHuman' | 'actors' | 'permission'
+export type JumpField = 'plan' | 'conflict' | 'mergeMethod' | 'autoMerge' | 'approval' | 'ready' | 'claim' | 'needsHuman' | 'actors' | 'permission'
 // `radar` is Settings › Issue Radar, a page of its own; the others are
 // tabs of the repository's Edit dialog (repo-edit-tabs.ts).
 export interface Jump {
@@ -43,7 +43,6 @@ export interface Jump {
 const TAB: Record<JumpField, Jump['tab']> = {
   plan: 'radar',
   conflict: 'radar',
-  onSourceConflict: 'landing',
   mergeMethod: 'landing',
   autoMerge: 'landing',
   approval: 'radar',
@@ -319,7 +318,6 @@ export const fieldSelector = (id: string, field: JumpField): string =>
   ({
     plan: '#' + id + '-label-planLabel',
     conflict: `#${id}-label-conflictLabel`,
-    onSourceConflict: `#${id}-on-source-conflict input:checked, #${id}-on-source-conflict`,
     mergeMethod: `#${id}-merge-method input:checked, #${id}-merge-method`,
     autoMerge: `#${id}-auto-merge input:checked, #${id}-auto-merge`,
     approval: `#${id}-label-approvalLabel`,

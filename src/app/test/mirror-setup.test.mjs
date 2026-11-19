@@ -233,7 +233,6 @@ test("Create runs the steps in order and reads the mirror back private", async (
   assert.equal(repo.autoMerge, true);
   assert.equal(d.saved[0][0], MIRROR);
   assert.equal(d.saved[0][1].source, SOURCE);
-  assert.equal(done.next, "radar-values");
   assert.equal(github.state.deletes.length, 0);
   // Every write went to the mirror, none to the source.
   assert.ok(
@@ -335,7 +334,7 @@ test("Adopt finds what exists and writes only ticked lines", async () => {
     ["labels"],
   );
   const repo = github.state.repos.get(MIRROR);
-  assert.equal(repo.labels.length, 7);
+  assert.equal(repo.labels.length, 6);
   assert.equal(repo.autoMerge, false);
   assert.deepEqual(repo.rules, []);
   assert.deepEqual(d.saved, []);

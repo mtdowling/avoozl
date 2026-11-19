@@ -21,11 +21,8 @@ const PARTS = Object.freeze([
     what: "Issue Radar's crew views and Send to Issue Radar",
     reason: "They read Issue Radar's crews through Kiro Crew's own API.",
     operations: {
-      "radar.crews": ["crewReader", "sessionsReader"],
-      "radar.values": ["crewReader"],
       "untriaged.crews": ["crewReader"],
       "untriaged.handoff": ["crewReader"],
-      "publiccrews.stop": ["crewReader"],
     },
     refuse: { "untriaged.handoff": "crewReader" },
   },

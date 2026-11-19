@@ -12,10 +12,11 @@ Read the code in the named repositories first, so tasks match what exists. Write
 - `design.md`: scope, decisions, and risks.
 - `tasks.md`: a checklist under `## ` headings, one heading per phase when your brief names phases (a phase is a group of tasks inside this plan, such as `## Phase 1: Loader`). Every item starts with its task ID, then its title: `- [ ] 1.2 Validate loaded config`. Use Kiro's numbering (`1`, `1.1`, `1.2`); Avoozl reads `1.2` in spec `<name>` as task `<name>.1.2`. A named ID needs a separator, such as `cache-invalidation`. Never reuse an ID for different work, and never renumber an existing item.
 - Never write `avoozl/manifest.json`. Avoozl refuses a folder that has one. Each task's facts live in `tasks.md`.
+- Never write a `Status:` line (such as `Status: Draft`) in any of these files, and never say in prose that the spec is a draft or approved. Approval lives in Avoozl, not in the files.
 
 Every `tasks.md` item has exactly one `Facts:` bullet, nested under it as its first child. Under `Facts:` write one `key: value` bullet per fact; a list is `key: a, b` or `key:` with one nested bullet per item. Subtasks come after the `Facts:` bullet. Any other bullet under an item is its summary: what the task delivers and how, in a sentence or a few bullets. Its worker reads the title line, then the summary as written, then `done`. Write a summary only when it adds context the title lacks; Avoozl refuses one that repeats the title. Do not repeat `done` in it either, and write no `Done when:` bullet: `done` says it. Avoozl refuses an unknown key, a key written twice, a second `Facts:`, a `Facts:` that is not the item's first child, and a fact bullet outside `Facts:`. Edges come only from facts. Nesting in `tasks.md` names parents: an item indented under a `package` item is its child, and becomes its sub-issue. Never nest an item under a leaf.
 
-Front-matter at the top of `tasks.md` holds values for the whole spec: `repo`, `checks` and `completion` are defaults for every leaf, and a leaf's own fact wins. A package takes no default. `phase-<id>: <title>` names a phase, and `batch-<id>: <reason>` a batch group.
+Front-matter at the top of `tasks.md` holds values for the whole spec: `repo` and `completion` are defaults for every leaf, and a leaf's own fact wins. A package takes no default. `phase-<id>: <title>` names a phase, and `batch-<id>: <reason>` a batch group.
 
 Facts of every item:
 
@@ -26,10 +27,11 @@ A leaf is bounded. It also has:
 
 - `repo`: exactly one registered repository ID.
 - `done`: observable statements a verifier can check, one nested bullet each.
-- `checks`: the commands that prove it, such as `npm test`.
 - `completion`: `integrated` for local work, `merged-pr` for GitHub work.
 
-A step only a person does, such as a team review, is a manual leaf: `manual: true`, its `repo` (where its issue lives), and `done` (what the person checks), with no `checks`, `session`, `paths` or `route`, and in no batch group. `manual: true` is how a task says a person does it: never write `completion: person`. A manual leaf takes no `checks` or `completion` default. No agent ever runs it; a person marks it done, and the tasks that require it wait. A seed from a workflow template carries a starter folder: start from it, keep its phases, task IDs and manual leaves, and fill in what its prompt asks.
+Never write `checks`, as a fact or in front-matter: every task runs its repository's checks, which a person sets in Avoozl, and Avoozl refuses a `checks` line.
+
+A step only a person does, such as a team review, is a manual leaf: `manual: true`, its `repo` (where its issue lives), and `done` (what the person checks), with no `session`, `paths` or `route`, and in no batch group. `manual: true` is how a task says a person does it: never write `completion: person`. A manual leaf takes no `completion` default, and Avoozl runs no checks for it. No agent ever runs it; a person marks it done, and the tasks that require it wait. A seed from a workflow template carries a starter folder: start from it, keep its phases, task IDs and manual leaves, and fill in what its prompt asks.
 
 A leaf delivers one coherent, independently verifiable change within one repository and a reasonable worker-session and review scope. Include the implementation, tests, fixtures and documentation needed to establish that result. Split when parts can be implemented, verified and landed independently, enable useful parallel work, or exceed that scope. Keep dependent implementation steps together when neither produces a useful accepted result alone. Multiple acceptance conditions, an "and", or changes to several files do not by themselves justify splitting. Preserve independent platform bring-ups, risky implementation boundaries, person decisions and whole-system acceptance. Do not set `authority`; projection owns it.
 
@@ -53,7 +55,6 @@ A loader parses the file; a validator checks the parsed value.
 ````markdown tasks.md
 ---
 repo: sample
-checks: npm test
 completion: integrated
 ---
 # Tasks

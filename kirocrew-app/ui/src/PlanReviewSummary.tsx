@@ -258,8 +258,13 @@ export function RevisionChanged(props: { change: RevisionChange }) {
         <Box as="ul" css-list-style="disc" m0 flex flexCol pl="5" data-revision-moved-files>
           {change.files.map((file) => (
             <li key={file.file}>
-              <code>{file.file}</code> <span style={file.added ? { color: 'var(--success, var(--text))' } : undefined}>+{file.added}</span>{' '}
-              <span style={file.removed ? { color: 'var(--danger)' } : undefined}>−{file.removed}</span>
+              <code>{file.file}</code>{' '}
+              <Box as="span" css-color={file.added ? 'success-text' : undefined}>
+                +{file.added}
+              </Box>{' '}
+              <Box as="span" css-color={file.removed ? 'danger' : undefined}>
+                −{file.removed}
+              </Box>
             </li>
           ))}
         </Box>

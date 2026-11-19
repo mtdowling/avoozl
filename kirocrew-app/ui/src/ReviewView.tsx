@@ -199,9 +199,9 @@ function FindingCard(props: {
       </Box>
       <Box css-padding-left="22" css-display="flex" css-flex-direction="column" css-gap="4" css-min-width="0">
         <Box as="p" css-margin="0" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="2px-8px" css-font-size="11" m0>
-          <span data-severity-label style={{ fontWeight: 600, color: ink }}>
+          <Box data-severity-label as="span" css-font-weight="600" css-color={ink}>
             {SEVERITY_LABEL[finding.severity]}
-          </span>
+          </Box>
           <Hint>{finding.category}</Hint>
           <Box as="code" tone="muted" data-finding-lines={props.showFile ? 'file' : undefined}>
             {lineText(finding.anchor)}
@@ -771,17 +771,17 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               ))}
             </Box>
           ) : (
-            <div
+            <Box
               ref={row}
               data-review-layout={wide ? 'rail' : 'inline'}
-              style={{
-                display: 'flex',
-                flexDirection: wide ? 'row' : 'column',
-                alignItems: props.fill && wide ? 'stretch' : wide ? 'flex-start' : 'stretch',
-                gap: wide ? 6 : 20,
-                minWidth: 0,
-                ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: wide ? 'hidden' : 'auto' } : {}),
-              }}
+              css-display="flex"
+              css-flex-direction={wide ? 'row' : 'column'}
+              css-align-items={props.fill && wide ? 'stretch' : wide ? 'flex-start' : 'stretch'}
+              css-gap={wide ? '6' : '20'}
+              css-min-width="0"
+              css-flex={props.fill ? '1-1-0%' : undefined}
+              css-min-height={props.fill ? '0' : undefined}
+              css-overflow-y={props.fill ? (wide ? 'hidden' : 'auto') : undefined}
             >
               <Box
                 role="tabpanel"
@@ -919,7 +919,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                   </Box>
                 )}
               </aside>
-            </div>
+            </Box>
           )}
         </>
       )}

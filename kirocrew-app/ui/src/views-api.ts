@@ -319,7 +319,7 @@ export interface DeliveryItem extends TaskOwner {
   links?: TaskLinks | null
   // The GitHub Project card, when the task is on the board.
   project?: { status: string | null; release: string | null; wave: number | null; notes: string[] } | null
-  // What a person must do before a remote leaf moves (route or plugin).
+  // What a person must do before the task moves (a manual step).
   needsYou?: unknown
   handSetReview?: boolean
   noSession?: 'review' | 'running' | null
@@ -369,7 +369,7 @@ export interface ConflictItem extends TaskOwner {
   planReview?: { planId: string; revisionHash: string }
   // A spec pull request adopted into its spec (R107.5).
   specPull?: SpecPull
-  kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | 'github-conflict' | 'tracker-conflict' | string
+  kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | 'github-conflict' | string
   // Null for a review group, which stands for many tasks.
   taskId: string | null
   title: string
@@ -387,27 +387,14 @@ export interface ConflictItem extends TaskOwner {
   // A needs-human item: why it waits on a person. 'crew': an Issue Radar
   // crew asked for one on an issue no task owns (R52.10). 'hand-set-review':
   // status running or review with no live session behind it. 'review-draft':
-  // a review draft made from the review label (RC20).
-  reason?:
-    | 'review'
-    | 'blocked'
-    | 'crew'
-    | 'hand-set-review'
-    | 'approval'
-    | 'review-draft'
-    | 'conflict-fix'
-    | 'merge-method'
-    | 'forward'
-    | 'forward-audit'
-    | 'public-branch'
-    | 'tracker-gate'
+  // a review draft made from the review label (RC20). 'disk': a volume too
+  // full for a worktree.
+  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'forward' | 'forward-audit' | 'public-branch' | 'disk'
   // A crew's needs-human row for a trusted escalation (R103.8): the GitHub
   // item, what the crew wrote, and Intake's Plan this and Deliver this.
   item?: { source: 'github'; id: string }
   escalation?: Escalation
   start?: { plan: boolean; deliver: boolean }
-  // A source conflict Avoozl asked about (RC28): the pull request and the choices.
-  conflictFix?: { repository: string; pullRequest: number; actions: ('resolve' | 'dismiss')[] }
   // A forward item (RC24.9): the mirror change the Forward screen shows.
   forwardId?: string
   // A branch-landing item (RC16.6): the branch and the head a person may approve.
@@ -523,9 +510,6 @@ export function viewsClient(api: AppApi) {
     conflicts: (workspaceId: string) => run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId).then((r) => r.items),
     radarCrews: (workspaceId: string) => run<RadarCrews>('radar.crews', {}, workspaceId),
     conflictsPage: (workspaceId: string) => run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId),
-    // Resolve myself or Dismiss on a source conflict (RC28.3).
-    decideConflictFix: (workspaceId: string, repository: string, pullRequest: number, action: 'resolve' | 'dismiss') =>
-      run<unknown>('conflictfix.decide', { repository, pullRequest, action }, workspaceId),
     // A person's choice for one conflicted managed field; the next
     // projection applies it.
     resolveConflict: (workspaceId: string, taskId: string, field: string, choice: 'desired' | 'github') =>
@@ -585,18 +569,8 @@ export interface RadarCrews {
   errors: { repository: string; error: string }[]
   // What GitHub cannot show about a crew.
   unseen: string[]
-  // Issue Radar's own crew list and credits. Present only when Kiro Crew has
-  // given Avoozl the Issue Radar grant (Variant A).
-  crewStrip?: RadarCrewStrip
   // The backend answered from its last read and is reading again.
   refreshing?: boolean
-}
-
-export interface RadarCrewStrip {
-  crews: { repository: string; id: string; name: string; status: string | null }[]
-  counts: { onDuty: number; working: number; paused: number }
-  // Credits and turns per claimed issue, keyed "owner/repo#number".
-  cost: Record<string, { credits: number; turns: number; stages: { stage: string; credits: number; turns: number }[] }>
 }
 
 export function graphSummary(graph: Graph) {
@@ -702,6 +676,7 @@ export const CONFLICT_LABELS: Record<string, string> = {
   'needs-human': 'Needs you',
   review: 'Review',
   'stale-session': 'Session ended',
+  untick: 'Tick removed',
   'content-match': 'Content rule',
   'content-unavailable': 'Rule set unavailable',
   'provider-out': 'Provider out',
@@ -712,7 +687,7 @@ export const CONFLICT_LABELS: Record<string, string> = {
 }
 
 // A local task that is not already replaced may be superseded by hand. GitHub
-// and plugin tasks are replaced in their plan or tracker instead.
+// tasks are replaced in their plan instead.
 export function canSupersede(item: DeliveryItem): boolean {
   return (item.authority ?? 'local') === 'local' && !item.supersededBy && item.status !== 'superseded'
 }

@@ -840,15 +840,13 @@ export function finishedAt(task) {
 }
 
 // Fix work (§4.11, R79.1): a bugfix spec's task, a manifest `type: fix`, a
-// stop-the-line fix task, a task whose source conflict Avoozl fixed (RC28.6),
-// or a GitHub issue of type Bug.
+// stop-the-line fix task, or a GitHub issue of type Bug.
 export function isFixWork(task) {
   return Boolean(
     task &&
       (task.specType === "bugfix" ||
         task.type === "fix" ||
         task.flowFix ||
-        task.conflictFixes?.length > 0 ||
         String(task.github?.issueType || "").toLowerCase() === "bug"),
   );
 }

@@ -10,8 +10,8 @@ import { findChrome, launch } from './browser/chrome.mjs'
 
 const NOW = Date.parse('2026-11-13T12:00:00Z')
 const at = (minutes) => new Date(NOW - minutes * 60_000).toISOString()
-const plugin = (id, state, tracker) => ({ id, source: 'machine', state, reason: null, health: null, capabilities: { tracker } })
-const PLUGINS = [plugin('tracker', 'approved', ['poll', 'actor']), plugin('quiet', 'disabled', ['poll']), plugin('mute', 'approved', ['poll'])]
+const plugin = (id, state, tracker) => ({ id, source: 'machine', state, reason: null, health: null, provides: ['intake'], capabilities: { intake: tracker } })
+const PLUGINS = [plugin('tracker', 'approved', ['actor']), plugin('quiet', 'disabled', []), plugin('mute', 'approved', [])]
 const row = (via, extra = {}) => ({ id: 's', scope: 'machine', entry: { via, repository: 'o/app' }, error: null, state: null, ...extra })
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 

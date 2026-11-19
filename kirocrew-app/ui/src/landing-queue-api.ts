@@ -24,6 +24,8 @@ export interface LandingItem {
   pr: LandingLink | null
   branch: LandingLink | null
   checks: { state: string; dot: string; current: boolean; ageMs: number | null; url: string | null } | null
+  // A check of this entry ran with no isolation; older backends omit it.
+  unsandboxed?: boolean
   // Place in its queue from 1; null for a task out of the queue that comes back.
   position: number | null
   since: string | null

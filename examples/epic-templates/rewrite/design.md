@@ -1,7 +1,5 @@
 # Design: rewrite
 
-Status: Draft
-
 The work happens on a long-lived integration branch named in
 the `tasks.md` front-matter (`integrationBranch: rewrite/my-epic` here; rename it). Avoozl creates no branch: create
 it on GitHub and protect it first. Every task opens its pull request against

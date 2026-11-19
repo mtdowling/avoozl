@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import Badge from './ui/Badge.tsx'
 import { DiffBlock } from './FlowMemory.tsx'
-import { SeverityBadges } from './SeverityBadges.tsx'
+import { SeverityBadges } from './ui/SeverityBadges.tsx'
 import { DangerBtn, TipBtn } from './ui/controls.tsx'
 import { safeHref } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -21,7 +21,7 @@ export function ChecksDot({ checks }: { checks: SpecPull['checks'] }) {
   if (!checks) return <Hint size="xs">No checks yet</Hint>
   return (
     <Box as="span" css-gap="6" inlineFlex items="center" size="xs" data-pull-checks={checks}>
-      <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 999, background: DOT[checks] }} />
+      <Box aria-hidden="true" as="span" css-width="8" css-height="8" css-border-radius="999" css-background={DOT[checks]} />
       {CHECKS_TEXT[checks]}
     </Box>
   )

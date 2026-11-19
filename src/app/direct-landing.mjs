@@ -16,6 +16,7 @@
 //   `sendConflictBack`; each for the repository's `conflicts.maxAttempts` rounds.
 // - A queued task whose base moved is withdrawn by integrateVerified
 //   (`stillQueued`, pr-landing.mjs), merged with the base and verified again.
+import os from "node:os";
 import { git, removeLandedTaskWorktree } from "./git.mjs";
 import { enqueueLanding, landingQueue, landNext } from "./landing-queue.mjs";
 import { directSteps, dropMember } from "./merge-batch.mjs";
@@ -27,12 +28,15 @@ import {
   sizeRecord,
   testingNow,
 } from "./merge-batch-size.mjs";
+import { tickEntry, tickPlansRepo } from "./spec-ticks.mjs";
 import { sendConflictBack } from "./landing-conflicts.mjs";
 import { markLanded, sendFailureBack, syncBase } from "./pr-landing.mjs";
 import { driverIdOf } from "./spec-scheduler.mjs";
 import { specAuthority } from "./spec-takeover.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
 import { fail } from "./store.mjs";
+import { repositoryChecks } from "./repository-checks.mjs";
+import { requireDiskSpace } from "./disk-space.mjs";
 
 const ERRORS = "directLandingErrors";
 export const isDirectLanding = (project) => project?.landing === "direct";
@@ -46,7 +50,7 @@ export function queueDirect(store, { delivery, project, task, at }) {
       `Take over ${planId ?? "the spec"} before it lands: avoozl spec takeover ${planId ?? "SPEC"}.`,
       409,
     );
-  if (!project.checks?.length)
+  if (!repositoryChecks(project).length)
     fail(`Project ${project.id} has no checks to land directly with.`, 409);
   enqueueLanding(store, {
     projectId: project.id,
@@ -94,6 +98,13 @@ export async function landDirect(
       queue = landingQueue(store, { projectId: project.id, base });
     if (!queue.length) continue;
     const head = queue[0];
+    // A landing candidate needs a worktree: a full volume holds the queue.
+    try {
+      requireDiskSpace(store, os.tmpdir(), `Landing on ${project.id}`);
+    } catch (error) {
+      if (error.lowDisk) continue;
+      throw error;
+    }
     try {
       const setting = landingSettings(config, project.repository, project),
         record = sizeRecord(store, { projectId: project.id, base }),
@@ -121,9 +132,12 @@ export async function landDirect(
           // A journal reference names owner/name; a remote that is not on
           // GitHub (a bare folder) is named by its project.
           repository: project.repository || `local/${project.id}`,
-          checks: project.checks ?? [],
+          checks: repositoryChecks(project),
           checksEnv: project.checksEnv,
+          projectId: project.id,
+          isolation: project.isolation,
           unionPaths: config?.landing?.unionPaths ?? [],
+          tickOf: (dir, entry) => tickEntry(store, dir, entry),
           env,
           machine,
           configFile,
@@ -207,6 +221,16 @@ export async function landDirect(
           });
           await dropMember(project.root, entry);
         }
+        // A spec in a separate plans repository is ticked there, as its own
+        // guarded commit (spec-ticks.mjs).
+        for (const entry of result.entries)
+          await tickPlansRepo(store, {
+            entry,
+            candidate: result.candidate,
+            project,
+            workspaceRoot,
+            env,
+          }).catch(() => null);
         await syncBase(project, { env }).catch(() => null);
         for (const entry of result.entries) {
           const worktree = store.get("task_worktrees", entry.key);

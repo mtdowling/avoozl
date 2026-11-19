@@ -1,5 +1,5 @@
 // Task 8.6: plugin loading and trust (design §4.8, Requirement 34). The fake
-// route plugin from the test tree, copied into a temporary folder, declared
+// intake plugin from the test tree, copied into a temporary folder, declared
 // in temporary machine settings, and run as its own child process.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -29,11 +29,11 @@ const FIXTURE = path.join(import.meta.dirname, "fixtures", "plugins");
 function setup({ entry = {}, manifest } = {}) {
   const root = temporaryDirectory("avoozl-plugins-"),
     workspaceRoot = path.join(root, "workspace"),
-    folder = path.join(root, "fake-route"),
-    stateFile = path.join(root, "route-state.json"),
+    folder = path.join(root, "fake-intake"),
+    stateFile = path.join(root, "intake-state.json"),
     settingsFile = path.join(root, "config", "plugins.json");
   fs.mkdirSync(workspaceRoot);
-  fs.cpSync(path.join(FIXTURE, "fake-route"), folder, { recursive: true });
+  fs.cpSync(path.join(FIXTURE, "fake-intake"), folder, { recursive: true });
   if (manifest)
     fs.writeFileSync(
       path.join(folder, "avoozl-plugin.json"),
@@ -48,7 +48,7 @@ function setup({ entry = {}, manifest } = {}) {
   writePluginSettings(settingsFile, {
     plugins: [
       {
-        id: "fake-route",
+        id: "fake-intake",
         path: folder,
         contract: 1,
         config: { stateFile },
@@ -83,7 +83,7 @@ const alive = (pid) => {
 };
 
 test("an entry names one of package or path, no reserved id, no credential", () => {
-  const entry = { id: "fake-route", path: "../x", contract: 1 };
+  const entry = { id: "fake-intake", path: "../x", contract: 1 };
   assert.equal(validateEntry(entry), entry);
   for (const [change, pattern] of [
     [{ id: "local" }, /reserved/],
@@ -110,20 +110,24 @@ test("an entry names one of package or path, no reserved id, no credential", () 
 
 test("a manifest names its id, version, contract, kinds, capabilities and entry", () => {
   const manifest = {
-      id: "fake-route",
+      id: "fake-intake",
       version: "1.0.0",
       contract: 1,
-      kinds: ["route"],
-      capabilities: { route: [] },
+      kinds: ["intake"],
+      capabilities: { intake: [] },
       entry: "index.mjs",
     },
-    entry = { id: "fake-route" };
+    entry = { id: "fake-intake" };
   assert.equal(validateManifest(manifest, entry), manifest);
   for (const [change, pattern] of [
     [{ id: "other" }, /does not match/],
     [{ kinds: [] }, /kinds/],
     [{ kinds: ["queue"] }, /kinds/],
-    [{ capabilities: { tracker: ["teleport"] } }, /may list only/],
+    [{ capabilities: { intake: ["teleport"] } }, /may list only/],
+    [{ kinds: ["route"] }, /kinds/],
+    [{ kinds: ["tracker"] }, /kinds/],
+    [{ kinds: ["gate"] }, /kinds/],
+    [{ capabilities: { tracker: [] } }, /is not a kind/],
     [{ entry: "../outside.mjs" }, /inside the plugin/],
     [{ entry: "/abs.mjs" }, /inside the plugin/],
   ])
@@ -138,16 +142,16 @@ test("approval is per id, version and content hash, on this machine only", () =>
   let [plugin] = inspectPlugins(options);
   assert.equal(plugin.state, "unapproved");
   assert.equal(plugin.hash, contentHash(folder));
-  assert.deepEqual(plugin.kinds, ["route"]);
+  assert.deepEqual(plugin.kinds, ["intake"]);
   // A stale hash is refused: the person approves what they were shown.
   assert.throws(
-    () => approvePlugin(options, { id: "fake-route", hash: "0".repeat(64) }),
+    () => approvePlugin(options, { id: "fake-intake", hash: "0".repeat(64) }),
     (error) => error.status === 409 && /Review it again/.test(error.message),
   );
   plugin = approve(options);
   assert.equal(plugin.state, "approved");
   assert.equal(
-    readPluginSettings(options.settingsFile).approvals["fake-route"].hash,
+    readPluginSettings(options.settingsFile).approvals["fake-intake"].hash,
     plugin.hash,
   );
   assert.ok(!fs.existsSync(path.join(options.workspaceRoot, ".avoozl.json")));
@@ -165,9 +169,9 @@ test("approval is per id, version and content hash, on this machine only", () =>
   assert.equal(inspectPlugins(options)[0].state, "changed");
   approve(options);
 
-  assert.equal(disablePlugin(options, { id: "fake-route" }).state, "disabled");
+  assert.equal(disablePlugin(options, { id: "fake-intake" }).state, "disabled");
   assert.equal(
-    disablePlugin(options, { id: "fake-route", disabled: false }).state,
+    disablePlugin(options, { id: "fake-intake", disabled: false }).state,
     "approved",
   );
 });
@@ -188,7 +192,7 @@ test("an unsupported contract, a wrong entry contract, and a duplicate id never 
       version: 1,
       plugins: [
         {
-          id: "fake-route",
+          id: "fake-intake",
           path: path.relative(options.workspaceRoot, folder),
           contract: 1,
         },
@@ -208,7 +212,7 @@ test("an approved plugin runs as a child process over stdio and answers checked 
   const { options, state } = setup();
   const host = pluginHost(options);
   let session = host.open();
-  assert.deepEqual(await session.use("fake-route", "route"), {
+  assert.deepEqual(await session.use("fake-intake", "intake"), {
     ok: false,
     reason: "Not approved on this machine.",
   });
@@ -216,28 +220,22 @@ test("an approved plugin runs as a child process over stdio and answers checked 
 
   approve(options);
   session = host.open();
-  const reply = await session.call("fake-route", "route", "submit", {
-    task: { id: "t1" },
-    brief: "Do t1.",
+  const reply = await session.call("fake-intake", "intake", "poll", {
+    cursor: null,
+    limit: 10,
   });
   assert.deepEqual(reply, {
-    id: "remote-t1",
-    link: "https://route.example.test/work/remote-t1",
+    items: [],
+    refused: [],
+    cursor: null,
+    more: false,
   });
   assert.equal(
-    (await session.call("fake-route", "route", "status", { id: "remote-t1" }))
-      .state,
-    "queued",
-  );
-  assert.equal(
-    await session.use("fake-route", "tracker").then((s) => s.ok),
+    await session.use("fake-intake", "rules").then((s) => s.ok),
     false,
   );
   await session.close();
-  assert.deepEqual(state.read().calls, [
-    ["submit", "t1"],
-    ["status", "remote-t1"],
-  ]);
+  assert.deepEqual(state.read().calls, [["poll", null]]);
 });
 
 test("a local plugin changed after it was inspected is refused before it starts", async () => {
@@ -245,7 +243,7 @@ test("a local plugin changed after it was inspected is refused before it starts"
   approve(options);
   const session = pluginHost(options).open();
   fs.appendFileSync(path.join(folder, "avoozl-plugin.json"), "\n");
-  const refused = await session.use("fake-route", "route");
+  const refused = await session.use("fake-intake", "intake");
   assert.equal(refused.ok, false);
   assert.match(refused.reason, /changed after it was approved/);
   await session.close();
@@ -254,23 +252,23 @@ test("a local plugin changed after it was inspected is refused before it starts"
 
 for (const [mode, pattern] of [
   ["crash", /crashed \(exit 3\)/],
-  ["invalid", /status reply state must be one of/],
+  ["invalid", /poll reply items must be a list/],
   ["listen", /opened a network listener \(listen\)/],
 ]) {
   test(`a plugin that ${mode === "listen" ? "listens" : mode === "crash" ? "crashes" : "replies with an invalid shape"} is marked unavailable for this tick`, async () => {
     const { options, state } = setup();
     approve(options);
     const session = pluginHost(options).open();
-    await session.call("fake-route", "route", "submit", {
-      task: { id: "t1" },
-      brief: "",
+    await session.call("fake-intake", "intake", "poll", {
+      cursor: null,
+      limit: 1,
     });
     state.mode(mode);
     await assert.rejects(
-      session.call("fake-route", "route", "status", { id: "remote-t1" }),
+      session.call("fake-intake", "intake", "poll", { cursor: null, limit: 1 }),
       (error) => pattern.test(error.reason),
     );
-    assert.match(session.unavailable("fake-route"), pattern);
+    assert.match(session.unavailable("fake-intake"), pattern);
     assert.deepEqual(
       session.report().map((r) => r.state),
       ["unavailable"],
@@ -283,13 +281,13 @@ test("a call that does not answer in its time limit stops the plugin", async () 
   const { options, state } = setup();
   approve(options);
   const session = pluginHost({ ...options, timeoutMs: 3000 }).open();
-  await session.call("fake-route", "route", "submit", {
-    task: { id: "t1" },
-    brief: "",
+  await session.call("fake-intake", "intake", "poll", {
+    cursor: null,
+    limit: 1,
   });
   state.mode("hang");
   await assert.rejects(
-    session.call("fake-route", "route", "status", { id: "remote-t1" }),
+    session.call("fake-intake", "intake", "poll", { cursor: null, limit: 1 }),
     (error) => /timed out/.test(error.reason),
   );
   await session.close();
@@ -340,14 +338,14 @@ test("the socket check stops a plugin that listens past the guard", async () => 
       return listeningSockets(pid);
     },
   }).open();
-  await session.call("fake-route", "route", "submit", {
-    task: { id: "t1" },
-    brief: "",
+  await session.call("fake-intake", "intake", "poll", {
+    cursor: null,
+    limit: 1,
   });
   assert.deepEqual(await listeningSockets(pids[0]), [], "nothing listens yet");
   state.mode("listen");
   await assert.rejects(
-    session.call("fake-route", "route", "status", { id: "remote-t1" }),
+    session.call("fake-intake", "intake", "poll", { cursor: null, limit: 1 }),
     (error) =>
       /opened a network listener \(127\.0\.0\.1:\d+\)/.test(error.reason),
   );
@@ -393,7 +391,7 @@ test("Add plugin warns before writing a plugins entry into .avoozl.json; remove 
     undefined,
   );
   approve(options);
-  removePlugin(options, { id: "fake-route" });
+  removePlugin(options, { id: "fake-intake" });
   assert.deepEqual(readPluginSettings(options.settingsFile), {
     plugins: [],
     approvals: {},
@@ -411,11 +409,11 @@ test(".avoozl.json may declare a plugin that names its credential's variable", (
     );
   write([
     {
-      id: "example-tracker",
-      package: "@example/avoozl-tracker",
+      id: "example-intake",
+      package: "@example/avoozl-intake",
       contract: 1,
       config: {
-        tokenEnv: "EXAMPLE_TRACKER_TOKEN",
+        tokenEnv: "EXAMPLE_INTAKE_TOKEN",
         allowedActors: ["maintainer"],
       },
     },

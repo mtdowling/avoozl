@@ -195,7 +195,6 @@ const HOME_READS = new Set([
   'github.settings.get',
   'untriaged.view',
   'radar.releasequeue',
-  'gate.list',
   'integration.view',
   'review.drafts',
   'landing.view',
