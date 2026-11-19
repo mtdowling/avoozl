@@ -2027,6 +2027,20 @@ export function allowWrite(
   return result.ok;
 }
 
+// A review's text for the content rules: its body and line comments.
+function reviewWrite(args) {
+  return {
+    text: [],
+    extra: [
+      args[2]?.body,
+      ...(Array.isArray(args[2]?.comments)
+        ? args[2].comments.map((c) => c?.body)
+        : []),
+    ],
+    target: `review:${repositoryOf(args[0])}:${args[1]}`,
+  };
+}
+
 // A GitHub client whose text writes pass content rules first (§4.9
 // `github`): every issue, comment and discussion write Avoozl makes. A
 // block throws 422 with `contentBlocked`, after opening a decision; the
@@ -2093,32 +2107,13 @@ const GITHUB_WRITES = {
     extra: [args[2]?.description, args[2]?.context, args[2]?.target_url],
     target: `status:${repositoryOf(args[0])}:${args[1]}`,
   }),
-  createPendingReview: (args) => ({
-    text: [],
-    extra: [
-      args[2]?.body,
-      ...(Array.isArray(args[2]?.comments)
-        ? args[2].comments.map((c) => c?.body)
-        : []),
-    ],
-    target: `review:${repositoryOf(args[0])}:${args[1]}`,
-  }),
+  createPendingReview: (args) => reviewWrite(args),
+  submitReview: (args) => reviewWrite(args),
 };
 
-// The writes whose text is a post: each gets broken mentions and the
-// posted marker (github-posted.mjs) before content rules read it, unless a
-// person's own operation writes it.
-const POSTS = {
-  createIssueComment: (args) => [args[0], args[1], postedText(args[2])],
-  updateIssueComment: (args) => [args[0], args[1], postedText(args[2])],
-  createCommitComment: (args) => [args[0], args[1], postedText(args[2])],
-  updateCommitComment: (args) => [args[0], args[1], postedText(args[2])],
-  addDiscussionComment: (args) => [args[0], postedText(args[1])],
-  createPullRequest: (args) => [
-    args[0],
-    { ...args[1], body: postedText(args[1]?.body) },
-  ],
-  createPendingReview: (args) => [
+// A review's text: its body and each line comment.
+function postedReview(args) {
+  return [
     args[0],
     args[1],
     {
@@ -2133,7 +2128,24 @@ const POSTS = {
           }
         : {}),
     },
+  ];
+}
+
+// The writes whose text is a post: each gets broken mentions and the
+// posted marker (github-posted.mjs) before content rules read it, unless a
+// person's own operation writes it.
+const POSTS = {
+  createIssueComment: (args) => [args[0], args[1], postedText(args[2])],
+  updateIssueComment: (args) => [args[0], args[1], postedText(args[2])],
+  createCommitComment: (args) => [args[0], args[1], postedText(args[2])],
+  updateCommitComment: (args) => [args[0], args[1], postedText(args[2])],
+  addDiscussionComment: (args) => [args[0], postedText(args[1])],
+  createPullRequest: (args) => [
+    args[0],
+    { ...args[1], body: postedText(args[1]?.body) },
   ],
+  createPendingReview: (args) => postedReview(args),
+  submitReview: (args) => postedReview(args),
 };
 
 const repositoryOf = (value) =>

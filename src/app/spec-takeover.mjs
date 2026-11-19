@@ -17,6 +17,7 @@ import { replayJournal } from "./spec-journal.mjs";
 import { journalSources } from "./radar-backlinks.mjs";
 import { driverIdOf, journalOf, rememberDriver } from "./spec-scheduler.mjs";
 import { fail } from "./store.mjs";
+import { isFixSpec } from "./fix.mjs";
 
 const LOCAL_OWNERS = "specLocalOwners";
 
@@ -26,7 +27,8 @@ export async function specAuthority(
   { github, workspaceRoot, actor },
   planId,
 ) {
-  if (!store.get("plans", planId)) fail("Plan not found.", 404);
+  if (!store.get("plans", planId) && !isFixSpec(store, planId))
+    fail("Plan not found.", 404);
   // The tick has no operator name: a local journal acts as the person who
   // took it over here.
   actor ||= store.getMeta(LOCAL_OWNERS)?.[planId] ?? "";

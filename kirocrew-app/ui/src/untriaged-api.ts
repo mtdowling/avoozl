@@ -69,7 +69,7 @@ export interface Escalation {
   // A crew claim label is on it too: taking it over asks first.
   claimed: boolean
   // The escalation rule's local draft (radar.escalationDraft), if on.
-  draft: { kind: 'bounded-fix'; acceptance: string[]; definition: string } | null
+  draft: { v: 2; acceptance: string[]; definition: string } | null
 }
 
 // The confirm step for Plan this or Deliver this on an escalation. It says

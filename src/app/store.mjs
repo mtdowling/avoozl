@@ -95,6 +95,61 @@ const DROPPED_TABLES = [
   "github_queue_associations",
 ];
 
+// The tables of {id, body} rows; the read tables add the three with
+// columns of their own. A stored GitHub response is never removed.
+const BODY_TABLES = new Set([
+  "plans",
+  "projects",
+  "receipts",
+  "batches",
+  "github_repositories",
+  "github_issues",
+  "review_threads",
+  "review_rounds",
+  "review_followups",
+  "extractions",
+  "plan_facts",
+  "session_bindings",
+  "session_requests",
+  "github_responses",
+  "task_worktrees",
+  "task_deliveries",
+  "github_linked_branches",
+  "app_notifications",
+  "mirror_forward",
+  "plugin_health",
+  "content_decisions",
+  "content_allowances",
+  "content_reports",
+  "flow_records",
+  "flow_stops",
+  "flow_retros",
+  "flow_batches",
+  "pr_feedback",
+  "pr_ci",
+  "ci_runs",
+  "incoming_items",
+  "intake_sources",
+  "provider_health",
+  "provider_switches",
+  "drivers",
+  "task_investigations",
+  "corrections",
+  "task_notes",
+  "landing_queue",
+  "github_items",
+  "triage_runs",
+]);
+const READ_TABLES = new Set([
+  ...BODY_TABLES,
+  "approvals",
+  "evidence",
+  "integration",
+]);
+const REMOVABLE_TABLES = new Set(
+  [...BODY_TABLES].filter((table) => table !== "github_responses"),
+);
+
 export class Store {
   constructor(filename) {
     if (filename !== ":memory:") {
@@ -187,6 +242,8 @@ export class Store {
    CREATE TABLE IF NOT EXISTS corrections(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS task_notes(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS landing_queue(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS triage_runs(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS planning_spans(id TEXT PRIMARY KEY,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,slot TEXT NOT NULL,role TEXT NOT NULL,model TEXT,started_at TEXT NOT NULL,ended_at TEXT);
    CREATE TABLE IF NOT EXISTS planning_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,role TEXT NOT NULL,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
    CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
@@ -583,106 +640,14 @@ export class Store {
     }));
   }
   get(table, id) {
-    if (
-      ![
-        "plans",
-        "approvals",
-        "evidence",
-        "integration",
-        "projects",
-        "receipts",
-        "batches",
-        "github_repositories",
-        "github_issues",
-        "review_threads",
-        "review_rounds",
-        "review_followups",
-        "extractions",
-        "plan_facts",
-        "session_bindings",
-        "session_requests",
-        "github_responses",
-        "task_worktrees",
-        "task_deliveries",
-        "github_linked_branches",
-        "app_notifications",
-        "mirror_forward",
-        "plugin_health",
-        "content_decisions",
-        "content_allowances",
-        "content_reports",
-        "flow_records",
-        "flow_stops",
-        "flow_retros",
-        "flow_batches",
-        "pr_feedback",
-        "pr_ci",
-        "ci_runs",
-        "incoming_items",
-        "intake_sources",
-        "provider_health",
-        "provider_switches",
-        "drivers",
-        "task_investigations",
-        "corrections",
-        "task_notes",
-        "landing_queue",
-      ].includes(table)
-    )
-      fail("Unknown record type");
+    if (!READ_TABLES.has(table)) fail("Unknown record type");
     // A missing or non-text ID names no record; SQLite would throw on it.
     if (typeof id !== "string" && typeof id !== "number") return null;
     const row = this.db.prepare(`SELECT body FROM ${table} WHERE id=?`).get(id);
     return row ? JSON.parse(row.body) : null;
   }
   list(table) {
-    if (
-      ![
-        "plans",
-        "approvals",
-        "evidence",
-        "integration",
-        "projects",
-        "receipts",
-        "batches",
-        "github_repositories",
-        "github_issues",
-        "review_threads",
-        "review_rounds",
-        "review_followups",
-        "extractions",
-        "plan_facts",
-        "session_bindings",
-        "session_requests",
-        "github_responses",
-        "task_worktrees",
-        "task_deliveries",
-        "github_linked_branches",
-        "app_notifications",
-        "mirror_forward",
-        "plugin_health",
-        "content_decisions",
-        "content_allowances",
-        "content_reports",
-        "flow_records",
-        "flow_stops",
-        "flow_retros",
-        "flow_batches",
-        "pr_feedback",
-        "pr_ci",
-        "ci_runs",
-        "incoming_items",
-        "intake_sources",
-        "provider_health",
-        "provider_switches",
-        "drivers",
-        "task_investigations",
-        "corrections",
-        "task_notes",
-        "landing_queue",
-      ].includes(table)
-    )
-      fail("Unknown record type");
+    if (!READ_TABLES.has(table)) fail("Unknown record type");
     return this.db
       .prepare(`SELECT body FROM ${table} ORDER BY rowid DESC`)
       .all()
@@ -690,49 +655,7 @@ export class Store {
   }
   put(table, item) {
     const body = JSON.stringify(item);
-    if (
-      [
-        "plans",
-        "projects",
-        "receipts",
-        "batches",
-        "github_repositories",
-        "github_issues",
-        "review_threads",
-        "review_rounds",
-        "review_followups",
-        "extractions",
-        "plan_facts",
-        "session_bindings",
-        "session_requests",
-        "github_responses",
-        "task_worktrees",
-        "task_deliveries",
-        "github_linked_branches",
-        "app_notifications",
-        "mirror_forward",
-        "plugin_health",
-        "content_decisions",
-        "content_allowances",
-        "content_reports",
-        "flow_records",
-        "flow_stops",
-        "flow_retros",
-        "flow_batches",
-        "pr_feedback",
-        "pr_ci",
-        "ci_runs",
-        "incoming_items",
-        "intake_sources",
-        "provider_health",
-        "provider_switches",
-        "drivers",
-        "task_investigations",
-        "corrections",
-        "task_notes",
-        "landing_queue",
-      ].includes(table)
-    )
+    if (BODY_TABLES.has(table))
       this.db
         .prepare(
           `INSERT INTO ${table} VALUES (?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body`,
@@ -756,49 +679,7 @@ export class Store {
     return item;
   }
   remove(table, id) {
-    if (
-      ![
-        "plans",
-        "projects",
-        "receipts",
-        "batches",
-        "github_repositories",
-        "github_issues",
-        "review_threads",
-        "review_rounds",
-        "review_followups",
-        "extractions",
-        "plan_facts",
-        "session_bindings",
-        "session_requests",
-        "task_worktrees",
-        "task_deliveries",
-        "github_linked_branches",
-        "app_notifications",
-        "mirror_forward",
-        "plugin_health",
-        "content_decisions",
-        "content_allowances",
-        "content_reports",
-        "flow_records",
-        "flow_stops",
-        "flow_retros",
-        "flow_batches",
-        "pr_feedback",
-        "pr_ci",
-        "ci_runs",
-        "incoming_items",
-        "intake_sources",
-        "provider_health",
-        "provider_switches",
-        "drivers",
-        "task_investigations",
-        "corrections",
-        "task_notes",
-        "landing_queue",
-      ].includes(table)
-    )
-      fail("Unknown record type");
+    if (!REMOVABLE_TABLES.has(table)) fail("Unknown record type");
     return (
       this.db.prepare(`DELETE FROM ${table} WHERE id=?`).run(id).changes > 0
     );

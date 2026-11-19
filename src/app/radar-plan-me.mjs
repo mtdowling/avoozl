@@ -18,7 +18,7 @@ import { actorAllowed } from "./github-policy.mjs";
 import { latestSkip } from "./radar-claims.mjs";
 import { fail } from "./store.mjs";
 import { hasAvoozlLabel } from "./github.mjs";
-import { boundedFix } from "./github-intake.mjs";
+import { fixRecord } from "./fix.mjs";
 
 // A spec folder name for one issue: lowercase, hyphens, at most 80 characters.
 function issueSpecName(repository, number) {
@@ -115,7 +115,7 @@ export const isEscalation = (item) => Boolean(item?.planMe?.trust);
 // for every repository. The planning label was a Radar-coded repository's
 // only, and none is left (R91.6).
 // With `radar.escalationDraft` on (off by default, R103.9) a trusted
-// escalation also gets `planMe.draft`, the compact bounded-fix acceptance,
+// escalation also gets `planMe.draft`, the compact fix acceptance (fix.mjs),
 // made here from the issue text already read: local only, no GitHub write.
 export async function attachHandoffs(
   github,
@@ -154,9 +154,8 @@ export async function attachHandoffs(
         crewId: skip?.crewId ?? null,
       };
       if (trust && settings.radar?.escalationDraft === true)
-        item.planMe.draft = boundedFix({
-          repository,
-          number: item.number,
+        item.planMe.draft = fixRecord({
+          issue: { repository, number: item.number },
           title: issue?.title ?? item.title,
           body: issue?.body ?? "",
         });

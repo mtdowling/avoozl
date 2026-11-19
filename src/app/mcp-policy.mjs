@@ -209,6 +209,23 @@ export const PERSON_ONLY = new Map([
     person("Only a person adds crew:avoozl to old task issues."),
   ],
   ["review.chat", person("Only a person starts a code review chat.")],
+  ["fix.start", person("Only a person starts a fix; starting it approves it.")],
+  ["fix.spec", person("Only a person makes a fix a spec.")],
+  [
+    "items.act",
+    person(
+      "Only a person acts on an issue or pull request: approve, request changes, close, label or comment.",
+    ),
+  ],
+  ["triage.pause", person("Only a person pauses the triage agent.")],
+  ["triage.resume", person("Only a person resumes the triage agent.")],
+  ["triage.stop", person("Only a person stops the triage agent.")],
+  ["triage.start", person("Only a person starts the triage agent again.")],
+  ["triage.owner.done", person("Only a person settles an owner queue item.")],
+  [
+    "triage.settings",
+    person("Only a person changes the triage agent's settings."),
+  ],
   ["untriaged.plan", person("Only a person presses Plan this on an issue.")],
   [
     "intake.deliver",
@@ -256,6 +273,10 @@ const page = "App page rendering only.";
 const remote =
   "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.";
 export const NOT_ON_MCP = new Map([
+  ...["items.list", "items.detail", "triage.view"].map((name) => [
+    name,
+    "The GitHub pages' reads; the triage agent's session gets its snapshot instead.",
+  ]),
   [
     "review.chat.show",
     "A person reads a stored pull request review with avoozl show.",

@@ -1,12 +1,13 @@
 // Needs you: everything that stops until a person acts. Decisions,
 // conflicts and Radar handbacks come from Conflicts; planning-label items,
 // and incoming issues come from Intake. Both lost their own pages.
-// Three pages (Decisions, Triage, Issue Radar), picked in the left nav; each
+// Four pages (Decisions, From the agent, Triage, Issue Radar), picked in the left nav; each
 // change is a Back step.
 // Decisions follow Kiro Crew's list-detail pattern: a dense list in the
 // middle column, one item's details and actions on the right.
 import ConflictsView from './ConflictsView.tsx'
 import UntriagedView from './UntriagedView.tsx'
+import GitHubItemsView from './GitHubItemsView.tsx'
 import { ViewHeading } from './ui/controls.tsx'
 import { WAITING_SECTIONS, type WaitingSection } from './nav-api.ts'
 import { Hint } from './ui/Hint'
@@ -30,6 +31,8 @@ export default function WaitingView(props: { workspaceId: string | null; section
       <Box minH0 flex1 data-waiting-section={section.key} data-open="true">
         {open === 'decisions' ? (
           <ConflictsView workspaceId={props.workspaceId} embedded />
+        ) : open === 'agent' ? (
+          <GitHubItemsView workspaceId={props.workspaceId} kind="all" ownerOnly embedded />
         ) : (
           <UntriagedView workspaceId={props.workspaceId} onOpenSources={props.onOpenSources} show={open === 'radar' ? 'radar' : 'untriaged'} embedded />
         )}

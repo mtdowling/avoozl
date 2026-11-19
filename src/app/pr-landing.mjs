@@ -36,6 +36,7 @@ import {
 import { listSessionBindings } from "./session-bindings.mjs";
 import { driverIdOf, publicTaskName } from "./spec-scheduler.mjs";
 import { specAuthority } from "./spec-takeover.mjs";
+import { landingSpecOf, specRevision } from "./fix.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
 import { pushHead, sourceRegistry } from "./working-heads.mjs";
 import { fail } from "./store.mjs";
@@ -132,7 +133,7 @@ export async function queuePullRequest(
     workspaceRoot,
   },
 ) {
-  const planId = task?.planId,
+  const planId = landingSpecOf(task),
     driver = planId ? driverIdOf(store, planId) : null;
   if (!driver)
     fail(
@@ -330,7 +331,7 @@ export async function landPullRequests(
           { github, workspaceRoot },
           head.spec,
         ),
-        plan = store.get("plans", head.spec),
+        revision = specRevision(store, head.spec),
         registry = await registryOf(project),
         // GitHub rights are the signed-in login's; a local journal's login
         // is this workspace's operator, which GitHub does not know.
@@ -356,7 +357,7 @@ export async function landPullRequests(
               driver: head.driver,
               owner: authority.owner,
               login: authority.login,
-              revision: plan.hash,
+              revision,
             },
           }),
         });

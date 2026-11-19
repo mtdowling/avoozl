@@ -21,7 +21,24 @@ import { parseReviewLink, parseSpecTab } from './review-view.ts'
 import WaitingView from './WaitingView.tsx'
 import FlowView, { LineBanner } from './FlowView.tsx'
 import { RetrosView, type RetroTarget } from './RetrosView.tsx'
-import { DASHBOARD_PAGES, RETROS_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, tabLabel, type RetrosPage, type Tab, type WaitingSection } from './nav-api.ts'
+import {
+  DASHBOARD_PAGES,
+  GITHUB_PAGES,
+  RETROS_PAGES,
+  TABS,
+  WAITING_SECTIONS,
+  dashboardPage,
+  dashboardTab,
+  navTab,
+  tabLabel,
+  type GitHubPage,
+  type RetrosPage,
+  type Tab,
+  type WaitingSection,
+} from './nav-api.ts'
+import GitHubItemsView from './GitHubItemsView.tsx'
+import TriageAgentView from './TriageAgentView.tsx'
+import { itemsClient } from './github-items-api.ts'
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
 import LandingQueueView from './LandingQueueView.tsx'
@@ -104,6 +121,9 @@ function AvoozlPage() {
   // A retro or proposal another page linked to: scrolled to and marked.
   const [retroTarget, setRetroTarget] = useState<RetroTarget | null>(null)
   const [waitingSection, setWaitingSection] = useState<WaitingSection>('decisions')
+  const [githubPage, setGithubPage] = useState<GitHubPage>('issues')
+  // The triage agent's owner queue, one count on Needs you (TA5.2).
+  const [agentCount, setAgentCount] = useState(0)
   const [focus, setFocus] = useState<string | null>(null)
   // The Graph's drill-in: one epic's sub-graph or one task's chain.
   const [drill, setDrill] = useState<Drill | null>(null)
@@ -118,7 +138,8 @@ function AvoozlPage() {
   const views = useMemo(() => viewsClient(api), [api])
 
   const untriagedReads = useMemo(() => untriagedClient(api), [api])
-  const waitingCount = conflicts + (untriaged ?? 0)
+  const waitingCount = conflicts + (untriaged ?? 0) + agentCount
+  const items = useMemo(() => itemsClient(api), [api])
   const [workspaceId, setWorkspaceId] = useState<string | null>(saved.workspaceId)
   const [list, setList] = useState<WorkspaceList | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -140,13 +161,14 @@ function AvoozlPage() {
 
   // Every change of tab or Settings section is a Back step that keeps
   // where the page was (changePage).
-  const here = { tab, settingsTab, retrosPage, waitingSection, focus, drill }
+  const here = { tab, settingsTab, retrosPage, waitingSection, githubPage, focus, drill }
   const apply = (place: Partial<typeof here>) => {
     if (place.focus !== undefined) setFocus(place.focus)
     if (place.drill !== undefined) setDrill(place.drill)
     if (place.settingsTab !== undefined) setSettingsTab(place.settingsTab)
     if (place.retrosPage !== undefined) setRetrosPage(place.retrosPage)
     if (place.waitingSection !== undefined) setWaitingSection(place.waitingSection)
+    if (place.githubPage !== undefined) setGithubPage(place.githubPage)
     if (place.tab !== undefined) setTab(place.tab)
   }
   // `open` deep-links into the new place's inner views (changePage).
@@ -275,6 +297,22 @@ function AvoozlPage() {
     }
   }, [active, untriagedReads, tab])
 
+  useEffect(() => {
+    if (!active) return setAgentCount(0)
+    let live = true
+    const read = () =>
+      items.view(active).then(
+        (view) => live && setAgentCount(view.ownerQueue),
+        () => undefined,
+      )
+    void read()
+    const timer = setInterval(read, 60000)
+    return () => {
+      live = false
+      clearInterval(timer)
+    }
+  }, [active, items, tab])
+
   const phone = usePhone()
   const hasRefresh = useHasPageRefresh()
   // The phone's top rail takes the whole page while it is open.
@@ -297,7 +335,12 @@ function AvoozlPage() {
   // to their filters (a slot the page fills); the other pages are plain entries.
   const kids: Partial<Record<Tab, { key: string; label: string }[]>> = {
     dashboard: DASHBOARD_PAGES,
-    waiting: WAITING_SECTIONS.map((x) => ({ key: x.key, label: x.title, count: x.key === 'decisions' ? conflicts : x.key === 'triage' ? (untriaged ?? 0) : radarCount })),
+    waiting: WAITING_SECTIONS.map((x) => ({
+      key: x.key,
+      label: x.title,
+      count: x.key === 'decisions' ? conflicts : x.key === 'agent' ? agentCount : x.key === 'triage' ? (untriaged ?? 0) : radarCount,
+    })),
+    github: GITHUB_PAGES,
     retros: RETROS_PAGES,
     settings: SETTINGS_TABS.map((x) => ({ key: x.key, label: x.label })),
   }
@@ -309,13 +352,14 @@ function AvoozlPage() {
     aria: t.key === 'waiting' && waitingCount > 0 ? `Needs you, ${waitingCount} items` : undefined,
     label: <NavLabel view={t.key} text={t.label} count={t.key === 'waiting' ? waitingCount : 0} />,
   }))
-  const child = tab === 'settings' ? settingsTab : tab === 'retros' ? retrosPage : tab === 'waiting' ? waitingSection : dashboardPage(tab)
+  const child = tab === 'settings' ? settingsTab : tab === 'retros' ? retrosPage : tab === 'waiting' ? waitingSection : tab === 'github' ? githubPage : dashboardPage(tab)
   // A header or sub-page pick: the page, and its sub-page when it has one.
   const pickNav = (key: string, sub?: string) => {
     if (sub === undefined) return chooseTab(key as Tab)
     if (key === 'dashboard') go({ tab: dashboardTab(sub), focus: null, drill: null })
     else if (key === 'settings') go({ tab: 'settings', settingsTab: sub as SettingsTab, focus: null, drill: null })
     else if (key === 'retros') go({ tab: 'retros', retrosPage: sub as RetrosPage, focus: null, drill: null })
+    else if (key === 'github') go({ tab: 'github', githubPage: sub as GitHubPage, focus: null, drill: null })
     else go({ tab: 'waiting', waitingSection: sub as WaitingSection, focus: null, drill: null })
   }
   // The workspace pill, first in the nav and in the phone's menu. In the demo
@@ -437,6 +481,12 @@ function AvoozlPage() {
                       />
                     ) : tab === 'waiting' ? (
                       <WaitingView workspaceId={active} section={waitingSection} onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })} />
+                    ) : tab === 'github' ? (
+                      githubPage === 'agent' ? (
+                        <TriageAgentView workspaceId={active} />
+                      ) : (
+                        <GitHubItemsView key={githubPage} workspaceId={active} kind={githubPage === 'pulls' ? 'pr' : 'issue'} />
+                      )
                     ) : tab === 'delivery' ? (
                       <DeliveryView workspaceId={active} />
                     ) : tab === 'landing' ? (

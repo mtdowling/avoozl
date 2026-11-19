@@ -197,6 +197,14 @@ export const HELP_GROUPS = Object.freeze([
     summary: "Run agents on ready tasks, steer them and stop the line",
     entries: [
       entry(
+        'fix "TEXT" --repo ID',
+        "Start one change with no spec files; starting it approves it (a person only)",
+      ),
+      entry(
+        "fix spec TASK_ID",
+        "Make a fix that grew into a draft spec folder (a person only)",
+      ),
+      entry(
         "tick --workspace PATH",
         "Run one workspace tick and print its intents",
       ),

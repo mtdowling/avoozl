@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -206,3 +208,45 @@ export async function waitFor(predicate, { timeoutMs = 20000, label } = {}) {
   }
 }
 export const markdown = `# A small plan\n\n## Design\n\nKeep the design in one document.\n\n\`\`\`task\n{"id":"foundation","title":"Build foundation","acceptance":["Foundation passes"],"checks":["npm test"],"track":"catalog"}\n\`\`\`\n\n\`\`\`task\n{"id":"delivery","title":"Deliver feature","acceptance":["Feature passes"],"checks":["npm test"],"requires":["foundation"],"track":"catalog"}\n\`\`\`\n`;
+
+// A task worktree under `root`/wt with one commit, a verified delivery and
+// a worker chat, in workspace {root, checkout, store}. Returns its commit,
+// folder and branch. `extra` adds fields to the delivery and the binding,
+// each a function of the commit.
+export function verifiedTask(w, taskId, file = `${taskId}.txt`, extra = {}) {
+  const git = (cwd, ...args) =>
+    execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  const branch = `avoozl/${taskId}`,
+    wt = path.join(w.root, "wt", taskId);
+  git(w.checkout, "worktree", "add", "-q", "-b", branch, wt, "main");
+  fs.writeFileSync(path.join(wt, file), taskId + "\n");
+  git(wt, "add", ".");
+  git(wt, "commit", "-qm", "Do " + taskId);
+  const commit = git(wt, "rev-parse", "HEAD");
+  w.store.put("task_worktrees", {
+    id: taskId,
+    taskId,
+    path: wt,
+    branch,
+    repository: "app",
+  });
+  w.store.put("task_deliveries", {
+    id: taskId,
+    taskId,
+    state: "verified",
+    commit,
+    attempts: [],
+    verifications: [],
+    ...extra.delivery?.(commit),
+  });
+  w.store.put("session_bindings", {
+    id: "slot-" + taskId,
+    slot: "slot-" + taskId,
+    taskId,
+    role: "worker",
+    attempt: 1,
+    status: "working",
+    ...extra.binding?.(commit),
+  });
+  return { commit, wt, branch };
+}
