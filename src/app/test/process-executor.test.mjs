@@ -36,6 +36,7 @@ import {
   processExecutor,
   projectExecutor,
   withChildOutput,
+  NOTHING_COMMITTED,
   writeSnapshot,
 } from "../executors/process.mjs";
 import { enqueueSessionRequests } from "../session-requests.mjs";
@@ -758,6 +759,83 @@ test("a process worker's brief ends with the result file", () => {
   assert.match(steps.at(-1), /"state": "blocked"/);
   assert.doesNotMatch(steps.join("\n"), /runner report|plans_report/);
   assert.match(steps.join("\n"), /Do not commit/);
+});
+
+// nk-p1: a worker whose only shell call was refused wrote done and changed
+// nothing. Its brief names the file tools and the allowed commands.
+test("a process worker's brief names its file tools and allowed commands", () => {
+  const steps = processSteps(
+    { id: "7.1" },
+    { allowCommands: [["node", "check.mjs"]] },
+  ).join("\n");
+  assert.match(steps, /Change files with your file tools/);
+  assert.match(
+    steps,
+    /runs only these commands, one per call.*`node check\.mjs`/,
+  );
+  assert.match(steps, /read back each file you changed/);
+  assert.match(
+    processSteps({ id: "7.1" }, { allowCommands: [] }).join("\n"),
+    /Your shell runs no command here/,
+  );
+  assert.doesNotMatch(processSteps({ id: "7.1" }).join("\n"), /Your shell/);
+});
+
+// Like a runner's report (remote-runner.mjs reportDone): a write worker's
+// done with no commit since its base is refused, recorded blocked with why,
+// so the task takes the retry path with that feedback.
+test("a write worker's done with nothing committed is refused", async (t) => {
+  const { root, checkout, worktree } = machine(t);
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  t.after(() => store.close());
+  const data = snapshot();
+  data.tasks[0].repository = "app";
+  store.importSnapshot(data);
+  store.put("projects", { id: "app", root: checkout, baseBranch: "main" });
+  const reports = [];
+  const ops = { execute: async (name, input) => reports.push(input) };
+  const binding = {
+    slot: "process-x",
+    taskId: "sample-task",
+    role: "worker",
+    permissionClass: "write",
+  };
+  const done = { state: "done", text: "Created it.", worktree };
+  await finishProcessSession(ops, binding, done, store);
+  assert.deepEqual(reports.at(-1), {
+    taskId: "sample-task",
+    kind: "blocked",
+    text: NOTHING_COMMITTED,
+  });
+  // The branch's start commit counts as its base too.
+  store.put("task_worktrees", {
+    id: "sample-task",
+    taskId: "sample-task",
+    base: { branch: "main", commit: gitIn(worktree, "rev-parse", "HEAD") },
+  });
+  fs.writeFileSync(path.join(checkout, "later.txt"), "x\n");
+  gitIn(checkout, "add", "later.txt");
+  gitIn(checkout, "commit", "-q", "-m", "Main moves on");
+  await finishProcessSession(ops, binding, done, store);
+  assert.equal(reports.at(-1).kind, "blocked");
+  // With a commit of its own, done goes through with that commit.
+  fs.writeFileSync(path.join(worktree, "feature.txt"), "done\n");
+  gitIn(worktree, "add", "feature.txt");
+  gitIn(worktree, "commit", "-q", "-m", "Work");
+  await finishProcessSession(ops, binding, done, store);
+  assert.deepEqual(reports.at(-1), {
+    taskId: "sample-task",
+    kind: "done",
+    commit: gitIn(worktree, "rev-parse", "HEAD"),
+  });
+  // A verifier's done names the commit it checked: never refused.
+  await finishProcessSession(
+    ops,
+    { ...binding, role: "verifier", permissionClass: "read" },
+    { ...done, worktree: checkout },
+    store,
+  );
+  assert.equal(reports.at(-1).kind, "done");
 });
 
 // R98.3, R98.4: a request that names a harness runs on it, not on its
