@@ -309,9 +309,9 @@ manual in its facts in `tasks.md`:
 
 A manual task needs `done` and a `repo` (where its issue lives). `manual:
 true` is the one way to say a person does a task: it completes by a person
-and takes no `checks` or `completion` default. Lint refuses `checks`,
-`session`, `batch`, `paths` and `route` on it, by name, and refuses
-`completion: person` anywhere, naming `manual: true` as the fix. No agent
+and takes no `completion` default. Lint refuses `session`, `batch`,
+`paths` and `route` on it, by name, and refuses `completion: person`
+anywhere, naming `manual: true` as the fix. No agent
 ever runs it: it is never ready, batched, checked, reviewed or merged.
 Until its blockers finish it is in **Blocked or waiting**; then it is in
 **Needs you**, tagged **Manual**, with "Waiting for a person: <title>". Its dependents wait on it like on any task.
@@ -346,7 +346,7 @@ This is tested with a fake GitHub (proof P37); it has not run live yet.
 
 ## Bring in work from other trackers and scripts
 
-GitHub is one source of incoming items. A tracker plugin with `poll` is
+GitHub is one source of incoming items. A plugin that provides `intake` is
 another (see the Intake part in `docs/plugins.md`), and so is anything you
 script, through MCP. Every item lands in the **Intake** tab with its
 source; **Untriaged** is that tab's default filter.
@@ -496,18 +496,41 @@ you point Avoozl at a repository you do not trust, public ones included.
 | Code                              | When it runs                                  | What guards it                                                                                                                                      |
 | --------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `scripts/worktree` in the project | Every time Avoozl adds a worktree             | A person approves its SHA-256 hash first. The refusal prints the hash; set `worktreeHelper` on the project to that hash. A changed file asks again. |
-| Declared `checks` in a project    | On worker commits and on commits Avoozl lands | They are in the project settings a person edits. Checks never see the gateway credentials.                                                          |
+| The project's `checks`            | On worker commits and on commits Avoozl lands | They are in the project settings a person edits. Checks never see the gateway, push or GitHub credentials.                                          |
 | A local-folder plugin             | When the tick uses it                         | A person approves its hash. Avoozl hashes it again just before it starts and refuses if it changed.                                                 |
 
-Checks otherwise see your whole environment, including `GH_TOKEN`. To narrow
-that, list the names a project's checks need. Only those, plus the basics a
-process needs to start (`PATH`, `HOME`, temp folders), pass through:
+A repository's checks are the only checks there are. Every task runs them;
+a task never names its own. Each has a name and its command arguments, and
+one with `paths` runs only when a commit's diff touches one of them:
 
 ```json
-{ "projects": { "code": { "checksEnv": ["GH_TOKEN"] } } }
+{
+  "projects": {
+    "code": {
+      "checks": {
+        "test": ["npm", "test"],
+        "diff": ["git", "diff", "--check"],
+        "ui": { "run": ["npm", "run", "test:ui"], "paths": ["src/ui/**"] }
+      }
+    }
+  }
+}
 ```
 
-Without `checksEnv`, nothing changes.
+Merge batches run every check whose paths any member's change touches, plus
+every check without paths. Records, reruns and bisect steps name a check by
+its name, and `verify.checkTimeouts` sets a check's own timeout by its name.
+An older list of commands still loads, each check named by its command.
+
+A check sees only the basics a process needs to start (`PATH`, `HOME`, temp
+folders) plus the names a project lists in `checksEnv`:
+
+```json
+{ "projects": { "code": { "checksEnv": ["NODE_OPTIONS"] } } }
+```
+
+Push and GitHub credentials (`GH_TOKEN`, `GITHUB_TOKEN`, `SSH_AUTH_SOCK`
+and the like) never reach a check, even when listed.
 
 ### Person-only is not a wall against code running as you
 

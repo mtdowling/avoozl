@@ -119,7 +119,7 @@ test("a preview shows each step and writes nothing", async () => {
   assert.equal(result.applied, undefined);
   assert.match(
     byId(result, "labels").detail,
-    /avoozl:plan.*avoozl:ready.*avoozl:merge-conflict.*avoozl:review.*avoozl:drafted.*avoozl:waiting-on-tracker/,
+    /avoozl:plan.*avoozl:ready.*avoozl:merge-conflict.*avoozl:review.*avoozl:drafted/,
   );
 });
 
@@ -145,7 +145,6 @@ test("each step writes once after confirm and reads back", async () => {
     "avoozl:plan-approved",
     "avoozl:review",
     "avoozl:drafted",
-    "avoozl:waiting-on-tracker",
   ]);
   assert.equal(github.state.autoMerge, true);
   const writes = github.state.writes.length;
@@ -158,7 +157,7 @@ test("only missing labels are created", async () => {
     result = await radarSetup(github, REPO, settings());
   assert.match(
     byId(result, "labels").detail,
-    /^Create avoozl:merge-conflict, avoozl:plan-approved, avoozl:review, avoozl:drafted, avoozl:waiting-on-tracker\.$/,
+    /^Create avoozl:merge-conflict, avoozl:plan-approved, avoozl:review, avoozl:drafted\.$/,
   );
 });
 
@@ -209,7 +208,6 @@ test("no named CI check asks for one; steps that are done change nothing", async
       "avoozl:plan-approved",
       "avoozl:review",
       "avoozl:drafted",
-      "avoozl:waiting-on-tracker",
     ],
     autoMerge: true,
   });

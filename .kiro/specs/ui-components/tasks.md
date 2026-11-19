@@ -1,7 +1,6 @@
 ---
 repo: avoozl
 completion: integrated
-checks: npm test, npm run test:ui, git diff --check
 ---
 # Tasks: the page draws with components, not class strings
 
@@ -12,9 +11,9 @@ numbers alone do not impose a dependency. Requirement numbers are in
 brackets (`UC1` to `UC5`, in `requirements.md`); `D` sections refer to this
 spec's `design.md`, `R` numbers to `.kiro/specs/avoozl/requirements.md`.
 
-Rules for every task: work in a task worktree; run `npm test`, `npm run
-test:ui` and `git diff --check` before landing; change no behavior and no
-text; lower the task's files in the raw-style allow-list in the same change.
+Rules for every task: work in a task worktree; Avoozl runs the repository's
+checks; change no behavior and no text; lower the task's files in the
+raw-style allow-list in the same change.
 A task that changes a screen gives the owner screenshots of each view it
 touched at 390 and 1280 px, light and dark, before and after, taken in Kiro
 Crew (UC5.2, R92.12); screenshots are shown to the owner and never
@@ -30,14 +29,12 @@ of the other specs.
   - Facts:
     - done:
       - The test passes on today's views; it fails on a planted extra `className` in a listed view, on any raw style in a new view, and on a listed file whose count is zero.
-    - checks: npm test, git diff --check
   - `kirocrew-app/ui/test/raw-style.test.mjs` and `raw-style-allow.json`, counting `className`, `style`, `<style>` and `var(--` per view outside `src/ui/`.
   - Built: PR #614.
 - [x] uc-1.2 The class check runs in CI against Kiro Crew's own stylesheet [UC4] (§D5)
   - Facts:
     - done:
       - The test fails on a planted class Kiro Crew's stylesheet lacks and names the file that uses it; a stylesheet with the wrong digest is refused; the CI classifier selects the test for a change under `kirocrew-app/ui/src`; every class it finds missing today is listed in the pull request with its files.
-    - checks: npm test, git diff --check
   - A Kiro Crew stylesheet named by release and digest, fetched and cached by the test; `host-classes.test.mjs` runs on every change to `kirocrew-app/ui/src` with no skip.
   - Built: PR #615.
 

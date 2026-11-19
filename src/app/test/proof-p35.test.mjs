@@ -1,5 +1,5 @@
-// Proof P35: one plugin bundles a config pack, content rules, a tracker and
-// an intake source (tasks.md Phase 16, design §4.14, Requirement 55). An
+// Proof P35: one plugin bundles a config pack, content rules and an intake
+// source (tasks.md Phase 16, design §4.14, Requirement 55). An
 // isolated temporary workspace in single-repo mode with one repository; the
 // sample `sdk-team` plugin from the test tree, shared with the repository.
 // It installs, previews, refuses an import before approval, is approved,
@@ -33,8 +33,7 @@ function setup(t, { github } = {}) {
     folder = path.join(root, "plugins", "sdk-team"),
     settingsFile = path.join(outside, "plugins.json"),
     intakeFile = path.join(outside, "intake.json"),
-    termsFile = path.join(outside, "terms.json"),
-    stateFile = path.join(outside, "records.json");
+    termsFile = path.join(outside, "terms.json");
   fs.cpSync(path.join(FIXTURE, "sdk-team"), folder, { recursive: true });
   save(path.join(root, ".avoozl.json"), {
     version: 1,
@@ -100,12 +99,10 @@ function setup(t, { github } = {}) {
   Object.assign(process.env, {
     SDK_TEAM_INTAKE: intakeFile,
     SDK_TEAM_TERMS: termsFile,
-    SDK_TEAM_STATE: stateFile,
   });
   const config = {
     intakeFileEnv: "SDK_TEAM_INTAKE",
     termsFileEnv: "SDK_TEAM_TERMS",
-    stateFileEnv: "SDK_TEAM_STATE",
   };
   return {
     root,
@@ -137,8 +134,8 @@ async function install(env) {
     scope: "repository",
   });
   // Add plugin's What step lists every part and what the pack sets.
-  assert.deepEqual(found.provides, ["pack", "rules", "tracker", "intake"]);
-  assert.deepEqual(found.kinds, ["tracker", "rules"]);
+  assert.deepEqual(found.provides, ["pack", "rules", "intake"]);
+  assert.deepEqual(found.kinds, ["intake", "rules"]);
   assert.ok(found.pack.settings.repositories.rules.length);
   await env.run("plugin.add", {
     scope: "repository",
@@ -171,7 +168,7 @@ test("P35: the sdk-team plugin installs, previews, imports, approves and polls",
   let row = await env.row();
   assert.equal(row.state, "unapproved");
   assert.equal(row.source, "repository");
-  assert.deepEqual(row.provides, ["pack", "rules", "tracker", "intake"]);
+  assert.deepEqual(row.provides, ["pack", "rules", "intake"]);
   assert.deepEqual(row.pack.groups, [
     "repositories",
     "contentRules",
@@ -227,7 +224,6 @@ test("P35: the sdk-team plugin installs, previews, imports, approves and polls",
   assert.deepEqual(json(env.settingsFile).approvals["sdk-team"].provides, [
     "pack",
     "rules",
-    "tracker",
     "intake",
   ]);
 
@@ -267,8 +263,7 @@ test("P35: the sdk-team plugin installs, previews, imports, approves and polls",
   const again = await env.run("plugin.pack.preview", { id: "sdk-team" });
   assert.ok(again.changes.every((c) => c.action === "keep"));
 
-  // Rules supplied at run time, intake polled in pages through the tracker
-  // kind's poll; the bad item is refused by field and the rest count.
+  // Rules supplied at run time, intake polled in pages; the bad item is refused by field and the rest count.
   const session = pluginHost({
     workspaceRoot: env.root,
     settingsFile: env.settingsFile,
@@ -276,7 +271,7 @@ test("P35: the sdk-team plugin installs, previews, imports, approves and polls",
   try {
     const { sets } = await session.call("sdk-team", "rules", "ruleSets", {});
     assert.equal(sets[0].id, "team-terms");
-    const first = await session.call("sdk-team", "tracker", "poll", {
+    const first = await session.call("sdk-team", "intake", "poll", {
       cursor: null,
       limit: 2,
     });
@@ -288,7 +283,7 @@ test("P35: the sdk-team plugin installs, previews, imports, approves and polls",
     assert.match(first.refused[0].reason, /link must be an http or https URL/);
     assert.equal(first.cursor, "2");
     assert.equal(first.more, true);
-    const second = await session.call("sdk-team", "tracker", "poll", {
+    const second = await session.call("sdk-team", "intake", "poll", {
       cursor: first.cursor,
       limit: 2,
     });
@@ -316,7 +311,7 @@ test("P35: the sdk-team plugin installs, previews, imports, approves and polls",
     settingsFile: env.settingsFile,
   }).open();
   await assert.rejects(
-    blocked.call("sdk-team", "tracker", "poll", { cursor: null, limit: 1 }),
+    blocked.call("sdk-team", "intake", "poll", { cursor: null, limit: 1 }),
     /approve it again/,
   );
   await blocked.close();
@@ -445,7 +440,7 @@ test("P35: a pack is refused by name for an unknown key and never runs code", as
     workspaceRoot: env.root,
     settingsFile: env.settingsFile,
   }).open();
-  for (const kind of ["route", "tracker", "rules"])
+  for (const kind of ["intake", "rules"])
     await assert.rejects(
       session.call("sdk-team", kind, "list", {}),
       /does not declare the kind/,
@@ -467,21 +462,22 @@ test("P35: a pack is refused by name for an unknown key and never runs code", as
       ),
     /runs no code; remove entry/,
   );
-  // provides intake needs the poll capability; kinds must match provides.
-  assert.throws(
-    () =>
-      validateManifest(
-        {
-          id: "p",
-          version: "1",
-          contract: 1,
-          provides: ["intake"],
-          entry: "i.mjs",
-        },
-        { id: "p" },
-      ),
-    /capabilities\.tracker must list poll/,
-  );
+  // Retired parts are refused by name; kinds must match provides.
+  for (const part of ["route", "tracker", "gate"])
+    assert.throws(
+      () =>
+        validateManifest(
+          {
+            id: "p",
+            version: "1",
+            contract: 1,
+            provides: [part],
+            entry: "i.mjs",
+          },
+          { id: "p" },
+        ),
+      /provides must list pack, rules, intake, template/,
+    );
   assert.throws(
     () =>
       validateManifest(

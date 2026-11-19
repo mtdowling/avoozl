@@ -1,14 +1,12 @@
-// Local checks first (design §4.11, Requirement 45): a session Avoozl opens
-// that pushes runs the repository's declared checks in its worktree before
-// each push. The run leaves a record in the repository's git directory, so
-// the pre-push hook and the done report read it instead of running the
-// checks twice. Local delivery pushes nothing and is unchanged.
+// A worker's own check run (design §4.11, Requirement 45): the repository's
+// checks in its worktree, each with its command, exit code and duration. The
+// run leaves a record in the repository's git directory.
 import fs from "node:fs";
 import path from "node:path";
 import { commandEvidence, git } from "./git.mjs";
+import { checkCommand, selectedChecks } from "./repository-checks.mjs";
+import { changedPaths } from "./verify.mjs";
 import { fail } from "./store.mjs";
-
-const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 
 async function recordDir(root) {
   const common = fs.realpathSync.native(
@@ -17,14 +15,28 @@ async function recordDir(root) {
   return path.join(common, "avoozl-checks");
 }
 
-// Split a declared check into argv the way the verifier brief shows it.
-const argvOf = (check) =>
-  Array.isArray(check) ? check : String(check).trim().split(/\s+/);
+// The checks one commit runs, the same selection Avoozl's own check run
+// makes: a check with paths only when the commit's diff against the base
+// touches one. `dir` is a checkout that holds the commit. A diff that
+// cannot be read picks every check.
+export async function commitChecks(project, commit, dir = project.root) {
+  try {
+    const { paths } = await changedPaths(
+      dir,
+      project.baseBranch || "main",
+      commit,
+    );
+    return selectedChecks(project, paths);
+  } catch {
+    return selectedChecks(project);
+  }
+}
 
-// flow.checks.run: run every declared check at the worktree's HEAD and
-// record the result. Returns the entries for the done report.
-export async function runLocalChecks({ cwd, root, checks, env }) {
-  if (!checks.length) fail("This task declares no checks.", 409);
+// flow.checks.run: run the checks the worktree's HEAD picks and record the
+// result. Returns the entries for the done report.
+export async function runLocalChecks({ cwd, root, project, env }) {
+  if (!selectedChecks(project).length)
+    fail("This repository has no checks.", 409);
   const top = await git(cwd, ["rev-parse", "--show-toplevel"]).catch(
     () => null,
   );
@@ -35,13 +47,14 @@ export async function runLocalChecks({ cwd, root, checks, env }) {
   if (await git(cwd, ["status", "--porcelain", "--untracked-files=no"]))
     fail("Commit your change first: checks are recorded for a commit.", 409);
   const commit = await git(cwd, ["rev-parse", "HEAD"]),
+    checks = await commitChecks(project, commit, cwd),
     entries = [];
   for (const check of checks) {
-    const argv = argvOf(check),
-      started = Date.now(),
-      result = await commandEvidence(cwd, argv, { env });
+    const started = Date.now(),
+      result = await commandEvidence(cwd, check.argv, { env });
     entries.push({
-      command: argv.join(" "),
+      name: check.name,
+      command: checkCommand(check),
       exitCode: result.exitCode,
       durationMs: Date.now() - started,
       commit,
@@ -51,7 +64,12 @@ export async function runLocalChecks({ cwd, root, checks, env }) {
   fs.writeFileSync(
     path.join(mine, commit + ".json"),
     JSON.stringify(
-      { commit, at: new Date().toISOString(), checks: entries },
+      {
+        commit,
+        at: new Date().toISOString(),
+        selected: checks.map((check) => check.name),
+        checks: entries,
+      },
       null,
       2,
     ) + "\n",
@@ -61,44 +79,4 @@ export async function runLocalChecks({ cwd, root, checks, env }) {
     checks: entries,
     passed: entries.every((e) => e.exitCode === 0),
   };
-}
-
-// The recorded local pass for one commit, or why there is none.
-export async function localPass(root, commit, checks) {
-  if (!SHA.test(commit))
-    return { ok: false, cause: `${commit} is not a full commit SHA` };
-  let record;
-  try {
-    record = JSON.parse(
-      fs.readFileSync(
-        path.join(await recordDir(root), commit + ".json"),
-        "utf8",
-      ),
-    );
-  } catch {
-    return {
-      ok: false,
-      cause: `no recorded local pass for ${commit.slice(0, 12)}`,
-    };
-  }
-  if (!checks.length && !(record.checks || []).every((e) => e.exitCode === 0))
-    return {
-      ok: false,
-      cause: `a recorded check failed for ${commit.slice(0, 12)}`,
-    };
-  for (const check of checks) {
-    const name = argvOf(check).join(" "),
-      entry = record.checks?.find((e) => e.command === name);
-    if (!entry)
-      return {
-        ok: false,
-        cause: `\`${name}\` was not run for ${commit.slice(0, 12)}`,
-      };
-    if (entry.exitCode !== 0)
-      return {
-        ok: false,
-        cause: `\`${name}\` exited ${entry.exitCode} for ${commit.slice(0, 12)}`,
-      };
-  }
-  return { ok: true, record };
 }

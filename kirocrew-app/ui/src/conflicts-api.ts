@@ -83,7 +83,6 @@ export function noActionReason(item: ConflictItem): string | null {
   if (item.kind === 'plan-review') return null
   // An Issue Radar escalation has its own Plan this and Deliver this (R103.8).
   if (item.start) return null
-  if (item.kind === 'tracker-conflict') return 'The tracker record owns this field. Change it there or in the spec.'
   if (item.kind === 'content-unavailable') return 'Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick.'
   if (item.kind === 'content-match') return null
   // Findings and Ready to merge carry their own actions (ConflictsView.tsx).
@@ -107,10 +106,7 @@ export function noActionReason(item: ConflictItem): string | null {
   // Review drafts (RC20): the person acts on GitHub; the row clears itself.
   if (item.kind === 'needs-human' && item.reason === 'review-draft')
     return 'Act on the pull request on GitHub. Avoozl clears this row on its next tick once the draft is submitted or the cause is gone.'
-  // A tracker gate (RC23.9): a person clears it from the Release queue or the CLI.
-  if (item.kind === 'needs-human' && item.reason === 'tracker-gate')
-    return 'Clear the gate in the Release queue, or change the spec. Avoozl never clears a gate itself; the row closes when the tracker reports done.'
-  if (item.kind === 'review' && settleActionOf(item) === null) return 'GitHub or a plugin owns these tasks. Review them where they live.'
+  if (item.kind === 'review' && settleActionOf(item) === null) return 'GitHub owns these tasks. Review them where they live.'
   if (settleActionOf(item) === null) return `${item.authority} owns this task. Settle it where it lives.`
   return null
 }
@@ -121,7 +117,7 @@ export const CONFLICT_TABS: { key: string; label: string; keep: (item: ConflictI
   { key: 'all', label: 'All', keep: () => true },
   { key: 'decision', label: 'Decisions', keep: (item) => ['decision', 'content-match', 'content-unavailable'].includes(item.kind) },
   { key: 'needs-human', label: 'Needs you', keep: (item) => ['needs-human', 'review', 'investigation', 'ready-to-merge', 'tick-failed', 'branch-landing'].includes(item.kind) },
-  { key: 'other', label: 'Sessions', keep: (item) => ['stale-session', 'tracker-conflict'].includes(item.kind) },
+  { key: 'other', label: 'Sessions', keep: (item) => ['stale-session'].includes(item.kind) },
 ]
 
 export function tabCounts(items: ConflictItem[]): Record<string, number> {
@@ -133,7 +129,6 @@ export function whyLine(item: ConflictItem): string {
   if (item.kind === 'needs-human' && item.reason === 'crew') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'review-draft') return item.detail
-  if (item.kind === 'needs-human' && item.reason === 'tracker-gate') return item.detail
   if (item.kind === 'needs-human')
     return item.reason === 'blocked' ? 'Marked blocked: nothing starts until you unblock it.' : 'New or edited: it waits for your review before it can start.'
   if (item.kind === 'review') return item.detail

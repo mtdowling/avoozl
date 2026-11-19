@@ -33,6 +33,7 @@ import { driverIdOf } from "./spec-scheduler.mjs";
 import { specAuthority } from "./spec-takeover.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
 import { fail } from "./store.mjs";
+import { repositoryChecks } from "./repository-checks.mjs";
 
 const ERRORS = "directLandingErrors";
 export const isDirectLanding = (project) => project?.landing === "direct";
@@ -46,7 +47,7 @@ export function queueDirect(store, { delivery, project, task, at }) {
       `Take over ${planId ?? "the spec"} before it lands: avoozl spec takeover ${planId ?? "SPEC"}.`,
       409,
     );
-  if (!project.checks?.length)
+  if (!repositoryChecks(project).length)
     fail(`Project ${project.id} has no checks to land directly with.`, 409);
   enqueueLanding(store, {
     projectId: project.id,
@@ -121,7 +122,7 @@ export async function landDirect(
           // A journal reference names owner/name; a remote that is not on
           // GitHub (a bare folder) is named by its project.
           repository: project.repository || `local/${project.id}`,
-          checks: project.checks ?? [],
+          checks: repositoryChecks(project),
           checksEnv: project.checksEnv,
           unionPaths: config?.landing?.unionPaths ?? [],
           env,

@@ -30,7 +30,6 @@ const RULESET_NAME = "avoozl-required-check",
     approval: "1d76db",
     review: "fbca04",
     drafted: "c5def5",
-    tracker: "bfd4f2",
   },
   lower = (value) => String(value).toLocaleLowerCase();
 
@@ -49,7 +48,6 @@ export function labelsWanted(settings) {
     { name: radar.approvalLabel, color: COLORS.approval },
     { name: radar.reviewLabel, color: COLORS.review },
     { name: radar.draftedLabel, color: COLORS.drafted },
-    { name: radar.trackerLabel, color: COLORS.tracker },
   ];
 }
 

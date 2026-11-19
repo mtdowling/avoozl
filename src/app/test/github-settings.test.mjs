@@ -6,11 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { principalAllows } from "../app-backend.mjs";
-import {
-  newTaskAuthority,
-  normalizeGitHubPolicy,
-  readGitHubPolicy,
-} from "../github-policy.mjs";
+import { normalizeGitHubPolicy, readGitHubPolicy } from "../github-policy.mjs";
 import { Operations } from "../operations.mjs";
 import { RepositorySettings } from "../repository-settings.mjs";
 import { fixture } from "./fixtures.mjs";
@@ -325,8 +321,6 @@ test("Local only is a mode: no GitHub mode, and stored GitHub settings are kept 
       () => normalizeGitHubPolicy({ ...stored, [key]: {} }),
       new RegExp(key),
     );
-  assert.equal(newTaskAuthority(), "local");
-  assert.equal(newTaskAuthority("github"), "local");
   assert.ok(policy.repositories["example/app"]);
   // A switch back to plans-repo uses the kept planning repository.
   assert.equal(

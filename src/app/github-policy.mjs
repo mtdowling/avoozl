@@ -68,7 +68,6 @@ export const RADAR_KEYS = Object.freeze([
   "approvalLabel",
   "reviewLabel",
   "draftedLabel",
-  "trackerLabel",
   "clearPlanLabel",
   "showPlansRepo",
   "reviewRules",
@@ -81,7 +80,6 @@ export const RADAR_DEFAULTS = Object.freeze({
   approvalLabel: "avoozl:plan-approved",
   reviewLabel: "avoozl:review",
   draftedLabel: "avoozl:drafted",
-  trackerLabel: "avoozl:waiting-on-tracker",
   clearPlanLabel: false,
 });
 export const READY_LABEL_DEFAULT = "avoozl:ready";
@@ -456,7 +454,6 @@ function repositoryInput(value, id, mode) {
     "approvalLabel",
     "reviewLabel",
     "draftedLabel",
-    "trackerLabel",
   ])
     if (Object.hasOwn(radarInput, key))
       radar[key] = name(radarInput[key], `${label}.radar.${key}`);
@@ -546,7 +543,6 @@ function repositoryInput(value, id, mode) {
     ["approval", radar.approvalLabel],
     ["review", radar.reviewLabel],
     ["drafted", radar.draftedLabel],
-    ["waiting-on-tracker", radar.trackerLabel],
   ]) {
     const earlier = seen.get(lower(entry));
     if (earlier)
@@ -581,7 +577,6 @@ function repositoryInput(value, id, mode) {
     "approvalLabel",
     "reviewLabel",
     "draftedLabel",
-    "trackerLabel",
   ])
     if (managedNames.has(lower(radar[key])))
       fail(`${label}.radar.${key} cannot use managed label ${radar[key]}.`);
@@ -884,14 +879,6 @@ export function readGitHubPolicyOrNull(workspaceRoot) {
   } catch {
     return null;
   }
-}
-
-// Authority for a task a plan approval creates (§3.2): a tracker plugin's
-// when the plan names one, else local. No approval binds a task to an issue.
-export function newTaskAuthority(requested) {
-  return typeof requested === "string" && requested.startsWith("plugin:")
-    ? requested
-    : "local";
 }
 
 // A registered repository the policy does not name: no rules, the same

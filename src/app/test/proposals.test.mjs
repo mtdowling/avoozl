@@ -71,7 +71,6 @@ test("a discovery on a spec plan adds a tasks.md item with its Facts", async (t)
         "  - Facts:",
         "    - done:",
         "      - A changed record invalidates its cache entry.",
-        "    - checks: npm test",
         "    - completion: integrated",
         "    - after: 1.2",
         "    - tags: discovered",

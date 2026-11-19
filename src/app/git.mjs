@@ -4,6 +4,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { fail } from "./store.mjs";
+import { checksSetting, repositoryChecks } from "./repository-checks.mjs";
 const exec = promisify(execFile);
 function liveLocks(store, projectId) {
   const rows = store.db
@@ -239,14 +240,8 @@ export async function projectConfig({
       `Branch ${baseBranch} has no commit in ${root}. Pass --branch BRANCH.`,
     );
   }
-  if (
-    !Array.isArray(checks) ||
-    checks.some(
-      (c) =>
-        !Array.isArray(c) || !c.length || c.some((v) => typeof v !== "string"),
-    )
-  )
-    fail("Checks must be arrays of command arguments.");
+  // The repository's named checks; the older list of argv arrays loads too.
+  checks = checksSetting(checks, "checks");
   // An opt-in allowlist of environment variable names for check processes
   // (R83.5) and the hash of the scripts/worktree helper a person approved
   // (R83.4).
@@ -523,6 +518,18 @@ const BASE_ENV = [
   "PATHEXT",
 ];
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+// The environment a repository check runs with: only what a process needs
+// to start (BASE_ENV) and the names the repository lists in `checksEnv`,
+// whether or not it lists any. The gateway secrets and the push and GitHub
+// credentials never reach a check, even when listed.
+export function checkEnvironment(env = process.env, allow = []) {
+  const kept = repositoryEnvironment(env, allow);
+  for (const name of Object.keys(kept))
+    if (PUSH_CREDENTIALS.some((pattern) => pattern.test(name)))
+      delete kept[name];
+  return kept;
+}
 export const helperHash = (file) =>
   createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 
@@ -542,7 +549,7 @@ export async function commandEvidence(
   try {
     const { stdout, stderr } = await exec(argv[0], argv.slice(1), {
       cwd,
-      env: repositoryEnvironment(process.env, allow),
+      env: checkEnvironment(process.env, allow),
       timeout: timeoutMs,
       maxBuffer: 8 * 1024 * 1024,
     });
@@ -583,11 +590,12 @@ export async function validateUnlocked(
       "Commit the worktree changes before recording acceptance checks.",
       409,
     );
-  if (!project.checks.length)
-    fail("Configure the project acceptance commands before validation.");
+  const checks = repositoryChecks(project);
+  if (!checks.length)
+    fail("Configure the repository's checks before validation.");
   const results = [];
-  for (const argv of project.checks) {
-    store.event(runId, "validation.started", { argv, phase });
+  for (const { name, argv } of checks) {
+    store.event(runId, "validation.started", { argv, name, phase });
     const record = await commandEvidence(run.worktree, argv, {
       env: project.checksEnv,
     });
@@ -596,6 +604,7 @@ export async function validateUnlocked(
     // than reading as duplicates of the same work.
     const evidence = {
       ...record,
+      name,
       id: crypto.randomUUID(),
       taskId: run.taskId,
       runId,
@@ -613,7 +622,7 @@ export async function validateUnlocked(
     !(await worktreeChanges(run.worktree));
   const passed =
     unchanged &&
-    results.length === project.checks.length &&
+    results.length === checks.length &&
     results.every((r) => r.exitCode === 0);
   store.mutate("Record validation for " + run.taskId, (data) => {
     const task = data.tasks.find((t) => t.id === run.taskId);

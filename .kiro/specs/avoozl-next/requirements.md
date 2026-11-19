@@ -41,21 +41,10 @@ separate acts that a person does later.
 
 ## Requirements
 
-### Requirement AN1: Tracker gates finish
+### Requirement AN1: Retired
 
-**User story:** As a person planning an epic with an external gate, I want the
-gate's waiting label, its Needs you row, my clear and its views, so that a
-dependent waits on a tracker and I can see and override that.
-
-#### Acceptance criteria
-
-1. The behavior of RC23.4, RC23.5 and RC23.13 (the waiting label) SHALL hold.
-2. The behavior of RC23.9, RC23.10 and RC23.13 (Needs you row, a person's
-   clear as an order) SHALL hold.
-3. The behavior of RC23.11 and RC23.12 (Release queue, Trace, Waiting on you,
-   CLI and MCP reads) SHALL hold.
-4. A fake `gate` plugin proof SHALL show open, unknown, failed, done and a
-   clear by an allowed person and by a stranger, with a receipt.
+Retired 2026-11-18 (owner decision). Tracker gates went with tracker
+plugins. The number stays so that other requirements keep their references.
 
 ### Requirement AN2: Private plans on the mirror's plans branch
 

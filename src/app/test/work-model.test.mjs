@@ -4,7 +4,6 @@ import { Operations } from "../operations.mjs";
 import { lintPlan } from "../plan-quality.mjs";
 import { queryTasks, validate } from "../../model.mjs";
 import {
-  isGate,
   isManual,
   taskAuthority,
   taskCompletion,
@@ -129,14 +128,15 @@ test("task.update writes work-model fields but never authority", async (t) => {
     ops = new Operations(store),
     task = await ops.execute("task.update", {
       id: "sample-task",
-      route: "plugin:remote",
+      route: "github",
       completion: "released",
       repository: "code",
+      // A task never names checks: a sent list is not stored.
       checks: ["unit"],
     });
   assert.deepEqual(
     [task.route, task.completion, task.repository, task.checks],
-    ["plugin:remote", "released", "code", ["unit"]],
+    ["github", "released", "code", undefined],
   );
   await assert.rejects(
     ops.execute("task.update", { id: "sample-task", authority: "github" }),
@@ -205,7 +205,7 @@ test("plan blocks carry work-model fields and edge conditions into approval", as
       data.tasks.find((task) => task.id === receipt.mapping[id]);
   assert.equal(byLocal("parent").kind, "package");
   assert.equal(byLocal("base").completion, "released");
-  assert.deepEqual(byLocal("base").checks, ["npm test"]);
+  assert.equal(byLocal("base").checks, undefined, "a task never names checks");
   assert.equal(
     data.edges.find((edge) => edge.to === receipt.mapping.user).condition,
     "integrated",
@@ -243,11 +243,13 @@ test("a leaf names exactly one repository", () => {
   assert.equal(lint(block(leaf("alpha")), [{ id: "x" }]).canApprove, true);
 });
 
-test("a leaf needs checks unless it is answered", () => {
+test("a leaf whose repository has no checks is judged, with a warning", () => {
   const bare = leaf("alpha", { checks: undefined }),
     result = lint(block(bare), [{ id: "x", checks: [] }]),
     diagnostic = result.diagnostics.find((item) => item.code === "leaf.checks");
   assert.equal(diagnostic.lineStart, 1);
+  assert.equal(diagnostic.severity, "warning");
+  assert.equal(result.canApprove, true);
   assert.equal(
     lint(block(bare), [{ id: "x", checks: [["npm", "test"]] }]).canApprove,
     true,
@@ -273,16 +275,12 @@ test("an old merged-pr completion reads as landed on every route", () => {
     );
 });
 
-test("a stored row with completion person reads as manual; a gate stays a gate", () => {
+test("a stored row with completion person reads as manual", () => {
   const stored = { id: "r", kind: "leaf", completion: "person" },
-    manual = { id: "m", kind: "leaf", manual: true },
-    gate = { id: "g", kind: "leaf", completion: "tracker" };
+    manual = { id: "m", kind: "leaf", manual: true };
   assert.equal(isManual(stored), true);
   assert.equal(taskCompletion(stored), "person");
   assert.equal(taskCompletion(manual), "person");
-  assert.equal(isGate(stored), false);
-  assert.equal(isGate(gate), true);
-  assert.equal(isManual(gate), false);
   assert.equal(isManual({ ...stored, kind: "package" }), false);
 });
 

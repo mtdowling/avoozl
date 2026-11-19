@@ -139,7 +139,6 @@ function setup(t, rules) {
   Object.assign(process.env, {
     SDK_TEAM_TERMS: path.join(outside, "terms.json"),
     SDK_TEAM_INTAKE: path.join(outside, "intake.json"),
-    SDK_TEAM_STATE: path.join(outside, "records.json"),
   });
   fs.writeFileSync(process.env.SDK_TEAM_INTAKE, JSON.stringify({ items: [] }));
   const store = new Store(path.join(root, "workspace.sqlite"));
@@ -163,7 +162,6 @@ async function install(ops) {
       config: {
         intakeFileEnv: "SDK_TEAM_INTAKE",
         termsFileEnv: "SDK_TEAM_TERMS",
-        stateFileEnv: "SDK_TEAM_STATE",
       },
     },
   });

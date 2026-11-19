@@ -13,9 +13,8 @@ export const COMPLETIONS = [
   "released",
   "answered",
   "person",
-  "tracker",
 ];
-const SOURCE = /^(?:local|github|plugin:[a-z][a-z0-9-]{0,60})$/;
+const SOURCE = /^(?:local|github)$/;
 
 export const isSource = (value) =>
   typeof value === "string" && SOURCE.test(value);
@@ -36,24 +35,11 @@ export function taskAuthority(task) {
     : "local";
 }
 
-// A tracker plugin's task whose record does not exist yet (§3.2). It does
-// not dispatch until the plugin creates the record.
-export function pendingProjection(task) {
-  return taskAuthority(task).startsWith("plugin:") && !task?.tracker?.id;
-}
-
 // Every task Avoozl codes is delivered locally and lands through the queue;
-// an old `route: github` means the same (R102.20). Only a route plugin
-// delivers elsewhere (§4.8).
-export function taskRoute(task) {
-  return pluginId(task?.route) ? task.route : "local";
+// an old `route: github` means the same (R102.20).
+export function taskRoute() {
+  return "local";
 }
-
-// The plugin id in `plugin:<id>`, or null.
-export const pluginId = (source) =>
-  typeof source === "string" && source.startsWith("plugin:")
-    ? source.slice(7)
-    : null;
 
 // A leaf only a person does (Requirement 61.9): never dispatched, marked
 // done by a person, complete at every level once done. A row stored with
@@ -66,14 +52,6 @@ export const isManual = (task) =>
 // so its dependents stay held until a person reopens it.
 export const isRefused = (task) =>
   isManual(task) && task.manualDone?.choice === "refused";
-
-// A tracker gate (RC23.1): a leaf that waits on an item outside GitHub. No
-// crew builds it. Its `gate` holds {plugin, item, done}; `gateVerdict` is set
-// when the plugin says done or a trusted person clears it.
-export const isGate = (task) =>
-  task?.completion === "tracker" &&
-  task?.manual !== true &&
-  taskKind(task) === "leaf";
 
 export function taskCompletion(task) {
   if (isManual(task)) return "person";
@@ -113,9 +91,6 @@ export function completionReached(task, level, complete) {
   // no merge or integration to wait for (R61.10). A refusal is never done.
   if (isManual(task))
     return !isRefused(task) && (done || Boolean(task.manualDone));
-  // A gate is met when its plugin said done or a person cleared it, at every
-  // level, and never by any other route (RC23.2).
-  if (isGate(task)) return ["done", "order"].includes(task.gateVerdict?.state);
   if (!level) {
     if (
       task.kind !== "epic" &&
@@ -130,16 +105,9 @@ export function completionReached(task, level, complete) {
   // `merged-pr` is an old value for landed (R102.20).
   if (["integrated", "merged-pr"].includes(level) && task.integration?.commit)
     return true;
-  // A route plugin's completion is the remote leaf's verdict (R22.8).
-  if (task.routeVerdict?.state === "done" && level !== "released") return true;
-  // A tracker plugin's task: Avoozl's verdict as stored in its record, or an
-  // allowed actor's close (R35.8, R35.9).
-  const tracked = task.trackerVerdict?.state;
-  if (tracked === "order") return true;
   // An allowed actor's close of the task's incoming item (R50.18): an
   // order, never a verified completion.
   if (task.intakeVerdict?.state === "order") return true;
-  if (tracked === "verified" && level !== "released") return true;
   if (!done) return false;
   const own = taskCompletion(task);
   return (
@@ -192,4 +160,25 @@ export function edgeErrors(edge) {
   return COMPLETIONS.includes(edge.condition)
     ? []
     : ["Unknown edge condition " + edge.from + " → " + edge.to];
+}
+
+// Notes for a dependent whose blocker's incoming item an allowed actor
+// closed without merged code (R33.9, R50.18).
+export function blockerNotes(data, task) {
+  const notes = [];
+  for (const edge of data.edges) {
+    if (edge.to !== task.id || !["requires", "sequence"].includes(edge.kind))
+      continue;
+    const blocker = data.tasks.find((candidate) => candidate.id === edge.from),
+      order =
+        blocker?.intakeVerdict?.state === "order" && blocker.intakeVerdict;
+    if (!order) continue;
+    const name = order.issue
+      ? `${blocker.id} (${order.issue})`
+      : `${blocker.id} "${blocker.title || blocker.id}"`;
+    notes.push(
+      `Blocker ${name} closed without merged code: ${order.order.actor} closed it as ${order.order.reason.toLowerCase()} at ${order.order.closedAt}. Check whether its code exists before relying on it.`,
+    );
+  }
+  return notes;
 }

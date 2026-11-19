@@ -23,6 +23,7 @@ import { hookEvent, runnerHookBrief } from "../runner.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { gitCheckout } from "./delivery-fixture.mjs";
 
 const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));
 
@@ -69,14 +70,7 @@ function setup(
   } = {},
 ) {
   const root = temporaryDirectory("avoozl-runner-"),
-    checkout = path.join(root, "app");
-  fs.mkdirSync(checkout);
-  git(checkout, "init", "-b", "main");
-  git(checkout, "config", "user.name", "Test");
-  git(checkout, "config", "user.email", "test@example.com");
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-m", "Start");
+    checkout = gitCheckout(path.join(root, "app"));
   const { dbPath } = workspaceConfig({ workspace: root, env: {} });
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const store = new Store(dbPath);
@@ -86,6 +80,7 @@ function setup(
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
+    checks: { test: ["npm", "test"] },
   });
   if (delivery)
     fs.writeFileSync(

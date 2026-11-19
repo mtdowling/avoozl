@@ -80,13 +80,13 @@ test("an intake source is checked like a plugins entry", () => {
   };
   assert.deepEqual(
     validateSource("tickets", {
-      via: "plugin:fake-tracker",
+      via: "plugin:fake-intake",
       repository: "o/app",
     }),
     {
       id: "tickets",
-      via: "plugin:fake-tracker",
-      plugin: "fake-tracker",
+      via: "plugin:fake-intake",
+      plugin: "fake-intake",
       repository: "o/app",
       labelFields: [],
       assigneeField: null,
@@ -204,7 +204,7 @@ test("a poll stores its cursor only after the page, and reads the next page late
     asked = [],
     session = {
       use: async () => ({ ok: true }),
-      describe: () => ({ capabilities: ["poll", "actor"] }),
+      describe: () => ({ capabilities: ["actor"] }),
       async call(_id, _kind, method, params) {
         assert.equal(method, "poll");
         asked.push(params.cursor);
@@ -218,8 +218,8 @@ test("a poll stores its cursor only after the page, and reads the next page late
         "tickets",
         {
           id: "tickets",
-          via: "plugin:fake-tracker",
-          plugin: "fake-tracker",
+          via: "plugin:fake-intake",
+          plugin: "fake-intake",
           repository: "o/app",
         },
       ],
@@ -304,8 +304,8 @@ test("a title edit after the trigger holds the item's task and keeps its title",
   const { store } = fixture(t),
     source = {
       id: "tickets",
-      via: "plugin:fake-tracker",
-      plugin: "fake-tracker",
+      via: "plugin:fake-intake",
+      plugin: "fake-intake",
       repository: "o/app",
       allowedActors: [],
       minimumPermission: "write",
@@ -381,8 +381,8 @@ test("a person confirms an item's new text, and a later edit holds it again", as
   const { store } = fixture(t),
     source = {
       id: "tickets",
-      via: "plugin:fake-tracker",
-      plugin: "fake-tracker",
+      via: "plugin:fake-intake",
+      plugin: "fake-intake",
       repository: "o/app",
       allowedActors: [],
       minimumPermission: "write",

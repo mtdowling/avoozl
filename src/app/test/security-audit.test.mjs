@@ -214,7 +214,7 @@ test("scripts/worktree runs only after a person approves its hash", {
   assert.ok(fs.existsSync(plain.worktree));
 });
 
-test("checksEnv lists the variables a check may see; unset keeps today's", async () => {
+test("a check sees only the basics and checksEnv; credentials never, even when listed", async () => {
   const { projectConfig } = await import("../git.mjs");
   const env = {
     PATH: "/bin",
@@ -235,26 +235,34 @@ test("checksEnv lists the variables a check may see; unset keeps today's", async
     repositoryEnvironment(env, ["KEEP_ME", "KIROCREW_PROXY_SECRET"]),
     { PATH: "/bin", HOME: "/h", KEEP_ME: "k" },
   );
-  const saved = { ...process.env };
-  process.env.GH_TOKEN = "secret-token";
+  const saved = { ...process.env },
+    secrets = ["GH_TOKEN", "GITHUB_TOKEN", "SSH_AUTH_SOCK"];
+  for (const key of secrets) process.env[key] = "secret-" + key;
   process.env.KEEP_ME = "kept";
   try {
     const show = [
       process.execPath,
       "-e",
-      "process.stdout.write(String(process.env.GH_TOKEN)+','+process.env.KEEP_ME)",
+      "process.stdout.write(['GH_TOKEN','GITHUB_TOKEN','SSH_AUTH_SOCK','KEEP_ME'].map((k)=>String(process.env[k])).join(','))",
     ];
     const cwd = temporaryDirectory("avoozl-security-");
+    // No checksEnv: the basics only.
     assert.equal(
       (await commandEvidence(cwd, show)).stdout,
-      "secret-token,kept",
+      "undefined,undefined,undefined,undefined",
     );
     assert.equal(
       (await commandEvidence(cwd, show, { env: ["KEEP_ME"] })).stdout,
-      "undefined,kept",
+      "undefined,undefined,undefined,kept",
+    );
+    // Listed push and GitHub credentials still never reach a check.
+    assert.equal(
+      (await commandEvidence(cwd, show, { env: [...secrets, "KEEP_ME"] }))
+        .stdout,
+      "undefined,undefined,undefined,kept",
     );
   } finally {
-    for (const key of ["GH_TOKEN", "KEEP_ME"])
+    for (const key of [...secrets, "KEEP_ME"])
       if (saved[key] === undefined) delete process.env[key];
       else process.env[key] = saved[key];
   }

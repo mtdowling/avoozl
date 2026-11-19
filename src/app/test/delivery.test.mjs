@@ -703,6 +703,61 @@ test("a quiet session is nudged, never replaced, and a person decides past the n
   assert.match(question.notify[0].text, /Which format\?/);
 });
 
+test("a worker waiting on the decision on its findings is not quiet until the decision is sent", async (t) => {
+  // Found by the wp-p1 live run: the nudge and Go ahead went out in one
+  // tick, and the nudge named plans_report to a worker that reports by CLI.
+  // Nearby inputs: no decision yet, a decision sent minutes ago, one sent
+  // long ago.
+  const { store, ops } = setup(t, {
+    delivery: { quietMinutes: 10, nudges: 2, concurrency: 1 },
+  });
+  await bindTick(ops, "a", "slot-1");
+  const idle = [{ target: "slot-1", status: "idle" }],
+    ago = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString(),
+    binding = store.get("session_bindings", "slot-1");
+  store.put("session_bindings", {
+    ...binding,
+    status: "idle",
+    boundAt: ago(600),
+    statusAt: ago(600),
+    report: { kind: "findings", at: ago(600) },
+  });
+  const row = {
+    id: "a",
+    taskId: "a",
+    attempt: 1,
+    slot: "slot-1",
+    state: "needs-you",
+    rounds: [],
+    openedAt: ago(600),
+    updatedAt: ago(600),
+  };
+  store.put("task_investigations", row);
+  const nudges = async () =>
+    (await ops.execute("workspace.tick", { sessions: idle })).messages.filter(
+      (m) => m.slot === "slot-1",
+    );
+  assert.deepEqual(await nudges(), [], "findings wait on Avoozl");
+  const go = (minutes) =>
+    store.put("task_investigations", {
+      ...row,
+      state: "go",
+      message: {
+        action: "go",
+        text: "Go ahead",
+        at: ago(minutes),
+        sentAt: ago(minutes),
+      },
+    });
+  go(5);
+  assert.deepEqual(await nudges(), [], "quiet counts from the Go ahead");
+  go(600);
+  const [nudge, ...rest] = await nudges();
+  assert.deepEqual(rest, []);
+  assert.match(nudge.text, /the way your brief says/);
+  assert.doesNotMatch(nudge.text, /plans_report/);
+});
+
 test("after a restart, every session the cron opened is observed before any new dispatch", async (t) => {
   // Nearby inputs: no roster at all, a roster missing one live slot, a roster
   // missing only a finished slot, and an explicit session request.

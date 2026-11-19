@@ -9,7 +9,6 @@ import { queryTasks, reviewSettled, statusComplete } from "../model.mjs";
 import {
   completionReached,
   isManual,
-  pluginId,
   supersedingTask,
   taskAuthority,
   taskCompletion,
@@ -29,8 +28,6 @@ import {
 import { sessionUrl } from "./notifications.mjs";
 import { processSessionDetails } from "./process-view.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
-import { remoteLeaf, routeNeedsYou } from "./routes.mjs";
-import { pluginHealth } from "./plugin-session.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
 import { listSpans, taskFlow } from "./flow.mjs";
 import { taskSteps } from "./task-steps.mjs";
@@ -44,6 +41,7 @@ import { epicRows } from "./epic-rows.mjs";
 import { taskLinks } from "./scm-links.mjs";
 import { approvals, batchRules } from "./flow-batch.mjs";
 import { ownSummary } from "./title-repeat.mjs";
+import { checkCommand, repositoryChecks } from "./repository-checks.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
@@ -97,12 +95,10 @@ export function ownership(task) {
   return {
     authority: taskAuthority(task),
     issue: issueLink(task),
-    ...(task.tracker?.link ? { record: task.tracker.link } : {}),
   };
 }
 
-// What a person must do for a task before it moves, with a link: a remote
-// leaf waiting on its route, or a task whose plugin is parked (R22.7, R34.7).
+// What a person must do for a task before it moves, with a link.
 // Manual leaves whose blockers hold: each waits in Needs you for a person
 // (R61.11). The same readiness rule as `ready`, asked with `manual`.
 function manualWaitingIds(data, repositories) {
@@ -118,25 +114,14 @@ function manualWaitingIds(data, repositories) {
   );
 }
 
-function needsYou(task, submissions, health, manual = null) {
+function needsYou(task, manual = null) {
   if (manual?.has(task.id))
     return {
       reason: `Waiting for a person: ${task.title ?? task.id}`,
       link: null,
       manual: true,
     };
-  const tracker = pluginId(taskAuthority(task)),
-    trackerHealth = tracker ? health.get(tracker) : null;
-  if (trackerHealth?.state === "unavailable")
-    return {
-      reason: `Plugin unavailable: ${trackerHealth.reason}`,
-      link: task.tracker?.link ?? null,
-    };
-  if (!remoteLeaf(task)) return null;
-  return routeNeedsYou(
-    submissions.get(task.id),
-    health.get(pluginId(task.route)),
-  );
+  return null;
 }
 
 // A task waits for review: flagged, and not done, recorded or archived.
@@ -250,10 +235,6 @@ function graphStates(store, data) {
       }).map((task) => task.id),
     ),
     complete = (status) => statusComplete(data, status),
-    submissions = new Map(
-      optionalList(store, "route_submissions").map((row) => [row.taskId, row]),
-    ),
-    health = pluginHealth(store),
     live = liveSessions(store),
     manual = manualWaitingIds(data, registered);
   // One state per node for the Graph drawing. Needs-you comes first among
@@ -264,7 +245,7 @@ function graphStates(store, data) {
       task.decision ||
       task.status === "blocked" ||
       statusWithoutSession(task, live, claimed) ||
-      needsYou(task, submissions, health, manual)
+      needsYou(task, manual)
     )
       return "needs-you";
     if (task.status === "deferred" || task.planArchived) return "deferred";
@@ -278,8 +259,6 @@ function graphStates(store, data) {
     claimed,
     ready,
     complete,
-    submissions,
-    health,
     live,
     manual,
     state,
@@ -318,17 +297,10 @@ export function graphView(store, data, input = {}, folders = []) {
     phases = list(input.phase),
     repositories = list(input.repository),
     statuses = list(input.status),
-    {
-      registered,
-      claimed,
-      ready,
-      complete,
-      submissions,
-      health,
-      live,
-      manual,
-      state,
-    } = graphStates(store, data),
+    { registered, claimed, ready, complete, live, manual, state } = graphStates(
+      store,
+      data,
+    ),
     byId = new Map(data.tasks.map((task) => [task.id, task])),
     archivedOf = archivedPlanOf(store),
     counts = new Map();
@@ -429,7 +401,7 @@ export function graphView(store, data, input = {}, folders = []) {
       // badge, and once per plan in Conflicts, not as needs-you.
       review: needsTextReview(data, task),
       decision: task.decision ?? null,
-      needsYou: needsYou(task, submissions, health, manual),
+      needsYou: needsYou(task, manual),
       // A step only a person does (R61.9), and how it was marked done.
       manual: isManual(task),
       manualDone: isManual(task) ? (task.manualDone ?? null) : null,
@@ -719,22 +691,6 @@ export function reviewRounds(delivery) {
   return [...rounds.values()];
 }
 
-// A remote leaf's submission as the tick last read it. The plugin's link,
-// reason and result are its own text: the page escapes them.
-function routeDelivery(row) {
-  if (!row) return null;
-  return {
-    route: row.route,
-    remoteId: row.remoteId,
-    state: row.state,
-    link: row.link ?? null,
-    reason: row.reason ?? null,
-    result: row.result ?? null,
-    submittedAt: row.submittedAt ?? null,
-    doneAt: row.doneAt ?? null,
-  };
-}
-
 // `config` is the workspace's saved config, which says the executor a
 // batch would run on (batchRules).
 export function deliveryView(store, data, { config } = {}) {
@@ -747,10 +703,6 @@ export function deliveryView(store, data, { config } = {}) {
     }
     return map;
   };
-  const submissions = new Map(
-      optionalList(store, "route_submissions").map((row) => [row.taskId, row]),
-    ),
-    health = pluginHealth(store);
   const bindingRows = optionalList(store, "session_bindings");
   // Live `process` sessions read their status, log tail, cost and attach
   // command from this machine's supervisor (R98.1); none, no read.
@@ -840,7 +792,6 @@ export function deliveryView(store, data, { config } = {}) {
       !task.integration &&
       !pullRequests.length &&
       !links.length &&
-      !submissions.has(id) &&
       !task.github?.unlinked &&
       // A planner-grouped task shows its batch or why it runs alone.
       !task.batch
@@ -930,8 +881,7 @@ export function deliveryView(store, data, { config } = {}) {
       rounds: (deliveries.get(id) || []).flatMap(reviewRounds),
       worktrees: worktrees.get(id) || [],
       links: taskLinkSets[id] ?? null,
-      route: routeDelivery(submissions.get(id)),
-      needsYou: needsYou(task, submissions, health),
+      needsYou: needsYou(task),
       // The $spent / $cap chip (§4.17).
       noSession: statusWithoutSession(task, live, claimed),
       handSetReview: statusWithoutSession(task, live, claimed) !== null,
@@ -982,18 +932,6 @@ export function conflictsView(store, data) {
         ...ownership(task),
         title: task.title ?? task.id,
         detail: crewHoldText(task) ?? String(task.decision),
-      });
-    // A tracker record's managed field a person changed (R35.6): Avoozl
-    // leaves it alone until the plan or the record agree again.
-    for (const conflict of task.tracker?.conflicts || [])
-      items.push({
-        kind: "tracker-conflict",
-        taskId: task.id,
-        ...ownership(task),
-        title: task.title ?? task.id,
-        detail: `${conflict.field} was changed in ${taskAuthority(task)}; Avoozl left it alone.`,
-        link: task.tracker.link ?? null,
-        field: conflict.field,
       });
     if (!complete(task.status) && task.status === "blocked")
       items.push({
@@ -1129,7 +1067,7 @@ export function conflictsView(store, data) {
 // other views already make: the task row (`detail`, from task.get), its node
 // in graph.view, its delivery.view item, its conflicts.view items, and its
 // plan. Writes nothing. `locked` says why the page must not write the row
-// and drafts a plan change instead: GitHub or a tracker plugin owns it, or it
+// and drafts a plan change instead: GitHub owns it, or it
 // came from a plan whose current text is approved.
 export function taskDetailView(
   store,
@@ -1197,17 +1135,12 @@ export function taskDetailView(
               ? "GitHub owns this task. Change its plan and approve it; the tick updates the issue."
               : "GitHub owns this task. Edit the issue on GitHub; the next sync reads it.",
         }
-      : authority.startsWith("plugin:")
+      : plan && approved
         ? {
-            reason: "plugin",
-            message: `${authority} owns this task. Change its plan and approve it; the tick updates the record.`,
+            reason: "approved-spec",
+            message: `This task comes from the approved plan ${plan.title || plan.id}. Changes become a draft plan change for you to approve.`,
           }
-        : plan && approved
-          ? {
-              reason: "approved-spec",
-              message: `This task comes from the approved plan ${plan.title || plan.id}. Changes become a draft plan change for you to approve.`,
-            }
-          : null;
+        : null;
   const timeline = taskTimeline(detail, delivery),
     approval = plan?.approvalId
       ? store.get("approvals", plan.approvalId)
@@ -1225,7 +1158,14 @@ export function taskDetailView(
       title: detail.title ?? id,
       summary: ownSummary(detail) ?? "",
       acceptance: detail.acceptance || [],
-      checks: detail.checks || [],
+      // The repository's checks, which every task runs.
+      checks: repositoryChecks(
+        store.get("projects", taskRepository(detail) || ""),
+      ).map((check) =>
+        check.name === checkCommand(check)
+          ? check.name
+          : `${check.name}: ${checkCommand(check)}${check.paths ? ` (for ${check.paths.join(", ")})` : ""}`,
+      ),
       // Its plan's epic and its phase inside the plan (Requirement 59).
       epic: taskEpic(data, detail),
       epicTitle: epicOfPlan(data, detail.planId)?.title ?? null,

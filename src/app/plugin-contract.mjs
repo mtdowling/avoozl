@@ -1,4 +1,4 @@
-// The plugin contract (design §4.8, Requirements 22, 34): the calls Avoozl
+// The plugin contract (design §4.8, Requirement 34): the calls Avoozl
 // makes and the shape each reply must have. A plugin is outside code, so
 // every reply is checked here before anything reads it, and its text stays
 // untrusted data (quoted in briefs, escaped in views). A reply of the wrong
@@ -9,8 +9,6 @@
 import { checkRuleSets } from "./content-rules.mjs";
 
 export const SUPPORTED_CONTRACTS = [1];
-
-const ROUTE_STATES = ["queued", "running", "needs-person", "failed", "done"];
 
 export class ContractError extends Error {}
 
@@ -45,155 +43,14 @@ export function link(value, where, { optional = true } = {}) {
   return url.href;
 }
 
-// Route kind (R22.2): submit, status, completion, cancel.
-export const routeReplies = {
-  submit(reply) {
-    object(reply, "submit reply");
-    return {
-      id: text(reply.id, "submit reply id", { max: 200 }),
-      link: link(reply.link, "submit reply link"),
-    };
-  },
-  status(reply) {
-    object(reply, "status reply");
-    if (!ROUTE_STATES.includes(reply.state))
-      throw new ContractError(
-        `status reply state must be one of ${ROUTE_STATES.join(", ")}.`,
-      );
-    return {
-      state: reply.state,
-      link: link(reply.link, "status reply link"),
-      reason: text(reply.reason, "status reply reason", {
-        max: 2000,
-        optional: true,
-      }),
-    };
-  },
-  // A pull request link, an answer, or both (R22.9).
-  completion(reply) {
-    object(reply, "completion reply");
-    const result = {
-      pr: link(reply.pr, "completion reply pr"),
-      answer: text(reply.answer, "completion reply answer", {
-        optional: true,
-      }),
-    };
-    if (!result.pr && !result.answer)
-      throw new ContractError(
-        "completion reply needs a pull request link, an answer, or both.",
-      );
-    return result;
-  },
-  cancel(reply) {
-    object(reply ?? {}, "cancel reply");
-    return { cancelled: reply?.cancelled !== false };
-  },
-};
-
-const GATE_STATES = ["open", "done", "failed", "unknown"];
-const GATE_EVIDENCE_MAX = 500;
-
-// Gate kind (RC23.6): one read-only call, status. The evidence and link are
-// untrusted data: Avoozl screens them before it stores or shows them.
-const gateReplies = {
-  status(reply) {
-    object(reply, "status reply");
-    if (!GATE_STATES.includes(reply.state))
-      throw new ContractError(
-        `status reply state must be one of ${GATE_STATES.join(", ")}.`,
-      );
-    return {
-      state: reply.state,
-      evidence:
-        text(reply.evidence, "status reply evidence", {
-          max: GATE_EVIDENCE_MAX,
-          optional: true,
-        }) ?? "",
-      link: link(reply.link, "status reply link"),
-    };
-  },
-};
-
-const tags = (value, where) => {
-  if (
-    !Array.isArray(value) ||
-    value.length > 100 ||
-    value.some((tag) => typeof tag !== "string" || tag.length > 200)
-  )
-    throw new ContractError(`${where} must be a list of tags.`);
-  return value;
-};
-
 const actor = (value, where) =>
   value === undefined || value === null
     ? null
     : text(value, where, { max: 200 });
 
-// One tracker record (§4.8 Tracker kind). `marker` is what Avoozl stored
-// with it; the caller compares it with what it sent.
-function trackerRecord(value, where) {
-  object(value, where);
-  if (!["open", "closed"].includes(value.state))
-    throw new ContractError(`${where} state must be open or closed.`);
-  const fields = object(value.fields, `${where} fields`);
-  return {
-    id: text(value.id, `${where} id`, { max: 200 }),
-    link: link(value.link, `${where} link`),
-    state: value.state,
-    closeReason:
-      value.state === "closed"
-        ? ["completed", "not_planned"].includes(value.closeReason)
-          ? value.closeReason
-          : null
-        : null,
-    fields: {
-      title: typeof fields.title === "string" ? fields.title : "",
-      section: typeof fields.section === "string" ? fields.section : "",
-      tags: tags(fields.tags ?? [], `${where} fields tags`),
-      ...(fields.blockedBy !== undefined
-        ? { blockedBy: tags(fields.blockedBy, `${where} fields blockedBy`) }
-        : {}),
-    },
-    marker:
-      value.marker === null ? null : object(value.marker, `${where} marker`),
-    closedBy: actor(value.closedBy, `${where} closedBy`),
-    closedAt: actor(value.closedAt, `${where} closedAt`),
-    paused: value.paused === true,
-    pausedBy: actor(value.pausedBy, `${where} pausedBy`),
-  };
-}
-
-const records = (reply, where) => {
-  object(reply, where);
-  if (!Array.isArray(reply.records) || reply.records.length > 10000)
-    throw new ContractError(`${where} records must be a list.`);
-  return {
-    records: reply.records.map((r, i) =>
-      trackerRecord(r, `${where} record ${i}`),
-    ),
-  };
-};
-
-// Tracker kind (R35.2): project, read, list, close.
-export const trackerReplies = {
-  project(reply) {
-    object(reply, "project reply");
-    return {
-      id: text(reply.id, "project reply id", { max: 200 }),
-      link: link(reply.link, "project reply link"),
-      marker:
-        reply.marker === undefined || reply.marker === null
-          ? null
-          : object(reply.marker, "project reply marker"),
-    };
-  },
-  read: (reply) => records(reply, "read reply"),
-  list: (reply) => records(reply, "list reply"),
-  close(reply) {
-    object(reply ?? {}, "close reply");
-    return { closed: reply?.closed !== false };
-  },
-  // Intake (R50.7, R55.8): changed items since the cursor. A bad item is
+// Intake kind (R50.7, R55.8): one call, poll.
+export const intakeReplies = {
+  // Changed items since the cursor. A bad item is
   // refused naming its field and the rest still count (R50.2).
   poll(reply) {
     object(reply, "poll reply");
@@ -322,15 +179,7 @@ const rulesReplies = {
 
 export function checkReply(kind, method, reply) {
   const check = (
-    kind === "route"
-      ? routeReplies
-      : kind === "tracker"
-        ? trackerReplies
-        : kind === "rules"
-          ? rulesReplies
-          : kind === "gate"
-            ? gateReplies
-            : null
+    kind === "intake" ? intakeReplies : kind === "rules" ? rulesReplies : null
   )?.[method];
   if (!check) throw new ContractError(`Unknown ${kind} call ${method}.`);
   return check(reply);

@@ -78,10 +78,10 @@ for (const [what, file, from, to] of [
   ["prose", "design.md", "A loader, then", "A loader. then"],
   ["after", "tasks.md", "      - after: 1.1", "      - after: 1"],
   [
-    "checks",
+    "summary",
     "tasks.md",
-    "      - checks: npm test\n      - after",
-    "      - checks: npm tests\n      - after",
+    "    - Report unknown keys.",
+    "    - Report unknown key.",
   ],
   ["done", "tasks.md", "reported with its path.", "reported with its path!"],
 ])

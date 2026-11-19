@@ -58,7 +58,6 @@ const ANSWERS: Record<string, string> = {
   'plan-review': 'Review the draft',
   delivery: 'Retry or dismiss',
   manual: 'Do the step',
-  'tracker-conflict': 'Pick a version',
   'stale-session': 'Restart or close',
   'ready-to-merge': 'Merge',
   'branch-landing': 'Approve the landing',

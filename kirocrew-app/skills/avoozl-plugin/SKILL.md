@@ -1,13 +1,13 @@
 ---
 name: avoozl-plugin
-description: Design, write, and test an Avoozl plugin, including a bundle that ships a settings pack, content rules, a tracker, and an intake source in one install. Use when a user asks to build, review, or package an Avoozl plugin or config pack, or opens Design a plugin in Settings > Plugins.
+description: Design, write, and test an Avoozl plugin, including a bundle that ships a settings pack, content rules, and an intake source in one install. Use when a user asks to build, review, or package an Avoozl plugin or config pack, or opens Design a plugin in Settings > Plugins.
 ---
 
 # Avoozl plugin
 
 Use this skill when a user wants to add to Avoozl without changing Avoozl:
-a team's shared settings, content rules, a task tracker, an intake source,
-or a delivery route. The full contract is `docs/plugins.md` in the Avoozl
+a team's shared settings, content rules, an intake source, or workflow
+templates. The full contract is `docs/plugins.md` in the Avoozl
 repository (Settings > Plugins > **Plugin guide** shows it); read it before
 writing code. The worked example is `src/app/test/fixtures/plugins/sdk-team/`.
 
@@ -44,16 +44,12 @@ Ask what the team needs, then list only those parts in `provides`:
 | --------------------------------------------------------------------------------------------------------------- | ---------- |
 | Shared triggers, Untriaged filter, who counts, checks, review roles, flow and delivery defaults | `pack`     |
 | Terms Avoozl must never write                                                                                   | `rules`    |
-| Task records kept in another system                                                                             | `tracker`  |
 | Outside work brought in on each tick                                                                            | `intake`   |
-| Tasks delivered somewhere other than a local worker                                                             | `route`    |
-| A task that waits on an item outside GitHub, read without writing to it (a tracker gate)                        | `gate`     |
 | A repeated kind of work started the same way each time, as folders under `templates/`                           | `template` |
 
-A plugin with only `pack` or `template` has no `entry` and runs no code. `intake` runs as
-the `tracker` kind and needs `capabilities.tracker` to list `poll`.
+A plugin with only `pack` or `template` has no `entry` and runs no code.
 
-The code kinds are `route`, `tracker`, `rules` and `gate`. A manifest written
+The code kinds are `intake` and `rules`. A manifest written
 before `provides` lists `kinds` instead; with `provides`, leave `kinds` out,
 or make it match.
 
@@ -62,15 +58,15 @@ or make it match.
 `avoozl-plugin.json` in the plugin folder:
 
 - `id`: lowercase letters, digits and dashes. `local` and `github` are
-  reserved. Tasks name it as `plugin:<id>`.
+  reserved. An intake source names it as `plugin:<id>`.
 - `version`: change it on every release; a new version needs approval again.
 - `contract`: the **Contract version**, which version of Avoozl's plugin
   interface the plugin was built for. It is not the plugin's own version.
   This Avoozl supports contract version `1`. The `plugins` entry that
   declares the plugin names the same number, or the plugin is unavailable.
 - `provides`: the parts above, each once.
-- `capabilities`: optional features per kind. A tracker may list `edges`,
-  `subtasks`, `actor`, `pause` and `poll`. A route lists none yet.
+- `capabilities`: optional features per kind. An intake part may list
+  `actor`, which says it reports who acted. Rules list none.
 - `pack`: the pack file, `avoozl-pack.json` by default.
 - `entry`: a `.mjs` or `.js` file inside the folder, only when a part runs
   code.
@@ -82,8 +78,8 @@ or make it match.
    Use only the keys in the pack table of `docs/plugins.md`; Avoozl refuses
    any other key by name. Content rule sets are references
    (`{ "id": "...", "plugin": "<this id>" }`), never patterns.
-3. For code parts, export `rules`, `tracker` (with `poll` for intake), or
-   `route` from the entry module. Every method takes `(params, { config })`
+3. For code parts, export `rules` or `intake` (with `poll`) from the entry
+   module. Every method takes `(params, { config })`
    and returns JSON. Write nothing to stdout; it carries the protocol.
 4. Make every reply match the contract tables in `docs/plugins.md`. Links
    are `http` or `https`. A `poll` reply is `{items, cursor, more}`. A rules
@@ -136,7 +132,7 @@ fetches.
 
 1. Test against a fake host, as Avoozl's own tests do. Copy the `sdk-team`
    proof (`src/app/test/proof-p35.test.mjs`) and the single-part fakes
-   (`fake-route`, `fake-tracker`, `fake-rules`): a temporary workspace, the
+   (`fake-intake`, `fake-rules`): a temporary workspace, the
    remote system kept in a file, the plugin declared in a temporary
    `plugins.json`, approved by hash, the pack previewed and imported, and
    the code parts called through `pluginHost(...).open()`.

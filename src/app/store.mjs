@@ -158,8 +158,6 @@ export class Store {
    CREATE TABLE IF NOT EXISTS task_deliveries(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_linked_branches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS app_notifications(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS route_submissions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS gate_records(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS mirror_forward(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS plugin_health(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS content_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
@@ -306,6 +304,8 @@ export class Store {
           value.summary ??= value.prose;
           delete value.prose;
         }
+        // Every task runs its repository's checks; a row's own is ignored.
+        delete value.checks;
         data.tasks.push(value);
       } else if (row.kind === "document") data.documents[row.id] = value;
       else if (row.kind === "edge") data.edges.push(value);
@@ -551,8 +551,6 @@ export class Store {
         "task_deliveries",
         "github_linked_branches",
         "app_notifications",
-        "route_submissions",
-        "gate_records",
         "mirror_forward",
         "plugin_health",
         "content_decisions",
@@ -606,8 +604,6 @@ export class Store {
         "task_deliveries",
         "github_linked_branches",
         "app_notifications",
-        "route_submissions",
-        "gate_records",
         "mirror_forward",
         "plugin_health",
         "content_decisions",
@@ -659,8 +655,6 @@ export class Store {
         "task_deliveries",
         "github_linked_branches",
         "app_notifications",
-        "route_submissions",
-        "gate_records",
         "mirror_forward",
         "plugin_health",
         "content_decisions",
@@ -726,8 +720,6 @@ export class Store {
         "task_deliveries",
         "github_linked_branches",
         "app_notifications",
-        "route_submissions",
-        "gate_records",
         "mirror_forward",
         "plugin_health",
         "content_decisions",
