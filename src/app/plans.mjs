@@ -437,12 +437,10 @@ function approveEpic(
   plan.mapping = {};
   plan.approvalId = receipt.id;
   store.put("plans", plan);
-  // The store keeps cross-plan epics only (design §6.9): rows from before
-  // Requirement 59 (no planId) are dropped with this write.
+  // This epic's row replaces its last one. Every other row stays: rows
+  // from before Requirement 59 are still named by tasks (design §6.9).
   data.epics = [
-    ...(data.epics || []).filter(
-      (epic) => epic.planId && epic.id !== plan.spec,
-    ),
+    ...(data.epics || []).filter((epic) => epic.id !== plan.spec),
     {
       id: plan.spec,
       title: specTitle({ name: plan.spec, files: plan.files }),
