@@ -177,8 +177,7 @@ export function validateEntry(entry, where = "plugins entry") {
       fail(`${where}.${key} is not a plugin setting.`);
   if (typeof entry.id !== "string" || !ID.test(entry.id))
     fail(`${where}.id must be a lowercase plugin id.`);
-  if (RESERVED_IDS.has(entry.id))
-    fail(`${where}.id ${entry.id} is reserved.`);
+  if (RESERVED_IDS.has(entry.id)) fail(`${where}.id ${entry.id} is reserved.`);
   if (
     ["package", "path", "git"].filter((key) => entry[key] !== undefined)
       .length !== 1

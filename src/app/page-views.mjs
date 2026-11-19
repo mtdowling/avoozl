@@ -320,15 +320,10 @@ export function graphView(store, data, input = {}, folders = []) {
     phases = list(input.phase),
     repositories = list(input.repository),
     statuses = list(input.status),
-    {
-      registered,
-      claimed,
-      ready,
-      complete,
-      live,
-      manual,
-      state,
-    } = graphStates(store, data),
+    { registered, claimed, ready, complete, live, manual, state } = graphStates(
+      store,
+      data,
+    ),
     byId = new Map(data.tasks.map((task) => [task.id, task])),
     archivedOf = archivedPlanOf(store),
     counts = new Map();

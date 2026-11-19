@@ -403,9 +403,7 @@ export function lintPlan({
         ),
       );
 
-    diagnostics.push(
-      ...boundednessDiagnostics(task, projectId, projects),
-    );
+    diagnostics.push(...boundednessDiagnostics(task, projectId, projects));
 
     for (const field of ["requires", "sequence", "supports"]) {
       const seen = new Set();

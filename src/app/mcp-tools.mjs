@@ -51,10 +51,7 @@ const tools = {
     summary: "Workspace upkeep: the tick, rebuilds, examples.",
     actions: {
       tick: ["workspace.tick", "run one bounded tick"],
-      rebuild: [
-        "workspace.rebuild",
-        "rebuild GitHub tasks from their issues",
-      ],
+      rebuild: ["workspace.rebuild", "rebuild GitHub tasks from their issues"],
       seed_example: [
         "workspace.seed",
         "load one example pack, once, only when asked",

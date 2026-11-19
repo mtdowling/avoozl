@@ -209,7 +209,7 @@ test("no named CI check asks for one; steps that are done change nothing", async
       "avoozl:plan-approved",
       "avoozl:review",
       "avoozl:drafted",
-      ],
+    ],
     autoMerge: true,
   });
   github.state.rules.push("build");

@@ -1185,10 +1185,7 @@ async function runTick(
       const requested = unobserved.length
           ? []
           : planDispatches(store, bindings).filter((d) => !held.has(d.task)),
-        readySkip = new Set([
-          ...requested.map((d) => d.task),
-          ...held,
-        ]),
+        readySkip = new Set([...requested.map((d) => d.task), ...held]),
         // Ranking, release and repository-wide path holds (spec-scheduler.mjs).
         schedule =
           unobserved.length || !delivery || delivery.runner !== "tick"
