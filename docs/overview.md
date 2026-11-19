@@ -91,3 +91,10 @@ refuses and lists their ids.
 
 `avoozl plan restore PLAN_ID` brings a deleted plan back. Both are for a person: MCP and chat callers
 are still refused. The CLI runs it anywhere but a supervisor child, and says so when it runs inside an agent session.
+
+## Agent prompts
+
+Each agent role's standing instructions are Markdown files in
+[`prompts/`](https://github.com/mtdowling/avoozl/tree/main/prompts). Its
+README says which role reads which file, how the Kiro Crew agents are
+generated from them, and how a retro proposes a change.
