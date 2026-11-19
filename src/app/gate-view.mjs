@@ -14,7 +14,7 @@ const live = (task) =>
   !task.supersededBy;
 
 // open, failed, unknown, done or cleared. A gate never read is open.
-export function stateWord(task, record) {
+function stateWord(task, record) {
   if (task.gateVerdict?.state === "order") return "cleared";
   if (task.gateVerdict?.state === "done") return "done";
   return record?.state ?? "open";

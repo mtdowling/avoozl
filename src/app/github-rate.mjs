@@ -29,7 +29,7 @@ const MAX_WAIT_MS = 2 * 60 * 60 * 1000;
 // The cap grows with the workspace: each GitHub-backed task keeps up to
 // CACHE_ENTRIES_PER_ISSUE answers (its issue, events, timeline and checks),
 // so a tick over every issue reads from the cache instead of evicting it.
-export const CACHE_MAX_ENTRIES = 400;
+const CACHE_MAX_ENTRIES = 400;
 export const CACHE_ENTRIES_PER_ISSUE = 4;
 export const CACHE_MAX_BODY = 1024 * 1024;
 export const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -66,15 +66,6 @@ export const countFilePath = () =>
     process.env.AVOOZL_HOME || path.join(homedir(), ".avoozl"),
     "gh-calls.jsonl",
   );
-
-export function recordWrapperCall(
-  source,
-  at = Date.now(),
-  file = countFilePath(),
-) {
-  mkdirSync(path.dirname(file), { recursive: true });
-  appendFileSync(file, JSON.stringify({ at, source }) + "\n");
-}
 
 const readLines = (file) => {
   try {

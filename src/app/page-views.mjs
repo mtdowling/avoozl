@@ -116,7 +116,7 @@ export function ownership(task) {
 // leaf waiting on its route, or a task whose plugin is parked (R22.7, R34.7).
 // Manual leaves whose blockers hold: each waits in Needs you for a person
 // (R61.11). The same readiness rule as `ready`, asked with `manual`.
-export function manualWaitingIds(data, repositories) {
+function manualWaitingIds(data, repositories) {
   return new Set(
     queryTasks(data, {
       scope: "all",
@@ -187,14 +187,14 @@ function statusWithoutSession(task, live, claimed) {
 }
 
 // The plain reason for a status with no session behind it.
-export const noSessionLine = (status) =>
+const noSessionLine = (status) =>
   status === "running"
     ? "Marked running, but no session is running"
     : "Marked in review, but no review is running";
 
 // The archived plans, and the one a task belongs to (or null). Views mark
 // archived work with it; the page hides it unless Show archived is on.
-export function archivedPlanOf(store) {
+function archivedPlanOf(store) {
   const archived = optionalList(store, "plans").filter(
     (plan) => plan.archivedAt && !plan.deletedAt,
   );
@@ -209,7 +209,7 @@ export function archivedPlanOf(store) {
 
 // Tasks waiting for review, one item per plan, spec folder or document, so
 // a plan move that touches 70 tasks is one thing to look at, not 70.
-export function reviewGroups(store, data) {
+function reviewGroups(store, data) {
   const plans = new Map(
       optionalList(store, "plans").map((plan) => [plan.id, plan]),
     ),
@@ -632,7 +632,7 @@ function section(text, pattern) {
 }
 
 export const NO_EPIC = "(none)";
-export const NO_PHASE = "(none)";
+const NO_PHASE = "(none)";
 
 // The plans the Graph drills into: each stored plan with its epic and its
 // phases in tasks.md order, with task counts. Titles come from records.
@@ -1541,7 +1541,7 @@ export function taskOrigin(task, data, plan = null) {
 // One task's events, newest first, from the rows' own times: the task row,
 // its sessions, evidence, deliveries and integration. Avoozl keeps no
 // separate task event log, so this is what "history" means on the page.
-export function taskTimeline(task, delivery) {
+function taskTimeline(task, delivery) {
   return [
     task.updatedAt && { at: task.updatedAt, text: "Task row changed" },
     ...(delivery?.sessions || []).flatMap((s) => [
@@ -1777,7 +1777,7 @@ const shown = (value) =>
       ? String(value)
       : "empty";
 
-export function sameItem(item, key) {
+function sameItem(item, key) {
   return (
     item.kind === key.kind &&
     (item.taskId ?? null) === (key.taskId ?? null) &&

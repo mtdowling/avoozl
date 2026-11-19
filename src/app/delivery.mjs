@@ -102,13 +102,7 @@ import { validateLanes } from "./lanes.mjs";
 import { briefNotes } from "./task-notes.mjs";
 
 // `findings` is a worker's first turn when it investigates first (R75.1).
-export const REPORT_KINDS = [
-  "progress",
-  "done",
-  "blocked",
-  "question",
-  "findings",
-];
+const REPORT_KINDS = ["progress", "done", "blocked", "question", "findings"];
 // A done or blocked report ends its attempt; a question waits for an answer.
 const FINAL_REPORTS = new Set(["done", "blocked"]);
 // The cause a full stop records on each attempt it stopped (R64.12).
@@ -288,7 +282,7 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
 // default) has the writer turn on GitHub auto-merge; `manual` leaves it off
 // and waits for a person. The setting is `landing.autoMerge` in the GitHub
 // repository's landing block; `delivery.ship` is its older key.
-export const SHIP_MODES = Object.freeze(["auto-merge", "manual"]);
+const SHIP_MODES = Object.freeze(["auto-merge", "manual"]);
 function shipSetting(value, where) {
   if (value !== undefined && !SHIP_MODES.includes(value))
     throw Error(`${where} must be "auto-merge" or "manual".`);
@@ -616,7 +610,7 @@ function checkResults(value) {
   );
 }
 
-export const VERDICTS = ["approved", "changes-requested"];
+const VERDICTS = ["approved", "changes-requested"];
 const FINDING_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/;
 const FINDING_REF =
   /^[0-9]+:[a-z0-9][a-z0-9-]{0,39}:[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/;
@@ -710,7 +704,7 @@ function reviewPayload(input) {
 }
 
 // The review role id a binding's role names, or null for any other role.
-export const reviewRoleId = (role) =>
+const reviewRoleId = (role) =>
   typeof role === "string" && role.startsWith("review:")
     ? role.slice("review:".length)
     : null;
@@ -2146,7 +2140,7 @@ export function sessionTitle(taskId, attempt, label) {
 // brief is the task's own text and its linked branch (§6.6).
 // The standing rules a brief ends with (design §4.18): the built-in
 // sections, or this workspace's override of the unlocked ones.
-export function withRules(store, brief, target) {
+function withRules(store, brief, target) {
   const rules = currentPrompts(store)[target]?.text?.trim();
   return rules ? `${brief}\n\n${rules}` : brief;
 }
@@ -2396,7 +2390,7 @@ export function planReadyDispatches(store, policy, options = {}) {
 // The verifier spec's declared `name`. Kiro Crew lists app agents as
 // `<app>/<agent>` and spawn_run accepts that, but a dashboard session (what
 // the cron's open_session makes) resolves only the declared name.
-export const VERIFIER_AGENT = "avoozl-verifier";
+const VERIFIER_AGENT = "avoozl-verifier";
 
 // The checks a verifier must run: the leaf's own, else its repository's.
 export function declaredChecks(task, project) {
@@ -2471,7 +2465,7 @@ function runRecord(task, project, run) {
 
 // The roles that judge one delivery's commit: the checks role (the verifier)
 // and the repository's review roles (§5.2).
-export function deliveryRoles(policy, task) {
+function deliveryRoles(policy, task) {
   return [
     { id: "checks", role: "verifier", agent: VERIFIER_AGENT },
     ...reviewRoles(policy, taskRepository(task)).map((role) => ({
@@ -2512,7 +2506,7 @@ function writerModel(store, delivery) {
 // Null when the review role may run against this writer, else why not
 // (R36.3, R36.4): under distinctFrom model both models must be named, not
 // auto, and differ.
-export function distinctCause(role, writer) {
+function distinctCause(role, writer) {
   if (role.distinctFrom === "session") return null;
   if (unknownModel(writer))
     return `the writer's model is ${writer || "unknown"}, so review role ${role.id} cannot be shown to run on a different model`;
@@ -3444,7 +3438,7 @@ export function approveIntegration(store, input = {}, { by = "person" } = {}) {
 }
 
 // The tasks of a batch, in the order the worker made their commits.
-export function batchOrder(store, batchId) {
+function batchOrder(store, batchId) {
   return store.get("flow_batches", batchId)?.tasks || [];
 }
 

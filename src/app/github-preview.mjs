@@ -21,7 +21,7 @@ const names = (labels) =>
 const optionName = (option) =>
   option?.name?.raw ?? option?.name ?? option?.title?.raw ?? option?.title;
 
-export class PreviewGitHub {
+class PreviewGitHub {
   constructor(github) {
     this.github = github;
     this.writes = [];

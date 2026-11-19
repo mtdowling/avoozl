@@ -79,7 +79,7 @@ export function supervisorPaths(stateDirectory) {
 
 // The enabled workspaces in the machine catalog whose `.avoozl.json` sets
 // `landing.trains`: each gets one integrator process (landing-trains D4).
-export function trainWorkspaceRoots({ stateDirectory, configDirectory }) {
+function trainWorkspaceRoots({ stateDirectory, configDirectory }) {
   let registry;
   const configPath = path.join(path.resolve(configDirectory), "config.json");
   // A machine with no workspace configuration has nothing to integrate, and
@@ -309,7 +309,7 @@ export function readChildResult(worktree) {
 
 // The one output file a child may write beside its result file, for an
 // answer too large for it (NK3): a plain name, read from `.avoozl/output/`.
-export const OUTPUT_DIRECTORY = path.join(".avoozl", "output");
+const OUTPUT_DIRECTORY = path.join(".avoozl", "output");
 const OUTPUT_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 // Read a finished child's output file once (NK3.2, NK3.4): exactly one
@@ -456,7 +456,7 @@ export function stopChild(
 // be read. A pid with a different start time is another process.
 // shortcut: macOS needs the setuid `ps`, which some sandboxes forbid; then
 // only pid liveness is checked. Read sysctl directly if pid reuse shows up.
-export function processStartTime(pid) {
+function processStartTime(pid) {
   try {
     const out =
       process.platform === "win32"
@@ -499,7 +499,7 @@ function pidAlive(pid) {
 
 // Whether `pid` is still the process that started at `started`. An unreadable
 // start time keeps the child: a failed observation is never evidence of gone.
-export function sameProcess(pid, started, startTime = processStartTime) {
+function sameProcess(pid, started, startTime = processStartTime) {
   if (!pidAlive(pid)) return false;
   if (!started) return true;
   const now = startTime(pid);
@@ -516,7 +516,7 @@ function readJson(file) {
 
 // One supervisor per machine (R95.1). The lock holds the owner's pid and
 // start time; a lock whose owner is gone is taken over.
-export function acquireSupervisorLock(
+function acquireSupervisorLock(
   stateDirectory,
   { startTime = processStartTime } = {},
 ) {

@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
 
-export const FACT_KINDS = Object.freeze([
+const FACT_KINDS = Object.freeze([
   "task",
   "acceptance",
   "dependency",
@@ -35,7 +35,7 @@ const stopWords = new Set([
   "with",
 ]);
 
-export function normalizeFactText(value) {
+function normalizeFactText(value) {
   return String(value || "")
     .normalize("NFKC")
     .toLowerCase()
@@ -52,7 +52,7 @@ export function factIdentity({ kind, quote = "", text }) {
   );
 }
 
-export function resolveFactAnchor(text, quote) {
+function resolveFactAnchor(text, quote) {
   const first = text.indexOf(quote);
   if (first < 0) fail(`Fact quote was not found in the design: ${quote}`);
   if (text.indexOf(quote, first + quote.length) >= 0)
@@ -179,7 +179,7 @@ function codeCoverage(store, fact, projectId) {
   return found;
 }
 
-export function factCoverage(store, fact, { projectId } = {}) {
+function factCoverage(store, fact, { projectId } = {}) {
   if (fact.kind !== "task") return [];
   const data = store.read();
   const candidates = [
@@ -314,7 +314,7 @@ export function createExtraction(
   return extraction;
 }
 
-export function completeExtraction(store, id, stopReason) {
+function completeExtraction(store, id, stopReason) {
   const extraction = store.get("extractions", id);
   if (!extraction) fail("Extraction not found.", 404);
   extraction.state = "completed";
@@ -579,18 +579,4 @@ export function proposalsFromFacts(store, extractionId) {
     }
     return proposal;
   });
-}
-
-export function extractionPrompt({ plan, extraction, round }) {
-  return `Extract executable work from this exact design revision.
-
-Plan: ${plan.id}
-Revision: ${plan.hash}
-Extraction: ${extraction.id}
-Round: ${round}
-
-Return only material facts. Give every task a stable taskLocalId and use that value in acceptance relatesTo fields and dependency endpoints. Every stated or inferred fact must quote one exact, unique passage from the supplied design. Never invent missing acceptance criteria: report them as absent facts. Inferred facts require reasoning. Do not approve, edit, or publish the design.
-
-Use plans_submit_extraction once with:
-{"input":{"extractionId":"${extraction.id}","revisionHash":"${plan.hash}","facts":[{"kind":"task|acceptance|dependency|constraint|resource|decision|non-goal|risk|rollout|validation","taskLocalId":"stable ID on task facts","text":"derived statement","quote":"exact unique passage, omitted only for absent","derivation":"stated|inferred|absent","reasoning":"required for inferred","relatesTo":"taskLocalId or relationship object using taskLocalIds","dependencyKind":"requires|sequence|supports"}],"complete":false}}`;
 }

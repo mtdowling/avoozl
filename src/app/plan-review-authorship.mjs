@@ -4,7 +4,7 @@ import { digest } from "../model.mjs";
 import { callerSlot } from "./delivery.mjs";
 import { reportedPlanModel } from "./plan-reviews.mjs";
 
-export const writerReceiptId = (planId, revisionHash) =>
+const writerReceiptId = (planId, revisionHash) =>
   "plan-review-writer:" + digest(JSON.stringify([planId, revisionHash]));
 
 export function recordPlanReviewWriter(

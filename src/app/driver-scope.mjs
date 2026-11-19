@@ -28,7 +28,7 @@ export function forgetDriverScope(store) {
   memo.delete(store);
 }
 
-export function driverRow(store, planId) {
+function driverRow(store, planId) {
   return planId ? rows(store).get(planId) || null : null;
 }
 

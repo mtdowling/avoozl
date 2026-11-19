@@ -19,8 +19,8 @@ import { fence } from "./github-respond.mjs";
 import { sessionUrl } from "./notifications.mjs";
 import { recordActivity } from "./activity-log.mjs";
 
-export const DRAFT_KIND = "review-draft";
-export const DRAFT_ROLE = "review-draft";
+const DRAFT_KIND = "review-draft";
+const DRAFT_ROLE = "review-draft";
 // Read-only files and `gh` reads, plus plans_post_review_draft
 // (kirocrew-app/agents/avoozl-review-draft.json).
 export const DRAFT_AGENT = "avoozl-review-draft";
@@ -95,7 +95,7 @@ const quote = (text) => {
 // What the chat reads first: the pull request, the issues it closes with the
 // Radar crew's claim and comments on each. Everything quoted is GitHub's
 // text, so it is fenced as data.
-export async function draftBrief(github, { repository, pull }) {
+async function draftBrief(github, { repository, pull }) {
   const lines = [
     `Draft a review of one pull request: ${pull.html_url}`,
     "",

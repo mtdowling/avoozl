@@ -42,7 +42,7 @@ const RELEASING = new Set(["resume", "release"]);
 const same = (a, b) =>
   String(a ?? "").toLowerCase() === String(b ?? "").toLowerCase();
 
-export const newDriverId = () => randomBytes(8).toString("hex");
+const newDriverId = () => randomBytes(8).toString("hex");
 
 // The one login with authority over the spec: the spec issue's single
 // assignee, else (only when the spec issue has none) the epic issue's.

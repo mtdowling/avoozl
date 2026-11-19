@@ -10,7 +10,7 @@ const MINUTE = 60_000;
 // shortcut: the tick does not know its own schedule (the cron, the page and
 // the supervisor set it), so a gap this long counts as a stall. Read the
 // schedule instead if a workspace ticks less often than this.
-export const STALL_MS = 10 * MINUTE;
+const STALL_MS = 10 * MINUTE;
 // Failures in a row before Needs you opens.
 export const NEEDS_YOU_AFTER = 3;
 
@@ -22,13 +22,13 @@ const EMPTY = Object.freeze({
   rowKey: null,
 });
 
-export const tickFailures = (store) => ({
+const tickFailures = (store) => ({
   ...EMPTY,
   ...(store.getMeta(KEY) || {}),
 });
 
 // The first line of the error, short enough for one Activity row.
-export const firstLine = (message) =>
+const firstLine = (message) =>
   String(message || "unknown error")
     .split("\n")[0]
     .trim()

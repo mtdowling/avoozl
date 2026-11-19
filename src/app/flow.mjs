@@ -32,7 +32,7 @@ export const STAGES = Object.freeze([
   "waiting",
 ]);
 // Active time in flow efficiency; the rest is waiting on someone else.
-export const ACTIVE = new Set([
+const ACTIVE = new Set([
   "investigate",
   "coding",
   "tests",
@@ -335,7 +335,7 @@ const deleteSpan = (store, id) =>
 
 // A check or command name, kept only when it passes the content rules at the
 // `brief` boundary (R43.6); a match or an unavailable set drops it.
-export function spanDetail(store, text, repository = null) {
+function spanDetail(store, text, repository = null) {
   if (typeof text !== "string" || !text.trim()) return null;
   const value = text.trim().slice(0, 120);
   if (!contentBinding(store)?.workspaceRoot) return value;
@@ -393,7 +393,7 @@ const isRunner = (b) =>
 // One binding per task: a batch binding stands for each task in it, with
 // that task's own report. A later task in a batch starts when the one
 // before it reported (its commit is made after that one).
-export function perTask(binding) {
+function perTask(binding) {
   if (!binding.batch) return [binding];
   return binding.batch.tasks.map((id, i) => {
     const before = binding.batch.tasks
@@ -1131,7 +1131,7 @@ export function bucketOf(iso, unit) {
   return d.toISOString().slice(0, 10);
 }
 
-export function flowSeries(timings, stops, unit = "day", corrections = []) {
+function flowSeries(timings, stops, unit = "day", corrections = []) {
   const buckets = new Map(),
     get = (key) => {
       if (!buckets.has(key))

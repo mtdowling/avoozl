@@ -51,7 +51,7 @@ export function insertBreakdowns(
 }
 
 // A repository's stored breakdowns, oldest first, each with its key.
-export function breakdownsFor(store, repository) {
+function breakdownsFor(store, repository) {
   return store.db
     .prepare(
       "SELECT * FROM build_breakdowns WHERE repository=? ORDER BY at, rowid",

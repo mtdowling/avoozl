@@ -20,7 +20,7 @@ import { claimBranch, claimOp } from "./worker-claims.mjs";
 
 const COMPLETING = new Set(["landed", "done", "skipped"]);
 const UNITS = { m: 60_000, h: 3_600_000, d: 86_400_000 };
-export const DEFAULT_STALE = 24 * UNITS.h;
+const DEFAULT_STALE = 24 * UNITS.h;
 
 // `workers.claimStaleAfter`: "90m", "24h", "2d" or a number of seconds.
 export function claimStaleMs(value) {

@@ -17,7 +17,7 @@ import {
 const severities = new Set(["blocking", "important", "suggestion", "question"]);
 // A spec finding takes the Requirement 104 values; the older ones still map.
 const specSeverities = new Set([...FINDING_SEVERITIES, ...severities]);
-export const SPEC_FINDING_KINDS = Object.freeze([
+const SPEC_FINDING_KINDS = Object.freeze([
   "gap",
   "untestable",
   "wrong-reference",
@@ -718,21 +718,4 @@ export function applyReviewSuggestion(store, { id, expectedHash, author }) {
     author,
   });
   return { plan: saved, thread: store.get("review_threads", id) };
-}
-
-export function reviewPrompt({ plan, pipeline, step, existing }) {
-  return `Review this exact design revision as a senior software designer.
-
-Revision: ${plan.hash}
-Round: ${step.index + 1} of ${pipeline.sequence.length}
-
-Find only material gaps: incorrect authority boundaries, unsafe failure behavior, missing product requirements, contradictions, or acceptance criteria that cannot prove the outcome. Do not nitpick wording, style, optional polish, or repeat an existing point. If the design is already sound, submit no new comments and say so.
-
-Existing feedback to avoid repeating:
-${JSON.stringify(existing.map((thread) => ({ quote: thread.quote, comment: thread.comment, state: thread.state })))}
-
-Use plans_submit_review once with:
-{"input":{"planId":"${plan.id}","revisionHash":"${plan.hash}","comments":[{"quote":"exact unique passage","severity":"blocking|important|suggestion|question","comment":"why this materially matters","suggestion":"optional exact replacement"}]}}
-
-The quote must occur exactly once in the supplied design. Do not edit or approve the plan.`;
 }

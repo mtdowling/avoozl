@@ -20,7 +20,7 @@ import { withSource } from "./github-rate.mjs";
 export const SNAPSHOT_SOURCE = "pr-snapshot";
 // shortcut: one limit for every snapshot, on the patches only; make it a
 // role setting if a review role needs a larger pull request.
-export const SNAPSHOT_LIMIT = 1_048_576;
+const SNAPSHOT_LIMIT = 1_048_576;
 const FOLDER = "pull-request";
 
 const README = (omitted) =>

@@ -16,7 +16,7 @@ import { recordActivity } from "./activity-log.mjs";
 const HEALTH = "provider_health";
 const SWITCHES = "provider_switches";
 const LEVELS = ["ok", "low", "out"];
-export const PROVIDER_DEFAULTS = Object.freeze({ lowPercent: 80 });
+const PROVIDER_DEFAULTS = Object.freeze({ lowPercent: 80 });
 // Fixed since 2026-11-13: an error mark clears after 30 minutes, and usage
 // is summed over the last 5 hours.
 const COOLDOWN_MS = 30 * 60000;
@@ -38,7 +38,7 @@ function modelName(value, at) {
 
 // Machine-local `providers` (§4.20 Settings): `lowPercent`, and `limits`
 // that give usage a percent. Every key is optional.
-export function providersInput(value, at = "providers") {
+function providersInput(value, at = "providers") {
   if (value === undefined || value === null) return {};
   if (!record(value)) fail(`${at} must be an object.`);
   const out = {};
@@ -77,7 +77,7 @@ export function providersInput(value, at = "providers") {
 const machinePath = (store, options = {}) =>
   options.machineFile ?? contentBinding(store)?.configFile ?? null;
 
-export function readProviders(store, options = {}) {
+function readProviders(store, options = {}) {
   const file = machinePath(store, options);
   if (!file) return { settings: {}, hash: null, file: null };
   const { value, hash } = machineFile(file);
@@ -126,7 +126,7 @@ const applies = (mark, model, provider) =>
 const active = (mark, now) =>
   mark.source !== "error" || !mark.until || Date.parse(mark.until) >= now;
 
-export function listMarks(store) {
+function listMarks(store) {
   try {
     return store.list(HEALTH);
   } catch {
@@ -164,7 +164,7 @@ export function healthContext(store, options = {}) {
 // Usage in the last 5 hours, read live (R72.2): one row per provider seen
 // in the window and per limit key, with its percent of the limit when one
 // is set. [{key, credits, tokens, percent|null, limit|null}].
-export function usageReport(store, options = {}) {
+function usageReport(store, options = {}) {
   const settings = options.settings ?? readProviders(store, options).settings,
     now = options.now ?? Date.now(),
     since = iso(now - WINDOW_MS),
@@ -261,7 +261,7 @@ export function refreshHealth(store, options = {}) {
 
 // One session row's provider error (F127), or null. Kind first, then a
 // few words of the text; the text itself is never kept.
-export function errorKind(row) {
+function errorKind(row) {
   if (row?.role !== "error") return null;
   const kind = row.meta?.kind;
   if (kind === "usage_limit") return "credits";
@@ -424,7 +424,7 @@ function forbidden(store, binding, reviewRoles) {
 }
 
 // The healthy model a chat moves to (R72.9), or null.
-export function switchTarget(store, binding, health, options = {}) {
+function switchTarget(store, binding, health, options = {}) {
   const blocked = new Set([
       ...forbidden(store, binding, options.reviewRoles || []),
       binding.model,
@@ -971,7 +971,7 @@ export function recordModelList(store, models) {
   store.setMeta(MODELS, { models: names, readAt: new Date().toISOString() });
   return names;
 }
-export const modelList = (store) => store.getMeta(MODELS)?.models || [];
+const modelList = (store) => store.getMeta(MODELS)?.models || [];
 
 // The models a running chat may switch to (§4.20 Running chats): the
 // task's pin, then the models Kiro Crew lists.

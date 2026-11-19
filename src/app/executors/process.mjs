@@ -37,7 +37,7 @@ import { processRow } from "../role-table.mjs";
 import { loadHarnessDefinition } from "../harness-definitions.mjs";
 import { sessionServedModel } from "../process-view.mjs";
 
-export const PROCESS_EXECUTOR = "process";
+const PROCESS_EXECUTOR = "process";
 // The harness a `process` project runs when it names none.
 export const DEFAULT_HARNESS = "claude-code";
 const CONSUMER = "supervisor";

@@ -10,9 +10,9 @@ import { validatePack } from "./plugin-pack.mjs";
 import { lintSpec } from "./spec-plans.mjs";
 import { fail } from "./store.mjs";
 
-export const TEMPLATE_FILE = "avoozl-template.json";
-export const TEMPLATES_DIRECTORY = "templates";
-export const INPUT_TYPES = Object.freeze([
+const TEMPLATE_FILE = "avoozl-template.json";
+const TEMPLATES_DIRECTORY = "templates";
+const INPUT_TYPES = Object.freeze([
   "text",
   "choice",
   "file",
@@ -21,7 +21,7 @@ export const INPUT_TYPES = Object.freeze([
 ]);
 // A file input is read in the page; at most this much text reaches the seed.
 export const FILE_INPUT_BYTES = 200 * 1024;
-export const STARTER_FILES = Object.freeze([
+const STARTER_FILES = Object.freeze([
   "requirements.md",
   "design.md",
   "tasks.md",
@@ -184,7 +184,7 @@ function starterPhases(proposals) {
 // One template folder, checked. Throws naming the key or file; the caller
 // makes the plugin invalid with it. Returns the template with its prompt
 // and starter text.
-export function readTemplate(folder, name = path.basename(folder)) {
+function readTemplate(folder, name = path.basename(folder)) {
   const where = `${TEMPLATES_DIRECTORY}/${name}/${TEMPLATE_FILE}`;
   let value;
   try {

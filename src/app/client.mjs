@@ -7,7 +7,7 @@
 import { workspaceIdentity } from "./identity.mjs";
 import { fail } from "./store.mjs";
 
-export const CLIENT_API_VERSION = "1.0.0";
+const CLIENT_API_VERSION = "1.0.0";
 
 // Operations a client may invoke. Anything absent is refused by name instead
 // of being forwarded, so a client cannot reach an unreviewed operation.
@@ -124,7 +124,7 @@ export const CLIENT_OPERATIONS = Object.freeze([
 
 // Rules a client must follow. Published through `client.describe` so a client
 // cannot be written against guesses about them.
-export const CLIENT_CONTRACT = Object.freeze({
+const CLIENT_CONTRACT = Object.freeze({
   idempotency: Object.freeze({
     "intent.submit":
       "Reuse submissionId to retry. A different prompt under the same submissionId is rejected with 409.",
@@ -177,7 +177,7 @@ export function describeWorkspace(store) {
 }
 
 // Transport over an in-process `Operations` instance.
-export function localTransport(ops) {
+function localTransport(ops) {
   return {
     kind: "local",
     async call(operation, input, expectedRevision) {
@@ -187,7 +187,7 @@ export function localTransport(ops) {
 }
 
 // Transport over a running workspace server's shared command endpoint.
-export function httpTransport({
+function httpTransport({
   endpoint,
   workspaceId,
   fetch: fetchImpl = globalThis.fetch,
@@ -411,11 +411,4 @@ export class WorkspaceClient {
   handoff(id) {
     return this.call("handoff", { id });
   }
-}
-
-export function localClient(ops) {
-  return new WorkspaceClient(localTransport(ops));
-}
-export function remoteClient(options) {
-  return new WorkspaceClient(httpTransport(options));
 }

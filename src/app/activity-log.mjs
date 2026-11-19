@@ -13,7 +13,7 @@
 // snapshot against the one it saved last time (recordTickActivity).
 import { PUBLISH_RULES, check, secretReason } from "./content-rules.mjs";
 
-export const ACTIVITY_SOURCES = Object.freeze([
+const ACTIVITY_SOURCES = Object.freeze([
   "local",
   "github",
   "plugin",
@@ -23,7 +23,7 @@ export const ACTIVITY_SOURCES = Object.freeze([
 export const REDACTED_SUMMARY = "Redacted by content rules";
 export const DEFAULT_RETENTION_DAYS = 30;
 export const MAX_RETENTION_DAYS = 365;
-export const ACTIVITY_PAGE = 100;
+const ACTIVITY_PAGE = 100;
 const SUMMARY_LIMIT = 200;
 const KIND = /^[a-z][a-z0-9-]*(?:\.[a-z0-9-]+)*$/;
 const TARGET = /^[A-Za-z0-9][A-Za-z0-9._:@/#-]{0,199}$/;
@@ -37,7 +37,7 @@ const text = (value, limit) =>
     ? value.trim().slice(0, limit)
     : null;
 
-export function ensureActivityTable(store) {
+function ensureActivityTable(store) {
   store.db.exec(
     `CREATE TABLE IF NOT EXISTS activity_log(seq INTEGER PRIMARY KEY AUTOINCREMENT,at TEXT NOT NULL,source TEXT NOT NULL,actor TEXT,kind TEXT NOT NULL,summary TEXT NOT NULL,target_id TEXT,link TEXT,redacted INTEGER NOT NULL DEFAULT 0,key TEXT UNIQUE);
      CREATE INDEX IF NOT EXISTS activity_log_at ON activity_log(at);`,

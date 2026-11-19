@@ -68,15 +68,15 @@ import {
   ruleRepository,
 } from "./corrections.mjs";
 
-export const RETRO_AGENT = "avoozl-retro";
-export const RETRO_TIMEOUT_MS = 10 * 60_000;
+const RETRO_AGENT = "avoozl-retro";
+const RETRO_TIMEOUT_MS = 10 * 60_000;
 // The most one tick adds to a retro's wait. A tick that comes back after the
 // laptop slept or the app was closed counts this much, not the whole gap, so
 // the session gets its time to answer before the retro is failed.
 export const RETRO_TICK_CAP_MS = 5 * 60_000;
 // shortcut: fixed one-hour gap between a spike-triggered retro and the last
 // one; make it a setting if retrospectives run too often.
-export const SPIKE_GAP_MS = 60 * 60_000;
+const SPIKE_GAP_MS = 60 * 60_000;
 const CI_FALLBACK_MS = 30 * 60_000;
 const SPIKES = new Set(["slow", "retry", "ci"]);
 export const METRICS = Object.freeze([
@@ -153,7 +153,7 @@ function finishedTasks(store, data) {
 }
 
 // One metric over the last `n` finished tasks.
-export function metricOver(store, data, metric, n) {
+function metricOver(store, data, metric, n) {
   const view = flowView(store, data, { window: n });
   return view.metrics[METRIC_KEY[metric]] ?? null;
 }
@@ -438,7 +438,7 @@ const summary = (p) => ({
 });
 
 // Why a retro that waited too long failed: what became of its chat.
-export function retroFailure(store, retro, waitedMs) {
+function retroFailure(store, retro, waitedMs) {
   const waited = `${Math.round(waitedMs / 60_000)} minutes`,
     binding = store
       .list("session_bindings")

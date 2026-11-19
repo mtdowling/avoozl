@@ -63,7 +63,7 @@ export function logTail(file) {
 // over the session's runs, or with `per: "session"` the last one, since that
 // CLI reports the session's running total. `file`: the named file holds a
 // JSON number.
-export function sessionCost(row, definition) {
+function sessionCost(row, definition) {
   const cost = definition?.cost;
   if (!cost) return null;
   if (cost.from === "file") {

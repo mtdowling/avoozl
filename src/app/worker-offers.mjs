@@ -80,7 +80,7 @@ export function lanesOf(value) {
 
 // The offers for `login` in one pool, in journal order. Returns
 // {offers, held, refused}. `held` is set when the journal cannot be trusted.
-export function offersFrom(replay, { pool, login, registry }) {
+function offersFrom(replay, { pool, login, registry }) {
   const state = driverState(replay);
   if (state.held) return { offers: [], held: replay.reasons, refused: [] };
   if (!state.driver || openControls(state).length)

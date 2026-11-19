@@ -21,10 +21,8 @@ import {
   submitExtraction,
 } from "./design-extraction.mjs";
 
-export const PLAN_TEMPLATE = (prompt) =>
+const PLAN_TEMPLATE = (prompt) =>
   `# ${prompt.split("\n")[0].slice(0, 140)}\n\n${prompt}\n\nDescribe the outcome, scope, alternatives, decisions, validation, and rollout in the structure that best fits this design.\n`;
-export const PLAN_FORMAT =
-  "Write one design as ordinary Markdown. Explain the intended outcome, boundaries, decisions, dependencies, observable acceptance, validation, and rollout where they are material. Use whatever headings and structure fit the design. Do not embed machine bookkeeping merely to make work executable: Avoozl derives cited facts in a separate extraction. No work is executable before explicit extraction approval. Never approve your own design. Return the Markdown design as your final response.";
 // One fenced task block. A fresh instance per use keeps /g state local.
 const taskBlocks = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
 // Migration read path only (Requirement 30.8): old workspaces such as Nupp

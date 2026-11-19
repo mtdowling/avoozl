@@ -71,7 +71,7 @@ export async function git(cwd, args, { env } = {}) {
 // refuses a worker commit that holds one.
 const AVOOZL_FILES = ":(glob)**/.avoozl/**";
 const EXCLUDE_AVOOZL = ":(exclude,glob)**/.avoozl/**";
-export const isAvoozlPath = (file) =>
+const isAvoozlPath = (file) =>
   /(^|\/)\.avoozl(\/|$)/.test(file.replaceAll("\\", "/"));
 // Changes in the worktree, Avoozl's own files left out.
 export const worktreeChanges = (worktree) =>

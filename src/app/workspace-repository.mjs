@@ -144,7 +144,7 @@ function taskForPublication(store, task) {
   };
 }
 
-export function workspacePublication(store) {
+function workspacePublication(store) {
   const repositories = store.list("github_repositories");
   const files = {
     "workspace.json":
