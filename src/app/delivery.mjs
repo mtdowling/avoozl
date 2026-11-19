@@ -3211,11 +3211,24 @@ export async function rebaseForIntegration(project, worktree, commit) {
       target,
     ]);
   } catch (error) {
+    // The conflicted files, read before the merge is undone, so the
+    // worker chat can be told what to resolve (R87.6).
+    const files = (
+      await git(worktree.path, [
+        "diff",
+        "--name-only",
+        "--diff-filter=U",
+      ]).catch(() => "")
+    )
+      .split("\n")
+      .filter(Boolean);
     await git(worktree.path, ["merge", "--abort"]).catch(() => {});
-    fail(
+    const refused = Error(
       `Merging ${target} into the task branch failed: ${error.message.split("\n")[0]}`,
-      409,
     );
+    refused.status = 409;
+    if (files.length) refused.conflict = { base: target, files };
+    throw refused;
   }
   const head = await git(worktree.path, ["rev-parse", "HEAD"]);
   return head === commit ? null : { head, onto: target, how: "merge" };
@@ -3230,7 +3243,8 @@ export async function integrateVerified(
   store,
   { now = Date.now(), skip = new Set(), policy = null } = {},
 ) {
-  const notify = [];
+  const notify = [],
+    messages = [];
   for (const delivery of store.list("task_deliveries")) {
     if (delivery.state !== "verified" || skip.has(delivery.taskId)) continue;
     // Ship mode manual (§4.25, R80.4): a local task waits for a person's
@@ -3385,6 +3399,32 @@ export async function integrateVerified(
       if (delivery.batch) await integrateMembers(store, delivery, entry, at);
     } catch (error) {
       if (error.contention) continue;
+      // The base moved under a verified task and the merge conflicts: the
+      // conflict goes back to the task's own worker chat, as a landing
+      // conflict does (R87.6; found by worker-paths wp-p1, where it went
+      // straight to a person).
+      if (error.conflict) {
+        const { sendConflictBack } = await import("./landing-conflicts.mjs");
+        const sent = sendConflictBack(
+          store,
+          {
+            state: "conflict",
+            entry: {
+              key: `integrate:${delivery.taskId}:${delivery.commit}`,
+              tasks: delivery.batch
+                ? batchOrder(store, delivery.batch)
+                : [delivery.taskId],
+              base: error.conflict.base,
+              files: error.conflict.files,
+              baseHead: null,
+            },
+          },
+          { now },
+        );
+        messages.push(...sent.messages);
+        notify.push(...sent.notify);
+        continue;
+      }
       next = {
         ...delivery,
         state: "decision",
@@ -3403,7 +3443,7 @@ export async function integrateVerified(
     }
     store.transaction(() => store.put("task_deliveries", next));
   }
-  return { notify };
+  return { notify, messages };
 }
 
 // Integrate (§4.25, R80.4): a person lands a verified local task under
