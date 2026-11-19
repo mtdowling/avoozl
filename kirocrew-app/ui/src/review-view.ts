@@ -4,6 +4,7 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import { urlBase } from './focus-tree.ts'
+import { TONE } from './ui/tones.ts'
 
 export type FindingSeverity = 'info' | 'warn' | 'blocker'
 export type FindingState = 'open' | 'fixed' | 'answered' | 'for you' | 'accepted' | 'rejected' | 'deferred' | 'resolved'
@@ -101,15 +102,15 @@ export const SEVERITY_LABEL: Record<FindingSeverity, string> = {
 }
 // Border colors from the theme: info grey, warn yellow, blocker red.
 export const SEVERITY_COLOR: Record<FindingSeverity, string> = {
-  info: 'var(--border)',
-  warn: 'var(--warn)',
-  blocker: 'var(--danger)',
+  info: TONE.border,
+  warn: TONE.warn,
+  blocker: TONE.danger,
 }
 // Text and icon colors: the border's, but info reads in muted grey.
 export const SEVERITY_INK: Record<FindingSeverity, string> = {
-  info: 'var(--muted)',
-  warn: 'var(--warn)',
-  blocker: 'var(--danger)',
+  info: TONE.muted,
+  warn: TONE.warn,
+  blocker: TONE.danger,
 }
 // States that still need the planner or the person; the rest are done.
 export const OPEN_STATES = new Set<FindingState>(['open', 'answered', 'for you', 'accepted'])

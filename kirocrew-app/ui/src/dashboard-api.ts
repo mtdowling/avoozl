@@ -6,6 +6,7 @@
 import type { StoredPlanPage } from './plans-api.ts'
 import { nodeState, waves, type NodeState } from './graph-layout.ts'
 import { modelLabel, safeHref, type RadarClaim, type RadarGroup, type RadarCrews, type RadarCrewStrip, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask, type ProcessDetails, type RemoteWorker, type TaskLinks } from './views-api.ts'
+import { TONE } from './ui/tones.ts'
 
 // Session statuses after which a session will not move again.
 const ENDED = new Set(['closed', 'lost'])
@@ -82,17 +83,17 @@ function ago(ms: number | null): string {
 }
 
 const DOT: Record<string, { color: string; words: string }> = {
-  pass: { color: 'var(--ok)', words: 'Checks pass' },
-  fail: { color: 'var(--danger)', words: 'Checks fail' },
-  pending: { color: 'var(--warn)', words: 'Checks running' },
+  pass: { color: TONE.ok, words: 'Checks pass' },
+  fail: { color: TONE.danger, words: 'Checks fail' },
+  pending: { color: TONE.warn, words: 'Checks running' },
 }
 
 // The check dot on a `PR #N` chip (R92.3, R92.6): its theme color and what
 // it says. State for an older head is grey and says so, never its old state.
 export function checkDot(checks: TaskLinks['checks']): { dot: string; color: string; label: string } {
-  if (!checks) return { dot: 'none', color: 'var(--border)', label: 'No check result stored' }
+  if (!checks) return { dot: 'none', color: TONE.border, label: 'No check result stored' }
   if (checks.dot === 'stale' || !DOT[checks.dot])
-    return { dot: 'stale', color: 'var(--muted)', label: `Checks are for an older commit ${checks.head.slice(0, 7)}, not the current one · ${ago(checks.ageMs)}` }
+    return { dot: 'stale', color: TONE.muted, label: `Checks are for an older commit ${checks.head.slice(0, 7)}, not the current one · ${ago(checks.ageMs)}` }
   return { dot: checks.dot, color: DOT[checks.dot].color, label: `${DOT[checks.dot].words} on ${checks.head.slice(0, 7)} · ${ago(checks.ageMs)}` }
 }
 
