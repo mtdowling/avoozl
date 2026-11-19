@@ -6,7 +6,7 @@ export const TASK_KINDS = ["package", "leaf"];
 // Kinds stored before the work model. They read as leaves so that readiness
 // and dispatch of existing workspaces do not change.
 // "epic" is a row approved before Requirement 59 (see taskKind).
-export const LEGACY_TASK_KINDS = ["task", "milestone", "epic"];
+const LEGACY_TASK_KINDS = ["task", "milestone", "epic"];
 export const COMPLETIONS = [
   "merged-pr",
   "integrated",

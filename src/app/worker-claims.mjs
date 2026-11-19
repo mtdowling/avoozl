@@ -44,7 +44,7 @@ export const requestBody = ({ spec, task, definition, generation }) =>
 
 // A request comment's fields, or null. Anything but the exact shape is not a
 // request.
-export function parseRequest(body) {
+function parseRequest(body) {
   const found = REQUEST.exec(String(body ?? ""));
   if (!found) return null;
   let value;

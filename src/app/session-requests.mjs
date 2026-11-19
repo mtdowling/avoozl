@@ -209,7 +209,7 @@ export function takeSessionRequest(
   });
 }
 
-export function ownedSessionRequest(store, input, { executor, consumer } = {}) {
+function ownedSessionRequest(store, input, { executor, consumer } = {}) {
   const row = store.get("session_requests", input.id);
   if (
     !row ||

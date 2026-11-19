@@ -24,8 +24,6 @@ export function askLine(item: ConflictItem): string {
       return 'Choose whose value stays: Avoozl’s or the edit made on GitHub.'
     case 'stale-session':
       return 'Read why the chat ended, then retry the delivery or dismiss this row.'
-    case 'resource':
-      return 'Stop one of the runs, or wait for one to finish.'
     case 'content-match':
       return 'A content rule blocked a write. Read the match, then allow it once or fix the text.'
     case 'content-unavailable':
@@ -114,7 +112,7 @@ export function reviewEvidence(title: string, context: ItemContext | undefined):
 }
 
 // Which evidence blocks an item has. An item with none says so on the page.
-export type Evidence = 'values' | 'investigation' | 'review' | 'links' | 'checks' | 'content' | 'resource' | 'escalation' | 'summary' | 'text'
+export type Evidence = 'values' | 'investigation' | 'review' | 'links' | 'checks' | 'content' | 'escalation' | 'summary' | 'text'
 export function evidenceOf(item: ConflictItem): Evidence[] {
   const out: Evidence[] = []
   if (item.expected !== undefined || item.actual !== undefined) out.push('values')
@@ -126,7 +124,6 @@ export function evidenceOf(item: ConflictItem): Evidence[] {
   if (links && (links.branch || links.pr || links.checks)) out.push('links')
   if (item.context?.failedChecks?.checks.length) out.push('checks')
   if (item.kind === 'content-match' || item.kind === 'content-unavailable') out.push('content')
-  if (item.runs?.length) out.push('resource')
   if (item.escalation) out.push('escalation')
   return out
 }

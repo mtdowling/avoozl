@@ -66,7 +66,7 @@ const KEYS = {
   plan: { as: "plan", type: "text" },
   step: { as: "step", type: "text" },
 };
-export const FACT_KEYS = Object.keys(KEYS);
+const FACT_KEYS = Object.keys(KEYS);
 
 // Front-matter: defaults for a leaf, and values for the whole spec.
 const DEFAULTS = {
@@ -82,7 +82,7 @@ const SPEC_KEYS = [
   "publicBranch",
   "kind",
 ];
-export const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
+const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
 
 // The order a task's keys have in the text the revision hash reads. It is the
 // order the manifest files had, so a converted spec hashes as it did.

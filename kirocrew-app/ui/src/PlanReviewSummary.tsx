@@ -10,6 +10,7 @@ import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { WorkingStyle } from './ui/PageStyles'
 import { PlainButton, PlainLink } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 export function reviewStateLabel(review?: Summary | null): string {
   if (!review || review.state === 'not-reviewed') return 'Not reviewed'
@@ -29,7 +30,7 @@ export function ReviewWorking(props: { model: string | null; title?: string; lab
     <Box data-review-working role="status" aria-live="polite" aria-label={label} rounded="lg" px="4" py="3">
       <WorkingStyle />
       <Box relative flex items="center" gap="3">
-        <Hourglass size={18} aria-hidden className="shrink-0" style={{ color: 'var(--aim, #7c3aed)' }} />
+        <Glyph icon={Hourglass} size={18} aria-hidden css-color="aim-7c3aed" shrink0 />
         <Box minW0 flex1>
           <Box as="p" css-color="aim-7c3aed" m0 weight="semibold" data-plan-review-state>{props.title ?? 'Review running'}</Box>
           <Hint as="p" size="xs" flush>{label}</Hint>

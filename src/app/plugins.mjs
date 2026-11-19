@@ -31,8 +31,8 @@ import { pluginSession } from "./plugin-session.mjs";
 import { fail } from "./store.mjs";
 import { readTemplates } from "./templates.mjs";
 
-export const PLUGIN_MANIFEST = "avoozl-plugin.json";
-export const RESERVED_IDS = new Set(["local", "github"]);
+const PLUGIN_MANIFEST = "avoozl-plugin.json";
+const RESERVED_IDS = new Set(["local", "github"]);
 export const KINDS = ["intake", "rules"];
 export const CAPABILITIES = {
   // The intake part's one call is `poll`, which brings outside work in
@@ -55,7 +55,7 @@ const PART_KIND = {
 
 // A manifest's parts and the code kinds they need. A manifest written
 // before `provides` names its kinds, and each kind is its own part.
-export function pluginParts(manifest) {
+function pluginParts(manifest) {
   const provides = Array.isArray(manifest?.provides)
     ? manifest.provides
     : Array.isArray(manifest?.kinds)
@@ -75,9 +75,9 @@ const CHILD = fileURLToPath(new URL("./plugin-child.mjs", import.meta.url));
 const MAX_FILES = 10000;
 const MAX_BYTES = 100 * 1024 * 1024;
 const MAX_LINE = 1024 * 1024;
-export const CALL_TIMEOUT_MS = 20_000;
+const CALL_TIMEOUT_MS = 20_000;
 // Plugin calls stop at a safe point inside the tick's own budget (§4.5).
-export const TICK_BUDGET_MS = 45_000;
+const TICK_BUDGET_MS = 45_000;
 
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -274,7 +274,7 @@ const gitRoot = (settingsFile, id) =>
 
 // A git entry's pin on this machine, or null when there is none or it was
 // made for a different git, ref or subdir.
-export function gitPin(entry, settings) {
+function gitPin(entry, settings) {
   const pin = settings.pins?.[entry.id];
   if (
     !record(pin) ||
@@ -291,7 +291,7 @@ export function gitPin(entry, settings) {
 // Where an entry's files are: a path relative to `.avoozl.json` (repository)
 // or to the settings file (machine), a package installed into the plugin
 // folder beside the machine settings, or a git entry's pinned commit there.
-export function pluginLocation({ entry, source }, options, pin = null) {
+function pluginLocation({ entry, source }, options, pin = null) {
   const { settingsFile } = options;
   if (entry.path !== undefined)
     return path.resolve(sourceBase(source, options), entry.path);

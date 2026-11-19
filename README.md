@@ -479,8 +479,8 @@ MCP has one tool per thing, each with an `action` field that names one
 operation: `plans_workspace` (read only), `plans_maintain`, `plans_view`,
 `plans_plan`, `plans_review`, `plans_task`, `plans_session`,
 `plans_conflicts`, `plans_intake`, `plans_document`, `plans_github`,
-`plans_repos` (read only), `plans_plugins` (read only), `plans_content`, and
-`plans_run`. Each tool's description lists its actions. A call looks like
+`plans_repos` (read only), `plans_plugins` (read only), and `plans_content`.
+Each tool's description lists its actions. A call looks like
 `{"action": "get", "input": {"id": "TASK_ID"}}`.
 
 Some actions belong to a person and are refused over MCP under any tool

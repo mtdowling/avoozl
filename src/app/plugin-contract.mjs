@@ -167,7 +167,7 @@ function trigger(value, where) {
 
 // Rules kind (R40.9): one call, ruleSets, returning {sets: [{id, version,
 // rules: [{id, pattern}]}]}. The rules stay in memory (content-rules.mjs).
-export const rulesReplies = {
+const rulesReplies = {
   ruleSets(reply) {
     try {
       return { sets: checkRuleSets(reply) };

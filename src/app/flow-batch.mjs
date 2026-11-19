@@ -25,11 +25,6 @@ import { statusComplete } from "../query.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 
-export const batchFinal = (binding) =>
-  binding.batch?.tasks.every((id) =>
-    ["done", "blocked"].includes(binding.reports?.[id]?.kind),
-  );
-
 // Why the group `task` belongs to may not run as one handoff, or null when
 // it may. `members` are the group's tasks still open. Pure over the store's
 // records; the tick and the views read the same answer.

@@ -70,16 +70,15 @@ const FIELDS = ["title", "body", "labels", "blockers"];
 // blocker closed without merged code (R33.9). A manual leaf says a person
 // closes it (R61.14); `shown` are the links a person ticked Show
 // on the issue (R61.23).
-export const MANUAL_LINE =
+const MANUAL_LINE =
   "Manual task: a person closes this issue or marks it done in Avoozl. No agent works on it.";
 // A public-safe issue that waits on a private task says only this (RC25.9).
-export const PRIVATE_WAIT_LINE = "Waits on a private task.";
+const PRIVATE_WAIT_LINE = "Waits on a private task.";
 // One line per workspace rule a Radar crew must follow (task.implement and
 // github.issue.implement). The line cannot end the managed section or start
 // a heading, and the body still passes the content-rule write guard.
-export const AGENT_RULES_LINE =
-  "Follow these Avoozl workspace rules for this task:";
-export const agentRuleLine = (rule) =>
+const AGENT_RULES_LINE = "Follow these Avoozl workspace rules for this task:";
+const agentRuleLine = (rule) =>
   `- ${rule.title}: ${String(rule.instruction).replace(/\s+/g, " ").trim()}`.replace(
     /<!--/g,
     "&lt;!--",

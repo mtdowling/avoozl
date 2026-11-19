@@ -29,7 +29,7 @@ const currentApproval = (store, plan) =>
   null;
 
 // Whether an approval receipt carries verified evidence (§4.32.6).
-export function verifiedApproval(receipt) {
+function verifiedApproval(receipt) {
   const evidence = receipt?.approval;
   if (!evidence) return false;
   if (evidence.kind === "local") return true;

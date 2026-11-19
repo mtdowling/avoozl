@@ -1,7 +1,7 @@
 // Path and branch globs as GitHub writes them: `*` matches within one path
 // part, `**` across parts, `?` one character. A leading `**/` also matches
 // at the top level.
-export function globToRegExp(glob) {
+function globToRegExp(glob) {
   const lead = glob.startsWith("**/"),
     body = lead ? glob.slice(3) : glob,
     source = body

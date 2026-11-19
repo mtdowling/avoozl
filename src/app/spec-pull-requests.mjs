@@ -25,8 +25,8 @@ import {
 import { workingBranch } from "./working-heads.mjs";
 import { fail } from "./store.mjs";
 
-export const SPEC_PULL_KIND = "spec-pr";
-export const SPEC_ROOT = ".kiro/specs/";
+const SPEC_PULL_KIND = "spec-pr";
+const SPEC_ROOT = ".kiro/specs/";
 // The same allowed-actor or minimum-permission check the trigger labels use.
 async function allowedActor(github, policy, repository, login) {
   if (!login) return { allowed: false, reason: "The actor could not be read." };
@@ -47,9 +47,9 @@ async function allowedActor(github, policy, repository, login) {
 }
 
 // How long an author's permission answer is kept.
-export const AUTHOR_TTL_MS = 24 * 60 * 60 * 1000;
+const AUTHOR_TTL_MS = 24 * 60 * 60 * 1000;
 // A merge GitHub refused is tried again after this long, or on a new head.
-export const MERGE_RETRY_MS = 10 * 60 * 1000;
+const MERGE_RETRY_MS = 10 * 60 * 1000;
 const NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const lower = (value) => String(value ?? "").toLocaleLowerCase();
 const MAX_DIFF = 20000;

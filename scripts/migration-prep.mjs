@@ -32,12 +32,20 @@ for (const key of ["db", "docs", "commit", "entries", "out"])
 if (!/^[0-9a-f]{40}$/.test(args.commit))
   throw Error("--commit must be a full commit hash");
 
+// The old host stored runs and deliveries in tables Avoozl no longer creates;
+// a frozen copy still has them, so read its rows directly.
+const oldRows = (store, table) =>
+  store.db
+    .prepare(`SELECT body FROM ${table} ORDER BY rowid DESC`)
+    .all()
+    .map((row) => JSON.parse(row.body));
+
 const store = new Store(args.db);
 // The copy must be read-only, so nothing here can write it.
 if (!store.readOnly) throw Error("--db must be a read-only file");
 const data = store.read();
 const evidence = store.list("evidence");
-const runs = store.list("runs").map((r) => ({
+const runs = oldRows(store, "runs").map((r) => ({
   id: r.id,
   taskId: r.taskId ?? r.task_id,
   state: r.state,

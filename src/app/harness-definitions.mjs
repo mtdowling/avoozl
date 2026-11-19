@@ -11,9 +11,9 @@ import { fail } from "./store.mjs";
 import { EXECUTOR_CONTRACT } from "./executors.mjs";
 import { recordActivity } from "./activity-log.mjs";
 
-export const HARNESS_DIRECTORY = "harnesses";
-export const HARNESS_APPROVALS = "harness-approvals.json";
-export const HARNESS_PLACEHOLDERS = Object.freeze([
+const HARNESS_DIRECTORY = "harnesses";
+const HARNESS_APPROVALS = "harness-approvals.json";
+const HARNESS_PLACEHOLDERS = Object.freeze([
   "worktree",
   "brief_file",
   "model",
@@ -26,7 +26,7 @@ export const HARNESS_PLACEHOLDERS = Object.freeze([
   "project_cache_dirs",
   "project_allow_commands",
 ]);
-export const PERMISSION_CLASSES = EXECUTOR_CONTRACT.permissionClasses;
+const PERMISSION_CLASSES = EXECUTOR_CONTRACT.permissionClasses;
 export const HARNESS_UNCONFINED = "harness-unconfined.json";
 const WRITE_ROOTS = ["{worktree}", "{tmp}", "{project_cache_dirs}"];
 const NAME = /^[a-z][a-z0-9-]{0,60}$/;
@@ -54,7 +54,7 @@ const KEYS = new Set([
   // list in Settings › Models; nothing else reads it.
   "proved",
 ]);
-export const ROLE_CLASSES = Object.freeze(["read", "write"]);
+const ROLE_CLASSES = Object.freeze(["read", "write"]);
 // Variables a harness may keep to sign in to its own provider. Never a
 // GitHub, git, SSH, Kiro Crew or Avoozl name: those stay out of a child.
 const KEEP_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;

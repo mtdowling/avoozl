@@ -52,6 +52,8 @@ import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
 import { PlainButton, PlainInput, PlainTextarea } from './ui/Plain'
+import { fieldStyle, mono } from './ui/looks/ContentRulesSettings.ts'
+import { Glyph } from './ui/Glyph'
 
 type Client = ReturnType<typeof contentClient>
 type Selection = { kind: 'set' | 'builtin'; id: string } | { kind: 'new' }
@@ -92,7 +94,7 @@ function SetRow(props: { selected: boolean; onClick: () => void; title: string; 
         }}
       >
         <Box as="span" flex wFull items="center" gap="1.5" size="sm" weight="medium">
-          {props.locked && <Lock size={12} aria-label="Built in" style={{ color: 'var(--muted)', flexShrink: 0 }} />}
+          {props.locked && <Glyph icon={Lock} size={12} aria-label="Built in" css-color="muted" css-flex-shrink="0" />}
           <Box as="span" truncate>{props.title}</Box>
           {props.note && <Box as="span" ml="auto" shrink0>{props.note}</Box>}
         </Box>
@@ -296,19 +298,6 @@ function SetFormView(props: {
 // ---------------------------------------------------------------------------
 // The terms editor: Rule builder and File view over one text.
 
-// Native fields: the host Input fills its row, and a rule row needs three
-// fields side by side.
-const fieldStyle = {
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  background: 'var(--card, var(--bg))',
-  color: 'var(--text)',
-  padding: '4px 8px',
-  fontSize: 13,
-  minWidth: 0,
-  width: '100%',
-}
-const mono = { fontFamily: 'var(--mono, monospace)' }
 const rowGrid = { display: 'grid', gridTemplateColumns: 'minmax(6rem, 9rem) minmax(8rem, 10rem) minmax(0, 1fr) auto', gap: 8, alignItems: 'center' }
 const rowGridNarrow = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) auto', gap: 6, alignItems: 'center' }
 
@@ -669,7 +658,7 @@ function TermsEditor(props: {
       )}
       <TryIt rows={rows} />
       <Box as="p" flex items="start" gap="1.5" size="xs" tone="muted">
-        <ShieldCheck size={ICON} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />
+        <Glyph icon={ShieldCheck} size={ICON} aria-hidden="true" css-flex-shrink="0" css-margin-top="1" />
         <span>
           Saved only to <code>{file.file}</code>, which Git must ignore and only your account can read. A rule’s name can show in logs and
           notices; its words never do, so keep the words out of the name.

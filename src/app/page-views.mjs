@@ -44,12 +44,6 @@ import { taskLinks } from "./scm-links.mjs";
 import { approvals, batchRules } from "./flow-batch.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
-const ACTIVE_RUNS = new Set([
-  "starting",
-  "running",
-  "waiting-input",
-  "waiting-approval",
-]);
 const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
 // Managed fields a person's choice can settle (github.conflict.resolve).
 const RESOLVABLE_FIELDS = new Set(["title", "body", "labels", "blockers"]);
@@ -117,7 +111,7 @@ export function ownership(task) {
 // What a person must do for a task before it moves, with a link.
 // Manual leaves whose blockers hold: each waits in Needs you for a person
 // (R61.11). The same readiness rule as `ready`, asked with `manual`.
-export function manualWaitingIds(data, repositories) {
+function manualWaitingIds(data, repositories) {
   return new Set(
     queryTasks(data, {
       scope: "all",
@@ -177,14 +171,14 @@ function statusWithoutSession(task, live, claimed) {
 }
 
 // The plain reason for a status with no session behind it.
-export const noSessionLine = (status) =>
+const noSessionLine = (status) =>
   status === "running"
     ? "Marked running, but no session is running"
     : "Marked in review, but no review is running";
 
 // The archived plans, and the one a task belongs to (or null). Views mark
 // archived work with it; the page hides it unless Show archived is on.
-export function archivedPlanOf(store) {
+function archivedPlanOf(store) {
   const archived = optionalList(store, "plans").filter(
     (plan) => plan.archivedAt && !plan.deletedAt,
   );
@@ -199,7 +193,7 @@ export function archivedPlanOf(store) {
 
 // Tasks waiting for review, one item per plan, spec folder or document, so
 // a plan move that touches 70 tasks is one thing to look at, not 70.
-export function reviewGroups(store, data) {
+function reviewGroups(store, data) {
   const plans = new Map(
       optionalList(store, "plans").map((plan) => [plan.id, plan]),
     ),
@@ -609,7 +603,7 @@ function section(text, pattern) {
 }
 
 export const NO_EPIC = "(none)";
-export const NO_PHASE = "(none)";
+const NO_PHASE = "(none)";
 
 // The plans the Graph drills into: each stored plan with its epic and its
 // phases in tasks.md order, with task counts. Titles come from records.
@@ -799,7 +793,6 @@ export function deliveryView(store, data, { config } = {}) {
     machineAvoozlPaths(),
   );
   const bindings = byTask(bindingRows),
-    runs = byTask(optionalList(store, "runs")),
     evidence = byTask(optionalList(store, "evidence")),
     deliveries = byTask(optionalList(store, "task_deliveries")),
     worktrees = byTask(optionalList(store, "task_worktrees")),
@@ -875,7 +868,6 @@ export function deliveryView(store, data, { config } = {}) {
     if (
       !DELIVERY_STATUSES.has(task.status) &&
       !bindings.has(id) &&
-      !runs.has(id) &&
       !evidence.has(id) &&
       !deliveries.has(id) &&
       !worktrees.has(id) &&
@@ -947,14 +939,6 @@ export function deliveryView(store, data, { config } = {}) {
             : {}),
         }))
         .sort((a, b) => a.attempt - b.attempt || a.role.localeCompare(b.role)),
-      runs: (runs.get(id) || [])
-        .filter((run) => !run.deletedAt)
-        .map((run) => ({
-          id: run.id,
-          state: run.state,
-          provider: run.provider ?? null,
-          createdAt: run.createdAt ?? null,
-        })),
       evidence: [
         ...links.map((text) => ({ text: String(text) })),
         ...(evidence.get(id) || []).map((record) => ({
@@ -1027,8 +1011,7 @@ export function avoozlStates(store, data) {
 
 // Open conflicts and decisions: open decisions on tasks, GitHub projection
 // conflicts (managed fields, duplicate task IDs, closed issues), tasks
-// that need a person, sessions that ended under unfinished tasks, and active
-// runs that share a resource.
+// that need a person, and sessions that ended under unfinished tasks.
 // Issue Radar's hold on a GitHub leaf (github-crew.mjs), in plain words for
 // Needs you (R52.10); null for any other decision.
 function crewHoldText(task) {
@@ -1243,23 +1226,6 @@ export function conflictsView(store, data) {
     const task = byId.get(item.taskId);
     items.push({ ...item, ...(task ? ownership(task) : {}) });
   }
-  const holders = new Map();
-  for (const run of optionalList(store, "runs"))
-    if (ACTIVE_RUNS.has(run.state) && !run.deletedAt)
-      for (const resource of run.resources || []) {
-        if (!holders.has(resource)) holders.set(resource, []);
-        holders.get(resource).push(run);
-      }
-  for (const [resource, runs] of holders)
-    if (runs.length > 1)
-      items.push({
-        kind: "resource",
-        taskId: runs[0].taskId,
-        ...ownership(byId.get(runs[0].taskId)),
-        title: `Shared resource ${resource}`,
-        detail: `Active runs ${runs.map((run) => run.id).join(", ")} share ${resource}.`,
-        runs: runs.map((run) => run.id),
-      });
   for (const item of items) {
     const task = item.taskId ? byId.get(item.taskId) : null;
     item.planArchived = task ? archivedOf(task) : null;
@@ -1505,9 +1471,9 @@ export function taskOrigin(task, data, plan = null) {
 }
 
 // One task's events, newest first, from the rows' own times: the task row,
-// its sessions, evidence, deliveries, integration and runs. Avoozl keeps no
+// its sessions, evidence, deliveries and integration. Avoozl keeps no
 // separate task event log, so this is what "history" means on the page.
-export function taskTimeline(task, delivery) {
+function taskTimeline(task, delivery) {
   return [
     task.updatedAt && { at: task.updatedAt, text: "Task row changed" },
     ...(delivery?.sessions || []).flatMap((s) => [
@@ -1534,13 +1500,6 @@ export function taskTimeline(task, delivery) {
       at: delivery.integration.at,
       text: `Integrated ${String(delivery.integration.commit || "").slice(0, 12)}`,
     },
-    ...(task.runs || delivery?.runs || []).map(
-      (run) =>
-        run.createdAt && {
-          at: run.createdAt,
-          text: `Run ${run.id} (${run.state})`,
-        },
-    ),
   ]
     .filter((entry) => entry && typeof entry.at === "string")
     .sort((a, b) => b.at.localeCompare(a.at));
@@ -1750,7 +1709,7 @@ const shown = (value) =>
       ? String(value)
       : "empty";
 
-export function sameItem(item, key) {
+function sameItem(item, key) {
   return (
     item.kind === key.kind &&
     (item.taskId ?? null) === (key.taskId ?? null) &&

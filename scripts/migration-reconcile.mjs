@@ -56,10 +56,18 @@ for (const key of [
 if (!/^[0-9a-f]{40}$/.test(args.commit))
   throw Error("--commit must be a full commit hash");
 
+// The old host stored runs and deliveries in tables Avoozl no longer creates;
+// a frozen copy still has them, so read its rows directly.
+const oldRows = (store, table) =>
+  store.db
+    .prepare(`SELECT body FROM ${table} ORDER BY rowid DESC`)
+    .all()
+    .map((row) => JSON.parse(row.body));
+
 const store = new Store(args.db);
 if (!store.readOnly) throw Error("--db must be a read-only file");
 const data = store.read();
-const runs = store.list("runs");
+const runs = oldRows(store, "runs");
 const events = [];
 for (const r of runs.filter((r) => DRAIN_STATES.includes(r.state))) {
   let after = 0;
@@ -70,7 +78,7 @@ for (const r of runs.filter((r) => DRAIN_STATES.includes(r.state))) {
     after = page.at(-1).seq;
   }
 }
-const deliveries = store.list("deliveries");
+const deliveries = oldRows(store, "deliveries");
 store.close();
 
 // Archive marks the old host wrote into its own scratch copy (step 7).

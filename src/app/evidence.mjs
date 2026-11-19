@@ -22,7 +22,7 @@ import {
 } from "./content-rules.mjs";
 import { fail } from "./store.mjs";
 
-export const EVIDENCE_KINDS = Object.freeze([
+const EVIDENCE_KINDS = Object.freeze([
   "findings",
   "falsifier",
   "decision",
@@ -51,7 +51,7 @@ const MARKER = (taskId) => `<!-- avoozl:evidence:${taskId} -->`;
 const COMMENTS = "evidence.comments";
 
 // The bundle folder, or null when the workspace has no local folder.
-export function evidenceFolder(store, taskId) {
+function evidenceFolder(store, taskId) {
   const root = contentBinding(store)?.workspaceRoot;
   if (!root || !SAFE_ID.test(String(taskId)) || taskId.includes(".."))
     return null;
@@ -266,7 +266,7 @@ export function taskEvidence(store, input = {}) {
 
 // The pull request comment's text (R76.4): the summary only, newest first,
 // no attached files. The marker finds it again.
-export function evidenceSummary(taskId, entries) {
+function evidenceSummary(taskId, entries) {
   const lines = [
     MARKER(taskId),
     "### Evidence",

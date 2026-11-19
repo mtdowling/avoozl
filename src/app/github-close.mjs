@@ -96,7 +96,7 @@ const login = (event) => event?.actor?.login || "";
 // change is read from the REST events and timeline as
 // `project_v2_item_status_changed` (Inferred until proof P11); both lists are
 // one page of 100.
-export async function readCloser(github, repository, issue) {
+async function readCloser(github, repository, issue) {
   const [events, timeline] = await Promise.all([
       github.issueEvents(repository, issue.number),
       github.issueTimeline

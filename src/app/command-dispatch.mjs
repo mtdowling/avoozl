@@ -235,7 +235,7 @@ export function principalAllows(claim, operation) {
 export const offered = (operation) =>
   MACHINE_OPERATIONS.has(operation) || APP_OPERATIONS.has(operation);
 
-export function badRequest(message, status = 400) {
+function badRequest(message, status = 400) {
   const error = Error(message);
   error.status = status;
   return error;

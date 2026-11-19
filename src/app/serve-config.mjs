@@ -5,8 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 // Whole-number port range of `avoozl serve --port` (SW3.2).
-export const SERVE_PORT_MIN = 1024;
-export const SERVE_PORT_MAX = 65535;
+const SERVE_PORT_MIN = 1024;
+const SERVE_PORT_MAX = 65535;
 
 export const SERVE_KEYS = ["enabled", "port"];
 
