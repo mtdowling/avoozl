@@ -36,3 +36,28 @@ test("spec lint fails on a spec with an error", () => {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("spec lint refuses a Status line and says approval lives in Avoozl", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "spec-lint-"));
+  try {
+    const folder = path.join(root, ".kiro", "specs", "stale");
+    fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(
+      path.join(folder, "requirements.md"),
+      "# Stale\n\nStatus: Draft\n",
+    );
+    fs.writeFileSync(path.join(folder, "design.md"), "# Stale\n");
+    fs.writeFileSync(
+      path.join(folder, "tasks.md"),
+      "---\nchecks: npm test\n---\n- [ ] 1 One\n  - Facts:\n    - done: it works\n",
+    );
+    const run = spawnSync(process.execPath, [script, root], {
+      encoding: "utf8",
+    });
+    assert.equal(run.status, 1, run.stdout + run.stderr);
+    assert.match(run.stdout, /stale: 1 errors/);
+    assert.match(run.stdout, /requirements\.md:3 .*approval lives in Avoozl/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -1,7 +1,5 @@
 # Design: the remaining Avoozl work
 
-Status: Draft
-
 Status 2026-11-18: see `tasks.md`. Most of the plan is built.
 
 Requirements are in `requirements.md` (AN1 to AN4). This spec adds no design

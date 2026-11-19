@@ -4,7 +4,9 @@ completion: integrated
 ---
 # Tasks: Avoozl plans and gates, Issue Radar crews code
 
-Status: Approved
+**Superseded 2026-11-18** by `.kiro/specs/triage-agent/`, whose task ta-5.3
+deletes this spec (TA11.5). No task here is to be built. Until ta-5.3 lands,
+the items listed below as still in force stay citable.
 
 **Superseded 2026-11-15** by Requirements 86–91 and design §4.26 of
 `.kiro/specs/avoozl/`: Avoozl owns the coding loop with its own workers,
@@ -29,8 +31,8 @@ landing; no real workspace data, credentials or personal plans in the
 repository (AGENTS.md); no force push; land by task branch, pull request and
 `gh pr merge --merge` once Linux, macOS and Windows pass.
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts. Task IDs start with `rc-` so they never collide with the IDs of
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts. Task IDs start with `rc-` so they never collide with the IDs of
 `.kiro/specs/avoozl/`. Tasks whose facts say `manual: true` wait for
 a person. Completed tasks name `avoozl/manifest.json` as built then; task
 facts live in `tasks.md` since avoozl Requirement 111.
@@ -68,7 +70,7 @@ Requirement RC1. The Radar path starts with one setting and four label names. No
     - checks: npm test, git diff --check
     - after: rc-1.2
   - After projection the source issue is the parent of the projected issues and has no ready label; `radar.clearPlanLabel` (default off) removes the planning label; one Needs you row says to clear the needs-human label, shown once; Avoozl never writes the claim or needs-human labels.
-- [ ] rc-p1 Proof 1: Avoozl lists only what it was asked to plan, after rc-1.1, rc-1.2, rc-1.3 [RC1] (§D17)
+- [x] rc-p1 Proof 1: Avoozl lists only what it was asked to plan, after rc-1.1, rc-1.2, rc-1.3 [RC1] (§D17)
   - Facts:
     - done:
       - Expected result observed; a receipt under `docs/evidence/` records setup, action, observation and verdict.
@@ -77,6 +79,7 @@ Requirement RC1. The Radar path starts with one setting and four label names. No
   - Setup: a scratch repository, `coder: issue-radar`, three plain open issues, one with the planning label from an allowed person, one with it from a stranger, one `plan me` issue from the owner. Action: run the Untriaged read and the hand-off read; start Plan this. Expected: only the two planned issues appear; the plain ones never; the stranger's is left alone; the `plan me` routes by scope. Failure means: Avoozl still triages. Next decision: drop the Intake list for Radar-coded repositories.
   - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-1.md)
   - Live run 2026-11-15: pass except the stranger case, which needs a second GitHub account (see docs/evidence/rc-proof-1-live.md)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 2: Projection
 
@@ -179,7 +182,7 @@ Requirement RC3. The approval becomes a commit a crew can read, and one command 
     - checks: npm test, git diff --check
     - after: rc-3.1, rc-2.1
   - Every projected issue body gets the provenance marker after the managed marker; `plans=` only when allowed; screened by content rules.
-- [ ] rc-p3 Proof 3: a real crew verifies, and each bad issue is refused, after rc-3.2, rc-3.4, rc-3.5, rc-3.6 [RC3] (§D17)
+- [x] rc-p3 Proof 3: a real crew verifies, and each bad issue is refused, after rc-3.2, rc-3.4, rc-3.5, rc-3.6 [RC3] (§D17)
   - Facts:
     - done:
       - Expected result observed live; receipt under `docs/evidence/`.
@@ -188,6 +191,7 @@ Requirement RC3. The approval becomes a commit a crew can read, and one command 
   - Setup: a scratch repository, one Radar crew with the one-line prompt, an approved spec merged through the approval pull request; plans-repo variant with a second private repo. Action: six issues: good; approver with no permission; task ID not in the spec; commit not on the default branch; author with no permission and a valid owner's login in the marker; marker edited after approval. Expected: the good one builds; each bad one is skipped as `needs-decision` and names its check. Failure means: the one-line prompt is not followed. Next decision: put the checks back in a longer prompt or add a hook.
   - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-3.md)
   - Live run 2026-11-15: a real crew refused four bad issues by check name and built the good one; the author case (second account) and the plans-repo crew repeat are not run (see docs/evidence/rc-proof-3-live.md)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 4: Release
 
@@ -270,7 +274,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
     - checks: npm test, git diff --check
     - after: rc-5.2, rc-3.3
   - The tick runs `issue.verify` once per issue per marker hash before arming; a failure arms nothing and opens one Needs you row.
-- [ ] rc-p5 Proof 5: auto-merge on the right pull requests only, after rc-5.2, rc-5.3, rc-5.4, rc-5.5 [RC5] (§D17)
+- [x] rc-p5 Proof 5: auto-merge on the right pull requests only, after rc-5.2, rc-5.3, rc-5.4, rc-5.5 [RC5] (§D17)
   - Facts:
     - done:
       - Expected result observed live; receipt under `docs/evidence/`.
@@ -279,6 +283,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
   - Setup: scratch repository with a required check and auto-merge allowed; one crew. Action: crew PR for a marked issue; a stranger's fork PR; a manual-mode run; a conflict. Expected: only the crew PR merges by itself after green; the rest wait. Failure means: a pull request merged that should not. Next decision: arm only on an explicit label.
   - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-5.md)
   - Live run 2026-11-15: pass except the fork and stranger pull requests, which need a second account (see docs/evidence/rc-proof-5-live.md)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 6: The avoozl-crew agent
 
@@ -447,7 +452,7 @@ Requirement RC9. A goal becomes issues after one approval, through a generated m
     - checks: npm test, git diff --check
     - after: rc-9.2, rc-2.5
   - Mockup `05-quick-goal.html`; Approve, Edit, Promote, Discard; confirm lists every issue; Promote opens the folder in Spec Builder and keeps issue links; auto-approve setting off by default.
-- [ ] rc-p9 Proof 9: Make tests faster, after rc-9.1, rc-9.2, rc-9.3 [RC9] (§D17)
+- [x] rc-p9 Proof 9: Make tests faster, after rc-9.1, rc-9.2, rc-9.3 [RC9] (§D17)
   - Facts:
     - done:
       - Expected result observed live; receipt under `docs/evidence/`.
@@ -456,6 +461,7 @@ Requirement RC9. A goal becomes issues after one approval, through a generated m
   - Setup: a scratch repository with a slow test suite. Action: quick goal "Make tests faster" with Measure; approve; let crews build; then a goal that crosses a promote rule. Expected: issues with measured evidence; one approval; the second goal offers Promote. Failure means: a crew skipped a mini-spec issue (Q6). Next decision: Promote for every goal.
   - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-9-fake-github.md)
   - Live run 2026-11-15 failed: the app has no planner chat, so Quick goal stops at Investigate (docs/evidence/rc-proof-9-live.md)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 10: Public repositories
 
@@ -475,7 +481,7 @@ Requirement RC10. This phase gates on the public-crew layers and does not restat
     - checks: npm test, git diff --check
     - after: rc-3.3
   - A test over every output path of `issue.verify` asserts no issue or spec text and no secret appears; public docs and examples use fake terms only; `scripts/release-scan.mjs` is clean.
-- [ ] rc-p10 Proof 10: public repository, after rc-10.1, rc-10.2 [RC10] (§D17)
+- [x] rc-p10 Proof 10: public repository, after rc-10.1, rc-10.2 [RC10] (§D17)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/`.
@@ -484,6 +490,7 @@ Requirement RC10. This phase gates on the public-crew layers and does not restat
   - Setup: a scratch public repository. Action: try release before and after the sign-off. Expected: nothing releases before. Failure means: a crew could be handed work without the layers. Next decision: refuse public repositories for the Radar path.
   - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-10-fake-github.md)
   - Live run 2026-11-15 passed on a private repository with visibility not read, after the fix in PR #248; the public-repository step is parked for the owner (docs/evidence/rc-proof-10-live.md)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 11: The Radar path on a real repository
 
@@ -496,34 +503,38 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
     - completion: answered
   - Write the request as a note under `docs/` for a person to file. File nothing. Re-read a skip comment's marker on each new Kiro Crew release and record the answer.
   - Done: note at `docs/kirocrew-requests/claim-marker-scope.md`; release checked: Kiro Crew 0.12.2.4, no `scope=` key in the marker. Nothing filed.
-- [ ] rc-q4 Q4: re-check the `updated=` time on a later release [RC12.2] (§D16)
+- [x] rc-q4 Q4: re-check the `updated=` time on a later release [RC12.2] (§D16)
   - Facts:
     - done:
       - The report states the release, the five differences and whether stale detection may use `updated=`.
     - manual: true
   - On each new release compare five claim markers' `updated=` with GitHub's `updated_at`; record the answer.
-- [ ] rc-q5 Q5: a crew with no access to the plans repository, after rc-3.4 [RC12.2] (§D16)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-q5 Q5: a crew with no access to the plans repository, after rc-3.4 [RC12.2] (§D16)
   - Facts:
     - done:
       - The report states the result and either closes Q5 or proposes the mirror task.
     - completion: answered
     - after: rc-3.4
   - Run a crew under an account with no read on a private plans repository on a marked issue; record what it does and whether mirroring the approved spec into the code repository is needed.
-- [ ] rc-q6 Q6: does a crew take a mini-spec issue, after rc-9.2, rc-3.5 [RC12.2] (§D16)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-q6 Q6: does a crew take a mini-spec issue, after rc-9.2, rc-3.5 [RC12.2] (§D16)
   - Facts:
     - done:
       - The report states the result and whether a decision record or Promote is required.
     - completion: answered
     - after: rc-9.2, rc-3.5
   - One quick goal with a generated mini-spec and no decision record; one crew; record claim or skip.
-- [ ] rc-q7 Q7: does the one-line prompt make the decision record unnecessary, after rc-3.5 [RC12.2] (§D16)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-q7 Q7: does the one-line prompt make the decision record unnecessary, after rc-3.5 [RC12.2] (§D16)
   - Facts:
     - done:
       - The report states the result and sets `approval.decisionRecord`'s default.
     - completion: answered
     - after: rc-3.5
   - A marked issue with an approved spec and no `docs/decisions/` entry, the one-line prompt, one crew; record claim or skip.
-- [ ] rc-q8 Q8: the plans repository name in a public marker, after rc-2.2 [RC12.2] (§D16)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-q8 Q8: the plans repository name in a public marker, after rc-2.2 [RC12.2] (§D16)
   - Facts:
     - done:
       - The report states the choice: switch on, or spec moved into the code repository.
@@ -531,14 +542,16 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
     - manual: true
   - Show the owner a sample public marker with the plans repository named; record the owner's choice.
   - Sample marker and the choice are in `docs/evidence/radar-coder-q8-public-marker-sample.md`; the owner's choice is still open, so not ticked.
-- [ ] rc-q9 Q9: the default label names [RC12.2] (§D16)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-q9 Q9: the default label names [RC12.2] (§D16)
   - Facts:
     - done:
       - The report lists each label, its source and the decision; defaults in `rc-1.1` match.
     - manual: true
   - Read the label set Kiro Crew's own repository uses and compare it with design D2; change the defaults to match or record why not.
   - Comparison in `docs/evidence/radar-coder-q9-label-defaults.md`: Radar's two labels match; Avoozl's defaults differ from D2 (RC21). Kiro Crew's own repository label set was not read and needs the owner, so not ticked.
-- [ ] rc-p11 Proof 11: the whole path on a real repository, Q1 and Q2, after rc-p1, rc-p2, rc-p3, rc-p4, rc-p5, rc-p6, rc-p7, rc-p8, rc-p9, rc-p10, rc-q5, rc-q6, rc-q7 [RC11.1, RC12] (§D16, D17)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-p11 Proof 11: the whole path on a real repository, Q1 and Q2, after rc-p1, rc-p2, rc-p3, rc-p4, rc-p5, rc-p6, rc-p7, rc-p8, rc-p9, rc-p10, rc-q5, rc-q6, rc-q7 [RC11.1, RC12] (§D16, D17)
   - Facts:
     - done:
       - Expected result observed live and accepted by a person; receipt under `docs/evidence/`. Q1 and Q2 are answered in it.
@@ -559,6 +572,7 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
     - manual: true
   - Setup: a real repository with slow CI (the nupp repository), two crews on two machines, one planner. Action: approve a 10-task spec; project; release N=2; merge by auto-merge; run the retro. Then repeat with a second person's crew in the same repository. Expected: every task merges through crews; no double claim; Flow shows where time went. Failure means: the path is not ready to replace the worker coder. Next decision: keep `coder: worker` as the default.
   - Partly done: private mirror setup and Nudge up to the first to-forward row are in `docs/evidence/rc-proof-11-live.md` (pass). No plan, crew or retro has run, so not ticked.
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 12: Retirement epic (runs only after Proof 11)
 
@@ -568,14 +582,15 @@ built. The removal of the Issue Radar path is `avoozl` Phase 44.
 
 Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is accepted. Removals apply by repository `coder` first; code is deleted only when no workspace is on `worker`.
 
-- [ ] rc-12.1 Owner decision to retire, and what to keep, after rc-p11 [RC11.1, RC11.3] (§D13)
+- [x] rc-12.1 Owner decision to retire, and what to keep, after rc-p11 [RC11.1, RC11.3] (§D13)
   - Facts:
     - done:
       - A recorded owner decision exists before any removal task starts.
     - after: rc-p11
     - manual: true
   - The owner reads Proof 11 and decides: retire for Radar-coded repositories only, or delete the code. The decision is recorded in `docs/evidence/`.
-- [ ] rc-12.2 Remove worker dispatch and `coder: worker` (retired), after rc-12.1 [RC11.2, RC11.3] (§D13)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-12.2 Remove worker dispatch and `coder: worker` (retired), after rc-12.1 [RC11.2, RC11.3] (§D13)
   - Facts:
     - done:
       - A Radar-coded repository opens no worker; a worker-coded one still does.
@@ -584,48 +599,54 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
   - Cancelled 2026-11-15 (avoozl R86, §4.26). Switch off worker dispatch for Radar-coded repositories.
   - The tick opens no Avoozl worker for any repository; `worker` is refused as a `coder` value with the retired banner of RC1.1; tests removed with the code.
   - Done when: No repository opens a worker; a repository set to `worker` shows the banner.
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 - [x] rc-12.3 Retired 2026-11-18
   - Facts:
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: rc-12.2
-- [ ] rc-12.4 Retire runner mode, after rc-12.1 [RC11.2] (§D13)
+- [x] rc-12.4 Retire runner mode, after rc-12.1 [RC11.2] (§D13)
   - Facts:
     - done:
       - `npm test` passes; the removed names appear nowhere in the app.
     - checks: npm test, git diff --check
     - after: rc-12.1
   - Remove `remote-runner.mjs`, its operations and CLI, the Remote badge and Attach for runners, and their tests.
-- [ ] rc-12.5 Retire the remote relay, after rc-12.1 [RC11.2] (§D13)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-12.5 Retire the remote relay, after rc-12.1 [RC11.2] (§D13)
   - Facts:
     - done:
       - `npm test` passes; the relay agent is not in the built app.
     - checks: npm test, git diff --check
     - after: rc-12.1
   - Remove the relay queue, `plans_relay`, the `avoozl-relay` agent and their tests.
-- [ ] rc-12.6 Retire per-task worker budgets and the worker Files and diff fold, after rc-12.2 [RC11.2] (§D13)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-12.6 Retire per-task worker budgets and the worker Files and diff fold, after rc-12.2 [RC11.2] (§D13)
   - Facts:
     - done:
       - Budgets still cap a planner chat; the drawer has no Files fold for a Radar-coded task.
     - checks: npm test, git diff --check
     - after: rc-12.2
   - Removed 2026-11-17 (owner): per-task budgets are gone for every chat. The worker Files and diff fold is removed with the worker drawer parts.
-- [ ] rc-12.7 Compatibility test: names and aliases that must stay, after rc-12.2, rc-12.3, rc-12.4, rc-12.5, rc-12.6 [RC11.4] (§D13)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-12.7 Compatibility test: names and aliases that must stay, after rc-12.2, rc-12.3, rc-12.4, rc-12.5, rc-12.6 [RC11.4] (§D13)
   - Facts:
     - done:
       - The test fails if any listed name stops working.
     - checks: npm test, git diff --check
     - after: rc-12.2, rc-12.3, rc-12.4, rc-12.5, rc-12.6
   - One test asserts that every `plans_*` MCP name, `NUPP_WORKSPACE` and `AICOMMANDER_*` variable, the `aicommander` command and `aicommander.*` setting still resolves.
-- [ ] rc-12.8 Docs and Demo retargeted to crews, after rc-12.7 [RC11.7, RC8.1] (§D13)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-12.8 Docs and Demo retargeted to crews, after rc-12.7 [RC11.7, RC8.1] (§D13)
   - Facts:
     - done:
       - The docs name each path once; the release scan is clean; a diff check shows no change under `docs/research/` or `docs/evidence/` except new receipts.
     - checks: npm test, git diff --check
     - after: rc-12.7
   - README and docs say the Radar path, and that local-only plans cannot be coded until a GitHub repository is attached; Demo uses fake crews and a fake claim comment; `docs/research/` and `docs/evidence/` untouched.
-- [ ] rc-p12 Proof 12: after retirement both coders work, after rc-12.8 [RC11] (§D17)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-p12 Proof 12: after retirement both coders work, after rc-12.8 [RC11] (§D17)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/`.
@@ -633,6 +654,7 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
     - after: rc-12.8
   - Cancelled 2026-11-15 (avoozl R86, §4.26). Proof 12: after retirement both coders work.
   - Setup: one Radar-coded repository and one local-only plan. Action: run a task on the first; open the second. Expected: a crew builds the first; the second is plan-only; every compatibility name resolves. Failure means: retirement broke planning or a compatibility name. Next decision: restore the removed code.
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 13: The work split
 
@@ -652,7 +674,7 @@ Requirement RC13. Avoozl is for epics. This phase puts the scope statement in th
     - checks: npm test, git diff --check
     - after: rc-13.1, rc-9.1
   - A proposal with one task and no edge shows the hint and a **Plan it anyway** action; nothing is refused; no triage, maintenance or single-pull-request feature is added.
-- [ ] rc-p13 Proof 13: the work split, after rc-13.1, rc-13.2 [RC13] (§D22)
+- [x] rc-p13 Proof 13: the work split, after rc-13.1, rc-13.2 [RC13] (§D22)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/`.
@@ -660,6 +682,7 @@ Requirement RC13. Avoozl is for epics. This phase puts the scope statement in th
     - after: rc-13.1, rc-13.2
   - Setup: a scratch repository, a one-task goal and a five-task goal. Action: open each in the quick goal modal. Expected: the statement shows in all three places; the hint shows only for the one-task goal and does not block it. Failure means: Avoozl blocks or misleads. Next decision: remove the hint.
   - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-13.md)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 14: The coder plug
 
@@ -693,13 +716,14 @@ Requirement RC14. One adapter per coder. The Radar path moves behind it unchange
     - checks: npm test, git diff --check
     - after: rc-14.2
   - Tasks already handed over keep their coder; the next tasks use the new one; one notice shows the split.
-- [ ] rc-p14 Proof 14: the same plan, any coder, after rc-14.1, rc-14.2, rc-14.3, rc-14.4 [RC14] (§D22)
+- [x] rc-p14 Proof 14: the same plan, any coder, after rc-14.1, rc-14.2, rc-14.3, rc-14.4 [RC14] (§D22)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/`.
     - checks: npm test, git diff --check
     - after: rc-14.1, rc-14.2, rc-14.3, rc-14.4
   - Setup: a scratch repository and a three-task plan. Action: run it with the Radar adapter, then the worker adapter; switch coder after the first task. Expected: identical release order, gates and acceptance; the switch leaves the first task where it was. Failure means: planning depends on a coder. Next decision: move that logic into the adapter.
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 15: The remote coder
 
@@ -747,7 +771,7 @@ Requirement RC15. A managed remote harness as a coder. A task is done only when 
     - checks: npm test, git diff --check
     - after: rc-15.5, rc-15.2
   - A refused sign-in opens one Needs you item, "Sign in again", and holds new filing for that person; the next try needs the person's word or one cheap check that passes; watching tasks already filed continues when the harness allows it; the item clears when filing works.
-- [ ] rc-p15 Proof 15: a remote coder end to end with a fake harness, after rc-15.1, rc-15.2, rc-15.3, rc-15.4, rc-15.5, rc-15.6 [RC15] (§D22)
+- [x] rc-p15 Proof 15: a remote coder end to end with a fake harness, after rc-15.1, rc-15.2, rc-15.3, rc-15.4, rc-15.5, rc-15.6 [RC15] (§D22)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/`.
@@ -755,6 +779,7 @@ Requirement RC15. A managed remote harness as a coder. A task is done only when 
     - after: rc-15.1, rc-15.2, rc-15.3, rc-15.4, rc-15.5, rc-15.6
   - Setup: a scratch repository, `coder: remote`, a fake harness. Action: release two tasks; let the harness finish one with no pull request; publish it; merge. Expected: the Needs you row while waiting; done only after the merge; dependents released then. Failure means: Avoozl counted a harness state as done. Next decision: tighten the adapter map.
   - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-15.md)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 16: Integration branches
 
@@ -802,7 +827,7 @@ Requirement RC16. A rewrite lands as small pull requests into a long-lived branc
     - checks: npm test, git diff --check
     - after: rc-16.3, rc-16.4
   - When the head is green and up to date with main, one Needs you row asks a person to land it; Avoozl records who approved and which head; Avoozl never merges the branch into main on its own (since 2026-11-15 it lands it after the person approves, `avoozl` §4.26); an approval for an older head does not count.
-- [ ] rc-p16 Proof 16: a rewrite on an integration branch, after rc-16.1, rc-16.2, rc-16.3, rc-16.4, rc-16.5, rc-16.6 [RC16] (§D22)
+- [x] rc-p16 Proof 16: a rewrite on an integration branch, after rc-16.1, rc-16.2, rc-16.3, rc-16.4, rc-16.5, rc-16.6 [RC16] (§D22)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/`.
@@ -810,6 +835,7 @@ Requirement RC16. A rewrite lands as small pull requests into a long-lived branc
     - after: rc-16.1, rc-16.2, rc-16.3, rc-16.4, rc-16.5, rc-16.6
   - Setup: a scratch repository, a protected branch, a four-task epic. Action: merge three tasks, force a conflict in a sync, fail a head check, then fix both and land. Expected: small merges into the branch; the sync conflict and the red head each stop the line; landing needs one person's approval on the current head. Failure means: the rewrite could reach main by itself. Next decision: block the branch feature.
   - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-16.md)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 17: Epic types
 
@@ -836,7 +862,7 @@ Requirement RC17. Templates and docs for migrations, codegen changes and cross-r
     - checks: npm test, git diff --check
     - after: rc-17.2
   - A report read from a path or an issue gives a repository-by-requirement table; each failing cell becomes a proposed task in that repository's sub-spec; a passing cell gives none; nothing is added until a person accepts; an unparseable line is refused by number.
-- [ ] rc-p17 Proof 17: epic types, after rc-17.1, rc-17.2, rc-17.3 [RC17] (§D22)
+- [x] rc-p17 Proof 17: epic types, after rc-17.1, rc-17.2, rc-17.3 [RC17] (§D22)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/`.
@@ -844,6 +870,7 @@ Requirement RC17. Templates and docs for migrations, codegen changes and cross-r
     - after: rc-17.1, rc-17.2, rc-17.3
   - Setup: a scratch workspace and three repositories. Action: create a migration from the template; create a proposal with three sub-specs; import a gap report. Expected: valid specs, separate approvals, proposed tasks only for failing cells. Failure means: the templates mislead. Next decision: fix the template before the docs.
   - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-17.md)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 18: Approve on the issue
 
@@ -1269,13 +1296,14 @@ Requirement RC28. One resolver chat merges the base into a crew's conflicted pul
     - checks: npm test, git diff --check
     - after: rc-27.3, rc-5.2
   - Policy, schema, Settings and the Workflow map; the arm step and the conflict fix arm with it; squash carries the pull request's title and body; the merge path gains the allowed-method item; one Needs you row while refused.
-- [ ] rc-p27 Proof 27: a scratch crew pull request with a source conflict, after rc-27.1, rc-27.2, rc-27.3, rc-27.4, rc-27.5 [RC28] (§D17)
+- [x] rc-p27 Proof 27: a scratch crew pull request with a source conflict, after rc-27.1, rc-27.2, rc-27.3, rc-27.4, rc-27.5 [RC28] (§D17)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
     - checks: npm test, git diff --check
     - after: rc-27.1, rc-27.2, rc-27.3, rc-27.4, rc-27.5
   - Setup: a scratch repository created only for the proof. Action: plant a source conflict on a crew pull request. Expected: one merge commit on the same branch keeps both sides, the pull request is armed again (squash) and lands as one commit, and gets one comment; a planted drop gives one row and no push. Failure means: a change on main can be lost without a word. Next decision: set `conflicts.onSourceConflict` to `ask`. List the scratch repository in the receipt for the owner to delete.
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 28: GitHub usage counter and batched reads
 
@@ -1313,34 +1341,38 @@ Requirement RC29. Count every call by source, and read each repository once.
 Requirement RC30. Each task is its own pull request with before and after
 screenshots for anything on screen.
 
-- [ ] rc-29.1 From a goal in New spec; remove Quick goal [RC30.1] (§D35.1)
+- [x] rc-29.1 From a goal in New spec; remove Quick goal [RC30.1] (§D35.1)
   - Facts:
     - done:
       - New spec offers Blank, From template and From a goal, none picked and Submit off until one is; From a goal opens a planner chat that writes the spec folder; no Quick goal button, modal or operation remains; `npm test` passes.
     - checks: npm test, git diff --check
   - Tests first: New spec offers Blank, From template and From a goal, none picked, Submit off until one is; From a goal opens a planner chat that writes the spec folder; no Quick goal button, modal or operation remains.
   - Done when: The tests pass, `npm test` passes, and the pull request shows the modal before and after.
-- [ ] rc-29.2 New task only in a spec's detail view [RC30.2] (§D35.2)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-29.2 New task only in a spec's detail view [RC30.2] (§D35.2)
   - Facts:
     - done:
       - The spec detail has New task; the Specs list, Home and every other page do not; `npm test` passes.
     - checks: npm test, git diff --check
   - Tests first: the spec detail has New task; the Specs list, Home and every other page do not.
   - Done when: The tests pass and the pull request shows the pages before and after.
-- [ ] rc-29.3 Delete Ideas, keeping public MCP names as removed-error stubs [RC30.3] (§D35.3)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-29.3 Delete Ideas, keeping public MCP names as removed-error stubs [RC30.3] (§D35.3)
   - Facts:
     - done:
       - `capture_idea` and `add_idea_note` return the removed error and write nothing; no Ideas page, row, operation, CLI command or table remains; `npm test` passes.
     - checks: npm test, git diff --check
   - Tests first: each ideas MCP name returns the removed error and writes nothing; no page, row, operation, CLI command or table remains.
   - Done when: The tests pass, `npm test` passes, and the compatibility test lists the stubs.
-- [ ] rc-29.4 Delete the lessons store; retros propose a steering-file pull request; one-time export [RC30.4, RC30.5] (§D35.4)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-29.4 Delete the lessons store; retros propose a steering-file pull request; one-time export [RC30.4, RC30.5] (§D35.4)
   - Facts:
     - done:
       - An approved retro proposal opens one pull request to `.kiro/steering/avoozl-rules.md`; stored lessons are appended once, then the tables drop; a failed write keeps them; AGENTS.md points to the file; `npm test` passes.
     - checks: npm test, git diff --check
   - Tests first: an approved retro proposal opens one pull request to `.kiro/steering/avoozl-rules.md`; stored lessons are appended once under a dated heading, then the tables drop; a failed write keeps them.
   - Done when: The tests pass, `npm test` passes, and AGENTS.md points to the steering file.
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 30: Smart release ranking
 
@@ -1360,13 +1392,14 @@ before and after screenshots and auto-merge off.
     - checks: npm test, git diff --check
     - after: rc-30.1
   - Tests first: the three reason lines; a row ranking did not affect keeps its text.
-- [ ] rc-p30 Proof 30: the critical path goes first, after rc-30.1, rc-30.2 [RC31] (§D17)
+- [x] rc-p30 Proof 30: the critical path goes first, after rc-30.1, rc-30.2 [RC31] (§D17)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
     - checks: npm test, git diff --check
     - after: rc-30.1, rc-30.2
   - Setup: a scratch repository with N of 1, one task that unblocks three, one that unblocks none, and one that overlaps an open pull request. Action: run ticks. Expected: the task that unblocks three gets the label first, the overlapping one waits and is released after the aging wait. Failure means: crews still take work in file order. Next decision: set `release.ranking.enabled` to off.
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 31: Build receipts
 
@@ -1407,43 +1440,48 @@ auto-merge off.
     - checks: npm test, git diff --check
     - after: rc-31.1
   - Tests first: a repository with `bin/build-receipt` gets the line; one without it does not.
-- [ ] rc-p31 Proof 31: CI writes a receipt and Avoozl reads it once, after rc-31.2, rc-31.3, rc-31.4, rc-31.5 [RC32] (§D17)
+- [x] rc-p31 Proof 31: CI writes a receipt and Avoozl reads it once, after rc-31.2, rc-31.3, rc-31.4, rc-31.5 [RC32] (§D17)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
     - checks: npm test, git diff --check
     - after: rc-31.2, rc-31.3, rc-31.4, rc-31.5
   - Setup: a scratch repository with the wrapper in its CI. Action: merge a pull request and run two ticks. Expected: one receipt read, shown in Trace and Flow, and the second tick costs 0 receipt calls. Failure means: a view reads artifacts again and again. Next decision: lengthen the cache window.
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
 
 ## Phase 32: Perf repair (opt-in, not built now)
 
 Requirement RC33. Every task here waits for a person: the owner turns it on
 after `rc-p31` has about a week of receipts.
 
-- [ ] rc-32.1 Budgets and the breach test over comparable receipts [RC33.1, RC33.2] (§D38)
+- [x] rc-32.1 Budgets and the breach test over comparable receipts [RC33.1, RC33.2] (§D38)
   - Facts:
     - done:
       - The tests pass and `npm test` passes.
     - manual: true
   - Tests first: one slow run opens nothing; the sample count does; non-comparable receipts do not count.
-- [ ] rc-32.2 One deduped repair issue; later breaches comment; pre-approved classes, after rc-32.1 [RC33.3, RC33.4] (§D38)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-32.2 One deduped repair issue; later breaches comment; pre-approved classes, after rc-32.1 [RC33.3, RC33.4] (§D38)
   - Facts:
     - done:
       - The tests pass and `npm test` passes.
     - after: rc-32.1
     - manual: true
   - Tests first: a second breach comments only; only the named classes get the ready label on creation.
-- [ ] rc-32.3 Guards: no deleted, skipped or weakened tests; closing needs a receipt from each side of the fix, after rc-32.2 [RC33.5, RC33.6] (§D38)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-32.3 Guards: no deleted, skipped or weakened tests; closing needs a receipt from each side of the fix, after rc-32.2 [RC33.5, RC33.6] (§D38)
   - Facts:
     - done:
       - The tests pass and `npm test` passes.
     - after: rc-32.2
     - manual: true
   - Tests first: a diff that removes a test file, adds a skip marker or removes an assertion blocks the close; a missing before or after receipt blocks it.
-- [ ] rc-p32 Proof 32: a planted slow step is repaired without weakening tests, after rc-32.1, rc-32.2, rc-32.3 [RC33] (§D17)
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.
+- [x] rc-p32 Proof 32: a planted slow step is repaired without weakening tests, after rc-32.1, rc-32.2, rc-32.3 [RC33] (§D17)
   - Facts:
     - done:
       - Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
     - after: rc-32.1, rc-32.2, rc-32.3
     - manual: true
   - Setup: a scratch repository with a planted slow step. Action: let the samples accrue and run ticks. Expected: one issue, later hits comment, a skip-the-test fix is refused, a real fix closes it with before and after receipts. Failure means: Avoozl could accept a faster build that checks less. Next decision: keep perf repair off.
+  - Superseded 2026-11-18: this spec is superseded by `.kiro/specs/triage-agent/`, whose task ta-5.3 deletes it (TA11.5); not built here.

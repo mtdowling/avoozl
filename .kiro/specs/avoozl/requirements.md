@@ -3937,6 +3937,10 @@ on a bigger or safer machine without a shared database or a shared gateway.
 
 ### Requirement 85: Crews on public repositories
 
+Superseded 2026-11-18 (owner decision): public crews are removed except the
+content hook, which becomes a general pre-tool-use command (triage-agent
+TA11.3, task ta-5.2). Until ta-5.2 lands the code below still runs.
+
 Added 2026-11-14 (owner request). Design §6.14. Facts checked in Kiro Crew
 0.12.2.4 and on a scratch repository, written up in `docs/public-crews.md`.
 

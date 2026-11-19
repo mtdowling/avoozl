@@ -5,8 +5,6 @@ checks: npm test, git diff --check
 ---
 # Tasks: one way to run a worker
 
-Status: Approved
-
 Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
 brackets (`WP1` to `WP9`, in `requirements.md`); `D` sections refer to this

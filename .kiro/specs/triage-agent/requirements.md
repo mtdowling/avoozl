@@ -4,8 +4,6 @@ category: Planning
 
 # Requirements: the triage agent and the GitHub pages
 
-Status: Draft
-
 ## Introduction
 
 Avoozl watches a repository's issues and pull requests and acts on each new
@@ -21,8 +19,8 @@ requests, but it does not answer questions, review on its own, or land, and
 it runs only inside Kiro Crew; Avoozl already has most of the parts
 (design D1).
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts that a person does later. Nothing in it changes code,
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts that a person does later. Nothing in it changes code,
 repositories or settings until its tasks run.
 
 Claims about today's code carry one label: **V**, read in the file cited at
