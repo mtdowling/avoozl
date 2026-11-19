@@ -82,14 +82,6 @@ this a spec** turns a fix that grew into a spec folder.
 neither) decide whose pull-request reviews count as the review gate and
 whose discussions get a reply. They never turn a label into an order.
 
-## Older settings
-
-Label commands and the Issue Radar integration were removed on 2026-11-19
-with no backward compatibility. A repository entry that still has
-`rules`, `managedLabels`, `crewLabels`, `radar`, `release`,
-`acceptedLabel` or `untriaged` fails to load with "Unknown setting"; delete
-the key.
-
 ## Specs in one repository, code in others
 
 Plans-repo mode keeps spec issues and Kiro specs in a planning repository
@@ -152,8 +144,6 @@ outside Git, so the list itself never lands in a repository.
   can fix the text.
 - `boundaries` narrows a set to some of `plan`, `github`, `brief` and `diff`;
   `repositories` to some registered repositories.
-- `remote` (`allow` or `forbid`) is still read from older files and does
-  nothing: every session runs on this machine.
 - A set this machine does not have blocks everything it covers until you add
   its terms file. A findings message names the set, rule and line, never the
   matched text.
@@ -213,14 +203,14 @@ manual in its facts in `tasks.md`:
       - The team agreed the results are good enough to cut over
 ```
 
-A manual task needs `done` and a `repo` (where its issue lives). `manual:
+A manual task needs `done` and a `repo`. `manual:
 true` is the one way to say a person does a task: it completes by a person
 and takes no `completion` default. Lint refuses `session`, `batch`,
 `paths` and `route` on it, by name, and refuses `completion: person`
 anywhere, naming `manual: true` as the fix. No agent
 ever runs it: it is never ready, batched, checked, reviewed or merged.
 Until its blockers finish it is in **Blocked or waiting**; then it is in
-**Needs you**, tagged **Manual**, with "Waiting for a person: <title>". Its dependents wait on it like on any task.
+**Needs you**, tagged **Manual**, with "Waiting for a person: `<title>`". Its dependents wait on it like on any task.
 
 Open it in the task drawer to see its acceptance and **Mark done**. The
 dialog takes optional outcome links, and **Done**,
@@ -241,19 +231,19 @@ in the spec, so adding one never changes a plan's revision. A task holds
 up to 200. Content rules check each one at the `notes` boundary when it is
 saved; a blocked save offers **Allow once** in place. A session may add
 one to the task it is bound to, through the `plans_task` tool's
-`add_note`; only a person edits, removes or ticks **Show on the issue**. A
+`add_note`; only a person edits or removes one. A
 removed link stays in the activity log. A worker's brief carries the
 newest 20 (at most 8,000 characters) as data, not instructions, and a
 dependent's brief carries each blocker's outcome links. Links stay in
 Avoozl. From the command line: `avoozl task links TASK
 [add|edit|remove|show]`.
 
-This is tested with a fake GitHub (proof P37); it has not run live yet.
+Manual tasks and links are tested with a fake GitHub and have not run live.
 
 ## Bring in work from other trackers and scripts
 
 GitHub is one source of incoming items. A plugin that provides `intake` is
-another (see the Intake part in `docs/plugins.md`), and so is anything you
+another (see the Intake part in [Writing a plugin](plugins.md#intake-part)), and so is anything you
 script, through MCP. `avoozl intake list` and the `plans_intake` tool list
 every item with its source.
 
@@ -308,13 +298,11 @@ and a close it reports holds the item's dependents for you to decide.
 Avoozl writes nothing back to these sources. A closed item that no task
 holds is deleted 30 days after it closed.
 
-## Later GitHub features, each off by default
+## Discussions (off by default)
 
-Three settings on a repository entry turn on features that were held back
-until the core loop was proved. Each is off unless set, and each has its own
-proof against a fake GitHub (`src/app/test/proof-*.test.mjs`). The GitHub
-proofs that need a scratch organization have not run yet, so treat these
-as early.
+The `discussions` setting on a repository entry turns on replies to GitHub
+Discussions. It is off unless set. It is tested against a fake GitHub only;
+no scratch organization has run it, so treat it as early.
 
 ```json
 {
@@ -423,7 +411,6 @@ one with `paths` runs only when a commit's diff touches one of them:
 Merge batches run every check whose paths any member's change touches, plus
 every check without paths. Records, reruns and bisect steps name a check by
 its name, and `verify.checkTimeouts` sets a check's own timeout by its name.
-An older list of commands still loads, each check named by its command.
 
 A check sees only the basics a process needs to start (`PATH`, `HOME`, temp
 folders) plus the names a repository lists in `checksEnv`:
@@ -497,9 +484,7 @@ that it ran in an agent session, and an approval made without a delegate
 records it in its receipt. It tells a session by `KIROCREW_SPAWNED=1` (set on
 every process Kiro Crew starts for an agent) or `KIRO_SESSION_ID` (set in an
 agent's shell). The one place the CLI refuses is a process the supervisor
-started (`AVOOZL_CHILD`), where nobody is typing. The `--as-person` flag
-that used to get past an agent-session refusal was removed on 2026-11-18; an
-old command that still passes it runs as before.
+started (`AVOOZL_CHILD`), where nobody is typing.
 
 Approval delegation is the way to let an agent approve in its own name. A person runs `approval delegate NAME`; then
 `plan approve ... --delegate NAME` and `plan.approve` with `delegate` work
@@ -548,8 +533,8 @@ that opted in. Every other bypass value stays refused.
 
 The `.avoozl` folder is created `0700` and the database `0600`. Backups and
 `export --output` files are `0600`. On open, Avoozl tightens an existing
-workspace's folders and database (migration: nothing to do; a person who
-shared the folder with a group loses that access). On Windows, Node cannot set
+workspace's folders and database (a person who shared the folder with a
+group loses that access). On Windows, Node cannot set
 these modes, so the files keep the access of the folder they are in, which in a
 user profile is you, the system and administrators. Move the workspace out of a
 shared folder if that matters.

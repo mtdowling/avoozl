@@ -245,8 +245,7 @@ diff touches one of them; the others run for every commit. These are the
 only checks there are: every task runs them, and setting them is a
 person's, never an agent's. A check sees only the environment a process
 needs to start plus the names in `checksEnv`, and never a push or GitHub
-token. An older list of commands, `[["npm","test"]]`, still loads, each
-check named by its command.
+token.
 
 Checks run in the repository's isolation. By default each runs in the
 process sandbox (sandbox-exec on macOS, bubblewrap on Linux): it writes only
@@ -628,6 +627,11 @@ sharing a change; `npm run test:changed` runs only the tests a change reaches, a
 does the same. The built page is not committed: `npm run build` makes it. Tests use disposable workspaces and make no network or paid
 agent calls. `node scripts/release-scan.mjs` checks what the npm and app
 packages would contain.
+
+The docs in `docs/` are also a site: `npm run docs:dev` serves it and
+`npm run docs:build` builds it to `docs/.vitepress/dist` (not in git).
+It is published at https://mtdowling.github.io/avoozl/ by a workflow on
+pushes to main that touch `docs/`.
 
 `npm run build` also builds a standalone copy of the page into
 `kirocrew-app/ui/dist/standalone/`, from Kiro Crew's own source at a pinned
