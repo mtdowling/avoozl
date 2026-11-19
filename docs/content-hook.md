@@ -1,11 +1,10 @@
 # The content hook
 
-Requirement 85, design §6.14.
-
 `avoozl content hook` checks an agent's writes to GitHub before they run.
 Any agent that writes with your GitHub login can use it, for example a
 Kiro Crew agent or another coding agent with
-pre-tool-use hooks. It uses your workspace's content rules (Requirement 40).
+pre-tool-use hooks. It uses your workspace's content rules (see
+[Ban private terms](policies.md#ban-private-terms-from-everything-avoozl-writes)).
 There is no new rule format.
 
 ## What it checks
@@ -59,7 +58,6 @@ the same command.
 - It checks calls only. The agent can still read every file its
   operating-system user can read.
 
-Avoozl's own pushes go through a separate pre-push check (design §4.9), not
-this hook.
+Avoozl's own pushes go through a separate pre-push check, not this hook.
 
 Built and tested with fake rules; not run live against a public repository.

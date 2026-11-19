@@ -2,7 +2,7 @@
 
 A throwaway Kiro Crew gateway for live proofs. It has its own home, its own
 port and its own sign-in token. Your real gateway and home are never read,
-written or restarted. Avoozl and Issue Radar are installed and enabled in it.
+written or restarted. Avoozl is installed and enabled in it.
 
 Script: `scripts/live-harness/harness.sh`. It needs `kirocrew`, `gh`, `python3`
 and `curl` on the path. It is a bash script for Linux and macOS.
@@ -46,8 +46,6 @@ Settings (environment):
 |---|---|
 | `AVOOZL_HARNESS_DIR` | `/tmp/avoozl-live-harness` |
 | `AVOOZL_HARNESS_PORT` | `5690` |
-| `AVOOZL_HARNESS_REPO` | `https://github.com/mtdowling/avoozl-radar-test` |
-| `AVOOZL_HARNESS_AGENT` | `avoozl-crew` |
 | `AVOOZL_HARNESS_APP_SRC` | `<repo>/kirocrew-app` |
 
 The script refuses a relative directory, `/`, your home itself, and anything
@@ -69,8 +67,7 @@ blocks it, and it would sign in to the real crew. So there is no
 `signin-url.sh`.
 
 On macOS the sandbox also stops a chat from starting the gateway at all (it
-cannot read `~/.kiro/crew-auth-staging`), so `start`, `restart` and
-`route-avoozl` are the owner's too. Run the harness on macOS with a `setsid`
+cannot read `~/.kiro/crew-auth-staging`), so `start` and `restart` are the owner's too. Run the harness on macOS with a `setsid`
 stand-in on the path (`exec "$@"`).
 
 The owner runs this once per harness home, in their own terminal:
@@ -101,27 +98,19 @@ Do not hand the owner click-by-click steps for a test crew.
 Real workspaces stay the owner's. A chat never clicks, approves or signs in to
 the real Kiro Crew, and real spec approvals stay the owner's own click.
 
-## Owner-only steps
+## Caller identity for chats
 
-These are the steps Issue Radar only lets the dashboard owner take. The harness signs in with its own token or the saved `signin` cookie, so each one is a command.
+Plans tools that need to know the calling chat (review drafts, replies,
+conflict fix, reports) refuse with "no caller identity" unless the gateway
+wraps the `avoozl:avoozl` server. `harness.sh route-avoozl` sets
+`mcp_gateway.stub_overrides`, restarts, approves the launch the gateway
+refused at boot, and restarts. The override alone is not enough: without the
+approval the gateway leaves `avoozl:avoozl` unwrapped. The log line is
+`stubbed server ... resolves to a launch the operator has not approved`. The
+app must also refuse `server/discover`, or the chat never sends `initialize`
+and the gateway never learns the app takes a caller.
 
-| Step | Command |
-|---|---|
-| Connect a repo | `harness.sh connect-repo [url]` (edits Radar's `config.json`, restarts) |
-| Show Radar settings | `harness.sh radar-settings` |
-| Change Radar settings | `harness.sh radar-settings '{"notify_on_new_issue":true}'` |
-| Create a crew | `harness.sh crew-create NAME ['{"enabled":true,"unattended":true}']` |
-| List crews | `harness.sh crew-list` |
-| Edit a crew | `harness.sh crew-edit CREW_ID '{"max_open":1}'` |
-| Change crew defaults | `harness.sh crew-settings '{"claim_ttl_hours":1}'` |
-| Retire a crew | `harness.sh crew-retire CREW_ID` |
-| Give crew chats a caller identity | `harness.sh route-avoozl`. It sets `mcp_gateway.stub_overrides`, restarts, approves the launch the gateway refused at boot, and restarts. The override alone is not enough: without the approval the gateway leaves `avoozl:avoozl` unwrapped, and plans tools that need the caller (review drafts, replies, conflict fix, reports) refuse with "no caller identity". The log line is `stubbed server ... resolves to a launch the operator has not approved`. The app must also refuse `server/discover` (PR #240), or the chat never sends `initialize` and the gateway never learns the app takes a caller |
-| Any other route | `harness.sh api GET /api/apps/issue-radar/crews?owner=O&repo=R` |
-
-A new crew is created paused (`enabled` false, `unattended` false). An enabled,
-unattended crew starts a timer loop (first turn about 5 minutes later) and works the repo's issues. Pass
-the JSON in the table when a proof needs it to run. A crew's agent is fixed at
-creation (`avoozl-crew`).
+Any other gateway route: `harness.sh api GET /api/...`.
 
 ## What it does not do
 
@@ -129,10 +118,7 @@ creation (`avoozl-crew`).
   or when the Avoozl page calls it. A workspace made later from the CLI is not
   read until then, so the tick holds with `"held":{"reason":"unobserved"}`.
   Run `harness.sh restart` after `avoozl init` and `workspace add`.
-- Radar refuses a `gh` binary under directories owned by another user, so it
-  cannot run `gh` in the harness. `connect-repo` writes the repo into Radar's
-  config instead of calling `/connect`. A crew runs its own `gh` from its shell.
-- Crews and `gh` use the machine's existing `gh` and Kiro sign-ins. The harness
+- Chats and `gh` use the machine's existing `gh` and Kiro sign-ins. The harness
   has its own dashboard token only.
 - A chat the tick opens in a folder (`Avoozl/<repository>`) gets no checkout until
   the folder has a project directory, and the tick skips it silently. After the
@@ -144,8 +130,6 @@ creation (`avoozl-crew`).
   chat with `harness.sh api POST /api/chat/mode '{"slot":"<slot>","mode":"trust"}'`,
   then send it a message to carry on.
 - It creates no scratch repo and runs no proof.
-- A crew's checkout goes to the machine's default Kiro Crew workspace folder,
-  not under the harness directory.
 - Reinstalling Avoozl gives the tick cron a new job, which may not read or
   message chats the old job opened. `start` and `restart` reinstall when the
   build changed, so mid-proof load a build with `reload-app` while the
