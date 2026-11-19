@@ -16,11 +16,13 @@ test('Add plugin builds one entry and catches what a person must fix', () => {
     confirmPublic: true,
     entry: { id: 'example-tracker', package: '@example/t', contract: 1 },
   })
-  assert.deepEqual(
-    addInput({ ...form, where: 'git', git: 'https://git.example.com/p.git', ref: ' v1 ', subdir: 'plugin', config: '' })
-      .input.entry,
-    { id: 'example-tracker', git: 'https://git.example.com/p.git', ref: 'v1', subdir: 'plugin', contract: 1 },
-  )
+  assert.deepEqual(addInput({ ...form, where: 'git', git: 'https://git.example.com/p.git', ref: ' v1 ', subdir: 'plugin', config: '' }).input.entry, {
+    id: 'example-tracker',
+    git: 'https://git.example.com/p.git',
+    ref: 'v1',
+    subdir: 'plugin',
+    contract: 1,
+  })
   assert.deepEqual(addInput({ ...form, where: 'git', git: '../repo', ref: 'main', config: '' }).input.entry, {
     id: 'example-tracker',
     git: '../repo',
@@ -49,7 +51,7 @@ test('each plugin state reads as a short label; approve needs a hash', () => {
 })
 
 test('the public-repository refusal is read as a warning, not an error', () => {
-  const body = JSON.stringify({ error: 'This repository is public. Its .avoozl.json would publish this plugin\'s id.' })
+  const body = JSON.stringify({ error: "This repository is public. Its .avoozl.json would publish this plugin's id." })
   assert.match(publicWarning({ status: 409, body }), /is public/)
   assert.equal(publicWarning({ status: 400, body: JSON.stringify({ error: 'Other.' }) }), null)
 })
@@ -58,9 +60,7 @@ test('approve sends the exact version and hash shown', async () => {
   const posts = []
   const client = pluginsClient({ post: async (path, body) => (posts.push([path, body]), { result: {} }) })
   await client.approve('ws', { id: 'x', version: '1.0.0', hash: 'abc' })
-  assert.deepEqual(posts, [
-    [COMMAND_PATH, { operation: 'plugin.approve', input: { id: 'x', version: '1.0.0', hash: 'abc' }, workspaceId: 'ws' }],
-  ])
+  assert.deepEqual(posts, [[COMMAND_PATH, { operation: 'plugin.approve', input: { id: 'x', version: '1.0.0', hash: 'abc' }, workspaceId: 'ws' }]])
 })
 
 test('a git plugin is approved at the commit shown, and Update re-resolves its ref', async () => {

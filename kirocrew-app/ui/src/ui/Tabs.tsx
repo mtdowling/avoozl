@@ -80,14 +80,7 @@ export function Tabs<T extends string>(props: {
   // flex: none (TABS_CSS): in a column that scrolls (the Review side
   // column) a bar that scrolls sideways would otherwise shrink to nothing.
   return (
-    <div
-      ref={bar}
-      role="tablist"
-      aria-label={props.label}
-      data-tabs={props.id}
-      {...(props.barAttr ? { [props.barAttr]: '' } : {})}
-      onKeyDown={key}
-    >
+    <div ref={bar} role="tablist" aria-label={props.label} data-tabs={props.id} {...(props.barAttr ? { [props.barAttr]: '' } : {})} onKeyDown={key}>
       <style>{TABS_CSS}</style>
       {props.tabs.map((tab) => {
         const on = tab.key === props.current

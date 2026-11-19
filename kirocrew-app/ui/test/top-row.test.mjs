@@ -50,10 +50,14 @@ for (const [width, height] of [
   [1280, 800],
 ])
   for (const dark of [false, true])
-    test(`the shell at ${width} px ${dark ? 'dark' : 'light'}: no top bars, no Plan a goal and no Stop the line on the top line or in the menu, no visible Stop the line text; no sideways scroll`, { skip }, async () => {
+    test(`the shell at ${width} px ${dark ? 'dark' : 'light'}: no top bars, no Plan a goal and no Stop the line on the top line or in the menu, no visible Stop the line text; no sideways scroll`, {
+      skip,
+    }, async () => {
       for (const stopped of [false, true]) {
         await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light', ...(stopped ? { stopped: '1' } : {}) }), { width, height, dark })
-        await page.until(`Boolean(document.querySelector('[data-main-top]') && document.querySelector('[data-workspace-pill]:not([disabled])') || (${width} < 768 && document.querySelector('[data-top-rail-bar]')))`)
+        await page.until(
+          `Boolean(document.querySelector('[data-main-top]') && document.querySelector('[data-workspace-pill]:not([disabled])') || (${width} < 768 && document.querySelector('[data-top-rail-bar]')))`,
+        )
         await settle()
         const closed = await page.evaluate(`(() => {
           const pane = document.querySelector('[data-host-pane]')
@@ -119,7 +123,9 @@ for (const [width, height] of [
   [1280, 800],
 ])
   for (const dark of [false, true])
-    test(`Demo mode at ${width} px ${dark ? 'dark' : 'light'}: no visible Stop the line text, the demo bar's example is an icon, the workspace pill starts the nav`, { skip }, async () => {
+    test(`Demo mode at ${width} px ${dark ? 'dark' : 'light'}: no visible Stop the line text, the demo bar's example is an icon, the workspace pill starts the nav`, {
+      skip,
+    }, async () => {
       await page.open(demoHarness.url({ page: 'demo', theme: dark ? 'dark' : 'light' }), { width, height, dark })
       const start = `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Start demo')`
       await page.until(`Boolean(${start})`)
@@ -146,7 +152,9 @@ for (const [width, height] of [
         assert.deepEqual(await page.evaluate(VISIBLE_STOP), [], 'no visible Stop the line text in the menu')
       }
       const nav = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
-      const pill = await page.evaluate(`(() => { const first = document.querySelector('${nav} [data-workspace-pill], ${nav} [data-nav-section]'); return { first: Boolean(first?.matches('[data-workspace-pill]')), text: first?.textContent ?? '' } })()`)
+      const pill = await page.evaluate(
+        `(() => { const first = document.querySelector('${nav} [data-workspace-pill], ${nav} [data-nav-section]'); return { first: Boolean(first?.matches('[data-workspace-pill]')), text: first?.textContent ?? '' } })()`,
+      )
       assert.equal(pill.first, true, 'the workspace pill starts the nav in the demo')
       assert.match(pill.text, /Demo: Recipe Box/)
       assert.deepEqual(page.errors, [])
@@ -185,7 +193,13 @@ test('the brand line sits under the nav: one line, no box, the logo left and the
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-brand-card]'))`), false, 'closed menu: no brand card')
   await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   await page.until(`Boolean(document.querySelector('[data-top-rail-footer] [data-brand-card]'))`)
-  assert.equal(await page.evaluate(`(() => { const f = document.querySelector('[data-top-rail-footer]').getBoundingClientRect(), l = document.querySelector('[data-top-rail-list]').getBoundingClientRect(); return Math.abs(f.bottom - l.bottom) < 2 })()`), true, 'at the bottom of the menu')
+  assert.equal(
+    await page.evaluate(
+      `(() => { const f = document.querySelector('[data-top-rail-footer]').getBoundingClientRect(), l = document.querySelector('[data-top-rail-list]').getBoundingClientRect(); return Math.abs(f.bottom - l.bottom) < 2 })()`,
+    ),
+    true,
+    'at the bottom of the menu',
+  )
 })
 
 test('an In flight title opens the task drawer, and Back closes it and returns focus', { skip }, async () => {
@@ -197,7 +211,11 @@ test('an In flight title opens the task drawer, and Back closes it and returns f
   })()`)
   assert.deepEqual(link, { tag: 'BUTTON', text: 'Task a1', underline: 'underline' })
   // Session and Info stay on the row.
-  assert.ok(await page.evaluate(`Boolean(document.querySelector('a[aria-label="Session: the worker chat for Task a1"]') && document.querySelector('button[aria-label="Details for Task a1"]'))`))
+  assert.ok(
+    await page.evaluate(
+      `Boolean(document.querySelector('a[aria-label="Session: the worker chat for Task a1"]') && document.querySelector('button[aria-label="Details for Task a1"]'))`,
+    ),
+  )
   await page.evaluate(`(() => { const b = document.querySelector('[data-task-title="a1"]'); b.focus(); b.click(); return true })()`)
   await page.until(`Boolean(document.querySelector('[role="dialog"][aria-labelledby="avoozl-drawer-title"]'))`)
   await settle()
@@ -233,7 +251,11 @@ test('Start demo shows in the empty In flight box only while nothing has ever ru
   await page.open(harness.url({ page: 'home' }), { width: 1280, height: 800 })
   await page.until(`document.body.textContent.includes('No crew or chat is working right now.')`)
   assert.equal(await page.evaluate(startDemo), true, 'empty and never run: shown')
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-start]')?.closest('[data-home-section="in-flight"] [data-home-box]'))`), true, 'inside the In flight card')
+  assert.equal(
+    await page.evaluate(`Boolean(document.querySelector('[data-demo-start]')?.closest('[data-home-section="in-flight"] [data-home-box]'))`),
+    true,
+    'inside the In flight card',
+  )
   await page.open(harness.url({ page: 'home', ran: '1' }), { width: 1280, height: 800 })
   await page.until(`document.body.textContent.includes('No crew or chat is working right now.')`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-start]').length`), 0, 'empty but has run: hidden')
@@ -306,10 +328,15 @@ test('a hovered nav item changes color, the selected one stays different, and ke
     await page.evaluate(`document.querySelector('[data-nav-group="settings"]').click()`)
     await page.until(`Boolean(document.querySelector('[data-nav-item="settings/models"]'))`)
     await settle()
-    const read = (key) => page.evaluate(`(() => { const el = document.querySelector('[data-nav-item="${key}"]'), s = getComputedStyle(el); return { bg: s.backgroundColor, color: s.color, weight: s.fontWeight, outline: s.outlineStyle } })()`)
+    const read = (key) =>
+      page.evaluate(
+        `(() => { const el = document.querySelector('[data-nav-item="${key}"]'), s = getComputedStyle(el); return { bg: s.backgroundColor, color: s.color, weight: s.fontWeight, outline: s.outlineStyle } })()`,
+      )
     const before = await read('settings/models')
     const selected = await read('settings/workspaces')
-    const box = await page.evaluate(`(() => { document.querySelector('[data-nav-item="settings/models"]').scrollIntoView({ block: 'center' }); const r = document.querySelector('[data-nav-item="settings/models"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`)
+    const box = await page.evaluate(
+      `(() => { document.querySelector('[data-nav-item="settings/models"]').scrollIntoView({ block: 'center' }); const r = document.querySelector('[data-nav-item="settings/models"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`,
+    )
     await page.hover(box[0], box[1])
     // The colors fade in over 120 ms.
     await page.evaluate('new Promise((r) => setTimeout(r, 200))')
@@ -322,7 +349,9 @@ test('a hovered nav item changes color, the selected one stays different, and ke
     await page.evaluate(`document.querySelector('[data-nav-item="settings/plugins"]').focus()`)
     assert.equal((await read('settings/plugins')).outline, 'solid', 'keyboard focus shows a ring')
     // A section header changes color on hover too.
-    const head = await page.evaluate(`(() => { const r = document.querySelector('[data-nav-group="flow"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`)
+    const head = await page.evaluate(
+      `(() => { const r = document.querySelector('[data-nav-group="flow"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`,
+    )
     const headBefore = await page.evaluate(`getComputedStyle(document.querySelector('[data-nav-group="flow"]')).color`)
     await page.hover(head[0], head[1])
     await page.evaluate('new Promise((r) => setTimeout(r, 200))')

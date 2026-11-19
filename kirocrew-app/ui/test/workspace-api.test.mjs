@@ -1,11 +1,7 @@
 // Runs under node's type stripping: `node --test kirocrew-app/ui/test`.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  COMMAND_PATH,
-  errorMessage,
-  workspaceClient,
-} from '../src/workspace-api.ts'
+import { COMMAND_PATH, errorMessage, workspaceClient } from '../src/workspace-api.ts'
 
 // A stand-in for the host's useAppApi() that records each POST.
 function fakeApi(reply) {
@@ -22,9 +18,7 @@ function fakeApi(reply) {
 }
 
 test('workspace client sends each operation to the backend command route', async () => {
-  const { api, calls } = fakeApi((body) =>
-    body.operation === 'repositories.list' ? { items: [{ id: 'app' }] } : { ok: body.operation },
-  )
+  const { api, calls } = fakeApi((body) => (body.operation === 'repositories.list' ? { items: [{ id: 'app' }] } : { ok: body.operation }))
   const client = workspaceClient(api)
   await client.list()
   await client.add({ id: 'a', root: '/a' })
@@ -50,10 +44,7 @@ test('workspace client sends each operation to the backend command route', async
 })
 
 test('errors show the backend sentence, else the status', () => {
-  assert.equal(
-    errorMessage({ status: 409, body: JSON.stringify({ error: 'Workspace a is already registered.' }) }),
-    'Workspace a is already registered.',
-  )
+  assert.equal(errorMessage({ status: 409, body: JSON.stringify({ error: 'Workspace a is already registered.' }) }), 'Workspace a is already registered.')
   assert.equal(errorMessage({ status: 502, body: '<html>' }), 'Request failed (502).')
   assert.equal(errorMessage(new Error('offline')), 'offline')
 })

@@ -50,12 +50,10 @@ export interface Filterable {
   planArchived?: string | null
 }
 
-export const planKey = (task: { spec?: string | null; planId?: string | null }) =>
-  task.spec ? `spec:${task.spec}` : task.planId ? `plan:${task.planId}` : null
+export const planKey = (task: { spec?: string | null; planId?: string | null }) => (task.spec ? `spec:${task.spec}` : task.planId ? `plan:${task.planId}` : null)
 
 // A Plans row's key: its folder when it has one, else its stored plan.
-export const rowPlanKey = (row: { spec: string | null; planId: string | null }) =>
-  row.spec ? `spec:${row.spec}` : row.planId ? `plan:${row.planId}` : undefined
+export const rowPlanKey = (row: { spec: string | null; planId: string | null }) => (row.spec ? `spec:${row.spec}` : row.planId ? `plan:${row.planId}` : undefined)
 
 export const filterActive = (filter: TaskFilter) =>
   Boolean(
@@ -74,8 +72,7 @@ export const filterActive = (filter: TaskFilter) =>
 
 // Archived plans' tasks are hidden unless Show archived is on, or the
 // filter names that plan (a click on its Graph or Delivery button).
-export const archivedShown = (task: Pick<Filterable, 'planArchived'>, filter: TaskFilter) =>
-  !task.planArchived || Boolean(filter.archived || filter.plan)
+export const archivedShown = (task: Pick<Filterable, 'planArchived'>, filter: TaskFilter) => !task.planArchived || Boolean(filter.archived || filter.plan)
 
 export function matches(task: Filterable, filter: TaskFilter): boolean {
   const text = filter.q?.trim().toLowerCase() ?? ''
@@ -83,13 +80,11 @@ export function matches(task: Filterable, filter: TaskFilter): boolean {
   return (
     archivedShown(task, filter) &&
     (!text || task.title.toLowerCase().includes(text) || task.id.toLowerCase().includes(text)) &&
-    (!key ||
-      (key.startsWith('spec:') ? task.spec === key.slice(5) : key.startsWith('plan:') ? task.planId === key.slice(5) : false)) &&
+    (!key || (key.startsWith('spec:') ? task.spec === key.slice(5) : key.startsWith('plan:') ? task.planId === key.slice(5) : false)) &&
     (!filter.epic || (filter.epic === NO_GROUP ? !task.epic : task.epic === filter.epic)) &&
     // Phase applies inside the picked plan only.
     (!filter.phase || !key || (filter.phase === NO_GROUP ? !task.phase : task.phase?.id === filter.phase)) &&
-    (!filter.repository ||
-      (filter.repository === NO_REPOSITORY ? !task.repository : task.repository === filter.repository)) &&
+    (!filter.repository || (filter.repository === NO_REPOSITORY ? !task.repository : task.repository === filter.repository)) &&
     (!filter.state || task.state === filter.state) &&
     (!filter.waveMin || task.wave >= filter.waveMin) &&
     (!filter.waveMax || task.wave <= filter.waveMax) &&
@@ -137,7 +132,10 @@ export function filterChoices(graph: Graph | null, planLabels: Record<string, st
   return {
     plans: distinct(planKey, (value) => planLabels[value] ?? value.replace(/^(spec|plan):/, '')),
     epics: [
-      ...distinct((t) => t.epic, (value) => epicTitles.get(value) ?? value),
+      ...distinct(
+        (t) => t.epic,
+        (value) => epicTitles.get(value) ?? value,
+      ),
       ...(tasks.some((t) => !t.epic) ? [{ value: NO_GROUP, label: 'No epic' }] : []),
     ],
     // The picked plan's phases, in task order; none until a plan is picked.
@@ -146,17 +144,17 @@ export function filterChoices(graph: Graph | null, planLabels: Record<string, st
       const inPlan = tasks.filter((t) => planKey(t) === plan)
       const seen = new Map<string, string>()
       for (const t of inPlan) if (t.phase && !seen.has(t.phase.id)) seen.set(t.phase.id, t.phase.title)
-      return [
-        ...[...seen].map(([value, label]) => ({ value, label })),
-        ...(inPlan.some((t) => !t.phase) ? [{ value: NO_GROUP, label: 'No phase' }] : []),
-      ]
+      return [...[...seen].map(([value, label]) => ({ value, label })), ...(inPlan.some((t) => !t.phase) ? [{ value: NO_GROUP, label: 'No phase' }] : [])]
     })(),
     repositories: [
       ...[...repositories].sort().map((value) => ({ value, label: value })),
       ...(tasks.some((t) => !t.repository) ? [{ value: NO_REPOSITORY, label: 'No repository' }] : []),
     ],
     states: STATES.map((s) => ({ value: s.id, label: s.label })),
-    authorities: distinct((t) => t.authority ?? 'local', (value) => value),
+    authorities: distinct(
+      (t) => t.authority ?? 'local',
+      (value) => value,
+    ),
     waves: Math.max(0, ...wave.values()),
   }
 }
@@ -180,11 +178,9 @@ export function readFilter(storage: Pick<Storage, 'getItem'> | null, workspaceId
     const value = JSON.parse(storage?.getItem(key(workspaceId)) ?? 'null')
     if (!value || typeof value !== 'object') return {}
     const out: TaskFilter = {}
-    for (const name of ['q', 'plan', 'epic', 'phase', 'repository', 'authority'] as const)
-      if (typeof value[name] === 'string' && value[name]) out[name] = value[name]
+    for (const name of ['q', 'plan', 'epic', 'phase', 'repository', 'authority'] as const) if (typeof value[name] === 'string' && value[name]) out[name] = value[name]
     if (STATES.some((s) => s.id === value.state)) out.state = value.state
-    for (const name of ['waveMin', 'waveMax'] as const)
-      if (Number.isInteger(value[name]) && value[name] > 0) out[name] = value[name]
+    for (const name of ['waveMin', 'waveMax'] as const) if (Number.isInteger(value[name]) && value[name] > 0) out[name] = value[name]
     if (value.needsYou === true) out.needsYou = true
     if (value.archived === true) out.archived = true
     return out

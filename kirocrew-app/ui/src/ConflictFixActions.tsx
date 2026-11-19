@@ -19,7 +19,12 @@ export function ConflictFixActions(props: { fix: Fix; busy: boolean; onDecide: (
   return (
     <Row gap={2} data-conflict-fix-actions>
       {fix.actions.includes('resolve') && (
-        <IconLabel icon={Check} tooltip="You fix the conflict on the branch yourself. Avoozl stops watching this conflict." disabled={busy} onClick={() => props.onDecide('resolve', DONE.resolve)}>
+        <IconLabel
+          icon={Check}
+          tooltip="You fix the conflict on the branch yourself. Avoozl stops watching this conflict."
+          disabled={busy}
+          onClick={() => props.onDecide('resolve', DONE.resolve)}
+        >
           Resolve myself
         </IconLabel>
       )}

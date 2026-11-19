@@ -40,7 +40,10 @@ export async function buildHarness({ hostCss, scripts = {}, entry = path.join(he
         name: 'avoozl-harness-stubs',
         enforce: 'pre',
         resolveId(id) {
-          if (id === 'lucide-react') return realLucide ? ['dist/esm/lucide-react.js', 'dist/esm/lucide-react.mjs'].map((file) => path.join(realLucide, file)).find((file) => fs.existsSync(file)) : '\0lucide-react'
+          if (id === 'lucide-react')
+            return realLucide
+              ? ['dist/esm/lucide-react.js', 'dist/esm/lucide-react.mjs'].map((file) => path.join(realLucide, file)).find((file) => fs.existsSync(file))
+              : '\0lucide-react'
           if (id === '@kirocrew/app-sdk' || id === '@kirocrew/app-sdk/ui') return path.join(here, 'stubs.tsx')
           return null
         },

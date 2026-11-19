@@ -69,7 +69,17 @@ export function installInlineFixture() {
     effective: null,
     error: null,
     crews: [],
-    choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
+    choices: {
+      modes: ['local', 'plans-repo', 'single-repo'],
+      authorities: [],
+      coders: ['issue-radar', 'remote'],
+      permissions: [],
+      actions: [],
+      fields: [],
+      statusValues: [],
+      managedLabels: [],
+      crewLabels: [],
+    },
   })
   answer('github.settings.get', () => githubSettings())
   answer('github.settings.validate', () => ({ valid: true, error: null }))

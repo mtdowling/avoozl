@@ -26,9 +26,16 @@ test('notices are off by default and only a stored choice turns them on', () => 
 test('the first read only records what waits; new items are noticed once per browser', () => {
   const storage = memory()
   assert.deepEqual(takeNew(storage, items('a')), [], 'the backlog is not shown')
-  assert.deepEqual(takeNew(storage, items('a', 'b', 'c')).map((i) => i.id), ['b', 'c'], 'two new items, two notices')
+  assert.deepEqual(
+    takeNew(storage, items('a', 'b', 'c')).map((i) => i.id),
+    ['b', 'c'],
+    'two new items, two notices',
+  )
   assert.deepEqual(takeNew(storage, items('a', 'b', 'c')), [], 'a reload shows none')
-  assert.deepEqual(takeNew(storage, items('a', 'b', 'c', 'd')).map((i) => i.id), ['d'])
+  assert.deepEqual(
+    takeNew(storage, items('a', 'b', 'c', 'd')).map((i) => i.id),
+    ['d'],
+  )
 })
 
 test('a notice holds the title and no path', () => {

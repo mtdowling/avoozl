@@ -164,7 +164,20 @@ export function Modal(props: {
         event.preventDefault()
         dismiss()
       }}
-      style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', maxWidth: 'none', maxHeight: 'none', margin: 0, padding: 0, border: 'none', background: 'transparent', overflow: 'hidden', color: 'var(--text)' }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        maxWidth: 'none',
+        maxHeight: 'none',
+        margin: 0,
+        padding: 0,
+        border: 'none',
+        background: 'transparent',
+        overflow: 'hidden',
+        color: 'var(--text)',
+      }}
     >
       <style>{MODAL_CSS}</style>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -181,17 +194,73 @@ export function Modal(props: {
         >
           <PortalTarget.Provider value={target}>
             <div data-modal-header style={{ display: 'flex', flexShrink: 0, alignItems: 'center', gap: 12, padding: '12px 48px 12px 20px', borderBottom: DIVIDER }}>
-              <h2 id={`${props.id}-title`} style={{ margin: 0, minWidth: 0, flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--text-strong, var(--text))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <h2
+                id={`${props.id}-title`}
+                style={{
+                  margin: 0,
+                  minWidth: 0,
+                  flex: 1,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: 'var(--text-strong, var(--text))',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {props.title}
               </h2>
             </div>
-            <button type="button" data-modal-close aria-label="Close" onClick={dismiss} style={{ position: 'absolute', top: 12, right: 16, width: 28, height: 28, padding: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 0, background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}>
+            <button
+              type="button"
+              data-modal-close
+              aria-label="Close"
+              onClick={dismiss}
+              style={{
+                position: 'absolute',
+                top: 12,
+                right: 16,
+                width: 28,
+                height: 28,
+                padding: 6,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 8,
+                border: 0,
+                background: 'transparent',
+                color: 'var(--muted)',
+                cursor: 'pointer',
+              }}
+            >
               <X size={16} aria-hidden="true" />
             </button>
-            <div data-modal-body style={{ minHeight: 0, flex: 1, ...(props.flush ? { overflow: 'hidden', padding: 0, gap: 0 } : { overflowX: 'hidden', overflowY: 'auto', padding: '16px 20px', gap: 12 }), display: 'flex', flexDirection: 'column' }}>
+            <div
+              data-modal-body
+              style={{
+                minHeight: 0,
+                flex: 1,
+                ...(props.flush ? { overflow: 'hidden', padding: 0, gap: 0 } : { overflowX: 'hidden', overflowY: 'auto', padding: '16px 20px', gap: 12 }),
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
               {props.children}
             </div>
-            <div data-modal-footer style={{ display: 'flex', flexShrink: 0, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '12px 20px', borderTop: DIVIDER, background: 'var(--bg-accent, var(--bg-elevated))' }}>
+            <div
+              data-modal-footer
+              style={{
+                display: 'flex',
+                flexShrink: 0,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: 8,
+                padding: '12px 20px',
+                borderTop: DIVIDER,
+                background: 'var(--bg-accent, var(--bg-elevated))',
+              }}
+            >
               <Button type="button" data-modal-footer-close data-autofocus={props.focusClose ? true : undefined} onClick={dismiss}>
                 {props.dismissLabel ?? 'Close'}
               </Button>

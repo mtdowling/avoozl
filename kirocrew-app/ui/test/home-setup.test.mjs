@@ -8,8 +8,14 @@ const none = { repositories: 0, plans: 0 }
 
 test('a fresh workspace shows every empty state; only the ones with a fix of their own have a button', () => {
   const cards = setupCards(none)
-  assert.deepEqual(cards.map((c) => c.id), ['repository', 'epics'])
-  assert.deepEqual(cards.map((c) => c.action), ['Add a repo', ''])
+  assert.deepEqual(
+    cards.map((c) => c.id),
+    ['repository', 'epics'],
+  )
+  assert.deepEqual(
+    cards.map((c) => c.action),
+    ['Add a repo', ''],
+  )
   assert.equal(cards[1].line, 'No epics yet. Start one with New spec on Specs.')
 })
 

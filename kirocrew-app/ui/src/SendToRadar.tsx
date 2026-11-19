@@ -26,15 +26,7 @@ const STEPS = [
   ['Sent', 'A crew picks an issue on its own next turn. Follow it under With Issue Radar.'],
 ] as const
 
-
-export function SendToRadar(props: {
-  workspaceId: string
-  client: Client
-  items: UntriagedItem[]
-  repository: string
-  onClose: (note?: string) => void
-  onSent: () => void
-}) {
+export function SendToRadar(props: { workspaceId: string; client: Client; items: UntriagedItem[]; repository: string; onClose: (note?: string) => void; onSent: () => void }) {
   const { workspaceId, client, items, repository } = props
   const [step, setStep] = useState(0)
   const [crews, setCrews] = useState<CrewList | null>(null)
@@ -132,9 +124,9 @@ export function SendToRadar(props: {
     >
       <Box as="ol" flex flexWrap gap="2" size="xs" aria-label="Steps">
         {STEPS.map(([title], i) => (
-          <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
+          <Box key={title} aria-current={i === step ? 'step' : undefined} as="li" weight={i === step ? 'semibold' : undefined} tone={i === step ? undefined : 'muted'}>
             {i + 1}. {title}
-          </li>
+          </Box>
         ))}
       </Box>
       <div>
@@ -161,16 +153,28 @@ export function SendToRadar(props: {
               </p>
             ) : (
               <Box as="fieldset" flex flexCol gap="1.5" data-radar-crews>
-                <Box as="legend" srOnly>Crew</Box>
+                <Box as="legend" srOnly>
+                  Crew
+                </Box>
                 {crews.crews.map((entry) => (
                   <Box
                     key={entry.id}
-                    as="label" css-border-color={entry.id === crewId ? 'accent' : 'border'} flex cursorPointer items="start" gap="2" rounded="md" border="all" p="2"
+                    as="label"
+                    css-border-color={entry.id === crewId ? 'accent' : 'border'}
+                    flex
+                    cursorPointer
+                    items="start"
+                    gap="2"
+                    rounded="md"
+                    border="all"
+                    p="2"
                   >
                     <PlainInput type="radio" name="avoozl-radar-crew" checked={entry.id === crewId} onChange={() => setCrewId(entry.id)} css-margin-top="3" />
                     <Box as="span" flex minW0 flexCol gap="0.5">
                       <Box as="span" flex flexWrap items="center" gap="1.5">
-                        <Box as="span" weight="medium">{entry.name}</Box>
+                        <Box as="span" weight="medium">
+                          {entry.name}
+                        </Box>
                         {entry.status && <Badge>{entry.status}</Badge>}
                         {entry.labels.map((label) => (
                           <Badge key={label} variant="info">
@@ -186,7 +190,9 @@ export function SendToRadar(props: {
             )
           ) : (
             <Box flex flexCol gap="1.5" data-radar-typed>
-              <Hint as="p" size="xs">{crews.reason}</Hint>
+              <Hint as="p" size="xs">
+                {crews.reason}
+              </Hint>
               <Box as="label" flex flexCol gap="1">
                 <span>
                   Label the crew watches <Hint size="xs">(required)</Hint>
@@ -218,7 +224,10 @@ export function SendToRadar(props: {
           <Box as="ul" flex flexCol gap="0.5" data-radar-items>
             {preview.items.map((item) => (
               <li key={item.number}>
-                <Box as="span" tone="muted" tabularNums>#{item.number}</Box> {item.title}
+                <Box as="span" tone="muted" tabularNums>
+                  #{item.number}
+                </Box>{' '}
+                {item.title}
               </li>
             ))}
           </Box>
@@ -227,7 +236,9 @@ export function SendToRadar(props: {
               {warning}
             </Box>
           ))}
-          <Hint as="p" size="xs">To undo, remove the label on GitHub before a crew claims the issue.</Hint>
+          <Hint as="p" size="xs">
+            To undo, remove the label on GitHub before a crew claims the issue.
+          </Hint>
         </Box>
       )}
 
@@ -235,7 +246,11 @@ export function SendToRadar(props: {
         <Box as="ul" flex flexCol gap="1" size="sm" data-radar-results>
           {(result.results ?? []).map((row) => (
             <Box key={row.number} as="li" flex items="start" gap="1.5">
-              {row.ok ? <Glyph icon={Check} size={ICON} aria-hidden="true" css-color="ok" css-margin-top="3" /> : <Glyph icon={X} size={ICON} aria-hidden="true" css-color="danger" css-margin-top="3" />}
+              {row.ok ? (
+                <Glyph icon={Check} size={ICON} aria-hidden="true" css-color="ok" css-margin-top="3" />
+              ) : (
+                <Glyph icon={X} size={ICON} aria-hidden="true" css-color="danger" css-margin-top="3" />
+              )}
               <span>
                 #{row.number} {row.ok ? (result.label ? `labeled ${result.label}` : 'recorded') : `not sent: ${row.error}`}
               </span>

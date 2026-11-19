@@ -41,8 +41,7 @@ export const itemKey = (item: { kind?: string; taskId: string | null; field?: st
 
 // A review group's tasks the page may mark reviewed: GitHub and plugin rows
 // are reviewed where they live.
-export const reviewTargets = (item: ConflictItem) =>
-  (item.tasks ?? []).filter((task) => (task.authority ?? 'local') === 'local').map((task) => ({ taskId: task.id }))
+export const reviewTargets = (item: ConflictItem) => (item.tasks ?? []).filter((task) => (task.authority ?? 'local') === 'local').map((task) => ({ taskId: task.id }))
 
 // What conflicts.settle is sent for an item: a review group sends its tasks.
 export const settleTargets = (item: ConflictItem): { taskId: string; slot?: string }[] =>
@@ -75,8 +74,7 @@ function reviewGroup(item: ConflictItem, tasks: NonNullable<ConflictItem['tasks'
 export function resultMessage(action: SettleAction, result: SettleResult): { ok: boolean; text: string } {
   const done = result.settled.length
   const parts = [done ? `${ACTION_LABELS[action]}: ${done} done.` : '']
-  if (result.refused.length)
-    parts.push(`Refused ${result.refused.length}: ${result.refused.map((r) => `${r.taskId} (${r.reason})`).join('; ')}`)
+  if (result.refused.length) parts.push(`Refused ${result.refused.length}: ${result.refused.map((r) => `${r.taskId} (${r.reason})`).join('; ')}`)
   return { ok: result.refused.length === 0, text: parts.filter(Boolean).join(' ') }
 }
 
@@ -91,13 +89,11 @@ export function noActionReason(item: ConflictItem): string | null {
       : item.field === 'Avoozl state'
         ? 'Avoozl fills Avoozl state and already wrote its value back. Move the card’s Status instead. This clears when the task’s state next changes.'
         : 'GitHub owns the issue state. Reopen or close it on GitHub; Avoozl reads the result on its next tick.'
-  if (item.kind === 'content-unavailable')
-    return 'Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick.'
+  if (item.kind === 'content-unavailable') return 'Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick.'
   if (item.kind === 'content-match') return null
   // Findings and Ready to merge carry their own actions (ConflictsView.tsx).
   if (item.kind === 'investigation' || item.kind === 'ready-to-merge' || item.kind === 'branch-landing') return null
-  if (item.kind === 'tick-failed')
-    return 'Fix the error shown. Avoozl runs the tick again by itself, and this row clears after the first tick that works.'
+  if (item.kind === 'tick-failed') return 'Fix the error shown. Avoozl runs the tick again by itself, and this row clears after the first tick that works.'
   // A forward row carries its own button (ConflictsView.tsx ForwardButton).
   if (item.kind === 'needs-human' && item.reason === 'forward') return null
   // A public branch ready to land (RC26.4): a person merges it on GitHub.
@@ -112,15 +108,12 @@ export function noActionReason(item: ConflictItem): string | null {
   // A merge method the repository refuses (RC28.7) is fixed in GitHub's settings.
   if (item.kind === 'needs-human' && item.reason === 'merge-method')
     return 'Change the GitHub setting it names, or change the merge method on the Landing tab in Repository setup. The row clears on the next check.'
-  if (item.kind === 'needs-human' && item.reason === 'hand-set-review')
-    return 'Discuss it, mark it done, or move it back to planned from the task.'
+  if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return 'Discuss it, mark it done, or move it back to planned from the task.'
   // Review drafts (RC20): the person acts on GitHub; the row clears itself.
   if (item.kind === 'needs-human' && item.reason === 'review-draft')
     return 'Act on the pull request on GitHub. Avoozl clears this row on its next tick once the draft is submitted or the cause is gone.'
-  if (item.kind === 'review' && settleActionOf(item) === null)
-    return 'GitHub owns these tasks. Review them where they live.'
-  if (settleActionOf(item) === null && item.kind !== 'github-conflict')
-    return `${item.authority} owns this task. Settle it where it lives.`
+  if (item.kind === 'review' && settleActionOf(item) === null) return 'GitHub owns these tasks. Review them where they live.'
+  if (settleActionOf(item) === null && item.kind !== 'github-conflict') return `${item.authority} owns this task. Settle it where it lives.`
   return null
 }
 
@@ -140,8 +133,7 @@ export function tabCounts(items: ConflictItem[]): Record<string, number> {
 
 // Why an item needs a person, in one plain line.
 export function whyLine(item: ConflictItem): string {
-  if (item.kind === 'github-conflict')
-    return `${item.changedBy ?? 'Someone'} changed ${item.field ?? 'a managed field'} on GitHub; Avoozl manages it. ${item.detail}`
+  if (item.kind === 'github-conflict') return `${item.changedBy ?? 'Someone'} changed ${item.field ?? 'a managed field'} on GitHub; Avoozl manages it. ${item.detail}`
   if (item.kind === 'needs-human' && item.reason === 'crew') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'review-draft') return item.detail
@@ -220,10 +212,7 @@ export function matchesConflict(item: ConflictItem, filter: ConflictFilter, task
   const time = itemTime(item as ConflictItem & { openedAt?: string | null })
   const repository = repositoryOf(item, task)
   return (
-    (!text ||
-      item.title.toLowerCase().includes(text) ||
-      (item.taskId ?? '').toLowerCase().includes(text) ||
-      item.detail.toLowerCase().includes(text)) &&
+    (!text || item.title.toLowerCase().includes(text) || (item.taskId ?? '').toLowerCase().includes(text) || item.detail.toLowerCase().includes(text)) &&
     (!kind || kind.keep(item)) &&
     (!filter.plan || (task ? planKey(task) : null) === filter.plan) &&
     (!filter.epic || task?.epic === filter.epic) &&
@@ -250,8 +239,17 @@ export function conflictChoices(items: ConflictItem[], graph: Graph | null) {
   const task = (item: ConflictItem) => tasks.get(conflictTaskId(item) ?? '')
   return {
     kinds: CONFLICT_TABS.filter((t) => t.key !== 'all').map((t) => ({ value: t.key, label: `${t.label} (${counts[t.key]})` })),
-    plans: distinct((item) => { const t = task(item); return t ? planKey(t) : null }, (value) => value.replace(/^(spec|plan):/, '')),
-    epics: distinct((item) => task(item)?.epic, (value) => epicTitles.get(value) ?? value),
+    plans: distinct(
+      (item) => {
+        const t = task(item)
+        return t ? planKey(t) : null
+      },
+      (value) => value.replace(/^(spec|plan):/, ''),
+    ),
+    epics: distinct(
+      (item) => task(item)?.epic,
+      (value) => epicTitles.get(value) ?? value,
+    ),
     repositories: [
       ...distinct((item) => repositoryOf(item, task(item))),
       ...(items.some((item) => !repositoryOf(item, task(item))) ? [{ value: NO_REPOSITORY, label: 'No repository' }] : []),

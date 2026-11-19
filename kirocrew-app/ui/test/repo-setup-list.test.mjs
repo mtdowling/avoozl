@@ -6,11 +6,19 @@ import test from 'node:test'
 import { MIRROR_ROLE, emptyMirror, emptyRepository, mirrorSourceOf, mirrorSourceProblem, toForm, toPolicy, withRepositoryEdit } from '../src/settings-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
-const base = () => toForm({ mode: 'plans-repo', planningRepository: 'o/plans', repositories: { 'o/pub': { baseBranch: 'main', role: 'code' }, 'o/plans': { baseBranch: 'main', role: 'planning' } } })
+const base = () =>
+  toForm({
+    mode: 'plans-repo',
+    planningRepository: 'o/plans',
+    repositories: { 'o/pub': { baseBranch: 'main', role: 'code' }, 'o/plans': { baseBranch: 'main', role: 'planning' } },
+  })
 const row = (github) => ({ github, branch: 'main', policy: -1 })
 
 test('the list has no form fields and no inline role control', () => {
-  const list = source('RepositoriesSettings.tsx').slice(source('RepositoriesSettings.tsx').indexOf('export function RepositoryList'), source('RepositoriesSettings.tsx').indexOf('// What the Are you sure'))
+  const list = source('RepositoriesSettings.tsx').slice(
+    source('RepositoriesSettings.tsx').indexOf('export function RepositoryList'),
+    source('RepositoriesSettings.tsx').indexOf('// What the Are you sure'),
+  )
   assert.doesNotMatch(list, /<select|<Input/)
   assert.match(list, /<Badge>\{props\.roleText\(row\)\}<\/Badge>/)
   for (const icon of ['Eye', 'Pencil', 'Trash2']) assert.match(list, new RegExp(`icon=\\{${icon}\\}`))

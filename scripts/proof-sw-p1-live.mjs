@@ -32,6 +32,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { realClaude } from "./real-claude.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = path.join(REPO, "cli.mjs");
@@ -109,6 +110,8 @@ function bedrockEnvironment() {
 }
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const results = [];
+// A step that cannot go on ends the run, with its failure recorded.
+class ProofAbort extends Error {}
 
 function isolate() {
   for (const name of Object.keys(process.env))
@@ -139,13 +142,15 @@ const cli = (...args) =>
 const imp = (file) => import(pathToFileURL(path.join(REPO, file)).href);
 
 function claudeBinary() {
-  if (process.env.SWP1_CLAUDE) return process.env.SWP1_CLAUDE;
-  const found = spawnSync("command -v claude", {
-    shell: true,
-    encoding: "utf8",
-    env: realEnv,
-  }).stdout.trim();
-  return found || null;
+  const named =
+    process.env.SWP1_CLAUDE ||
+    spawnSync("command -v claude", {
+      shell: true,
+      encoding: "utf8",
+      env: realEnv,
+    }).stdout.trim() ||
+    null;
+  return realClaude(named, realEnv.HOME ?? os.homedir());
 }
 
 function freePort() {
@@ -246,7 +251,14 @@ async function setup(port) {
     bytes = JSON.stringify(definition, null, 2) + "\n";
   } else {
     name = "fake-cli";
-    fs.writeFileSync(path.join(ROOT, "fake-agent.mjs"), FAKE_AGENT);
+    // SWP1_FAKE_FAIL=1 makes the scripted agent exit 3 with no report, to check
+    // that the proof fails fast on a worker that ends that way.
+    fs.writeFileSync(
+      path.join(ROOT, "fake-agent.mjs"),
+      process.env.SWP1_FAKE_FAIL
+        ? 'console.error("scripted failure"); process.exit(3);\n'
+        : FAKE_AGENT,
+    );
     bytes = JSON.stringify({
       name,
       start: [process.execPath, path.join(ROOT, "fake-agent.mjs")],
@@ -508,17 +520,62 @@ async function step2(page, port, machine) {
     height: 900,
     dark: false,
   });
+  // The task lands on the bare remote, unless its worker ends first: a worker
+  // that exits non-zero, or exits and no done report lands the task within two
+  // minutes, fails the proof now instead of after the long wait.
+  const { machineStatus } = await imp("src/app/machine-status.mjs");
+  let failure = null,
+    exitedAt = null;
+  const workerFailed = () => {
+    const workers = machineStatus({
+      stateDirectory: machine.stateDirectory,
+    }).children.filter((child) => child.role === "worker");
+    const ended = workers.find((child) => child.state === "exited");
+    if (!ended || workers.some((child) => child.state !== "exited")) {
+      exitedAt = null;
+      return null;
+    }
+    exitedAt ??= Date.now();
+    if (ended.exitCode !== 0 || Date.now() - exitedAt > 120_000) {
+      const log = path.join(
+        machine.stateDirectory,
+        "supervisor",
+        "children",
+        ended.sessionId,
+        "log",
+      );
+      let tail = "";
+      try {
+        tail = fs.readFileSync(log, "utf8").slice(-800);
+      } catch {
+        // No log to show.
+      }
+      return {
+        exitCode: ended.exitCode,
+        reason:
+          ended.exitCode !== 0
+            ? `the worker exited with code ${ended.exitCode}`
+            : "the worker exited without a done report that landed the task",
+        logTail: tail,
+      };
+    }
+    return null;
+  };
   const row = await until(
     "the worker's In flight row",
-    () =>
-      page.evaluate(
+    async () => {
+      // A worker that has already failed ends the wait.
+      failure = workerFailed();
+      if (failure) return "failed";
+      return page.evaluate(
         "document.querySelector('[data-in-flight-row]') ? document.querySelector('[data-process-log]')?.textContent ?? 'row' : null",
-      ),
+      );
+    },
     { timeoutMs: 10 * 60_000, everyMs: 3000 },
   ).catch(() => null);
   event("step2.row", { seen: row !== null });
   let queued = false;
-  if (row !== null) {
+  if (row !== null && !failure) {
     await page.evaluate(
       "document.querySelector('[data-in-flight-row] button[aria-label^=\"Send message\"]')?.click(); true",
     );
@@ -539,19 +596,32 @@ async function step2(page, port, machine) {
     ).catch(() => false);
     await page.screenshot(path.join(P.shots, "in-flight.png"));
   }
-  // The task lands on the bare remote.
   const landed = await until(
     "the task to land",
     () => {
       try {
         git(P.checkout, "fetch", "-q", "origin");
-        return git(P.checkout, "show", `origin/main:${TASK[1]}`) === TASK[2];
+        if (git(P.checkout, "show", `origin/main:${TASK[1]}`) === TASK[2])
+          return true;
       } catch {
-        return false;
+        // Not landed yet.
       }
+      failure = workerFailed();
+      return Boolean(failure);
     },
     { timeoutMs: 30 * 60_000, everyMs: 5000 },
-  ).catch(() => false);
+  ).then(
+    () => !failure,
+    () => false,
+  );
+  if (failure) {
+    record("2 the task lands and the message reaches the child", false, {
+      sawRow: row !== null,
+      queued,
+      ...failure,
+    });
+    throw new ProofAbort(failure.reason);
+  }
   // The message reached the child: a message file in its folder.
   const children = path.join(machine.stateDirectory, "supervisor", "children");
   const delivered = await until(
@@ -806,6 +876,39 @@ async function step5(page, port, supervisor, machine, restart) {
 
 // ── Main ─────────────────────────────────────────────────────────────────
 
+// `claude --version` with the environment the proof gives it: an isolated home,
+// its own config folder and the Bedrock settings, not the person's.
+function claudeRuns() {
+  const claude = claudeBinary();
+  if (!claude) return false;
+  const home = fs.mkdtempSync(path.join(tmp, "swp1-claude-"));
+  try {
+    const env = {
+      ...Object.fromEntries(
+        Object.entries(realEnv).filter(
+          ([name]) =>
+            !/^(KIROCREW|AVOOZL|AICOMMANDER|NUPP_WORKSPACE)/.test(name),
+        ),
+      ),
+      HOME: home,
+      USERPROFILE: home,
+      XDG_CONFIG_HOME: path.join(home, "config"),
+      XDG_STATE_HOME: path.join(home, "state"),
+      CLAUDE_CONFIG_DIR: path.join(home, "claude-config"),
+      CLAUDE_CODE_USE_BEDROCK: "1",
+      PATH: `${path.dirname(claude)}:${realEnv.PATH}`,
+    };
+    const ran = spawnSync(claude, ["--version"], {
+      env,
+      encoding: "utf8",
+      timeout: 60_000,
+    });
+    return ran.status === 0 && ran.stdout.trim().length > 0;
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+}
+
 async function preflight() {
   const checks = [
     [
@@ -836,8 +939,12 @@ async function preflight() {
     ...(AGENT === "claude"
       ? [
           [
-            "the Claude Code binary (SWP1_CLAUDE or PATH)",
+            "the real Claude Code binary (SWP1_CLAUDE, PATH or ~/.toolbox/tools/claude-code)",
             Boolean(claudeBinary()),
+          ],
+          [
+            "the Claude Code binary runs under the isolated environment",
+            claudeRuns(),
           ],
           [
             "~/.claude/settings.json is readable",
@@ -921,6 +1028,9 @@ async function prove() {
     await step3(page, port, machine);
     await step4(page, port);
     supervisor = await step5(page, port, supervisor, machine, startSupervisor);
+  } catch (error) {
+    if (!(error instanceof ProofAbort)) throw error;
+    event("abort", { reason: error.message });
   } finally {
     await browser.close();
     await stopSupervisor(supervisor);

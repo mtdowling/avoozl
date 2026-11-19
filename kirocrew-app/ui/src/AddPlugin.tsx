@@ -57,7 +57,11 @@ function Field(props: { label: string; marker?: 'required' | 'optional'; raw?: s
       </span>
       {props.children}
       {props.hint && <Hint size="xs">{props.hint}</Hint>}
-      {props.raw && <Box as="code" size="11" tone="muted">{props.raw}</Box>}
+      {props.raw && (
+        <Box as="code" size="11" tone="muted">
+          {props.raw}
+        </Box>
+      )}
     </Box>
   )
 }
@@ -96,7 +100,9 @@ function SourceFields({ form, set }: { form: PluginForm; set: (patch: Partial<Pl
             <Input value={form.subdir} placeholder="plugin" onChange={(e: Change) => set({ subdir: e.target.value })} />
           </Field>
         </Box>
-        <Hint as="p" size="xs">Next finds the exact commit this names. Add fetches only that commit, with hooks off and nothing installed.</Hint>
+        <Hint as="p" size="xs">
+          Next finds the exact commit this names. Add fetches only that commit, with hooks off and nothing installed.
+        </Hint>
       </Stack>
     ),
   }
@@ -145,7 +151,12 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
             </Box>
           ))}
       </Box>
-      <Field label="Id" marker="required" raw="id" hint={preview.id ? 'From the plugin’s own avoozl-plugin.json.' : 'It must match the id in the plugin’s avoozl-plugin.json. Add checks it.'}>
+      <Field
+        label="Id"
+        marker="required"
+        raw="id"
+        hint={preview.id ? 'From the plugin’s own avoozl-plugin.json.' : 'It must match the id in the plugin’s avoozl-plugin.json. Add checks it.'}
+      >
         <Input value={form.id} disabled={Boolean(preview.id)} placeholder="example-intake" onChange={(e: Change) => set({ id: e.target.value })} />
       </Field>
       <Field label={CONTRACT_LABEL} marker="required" raw="contract" hint={fromManifest ? `From the plugin’s own avoozl-plugin.json. ${CONTRACT_HINT}` : CONTRACT_HINT}>
@@ -187,8 +198,12 @@ function ScopeStep(props: { form: PluginForm; set: (patch: Partial<PluginForm>) 
   const detail = (line: string, when: string, limits: string) => (
     <Box flex flexCol gap="1" size="sm">
       <p>{line}</p>
-      <Hint as="p" size="xs">Use it when {when}</Hint>
-      <Hint as="p" size="xs">{limits}</Hint>
+      <Hint as="p" size="xs">
+        Use it when {when}
+      </Hint>
+      <Hint as="p" size="xs">
+        {limits}
+      </Hint>
     </Box>
   )
   return (
@@ -228,7 +243,9 @@ function ScopeStep(props: { form: PluginForm; set: (patch: Partial<PluginForm>) 
               <Switch label="Publish it in .avoozl.json" align="start" size="sm" checked={props.confirmPublic} onChange={props.setConfirmPublic}>
                 <span>
                   Publish it in .avoozl.json
-                  <Hint size="xs" block>Anyone who can read the repository sees this plugin’s id, source and config.</Hint>
+                  <Hint size="xs" block>
+                    Anyone who can read the repository sees this plugin’s id, source and config.
+                  </Hint>
                 </span>
               </Switch>
             ),
@@ -322,7 +339,13 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       describedBy="avoozl-plugin-line"
       boxRef={box}
       attrs={{ 'data-plugin-dialog': step }}
-      unsaved={(Boolean(added) || step > 0 || JSON.stringify(form) !== JSON.stringify(emptyPluginForm())) && { title: 'Stop adding this plugin?', body: added ? `${added.id} is removed again. Nothing ran.` : 'What you entered is lost.', action: 'Stop' }}
+      unsaved={
+        (Boolean(added) || step > 0 || JSON.stringify(form) !== JSON.stringify(emptyPluginForm())) && {
+          title: 'Stop adding this plugin?',
+          body: added ? `${added.id} is removed again. Nothing ran.` : 'What you entered is lost.',
+          action: 'Stop',
+        }
+      }
       title={PLUGIN_STEPS[step][0]}
       onDismiss={cancel}
       footer={
@@ -372,9 +395,9 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
     >
       <Box as="ol" flex flexWrap gap="2" size="xs" aria-label="Steps">
         {PLUGIN_STEPS.map(([title], i) => (
-          <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
+          <Box key={title} aria-current={i === step ? 'step' : undefined} as="li" weight={i === step ? 'semibold' : undefined} tone={i === step ? undefined : 'muted'}>
             {i + 1}. {title}
-          </li>
+          </Box>
         ))}
       </Box>
       <div>
@@ -388,7 +411,11 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       {step === 3 && added && (
         <Box flex flexCol gap="3" size="sm" data-plugin-review>
           <FormSection title={added.id} meta={<Badge variant={stateLabel(added).attention ? 'warning' : undefined}>{stateLabel(added).label}</Badge>}>
-            {added.reason && <Hint as="p" size="xs">{added.reason}</Hint>}
+            {added.reason && (
+              <Hint as="p" size="xs">
+                {added.reason}
+              </Hint>
+            )}
             <Parts row={added} />
             <Facts row={added} />
           </FormSection>
@@ -397,7 +424,9 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
               <PackChanges preview={pack} />
             </FormSection>
           )}
-          <Hint as="p" size="xs">Cancel removes the entry just added. Nothing has run.</Hint>
+          <Hint as="p" size="xs">
+            Cancel removes the entry just added. Nothing has run.
+          </Hint>
         </Box>
       )}
       {error && (
@@ -419,11 +448,15 @@ export default function AddPlugin(props: { workspaceId: string; client: Client; 
   }, [])
   return (
     <PairedCard title="Add plugin" label="Add plugin" grow={2} minWidth="18rem">
-      <Hint as="p" size="xs">Four steps. Nothing runs or imports until you approve its exact version.</Hint>
+      <Hint as="p" size="xs">
+        Four steps. Nothing runs or imports until you approve its exact version.
+      </Hint>
       <Box as="ol" mt="2" flex flexCol gap="1" size="xs">
         {PLUGIN_STEPS.map(([title, line], i) => (
           <Box key={title} as="li" flex gap="2">
-            <Box as="span" weight="semibold">{i + 1}.</Box>
+            <Box as="span" weight="semibold">
+              {i + 1}.
+            </Box>
             <span>
               {title}
               <Hint block>{line}</Hint>

@@ -52,10 +52,11 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
   useEffect(() => {
     let live = true
     if (text !== undefined) setDoc({ text, error: null })
-    else tasks.document(workspaceId, target.document).then(
-      (value) => live && setDoc({ text: value.text, error: null }),
-      (caught: unknown) => live && setDoc({ text: null, error: errorMessage(caught) }),
-    )
+    else
+      tasks.document(workspaceId, target.document).then(
+        (value) => live && setDoc({ text: value.text, error: null }),
+        (caught: unknown) => live && setDoc({ text: null, error: errorMessage(caught) }),
+      )
     // The workspace's extra grammars, as the Plans tab loads them.
     plansClient(api)
       .languages(workspaceId)
@@ -161,12 +162,16 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
         {headings.length > 0 &&
           (narrow ? (
             <Box as="details" css-border-color="border" border="b" px="4" py="2" size="sm">
-              <Box as="summary" cursorPointer weight="medium">Outline</Box>
+              <Box as="summary" cursorPointer weight="medium">
+                Outline
+              </Box>
               <Outline headings={headings} onJump={jump} />
             </Box>
           ) : (
             <Box aria-label="File outline" as="nav" css-border-color="border" overflow="y-auto" borderR px="3" py="3" size="sm">
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Outline</Box>
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+                Outline
+              </Box>
               <Outline headings={headings} onJump={jump} />
             </Box>
           ))}
@@ -181,7 +186,9 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
               {doc.error}
             </ErrorText>
           ) : doc.text === null ? (
-            <Hint as="p" size="sm">Reading…</Hint>
+            <Hint as="p" size="sm">
+              Reading…
+            </Hint>
           ) : (
             <>
               <CitedStyle />
@@ -199,9 +206,17 @@ function Outline(props: { headings: { level: number; text: string; id: string }[
     <Box as="ul" mt="1" flex flexCol gap="0.5">
       {props.headings.map((h) => (
         <Box key={h.id} as="li" css-padding-left={(h.level - 1) * 12} truncate>
-          <button type="button" className={`text-left hover:underline ${h.level === 1 ? 'font-medium' : 'text-xs text-muted'}`} onClick={() => props.onJump(h.id)}>
+          <PlainButton
+            type="button"
+            align="left"
+            hoverUnderline
+            weight={h.level === 1 ? 'medium' : undefined}
+            size={h.level === 1 ? undefined : 'xs'}
+            tone={h.level === 1 ? undefined : 'muted'}
+            onClick={() => props.onJump(h.id)}
+          >
             {h.text}
-          </button>
+          </PlainButton>
         </Box>
       ))}
     </Box>

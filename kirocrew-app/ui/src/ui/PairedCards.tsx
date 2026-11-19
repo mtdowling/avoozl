@@ -34,7 +34,16 @@ const TINTED = { 'css-border': '1px-solid-border', 'css-border-radius': '10', 'c
 // `width` a fixed width instead.
 // With no `title` the card has no heading and its whole body scrolls.
 // `tinted` draws it as a tinted list panel.
-export function PairedCard(props: { title?: ReactNode; label: string; meta?: ReactNode; grow?: number; minWidth?: string; width?: string; tinted?: boolean; children?: ReactNode }) {
+export function PairedCard(props: {
+  title?: ReactNode
+  label: string
+  meta?: ReactNode
+  grow?: number
+  minWidth?: string
+  width?: string
+  tinted?: boolean
+  children?: ReactNode
+}) {
   const paired = useContext(Paired)
   const body = useRef<HTMLDivElement>(null)
   const [scrolls, setScrolls] = useState(false)
@@ -48,7 +57,18 @@ export function PairedCard(props: { title?: ReactNode; label: string; meta?: Rea
     check()
     return () => watch.disconnect()
   }, [paired, props.children])
-  const card: LookProps = { ...(props.tinted ? TINTED : {}), ...(paired ? { 'css-flex': props.width ? `0 0 ${props.width}` : `${props.grow ?? 1} 1 0`, 'css-min-width': props.minWidth ?? 0, 'css-min-height': 0, 'css-display': 'flex', 'css-flex-direction': 'column' } : { 'css-min-width': 0 }) }
+  const card: LookProps = {
+    ...(props.tinted ? TINTED : {}),
+    ...(paired
+      ? {
+          'css-flex': props.width ? `0 0 ${props.width}` : `${props.grow ?? 1} 1 0`,
+          'css-min-width': props.minWidth ?? 0,
+          'css-min-height': 0,
+          'css-display': 'flex',
+          'css-flex-direction': 'column',
+        }
+      : { 'css-min-width': 0 }),
+  }
   return (
     <Card {...card}>
       {props.title ? <SectionHeading title={props.title} meta={props.meta} mb="2" /> : null}

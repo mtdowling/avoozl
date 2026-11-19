@@ -26,8 +26,7 @@ export const SIDE: ColumnSpec = { key: 'avoozl:review-side-width', initial: 340,
 // A folded list is a thin bar, as wide as the collapsed nav.
 export const LIST_FOLDED_WIDTH = 36
 
-export const clampWidth = (spec: ColumnSpec, width: number) =>
-  Math.round(Math.min(spec.max, Math.max(spec.min, Number.isFinite(width) ? width : spec.initial)))
+export const clampWidth = (spec: ColumnSpec, width: number) => Math.round(Math.min(spec.max, Math.max(spec.min, Number.isFinite(width) ? width : spec.initial)))
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null
 

@@ -15,8 +15,14 @@ test('a source names its file and lines', () => {
 test('the excerpt keeps context around the task lines and marks them', () => {
   const text = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`).join('\n')
   const rows = sourceExcerpt(text, { lineStart: 10, lineEnd: 11 }, 2)
-  assert.deepEqual(rows.map((r) => r.number), [8, 9, 10, 11, 12, 13])
-  assert.deepEqual(rows.filter((r) => r.hit).map((r) => r.text), ['line 10', 'line 11'])
+  assert.deepEqual(
+    rows.map((r) => r.number),
+    [8, 9, 10, 11, 12, 13],
+  )
+  assert.deepEqual(
+    rows.filter((r) => r.hit).map((r) => r.text),
+    ['line 10', 'line 11'],
+  )
   assert.equal(sourceExcerpt('a\nb', { lineStart: 1, lineEnd: 1 }, 6).length, 2)
 })
 
@@ -54,8 +60,20 @@ test('the reader finds the block that holds a cited line', async () => {
   const { blocks } = await import('../src/markdown.ts')
   const doc = ['# Title', '', 'Para one', 'still one', '', '- a', '- b', '', '```js', 'x', 'y', '```', '', '## Next'].join('\n')
   const found = blocks(doc)
-  assert.deepEqual(found.map((b) => [b.kind, b.line]), [['heading', 1], ['paragraph', 3], ['list', 6], ['code', 9], ['heading', 14]])
-  assert.deepEqual(found[2].items.map((i) => i.line), [6, 7])
+  assert.deepEqual(
+    found.map((b) => [b.kind, b.line]),
+    [
+      ['heading', 1],
+      ['paragraph', 3],
+      ['list', 6],
+      ['code', 9],
+      ['heading', 14],
+    ],
+  )
+  assert.deepEqual(
+    found[2].items.map((i) => i.line),
+    [6, 7],
+  )
   // List items render after their list, so a line picks the item.
   const lines = [1, 3, 6, 6, 7, 9, 14]
   assert.equal(blockForLine(lines, 4), 1)

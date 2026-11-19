@@ -150,17 +150,19 @@ export const PLUGIN_PARTS: Record<string, { title: string; line: string }> = {
 
 // A row's parts; a plugin from before `provides` has one part per kind.
 export const partsOf = (row: { provides?: string[]; kinds?: string[] }) => row.provides ?? row.kinds ?? []
-export const partTitles = (row: { provides?: string[]; kinds?: string[] }) =>
-  partsOf(row).map((part) => PLUGIN_PARTS[part]?.title ?? part)
+export const partTitles = (row: { provides?: string[]; kinds?: string[] }) => partsOf(row).map((part) => PLUGIN_PARTS[part]?.title ?? part)
 
 // Each code part runs in a Node child process, so the runtime is node; a
 // plugin of data parts only runs nothing.
-export const runsAs = (kinds: string[] | undefined): string | undefined =>
-  kinds === undefined ? undefined : kinds.length ? 'node' : 'nothing: settings only'
+export const runsAs = (kinds: string[] | undefined): string | undefined => (kinds === undefined ? undefined : kinds.length ? 'node' : 'nothing: settings only')
 
 // Each kind with its optional features: "intake", or "intake, actor".
 export const capabilityLine = (capabilities: Record<string, string[]> | undefined): string | undefined =>
-  capabilities ? Object.entries(capabilities).map(([kind, list]) => [kind, ...list].join(', ')).join('; ') || undefined : undefined
+  capabilities
+    ? Object.entries(capabilities)
+        .map(([kind, list]) => [kind, ...list].join(', '))
+        .join('; ') || undefined
+    : undefined
 
 // The preview's lines by action, for the summary above the table.
 export function packCounts(changes: PackChange[]): Record<PackChange['action'], number> {
@@ -219,15 +221,13 @@ export function previewProblem(form: PluginForm, preview: PluginPreview | null, 
   if (preview.contract !== undefined && preview.supported === false)
     return `The plugin is built for contract version ${preview.contract}; this Avoozl loads ${supported.join(', ') || '1'}.`
   const want = form.where === 'package' ? form.version.trim() : ''
-  if (want && preview.version && want !== preview.version)
-    return `The installed package is version ${preview.version}, not ${want}. Install ${want} or clear the version.`
+  if (want && preview.version && want !== preview.version) return `The installed package is version ${preview.version}, not ${want}. Install ${want} or clear the version.`
   return null
 }
 
 // Shared needs a folder written relative to the repository.
 export function sharedBlocked(form: PluginForm): string | null {
-  if (form.where === 'path' && /^(?:\/|~|[A-Za-z]:[\\/])/.test(form.path.trim()))
-    return 'A shared folder must be a path inside the repository, written relative to it.'
+  if (form.where === 'path' && /^(?:\/|~|[A-Za-z]:[\\/])/.test(form.path.trim())) return 'A shared folder must be a path inside the repository, written relative to it.'
   return null
 }
 
@@ -240,8 +240,7 @@ export function addInput(form: PluginForm, confirmPublic = false): { input?: Rec
   const location = locationOf(form)
   if (!location)
     return {
-      error:
-        form.where === 'path' ? 'Name the plugin folder.' : form.where === 'git' ? 'Give the git URL.' : 'Name the package.',
+      error: form.where === 'path' ? 'Name the plugin folder.' : form.where === 'git' ? 'Give the git URL.' : 'Name the package.',
     }
   const ref = form.ref.trim(),
     subdir = form.subdir.trim()
@@ -274,10 +273,7 @@ export function addInput(form: PluginForm, confirmPublic = false): { input?: Rec
 
 // What the row says in one or two words, and whether it needs a person.
 export function stateLabel(row: PluginRow): { label: string; attention: boolean } {
-  if (row.state === 'approved')
-    return row.health?.state === 'unavailable'
-      ? { label: 'Unavailable', attention: true }
-      : { label: 'Approved', attention: false }
+  if (row.state === 'approved') return row.health?.state === 'unavailable' ? { label: 'Unavailable', attention: true } : { label: 'Approved', attention: false }
   const labels: Record<PluginState, string> = {
     invalid: 'Invalid',
     missing: 'Missing',
@@ -298,9 +294,7 @@ export const publicWarning = (error: unknown): string | null => {
   if (!error || typeof error !== 'object' || !('body' in error)) return null
   try {
     const parsed = JSON.parse(String((error as { body: unknown }).body))
-    return parsed?.code === 'plugin-public-repository' || /publish this plugin/.test(parsed?.error ?? '')
-      ? String(parsed.error)
-      : null
+    return parsed?.code === 'plugin-public-repository' || /publish this plugin/.test(parsed?.error ?? '') ? String(parsed.error) : null
   } catch {
     return null
   }
@@ -318,15 +312,10 @@ export function pluginsClient(api: AppApi) {
     add: (workspaceId: string, input: Record<string, unknown>) => run<PluginRow>('plugin.add', input, workspaceId),
     // The exact version, hash and, for git, commit the person was shown (R34.4, R34.14).
     approve: (workspaceId: string, row: PluginRow) =>
-      run<PluginRow>(
-        'plugin.approve',
-        { id: row.id, version: row.version, hash: row.hash, ...(row.commit ? { commit: row.commit } : {}) },
-        workspaceId,
-      ),
+      run<PluginRow>('plugin.approve', { id: row.id, version: row.version, hash: row.hash, ...(row.commit ? { commit: row.commit } : {}) }, workspaceId),
     // A git plugin: resolve its ref again and fetch that commit.
     update: (workspaceId: string, id: string) => run<PluginRow>('plugin.update', { id }, workspaceId),
-    disable: (workspaceId: string, id: string, disabled: boolean) =>
-      run<PluginRow>('plugin.disable', { id, disabled }, workspaceId),
+    disable: (workspaceId: string, id: string, disabled: boolean) => run<PluginRow>('plugin.disable', { id, disabled }, workspaceId),
     remove: (workspaceId: string, id: string) => run<{ id: string; removed: boolean }>('plugin.remove', { id }, workspaceId),
     // What importing the pack would change. Reads only.
     packPreview: (workspaceId: string, id: string) => run<PackPreview>('plugin.pack.preview', { id }, workspaceId),
@@ -381,7 +370,17 @@ export interface SourceForm {
   scope: 'machine' | 'repository'
 }
 
-export const emptySourceForm = (): SourceForm => ({ id: '', via: 'mcp', repository: '', labelFields: '', assigneeField: '', who: 'permission', minimumPermission: '', allowedActors: '', scope: 'machine' })
+export const emptySourceForm = (): SourceForm => ({
+  id: '',
+  via: 'mcp',
+  repository: '',
+  labelFields: '',
+  assigneeField: '',
+  who: 'permission',
+  minimumPermission: '',
+  allowedActors: '',
+  scope: 'machine',
+})
 
 export const PERMISSIONS = ['read', 'triage', 'write', 'maintain', 'admin'] as const
 export const DEFAULT_PERMISSION = 'write'
@@ -422,7 +421,13 @@ export function sourceEntry(form: SourceForm, taken: string[]): { id?: string; e
 // "Plugin ticket-intake" or "MCP", from a source's `via`.
 export function viaLabel(via: unknown): string {
   const text = String(via ?? '')
-  return text.startsWith('plugin:') ? `Plugin ${text.slice(7)}` : text === 'mcp' ? 'MCP (a script or cron job sends items)' : text === 'github' ? 'GitHub (issues in this repository)' : text || 'Unknown'
+  return text.startsWith('plugin:')
+    ? `Plugin ${text.slice(7)}`
+    : text === 'mcp'
+      ? 'MCP (a script or cron job sends items)'
+      : text === 'github'
+        ? 'GitHub (issues in this repository)'
+        : text || 'Unknown'
 }
 
 const strings = (value: unknown) => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [])
@@ -461,12 +466,10 @@ export function sourceStatus(row: IntakeSourceRow, plugins: PluginRow[], now = D
 export function sourceTriggers(row: IntakeSourceRow, plugins: PluginRow[]): { level: string; line: string } {
   const via = String(row.entry?.via ?? '')
   if (via === 'github') return { level: 'Full rules', line: "Its ready label, or the repository's trigger rules, can start work when the person who acted counts." }
-  if (!via.startsWith('plugin:'))
-    return { level: 'Untriaged only', line: 'Rules can only pause or quarantine its items. You start work with Plan this or Deliver this.' }
+  if (!via.startsWith('plugin:')) return { level: 'Untriaged only', line: 'Rules can only pause or quarantine its items. You start work with Plan this or Deliver this.' }
   const id = via.slice(7)
   const plugin = plugins.find((p) => p.id === id)
-  if (plugin && !plugin.capabilities?.intake?.includes('actor'))
-    return { level: 'No rules', line: `Plugin ${id} can't say who acted, so no rule runs. Items wait in Untriaged.` }
+  if (plugin && !plugin.capabilities?.intake?.includes('actor')) return { level: 'No rules', line: `Plugin ${id} can't say who acted, so no rule runs. Items wait in Untriaged.` }
   return { level: 'Full rules', line: 'Its rules can start, deliver, pause or quarantine work, when the person who acted counts.' }
 }
 
@@ -490,7 +493,6 @@ export function intakeClient(api: AppApi) {
     list: (workspaceId: string) => run<{ sources: IntakeSourceRow[]; github?: IntakeGitHub }>('intake.sources', {}, workspaceId),
     add: (workspaceId: string, input: { id: string; entry: Record<string, unknown>; scope: string; confirmPublic: boolean }) =>
       run<{ sources: IntakeSourceRow[] }>('intake.source.add', input, workspaceId),
-    remove: (workspaceId: string, row: IntakeSourceRow) =>
-      run<{ sources: IntakeSourceRow[] }>('intake.source.remove', { id: row.id, scope: row.scope }, workspaceId),
+    remove: (workspaceId: string, row: IntakeSourceRow) => run<{ sources: IntakeSourceRow[] }>('intake.source.remove', { id: row.id, scope: row.scope }, workspaceId),
   }
 }

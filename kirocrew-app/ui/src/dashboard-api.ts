@@ -5,7 +5,22 @@
 // of JSX so node can test it directly.
 import type { StoredPlanPage } from './plans-api.ts'
 import { nodeState, waves, type NodeState } from './graph-layout.ts'
-import { modelLabel, safeHref, type RadarClaim, type RadarGroup, type RadarCrews, type RadarCrewStrip, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask, type ProcessDetails, type RemoteWorker, type TaskLinks } from './views-api.ts'
+import {
+  modelLabel,
+  safeHref,
+  type RadarClaim,
+  type RadarGroup,
+  type RadarCrews,
+  type RadarCrewStrip,
+  type ConflictItem,
+  type DeliveryItem,
+  type DeliverySession,
+  type Graph,
+  type GraphTask,
+  type ProcessDetails,
+  type RemoteWorker,
+  type TaskLinks,
+} from './views-api.ts'
 import { TONE } from './ui/tones.ts'
 
 // Session statuses after which a session will not move again.
@@ -101,8 +116,7 @@ export function checkDot(checks: TaskLinks['checks']): { dot: string; color: str
 // the supervisor's state, the run when it was resumed, and the cost when
 // known.
 export function processLine(details: ProcessDetails): string {
-  const state =
-    details.state === 'requested' ? 'starting' : details.state === 'exited' ? `exited ${details.exitCode ?? '?'}` : details.state
+  const state = details.state === 'requested' ? 'starting' : details.state === 'exited' ? `exited ${details.exitCode ?? '?'}` : details.state
   return [
     details.harness,
     state,
@@ -170,7 +184,18 @@ function remoteRow(worker: RemoteWorker, links: TaskLinks | null): InFlight {
     startedAt: null,
     lastAt: worker.updatedAt || null,
     status: worker.status,
-    session: { slot: worker.chatKey, role: 'worker', attempt: 1, title: null, status: worker.status, statusAt: worker.updatedAt || null, boundAt: null, link: worker.attachUrl, crew: worker.crewId, crewUnreachable: worker.stale },
+    session: {
+      slot: worker.chatKey,
+      role: 'worker',
+      attempt: 1,
+      title: null,
+      status: worker.status,
+      statusAt: worker.updatedAt || null,
+      boundAt: null,
+      link: worker.attachUrl,
+      crew: worker.crewId,
+      crewUnreachable: worker.stale,
+    },
     remote: worker,
     links,
   }
@@ -200,9 +225,7 @@ export function summarize(input: {
   const counts: Record<NodeState, number> = { ready: 0, running: 0, waiting: 0, 'needs-you': 0, done: 0, deferred: 0, draft: 0 }
   // Running counts the same thing In flight lists: an open task with a live
   // session. A task drawn running with none needs the owner instead.
-  const liveTasks = new Set(
-    (allDelivery ?? []).filter((item) => !item.complete && item.sessions.some((s) => !ENDED.has(s.status ?? ''))).map((item) => item.id),
-  )
+  const liveTasks = new Set((allDelivery ?? []).filter((item) => !item.complete && item.sessions.some((s) => !ENDED.has(s.status ?? ''))).map((item) => item.id))
   for (const task of leaves) {
     const state = nodeState(task)
     counts[state === 'done' ? 'done' : liveTasks.has(task.id) ? 'running' : state === 'running' ? 'needs-you' : state] += 1
@@ -217,8 +240,7 @@ export function summarize(input: {
   }
   for (const item of input.delivery ?? []) {
     const trouble = deliveryTrouble(item)
-    if (trouble)
-      push({ key: `delivery:${item.id}`, kind: 'delivery', taskId: item.id, title: item.title, detail: trouble, tab: 'task', href: issueHref(item) })
+    if (trouble) push({ key: `delivery:${item.id}`, kind: 'delivery', taskId: item.id, title: item.title, detail: trouble, tab: 'task', href: issueHref(item) })
   }
   // A manual task once its blockers hold (R61.11): a person's step, tagged
   // Manual, in the same Needs you list.
@@ -311,7 +333,9 @@ export function summarize(input: {
     radarGroups: input.radar?.groups ?? [],
     radarUnseen: input.radar?.unseen ?? [],
     radarCrewStrip: input.radar?.crewStrip ?? null,
-    neverRan: input.delivery != null && !input.delivery.some((item) => item.complete || item.sessions.length > 0 || item.evidence.length > 0 || item.deliveries.length > 0 || item.integration),
+    neverRan:
+      input.delivery != null &&
+      !input.delivery.some((item) => item.complete || item.sessions.length > 0 || item.evidence.length > 0 || item.deliveries.length > 0 || item.integration),
     readyNext,
     progress: [...byEpic.values()],
     plans: {

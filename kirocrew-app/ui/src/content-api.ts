@@ -119,8 +119,7 @@ export const BUILTIN_INFO: Record<string, BuiltinInfo> = {
   },
   'builtin:published-secrets': {
     name: 'Secrets',
-    protects:
-      'Private keys, provider and GitHub tokens, password or API key values, Authorization headers, URLs with a password, user home paths, and long random-looking values.',
+    protects: 'Private keys, provider and GitHub tokens, password or API key values, Authorization headers, URLs with a password, user home paths, and long random-looking values.',
     where: 'Issue markers, workspace publications and broad-issue previews.',
     example: 'Authorization: Bearer made-up-token-123',
     modes: null,
@@ -175,8 +174,7 @@ export function setEntry(form: SetForm, others: string[]): { entry?: Record<stri
     entry: {
       id,
       ...(form.action === 'report' ? { action: 'report' } : {}),
-      ...(form.boundaries.length &&
-      !(form.boundaries.length === DEFAULT_BOUNDARIES.length && DEFAULT_BOUNDARIES.every((b) => form.boundaries.includes(b)))
+      ...(form.boundaries.length && !(form.boundaries.length === DEFAULT_BOUNDARIES.length && DEFAULT_BOUNDARIES.every((b) => form.boundaries.includes(b)))
         ? { boundaries: BOUNDARIES.filter((b) => form.boundaries.includes(b)) }
         : {}),
       ...(form.repositories.length ? { repositories: [...form.repositories] } : {}),
@@ -274,7 +272,9 @@ function patternError(value: string): string | null {
   try {
     new RegExp(value.trim(), 'i')
   } catch (error) {
-    return `The pattern does not compile (${String((error as Error).message).split(': ').pop()}).`
+    return `The pattern does not compile (${String((error as Error).message)
+      .split(': ')
+      .pop()}).`
   }
   return null
 }
@@ -313,9 +313,7 @@ export interface TryHit {
 // that rule (or every rule) matches the same line. Avoozl also undoes
 // percent and HTML escapes before matching; this preview does not.
 export function tryMatches(sample: string, rows: TermRow[]): TryHit[] {
-  const allows = rows.flatMap((row) =>
-    row.kind === 'allow' && !rowError(row, rows) ? [{ rule: row.rule.trim(), re: new RegExp(sourceOf(row.match, row.value), 'i') }] : [],
-  )
+  const allows = rows.flatMap((row) => (row.kind === 'allow' && !rowError(row, rows) ? [{ rule: row.rule.trim(), re: new RegExp(sourceOf(row.match, row.value), 'i') }] : []))
   const rules = rows.flatMap((row) => {
     if ((row.kind !== 'word' && row.kind !== 'pattern') || rowError(row, rows)) return []
     const name = row.name.trim()
@@ -373,7 +371,6 @@ export function contentClient(api: AppApi) {
     saveSets: (workspaceId: string, sets: Record<string, unknown>[], expectedHash: string | null | undefined) =>
       run<ContentRules>('content.sets.update', { sets, expectedHash: expectedHash ?? null }, workspaceId),
     terms: (workspaceId: string, id: string) => run<TermsFile>('content.terms.get', { id }, workspaceId),
-    saveTerms: (workspaceId: string, id: string, text: string) =>
-      run<{ id: string; rules: number; saved: boolean }>('content.terms.update', { id, text }, workspaceId),
+    saveTerms: (workspaceId: string, id: string, text: string) => run<{ id: string; rules: number; saved: boolean }>('content.terms.update', { id, text }, workspaceId),
   }
 }

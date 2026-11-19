@@ -67,7 +67,11 @@ export function DemoProvider(props: { children: ReactNode }) {
     try {
       await client.start()
       // The fixtures are for the new screens; a failed read leaves them off.
-      setFixtures(await fixturesClient(api).read().catch(() => null))
+      setFixtures(
+        await fixturesClient(api)
+          .read()
+          .catch(() => null),
+      )
       setActive(true)
     } catch (caught) {
       setError(errorMessage(caught))
@@ -146,7 +150,13 @@ export function DemoControls() {
           aria-describedby={describedBy}
           aria-pressed={stopped}
           onClick={() => demo.setStopExample(stopped ? 'running' : 'stopped')}
-          css-display="inline-flex" css-align-items="center" css-justify-content="center" css-width="28" css-height="28" css-padding="0" css-color={stopped ? 'ok-inherit' : 'danger-inherit'}
+          css-display="inline-flex"
+          css-align-items="center"
+          css-justify-content="center"
+          css-width="28"
+          css-height="28"
+          css-padding="0"
+          css-color={stopped ? 'ok-inherit' : 'danger-inherit'}
         >
           <Icon size={14} aria-hidden="true" />
         </Btn>
@@ -156,8 +166,7 @@ export function DemoControls() {
 }
 
 // What Avoozl is, and what the demo is. This is the one place the page says it.
-const DEMO_INTRO =
-  TAGLINE + ' This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.'
+const DEMO_INTRO = TAGLINE + ' This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.'
 
 export function DemoBar() {
   const demo = useDemo()
@@ -169,9 +178,9 @@ export function DemoBar() {
       </Box>
     ) : null
   const notice = (
-    <p role="status" aria-live="polite" className={phone ? 'sr-only' : 'w-full text-sm'} data-demo-notice>
+    <Box role="status" aria-live="polite" as="p" srOnly={phone} wFull={!phone} size={phone ? undefined : 'sm'} data-demo-notice>
       {demo.notice ?? ''}
-    </p>
+    </Box>
   )
   // A phone gets a compact box: the badge, the intro, the controls and Exit.
   if (phone)
@@ -180,14 +189,38 @@ export function DemoBar() {
         data-demo-bar
         role="region"
         aria-label="Demo mode"
-        css-min-height="32" css-border-color="warning-c90" css-background="card-transparent" mx="4" mb="2" flex flexWrap items="center" gap="2" rounded="md" border="all" px="2" py="1.5" size="xs"
+        css-min-height="32"
+        css-border-color="warning-c90"
+        css-background="card-transparent"
+        mx="4"
+        mb="2"
+        flex
+        flexWrap
+        items="center"
+        gap="2"
+        rounded="md"
+        border="all"
+        px="2"
+        py="1.5"
+        size="xs"
       >
         <DemoBadge />
         <Box as="span" css-min-width="160" minW0 flex1 tone="muted" data-demo-intro>
           {DEMO_INTRO}
         </Box>
         <DemoControls />
-        <PlainButton type="button" data-demo-exit onClick={() => void demo.exit()} css-background="none" css-border="0" css-color="accent" css-cursor="pointer" css-padding="2px-4px" size="xs" weight="semibold">
+        <PlainButton
+          type="button"
+          data-demo-exit
+          onClick={() => void demo.exit()}
+          css-background="none"
+          css-border="0"
+          css-color="accent"
+          css-cursor="pointer"
+          css-padding="2px-4px"
+          size="xs"
+          weight="semibold"
+        >
           Exit demo
         </PlainButton>
         {notice}
@@ -198,7 +231,19 @@ export function DemoBar() {
       data-demo-bar
       role="region"
       aria-label="Demo mode"
-      css-border-color="warning-c90" css-background="card-transparent" mx="2" mb="3" flex flexWrap items="center" gap="3" rounded="lg" border="all" px="3" py="2" size="sm"
+      css-border-color="warning-c90"
+      css-background="card-transparent"
+      mx="2"
+      mb="3"
+      flex
+      flexWrap
+      items="center"
+      gap="3"
+      rounded="lg"
+      border="all"
+      px="3"
+      py="2"
+      size="sm"
     >
       <DemoBadge />
       <Box as="span" css-min-width="200" flex1 data-demo-intro>

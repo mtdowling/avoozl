@@ -27,7 +27,8 @@ fs.mkdirSync(out, { recursive: true })
 const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
 const browser = await launch(chrome)
 const HEIGHT = { 1280: 1700, 390: 2300 }
-const button = (text) => `[...document.querySelectorAll('button, a')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}) || b.getAttribute('aria-label') === ${JSON.stringify(text)})`
+const button = (text) =>
+  `[...document.querySelectorAll('button, a')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}) || b.getAttribute('aria-label') === ${JSON.stringify(text)})`
 // Waits for the button, then clicks it in the same step, so a re-render in
 // between can't drop it.
 const press = (text) => `(() => { const b = ${button(text)}; b?.click(); return Boolean(b) })()`

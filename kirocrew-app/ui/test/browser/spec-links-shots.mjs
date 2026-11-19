@@ -32,8 +32,14 @@ try {
   const wait = (ms = 300) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
   const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
   const button = (text, scope = 'document') => `[...${scope}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
-  for (const [name, links] of [['links', specLinksFixture()], ['none', noLinksFixture()]]) {
-    const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS, scripts: { 'demo.js': demoScript(await demoReplies({ plan: { id: 'meal-planner', with: { links } } })) } })
+  for (const [name, links] of [
+    ['links', specLinksFixture()],
+    ['none', noLinksFixture()],
+  ]) {
+    const harness = await buildHarness({
+      hostCss: process.env.AVOOZL_HOST_CSS,
+      scripts: { 'demo.js': demoScript(await demoReplies({ plan: { id: 'meal-planner', with: { links } } })) },
+    })
     harnesses.push(harness)
     for (const width of [1280, 390])
       for (const theme of ['light', 'dark']) {
@@ -55,7 +61,9 @@ try {
         await click(button('Meal planner', `document.querySelector('[data-plans-list]')`))
         await page.until(`Boolean(document.querySelector('[data-spec-rail] [data-state-count]'))`)
         await wait(800)
-        await page.evaluate(`(() => { const el = document.querySelector('[aria-label="Spec details"] [data-spec-links]') || document.querySelector('[aria-label="Spec details"] [data-rail-section="Repositories"]'); el.scrollIntoView({ block: ${width < 768 ? "'center'" : "'start'"} }) })()`)
+        await page.evaluate(
+          `(() => { const el = document.querySelector('[aria-label="Spec details"] [data-spec-links]') || document.querySelector('[aria-label="Spec details"] [data-rail-section="Repositories"]'); el.scrollIntoView({ block: ${width < 768 ? "'center'" : "'start'"} }) })()`,
+        )
         await wait(300)
         await page.screenshot(path.join(out, `${name}-${width}-${theme}.png`))
       }

@@ -32,14 +32,7 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       emptyOutDir: entry === entries.page,
       rollupOptions: {
-        external: [
-          'react',
-          'react-dom',
-          'react/jsx-runtime',
-          '@kirocrew/app-sdk',
-          '@kirocrew/app-sdk/ui',
-          'lucide-react',
-        ],
+        external: ['react', 'react-dom', 'react/jsx-runtime', '@kirocrew/app-sdk', '@kirocrew/app-sdk/ui', 'lucide-react'],
       },
     },
   }

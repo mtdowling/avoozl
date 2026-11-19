@@ -34,7 +34,8 @@ for (const theme of ['light', 'dark']) {
   test(`at 1280 px ${theme} the nav is Radar's: a card per section with 32 px headers, one section open at a time, then the brand line`, { skip }, async () => {
     await page.open(harness.url({ app: '1', theme }), { width: 1280, height: 800, dark: theme === 'dark' })
     await page.until(`Boolean(document.querySelector('[data-brand-card]') && document.querySelector('[data-nav-section]'))`)
-    const read = () => page.evaluate(`(() => {
+    const read = () =>
+      page.evaluate(`(() => {
       const cards = [...document.querySelectorAll('[data-nav-section]')]
       const heads = cards.map((c) => c.querySelector('[data-nav-head]'))
       const cs = (el) => getComputedStyle(el)

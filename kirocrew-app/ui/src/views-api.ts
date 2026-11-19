@@ -254,10 +254,7 @@ const FEEDBACK_STOPS: Record<string, string> = {
 // One line: rounds used out of the bound, then the latest round.
 export function prFeedbackLine(feedback: PrFeedback): string {
   const parts = [`${feedback.rounds} of ${feedback.bound ?? '?'} rounds`]
-  if (feedback.latest)
-    parts.push(
-      `last: ${feedback.latest.kinds.map((kind) => FEEDBACK_KINDS[kind] ?? kind).join(', ')}, ${FEEDBACK_TO[feedback.latest.to] ?? feedback.latest.to}`,
-    )
+  if (feedback.latest) parts.push(`last: ${feedback.latest.kinds.map((kind) => FEEDBACK_KINDS[kind] ?? kind).join(', ')}, ${FEEDBACK_TO[feedback.latest.to] ?? feedback.latest.to}`)
   if (feedback.stopped) parts.push(FEEDBACK_STOPS[feedback.stopped] ?? `stopped: ${feedback.stopped}`)
   return parts.join(' · ')
 }
@@ -499,29 +496,21 @@ export function viewsClient(api: AppApi) {
       run<unknown>('plan.review.decide', { planId, revisionHash, action }, workspaceId),
     graph: (workspaceId: string, filter: GraphFilter = {}) => {
       const input: Record<string, unknown> = {}
-      for (const key of ['epic', 'phase', 'repository', 'status', 'plan', 'spec'] as const)
-        if (filter[key]) input[key] = filter[key]
+      for (const key of ['epic', 'phase', 'repository', 'status', 'plan', 'spec'] as const) if (filter[key]) input[key] = filter[key]
       return run<Graph>('graph.view', input, workspaceId)
     },
     remote: (workspaceId: string) => run<{ workers: RemoteWorker[] }>('remote.view', {}, workspaceId),
     landing: (workspaceId: string) => run<LandingView>('landing.view', {}, workspaceId),
     epic: (workspaceId: string, id: string) => run<EpicView>('epic.get', { id }, workspaceId),
-    delivery: (workspaceId: string) =>
-      run<{ revision: number; items: DeliveryItem[] }>('delivery.view', {}, workspaceId).then(
-        (r) => r.items,
-      ),
+    delivery: (workspaceId: string) => run<{ revision: number; items: DeliveryItem[] }>('delivery.view', {}, workspaceId).then((r) => r.items),
     deliveryPage: (workspaceId: string) =>
       run<{ revision: number; items: DeliveryItem[]; contentReports?: ContentReport[]; laneLimit?: number | null }>('delivery.view', {}, workspaceId),
     // Replace a local task with a new one; dependents then wait on the new one.
     supersede: (workspaceId: string, id: string, create: { id?: string; title?: string }) =>
       run<{ superseded: { id: string }; task: { id: string } }>('task.supersede', { id, create }, workspaceId),
-    conflicts: (workspaceId: string) =>
-      run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId).then(
-        (r) => r.items,
-      ),
+    conflicts: (workspaceId: string) => run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId).then((r) => r.items),
     radarCrews: (workspaceId: string) => run<RadarCrews>('radar.crews', {}, workspaceId),
-    conflictsPage: (workspaceId: string) =>
-      run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId),
+    conflictsPage: (workspaceId: string) => run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId),
     // Resolve myself or Dismiss on a source conflict (RC28.3).
     decideConflictFix: (workspaceId: string, repository: string, pullRequest: number, action: 'resolve' | 'dismiss') =>
       run<unknown>('conflictfix.decide', { repository, pullRequest, action }, workspaceId),
@@ -533,20 +522,15 @@ export function viewsClient(api: AppApi) {
     updateTask: (workspaceId: string, id: string, change: Record<string, unknown>, expectedRevision: number) =>
       run<unknown>('task.update', { id, ...change }, workspaceId, expectedRevision),
     // Go ahead, Investigate again or Stop on a task's findings (§4.21).
-    decideInvestigation: (workspaceId: string, taskId: string, action: 'go' | 'again' | 'stop') =>
-      run<unknown>('investigation.decide', { taskId, action }, workspaceId),
+    decideInvestigation: (workspaceId: string, taskId: string, action: 'go' | 'again' | 'stop') => run<unknown>('investigation.decide', { taskId, action }, workspaceId),
     // Land a verified local task under manual ship (§4.25).
-    integrate: (workspaceId: string, taskId: string, commit?: string) =>
-      run<unknown>('delivery.integrate', { taskId, ...(commit ? { commit } : {}) }, workspaceId),
+    integrate: (workspaceId: string, taskId: string, commit?: string) => run<unknown>('delivery.integrate', { taskId, ...(commit ? { commit } : {}) }, workspaceId),
     // Retry a delivery waiting on a decision, dismissing the named findings.
-    retry: (workspaceId: string, taskId: string, dismiss: { finding: string; reason: string }[] = []) =>
-      run<unknown>('delivery.retry', { taskId, dismiss }, workspaceId),
+    retry: (workspaceId: string, taskId: string, dismiss: { finding: string; reason: string }[] = []) => run<unknown>('delivery.retry', { taskId, dismiss }, workspaceId),
     // Content rules (design §4.9): read the matched line again from its
     // source (never stored), and allow one blocked write once, with a reason.
-    showContentLine: (workspaceId: string, id: string) =>
-      run<{ id: string; line: number | null; text: string | null; reason?: string }>('content.show', { id }, workspaceId),
-    allowContentOnce: (workspaceId: string, id: string, reason: string) =>
-      run<unknown>('content.allow', { id, reason }, workspaceId),
+    showContentLine: (workspaceId: string, id: string) => run<{ id: string; line: number | null; text: string | null; reason?: string }>('content.show', { id }, workspaceId),
+    allowContentOnce: (workspaceId: string, id: string, reason: string) => run<unknown>('content.allow', { id, reason }, workspaceId),
   }
 }
 
@@ -668,26 +652,16 @@ export function modelLabel(session: DeliverySession): string | null {
   if (session.served === undefined) return session.model ?? null
   const requested = `requested ${session.model ?? 'agent default'}`
   if (!session.served) return `${requested}, served model not reported`
-  const flags = [session.served.withheld ? 'withheld' : null, session.served.changed ? 'changed mid-session' : null]
-    .filter(Boolean)
-    .join(', ')
+  const flags = [session.served.withheld ? 'withheld' : null, session.served.changed ? 'changed mid-session' : null].filter(Boolean).join(', ')
   return `${requested}, served ${session.served.model ?? 'unknown'}${flags ? ` (${flags})` : ''}`
 }
 
 // A verdict's one-line label: role, verdict (or why it has none), model, and
 // whether a newer commit made it stale.
 export function verdictLabel(verdict: RoundVerdict): string {
-  const said =
-    verdict.outcome === 'refused'
-      ? `${verdict.verdict ?? 'verdict'} refused`
-      : (verdict.verdict ?? (verdict.outcome === 'failed' ? 'no verdict' : verdict.outcome))
-  const model =
-    verdict.served && verdict.served !== verdict.model
-      ? `${verdict.model ?? 'model unknown'} → served ${verdict.served}`
-      : (verdict.model ?? 'model unknown')
-  return [verdict.role, said, model, verdict.stale ? 'stale' : null]
-    .filter(Boolean)
-    .join(' · ')
+  const said = verdict.outcome === 'refused' ? `${verdict.verdict ?? 'verdict'} refused` : (verdict.verdict ?? (verdict.outcome === 'failed' ? 'no verdict' : verdict.outcome))
+  const model = verdict.served && verdict.served !== verdict.model ? `${verdict.model ?? 'model unknown'} → served ${verdict.served}` : (verdict.model ?? 'model unknown')
+  return [verdict.role, said, model, verdict.stale ? 'stale' : null].filter(Boolean).join(' · ')
 }
 
 // One GitHub review's label: reviewer, state, and why it counts for nothing.
@@ -801,7 +775,5 @@ export function reviewRuns(item: DeliveryItem | null): ReviewRun[] {
 // The plain label for a status with no live session behind it (graph.view
 // `noSession`): set by hand, or left by a session that ended.
 export function noSessionLabel(status: string | null | undefined): string {
-  return status === 'running'
-    ? 'Waiting on your decision: marked running, but no session is running'
-    : 'Waiting on your decision: marked in review, but no review is running'
+  return status === 'running' ? 'Waiting on your decision: marked running, but no session is running' : 'Waiting on your decision: marked in review, but no review is running'
 }

@@ -43,7 +43,15 @@ export function SpecChangedModal(props: { workspaceId: string; client: Client; p
     }
   }
   const todo = change ? writing(change.rows).length : 0
-  const why = !change ? 'Reading the change…' : change.applied ? 'Already applied.' : !change.approved ? 'Approve the spec again at this revision first.' : todo === 0 ? 'Nothing to write.' : null
+  const why = !change
+    ? 'Reading the change…'
+    : change.applied
+      ? 'Already applied.'
+      : !change.approved
+        ? 'Approve the spec again at this revision first.'
+        : todo === 0
+          ? 'Nothing to write.'
+          : null
   return (
     <Modal
       id="avoozl-spec-changed"

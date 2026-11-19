@@ -16,7 +16,10 @@ const browser = await launch(findChrome())
 const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 try {
   const page = await browser.page()
-  for (const [width, height] of [[1280, 800], [390, 844]])
+  for (const [width, height] of [
+    [1280, 800],
+    [390, 844],
+  ])
     for (const theme of ['light', 'dark']) {
       await page.open(harness.url({ page: 'app', theme, needs: '12', specs: '1', activity: '1' }), { width, height, dark: theme === 'dark' })
       await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)

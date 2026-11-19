@@ -95,9 +95,7 @@ export const nextUsageSort = (current: UsageSort, key: UsageKey): UsageSort =>
 // a free 304. Empty before Avoozl has made a call.
 export function rateLines(rate: RateView | undefined | null): string[] {
   if (!rate) return []
-  const lines = Object.entries(rate.resources).map(
-    ([name, r]) => `${name}: ${r.remaining} of ${r.limit} left, resets ${new Date(r.resetAt).toLocaleTimeString()}`,
-  )
+  const lines = Object.entries(rate.resources).map(([name, r]) => `${name}: ${r.remaining} of ${r.limit} left, resets ${new Date(r.resetAt).toLocaleTimeString()}`)
   if (rate.limitedUntil) lines.unshift(`Limit reached (${rate.limitedResource}). Calls resume at ${new Date(rate.limitedUntil).toLocaleTimeString()}.`)
   if (rate.writes?.run)
     lines.unshift(`Projecting to GitHub: ${writeRunText(rate.writes.run)}. Writes are paced at ${rate.writes.perMinute} a minute and ${rate.writes.perHour} an hour.`)
@@ -131,10 +129,8 @@ export function settingsClient(api: AppApi) {
   }
   return {
     get: (workspaceId: string) => run<GitHubSettings>('github.settings.get', {}, workspaceId),
-    validate: (workspaceId: string, github: Policy) =>
-      run<Validation>('github.settings.validate', { github }, workspaceId),
-    save: (workspaceId: string, github: Policy, expectedHash: string | null) =>
-      run<GitHubSettings>('github.settings.update', { github, expectedHash }, workspaceId),
+    validate: (workspaceId: string, github: Policy) => run<Validation>('github.settings.validate', { github }, workspaceId),
+    save: (workspaceId: string, github: Policy, expectedHash: string | null) => run<GitHubSettings>('github.settings.update', { github, expectedHash }, workspaceId),
     setup: (workspaceId: string, input: SetupInput) => run<SetupResult>('github.setup', { ...input }, workspaceId),
     // Stops a running apply before its next write.
     cancelSetup: (workspaceId: string, previewHash: string) => run<{ cancelled: boolean }>('github.setup.cancel', { previewHash }, workspaceId),
@@ -277,14 +273,16 @@ export const MATCH_HELP = "Same syntax as GitHub's issue search. Supported: labe
 
 // `untriaged` previews an Untriaged filter: no label: term needed, and pull
 // requests count too.
-export const matchClient = (api: AppApi) => (workspaceId: string, repository: string, match: string, untriaged = false) =>
-  api
-    .post<{ result: MatchPreview }>(COMMAND_PATH, {
-      operation: 'github.trigger.preview',
-      input: { match, ...(repository.trim() ? { repository: repository.trim() } : {}), ...(untriaged ? { untriaged: true } : {}) },
-      workspaceId,
-    })
-    .then((reply) => reply.result)
+export const matchClient =
+  (api: AppApi) =>
+  (workspaceId: string, repository: string, match: string, untriaged = false) =>
+    api
+      .post<{ result: MatchPreview }>(COMMAND_PATH, {
+        operation: 'github.trigger.preview',
+        input: { match, ...(repository.trim() ? { repository: repository.trim() } : {}), ...(untriaged ? { untriaged: true } : {}) },
+        workspaceId,
+      })
+      .then((reply) => reply.result)
 
 // The parsed terms as chip groups, in the order the line reads them.
 export function matchChips(parsed: MatchPreview['parsed']): { kind: 'all' | 'any' | 'none' | 'assignee'; values: string[] }[] {
@@ -466,12 +464,10 @@ export interface SettingsForm {
   repositories: RepositoryForm[]
 }
 
-const record = (value: unknown): Record<string, unknown> =>
-  value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+const record = (value: unknown): Record<string, unknown> => (value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {})
 const str = (value: unknown) => (typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '')
 const joined = (value: unknown) => (Array.isArray(value) ? value.map(str).join(', ') : '')
-const strings = (value: unknown) =>
-  Object.fromEntries(Object.entries(record(value)).map(([key, entry]) => [key, str(entry)]))
+const strings = (value: unknown) => Object.fromEntries(Object.entries(record(value)).map(([key, entry]) => [key, str(entry)]))
 
 // "a, b\nc" -> ["a", "b", "c"]; empty -> undefined so the key is left out.
 export function splitList(text: string): string[] | undefined {
@@ -703,9 +699,7 @@ export function toPolicy(form: SettingsForm): Policy {
               })(),
               priority: splitList(repository.priority),
               // Present means on; a blank count leaves the backend's default (1).
-              pullRequestReviews: repository.pullRequestReviews
-                ? compact({ approvals: count(repository.reviewApprovals) })
-                : undefined,
+              pullRequestReviews: repository.pullRequestReviews ? compact({ approvals: count(repository.reviewApprovals) }) : undefined,
               managedLabels: named(repository.managedLabels),
               crewLabels: named(repository.crewLabels),
               radar: (() => {
@@ -721,7 +715,11 @@ export function toPolicy(form: SettingsForm): Policy {
                 return Object.keys(radar).length ? radar : undefined
               })(),
               conflicts: (() => {
-                const conflicts = compact({ ...record(repository.rest.conflicts), onSourceConflict: blank(repository.onSourceConflict), maxAttempts: count(repository.maxAttempts) })
+                const conflicts = compact({
+                  ...record(repository.rest.conflicts),
+                  onSourceConflict: blank(repository.onSourceConflict),
+                  maxAttempts: count(repository.maxAttempts),
+                })
                 return Object.keys(conflicts).length ? conflicts : undefined
               })(),
               // One landing block; the older merge.method moves into it.
@@ -824,17 +822,13 @@ export function missingRequired(form: SettingsForm): string | null {
   // Local only reads no Project or repository GitHub setting.
   if (!isGitHubMode(form.mode)) return null
   const project =
-    form.projectOwner.trim() ||
-    form.projectNumber.trim() ||
-    Object.values(form.fields).some((v) => v.trim()) ||
-    Object.values(form.statusValues).some((v) => v.trim())
+    form.projectOwner.trim() || form.projectNumber.trim() || Object.values(form.fields).some((v) => v.trim()) || Object.values(form.statusValues).some((v) => v.trim())
   if (project && !form.projectOwner.trim()) return 'The Project needs its owner (Settings › Workspaces › Project fields).'
   if (project && !form.projectNumber.trim()) return 'The Project needs its number (Settings › Workspaces › Project fields).'
   for (const [index, repository] of form.repositories.entries()) {
     const name = repository.name.trim() || `Repository ${index + 1}`
     if (!repository.name.trim()) return `${name} needs its owner/name (Repositories › Mode and branch).`
-    if (isGitHubMode(form.mode) && !repository.baseBranch.trim())
-      return `${name} needs its default branch (Repositories › Mode and branch).`
+    if (isGitHubMode(form.mode) && !repository.baseBranch.trim()) return `${name} needs its default branch (Repositories › Mode and branch).`
   }
   return null
 }
@@ -864,11 +858,7 @@ export function checkWhere(name: string, sources: CheckSources, rule: boolean, n
   return parts.join(' · ') || 'Not seen on recent commits or open pull requests'
 }
 
-export function checkRows(
-  saved: string,
-  inspect: { seen: string[]; required: string[]; sources?: CheckSources } | null,
-  now = Date.now(),
-): CheckRow[] {
+export function checkRows(saved: string, inspect: { seen: string[]; required: string[]; sources?: CheckSources } | null, now = Date.now()): CheckRow[] {
   const chosen = splitList(saved) ?? []
   const sources = inspect?.sources ?? {}
   const seen = new Set(inspect?.seen ?? [])
@@ -925,9 +915,7 @@ export function reviewRuleText(inspect: RepositoryInspect | null): string {
     return `${rule.hiddenReason ?? 'GitHub hides the classic protection rule from this account.'} The approval count is unknown${
       rule.approvals ? `, at least ${rule.approvals} from a ruleset` : ''
     }. GitHub still enforces it on merge. ${
-      rule.approvals
-        ? `Avoozl waits for ${rule.approvals} approval${rule.approvals === 1 ? '' : 's'} meanwhile.`
-        : "Avoozl's reviewer chats stay the review gate."
+      rule.approvals ? `Avoozl waits for ${rule.approvals} approval${rule.approvals === 1 ? '' : 's'} meanwhile.` : "Avoozl's reviewer chats stay the review gate."
     }`
   if (!rule.approvals) return "No branch rule asks for approvals; Avoozl's reviewer chats are the review gate."
   return `${inspect.branch} needs ${rule.approvals} approving review${rule.approvals === 1 ? '' : 's'} (${rule.sources.join(' and ')})${
@@ -1168,8 +1156,7 @@ export const SETUP_GROUPS: { key: string; title: string; steps: string[] }[] = [
 ]
 
 // create, change or keep, from the write's action.
-export const writeBadge = (write: Pick<SetupWrite, 'action'>) =>
-  /^create|^enable/.test(write.action) ? 'create' : /^keep/.test(write.action) ? 'keep' : 'change'
+export const writeBadge = (write: Pick<SetupWrite, 'action'>) => (/^create|^enable/.test(write.action) ? 'create' : /^keep/.test(write.action) ? 'keep' : 'change')
 
 export function groupWrites(writes: SetupWrite[]) {
   return SETUP_GROUPS.map((group) => ({ ...group, writes: writes.filter((w) => group.steps.includes(w.step)) })).filter((g) => g.writes.length)
@@ -1193,7 +1180,6 @@ export function setupState(result: SetupResult | null, error: string | null, at:
   return { kind: 'set-up', at }
 }
 
-
 // Settings opens on Workspaces. The inner tab is kept only while the person
 // stays in Settings: each new visit, and any tab that no longer exists,
 // starts over on Workspaces.
@@ -1203,7 +1189,6 @@ export function settingsTabOnEnter<T extends string>(from: string, to: string, c
   if (to === 'settings' && from !== 'settings') return home
   return valid.includes(current as T) ? (current as T) : home
 }
-
 
 // Issue Radar crew settings (radar-coder RC7.6). A blank field is the default,
 // and each line says where the shown value comes from and what it is.
@@ -1222,7 +1207,13 @@ export const RADAR_DEFAULTS_SHOWN = {
 export const AVOOZL_LABELS = [
   { key: 'planLabel', label: 'Planning', raw: 'radar.planLabel', job: 'Asks Avoozl to plan an issue.', writer: 'A person you trust adds it.' },
   { key: 'ready', label: 'Ready', raw: 'managedLabels.ready', job: "Marks an issue a crew may take. Set the crew's label scope to it.", writer: 'Avoozl adds and removes it.' },
-  { key: 'approvalLabel', label: 'Plan approved', raw: 'radar.approvalLabel', job: 'Approves the drafted plan of the issue it is on.', writer: 'A person you trust, or Avoozl after an approval.' },
+  {
+    key: 'approvalLabel',
+    label: 'Plan approved',
+    raw: 'radar.approvalLabel',
+    job: 'Approves the drafted plan of the issue it is on.',
+    writer: 'A person you trust, or Avoozl after an approval.',
+  },
   { key: 'conflictLabel', label: 'Merge conflict', raw: 'radar.conflictLabel', job: 'Shows a pull request has a merge conflict.', writer: 'Avoozl adds and removes it.' },
   { key: 'reviewLabel', label: 'Review', raw: 'radar.reviewLabel', job: 'Asks Avoozl to draft a review of a pull request for you.', writer: 'A person you trust adds it.' },
   { key: 'draftedLabel', label: 'Drafted', raw: 'radar.draftedLabel', job: 'Shows a draft review waits for you to submit.', writer: 'Avoozl adds and removes it.' },

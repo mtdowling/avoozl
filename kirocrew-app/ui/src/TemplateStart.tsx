@@ -19,7 +19,6 @@ import { Box } from './ui/Box'
 import { PlainInput } from './ui/Plain'
 import { fieldStyle } from './ui/looks/TemplateStart.ts'
 
-
 export const templateKey = (t: Pick<TemplateSummary, 'plugin' | 'id'>) => `${t.plugin}/${t.id}`
 
 export type InputValues = Record<string, string | string[]>
@@ -40,7 +39,10 @@ function InputField(props: {
   const missing = props.tried && input.required && empty
   const label = (
     <Box as="span" weight="medium">
-      {input.label} <Box as="span" weight="normal" tone="muted">({input.required ? 'required' : 'optional'})</Box>
+      {input.label}{' '}
+      <Box as="span" weight="normal" tone="muted">
+        ({input.required ? 'required' : 'optional'})
+      </Box>
     </Box>
   )
   if (input.type === 'repositories')
@@ -50,23 +52,28 @@ function InputField(props: {
         {props.repositories.map((repo) => {
           const chosen = Array.isArray(props.value) ? props.value : []
           return (
-            <Switch key={repo.id} label={repo.name || repo.id} checked={chosen.includes(repo.id)} onChange={(on) => props.onChange(on ? [...chosen, repo.id] : chosen.filter((v) => v !== repo.id))}>
+            <Switch
+              key={repo.id}
+              label={repo.name || repo.id}
+              checked={chosen.includes(repo.id)}
+              onChange={(on) => props.onChange(on ? [...chosen, repo.id] : chosen.filter((v) => v !== repo.id))}
+            >
               <span>{repo.name || repo.id}</span>
             </Switch>
           )
         })}
-        {missing && <ErrorText as="span" size="xs">Pick at least one repository.</ErrorText>}
+        {missing && (
+          <ErrorText as="span" size="xs">
+            Pick at least one repository.
+          </ErrorText>
+        )}
       </Box>
     )
   return (
     <Box flex flexCol gap="1" size="sm" data-template-input={input.id}>
       <label htmlFor={id}>{label}</label>
       {input.type === 'choice' ? (
-        <SelectField
-          id={id}
-          value={String(props.value ?? '')}
-          onChange={(event) => props.onChange(event.target.value)} look="field" maxWidth="24rem"
-        >
+        <SelectField id={id} value={String(props.value ?? '')} onChange={(event) => props.onChange(event.target.value)} look="field" maxWidth="24rem">
           <option value="">Choose…</option>
           {(input.options ?? []).map((option) => (
             <option key={option} value={option}>
@@ -99,11 +106,13 @@ function InputField(props: {
             size="sm"
           />
           <Hint size="xs">
-            {file
-              ? `${file.name}, ${Math.ceil(file.size / 1024)} KB, read here and sent as text.`
-              : 'Read here as text, at most 200 KB. Avoozl never opens a path you type.'}
+            {file ? `${file.name}, ${Math.ceil(file.size / 1024)} KB, read here and sent as text.` : 'Read here as text, at most 200 KB. Avoozl never opens a path you type.'}
           </Hint>
-          {problem && <ErrorText as="span" size="xs">{problem}</ErrorText>}
+          {problem && (
+            <ErrorText as="span" size="xs">
+              {problem}
+            </ErrorText>
+          )}
         </>
       ) : (
         <>
@@ -126,7 +135,11 @@ function InputField(props: {
           )}
         </>
       )}
-      {missing && <ErrorText as="span" size="xs">Fill in {input.label}.</ErrorText>}
+      {missing && (
+        <ErrorText as="span" size="xs">
+          Fill in {input.label}.
+        </ErrorText>
+      )}
     </Box>
   )
 }
@@ -170,33 +183,51 @@ export function TemplateStart(props: {
     }
   }, [plugins, props.workspaceId, template?.plugin, template?.id, template?.settings, onPreview])
 
-  if (props.templates === null) return <Hint as="p" size="sm">Reading templates…</Hint>
+  if (props.templates === null)
+    return (
+      <Hint as="p" size="sm">
+        Reading templates…
+      </Hint>
+    )
   if (!props.templates.length)
-    return <Hint as="p" size="sm">No templates yet. A template comes in a plugin: add and approve one in Settings › Plugins.</Hint>
+    return (
+      <Hint as="p" size="sm">
+        No templates yet. A template comes in a plugin: add and approve one in Settings › Plugins.
+      </Hint>
+    )
   return (
     <Stack gap={3} data-template-start>
       <Box as="fieldset" flex flexCol gap="1" size="sm">
-        <Box as="legend" weight="medium">Template</Box>
+        <Box as="legend" weight="medium">
+          Template
+        </Box>
         {props.templates.map((t) => (
           <Box
             key={templateKey(t)}
-            as="label" css-border-color={props.picked === templateKey(t) ? 'accent' : 'border'} flex items="start" gap="2" rounded="base" border="all" p="2"
+            as="label"
+            css-border-color={props.picked === templateKey(t) ? 'accent' : 'border'}
+            flex
+            items="start"
+            gap="2"
+            rounded="base"
+            border="all"
+            p="2"
           >
-            <PlainInput
-              type="radio"
-              name="avoozl-template"
-              mt="1"
-              checked={props.picked === templateKey(t)}
-              onChange={() => props.onPick(templateKey(t))}
-            />
+            <PlainInput type="radio" name="avoozl-template" mt="1" checked={props.picked === templateKey(t)} onChange={() => props.onPick(templateKey(t))} />
             <Stack as="span">
-              <Box as="span" weight="medium">{t.title}</Box>
+              <Box as="span" weight="medium">
+                {t.title}
+              </Box>
               <Hint size="xs">{t.description}</Hint>
               {t.phases.length > 0 && <Hint size="xs">Phases: {t.phases.map((p) => p.title).join(', ')}</Hint>}
             </Stack>
           </Box>
         ))}
-        {props.tried && !template && <ErrorText as="span" size="xs">Pick a template.</ErrorText>}
+        {props.tried && !template && (
+          <ErrorText as="span" size="xs">
+            Pick a template.
+          </ErrorText>
+        )}
       </Box>
       {template &&
         template.inputs.map((input) => (
@@ -211,19 +242,21 @@ export function TemplateStart(props: {
           />
         ))}
       {template?.settings && (
-        <Box
-          as="section" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="3" size="sm"
-          aria-label="Template settings"
-          data-template-settings
-        >
-          <Box as="h4" weight="medium">Settings this template suggests</Box>
-          <Hint as="p" size="xs">Picking a template changes no setting. Tick the box to copy these into .avoozl.json when you submit.</Hint>
+        <Box as="section" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="3" size="sm" aria-label="Template settings" data-template-settings>
+          <Box as="h4" weight="medium">
+            Settings this template suggests
+          </Box>
+          <Hint as="p" size="xs">
+            Picking a template changes no setting. Tick the box to copy these into .avoozl.json when you submit.
+          </Hint>
           {preview ? (
             <PackChanges preview={preview} />
           ) : previewError ? (
             <ErrorText size="xs">{previewError}</ErrorText>
           ) : (
-            <Hint as="p" size="xs">Reading…</Hint>
+            <Hint as="p" size="xs">
+              Reading…
+            </Hint>
           )}
           <Switch label="Import these settings" align="start" checked={props.importSettings} disabled={!preview} onChange={props.onImportSettings} data-import-settings>
             <span>Import these settings</span>

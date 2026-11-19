@@ -38,7 +38,13 @@ export function NoticesSettings(props: { workspaceId: string | null }) {
     <FormSection title="Notifications" blurb="A browser notice for each new Needs you item, with its title. Off by default. The page reads Needs you only while it is open.">
       <Stack gap={2} data-notices>
         <Row gap={2}>
-          {on ? <Btn onClick={() => change(false)}>Turn off</Btn> : <Btn onClick={() => void turnOn()} disabled={allowed === 'unsupported'}>Turn on</Btn>}
+          {on ? (
+            <Btn onClick={() => change(false)}>Turn off</Btn>
+          ) : (
+            <Btn onClick={() => void turnOn()} disabled={allowed === 'unsupported'}>
+              Turn on
+            </Btn>
+          )}
           <Hint size="xs" data-notices-state={on ? 'on' : 'off'}>
             {allowed === 'unsupported' ? 'This browser has no notifications.' : on ? 'On for this browser.' : 'Off.'}
           </Hint>

@@ -41,11 +41,12 @@ import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 import { PlainButton, PlainInput } from './ui/Plain'
 
-
 function When({ at, now }: { at: string; now: number }) {
   return (
     <Tooltip text={at.replace('T', ' ').slice(0, 19)}>
-      <Box as="span" tabularNums>{relativeTime(at, now)}</Box>
+      <Box as="span" tabularNums>
+        {relativeTime(at, now)}
+      </Box>
     </Tooltip>
   )
 }
@@ -69,7 +70,11 @@ function Summary({ row }: { row: ActivityRow }) {
         {item.after}
       </Box>
     )
-  return <Box as="span" css-overflow-wrap="anywhere">{row.summary}</Box>
+  return (
+    <Box as="span" css-overflow-wrap="anywhere">
+      {row.summary}
+    </Box>
+  )
 }
 
 // The target: a button that opens the task drawer, or a link that opens
@@ -97,11 +102,66 @@ function Table({ rows, now }: { rows: ActivityRow[]; now: number }) {
       <Box as="table" css-border-collapse="collapse" wFull size="sm" data-activity-table>
         <thead>
           <tr>
-            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">When</Box>
-            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Source</Box>
-            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Who</Box>
-            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">What</Box>
-            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Target</Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              When
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Source
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Who
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              What
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Target
+            </Box>
           </tr>
         </thead>
         <tbody>
@@ -110,11 +170,17 @@ function Table({ rows, now }: { rows: ActivityRow[]; now: number }) {
               <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <When at={row.at} now={now} />
               </Box>
-              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">{SOURCE_LABELS[row.source] ?? row.source}</Box>
-              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">{row.actor ?? ''}</Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
+                {SOURCE_LABELS[row.source] ?? row.source}
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
+                {row.actor ?? ''}
+              </Box>
               <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-min-width="16rem">
                 <Summary row={row} />
-                <Hint as="div" size="xs">{row.kind}</Hint>
+                <Hint as="div" size="xs">
+                  {row.kind}
+                </Hint>
               </Box>
               <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <Target row={row} />
@@ -233,14 +299,23 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
             }}
             aria-invalid={parsed.error ? true : undefined}
             aria-describedby={parsed.error ? 'avoozl-activity-keep-error' : undefined}
-            css-width="4.5rem" css-box-sizing="border-box" css-font-size="13" css-padding="4px-8px" css-border-radius="6" css-background="bg" css-color="text" css-border="1px-solid-border"
+            css-width="4.5rem"
+            css-box-sizing="border-box"
+            css-font-size="13"
+            css-padding="4px-8px"
+            css-border-radius="6"
+            css-background="bg"
+            css-color="text"
+            css-border="1px-solid-border"
           />
         </Tooltip>
-        <Box as="span" css-font-size="13" css-color="muted">days</Box>
+        <Box as="span" css-font-size="13" css-color="muted">
+          days
+        </Box>
         {note && !parsed.error && (
-          <span role={note.ok ? 'status' : 'alert'} className={`ml-auto text-xs ${note.ok ? 'text-muted' : 'text-danger'}`}>
+          <Box role={note.ok ? 'status' : 'alert'} as="span" ml="auto" size="xs" tone={note.ok ? 'muted' : 'danger'}>
             {note.text}
-          </span>
+          </Box>
         )}
       </Row>
       {parsed.error && (
@@ -339,7 +414,11 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
                 active={filter.source === item.value}
                 onClick={() => setField({ source: filter.source === item.value ? undefined : item.value })}
                 attrs={{ 'data-rail-source': item.value }}
-                trail={<Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-opacity="0.7">{item.count}</Box>}
+                trail={
+                  <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-opacity="0.7">
+                    {item.count}
+                  </Box>
+                }
               />
             ))}
           </RailBlock>
@@ -353,7 +432,11 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
         </div>
       </NavSlotFor>
       <Hint role="status" as="p" size="xs" data-filter-status>
-        {page ? `${page.total} ${page.total === 1 ? 'entry' : 'entries'}${filterActive(filter) ? ' match' : ''} · kept ${page.retentionDays} days` : busy ? 'Loading…' : 'Not loaded'}
+        {page
+          ? `${page.total} ${page.total === 1 ? 'entry' : 'entries'}${filterActive(filter) ? ' match' : ''} · kept ${page.retentionDays} days`
+          : busy
+            ? 'Loading…'
+            : 'Not loaded'}
         {filterActive(filter) && (
           <>
             {' · '}
@@ -369,7 +452,11 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
           <EmptyState
             icon={<History size={36} aria-hidden="true" />}
             title={filterActive(filter) ? 'No activity matches these filters' : 'No activity yet'}
-            subtitle={filterActive(filter) ? 'Clear the filters to see every entry.' : 'Starting work, stopping the line, approving and saving settings show here, and so do the closes, board moves and labels the tick reads.'}
+            subtitle={
+              filterActive(filter)
+                ? 'Clear the filters to see every entry.'
+                : 'Starting work, stopping the line, approving and saving settings show here, and so do the closes, board moves and labels the tick reads.'
+            }
           />
         </Box>
       ) : narrow ? (

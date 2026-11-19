@@ -6,17 +6,7 @@ import { EmptyState } from './ui/EmptyState'
 import { FormSection } from './FormSection.tsx'
 import { PairedCard, PairedCards } from './ui/PairedCards.tsx'
 import Badge from './ui/Badge.tsx'
-import {
-  CONTRACT_LABEL,
-  canApprove,
-  capabilityLine,
-  runsAs,
-  PLUGIN_PARTS,
-  partsOf,
-  pluginsClient,
-  stateLabel,
-  type PluginRow,
-} from './plugins-api.ts'
+import { CONTRACT_LABEL, canApprove, capabilityLine, runsAs, PLUGIN_PARTS, partsOf, pluginsClient, stateLabel, type PluginRow } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './ui/controls.tsx'
@@ -73,7 +63,9 @@ export function Parts({ row }: { row: PluginRow }) {
     <Box as="ul" mt="2" flex flexCol gap="1" size="xs" data-plugin-parts>
       {parts.map((part) => (
         <li key={part}>
-          <Box as="span" weight="semibold">{PLUGIN_PARTS[part]?.title ?? part}</Box>
+          <Box as="span" weight="semibold">
+            {PLUGIN_PARTS[part]?.title ?? part}
+          </Box>
           <Hint> {PLUGIN_PARTS[part]?.line}</Hint>
           {part === 'pack' && row.pack ? (
             <Hint block>
@@ -88,7 +80,15 @@ export function Parts({ row }: { row: PluginRow }) {
   )
 }
 
-function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Promise<unknown>) => void; client: ReturnType<typeof pluginsClient>; workspaceId: string; onImport: (row: PluginRow) => void; notes: SkillNote[] }) {
+function PluginCard(props: {
+  row: PluginRow
+  busy: boolean
+  act: (fn: () => Promise<unknown>) => void
+  client: ReturnType<typeof pluginsClient>
+  workspaceId: string
+  onImport: (row: PluginRow) => void
+  notes: SkillNote[]
+}) {
   const { row, busy, act, client, workspaceId } = props
   const status = stateLabel(row)
   const id = row.id ?? ''
@@ -105,15 +105,25 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
     >
       {row.reason || (row.health?.state === 'unavailable' && row.health.reason !== row.reason) ? (
         <div>
-          {row.reason ? <Hint as="p" size="xs">{row.reason}</Hint> : null}
-          {row.health?.state === 'unavailable' && row.health.reason !== row.reason ? <Hint as="p" size="xs">Last tick: {row.health.reason}</Hint> : null}
+          {row.reason ? (
+            <Hint as="p" size="xs">
+              {row.reason}
+            </Hint>
+          ) : null}
+          {row.health?.state === 'unavailable' && row.health.reason !== row.reason ? (
+            <Hint as="p" size="xs">
+              Last tick: {row.health.reason}
+            </Hint>
+          ) : null}
         </div>
       ) : null}
       <Parts row={row} />
       <Facts row={row} />
       {props.notes.length > 0 && (
         <Stack gap={2} data-plugin-notes>
-          <Box as="span" size="xs" weight="semibold">Suggested changes from retros. Copy one to the plugin's owner; Avoozl sends nothing.</Box>
+          <Box as="span" size="xs" weight="semibold">
+            Suggested changes from retros. Copy one to the plugin's owner; Avoozl sends nothing.
+          </Box>
           {props.notes.map((n, i) => (
             <SkillNoteCard key={i} note={n} />
           ))}
@@ -122,7 +132,12 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
       {row.id ? (
         <Row gap={2} align="start">
           {row.pack ? (
-            <TipBtn tooltip="See what each pack setting would create, change or keep, then import it" primary={row.pack.offer && row.state === 'approved'} disabled={busy} onClick={() => props.onImport(row)}>
+            <TipBtn
+              tooltip="See what each pack setting would create, change or keep, then import it"
+              primary={row.pack.offer && row.state === 'approved'}
+              disabled={busy}
+              onClick={() => props.onImport(row)}
+            >
               {row.pack.imported && row.pack.offer ? `Preview version ${row.version}` : row.pack.imported ? 'Preview pack' : 'Preview and import pack'}
             </TipBtn>
           ) : null}
@@ -248,25 +263,34 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
         <PairedCard title="Installed plugins" label="Installed plugins" meta={value?.plugins.length ? <Badge>{value.plugins.length}</Badge> : null} grow={3}>
           {value && !value.plugins.length ? (
             <EmptyState
-                title="No plugins"
-                subtitle="Nothing loads until a plugin is declared and approved. Add one on the left."
-                action={
-                  <AskForHelp
-                    workspaceId={workspaceId}
-                    help={{
-                      page: 'Settings › Plugins',
-                      section: 'No plugins',
-                      says: 'Nothing loads until a plugin is declared and approved. Add one on the left.',
-                      settings: [{ key: 'plugins', value: 'none declared' }],
-                      docs: 'docs/plugins.md, and the avoozl-plugin skill',
-                    }}
-                  />
-                }
-              />
+              title="No plugins"
+              subtitle="Nothing loads until a plugin is declared and approved. Add one on the left."
+              action={
+                <AskForHelp
+                  workspaceId={workspaceId}
+                  help={{
+                    page: 'Settings › Plugins',
+                    section: 'No plugins',
+                    says: 'Nothing loads until a plugin is declared and approved. Add one on the left.',
+                    settings: [{ key: 'plugins', value: 'none declared' }],
+                    docs: 'docs/plugins.md, and the avoozl-plugin skill',
+                  }}
+                />
+              }
+            />
           ) : null}
           <Stack gap={4}>
             {value?.plugins.map((row, i) => (
-              <PluginCard key={`${row.id}-${row.source}-${i}`} row={row} busy={acting || busy} act={act} client={client} workspaceId={workspaceId} onImport={setImporting} notes={notes.filter((n) => n.plugin === row.id)} />
+              <PluginCard
+                key={`${row.id}-${row.source}-${i}`}
+                row={row}
+                busy={acting || busy}
+                act={act}
+                client={client}
+                workspaceId={workspaceId}
+                onImport={setImporting}
+                notes={notes.filter((n) => n.plugin === row.id)}
+              />
             ))}
           </Stack>
         </PairedCard>

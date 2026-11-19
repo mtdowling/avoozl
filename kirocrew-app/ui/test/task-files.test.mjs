@@ -152,5 +152,8 @@ test('the drawer has a Files box with no write', () => {
   // Theme variables only, no fixed colors.
   assert.doesNotMatch(files, /#[0-9a-fA-F]{3,6}\b/)
   // Read-only: the fold calls only the two reads.
-  assert.deepEqual([...source('files-api.ts').matchAll(/run<\w+>\('([\w.]+)'/g)].map((m) => m[1]), ['task.files', 'task.diff'])
+  assert.deepEqual(
+    [...source('files-api.ts').matchAll(/run<\w+>\('([\w.]+)'/g)].map((m) => m[1]),
+    ['task.files', 'task.diff'],
+  )
 })
