@@ -2,6 +2,7 @@
 import { contentHook } from "../content-hook.mjs";
 import { RETIRED_LANDING, landingStatusLine } from "./support.mjs";
 import { help } from "../command-help.mjs";
+import { watchTick } from "../tick-watchdog.mjs";
 
 async function runTaskDone({ options, positionals, localOrRequest, need }) {
   // A manual task (R61.13): a person marks it done or reopens it.
@@ -77,6 +78,23 @@ export const commands = [
       console.log(
         JSON.stringify(await localOrRequest("workspace.tick"), null, 2),
       );
+    },
+  },
+  {
+    command: "tick watchdog",
+    help: [
+      help(
+        "deliver",
+        "tick watchdog --workspace PATH [--stale-minutes 10] [--dry-run]",
+        "Post a macOS notification when the last tick is stale or failed; it only reads",
+      ),
+    ],
+    run({ options, config, need }) {
+      need(config.workspaceRoot, "tick watchdog --workspace PATH");
+      process.exitCode = watchTick(config.workspaceRoot, {
+        staleMinutes: Number(options["stale-minutes"] ?? 10),
+        dryRun: Boolean(options["dry-run"]),
+      });
     },
   },
   {

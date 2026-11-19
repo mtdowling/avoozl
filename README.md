@@ -22,8 +22,7 @@ its box on main, so anyone who reads the branch sees it done.
 
 1. You write a spec: requirements, a design, and a list of tasks. You can
    write it by hand or have an agent draft it for you to review.
-2. You approve it. An approval is a commit on main that you authored, so every
-   plan an agent works from is one a person agreed to.
+2. You approve it. An approval is a commit on main that you authored.
 3. Avoozl starts a coding agent on each task whose dependencies are done. The
    agent runs as a Kiro Crew chat or as a process such as Claude Code or Codex.
 4. When the agent reports done, Avoozl runs the repository's checks itself on
@@ -71,15 +70,17 @@ npm run build:kirocrew-app
 kirocrew app install "$PWD/kirocrew-app"
 ```
 
+`npm ci` also links a global `avoozl` command to this checkout, as `npm link`
+does, so a `git pull` updates it. Set `AVOOZL_NO_GLOBAL_LINK=1` to skip the
+link.
+
 Open Kiro Crew's App Store, review Avoozl's trust request, and enable it. The
 **Avoozl** page appears in the sidebar. To update, pull and run
 `npm run build && kirocrew app update avoozl` in the checkout.
 
 To run Avoozl without Kiro Crew, build it with `npm run build` and start the
-page with `node cli.mjs serve --workspace ~/plans`. It listens on `127.0.0.1`
-only and prints a one-time link that signs your browser in.
-
-In a checkout the CLI is `node cli.mjs`. Help and error text call it `avoozl`.
+page with `avoozl serve --workspace ~/plans`. It listens on `127.0.0.1` only
+and prints a one-time link that signs your browser in.
 
 ## Trying it out
 
@@ -91,12 +92,12 @@ A workspace is a directory you own, separate from this checkout. Create one
 on the page under **Add or initialize a workspace**, or from the CLI:
 
 ```sh
-node cli.mjs init ~/plans --name "My plans"
+avoozl init ~/plans --name "My plans"
 ```
 
 It holds `.avoozl.json` for settings you can commit, `.kiro/specs/` for specs,
 and a local database that is not committed. A new workspace is empty.
-`node cli.mjs seed --workspace ~/plans` adds an example as draft specs, and
+`avoozl seed --workspace ~/plans` adds an example as draft specs, and
 does not approve them.
 
 ## Delivering a spec
@@ -109,7 +110,7 @@ Register the checkout the work changes, with its base branch, a folder for
 worktrees, and the checks every task must pass:
 
 ```sh
-node cli.mjs repository configure code --workspace ~/plans \
+avoozl repository configure code --workspace ~/plans \
   --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":{"test":["npm","test"]}}'
 ```
 
@@ -118,8 +119,8 @@ adding `{ "delivery": {} }` to `.avoozl.json`. With no GitHub, also make this
 workspace the one that drives the spec:
 
 ```sh
-node cli.mjs spec publish NAME --workspace ~/plans
-node cli.mjs spec takeover NAME --workspace ~/plans
+avoozl spec publish NAME --workspace ~/plans
+avoozl spec takeover NAME --workspace ~/plans
 ```
 
 The repository's `landing` setting decides what happens to work that passes:
@@ -147,15 +148,18 @@ same state. Any stdio MCP client can run the server:
 {
   "mcpServers": {
     "avoozl": {
-      "command": "node",
-      "args": ["/path/to/avoozl/cli.mjs", "mcp", "--workspace", "/path/to/plans"]
+      "command": "avoozl",
+      "args": ["mcp", "--workspace", "/path/to/plans"]
     }
   }
 }
 ```
 
+A client that does not find `avoozl` on its `PATH` takes the full path that
+`command -v avoozl` prints.
+
 Actions that belong to a person, such as approving a spec or changing
-settings, are refused over MCP. `node cli.mjs help` lists the CLI commands.
+settings, are refused over MCP. `avoozl help` lists the CLI commands.
 
 ## Documentation
 

@@ -118,3 +118,13 @@ test("the CLI lists and approves with no workspace, and refuses inside a supervi
     "example-cli  changed since approval",
   );
 });
+
+test("the page server lets only the owner approve a harness", async () => {
+  const { principalAllows } = await import("../command-dispatch.mjs");
+  assert.equal(
+    principalAllows({ kind: "owner-session" }, "harness.approve"),
+    true,
+  );
+  for (const kind of ["app-token", "agent-tool", "none"])
+    assert.equal(principalAllows({ kind }, "harness.approve"), false, kind);
+});
