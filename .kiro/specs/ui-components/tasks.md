@@ -86,20 +86,22 @@ of the other specs.
 
 ## Phase 4: Settings and the rest of the views
 
-- [ ] uc-4.1 Settings onto `Field` and `FieldGroup`, after uc-2.1, uc-3.1 [UC2.1, UC2.2] (§D2)
+- [x] uc-4.1 Settings onto `Field` and `FieldGroup`, after uc-2.1, uc-3.1 [UC2.1, UC2.2] (§D2)
   - Facts:
     - done:
       - The settings tests pass with assertions unchanged; no Settings view is left in the allow-list; screenshots of every Settings page go to the owner.
     - after: uc-2.1, uc-3.1
+  - Built: PR #734.
   - Every Settings page and settings dialog uses the two parts, built on Kiro Crew's `Settings*` parts where they fit.
-- [ ] uc-4.2 The remaining views, after uc-2.1, uc-2.2, uc-3.1, uc-3.2, uc-3.3, uc-3.4 [UC3, UC5] (§D6)
+- [x] uc-4.2 The remaining views, after uc-2.1, uc-2.2, uc-3.1, uc-3.2, uc-3.3, uc-3.4 [UC3, UC5] (§D6)
   - Facts:
     - done:
       - The allow-list is empty; no view writes a `className`, `style`, `<style>` or `var(--`; the class check passes; screenshots of every view at 390 and 1280 px, light and dark, go to the owner.
     - after: uc-2.1, uc-2.2, uc-3.1, uc-3.2, uc-3.3, uc-3.4
+  - Built: PRs #668, #674, #677, #680, #682, #686, #692, #695, #696, #701, #711, #717, #718, #720, #722, #724, #730, and #737 (muted text as `Hint`, found by uc-p1).
   - The views left in the allow-list move a group at a time, each group its own pull request; the 23 `<style>` elements move into `src/ui/` as constant texts.
 
-- [ ] uc-p1 Proof: a change of look is one edit, after uc-1.2, uc-4.1, uc-4.2 [UC1 to UC5] (§D1)
+- [x] uc-p1 Proof: a change of look is one edit, after uc-1.2, uc-4.1, uc-4.2 [UC1 to UC5] (§D1)
   - Facts:
     - done:
       - Expected: (1) every hint on every view changes, and no view file changed; (2) the check fails naming only files in `src/ui/`; (3) every such file is in `src/ui/`.
@@ -111,3 +113,4 @@ of the other specs.
   - Expected: (1) every hint on every view changes, and no view file changed; (2) the check fails naming only files in `src/ui/`; (3) every such file is in `src/ui/`.
   - Failure means: a view still carries its own look.
   - Next decision: none.
+  - Receipt: `docs/evidence/ui-components-p1.md`; script: `scripts/proof-uc-p1.mjs`. The first run failed and #737 fixed it.
