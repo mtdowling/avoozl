@@ -10,7 +10,7 @@
 // `type` is one of TOKEN_TYPES and `pattern` a regular expression source.
 // A fence with no known grammar renders plain.
 // Kept free of JSX so node can test it directly.
-import { prism, type Grammar, type PrismToken } from './prism/languages.ts'
+import { prism, type Grammar, type PrismToken } from '../prism/languages.ts'
 
 export const TOKEN_TYPES = [
   'comment',
