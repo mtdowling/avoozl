@@ -170,6 +170,23 @@ test("a check that passed on main and fails after a1 lands stops the line on a1"
   );
 });
 
+test("a direct landing's integrated delivery is the first green head", async (t) => {
+  const s = setup(t, [leaf("c2"), leaf("a1")]);
+  const start = s.land("c2", "c2.txt");
+  // `direct` landing writes no integration row: only the delivery.
+  s.store.put("task_deliveries", {
+    id: "c2",
+    taskId: "c2",
+    state: "integrated",
+    integratedCommit: start,
+  });
+  await watchLine(s.store, s.config);
+  s.land("a1", "broken");
+  const { notify } = await watchLine(s.store, s.config);
+  assert.equal(notify.length, 1);
+  assert.match(notify[0].title, /Line stopped: node check\.mjs fails on main/);
+});
+
 test("a failure that passes on rerun is flaky, not a stop", async (t) => {
   const s = setup(t, [leaf("a1")]);
   s.integrated(s.land(null, "one.txt"));

@@ -10,7 +10,7 @@ Status: Draft
 Status 2026-11-18 (spec audit). Phases 1 to 3 are built, under the PRs named
 on each ticked task, except `an-p3`, which waits on the main spec's proof P49.
 In Phase 4, `an-4.1` and `an-4.3` are superseded (Ideas and the lessons store
-were removed) and `an-4.2` and `an-4.4` are still open. Nothing here is
+were removed) and `an-4.2` and `an-4.4` are proved live. Nothing here is
 approved or projected.
 
 Ordered by phase. Each phase ends with a proof; a phase starts after the
@@ -149,10 +149,11 @@ Requirement AN4. The parts of each proof already have tests; each task adds the 
       - The named test passes and a receipt under `docs/evidence/` records setup, action, observation and verdict.
   - Superseded 2026-11-18: Ideas were removed (#228), so there is no idea step to prove; the Specs-name steps of P38 are covered by `specs-name.test.mjs`.
   - Run steps 1 to 7 of `avoozl-p38` in `.kiro/specs/avoozl/tasks.md` as `src/app/test/proof-p38.test.mjs`, reusing the helpers of `ideas.test.mjs` and `specs-name.test.mjs`.
-- [ ] an-4.2 Proof P39: pull the Andon cord [AN4.1] (§4.11)
+- [x] an-4.2 Proof P39: pull the Andon cord [AN4.1] (§4.11)
   - Facts:
     - done:
       - The named test passes and a receipt under `docs/evidence/` records the run.
+  - Proved live instead of a named test: `docs/evidence/p39-andon-live.md` (2026-11-19).
   - Run steps 1 to 8 of `avoozl-p39` as `src/app/test/proof-p39.test.mjs`, reusing `flow-andon.test.mjs`; where a step dispatches a worker, check the Radar release instead (no `ready` label in the stopped scope).
 - [ ] an-4.3 Proof P42: add the Share steps 13 and 14 [AN4.2] (§4.18, R28.9)
   - Facts:
@@ -160,8 +161,9 @@ Requirement AN4. The parts of each proof already have tests; each task adds the 
       - The extended test passes; the receipt names steps 13 and 14.
   - Superseded 2026-11-18: the lessons store and its Share steps were removed (#228). Nothing to add to P42.
   - Extend `src/app/test/proof-p42.test.mjs` with steps 13 and 14 of `avoozl-p42`, reusing `lessons-share.test.mjs`.
-- [ ] an-4.4 Proof P43: activity log [AN4.1] (§4.19)
+- [x] an-4.4 Proof P43: activity log [AN4.1] (§4.19)
   - Facts:
     - done:
       - The named test passes and a receipt under `docs/evidence/` records the run.
+  - Proved live instead of a named test: `docs/evidence/p43-activity-live.md` (2026-11-19).
   - Run steps 1 to 7 of `avoozl-p43` as `src/app/test/proof-p43.test.mjs`, reusing `activity-log.test.mjs`; the MCP dispatch in step 2 becomes an MCP read or a Radar release row.

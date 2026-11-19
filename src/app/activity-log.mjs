@@ -290,6 +290,9 @@ const SETTINGS = {
   "configuration.update": "workspace configuration",
   "github.settings.update": "GitHub",
   "flow.settings.update": "Flow",
+  "delivery.settings.update": "Delivery",
+  "models.settings.update": "model",
+  "driver.settings.update": "driver",
   "flow.instructions.update": "retro instructions",
   "conversations.settings.update": "conversation",
   "content.sets.update": "content rule set",
@@ -304,9 +307,9 @@ const scopeText = (stop) =>
     : stop.scope === "task"
       ? `task ${stop.taskId}`
       : stop.scope === "repo"
-        ? `repository ${stop.repository}`
+        ? `repository ${stop.projectId ?? stop.repository}`
         : stop.scope === "spec"
-          ? `spec ${stop.spec}`
+          ? `spec ${stop.planId ?? stop.spec}`
           : "the workspace";
 
 function operationRow(name, input, result) {

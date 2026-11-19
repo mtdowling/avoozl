@@ -2938,7 +2938,7 @@ people read, and it builds on the incoming-item record of Phase 14.
   - Expected: (1) no plan word outside the allowlist; every `plans_*` tool and CLI command still answers; (2) the bad three refused by field or rule with nothing recorded; the session idea and note name the session; (3) no task, no rule match and an unchanged Untriaged count; both actions refused; (4) refused with 403; (5) the seed holds the idea as data and asks for no edits; only the link is added; (6) the cancel changes nothing; the submit prefills New spec and the idea shows Graduated with the spec name; (7) the archived and graduated ideas are still there.
   - Failure means: an idea can start work, or the page still says plan.
   - Next decision: keep ideas as a separate local list instead of intake items.
-  - Open: no named proof run; the parts are covered by `src/app/test/ideas.test.mjs`, `kirocrew-app/ui/test/ideas.test.mjs` and `specs-name.test.mjs`.
+  - Superseded 2026-11-19: Ideas were retired (R63, #228, #616) and the kept `plans_*` compatibility names were removed (#643, #698), so steps 2 to 7 and the compatibility half of step 1 have nothing to prove; the page-word check is `kirocrew-app/ui/test/specs-name.test.mjs`; not run.
 
 ## Phase 24: Pull the Andon cord
 
@@ -2966,7 +2966,7 @@ automatic stops of 12.6.
   - A red Stop the line button in the Dashboard header opens a dialog with a scope, its target and a required reason; the Line stopped banner shows who, when, scope, reason and the paused count, with a Resume button that asks first; checked by drawing the page at 375 and 1280 px in light and dark.
   - Built: `79e5fa7` (`StopLine.tsx`, the Line stopped banner in `DashboardView.tsx`; `kirocrew-app/ui/test/stop-line.test.mjs`).
 
-- [ ] avoozl-p39 P39 Proof: pull the Andon cord [R64] (§4.11)
+- [x] avoozl-p39 P39 Proof: pull the Andon cord [R64] (§4.11)
   - Facts:
     - done:
       - Proof: pull the Andon cord
@@ -2978,7 +2978,7 @@ automatic stops of 12.6.
   - Expected: (1) `a1` and `a2` are not dispatched, `b1` is, a running session is untouched, and the banner shows the owner, the time, the scope and `bad base`; (2) each refused by field, the unknown repository named, the content rule named without the matched text, nothing recorded; (3) the stop names the session, `b1` waits, the owner is notified once; (4) both pulled stops stay open; (5) both refused with 403; (6) both refused; (7) dispatch resumes in each scope and each stop records who resumed it; (8) both pulls are listed and counted with a time to fix, the retro sees their scope and reason, and the CLI pulls and resumes the same way.
   - Failure means: a person cannot stop new work by hand, or a pulled stop resumes without a person.
   - Next decision: keep the pull as a person-only button and drop the MCP action.
-  - Open: no named proof run; the parts are covered by `src/app/test/flow-andon.test.mjs` and `kirocrew-app/ui/test/stop-line.test.mjs`.
+  - Proved: `docs/evidence/p39-andon-live.md` (2026-11-19, live on a throwaway Kiro Crew); fixes in the same change: the stop names the person, the line watch takes a direct landing as its first green head, and a chat that reported done no longer counts as running.
 
 ## Phase 25: New plan hands off to Spec Builder
 
@@ -3193,7 +3193,8 @@ retro model.
   - Share expected: (13) only the kept lesson is a candidate; MCP gets 403; the owner's share opens one pull request to the plans repository with `.avoozl/lessons.json` holding summaries only (no context, history, workspace ID, task ID or repository name); (14) Share is off and says lessons share nowhere.
   - Next decision: keep prompt proposals and drop shared lessons, or share lessons only through packs.
   - Built: `a0a0771`, `src/app/test/proof-p42.test.mjs`, steps 1–12 with fake workers, a fake retro model, a fake model list and a fake plugin; W1 uses leaves a1–a70 because the steps finish more than 12 tasks. Not run live.
-  - Open: steps 13–14 (Share) are covered by `src/app/test/lessons-share.test.mjs`, not yet by the proof test.
+  - Superseded 2026-11-19: steps 13–14 (Share) went with the lessons store (#228, #619); nothing to add.
+  - Open: not run live. A live retro on the P39 workspace (4 finished tasks, all first pass) made no proposal, so steps 1 to 4 and 10 need a scripted low first-pass window; `src/app/test/proof-p42.test.mjs` passes.
 
 ## Phase 29: Activity log
 
@@ -3238,7 +3239,7 @@ workspaces, a fake GitHub and a fake plugin.
   - The Activity tab with the `History` icon, `ViewHeading`, the shared filter panel (Source, Kind, Actor), 100 rows per page with Show more, task targets that open the drawer and GitHub links with `target="_blank" rel="noopener noreferrer"`; the Keep activity (days) field on the tab, saved by a person.
   - Built: `84b92b4`, `e8c84e7`, PR #12 (`ActivityView.tsx`, Keep activity (days) on the tab; `kirocrew-app/ui/test/activity.test.mjs`).
 
-- [ ] avoozl-p43 P43 Proof: activity log [R71] (§4.19)
+- [x] avoozl-p43 P43 Proof: activity log [R71] (§4.19)
   - Facts:
     - done:
       - Proof: activity log
@@ -3250,7 +3251,7 @@ workspaces, a fake GitHub and a fake plugin.
   - Expected: (1) one `local` row each, with the person as actor; (2) one `mcp` row naming the session; (3) one row each for the merge, the order, the ignored move, the revert, the label and the conflict, the same after the second tick; (4) one `plugin` row each; (5) both saved redacted, and no row holds either value; (6) the old row is gone; (7) the tab and MCP show the same rows newest first, a task row opens the drawer and a GitHub row opens a new tab.
   - Failure means: something that changed the workspace leaves no row, or the log can hold a secret or a private term.
   - Next decision: record from each step instead of a snapshot diff, or keep redacted rows out of the log.
-  - Open: no named proof run; the parts are covered by `src/app/test/activity-log.test.mjs`.
+  - Proved: `docs/evidence/p43-activity-live.md` (2026-11-19, live on a throwaway Kiro Crew); step 3's GitHub rows are superseded by Phase 56, and step 4's tracker conflict is covered by `activity-log.test.mjs`; fixes in the same change: Settings › Models, Delivery and driver saves are recorded, and a repository stop's row names its repository.
 
 ## Phase 30: Provider health and switching models
 
