@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import { originRepositorySync } from "./git.mjs";
 import { fail } from "./store.mjs";
 import { repoFilesOf } from "./repo-files.mjs";
+import { hasFactsBlocks } from "./spec-legacy.mjs";
 import {
   CRITIQUE,
   MANIFEST,
@@ -68,6 +69,7 @@ export async function readPrivateSpecs(source, mirror, head = null) {
       return {
         // Not read and not hashed: lint says to delete it.
         ...(texts.has(MANIFEST) ? { leftover: true } : {}),
+        ...(hasFactsBlocks(read["tasks.md"]) ? { factsBlocks: true } : {}),
         name,
         home: "plansBranch",
         repository: mirror.mirror,

@@ -8,10 +8,8 @@ Each task in a spec says what it waits on and what done means:
 
 ```markdown
 - [ ] 1.2 Validate config
-  - Facts:
-    - after: 1.1
-    - done:
-      - An unknown key is reported with its path
+  - $after: 1.1
+  - $done: An unknown key is reported with its path
   - Report each key the schema does not name, with its JSON path.
 ```
 

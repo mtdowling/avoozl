@@ -292,7 +292,7 @@ safe pieces.
 
 ### Requirement 5: Design-first task facts
 
-(Changed 2026-11-18, Requirement 111: task facts are `Facts:` bullets in
+(Changed 2026-11-18, Requirement 111: task facts are `$` fact bullets in
 `tasks.md`; there is no `avoozl/manifest.json`.)
 
 **User story:** As a developer who wrote requirements and design in Spec Builder,
@@ -305,7 +305,7 @@ deliver the design without retyping it.
    has approved requirements (or bugfix analysis) and design THEN Avoozl SHALL
    read its files from disk and SHALL NOT call Spec Builder routes.
 2. Each `tasks.md` task SHALL carry its repository, dependencies and
-   completion condition in its `Facts:` bullet (Requirement 111), with
+   completion condition in its `$` fact bullets (Requirement 111), with
    source references in the prose.
 3. A critique SHALL compare the task facts with the prose and report every
    uncovered requirement and every task with no prose source.
@@ -1050,7 +1050,7 @@ layout, so that Kiro, Spec Builder, and Avoozl read the same files.
 1. Every Avoozl plan SHALL be one Kiro spec folder, `.kiro/specs/<name>/`,
    holding `requirements.md` or `bugfix.md` (exactly one), `design.md`, and
    `tasks.md`. (Changed 2026-11-18, Requirement 111: the manifest is gone;
-   each task's facts are a `Facts:` bullet in `tasks.md`.)
+   each task's facts are `$` fact bullets in `tasks.md`.)
 2. Bugfix specs SHALL be supported the same way as feature specs.
 3. In plans-repo mode spec folders SHALL live in the planning repository; in
    single-repo mode, in the code repository; with no GitHub mode, in the
@@ -1061,7 +1061,7 @@ layout, so that Kiro, Spec Builder, and Avoozl read the same files.
 5. Every checklist item in `tasks.md` SHALL start with a task ID. Validation
    SHALL refuse an item with no ID and any ID used twice in the namespace.
 6. Avoozl SHALL map `tasks.md` items to tasks and issues only by these IDs.
-   Edges SHALL come from the task's `Facts:` bullet (Requirement 111). Kiro's own task waves inside
+   Edges SHALL come from the task's `$after` facts (Requirement 111). Kiro's own task waves inside
    `tasks.md` SHALL NOT be Avoozl's graph.
 7. Avoozl's planner SHALL write plans into this layout.
 8. Free-form plan files with fenced task blocks (`extractPlan`) SHALL remain
@@ -2570,7 +2570,7 @@ without my writing a prompt.
    rule blocks. A refused request SHALL record nothing.
 3. Submit SHALL open a planner chat seeded with the fields and Avoozl's
    spec rules: the `.kiro/specs/<name>/` layout with requirements.md,
-   design.md and tasks.md with `Facts:` bullets, the `category:`
+   design.md and tasks.md with `$` fact bullets, the `category:`
    front-matter, unique task IDs, the folder and the repositories.
    (Changed 2026-11-13: Submit hands the request to Spec Builder,
    Requirement 65; the planner chat is the fallback.)
@@ -2845,7 +2845,7 @@ Workflow templates
 
 Manual tasks
 
-9. A leaf MAY set `manual: true` in its facts: a step only a
+9. A leaf MAY set `$manual: true` in its facts: a step only a
    person does. A manual leaf SHALL have `done` (what the person
    checks), `repo` (where its issue lives in a GitHub mode) and
    completion `person`, the only completion it may have. It SHALL NOT
@@ -3068,8 +3068,8 @@ still gets a spec folder it can deliver.
    path.
 2. Avoozl SHALL ship a steering file, `.kiro/steering/avoozl-specs.md`,
    that states the spec layout, the `category:` and `epic:` front-matter,
-   task ID format and uniqueness, phases as `##` headings, the `Facts:`
-   bullet under each task and the front-matter defaults (Requirement 111),
+   task ID format and uniqueness, phases as `##` headings, the `$` fact
+   bullets under each task and the front-matter defaults (Requirement 111),
    and that no spec folder holds `avoozl/manifest.json`. (Changed
    2026-11-18, Requirement 111.9.) Spec Builder's chat runs the default
    agent in the spec's repository, which loads `.kiro/steering/**/*.md`.
@@ -5649,7 +5649,9 @@ once under `intake.sources`, so that I read and change intake in one place.
 Added 2026-11-18 (owner decision). Design §4.40. Changes Requirement 30.1
 and 30.6, and the manifest rules of Requirements 59, 105 and 108. The
 owner's words, in short: remove `avoozl/manifest.json`; every per-task fact
-moves into `tasks.md`, one `Facts:` bullet per task.
+moves into `tasks.md`, one `Facts:` bullet per task. (Changed 2026-11-19,
+owner decision: the `Facts:` layer is gone; each fact is a `$key: value`
+bullet directly under its task.)
 
 **User story:** As the owner, I want one file per spec to read and review
 the tasks, so that a task's title and its acceptance sit
@@ -5662,20 +5664,22 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
    NOT read that file. A leftover one SHALL be a lint error, with its file,
    that says to delete it. No alias, fallback or migration tool SHALL read
    or convert it.
-2. Each `tasks.md` item SHALL carry its facts in one bullet, `Facts:`,
-   nested under the item as its first child. The bullet's children SHALL be
-   one `key: value` bullet per fact, or `key:` with nested bullets for a
-   list. Subtasks SHALL follow the `Facts:` bullet. Other plain bullets
-   under an item stay free notes.
+2. Each `tasks.md` item SHALL carry its facts as bullets directly under
+   the item that start with `$`, one fact per bullet on one line:
+   `- $after: 1.1`. Nothing SHALL nest under a fact. Facts, subtasks and
+   other bullets MAY come in any order; other plain bullets under an item
+   are its summary.
 3. The known keys SHALL cover everything the manifest held: `kind`, `repo`
    (the repository), `summary`, `done` (the acceptance), `completion`,
    `after`, `sequence`, `supports`, `manual`, `phase`, `batch`,
    and the other task keys `validateProposal` accepts, plus `plan` and
    `step` on an epic's rows. `after` names the tasks that must finish
    first, each with an optional `:<completion>`. A list SHALL be written
-   inline, comma separated, or as nested bullets. A task SHALL NOT name
+   comma separated on one bullet, or as the same fact written again, each
+   bullet adding to the list. `$done` SHALL be one result per bullet and
+   SHALL NOT be split on commas. A task SHALL NOT name
    checks: every task runs its repository's checks (Requirement 7.1), and
-   a `checks` fact or front-matter line SHALL be a lint error that says
+   a `$checks` fact or `checks` front-matter line SHALL be a lint error that says
    "Every task runs the repository's checks; delete this line." (Changed
    2026-11-18: the `checks` fact and default are removed.)
 4. `tasks.md` MAY start with front-matter that holds spec-wide values:
@@ -5683,16 +5687,19 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
    `integrationBranch`, `integrationSync`, `forwardTarget`, `publicBranch`
    and `kind: epic` for the spec; `phase-<id>: <title>` for a named phase;
    and `batch-<id>: <reason>` for a planner batch group, whose members
-   each write `batch: <id>`. A task's own fact SHALL win over a default. A
+   each write `$batch: <id>`. Front-matter keys take no `$`. A task's own fact SHALL win over a default. A
    package SHALL NOT take a default.
-5. Lint SHALL refuse, with the file and line of the bullet: an unknown key
-   in `Facts:` or in front-matter; a key written twice; a value of the wrong
-   shape; more than one `Facts:` for a task; a `Facts:` that is not the
-   first child of a task item; a fact bullet outside `Facts:`; and a task
-   with no `Facts:`. Every rule the manifest had, such as acceptance on a
+5. Lint SHALL refuse, with the file and line of the bullet: an unknown `$`
+   fact or front-matter key; a one-value fact or a front-matter key written
+   twice; a value of the wrong shape; anything nested under a fact; a `$`
+   fact that is not directly under a task item; a bullet under an item that
+   reads as a fact without its `$`, such as `done:`; a `Facts:` block in
+   `tasks.md` on disk; and a task with no facts. A revision stored with
+   `Facts:` blocks SHALL be read and hashed as its `$` layout. Every rule the manifest had, such as acceptance on a
    leaf, SHALL hold with the file named `tasks.md`.
 6. The revision hash SHALL cover the spec's prose and its parsed facts, not
-   their layout. A spec converted from the manifest to `Facts:` bullets,
+   their layout. A spec converted from the manifest to `Facts:` bullets, or from those to
+   `$` fact bullets,
    with nothing else changed, SHALL NOT need a person's approval again: it
    keeps its hash where the old manifest's text allows, and otherwise its
    approval is carried to the new hash with `carriedFrom` recorded, no
@@ -5706,7 +5713,7 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
    proposed work, import and the plan-review view SHALL read facts from
    `tasks.md`. The review tabs SHALL show no manifest tab.
 9. The planner prompt, the Spec Builder steering file and any planner skill
-   SHALL tell Kiro chats, Claude Code and Codex to write `Facts:` bullets
+   SHALL tell Kiro chats, Claude Code and Codex to write `$` fact bullets
    and never `avoozl/manifest.json`. Avoozl SHALL NOT write a manifest or
    draft one from marker bullets.
 10. Every spec in this repository SHALL be converted once and its
@@ -5716,7 +5723,7 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
     after the build merges, tested on a copy first.
 11. Tests SHALL cover: each key and each refusal in 5, the leftover manifest,
     default and package rules, an epic folder, a batch group, the hash in 6,
-    proposed work writing a `Facts:` bullet, and the planner text.
+    proposed work writing `$` fact bullets, and the planner text.
 
 ### Requirement 112: A repository's checks run in its isolation
 
@@ -5823,9 +5830,10 @@ box someone checked.
     their tick. Avoozl SHALL keep it on the task in SQLite, read once, and
     receipts and Flow SHALL look the task's CI up by it (Requirement
     101.14). Avoozl SHALL NOT write a `Built:` line. A `Built: <commit>`
-    line a person wrote under a ticked item SHALL still be read, and used
-    first. A `Built:` fact SHALL stay outside the revision hash: the hash
-    skips the `Facts:` block's text, and the fact is not a manifest value.
+    note or `$built: <commit>` fact a person wrote under a ticked item SHALL
+    still be read, and used first. A `$built:` fact SHALL stay outside the
+    revision hash: the hash skips fact bullets' text, and the fact is not a
+    manifest value.
     Tests SHALL show a direct push and a squash-merged pull request each
     resolving to their tick commit, a fresh database rebuilt from git
     finding the same commits, and an unchanged hash.

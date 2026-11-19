@@ -37,7 +37,7 @@ Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it again.
 
 - **Specs** live in `.kiro/specs/<name>/` in git: `requirements.md` (or
   `bugfix.md`), `design.md` and `tasks.md`.
-- **Task facts** are the `Facts:` bullets under each task in `tasks.md`.
+- **Task facts** are the `$key:` bullets under each task in `tasks.md`.
 - **Approvals** are commits on main whose author is an approver.
 - **Task completion** is the commit that lands a task and ticks its box in
   `tasks.md` on main. Other machines read the tick.

@@ -168,8 +168,8 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   // An intake-made task names its item.
   const files = specFiles();
   files["tasks.md"] = files["tasks.md"].replace(
-    "      - completion: integrated\n    - Parse",
-    "      - completion: integrated\n      - source: https://example.com/items/7\n    - Parse",
+    "    - $completion: integrated\n    - Parse",
+    "    - $completion: integrated\n    - $source: https://example.com/items/7\n    - Parse",
   );
   writeSpec(r.root, "intake", files);
   await first.ops.execute("plan.create", { spec: "intake" });

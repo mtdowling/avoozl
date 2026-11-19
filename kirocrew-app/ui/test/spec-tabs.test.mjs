@@ -76,7 +76,7 @@ test('a document tab shows the rendered file with its review comments inline', {
   assert.equal(await exists('[data-spec-card="design.md"] [data-inline-thread] [data-finding-card="f-info"]'), true)
   assert.equal(await exists('[data-spec-card="requirements.md"]'), false)
   await click('[data-spec-tab="tasks.md"]')
-  await page.until(`/Facts:/.test(document.querySelector('[data-spec-card="tasks.md"]')?.textContent ?? '')`)
+  await page.until(`/\\$done: A byte/.test(document.querySelector('[data-spec-card="tasks.md"]')?.textContent ?? '')`)
   assert.equal(await exists('[data-spec-card="tasks.md"] [data-finding-card]'), false, 'tasks.md has no comments')
   assert.equal(await exists('[data-review-view]'), false, 'no separate Review page')
   await click('[data-spec-tab="overview"]')
