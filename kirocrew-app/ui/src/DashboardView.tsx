@@ -51,21 +51,43 @@ export const NEEDS_SHOWN = 6
 const FAILED_KINDS = new Set(['delivery', 'stale-session', 'provider-out', 'tick-failed'])
 
 // One Needs you card: what waits, and the one answer that unblocks it.
-function NeedCard({ item, attach, onAnswer, onInfo, onAsk, onTitle }: { item: Attention; attach: string | null; onAnswer: () => void; onInfo: () => void; onAsk: () => void; onTitle: () => void }) {
+function NeedCard({
+  item,
+  attach,
+  onAnswer,
+  onInfo,
+  onAsk,
+  onTitle,
+}: {
+  item: Attention
+  attach: string | null
+  onAnswer: () => void
+  onInfo: () => void
+  onAsk: () => void
+  onTitle: () => void
+}) {
   return (
     <li data-home-need data-attention-row>
       <Box as="span" flex items="center" justify="between" gap="2">
         <span data-attention-tag>
           <Badge variant={FAILED_KINDS.has(item.kind) ? 'danger' : 'warning'}>{KIND_LABEL[item.kind] ?? item.kind}</Badge>
         </span>
-        {item.taskId && <Box as="span" truncate size="xs" tone="muted">{item.taskId}</Box>}
+        {item.taskId && (
+          <Box as="span" truncate size="xs" tone="muted">
+            {item.taskId}
+          </Box>
+        )}
       </Box>
       <Tooltip text={attentionTip(item)} display="inline">
         {(describedBy) => (
           <PlainLink
             role="button"
             tabIndex={0}
-            css-cursor="pointer" css-color="inherit" size="sm" weight="medium" underline
+            css-cursor="pointer"
+            css-color="inherit"
+            size="sm"
+            weight="medium"
+            underline
             onClick={onTitle}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -89,7 +111,12 @@ function NeedCard({ item, attach, onAnswer, onInfo, onAsk, onTitle }: { item: At
           {item.href && <IconLink icon={ExternalLink} to={item.href} label={`Open the issue for ${item.title}`} external />}
           {attach && <IconLink icon={CirclePlus} to={attach} label={`Session: the chat for ${item.title}`} />}
           {(item.group || item.taskId) && (
-            <IconBtn icon={DetailsIcon} label={`Details for ${item.title}`} tooltip={item.group ? 'Why these tasks need review, and the list of them' : 'Open the task details'} onClick={onInfo} />
+            <IconBtn
+              icon={DetailsIcon}
+              label={`Details for ${item.title}`}
+              tooltip={item.group ? 'Why these tasks need review, and the list of them' : 'Open the task details'}
+              onClick={onInfo}
+            />
           )}
           <IconBtn icon={MessageSquare} label={`Ask in a chat about ${item.title}`} tooltip="Ask in a chat: a new chat seeded with this item's full context" onClick={onAsk} />
         </Row>
@@ -133,7 +160,9 @@ function CiHealthList({ ci, loading }: { ci: CiHealth; loading: boolean }) {
     <ul data-home-list>
       <li data-home-row data-ci-summary>
         <span data-home-row-main>
-          {ci.flaky === 0 && ci.ciOnly === 0 ? 'No flaky checks or CI-only failures in this window.' : `${ci.flaky} flaky ${ci.flaky === 1 ? 'check' : 'checks'} · ${ci.ciOnly} CI-only ${ci.ciOnly === 1 ? 'failure' : 'failures'}`}
+          {ci.flaky === 0 && ci.ciOnly === 0
+            ? 'No flaky checks or CI-only failures in this window.'
+            : `${ci.flaky} flaky ${ci.flaky === 1 ? 'check' : 'checks'} · ${ci.ciOnly} CI-only ${ci.ciOnly === 1 ? 'failure' : 'failures'}`}
         </span>
       </li>
       {ci.repositories.length === 0 && (
@@ -146,7 +175,8 @@ function CiHealthList({ ci, loading }: { ci: CiHealth; loading: boolean }) {
           <span data-home-row-main>
             {row.repository}
             <span data-home-sub>
-              {row.waitShare === null ? 'CI wait not measured yet' : `CI wait ${percent(row.waitShare)} of lead time`} · limit {percent(row.waitLimit)} · {row.closed} closed · {row.repeats} repeat {row.repeats === 1 ? 'run' : 'runs'}
+              {row.waitShare === null ? 'CI wait not measured yet' : `CI wait ${percent(row.waitShare)} of lead time`} · limit {percent(row.waitLimit)} · {row.closed} closed ·{' '}
+              {row.repeats} repeat {row.repeats === 1 ? 'run' : 'runs'}
             </span>
           </span>
           <Badge variant={row.waitShare === null ? undefined : row.over ? 'danger' : 'success'}>{row.waitShare === null ? 'No data' : row.over ? 'Over limit' : 'OK'}</Badge>
@@ -200,8 +230,7 @@ function StuckList({ rows, loading }: { rows: StuckRow[]; loading: boolean }) {
 }
 
 const ROLE_LABEL: Record<string, string> = { worker: 'Worker', checks: 'Checks', planner: 'Planner' }
-const roleLabel = (row: InFlight) =>
-  ROLE_LABEL[row.role] ?? (row.role === 'worker' ? 'Worker' : `Reviewer · ${row.role}`)
+const roleLabel = (row: InFlight) => ROLE_LABEL[row.role] ?? (row.role === 'worker' ? 'Worker' : `Reviewer · ${row.role}`)
 
 // How often the Dashboard reads again while it is on screen, so In flight
 // stays current. Paused while the page is hidden.
@@ -216,18 +245,38 @@ export function RadarFlightRow({ row, now }: { row: RadarClaim; now: number }) {
         <Badge>Issue Radar</Badge>
       </Box>
       <Box as="span" css-flex-basis="12rem" minW0 flex1>
-        <Box as="span" weight="medium">{row.title}</Box>{' '}
+        <Box as="span" weight="medium">
+          {row.title}
+        </Box>{' '}
         <Hint size="xs">
           {row.repository} #{row.number}
         </Hint>{' '}
         {row.stale && <Badge variant="warning">Stale</Badge>}
-        <Box data-rail as="span" ml="1" inlineFlex items="center" gap="0.5" alignMiddle role="img" aria-label={railFor(row).map((step) => `${step.label} ${step.state === 'done' ? 'done' : step.state === 'now' ? 'now' : 'next'}`).join(', ')}>
+        <Box
+          data-rail
+          as="span"
+          ml="1"
+          inlineFlex
+          items="center"
+          gap="0.5"
+          alignMiddle
+          role="img"
+          aria-label={railFor(row)
+            .map((step) => `${step.label} ${step.state === 'done' ? 'done' : step.state === 'now' ? 'now' : 'next'}`)
+            .join(', ')}
+        >
           {railFor(row).map((step) => (
             <i
               key={step.label}
               data-rail-step={step.state}
               title={step.label}
-              style={{ display: 'block', width: 16, height: 8, borderRadius: 3, background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)' }}
+              style={{
+                display: 'block',
+                width: 16,
+                height: 8,
+                borderRadius: 3,
+                background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)',
+              }}
             />
           ))}
         </Box>
@@ -264,7 +313,11 @@ export function CopyAttach({ command, title }: { command: string; title: string 
           aria-label={`Copy the attach command for ${title}`}
           aria-describedby={describedBy}
           data-copy-attach
-          css-display="inline-flex" css-align-items="center" css-gap="4" css-padding="3px-6px" css-min-height="0"
+          css-display="inline-flex"
+          css-align-items="center"
+          css-gap="4"
+          css-padding="3px-6px"
+          css-min-height="0"
           onClick={() =>
             void navigator.clipboard?.writeText(command).then(
               () => {
@@ -282,7 +335,6 @@ export function CopyAttach({ command, title }: { command: string; title: string 
     </Tooltip>
   )
 }
-
 
 // In flight's `PR #N` chip with its check dot, and the branch chip (R92.6).
 // Both open GitHub in a new tab (R92.9).
@@ -304,7 +356,17 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
               href={linkHref(links.pr.url)}
               target="_blank"
               rel="noopener noreferrer"
-              css-display="inline-flex" css-align-items="center" css-gap="4" css-max-width="100%" css-min-width="0" css-padding="0-6px" css-border="1px-solid-border" css-border-radius="999" css-color="text" css-line-height="18px" css-text-decoration="none"
+              css-display="inline-flex"
+              css-align-items="center"
+              css-gap="4"
+              css-max-width="100%"
+              css-min-width="0"
+              css-padding="0-6px"
+              css-border="1px-solid-border"
+              css-border-radius="999"
+              css-color="text"
+              css-line-height="18px"
+              css-text-decoration="none"
               aria-label={`Pull request ${links.pr.number} for ${title}${links.pr.state === 'open' || links.pr.state === 'unknown' ? '' : `, ${links.pr.state}`}. ${dot.label}`}
             >
               <i data-check-dot={dot.dot} aria-hidden="true" style={{ display: 'block', flex: '0 0 auto', width: 8, height: 8, borderRadius: 999, background: dot.color }} />
@@ -316,9 +378,28 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
       )}
       {branch && links.branch && (
         <Tooltip text={links.branch.ref}>
-          <PlainLink data-branch-chip href={linkHref(links.branch.url)} target="_blank" rel="noopener noreferrer" css-display="inline-flex" css-align-items="center" css-gap="4" css-max-width="100%" css-min-width="0" css-padding="0-6px" css-border="1px-solid-border" css-border-radius="999" css-color="text" css-line-height="18px" css-text-decoration="none" aria-label={`Branch ${links.branch.ref} for ${title}`}>
+          <PlainLink
+            data-branch-chip
+            href={linkHref(links.branch.url)}
+            target="_blank"
+            rel="noopener noreferrer"
+            css-display="inline-flex"
+            css-align-items="center"
+            css-gap="4"
+            css-max-width="100%"
+            css-min-width="0"
+            css-padding="0-6px"
+            css-border="1px-solid-border"
+            css-border-radius="999"
+            css-color="text"
+            css-line-height="18px"
+            css-text-decoration="none"
+            aria-label={`Branch ${links.branch.ref} for ${title}`}
+          >
             <Glyph icon={GitBranch} size={12} aria-hidden="true" css-flex="0-0-auto" />
-            <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{links.branch.ref}</Box>
+            <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">
+              {links.branch.ref}
+            </Box>
           </PlainLink>
         </Tooltip>
       )}
@@ -352,7 +433,14 @@ function SendMessage({ title, onSend, onClose }: { title: string; onSend: (text:
     >
       <PlainTextarea
         aria-label={`Message for ${title}`}
-        css-border-color="border" css-background="bg" css-color="text" css-min-height="3.5em" rounded="base" border="all" p="1.5" size="sm"
+        css-border-color="border"
+        css-background="bg"
+        css-color="text"
+        css-min-height="3.5em"
+        rounded="base"
+        border="all"
+        p="1.5"
+        size="sm"
         maxLength={8000}
         value={text}
         onChange={(event) => setText(event.target.value)}
@@ -388,7 +476,11 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
           {row.taskId}
           {row.epic ? ` · ${row.epic}` : ''} · attempt {row.attempt}
         </Hint>{' '}
-        {row.focus && <Hint size="xs" block>{row.focus}</Hint>}
+        {row.focus && (
+          <Hint size="xs" block>
+            {row.focus}
+          </Hint>
+        )}
         {processRow ? (
           <Hint size="xs" block data-process-status>
             {child ? processLine(child) : 'process · no supervisor record'} · {row.model ?? 'model not named'} · running {duration(row.startedAt, now)}
@@ -406,7 +498,17 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
           // column-reverse keeps the newest line in view without a scroll effect.
           <Box
             data-process-log
-            as="span" css-border-color="border" css-max-height="7.5em" css-overflow="auto" css-display="flex" css-flex-direction="column-reverse" mt="1" block rounded="base" border="all" size="xs"
+            as="span"
+            css-border-color="border"
+            css-max-height="7.5em"
+            css-overflow="auto"
+            css-display="flex"
+            css-flex-direction="column-reverse"
+            mt="1"
+            block
+            rounded="base"
+            border="all"
+            size="xs"
             tabIndex={0}
             aria-label={`Log tail for ${row.title}`}
           >
@@ -423,24 +525,31 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
           <IconBtn icon={MessageSquare} label={`Send message to the ${row.role} for ${row.title}`} tooltip="Send message" onClick={() => setWriting((open) => !open)} />
         )}
         {processRow ? (
-          child?.attach ? <CopyAttach command={child.attach} title={row.title} /> : <Hint size="xs">No attach command</Hint>
+          child?.attach ? (
+            <CopyAttach command={child.attach} title={row.title} />
+          ) : (
+            <Hint size="xs">No attach command</Hint>
+          )
         ) : !href ? (
           <Hint size="xs">Session waits on Kiro Crew</Hint>
         ) : (
-        <PlainLink
-          href={linkHref(href)}
-          css-display="inline-flex" css-align-items="center" css-gap="4" size="sm" underline
-          aria-label={`Session: the ${row.role} chat for ${row.title}`}
-        >
-          <CirclePlus size={14} aria-hidden="true" />
-          Session
-        </PlainLink>
+          <PlainLink
+            href={linkHref(href)}
+            css-display="inline-flex"
+            css-align-items="center"
+            css-gap="4"
+            size="sm"
+            underline
+            aria-label={`Session: the ${row.role} chat for ${row.title}`}
+          >
+            <CirclePlus size={14} aria-hidden="true" />
+            Session
+          </PlainLink>
         )}
       </Box>
     </Box>
   )
 }
-
 
 export default function DashboardView(props: {
   workspaceId: string | null
@@ -512,9 +621,7 @@ export default function DashboardView(props: {
   usePublishRefresh(useRefreshCountdown(workspaceId, refreshHome, busy))
   // The conflict items an attention row stands for, for its chat seed.
   const askAbout = (item: Attention) => {
-    const matching = item.group
-      ? [item.group]
-      : (value?.conflicts ?? []).filter((c) => c.taskId === item.taskId && (item.kind === 'delivery' || c.kind === item.kind))
+    const matching = item.group ? [item.group] : (value?.conflicts ?? []).filter((c) => c.taskId === item.taskId && (item.kind === 'delivery' || c.kind === item.kind))
     void chat.ask(matching.length ? { items: matching.map(itemRefOf) } : { tasks: item.taskId ? [item.taskId] : [] })
   }
   // The one answer: a review opens its list, a Needs you item opens there,
@@ -643,7 +750,10 @@ export default function DashboardView(props: {
         </HomeSection>
       </HomePair>
       <HomePair id="flight-progress">
-        <HomeSection id="in-flight" title={`In flight (${summary ? summary.inFlight.length + summary.radarFlight.length : 0})${nameFor(instance, 'other') ? ` · ${nameFor(instance, 'other')}` : ''}`}>
+        <HomeSection
+          id="in-flight"
+          title={`In flight (${summary ? summary.inFlight.length + summary.radarFlight.length : 0})${nameFor(instance, 'other') ? ` · ${nameFor(instance, 'other')}` : ''}`}
+        >
           <HomeBox>
             {!summary ? (
               <Empty>Loading…</Empty>
@@ -694,7 +804,9 @@ export default function DashboardView(props: {
                         <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
                       </>
                     )}
-                    <Box as="p" my="2" size="xs" tone="muted">Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat.</Box>
+                    <Box as="p" my="2" size="xs" tone="muted">
+                      Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat.
+                    </Box>
                   </>
                 )}
               </>
@@ -720,7 +832,9 @@ export default function DashboardView(props: {
               <Empty>Loading…</Empty>
             ) : summary.progress.length === 0 ? (
               <>
-                <Empty>No epics yet. {summary.plans.approved} approved and {summary.plans.draft} draft specs.</Empty>
+                <Empty>
+                  No epics yet. {summary.plans.approved} approved and {summary.plans.draft} draft specs.
+                </Empty>
                 <Box mb="2">
                   <Btn type="button" onClick={() => onNavigate('plans')}>
                     Open Specs
@@ -735,9 +849,20 @@ export default function DashboardView(props: {
                   return (
                     <li key={entry.epic ?? '(none)'}>
                       <Tooltip text={`Show only ${title} in its spec graph${entry.running > 0 ? `. ${entry.running} Avoozl chats running now.` : ''}`} display="block">
-                        <PlainButton type="button" wFull rounded="base" px="1" py="1" align="left" hoverBgAccent10 onClick={() => props.onDrill?.({ kind: 'epic', id: entry.epic, title })}>
+                        <PlainButton
+                          type="button"
+                          wFull
+                          rounded="base"
+                          px="1"
+                          py="1"
+                          align="left"
+                          hoverBgAccent10
+                          onClick={() => props.onDrill?.({ kind: 'epic', id: entry.epic, title })}
+                        >
                           <Box as="span" flex items="center" justify="between" gap="2">
-                            <Box as="span" truncate>{title}</Box>
+                            <Box as="span" truncate>
+                              {title}
+                            </Box>
                             <Box as="span" flex shrink0 items="center" gap="2" size="xs" tone="muted">
                               {entry.running > 0 && (
                                 <Box as="span" css-color="tile-purple-aim" inlineFlex items="center" gap="1" aria-label={`${entry.running} Avoozl chats running`}>
@@ -748,7 +873,20 @@ export default function DashboardView(props: {
                               {entry.done} of {entry.total}
                             </Box>
                           </Box>
-                          <Box role="progressbar" aria-label={`${title} progress`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} as="span" css-background="border" mt="1" block h15 overflow="hidden" rounded="base">
+                          <Box
+                            role="progressbar"
+                            aria-label={`${title} progress`}
+                            aria-valuenow={percent}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            as="span"
+                            css-background="border"
+                            mt="1"
+                            block
+                            h15
+                            overflow="hidden"
+                            rounded="base"
+                          >
                             <Box as="span" css-width={`${percent}%`} css-background="ok" block hFull />
                           </Box>
                         </PlainButton>
@@ -773,8 +911,6 @@ const itemRefOf = (item: ConflictItem) => itemRef(item)
 
 // A task's newest running chat, worker first, to attach to.
 function attachOf(running: { id: string; sessions: { role: string; slot: string; link?: string | null; attempt: number }[] }[], id: string | null) {
-  const sessions = [...(running.find((r) => r.id === id)?.sessions ?? [])].sort(
-    (a, b) => (a.role === 'worker' ? -1 : 0) - (b.role === 'worker' ? -1 : 0) || b.attempt - a.attempt,
-  )
+  const sessions = [...(running.find((r) => r.id === id)?.sessions ?? [])].sort((a, b) => (a.role === 'worker' ? -1 : 0) - (b.role === 'worker' ? -1 : 0) || b.attempt - a.attempt)
   return sessions[0] ? sessionHref(sessions[0]) : null
 }

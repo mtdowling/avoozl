@@ -32,17 +32,9 @@ test('settled items leave the list at once; refused ones stay and say why', () =
     item('stale-session', 'a', { slot: 's2' }),
   ]
   const reviewed = { revision: 5, settled: [{ taskId: 'a' }], refused: [{ taskId: 'b', reason: 'GitHub owns this task.' }] }
-  assert.deepEqual(withoutSettled(items, 'reviewed', reviewed).map(itemKey), [
-    'needs-human:b::',
-    'stale-session:a::s1',
-    'stale-session:a::s2',
-  ])
+  assert.deepEqual(withoutSettled(items, 'reviewed', reviewed).map(itemKey), ['needs-human:b::', 'stale-session:a::s1', 'stale-session:a::s2'])
   const dismissed = { revision: 6, settled: [{ taskId: 'a', slot: 's2' }], refused: [] }
-  assert.deepEqual(withoutSettled(items, 'dismiss', dismissed).map(itemKey), [
-    'needs-human:a::',
-    'needs-human:b::',
-    'stale-session:a::s1',
-  ])
+  assert.deepEqual(withoutSettled(items, 'dismiss', dismissed).map(itemKey), ['needs-human:a::', 'needs-human:b::', 'stale-session:a::s1'])
   assert.deepEqual(resultMessage('reviewed', reviewed), {
     ok: false,
     text: 'Mark reviewed: 1 done. Refused 1: b (GitHub owns this task.)',
@@ -69,7 +61,10 @@ test('a review group is one item that settles all its local tasks and shrinks as
   assert.deepEqual(settleTargets(group), [{ taskId: 'a' }, { taskId: 'b' }])
   assert.equal(settleCount([group]), 2)
   const left = withoutSettled([group], 'reviewed', { revision: 2, settled: [{ taskId: 'a' }], refused: [] })
-  assert.deepEqual(left.map((g) => [g.title, g.tasks.map((t) => t.id)]), [['Review 2 tasks in p: their design text changed', ['b', 'g']]])
+  assert.deepEqual(
+    left.map((g) => [g.title, g.tasks.map((t) => t.id)]),
+    [['Review 2 tasks in p: their design text changed', ['b', 'g']]],
+  )
   assert.deepEqual(withoutSettled(left, 'reviewed', { revision: 3, settled: [{ taskId: 'b' }, { taskId: 'g' }], refused: [] }), [])
   const remote = { ...group, tasks: [group.tasks[2]] }
   assert.equal(settleActionOf(remote), null)

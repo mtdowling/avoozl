@@ -37,7 +37,8 @@ test('Crews and rules modes are radio fold-outs, not selects', () => {
   // conflicts are on the repository's Landing tab, once each.
   const view = readFileSync(new URL('../src/SettingsView.tsx', import.meta.url), 'utf8')
   for (const part of ['AvoozlLabelFields']) assert.match(view, new RegExp(`<${part} \\{\\.\\.\\.part\\}`), part)
-  for (const part of ['AutoMergeFields', 'ConflictFields', 'MergeMethodFields']) assert.equal((view.match(new RegExp(`<${part} id=\\{id\\} repository=\\{repository\\} set=\\{set\\}[ />]`, 'g')) ?? []).length, 1, part)
+  for (const part of ['AutoMergeFields', 'ConflictFields', 'MergeMethodFields'])
+    assert.equal((view.match(new RegExp(`<${part} id=\\{id\\} repository=\\{repository\\} set=\\{set\\}[ />]`, 'g')) ?? []).length, 1, part)
 })
 
 test('the seven Avoozl labels show with their job, writer and avoozl: default (RC21.4)', () => {
@@ -62,7 +63,10 @@ test('the seven Avoozl labels show with their job, writer and avoozl: default (R
 })
 
 test('the review and drafted labels round-trip, and ready stays in managedLabels', () => {
-  const policy = { mode: 'single-repo', repositories: { 'example/code': { baseBranch: 'main', managedLabels: { ready: 'go' }, radar: { reviewLabel: 'review me', draftedLabel: 'drafted', trackerLabel: 'waiting' } } } }
+  const policy = {
+    mode: 'single-repo',
+    repositories: { 'example/code': { baseBranch: 'main', managedLabels: { ready: 'go' }, radar: { reviewLabel: 'review me', draftedLabel: 'drafted', trackerLabel: 'waiting' } } },
+  }
   const form = toForm(policy)
   assert.equal(form.repositories[0].reviewLabel, 'review me')
   assert.equal(form.repositories[0].draftedLabel, 'drafted')

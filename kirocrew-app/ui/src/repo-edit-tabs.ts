@@ -39,8 +39,7 @@ export function dirtyTabs(state: EditState): Set<EditTab> {
   if (state.sourceChanged) dirty.add('mirror')
   const { entry, saved } = state
   if (!entry) return dirty
-  for (const tab of EDIT_TABS)
-    if (EDIT_TAB_FIELDS[tab.key].some((field) => !saved || !same(entry[field], saved[field]))) dirty.add(tab.key)
+  for (const tab of EDIT_TABS) if (EDIT_TAB_FIELDS[tab.key].some((field) => !saved || !same(entry[field], saved[field]))) dirty.add(tab.key)
   return dirty
 }
 

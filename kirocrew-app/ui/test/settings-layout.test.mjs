@@ -25,15 +25,12 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 const settings = source('SettingsView.tsx')
 
 test('every Settings group and repository tab renders its blurb', () => {
-  for (const tab of ['workspaces', 'repositories', 'github', 'plugins', 'content'])
-    assert.match(settings, new RegExp(`\\n  ${tab}:\\s*\\n?\\s*['"]`), tab)
+  for (const tab of ['workspaces', 'repositories', 'github', 'plugins', 'content']) assert.match(settings, new RegExp(`\\n  ${tab}:\\s*\\n?\\s*['"]`), tab)
   assert.match(settings, /data-blurb=\{section\.key\}>\s*\{SETTINGS_BLURBS\[section\.key\]\}/)
-  for (const tab of ['general', 'landing', 'github', 'checks', 'reviews', 'map'])
-    assert.match(settings, new RegExp(`blurb=\\{REPOSITORY_BLURBS\\.${tab}\\}`), tab)
+  for (const tab of ['general', 'landing', 'github', 'checks', 'reviews', 'map']) assert.match(settings, new RegExp(`blurb=\\{REPOSITORY_BLURBS\\.${tab}\\}`), tab)
   // Managed labels say what they are, and that hand edits are conflicts.
   assert.match(settings, /Labels Avoozl itself adds and removes on issues to show their state\. Don't edit them by hand: a hand edit shows as a conflict\./)
-  for (const title of ['Managed labels', 'Who counts', 'Priority', 'Project fields', 'Set up GitHub'])
-    assert.match(settings, new RegExp(`title="${title}"\\s+blurb=`), title)
+  for (const title of ['Managed labels', 'Who counts', 'Priority', 'Project fields', 'Set up GitHub']) assert.match(settings, new RegExp(`title="${title}"\\s+blurb=`), title)
 })
 
 test('Project fields: owner and number are required, every field name is optional with its blank meaning', () => {
@@ -77,7 +74,10 @@ test('Save is blocked with a clear message while a required setting is missing',
 test('the radio fold-out is real radios with motion off under reduced motion, and the role help keeps the mode cards', () => {
   const picker = source('RoleHelp.tsx')
   const fold = source('ui/RadioFold.tsx')
-  assert.deepEqual(MODE_CARDS.map((card) => card.mode), ['local', 'plans-repo', 'single-repo'])
+  assert.deepEqual(
+    MODE_CARDS.map((card) => card.mode),
+    ['local', 'plans-repo', 'single-repo'],
+  )
   for (const card of MODE_CARDS) {
     assert.ok(card.useWhen.length >= 3)
     assert.equal(card.facts.length, 3)
@@ -113,8 +113,7 @@ test('no mode is Local only', () => {
 
 test('each mode shows only the settings it reads, and Local only keeps the rest', () => {
   const local = visibleSettings('local')
-  for (const key of ['triggers', 'requiredChecks', 'pullRequestReviews', 'projectFields', 'setupGitHub', 'planningRepository'])
-    assert.ok(!local.has(key), key)
+  for (const key of ['triggers', 'requiredChecks', 'pullRequestReviews', 'projectFields', 'setupGitHub', 'planningRepository']) assert.ok(!local.has(key), key)
   for (const key of ['landingBranch', 'workerChats', 'reviewerChats', 'localChecks']) assert.ok(local.has(key), key)
   const single = visibleSettings('single-repo')
   assert.ok(!single.has('planningRepository'))
@@ -184,7 +183,7 @@ test('Settings has a GitHub page; Workspaces keeps only workspace things', () =>
   assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'radar', 'plugins', 'content', 'flow', 'models', 'delivery'])
   assert.doesNotMatch(settings, /Where tasks live' \}/)
   assert.match(settings, /setup=\{<SetupWizard/)
-  const workspaces = settings.slice(settings.indexOf("if (tab === 'workspaces')"), settings.indexOf("if (!workspaceId)"))
+  const workspaces = settings.slice(settings.indexOf("if (tab === 'workspaces')"), settings.indexOf('if (!workspaceId)'))
   assert.match(workspaces, /<WorkspaceView[\s\S]*<ThisComputer/)
   assert.doesNotMatch(workspaces, /PolicyEditor|WorkspaceGitHub|RateBlock|SetupWizard/)
   // The Plugins link to the GitHub settings opens the GitHub page.
@@ -200,7 +199,12 @@ test('Settings has a GitHub page; Workspaces keeps only workspace things', () =>
 test('GitHub: every group is its own tab and bordered section, and Radar settings live on their own page', () => {
   const github = settings.slice(settings.indexOf('function WorkspaceGitHub('), settings.indexOf('function RadarSettings('))
   const shown = github.slice(github.indexOf('<Tabs id="avoozl-github-tab"'))
-  for (const [tab, title] of [['issues', 'New tasks and issues'], ['sync', 'Sync pace'], ['setup', 'Set up GitHub']]) assert.match(shown, new RegExp(`\\{tab === '${tab}' && \\(\\s*<Card>\\s*<Section title="${title}"`), title)
+  for (const [tab, title] of [
+    ['issues', 'New tasks and issues'],
+    ['sync', 'Sync pace'],
+    ['setup', 'Set up GitHub'],
+  ])
+    assert.match(shown, new RegExp(`\\{tab === '${tab}' && \\(\\s*<Card>\\s*<Section title="${title}"`), title)
   assert.match(shown, /\{tab === 'project' && \(\s*<Card>\s*<ProjectFields/)
   assert.doesNotMatch(github, /CrewScopes|RadarValuesScreen|level="sub"/)
   // GitHub calls is a bordered section of its own.
@@ -298,8 +302,7 @@ test('Settings › Issue Radar holds every Radar intake setting, each in its own
   // Conflicts and the merge method are on the repository's Landing tab (§4.25).
   assert.deepEqual(titles, ['Issue Radar', 'Repository', 'Handoff to Avoozl', 'Labels Radar uses'])
   assert.equal((page.match(/<Section title=/g) ?? []).length, (page.match(/<Section title=[^>]*blurb=/g) ?? []).length)
-  for (const part of ['<AvoozlLabelFields', 'crewLabels.${key}'])
-    assert.ok(page.includes(part), part)
+  for (const part of ['<AvoozlLabelFields', 'crewLabels.${key}']) assert.ok(page.includes(part), part)
   // Each section box is a Card around one Section; nothing loose between them.
   const tops = [...page.slice(page.indexOf('data-radar-settings')).matchAll(/\n {6}(<\w+|\{\w+)/g)].map((m) => m[1])
   assert.deepEqual(tops, ['{names', '<Card', '<Card'])

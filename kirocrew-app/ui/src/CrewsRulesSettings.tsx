@@ -20,7 +20,14 @@ function Line(props: { id: string; label: string; value: string; fallback: strin
   const note = valueSource(props.value, props.fallback, props.unit)
   return (
     <FieldRow id={props.id} label={props.label} raw={props.raw} help={props.help} note={<span data-source>{note}</span>}>
-      <Input id={props.id} type={props.type} value={props.value} placeholder={props.fallback} aria-describedby={fieldDescribedBy(props.id, { help: props.help, note })} onChange={(event) => props.onChange(event.target.value)} />
+      <Input
+        id={props.id}
+        type={props.type}
+        value={props.value}
+        placeholder={props.fallback}
+        aria-describedby={fieldDescribedBy(props.id, { help: props.help, note })}
+        onChange={(event) => props.onChange(event.target.value)}
+      />
     </FieldRow>
   )
 }
@@ -86,7 +93,11 @@ export function AutoMergeFields({ id, repository, set, inherited = null }: Part 
           ),
         }))}
       />
-      {value === 'manual' && <Hint as="p" size="xs">Briefs tell writers not to turn on auto-merge.</Hint>}
+      {value === 'manual' && (
+        <Hint as="p" size="xs">
+          Briefs tell writers not to turn on auto-merge.
+        </Hint>
+      )}
       {unknown && (
         <ErrorText role="alert" size="xs" data-ship-unknown>
           .avoozl.json has landing.autoMerge "{unknown}", which Avoozl does not accept. Pick one above and save.
@@ -99,7 +110,16 @@ export function AutoMergeFields({ id, repository, set, inherited = null }: Part 
 export function ConflictFields({ id, repository, set }: Part) {
   return (
     <Stack gap={3} data-conflicts>
-      <Line id={`${id}-max-attempts`} label="Attempts per conflict" raw="conflicts.maxAttempts" type="number" help="After this many, the conflict waits for you. 0 asks you at once." value={repository.maxAttempts} fallback={CONFLICT_DEFAULTS.maxAttempts} onChange={(value) => set({ maxAttempts: value })} />
+      <Line
+        id={`${id}-max-attempts`}
+        label="Attempts per conflict"
+        raw="conflicts.maxAttempts"
+        type="number"
+        help="After this many, the conflict waits for you. 0 asks you at once."
+        value={repository.maxAttempts}
+        fallback={CONFLICT_DEFAULTS.maxAttempts}
+        onChange={(value) => set({ maxAttempts: value })}
+      />
     </Stack>
   )
 }

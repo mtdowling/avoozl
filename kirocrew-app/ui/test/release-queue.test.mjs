@@ -68,7 +68,13 @@ const repo = (extra = {}) => ({
 })
 
 test('the queue offers one click per plan and says each held reason once', () => {
-  assert.deepEqual(nextSteps(repo()).map((s) => [s.planId, s.phase]), [['a', 'p1'], ['b', '']])
+  assert.deepEqual(
+    nextSteps(repo()).map((s) => [s.planId, s.phase]),
+    [
+      ['a', 'p1'],
+      ['b', ''],
+    ],
+  )
   assert.deepEqual(nextSteps(repo({ steps: [{ planId: 'c', phase: 'p1', title: 'P1', released: true }] })), [])
   assert.deepEqual(heldReasons(repo()), [
     { reason: 'Step: waiting for a click to release phase P1.', count: 2 },
@@ -85,10 +91,13 @@ test('the client reads the queue and clicks Step through the command path', asyn
   const client = releaseClient(api)
   await client.queue('w')
   await client.step('w', 'plan-a')
-  assert.deepEqual(calls.map(([path, body]) => [path, body.operation, body.input]), [
-    [COMMAND_PATH, 'radar.releasequeue', {}],
-    [COMMAND_PATH, 'radar.releasestep', { planId: 'plan-a' }],
-  ])
+  assert.deepEqual(
+    calls.map(([path, body]) => [path, body.operation, body.input]),
+    [
+      [COMMAND_PATH, 'radar.releasequeue', {}],
+      [COMMAND_PATH, 'radar.releasestep', { planId: 'plan-a' }],
+    ],
+  )
 })
 
 test('the Dashboard shows the queue, Settings has no release mode, Step has one button per plan', () => {
@@ -109,7 +118,10 @@ test('integration branches: one line per branch, a read client, and a person-onl
   const client = releaseClient({ post: async (path, body) => (calls.push([body.operation, body.input]), { result: { branches: [] } }) })
   await client.branches('w')
   await client.land('w', 'example/app', 'rewrite/x', 'a'.repeat(40))
-  assert.deepEqual(calls, [['integration.view', {}], ['integration.land', { repository: 'example/app', branch: 'rewrite/x', head: 'a'.repeat(40) }]])
+  assert.deepEqual(calls, [
+    ['integration.view', {}],
+    ['integration.land', { repository: 'example/app', branch: 'rewrite/x', head: 'a'.repeat(40) }],
+  ])
   const row = { branch: 'rewrite/x', base: 'main', behind: 2, checks: 'green', tasksMerged: 3, tasksTotal: 5, accepted: true }
   assert.equal(branchLine(row), '3 of 5 tasks merged · 2 behind main · head checks green · accepted')
   assert.equal(branchLine({ ...row, behind: 0, checks: null, accepted: false }), '3 of 5 tasks merged · level with main · head not read yet')
