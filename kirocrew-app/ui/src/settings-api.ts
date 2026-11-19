@@ -327,12 +327,11 @@ export interface RepositoryForm {
   crewLabels: Record<string, string>
   // The label that approves a drafted plan (radar.approvalLabel); blank is the default.
   approvalLabel: string
-  // Issue Radar crew settings (radar.planLabel, radar.conflictLabel,
-  // radar.reviewRules); blank is the shown default.
+  // Issue Radar crew labels (radar.planLabel, radar.conflictLabel); blank
+  // is the shown default.
   planLabel: string
   conflictLabel: string
-  // conflicts.onSourceConflict (fix or ask) and conflicts.maxAttempts; blank is the default.
-  onSourceConflict: string
+  // conflicts.maxAttempts; blank is the default.
   maxAttempts: string
   // The landing block (design §4.25): landing.mode (direct, pr,
   // off), landing.autoMerge ('on', 'off') and landing.method (squash or
@@ -343,7 +342,6 @@ export interface RepositoryForm {
   // Review drafts by label (RC20): radar.reviewLabel, radar.draftedLabel.
   reviewLabel: string
   draftedLabel: string
-  reviewRules: string
   rules: RuleForm[]
   // The Untriaged list (design §8.5), each optional.
   untriaged: UntriagedForm
@@ -536,14 +534,12 @@ export function emptyRepository(name = ''): RepositoryForm {
     approvalLabel: '',
     planLabel: '',
     conflictLabel: '',
-    onSourceConflict: '',
     maxAttempts: '',
     landingMode: '',
     autoMerge: '',
     mergeMethod: '',
     reviewLabel: '',
     draftedLabel: '',
-    reviewRules: '',
     rules: [],
     untriaged: emptyUntriaged(),
     mirror: emptyMirror(),
@@ -592,7 +588,6 @@ export function toForm(github: Policy): SettingsForm {
         approvalLabel: str(record(entry.radar).approvalLabel),
         planLabel: str(record(entry.radar).planLabel),
         conflictLabel: str(record(entry.radar).conflictLabel),
-        onSourceConflict: str(record(entry.conflicts).onSourceConflict),
         maxAttempts: str(record(entry.conflicts).maxAttempts),
         landingMode: str(record(entry.landing).mode),
         autoMerge: (() => {
@@ -602,7 +597,6 @@ export function toForm(github: Policy): SettingsForm {
         mergeMethod: str(record(entry.landing).method ?? record(entry.merge).method),
         reviewLabel: str(record(entry.radar).reviewLabel),
         draftedLabel: str(record(entry.radar).draftedLabel),
-        reviewRules: str(record(entry.radar).reviewRules),
         rules: (Array.isArray(entry.rules) ? entry.rules : []).map((item) => {
           const rule = record(item)
           return {
@@ -710,16 +704,11 @@ export function toPolicy(form: SettingsForm): Policy {
                   conflictLabel: blank(repository.conflictLabel),
                   reviewLabel: blank(repository.reviewLabel),
                   draftedLabel: blank(repository.draftedLabel),
-                  reviewRules: blank(repository.reviewRules),
                 })
                 return Object.keys(radar).length ? radar : undefined
               })(),
               conflicts: (() => {
-                const conflicts = compact({
-                  ...record(repository.rest.conflicts),
-                  onSourceConflict: blank(repository.onSourceConflict),
-                  maxAttempts: count(repository.maxAttempts),
-                })
+                const conflicts = compact({ ...record(repository.rest.conflicts), maxAttempts: count(repository.maxAttempts) })
                 return Object.keys(conflicts).length ? conflicts : undefined
               })(),
               // One landing block; the older merge.method moves into it.
@@ -1219,15 +1208,10 @@ export const AVOOZL_LABELS = [
   { key: 'draftedLabel', label: 'Drafted', raw: 'radar.draftedLabel', job: 'Shows a draft review waits for you to submit.', writer: 'Avoozl adds and removes it.' },
 ] as const
 
-// What Avoozl does with a crew's pull request that conflicts in source code (RC28.5).
-export const CONFLICT_ACTIONS = ['fix', 'ask'] as const
-export const CONFLICT_DEFAULTS = { onSourceConflict: 'fix', maxAttempts: '2' } as const
-export const CONFLICT_ACTION_TEXT: Record<(typeof CONFLICT_ACTIONS)[number], string> = {
-  fix: 'A resolver chat merges the base into the branch and keeps both sides',
-  ask: 'Only ask me; write nothing',
-}
+// The default number of landing conflict tries.
+export const CONFLICT_DEFAULTS = { maxAttempts: '2' } as const
 
-// How a crew pull request lands when Avoozl arms auto-merge (RC28.7).
+// How a pull request lands.
 export const MERGE_METHODS = ['squash', 'merge'] as const
 export const MERGE_METHOD_TEXT: Record<(typeof MERGE_METHODS)[number], { title: string; line: string }> = {
   squash: { title: 'Squash', line: 'One commit per pull request on the base, with its title and body. The repository must allow squash merging.' },
@@ -1239,8 +1223,6 @@ export const OLD_LABEL_NOTE =
 
 export const valueSource = (value: string, fallback: string, unit = '') =>
   value.trim() ? `Set on this repository: ${value.trim()}${unit}.` : `Not set on this repository. Using the default (${fallback}${unit}).`
-
-export const rulesMode = (form: Pick<RepositoryForm, 'reviewRules'>): 'default' | 'custom' => (form.reviewRules.trim() ? 'custom' : 'default')
 
 // Every page but Workspaces reads and writes the selected workspace's own
 // settings, so its title names that workspace. Workspaces lists the machine's.

@@ -1,7 +1,8 @@
 // Send to Issue Radar (design §8.5, R52), stepped like Set up GitHub: pick a
 // crew, check the label and issues, then the result. Nothing is written
 // before the last step's button. Cancel, Esc and a click outside close it
-// on every step before then.
+// on every step before then. On a public repository it says to add the
+// content hook to the crew's agent first; sending stays the person's act.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Btn } from './ui/Btn'
 import { Input } from './ui/Input'
@@ -19,6 +20,10 @@ import { PlainInput } from './ui/Plain'
 import { Glyph } from './ui/Glyph'
 
 type Client = ReturnType<typeof radarClient>
+
+// The one line a public repository's dialog shows, and the command it names.
+export const PUBLIC_LINE = "This repository is public. The crew writes with your GitHub login. Add avoozl content hook to the crew's agent first."
+export const HOOK_COMMAND = 'avoozl content hook'
 
 const STEPS = [
   ['Pick a crew', 'A crew works the open issues that carry a label it watches. Avoozl adds that label.'],
@@ -134,6 +139,12 @@ export function SendToRadar(props: { workspaceId: string; client: Client; items:
           {STEPS[step][1]}
         </Hint>
       </div>
+      {crews?.public && step < 2 && (
+        <Box role="note" flex flexCol gap="1" size="sm" data-radar-public>
+          <p>{PUBLIC_LINE}</p>
+          <code data-radar-hook>{HOOK_COMMAND}</code>
+        </Box>
+      )}
 
       {step === 0 && (
         <Box flex flexCol gap="2" size="sm">

@@ -5,7 +5,6 @@ import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
 import { Input } from './ui/Input'
 import Badge from './ui/Badge.tsx'
-import { ConflictFixActions } from './ConflictFixActions.tsx'
 import { SpecPullDecision } from './SpecPullDecision.tsx'
 import { CONFLICT_LABELS, safeHref, viewsClient, type ConflictItem, type Graph } from './views-api.ts'
 import { relativeTime, taskClient, type SettleAction, type SettleResult, type TaskDetail } from './task-api.ts'
@@ -138,18 +137,6 @@ export function ConflictActions(props: {
             run(async () => {
               const made = await untriagedClient(api).start(workspaceId, item.item!, action, { confirmClaim: item.escalation!.claimed })
               return { ok: true, text: `${item.item!.id} is now task ${made.taskId}.` }
-            })
-          }
-        />
-      )}
-      {item.kind === 'needs-human' && item.reason === 'conflict-fix' && item.conflictFix && (
-        <ConflictFixActions
-          fix={item.conflictFix}
-          busy={busy}
-          onDecide={(action, text) =>
-            run(async () => {
-              await views.decideConflictFix(workspaceId, item.conflictFix!.repository, item.conflictFix!.pullRequest, action)
-              return { ok: true, text }
             })
           }
         />

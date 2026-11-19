@@ -215,7 +215,7 @@ test("no module calls a Kiro Crew reader for an operation outside the table", ()
     const name = /name === "([a-z][\w.]*)"/.exec(line);
     if (name) operation = name[1];
     for (const [, reader] of line.matchAll(
-      /this\.(crewReader|sessionsReader|sessionStopper)\b/g,
+      /this\.(crewReader|sessionStopper)\b/g,
     )) {
       if (/^\s*this\.\w+ = \w+;/.test(line)) continue;
       seen.push(operation);

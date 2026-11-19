@@ -15,7 +15,7 @@ import { temporaryDirectory } from "./temporary.mjs";
 
 // Every read Home's page sends on first load: the shell, the nav, and each
 // Home card (DashboardView, ReleaseQueue, IntegrationBranches,
-// ReviewDrafts, ArmedPulls, the driver cell, setup cards).
+// ReviewDrafts, the driver cell, setup cards).
 const HOME = [
   ["instance.view", {}],
   ["conflicts.view", {}],
@@ -27,7 +27,6 @@ const HOME = [
   ["flow.view", { window: "10" }],
   ["github.settings.get", {}],
   ["repositories.list", {}],
-  ["radar.armed", {}],
   ["radar.releasequeue", {}],
   ["integration.view", {}],
   ["landing.view", {}],
@@ -110,13 +109,10 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
       },
     }),
   );
-  // A repository and an armed pull request, so radar.armed has GitHub to read.
+  // A repository, so the reads have GitHub to call.
   const seed = new Store(config.dbPath);
   const [owner, repo] = REPO.split("/");
   seed.put("github_repositories", { id: REPO, owner, repo, projectId: "code" });
-  seed.setMeta("radarMerge", {
-    armed: { [`${REPO}#7`]: "2026-11-16T00:00:00Z" },
-  });
   seed.close();
 
   // GitHub never answers; the test's own loopback calls go through.
@@ -157,7 +153,6 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
     modelSwitcher: null,
     modelReader: null,
     crewReader: never,
-    sessionsReader: never,
     sessionStopper: null,
     registryOptions: {
       configPath: hostConfig,
@@ -213,5 +208,6 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
   // The refreshes did go out, after the replies: the test reached the network.
   await new Promise((resolve) => setTimeout(resolve, 50));
   assert.ok(github > 0, "a GitHub read was started");
-  assert.ok(crew > 0, "a Kiro Crew read was started");
+  // No Home read asks Kiro Crew anything.
+  assert.equal(crew, 0, "a Kiro Crew read was started");
 });

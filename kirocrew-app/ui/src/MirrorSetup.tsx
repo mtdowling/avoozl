@@ -130,11 +130,6 @@ export default function MirrorSetup(props: { workspaceId: string; repository: st
               ))}
             </Box>
           )}
-          {result.next === 'radar-values' && (
-            <Box as="p" size="sm">
-              Next: enter the Radar values on Settings › Issue Radar.
-            </Box>
-          )}
           {!result.applied && (
             <Row gap={2} align="start">
               <Btn type="button" disabled={busy || !chosen.length} onClick={() => void apply()} data-mirror-confirm>

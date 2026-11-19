@@ -48,7 +48,6 @@ const HOME = [
   ['github.settings.get', {}],
   ['untriaged.view', {}],
   ['radar.releasequeue', {}],
-  ['radar.armed', {}],
   ['integration.view', {}],
   ['review.drafts', {}],
   ['remote.view', {}],

@@ -201,8 +201,6 @@ export const CSS_TreeStyle = `[data-tree-node]:focus-visible > rect:last-of-type
 
 export const CSS_NeedsContextStyle = '[data-needs-context] :is(dl,dd,h4,p,ul){margin:0}[data-needs-context] dd{margin-left:0}'
 
-export const CSS_WalkStyle = `[data-walk-slide]{animation:avoozl-walk 220ms ease}@keyframes avoozl-walk{from{opacity:.2;transform:translateX(12px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion: reduce){[data-walk-slide]{animation:none}}`
-
 export const CSS_PanningStyle = '[data-graph-view] svg[data-panning] *{cursor:grabbing!important}'
 
 // Kiro Crew's own accent for an action, as on its Needs your input cards.
@@ -285,10 +283,6 @@ export function TreeStyle() {
 
 export function NeedsContextStyle() {
   return <style>{CSS_NeedsContextStyle}</style>
-}
-
-export function WalkStyle() {
-  return <style>{CSS_WalkStyle}</style>
 }
 
 export function PanningStyle() {

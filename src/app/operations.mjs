@@ -130,22 +130,10 @@ import {
   planningIdentity,
   requireNamespace,
 } from "./github-marker.mjs";
-import {
-  claimsFresh,
-  claimsView,
-  RADAR_INTERVAL_MS,
-  refreshClaims,
-} from "./radar-claims.mjs";
+import { claimsFresh, claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { instanceIdentity } from "./instance.mjs";
 import { mirrorEntryKey, mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
-import { radarSetup } from "./radar-setup.mjs";
-import { radarReread, radarValues } from "./radar-values.mjs";
-import {
-  armedPullRequests,
-  disarmPullRequest,
-  mergeMethodNeedsYou,
-} from "./radar-arm.mjs";
 import { approvalNeedsYou, releaseClaims } from "./approval-label.mjs";
 import {
   crewLabelBackfill,
@@ -169,12 +157,6 @@ import {
   requireIntegrationBranch,
 } from "./integration-branch.mjs";
 import {
-  checkConflictFix,
-  conflictFixNeedsYou,
-  decideConflictFix,
-  reportConflictFix,
-} from "./radar-conflict-fix.mjs";
-import {
   countFilePath,
   rateNeedsYou,
   rateView,
@@ -194,7 +176,6 @@ import {
   normalizeGitHubPolicy,
   PERMISSIONS,
   actorAllowed,
-  ISSUE_RADAR_PATH,
   policySection,
   readGitHubPolicy,
   readGitHubPolicyOrNull,
@@ -220,12 +201,6 @@ import {
   writeRepo,
 } from "./mirror-sync.mjs";
 import { forwardAuditRows } from "./forward-audit.mjs";
-import {
-  publicCrewAuditRows,
-  publicRepositories,
-  stopPublicCrews,
-} from "./public-crews.mjs";
-import { publicCrewsView, signOff } from "./public-signoff.mjs";
 import { publicBranchRows } from "./mirror-forward-batch.mjs";
 import { mirrorForwardRows } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
@@ -330,7 +305,6 @@ import {
   specPullView,
   syncSpecPulls,
 } from "./spec-pull-requests.mjs";
-import { readCrewStrip } from "./radar-crews.mjs";
 import { flowView, readFlowConfig, readFlowPolicy } from "./flow.mjs";
 import { usageView } from "./flow-usage.mjs";
 import {
@@ -571,11 +545,6 @@ import {
 } from "./activity-log.mjs";
 import { lintPlan } from "./plan-quality.mjs";
 import { flowView as radarFlowView } from "./radar-flow.mjs";
-import {
-  applyRetroRule,
-  retroView,
-  undoRetroRule,
-} from "./radar-retro-rules.mjs";
 import {
   createSpecPlan,
   epicMembers,
@@ -999,7 +968,6 @@ export class Operations {
       repositoryBindingGuard = null,
       notifier = null,
       crewReader = null,
-      sessionsReader = null,
       // Stops one Kiro Crew session by slot (session-observer.mjs
       // gatewaySessionStopper); only the app backend has one.
       sessionStopper = null,
@@ -1023,8 +991,7 @@ export class Operations {
       configDirectory = null,
       // Tests replace the shipped prompts to model an Avoozl update.
       shippedPrompts = null,
-      // The app backend's reads that go to GitHub or Kiro Crew (radar.crews,
-      // radar.armed) answer from the last read and refresh after replying,
+      // The app backend's reads that go to GitHub (radar.crews) answer from the last read and refresh after replying,
       // so no page request waits on the network. The CLI and MCP keep
       // reading first.
       backgroundReads = false,
@@ -1033,8 +1000,6 @@ export class Operations {
     this.store = store;
     this.backgroundReads = backgroundReads;
     this.refreshing = new Map();
-    this.crewStrip = null;
-    this.armedRead = null;
     // The plugin loader (plugins.mjs). It opens one plugin session per
     // tick, and runs nothing unless a plugin is declared and approved.
     this.plugins = plugins;
@@ -1045,7 +1010,6 @@ export class Operations {
     // Reads Issue Radar's crews through the gateway (radar-handoff.mjs);
     // only the app backend has one.
     this.crewReader = crewReader;
-    this.sessionsReader = sessionsReader;
     this.sessionStopper = sessionStopper;
     this.kirocrewAbsent = kirocrewAbsent;
     this.reviewOptions = reviewOptions;
@@ -1253,14 +1217,7 @@ export class Operations {
   screenPack(pack) {
     const crews = pack?.settings?.crews;
     if (!crews) return;
-    const text = [
-        pack.description,
-        Object.values(crews.labels ?? {}),
-        crews.models,
-        crews.reviewRules,
-        crews.template,
-        crews.prompt,
-      ]
+    const text = [pack.description, Object.values(crews.labels ?? {})]
         .flat()
         .filter((entry) => typeof entry === "string")
         .join("\n"),
@@ -3480,8 +3437,6 @@ export class Operations {
         view = conflictsView(store, data),
         policy = readGitHubPolicyOrNull(this.workspaceRoot);
       // Crews that asked for a person on issues no task owns (R52.10).
-      view.items.push(...conflictFixNeedsYou(store));
-      view.items.push(...mergeMethodNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
       view.items.push(...crewLabelNeedsYou(store));
       view.items.push(...reviewDraftNeedsYou(store));
@@ -3497,7 +3452,6 @@ export class Operations {
       view.items.push(...mirrorNeedsYou(store));
       view.items.push(...mirrorForwardRows(store, policy));
       view.items.push(...forwardAuditRows(store));
-      view.items.push(...publicCrewAuditRows(store));
       view.items.push(...publicBranchRows(store));
       // A role waiting on Kiro Crew on a machine with none, with this
       // machine's approved harnesses for Run on (NK8.2).
@@ -3808,42 +3762,6 @@ export class Operations {
         by: context.local ? "cli" : "dashboard",
       });
     }
-    // Stop public crews (R85.9): the cord for every public repository, and
-    // the crews to pause in Kiro Crew. An agent may stop; only a person
-    // resumes (flow.resume).
-    if (name === "publiccrews.stop") {
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        crews = await Promise.all(
-          publicRepositories(store, policy).map((repository) =>
-            readCrews(this.crewReader, repository),
-          ),
-        ),
-        result = stopPublicCrews(
-          store,
-          { policy, crews },
-          {
-            by:
-              context.caller || context.mcp
-                ? {
-                    kind: "agent",
-                    name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
-                  }
-                : { kind: "person", name: context.local ? "cli" : "dashboard" },
-            link: ISSUE_RADAR_PATH,
-          },
-        );
-      const changed = result.stops.filter((s) => s.changed);
-      if (changed.length)
-        queueNotifications(store, [
-          {
-            channel: "failure",
-            title: `Public crews stopped on ${changed.length} ${changed.length === 1 ? "repository" : "repositories"}`,
-            text: `${changed.map((s) => s.repository).join(", ")}. ${result.note}`,
-            resume: "Press Resume on the Dashboard banner when it is safe.",
-          },
-        ]);
-      return result;
-    }
     // Issue Radar's live claims on every registered repository, read from
     // GitHub only (radar-claims.mjs). `refresh` reads GitHub first.
     // The merge path of each Issue Radar repository (RC5.1): three items,
@@ -3865,104 +3783,9 @@ export class Operations {
         by: context.local ? "cli" : "dashboard",
       });
     }
-    // Pull requests Avoozl armed that are still open, and the person-only
-    // Disarm (RC5.4).
-    if (name === "radar.armed") {
-      if (!this.github?.available?.()) return { pullRequests: [] };
-      if (!this.backgroundReads) return armedPullRequests(store, this.github);
-      const refreshing =
-        (!this.armedRead ||
-          Date.now() - this.armedRead.at >= RADAR_INTERVAL_MS) &&
-        this.refreshLater("radar.armed", async () => {
-          const at = Date.now();
-          this.armedRead = {
-            at,
-            value: await armedPullRequests(store, this.github),
-          };
-        });
-      return {
-        ...(this.armedRead?.value ?? { pullRequests: [] }),
-        ...(refreshing ? { refreshing: true } : {}),
-      };
-    }
-    if (name === "radar.disarm") {
-      if (context.caller || context.mcp)
-        fail("Only a person disarms auto-merge, in the Avoozl page.", 403);
-      this.armedRead = null;
-      return disarmPullRequest(store, this.github, input);
-    }
-    // A person's choice on a source conflict Avoozl asked about (RC28.3).
-    if (name === "conflictfix.decide") {
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person decides a source conflict, in the Avoozl page.",
-          403,
-        );
-      return decideConflictFix(store, input);
-    }
-    // The bound resolver chat's drop check and its one report (RC28.2, RC28.3).
-    if (name === "conflictfix.check")
-      return checkConflictFix(store, input, context.caller);
-    if (name === "conflictfix.report")
-      return reportConflictFix(
-        store,
-        this.github,
-        {
-          policy: readGitHubPolicyOrNull(this.workspaceRoot),
-          delivery: readDeliveryPolicy(this.workspaceRoot).delivery || {},
-        },
-        input,
-        context.caller,
-      );
-    // The Create and release preflight (RC2.9) was Issue Radar's; no
-    // repository is Radar-coded any more (R91.6).
-    if (name === "radar.preflight") {
-      const plan = store.get("plans", input.planId);
-      if (!plan) fail("Plan not found.", 404);
-      return { preflight: null };
-    }
-    // Flow from GitHub data (RC8.5): stage times of Radar issues read before
-    // Who codes was removed (R91.6), and every stored build observation.
-    // Nothing is read from GitHub here any more.
+    // Flow from GitHub data: stage times cached earlier and every stored
+    // build observation. Nothing is read from GitHub here.
     if (name === "radar.flow") return radarFlowView(store);
-    // Retro rule targets (RC8.6): applied rules with their check, and the
-    // apply (a pull request, or the full prompt text to copy) or undo.
-    if (name === "radar.retro")
-      return {
-        rules: retroView(
-          store,
-          Object.entries(
-            store.getMeta("radarFlow")?.repositories ?? {},
-          ).flatMap(([repository, entry]) =>
-            entry.rows.map((row) => ({ ...row, repository })),
-          ),
-        ),
-      };
-    if (name === "radar.retro.apply") {
-      if (input.undo) {
-        if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-        return undoRetroRule(store, this.github, input.id);
-      }
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
-      if (!policy?.repositories?.[input.repository])
-        fail(`${input.repository} is not a registered repository.`, 404);
-      if (input.target !== "prompt" && !this.github?.available?.())
-        fail("GitHub is not available.", 503);
-      return applyRetroRule(store, this.github, input, {
-        check: (text) => {
-          const result = checkContent(this.store, {
-            boundary: "github",
-            repository: input.repository,
-            target: "pull-request-text",
-            text,
-          });
-          return [
-            ...result.findings.map((f) => `${f.set}/${f.rule}`),
-            ...result.unavailable.map((u) => `${u.set} unavailable`),
-          ];
-        },
-      });
-    }
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
     // default branch, head checks, acceptance. Landing is a person's approval
     // of one head; Avoozl never merges the branch.
@@ -4020,12 +3843,8 @@ export class Operations {
       }
       return { added };
     }
-    if (name === "radar.mergepath")
-      return { repositories: await this.mergePaths(input.repository) };
     // An epic's integration branch (RC16.1): exists, not the default,
     // protected. Read only; refuses a branch that is not ready.
-    // Radar's set up steps through gh (RC7.1): a preview of each, or one
-    // confirmed step with {step, confirm, previewHash}.
     // The mirror setup buttons (RC27): a dry run, or a confirmed apply with
     // {confirm, previewHash, ticked}. `this.mirrorGit` is a test seam.
     if (name === "mirror.adopt" || name === "mirror.create") {
@@ -4105,36 +3924,6 @@ export class Operations {
         fail(result.reason, 409);
       return result;
     }
-    if (name === "radar.setup") {
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        entry = policy?.repositories?.[input.repository];
-      if (!input.repository) fail("Name the repository to set up.", 400);
-      if (!entry)
-        fail(`${input.repository} is not a registered repository.`, 404);
-      if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-      return radarSetup(this.github, input.repository, entry, input, {
-        project: policy.project ?? null,
-        // The pull request text goes through content rules before any write.
-        check: (text) => {
-          const result = checkContent(this.store, {
-            boundary: "github",
-            repository: input.repository,
-            target: "pull-request-text",
-            text,
-          });
-          return [
-            ...result.findings.map((f) => `${f.set}/${f.rule}`),
-            ...result.unavailable.map((u) => `${u.set} unavailable`),
-          ];
-        },
-      });
-    }
-    // The public sign-off for one registered repository (R85.8, RC10.1):
-    // person only. `radar.signoff` is the older name of the same operation.
-    if (name === "publiccrews.signoff" || name === "radar.signoff")
-      return signOff(store, readGitHubPolicyOrNull(this.workspaceRoot), input, {
-        by: this.operator,
-      });
     if (name === "radar.integrationbranch") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         entry = policy?.repositories?.[input.repository];
@@ -4152,73 +3941,17 @@ export class Operations {
         ),
       );
     }
-    // The values only the owner can enter in Issue Radar, with a re-read
-    // when Radar's own read is available (RC7.2, RC7.3). Writes nothing.
-    if (name === "radar.values") {
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        entry = policy?.repositories?.[input.repository];
-      if (!input.repository) fail("Name the repository to set up.", 400);
-      if (!entry)
-        fail(`${input.repository} is not a registered repository.`, 404);
-      const values = radarValues({
-        repository: input.repository,
-        settings: entry,
-        crew: input.crew ?? entry.radar?.crew,
-      });
-      // Radar's crew list, read through the gateway grant when there is one.
-      const crews = await readCrews(this.crewReader, input.repository),
-        read = crews.available
-          ? {
-              connected: [input.repository],
-              crews: crews.crews,
-              needsHumanLabel: crews.needsHumanLabel,
-              claimTtlHours: crews.claimTtlHours,
-            }
-          : null;
-      return {
-        repository: input.repository,
-        ...radarReread(values, read, crews.reason),
-      };
-    }
     if (name === "radar.crews") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        repositories = Object.keys(policy?.repositories || {}),
         github = policy?.mode && this.github?.available?.();
-      const shaped = (view, strip) =>
-        // Behind the grant only: without it the view is the GitHub-only one.
-        strip
-          ? {
-              ...view,
-              unseen: view.unseen.filter((name) => name !== "paused"),
-              crewStrip: strip,
-            }
-          : view;
       if (this.backgroundReads && input.refresh !== true) {
-        const now = Date.now(),
-          stale =
-            (github && !claimsFresh(store, now)) ||
-            (this.crewReader &&
-              repositories.length > 0 &&
-              (!this.crewStrip ||
-                now - this.crewStrip.at >= RADAR_INTERVAL_MS));
+        const stale = github && !claimsFresh(store, Date.now());
         const refreshing =
           (stale || this.refreshing.has("radar.crews")) &&
-          this.refreshLater("radar.crews", async () => {
-            // Side by side: a slow GitHub does not hold the crew strip. The
-            // strip's costs are for the claims read last.
-            await Promise.all([
-              github && refreshClaims(store, this.github, policy),
-              readCrewStrip({
-                crewReader: this.crewReader,
-                sessionsReader: this.sessionsReader,
-                repositories,
-                rows: claimsView(store).rows,
-              }).then((value) => {
-                this.crewStrip = { at: Date.now(), value };
-              }),
-            ]);
-          });
-        const view = shaped(claimsView(store), this.crewStrip?.value ?? null);
+          this.refreshLater("radar.crews", () =>
+            refreshClaims(store, this.github, policy),
+          );
+        const view = claimsView(store);
         return refreshing ? { ...view, refreshing: true } : view;
       }
       // Read at most every 2 minutes, however often the Dashboard asks.
@@ -4226,15 +3959,7 @@ export class Operations {
         await refreshClaims(store, this.github, policy, {
           force: input.refresh === true,
         });
-      const view = claimsView(store),
-        strip = await readCrewStrip({
-          crewReader: this.crewReader,
-          sessionsReader: this.sessionsReader,
-          repositories,
-          rows: view.rows,
-        });
-      this.crewStrip = { at: Date.now(), value: strip };
-      return shaped(view, strip);
+      return claimsView(store);
     }
     // The Untriaged list (§8.5): cached GitHub items no rule, triage label,
     // or task covers. `refresh` reads GitHub first (Check now); read only.
@@ -4262,8 +3987,7 @@ export class Operations {
         store,
         declaredSources(this.pluginOptions, store),
       );
-      // The Public crews card (R85.8): each public repository's checklist.
-      return { ...tab, publicCrews: publicCrewsView(store, policy) };
+      return tab;
     }
     // Incoming items (§4.12). Submit runs the pipeline at once, under the
     // tick's lock; list and view only read.
@@ -4439,7 +4163,11 @@ export class Operations {
         );
       if (!repository)
         fail(`${input.repository} is not a registered repository.`, 404);
-      return readCrews(this.crewReader, repository);
+      // A public repository's dialog says to add the content hook first.
+      return {
+        ...(await readCrews(this.crewReader, repository)),
+        public: store.get("github_repositories", repository)?.private === false,
+      };
     }
     // Plan this on a GitHub Intake row of a Radar-coded repository: the
     // planner chat's seed, with the issue recorded as the plan's source.

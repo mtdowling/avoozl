@@ -18,7 +18,7 @@ import { startAppBackend } from "./app-backend.mjs";
 import { startServe } from "./serve-server.mjs";
 import { LinkStore } from "./serve-auth.mjs";
 import { standaloneUiDirectory } from "./ui-bundle.mjs";
-import { contentHook } from "./public-crews.mjs";
+import { contentHook } from "./content-hook.mjs";
 import { runSupervisor } from "./supervisor.mjs";
 import { machineStatus, serveStatus } from "./machine-status.mjs";
 import { workspaceStatus } from "./workspace-status.mjs";
@@ -868,10 +868,6 @@ try {
         null,
         2,
       ),
-    );
-  else if (command === "public-crews" && positionals[0] === "stop")
-    console.log(
-      JSON.stringify(await localOrRequest("publiccrews.stop", {}), null, 2),
     );
   else if (command === "flow" && positionals[0] === "resume")
     console.log(

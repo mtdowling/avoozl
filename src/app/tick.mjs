@@ -74,7 +74,6 @@ import { refreshProjectedReadiness } from "./github-projection.mjs";
 import { planningIdentity } from "./github-marker.mjs";
 import { syncProject } from "./github-project.mjs";
 import { reviewDispatches } from "./pr-review.mjs";
-import { publicCrewAudit } from "./public-crews.mjs";
 import { respondStep } from "./github-respond.mjs";
 import { steeringStep } from "./github-steering.mjs";
 import { feedbackStep } from "./github-feedback.mjs";
@@ -86,10 +85,6 @@ import { plannerStep } from "./github-planner.mjs";
 import { intakeNotices, syncGitHubIssues } from "./github-sync.mjs";
 import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
-import {
-  conflictFixDispatches,
-  conflictFixStep,
-} from "./radar-conflict-fix.mjs";
 import {
   RATE_LIMIT_TEXT,
   githubGate,
@@ -897,48 +892,6 @@ async function runTick(
           ...(await intakeStep(store, github, workspaceRoot, breakdownHooks))
             .notify,
         );
-      // The public crew audit (R85.6, R85.7, §6.14): what a crew wrote on a
-      // public repository since the last pass, checked with content rules.
-      if (script && github)
-        try {
-          const step = await publicCrewAudit(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-          });
-          planned.notify.push(...step.notify);
-          for (const text of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not audit a public crew",
-              text,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not audit a public crew",
-            text: error.message,
-          });
-        }
-      // A resolver chat that is already running is finished (RC28).
-      if (script && github)
-        try {
-          const step = await conflictFixStep(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-            delivery: delivery || {},
-          });
-          planned.notify.push(...step.notify);
-          for (const text of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not fix a source conflict",
-              text,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not fix a source conflict",
-            text: error.message,
-          });
-        }
       // Review drafts by label (RC20): new labels, and drafts waiting on a
       // person. Dispatch of the chats waits for the roster check below. A
       // read that fails keeps the last state and is tried next tick (design
@@ -1254,7 +1207,6 @@ async function runTick(
                 ...reviewDispatches(store, { config: roleConfig }),
                 ...reviewDraftDispatches(store, { config: roleConfig }),
                 ...taskSummaryDispatches(store, { config: roleConfig }),
-                ...conflictFixDispatches(store),
               ]
             : [];
       // Read each spec's plan issue again right before its dispatches; a
