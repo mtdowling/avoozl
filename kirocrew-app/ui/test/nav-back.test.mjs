@@ -28,7 +28,10 @@ test('a tab change is one step; Back returns to the tab, its scroll and its focu
   go({ tab: 'graph', focus: 'W1.3', drill: null })
   scroller.scrollTop = 0
   assert.equal(place.tab, 'graph')
-  assert.deepEqual(nav.history.steps().map((s) => [s.kind, s.label]), [['tab', 'Back to dashboard']])
+  assert.deepEqual(
+    nav.history.steps().map((s) => [s.kind, s.label]),
+    [['tab', 'Back to dashboard']],
+  )
   go({ tab: 'plans', focus: null })
   assert.equal(nav.history.back(), true)
   assert.equal(place.tab, 'graph')
@@ -50,7 +53,10 @@ test('a Settings section is an inner step; a new visit starts on Workspaces', as
   go({ tab: 'settings', settingsTab: settingsTabOnEnter(place.tab, 'settings', place.settingsTab, tabs) })
   assert.equal(place.settingsTab, 'workspaces')
   go({ settingsTab: 'repositories' })
-  assert.deepEqual(nav.history.steps().map((s) => s.kind), ['tab', 'inner'])
+  assert.deepEqual(
+    nav.history.steps().map((s) => s.kind),
+    ['tab', 'inner'],
+  )
   nav.history.back()
   assert.equal(place.settingsTab, 'workspaces')
   assert.equal(place.tab, 'settings')
@@ -85,7 +91,15 @@ test('an opened plan comes back when Back returns to its tab, then Back closes i
 
 test('a deep link opens the new tab on its inner view; Back returns without it', () => {
   const { nav, place } = page()
-  const go = (next, open) => changePage(nav, { ...place }, next, (n) => Object.assign(place, n), (before) => `Back to ${before.tab}`, open)
+  const go = (next, open) =>
+    changePage(
+      nav,
+      { ...place },
+      next,
+      (n) => Object.assign(place, n),
+      (before) => `Back to ${before.tab}`,
+      open,
+    )
   go({ tab: 'plans' })
   nav.memory.set('plans-selected', null)
   go({ tab: 'untriaged' }, { 'untriaged-show': 'radar' })
@@ -124,7 +138,10 @@ test('the Graph keeps its drill stack and the page history in step', () => {
   graph.pop()
   nav.history.sync('graph', graph.length, make)
   assert.equal(nav.history.count('graph'), 0)
-  assert.deepEqual(nav.history.steps().map((s) => s.kind), ['tab'])
+  assert.deepEqual(
+    nav.history.steps().map((s) => s.kind),
+    ['tab'],
+  )
   // Another visit's levels are not this visit's.
   graph.push('epic')
   nav.history.sync('graph', 1, make)
@@ -142,7 +159,7 @@ test('drawers and modals: Back closes the newest, Esc the topmost layer', () => 
   const drawer = nav.history.push({
     kind: 'drawer',
     label: 'Close the drawer',
-    back: () => (linked.length ? (events.push(`drawer back to ${linked.pop()}`)) : (events.push('drawer closed'), nav.history.release(drawer))),
+    back: () => (linked.length ? events.push(`drawer back to ${linked.pop()}`) : (events.push('drawer closed'), nav.history.release(drawer))),
     dismiss: () => (events.push('drawer closed'), nav.history.release(drawer)),
   })
   const reader = nav.history.push({ kind: 'modal', label: 'Close the file', back: () => (events.push('reader closed'), nav.history.release(reader)) })
@@ -154,7 +171,10 @@ test('drawers and modals: Back closes the newest, Esc the topmost layer', () => 
   assert.equal(keyAction({ key: 'Escape' }, false, nav.history), 'escape')
   nav.history.escape()
   assert.deepEqual(events, ['reader closed', 'drawer back to task-a', 'drawer closed'])
-  assert.deepEqual(nav.history.steps().map((s) => s.kind), ['tab'])
+  assert.deepEqual(
+    nav.history.steps().map((s) => s.kind),
+    ['tab'],
+  )
   // No layer open: Esc is not ours.
   assert.equal(keyAction({ key: 'Escape' }, true, nav.history), null)
   linked = []
@@ -196,7 +216,10 @@ test('a dialog with unsaved changes asks first, the same way Cancel does', async
   assert.match(shared, /if \(!unsaved\) return onDismiss\(\)[\s\S]*?void ask\(unsaved\)\.then\(\(yes\) => \{[\s\S]*?if \(yes\) latest\.current\.onDismiss\(\)/)
   for (const name of ['AddPlugin.tsx', 'PackImport.tsx', 'SendToRadar.tsx', 'SetupWizard.tsx'])
     assert.match(source(name), /<(Modal|Shelf)\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/, name)
-  assert.match(source('ui/controls.tsx'), /<Modal\s+id="avoozl-confirm"\s+kind="confirm"\s+role="alertdialog"\s+focusClose\s+backLabel="Cancel"[\s\S]*?onDismiss=\{\(\) => answer\(false\)\}/)
+  assert.match(
+    source('ui/controls.tsx'),
+    /<Modal\s+id="avoozl-confirm"\s+kind="confirm"\s+role="alertdialog"\s+focusClose\s+backLabel="Cancel"[\s\S]*?onDismiss=\{\(\) => answer\(false\)\}/,
+  )
 })
 
 test('the keys and the mouse back button: ours only with a step and from the page', () => {
@@ -264,6 +287,18 @@ test('the views use the shared history: inner tabs, the plan, the Graph, the dra
   assert.match(source('NewPlanDrawer.tsx'), /<Modal\s+id="avoozl-new-plan"[\s\S]*?kind="drawer"[\s\S]*?unsaved=\{dirty/)
   assert.match(source('Onboard.tsx'), /<(Modal|Shelf)\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/)
   // No view keeps its own Esc listener any more.
-  for (const name of ['ui/Modal.tsx', 'TaskDrawer.tsx', 'AddPlugin.tsx', 'PackImport.tsx', 'SendToRadar.tsx', 'SetupWizard.tsx', 'DocumentReader.tsx', 'ui/controls.tsx', 'PlansView.tsx', 'NewPlanDrawer.tsx', 'Onboard.tsx'])
+  for (const name of [
+    'ui/Modal.tsx',
+    'TaskDrawer.tsx',
+    'AddPlugin.tsx',
+    'PackImport.tsx',
+    'SendToRadar.tsx',
+    'SetupWizard.tsx',
+    'DocumentReader.tsx',
+    'ui/controls.tsx',
+    'PlansView.tsx',
+    'NewPlanDrawer.tsx',
+    'Onboard.tsx',
+  ])
     assert.doesNotMatch(source(name), /key === 'Escape'|key !== 'Escape'/, name)
 })

@@ -54,8 +54,7 @@ export function StartSession() {
   const [sent, setSent] = useState(false)
   const workspaceId = () => readPageState(window.localStorage).workspaceId ?? undefined
   const run = useCallback(
-    async <T,>(operation: string, input: Record<string, unknown>): Promise<T> =>
-      (await api.post<{ result: T }>(COMMAND, { operation, input, workspaceId: workspaceId() })).result,
+    async <T,>(operation: string, input: Record<string, unknown>): Promise<T> => (await api.post<{ result: T }>(COMMAND, { operation, input, workspaceId: workspaceId() })).result,
     [api],
   )
 
@@ -137,8 +136,7 @@ export function StartSession() {
       setError(message(caught))
     }
   }
-  const copy = (value: string, what: string) =>
-    void navigator.clipboard.writeText(value).then(() => setCopied(what))
+  const copy = (value: string, what: string) => void navigator.clipboard.writeText(value).then(() => setCopied(what))
 
   const showing = view && !view.kirocrewChat
   return (
@@ -218,8 +216,7 @@ export function StartSession() {
                 {preview && (
                   <Hint size="xs" block data-session-plan>
                     Role {preview.role}
-                    {preview.harness ? `, harness ${preview.harness}` : ''}, {preview.permissionClass === 'read' ? 'read-only' : 'can write'}, in this
-                    workspace’s folder.
+                    {preview.harness ? `, harness ${preview.harness}` : ''}, {preview.permissionClass === 'read' ? 'read-only' : 'can write'}, in this workspace’s folder.
                   </Hint>
                 )}
                 {preview && !preview.available && (

@@ -287,7 +287,7 @@ export const credits = (n: number) => (n ? n.toFixed(2) : '0')
 
 // The usage card's one message when it has nothing to show, or null.
 export function usageMessage(usage: FlowViewModel['usage']): string | null {
-  if (!usage?.available) return 'Not available: Kiro Crew has not reported usage for this workspace\'s chats yet.'
+  if (!usage?.available) return "Not available: Kiro Crew has not reported usage for this workspace's chats yet."
   if (!usage.total.turns) return 'No turns recorded for these tasks yet.'
   return null
 }
@@ -402,8 +402,7 @@ export function flowClient(api: AppApi) {
     saveSettings: (workspaceId: string, input: { flow: FlowSection; repository?: string | null; expectedHash: string }) =>
       run<FlowSettings>(workspaceId, 'flow.settings.update', input),
     models: () => api.get<unknown>('/api/models').then(parseModels),
-    saveInstructions: (workspaceId: string, instructions: string) =>
-      run<{ instructions: string }>(workspaceId, 'flow.instructions.update', { instructions }),
+    saveInstructions: (workspaceId: string, instructions: string) => run<{ instructions: string }>(workspaceId, 'flow.instructions.update', { instructions }),
     // Proposals and prompt overrides (design §4.18).
     proposals: (workspaceId: string) => run<ProposalsModel>(workspaceId, 'flow.proposals'),
     revertPrompt: (workspaceId: string, target: string) => run(workspaceId, 'prompt.override.revert', { target }),
@@ -423,12 +422,10 @@ export function duration(ms: number | null | undefined): string {
   return `${Math.round(hours / 24)} d`
 }
 
-export const percent = (value: number | null | undefined) =>
-  value === null || value === undefined ? '–' : `${Math.round(value * 100)}%`
+export const percent = (value: number | null | undefined) => (value === null || value === undefined ? '–' : `${Math.round(value * 100)}%`)
 
 // "33% (1 of 3)", or a dash before any task finished.
-export const fixText = (fix: Metrics['fixWork']) =>
-  fix && fix.share !== null && fix.finished ? `${percent(fix.share)} (${fix.fixes} of ${fix.finished})` : '–'
+export const fixText = (fix: Metrics['fixWork']) => (fix && fix.share !== null && fix.finished ? `${percent(fix.share)} (${fix.fixes} of ${fix.finished})` : '–')
 
 // The four metric cards (R48.2): value, the previous window's value, and
 // what produces a value when there is none yet.
@@ -436,12 +433,54 @@ export function metricCards(view: FlowViewModel) {
   const m = view.metrics,
     p = view.previous
   return [
-    { key: 'lead', title: 'Lead time', value: duration(m.leadTimeMs), was: p.tasks ? duration(p.leadTimeMs) : null, empty: m.leadTimeMs === null ? 'Finish a task to see lead time.' : null, tip: 'Median time from ready to integrated or merged.' },
-    { key: 'efficiency', title: 'Flow efficiency', value: percent(m.flowEfficiency), was: p.tasks ? percent(p.flowEfficiency) : null, empty: m.flowEfficiency === null ? 'Finish a task to see how much of its time was active.' : null, tip: 'Coding, tests, commands, rework and merge over lead time. Queued, CI wait, review and waiting count as waiting.' },
-    { key: 'first-pass', title: 'First-pass rate', value: percent(m.firstPassRate), was: p.tasks ? percent(p.firstPassRate) : null, empty: m.firstPassRate === null ? 'Finish a task to see how many pass the first time.' : null, tip: 'Tasks accepted on their first attempt with no rework.' },
-    { key: 'fix', title: 'Time to fix', value: duration(m.timeToFixMs), was: p.tasks && p.timeToFixMs !== null ? duration(p.timeToFixMs) : null, empty: m.timeToFixMs === null ? 'No line stop yet.' : null, tip: 'From the line stopping to the check passing on the branch again.' },
-    { key: 'fix-work', title: 'Fix work', value: fixText(m.fixWork), was: p.tasks ? fixText(p.fixWork) : null, empty: m.fixWork?.share == null ? 'Finish a task to see how much was bug fixes.' : null, tip: 'Finished tasks that were fixes: a bugfix spec, type fix, a stop-the-line fix, or a GitHub Bug.' },
-    { key: 'corrections', title: 'Corrections', value: view.corrections ? `${view.corrections.lastWeek} this week` : '–', was: null, empty: view.corrections ? null : 'No corrections yet.', tip: 'How many times this week a person told an agent it got something wrong: a pull request got changes requested, or a task was sent back or reverted.' },
+    {
+      key: 'lead',
+      title: 'Lead time',
+      value: duration(m.leadTimeMs),
+      was: p.tasks ? duration(p.leadTimeMs) : null,
+      empty: m.leadTimeMs === null ? 'Finish a task to see lead time.' : null,
+      tip: 'Median time from ready to integrated or merged.',
+    },
+    {
+      key: 'efficiency',
+      title: 'Flow efficiency',
+      value: percent(m.flowEfficiency),
+      was: p.tasks ? percent(p.flowEfficiency) : null,
+      empty: m.flowEfficiency === null ? 'Finish a task to see how much of its time was active.' : null,
+      tip: 'Coding, tests, commands, rework and merge over lead time. Queued, CI wait, review and waiting count as waiting.',
+    },
+    {
+      key: 'first-pass',
+      title: 'First-pass rate',
+      value: percent(m.firstPassRate),
+      was: p.tasks ? percent(p.firstPassRate) : null,
+      empty: m.firstPassRate === null ? 'Finish a task to see how many pass the first time.' : null,
+      tip: 'Tasks accepted on their first attempt with no rework.',
+    },
+    {
+      key: 'fix',
+      title: 'Time to fix',
+      value: duration(m.timeToFixMs),
+      was: p.tasks && p.timeToFixMs !== null ? duration(p.timeToFixMs) : null,
+      empty: m.timeToFixMs === null ? 'No line stop yet.' : null,
+      tip: 'From the line stopping to the check passing on the branch again.',
+    },
+    {
+      key: 'fix-work',
+      title: 'Fix work',
+      value: fixText(m.fixWork),
+      was: p.tasks ? fixText(p.fixWork) : null,
+      empty: m.fixWork?.share == null ? 'Finish a task to see how much was bug fixes.' : null,
+      tip: 'Finished tasks that were fixes: a bugfix spec, type fix, a stop-the-line fix, or a GitHub Bug.',
+    },
+    {
+      key: 'corrections',
+      title: 'Corrections',
+      value: view.corrections ? `${view.corrections.lastWeek} this week` : '–',
+      was: null,
+      empty: view.corrections ? null : 'No corrections yet.',
+      tip: 'How many times this week a person told an agent it got something wrong: a pull request got changes requested, or a task was sent back or reverted.',
+    },
   ]
 }
 
@@ -496,10 +535,17 @@ export function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hu
 export function pdcaText(p: Proposal): string | null {
   if (p.status !== 'approved' || !p.pdca) return null
   if (!p.pdca.result && p.pdca.pendingReason) return `PDCA: ${p.pdca.pendingReason}`
-  if (!p.pdca.result) return `PDCA: measuring over the next ${p.pdca.window} ${p.metric === 'CI minutes per pull request' || p.metric === 'Build minutes per pull request' ? 'closed pull requests' : 'tasks'}.`
+  if (!p.pdca.result)
+    return `PDCA: measuring over the next ${p.pdca.window} ${p.metric === 'CI minutes per pull request' || p.metric === 'Build minutes per pull request' ? 'closed pull requests' : 'tasks'}.`
   const verdict = p.pdca.result === 'helped' ? 'helped' : p.pdca.result === 'worse' ? 'worse' : 'did not help'
   const fmt = (v: number | null | undefined) =>
-    v === null || v === undefined ? '–' : p.metric === 'CI minutes per pull request' || p.metric === 'Build minutes per pull request' ? `${v.toLocaleString(undefined, { maximumFractionDigits: 1 })} min` : /rate|efficiency/.test(p.metric) ? percent(v) : duration(v)
+    v === null || v === undefined
+      ? '–'
+      : p.metric === 'CI minutes per pull request' || p.metric === 'Build minutes per pull request'
+        ? `${v.toLocaleString(undefined, { maximumFractionDigits: 1 })} min`
+        : /rate|efficiency/.test(p.metric)
+          ? percent(v)
+          : duration(v)
   return `PDCA: ${p.metric} ${fmt(p.pdca.before)} → ${fmt(p.pdca.after)}, ${verdict}.`
 }
 
@@ -598,7 +644,7 @@ export const FLOW_SORT_FIRST: Record<FlowSort, 'asc' | 'desc'> = { recent: 'desc
 
 export function sortTasks(tasks: TaskTiming[], { sort, dir }: FlowOrder): TaskTiming[] {
   const sign = dir === 'asc' ? 1 : -1
-  const key = (t: TaskTiming) => (sort === 'lead' ? t.leadMs : t.startedAt ?? '')
+  const key = (t: TaskTiming) => (sort === 'lead' ? t.leadMs : (t.startedAt ?? ''))
   return [...tasks].sort((a, b) => {
     if (sort === 'task') return sign * a.taskId.localeCompare(b.taskId, undefined, { numeric: true })
     const [x, y] = [key(a), key(b)]
@@ -629,10 +675,22 @@ export function flowChoices(base: Pick<FlowViewModel, 'tasks' | 'repositories' |
     phases = count((t) => t.phase)
   const make = (list: { value: string; label: string }[], counts: Map<string, number>): FlowChoice[] => list.map((x) => ({ ...x, count: counts.get(x.value) ?? 0 }))
   return {
-    repositories: make(base.repositories.map((r) => ({ value: r, label: r })), repos),
-    epics: make(base.epics.map((e) => ({ value: e.id, label: e.title })), epics),
-    plans: make((base.plans ?? []).map((p) => ({ value: p.id, label: p.title })), plans),
-    phases: make((phaseList ?? []).map((p) => ({ value: p.id, label: p.title })), phases),
+    repositories: make(
+      base.repositories.map((r) => ({ value: r, label: r })),
+      repos,
+    ),
+    epics: make(
+      base.epics.map((e) => ({ value: e.id, label: e.title })),
+      epics,
+    ),
+    plans: make(
+      (base.plans ?? []).map((p) => ({ value: p.id, label: p.title })),
+      plans,
+    ),
+    phases: make(
+      (phaseList ?? []).map((p) => ({ value: p.id, label: p.title })),
+      phases,
+    ),
     stages: base.stages.map((stage): FlowChoice => ({ value: stage, label: STAGE_LABELS[stage], count: base.tasks.filter((t) => (t.stages[stage] || 0) > 0).length })),
   }
 }

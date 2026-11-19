@@ -59,11 +59,17 @@ createRoot(document.getElementById('root')!).render(
     <Box as="section" data-part="box" flex flexCol gap="2" size="xs">
       <span>one</span>
     </Box>
-    <PlainButton data-part="plain-button" type="button" underline css-background="none" css-border="0">Plain</PlainButton>
-    <PlainLink data-part="plain-link" href="#y" underline>Link</PlainLink>
+    <PlainButton data-part="plain-button" type="button" underline css-background="none" css-border="0">
+      Plain
+    </PlainButton>
+    <PlainLink data-part="plain-link" href="#y" underline>
+      Link
+    </PlainLink>
     <PlainInput data-part="plain-input" rounded="base" border="all" size="sm" defaultValue="x" />
     <PlainTextarea data-part="plain-textarea" rounded="base" border="all" size="xs" defaultValue="y" />
-    <span data-part="glyph"><Glyph icon={Check} size={14} aria-hidden="true" css-color="danger" /></span>
+    <span data-part="glyph">
+      <Glyph icon={Check} size={14} aria-hidden="true" css-color="danger" />
+    </span>
     <StatTileStyle />
     <StatTile data-part="tile" name="Needs you: 3" value={3} label="Needs you" sub="2 decisions" warm />
     <StatTile data-part="tile-cool" name="Flow: 1" value={1} label="Flow" sub="" />

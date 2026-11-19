@@ -31,10 +31,26 @@ test('Home: the tiles, Needs you full width, then Landing queue beside CI health
   assert.match(dashboard, /usePublishRefresh\(useRefreshCountdown\(workspaceId, refreshHome, busy\)\)/)
   assert.doesNotMatch(dashboard, /<ViewHeading/)
   assert.doesNotMatch(dashboard, /StateCounts|UntriagedStat|Show them in Delivery|Up next/)
-  const order = ['<LineBanner', '<Tiles', '<HomeSection\n        id="needs-you"', '<HomePair id="landing-ci"', '<HomePair id="landed-stuck"', '<HomePair id="flight-progress"', '<ReleaseQueue', '<IntegrationBranches']
+  const order = [
+    '<LineBanner',
+    '<Tiles',
+    '<HomeSection\n        id="needs-you"',
+    '<HomePair id="landing-ci"',
+    '<HomePair id="landed-stuck"',
+    '<HomePair id="flight-progress"',
+    '<ReleaseQueue',
+    '<IntegrationBranches',
+  ]
   const at = order.map((text) => dashboard.indexOf(text))
-  assert.ok(at.every((n) => n > 0), JSON.stringify(at))
-  assert.deepEqual([...at].sort((a, b) => a - b), at, order.join(' < '))
+  assert.ok(
+    at.every((n) => n > 0),
+    JSON.stringify(at),
+  )
+  assert.deepEqual(
+    [...at].sort((a, b) => a - b),
+    at,
+    order.join(' < '),
+  )
   // No yellow before the kind labels: needs-you's warm color lives in the CSS.
   assert.doesNotMatch(dashboard.slice(0, dashboard.indexOf('const KIND_LABEL')), /warn|yellow|amber/i)
 })
@@ -55,8 +71,14 @@ test('six tiles link to their views, and only Needs you turns warm, only when so
       ['Landed this week', 4, 'flow'],
     ],
   )
-  assert.deepEqual(tiles.filter((t) => t.warm).map((t) => t.key), ['needs-you'])
-  assert.deepEqual(homeTiles(summary([]), null).filter((t) => t.warm), [])
+  assert.deepEqual(
+    tiles.filter((t) => t.warm).map((t) => t.key),
+    ['needs-you'],
+  )
+  assert.deepEqual(
+    homeTiles(summary([]), null).filter((t) => t.warm),
+    [],
+  )
   // Unread reads show a dash, not a zero.
   assert.ok(homeTiles(null, null).every((t) => t.value === null))
   assert.match(tileSource, /\[data-stat-tile\]\[data-warm\] \[data-stat-tile-value\]\{color:var\(--tile-orange,var\(--warning\)\)\}/)
@@ -78,7 +100,12 @@ test('every #N link opens GitHub in a new tab with noopener noreferrer', () => {
 })
 
 test('a section with no data yet says so in one line', () => {
-  for (const line of ['Landing data is not available from this backend yet.', 'CI data is not available from this backend yet.', 'Nothing has landed yet.', 'Nothing waits to land.'])
+  for (const line of [
+    'Landing data is not available from this backend yet.',
+    'CI data is not available from this backend yet.',
+    'Nothing has landed yet.',
+    'Nothing waits to land.',
+  ])
     assert.ok(dashboard.includes(line), line)
 })
 
@@ -111,7 +138,10 @@ test('wave badges use the wave variant, which maps to Kiro purple, not yellow', 
   assert.match(badge, /wave: \{ variant: 'aim' \}/)
   assert.doesNotMatch(badge.match(/wave: \{[^}]*\}/)[0], /warn/)
   // Only `warning` maps to the host's yellow.
-  assert.deepEqual([...badge.matchAll(/(\w+): \{ variant: 'warn'/g)].map((m) => m[1]), ['warning'])
+  assert.deepEqual(
+    [...badge.matchAll(/(\w+): \{ variant: 'warn'/g)].map((m) => m[1]),
+    ['warning'],
+  )
   // No variant at all is grey, not the host's yellow fallback.
   assert.match(badge, /\{ variant: 'muted' as const \}/)
 })

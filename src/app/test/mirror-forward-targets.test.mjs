@@ -324,8 +324,7 @@ test("a public branch with a merged change is a Needs you row naming its head; n
     github = noMerge({
       repository: async () => ({ default_branch: "main" }),
       branch: async (_repo, name) => (
-        calls.push(name),
-        { commit: { sha: head } }
+        calls.push(name), { commit: { sha: head } }
       ),
       compareCommits: async () => ({ status: "ahead" }),
     }),

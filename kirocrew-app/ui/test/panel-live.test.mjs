@@ -115,10 +115,38 @@ test('stopping clears the timer and the listeners, and a failed read does not st
 
 const conflict = (kind, extra = {}) => ({ kind, taskId: 't1', title: `A ${kind}`, detail: 'why', ...extra })
 const claim = (extra = {}) => ({
-  repository: 'o/r', number: 52, title: 'Index builder', url: 'https://github.test/o/r/issues/52', crewId: 'abc', crewName: 'Draco',
-  phase: 'CI', pr: 57, prUrl: 'https://github.test/o/r/pull/57', updated: '2026-11-14T10:00:00Z', commentUrl: null, stale: false, noMarker: false, ...extra,
+  repository: 'o/r',
+  number: 52,
+  title: 'Index builder',
+  url: 'https://github.test/o/r/issues/52',
+  crewId: 'abc',
+  crewName: 'Draco',
+  phase: 'CI',
+  pr: 57,
+  prUrl: 'https://github.test/o/r/pull/57',
+  updated: '2026-11-14T10:00:00Z',
+  commentUrl: null,
+  stale: false,
+  noMarker: false,
+  ...extra,
 })
-const queueRow = (taskId, state, extra = {}) => ({ taskId, title: `Task ${taskId}`, planId: 'p', spec: 's', phase: 'one', scope: null, label: 'ready', number: null, url: null, manual: false, state, reason: `${state} reason`, used: 0, capacity: 2, ...extra })
+const queueRow = (taskId, state, extra = {}) => ({
+  taskId,
+  title: `Task ${taskId}`,
+  planId: 'p',
+  spec: 's',
+  phase: 'one',
+  scope: null,
+  label: 'ready',
+  number: null,
+  url: null,
+  manual: false,
+  state,
+  reason: `${state} reason`,
+  used: 0,
+  capacity: 2,
+  ...extra,
+})
 
 test('Waiting on you keeps what a person settles and drops retired worker items', () => {
   const model = panelModel({
@@ -133,10 +161,19 @@ test('Waiting on you keeps what a person settles and drops retired worker items'
       conflict('branch-landing', { repository: 'o/r', branch: 'int/x', head: 'abc123' }),
     ],
   })
-  assert.deepEqual(model.waiting.map((row) => row.kind), ['needs-human', 'ready-to-merge', 'branch-landing'])
+  assert.deepEqual(
+    model.waiting.map((row) => row.kind),
+    ['needs-human', 'ready-to-merge', 'branch-landing'],
+  )
   const [handed, , land] = model.waiting
-  assert.deepEqual(handed.actions.map((a) => [a.kind, a.label]), [['link', 'Open issue']])
-  assert.deepEqual(land.actions.map((a) => a.kind), ['land'])
+  assert.deepEqual(
+    handed.actions.map((a) => [a.kind, a.label]),
+    [['link', 'Open issue']],
+  )
+  assert.deepEqual(
+    land.actions.map((a) => a.kind),
+    ['land'],
+  )
   assert.equal(model.waiting[1].actions[0].href, 'https://github.test/o/r/pull/57')
 })
 
@@ -147,10 +184,36 @@ test('only http links become link actions; a row with none deep-links into the p
 
 test('In flight lists crew claims and remote coders, with where to attach', () => {
   const model = panelModel({
-    crews: { readAt: null, stale: 1, errors: [], unseen: [], rows: [claim(), claim({ number: 53, crewId: null, crewName: null, pr: null, prUrl: null, stale: true, noMarker: true })] },
-    remote: [{ host: 'box', crewId: 'r1', taskId: 'S5', state: 'running', chatKey: 'k', status: 'working', updatedAt: '2026-11-14T10:00:00Z', attachUrl: 'https://box.test/chat?sid=k', stale: false, lastOkAt: null }],
+    crews: {
+      readAt: null,
+      stale: 1,
+      errors: [],
+      unseen: [],
+      rows: [claim(), claim({ number: 53, crewId: null, crewName: null, pr: null, prUrl: null, stale: true, noMarker: true })],
+    },
+    remote: [
+      {
+        host: 'box',
+        crewId: 'r1',
+        taskId: 'S5',
+        state: 'running',
+        chatKey: 'k',
+        status: 'working',
+        updatedAt: '2026-11-14T10:00:00Z',
+        attachUrl: 'https://box.test/chat?sid=k',
+        stale: false,
+        lastOkAt: null,
+      },
+    ],
   })
-  assert.deepEqual(model.inFlight.map((row) => [row.source, row.ref]), [['radar', 'o/r#52'], ['radar', 'o/r#53'], ['remote', 'S5']])
+  assert.deepEqual(
+    model.inFlight.map((row) => [row.source, row.ref]),
+    [
+      ['radar', 'o/r#52'],
+      ['radar', 'o/r#53'],
+      ['remote', 'S5'],
+    ],
+  )
   assert.equal(model.inFlight[0].attach, '/chat?sid=crew-abc')
   assert.equal(model.inFlight[1].attach, null)
   assert.equal(model.inFlight[1].stale, true)
@@ -160,9 +223,30 @@ test('In flight lists crew claims and remote coders, with where to attach', () =
 
 test('the release queue head is the next row, then the held count', () => {
   const model = panelModel({
-    queue: { repositories: [{ repository: 'o/r', ready: 'ready', mode: 'automatic', capacity: 2, scopes: [], steps: [], rows: [queueRow('a', 'claimed'), queueRow('b', 'next'), queueRow('c', 'next'), queueRow('d', 'held')] }] },
+    queue: {
+      repositories: [
+        {
+          repository: 'o/r',
+          ready: 'ready',
+          mode: 'automatic',
+          capacity: 2,
+          scopes: [],
+          steps: [],
+          rows: [queueRow('a', 'claimed'), queueRow('b', 'next'), queueRow('c', 'next'), queueRow('d', 'held')],
+        },
+      ],
+    },
   })
-  assert.deepEqual(model.queue, { head: [{ taskId: 'b', title: 'Task b', repository: 'o/r', reason: 'next reason' }, { taskId: 'c', title: 'Task c', repository: 'o/r', reason: 'next reason' }], next: 2, claimed: 1, held: 1, mode: 'automatic' })
+  assert.deepEqual(model.queue, {
+    head: [
+      { taskId: 'b', title: 'Task b', repository: 'o/r', reason: 'next reason' },
+      { taskId: 'c', title: 'Task c', repository: 'o/r', reason: 'next reason' },
+    ],
+    next: 2,
+    claimed: 1,
+    held: 1,
+    mode: 'automatic',
+  })
 })
 
 test('recent merges are the newest finished tasks; an open stop shows its sentence', () => {
@@ -170,10 +254,16 @@ test('recent merges are the newest finished tasks; an open stop shows its senten
   const model = panelModel({
     flow: {
       tasks: [task('a', '2026-11-14T08:00:00Z'), task('b', '2026-11-14T10:00:00Z'), { ...task('c', null) }],
-      line: [{ id: 's1', manual: true, by: { kind: 'person', name: 'me' }, reason: 'rollback', scope: 'all', closedAt: null, branch: 'main' }, { id: 's0', closedAt: '2026-11-13T00:00:00Z', branch: 'main' }],
+      line: [
+        { id: 's1', manual: true, by: { kind: 'person', name: 'me' }, reason: 'rollback', scope: 'all', closedAt: null, branch: 'main' },
+        { id: 's0', closedAt: '2026-11-13T00:00:00Z', branch: 'main' },
+      ],
     },
   })
-  assert.deepEqual(model.recent.map((row) => row.taskId), ['b', 'a'])
+  assert.deepEqual(
+    model.recent.map((row) => row.taskId),
+    ['b', 'a'],
+  )
   assert.equal(model.stops.length, 1)
   assert.match(model.stops[0], /Line stopped by me: rollback/)
 })
@@ -181,13 +271,20 @@ test('recent merges are the newest finished tasks; an open stop shows its senten
 test('a read that failed leaves its section unread, not empty', () => {
   const model = panelModel({ conflicts: null, crews: null, remote: null, queue: null, flow: null })
   assert.deepEqual(model.unread, ['waiting', 'inFlight', 'queue', 'recent'])
-  assert.equal(panelModel({ conflicts: [], crews: { rows: [], errors: [], unseen: [], stale: 0, readAt: null }, remote: [], queue: { repositories: [] }, flow: { tasks: [], line: [] } }).unread.length, 0)
+  assert.equal(
+    panelModel({ conflicts: [], crews: { rows: [], errors: [], unseen: [], stale: 0, readAt: null }, remote: [], queue: { repositories: [] }, flow: { tasks: [], line: [] } })
+      .unread.length,
+    0,
+  )
 })
 
 test('an In flight row carries its Avoozl instance, crew, claim time and pull request checks', () => {
   const model = panelModel({
     crews: {
-      readAt: null, stale: 0, errors: [], unseen: [],
+      readAt: null,
+      stale: 0,
+      errors: [],
+      unseen: [],
       rows: [claim({ instanceId: 'inst-1', claimedAt: '2026-11-14T09:00:00Z' }), claim({ number: 53, pr: null, prUrl: null })],
       groups: [{ instanceId: 'inst-1', name: 'Kelp', own: true, rows: [claim({ instanceId: 'inst-1' })] }],
     },
@@ -203,13 +300,30 @@ test('an In flight row carries its Avoozl instance, crew, claim time and pull re
 })
 
 test('the queue says how many are claimed, next and held', () => {
-  const model = panelModel({ queue: { repositories: [{ repository: 'o/r', ready: 'ready', mode: 'automatic', capacity: 2, scopes: [], steps: [], rows: [queueRow('a', 'claimed'), queueRow('b', 'next'), queueRow('d', 'held'), queueRow('e', 'held')] }] } })
+  const model = panelModel({
+    queue: {
+      repositories: [
+        {
+          repository: 'o/r',
+          ready: 'ready',
+          mode: 'automatic',
+          capacity: 2,
+          scopes: [],
+          steps: [],
+          rows: [queueRow('a', 'claimed'), queueRow('b', 'next'), queueRow('d', 'held'), queueRow('e', 'held')],
+        },
+      ],
+    },
+  })
   assert.deepEqual([model.queue.claimed, model.queue.next, model.queue.held], [1, 1, 2])
 })
 
 test('shortAgo and checkLabel are short enough for a row', () => {
   const now = Date.parse('2026-11-14T12:00:00Z')
-  assert.deepEqual(['2026-11-14T11:59:50Z', '2026-11-14T11:30:00Z', '2026-11-14T09:00:00Z', '2026-11-10T12:00:00Z', null].map((at) => shortAgo(at, now)), ['now', '30m', '3h', '4d', ''])
+  assert.deepEqual(
+    ['2026-11-14T11:59:50Z', '2026-11-14T11:30:00Z', '2026-11-14T09:00:00Z', '2026-11-10T12:00:00Z', null].map((at) => shortAgo(at, now)),
+    ['now', '30m', '3h', '4d', ''],
+  )
   assert.equal(checkLabel({ state: 'passing', total: 3, done: 3, failed: [] }).tone, 'ok')
   assert.equal(checkLabel({ state: 'pending', total: 3, done: 1, failed: [] }).text, '… 1/3')
   assert.equal(checkLabel({ state: 'failing', total: 3, done: 3, failed: ['a', 'b'] }).tip, 'Failing: a, b.')

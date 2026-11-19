@@ -44,13 +44,7 @@ const graph = {
   statuses: [],
   repositories: [],
   total: 5,
-  tasks: [
-    task('loose', { epic: null }),
-    task('x', { epic: 'e2', ready: true }),
-    task('b', { ready: true }),
-    task('c'),
-    task('top', { kind: 'epic' }),
-  ],
+  tasks: [task('loose', { epic: null }), task('x', { epic: 'e2', ready: true }), task('b', { ready: true }), task('c'), task('top', { kind: 'epic' })],
   edges: [
     { from: 'a', to: 'b', kind: 'requires', condition: null, blocking: true, satisfied: true },
     { from: 'b', to: 'c', kind: 'requires', condition: 'integrated', blocking: true, satisfied: false },
@@ -99,18 +93,14 @@ test('every link goes through linkHref or safeHref', () => {
   const raw = []
   for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.tsx'))) {
     const text = fs.readFileSync(new URL(file, dir), 'utf8')
-    for (const match of text.matchAll(/\bhref=\{([^}]*)/g))
-      // editorHref builds only kiro:// or vscode:// file links from an absolute path.
-      if (!/^\s*(linkHref|safeHref|editorHref)\(/.test(match[1])) raw.push(`${file}: href={${match[1]}`)
+    // editorHref builds only kiro:// or vscode:// file links from an absolute path.
+    for (const match of text.matchAll(/\bhref=\{([^}]*)/g)) if (!/^\s*(linkHref|safeHref|editorHref)\(/.test(match[1])) raw.push(`${file}: href={${match[1]}`)
   }
   assert.deepEqual(raw, [])
 })
 
 test('session and record labels', () => {
-  assert.equal(
-    sessionLabel({ slot: 's', role: 'worker', attempt: 2, title: null, status: null, statusAt: null, boundAt: null }),
-    'worker #2 · not observed',
-  )
+  assert.equal(sessionLabel({ slot: 's', role: 'worker', attempt: 2, title: null, status: null, statusAt: null, boundAt: null }), 'worker #2 · not observed')
   assert.deepEqual(scalarFields({ taskId: 't', commit: 'abc', ok: true, nested: { a: 1 } }), [
     ['commit', 'abc'],
     ['ok', 'true'],
@@ -120,14 +110,8 @@ test('session and record labels', () => {
 test('session labels show requested vs served model', () => {
   const session = { slot: 's', role: 'review:a', attempt: 1, title: null, status: 'idle', statusAt: null, boundAt: null, model: 'm-b' }
   assert.equal(sessionLabel({ ...session, served: null }), 'review:a #1 · idle · requested m-b, served model not reported')
-  assert.equal(
-    sessionLabel({ ...session, served: { model: 'auto', withheld: true, changed: false } }),
-    'review:a #1 · idle · requested m-b, served auto (withheld)',
-  )
-  assert.equal(
-    sessionLabel({ ...session, served: { model: 'm-b', withheld: false, changed: false } }),
-    'review:a #1 · idle · requested m-b, served m-b',
-  )
+  assert.equal(sessionLabel({ ...session, served: { model: 'auto', withheld: true, changed: false } }), 'review:a #1 · idle · requested m-b, served auto (withheld)')
+  assert.equal(sessionLabel({ ...session, served: { model: 'm-b', withheld: false, changed: false } }), 'review:a #1 · idle · requested m-b, served m-b')
   const verdict = { role: 'a', attempt: 1, outcome: 'refused', verdict: 'approved', model: 'm-b', served: 'auto', commit: null, stale: false, cause: null }
   assert.equal(verdictLabel(verdict), 'a · approved refused · m-b → served auto')
 })
@@ -168,4 +152,3 @@ test('resolution actions call the shared operations, with the revision where the
     { operation: 'delivery.retry', input: { taskId: 'a.3', dismiss: [] }, workspaceId: 'w1' },
   ])
 })
-

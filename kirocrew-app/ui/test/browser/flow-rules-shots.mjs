@@ -26,7 +26,8 @@ const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
 const browser = await launch(chrome)
 const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
-const click = (selector, text) => `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
+const click = (selector, text) =>
+  `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
 try {
   const page = await browser.page()
   for (const [width, height] of [
@@ -47,7 +48,8 @@ try {
           await menu()
           await page.evaluate(click(`${scope(width)} [data-nav-item]`, item))
         }
-        if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+          await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await wait(page, 800)
       }
       const shot = async (name) => {

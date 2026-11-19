@@ -23,11 +23,28 @@ test('every modal is the shared Modal and every z-index is a named layer', async
   const { LAYER } = await import('../src/layers.ts')
   const order = Object.values(LAYER)
   assert.deepEqual(Object.keys(LAYER), ['raised', 'sticky', 'drawer', 'popover', 'tooltip'])
-  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the layers are in order')
+  assert.deepEqual(
+    order,
+    [...order].sort((a, b) => a - b),
+    'the layers are in order',
+  )
 })
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal cover tests'
-const MODALS = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'mark-done']
+const MODALS = [
+  'add-plugin',
+  'onboard',
+  'repo-edit',
+  'setup-github',
+  'archive-plan',
+  'delete-plan',
+  'confirm',
+  'file-viewer',
+  'stop-line',
+  'pack-import',
+  'send-to-radar',
+  'mark-done',
+]
 const OPENERS = {
   'add-plugin': 'Add plugin',
   confirm: 'Remove',
@@ -114,7 +131,11 @@ for (const name of MODALS) {
     await page.wheel(3, 400, 300)
     await page.wheel(640, 400, 300)
     await page.evaluate('new Promise((r) => setTimeout(r, 150))')
-    assert.equal(await page.evaluate(`document.querySelector('[data-host-pane]').scrollTop + ':' + document.scrollingElement.scrollTop`), before, `${name}: the page scrolled behind the modal`)
+    assert.equal(
+      await page.evaluate(`document.querySelector('[data-host-pane]').scrollTop + ':' + document.scrollingElement.scrollTop`),
+      before,
+      `${name}: the page scrolled behind the modal`,
+    )
 
     // Esc closes it, and focus goes back to the button that opened it.
     await page.key('Escape')
@@ -130,7 +151,9 @@ for (const name of MODALS) {
     await load(name, { width: 320, height: 640 })
     await open(name)
     await covers(name, 'at 320px')
-    const rect = await page.evaluate(`(() => { const modal = [...document.querySelectorAll('[aria-modal="true"]')].at(-1); const r = (modal.querySelector('[data-modal-box]') ?? modal).getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round) })()`)
+    const rect = await page.evaluate(
+      `(() => { const modal = [...document.querySelectorAll('[aria-modal="true"]')].at(-1); const r = (modal.querySelector('[data-modal-box]') ?? modal).getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round) })()`,
+    )
     assert.deepEqual(rect, [0, 0, 320, 640], `${name}: not full screen at 320px`)
     assert.deepEqual(page.errors, [], `${name}: page errors`)
   })

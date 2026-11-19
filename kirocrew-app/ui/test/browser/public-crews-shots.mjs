@@ -37,13 +37,19 @@ try {
         await page.open(harness.url({ page: 'app', theme, publiccrews: state }), { width, height, dark: theme === 'dark' })
         await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
         await wait(page, 1200)
-        if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+          await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await wait(page, 200)
-        await page.evaluate(`(() => { const h = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Needs you')); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`)
+        await page.evaluate(
+          `(() => { const h = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Needs you')); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`,
+        )
         await wait(page, 200)
-        await page.evaluate(`[...document.querySelectorAll('${scope(width)} [data-nav-item]:not([data-nav-head])')].find((b) => b.textContent.trim().startsWith('Triage'))?.click()`)
+        await page.evaluate(
+          `[...document.querySelectorAll('${scope(width)} [data-nav-item]:not([data-nav-head])')].find((b) => b.textContent.trim().startsWith('Triage'))?.click()`,
+        )
         await wait(page, 300)
-        if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+          await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await wait(page, 800)
         const file = path.join(out, `${state}-intake-${width}-${theme}.png`)
         await page.screenshot(file)

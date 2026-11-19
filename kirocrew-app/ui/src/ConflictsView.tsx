@@ -98,45 +98,81 @@ export function ConflictActions(props: {
   return (
     <Stack gap={2}>
       {item.kind === 'plan-review' && item.planReview && (
-        <PlanReviewDecision key={`${workspaceId}:${item.planReview.planId}:${item.planReview.revisionHash}`} {...item.planReview} busy={busy} run={run} onDecide={(action) =>
-          views.decidePlanReview(workspaceId, item.planReview!.planId, item.planReview!.revisionHash, action)
-        } />
+        <PlanReviewDecision
+          key={`${workspaceId}:${item.planReview.planId}:${item.planReview.revisionHash}`}
+          {...item.planReview}
+          busy={busy}
+          run={run}
+          onDecide={(action) => views.decidePlanReview(workspaceId, item.planReview!.planId, item.planReview!.revisionHash, action)}
+        />
       )}
       {item.kind === 'spec-pull' && item.specPull && (
         <SpecPullDecision key={item.specPull.id} pull={item.specPull} workspaceId={workspaceId} onChanged={() => props.onReload?.()} />
       )}
-      {item.kind === 'investigation' && item.taskId && <InvestigationActions item={item} busy={busy} onDecide={(action, text) => run(async () => {
-        await views.decideInvestigation(workspaceId, item.taskId!, action)
-        return { ok: true, text }
-      })} />}
+      {item.kind === 'investigation' && item.taskId && (
+        <InvestigationActions
+          item={item}
+          busy={busy}
+          onDecide={(action, text) =>
+            run(async () => {
+              await views.decideInvestigation(workspaceId, item.taskId!, action)
+              return { ok: true, text }
+            })
+          }
+        />
+      )}
       {item.kind === 'needs-human' && item.reason === 'crew' && item.item && item.escalation && item.start && (
-        <EscalationStart item={item} busy={busy} onStart={(action) => run(async () => {
-          const made = await untriagedClient(api).start(workspaceId, item.item!, action, { confirmClaim: item.escalation!.claimed })
-          return { ok: true, text: `${item.item!.id} is now task ${made.taskId}.` }
-        })} />
+        <EscalationStart
+          item={item}
+          busy={busy}
+          onStart={(action) =>
+            run(async () => {
+              const made = await untriagedClient(api).start(workspaceId, item.item!, action, { confirmClaim: item.escalation!.claimed })
+              return { ok: true, text: `${item.item!.id} is now task ${made.taskId}.` }
+            })
+          }
+        />
       )}
       {item.kind === 'needs-human' && item.reason === 'conflict-fix' && item.conflictFix && (
-        <ConflictFixActions fix={item.conflictFix} busy={busy} onDecide={(action, text) => run(async () => {
-          await views.decideConflictFix(workspaceId, item.conflictFix!.repository, item.conflictFix!.pullRequest, action)
-          return { ok: true, text }
-        })} />
+        <ConflictFixActions
+          fix={item.conflictFix}
+          busy={busy}
+          onDecide={(action, text) =>
+            run(async () => {
+              await views.decideConflictFix(workspaceId, item.conflictFix!.repository, item.conflictFix!.pullRequest, action)
+              return { ok: true, text }
+            })
+          }
+        />
       )}
-      {item.kind === 'ready-to-merge' && <ReadyToMerge item={item} busy={busy} onIntegrate={() => run(async () => {
-        await views.integrate(workspaceId, item.taskId!, item.commit)
-        return { ok: true, text: `${item.taskId} lands on the next tick.` }
-      })} />}
+      {item.kind === 'ready-to-merge' && (
+        <ReadyToMerge
+          item={item}
+          busy={busy}
+          onIntegrate={() =>
+            run(async () => {
+              await views.integrate(workspaceId, item.taskId!, item.commit)
+              return { ok: true, text: `${item.taskId} lands on the next tick.` }
+            })
+          }
+        />
+      )}
       {item.kind === 'branch-landing' && item.repository && item.branch && item.head && (
-        <LandBranch item={item} busy={busy} onLand={() => run(async () => {
-          await releaseClient(api).land(workspaceId, item.repository!, item.branch!, item.head!)
-          return { ok: true, text: `${item.branch} is approved to land. Merge it on GitHub.` }
-        })} />
+        <LandBranch
+          item={item}
+          busy={busy}
+          onLand={() =>
+            run(async () => {
+              await releaseClient(api).land(workspaceId, item.repository!, item.branch!, item.head!)
+              return { ok: true, text: `${item.branch} is approved to land. Merge it on GitHub.` }
+            })
+          }
+        />
       )}
       {item.kind === 'needs-human' && item.reason === 'forward' && item.forwardId && (
         <ForwardButton item={item} workspaceId={workspaceId} onDone={() => void run(async () => ({ ok: true, text: 'Forwarded.' }))} />
       )}
-      {item.kind === 'content-match' && item.id && (
-        <ContentActions id={item.id} readable={item.readable === true} workspaceId={workspaceId} busy={busy} run={run} />
-      )}
+      {item.kind === 'content-match' && item.id && <ContentActions id={item.id} readable={item.readable === true} workspaceId={workspaceId} busy={busy} run={run} />}
       {action === 'settle' && (
         <Row gap={2} align="end">
           <Box htmlFor={`answer-${itemKey(item)}`} as="label" css-min-width="16rem" flex flex1 flexCol gap="1" size="xs">
@@ -160,9 +196,7 @@ export function ConflictActions(props: {
             Dismiss
           </DangerBtn>
         )}
-        {item.kind === 'review' && action === 'reviewed' && (
-          <ReviewButton item={item} busy={busy} onConfirm={() => settle('reviewed')} />
-        )}
+        {item.kind === 'review' && action === 'reviewed' && <ReviewButton item={item} busy={busy} onConfirm={() => settle('reviewed')} />}
         {action && action !== 'settle' && action !== 'dismiss' && item.kind !== 'review' && (
           <IconLabel icon={Check} tooltip={ACTION_TIPS[action]} disabled={busy} onClick={() => settle(action)}>
             {ACTION_LABELS[action]}
@@ -183,9 +217,7 @@ export function ConflictActions(props: {
             Retry delivery
           </IconLabel>
         )}
-        {item.kind === 'stale-session' && item.deliveryState !== 'decision' && (
-          <Hint size="xs">Avoozl starts a new attempt on its own; dismiss this once you have read it.</Hint>
-        )}
+        {item.kind === 'stale-session' && item.deliveryState !== 'decision' && <Hint size="xs">Avoozl starts a new attempt on its own; dismiss this once you have read it.</Hint>}
         {item.kind === 'tracker-conflict' && safeHref(item.link ?? null) && (
           <PlainLink href={safeHref(item.link ?? null)!} target="_blank" rel="noreferrer" size="sm" underline>
             Open in the tracker
@@ -197,18 +229,18 @@ export function ConflictActions(props: {
           </PlainLink>
         )}
       </Row>
-      {why && <Hint as="p" size="xs">{why}</Hint>}
+      {why && (
+        <Hint as="p" size="xs">
+          {why}
+        </Hint>
+      )}
     </Stack>
   )
 }
 
 // Findings the gate did not pass (§4.21): the person's three choices. The
 // findings and the falsifier's reply are the item's evidence above them.
-export function InvestigationActions(props: {
-  item: ConflictItem
-  busy: boolean
-  onDecide: (action: 'go' | 'again' | 'stop', text: string) => void
-}) {
+export function InvestigationActions(props: { item: ConflictItem; busy: boolean; onDecide: (action: 'go' | 'again' | 'stop', text: string) => void }) {
   const { item, busy } = props
   return (
     <Stack gap={2} data-investigation={item.taskId}>
@@ -216,7 +248,12 @@ export function InvestigationActions(props: {
         <IconLabel icon={Check} tooltip="The worker codes the change it planned" disabled={busy} onClick={() => props.onDecide('go', `Go ahead sent to ${item.taskId}.`)}>
           Go ahead
         </IconLabel>
-        <IconLabel icon={RefreshCw} tooltip="One more round: the worker reads the falsifier's reply and reports new findings" disabled={busy} onClick={() => props.onDecide('again', `${item.taskId} investigates again.`)}>
+        <IconLabel
+          icon={RefreshCw}
+          tooltip="One more round: the worker reads the falsifier's reply and reports new findings"
+          disabled={busy}
+          onClick={() => props.onDecide('again', `${item.taskId} investigates again.`)}
+        >
           Investigate again
         </IconLabel>
         <DangerBtn
@@ -273,7 +310,11 @@ export function LandBranch(props: { item: ConflictItem; busy: boolean; onLand: (
         icon={Check}
         tooltip="Records your approval for this head. You merge the branch on GitHub yourself."
         disabled={busy}
-        confirm={{ title: `Approve landing ${item.branch}?`, body: `This approves head ${String(item.head ?? '').slice(0, 7)} only. If the branch moves, you approve again. Avoozl does not merge it.`, action: 'Approve landing' }}
+        confirm={{
+          title: `Approve landing ${item.branch}?`,
+          body: `This approves head ${String(item.head ?? '').slice(0, 7)} only. If the branch moves, you approve again. Avoozl does not merge it.`,
+          action: 'Approve landing',
+        }}
         onConfirm={props.onLand}
       >
         Approve landing
@@ -300,7 +341,11 @@ export function ReadyToMerge(props: { item: ConflictItem; busy: boolean; onInteg
           icon={Check}
           tooltip="Land this task's verified commit on its integration branch"
           disabled={busy}
-          confirm={{ title: `Integrate ${item.taskId}?`, body: `Avoozl lands commit ${String(item.commit ?? '').slice(0, 12)} on the next tick, after its checks run again.`, action: 'Integrate' }}
+          confirm={{
+            title: `Integrate ${item.taskId}?`,
+            body: `Avoozl lands commit ${String(item.commit ?? '').slice(0, 12)} on the next tick, after its checks run again.`,
+            action: 'Integrate',
+          }}
           onConfirm={props.onIntegrate}
         >
           Integrate
@@ -351,13 +396,7 @@ export function ReviewButton({ item, busy, onConfirm }: { item: ConflictItem; bu
 
 // A blocked write (design §4.9): read the matched line again from its
 // source, or allow this exact content once with a reason. Only a person can.
-function ContentActions(props: {
-  id: string
-  readable: boolean
-  workspaceId: string
-  busy: boolean
-  run: (call: () => Promise<{ ok: boolean; text: string }>) => void
-}) {
+function ContentActions(props: { id: string; readable: boolean; workspaceId: string; busy: boolean; run: (call: () => Promise<{ ok: boolean; text: string }>) => void }) {
   const { id, readable, workspaceId, busy, run } = props
   const api = useAppApi()
   const views = useMemo(() => viewsClient(api), [api])
@@ -443,18 +482,26 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
               {detail.timeline.slice(0, 12).map((entry, i) => (
                 <Box key={i} as="li" flex gap="2">
                   <Tooltip text={entry.at}>
-                    <Box as="span" w20 shrink0 tone="muted">{relativeTime(entry.at)}</Box>
+                    <Box as="span" w20 shrink0 tone="muted">
+                      {relativeTime(entry.at)}
+                    </Box>
                   </Tooltip>
                   <span>{entry.text}</span>
                 </Box>
               ))}
             </Box>
           ) : (
-            <Hint as="p" size="xs">Nothing recorded yet.</Hint>
+            <Hint as="p" size="xs">
+              Nothing recorded yet.
+            </Hint>
           )}
         </>
       )}
-      {!item.taskId && <Hint as="p" size="xs">This item belongs to the workspace, not one task.</Hint>}
+      {!item.taskId && (
+        <Hint as="p" size="xs">
+          This item belongs to the workspace, not one task.
+        </Hint>
+      )}
     </Box>
   )
 }
@@ -477,14 +524,30 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
             data-conflict-pick={itemKey(item)}
             aria-current={props.focused ? 'true' : undefined}
             onClick={props.onFocus}
-            css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" flex minW0 flexCol items="stretch" gap="0.5" align="left"
+            css-background="none"
+            css-border="0"
+            css-padding="0"
+            css-color="inherit"
+            css-cursor="pointer"
+            flex
+            minW0
+            flexCol
+            items="stretch"
+            gap="0.5"
+            align="left"
           >
             <Box as="span" flex minW0 items="center" gap="2">
               <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable', 'spec-pull'].includes(item.kind) ? 'warning' : 'danger'}>
                 {LABELS[item.kind] ?? item.kind}
               </Badge>
-              <Box as="span" minW0 flex1 truncate size="sm" weight="medium">{item.title}</Box>
-              {time && <Box as="span" shrink0 size="xs" tone="muted">{relativeTime(time)}</Box>}
+              <Box as="span" minW0 flex1 truncate size="sm" weight="medium">
+                {item.title}
+              </Box>
+              {time && (
+                <Box as="span" shrink0 size="xs" tone="muted">
+                  {relativeTime(time)}
+                </Box>
+              )}
             </Box>
             <Box as="span" truncate size="xs" tone="muted" data-row-reason>
               {whyLine(item)}
@@ -575,8 +638,18 @@ function ConflictDetail(props: {
         )}
       </Box>
       <Card data-conflict-resolve>
-        <Box as="h4" m0 mb="2" size="sm" weight="semibold">Resolve</Box>
-        <ConflictActions item={item} workspaceId={props.workspaceId} revision={props.revision} busy={props.busy} run={props.run} onSettled={props.onSettled} onReload={props.onReload} />
+        <Box as="h4" m0 mb="2" size="sm" weight="semibold">
+          Resolve
+        </Box>
+        <ConflictActions
+          item={item}
+          workspaceId={props.workspaceId}
+          revision={props.revision}
+          busy={props.busy}
+          run={props.run}
+          onSettled={props.onSettled}
+          onReload={props.onReload}
+        />
       </Card>
       {history && <ItemHistory item={item} workspaceId={props.workspaceId} />}
     </Stack>
@@ -591,11 +664,7 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
   const ask = useConfirm()
   const load = useCallback(
     async (id: string) => {
-      const [page, graph, delivery] = await Promise.all([
-        client.conflictsPage(id),
-        client.graph(id).catch(() => null),
-        client.delivery(id).catch(() => []),
-      ])
+      const [page, graph, delivery] = await Promise.all([client.conflictsPage(id), client.graph(id).catch(() => null), client.delivery(id).catch(() => [])])
       return { page, graph, delivery }
     },
     [client],
@@ -684,7 +753,16 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
   }
 
   return (
-    <Box aria-labelledby={embedded ? undefined : 'avoozl-conflicts-title'} aria-label={embedded ? 'Decisions and conflicts' : undefined} as="section" flex hFull minH0 flexCol gap="2">
+    <Box
+      aria-labelledby={embedded ? undefined : 'avoozl-conflicts-title'}
+      aria-label={embedded ? 'Decisions and conflicts' : undefined}
+      as="section"
+      flex
+      hFull
+      minH0
+      flexCol
+      gap="2"
+    >
       {!embedded && (
         <ViewHeading
           id="avoozl-conflicts-title"
@@ -706,11 +784,17 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
         </Box>
       )}
       {!workspaceId ? (
-        <Hint as="p" size="sm">Choose a workspace in the header.</Hint>
+        <Hint as="p" size="sm">
+          Choose a workspace in the header.
+        </Hint>
       ) : items === null ? (
-        <Hint as="p" size="sm">{busy ? 'Loading…' : 'Not loaded'}</Hint>
+        <Hint as="p" size="sm">
+          {busy ? 'Loading…' : 'Not loaded'}
+        </Hint>
       ) : items.length === 0 ? (
-        <Hint as="p" size="sm">No open conflicts or decisions.</Hint>
+        <Hint as="p" size="sm">
+          No open conflicts or decisions.
+        </Hint>
       ) : (
         <ListDetailLayout
           id="needs-you"
@@ -719,94 +803,105 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
           onBack={() => setFocus(null)}
           list={
             <Stack gap={2} data-conflict-list-pane>
-          <FilterPanel
-                  folded
-                  id="avoozl-conflicts"
-                  label="Filter conflicts"
-                  active={conflictFilterActive(filter)}
-                  onClear={() => setFilter({})}
-                  fields={[
-                    { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task, ID or detail', onChange: (q) => setField({ q }), primary: true },
-                    { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: choices.kinds, onChange: (kind) => setField({ kind }), primary: true },
-                    { kind: 'pick', key: 'plan', label: 'Spec', value: filter.plan ?? '', items: optionItems(choices.plans), onChange: (plan) => setField({ plan }) },
-                    { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: choices.epics, onChange: (epic) => setField({ epic }) },
-                    {
-                      kind: 'select',
-                      key: 'repository',
-                      label: 'Repository',
-                      value: filter.repository ?? '',
-                      options: choices.repositories,
-                      onChange: (repository) => setField({ repository }),
-                    },
-                    { kind: 'select', key: 'age', label: 'Age', value: filter.age ?? '', options: choices.ages, onChange: (age) => setField({ age }) },
-                  ]}
+              <FilterPanel
+                folded
+                id="avoozl-conflicts"
+                label="Filter conflicts"
+                active={conflictFilterActive(filter)}
+                onClear={() => setFilter({})}
+                fields={[
+                  { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task, ID or detail', onChange: (q) => setField({ q }), primary: true },
+                  { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: choices.kinds, onChange: (kind) => setField({ kind }), primary: true },
+                  { kind: 'pick', key: 'plan', label: 'Spec', value: filter.plan ?? '', items: optionItems(choices.plans), onChange: (plan) => setField({ plan }) },
+                  { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: choices.epics, onChange: (epic) => setField({ epic }) },
+                  {
+                    kind: 'select',
+                    key: 'repository',
+                    label: 'Repository',
+                    value: filter.repository ?? '',
+                    options: choices.repositories,
+                    onChange: (repository) => setField({ repository }),
+                  },
+                  { kind: 'select', key: 'age', label: 'Age', value: filter.age ?? '', options: choices.ages, onChange: (age) => setField({ age }) },
+                ]}
+              >
+                {/* The count once, on the Filters row, with Refresh. */}
+                <Hint role="status" size="xs" data-conflict-count>
+                  {matching.length} of {items.length}
+                </Hint>
+                <Box as="span" ml="auto">
+                  {workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />}
+                </Box>
+              </FilterPanel>
+              <Box flex flexWrap items="center" gap="2" size="sm" data-bulk-bar>
+                <Switch
+                  label={`Select the ${shown.length} shown`}
+                  size="xs"
+                  gap={1.5}
+                  checked={allShown}
+                  onChange={(on) => {
+                    const next = new Set(selected)
+                    for (const item of shown) on ? next.add(itemKey(item)) : next.delete(itemKey(item))
+                    setSelected(next)
+                  }}
                 >
-                  {/* The count once, on the Filters row, with Refresh. */}
-                  <Hint role="status" size="xs" data-conflict-count>
-                    {matching.length} of {items.length}
-                  </Hint>
-                  <Box as="span" ml="auto">{workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />}</Box>
-                </FilterPanel>
-                <Box flex flexWrap items="center" gap="2" size="sm" data-bulk-bar>
-                  <Switch
-                    label={`Select the ${shown.length} shown`}
-                    size="xs"
-                    gap={1.5}
-                    checked={allShown}
-                    onChange={(on) => {
-                      const next = new Set(selected)
-                      for (const item of shown) on ? next.add(itemKey(item)) : next.delete(itemKey(item))
-                      setSelected(next)
-                    }}
+                  Select the {shown.length} shown
+                </Switch>
+                {matching.length > shown.length && (
+                  <TipBtn
+                    tooltip="Select every matching item, including ones not shown yet"
+                    type="button"
+                    onClick={() => setSelected(new Set(matching.map(itemKey)))}
+                    disabled={allMatching}
                   >
-                    Select the {shown.length} shown
-                  </Switch>
-                  {matching.length > shown.length && (
-                    <TipBtn tooltip="Select every matching item, including ones not shown yet" type="button" onClick={() => setSelected(new Set(matching.map(itemKey)))} disabled={allMatching}>
-                      Select all {matching.length} matching
-                    </TipBtn>
-                  )}
-                  <Hint role="status" size="xs" data-selection>
-                    {picked.length
-                      ? `${picked.length} selected${allMatching ? `: all ${matching.length} matching` : allShown && picked.length === shown.length ? `: the ${shown.length} shown` : ''}. Bulk acts on these ${picked.length}. · `
-                      : ''}
-                    {/* Only when a page holds back some of the matching items. */}
-                    {shown.length < matching.length ? `${shown.length} shown of ${matching.length}` : ''}
-                    {acting ? ' · Working…' : ''}
-                  </Hint>
-                  {picked.length > 0 && (
-                    <>
-                      <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with the selected items" onClick={() => void chat.ask({ items: picked.map(itemRef) })}>
-                        Ask in a chat about {picked.length} {picked.length === 1 ? 'item' : 'items'}
-                      </IconLabel>
-                      {action ? (
-                        <TipBtn tooltip={ACTION_TIPS[action]} type="button" primary onClick={() => void applyBulk()} disabled={acting}>
-                          {ACTION_LABELS[action]} {picked.length}
-                        </TipBtn>
-                      ) : (
-                        <Hint size="xs">Bulk resolve needs items of one kind.</Hint>
-                      )}
-                      <Btn onClick={() => setSelected(new Set())} disabled={acting}>
-                        Clear selection
-                      </Btn>
-                    </>
-                  )}
-                </Box>
-                <Box as="ul" m0 flex listNone flexCol p="0" data-conflict-list>
-                  {shown.map((item) => (
-                    <ConflictListRow
-                      key={itemKey(item)}
-                      item={item}
-                      focused={focus === itemKey(item)}
-                      selectable
-                      selected={selected.has(itemKey(item))}
-                      onSelect={(on) => select(item, on)}
-                      onFocus={() => setFocus(itemKey(item))}
-                    />
-                  ))}
-                </Box>
-                <ShowMore {...pages.more('conflicts', matching.length)} />
-                {matching.length === 0 && <Hint as="p" size="sm">No item matches these filters.</Hint>}
+                    Select all {matching.length} matching
+                  </TipBtn>
+                )}
+                <Hint role="status" size="xs" data-selection>
+                  {picked.length
+                    ? `${picked.length} selected${allMatching ? `: all ${matching.length} matching` : allShown && picked.length === shown.length ? `: the ${shown.length} shown` : ''}. Bulk acts on these ${picked.length}. · `
+                    : ''}
+                  {/* Only when a page holds back some of the matching items. */}
+                  {shown.length < matching.length ? `${shown.length} shown of ${matching.length}` : ''}
+                  {acting ? ' · Working…' : ''}
+                </Hint>
+                {picked.length > 0 && (
+                  <>
+                    <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with the selected items" onClick={() => void chat.ask({ items: picked.map(itemRef) })}>
+                      Ask in a chat about {picked.length} {picked.length === 1 ? 'item' : 'items'}
+                    </IconLabel>
+                    {action ? (
+                      <TipBtn tooltip={ACTION_TIPS[action]} type="button" primary onClick={() => void applyBulk()} disabled={acting}>
+                        {ACTION_LABELS[action]} {picked.length}
+                      </TipBtn>
+                    ) : (
+                      <Hint size="xs">Bulk resolve needs items of one kind.</Hint>
+                    )}
+                    <Btn onClick={() => setSelected(new Set())} disabled={acting}>
+                      Clear selection
+                    </Btn>
+                  </>
+                )}
+              </Box>
+              <Box as="ul" m0 flex listNone flexCol p="0" data-conflict-list>
+                {shown.map((item) => (
+                  <ConflictListRow
+                    key={itemKey(item)}
+                    item={item}
+                    focused={focus === itemKey(item)}
+                    selectable
+                    selected={selected.has(itemKey(item))}
+                    onSelect={(on) => select(item, on)}
+                    onFocus={() => setFocus(itemKey(item))}
+                  />
+                ))}
+              </Box>
+              <ShowMore {...pages.more('conflicts', matching.length)} />
+              {matching.length === 0 && (
+                <Hint as="p" size="sm">
+                  No item matches these filters.
+                </Hint>
+              )}
             </Stack>
           }
           detail={

@@ -74,7 +74,9 @@ try {
       await shoot('5-details-Y3')
       await page.key('Escape', 'Escape', 27)
       await page.until(`!document.querySelector('[data-task-modal]')`)
-      await page.evaluate(`(() => { const i = document.querySelector('[data-graph-jump]'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, 'billing'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`)
+      await page.evaluate(
+        `(() => { const i = document.querySelector('[data-graph-jump]'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, 'billing'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`,
+      )
       await page.until(`document.querySelector('[data-focus-tree]')?.dataset.focusTree === 'spec:billing'`)
       await shoot('6-spec-billing')
       await page.evaluate(`document.querySelector('[data-graph-tab="all"]').click()`)

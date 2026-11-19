@@ -54,7 +54,13 @@ for (const width of [1280, 390])
     })`)
     assert.deepEqual(
       chips.map((c) => [c.pr, c.dot]),
-      [['PR #412', 'pass'], ['PR #415', 'pending'], ['PR #418', 'fail'], ['PR #420', 'stale'], [null, null]],
+      [
+        ['PR #412', 'pass'],
+        ['PR #415', 'pending'],
+        ['PR #418', 'fail'],
+        ['PR #420', 'stale'],
+        [null, null],
+      ],
     )
     for (const c of chips) {
       assert.ok(c.branch, 'every row has a branch chip')

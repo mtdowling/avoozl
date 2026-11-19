@@ -49,7 +49,16 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
           setFromLeft(event.currentTarget.getBoundingClientRect().right < 240)
           setOpen(!open)
         }}
-        css-display="inline-flex" css-align-items="center" css-justify-content="center" css-width={props.icon ? '24' : '28'} css-height={props.icon ? '24' : '28'} css-border-radius="6" css-border="1px-solid-border" css-background={open ? 'bg-hover-bg-elevated' : 'transparent'} css-color="text" css-cursor="pointer"
+        css-display="inline-flex"
+        css-align-items="center"
+        css-justify-content="center"
+        css-width={props.icon ? '24' : '28'}
+        css-height={props.icon ? '24' : '28'}
+        css-border-radius="6"
+        css-border="1px-solid-border"
+        css-background={open ? 'bg-hover-bg-elevated' : 'transparent'}
+        css-color="text"
+        css-cursor="pointer"
       >
         <Glyph icon={Icon} size={props.icon ? 14 : 18} aria-hidden="true" css-color={props.on ? 'accent' : undefined} />
       </PlainButton>
@@ -64,7 +73,23 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
             const item = (event.target as Element).closest('button, a')
             if (item && !item.hasAttribute('aria-haspopup') && !item.closest('[data-keep-menu]')) setOpen(false)
           }}
-          css-position="absolute" css-top="100%" css-left={fromLeft ? '0' : undefined} css-right={fromLeft ? undefined : '0'} css-z-index={LAYER.popover} css-margin-top="4" css-min-width="220" css-max-width="calc-100vw-24px" css-display="flex" css-flex-direction="column" css-align-items="stretch" css-gap="8" css-padding="10" css-border-radius="10" css-border="1px-solid-border" css-background="card-bg-elevated" css-box-shadow="0-8px-24px-rgba-0-0-0-0.18"
+          css-position="absolute"
+          css-top="100%"
+          css-left={fromLeft ? '0' : undefined}
+          css-right={fromLeft ? undefined : '0'}
+          css-z-index={LAYER.popover}
+          css-margin-top="4"
+          css-min-width="220"
+          css-max-width="calc-100vw-24px"
+          css-display="flex"
+          css-flex-direction="column"
+          css-align-items="stretch"
+          css-gap="8"
+          css-padding="10"
+          css-border-radius="10"
+          css-border="1px-solid-border"
+          css-background="card-bg-elevated"
+          css-box-shadow="0-8px-24px-rgba-0-0-0-0.18"
         >
           {props.children}
         </Box>

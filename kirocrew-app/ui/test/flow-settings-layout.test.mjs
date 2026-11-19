@@ -25,7 +25,8 @@ after(async () => {
 })
 
 const wait = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (selector, text) => `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
+const click = (selector, text) =>
+  `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
 
 async function openFlowSettings(width) {
   await page.open(harness.url({ page: 'app', radar: '1', flow: '1' }), { width, height: 800 })
@@ -43,7 +44,9 @@ async function openFlowSettings(width) {
   await page.until(`Boolean(document.querySelector('[data-flow-settings]'))`)
   // The footer appears once a field changes.
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-save-footer]'))`), false, 'no footer before a change')
-  await page.evaluate(`(() => { const input = document.getElementById('avoozl-flow-every'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '2'); input.dispatchEvent(new Event('input', { bubbles: true })); return true })()`)
+  await page.evaluate(
+    `(() => { const input = document.getElementById('avoozl-flow-every'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '2'); input.dispatchEvent(new Event('input', { bubbles: true })); return true })()`,
+  )
   await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)
 }
 
@@ -95,7 +98,9 @@ for (const width of [390, 1280])
     assert.equal(before.lastButton, 'Save')
     assert.ok(before.lastPrimary, 'Save is the primary button')
     assert.ok(before.footerInView, 'the footer is in view before scrolling')
-    await page.evaluate(`(() => { for (let el = document.querySelector('[data-flow-settings]'); el; el = el.parentElement) if (el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY)) el.scrollTop = el.scrollHeight / 2; window.scrollTo(0, document.documentElement.scrollHeight / 2); return true })()`)
+    await page.evaluate(
+      `(() => { for (let el = document.querySelector('[data-flow-settings]'); el; el = el.parentElement) if (el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY)) el.scrollTop = el.scrollHeight / 2; window.scrollTo(0, document.documentElement.scrollHeight / 2); return true })()`,
+    )
     await wait(100)
     assert.ok((await page.evaluate(READ)).footerInView, 'the footer stays in view while the groups scroll')
   })

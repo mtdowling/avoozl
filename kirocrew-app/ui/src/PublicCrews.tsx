@@ -75,8 +75,12 @@ function Row(props: { row: PublicCrew; workspaceId: string; onChange: () => void
               {item.ok ? <CircleCheck size={ICON} /> : <CircleAlert size={ICON} />}
             </Box>
             <Box as="span" minW0>
-              <Box as="span" weight="medium">{item.label}</Box>
-              <Box as="span" srOnly>{item.ok ? ': met' : ': not met'}</Box>
+              <Box as="span" weight="medium">
+                {item.label}
+              </Box>
+              <Box as="span" srOnly>
+                {item.ok ? ': met' : ': not met'}
+              </Box>
               <Hint> · {item.line}</Hint>
             </Box>
           </Box>
@@ -122,7 +126,9 @@ export function PublicCrews(props: { rows: PublicCrew[]; workspaceId: string; on
     <div data-public-crews>
       <SectionBox id="public-crews" title={<span>Public crews{held ? ` · ${held} held` : ''}</span>} open={held > 0}>
         <Stack gap={2}>
-          <Hint as="p" size="xs">Issue Radar crews write to these public repositories with your GitHub login. Sign off each checklist before Avoozl sends a crew any issue.</Hint>
+          <Hint as="p" size="xs">
+            Issue Radar crews write to these public repositories with your GitHub login. Sign off each checklist before Avoozl sends a crew any issue.
+          </Hint>
           <Hint as="p" size="xs" data-home-note>
             {HOME_NOTE}
           </Hint>

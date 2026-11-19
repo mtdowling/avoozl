@@ -49,18 +49,29 @@ function Value({ fact }: { fact: ListFact }) {
 export default function ListItem(props: { title: ReactNode; actions?: ReactNode; facts: ListFact[]; className?: string; attrs?: Record<string, string | boolean> }) {
   const facts = props.facts.filter(hasValue)
   return (
-    <li className={`flex min-w-0 flex-col gap-1 border-t py-2.5 first:border-t-0 ${props.className ?? ''}`} style={{ borderColor: 'var(--border)' }} data-list-item {...props.attrs}>
+    <li
+      className={`flex min-w-0 flex-col gap-1 border-t py-2.5 first:border-t-0 ${props.className ?? ''}`}
+      style={{ borderColor: 'var(--border)' }}
+      data-list-item
+      {...props.attrs}
+    >
       <Box flex flexWrap items="center" gapX="3" gapY="1">
         <Box as="span" css-flex="1-1-12rem" flex minW0 flexWrap items="center" gapX="2" gapY="1" data-list-title>
           {props.title}
         </Box>
-        {props.actions && <Box as="span" flex items="center" gap="1.5">{props.actions}</Box>}
+        {props.actions && (
+          <Box as="span" flex items="center" gap="1.5">
+            {props.actions}
+          </Box>
+        )}
       </Box>
       {facts.length > 0 && (
         <Box as="dl" css-grid-template-columns="repeat-auto-fill-minmax-min-100%-15rem-1fr" m0 grid gapX="4" gapY="0.5" size="xs" tone="muted" data-list-facts>
           {facts.map((fact) => (
             <Box key={fact.label} flex minW0 items="baseline" gap="1.5" data-fact={fact.label}>
-              <Box as="dt" shrink0>{fact.label}:</Box>
+              <Box as="dt" shrink0>
+                {fact.label}:
+              </Box>
               <Box as="dd" m0 minW0 flex1>
                 <Value fact={fact} />
               </Box>

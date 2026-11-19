@@ -7,7 +7,7 @@ import type { SpecBuilderCreate } from './spec-builder-api.ts'
 // The spec folder name rule the backend applies (spec-plans.mjs NAME).
 export const SPEC_NAME = /^[a-z0-9][a-z0-9-]{0,79}$/
 
-export const EPIC_PROBLEM = "Name the epic by its spec folder: lowercase letters, digits and hyphens."
+export const EPIC_PROBLEM = 'Name the epic by its spec folder: lowercase letters, digits and hyphens.'
 
 export interface NewPlanForm {
   name: string
@@ -116,12 +116,10 @@ const fields = (form: NewPlanForm) => ({
 })
 
 export function newPlanClient(api: AppApi) {
-  const call = async <T>(workspaceId: string, input: Record<string, unknown>) =>
-    (await api.post<{ result: T }>(COMMAND_PATH, { operation: 'plan.new', workspaceId, input })).result
+  const call = async <T>(workspaceId: string, input: Record<string, unknown>) => (await api.post<{ result: T }>(COMMAND_PATH, { operation: 'plan.new', workspaceId, input })).result
   return {
     // Checks the fields and reads the steering file; records nothing.
-    preview: (workspaceId: string, form: NewPlanForm) =>
-      call<NewPlanPreview>(workspaceId, { ...fields(form), handoff: 'spec-builder', preview: true }),
+    preview: (workspaceId: string, form: NewPlanForm) => call<NewPlanPreview>(workspaceId, { ...fields(form), handoff: 'spec-builder', preview: true }),
     // Records the request and returns Spec Builder's create body.
     specBuilder: (workspaceId: string, form: NewPlanForm, writeSteering: boolean) =>
       call<SpecBuilderHandoff>(workspaceId, { ...fields(form), handoff: 'spec-builder', writeSteering }),

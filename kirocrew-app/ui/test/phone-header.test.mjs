@@ -48,7 +48,11 @@ for (const dark of [false, true]) {
   test(`a phone at 390 px: one menu row, a demo bar with the intro, Specs buttons in More (${theme})`, { skip }, async () => {
     await start(390, dark)
     assert.ok((await height('[data-phone-header]')) <= 56, 'one header row')
-    assert.match(await page.evaluate(`document.querySelector('[data-demo-intro]').textContent`), /Approve a spec; Avoozl runs it with coding agents/, 'the demo bar says what Avoozl is')
+    assert.match(
+      await page.evaluate(`document.querySelector('[data-demo-intro]').textContent`),
+      /Approve a spec; Avoozl runs it with coding agents/,
+      'the demo bar says what Avoozl is',
+    )
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar] [data-demo-badge]'))`), true, 'the bar has the Demo badge')
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar] [data-demo-exit]'))`), true, 'Exit demo is one tap')
     // The demo's own controls are in the bar, since there is no header menu.
@@ -57,14 +61,18 @@ for (const dark of [false, true]) {
     await toSpecs(true)
     const heading = `document.querySelector('#avoozl-plans-title').closest('[data-section-heading]')`
     // The title and the More button share one row: their middles line up.
-    const middles = await page.evaluate(`(() => { const mid = (el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2 }; return [mid(document.querySelector('#avoozl-plans-title')), mid(${heading}.querySelector('[data-more-button]'))] })()`)
+    const middles = await page.evaluate(
+      `(() => { const mid = (el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2 }; return [mid(document.querySelector('#avoozl-plans-title')), mid(${heading}.querySelector('[data-more-button]'))] })()`,
+    )
     assert.ok(Math.abs(middles[0] - middles[1]) <= 8, `the Specs heading is one row (${middles})`)
     assert.equal(await page.evaluate(`Boolean(${heading}.querySelector('[data-heading-more]'))`), true, 'its buttons are in More')
     await page.evaluate(`${heading}.querySelector('[data-more-button]').click()`)
     await wait()
     const items = await page.evaluate(`[...${heading}.querySelectorAll('[data-more-panel] button')].map((b) => b.textContent.trim())`)
     assert.ok(items.includes('New spec') && !items.includes('New task'), `More holds the buttons (${items})`)
-    const wide = await page.evaluate(`[...document.querySelectorAll('body *')].filter((el) => el.getBoundingClientRect().right > innerWidth + 1).slice(0, 3).map((el) => el.tagName + '.' + String(el.className).slice(0, 40) + ':' + el.textContent.slice(0, 30))`)
+    const wide = await page.evaluate(
+      `[...document.querySelectorAll('body *')].filter((el) => el.getBoundingClientRect().right > innerWidth + 1).slice(0, 3).map((el) => el.tagName + '.' + String(el.className).slice(0, 40) + ':' + el.textContent.slice(0, 30))`,
+    )
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `no sideways scroll (${wide})`)
   })
 

@@ -59,7 +59,14 @@ export function ResizeHandle(props: {
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      css-flex="0-0-8px" css-align-self="stretch" css-cursor="col-resize" css-position="relative" css-z-index={LAYER.raised} css-display="flex" css-justify-content="center" css-outline="none"
+      css-flex="0-0-8px"
+      css-align-self="stretch"
+      css-cursor="col-resize"
+      css-position="relative"
+      css-z-index={LAYER.raised}
+      css-display="flex"
+      css-justify-content="center"
+      css-outline="none"
     >
       <Box aria-hidden="true" as="span" css-width="2" css-height="100%" css-background={hover ? 'accent' : 'transparent'} css-transition="background-120ms" />
     </Box>

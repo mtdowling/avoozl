@@ -55,7 +55,7 @@ export function approveWhy(pull: SpecPull): string | null {
 }
 
 export function specPullClient(api: AppApi) {
-  const call = <T,>(workspaceId: string, operation: string, input: Record<string, unknown> = {}) =>
+  const call = <T>(workspaceId: string, operation: string, input: Record<string, unknown> = {}) =>
     api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId }).then((reply) => reply.result)
   return {
     view: (workspaceId: string) => call<{ items: SpecPull[] }>(workspaceId, 'specpr.view').then((result) => result.items),

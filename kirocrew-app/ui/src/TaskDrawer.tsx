@@ -5,7 +5,23 @@ import { Btn } from './ui/Btn'
 import Badge from './ui/Badge.tsx'
 import { TaskDrawerContext, useTaskDrawer, type TaskDrawerApi } from './drawer-context.ts'
 import { modelLabel, safeHref, viewsClient, canSupersede, type ConflictItem, type DeliveryItem, type Graph } from './views-api.ts'
-import { duration, linkParts, relativeTime, sessionHref, sourceExcerpt, sourceLine, taskClient, visibleTabs, TASK_TAB_KEYS, TASK_TAB_PARAM, type OriginSource, type TaskDetail, type TaskLink, type TaskOrigin, type TaskTab } from './task-api.ts'
+import {
+  duration,
+  linkParts,
+  relativeTime,
+  sessionHref,
+  sourceExcerpt,
+  sourceLine,
+  taskClient,
+  visibleTabs,
+  TASK_TAB_KEYS,
+  TASK_TAB_PARAM,
+  type OriginSource,
+  type TaskDetail,
+  type TaskLink,
+  type TaskOrigin,
+  type TaskTab,
+} from './task-api.ts'
 import { Tabs, TabPanel, useTabParam } from './ui/Tabs.tsx'
 import { TaskSummaryBox } from './TaskSummaryBox.tsx'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, resumeStatus } from './delivery-api.ts'
@@ -43,17 +59,15 @@ import { PlainButton, PlainLink } from './ui/Plain'
 // Lines shown either side of a task's own lines.
 const SNIPPET_CONTEXT = 3
 
-type Mode =
-  | { kind: 'task'; id: string; tab?: TaskTab }
-  | { kind: 'add'; prerequisite?: string }
-  | { kind: 'review'; group: ConflictItem; onReviewed?: () => void }
-  | null
+type Mode = { kind: 'task'; id: string; tab?: TaskTab } | { kind: 'add'; prerequisite?: string } | { kind: 'review'; group: ConflictItem; onReviewed?: () => void } | null
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
       <Hint as="dt">{label}</Hint>
-      <Box as="dd" minW0 breakWords>{children}</Box>
+      <Box as="dd" minW0 breakWords>
+        {children}
+      </Box>
     </>
   )
 }
@@ -67,7 +81,9 @@ function Links({ title, links, open }: { title: string; links: TaskLink[]; open:
   }))
   return (
     <div>
-      <Box as="h4" size="sm" weight="semibold">{title}</Box>
+      <Box as="h4" size="sm" weight="semibold">
+        {title}
+      </Box>
       <Box mt="1">
         <EdgeList label={title} items={items} onOpen={open} />
       </Box>
@@ -129,7 +145,9 @@ function SourceSnippet(props: { source: OriginSource; workspaceId: string; open:
               className="flex gap-3 px-2 py-px"
               style={row.hit ? { background: 'color-mix(in srgb, var(--accent) 12%, transparent)', boxShadow: 'inset 3px 0 0 var(--accent)' } : undefined}
             >
-              <Box as="span" w8 shrink0 selectNone align="right" tone="muted">{row.number}</Box>
+              <Box as="span" w8 shrink0 selectNone align="right" tone="muted">
+                {row.number}
+              </Box>
               <Box as="span" css-overflow-wrap="anywhere" whitespace="pre-wrap">
                 {row.text || ' '}
               </Box>
@@ -153,7 +171,9 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
   const firstReadable = origin.sources.find((s) => s.readable) ?? null
   return (
     <Box flex flexCol gap="1.5" data-origin={origin.kind}>
-      <Box as="span" weight="medium">{origin.label}</Box>
+      <Box as="span" weight="medium">
+        {origin.label}
+      </Box>
       <Hint size="xs">
         {first?.readable
           ? linkParts(origin.text, first.document).map((part, i) =>
@@ -186,7 +206,11 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
             </Hint>
           ))}
       </Box>
-      {origin.prompt && <blockquote className="border-l-2 pl-2 text-xs text-muted" style={{ borderColor: 'var(--border)' }}>{origin.prompt}</blockquote>}
+      {origin.prompt && (
+        <blockquote className="border-l-2 pl-2 text-xs text-muted" style={{ borderColor: 'var(--border)' }}>
+          {origin.prompt}
+        </blockquote>
+      )}
       {origin.sources
         .filter((source) => source.readable)
         .map((source) => (
@@ -209,18 +233,36 @@ function BatchBox(props: { batch: NonNullable<DeliveryItem['batchGroup']>; alone
       <Box flex flexCol gap="1" size="sm" data-task-batch={batch.id ?? batch.group ?? ''}>
         <Box as="p" m0>
           {batch.id ? 'Ran in batch ' : 'Planned batch '}
-          {batch.leader === props.self ? <Box as="span" weight="medium">{batch.group ?? batch.id}</Box> : <PlainButton type="button" underline onClick={() => drawer.openTask(batch.leader)} data-batch-link={batch.leader}>{batch.group ?? batch.id}</PlainButton>}
+          {batch.leader === props.self ? (
+            <Box as="span" weight="medium">
+              {batch.group ?? batch.id}
+            </Box>
+          ) : (
+            <PlainButton type="button" underline onClick={() => drawer.openTask(batch.leader)} data-batch-link={batch.leader}>
+              {batch.group ?? batch.id}
+            </PlainButton>
+          )}
           {batch.reason ? <Hint> · {batch.reason}</Hint> : null}
         </Box>
         <Box as="ul" m0 flex flexCol gap="0.5" pl="4" size="xs">
           {batch.tasks.map((id) => (
             <li key={id}>
-              {id === props.self ? <span>{id} (this task)</span> : <PlainButton type="button" underline onClick={() => drawer.openTask(id)}>{id}</PlainButton>}
+              {id === props.self ? (
+                <span>{id} (this task)</span>
+              ) : (
+                <PlainButton type="button" underline onClick={() => drawer.openTask(id)}>
+                  {id}
+                </PlainButton>
+              )}
               {id === batch.leader ? <Hint> · leads</Hint> : null}
             </li>
           ))}
         </Box>
-        {props.alone && <Hint as="p" size="xs" flush data-runs-alone>Runs alone: {props.alone}</Hint>}
+        {props.alone && (
+          <Hint as="p" size="xs" flush data-runs-alone>
+            Runs alone: {props.alone}
+          </Hint>
+        )}
       </Box>
     </SectionBox>
   )
@@ -300,10 +342,18 @@ function TaskPanel(props: {
         {error}
       </ErrorText>
     )
-  if (!detail) return <Hint as="p" size="sm">Loading…</Hint>
+  if (!detail)
+    return (
+      <Hint as="p" size="sm">
+        Loading…
+      </Hint>
+    )
   const { task, delivery } = detail
   const local = task.authority === 'local'
-  const deliveryState = (delivery?.deliveries ?? []).map((d) => d.state).filter((s): s is string => typeof s === 'string').at(-1)
+  const deliveryState = (delivery?.deliveries ?? [])
+    .map((d) => d.state)
+    .filter((s): s is string => typeof s === 'string')
+    .at(-1)
   const deferred = task.status === 'deferred'
   const resume = resumeStatus(props.graph)
   const done = delivery?.complete ?? task.state === 'done'
@@ -474,7 +524,9 @@ function TaskPanel(props: {
                 <Stack as="ul" gap={3}>
                   {detail.conflicts.map((item, i) => (
                     <Box key={i} as="li" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="2">
-                      <Box size="sm" weight="medium">{whyLine(item)}</Box>
+                      <Box size="sm" weight="medium">
+                        {whyLine(item)}
+                      </Box>
                       <span>
                         <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with this item" onClick={() => void chat.ask({ items: [itemRef(item)] })}>
                           Ask in a chat
@@ -494,12 +546,18 @@ function TaskPanel(props: {
               {detail.steps?.length ? <TaskSteps steps={detail.steps} /> : null}
               {detail.timeline.length ? (
                 <>
-                  {detail.steps?.length ? <Box as="h4" mt="2" size="sm" weight="semibold">All records</Box> : null}
+                  {detail.steps?.length ? (
+                    <Box as="h4" mt="2" size="sm" weight="semibold">
+                      All records
+                    </Box>
+                  ) : null}
                   <Box as="ol" flex flexCol gap="1" size="sm">
                     {pages.take('timeline', detail.timeline).map((entry, i) => (
                       <Box key={i} as="li" flex gap="2">
                         <Tooltip text={entry.at}>
-                          <Box as="span" w28 shrink0 size="xs" tone="muted">{relativeTime(entry.at)}</Box>
+                          <Box as="span" w28 shrink0 size="xs" tone="muted">
+                            {relativeTime(entry.at)}
+                          </Box>
                         </Tooltip>
                         <span>{entry.text}</span>
                       </Box>
@@ -522,7 +580,9 @@ function TaskPanel(props: {
               <Stack gap={3}>
                 <TaskScmLinks links={detail.links} />
                 <Box css-border-color="border" flex flexCol gap="2" border="t" pt="3" data-added-links>
-                  <Box as="h4" size="sm" weight="semibold">Added links</Box>
+                  <Box as="h4" size="sm" weight="semibold">
+                    Added links
+                  </Box>
                   <TaskLinks workspaceId={workspaceId} taskId={task.id} refresh={detail.revision} />
                 </Box>
               </Stack>
@@ -580,7 +640,11 @@ function TaskPanel(props: {
                 }}
               />
             )}
-            {delivery.sessions.length ? <Hint as="p" size="xs">Running for {duration(delivery.sessions.at(-1)!.boundAt)} in its latest attempt.</Hint> : null}
+            {delivery.sessions.length ? (
+              <Hint as="p" size="xs">
+                Running for {duration(delivery.sessions.at(-1)!.boundAt)} in its latest attempt.
+              </Hint>
+            ) : null}
           </>
         )}
         {tab === 'review' && (
@@ -629,7 +693,9 @@ function TaskPanel(props: {
                   {task.summary && <Markdown text={task.summary} />}
                   {task.acceptance.length > 0 && (
                     <div>
-                      <Box as="h4" size="sm" weight="semibold">Acceptance</Box>
+                      <Box as="h4" size="sm" weight="semibold">
+                        Acceptance
+                      </Box>
                       <Box as="ul" mt="1" listDisc pl="5" size="sm">
                         {task.acceptance.map((line, i) => (
                           <li key={i}>{line}</li>
@@ -639,7 +705,9 @@ function TaskPanel(props: {
                   )}
                   {task.checks.length > 0 && (
                     <div>
-                      <Box as="h4" size="sm" weight="semibold">Checks</Box>
+                      <Box as="h4" size="sm" weight="semibold">
+                        Checks
+                      </Box>
                       <Box as="ul" mt="1" flex flexCol gap="1" size="sm">
                         {task.checks.map((line, i) => (
                           <li key={i}>
@@ -651,7 +719,9 @@ function TaskPanel(props: {
                   )}
                   {task.context && (
                     <div>
-                      <Box as="h4" size="sm" weight="semibold">From its spec</Box>
+                      <Box as="h4" size="sm" weight="semibold">
+                        From its spec
+                      </Box>
                       <Markdown text={task.context} />
                     </div>
                   )}
@@ -701,8 +771,8 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
   return (
     <Stack gap={3}>
       <Hint as="p" size="sm">
-        Avoozl re-reads a spec when its file changes. A task waits here when its own section changed, or when it is new. Moving a
-        spec or fixing its links does not count. Read each task, then mark them reviewed so they may start.
+        Avoozl re-reads a spec when its file changes. A task waits here when its own section changed, or when it is new. Moving a spec or fixing its links does not count. Read each
+        task, then mark them reviewed so they may start.
       </Hint>
       {message && (
         <ErrorText role="alert" size="sm">
@@ -710,7 +780,9 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
         </ErrorText>
       )}
       {page && !group ? (
-        <Hint as="p" size="sm">Nothing here needs review now.</Hint>
+        <Hint as="p" size="sm">
+          Nothing here needs review now.
+        </Hint>
       ) : (
         <>
           <Box as="ul" m0 flex listNone flexCol p="0" data-review-tasks>
@@ -794,7 +866,10 @@ export function TaskDrawerProvider({
   const title =
     mode?.kind === 'task' ? (
       <>
-        {titled ?? 'Loading…'} <Box as="small" weight="normal" tone="muted" data-modal-title-id>{mode.id}</Box>
+        {titled ?? 'Loading…'}{' '}
+        <Box as="small" weight="normal" tone="muted" data-modal-title-id>
+          {mode.id}
+        </Box>
       </>
     ) : mode?.kind === 'review' ? (
       mode.group.title
@@ -837,7 +912,17 @@ export function TaskDrawerProvider({
           }
         >
           {mode.kind === 'task' ? (
-            <TaskPanel key={mode.id} workspaceId={workspaceId} id={mode.id} tab={mode.tab} graph={graph} open={api_.openTask} onClose={close} onFocus={onFocus} onTitle={showTitle} />
+            <TaskPanel
+              key={mode.id}
+              workspaceId={workspaceId}
+              id={mode.id}
+              tab={mode.tab}
+              graph={graph}
+              open={api_.openTask}
+              onClose={close}
+              onFocus={onFocus}
+              onTitle={showTitle}
+            />
           ) : mode.kind === 'review' ? (
             <ReviewPanel
               workspaceId={workspaceId}
@@ -849,13 +934,7 @@ export function TaskDrawerProvider({
               }}
             />
           ) : (
-            <TaskForm
-              workspaceId={workspaceId}
-              graph={graph}
-              detail={null}
-              prerequisite={mode.prerequisite}
-              onSaved={(id) => setMode({ kind: 'task', id })}
-            />
+            <TaskForm workspaceId={workspaceId} graph={graph} detail={null} prerequisite={mode.prerequisite} onSaved={(id) => setMode({ kind: 'task', id })} />
           )}
         </Modal>
       )}

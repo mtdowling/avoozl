@@ -72,7 +72,10 @@ test('the pieces are wired: spec page, Hand off, dialogs and Settings', () => {
     settings = source('SettingsView.tsx'),
     driver = source('Driver.tsx')
   // The read-only notice lives on the spec only; no header badge (owner, 2026-11-14).
-  for (const [name, text] of [['App.tsx', app], ['Driver.tsx', driver]])
+  for (const [name, text] of [
+    ['App.tsx', app],
+    ['Driver.tsx', driver],
+  ])
     assert.doesNotMatch(text, /DriverSummary|data-driver-summary|specs read only here/, name)
   assert.match(plans, /<DriverChip spec=\{driver\.spec\} \/>/)
   assert.match(plans, /<DriverBanner workspaceId=\{workspace\} spec=\{driver\.spec\}/)

@@ -95,10 +95,7 @@ const snapshot = ({ store, github, settings }) =>
   });
 
 test("the Onboard reads are classified, page-only and read-only", () => {
-  for (const name of [
-    "onboarding.inspect",
-    "onboarding.scan",
-  ]) {
+  for (const name of ["onboarding.inspect", "onboarding.scan"]) {
     assert.equal(classifyOperation(name), "observe", name);
     assert.equal(principalAllows({ kind: "owner-session" }, name), true, name);
     assert.equal(principalAllows({ kind: "app-token" }, name), true, name);

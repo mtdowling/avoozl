@@ -346,4 +346,3 @@ test("a content rule that blocks the pull request text stops it before any write
   assert.doesNotMatch(step.detail, /Review rules/);
   assert.deepEqual(github.state.writes, []);
 });
-

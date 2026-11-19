@@ -79,8 +79,7 @@ export interface LandingQueue {
 
 export function landingQueueClient(api: AppApi) {
   return {
-    read: async (workspaceId: string) =>
-      (await api.post<{ result: LandingQueue }>(COMMAND_PATH, { operation: 'landing.queue', input: {}, workspaceId })).result,
+    read: async (workspaceId: string) => (await api.post<{ result: LandingQueue }>(COMMAND_PATH, { operation: 'landing.queue', input: {}, workspaceId })).result,
   }
 }
 

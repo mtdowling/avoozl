@@ -523,22 +523,20 @@ test("no token, cookie or CSRF value is in the log, serve.json or the database (
   assert.ok(s.lines.length > 3);
 });
 
-test(
-  "serve.json and the state folder are private (SW3.5)",
-  { skip: process.platform === "win32" },
-  async (t) => {
-    const s = await serve(t);
-    assert.equal(
-      fs.statSync(path.join(s.stateDirectory, "serve.json")).mode & 0o777,
-      0o600,
-    );
-    assert.equal(
-      fs.statSync(path.join(s.stateDirectory, "serve.sqlite")).mode & 0o777,
-      0o600,
-    );
-    assert.equal(fs.statSync(s.stateDirectory).mode & 0o777, 0o700);
-  },
-);
+test("serve.json and the state folder are private (SW3.5)", {
+  skip: process.platform === "win32",
+}, async (t) => {
+  const s = await serve(t);
+  assert.equal(
+    fs.statSync(path.join(s.stateDirectory, "serve.json")).mode & 0o777,
+    0o600,
+  );
+  assert.equal(
+    fs.statSync(path.join(s.stateDirectory, "serve.sqlite")).mode & 0o777,
+    0o600,
+  );
+  assert.equal(fs.statSync(s.stateDirectory).mode & 0o777, 0o700);
+});
 
 test("demo mode works on the page (SW5.3)", async (t) => {
   const s = await serve(t);

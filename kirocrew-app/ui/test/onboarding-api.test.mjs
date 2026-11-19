@@ -6,7 +6,18 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ONBOARD_READS, ONBOARD_WRITES, modeProblem, onboardClient, onboardForm, onboardSteps, registerInput, scanFindings, setupRequest, setupWrites } from '../src/onboarding-api.ts'
+import {
+  ONBOARD_READS,
+  ONBOARD_WRITES,
+  modeProblem,
+  onboardClient,
+  onboardForm,
+  onboardSteps,
+  registerInput,
+  scanFindings,
+  setupRequest,
+  setupWrites,
+} from '../src/onboarding-api.ts'
 
 const folder = (patch = {}) => ({
   root: '/work/app',
@@ -72,11 +83,22 @@ test('Set up lists its writes in order; each GitHub write asks first, and done o
   )
   assert.match(steps[0].confirm.title, /Make 2 changes on GitHub/)
   // A finished GitHub setup and a repository already added.
-  const again = setupWrites(form, folder({ registered: { id: 'app', localCheckout: '/work/app', github: 'acme/app', baseBranch: 'main', planning: false } }), settings(), preview([], false))
-  assert.ok(again.every((s) => s.done), JSON.stringify(again))
+  const again = setupWrites(
+    form,
+    folder({ registered: { id: 'app', localCheckout: '/work/app', github: 'acme/app', baseBranch: 'main', planning: false } }),
+    settings(),
+    preview([], false),
+  )
+  assert.ok(
+    again.every((s) => s.done),
+    JSON.stringify(again),
+  )
   // Local only: no GitHub write, so nothing asks.
   const local = setupWrites({ ...form, mode: 'local' }, folder(), settings({ mode: 'single-repo' }), null)
-  assert.deepEqual(local.map((s) => s.key), ['settings', 'register'])
+  assert.deepEqual(
+    local.map((s) => s.key),
+    ['settings', 'register'],
+  )
   assert.ok(local.every((s) => !s.confirm))
 })
 
@@ -84,7 +106,14 @@ test('the requests name the right repositories and checkout', () => {
   const form = { ...onboardForm(folder(), settings()), mode: 'single-repo' }
   assert.deepEqual(setupRequest(form, folder(), settings({ repositories: { 'acme/lib': {} } })), { mode: 'single-repo', repositories: ['acme/lib', 'acme/app'] })
   assert.deepEqual(setupRequest({ ...form, mode: 'plans-repo', isPlanning: true }, folder(), settings()), { mode: 'plans-repo', planningRepository: 'acme/app', repositories: [] })
-  assert.deepEqual(registerInput(form, folder(), false), { id: 'app', localCheckout: '/work/app', baseBranch: 'main', github: 'acme/app', issueAuthorization: true, planning: false })
+  assert.deepEqual(registerInput(form, folder(), false), {
+    id: 'app',
+    localCheckout: '/work/app',
+    baseBranch: 'main',
+    github: 'acme/app',
+    issueAuthorization: true,
+    planning: false,
+  })
   assert.deepEqual(registerInput({ ...form, mode: 'local' }, folder({ specs: ['a'] }), false), { id: 'app', localCheckout: '/work/app', baseBranch: 'main', planning: true })
   assert.equal(registerInput({ ...form, mode: 'local' }, folder({ specs: ['a'] }), true).planning, false)
 })

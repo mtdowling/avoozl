@@ -184,9 +184,7 @@ export interface TaskOrigin {
 // "todo/runtime.md, lines 4–6", for a source reference.
 export function sourceLine(source: OriginSource): string {
   if (!source.lineStart) return source.document
-  return source.lineEnd && source.lineEnd !== source.lineStart
-    ? `${source.document}, lines ${source.lineStart}–${source.lineEnd}`
-    : `${source.document}, line ${source.lineStart}`
+  return source.lineEnd && source.lineEnd !== source.lineStart ? `${source.document}, lines ${source.lineStart}–${source.lineEnd}` : `${source.document}, line ${source.lineStart}`
 }
 
 // The lines a reader shows around a source: `context` lines either side,
@@ -218,7 +216,17 @@ export function excerptLabel(text: string, source: Pick<OriginSource, 'lineStart
 // make the path a link and leave the rest as text.
 export function linkParts(text: string, path: string): { text: string; link: boolean }[] {
   if (!path) return [{ text, link: false }]
-  return text.split(path).flatMap((piece, i) => (i === 0 ? [{ text: piece, link: false }] : [{ text: path, link: true }, { text: piece, link: false }])).filter((p) => p.text)
+  return text
+    .split(path)
+    .flatMap((piece, i) =>
+      i === 0
+        ? [{ text: piece, link: false }]
+        : [
+            { text: path, link: true },
+            { text: piece, link: false },
+          ],
+    )
+    .filter((p) => p.text)
 }
 
 // "Line 294" or "Lines 4–6", the reader header's cited lines.
@@ -303,17 +311,10 @@ export function taskClient(api: AppApi) {
     // A workspace Markdown file, for reading where a task came from.
     document: (workspaceId: string, id: string) => run<{ id: string; title: string; text: string }>('document.get', { id }, workspaceId),
     // Writes nothing: what a locked task's edit becomes as a plan change.
-    preview: (workspaceId: string, id: string, change: Record<string, unknown>) =>
-      run<ChangePreview>('task.change.preview', { id, ...change }, workspaceId),
-    save: (workspaceId: string, input: Record<string, unknown>, expectedRevision: number) =>
-      run<unknown>('task.update', input, workspaceId, expectedRevision),
-    settle: (
-      workspaceId: string,
-      action: SettleAction,
-      items: { taskId: string; slot?: string }[],
-      expectedRevision: number,
-      answer?: string,
-    ) => run<SettleResult>('conflicts.settle', { action, items, ...(answer ? { answer } : {}) }, workspaceId, expectedRevision),
+    preview: (workspaceId: string, id: string, change: Record<string, unknown>) => run<ChangePreview>('task.change.preview', { id, ...change }, workspaceId),
+    save: (workspaceId: string, input: Record<string, unknown>, expectedRevision: number) => run<unknown>('task.update', input, workspaceId, expectedRevision),
+    settle: (workspaceId: string, action: SettleAction, items: { taskId: string; slot?: string }[], expectedRevision: number, answer?: string) =>
+      run<SettleResult>('conflicts.settle', { action, items, ...(answer ? { answer } : {}) }, workspaceId, expectedRevision),
   }
 }
 
@@ -325,8 +326,7 @@ export function findCycle(edges: { from: string; to: string; kind: string }[], i
     if (!next.has(from)) next.set(from, [])
     next.get(from)!.push(to)
   }
-  for (const edge of edges)
-    if ((edge.kind === 'requires' || edge.kind === 'sequence') && edge.to !== id) add(edge.from, edge.to)
+  for (const edge of edges) if ((edge.kind === 'requires' || edge.kind === 'sequence') && edge.to !== id) add(edge.from, edge.to)
   for (const from of prerequisites) add(from, id)
   const back = new Map<string, string>()
   const queue = [id]
@@ -420,8 +420,7 @@ export function taskInput(form: TaskForm, original: TaskForm | null): Record<str
   set('checks', lines(form.checks), original ? lines(original.checks) : undefined)
   set('repository', form.repository.trim() || undefined, original ? original.repository.trim() || undefined : undefined)
   if (input.repository === undefined) delete input.repository
-  const requires = (list: Prerequisite[]) =>
-    list.filter((p) => p.kind === 'requires').map((p) => (p.condition ? { task: p.id, condition: p.condition } : p.id))
+  const requires = (list: Prerequisite[]) => list.filter((p) => p.kind === 'requires').map((p) => (p.condition ? { task: p.id, condition: p.condition } : p.id))
   const sequence = (list: Prerequisite[]) => list.filter((p) => p.kind === 'sequence').map((p) => p.id)
   set('requires', requires(form.prerequisites), original ? requires(original.prerequisites) : undefined)
   set('sequence', sequence(form.prerequisites), original ? sequence(original.prerequisites) : undefined)

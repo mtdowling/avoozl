@@ -13,7 +13,10 @@ test('drill, drill, back, back restores each level with its view and selection',
   const focus = { kind: 'focus', id: 'W1.3', title: 'W1.3' }
   let stack = pushDrill([], { drill: null, view: v(1), selected: null }, epic)
   stack = pushDrill(stack, { drill: epic, view: v(2), selected: 'W1.3' }, focus)
-  assert.deepEqual(stack.map((e) => drillLabel(e.drill)), ['All tasks', 'Core execution'])
+  assert.deepEqual(
+    stack.map((e) => drillLabel(e.drill)),
+    ['All tasks', 'Core execution'],
+  )
   assert.equal(backLabel(stack), 'Back to Core execution')
   let popped = popDrill(stack)
   assert.deepEqual(popped.entry, { drill: epic, view: v(2), selected: 'W1.3' })

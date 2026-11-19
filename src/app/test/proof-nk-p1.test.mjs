@@ -15,48 +15,40 @@ const SCRIPT = fileURLToPath(
   new URL("../../../scripts/proof-nk-p1-live.mjs", import.meta.url),
 );
 
-test(
-  "nk-p1 holds every gate pass for the person's decisions",
-  {
-    timeout: 6 * 60_000,
-    skip:
-      process.platform !== "darwin" &&
-      "the proof runs from the owner's macOS terminal, under sandbox-exec",
-  },
-  (t) => {
-    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "nkp1-"));
-    t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
-    const root = path.join(parent, "run");
-    execFileSync(
-      process.execPath,
-      [SCRIPT, "--root", root, "--agent", "fake"],
-      {
-        stdio: "ignore",
-      },
-    );
-    const report = JSON.parse(
-      fs.readFileSync(path.join(root, "report.json"), "utf8"),
-    );
-    assert.equal(
-      report.pass,
-      true,
-      JSON.stringify(report.expected) +
-        "\n" +
-        fs.readFileSync(path.join(root, "backend.log"), "utf8").slice(-4000),
-    );
-    const { tasks, decided, held } = report.state;
-    assert.deepEqual(decided, {
-      "nkp1-go": ["go"],
-      "nkp1-again": ["again", "go"],
-    });
-    const decisions = (id) => tasks[id].rounds.map((r) => r.decision);
-    assert.deepEqual(decisions("nkp1-go"), ["go"]);
-    assert.deepEqual(decisions("nkp1-again"), ["again", "go"]);
-    // Every round was a gate pass the hold caught.
-    assert.deepEqual(held.map((h) => `${h.task}:${h.round}`).sort(), [
-      "nkp1-again:1",
-      "nkp1-again:2",
-      "nkp1-go:1",
-    ]);
-  },
-);
+test("nk-p1 holds every gate pass for the person's decisions", {
+  timeout: 6 * 60_000,
+  skip:
+    process.platform !== "darwin" &&
+    "the proof runs from the owner's macOS terminal, under sandbox-exec",
+}, (t) => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "nkp1-"));
+  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+  const root = path.join(parent, "run");
+  execFileSync(process.execPath, [SCRIPT, "--root", root, "--agent", "fake"], {
+    stdio: "ignore",
+  });
+  const report = JSON.parse(
+    fs.readFileSync(path.join(root, "report.json"), "utf8"),
+  );
+  assert.equal(
+    report.pass,
+    true,
+    JSON.stringify(report.expected) +
+      "\n" +
+      fs.readFileSync(path.join(root, "backend.log"), "utf8").slice(-4000),
+  );
+  const { tasks, decided, held } = report.state;
+  assert.deepEqual(decided, {
+    "nkp1-go": ["go"],
+    "nkp1-again": ["again", "go"],
+  });
+  const decisions = (id) => tasks[id].rounds.map((r) => r.decision);
+  assert.deepEqual(decisions("nkp1-go"), ["go"]);
+  assert.deepEqual(decisions("nkp1-again"), ["again", "go"]);
+  // Every round was a gate pass the hold caught.
+  assert.deepEqual(held.map((h) => `${h.task}:${h.round}`).sort(), [
+    "nkp1-again:1",
+    "nkp1-again:2",
+    "nkp1-go:1",
+  ]);
+});

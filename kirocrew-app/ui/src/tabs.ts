@@ -27,7 +27,6 @@ export const tabLink = (param: string, key: string) => `?${new URLSearchParams({
 // differs between the form and the saved form.
 export function dirtyTabs<F extends object, T extends string>(form: F, saved: F, keys: Record<T, readonly (keyof F)[]>): Set<T> {
   const out = new Set<T>()
-  for (const tab of Object.keys(keys) as T[])
-    if (keys[tab].some((key) => JSON.stringify(form[key]) !== JSON.stringify(saved[key]))) out.add(tab)
+  for (const tab of Object.keys(keys) as T[]) if (keys[tab].some((key) => JSON.stringify(form[key]) !== JSON.stringify(saved[key]))) out.add(tab)
   return out
 }

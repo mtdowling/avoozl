@@ -6,10 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { GitHubClient } from "../github.mjs";
-import {
-  cancelSetup,
-  githubSetup,
-} from "../github-setup.mjs";
+import { cancelSetup, githubSetup } from "../github-setup.mjs";
 import { groupedCall } from "../mcp-tools.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";

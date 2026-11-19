@@ -12,7 +12,10 @@ test('a set says where its rules come from and what it covers, never a rule', ()
   assert.equal(sourceLabel({ ...set, source: 'plugin', plugin: 'rules-x', version: '2' }), 'Rules plugin rules-x, version 2')
   assert.equal(scopeLabel(set), 'Every boundary but incoming items')
   assert.equal(scopeLabel({ ...set, boundaries: ['github', 'diff'], repositories: ['example/app'] }), 'GitHub text, Worker diffs in example/app')
-  assert.deepEqual(SET_FIELDS.filter((f) => f.required).map((f) => f.key), ['id'])
+  assert.deepEqual(
+    SET_FIELDS.filter((f) => f.required).map((f) => f.key),
+    ['id'],
+  )
 })
 
 test('content items have their own actions, not a settle', () => {
@@ -44,10 +47,7 @@ import {
 } from '../src/content-api.ts'
 
 test('built-in sets have plain names; the plans repo set is not used outside plans-repo mode', () => {
-  assert.deepEqual(
-    ['builtin:planning-repository', 'builtin:reply-safety', 'builtin:published-secrets'].map(builtinName),
-    ['Plans repo name', 'Safe replies', 'Secrets'],
-  )
+  assert.deepEqual(['builtin:planning-repository', 'builtin:reply-safety', 'builtin:published-secrets'].map(builtinName), ['Plans repo name', 'Safe replies', 'Secrets'])
   assert.equal(builtinName('builtin:new'), 'builtin:new')
   assert.equal(builtinUsed('builtin:planning-repository', 'plans-repo'), true)
   assert.equal(builtinUsed('builtin:planning-repository', 'single-repo'), false)
@@ -78,7 +78,10 @@ test('the set form saves only what differs from the defaults and catches mistake
 test('the rule builder and the file view read and write the same lines', () => {
   const text = '# made-up\nproject-name: zebra falcon\nhost: staging\\.example\\.test\nticket: \\bacme-\\d{4}\\b\n\nbroken line\n'
   const rows = parseTermLines(text)
-  assert.deepEqual(rows.map((r) => r.kind), ['note', 'word', 'word', 'pattern', 'blank', 'raw'])
+  assert.deepEqual(
+    rows.map((r) => r.kind),
+    ['note', 'word', 'word', 'pattern', 'blank', 'raw'],
+  )
   assert.equal(rows[2].value, 'staging.example.test', 'an escaped word reads as the word')
   assert.equal(serializeTerms(rows), text)
   assert.deepEqual(kindOf('a.b'), { kind: 'pattern', value: 'a.b' })
@@ -86,7 +89,10 @@ test('the rule builder and the file view read and write the same lines', () => {
   assert.equal(serializeTerms([{ kind: 'word', name: 'v', value: 'v1.2 (beta)' }]), 'v: v1\\.2 \\(beta\\)\n')
   assert.deepEqual(fileErrors(text), [{ line: 6, message: 'Needs a name, a colon, then the word or pattern.' }])
   const bad = fileErrors('ok: fine\nx: quartz(\n: nameless\n')
-  assert.deepEqual(bad.map((e) => e.line), [2, 3])
+  assert.deepEqual(
+    bad.map((e) => e.line),
+    [2, 3],
+  )
   for (const e of bad) assert.doesNotMatch(e.message, /quartz/)
   assert.match(rowError({ kind: 'word', name: 'a', value: ' ' }), /Give a word/)
   assert.match(rowError({ kind: 'word', name: 'a:b', value: 'x' }), /colon/)
@@ -138,7 +144,10 @@ test('Allow rows round trip between the builder and the file view', () => {
   assert.equal(serializeTerms([{ kind: 'allow', rule: 'project', match: 'word', value: 'a.b' }]), 'allow project: a\\.b\n')
   assert.deepEqual(fileErrors(text), [])
   const bad = fileErrors('project: zebra\nallow nosuch: quartz\nallow: quartz(\nallow:  \nallow-list: fine\nallow x: y\n')
-  assert.deepEqual(bad.map((e) => e.line), [2, 3, 4, 6])
+  assert.deepEqual(
+    bad.map((e) => e.line),
+    [2, 3, 4, 6],
+  )
   for (const e of bad) assert.doesNotMatch(e.message, /quartz|nosuch/)
   assert.match(rowError({ kind: 'word', name: 'allow', value: 'x' }), /Allow row/)
 })
@@ -153,9 +162,15 @@ test('Try it marks allowed matches apart from blocking ones', () => {
     { line: 2, start: 10, end: 22, rule: 'project' },
     { line: 2, start: 0, end: 9, rule: 'ticket', allowed: true },
   ])
-  assert.deepEqual(highlightPieces('the zebra falcon app', hits.filter((h) => h.line === 0)), [
-    { text: 'the ', rules: [] },
-    { text: 'zebra falcon', rules: [], allowed: ['project'] },
-    { text: ' app', rules: [] },
-  ])
+  assert.deepEqual(
+    highlightPieces(
+      'the zebra falcon app',
+      hits.filter((h) => h.line === 0),
+    ),
+    [
+      { text: 'the ', rules: [] },
+      { text: 'zebra falcon', rules: [], allowed: ['project'] },
+      { text: ' app', rules: [] },
+    ],
+  )
 })

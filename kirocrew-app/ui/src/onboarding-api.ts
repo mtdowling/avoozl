@@ -46,7 +46,11 @@ export const ONBOARD_STEPS: { key: StepKey; title: string; line: string }[] = [
   { key: 'check', title: 'Check GitHub', line: 'Avoozl reads GitHub and lists what Set up would create, change or keep. It writes nothing.' },
   { key: 'setup', title: 'Set up', line: 'The writes, in order. Each GitHub write asks first.' },
   { key: 'import', title: 'Import specs', line: 'Spec folders and their lint results. Import makes drafts; nothing is approved.' },
-  { key: 'scan', title: 'Leak scan', line: 'This repository is public, so its issues are too. Avoozl checks the specs for secrets, paths on this computer and your content rules.' },
+  {
+    key: 'scan',
+    title: 'Leak scan',
+    line: 'This repository is public, so its issues are too. Avoozl checks the specs for secrets, paths on this computer and your content rules.',
+  },
   { key: 'finish', title: 'Finish', line: 'What was done. Approve specs in Specs when you are ready.' },
 ]
 
@@ -99,10 +103,8 @@ export function modeProblem(form: OnboardForm, found: FolderFacts): string | nul
     return found.remote
       ? `${found.remote} is not a GitHub remote, so GitHub modes can't use this folder. Pick Local only.`
       : 'This folder has no GitHub remote. Pick Local only, or add a GitHub remote first.'
-  if (form.mode === 'plans-repo' && !form.isPlanning && !/^[\w.-]+\/[\w.-]+$/.test(form.planningRepository.trim()))
-    return 'Name the planning repository as owner/name.'
-  if (form.mode === 'plans-repo' && form.isPlanning && found.visibility === 'public')
-    return 'A planning repository must be private: its issues name specs and code repositories.'
+  if (form.mode === 'plans-repo' && !form.isPlanning && !/^[\w.-]+\/[\w.-]+$/.test(form.planningRepository.trim())) return 'Name the planning repository as owner/name.'
+  if (form.mode === 'plans-repo' && form.isPlanning && found.visibility === 'public') return 'A planning repository must be private: its issues name specs and code repositories.'
   return null
 }
 

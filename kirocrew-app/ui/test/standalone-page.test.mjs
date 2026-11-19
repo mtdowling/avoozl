@@ -46,7 +46,13 @@ before(async () => {
   const registry = new WorkspaceRegistry(registryOptions)
   registry.add('main', { root, name: 'Scratch' })
   registry.close?.()
-  const bytes = JSON.stringify({ name: 'fake-cli', start: ['node', '{brief_file}'], resume: ['node', '{message_file}'], permission: { write: 'workspace-write', read: 'read-only' }, writeRoots: ['{worktree}', '{tmp}'] })
+  const bytes = JSON.stringify({
+    name: 'fake-cli',
+    start: ['node', '{brief_file}'],
+    resume: ['node', '{message_file}'],
+    permission: { write: 'workspace-write', read: 'read-only' },
+    writeRoots: ['{worktree}', '{tmp}'],
+  })
   fs.mkdirSync(path.join(machine.configDirectory, 'harnesses'), { recursive: true })
   fs.writeFileSync(path.join(machine.configDirectory, 'harnesses', 'fake-cli.json'), bytes)
   approveHarnessDefinition({ configDirectory: machine.configDirectory, name: 'fake-cli', hash: harnessDefinitionHash(Buffer.from(bytes)) })
@@ -105,7 +111,9 @@ test('Settings › Content rules › Design a rule set opens Start a session, an
   assert.ok(await page.evaluate(dialog(`!!document.querySelector('[data-session-log]')`)))
   // Send message queues one more request for the same session.
   await page.evaluate(
-    dialog(`(() => { const e = document.querySelector('input[aria-label="Message to the session"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(e, 'And this'); e.dispatchEvent(new Event('input', { bubbles: true })); return true })()`),
+    dialog(
+      `(() => { const e = document.querySelector('input[aria-label="Message to the session"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(e, 'And this'); e.dispatchEvent(new Event('input', { bubbles: true })); return true })()`,
+    ),
   )
   await click(`[...document.querySelectorAll('dialog[data-start-session] button')].find((b) => b.textContent.trim() === 'Send message')`)
   await new Promise((resolve) => setTimeout(resolve, 600))
@@ -155,7 +163,19 @@ test('a new Needs you item gives one notice, two give two, and a reload gives no
   const { workspaceConfig } = await src('config.mjs')
   const { Store } = await src('store.mjs')
   const { WorkspaceRegistry } = await src('host-config.mjs')
-  const pinned = (id) => ({ id, title: `Pinned ${id}`, kind: 'leaf', scope: 'catalog', status: 'planned', epic: 'sample', track: 'catalog', tags: [], acceptance: ['Works.'], repository: 'r1', session: { harness: 'kirocrew' } })
+  const pinned = (id) => ({
+    id,
+    title: `Pinned ${id}`,
+    kind: 'leaf',
+    scope: 'catalog',
+    status: 'planned',
+    epic: 'sample',
+    track: 'catalog',
+    tags: [],
+    acceptance: ['Works.'],
+    repository: 'r1',
+    session: { harness: 'kirocrew' },
+  })
   const other = path.join(scratch, 'other')
   fs.mkdirSync(other, { recursive: true })
   const second = new Store(workspaceConfig({ workspace: other, env: process.env }).dbPath)

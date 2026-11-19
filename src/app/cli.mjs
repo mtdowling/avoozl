@@ -1654,9 +1654,7 @@ try {
       console.log("Nothing approved. These specs would be approved:");
       for (const entry of selection.specs) console.log("  " + batchLine(entry));
       const tasks = selection.specs.reduce((sum, e) => sum + e.tasks, 0);
-      console.log(
-        `${selection.specs.length} specs, ${tasks} tasks.`,
-      );
+      console.log(`${selection.specs.length} specs, ${tasks} tasks.`);
       if (selection.pullRequest)
         console.log(
           `${selection.pullRequest} of these are approved through one approval pull request: --yes opens it, and running the same command again after it merges approves them.`,

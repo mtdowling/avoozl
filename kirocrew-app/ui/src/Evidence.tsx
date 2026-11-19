@@ -68,8 +68,18 @@ export function EvidenceFold({ workspaceId, taskId, box }: { workspaceId: string
       </ErrorText>
     )
   if (box && !value?.length) return null
-  if (!value) return <Hint as="p" size="sm">Loading…</Hint>
-  if (!value.length) return <Hint as="p" size="sm">No evidence yet.</Hint>
+  if (!value)
+    return (
+      <Hint as="p" size="sm">
+        Loading…
+      </Hint>
+    )
+  if (!value.length)
+    return (
+      <Hint as="p" size="sm">
+        No evidence yet.
+      </Hint>
+    )
   const list = (
     <Stack as="ol" gap={2} data-evidence={taskId}>
       {value.map((entry) => (
@@ -80,11 +90,19 @@ export function EvidenceFold({ workspaceId, taskId, box }: { workspaceId: string
             <time dateTime={entry.at}>{relativeTime(entry.at)}</time>
             {entry.redacted && <span>Redacted by content rules</span>}
           </Box>
-          <Box as="p" mt="1" whitespace="pre-wrap" breakWords size="sm">{entry.text}</Box>
+          <Box as="p" mt="1" whitespace="pre-wrap" breakWords size="sm">
+            {entry.text}
+          </Box>
           {entry.file && <Attachment workspaceId={workspaceId} taskId={taskId} entry={entry} />}
         </Box>
       ))}
     </Stack>
   )
-  return box ? <SectionBox id={box.id} title={box.title}>{list}</SectionBox> : list
+  return box ? (
+    <SectionBox id={box.id} title={box.title}>
+      {list}
+    </SectionBox>
+  ) : (
+    list
+  )
 }

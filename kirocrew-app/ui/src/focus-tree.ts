@@ -12,8 +12,7 @@ import { nodeState, type LaidNode } from './graph-layout.ts'
 
 export type TreeRoot = { kind: 'task' | 'spec'; id: string }
 
-export const sameRoot = (a: TreeRoot | null | undefined, b: TreeRoot | null | undefined) =>
-  Boolean(a && b && a.kind === b.kind && a.id === b.id)
+export const sameRoot = (a: TreeRoot | null | undefined, b: TreeRoot | null | undefined) => Boolean(a && b && a.kind === b.kind && a.id === b.id)
 
 // Where the Graph is: its tab, and for the Focus tree its root (null is
 // the default root).
@@ -28,8 +27,7 @@ export const samePlace = (a: GraphPlace | null | undefined, b: GraphPlace | null
 
 // ?tree=task:<id> or ?tree=spec:<plan id> for a tree, ?graph=frontier or
 // ?graph=all for the other tabs, so a view can be linked.
-export const placeLink = (place: GraphPlace) =>
-  place.tab === 'focus' && place.root ? `?tree=${encodeURIComponent(`${place.root.kind}:${place.root.id}`)}` : `?graph=${place.tab}`
+export const placeLink = (place: GraphPlace) => (place.tab === 'focus' && place.root ? `?tree=${encodeURIComponent(`${place.root.kind}:${place.root.id}`)}` : `?graph=${place.tab}`)
 
 export function parseGraphLink(search: string): GraphPlace | null {
   const query = new URLSearchParams(search)
@@ -139,12 +137,9 @@ export function focusTree(graph: Graph, root: TreeRoot): FocusTree | null {
     }
   }
   const ghosts = new Set<string>()
-  for (const edge of graph.edges)
-    if (edge.blocking && roots.includes(edge.to) && byId.has(edge.from) && !keep.has(edge.from) && !isLive(edge, byId)) ghosts.add(edge.from)
+  for (const edge of graph.edges) if (edge.blocking && roots.includes(edge.to) && byId.has(edge.from) && !keep.has(edge.from) && !isLive(edge, byId)) ghosts.add(edge.from)
   ghosts.forEach((id) => keep.add(id))
-  const edges = graph.edges
-    .filter((e) => drawn(e) && keep.has(e.from) && keep.has(e.to))
-    .map((e) => ({ ...e, blocking: true, satisfied: !isLive(e, byId) }))
+  const edges = graph.edges.filter((e) => drawn(e) && keep.has(e.from) && keep.has(e.to)).map((e) => ({ ...e, blocking: true, satisfied: !isLive(e, byId) }))
   return {
     graph: {
       ...graph,
