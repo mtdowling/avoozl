@@ -26,7 +26,6 @@ const POLICY = {
   repositories: {
     [REPO]: {
       baseBranch: "main",
-      coder: "issue-radar",
       minimumPermission: "write",
       managedLabels: { managed: "avoozl:managed", ready: "ready" },
       crewLabels: { needsHuman: "plan me" },

@@ -17,17 +17,24 @@ export const avoozlConfigSchemaPath = fileURLToPath(
   new URL("../avoozl-config.schema.json", import.meta.url),
 );
 
-// Every top-level key a file may set: the schema's property names.
-const TOP_LEVEL_KEYS = new Set(
-  Object.keys(
-    JSON.parse(fs.readFileSync(avoozlConfigSchemaPath, "utf8")).properties,
+// Every top-level key a file may set: the schema's property names. The
+// machine file is also the host config (host-config.mjs), so it may set the
+// host schema's keys too.
+const schemaKeys = (file) =>
+  Object.keys(JSON.parse(fs.readFileSync(file, "utf8")).properties);
+const TOP_LEVEL_KEYS = new Set(schemaKeys(avoozlConfigSchemaPath));
+const MACHINE_KEYS = new Set([
+  ...TOP_LEVEL_KEYS,
+  ...schemaKeys(
+    fileURLToPath(new URL("../host-config.schema.json", import.meta.url)),
   ),
-);
+]);
 
 // Refuse a top-level key the schema does not list, naming the file and key.
-export function assertKnownKeys(value, source) {
+export function assertKnownKeys(value, source, { machine = false } = {}) {
+  const known = machine ? MACHINE_KEYS : TOP_LEVEL_KEYS;
   for (const key of Object.keys(value))
-    if (!TOP_LEVEL_KEYS.has(key))
+    if (!known.has(key))
       throw Error(`Unknown setting "${key}" in ${source}. Remove it.`);
 }
 
@@ -146,7 +153,11 @@ function resolveLayerPaths(value, base, trail = []) {
   );
 }
 
-function readLayer(filename, label, { portable = false } = {}) {
+function readLayer(
+  filename,
+  label,
+  { portable = false, machine = false } = {},
+) {
   if (!fs.existsSync(filename)) return null;
   let value;
   try {
@@ -163,7 +174,7 @@ function readLayer(filename, label, { portable = false } = {}) {
     throw Error(`${label} at ${filename} must contain a JSON object.`);
   if (value.version !== 1)
     throw Error(`Unsupported ${label} version at ${filename}.`);
-  assertKnownKeys(value, `${label} at ${filename}`);
+  assertKnownKeys(value, `${label} at ${filename}`, { machine });
   assertSafeConfig(value, `${label} at ${filename}`);
   if (portable)
     assertPortableRepositoryConfig(value, `${label} at ${filename}`);
@@ -284,7 +295,7 @@ export function loadLayeredConfig({
     repository: path.join(workspaceRoot, ".avoozl.json"),
   };
   const fileLayers = [
-    readLayer(files.global, "global Avoozl configuration"),
+    readLayer(files.global, "global Avoozl configuration", { machine: true }),
     readLayer(files.repository, "repository Avoozl configuration", {
       portable: true,
     }),

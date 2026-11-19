@@ -51,9 +51,6 @@ test("the help holds every command the CLI runs, and no other", () => {
     [],
     "HELP_GROUPS names commands the CLI does not run",
   );
-  // The two session hooks were missing from the help before it was grouped.
-  for (const command of ["register-session", "session-hook"])
-    assert.match(helpText("hooks"), new RegExp(`^  avoozl ${command} `, "m"));
 });
 
 test("the overview fits one screen and names every group and command", () => {

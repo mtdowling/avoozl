@@ -52,7 +52,6 @@ const example = () => ({
       allowedActors: ["maintainer-login"],
       minimumPermission: "maintain",
       requiredChecks: ["build", "test"],
-      concurrency: 2,
       dependencyText: false,
       priority: ["critical", "high"],
       managedLabels: {
@@ -97,21 +96,16 @@ test("the design example validates and keeps every value", () => {
   assert.equal(normalizeGitHubPolicy({}).defaultAuthority, "local");
 });
 
-// `concurrency` only set Avoozl's retired local workers. An old file keeps
-// reading without error, any value, and nothing reads it: release.capacity is
-// the one knob, defaulting to 1. An old `coder` is ignored too.
-test("an old repository concurrency is accepted, any value, and ignored", () => {
-  for (const concurrency of [2, 0, 500, "x", null]) {
-    const policy = normalizeGitHubPolicy({
-      repositories: {
-        "example/app": { coder: "issue-radar", concurrency },
-        "example/old": { coder: "worker", concurrency },
-      },
-    });
-    assert.equal(policy.repositories["example/app"].concurrency, undefined);
-    assert.equal(policy.repositories["example/app"].release.capacity, 1);
-    assert.equal(policy.repositories["example/old"].release.capacity, 1);
-  }
+// The removed `concurrency` and `coder` keys are refused by name.
+test("a repository's removed concurrency or coder key is refused", () => {
+  for (const extra of [{ concurrency: 2 }, { coder: "worker" }])
+    assert.throws(
+      () =>
+        normalizeGitHubPolicy({
+          repositories: { "example/app": { baseBranch: "main", ...extra } },
+        }),
+      new RegExp(`Unknown setting .*${Object.keys(extra)[0]}`),
+    );
 });
 
 test("validation refuses each §4.4 violation", () => {

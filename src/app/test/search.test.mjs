@@ -3,16 +3,10 @@ import assert from "node:assert/strict";
 import { fixture } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
 
-test("prompt search moved to Kiro Crew, and an old search result still saves its view once", async (t) => {
+test("an old search result saves its view once", async (t) => {
   const { store } = fixture(t),
     before = JSON.stringify(store.read().tasks),
     ops = new Operations(store);
-  const moved = await ops.execute("search.prompt", {
-    prompt: "Find the fixture",
-    submissionId: "search-fixture",
-  });
-  assert.equal(moved.moved, true);
-  assert.equal(store.list("runs").length, 0);
   // A search the removed agent host ran, as an old workspace holds it.
   const run = store.put("runs", {
     id: "run-search-old",

@@ -31,12 +31,12 @@ test("plan reviewers must differ from a named planner; auto is unset", () => {
   ])
     assert.deepEqual(validateModels(models), models);
   assert.equal(
-    chatModel({ models: { planReviewer: "auto" } }, "planReviewer"),
+    chatModel({ roles: { planReviewer: { model: "auto" } } }, "planReviewer"),
     null,
   );
   assert.deepEqual(
     withChatModels([{ role: "plan-review", task: "draft" }], {
-      models: { planReviewer: "fake-reviewer" },
+      roles: { planReviewer: { model: "fake-reviewer" } },
     }),
     [{ role: "plan-review", task: "draft", model: "fake-reviewer" }],
   );
@@ -131,7 +131,7 @@ test("file-loaded review settings and effective models are validated across conf
     path.join(globalDirectory, "config.json"),
     JSON.stringify({
       version: 1,
-      models: { planner: "fake-writer" },
+      roles: { planner: { model: "fake-writer" } },
     }),
   );
   fs.writeFileSync(
@@ -142,14 +142,17 @@ test("file-loaded review settings and effective models are validated across conf
   assert.equal(readDeliveryPolicy(root).status, "invalid");
   fs.writeFileSync(
     filename,
-    JSON.stringify({ version: 1, models: { planReviewer: "fake-writer" } }),
+    JSON.stringify({
+      version: 1,
+      roles: { planReviewer: { model: "fake-writer" } },
+    }),
   );
   assert.throws(load, /planReviewer must differ/);
   fs.writeFileSync(
     filename,
     JSON.stringify({
       version: 1,
-      models: { planReviewer: "fake-reviewer" },
+      roles: { planReviewer: { model: "fake-reviewer" } },
       planReview: { mode: "off" },
     }),
   );
@@ -167,7 +170,7 @@ test("saving repository models refuses a collision with an inherited planner bef
   fs.writeFileSync(filename, JSON.stringify({ version: 1 }));
   const configuration = new RepositorySettings(store, {
       workspaceRoot: root,
-      baseConfig: { models: { planner: "fake-writer" } },
+      baseConfig: { roles: { planner: { model: "fake-writer" } } },
     }),
     before = configuration.readModelSettings(),
     text = fs.readFileSync(filename, "utf8");

@@ -157,7 +157,7 @@ test("a private remote folder can be stored and approved in its mirror home", as
       github: {
         mode: "single-repo",
         repositories: {
-          "acme/app": { baseBranch: "main", coder: "issue-radar", mirror },
+          "acme/app": { baseBranch: "main", mirror },
         },
       },
     }),
@@ -205,7 +205,7 @@ test("an orphan plans checkout is one private home, not a public duplicate", asy
       github: {
         mode: "single-repo",
         repositories: {
-          "acme/app": { baseBranch: "main", coder: "issue-radar", mirror },
+          "acme/app": { baseBranch: "main", mirror },
         },
       },
     }),
@@ -242,7 +242,7 @@ test("a review branch derived from private plans is never approved into the code
       github: {
         mode: "single-repo",
         repositories: {
-          "acme/app": { baseBranch: "main", coder: "issue-radar", mirror },
+          "acme/app": { baseBranch: "main", mirror },
         },
       },
     }),
@@ -289,7 +289,7 @@ test("a proved public review branch in a mirror keeps the plain approval", async
       github: {
         mode: "single-repo",
         repositories: {
-          "acme/app": { baseBranch: "main", coder: "issue-radar", mirror },
+          "acme/app": { baseBranch: "main", mirror },
         },
       },
     }),

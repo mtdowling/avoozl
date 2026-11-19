@@ -37,7 +37,10 @@ function setup(t) {
     },
     config = {
       version: 1,
-      models: { planner: "fake-writer", planReviewer: "fake-reviewer" },
+      roles: {
+        planner: { model: "fake-writer" },
+        planReviewer: { model: "fake-reviewer" },
+      },
       planReview: { mode: "auto" },
     },
     plan = createSpecPlan(store, { id: "audit" }, folder),

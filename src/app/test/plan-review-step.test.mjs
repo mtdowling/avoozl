@@ -90,7 +90,10 @@ function setup(t, { writer = true, rounds = 1, mode = "auto" } = {}) {
   recordPlanReviewWriter(store, plan, writer ? as("writer") : {});
   const counts = { prepared: 0, removed: 0 },
     config = {
-      models: { planReviewer: "fake-reviewer", planner: "fake-writer" },
+      roles: {
+        planReviewer: { model: "fake-reviewer" },
+        planner: { model: "fake-writer" },
+      },
       planReview: { mode, rounds },
     };
   const options = {

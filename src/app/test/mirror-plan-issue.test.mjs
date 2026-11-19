@@ -32,7 +32,6 @@ test("with a driver bound, the plan issue and every task issue go to the mirror"
         repositories: {
           [SOURCE]: {
             baseBranch: "main",
-            coder: "issue-radar",
             mirror: { source: SOURCE, mirror: MIRROR },
           },
         },

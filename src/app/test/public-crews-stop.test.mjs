@@ -40,7 +40,7 @@ function setup(t) {
     edges: [],
   });
   for (const id of ["pub", "priv", UNREAD]) store.put("projects", { id });
-  const repo = () => ({ baseBranch: "main", coder: "issue-radar" });
+  const repo = () => ({ baseBranch: "main" });
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({

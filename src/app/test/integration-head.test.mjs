@@ -22,7 +22,6 @@ const policy = {
   repositories: {
     [REPO]: {
       baseBranch: "main",
-      coder: "issue-radar",
       requiredChecks: ["build"],
     },
   },

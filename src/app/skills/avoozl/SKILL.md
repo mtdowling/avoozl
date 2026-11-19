@@ -149,7 +149,7 @@ For operation arguments, task-block examples, validation/integration, models and
 ```
 
 MCP exposes the same workflow through tools including `plans_query`,
-`plans_activity`, `plans_task {action: "update"}`, `plans_get_plan`, `plans_review {action: "extract"}`,
+`plans_task {action: "update"}`, `plans_get_plan`, `plans_review {action: "extract"}`,
 `plans_review {action: "extraction"}`, `plans_submit_extraction`, `plans_review {action: "dispose_fact"}`,
 `plans_approve_plan`, `plans_task {action: "handoff"}`, `plans_run {action: "get"}`, `plans_task {action: "validate"}`
 and `plans_task {action: "integrate"}`. Inspect `tools/list` for each tool's current input
@@ -160,29 +160,6 @@ To refresh an installed copy, print the maintained skill with `{{CLI}} skill` an
 ## Waiting on CI
 
 Every chat, Issue Radar and the Avoozl tick share one GitHub login and its rate limit (5,000 REST calls an hour). To wait on a pull request's checks, run `gh pr checks <number>` once every 2 to 3 minutes. Do not use `gh pr checks --watch`, `gh run watch`, or a loop that polls faster. While Avoozl shows "GitHub rate limit reached", make no GitHub calls until the time it gives.
-
-## Link external Claude sessions
-
-After claiming work, register the real provider identity, not just an agent
-nickname. Keep the ownership lease and transcript link separate:
-
-```sh
-{{WORKSPACE_CLI}} register-session --task TASK_ID --lease LEASE_ID --provider claude --session SESSION_UUID
-```
-
-For a Claude subagent, `SESSION_UUID` is the parent session and `--agent AGENT_ID`
-selects the child's own transcript. The parent or launcher should pass these
-identities to each worker. Do not substitute a task name or start another agent
-to obtain an identity.
-
-Claude launchers can use `{{WORKSPACE_CLI}} session-hook --task TASK_ID --lease
-LEASE_ID` as a SessionStart/SubagentStart/PostToolUse command hook. It reads Claude's JSON
-hook input (`session_id`, optional `agent_id`), validates the transcript, and
-registers it without taking over the worker. `AVOOZL_TASK` and
-`AVOOZL_LEASE` can supply the task and lease instead of flags. Hook
-failure reports to stderr and leaves the worker running; retry registration
-through the CLI or MCP when the workspace returns. A new task claim needs a
-new registration; heartbeats preserve the existing link.
 
 `session.discover` lists local session metadata
 inside the task's projects. The site also offers **Link Claude session** when a

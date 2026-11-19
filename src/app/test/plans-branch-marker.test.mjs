@@ -73,7 +73,6 @@ function open(t) {
           "example/code": {
             baseBranch: "main",
             allowedActors: ["maintainer"],
-            coder: "issue-radar",
             mirror: {
               source: "example/code",
               mirror: MIRROR,

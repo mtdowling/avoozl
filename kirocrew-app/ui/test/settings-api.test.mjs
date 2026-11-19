@@ -27,11 +27,9 @@ const POLICY = {
       folder: 'Avoozl/app',
       dependencyText: true,
       baseBranch: 'main',
-      coder: 'worker',
       allowedActors: ['maintainer', 'second'],
       minimumPermission: 'maintain',
       requiredChecks: ['build'],
-      concurrency: 2,
       priority: ['critical'],
       pullRequestReviews: { approvals: 2 },
       managedLabels: { managed: 'agent:managed', ready: 'agent:ready' },
@@ -49,10 +47,7 @@ test('a policy round-trips through the form unchanged', () => {
 
 test('the form keeps settings it does not show', () => {
   const form = toForm(POLICY)
-  // The retired `concurrency` and `coder` (R91.6) are not shown; they pass
-  // through untouched, so an old file is never migrated.
-  assert.deepEqual(form.repositories[0].rest, { checkout: '../app', folder: 'Avoozl/app', coder: 'worker', dependencyText: true, concurrency: 2 })
-  assert.equal('concurrency' in form.repositories[0], false)
+  assert.deepEqual(form.repositories[0].rest, { checkout: '../app', folder: 'Avoozl/app', dependencyText: true })
   assert.equal(form.repositories[0].allowedActors, 'maintainer, second')
 })
 

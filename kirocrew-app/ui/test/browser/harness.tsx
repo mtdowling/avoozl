@@ -565,7 +565,7 @@ if (query.get('page') === 'app') {
     ? { mode: 'single-repo', defaultAuthority: 'github', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
     : roles === 'local'
       ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
-      : { mode: 'plans-repo', planningRepository: 'acme/plans', defaultAuthority: 'github', epicIssueType: 'Epic', project: { owner: 'acme', number: 7 }, repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code', coder: 'worker', requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'], merge: { method: 'squash' }, rules: [{ id: 'ready', action: 'plan', match: 'label:ready -label:blocked' }], untriaged: { triageLabels: ['needs-triage'] } }, 'acme/recipe-api': { baseBranch: 'main', role: 'code', minimumPermission: 'write' } } }
+      : { mode: 'plans-repo', planningRepository: 'acme/plans', defaultAuthority: 'github', epicIssueType: 'Epic', project: { owner: 'acme', number: 7 }, repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code', requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'], merge: { method: 'squash' }, rules: [{ id: 'ready', action: 'plan', match: 'label:ready -label:blocked' }], untriaged: { triageLabels: ['needs-triage'] } }, 'acme/recipe-api': { baseBranch: 'main', role: 'code', minimumPermission: 'write' } } }
   if (roles)
     answer('repositories.list', () => ({ items: [
       { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main', landing: 'pr', harness: 'kiro' },
@@ -600,7 +600,7 @@ if (query.get('page') === 'app') {
     filename: '.avoozl.json',
     exists: true,
     hash: 'h',
-    github: roles ? rolesGithub : { mode: 'plans-repo', repositories: { 'acme/recipe-box': worker ? { coder: 'worker' } : { coder: 'issue-radar' } } },
+    github: roles ? rolesGithub : { mode: 'plans-repo', repositories: { 'acme/recipe-box': worker ? {} : {} } },
     effective: null,
     error: null,
     crews: [],
@@ -1879,7 +1879,6 @@ const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, u
       repositories: {
         'example/code': {
           baseBranch: 'main',
-          coder: 'issue-radar',
           allowedActors: ['sam', 'lee'],
           release: { capacity: 3, mode: 'step' },
           managedLabels: { ready: 'go-crew' },
@@ -1894,10 +1893,10 @@ const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, u
     policy: {
       mode: 'plans-repo',
       planningRepository: 'example/plans',
-      repositories: { 'example/code': { baseBranch: 'main', coder: 'worker', concurrency: 4, minimumPermission: 'maintain' } },
+      repositories: { 'example/code': { baseBranch: 'main', minimumPermission: 'maintain' } },
     },
   },
-  local: { mode: 'local', policy: { mode: 'local', repositories: { 'example/code': { baseBranch: 'trunk', coder: 'issue-radar', radar: { planLabel: 'kept-but-unused' } } } } },
+  local: { mode: 'local', policy: { mode: 'local', repositories: { 'example/code': { baseBranch: 'trunk', radar: { planLabel: 'kept-but-unused' } } } } },
 }
 function WorkflowMapPage() {
   const config = WORKFLOW_POLICIES[query.get('config') ?? 'single']
