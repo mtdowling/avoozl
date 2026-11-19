@@ -27,7 +27,9 @@
   "toolsSettings": {
     "fs_write": {
       "fallbackAction": "deny",
-      "allowedPaths": [".kiro/specs/**"]
+      "allowedPaths": [
+        ".kiro/specs/**"
+      ]
     }
   },
   "includeMcpJson": false

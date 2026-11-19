@@ -15,7 +15,8 @@
       "!!docs/research",
       "!!docs/evidence",
       "!src/marked.mjs",
-      "!scripts/test-map.json"
+      "!scripts/test-map.json",
+      "!kirocrew-app/agents/*.json"
     ]
   },
   "formatter": {
