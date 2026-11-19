@@ -2,5 +2,5 @@
 #   git config blame.ignoreRevsFile .git-blame-ignore-revs
 # GitHub's blame view reads this file on its own.
 
-# Format the whole repository with Biome
-c8fb6eb1efe508459dd9ab23d3fa8a84959408e9
+# Replace Prettier with the Biome formatter and format the whole repo (#687)
+3ed29ade13ef3c4883814b5b1d845d5a488a05b6
