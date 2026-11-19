@@ -171,7 +171,7 @@ export function SpecCard(props: { title: string; id?: string; actions?: ReactNod
         css-border-bottom="1px-solid-border"
         css-background="mix-bg-elevated-60%-transparent"
       >
-        <Hint as="h3" css-margin="0" css-flex="1-1-auto" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase">
+        <Hint as="h3" css-margin="0" css-flex="1-1-auto" size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase">
           {props.title}
         </Hint>
         {props.actions}
@@ -187,7 +187,7 @@ function RailSection(props: { title: string; edit?: { label: string; onClick: ()
   return (
     <Box data-rail-section={props.title} {...props.attrs} as="section" css-padding-bottom="14" css-margin-bottom="14" css-border-bottom="1px-solid-border">
       <Box css-display="flex" css-align-items="center" css-justify-content="space-between" css-gap="8" css-margin-bottom="8">
-        <Hint as="h4" css-margin="0" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase">
+        <Hint as="h4" css-margin="0" size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase">
           {props.title}
         </Hint>
         {props.edit && (
@@ -1255,17 +1255,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
         >
           {row.name}
         </Box>
-        <Hint
-          data-spec-meta
-          as="p"
-          css-margin="12px-0-0"
-          css-display="flex"
-          css-flex-wrap="wrap"
-          css-align-items="center"
-          css-gap="8"
-          css-font-size="12.5"
-          css-line-height="19.4px"
-        >
+        <Hint data-spec-meta as="p" css-margin="12px-0-0" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" size="12.5" css-line-height="19.4px">
           {specMeta(row, plan).map((part, i) => (
             <Box key={i} as="span" css-display="contents">
               {i > 0 && <span aria-hidden="true">·</span>}
@@ -1288,7 +1278,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
         css-padding-right={pad}
       >
         <StatePill status={row.status} archived={Boolean(row.archived)} />
-        <Hint data-spec-id as="span" css-font-size="12.5" css-font-family="font-mono-ui-monospace-monospace" css-overflow-wrap="anywhere">
+        <Hint data-spec-id as="span" size="12.5" css-font-family="font-mono-ui-monospace-monospace" css-overflow-wrap="anywhere">
           {id}
         </Hint>
         <Box as="span" css-display="inline-flex" css-align-items="stretch" css-gap="6">

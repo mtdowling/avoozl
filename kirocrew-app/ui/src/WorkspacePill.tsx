@@ -106,7 +106,7 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
           css-flex-direction="column"
           css-gap="2"
         >
-          <Hint as="div" css-padding="4px-8px" css-font-size="12" css-font-weight="600" css-letter-spacing=".04em" css-text-transform="uppercase">
+          <Hint as="div" css-padding="4px-8px" size="12" css-font-weight="600" css-letter-spacing=".04em" css-text-transform="uppercase">
             Workspaces
           </Hint>
           {(list?.items ?? []).map((item) => {

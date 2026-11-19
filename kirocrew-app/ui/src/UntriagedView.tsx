@@ -323,58 +323,40 @@ function Table(props: {
       <Box as="table" css-border-collapse="collapse" wFull size="sm" data-untriaged-table>
         <thead>
           <tr>
-            <Hint
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-              css-width="28"
-            >
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-width="28">
               <Switch label="Select every row shown" checked={all} onChange={(on) => props.onSelect(keys, on)} />
             </Hint>
-            <Hint
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-              css-width="28"
-            >
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-width="28">
               <Box as="span" srOnly>
                 Kind
               </Box>
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Item
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Source
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Repository
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Author
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Age
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Labels
             </Hint>
-            <Hint as="th" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-text-align="right">
+            <Hint as="th" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-text-align="right">
               <Tooltip text="Comments">
                 <Box role="img" aria-label="Comments" as="span" css-display="inline-flex">
                   <MessageSquare size={12} aria-hidden="true" />
                 </Box>
               </Tooltip>
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               <Box as="span" srOnly>
                 Open in
               </Box>
@@ -550,33 +532,24 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
       <Box as="table" css-border-collapse="collapse" wFull size="sm" data-radar-list>
         <thead>
           <tr>
-            <Hint
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-              css-width="28"
-            >
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-width="28">
               <Box as="span" srOnly>
                 Kind
               </Box>
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Item
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Repository
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               State
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               How it got there
             </Hint>
-            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               <Box as="span" srOnly>
                 Open in
               </Box>

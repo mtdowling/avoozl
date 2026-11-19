@@ -439,7 +439,7 @@ function DeliveryFilters(props: {
               onClick={() => set({ state: filter.state === state.id ? undefined : state.id })}
               attrs={{ 'data-rail-state': state.id }}
               trail={
-                <Hint as="span" css-font-size="12" css-font-variant-numeric="tabular-nums">
+                <Hint as="span" size="12" css-font-variant-numeric="tabular-nums">
                   {states.get(state.id) ?? 0}
                 </Hint>
               }

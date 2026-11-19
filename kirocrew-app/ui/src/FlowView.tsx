@@ -216,7 +216,6 @@ function MetricCards({ view }: { view: FlowViewModel }) {
                 css-overflow-wrap="anywhere"
                 css-font-weight="700"
                 css-text-transform="uppercase"
-                css-font-size="0.75rem"
                 size="xs"
               >
                 {card.title}

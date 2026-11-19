@@ -33,7 +33,7 @@ export function BrandCard(props: { workspaceId: string | null; boxed?: boolean }
           <InstanceBadge workspaceId={props.workspaceId} plain />
         </Box>
         {AVOOZL_VERSION && (
-          <Hint data-avoozl-version as="span" css-font-size="11" shrink0>
+          <Hint data-avoozl-version as="span" size="11" shrink0>
             v{AVOOZL_VERSION}
           </Hint>
         )}

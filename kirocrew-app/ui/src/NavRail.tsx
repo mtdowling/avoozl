@@ -198,7 +198,7 @@ export function RailChips(props: {
         })}
       </Box>
       {open && shown.length === 0 && (
-        <Hint as="div" css-font-size="12">
+        <Hint as="div" size="12">
           No {props.noun} matches “{query}”.
         </Hint>
       )}

@@ -192,7 +192,7 @@ function FindingCard(props: {
             </Box>
           </Tooltip>
         </Box>
-        <Hint data-state-label as="span" css-flex="none" css-font-size="11">
+        <Hint data-state-label as="span" css-flex="none" size="11">
           {finding.state}
         </Hint>
       </Box>
@@ -260,7 +260,7 @@ function FindingCard(props: {
           )}
         </Box>
         {finding.decisions.length > 0 && (
-          <Hint as="ul" css-margin="0" css-padding="0" css-display="flex" css-flex-direction="column" css-gap="2" css-list-style="none" css-font-size="11" m0 data-finding-history>
+          <Hint as="ul" css-margin="0" css-padding="0" css-display="flex" css-flex-direction="column" css-gap="2" css-list-style="none" size="11" m0 data-finding-history>
             {finding.decisions.map((d, i) => (
               <li key={i}>
                 {ACTION_TEXT[d.action]} by {d.by} at <code>{shortHash(d.revisionHash)}</code>
@@ -311,7 +311,7 @@ function FindingCard(props: {
                 </CardBtn>
               ))}
             </Box>
-            <Hint as="p" css-margin="0" css-font-size="11" m0 data-finding-hint>
+            <Hint as="p" css-margin="0" size="11" m0 data-finding-hint>
               {actions.hint}
             </Hint>
           </Box>
