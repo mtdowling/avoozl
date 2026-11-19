@@ -4746,10 +4746,8 @@ fact that is not directly under a task item), `facts.stray` (a bullet such
 as `done:` under an item that reads as a fact without its `$`),
 `facts.missing` (a task with no facts), `facts.block` (a `Facts:` block
 still in `tasks.md` on disk), `spec.manifest-left`. The rules the manifest
-had keep their codes. A plan revision or receipt stored in SQLite with
-`Facts:` blocks is read and hashed as its `$` layout
-(`foldFactsBlocks`, `spec-legacy.mjs`), since a revision whose hash did not
-change is never stored again.
+had keep their codes. Nothing reads `Facts:` blocks or the manifest, on
+disk or in a record stored in SQLite.
 
 **Revision hash.** The hash covers the prose files without `Status:`,
 `tasks.md` without checkbox marks, `$` fact bullets and its front-matter, and
@@ -4765,19 +4763,12 @@ listed tasks in another order than `tasks.md`, ordered a task's keys by hand,
 or escaped `§` as `\u00a7`, and none of that survives the move. Avoozl parses a revision once, keeps it in SQLite,
 and parses again only when the hash changes. Ticks stay outside it.
 
-**Approval carry-over.** Owner decision 2026-11-18. When `plan.save` stores
-a new revision of an approved spec, and the approved receipt's stored files
-and the new files have the same prose without `Status:`, the same `tasks.md`
-text without marks and facts, the same spec-wide facts and the same parsed
-tasks (line numbers aside), Avoozl records a new approval at the new hash
-with `carriedFrom` naming the old one. It opens no approval pull request and
-changes no issue: the plan keeps `issueHash`, the hash its issues were
-projected at, until a normal approval clears it. Any difference, or a check
-that refuses the revision, leaves a draft for a normal approval. The spec
-page's Approvals list shows "carried from". The old manifest is read only
-from a receipt or revision stored in SQLite (`spec-legacy.mjs`), never from
-disk. A rebuild from GitHub after the database is lost still needs a person
-to approve a spec whose issues name the old hash.
+**No carry-over.** Changed 2026-11-19 (owner decision: no backward
+compatibility). A revision with a new hash needs a normal approval, even when
+only its layout changed. The 2026-11-18 carry-over (`carriedFrom` on a
+receipt, `issueHash` on a plan, `spec-legacy.mjs` folding stored old
+layouts) is deleted. A record stored in an old layout parses as a folder lint
+refuses; a person recreates it from the folder on disk.
 
 **Removed.** `avoozl/manifest.json` and everything that read it from disk or
 wrote it, `spec-manifest.mjs` (the manifest drafted from marker bullets), the
@@ -4796,10 +4787,10 @@ since the conversion.
 
 **Tests.** `spec-facts.test.mjs`: each key, each refusal with its line,
 defaults and packages, an epic folder, a batch group, a leftover manifest.
-`spec-plans.test.mjs` and the fixtures write `$` facts. A hash test: the same
-spec in old layout (built in the test) and new layout hashes the same, and a
-changed fact changes it. `spec-carry.test.mjs`: the same content carries;
-one character changed in prose, `after` or `done` does not.
+`spec-plans.test.mjs` and the fixtures write `$` facts. A hash test: an
+inline list and repeated bullets hash the same, marks stay outside, and a
+changed fact changes it. `facts-blocks.test.mjs`: a `Facts:` block is
+refused.
 `spec-conversion.test.mjs` as above. `kirocrew-planner.test.mjs`: the
 planner prompt's example folder lints clean.
 
