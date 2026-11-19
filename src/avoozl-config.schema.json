@@ -528,6 +528,15 @@
           "pattern": "^\\d{1,6}[mhd]$",
           "exclusiveMinimum": 0,
           "default": "24h"
+        },
+        "offerTo": {
+          "description": "GitHub logins of worker machines. The driver's tick offers each ready task of a spec it drives to them, does not start those tasks here, and answers their claims. Unset: a person offers with avoozl spec offer.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}$"
+          },
+          "uniqueItems": true
         }
       }
     },
