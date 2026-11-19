@@ -945,7 +945,8 @@ export async function drainProcessRequests(
             if (
               scratch &&
               path.basename(scratch).startsWith(row.scratch) &&
-              path.dirname(scratch) === path.resolve(os.tmpdir())
+              // By real paths: scratchFolder names it by its real path.
+              path.dirname(scratch) === fs.realpathSync.native(os.tmpdir())
             )
               fs.rmSync(scratch, { recursive: true, force: true });
           }
