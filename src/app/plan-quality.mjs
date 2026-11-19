@@ -57,9 +57,9 @@ function effectiveProject(plan, task, existing) {
 }
 
 // Completion levels each route can observe (design §4.3).
+// `merged-pr` is an old value for landed (R102.20).
 const ROUTE_COMPLETIONS = {
-  local: ["integrated", "released", "answered"],
-  github: ["merged-pr", "released", "answered"],
+  local: ["integrated", "merged-pr", "released", "answered"],
 };
 // What a manual leaf may not hold: nothing runs it (R61.9).
 const MANUAL_REFUSED = [

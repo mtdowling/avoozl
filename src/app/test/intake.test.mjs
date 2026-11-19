@@ -18,7 +18,6 @@ import {
 } from "../intake.mjs";
 import { Operations } from "../operations.mjs";
 import { notificationPayload } from "../notifications.mjs";
-import { syncGitHubIssues } from "../github-sync.mjs";
 import { dispatchOrder } from "../delivery.mjs";
 import { validatePack } from "../plugin-pack.mjs";
 import { incomingItem } from "../plugin-contract.mjs";
@@ -299,80 +298,6 @@ test("waitingLabels and priorityLabels are pack settings; absent changes nothing
     sorted.map((task) => task.id),
     ["ranked", "p0", "p1", "none"],
   );
-});
-
-test("a waiting label holds a GitHub task with Waiting on the author; priority sets its rank", async (t) => {
-  const { store } = fixture(t);
-  store.put("github_repositories", {
-    id: "o/app",
-    owner: "o",
-    repo: "app",
-    projectId: "code",
-  });
-  const issue = (number, labels) => ({
-      id: number,
-      node_id: `I_${number}`,
-      number,
-      title: `Issue ${number}`,
-      body: "",
-      state: "open",
-      labels: labels.map((name) => ({ name })),
-      assignees: [],
-      html_url: `https://github.com/o/app/issues/${number}`,
-    }),
-    issues = [issue(1, ["go", "response-requested"]), issue(2, ["go", "p1"])],
-    github = {
-      repository: async () => ({ default_branch: "main" }),
-      searchIssuesWithAnyLabel: async () => structuredClone(issues),
-      issue: async () => null,
-      issueEvents: async () => [
-        {
-          id: 1,
-          event: "labeled",
-          label: { name: "go" },
-          actor: { login: "owner" },
-          created_at: "2026-11-12T00:00:00Z",
-        },
-      ],
-      permission: async () => ({ permission: "admin" }),
-    },
-    rules = [{ id: "go", action: "execute", match: "label:go" }],
-    run = (extra) =>
-      syncGitHubIssues(store, github, {
-        policy: normalizeGitHubPolicy({
-          mode: "single-repo",
-          repositories: { "o/app": { baseBranch: "main", rules, ...extra } },
-        }),
-      });
-  const tasks = () =>
-    new Map(
-      store
-        .read()
-        .tasks.filter((task) => task.github)
-        .map((task) => [task.github.number, task]),
-    );
-  // Without the settings, both run as before.
-  await run({});
-  assert.equal(tasks().get(1).dispatch.ready, true);
-  assert.equal(tasks().get(2).labelRank, undefined);
-  await run({
-    waitingLabels: ["response-requested"],
-    priorityLabels: ["p0", "p1"],
-  });
-  assert.deepEqual(
-    [
-      tasks().get(1).dispatch.ready,
-      tasks().get(1).dispatch.state,
-      tasks().get(1).dispatch.reason,
-    ],
-    [false, "waiting", "Waiting on the author"],
-  );
-  assert.equal(
-    tasks().get(2).dispatch.ready,
-    true,
-    "a priority label never changes the lane",
-  );
-  assert.equal(tasks().get(2).labelRank, 1);
 });
 
 test("a title edit after the trigger holds the item's task and keeps its title", (t) => {

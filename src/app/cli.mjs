@@ -1854,12 +1854,9 @@ try {
       ),
     );
   else if (command === "task" && positionals[0] === "links") {
-    // Task links (R61.22): list and add for anyone; edit, remove and
-    // show on the issue are a person's, as the command line is.
-    const taskId = need(
-        positionals[1],
-        "task links TASK_ID [add|edit|remove|show]",
-      ),
+    // Task links (R61.22): list and add for anyone; edit and remove are a
+    // person's, as the command line is.
+    const taskId = need(positionals[1], "task links TASK_ID [add|edit|remove]"),
       action = positionals[2] || "list",
       entry = () => ({ kind: "link", url: options.link, label: options.label });
     const name = {
@@ -1867,10 +1864,9 @@ try {
       add: "task.notes.add",
       edit: "task.notes.edit",
       remove: "task.notes.remove",
-      show: "task.notes.show",
     }[action];
     if (!name)
-      throw Error("Choose task links TASK_ID list, add, edit, remove or show.");
+      throw Error("Choose task links TASK_ID list, add, edit or remove.");
     const id =
         action === "list" || action === "add"
           ? undefined
@@ -1882,9 +1878,7 @@ try {
             ? { taskId, ...entry() }
             : action === "edit"
               ? { taskId, id, ...entry() }
-              : action === "show"
-                ? { taskId, id, onIssue: !options.off }
-                : { taskId, id };
+              : { taskId, id };
     console.log(JSON.stringify(await localOrRequest(name, input), null, 2));
   } else if (
     command === "task" &&

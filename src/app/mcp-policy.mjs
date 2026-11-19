@@ -66,7 +66,6 @@ export const PERSON_ONLY = new Map([
   ["task.manual.reopen", person("Only a person reopens a manual task.")],
   ["task.notes.edit", person("Only a person edits a link.")],
   ["task.notes.remove", person("Only a person removes a link.")],
-  ["task.notes.show", person("Only a person shows a link on the issue.")],
   ["plugin.add", person("Only a person changes plugins.")],
   ["plugin.approve", person("Only a person changes plugins.")],
   ["plugin.update", person("Only a person changes plugins.")],

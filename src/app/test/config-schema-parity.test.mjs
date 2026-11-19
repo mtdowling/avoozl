@@ -129,7 +129,6 @@ const PAIRS = [
   [`${REPOSITORY}/crewLabels`, CREW_LABEL_KEYS],
   [`${REPOSITORY}/approval`, GITHUB_BLOCK_KEYS.approval],
   [`${REPOSITORY}/pullRequestReviews`, GITHUB_BLOCK_KEYS.pullRequestReviews],
-  [`${REPOSITORY}/commentSteering`, GITHUB_BLOCK_KEYS.commentSteering],
   [`${REPOSITORY}/discussions`, GITHUB_BLOCK_KEYS.discussions],
   [`${REPOSITORY}/untriaged`, GITHUB_BLOCK_KEYS.untriaged],
   [`${REPOSITORY}/conflicts`, GITHUB_BLOCK_KEYS.conflicts],

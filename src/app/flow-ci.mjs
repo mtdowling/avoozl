@@ -161,9 +161,14 @@ export function windowStart(now, days) {
   return Math.floor(now / size) * size;
 }
 
-// The task an open pull request delivers: an issue it closes that a task
-// tracks. Null for a pull request no task owns.
+// The task an open pull request delivers: the task whose worktree branch is
+// its head, or an issue it closes that a task tracks. Null for a pull
+// request no task owns.
 function taskOf(store, data, repository, pull) {
+  const worktree = listOr(store, "task_worktrees").find(
+    (row) => row.branch && row.branch === pull.headRefName,
+  );
+  if (worktree) return worktree.taskId;
   for (const ref of pull.closingIssuesReferences?.nodes || []) {
     const where = ref.repository?.nameWithOwner || repository,
       task = data.tasks.find(

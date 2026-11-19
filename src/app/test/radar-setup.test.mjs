@@ -113,7 +113,6 @@ test("a preview shows each step and writes nothing", async () => {
       ["auto-merge", "change"],
       ["merge-method", "ok"],
       ["agents-pr", "change"],
-      ["project", "input"],
     ],
   );
   assert.deepEqual(github.state.writes, []);
@@ -218,7 +217,7 @@ test("no named CI check asks for one; steps that are done change nothing", async
   const result = await radarSetup(github, REPO, settings());
   assert.deepEqual(
     result.steps.map((step) => step.status),
-    ["ok", "ok", "ok", "ok", "change", "input"],
+    ["ok", "ok", "ok", "ok", "change"],
   );
   const none = await radarSetup(fake(), REPO, settings({ requiredChecks: [] }));
   assert.equal(byId(none, "branch-rule").status, "input");
@@ -259,7 +258,7 @@ test("radar.setup runs through operations and refuses an unregistered repository
   const github = fake(),
     ops = new Operations(store, { github, workspaceRoot: root }),
     result = await ops.execute("radar.setup", { repository: REPO });
-  assert.equal(result.steps.length, 6);
+  assert.equal(result.steps.length, 5);
   await assert.rejects(
     ops.execute("radar.setup", { repository: "other/repo" }),
     (error) => error.status === 404,
@@ -348,17 +347,3 @@ test("a content rule that blocks the pull request text stops it before any write
   assert.deepEqual(github.state.writes, []);
 });
 
-test("the Project step reads the configured Project and never writes it", async () => {
-  const github = fake(),
-    context = { project: { owner: "example", number: 3 } },
-    step = byId(
-      await radarSetup(github, REPO, settings(), {}, context),
-      "project",
-    );
-  assert.equal(step.status, "ok");
-  assert.match(step.detail, /example#3/);
-  await assert.rejects(
-    radarSetup(github, REPO, settings(), { confirm: true, step: "project" }),
-    (error) => error.status === 409,
-  );
-});

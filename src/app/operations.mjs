@@ -612,7 +612,6 @@ import {
   noteAuthor,
   notesView,
   removeNote,
-  showNote,
 } from "./task-notes.mjs";
 
 // Avoozl-recorded validation at a task's current commit (§5.2, R38.5): its
@@ -4363,7 +4362,6 @@ export class Operations {
         );
       if (name === "task.notes.edit") return editNote(store, task, input);
       if (name === "task.notes.remove") return removeNote(store, task, input);
-      if (name === "task.notes.show") return showNote(store, task, input);
     }
     if (name === "intake.view") return viewItem(store, input);
     if (name === "intake.sources") {

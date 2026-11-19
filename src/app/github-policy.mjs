@@ -119,7 +119,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "author",
   ],
   pullRequestReviews: ["approvals"],
-  commentSteering: ["mention"],
   discussions: ["categories"],
   release: ["capacity", "mode", "scopes", "ranking"],
   ranking: ["enabled", "agingHours"],
@@ -147,8 +146,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "acceptedLabel",
     "rules",
     "buildReceipts",
-    "stackedPullRequests",
-    "commentSteering",
     "discussions",
     "untriaged",
     "mirror",
@@ -302,19 +299,6 @@ function reviewsInput(value, label) {
   return { approvals };
 }
 
-// Comment-mention steering (task 8.2, R27.13): off unless present. A comment
-// on a running GitHub leaf's issue that names `mention`, by an actor the
-// policy allows, is relayed to the leaf's worker session.
-const MENTION =
-  /^@[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:\/[A-Za-z0-9._-]{1,100})?$/;
-function steeringInput(value, label) {
-  if (value === undefined || value === null) return null;
-  onlyKeys(value, GITHUB_BLOCK_KEYS.commentSteering, label);
-  if (typeof value.mention !== "string" || !MENTION.test(value.mention))
-    fail(`${label}.mention must be a GitHub @name or @org/team.`);
-  return { mention: value.mention };
-}
-
 // Discussions answering (task 8.2, R27.13): off unless present. Only
 // discussions in `categories` whose author the policy allows get one reply.
 function discussionsInput(value, label) {
@@ -405,11 +389,6 @@ function writesInput(value, label, max) {
 function repositoryInput(value, id, mode) {
   const label = `github.repositories.${id}`;
   onlyKeys(value, GITHUB_BLOCK_KEYS.repository, label);
-  if (
-    value.stackedPullRequests !== undefined &&
-    typeof value.stackedPullRequests !== "boolean"
-  )
-    fail(`${label}.stackedPullRequests must be true or false.`);
   const baseBranch = name(value.baseBranch, `${label}.baseBranch`, {
     optional: true,
   });
@@ -647,11 +626,10 @@ function repositoryInput(value, id, mode) {
     value.pullRequestReviews,
     `${label}.pullRequestReviews`,
   );
-  const commentSteering = steeringInput(
-      value.commentSteering,
-      `${label}.commentSteering`,
+  const discussions = discussionsInput(
+      value.discussions,
+      `${label}.discussions`,
     ),
-    discussions = discussionsInput(value.discussions, `${label}.discussions`),
     untriaged = untriagedInput(
       value.untriaged,
       `${label}.untriaged`,
@@ -687,12 +665,10 @@ function repositoryInput(value, id, mode) {
       ? { sourceRules: rules.filter((rule) => rule.source) }
       : {}),
     // Deferred features (task 8.2), each off by default.
-    stackedPullRequests: value.stackedPullRequests === true,
     cacheSeconds: cacheSecondsInput(
       value.cacheSeconds,
       `${label}.cacheSeconds`,
     ),
-    commentSteering,
     discussions,
     untriaged,
     conflicts: conflictsInput(value.conflicts, `${label}.conflicts`),

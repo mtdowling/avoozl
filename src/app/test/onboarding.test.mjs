@@ -1,4 +1,4 @@
-// The Onboard flow's backend (onboarding.mjs, plan.issues.preview): the
+// The Onboard flow's backend (onboarding.mjs): the
 // reads each step makes, the nearby inputs (no remote, a non-GitHub remote,
 // a repository already registered, specs with lint errors), and the flow's
 // invariant: its reads write nothing, and the flow never approves,
@@ -98,7 +98,6 @@ test("the Onboard reads are classified, page-only and read-only", () => {
   for (const name of [
     "onboarding.inspect",
     "onboarding.scan",
-    "plan.issues.preview",
   ]) {
     assert.equal(classifyOperation(name), "observe", name);
     assert.equal(principalAllows({ kind: "owner-session" }, name), true, name);
@@ -201,7 +200,7 @@ test("the leak scan names secrets and machine paths by file and line, never the 
   );
 });
 
-test("Onboard end to end: reads before setup write nothing; issues are previewed, never made; nothing is approved", async (t) => {
+test("Onboard end to end: reads before setup write nothing; nothing is approved", async (t) => {
   const ws = workspace(t);
   const code = checkout(`git@github.com:${REPO}.git`);
   writeSpec(code, "load-config");
@@ -246,45 +245,6 @@ test("Onboard end to end: reads before setup write nothing; issues are previewed
   assert.equal(names["load-config"].counts.error, 0);
   const plan = await ws.ops.execute("plan.create", { spec: "load-config" });
   assert.notEqual(plan.state, "approved");
-
-  // Step 7: preview the issues approval would make.
-  const created = ws.github.created.length,
-    tasks = ws.store.read().tasks.length,
-    approvals = ws.store.list("approvals").length;
-  const preview = await ws.ops.execute("plan.issues.preview", {
-    planId: plan.id,
-  });
-  assert.equal(preview.simulated, true);
-  const issues = preview.writes.filter(
-    (write) => write.kind === "issue.create",
-  );
-  // Three task issues and the plan's own issue (Requirement 59.8).
-  assert.equal(issues.length, 4, JSON.stringify(preview.writes));
-  assert.equal(
-    issues.filter((write) => write.taskId === "plan.load-config").length,
-    1,
-  );
-  assert.ok(issues.every((write) => write.repository === REPO));
-  assert.equal(
-    ws.github.created.length,
-    created,
-    "the preview made a GitHub issue",
-  );
-  assert.equal(ws.store.read().tasks.length, tasks, "the preview made tasks");
-  assert.equal(
-    ws.store.list("approvals").length,
-    approvals,
-    "the preview approved",
-  );
-  assert.notEqual(ws.store.get("plans", plan.id).state, "approved");
-
-  // A plan with lint errors is not previewed; the errors say why.
-  const broken = await ws.ops.execute("plan.create", { spec: "broken" });
-  const held = await ws.ops.execute("plan.issues.preview", {
-    planId: broken.id,
-  });
-  assert.ok(held.blocked.length > 0);
-  assert.deepEqual(held.writes, []);
 
   // The flow never approved, dispatched or pushed.
   assert.equal(ws.store.list("approvals").length, 0);

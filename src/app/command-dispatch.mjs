@@ -190,7 +190,6 @@ export const APP_OPERATIONS = new Set([
   "task.notes.add",
   "task.notes.edit",
   "task.notes.remove",
-  "task.notes.show",
   "template.list",
   "template.preview",
 ]);

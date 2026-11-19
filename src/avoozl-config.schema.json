@@ -1720,23 +1720,6 @@
             "$ref": "#/$defs/githubRule"
           }
         },
-        "stackedPullRequests": {
-          "type": "boolean",
-          "default": false
-        },
-        "commentSteering": {
-          "type": ["object", "null"],
-          "description": "Relay a comment that names mention, by an allowed actor, to the running leaf's worker. Off unless present.",
-          "additionalProperties": false,
-          "required": ["mention"],
-          "properties": {
-            "mention": {
-              "type": "string",
-              "pattern": "^@[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:/[A-Za-z0-9._-]{1,100})?$",
-              "description": "A GitHub @name or @org/team."
-            }
-          }
-        },
         "discussions": {
           "type": ["object", "null"],
           "description": "Answer discussions in these categories whose author is allowed. Off unless present.",

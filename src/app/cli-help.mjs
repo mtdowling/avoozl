@@ -236,10 +236,6 @@ export const HELP_GROUPS = Object.freeze([
         "Remove a link; it stays in the activity history (a person only)",
       ),
       entry(
-        "task links TASK_ID show LINK_ID [--off]",
-        "Show it on the task's issue, or stop (a person only)",
-      ),
-      entry(
         "task done TASK_ID [--skipped|--refused] [--link URL --label LABEL]",
         "Mark a manual task done, skipped or refused (a person only;\nrefused is a no-go and keeps its dependents held)",
       ),

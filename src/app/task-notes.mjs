@@ -246,7 +246,6 @@ export function editNote(store, task, input = {}) {
       taskId: task.id,
       noteId: entry.id,
     });
-    if (entry.onIssue) markReproject(store, task);
   });
   return next;
 }
@@ -263,21 +262,6 @@ export function removeNote(store, task, input = {}) {
       noteId: entry.id,
       kind: entry.kind,
     });
-    if (entry.onIssue) markReproject(store, task);
-  });
-  return next;
-}
-
-// Show on the issue (R61.23): a person's tick; off by default.
-export function showNote(store, task, input = {}) {
-  const entry = own(store, task.id, input.id);
-  if (typeof input.onIssue !== "boolean")
-    fail("onIssue must be true or false.");
-  const next = { ...entry, onIssue: input.onIssue };
-  if (next.onIssue === entry.onIssue) return entry;
-  store.transaction(() => {
-    store.put(TABLE, next);
-    markReproject(store, task);
   });
   return next;
 }
@@ -346,14 +330,4 @@ export function briefNotes(store, task, blockers = []) {
       ...part.lines,
     );
   return parts.join("\n");
-}
-
-// Plans whose issues must be written again because a shown entry changed;
-// the tick projects them and clears them (tick.mjs githubStep).
-const REPROJECT = "notes.reproject";
-export function markReproject(store, task) {
-  if (!task.planId) return;
-  const current = store.getMeta(REPROJECT) || [];
-  if (!current.includes(task.planId))
-    store.setMeta(REPROJECT, [...current, task.planId]);
 }

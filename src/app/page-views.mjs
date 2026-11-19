@@ -1285,7 +1285,6 @@ export function taskDetailView(
       manual: node?.manual ?? false,
       manualDone: node?.manualDone ?? null,
       // Show on the issue applies only to a task with an issue (R61.23).
-      onGitHub: Boolean(detail.github?.number),
     },
     origin: taskOrigin(detail, data, plan),
     plan: plan && {

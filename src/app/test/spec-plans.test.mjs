@@ -725,8 +725,8 @@ test("plan preview shows each task's authority and issue link", async (t) => {
       ),
     );
   const expected = {
-    "config.1": ["github", null],
-    "config.1.1": ["github", null],
+    "config.1": ["local", null],
+    "config.1.1": ["local", null],
     "config.1.2": ["local", null],
   };
   assert.deepEqual(await owners(), expected);

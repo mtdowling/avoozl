@@ -406,7 +406,7 @@ function TaskPanel(props: {
       {task.manual && (
         <ManualTask
           workspaceId={workspaceId}
-          task={{ id: task.id, title: task.title, acceptance: task.acceptance, manualDone: task.manualDone ?? null, onGitHub: Boolean(task.onGitHub) }}
+          task={{ id: task.id, title: task.title, acceptance: task.acceptance, manualDone: task.manualDone ?? null }}
           onChanged={(text) => {
             setMessage({ ok: true, text })
             void load()
@@ -523,7 +523,7 @@ function TaskPanel(props: {
                 <TaskScmLinks links={detail.links} />
                 <Box css-border-color="border" flex flexCol gap="2" border="t" pt="3" data-added-links>
                   <Box as="h4" size="sm" weight="semibold">Added links</Box>
-                  <TaskLinks workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
+                  <TaskLinks workspaceId={workspaceId} taskId={task.id} refresh={detail.revision} />
                 </Box>
               </Stack>
             </SectionBox>

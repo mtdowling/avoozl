@@ -261,7 +261,6 @@ const PROTECT = new Set([
   "task.manual.reopen",
   "task.notes.edit",
   "task.notes.remove",
-  "task.notes.show",
   "driver.settings.update",
   "driver.handoff",
   "driver.takeover",
