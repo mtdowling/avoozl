@@ -35,6 +35,7 @@
   "servedModel": { "from": "output", "field": "modelUsage" },
   "cost": { "from": "output", "field": "total_cost_usd", "per": "session" },
   "keepEnv": ["ANTHROPIC_API_KEY"],
+  "reads": ["~/.claude", "~/.claude.json"],
   "tmpEnv": ["CLAUDE_CODE_TMPDIR"],
   "proved": ["read", "write"]
 }

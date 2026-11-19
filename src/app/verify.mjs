@@ -6,6 +6,7 @@
 // off the tick; delivery judges the record they leave.
 import { PUBLISH_RULES, secretReason } from "./content-rules.mjs";
 import { commandEvidence, git } from "./git.mjs";
+import { checkOptions, prepareChecks } from "./check-isolation.mjs";
 import { fail } from "./store.mjs";
 
 // Protected by default in every repository (R86.6): CI workflows and the
@@ -112,6 +113,9 @@ export async function verifyPaths(store, { task, project, commit, flow }) {
     ...(allowed && verdict.protected.length
       ? { protected: [], allowed: verdict.protected }
       : {}),
+    // Every changed path, which picks the checks a change runs; a record
+    // keeps the verdict without it.
+    files: paths,
   };
 }
 
@@ -133,10 +137,12 @@ export function pathOutcome(run) {
   return null;
 }
 
-// A check's own timeout in ms: `verify.checkTimeouts[command]`, else the
-// caller's, else `verify.checkTimeoutSeconds`.
-export function checkTimeout(command, flow, fallbackMs) {
-  const own = flow?.verify?.checkTimeouts?.[command];
+// A check's own timeout in ms: `verify.checkTimeouts` by the check's name
+// (a key written as its command text still matches), else the caller's,
+// else `verify.checkTimeoutSeconds`.
+export function checkTimeout(name, flow, fallbackMs, command = name) {
+  const timeouts = flow?.verify?.checkTimeouts,
+    own = timeouts?.[name] ?? timeouts?.[command];
   if (Number.isInteger(own)) return own * 1000;
   if (Number.isInteger(fallbackMs)) return fallbackMs;
   return (flow?.verify?.checkTimeoutSeconds ?? 1200) * 1000;
@@ -204,25 +210,56 @@ export function notRunCause(result, elapsed, timeoutMs) {
   );
 }
 
-// Run each check in `dir`, one at a time, each with its own timeout.
+// Run each check in `dir`, one at a time, each with its own timeout. A
+// check is {name, argv}, or a bare argv named by its command. Each result
+// carries the check's name, for display its command, and the isolation it
+// ran under. With `project`, its `prepare` runs first and each check runs
+// in the project's isolation (check-isolation.mjs); a failed prepare runs
+// no check.
 export async function runEach(
   dir,
-  argvs,
-  { timeoutFor, run = commandEvidence, env } = {},
+  checks,
+  { timeoutFor, run = commandEvidence, env, project } = {},
 ) {
-  const checks = [];
-  for (const argv of argvs) {
-    const command = argv.join(" "),
-      timeoutMs = timeoutFor(command),
+  const out = [];
+  if (project && checks.length) {
+    const ready = await prepareChecks(project, dir, {
+      run: run === commandEvidence ? undefined : run,
+    });
+    if (ready && ready.exitCode !== 0)
+      return checks.map((check) => {
+        const argv = Array.isArray(check) ? check : check.argv;
+        return {
+          name: Array.isArray(check) ? argv.join(" ") : check.name,
+          command: argv.join(" "),
+          exitCode: null,
+          notRun:
+            `prepare failed: ${notRunCause(ready, 0, 1) || "exit " + ready.exitCode}`.slice(
+              0,
+              300,
+            ),
+        };
+      });
+  }
+  const isolate = project ? checkOptions(project, dir).isolate : undefined;
+  for (const check of checks) {
+    const argv = Array.isArray(check) ? check : check.argv,
+      command = argv.join(" "),
+      name = Array.isArray(check) ? command : check.name,
+      timeoutMs = timeoutFor(name, command),
       started = Date.now(),
-      result = await run(dir, argv, { timeoutMs, env }),
+      result = await run(dir, argv, { timeoutMs, env, isolate }),
       elapsed = Date.now() - started,
       tail = outputTail(
         (result.stdout || "") + "\n" + (result.stderr || ""),
         dir,
       );
-    checks.push({
+    out.push({
+      name,
       command,
+      ...(result.isolation !== undefined
+        ? { isolation: result.isolation }
+        : {}),
       exitCode: Number.isInteger(result.exitCode) ? result.exitCode : null,
       ...(Number.isInteger(result.exitCode)
         ? {}
@@ -231,7 +268,7 @@ export async function runEach(
       ...(tail ? { tail } : {}),
     });
   }
-  return checks;
+  return out;
 }
 
 // The task worktree, when checks may run warm in it: it is at `commit` and

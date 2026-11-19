@@ -494,7 +494,7 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
     "tasks.md": [
       "---",
       "epics: W1",
-      "checks: npm test",
+      "completion: integrated",
       "---",
       "# Tasks",
       "",

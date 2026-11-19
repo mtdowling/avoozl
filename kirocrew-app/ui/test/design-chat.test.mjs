@@ -12,7 +12,7 @@ const repo = new URL('../../../', import.meta.url)
 const app = JSON.parse(readFileSync(new URL('kirocrew-app/app.json', repo), 'utf8'))
 
 test('each design chat names a skill the app ships', () => {
-  const plugin = pluginDesignMessage({ supported: [1], installed: ['fake-route'] })
+  const plugin = pluginDesignMessage({ supported: [1], installed: ['fake-intake'] })
   const rules = rulesDesignMessage({ sets: ['team-terms'] })
   for (const [message, name] of [
     [plugin, 'avoozl-plugin'],
@@ -22,7 +22,7 @@ test('each design chat names a skill the app ships', () => {
     assert.ok(app.skills.includes(`skills/${name}`), name)
   }
   assert.match(plugin, /contract version 1\./)
-  assert.match(plugin, /declared here: fake-route\./)
+  assert.match(plugin, /declared here: fake-intake\./)
   assert.match(plugin, /Do not approve the plugin or import its pack/)
   assert.match(pluginDesignMessage({ supported: [], installed: [] }), /declared here: none\./)
   assert.match(rules, /Do not write the terms file or save terms/)

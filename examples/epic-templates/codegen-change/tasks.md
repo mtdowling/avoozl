@@ -1,11 +1,8 @@
 ---
 completion: integrated
-checks: npm test
 ---
 
 # Tasks
-
-Status: Draft
 
 - [ ] change-generator Change the generator and its tests
   - Facts:

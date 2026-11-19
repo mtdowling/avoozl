@@ -199,7 +199,7 @@ export function sendFailureBack(store, result, { rounds, now, where }) {
     failing = (result.entry.checks ?? [])
       .filter((c) => c.exitCode !== 0)
       .map((c) => ({
-        name: c.command,
+        name: c.name ?? c.command,
         conclusion: c.conclusion ?? `exit ${c.exitCode}`,
         firstError: c.firstError ?? firstErrorLine(c.tail),
       })),

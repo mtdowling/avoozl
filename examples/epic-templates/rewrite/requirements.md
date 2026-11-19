@@ -1,7 +1,5 @@
 # Rewrite: <what is being rewritten>
 
-Status: Draft
-
 Specs can be any size. A light spec with one task becomes one pull request. A large one becomes ordered tasks across repositories, each checked on its exact commit before it lands.
 
 ## Goal

@@ -842,7 +842,13 @@ export function ProgressBar({ tasks }: { tasks: { total: number; done: number } 
         css-box-shadow="inset-0-0-0-1px-mix-border-60%-transparent"
         mt="1"
       >
-        <div style={fill} />
+        <Box
+          css-width={`${shown}%`}
+          css-height="100%"
+          css-border-radius="999"
+          css-background="linear-gradient-90deg-mix-ok-70%-card-ok"
+          css-transition={still ? 'none' : 'width-700ms-cubic-bezier-0.2-0.8-0.2-1'}
+        />
       </Box>
     </Box>
   )
@@ -887,8 +893,6 @@ function Now({ now }: { now: PlanRow['now'] }) {
     <Hint size="xs">—</Hint>
   )
 }
-
-const head: CSSProperties = { padding: '6px 10px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }
 
 // The Specs list's sort and filters: search, sort, status, what a spec
 // has, kind, batch, archived, epic and category. They sit in the left nav
@@ -1442,10 +1446,16 @@ function GithubLink(props: { link: { url: string }; children: ReactNode }) {
 function LinksSection(props: { links: SpecLinks | null | undefined; loading: boolean }) {
   const links = props.links
   const muted = 'var(--muted)'
-  const none = <span style={{ color: muted }}>{props.loading ? '…' : 'None'}</span>
+  const none = (
+    <Box as="span" css-color={muted}>
+      {props.loading ? '…' : 'None'}
+    </Box>
+  )
   const row = (label: string, body: ReactNode) => (
     <div data-spec-links-row={label}>
-      <dt style={{ color: muted }}>{label}</dt>
+      <Box as="dt" css-color={muted}>
+        {label}
+      </Box>
       <Box as="dd" css-margin="0">
         {body}
       </Box>
@@ -1467,7 +1477,9 @@ function LinksSection(props: { links: SpecLinks | null | undefined; loading: boo
           links?.issue ? (
             <GithubLink link={links.issue}>{scmLinkText(links.issue)}</GithubLink>
           ) : links?.journal?.home === 'local' ? (
-            <span style={{ color: muted }}>None; the journal is kept locally</span>
+            <Box as="span" css-color={muted}>
+              None; the journal is kept locally
+            </Box>
           ) : (
             none
           ),
@@ -1502,24 +1514,29 @@ function LinksSection(props: { links: SpecLinks | null | undefined; loading: boo
                           inlineFlex
                           shrink0
                         >
-                          <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: dot.color }} />
+                          <Box aria-hidden="true" as="span" css-width="8" css-height="8" css-border-radius="50%" css-background={dot.color} />
                         </PlainLink>
                       ) : (
-                        <span
+                        <Box
                           role="img"
                           aria-label={dot.label}
                           aria-describedby={describedBy}
                           data-check-dot={pull.checks?.dot ?? 'none'}
-                          className="inline-flex shrink-0"
-                          style={{ width: 8, height: 8, borderRadius: '50%', background: dot.color }}
+                          as="span"
+                          css-width="8"
+                          css-height="8"
+                          css-border-radius="50%"
+                          css-background={dot.color}
+                          inlineFlex
+                          shrink0
                         />
                       )
                     }
                   </Tooltip>
                   <GithubLink link={pull}>#{pull.number}</GithubLink>
-                  <span className="truncate" style={{ color: muted }}>
+                  <Box as="span" css-color={muted} truncate>
                     {pull.task}
-                  </span>
+                  </Box>
                 </Box>
               )
             }),
@@ -1572,13 +1589,17 @@ function SpecRail(props: {
   const muted = 'var(--muted)'
   const date = (label: string, at: string | null | undefined) => (
     <Box flex items="baseline" justify="between" gap="3" data-rail-date={label}>
-      <span style={{ color: muted }}>{label}</span>
+      <Box as="span" css-color={muted}>
+        {label}
+      </Box>
       {at ? (
         <Tooltip text={at}>
           <span>{relativeTime(at)}</span>
         </Tooltip>
       ) : (
-        <span style={{ color: muted }}>—</span>
+        <Box as="span" css-color={muted}>
+          —
+        </Box>
       )}
     </Box>
   )
@@ -1593,12 +1614,18 @@ function SpecRail(props: {
               {row.epicTitle ?? row.epic}
             </PlainButton>
           ) : (
-            <span style={{ color: muted }}>No epic</span>
+            <Box as="span" css-color={muted}>
+              No epic
+            </Box>
           )}
         </RailSection>
       )}
       <RailSection title="Category" edit={edit('category')}>
-        {row.category ?? <span style={{ color: muted }}>None in its front-matter</span>}
+        {row.category ?? (
+          <Box as="span" css-color={muted}>
+            None in its front-matter
+          </Box>
+        )}
         {(row.type || row.home) && (
           <Box as="span" mt="1" flex flexWrap gap="1">
             {row.type && <Badge>{row.type}</Badge>}
@@ -1616,13 +1643,17 @@ function SpecRail(props: {
             ))}
           </Box>
         ) : (
-          <span style={{ color: muted }}>{graph ? 'No repository yet' : '…'}</span>
+          <Box as="span" css-color={muted}>
+            {graph ? 'No repository yet' : '…'}
+          </Box>
         )}
       </RailSection>
       {row.planId && <LinksSection links={plan?.links} loading={!plan} />}
       <RailSection title="Phases" edit={edit('phases')}>
         {phaseList.length === 0 ? (
-          <span style={{ color: muted }}>{graph ? 'No phase yet' : '…'}</span>
+          <Box as="span" css-color={muted}>
+            {graph ? 'No phase yet' : '…'}
+          </Box>
         ) : (
           <Stack as="ul" gap={1}>
             {phaseList.map(([id, phase]) => {
@@ -1644,9 +1675,9 @@ function SpecRail(props: {
                         <Box as="span" truncate>
                           {phase.title}
                         </Box>
-                        <span className="shrink-0" style={{ color: muted }}>
+                        <Box as="span" css-color={muted} shrink0>
                           {phase.done}/{phase.total}
-                        </span>
+                        </Box>
                       </Box>
                       <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
                         <Box as="span" css-width={`${percent}%`} css-background="ok" block hFull />
@@ -1665,7 +1696,9 @@ function SpecRail(props: {
         <Box as="dl" css-margin="0" mt="2" flex flexCol gap="0.5">
           {STATES.map((state) => (
             <Box key={state.id} flex items="baseline" justify="between" gap="3" data-state-count={state.id}>
-              <dt style={{ color: muted }}>{state.label}</dt>
+              <Box as="dt" css-color={muted}>
+                {state.label}
+              </Box>
               <Box as="dd" css-margin="0" tabularNums>
                 {graph ? counts[state.id] : '…'}
               </Box>
@@ -1698,7 +1731,9 @@ function SpecRail(props: {
       </RailSection>
       <RailSection title={`Open decisions (${decisions.length})`}>
         {decisions.length === 0 ? (
-          <span style={{ color: muted }}>None.</span>
+          <Box as="span" css-color={muted}>
+            None.
+          </Box>
         ) : (
           <Stack as="ul" gap={1}>
             {decisions.map((task) => (
@@ -1706,9 +1741,9 @@ function SpecRail(props: {
                 <PlainButton type="button" align="left" underline onClick={() => props.onOpenTask(task.id)}>
                   {task.title}
                 </PlainButton>
-                <span className="block" style={{ color: muted }}>
+                <Box as="span" css-color={muted} block>
                   {task.decision}
-                </span>
+                </Box>
               </li>
             ))}
           </Stack>
@@ -1728,9 +1763,9 @@ function SpecRail(props: {
                       .filter((h) => h.level === 2)
                       .map((h) => (
                         <Box key={h.id} as="li" truncate pl="3">
-                          <button type="button" className="text-left hover:underline" style={{ color: muted }} onClick={() => jump(h.id)}>
+                          <PlainButton type="button" css-color={muted} align="left" hoverUnderline onClick={() => jump(h.id)}>
                             {h.text}
-                          </button>
+                          </PlainButton>
                         </Box>
                       ))}
                   </Stack>
@@ -1747,9 +1782,9 @@ function SpecRail(props: {
               <Box key={i} as="li" flex justify="between" gap="2">
                 <span>{planEventLine(entry)}</span>
                 <Tooltip text={entry.at}>
-                  <span className="shrink-0" style={{ color: muted }}>
+                  <Box as="span" css-color={muted} shrink0>
                     {relativeTime(entry.at)}
-                  </span>
+                  </Box>
                 </Tooltip>
               </Box>
             ))}
@@ -2990,7 +3025,7 @@ export default function PlansView(props: {
     </>
   ) : null
   return (
-    <section ref={pageRef} aria-labelledby="avoozl-plans-title" className="flex flex-col gap-3.5">
+    <Box ref={pageRef} aria-labelledby="avoozl-plans-title" as="section" flex flexCol gap="3.5">
       {singleApproval && singleApproval.workspaceId === workspace && (
         <ApproveSpecDialog
           workspaceId={singleApproval.workspaceId}
@@ -3108,7 +3143,7 @@ export default function PlansView(props: {
           list={specList}
           detail={
             !row ? null : (
-              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop} style={phone ? undefined : { flex: '1 1 0%', minHeight: 0 }}>
+              <Box css-flex={phone ? undefined : '1-1-0%'} css-min-height={phone ? undefined : '0'} flex flexCol data-spec-detail={row.key} ref={detailTop}>
                 {reviewing && workspace ? (
                   <>
                     {specHeader}
@@ -3118,7 +3153,7 @@ export default function PlansView(props: {
                 ) : (
                   specContent
                 )}
-              </div>
+              </Box>
             )
           }
         />
@@ -3147,6 +3182,6 @@ export default function PlansView(props: {
           )}
         </>
       )}
-    </section>
+    </Box>
   )
 }

@@ -42,12 +42,17 @@ function CheckDot(props: { checks: LandingItem['checks'] }) {
   const text = `${DOT_TEXT[dot] ?? dot}${age}`
   return (
     <Tooltip text={text}>
-      <span
+      <Box
         data-check-dot={dot}
         role="img"
         aria-label={text}
-        className="inline-block shrink-0 rounded-full"
-        style={{ width: 8, height: 8, background: DOT[dot] ?? 'var(--muted)' }}
+        as="span"
+        css-width="8"
+        css-height="8"
+        css-background={DOT[dot] ?? 'var(--muted)'}
+        inlineBlock
+        shrink0
+        rounded="full"
       />
     </Tooltip>
   )
@@ -102,6 +107,11 @@ function Row(props: { item: LandingItem; now: number }) {
           </PlainLink>
         ))}
         {!item.pr && item.checks && <CheckDot checks={item.checks} />}
+        {item.unsandboxed && (
+          <Box as="span" tone="danger" data-landing-unsandboxed>
+            not sandboxed
+          </Box>
+        )}
         {item.since && (
           <Box as="span" tabularNums>
             waiting {duration(item.since, props.now)}

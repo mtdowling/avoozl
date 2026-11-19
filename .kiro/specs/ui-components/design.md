@@ -1,7 +1,5 @@
 # Design: the page draws with components, not class strings
 
-Status: Approved
-
 `UC` numbers are in this spec's `requirements.md`; `R` numbers are in
 `.kiro/specs/avoozl/requirements.md`; `SW` numbers in
 `.kiro/specs/standalone-web/requirements.md`.

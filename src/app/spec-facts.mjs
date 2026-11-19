@@ -6,7 +6,6 @@
 //
 //   ---
 //   repo: avoozl
-//   checks: npm test, git diff --check
 //   ---
 //   - [ ] 1.2 Queue table
 //     - Facts:
@@ -31,7 +30,6 @@ const KEYS = {
   repo: { as: "repository", type: "text" },
   done: { as: "acceptance", type: "list" },
   completion: { as: "completion", type: "text" },
-  checks: { as: "checks", type: "list" },
   after: { as: "requires", type: "after" },
   sequence: { as: "sequence", type: "list" },
   supports: { as: "supports", type: "list" },
@@ -61,7 +59,6 @@ const KEYS = {
   labels: { as: "labels", type: "list" },
   needs: { as: "needs", type: "list" },
   session: { as: "session", type: "json" },
-  tracker: { as: "tracker", type: "json" },
   // An epic folder's rows (Requirement 59.1).
   plan: { as: "plan", type: "text" },
   step: { as: "step", type: "text" },
@@ -71,15 +68,16 @@ const FACT_KEYS = Object.keys(KEYS);
 const PERSON =
   "A task a person does is `manual: true`, which completes by a person. Write that, and delete this line.";
 // Facts that are gone, and what to do with a line that still has one.
+const CHECKS = "Every task runs the repository's checks; delete this line.";
 const REMOVED = {
   summary:
     "The summary fact is gone: a task's summary is its own bullets under the item. Delete this line.",
+  checks: CHECKS,
 };
 
 // Front-matter: defaults for a leaf, and values for the whole spec.
 const DEFAULTS = {
   repo: { as: "repository", type: "text" },
-  checks: { as: "checks", type: "list" },
   completion: { as: "completion", type: "text" },
 };
 const SPEC_KEYS = [
@@ -99,7 +97,6 @@ const ORDER = [
   "repository",
   "acceptance",
   "completion",
-  "checks",
   "requires",
   "manual",
 ];
@@ -221,6 +218,10 @@ function readFront(rows) {
       continue;
     }
     out.at[key] = line;
+    if (key === "checks") {
+      out.problems.push(problem("facts.removed-key", line, CHECKS, { key }));
+      continue;
+    }
     const named = /^(phase|batch)-(.+)$/.exec(key);
     let spec = DEFAULTS[key];
     if (!spec && SPEC_KEYS.includes(key)) spec = { type: "text" };
@@ -455,8 +456,7 @@ export function readFacts(text, items) {
       const fill = {};
       if (entry.kind === undefined) fill.kind = "leaf";
       if (entry.kind !== "package")
-        // A manual leaf runs no checks (Requirement 61.9) and completes by
-        // a person: it takes neither default.
+        // A manual leaf completes by a person: it takes no completion.
         for (const [name, spec] of Object.entries(DEFAULTS))
           if (
             !(entry.manual === true && name !== "repo") &&

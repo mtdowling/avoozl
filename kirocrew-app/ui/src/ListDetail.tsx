@@ -76,9 +76,9 @@ export function DetailPane(props: { backLabel: string; onBack: () => void; title
     <div data-detail-pane>
       <DetailBar backLabel={props.backLabel} onBack={props.onBack} title={props.title} scrolledOut={scrolledOut} actions={props.actions} />
       {!props.ownTitle && (
-        <h2 ref={titleRef} data-detail-title style={{ margin: '4px 0 12px', fontSize: 20, fontWeight: 600, overflowWrap: 'anywhere' }}>
+        <Box ref={titleRef} data-detail-title as="h2" css-margin="4px-0-12px" css-font-size="20" css-font-weight="600" css-overflow-wrap="anywhere">
           {props.title}
-        </h2>
+        </Box>
       )}
       <TitleRef.Provider value={props.ownTitle ? titleRef : null}>{props.children}</TitleRef.Provider>
     </div>

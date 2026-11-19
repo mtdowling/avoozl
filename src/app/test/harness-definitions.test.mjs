@@ -9,6 +9,7 @@ import {
   approveHarnessDefinition,
   fillHarnessArgv,
   harnessDefinitionHash,
+  harnessReads,
   loadHarnessDefinition,
   parseHarnessDefinition,
 } from "../harness-definitions.mjs";
@@ -288,4 +289,40 @@ test("filling argv keeps one argument per value", () => {
     ["/w", "/t", "/c1", "/c2"],
   );
   assert.throws(() => fillHarnessArgv(definition.resume, {}), /\{session\}/);
+});
+
+test("reads names the harness's own config under home, and nothing else", () => {
+  const definition = parseHarnessDefinition({
+    ...example(),
+    reads: ["~/.claude", "~/.claude.json"],
+  });
+  assert.deepEqual(harnessReads(definition, "/home/me"), [
+    "/home/me/.claude",
+    "/home/me/.claude.json",
+  ]);
+  for (const reads of [
+    ["/etc/passwd"],
+    ["~"],
+    ["~/../other"],
+    ["~/a/./b"],
+    "~/.claude",
+  ])
+    assert.throws(
+      () => parseHarnessDefinition({ ...example(), reads }),
+      /reads must be paths under home/,
+    );
+  // The shipped definitions name their config.
+  for (const [name, expected] of [
+    ["claude-code", ["~/.claude", "~/.claude.json"]],
+    ["codex", ["~/.codex"]],
+  ])
+    assert.deepEqual(
+      JSON.parse(
+        fs.readFileSync(
+          new URL(`../../../examples/harnesses/${name}.json`, import.meta.url),
+          "utf8",
+        ),
+      ).reads,
+      expected,
+    );
 });

@@ -17,6 +17,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { git } from "./git.mjs";
+import { repositoryChecks } from "./repository-checks.mjs";
 import { pathVerdict } from "./verify.mjs";
 import { confineChild, sandboxSecretPaths } from "./sandbox.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
@@ -96,7 +97,7 @@ export async function reproduce(
     ]).catch(() => (ref = base));
     await git(project.localCheckout, ["worktree", "add", "--detach", dir, ref]);
     const context = { workspaceRoot };
-    if (!(await passes(dir, project.checks, check, context)))
+    if (!(await passes(dir, checks, check, context)))
       return {
         state: "base-fails",
         why: `The checks fail on ${base} without the reproduction.`,
@@ -104,7 +105,7 @@ export async function reproduce(
     const target = path.join(dir, file.path);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, file.text);
-    if (await passes(dir, project.checks, check, context))
+    if (await passes(dir, checks, check, context))
       return {
         state: "not-reproduced",
         why: `The checks still pass on ${base} with ${file.path}.`,

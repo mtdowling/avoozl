@@ -4,8 +4,6 @@ category: Planning
 
 # Requirements: one way to run a worker
 
-Status: Approved
-
 Approved 2026-11-18, with the five defaults of design D10. The owner
 granted approval delegation to Claude, which recorded the approval on the
 owner's behalf against this revision in the workspace that holds this
@@ -240,7 +238,7 @@ that there is one set of rules about what that machine is trusted to do.
    pull` and `avoozl worker claim` SHALL stay as the same steps run once by
    hand.
 3. On the driver the tick SHALL fetch a worker machine's pushed result,
-   check its diff and run its checks again before it lands (Requirement
+   check its diff and run the repository's checks again before it lands (Requirement
    90.2), with no command run by hand. `src/app/worker-results.mjs` SHALL be
    called from the tick or removed.
 4. Runner mode over SSH SHALL be removed: `runner.role` values `runner` and

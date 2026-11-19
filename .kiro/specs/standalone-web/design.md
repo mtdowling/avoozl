@@ -1,7 +1,5 @@
 # Design: a standalone web view
 
-Status: Approved
-
 Requirements are in `requirements.md` (SW1 to SW12). Section numbers here
 (D1 to D11) are this file's; `§` numbers refer to
 `.kiro/specs/avoozl/design.md`.

@@ -52,7 +52,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
 import { PanningStyle } from './ui/PageStyles'
-import { PlainButton } from './ui/Plain'
+import { PlainButton, SvgG, SvgPath, SvgRect, SvgRoot, SvgText } from './ui/Plain'
 import { STATE_COLOR } from './ui/looks/GraphView.ts'
 
 // Graphs larger than this open with every group collapsed to one node.
@@ -75,16 +75,16 @@ const pressed = (event: KeyboardEvent, action: () => void) => {
 function NodeOwner({ task, x, y }: { task: GraphTask; x: number; y: number }) {
   if (task.authority !== 'github')
     return (
-      <text x={x} y={y} textAnchor="end" fontSize={10} style={{ fill: 'var(--muted)' }}>
+      <SvgText x={x} y={y} textAnchor="end" fontSize={10} css-fill="muted">
         {task.authority ?? 'local'}
-      </text>
+      </SvgText>
     )
   const href = task.issue ? safeHref(task.issue.url) : null
   const label = !task.issue ? 'pending' : task.issue.number ? `#${task.issue.number}` : 'GitHub'
   const text = (
-    <text x={x} y={y} textAnchor="end" fontSize={10} style={{ fill: href ? 'var(--accent)' : 'var(--muted)' }}>
+    <SvgText x={x} y={y} textAnchor="end" fontSize={10} css-fill={href ? 'accent' : 'muted'}>
       {label}
-    </text>
+    </SvgText>
   )
   return href ? (
     <a href={linkHref(href)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} aria-label={`Issue ${label}`}>
@@ -106,7 +106,7 @@ function Node(props: { node: LaidNode; selected: boolean; dim: boolean; onSelect
     ? `${node.title}, collapsed, ${sub}. Press to open it.`
     : `${node.title}, ${node.id}, ${STATE_LABEL[node.state]}${node.task?.review ? ', waits for review' : ''}${node.task?.planArchived ? ', archived plan' : ''}${node.task?.handSetReview ? ', review set by hand, none running' : ''}${props.onOpen ? '. Enter shows its tree; O opens its details' : ''}`
   return (
-    <g
+    <SvgG
       transform={`translate(${node.x},${node.y})`}
       role="button"
       tabIndex={0}
@@ -126,34 +126,36 @@ function Node(props: { node: LaidNode; selected: boolean; dim: boolean; onSelect
       onBlur={() => props.onHover(null)}
       opacity={props.dim ? 0.3 : draft ? 0.6 : 1}
       data-draft={draft || undefined}
-      style={{ cursor: 'pointer', outline: 'none' }}
+      css-cursor="pointer"
+      css-outline="none"
     >
       <title>{draft ? `${node.title} (draft spec)` : node.title}</title>
-      <rect
+      <SvgRect
         width={NODE_WIDTH}
         height={NODE_HEIGHT}
         rx={6}
         strokeWidth={selected ? 2.5 : 1}
         strokeDasharray={node.members || draft ? '5 3' : undefined}
-        style={{ fill: 'var(--card)', stroke: selected ? 'var(--accent)' : color }}
+        css-fill="card"
+        css-stroke={selected ? 'var(--accent)' : color}
       />
-      <rect width={5} height={NODE_HEIGHT} rx={3} style={{ fill: color }} />
-      <text x={12} y={15} fontSize={11} fontWeight={600} style={{ fill: 'var(--text)' }}>
+      <SvgRect width={5} height={NODE_HEIGHT} rx={3} css-fill={color} />
+      <SvgText x={12} y={15} fontSize={11} fontWeight={600} css-fill="text">
         {clip(node.title, draft ? 17 : badge ? 19 : props.onOpen && node.task ? 22 : 25)}
-      </text>
+      </SvgText>
       {draft && node.task && (
-        <text x={NODE_WIDTH - (props.onOpen ? 22 : 6)} y={14} textAnchor="end" fontSize={9} fontWeight={600} data-draft-badge style={{ fill: 'var(--muted)' }}>
+        <SvgText x={NODE_WIDTH - (props.onOpen ? 22 : 6)} y={14} textAnchor="end" fontSize={9} fontWeight={600} data-draft-badge css-fill="muted">
           Draft
-        </text>
+        </SvgText>
       )}
       {node.task?.review && !draft && (
-        <text x={NODE_WIDTH - (props.onOpen ? 22 : 6)} y={14} textAnchor="end" fontSize={9} data-review-badge style={{ fill: 'var(--muted)' }}>
+        <SvgText x={NODE_WIDTH - (props.onOpen ? 22 : 6)} y={14} textAnchor="end" fontSize={9} data-review-badge css-fill="muted">
           review
-        </text>
+        </SvgText>
       )}
-      <text x={12} y={29} fontSize={10} style={{ fill: 'var(--muted)' }}>
+      <SvgText x={12} y={29} fontSize={10} css-fill="muted">
         {clip(sub, node.task ? 20 : 28)}
-      </text>
+      </SvgText>
       {node.task && <NodeOwner task={node.task} x={NODE_WIDTH - 6} y={29} />}
       {node.task && props.onOpen && (
         <g
@@ -168,13 +170,13 @@ function Node(props: { node: LaidNode; selected: boolean; dim: boolean; onSelect
           }}
         >
           <title>{`Open ${node.id} details`}</title>
-          <rect width={16} height={16} rx={3} style={{ fill: 'var(--card)' }} />
-          <g transform="translate(3,3)" style={{ color: 'var(--muted)' }}>
+          <SvgRect width={16} height={16} rx={3} css-fill="card" />
+          <SvgG transform="translate(3,3)" css-color="muted">
             <ExternalLink size={10} aria-hidden="true" />
-          </g>
+          </SvgG>
         </g>
       )}
-    </g>
+    </SvgG>
   )
 }
 
@@ -184,7 +186,7 @@ function Legend() {
       {STATES.map((state) => (
         <Box key={state.id} as="li" flex items="center" gap="1">
           <svg width={10} height={10} aria-hidden="true">
-            <rect width={10} height={10} rx={2} style={{ fill: STATE_COLOR[state.id] }} />
+            <SvgRect width={10} height={10} rx={2} css-fill={STATE_COLOR[state.id]} />
           </svg>
           {state.label}
         </Box>
@@ -612,8 +614,8 @@ export default function GraphView({
           <Box mt="2">
             <Legend />
           </Box>
-          <div ref={canvas} className="mt-2 overflow-hidden rounded border" style={{ borderColor: 'var(--border)', height: CANVAS_HEIGHT, touchAction: 'none' }}>
-            <svg
+          <Box ref={canvas} css-border-color="border" css-height="640" css-touch-action="none" mt="2" overflow="hidden" rounded="base" border="all">
+            <SvgRoot
               role="group"
               aria-label="Task graph. Drag to pan; pinch or hold Ctrl or Cmd and scroll to zoom."
               width="100%"
@@ -625,15 +627,16 @@ export default function GraphView({
               onMouseDown={(e) => e.button === 1 && e.preventDefault()}
               onAuxClickCapture={noLinkAfterDrag}
               data-panning={panning || undefined}
-              style={{ cursor: panning ? 'grabbing' : 'grab', userSelect: 'none' }}
+              css-cursor={panning ? 'grabbing' : 'grab'}
+              css-user-select="none"
             >
               {panning && <PanningStyle />}
               <defs>
                 <marker id="avoozl-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={7} markerHeight={7} orient="auto">
-                  <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--muted)' }} />
+                  <SvgPath d="M0,0 L10,5 L0,10 z" css-fill="muted" />
                 </marker>
                 <marker id="avoozl-arrow-on" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={7} markerHeight={7} orient="auto">
-                  <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--accent)' }} />
+                  <SvgPath d="M0,0 L10,5 L0,10 z" css-fill="accent" />
                 </marker>
               </defs>
               <g transform={`translate(${view.x},${view.y}) scale(${view.scale})`}>
@@ -641,16 +644,9 @@ export default function GraphView({
                   const key = groupKey(cluster.group)
                   return (
                     <g key={`${key}:${i}`} opacity={lit ? 0.5 : 1}>
-                      <rect
-                        x={cluster.x}
-                        y={cluster.y}
-                        width={cluster.width}
-                        height={cluster.height}
-                        rx={8}
-                        style={{ fill: 'var(--bg-elevated)', stroke: 'var(--border)', opacity: 0.7 }}
-                      />
+                      <SvgRect x={cluster.x} y={cluster.y} width={cluster.width} height={cluster.height} rx={8} css-fill="bg-elevated" css-stroke="border" css-opacity="0.7" />
                       {cluster.label && (
-                        <text
+                        <SvgText
                           x={cluster.x + 6}
                           y={cluster.y + 9}
                           fontSize={10}
@@ -660,10 +656,11 @@ export default function GraphView({
                           aria-label={`${cluster.title}, ${cluster.count} tasks. Press to open it.`}
                           onClick={() => !moved.current && drillGroup(cluster.group)}
                           onKeyDown={(e) => pressed(e, () => drillGroup(cluster.group))}
-                          style={{ fill: 'var(--muted)', cursor: 'pointer' }}
+                          css-fill="muted"
+                          css-cursor="pointer"
                         >
                           {clip(cluster.title, 30)} ›
-                        </text>
+                        </SvgText>
                       )}
                     </g>
                   )
@@ -671,7 +668,7 @@ export default function GraphView({
                 {layout.loose.map((group) => {
                   const key = groupKey(group.group)
                   return (
-                    <text
+                    <SvgText
                       key={`loose:${key}`}
                       x={group.x}
                       y={group.y + 11}
@@ -681,10 +678,11 @@ export default function GraphView({
                       aria-label={`${group.title}: ${group.count} with no dependencies. Press to open it.`}
                       onClick={() => !moved.current && drillGroup(group.group)}
                       onKeyDown={(e) => pressed(e, () => drillGroup(group.group))}
-                      style={{ fill: 'var(--muted)', cursor: 'pointer' }}
+                      css-fill="muted"
+                      css-cursor="pointer"
                     >
                       {clip(`${group.title} · ${group.count} with no dependencies`, group.chars)}
-                    </text>
+                    </SvgText>
                   )
                 })}
                 {layout.edges.map((edge) => {
@@ -692,7 +690,7 @@ export default function GraphView({
                   const dim = lit !== null && !on
                   const touches = highlighted(edge.from, edge.to)
                   return (
-                    <path
+                    <SvgPath
                       key={`${edge.from}->${edge.to}`}
                       d={edgePath(edge.points)}
                       fill="none"
@@ -701,10 +699,8 @@ export default function GraphView({
                       strokeLinejoin="round"
                       strokeDasharray={edge.kind === 'sequence' ? '6 4' : undefined}
                       markerEnd={on ? 'url(#avoozl-arrow-on)' : 'url(#avoozl-arrow)'}
-                      style={{
-                        stroke: on ? 'var(--accent)' : 'var(--muted)',
-                        opacity: dim ? 0.12 : on ? 1 : edge.satisfied ? 0.35 : 0.8,
-                      }}
+                      css-stroke={on ? 'accent' : 'muted'}
+                      css-opacity={dim ? 0.12 : on ? 1 : edge.satisfied ? 0.35 : 0.8}
                     />
                   )
                 })}
@@ -712,8 +708,8 @@ export default function GraphView({
                   <Node key={node.id} node={node} selected={node.id === selected} dim={!nodeLit(node.id)} onSelect={select} onHover={setHovered} onOpen={onOpenItem} />
                 ))}
               </g>
-            </svg>
-          </div>
+            </SvgRoot>
+          </Box>
         </Card>
       )}
       {graph && task && <Details task={task} batch={graph.batches?.find((entry) => entry.id === task.batch) ?? null} neighbors={neighbors(graph, task.id)} onSelect={selectId} />}

@@ -1,7 +1,6 @@
 // Tasks 12.4, 12.6 and 12.7: stop the line, local checks first, and GitHub
 // timing (design §4.11, Requirements 44 and 45).
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -13,61 +12,33 @@ import {
   recordGitHubTiming,
   runLocalChecks,
 } from "../flow-checks.mjs";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
-import { snapshot } from "./fixtures.mjs";
-import { temporaryDirectory } from "./temporary.mjs";
-
-const git = (cwd, ...args) =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const leaf = (id, extra = {}) => ({
-  id,
-  title: "Task " + id,
-  kind: "leaf",
-  scope: "catalog",
-  status: "planned",
-  epic: "sample",
-  track: "catalog",
-  tags: [],
-  acceptance: ["Works."],
-  repository: "app",
-  ...extra,
-});
+import { repositoryChecks } from "../repository-checks.mjs";
+import { deliveryWorkspace, git, leaf } from "./delivery-fixture.mjs";
 
 // A repository whose one check fails while a file named `broken` exists;
 // `flaky` makes the next run fail once.
 function setup(t, tasks, edges = []) {
-  const root = temporaryDirectory("avoozl-line-"),
-    checkout = path.join(root, "app");
-  fs.mkdirSync(checkout);
-  git(checkout, "init", "-b", "main");
-  git(checkout, "config", "user.name", "Test");
-  git(checkout, "config", "user.email", "test@example.com");
-  const counter = path.join(root, "flaky-count");
-  fs.writeFileSync(
-    path.join(checkout, "check.mjs"),
-    `import fs from "node:fs";
-const f = ${JSON.stringify(counter)};
+  const { root, checkout, store, ops } = deliveryWorkspace(t, {
+      prefix: "avoozl-line-",
+      tasks,
+      edges,
+      project: { checks: [["node", "check.mjs"]] },
+      config: { version: 1 },
+      files: (root) => ({
+        "check.mjs": `import fs from "node:fs";
+const f = ${JSON.stringify(path.join(root, "flaky-count"))};
 if (fs.existsSync(f) && fs.readFileSync(f, "utf8") === "1") { fs.writeFileSync(f, "0"); console.error("flaky failure"); process.exit(1); }
 if (fs.existsSync("broken")) { console.error("assertion failed: broken"); process.exit(1); }
 `,
-  );
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-m", "Start");
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks, edges });
+      }),
+    }),
+    counter = path.join(root, "flaky-count");
+  // The check keeps its flaky counter beside the checkout: a sandboxed
+  // check may write there only when the repository lists it.
   store.put("projects", {
-    id: "app",
-    root: fs.realpathSync.native(checkout),
-    baseBranch: "main",
-    checks: [["node", "check.mjs"]],
+    ...store.get("projects", "app"),
+    isolation: { writable: [root] },
   });
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    JSON.stringify({ version: 1 }),
-  );
-  const ops = new Operations(store, { workspaceRoot: root });
   // Land a commit on main as if Avoozl integrated task `id`.
   const land = (id, file, text = id || file) => {
     if (text === false) fs.rmSync(path.join(checkout, file));
@@ -285,32 +256,26 @@ test("local checks first: a recorded pass, a done list for one commit, and CI-on
   const worktree = path.join(s.root, "wt");
   git(s.checkout, "worktree", "add", "-q", worktree, "-b", "avoozl/g1");
   const head = git(worktree, "rev-parse", "HEAD"),
-    project = s.store.get("projects", "app");
+    project = s.store.get("projects", "app"),
+    named = repositoryChecks(project);
   assert.equal(
-    (await localPass(project.root, head, ["node check.mjs"])).ok,
+    (await localPass(project.root, head, named)).ok,
     false,
     "no record yet",
   );
   const ran = await runLocalChecks({
     cwd: worktree,
     root: project.root,
-    checks: ["node check.mjs"],
+    project,
   });
   assert.equal(ran.passed, true);
   assert.equal(ran.checks[0].commit, head);
   assert.ok(Number.isInteger(ran.checks[0].durationMs));
-  assert.equal(
-    (await localPass(project.root, head, ["node check.mjs"])).ok,
-    true,
-  );
-  assert.equal(checkDoneList(ran.checks, ["node check.mjs"]), head);
+  assert.equal((await localPass(project.root, head, named)).ok, true);
+  assert.equal(checkDoneList(ran.checks, named), head);
+  assert.throws(() => checkDoneList(undefined, named), /list checks/);
   assert.throws(
-    () => checkDoneList(undefined, ["node check.mjs"]),
-    /list checks/,
-  );
-  assert.throws(
-    () =>
-      checkDoneList([{ ...ran.checks[0], exitCode: 1 }], ["node check.mjs"]),
+    () => checkDoneList([{ ...ran.checks[0], exitCode: 1 }], named),
     /exited 1/,
   );
   assert.throws(
@@ -320,7 +285,7 @@ test("local checks first: a recorded pass, a done list for one commit, and CI-on
           ran.checks[0],
           { command: "x", exitCode: 0, durationMs: 1, commit: "f".repeat(40) },
         ],
-        ["node check.mjs"],
+        named,
       ),
     /same pushed commit/,
   );

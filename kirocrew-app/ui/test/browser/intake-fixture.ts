@@ -11,9 +11,9 @@ const plugin = (id: string, state: string, capabilities: string[], extra = {}) =
   source: 'machine',
   version: '1.2.0',
   contract: 1,
-  provides: ['tracker'],
-  kinds: ['node'],
-  capabilities: { tracker: capabilities },
+  provides: ['intake'],
+  kinds: ['intake'],
+  capabilities: { intake: capabilities },
   hash: 'sha256:9f2c4e1a7b3d',
   state,
   reason: state === 'disabled' ? 'Disabled on this machine.' : null,
@@ -22,8 +22,8 @@ const plugin = (id: string, state: string, capabilities: string[], extra = {}) =
 })
 
 export const PLUGINS = [
-  plugin('ticket-tracker', 'approved', ['poll', 'actor'], { health: { state: 'unavailable', reason: 'poll failed: 401 Unauthorized' } }),
-  plugin('ops-queue', 'disabled', ['poll']),
+  plugin('ticket-tracker', 'approved', ['actor'], { health: { state: 'unavailable', reason: 'poll failed: 401 Unauthorized' } }),
+  plugin('ops-queue', 'disabled', []),
 ]
 
 export const SOURCES = [
@@ -82,7 +82,7 @@ const REPOSITORIES = [
 
 // `empty` answers with no source at all, for the empty state.
 export function answerIntake(empty: boolean) {
-  answer('plugins.list', () => ({ supportedContracts: [1], routes: [], plugins: empty ? [] : PLUGINS }))
+  answer('plugins.list', () => ({ supportedContracts: [1], plugins: empty ? [] : PLUGINS }))
   answer('intake.sources', () => ({ sources: empty ? [] : SOURCES, github: empty ? { mode: null, repositories: [] } : GITHUB }))
   answer('repositories.list', () => ({ items: REPOSITORIES }))
 }

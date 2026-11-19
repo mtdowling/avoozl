@@ -1,11 +1,8 @@
 ---
 repo: avoozl
 completion: integrated
-checks: npm test, git diff --check
 ---
 # Tasks: merge batches
-
-Status: Draft
 
 Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
@@ -16,18 +13,17 @@ Phase 1 builds merge batches into `direct` landing and removes nothing.
 Phase 2 removes the old system only after `mb-p1` shows the new one works.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
-workspaces, real git with a bare remote, and fake executors; run `npm test`
-and `git diff --check` before landing, and `npm run test:ui` for UI changes;
-no real workspace data, machine configuration, credentials or personal plans
-in the repository (AGENTS.md); never force push any branch. A task that
-deletes a test file first lists, in its pull request, each behavior that
-file covered and the test that covers it afterward. Screen changes need
-phone and desktop, light and dark screenshots for owner approval before
-merge (R92.12); screenshots are shown to the owner and never committed
-(AGENTS.md).
+workspaces, real git with a bare remote, and fake executors; Avoozl runs the
+repository's checks; no real workspace data, machine configuration,
+credentials or personal plans in the repository (AGENTS.md); never force
+push any branch. A task that deletes a test file first lists, in its pull
+request, each behavior that file covered and the test that covers it
+afterward. Screen changes need phone and desktop, light and dark screenshots
+for owner approval before merge (R92.12); screenshots are shown to the owner
+and never committed (AGENTS.md).
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts. Task IDs start with `mb-` so they never collide with the IDs
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts. Task IDs start with `mb-` so they never collide with the IDs
 of the other specs.
 
 ## Phase 1: Merge batches in direct landing
@@ -81,7 +77,6 @@ of the other specs.
   - Facts:
     - done:
       - UI and CLI tests show each part from fixture records; none of the three makes a GitHub call; a member waiting 61 minutes opens one Needs you item and a second read opens none; screenshots of the page at 390 and 1280 px, light and dark, go to the owner.
-    - checks: npm test, npm run test:ui, git diff --check
     - after: mb-1.3
   - Waiting, Testing, Last merge batches and Size per base, from stored records; the same in `avoozl landing status --json` and the MCP read; one Needs you item past 60 minutes.
 - [x] mb-2.3 The words and the product spec, after mb-2.1, mb-2.2 [MB1.5, MB9.4] (§D8)

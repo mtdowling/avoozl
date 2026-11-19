@@ -3,6 +3,7 @@
 // forwards `/apps/avoozl/api/<path>` to the backend's `/api/<path>`.
 // Keep this module free of JSX and runtime imports so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
+import type { Isolation } from './isolation-form.ts'
 
 export const COMMAND_PATH = '/apps/avoozl/api/command'
 
@@ -51,6 +52,9 @@ export interface Repository {
   harness?: string | null
   // The planning repository (plans-repo mode), which holds specs.
   planning?: boolean
+  // How its checks run (Settings > Repository setup > Landing); older
+  // backends omit it.
+  isolation?: Partial<Isolation> | null
 }
 
 export interface DetectedCheckout {

@@ -16,7 +16,7 @@ import { temporaryDirectory } from "./temporary.mjs";
 
 const git = (cwd, ...args) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const CHECK = "scripts/validate.sh";
+const CHECK = "git status";
 const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
 
 function setup(t) {

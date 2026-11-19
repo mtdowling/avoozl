@@ -19,9 +19,32 @@ if (!names.length) {
   console.log(`No spec folders under ${root}/.kiro/specs/.`);
   process.exit(1);
 }
+// A `Status:` line repeats approval, which lives in Avoozl's workspace
+// database, and goes stale (shortcut: checked here, not in lintSpec, so
+// specs in other repositories and approval pull requests on protected
+// branches still work).
+const STATUS =
+  "A `Status:` line is not allowed: approval lives in Avoozl, not in the spec files. Delete this line.";
+function statusErrors(spec) {
+  return Object.entries(spec.files).flatMap(([file, text]) =>
+    String(text)
+      .split("\n")
+      .flatMap((line, at) =>
+        /^Status:/.test(line)
+          ? [{ severity: "error", file, line: at + 1, message: STATUS }]
+          : [],
+      ),
+  );
+}
 for (const name of names) {
-  const result = lintSpec({ spec: readSpecFolder(root, name) }),
-    errors = (result.diagnostics || []).filter((d) => d.severity === "error");
+  const spec = readSpecFolder(root, name),
+    result = lintSpec({ spec }),
+    status = statusErrors(spec),
+    errors = [
+      ...(result.diagnostics || []).filter((d) => d.severity === "error"),
+      ...status,
+    ];
+  result.counts.error += status.length;
   console.log(
     `${name}: ${result.counts.error} errors, ${result.counts.warning} warnings, ${result.taskCount} tasks`,
   );

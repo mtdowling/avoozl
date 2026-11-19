@@ -1,7 +1,5 @@
 # Design: merge batches
 
-Status: Draft
-
 `MB` numbers are in this spec's `requirements.md`; `R` numbers and `§`
 sections without a `D` are in `.kiro/specs/avoozl/`. Labels are as in the
 requirements: **V** read in the file cited at `9124dcd`, **A** assumed.
