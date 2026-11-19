@@ -53,6 +53,8 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
+import { LaneStyle } from './ui/PageStyles'
+import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -189,9 +191,9 @@ function LaneCardView(props: {
             )}
             {!done && !local && issue && (
               <Tooltip text="Open the issue; move its Project card to Deferred to pause it">
-                <a href={linkHref(issue)} target="_blank" rel="noreferrer" className="self-center text-xs underline">
+                <PlainLink href={linkHref(issue)} target="_blank" rel="noreferrer" self="center" size="xs" underline>
                   Defer on the board
-                </a>
+                </PlainLink>
               </Tooltip>
             )}
             <IconLabel icon={DetailsIcon} tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(card.id)} {...label('Details')} />
@@ -243,12 +245,6 @@ export function StateIcon({ phase }: { phase: 'running' | 'reviewing' }) {
 
 const LANE_GAP = 16
 
-// The shared lane entry: no box, only a top rule in the lane's own color
-// (--lane-line, set on the lane), flush to the lane's edges.
-const LANE_CSS = `
-[data-lane-card]{list-style:none;margin:0;padding:6px 0;border:0;border-top:1px solid var(--lane-line);line-height:1.3}
-[data-lane-card] :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-`
 
 // The width a box has, kept current as it resizes.
 function useWidth<T extends HTMLElement>() {
@@ -305,7 +301,7 @@ export function DeliveryBoard(props: {
   )
   return (
     <>
-      <style>{LANE_CSS}</style>
+      <LaneStyle />
     <div
       ref={ref}
       data-lane-columns={columns}
@@ -406,20 +402,20 @@ function DeliveryFilters(props: {
           title="Filters"
           action={
             active && (
-              <button type="button" data-rail-icon onClick={() => props.onChange({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+              <PlainButton type="button" data-rail-icon onClick={() => props.onChange({})} css-gap="2" css-align-items="center" css-font-size="12">
                 <X size={11} aria-hidden="true" /> Clear
-              </button>
+              </PlainButton>
             )
           }
         >
           {/* The search sits under the Filters header, above All states. */}
-          <input
+          <PlainInput
             type="search"
             aria-label="Search tasks"
             placeholder="Task name or ID"
             value={filter.q ?? ''}
             onChange={(event) => set({ q: event.target.value || undefined })}
-            style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8, fontSize: 13, padding: '6px 12px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            css-width="100%" css-box-sizing="border-box" css-margin-bottom="8" css-font-size="13" css-padding="6px-12px" css-border-radius="6" css-background="bg" css-color="text" css-border="1px-solid-border"
           />
           <RailRow label="All states" active={!filter.state} onClick={() => set({ state: undefined })} attrs={{ 'data-rail-state': '' }} />
           {STATES.filter((state) => states.has(state.id) || filter.state === state.id).map((state) => (

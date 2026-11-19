@@ -32,6 +32,7 @@
     "--allowedTools",
     "Edit(.avoozl/output/*)"
   ],
+  "servedModel": { "from": "output", "field": "modelUsage" },
   "cost": { "from": "output", "field": "total_cost_usd", "per": "session" },
   "keepEnv": ["ANTHROPIC_API_KEY"],
   "tmpEnv": ["CLAUDE_CODE_TMPDIR"],

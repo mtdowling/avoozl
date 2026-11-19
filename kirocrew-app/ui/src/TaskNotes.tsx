@@ -25,6 +25,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainLink } from './ui/Plain'
 
 // A save a content rule blocked: the decisions to allow, and the save to
 // run again once allowed.
@@ -96,7 +97,7 @@ function EntryView(props: {
   const problem = editing ? linkProblem(url, label) : null
   const href = safeHref(entry.url)
   return (
-    <li className="flex flex-col gap-1 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-link-entry>
+    <Box as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" firstBorderT0 data-link-entry>
       <Box flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
         <span>{authorLabel(entry)}</span>
         <Tooltip text={entry.at}>
@@ -132,16 +133,15 @@ function EntryView(props: {
           </Row>
         </Stack>
       ) : href ? (
-        <a
+        <PlainLink
           href={linkHref(href)}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm underline"
-          style={{ overflowWrap: 'anywhere' }}
+          css-overflow-wrap="anywhere" inlineFlex items="center" gap="1" size="sm" underline
         >
           <ExternalLink size={ICON} aria-hidden="true" />
           {entry.label}
-        </a>
+        </PlainLink>
       ) : (
         <Box as="span" size="sm">{entry.label}</Box>
       )}
@@ -174,7 +174,7 @@ function EntryView(props: {
           )}
         </Row>
       )}
-    </li>
+    </Box>
   )
 }
 

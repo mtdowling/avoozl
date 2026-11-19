@@ -38,6 +38,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 // A diff longer than this many lines shows its start, then a button.
 export const DIFF_LINES = 1500
@@ -50,7 +51,6 @@ function pageStorage(): Storage | null {
   }
 }
 
-const mono: CSSProperties = { fontFamily: 'var(--mono, ui-monospace, monospace)', fontSize: 12, lineHeight: '18px' }
 const LINE_BG = {
   add: 'color-mix(in srgb, var(--ok) 16%, transparent)',
   del: 'color-mix(in srgb, var(--danger) 16%, transparent)',
@@ -72,9 +72,9 @@ function Counts({ change }: { change: FileChange }) {
   if (change.binary) return <Hint size="xs">binary</Hint>
   if (change.additions === null) return null
   return (
-    <span className="shrink-0 text-xs" style={mono}>
+    <Box as="span" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px" shrink0 size="xs">
       <Box as="span" css-color="ok">+{change.additions}</Box> <Box as="span" css-color="danger">−{change.deletions}</Box>
-    </span>
+    </Box>
   )
 }
 
@@ -123,7 +123,7 @@ const num = (n: number | null) => (
 
 function UnifiedDiff({ lines }: { lines: DiffLine[] }) {
   return (
-    <div role="group" aria-label="Unified diff" style={mono}>
+    <Box role="group" aria-label="Unified diff" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px">
       {lines.map((line, i) =>
         !isText(line) ? (
           <div key={i} className="text-muted" style={{ whiteSpace: 'pre', background: line.kind === 'hunk' ? LINE_BG.hunk : undefined }}>
@@ -138,7 +138,7 @@ function UnifiedDiff({ lines }: { lines: DiffLine[] }) {
           </div>
         ),
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -157,7 +157,7 @@ function SplitDiff({ lines }: { lines: DiffLine[] }) {
     </div>
   )
   return (
-    <div role="group" aria-label="Side-by-side diff" style={mono}>
+    <Box role="group" aria-label="Side-by-side diff" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px">
       {rows.map((row, i) =>
         row.kind === 'pair' ? (
           <Box key={i} data-split-row css-display="grid" css-grid-template-columns="minmax-0-1fr-minmax-0-1fr" css-gap="1">
@@ -170,7 +170,7 @@ function SplitDiff({ lines }: { lines: DiffLine[] }) {
           </div>
         ),
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -210,9 +210,9 @@ function Diff(props: { diff: DiffView; layout: 'unified' | 'split' }) {
         {props.layout === 'split' ? <SplitDiff lines={shown} /> : <UnifiedDiff lines={shown} />}
       </Box>
       {shown.length < lines.length && (
-        <button type="button" className="self-start text-xs underline" onClick={() => setFull(true)}>
+        <PlainButton type="button" self="start" size="xs" underline onClick={() => setFull(true)}>
           Show the other {lines.length - shown.length} lines
-        </button>
+        </PlainButton>
       )}
     </Stack>
   )
@@ -277,10 +277,10 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
   // Open in editor needs the files on this machine: the task's own worktree.
   const local = view.mode === 'worktree' && !view.remote && view.worktree
   const branchLink = github && (
-    <a href={safeHref(github)!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm underline" data-github-branch>
+    <PlainLink href={safeHref(github)!} target="_blank" rel="noreferrer" inlineFlex items="center" gap="1" size="sm" underline data-github-branch>
       <GitBranch size={14} aria-hidden="true" />
       {view.branch} on GitHub
-    </a>
+    </PlainLink>
   )
   if (view.mode === 'none')
     return (
@@ -319,10 +319,10 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
       <Box flex flexWrap items="center" gap="2" size="xs">
         <Hint>{view.mode === 'worktree' ? 'Its worktree' : `Its branch ${view.branch}`} against where it left its base.</Hint>
         {local ? (
-          <a href={editorHref(editor, view.worktree!)!} className="inline-flex items-center gap-1 underline" data-open-worktree>
+          <PlainLink href={editorHref(editor, view.worktree!)!} inlineFlex items="center" gap="1" underline data-open-worktree>
             <ExternalLink size={14} aria-hidden="true" />
             Open worktree in {EDITORS.find((e) => e.key === editor)!.label}
-          </a>
+          </PlainLink>
         ) : (
           branchLink
         )}
@@ -356,9 +356,9 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
       {diff && (
         <Stack aria-label={`Diff of ${diff.path}`} as="section" gap={2}>
           <Row gap={2}>
-            <h4 className="min-w-0 flex-1 text-sm font-semibold" style={{ ...mono, overflowWrap: 'anywhere' }}>
+            <Box as="h4" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px" css-overflow-wrap="anywhere" minW0 flex1 size="sm" weight="semibold">
               {diff.path}
-            </h4>
+            </Box>
             <Toggle
               label="Diff layout"
               options={[
@@ -369,10 +369,10 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
               onChange={(key) => setLayout(key as 'unified' | 'split')}
             />
             {fileHref && (
-              <a href={editorHref(editor, fileTarget!.path, fileTarget!.line)!} className="inline-flex items-center gap-1 text-xs underline" data-open-file>
+              <PlainLink href={editorHref(editor, fileTarget!.path, fileTarget!.line)!} inlineFlex items="center" gap="1" size="xs" underline data-open-file>
                 <ExternalLink size={14} aria-hidden="true" />
                 Open in {EDITORS.find((e) => e.key === editor)!.label}
-              </a>
+              </PlainLink>
             )}
           </Row>
           {diff.error ? (

@@ -107,6 +107,8 @@ import { TextLink } from './ui/TextLink'
 import { Checkbox } from './ui/Checkbox'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { DetailsStyle, SpecRailStyle } from './ui/PageStyles'
+import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
 
 // Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
@@ -137,14 +139,6 @@ export function SpecCard(props: { title: string; id?: string; actions?: ReactNod
   )
 }
 
-const RAIL_CSS = `[data-spec-rail]>[data-rail-section]:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
-[data-rail-edit]{font-size:11.5px;color:var(--accent);background:none;border:0;padding:0;cursor:pointer}
-[data-rail-edit]:hover{text-decoration:underline}
-[data-rail-edit]:focus-visible,[data-spec-menu-item]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-[data-spec-menu-item]{display:flex;align-items:center;gap:8px;width:100%;height:28px;padding:0 8px;border:0;border-radius:6px;background:none;color:var(--text);font-size:13px;text-align:left;cursor:pointer;text-decoration:none;white-space:nowrap}
-[data-spec-menu-item]:hover{background:var(--bg-hover)}
-[data-spec-menu-item][aria-disabled=true]{color:var(--muted);cursor:default;background:none}
-[data-spec-menu-item][data-danger]{color:var(--danger)}`
 
 function RailSection(props: { title: string; edit?: { label: string; onClick: () => void }; children: ReactNode; attrs?: Record<string, string> }) {
   return (
@@ -153,9 +147,9 @@ function RailSection(props: { title: string; edit?: { label: string; onClick: ()
         <Box as="h4" css-margin="0" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase" css-color="muted">{props.title}</Box>
         {props.edit && (
           <Tooltip text="Edit">
-            <button type="button" data-rail-edit aria-label={props.edit.label} onClick={props.edit.onClick} style={{ display: 'inline-flex', padding: 2 }}>
+            <PlainButton type="button" data-rail-edit aria-label={props.edit.label} onClick={props.edit.onClick} css-display="inline-flex" css-padding="2">
               <Pencil size={13} aria-hidden="true" />
-            </button>
+            </PlainButton>
           </Tooltip>
         )}
       </Box>
@@ -250,14 +244,10 @@ function Documents({ docs, error }: { docs: SpecDocuments | null; error: string 
   )
 }
 
-// The spec's details in one compact bordered box on the Overview: the rail's
-// small labeled sections as a label/value grid, scrolling inside the box.
-const DETAILS_CSS = `[data-spec-details-box] [data-spec-rail]{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));column-gap:20px;row-gap:14px;align-items:start}
-[data-spec-details-box] [data-rail-section]{border-bottom:0!important;margin-bottom:0!important;padding-bottom:0!important;min-width:0}`
 function SpecDetailsBox({ children }: { children: ReactNode }) {
   return (
     <SpecCard title="Spec details" id="avoozl-spec-details">
-      <style>{DETAILS_CSS}</style>
+      <DetailsStyle />
       <Box data-spec-details-box tabIndex={0} css-max-height="260" css-overflow-y="auto" css-overscroll-behavior="contain" css-font-size="12.5">
         {children}
       </Box>
@@ -304,9 +294,9 @@ function SpecTabs(props: { tabs: string[]; current: string; plan: SpecPlan | nul
   // spans the page's content edge to edge.
   const phone = usePhone()
   return (
-    <div data-spec-tabs-wrap style={{ padding: phone ? 0 : '0 12px', minWidth: 0 }}>
+    <Box data-spec-tabs-wrap css-padding={phone ? '0' : '0-12px'} css-min-width="0">
       <DocTabs tabs={props.tabs} current={props.current} counts={shown} onPick={props.onPick} bar={{ label: 'Spec views', attr: 'data-spec-tab', prefix: 'spec-tab', labels: TAB_NAME }} />
-    </div>
+    </Box>
   )
 }
 
@@ -390,7 +380,7 @@ function SpecAiSummary(props: { plan: SpecPlan; spec: SpecSummary; onRetry?: () 
       {pending ? (
         <ReviewWorking model={review?.reviewerModel ?? null} title="AI working" label="Writing a short summary of this spec…" />
       ) : written ? (
-        <p className="text-sm" data-spec-summary-text style={{ margin: 0, maxWidth: PROSE_MEASURE }}>
+        <Box as="p" css-margin="0" css-max-width="80ch" size="sm" data-spec-summary-text>
           {written.text}
           {!written.current && (
             <Hint size="xs" data-spec-summary-older>
@@ -398,14 +388,14 @@ function SpecAiSummary(props: { plan: SpecPlan; spec: SpecSummary; onRetry?: () 
               (written for <code>{shortHash(written.revisionHash)}</code>)
             </Hint>
           )}
-        </p>
+        </Box>
       ) : (
         <Hint as="p" size="sm" flush data-spec-summary-fallback>
           Summary unavailable{' '}
           {props.onRetry && (
-            <button type="button" className="underline underline-offset-2" style={{ background: 'none', border: 0, padding: 0, color: 'var(--accent)', cursor: 'pointer' }} data-spec-summary-retry onClick={props.onRetry}>
+            <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="accent" css-cursor="pointer" underline underlineOffset2 data-spec-summary-retry onClick={props.onRetry}>
               Retry
-            </button>
+            </PlainButton>
           )}
         </Hint>
       )}
@@ -641,9 +631,9 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
               <Box as="ul" mt="1" flex flexCol gap="0.5" size="sm">
                 {group.tasks.map((task) => (
                   <Box key={task.id} as="li" flex items="baseline" justify="between" gap="3">
-                    <button type="button" className="min-w-0 truncate text-left hover:underline" onClick={() => props.onOpenTask(task.id)}>
+                    <PlainButton type="button" minW0 truncate align="left" hoverUnderline onClick={() => props.onOpenTask(task.id)}>
                       {task.title}
-                    </button>
+                    </PlainButton>
                     <Box as="span" shrink0 size="xs" tone="muted">{STATES.find((state) => state.id === nodeState(task))?.label}</Box>
                   </Box>
                 ))}
@@ -776,13 +766,13 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: 
       <NavSlotFor section="plans">
         <div role="search" aria-label="Filter specs" data-nav-filters="avoozl-plans" data-filter-panel="avoozl-plans" data-rail>
           <RailStyle />
-          <input
+          <PlainInput
             type="search"
             aria-label="Search specs"
             placeholder="Search specs"
             value={filter.q ?? ''}
             onChange={(event) => set({ q: event.target.value })}
-            style={{ width: '100%', boxSizing: 'border-box', marginBottom: 12, fontSize: 13, padding: '6px 12px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            css-width="100%" css-box-sizing="border-box" css-margin-bottom="12" css-font-size="13" css-padding="6px-12px" css-border-radius="6" css-background="bg" css-color="text" css-border="1px-solid-border"
           />
           <RailBlock first id="sort" icon={ArrowUpDown} title="Sort">
             <RailSortList fields={SORTS} sort={order.sort} dir={order.dir} onSort={(sort) => props.onOrder(sort === order.sort ? { sort, dir: order.dir === 'asc' ? 'desc' : 'asc' } : { sort, dir: SORT_FIRST[sort] })} />
@@ -793,9 +783,9 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: 
             title="Filters"
             action={
               active && (
-                <button type="button" data-rail-icon onClick={() => props.onChange({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+                <PlainButton type="button" data-rail-icon onClick={() => props.onChange({})} css-gap="2" css-align-items="center" css-font-size="12">
                   <X size={11} aria-hidden="true" /> Clear
-                </button>
+                </PlainButton>
               )
             }
           >
@@ -829,9 +819,9 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: 
       <Box flex minW0 items="center" gap="1.5" px="1" data-filter-status>
         {props.children}
         {active && (
-          <button type="button" className="text-xs underline" onClick={() => props.onChange({})} data-filter-clear-inline>
+          <PlainButton type="button" size="xs" underline onClick={() => props.onChange({})} data-filter-clear-inline>
             Clear filters
-          </button>
+          </PlainButton>
         )}
       </Box>
     </>
@@ -935,14 +925,13 @@ export function SpecList(props: {
         const selected = row.key === props.selected
         const batch = row.planId ? batchOf.get(row.planId) : undefined
         const button = (
-          <button
+          <PlainButton
             type="button"
             data-plan-row={row.key}
             data-spec-chip={chip}
             aria-current={selected ? 'true' : undefined}
             onClick={() => props.onOpen(row)}
-            className="flex w-full min-w-0 flex-col items-stretch gap-0.5 px-2 py-1.5 text-left"
-            style={{ background: selected ? 'var(--accent-subtle, var(--bg-elevated))' : 'none', border: 0, borderRadius: 6, color: 'inherit', cursor: 'pointer' }}
+            css-background={selected ? 'accent-subtle-bg-elevated' : 'none'} css-border="0" css-border-radius="6" css-color="inherit" css-cursor="pointer" flex wFull minW0 flexCol items="stretch" gap="0.5" px="2" py="1.5" align="left"
           >
             <Box as="span" flex minW0 items="center" gap="2">
               {chip === 'draft' ? (
@@ -976,10 +965,10 @@ export function SpecList(props: {
               {batch !== undefined && <Badge>Batch {batch}</Badge>}
               {row.archived && <Badge>Archived</Badge>}
             </Box>
-          </button>
+          </PlainButton>
         )
         return (
-          <li key={row.key} className="flex items-center gap-1 border-t first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+          <Box key={row.key} as="li" css-border-color="border" flex items="center" gap="1" border="t" firstBorderT0>
             {picking && (
               <Box as="span" flex w6 shrink0 justify="center">
                 {batch !== undefined && row.planId && (
@@ -1001,7 +990,7 @@ export function SpecList(props: {
             ) : (
               button
             )}
-          </li>
+          </Box>
         )
       })}
     </Box>
@@ -1143,7 +1132,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
             )}
           </Tooltip>
           <MoreMenu label="More spec actions" attrs={{ 'data-spec-more': '' }}>
-            <style>{RAIL_CSS}</style>
+            <SpecRailStyle />
             <Box css-gap="2" flex flexCol>
               {primary !== 'edit' && <MenuItem icon={Pencil} label="Edit spec" tooltip="Start a planner chat that drafts a change to the spec files" onClick={actions.onEdit} />}
               <MenuItem icon={MessagesSquare} label="Discuss spec" tooltip="Start a chat about this spec. It makes no edits." onClick={actions.onDiscuss} />
@@ -1178,9 +1167,9 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
 function GithubLink(props: { link: { url: string }; children: ReactNode }) {
   if (!safeHref(props.link.url)) return <>{props.children}</>
   return (
-    <a href={safeHref(props.link.url)!} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2" style={{ overflowWrap: 'anywhere' }} data-spec-link>
+    <PlainLink href={safeHref(props.link.url)!} target="_blank" rel="noopener noreferrer" css-overflow-wrap="anywhere" underline underlineOffset2 data-spec-link>
       {props.children}
-    </a>
+    </PlainLink>
   )
 }
 
@@ -1229,9 +1218,9 @@ function LinksSection(props: { links: SpecLinks | null | undefined; loading: boo
                 <Tooltip text={dot.label}>
                   {(describedBy) =>
                     pull.checks?.url && safeHref(pull.checks.url) ? (
-                      <a href={safeHref(pull.checks.url)!} target="_blank" rel="noopener noreferrer" aria-label={dot.label} aria-describedby={describedBy} data-check-dot={pull.checks.dot} className="inline-flex shrink-0">
+                      <PlainLink href={safeHref(pull.checks.url)!} target="_blank" rel="noopener noreferrer" aria-label={dot.label} aria-describedby={describedBy} data-check-dot={pull.checks.dot} inlineFlex shrink0>
                         <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: dot.color }} />
-                      </a>
+                      </PlainLink>
                     ) : (
                       <span role="img" aria-label={dot.label} aria-describedby={describedBy} data-check-dot={pull.checks?.dot ?? 'none'} className="inline-flex shrink-0" style={{ width: 8, height: 8, borderRadius: '50%', background: dot.color }} />
                     )
@@ -1301,13 +1290,13 @@ function SpecRail(props: {
   const edit = (what: string) => ({ label: `Edit the ${what} of ${row.name}`, onClick: props.onEdit })
   return (
     <Box data-spec-rail data-plan-aside css-font-size="12.5" css-line-height="19.4px">
-      <style>{RAIL_CSS}</style>
+      <SpecRailStyle />
       {row.kind !== 'epic' && (
         <RailSection title="Epic" edit={edit('epic')}>
           {row.epic ? (
-            <button type="button" className="text-left underline" onClick={() => props.onDrill({ kind: 'epic', id: row.epic!, title: row.epicTitle ?? row.epic! })}>
+            <PlainButton type="button" align="left" underline onClick={() => props.onDrill({ kind: 'epic', id: row.epic!, title: row.epicTitle ?? row.epic! })}>
               {row.epicTitle ?? row.epic}
-            </button>
+            </PlainButton>
           ) : (
             <span style={{ color: muted }}>No epic</span>
           )}
@@ -1346,7 +1335,7 @@ function SpecRail(props: {
               return (
                 <li key={id ?? '(none)'}>
                   <Tooltip text={`Show only ${phase.title} in the Graph`} display="block">
-                    <button type="button" className="w-full rounded px-1 py-0.5 text-left hover:bg-accent/10" onClick={() => props.onDrill({ kind: 'phase', plan: row.planId, id, title: phase.title })}>
+                    <PlainButton type="button" wFull rounded="base" px="1" py="0.5" align="left" hoverBgAccent10 onClick={() => props.onDrill({ kind: 'phase', plan: row.planId, id, title: phase.title })}>
                       <Box as="span" flex justify="between" gap="2">
                         <Box as="span" truncate>{phase.title}</Box>
                         <span className="shrink-0" style={{ color: muted }}>
@@ -1356,7 +1345,7 @@ function SpecRail(props: {
                       <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
                         <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
                       </Box>
-                    </button>
+                    </PlainButton>
                   </Tooltip>
                 </li>
               )
@@ -1377,15 +1366,14 @@ function SpecRail(props: {
         </Box>
         {row.planId && leaves.length > 0 && (
           <Tooltip text="Show this spec's live dependency tree in the Graph" display="block">
-            <button
+            <PlainButton
               type="button"
-              className="mt-2 text-left underline underline-offset-2"
-              style={{ color: 'var(--accent)' }}
+              css-color="accent" mt="2" align="left" underline underlineOffset2
               data-spec-open-tree={row.planId}
               onClick={() => props.onDrill({ kind: 'spec', id: row.planId!, title: row.name })}
             >
               open tree →
-            </button>
+            </PlainButton>
           </Tooltip>
         )}
       </RailSection>
@@ -1403,9 +1391,9 @@ function SpecRail(props: {
           <Stack as="ul" gap={1}>
             {decisions.map((task) => (
               <li key={task.id}>
-                <button type="button" className="text-left underline" onClick={() => props.onOpenTask(task.id)}>
+                <PlainButton type="button" align="left" underline onClick={() => props.onOpenTask(task.id)}>
                   {task.title}
-                </button>
+                </PlainButton>
                 <span className="block" style={{ color: muted }}>{task.decision}</span>
               </li>
             ))}
@@ -1418,9 +1406,9 @@ function SpecRail(props: {
             <Stack as="ul" gap={1}>
               {tabs.map((tab) => (
                 <li key={tab.file}>
-                  <button type="button" className="font-medium hover:underline" onClick={() => jump(`avoozl-doc-${tab.file}`)}>
+                  <PlainButton type="button" weight="medium" hoverUnderline onClick={() => jump(`avoozl-doc-${tab.file}`)}>
                     {tab.label}
-                  </button>
+                  </PlainButton>
                   <Stack as="ul">
                     {outline(tab.text, docPrefix(tab.file), 2)
                       .filter((h) => h.level === 2)
@@ -1604,12 +1592,6 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
   )
 }
 
-// The approve dialog's specs: a bordered box that scrolls sideways on its
-// own, fixed columns, the name truncating with the full name in its tooltip.
-// A phone shows the name and writes; the other counts are in the row tooltip.
-const TH: CSSProperties = { padding: '6px 10px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--text-muted, var(--muted))', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }
-const TD: CSSProperties = { padding: '6px 10px', borderTop: '1px solid var(--border)', whiteSpace: 'nowrap' }
-const NUM: CSSProperties = { textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection | null; phone: boolean }) {
   const writesOf = (id: string) => {
     const found = props.selection?.specs.find((entry) => entry.id === id)
@@ -1619,7 +1601,7 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
   const columns = props.phone ? ['auto', '5rem'] : ['auto', '8.5rem', '5rem', '5rem']
   return (
     <Box data-approve-list css-border-color="border" overflow="x-auto" rounded="base" border="all">
-      <table className="w-full text-sm" style={{ tableLayout: 'fixed', borderCollapse: 'collapse', minWidth: props.phone ? undefined : '30rem' }}>
+      <Box as="table" css-table-layout="fixed" css-border-collapse="collapse" css-min-width={props.phone ? undefined : '30rem'} wFull size="sm">
         <colgroup>
           {columns.map((width, at) => (
             <col key={at} style={{ width }} />
@@ -1627,10 +1609,10 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
         </colgroup>
         <thead>
           <tr>
-            <th style={{ ...TH, textAlign: 'left' }}>Spec</th>
-            {!props.phone && <th style={{ ...TH, textAlign: 'left' }}>Revision</th>}
-            {!props.phone && <th style={{ ...TH, ...NUM }}>Tasks</th>}
-            <th style={{ ...TH, ...NUM }}>Writes</th>
+            <Box as="th" css-padding="6px-10px" css-font-weight="600" css-white-space="nowrap" css-color="text-muted-muted" css-background="bg-elevated" css-border-bottom="1px-solid-border" css-text-align="left">Spec</Box>
+            {!props.phone && <Box as="th" css-padding="6px-10px" css-font-weight="600" css-white-space="nowrap" css-color="text-muted-muted" css-background="bg-elevated" css-border-bottom="1px-solid-border" css-text-align="left">Revision</Box>}
+            {!props.phone && <Box as="th" css-padding="6px-10px" css-font-weight="600" css-white-space="nowrap" css-color="text-muted-muted" css-background="bg-elevated" css-border-bottom="1px-solid-border" css-text-align="right" css-font-variant-numeric="tabular-nums">Tasks</Box>}
+            <Box as="th" css-padding="6px-10px" css-font-weight="600" css-white-space="nowrap" css-color="text-muted-muted" css-background="bg-elevated" css-border-bottom="1px-solid-border" css-text-align="right" css-font-variant-numeric="tabular-nums">Writes</Box>
           </tr>
         </thead>
         <tbody>
@@ -1638,23 +1620,23 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
             const tip = props.phone ? `${entry.spec} · revision ${shortHash(entry.hash)} · ${entry.tasks} ${entry.tasks === 1 ? 'task' : 'tasks'} · ${writesOf(entry.id)} writes` : entry.spec
             return (
               <tr key={entry.id} data-approve-row={entry.id}>
-                <td style={{ ...TD, overflow: 'hidden' }}>
+                <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap" css-overflow="hidden">
                   <Tooltip text={tip} display="block">
                     <Box as="span" block truncate weight="medium">{entry.spec}</Box>
                   </Tooltip>
-                </td>
+                </Box>
                 {!props.phone && (
-                  <td style={TD}>
+                  <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap">
                     <Box as="code" size="xs" tone="muted">{shortHash(entry.hash)}</Box>
-                  </td>
+                  </Box>
                 )}
-                {!props.phone && <td style={{ ...TD, ...NUM }}>{entry.tasks}</td>}
-                <td style={{ ...TD, ...NUM }}>{writesOf(entry.id)}</td>
+                {!props.phone && <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap" css-text-align="right" css-font-variant-numeric="tabular-nums">{entry.tasks}</Box>}
+                <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap" css-text-align="right" css-font-variant-numeric="tabular-nums">{writesOf(entry.id)}</Box>
               </tr>
             )
           })}
         </tbody>
-      </table>
+      </Box>
     </Box>
   )
 }
@@ -1735,7 +1717,7 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
           Approve exactly revision{' '}
           {base ? (
             <Tooltip text={`Show changes since ${base.approved ? 'the approved' : 'the previous'} revision ${shortHash(base.hash)}`}>
-              <button type="button" className="underline" style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }} aria-expanded={showDiff} onClick={() => setShowDiff(!showDiff)} data-revision-diff-toggle><code>{shortHash(plan.hash)}</code></button>
+              <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" underline aria-expanded={showDiff} onClick={() => setShowDiff(!showDiff)} data-revision-diff-toggle><code>{shortHash(plan.hash)}</code></PlainButton>
             </Tooltip>
           ) : <Tooltip text={plan.hash}><code>{shortHash(plan.hash)}</code></Tooltip>}
           . Review findings are evidence for your decision; they do not block approval.

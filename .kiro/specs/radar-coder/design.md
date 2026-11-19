@@ -843,7 +843,7 @@ person adds `avoozl:review` on a PR
   boundary) before the receipt is queued.
 - **Agent.** `kirocrew-app/agents/avoozl-review-draft.json`: the read tools
   and the `gh` read allowlist of `avoozl-code-review`, plus
-  `@avoozl:avoozl/plans_post_review_draft`. No write tool.
+  `@avoozl:avoozl/plans_session` (action `review_draft`). No write tool.
 - **Tool.** Input `{body, comments: [{path, line, start_line?, side?, body}]}`
   (at most 50 comments). It screens every text with the reply screen and
   content rules, checks the login again, deletes Avoozl's own earlier pending

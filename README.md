@@ -484,8 +484,8 @@ operation: `plans_workspace` (read only), `plans_maintain`, `plans_view`,
 `plans_run`. Each tool's description lists its actions. A call looks like
 `{"action": "get", "input": {"id": "TASK_ID"}}`.
 
-Some actions belong to a person and are refused over MCP under any tool name,
-old or new: approving or starting a spec, deletes, plugin changes, Allow
+Some actions belong to a person and are refused over MCP under any tool
+name: approving or starting a spec, deletes, plugin changes, Allow
 once and content-rule terms, choosing a conflict winner, GitHub setup writes
 and settings (including Who counts), adding or removing repositories or
 intake sources, workspace, flow, and delivery settings,
@@ -530,9 +530,6 @@ rather than copying the database file: SQLite also keeps a WAL file.
 
 Avoozl was first released as AICommander. These names keep working:
 
-- MCP tool names that start with `plans_`, including the older
-  one-tool-per-operation names. Each of those says `Deprecated:` and names
-  its replacement.
 - `AVOOZL_*` variables, and the older `AICOMMANDER_*` and `NUPP_WORKSPACE_*`
   names, including `NUPP_WORKSPACE` for the workspace.
 - The `aicommander` command, the same CLI as `avoozl`.
@@ -569,10 +566,6 @@ On a headless machine, set `serve.enabled` (and optionally a fixed `serve.port`)
 machine file `config.json`: the supervisor then runs the server as a child, restarts it
 on the same port, and prints no link (run `avoozl serve link` at that machine's shell).
 `avoozl status` shows the server's origin. A repository's `.avoozl.json` may not set `serve`.
-Scripts can use the server's API key instead of a browser: send it in the
-`X-Api-Key` header to `POST /apps/avoozl/api/command`, never in the address. The key
-is in Settings › Workspaces on the standalone page, where Regenerate replaces it and
-stops the old one at once.
 
 ## License
 

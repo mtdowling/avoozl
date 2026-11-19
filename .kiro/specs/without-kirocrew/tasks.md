@@ -94,7 +94,7 @@ of the other specs.
 
 ## Phase 3: Roles with rules about who wrote what
 
-- [ ] nk-3.1 Plan review as a child, after nk-1.2 [NK3.3, NK5.1, NK5.2] (§D3, §D5)
+- [x] nk-3.1 Plan review as a child, after nk-1.2 [NK3.3, NK5.1, NK5.2] (§D3, §D5)
   - Facts:
     - summary: Phase 3 (Roles with rules about who wrote what). Plan review as a child. See NK3.3, NK5.1, NK5.2; §D3, §D5.
     - done:
@@ -121,7 +121,7 @@ of the other specs.
 
 ## Phase 4: Roles that read a pull request
 
-- [ ] nk-4.1 The pull request snapshot, after nk-1.2 [NK4.1, NK4.2, NK4.5] (§D4)
+- [x] nk-4.1 The pull request snapshot, after nk-1.2 [NK4.1, NK4.2, NK4.5] (§D4)
   - Facts:
     - summary: Phase 4 (Roles that read a pull request). The pull request snapshot. See NK4.1, NK4.2, NK4.5; §D4.
     - done:
@@ -129,7 +129,7 @@ of the other specs.
     - after: nk-1.2
   - Avoozl fetches title, body, files, diffs, checks and review comments with its own GitHub client into `pull-request/`, with a size limit and a README that marks it as data; the head SHA is recorded on the session.
   - Done when: Tests with a fake GitHub: the snapshot holds each part; over the limit the largest diffs are left out and named; the fetch makes no call from the child; the GitHub call counter of RC29 (`radar-coder`, still in force) counts these reads under their own source.
-- [ ] nk-4.2 Review drafts as a child, after nk-4.1 [NK4.3] (§D4)
+- [x] nk-4.2 Review drafts as a child, after nk-4.1 [NK4.3] (§D4)
   - Facts:
     - summary: Phase 4 (Roles that read a pull request). Review drafts as a child. See NK4.3; §D4.
     - done:
@@ -137,7 +137,7 @@ of the other specs.
     - after: nk-4.1
   - Its row: read class, body and line comments in an output file; Avoozl posts the pending review, and only for the recorded head.
   - Done when: Tests on both executors: one pending review is posted with the same body and comments; nothing is submitted; a draft for a head that moved is kept and marked, and posts nothing; a line comment outside the diff is dropped as it is for a chat.
-- [ ] nk-4.3 The pull request review as a child, after nk-4.1 [NK4.4] (§D4)
+- [x] nk-4.3 The pull request review as a child, after nk-4.1 [NK4.4] (§D4)
   - Facts:
     - summary: Phase 4 (Roles that read a pull request). The pull request review as a child. See NK4.4; §D4.
     - done:

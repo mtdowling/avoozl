@@ -10,6 +10,8 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { WalkStyle } from './ui/PageStyles'
+import { PlainButton } from './ui/Plain'
 
 export interface WalkStep {
   title: string
@@ -38,7 +40,7 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
         event.preventDefault()
       }}
     >
-      <style>{`[data-walk-slide]{animation:avoozl-walk 220ms ease}@keyframes avoozl-walk{from{opacity:.2;transform:translateX(12px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion: reduce){[data-walk-slide]{animation:none}}`}</style>
+      <WalkStyle />
       <Box key={at} data-walk-slide css-grid-template-columns="repeat-auto-fit-minmax-min-100%-260px-1fr" grid items="center" gap="4">
         <Box css-background="bg-elevated-transparent" rounded="md" p="3" aria-hidden="true">
           {step.picture}
@@ -65,14 +67,13 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
         </Btn>
         <Box flex items="center" gap="1.5" role="group" aria-label="Steps">
           {props.steps.map((s, i) => (
-            <button
+            <PlainButton
               key={s.title}
               type="button"
               aria-label={`Step ${i + 1}: ${s.title}`}
               aria-current={i === at ? 'step' : undefined}
               onClick={() => go(i)}
-              className="rounded-full"
-              style={{ width: 9, height: 9, background: i === at ? 'var(--accent)' : 'var(--border)' }}
+              css-width="9" css-height="9" css-background={i === at ? 'accent' : 'border'} rounded="full"
             />
           ))}
         </Box>

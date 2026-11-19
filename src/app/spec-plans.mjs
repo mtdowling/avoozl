@@ -859,11 +859,10 @@ function planBatchGroups(
     if (
       !Array.isArray(tasks) ||
       tasks.length < 2 ||
-      tasks.length > 5 ||
       tasks.some((key) => typeof key !== "string") ||
       new Set(tasks).size !== tasks.length
     ) {
-      problem(line, `Batch "${id}" lists 2 to 5 different task IDs.`);
+      problem(line, `Batch "${id}" lists 2 or more different task IDs.`);
       continue;
     }
     if (

@@ -15,6 +15,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
+import { PlainInput } from './ui/Plain'
 
 type Client = ReturnType<typeof radarClient>
 
@@ -24,7 +25,6 @@ const STEPS = [
   ['Sent', 'A crew picks an issue on its own next turn. Follow it under With Issue Radar.'],
 ] as const
 
-const WARN = { color: 'var(--danger)' }
 
 export function SendToRadar(props: {
   workspaceId: string
@@ -162,12 +162,11 @@ export function SendToRadar(props: {
               <Box as="fieldset" flex flexCol gap="1.5" data-radar-crews>
                 <Box as="legend" srOnly>Crew</Box>
                 {crews.crews.map((entry) => (
-                  <label
+                  <Box
                     key={entry.id}
-                    className="flex cursor-pointer items-start gap-2 rounded-md border p-2"
-                    style={{ borderColor: entry.id === crewId ? 'var(--accent)' : 'var(--border)' }}
+                    as="label" css-border-color={entry.id === crewId ? 'accent' : 'border'} flex cursorPointer items="start" gap="2" rounded="md" border="all" p="2"
                   >
-                    <input type="radio" name="avoozl-radar-crew" checked={entry.id === crewId} onChange={() => setCrewId(entry.id)} style={{ marginTop: 3 }} />
+                    <PlainInput type="radio" name="avoozl-radar-crew" checked={entry.id === crewId} onChange={() => setCrewId(entry.id)} css-margin-top="3" />
                     <Box as="span" flex minW0 flexCol gap="0.5">
                       <Box as="span" flex flexWrap items="center" gap="1.5">
                         <Box as="span" weight="medium">{entry.name}</Box>
@@ -180,7 +179,7 @@ export function SendToRadar(props: {
                       </Box>
                       <Hint size="xs">{crewLine(entry)}</Hint>
                     </Box>
-                  </label>
+                  </Box>
                 ))}
               </Box>
             )
@@ -197,10 +196,10 @@ export function SendToRadar(props: {
             </Box>
           )}
           {crew?.emptyScope && (
-            <p role="alert" className="flex items-start gap-1.5 text-sm" style={WARN} data-radar-empty-scope>
+            <Box role="alert" as="p" css-color="danger" flex items="start" gap="1.5" size="sm" data-radar-empty-scope>
               <CircleAlert size={ICON} aria-hidden="true" style={{ marginTop: 3, flex: 'none' }} />
               {crew.name} has an empty scope, so it takes every open issue in {repository}, labeled or not. Avoozl writes no label; these move to With Issue Radar.
-            </p>
+            </Box>
           )}
         </Box>
       )}
@@ -223,9 +222,9 @@ export function SendToRadar(props: {
             ))}
           </Box>
           {preview.warnings.map((warning) => (
-            <p key={warning} role="alert" style={WARN}>
+            <Box key={warning} role="alert" as="p" css-color="danger">
               {warning}
-            </p>
+            </Box>
           ))}
           <Hint as="p" size="xs">To undo, remove the label on GitHub before a crew claims the issue.</Hint>
         </Box>

@@ -75,8 +75,8 @@ except Exception as error: emit({"event":"error","text":str(error)})
       }
       calls.push(value);
       let result;
-      if (value.rpc === "plans_tick") result = intents;
-      else if (value.rpc === "plans_bind_session")
+      if (value.rpc === "plans_maintain") result = intents;
+      else if (value.rpc === "plans_session")
         result = await ops.execute(
           "session.bind",
           value.args.input,

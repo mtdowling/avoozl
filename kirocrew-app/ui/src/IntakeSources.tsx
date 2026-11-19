@@ -77,9 +77,9 @@ function Fact({ label, raw, children }: { label: string; raw?: string; children:
 function Facts({ children }: { children: ReactNode }) {
   const narrow = useMedia('(max-width: 767px)')
   return (
-    <dl className="mt-2 grid gap-x-4 text-xs" style={{ gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : '13rem minmax(0, 1fr)', rowGap: narrow ? 2 : 4 }} data-intake-facts>
+    <Box as="dl" css-grid-template-columns={narrow ? 'minmax-0-1fr' : '13rem-minmax-0-1fr'} css-row-gap={narrow ? '2' : '4'} mt="2" grid gapX="4" size="xs" data-intake-facts>
       {children}
-    </dl>
+    </Box>
   )
 }
 
@@ -521,14 +521,14 @@ export default function IntakeSources({ workspaceId, plugins, onOpenGitHub, onOp
           ))}
         </Box>
         {value && !others.length && (
-          <div className="mt-3 rounded-lg border p-3" style={{ ...BOX, borderStyle: 'dashed' }} data-intake-empty>
+          <Box css-border-color="border" css-border-style="dashed" mt="3" rounded="lg" border="all" p="3" data-intake-empty>
             <EmptyState
               title="No other source yet"
               subtitle="Add one to poll a tracker plugin, or to take items a script or cron job sends through MCP."
               // TODO: add the shared "Ask for help" chat link here once it is on main.
               action={addButton}
             />
-          </div>
+          </Box>
         )}
       </Card>
       {adding && (

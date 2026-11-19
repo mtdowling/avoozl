@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
@@ -10,13 +10,7 @@ import { principalAllows } from "../command-dispatch.mjs";
 import { workspaceConfig } from "../config.mjs";
 import { machineAvoozlPaths } from "../host-config.mjs";
 import { sandboxSecretPaths } from "../sandbox.mjs";
-import {
-  ABSOLUTE_MS,
-  IDLE_MS,
-  LINK_TTL_MS,
-  readApiKey,
-  regenerateApiKey,
-} from "../serve-auth.mjs";
+import { ABSOLUTE_MS, IDLE_MS, LINK_TTL_MS } from "../serve-auth.mjs";
 import { contentSecurityPolicy, startServe } from "../serve-server.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -395,7 +389,6 @@ test("the app backend's principal headers and a bearer header, with no cookie, g
   for (const headers of [
     { "X-KiroCrew-Principal": "x.y" },
     { Authorization: "Bearer abc" },
-    { Authorization: `Bearer ${readApiKey(s.configDirectory)}` },
   ]) {
     const res = await s.call("/apps/avoozl/api/command", {
       method: "POST",
@@ -504,20 +497,14 @@ test("the server's end is a sign-out: sessions are not on disk", async (t) => {
   }
 });
 
-test("no token, cookie, CSRF value or key is in the log, serve.json or the database (SW4.10)", async (t) => {
+test("no token, cookie or CSRF value is in the log, serve.json or the database (SW4.10)", async (t) => {
   const s = await serve(t);
   const a = await s.signIn();
-  const key = readApiKey(s.configDirectory);
   await s.post(a, { operation: "demo.status" });
-  await s.call("/apps/avoozl/api/command", {
-    method: "POST",
-    headers: { "X-Api-Key": key, "Content-Type": "application/json" },
-    body: JSON.stringify({ operation: "demo.status" }),
-  });
-  await s.call(`/apps/avoozl?api_key=${key}`, {
+  await s.call(`/apps/avoozl?token=${s.token}`, {
     headers: { Cookie: a.cookie },
   });
-  const secrets = [s.token, a.cookie.split("=")[1], a.csrf, key];
+  const secrets = [s.token, a.cookie.split("=")[1], a.csrf];
   const all = [s.lines.join("\n")];
   const state = JSON.parse(
     fs.readFileSync(path.join(s.stateDirectory, "serve.json"), "utf8"),
@@ -550,11 +537,6 @@ test(
       0o600,
     );
     assert.equal(fs.statSync(s.stateDirectory).mode & 0o777, 0o700);
-    assert.equal(
-      fs.statSync(path.join(s.configDirectory, "serve-api-key.json")).mode &
-        0o777,
-      0o600,
-    );
   },
 );
 
@@ -582,139 +564,39 @@ test("the machine state and configuration folders are outside a child's roots (S
     denied.includes(real(stateDirectory)),
     "serve.json and serve.sqlite",
   );
-  assert.ok(denied.includes(real(configDirectory)), "the API key file");
-});
-
-// The API key (SW4.12 to SW4.14).
-test("the key opens the command address and nothing else, with no cookie and no CSRF", async (t) => {
-  const s = await serve(t);
-  const key = readApiKey(s.configDirectory);
-  assert.ok(key && Buffer.from(key, "base64url").length >= 32);
-  const run = (headers, p = "/apps/avoozl/api/command") =>
-    s.call(p, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...headers },
-      body: JSON.stringify({ operation: "demo.status" }),
-    });
-  assert.equal((await run({ "X-Api-Key": key })).status, 200);
-  assert.equal((await run({ "X-Api-Key": key, Origin: s.origin })).status, 200);
-  assert.equal(
-    (await run({ "X-Api-Key": key, Origin: "http://evil.example" })).status,
-    403,
-  );
-  assert.equal(
-    (await run({ "X-Api-Key": key, "Content-Type": "text/plain" })).status,
-    403,
-  );
-  assert.equal((await run({ "X-Api-Key": key }, "/logout")).status, 403);
-  assert.equal(
-    (await s.call("/apps/avoozl", { headers: { "X-Api-Key": key } })).status,
-    403,
-  );
-  assert.equal(
-    (
-      await s.call("/apps/avoozl", {
-        headers: { "X-Api-Key": key, Host: "evil.example" },
-      })
-    ).status,
-    403,
+  assert.ok(
+    denied.includes(real(configDirectory)),
+    "the machine configuration",
   );
 });
 
-test("a missing or wrong key is refused", async (t) => {
+// Only a session cookie opens /api/command: no key, no bearer token.
+test("a request with no session cookie is refused whatever else it carries (SW4.5, SW5.4)", async (t) => {
   const s = await serve(t);
-  const key = readApiKey(s.configDirectory);
-  const run = (headers) =>
-    s.call("/apps/avoozl/api/command", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...headers },
-      body: "{}",
-    });
-  assert.equal((await run({})).status, 401);
-  assert.equal((await run({ "X-Api-Key": "" })).status, 401);
-  assert.equal((await run({ "X-Api-Key": "wrong" })).status, 401);
-  assert.equal((await run({ "X-Api-Key": key.slice(0, -1) })).status, 401);
-  assert.equal((await run({ "X-Api-Key": key + "x" })).status, 401);
-});
-
-test("a key in the query string is refused, even a right one", async (t) => {
-  const s = await serve(t);
-  const key = readApiKey(s.configDirectory);
-  for (const query of [
-    `api_key=${key}`,
-    `apikey=${key}`,
-    `X-Api-Key=${key}`,
-    `key=${key}`,
-    `token=${key}`,
+  for (const headers of [
+    {},
+    { "X-Credential": "x".repeat(43) },
+    { Authorization: "Bearer abc" },
+    { "X-KiroCrew-Principal": "x.y" },
   ]) {
-    const res = await s.call(`/apps/avoozl/api/command?${query}`, {
+    const res = await s.call("/apps/avoozl/api/command", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        Origin: s.origin,
+        "Content-Type": "application/json",
+        ...headers,
+      },
       body: JSON.stringify({ operation: "demo.status" }),
     });
-    assert.equal(res.status, 401, query);
-    assert.match(res.text, /X-Api-Key header/);
-    assert.ok(!res.text.includes(key));
+    assert.equal(res.status, 401, JSON.stringify(Object.keys(headers)));
   }
-  // Not even with the header beside it.
-  const both = await s.call(`/apps/avoozl/api/command?apikey=${key}`, {
+  // The CLI's own address is no way in either.
+  const cliPath = await s.call("/api/command", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Api-Key": key },
+    headers: { "Content-Type": "application/json" },
     body: "{}",
   });
-  assert.equal(both.status, 401);
-});
-
-test("regenerate invalidates the old key at once, and the page's button does it", async (t) => {
-  const s = await serve(t);
-  const a = await s.signIn();
-  const old = readApiKey(s.configDirectory);
-  const useKey = (key) =>
-    s.call("/apps/avoozl/api/command", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Api-Key": key },
-      body: JSON.stringify({ operation: "demo.status" }),
-    });
-  assert.equal((await useKey(old)).status, 200);
-  const view = JSON.parse(
-    (await s.post(a, { operation: "serve.key.view" })).text,
-  );
-  assert.equal(view.result.key, old);
-  const made = JSON.parse(
-    (await s.post(a, { operation: "serve.key.regenerate" })).text,
-  ).result.key;
-  assert.notEqual(made, old);
-  assert.equal((await useKey(old)).status, 401);
-  assert.equal((await useKey(made)).status, 200);
-  // A key made by another process (the CLI, the app backend) counts at once too.
-  const other = regenerateApiKey(s.configDirectory);
-  assert.equal((await useKey(made)).status, 401);
-  assert.equal((await useKey(other)).status, 200);
-});
-
-test("the key is owner-level, and an agent or app token can neither read nor replace it", () => {
-  for (const operation of ["serve.key.view", "serve.key.regenerate"]) {
-    assert.equal(principalAllows({ kind: "owner-session" }, operation), true);
-    assert.equal(principalAllows({ kind: "agent-tool" }, operation), false);
-    assert.equal(principalAllows({ kind: "app-token" }, operation), false);
-  }
-});
-
-test("a request with a cookie takes the browser path: the key does not skip CSRF", async (t) => {
-  const s = await serve(t);
-  const a = await s.signIn();
-  const key = readApiKey(s.configDirectory);
-  const res = await s.call("/apps/avoozl/api/command", {
-    method: "POST",
-    headers: {
-      Cookie: a.cookie,
-      Origin: s.origin,
-      "Content-Type": "application/json",
-      "X-Api-Key": key,
-    },
-    body: JSON.stringify({ operation: "demo.status" }),
-  });
-  assert.equal(res.status, 403);
+  assert.equal(cliPath.status, 401);
 });
 
 test("avoozl serve link prints a new link for the running server, and refuses with none running (SW4.2)", async (t) => {
@@ -820,4 +702,25 @@ test("stopping the server ends open keep-alive connections, so an old session ca
     "the open connection is gone with the server",
   );
   agent.destroy();
+});
+
+test("the CLI pointed at avoozl serve is refused, and the error says why (SW5.4)", async (t) => {
+  const s = await serve(t);
+  const workspace = path.join(s.root, "ws");
+  const result = await new Promise((resolve) => {
+    const child = spawn(
+      process.execPath,
+      [cli, "gate", "list", "--workspace", workspace, "--url", s.origin],
+      { env: { ...process.env, XDG_CONFIG_HOME: path.join(s.root, "xdg") } },
+    );
+    let stderr = "";
+    child.stderr.on("data", (chunk) => (stderr += chunk));
+    child.on("close", (code) => resolve({ code, stderr }));
+  });
+  assert.notEqual(result.code, 0);
+  assert.match(
+    result.stderr,
+    /accepts \/api\/command only with a valid browser session cookie/,
+  );
+  assert.match(result.stderr, /Drop --url/);
 });

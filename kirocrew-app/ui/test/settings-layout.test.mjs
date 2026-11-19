@@ -281,9 +281,9 @@ test('the Reviews tab states the branch rule it found, or that reviewer chats ar
 
 test('the GitHub calls breakdown is its own section with a sortable real table', () => {
   assert.match(settings, /<Section title="GitHub calls"/)
-  assert.match(settings, /<th key=\{col\.key\} scope="col" aria-sort=/)
-  assert.match(settings, /<button type="button" data-sort=\{col\.key\}/)
-  assert.match(settings, /textAlign: 'right', fontVariantNumeric: 'tabular-nums'/)
+  assert.match(settings, /<Box key=\{col\.key\} scope="col" aria-sort=[^\n]*as="th"/)
+  assert.match(settings, /<PlainButton type="button" data-sort=\{col\.key\}/)
+  assert.match(settings, /css-text-align="right" css-font-variant-numeric="tabular-nums"/)
 })
 
 // The body of one function in SettingsView.tsx, by its first line.

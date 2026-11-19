@@ -45,20 +45,14 @@ import {
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { REVIEW_ACCENT, ReviewCss } from './ui/PageStyles'
+import { PlainButton, PlainTextarea } from './ui/Plain'
 
 const PROSE = '72ch'
 // Below this width the text and the rail do not fit side by side.
 const WIDE = 720
 // The text never gets narrower than this when the side column is dragged wider.
 const MIN_TEXT = 320
-// Every block a finding is anchored to is tinted by its severity and can be
-// focused; the open finding's block is stronger.
-const HIT_STYLE = `[data-review-doc] [data-review-anchor]{cursor:pointer;border-radius:4px;box-shadow:-3px 0 0 var(--hit,var(--accent));background:color-mix(in srgb,var(--hit,var(--accent)) 10%,transparent)}
-${SEVERITIES.map((s) => `[data-review-doc] [data-review-anchor][data-review-sev=${s}]{--hit:${SEVERITY_INK[s]}}`).join('\n')}
-[data-review-doc] [data-review-anchor]:hover{background:color-mix(in srgb,var(--hit,var(--accent)) 16%,transparent)}
-[data-review-doc] [data-review-anchor]:focus-visible{outline:2px solid var(--hit,var(--accent));outline-offset:2px}
-[data-review-doc] [data-review-hit]{background:color-mix(in srgb,var(--hit,var(--accent)) 24%,transparent)!important}
-[data-toc-item][aria-current=location]{color:var(--text-strong,var(--text));font-weight:600;box-shadow:inset 2px 0 0 var(--accent)}`
 const SEVERITY_ORDER: Record<string, number> = { blocker: 0, warn: 1, info: 2 }
 // Smooth unless the person asked for less motion: then a jump.
 const motion = (): ScrollBehavior => (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth')
@@ -98,15 +92,7 @@ const ACTION_TEXT: Record<FindingAction, string> = {
   reopen: 'Reopened',
 }
 
-// Kiro Crew's own accent for an action, as on its Needs your input cards.
-const ACCENT = 'color-mix(in srgb, var(--aim) 72%, var(--text-strong, var(--text)))'
 const SEVERITY_ICON: Record<FindingSeverity, typeof Info> = { blocker: CircleAlert, warn: MessageSquare, info: Info }
-const CARD_STYLE = `[data-finding-card] [data-card-btn]{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;line-height:1;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;max-width:100%}
-[data-finding-card] [data-card-btn]:hover:not(:disabled){background:var(--bg-hover)}
-[data-finding-card] [data-card-btn]:disabled{opacity:.55;cursor:default}
-[data-finding-card] [data-card-btn][data-main]{color:${ACCENT};border-color:color-mix(in srgb,${ACCENT} 45%,var(--border))}
-[data-finding-card] [data-card-btn]:focus-visible{outline:2px solid ${ACCENT};outline-offset:1px}
-[data-finding-card] [data-clamp]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}`
 
 function CardBtn(props: { main?: boolean; disabled?: boolean; onClick: () => void; attr: Record<string, string>; children: string }) {
   return (
@@ -167,7 +153,7 @@ function FindingCard(props: {
       className="text-sm"
       style={{
         ...props.style,
-        boxShadow: props.selected ? `0 0 0 2px color-mix(in srgb, ${ACCENT} 55%, transparent)` : undefined,
+        boxShadow: props.selected ? `0 0 0 2px color-mix(in srgb, ${REVIEW_ACCENT} 55%, transparent)` : undefined,
         cursor: props.onSelect ? 'pointer' : undefined,
         display: 'flex',
         flexDirection: 'column',
@@ -226,9 +212,9 @@ function FindingCard(props: {
               {finding.answer.action === 'fixed' && finding.answer.revisionHash ? (
                 <>
                   Fixed in{' '}
-                  <button type="button" className="underline" data-fixed-revision style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer', font: 'inherit' }} onClick={() => props.onRevision(finding.answer!.revisionHash!)}>
+                  <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" css-font="inherit" underline data-fixed-revision onClick={() => props.onRevision(finding.answer!.revisionHash!)}>
                     <code>{shortHash(finding.answer.revisionHash)}</code>
-                  </button>
+                  </PlainButton>
                   .
                 </>
               ) : (
@@ -254,13 +240,12 @@ function FindingCard(props: {
           <Box css-display="flex" css-flex-direction="column" css-gap="4" css-margin-top="2">
             <Box as="label" css-font-size="12">
               {asking === 'reject' ? 'Reason (required)' : 'Note (optional)'}
-              <textarea
+              <PlainTextarea
                 data-finding-note
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={2}
-                className="mt-0.5 w-full rounded border p-1 text-sm"
-                style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)', boxSizing: 'border-box', width: '100%', borderRadius: 6, marginTop: 2 }}
+                css-border-color="border" css-background="bg" css-color="text" css-box-sizing="border-box" css-width="100%" css-border-radius="6" css-margin-top="2" mt="0.5" wFull rounded="base" border="all" p="1" size="sm"
               />
             </Box>
             <Box css-display="flex" css-flex-wrap="wrap" css-gap="6">
@@ -306,25 +291,13 @@ export function DocTabs(props: {
 }) {
   const bar = props.bar ?? { label: 'Spec files', attr: 'data-review-tab', prefix: 'review-tab' }
   const count = (n: number) => (
-    <span
+    <Box
       data-tab-count={n}
       aria-label={`${n} open`}
-      style={{
-        minWidth: 18,
-        padding: '0 6px',
-        borderRadius: 999,
-        fontSize: 11,
-        lineHeight: '18px',
-        textAlign: 'center',
-        fontFamily: 'inherit',
-        fontVariantNumeric: 'tabular-nums',
-        background: n ? 'var(--bg-hover)' : 'transparent',
-        color: n ? 'var(--text)' : 'var(--muted)',
-        opacity: n ? 1 : 0.6,
-      }}
+      as="span" css-min-width="18" css-padding="0-6px" css-border-radius="999" css-font-size="11" css-line-height="18px" css-text-align="center" css-font-family="inherit" css-font-variant-numeric="tabular-nums" css-background={n ? 'bg-hover' : 'transparent'} css-color={n ? 'text' : 'muted'} css-opacity={n ? '1' : '0.6'}
     >
       {n}
-    </span>
+    </Box>
   )
   return (
     <Tabs
@@ -625,7 +598,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                 />
               ))}
             </Box>
-            <span className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginLeft: phone ? 0 : 12 }} role="group" aria-label="State" data-state-filters>
+            <Box as="span" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="6" css-margin-left={phone ? '0' : '12'} flex flexWrap items="center" gap="1.5" role="group" aria-label="State" data-state-filters>
               <Hint size="xs">State</Hint>
               {STATES.filter((s) => counts.state[s] || place.state.includes(s)).map((s) => (
                 <Chip
@@ -637,9 +610,9 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                   attr={{ 'data-state-filter': s }}
                 />
               ))}
-            </span>
+            </Box>
           </Box>
-          <style>{HIT_STYLE + CARD_STYLE}</style>
+          <ReviewCss />
           {all ? (
             <section role="tabpanel" id="review-tab-panel" aria-labelledby="review-tab-all" data-review-all style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: 'auto' } : {}) }}>
               {shown.length === 0 && (

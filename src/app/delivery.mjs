@@ -399,7 +399,7 @@ async function retireBatchWorktree(store, project, taskId, branch) {
     current = store.get("task_worktrees", taskId);
   if (!delivery?.batchSplit || delivery.batchWorktreeRetired || !current?.path)
     return;
-  if (await git(current.path, ["status", "--porcelain"]).catch(() => ""))
+  if (await worktreeChanges(current.path).catch(() => ""))
     fail(
       `${taskId}'s batch worktree has uncommitted changes; commit or clear them before it retries alone.`,
       409,
@@ -1203,7 +1203,7 @@ function reportEvidence(store, task, binding, report, attached) {
 
 // Worker bindings the delivery pipeline follows, newest attempt per task: the
 // sessions the tick's script cron opened and the ones a Crew Mode conductor
-// claimed. A plain plans_bind_session binding is not a delivery attempt.
+// claimed. A plain plans_session (action: bind) binding is not a delivery attempt.
 const RUNNER_SOURCES = new Set(["tick", "conductor"]);
 function runnerAttempts(bindings) {
   const newest = new Map();
@@ -1277,7 +1277,7 @@ const failuresSince = (delivery, attempts) =>
     .slice(delivery.retryFrom || 0)
     .filter((a) => a.outcome === "failed" && !a.vanished).length;
 
-// plans_retry_delivery: a person resumes a leaf that stopped for a decision.
+// plans_task (action: retry): a person resumes a leaf that stopped for a decision.
 // The next attempt resumes on the same worktree with a fresh retry budget.
 // `dismiss: [{finding, reason}]` closes open review findings by reference;
 // only a person may (R37.6), so a session caller is refused.
@@ -1507,7 +1507,7 @@ export function reconcileDeliveries(
           slot: binding.slot,
           title: `${taskId}: its session is gone`,
           text: `${next.cause}. Avoozl cannot tell whether it finished or was lost, so it has not started another.`,
-          resume: `Open the session to check its worktree. To start a new attempt, retry ${taskId} from Conflicts (plans_retry_delivery).`,
+          resume: `Open the session to check its worktree. To start a new attempt, retry ${taskId} from Conflicts (plans_task (action: retry)).`,
         });
         next = { ...next, decisionNotifiedAt: at };
       }
@@ -1519,7 +1519,7 @@ export function reconcileDeliveries(
           slot: last.slot,
           title: `Avoozl stopped on ${taskId}`,
           text: `${taskId} failed ${next.attempts.filter((a) => a.outcome === "failed").length} times. Last cause: ${next.cause || last.cause}.`,
-          resume: `Open the last session to see why. Fix the cause, then ask Avoozl to retry ${taskId} (plans_retry_delivery).`,
+          resume: `Open the last session to see why. Fix the cause, then ask Avoozl to retry ${taskId} (plans_task (action: retry)).`,
         });
         next = { ...next, decisionNotifiedAt: at };
       }
@@ -2799,7 +2799,7 @@ export function reconcileVerifications(
             slot: binding.slot,
             title: `Avoozl refused review ${roleId} on ${task.id}`,
             text: `Commit ${subject.slice(0, 12)}: ${record.cause}.`,
-            resume: `Give review ${roleId} a model Kiro Crew offers that differs from the writer's (.avoozl.json), then ask Avoozl to retry ${task.id} (plans_retry_delivery).`,
+            resume: `Give review ${roleId} a model Kiro Crew offers that differs from the writer's (.avoozl.json), then ask Avoozl to retry ${task.id} (plans_task (action: retry)).`,
           });
       } else if (record.outcome === "protected") {
         // A protected path waits for a person; no writer attempt is spent
@@ -2892,7 +2892,7 @@ export function holdUnprovenReviews(
         slot: next.attempts.at(-1)?.slot,
         title: `Avoozl will not review ${task.id}`,
         text: `Commit ${next.commit.slice(0, 12)}: ${blocked}.`,
-        resume: `Name distinct models (the worker's in Settings › Models and the review role's), or open the writer on a named model, then ask Avoozl to retry ${task.id} (plans_retry_delivery).`,
+        resume: `Name distinct models (the worker's in Settings › Models and the review role's), or open the writer on a named model, then ask Avoozl to retry ${task.id} (plans_task (action: retry)).`,
       });
     store.transaction(() => store.put("task_deliveries", next));
   }
@@ -3188,7 +3188,8 @@ export async function rebaseForIntegration(project, worktree, commit) {
     await git(project.root, ["merge-base", "--is-ancestor", target, commit]);
     return null;
   } catch {}
-  if (await git(worktree.path, ["status", "--porcelain"]))
+  // Avoozl's own files (a child's .avoozl/ result folder) are not changes.
+  if (await worktreeChanges(worktree.path))
     fail(
       "The task's worktree has uncommitted changes; it was not rebased.",
       409,
@@ -3397,7 +3398,7 @@ export async function integrateVerified(
         slot: delivery.attempts?.at(-1)?.slot,
         title: `Avoozl could not integrate ${delivery.taskId}`,
         text: `Commit ${delivery.commit.slice(0, 12)}: ${error.message}`,
-        resume: `The work stays on branch avoozl/${delivery.taskId}. Resolve the cause, then ask Avoozl to retry ${delivery.taskId} (plans_retry_delivery).`,
+        resume: `The work stays on branch avoozl/${delivery.taskId}. Resolve the cause, then ask Avoozl to retry ${delivery.taskId} (plans_task (action: retry)).`,
       });
     }
     store.transaction(() => store.put("task_deliveries", next));

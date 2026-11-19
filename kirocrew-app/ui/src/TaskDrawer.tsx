@@ -38,6 +38,7 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 // Lines shown either side of a task's own lines.
 const SNIPPET_CONTEXT = 3
@@ -157,9 +158,9 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
         {first?.readable
           ? linkParts(origin.text, first.document).map((part, i) =>
               part.link ? (
-                <button key={i} type="button" className="underline" style={{ color: 'var(--accent)', overflowWrap: 'anywhere' }} onClick={() => setFull(first)} data-origin-path>
+                <PlainButton key={i} type="button" css-color="accent" css-overflow-wrap="anywhere" underline onClick={() => setFull(first)} data-origin-path>
                   {part.text}
-                </button>
+                </PlainButton>
               ) : (
                 part.text
               ),
@@ -168,14 +169,14 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
       </Hint>
       <Box flex flexWrap items="center" gap="2">
         {origin.kind === 'github-issue' && props.issue && (
-          <a href={linkHref(props.issue)} target="_blank" rel="noopener noreferrer" className="text-xs underline">
+          <PlainLink href={linkHref(props.issue)} target="_blank" rel="noopener noreferrer" size="xs" underline>
             Open the issue on GitHub
-          </a>
+          </PlainLink>
         )}
         {origin.spec && props.onOpenSpec && (
-          <button type="button" className="text-xs underline" onClick={() => props.onOpenSpec!(origin.spec!)}>
+          <PlainButton type="button" size="xs" underline onClick={() => props.onOpenSpec!(origin.spec!)}>
             Open spec {origin.spec} in Specs
-          </button>
+          </PlainButton>
         )}
         {origin.sources
           .filter((source) => !source.readable)
@@ -208,13 +209,13 @@ function BatchBox(props: { batch: NonNullable<DeliveryItem['batchGroup']>; alone
       <Box flex flexCol gap="1" size="sm" data-task-batch={batch.id ?? batch.group ?? ''}>
         <Box as="p" m0>
           {batch.id ? 'Ran in batch ' : 'Planned batch '}
-          {batch.leader === props.self ? <Box as="span" weight="medium">{batch.group ?? batch.id}</Box> : <button type="button" className="underline" onClick={() => drawer.openTask(batch.leader)} data-batch-link={batch.leader}>{batch.group ?? batch.id}</button>}
+          {batch.leader === props.self ? <Box as="span" weight="medium">{batch.group ?? batch.id}</Box> : <PlainButton type="button" underline onClick={() => drawer.openTask(batch.leader)} data-batch-link={batch.leader}>{batch.group ?? batch.id}</PlainButton>}
           {batch.reason ? <Hint> · {batch.reason}</Hint> : null}
         </Box>
         <Box as="ul" m0 flex flexCol gap="0.5" pl="4" size="xs">
           {batch.tasks.map((id) => (
             <li key={id}>
-              {id === props.self ? <span>{id} (this task)</span> : <button type="button" className="underline" onClick={() => drawer.openTask(id)}>{id}</button>}
+              {id === props.self ? <span>{id} (this task)</span> : <PlainButton type="button" underline onClick={() => drawer.openTask(id)}>{id}</PlainButton>}
               {id === batch.leader ? <Hint> · leads</Hint> : null}
             </li>
           ))}
@@ -387,9 +388,9 @@ function TaskPanel(props: {
           Edit
         </IconLabel>
         {!done && !local && issue && (
-          <a href={linkHref(issue)} target="_blank" rel="noopener noreferrer" className="self-center text-xs underline">
+          <PlainLink href={linkHref(issue)} target="_blank" rel="noopener noreferrer" self="center" size="xs" underline>
             Defer on the board
-          </a>
+          </PlainLink>
         )}
       </Box>
       {chat.error && (

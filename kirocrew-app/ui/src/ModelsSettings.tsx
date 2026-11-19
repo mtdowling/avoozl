@@ -42,14 +42,12 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { ModelRowsStyle } from './ui/PageStyles'
 
-const HIDDEN = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' } as const
-// One column on a phone; role | harness | agent | model | source from 1000px.
-const ROW_CSS = '[data-model-role]{display:grid;grid-template-columns:minmax(0,1fr);gap:8px 16px}@media (min-width:1000px){[data-model-role]{grid-template-columns:11rem minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 10rem}}[data-model-role]~[data-model-role]{border-top:1px solid var(--border);padding-top:12px}'
 // shortcut: these roles cannot run as a harness child yet (rows of
 // src/app/role-table.mjs with process: false); drop a role here when its task
 // lands.
-const CHAT_ONLY = new Set<Role>(['planReviewer', 'reviewDraft', 'issuePlanner', 'prReview'])
+const CHAT_ONLY = new Set<Role>(['issuePlanner'])
 
 export default function ModelsSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()
@@ -108,9 +106,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
   const reset = (role: Role) => setForm({ ...form, [role]: {} })
   return (
     <Stack gap={4} data-models-settings>
-      <style href="avoozl-models-rows" precedence="default">
-        {ROW_CSS}
-      </style>
+      <ModelRowsStyle />
       <FormSection title="Harnesses on this machine" blurb="Harness files live in this machine’s Avoozl config. Each is approved by its file hash.">
         <Box as="ul" css-column-gap="24" css-row-gap="8" flex flexWrap size="sm" data-models-harnesses>
           <Box as="li" flex items="center" gap="2">
@@ -152,7 +148,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                 <FieldRow id={`avoozl-harness-${role.key}`} label="Harness">
                   <Picker
                     id={`avoozl-harness-${role.key}`}
-                    label={<span style={HIDDEN}>{role.label} harness</span>}
+                    label={<Box as="span" css-position="absolute" css-width="1" css-height="1" css-overflow="hidden" css-clip="rect-0-0-0-0">{role.label} harness</Box>}
                     items={optionItems(harnessOptions(definitions, row.harness ?? '', ROLE_ACCESS[role.key], host))}
                     value={harness}
                     onPick={(next) => pickHarness(role.key, next)}
@@ -178,7 +174,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                   ) : (
                     <Picker
                       id={`avoozl-model-${role.key}`}
-                      label={<span style={HIDDEN}>{role.label} model</span>}
+                      label={<Box as="span" css-position="absolute" css-width="1" css-height="1" css-overflow="hidden" css-clip="rect-0-0-0-0">{role.label} model</Box>}
                       items={optionItems(choices(role.key))}
                       value={row.model || 'auto'}
                       onPick={(model) => set(role.key, { model: model || 'auto' })}

@@ -12,6 +12,7 @@ import { WHO_COLOR, WHO_TEXT, buildWorkflowMap, fieldSelector, type Card as Step
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export const WORKFLOW_BLURB =
   "How work flows through this repository, read from its saved settings. A value in a card opens the field that sets it."
@@ -34,9 +35,9 @@ function ValueLine({ value, onJump }: { value: Value; onJump?: (jump: Jump) => v
     <Box as="span" size="xs" data-value={value.label} data-source={value.source}>
       <Hint>{value.label}: </Hint>
       {value.jump && onJump ? (
-        <button type="button" className="underline" style={{ color: 'inherit', background: 'none', border: 0, padding: 0, cursor: 'pointer', overflowWrap: 'anywhere', textAlign: 'start' }} onClick={() => onJump(value.jump!)}>
+        <PlainButton type="button" css-color="inherit" css-background="none" css-border="0" css-padding="0" css-cursor="pointer" css-overflow-wrap="anywhere" css-text-align="start" underline onClick={() => onJump(value.jump!)}>
           <code>{value.text}</code>
-        </button>
+        </PlainButton>
       ) : (
         <Box as="code" css-overflow-wrap="anywhere">{value.text}</Box>
       )}
@@ -162,9 +163,9 @@ export default function WorkflowMap(props: {
                     </td>
                     <Box as="td" alignTop>
                       {row.jump && props.onJump ? (
-                        <button type="button" className="underline" style={{ color: 'inherit', background: 'none', border: 0, padding: 0, cursor: 'pointer' }} onClick={() => props.onJump!(row.jump!)}>
+                        <PlainButton type="button" css-color="inherit" css-background="none" css-border="0" css-padding="0" css-cursor="pointer" underline onClick={() => props.onJump!(row.jump!)}>
                           Open setting
-                        </button>
+                        </PlainButton>
                       ) : (
                         <Hint>{row.source === 'placeholder' ? 'not built yet' : '—'}</Hint>
                       )}

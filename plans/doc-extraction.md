@@ -395,11 +395,11 @@ was extracted.
 
 | Operation | MCP name | Purpose |
 | --- | --- | --- |
-| `queue.design.triage` | `plans_triage_design` | Extract an untriaged design, or set it aside as context |
-| `plan.extract` | `plans_extract` | Extract a revision, with coverage |
-| `plan.extract.get` | `plans_extraction` | Pipeline state, rounds, facts, coverage |
+| `queue.design.triage` | `plans_review {action: "triage_design"}` | Extract an untriaged design, or set it aside as context |
+| `plan.extract` | `plans_review {action: "extract"}` | Extract a revision, with coverage |
+| `plan.extract.get` | `plans_review {action: "extraction"}` | Pipeline state, rounds, facts, coverage |
 | `plan.extraction.submit` | `plans_submit_extraction` | One fact list from one round |
-| `plan.extraction.dispose` | `plans_dispose_fact` | Reject, edit, or reuse a fact |
+| `plan.extraction.dispose` | `plans_review {action: "dispose_fact"}` | Reject, edit, or reuse a fact |
 | `plan.preview` | `plans_preview` | Extended with `extractionId` |
 | `plan.approve` | `plans_approve` | Extended with `extractionId` |
 

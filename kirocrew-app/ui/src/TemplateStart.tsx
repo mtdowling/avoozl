@@ -16,6 +16,7 @@ import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainInput } from './ui/Plain'
 
 const fieldStyle = {
   borderColor: 'var(--border)',
@@ -79,7 +80,7 @@ function InputField(props: {
         </SelectField>
       ) : input.type === 'file' ? (
         <>
-          <input
+          <PlainInput
             id={id}
             type="file"
             accept=".md,.txt,.json,.csv,text/*"
@@ -99,7 +100,7 @@ function InputField(props: {
                 },
               )
             }}
-            className="text-sm"
+            size="sm"
           />
           <Hint size="xs">
             {file
@@ -181,17 +182,14 @@ export function TemplateStart(props: {
       <Box as="fieldset" flex flexCol gap="1" size="sm">
         <Box as="legend" weight="medium">Template</Box>
         {props.templates.map((t) => (
-          <label
+          <Box
             key={templateKey(t)}
-            className="flex items-start gap-2 rounded border p-2"
-            style={{
-              borderColor: props.picked === templateKey(t) ? 'var(--accent)' : 'var(--border)',
-            }}
+            as="label" css-border-color={props.picked === templateKey(t) ? 'accent' : 'border'} flex items="start" gap="2" rounded="base" border="all" p="2"
           >
-            <input
+            <PlainInput
               type="radio"
               name="avoozl-template"
-              className="mt-1"
+              mt="1"
               checked={props.picked === templateKey(t)}
               onChange={() => props.onPick(templateKey(t))}
             />
@@ -200,7 +198,7 @@ export function TemplateStart(props: {
               <Hint size="xs">{t.description}</Hint>
               {t.phases.length > 0 && <Hint size="xs">Phases: {t.phases.map((p) => p.title).join(', ')}</Hint>}
             </Stack>
-          </label>
+          </Box>
         ))}
         {props.tried && !template && <ErrorText as="span" size="xs">Pick a template.</ErrorText>}
       </Box>

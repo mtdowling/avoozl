@@ -5,6 +5,7 @@
 // classified. Moved run-era operations (moved-operations.mjs) keep their old
 // class so an old client keeps the same answer.
 const OBSERVE = new Set([
+  "review.chat.show",
   "client.describe",
   "workspace",
   "concurrency.status",
@@ -199,7 +200,6 @@ const EXECUTE = new Set([
   "session.report",
   "session.send",
   "session.open",
-  "relay.call",
   "reply.post",
   "reviewdraft.post",
   "task.summary.request",

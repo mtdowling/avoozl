@@ -141,7 +141,7 @@ export function sendConflictBack(
         task: taskId,
         title: `${taskId}: landing conflicts`,
         text: `${cause}. Conflicted files: ${files.slice(0, 10).join(", ") || "none listed"}. The work stays on its branch.`,
-        resume: `Resolve the conflict in the worktree, then ask Avoozl to retry ${taskId} (plans_retry_delivery).`,
+        resume: `Resolve the conflict in the worktree, then ask Avoozl to retry ${taskId} (plans_task (action: retry)).`,
       });
     }
   });

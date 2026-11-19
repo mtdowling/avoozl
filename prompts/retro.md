@@ -10,6 +10,8 @@ Name the biggest bottleneck first, the stage with the most waiting or rework, wi
 - {"type": "skill", "target", "base", "diff", "metric", "direction", "evidence": {"runs", "value", "effect"}}: a unified diff of one skill file in your brief.
 - {"type": "rule", "text", "corrections": [IDs], "evidence"}: when the brief's `corrections` show the same correction on two or more different tasks in one repository, one short rule that would have prevented it, citing those correction IDs. On approval it lands as a pull request to the repository's steering rules file. Write the rule in general words: no task ID, person, other repository, or path outside the repository.
 
+Flag a spec whose related tasks in one repository and area landed as many small pull requests when one medium-sized pull request would have done; name it in the bottleneck's evidence or propose a prompt change to the planner's grouping.
+
 metric is one of lead time, flow efficiency, first-pass rate, time to fix, change failure rate, CI minutes per pull request. A CI minutes per pull request proposal is settings or plan and also names "repository" and "class": all, code, tests, spec, docs, ci or other. A prompt or skill proposal names at least 3 runs (task#attempt) it is based on. Do not propose again what earlier proposals show did not help.
 
 # Person only

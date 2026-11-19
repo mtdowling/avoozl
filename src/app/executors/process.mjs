@@ -34,6 +34,8 @@ import { taskRepository } from "../../work-model.mjs";
 import { hasRemoteTask } from "../remote-runner.mjs";
 import { addEvidence } from "../evidence.mjs";
 import { processRow } from "../role-table.mjs";
+import { loadHarnessDefinition } from "../harness-definitions.mjs";
+import { sessionServedModel } from "../process-view.mjs";
 
 export const PROCESS_EXECUTOR = "process";
 // The harness a `process` project runs when it names none.
@@ -257,14 +259,18 @@ export async function commitChildWork(binding, worktree) {
 }
 
 // A role's snapshot (NK4.1): a scratch folder of its own that the row's
-// `snapshot(store, request)` fills, as {relative path: text}. Its files are
-// left read-only, and a read-only child's only write root in it is
-// `.avoozl/` (harnessPermission), so the child cannot change what it reads.
-async function fillSnapshot(store, row, request) {
+// `snapshot(store, request, {github})` fills. It returns {files: {relative
+// path: text}, head?}, where `head` is the commit it was read at, kept on
+// the session. Its files are left read-only, and a read-only child's only
+// write root in it is `.avoozl/` (harnessPermission), so the child cannot
+// change what it reads. Avoozl reads with its own GitHub client; the child
+// makes no call.
+async function fillSnapshot(store, row, request, github) {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), row.scratch));
   try {
-    writeSnapshot(folder, await row.snapshot(store, request));
-    return folder;
+    const filled = await row.snapshot(store, request, { github });
+    writeSnapshot(folder, filled.files);
+    return { folder, head: filled.head ?? null };
   } catch (error) {
     fs.rmSync(folder, { recursive: true, force: true });
     throw error;
@@ -379,6 +385,50 @@ async function finishPlanAnswer(ops, binding, result, store) {
   );
 }
 
+// A review draft child (NK4.3): its draft is posted as a pending review,
+// as this session, with plans_post_review_draft's own checks, and only for
+// the head its snapshot was read at. A head that moved since keeps the
+// draft on its receipt, marked, and posts nothing. A line comment outside
+// the snapshot's diffs is dropped, since GitHub refuses a whole draft for it.
+async function finishReviewDraft(ops, binding, result, store) {
+  const receipt = store.get("receipts", binding.taskId),
+    draft = result.outputValue,
+    head = store.get("session_bindings", binding.slot)?.snapshotHead ?? null;
+  let current = null;
+  try {
+    current =
+      (
+        await ops.github?.pullRequestFeedback(receipt.repository, [
+          receipt.number,
+        ])
+      )?.[receipt.number]?.head ?? null;
+  } catch {
+    // Unreadable: the receipt's head is the one the draft is posted for.
+  }
+  if (!head || head !== receipt.headSha || (current && current !== head)) {
+    store.put("receipts", {
+      ...receipt,
+      state: "stale",
+      heldDraft: { ...draft, head },
+      staleAt: new Date().toISOString(),
+    });
+    return { posted: false, stale: true };
+  }
+  const { commentsInDiff } = await import("../pull-request-snapshot.mjs");
+  const { kept, dropped } = commentsInDiff(result.worktree, draft.comments);
+  if (dropped)
+    store.put("receipts", {
+      ...store.get("receipts", receipt.id),
+      droppedComments: dropped,
+    });
+  return ops.execute(
+    "reviewdraft.post",
+    { body: draft.body, ...(kept.length ? { comments: kept } : {}) },
+    undefined,
+    { caller: cliReportCaller(binding) },
+  );
+}
+
 // Record a child's result as its session's report, as `runner report` does
 // for a chat (R96.2, R96.3): matched by the supervisor's record, the text
 // kept as data, and a done report's commit read from the worktree's HEAD,
@@ -404,7 +454,64 @@ export async function finishProcessSession(ops, binding, result, store = null) {
           : "",
     );
   }
+  // A pull request review is kept with its request and shown with the
+  // session; nothing goes to GitHub (NK4.4).
+  if (hands === "pr-review") {
+    if (result.state !== "done" || !store) return null;
+    const receipt = store.get("receipts", binding.taskId);
+    if (!receipt) return null;
+    const review = {
+      text: result.outputValue,
+      slot: binding.slot,
+      head:
+        store.get("session_bindings", binding.slot)?.snapshotHead ??
+        receipt.headSha ??
+        null,
+      at: new Date().toISOString(),
+    };
+    store.put("receipts", { ...receipt, review });
+    return { stored: true };
+  }
+  if (hands === "review-draft")
+    return result.state === "done"
+      ? finishReviewDraft(ops, binding, result, store)
+      : null;
   if (hands === "folder") return null;
+  // Plan review (NK3.3): the findings go through plans_submit_review's own
+  // checks, as this session, after its served model (if any) is recorded.
+  if (hands === "plan-review") {
+    if (result.state !== "done") return null;
+    if (store)
+      recordSessionStatus(
+        store,
+        { slot: binding.slot, status: "closed" },
+        result.served
+          ? {
+              served: {
+                model: result.served,
+                requested: binding.model ?? null,
+                changed: false,
+                withheld: false,
+              },
+            }
+          : undefined,
+      );
+    const context = binding.context ?? {};
+    return ops.execute(
+      "plan.review.submit",
+      {
+        planId: context.planId,
+        revisionHash: context.revisionHash,
+        roundId: context.roundId,
+        findings: result.outputValue.findings,
+        ...(result.outputValue.summary !== undefined
+          ? { summary: result.outputValue.summary }
+          : {}),
+      },
+      undefined,
+      { caller: cliReportCaller(binding) },
+    );
+  }
   if (hands === "plan-answer")
     return result.state === "done"
       ? finishPlanAnswer(ops, binding, result, store)
@@ -505,6 +612,20 @@ export async function finishProcessSession(ops, binding, result, store = null) {
   });
 }
 
+// The served model a finished child's harness output names, or null.
+function servedModelOf(stateDirectory, slot, configDirectory) {
+  try {
+    const row = withDatabase(stateDirectory, (db) => childRecord(db, slot));
+    const definition = loadHarnessDefinition({
+      configDirectory,
+      name: row.harness,
+    });
+    return sessionServedModel(row, definition);
+  } catch {
+    return null;
+  }
+}
+
 // Consume this workspace's `process` requests (R93.3: the tick only writes
 // them): start each claimed one, bind its session, and queue each message.
 // Then record the status of each live `process` session. A write worker
@@ -561,17 +682,19 @@ export async function drainProcessRequests(
       // A snapshot role reads a folder Avoozl fills before it starts (NK4.1).
       const snapshot =
         row?.folder === "snapshot" && !request.worktree
-          ? await fillSnapshot(store, row, request).catch((error) => {
-              releaseSessionRequest(
-                store,
-                { id: request.id, claimToken, reason: "before-open" },
-                owner,
-              );
-              throw error;
-            })
+          ? await fillSnapshot(store, row, request, ops?.github).catch(
+              (error) => {
+                releaseSessionRequest(
+                  store,
+                  { id: request.id, claimToken, reason: "before-open" },
+                  owner,
+                );
+                throw error;
+              },
+            )
           : null;
       const worktree = snapshot
-        ? snapshot
+        ? snapshot.folder
         : row?.folder === "worktree" &&
             request.permissionClass === "write" &&
             prepareWorktree &&
@@ -652,6 +775,17 @@ export async function drainProcessRequests(
           text: `Investigate first was skipped: ${request.investigateSkipped}.`,
           key: `investigate-skipped:${request.task}`,
         });
+      // The head a snapshot was read at, kept on the session (NK4.1).
+      if (snapshot?.head)
+        store.put("session_bindings", {
+          ...store.get("session_bindings", sessionId),
+          snapshotHead: snapshot.head,
+        });
+      // A spec review child binds its round, as session.bind does for a chat.
+      if (request.role === "plan-review") {
+        const { bindSpecReviewRound } = await import("../plan-reviews.mjs");
+        bindSpecReviewRound(store, { roundId: request.task, slot: sessionId });
+      }
       // A plan answer child binds its round, as session.bind does for a chat.
       if (request.role === "plan-answer") {
         const { bindPlanAnswerSession } = await import(
@@ -702,6 +836,14 @@ export async function drainProcessRequests(
           const result = withDatabase(stateDirectory, (db) =>
             childResult(db, binding.slot),
           );
+          // A role whose rule is about which model ran reads the served
+          // model from the harness output (NK5.2).
+          if (result?.state && processRow(binding.role)?.served)
+            result.served = servedModelOf(
+              stateDirectory,
+              binding.slot,
+              ops.configDirectory,
+            );
           // A retro that wrote no good result still ends its retro, as
           // failed, so the next one can start.
           if (

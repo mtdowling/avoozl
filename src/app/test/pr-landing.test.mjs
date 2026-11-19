@@ -15,6 +15,7 @@ import {
 } from "../delivery.mjs";
 import { landingQueue } from "../landing-queue.mjs";
 import { landPullRequests } from "../pr-landing.mjs";
+import { addItemContext } from "../needs-you-context.mjs";
 import { taskLinks } from "../scm-links.mjs";
 import { takeOverSpec } from "../spec-takeover.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -173,6 +174,13 @@ function fakeGithub(w) {
         name: "build",
         status: conclusion === "pending" ? "in_progress" : "completed",
         conclusion: conclusion === "pending" ? null : conclusion,
+        output:
+          conclusion === "failure"
+            ? {
+                title: "build failed",
+                summary: "Running 12 tests\nError: expected 3 rows, got 2",
+              }
+            : { title: null, summary: null },
       },
     ],
     commitStatus: async () => ({ statuses: [] }),
@@ -282,7 +290,11 @@ test("a failed check sends the task back to its chat", async (t) => {
   const result = await step(w, github);
   assert.equal(result.messages.length, 1);
   assert.equal(result.messages[0].slot, "slot-t1");
-  assert.match(result.messages[0].text, /build: failure/);
+  assert.match(
+    result.messages[0].text,
+    /build: failure \(Error: expected 3 rows, got 2\)/,
+    "the chat gets the check's first error line",
+  );
   assert.equal(w.store.get("task_deliveries", "t1").state, "running");
   assert.deepEqual(github.calls.merged, []);
   // The failed portion keeps its pull request, so its Links box shows it.
@@ -316,6 +328,47 @@ test("a failed check sends the task back to its chat", async (t) => {
   assert.equal(delivery.state, "done");
   assert.equal(delivery.commit, fixed);
   assert.equal(delivery.returnedAttempts.length, 1);
+});
+
+test("a check that fails past its rounds keeps its name and first error line for Needs you", async (t) => {
+  const w = await workspace(t),
+    github = fakeGithub(w);
+  verified(w, "t1");
+  await integrateVerified(w.store);
+  github.setChecks("failure");
+  await landPullRequests(w.store, {
+    github,
+    workspaceRoot: w.root,
+    rounds: 0,
+  });
+  const delivery = w.store.get("task_deliveries", "t1");
+  assert.equal(delivery.state, "decision");
+  assert.deepEqual(delivery.failedChecks.checks, [
+    {
+      name: "build",
+      conclusion: "failure",
+      firstError: "Error: expected 3 rows, got 2",
+    },
+  ]);
+  const [item] = addItemContext(w.store, w.store.read(), [
+    { kind: "stale-session", taskId: "t1" },
+  ]);
+  assert.deepEqual(item.context.failedChecks, {
+    commit: delivery.failedChecks.commit,
+    checks: [
+      {
+        name: "build",
+        conclusion: "failure",
+        firstError: "Error: expected 3 rows, got 2",
+      },
+    ],
+  });
+  // A later stop for another cause shows no old checks.
+  w.store.put("task_deliveries", { ...delivery, cause: "something else" });
+  const [later] = addItemContext(w.store, w.store.read(), [
+    { kind: "stale-session", taskId: "t1" },
+  ]);
+  assert.equal(later.context.failedChecks, null);
 });
 
 test("a queued task whose base moved is withdrawn, merged with the base and verified again", async (t) => {

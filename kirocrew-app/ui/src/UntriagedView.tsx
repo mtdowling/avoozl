@@ -54,9 +54,8 @@ import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
-const HEAD: CSSProperties = { textAlign: 'left', fontWeight: 500, fontSize: 12, color: 'var(--muted)', padding: '4px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
-const CELL: CSSProperties = { padding: '6px 8px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }
 const ROW: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }
 const LINK_BUTTON: CSSProperties = {
   ...ROW,
@@ -95,9 +94,9 @@ function KindIcon({ item }: { item: UntriagedItem }) {
   const name = item.kind === 'issue' ? 'Issue' : item.kind === 'ticket' ? 'Ticket' : item.kind === 'review' ? 'Review request' : item.draft ? 'Draft pull request' : 'Pull request'
   return (
     <Tooltip text={name}>
-      <span role="img" aria-label={name} style={{ display: 'inline-flex', color: item.kind === 'issue' || item.kind === 'ticket' ? 'var(--ok)' : 'var(--accent)' }}>
+      <Box role="img" aria-label={name} as="span" css-display="inline-flex" css-color={item.kind === 'issue' || item.kind === 'ticket' ? 'ok' : 'accent'}>
         <Icon size={16} aria-hidden="true" />
-      </span>
+      </Box>
     </Tooltip>
   )
 }
@@ -198,10 +197,10 @@ function Actions({ item, onSend, onReview, onStart, onSpec }: { item: UntriagedI
       )}
       {item.reviewChat?.link ? (
         <Tooltip text="Open this pull request's code review chat">
-          <a href={linkHref(item.reviewChat.link)} target="_top" className="self-center text-sm underline" aria-label={`Session: the code review chat for ${name}`} data-review-attach style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <PlainLink href={linkHref(item.reviewChat.link)} target="_top" css-display="inline-flex" css-align-items="center" css-gap="4" self="center" size="sm" underline aria-label={`Session: the code review chat for ${name}`} data-review-attach>
             <CirclePlus size={14} aria-hidden="true" />
             Session
-          </a>
+          </PlainLink>
         </Tooltip>
       ) : item.reviewChat?.state === 'queued' ? (
         <Tooltip text="The next tick opens the chat, within a minute.">
@@ -237,9 +236,9 @@ function AuthorLink({ item, fallback = '' }: { item: UntriagedItem; fallback?: s
 function Title({ item }: { item: UntriagedItem }) {
   const github = sourceOf(item) === 'github'
   return (
-    <a href={linkHref(item.links.github ?? item.links.item ?? item.url)} target="_blank" rel="noopener noreferrer" className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+    <PlainLink href={linkHref(item.links.github ?? item.links.item ?? item.url)} target="_blank" rel="noopener noreferrer" css-overflow-wrap="anywhere" minW0>
       <Box as="span" tone="muted" tabularNums>{github ? `#${item.number}` : item.id}</Box> <Box as="span" underline>{item.title}</Box>
-    </a>
+    </PlainLink>
   )
 }
 
@@ -257,40 +256,40 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
       <Box as="table" css-border-collapse="collapse" wFull size="sm" data-untriaged-table>
         <thead>
           <tr>
-            <th style={{ ...HEAD, width: 28 }}>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-width="28">
               <Switch label="Select every row shown" checked={all} onChange={(on) => props.onSelect(keys, on)} />
-            </th>
-            <th style={{ ...HEAD, width: 28 }}>
+            </Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-width="28">
               <Box as="span" srOnly>Kind</Box>
-            </th>
-            <th style={HEAD}>Item</th>
-            <th style={HEAD}>Source</th>
-            <th style={HEAD}>Repository</th>
-            <th style={HEAD}>Author</th>
-            <th style={HEAD}>Age</th>
-            <th style={HEAD}>Labels</th>
-            <th style={{ ...HEAD, textAlign: 'right' }}>
+            </Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Item</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Source</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Repository</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Author</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Age</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Labels</Box>
+            <Box as="th" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-text-align="right">
               <Tooltip text="Comments">
                 <Box role="img" aria-label="Comments" as="span" css-display="inline-flex">
                   <MessageSquare size={12} aria-hidden="true" />
                 </Box>
               </Tooltip>
-            </th>
-            <th style={HEAD}>
+            </Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               <Box as="span" srOnly>Open in</Box>
-            </th>
+            </Box>
           </tr>
         </thead>
         <tbody>
           {props.items.map((item) => (
             <tr key={itemKey(item)} data-untriaged-row={itemKey(item)}>
-              <td style={CELL}>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top">
                 <Select item={item} checked={props.selected.has(itemKey(item))} onChange={(on) => props.onSelect([itemKey(item)], on)} />
-              </td>
-              <td style={CELL}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top">
                 <KindIcon item={item} />
-              </td>
-              <td style={{ ...CELL, minWidth: '16rem' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-min-width="16rem">
                 <Title item={item} />
                 <Hint as="p" size="xs" flush data-triage-reason>
                   {triageReason(item)}
@@ -299,30 +298,30 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
                   <EscalationMark item={item} />
                   <PullState item={item} />
                 </div>
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }} data-intake-source>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap" data-intake-source>
                 {sourceOf(item)}
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <RepoLink item={item} />
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <AuthorLink item={item} />
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <Tooltip text={item.createdAt ? `Opened ${item.createdAt.slice(0, 10)}` : null}>
                   <Box as="span" tabularNums>{age(item.createdAt, props.now)}</Box>
                 </Tooltip>
-              </td>
-              <td style={CELL}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top">
                 <Labels labels={item.labels} />
-              </td>
-              <td style={{ ...CELL, textAlign: 'right' }} className="tabular-nums">
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-text-align="right" tabularNums>
                 {sourceOf(item) === 'github' ? item.comments : ''}
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <Actions item={item} onSend={props.onSend} onReview={props.onReview} onStart={props.onStart} onSpec={props.onSpec} />
-              </td>
+              </Box>
             </tr>
           ))}
         </tbody>
@@ -336,7 +335,7 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
   return (
     <Box as="ul" flex flexCol data-untriaged-stack>
       {props.items.map((item) => (
-        <li key={itemKey(item)} className="flex items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-untriaged-row={itemKey(item)}>
+        <Box key={itemKey(item)} as="li" css-border-color="border" flex items="start" gap="2" border="t" py="2" firstBorderT0 data-untriaged-row={itemKey(item)}>
           <Select item={item} checked={props.selected.has(itemKey(item))} onChange={(on) => props.onSelect([itemKey(item)], on)} />
           <KindIcon item={item} />
           <Box flex minW0 flex1 flexCol gap="1" size="sm">
@@ -353,7 +352,7 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
             <Labels labels={item.labels} />
           </Box>
           <Actions item={item} onSend={props.onSend} onReview={props.onReview} onStart={props.onStart} onSpec={props.onSpec} />
-        </li>
+        </Box>
       ))}
     </Box>
   )
@@ -364,9 +363,9 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
 function SourcesLink({ onOpen }: { onOpen?: () => void }) {
   if (!onOpen) return <>Settings › Plugins</>
   return (
-    <button type="button" className="underline" onClick={onOpen} data-open-intake-sources>
+    <PlainButton type="button" underline onClick={onOpen} data-open-intake-sources>
       Settings › Plugins › Intake sources
-    </button>
+    </PlainButton>
   )
 }
 
@@ -417,7 +416,7 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
     return (
       <Box as="ul" flex flexCol data-radar-list>
         {items.map((item) => (
-          <li key={itemKey(item)} className="flex items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-radar-row={itemKey(item)}>
+          <Box key={itemKey(item)} as="li" css-border-color="border" flex items="start" gap="2" border="t" py="2" firstBorderT0 data-radar-row={itemKey(item)}>
             <KindIcon item={item} />
             <Box flex minW0 flex1 flexCol gap="1" size="sm">
               <Title item={item} />
@@ -429,7 +428,7 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
               </span>
             </Box>
             <Actions item={item} />
-          </li>
+          </Box>
         ))}
       </Box>
     )
@@ -438,39 +437,39 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
       <Box as="table" css-border-collapse="collapse" wFull size="sm" data-radar-list>
         <thead>
           <tr>
-            <th style={{ ...HEAD, width: 28 }}>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-width="28">
               <Box as="span" srOnly>Kind</Box>
-            </th>
-            <th style={HEAD}>Item</th>
-            <th style={HEAD}>Repository</th>
-            <th style={HEAD}>State</th>
-            <th style={HEAD}>How it got there</th>
-            <th style={HEAD}>
+            </Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Item</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Repository</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">State</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">How it got there</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               <Box as="span" srOnly>Open in</Box>
-            </th>
+            </Box>
           </tr>
         </thead>
         <tbody>
           {items.map((item) => (
             <tr key={itemKey(item)} data-radar-row={itemKey(item)}>
-              <td style={CELL}>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top">
                 <KindIcon item={item} />
-              </td>
-              <td style={{ ...CELL, minWidth: '16rem' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-min-width="16rem">
                 <Title item={item} />
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <RepoLink item={item} />
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <State item={item} />
-              </td>
-              <td style={CELL} className="text-muted">
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" tone="muted">
                 {sentLine(item)}
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <Actions item={item} />
-              </td>
+              </Box>
             </tr>
           ))}
         </tbody>
@@ -681,20 +680,19 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
               </Box>
               <Tooltip text={bulk.tooltip}>
                 {(describedBy) => (
-                  <a
+                  <PlainLink
                     href={linkHref(chosen.length ? bulk.url : undefined)}
                     target="_top"
                     role="button"
                     aria-disabled={!chosen.length || undefined}
                     aria-describedby={describedBy}
                     tabIndex={0}
-                    style={{ ...LINK_BUTTON, opacity: chosen.length ? 1 : 0.5, cursor: chosen.length ? 'pointer' : 'default' }}
-                    className="text-sm"
+                    css-display="inline-flex" css-align-items="center" css-justify-content="center" css-gap="6" css-padding="4px-6px" css-border="1px-solid-border" css-border-radius="6" css-color="text" css-background="card-transparent" css-opacity={chosen.length ? '1' : '0.5'} css-cursor={chosen.length ? 'pointer' : 'default'} size="sm"
                     data-bulk-open
                   >
                     <Radar size={ICON} aria-hidden="true" />
                     Open selected in Issue Radar
-                  </a>
+                  </PlainLink>
                 )}
               </Tooltip>
               <IconLabel icon={Users} onClick={() => setSending(chosen)} disabled={!bulkSend.ok} tooltip={bulkSend.reason}>

@@ -14,6 +14,7 @@ import { DRAFT_STATE_TEXT, releaseClient, type DraftState } from './release-api.
 import { linkHref } from './views-api.ts'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { PlainLink } from './ui/Plain'
 
 const VARIANT: Partial<Record<DraftState, BadgeVariant>> = { waiting: 'warning', stale: 'danger', submitted: 'success', chat: 'info', queued: 'info' }
 
@@ -60,18 +61,18 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
         </Box>
         {shown.map((item) => (
           <Box key={item.id} data-review-draft={item.state} css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-gap="4px-12px" flex flexWrap items="baseline" gapX="3" gapY="1" size="sm">
-            <a href={linkHref(item.url)} target="_blank" rel="noreferrer" className="font-medium" style={{ overflowWrap: 'anywhere' }}>
+            <PlainLink href={linkHref(item.url)} target="_blank" rel="noreferrer" css-overflow-wrap="anywhere" weight="medium">
               {item.repository} #{item.number}
-            </a>
+            </PlainLink>
             <Badge variant={VARIANT[item.state] ?? 'info'}>{DRAFT_STATE_TEXT[item.state]}</Badge>
             <Box as="span" css-overflow-wrap="anywhere" tone="muted">
               {item.title} · for {item.reviewer}
               {item.state === 'stale' && item.headSha && item.staleHead ? ` · reviews ${item.headSha.slice(0, 7)}, now at ${item.staleHead.slice(0, 7)}` : ''}
             </Box>
             {item.chat && (
-              <a href={linkHref(item.chat)} className="text-xs">
+              <PlainLink href={linkHref(item.chat)} size="xs">
                 Open chat
-              </a>
+              </PlainLink>
             )}
           </Box>
         ))}

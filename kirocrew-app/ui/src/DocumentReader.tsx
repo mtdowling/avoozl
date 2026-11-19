@@ -16,13 +16,15 @@ import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
 import { plansClient } from './plans-api.ts'
 import { insideWorkspace, lineText, taskClient } from './task-api.ts'
-import { CITED_STYLE, markCited } from './CitedFile.tsx'
+import { markCited } from './CitedFile.tsx'
+import { CitedStyle } from './ui/PageStyles'
 import { useReveal } from './RepositoriesSettings.tsx'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
 import { Modal } from './ui/Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export interface ReaderTarget {
   document: string
@@ -138,9 +140,9 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
           {line && (
             <Tooltip text={`Scroll back to ${line.toLowerCase()}`}>
               {(describedBy) => (
-                <button type="button" className="text-xs text-muted hover:underline" onClick={toLine} aria-describedby={describedBy}>
+                <PlainButton type="button" size="xs" tone="muted" hoverUnderline onClick={toLine} aria-describedby={describedBy}>
                   {line}
-                </button>
+                </PlainButton>
               )}
             </Tooltip>
           )}
@@ -182,7 +184,7 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
             <Hint as="p" size="sm">Reading…</Hint>
           ) : (
             <>
-              <style>{CITED_STYLE}</style>
+              <CitedStyle />
               <Markdown text={doc.text} idPrefix={PREFIX} measure={PROSE_MEASURE} />
             </>
           )}

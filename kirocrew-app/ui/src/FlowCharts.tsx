@@ -20,6 +20,7 @@ import { StageLegend } from './FlowView.tsx'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 const W = 300,
   H = 90,
@@ -59,22 +60,22 @@ function Line({ points, value, format, color }: { points: SeriesPoint[]; value: 
 function StageMix({ points }: { points: SeriesPoint[] }) {
   return (
     <Stack gap={1}>
-      <div className="flex items-end gap-1" style={{ height: H }} role="img" aria-label="Stage mix per period">
+      <Box css-height="90" flex items="end" gap="1" role="img" aria-label="Stage mix per period">
         {points.map((p) => {
           const total = STAGES.reduce((sum, s) => sum + p.stages[s], 0)
           return (
             <Tooltip key={p.key} text={`${p.key}: ${STAGES.filter((s) => p.stages[s]).map((s) => `${STAGE_LABELS[s]} ${duration(p.stages[s])}`).join(', ') || 'no time'}`}>
               {(describedBy) => (
-                <div tabIndex={0} aria-describedby={describedBy} className="flex flex-col-reverse overflow-hidden rounded-sm" style={{ height: H, width: 14, background: 'color-mix(in srgb, var(--muted) 12%, transparent)' }}>
+                <Box tabIndex={0} aria-describedby={describedBy} css-height="90" css-width="14" css-background="mix-muted-12%-transparent" flex flexColReverse overflow="hidden" rounded="sm">
                   {STAGES.filter((s) => p.stages[s]).map((s) => (
                     <span key={s} style={{ height: `${(100 * p.stages[s]) / (total || 1)}%`, background: STAGE_COLORS[s], display: 'block' }} />
                   ))}
-                </div>
+                </Box>
               )}
             </Tooltip>
           )
         })}
-      </div>
+      </Box>
     </Stack>
   )
 }
@@ -83,11 +84,11 @@ function Bars({ rows }: { rows: UsageRow[] }) {
   const value = (r: UsageRow) => r.credits || r.input + r.output,
     max = Math.max(...rows.map(value), 0) || 1
   return (
-    <div className="flex items-end gap-1" style={{ height: H }} role="img" aria-label={rows.map((r) => `${r.key}: ${usageText(r)}`).join(', ')}>
+    <Box css-height="90" flex items="end" gap="1" role="img" aria-label={rows.map((r) => `${r.key}: ${usageText(r)}`).join(', ')}>
       {rows.map((r) => (
         <span key={r.key} className="rounded-sm" style={{ display: 'block', flex: 'none', height: Math.max(2, Math.round((H * value(r)) / max)), width: 14, background: 'var(--accent)' }} />
       ))}
-    </div>
+    </Box>
   )
 }
 
@@ -107,9 +108,9 @@ function UnitPicker({ unit, onUnit }: { unit: Unit; onUnit: (unit: Unit) => void
   return (
     <Box role="radiogroup" aria-label="Group by" css-background="bg-elevated" inlineFlex gap="1" rounded="lg" p="1">
       {(['day', 'week'] as const).map((u) => (
-        <button key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onUnit(u)} className="rounded-md px-2.5 py-1 text-xs font-medium" style={{ background: unit === u ? 'var(--card)' : 'transparent', color: 'var(--text)', boxShadow: unit === u ? 'inset 0 0 0 1px var(--accent)' : 'none' }}>
+        <PlainButton key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onUnit(u)} css-background={unit === u ? 'card' : 'transparent'} css-color="text" css-box-shadow={unit === u ? 'inset-0-0-0-1px-accent' : 'none'} rounded="md" px="2.5" py="1" size="xs" weight="medium">
           {u === 'day' ? 'By day' : 'By week'}
-        </button>
+        </PlainButton>
       ))}
     </Box>
   )

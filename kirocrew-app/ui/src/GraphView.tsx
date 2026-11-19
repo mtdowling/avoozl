@@ -51,6 +51,8 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
+import { PanningStyle } from './ui/PageStyles'
+import { PlainButton } from './ui/Plain'
 
 // Graphs larger than this open with every group collapsed to one node.
 const COLLAPSE_ABOVE = 60
@@ -277,9 +279,9 @@ function Details(props: {
                     {id === task.id ? (
                       id
                     ) : (
-                      <button type="button" className="underline" onClick={() => props.onSelect(id)}>
+                      <PlainButton type="button" underline onClick={() => props.onSelect(id)}>
                         {id}
-                      </button>
+                      </PlainButton>
                     )}
                   </span>
                 ))}
@@ -611,9 +613,9 @@ export default function GraphView({
                 <Box aria-label="Graph drill-in" as="nav" flex flexWrap items="center" gap="1" size="sm" data-graph-crumbs>
                   {drillCrumbs(stack, drill).map(({ at, label }) => (
                     <Box key={at} as="span" inlineFlex items="center" gap="1">
-                      <button type="button" className="truncate underline" style={{ maxWidth: '14rem' }} onClick={() => back(at)}>
+                      <PlainButton type="button" css-max-width="14rem" truncate underline onClick={() => back(at)}>
                         {label}
-                      </button>
+                      </PlainButton>
                       <Hint aria-hidden="true">
                         ›
                       </Hint>
@@ -661,7 +663,7 @@ export default function GraphView({
               data-panning={panning || undefined}
               style={{ cursor: panning ? 'grabbing' : 'grab', userSelect: 'none' }}
             >
-              {panning && <style>{'[data-graph-view] svg[data-panning] *{cursor:grabbing!important}'}</style>}
+              {panning && <PanningStyle />}
               <defs>
                 <marker id="avoozl-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={7} markerHeight={7} orient="auto">
                   <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--muted)' }} />

@@ -12,6 +12,8 @@ import { principalAllows } from "../app-backend.mjs";
 import { machineIdentity } from "../github-sync.mjs";
 import { reviewSeed } from "../pr-review.mjs";
 import { fixture } from "./fixtures.mjs";
+import { ROLE_TABLE } from "../role-table.mjs";
+import { finishProcessSession } from "../executors/process.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -275,4 +277,90 @@ test("the seed without a head commit asks the chat to name it", () => {
   assert.match(seed, /- Head commit: unknown/);
   assert.match(seed, /- Author: unknown/);
   assert.match(seed, /Review the current head commit and name it\./);
+});
+
+// nk-4.3 (NK4.4): the pull request review as a `process` child. It reads the
+// snapshot, its review is stored with the session and shown, and nothing is
+// written to GitHub.
+test("a child's review is stored and shown, and no GitHub write is made", async (t) => {
+  const { store, github, ops } = workspace(t);
+  fs.writeFileSync(
+    path.join(ops.workspaceRoot, ".avoozl.json"),
+    JSON.stringify({
+      ...JSON.parse(
+        fs.readFileSync(path.join(ops.workspaceRoot, ".avoozl.json"), "utf8"),
+      ),
+      roles: { prReview: { harness: "fake-cli" } },
+    }),
+  );
+  await ops.execute("untriaged.view", { refresh: true });
+  await review(ops, 6);
+  const tick = await ops.execute("workspace.tick", { sessions: [] }),
+    [child] = tick.dispatch.filter((d) => d.role === "pr-review");
+  assert.equal(child.executor, "process");
+  assert.equal(child.harness, "fake-cli");
+  assert.equal(child.worktree, null, "its folder is the snapshot");
+  // The drain fills the snapshot with Avoozl's client before the child runs.
+  const reads = [];
+  const snap = await ROLE_TABLE.prReview.snapshot(store, child, {
+    github: {
+      async listPullRequestFiles(repository, number) {
+        reads.push(["files", repository, number]);
+        return { files: [{ filename: "a.mjs", patch: "@@ +1 @@\n+a\n" }] };
+      },
+      async pullRequestFeedback(repository, [number]) {
+        reads.push(["feedback", repository, number]);
+        return {
+          [number]: {
+            head: SHA,
+            checks: [],
+            reviews: [],
+            threads: [],
+            comments: [],
+          },
+        };
+      },
+    },
+  });
+  assert.equal(snap.head, SHA);
+  assert.deepEqual(
+    reads.map(([kind]) => kind),
+    ["files", "feedback"],
+  );
+  await ops.execute("session.bind", {
+    taskId: child.task,
+    slot: "process-pr",
+    role: "pr-review",
+    attempt: child.attempt,
+    title: child.title,
+    source: "tick",
+  });
+  const folder = temporaryDirectory("avoozl-review-out-");
+  fs.mkdirSync(path.join(folder, ".avoozl", "output"), { recursive: true });
+  fs.writeFileSync(
+    path.join(folder, ".avoozl", "output", "review.md"),
+    "a.mjs:1 names nothing. Add a test.\n",
+  );
+  await finishProcessSession(
+    ops,
+    store.get("session_bindings", "process-pr"),
+    { state: "done", text: "", output: "review.md", worktree: folder },
+    store,
+  );
+  const shown = (await row(ops, 6)).reviewChat;
+  assert.equal(shown.review.text, "a.mjs:1 names nothing. Add a test.");
+  assert.equal(shown.review.slot, "process-pr");
+  const printed = await ops.execute("review.chat.show", { id: child.task });
+  assert.equal(printed.review.text, "a.mjs:1 names nothing. Add a test.");
+  assert.deepEqual(githubWrites(github), [], "nothing posted to GitHub");
+});
+
+test("the Kiro Crew chat path is unchanged", async (t) => {
+  const { ops } = workspace(t);
+  await ops.execute("untriaged.view", { refresh: true });
+  await review(ops, 6);
+  const tick = await ops.execute("workspace.tick", { sessions: [] }),
+    [chat] = tick.dispatch.filter((d) => d.role === "pr-review");
+  assert.equal(chat.executor, "kirocrew");
+  assert.match(chat.brief, /Post nothing to GitHub/);
 });

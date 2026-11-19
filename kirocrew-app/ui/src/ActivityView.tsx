@@ -39,9 +39,8 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
+import { PlainButton, PlainInput } from './ui/Plain'
 
-const HEAD: CSSProperties = { textAlign: 'left', fontWeight: 500, fontSize: 12, color: 'var(--muted)', padding: '4px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
-const CELL: CSSProperties = { padding: '6px 8px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }
 
 function When({ at, now }: { at: string; now: number }) {
   return (
@@ -81,9 +80,9 @@ function Target({ row }: { row: ActivityRow }) {
   if (!target) return <Hint>{row.targetId ?? ''}</Hint>
   if (target.kind === 'task')
     return (
-      <button type="button" className="underline" onClick={() => drawer.openTask(target.id)} aria-label={`View task ${target.id}`} data-activity-task>
+      <PlainButton type="button" underline onClick={() => drawer.openTask(target.id)} aria-label={`View task ${target.id}`} data-activity-task>
         {target.id}
-      </button>
+      </PlainButton>
     )
   return (
     <TextLink href={linkHref(target.href)} target="_blank" rel="noopener noreferrer" data-activity-link>
@@ -98,28 +97,28 @@ function Table({ rows, now }: { rows: ActivityRow[]; now: number }) {
       <Box as="table" css-border-collapse="collapse" wFull size="sm" data-activity-table>
         <thead>
           <tr>
-            <th style={HEAD}>When</th>
-            <th style={HEAD}>Source</th>
-            <th style={HEAD}>Who</th>
-            <th style={HEAD}>What</th>
-            <th style={HEAD}>Target</th>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">When</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Source</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Who</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">What</Box>
+            <Box as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-color="muted" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">Target</Box>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.seq} data-activity-row={row.seq}>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <When at={row.at} now={now} />
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{SOURCE_LABELS[row.source] ?? row.source}</td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{row.actor ?? ''}</td>
-              <td style={{ ...CELL, minWidth: '16rem' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">{SOURCE_LABELS[row.source] ?? row.source}</Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">{row.actor ?? ''}</Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-min-width="16rem">
                 <Summary row={row} />
                 <Hint as="div" size="xs">{row.kind}</Hint>
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <Target row={row} />
-              </td>
+              </Box>
             </tr>
           ))}
         </tbody>
@@ -133,7 +132,7 @@ function Stack({ rows, now }: { rows: ActivityRow[]; now: number }) {
   return (
     <Box as="ul" flex flexCol data-activity-stack>
       {rows.map((row) => (
-        <li key={row.seq} className="flex flex-col gap-1 border-t py-2 text-sm first:border-t-0" style={{ borderColor: 'var(--border)' }} data-activity-row={row.seq}>
+        <Box key={row.seq} as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" size="sm" firstBorderT0 data-activity-row={row.seq}>
           <Summary row={row} />
           <Hint size="xs">
             <When at={row.at} now={now} /> · {SOURCE_LABELS[row.source] ?? row.source}
@@ -142,7 +141,7 @@ function Stack({ rows, now }: { rows: ActivityRow[]; now: number }) {
           <Box as="span" size="xs">
             <Target row={row} />
           </Box>
-        </li>
+        </Box>
       ))}
     </Box>
   )
@@ -215,7 +214,7 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
           Keep activity (days)
         </Box>
         <Tooltip text="Saved to .avoozl.json. Each tick deletes rows older than this. Blank uses the default.">
-          <input
+          <PlainInput
             id="avoozl-activity-keep"
             type="number"
             min={1}
@@ -234,7 +233,7 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
             }}
             aria-invalid={parsed.error ? true : undefined}
             aria-describedby={parsed.error ? 'avoozl-activity-keep-error' : undefined}
-            style={{ width: '4.5rem', boxSizing: 'border-box', fontSize: 13, padding: '4px 8px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            css-width="4.5rem" css-box-sizing="border-box" css-font-size="13" css-padding="4px-8px" css-border-radius="6" css-background="bg" css-color="text" css-border="1px-solid-border"
           />
         </Tooltip>
         <Box as="span" css-font-size="13" css-color="muted">days</Box>
@@ -326,9 +325,9 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
             title="Source"
             action={
               filterActive(filter) && (
-                <button type="button" data-rail-icon onClick={() => setFilter({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+                <PlainButton type="button" data-rail-icon onClick={() => setFilter({})} css-gap="2" css-align-items="center" css-font-size="12">
                   <X size={11} aria-hidden="true" /> Clear
-                </button>
+                </PlainButton>
               )
             }
           >
@@ -358,9 +357,9 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
         {filterActive(filter) && (
           <>
             {' · '}
-            <button type="button" className="underline" onClick={() => setFilter({})} data-filter-clear-inline>
+            <PlainButton type="button" underline onClick={() => setFilter({})} data-filter-clear-inline>
               Clear filters
-            </button>
+            </PlainButton>
           </>
         )}
       </Hint>

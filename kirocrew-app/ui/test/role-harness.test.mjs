@@ -46,15 +46,16 @@ for (const width of [390, 1280]) {
       ['auto (project default)', 'Kiro Crew chat', 'claude-code', 'codex (not approved)'],
     )
     await page.evaluate(pick('avoozl-harness-worker', 'claude-code'))
-    // The retro follows its harness; review drafts say they still run as a chat.
+    // The retro and review drafts follow their harness.
     await page.evaluate(`document.querySelector('#avoozl-harness-retro').focus()`)
     await page.until(`document.querySelector('#avoozl-harness-retro').getAttribute('aria-expanded') === 'true'`)
     await page.evaluate(pick('avoozl-harness-retro', 'claude-code'))
     await page.evaluate(`document.querySelector('#avoozl-harness-reviewDraft').focus()`)
     await page.until(`document.querySelector('#avoozl-harness-reviewDraft').getAttribute('aria-expanded') === 'true'`)
     await page.evaluate(pick('avoozl-harness-reviewDraft', 'claude-code'))
-    await page.until(`Boolean(document.querySelector('[data-model-role="reviewDraft"] [data-harness-pending]'))`)
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-model-role="retro"] [data-harness-pending]'))`), false)
+    // Both run on their harness now: neither says it still runs as a chat.
+    for (const role of ['retro', 'reviewDraft'])
+      assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-model-role="${role}"] [data-harness-pending]'))`), false, role)
     await page.until(`document.querySelector('[data-save-footer] [data-save]')?.disabled === false`)
     await page.evaluate(`document.querySelector('[data-save-footer] [data-save]').click()`)
     await page.until(`document.querySelector('[data-models-settings]').textContent.includes('Saved to .avoozl.json.')`)

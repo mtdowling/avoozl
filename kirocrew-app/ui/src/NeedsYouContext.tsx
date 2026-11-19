@@ -14,18 +14,18 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
+import { NeedsContextStyle } from './ui/PageStyles'
+import { PlainButton } from './ui/Plain'
 
-const BOX = { borderColor: 'var(--border)' }
-const linkButton = { background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer', textAlign: 'left' as const }
 
 // The spec's title; it opens Specs on that spec when a stored plan exists.
 export function SpecLink({ spec }: { spec: NonNullable<ItemContext['spec']> }) {
   const open = useOpenSpec()
   if (!spec.planId || !open) return <span data-spec-name>{spec.title}</span>
   return (
-    <button type="button" className="underline" style={linkButton} data-spec-link={spec.planId} onClick={() => open(spec.planId!)}>
+    <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" css-text-align="left" underline data-spec-link={spec.planId} onClick={() => open(spec.planId!)}>
       {spec.title}
-    </button>
+    </PlainButton>
   )
 }
 
@@ -33,9 +33,9 @@ export function SpecLink({ spec }: { spec: NonNullable<ItemContext['spec']> }) {
 export function TaskLink({ task }: { task: { id: string; title: string } }) {
   const drawer = useTaskDrawer()
   return (
-    <button type="button" className="underline" style={linkButton} data-task-link={task.id} onClick={() => drawer.openTask(task.id)}>
+    <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" css-text-align="left" underline data-task-link={task.id} onClick={() => drawer.openTask(task.id)}>
       {task.id}: {task.title}
-    </button>
+    </PlainButton>
   )
 }
 
@@ -54,7 +54,7 @@ export function TaskText(props: { title: string; context: ItemContext | undefine
           {sourceLine(source)}
         </Box>
       )}
-      <pre className="m-0 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded border p-2 text-xs" style={BOX} data-task-text-body={evidence.kind}>
+      <Box as="pre" css-border-color="border" m0 maxH56 overflow="auto" whitespace="pre-wrap" breakWords rounded="base" border="all" p="2" size="xs" data-task-text-body={evidence.kind}>
         {evidence.kind === 'diff'
           ? evidence.lines.map((line, i) => (
               <span key={i} data-diff={line.kind} style={{ display: 'block', color: DIFF_INK[line.kind] }}>
@@ -62,7 +62,7 @@ export function TaskText(props: { title: string; context: ItemContext | undefine
               </span>
             ))
           : evidence.lines.join('\n')}
-      </pre>
+      </Box>
       {evidence.kind === 'text' && props.note && <Hint as="p" size="xs" flush>{evidence.note}</Hint>}
     </Stack>
   )
@@ -72,11 +72,11 @@ export function TaskText(props: { title: string; context: ItemContext | undefine
 export function ReviewTaskContext({ task }: { task: ReviewTask }) {
   const drawer = useTaskDrawer()
   return (
-    <li className="flex flex-col gap-1 border-t py-2 first:border-t-0" style={BOX} data-review-task={task.id}>
+    <Box as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" firstBorderT0 data-review-task={task.id}>
       <Box as="span" flex flexWrap items="baseline" gap="2" size="sm">
-        <button type="button" className="font-medium underline" style={linkButton} data-task-link={task.id} onClick={() => drawer.openTask(task.id)}>
+        <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" css-text-align="left" weight="medium" underline data-task-link={task.id} onClick={() => drawer.openTask(task.id)}>
           {task.id}: {task.title}
-        </button>
+        </PlainButton>
         {task.context?.spec && (
           <Hint size="xs">
             Spec: <SpecLink spec={task.context.spec} />
@@ -84,7 +84,7 @@ export function ReviewTaskContext({ task }: { task: ReviewTask }) {
         )}
       </Box>
       <TaskText title={task.title} context={task.context} note />
-    </li>
+    </Box>
   )
 }
 
@@ -105,9 +105,9 @@ export function Values({ item }: { item: ConflictItem }) {
   const block = (label: string, value: ConflictItem['expected']) => (
     <Box minW0>
       <Hint as="div" size="xs">{label}</Hint>
-      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded border p-2 text-xs" style={BOX}>
+      <Box as="pre" css-border-color="border" mt="1" maxH40 overflow="auto" whitespace="pre-wrap" breakWords rounded="base" border="all" p="2" size="xs">
         {shownValue(value)}
-      </pre>
+      </Box>
     </Box>
   )
   return (
@@ -141,12 +141,12 @@ export function InvestigationEvidence({ item }: { item: ConflictItem }) {
         </Box>
       )}
       {item.reply && (
-        <div className="rounded border p-2 text-sm" style={BOX}>
+        <Box css-border-color="border" rounded="base" border="all" p="2" size="sm">
           <Hint as="div" size="xs">
             Falsifier: {item.reply.verdict === 'refuted' ? 'refuted' : 'stands'}, {CONFIDENCE[item.reply.confidence].toLowerCase()} confidence
           </Hint>
           <Box as="p" mt="1" whitespace="pre-wrap" breakWords>{item.reply.evidence}</Box>
-        </div>
+        </Box>
       )}
     </Stack>
   )
@@ -200,6 +200,20 @@ function Evidence({ item }: { item: ConflictItem }) {
           {context.links.checks && <Hint>{checkDot(context.links.checks).label}</Hint>}
         </Box>
       )}
+      {kinds.includes('checks') && context?.failedChecks && (
+        <Stack gap={1} data-failed-checks>
+          {context.failedChecks.checks.map((check) => (
+            <Stack key={check.name}>
+              <span>
+                Failed check <strong>{check.name}</strong>
+                {check.conclusion ? ` (${check.conclusion})` : ''}
+                {context.failedChecks!.commit ? ` on ${context.failedChecks!.commit.slice(0, 7)}` : ''}
+              </span>
+              {check.firstError ? <code data-first-error>{check.firstError}</code> : <Hint size="xs">The check gave no error line.</Hint>}
+            </Stack>
+          ))}
+        </Stack>
+      )}
       {kinds.includes('content') && (
         <Box as="p" m0 size="sm" data-content-evidence>
           Rule set {item.set ?? 'unknown'}
@@ -251,8 +265,8 @@ export function ItemContextBlock({ item, plan }: { item: ConflictItem; plan?: st
   const spec = specOfItem(item) ?? (plan ? { planId: null, name: plan, title: plan } : null)
   const unblock = unblockLine(item)
   return (
-    <div className="flex flex-col gap-3 rounded border p-3" style={BOX} data-needs-context={item.kind}>
-      <style>{'[data-needs-context] :is(dl,dd,h4,p,ul){margin:0}[data-needs-context] dd{margin-left:0}'}</style>
+    <Box css-border-color="border" flex flexCol gap="3" rounded="base" border="all" p="3" data-needs-context={item.kind}>
+      <NeedsContextStyle />
       <Box as="dl" css-grid-template-columns="auto-1fr" m0 grid gapX="3" gapY="1" size="sm" data-context-where>
         <Hint as="dt" size="xs">Spec</Hint>
         <Box as="dd" css-overflow-wrap="anywhere" m0 minW0>
@@ -291,6 +305,6 @@ export function ItemContextBlock({ item, plan }: { item: ConflictItem; plan?: st
       <Section name="evidence" title="Evidence">
         <Evidence item={item} />
       </Section>
-    </div>
+    </Box>
   )
 }

@@ -244,7 +244,10 @@ test("avoozl mcp serves plans_* tools over stdio without a web server", () => {
       jsonrpc: "2.0",
       id: 3,
       method: "tools/call",
-      params: { name: "plans_tick", arguments: { input: {} } },
+      params: {
+        name: "plans_maintain",
+        arguments: { action: "tick", input: {} },
+      },
     },
   ];
   const output = execFileSync(
@@ -268,13 +271,7 @@ test("avoozl mcp serves plans_* tools over stdio without a web server", () => {
   assert.ok(responses[0].result.protocolVersion);
   const names = responses[1].result.tools.map((tool) => tool.name);
   for (const tool of WORKSPACE_TOOLS) assert.ok(names.includes(tool.name));
-  for (const name of [
-    "plans_tick",
-    "plans_bind_session",
-    "plans_rediscover_sessions",
-    "plans_register_session",
-    "plans_ready_queue",
-  ])
+  for (const name of ["plans_maintain", "plans_session", "plans_view"])
     assert.ok(names.includes(name), name);
   assert.ok(names.every((name) => name.startsWith("plans_")));
   const tick = responses[2].result;
@@ -342,7 +339,7 @@ test("workspace.tick is locked, loads policy, and writes nothing twice", async (
   assert.equal((await ops.execute("workspace.tick")).policy.status, "absent");
 });
 
-test("plans_bind_session binds once and never moves a slot", async (t) => {
+test("plans_session bind binds once and never moves a slot", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
   const bound = await ops.execute("session.bind", {
