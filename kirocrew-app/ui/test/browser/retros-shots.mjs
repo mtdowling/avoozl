@@ -6,13 +6,13 @@
 //   node test/browser/retros-shots.mjs <out dir>
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness } from './build.mjs'
+import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const [out] = process.argv.slice(2)
 if (!out) process.exit(2)
 fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness()
+const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(findChrome())
 const wait = (page, ms = 500) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 try {

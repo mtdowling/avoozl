@@ -9,7 +9,7 @@
 //   AVOOZL_HOST_CSS=<host css> node test/browser/spec-links-shots.mjs <out dir>
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness } from './build.mjs'
+import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 import { demoReplies, demoScript } from './demo-replies.mjs'
 import { noLinksFixture, specLinksFixture } from './spec-links-fixture.mjs'
@@ -37,7 +37,7 @@ try {
     ['none', noLinksFixture()],
   ]) {
     const harness = await buildHarness({
-      hostCss: process.env.AVOOZL_HOST_CSS,
+      hostCss: await shotCss(),
       scripts: { 'demo.js': demoScript(await demoReplies({ plan: { id: 'meal-planner', with: { links } } })) },
     })
     harnesses.push(harness)

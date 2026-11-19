@@ -8,7 +8,7 @@
 // AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness } from './build.mjs'
+import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const TABS = ['Dashboard', 'Specs', 'Graph', 'Delivery', 'Flow', 'Conflicts', 'Intake', 'Activity', 'Settings']
@@ -25,7 +25,7 @@ if (!chrome) {
   process.exit(1)
 }
 fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
+const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(chrome)
 const slug = (s) => s.toLowerCase().replace(/[^a-z]+/g, '-')
 try {

@@ -1,12 +1,12 @@
 // node tip-shots.mjs <out dir>: the touch tooltip open at 390 and 1280 px, light and dark.
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness } from './build.mjs'
+import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const out = process.argv[2]
 fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness()
+const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(findChrome())
 try {
   const page = await browser.page()

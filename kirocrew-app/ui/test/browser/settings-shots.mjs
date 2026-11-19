@@ -8,7 +8,7 @@
 // AVOOZL_CHROME and AVOOZL_HOST_CSS work as in screenshots.mjs.
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness } from './build.mjs'
+import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const WIDTHS = [320, 768, 1280]
@@ -27,7 +27,7 @@ if (!chrome) {
   process.exit(1)
 }
 fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
+const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(chrome)
 try {
   const page = await browser.page()

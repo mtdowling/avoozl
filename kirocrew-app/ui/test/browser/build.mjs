@@ -91,6 +91,18 @@ export async function startShots(script) {
     process.exit(1)
   }
   fs.mkdirSync(out, { recursive: true })
-  const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
+  const harness = await buildHarness({ hostCss: await shotCss() })
   return { out, harness, browser: await launch(chrome) }
+}
+
+// The stylesheet a screenshot is drawn on: AVOOZL_HOST_CSS when set, else
+// Kiro Crew's own at the pinned release (kirocrew-css.json), fetched and
+// cached like the class check's. harness.css has only the theme variables and
+// a few utilities, so a shot on it has no gaps and plain buttons, which is
+// not what Kiro Crew shows. Page tests keep harness.css.
+export async function shotCss() {
+  if (process.env.AVOOZL_HOST_CSS) return process.env.AVOOZL_HOST_CSS
+  const { kirocrewStylesheet, pin } = await import('../kirocrew-css.mjs')
+  await kirocrewStylesheet()
+  return path.join(os.tmpdir(), 'avoozl-kirocrew-css', `${pin.sha256}.css`)
 }

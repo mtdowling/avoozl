@@ -10,7 +10,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildHarness } from './build.mjs'
+import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 import { demoReplies, demoScript } from './demo-replies.mjs'
 
@@ -59,7 +59,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(1)
   }
   fs.mkdirSync(out, { recursive: true })
-  const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS, scripts: { 'demo.js': demoScript(await demoReplies()) } })
+  const harness = await buildHarness({ hostCss: await shotCss(), scripts: { 'demo.js': demoScript(await demoReplies()) } })
   const browser = await launch(chrome)
   try {
     const page = await browser.page()

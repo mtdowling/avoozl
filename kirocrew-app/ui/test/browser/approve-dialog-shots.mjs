@@ -9,7 +9,7 @@
 //   node test/browser/approve-dialog-shots.mjs <out dir> [--only dialog]
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness } from './build.mjs'
+import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const [out, flag, only] = process.argv.slice(2)
@@ -23,7 +23,7 @@ if (!chrome) {
   process.exit(1)
 }
 fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
+const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(chrome)
 const click = (selector) => `document.querySelector(${JSON.stringify(selector)}).click()`
 const kinds = ['dialog', 'changed', 'batch-changed'].filter((kind) => flag !== '--only' || kind === only)

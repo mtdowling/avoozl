@@ -7,14 +7,14 @@
 //   node test/browser/flow-tiles-shots.mjs <out dir> [stops]
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness } from './build.mjs'
+import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const [out, mode] = process.argv.slice(2)
 if (!out) process.exit(2)
 const stops = mode === 'stops'
 fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness()
+const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(findChrome())
 const wait = (page, ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 try {

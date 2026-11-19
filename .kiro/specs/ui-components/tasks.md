@@ -92,7 +92,7 @@ of the other specs.
       - The settings tests pass with assertions unchanged; no Settings view is left in the allow-list; screenshots of every Settings page go to the owner.
     - after: uc-2.1, uc-3.1
   - Built: PR #734.
-  - Every Settings page and settings dialog uses the two parts, built on Kiro Crew's `Settings*` parts where they fit.
+  - Every Settings page and settings dialog uses the two parts. Kiro Crew's `Settings*` parts have no slot for the page's own control, marker, reset, default line, width or `aria-describedby`, so `Field` and `FieldGroup` stay Avoozl's in `src/ui/` (UC1.3), built on Kiro Crew's classes and theme variables.
 - [x] uc-4.2 The remaining views, after uc-2.1, uc-2.2, uc-3.1, uc-3.2, uc-3.3, uc-3.4 [UC3, UC5] (§D6)
   - Facts:
     - done:

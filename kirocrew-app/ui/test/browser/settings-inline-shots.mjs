@@ -8,7 +8,7 @@
 // AVOOZL_CHROME works as in screenshots.mjs.
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness } from './build.mjs'
+import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const [out, ...asked] = process.argv.slice(2)
@@ -38,7 +38,7 @@ const PAGES = {
 }
 const names = asked.length ? asked : Object.keys(PAGES)
 fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
+const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(chrome)
 const click = (selector, text) =>
   `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`

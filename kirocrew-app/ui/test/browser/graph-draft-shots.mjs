@@ -10,7 +10,7 @@
 // AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness } from './build.mjs'
+import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const args = process.argv.slice(2)
@@ -26,7 +26,7 @@ if (!chrome) {
   process.exit(1)
 }
 fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
+const harness = await buildHarness({ hostCss: await shotCss() })
 const browser = await launch(chrome)
 const settle = (page) => page.evaluate('new Promise((r) => setTimeout(r, 300))')
 
