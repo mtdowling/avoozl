@@ -121,10 +121,6 @@ export const PERSON_ONLY = new Map([
     "mirror.forward.review",
     person("Only a person reviews a change before it is forwarded."),
   ],
-  [
-    "publiccrews.signoff",
-    person("Only a person signs off a public repository."),
-  ],
   ["github.setup.cancel", person("Only a person cancels a GitHub setup.")],
   ["github.configure", person("Only a person changes GitHub setup.")],
   [

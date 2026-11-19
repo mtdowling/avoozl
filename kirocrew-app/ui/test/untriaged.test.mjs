@@ -142,6 +142,14 @@ test('the dialog writes only after preview and its confirm button; Cancel is on 
   assert.match(view, /Send selected to Issue Radar/)
 })
 
+test('a public repository shows one line and the content hook command, and stores nothing', () => {
+  const dialog = source('SendToRadar.tsx')
+  assert.match(dialog, /This repository is public\. The crew writes with your GitHub login\. Add avoozl content hook to the crew's agent first\./)
+  assert.match(dialog, /HOOK_COMMAND = 'avoozl content hook'/)
+  assert.match(dialog, /\{crews\?\.public && step < 2 && \(/)
+  assert.doesNotMatch(source('untriaged-api.ts'), /publiccrews|signOff/)
+})
+
 test('a crew asking for a person reads plainly in Conflicts', async () => {
   const { whyLine } = await import('../src/conflicts-api.ts')
   assert.equal(

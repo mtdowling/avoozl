@@ -1,5 +1,5 @@
-// Crews on public repositories, layer 2 (task 39.1, design §6.14, R85.3 and
-// R85.4): the content hook scans a crew's writes before they run. The terms
+// The content hook (R85, design §6.14) scans an agent's writes before they
+// run. The terms
 // file is fake and the canary is made up; no real term is in this repo.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { bindContentRules } from "../content-rules.mjs";
-import { contentHook, parseShell, scanCall } from "../public-crews.mjs";
+import { contentHook, parseShell, scanCall } from "../content-hook.mjs";
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

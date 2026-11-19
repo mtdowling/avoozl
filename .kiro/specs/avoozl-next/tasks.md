@@ -103,7 +103,7 @@ Requirement AN3 (R85, §6.14).
     - done:
       - `avoozl content hook` refuses a gh or git write that holds a rule match or text it cannot read, naming the rule set, id and place and never the text.
   - Built: PR #381 (main spec task 39.1).
-  - `avoozl content hook`, `src/app/public-crews.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
+  - `avoozl content hook`, now `src/app/content-hook.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
 - [x] an-3.2 Audit on the tick: delete a hit, pull the cord, alert, after an-3.1 [AN3.1] (§6.14)
   - Facts:
     - done:
@@ -131,7 +131,7 @@ Requirement AN3 (R85, §6.14).
       - `docs/public-crews.md` states the limits in generic terms and drafts the Kiro Crew requests without filing them.
     - after: an-3.3, an-3.4
   - Built: PR #425 (main spec task 39.5).
-  - `docs/public-crews.md` in generic terms; limits stated; requests drafted, none filed.
+  - `docs/public-crews.md` (now `docs/content-hook.md`) in generic terms; limits stated; requests drafted, none filed.
 - [ ] an-p3 Proof: a public crew's leak is stopped, deleted and alerted, after an-3.1, an-3.2, an-3.3, an-3.4, an-3.5 [AN3.2] (§6.14)
   - Facts:
     - done:

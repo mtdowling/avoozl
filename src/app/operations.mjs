@@ -175,7 +175,6 @@ import {
   normalizeGitHubPolicy,
   PERMISSIONS,
   actorAllowed,
-  ISSUE_RADAR_PATH,
   policySection,
   readGitHubPolicy,
   readGitHubPolicyOrNull,
@@ -201,12 +200,6 @@ import {
   writeRepo,
 } from "./mirror-sync.mjs";
 import { forwardAuditRows } from "./forward-audit.mjs";
-import {
-  publicCrewAuditRows,
-  publicRepositories,
-  stopPublicCrews,
-} from "./public-crews.mjs";
-import { publicCrewsView, signOff } from "./public-signoff.mjs";
 import { publicBranchRows } from "./mirror-forward-batch.mjs";
 import { mirrorForwardRows } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
@@ -3620,7 +3613,6 @@ export class Operations {
       view.items.push(...mirrorNeedsYou(store));
       view.items.push(...mirrorForwardRows(store, policy));
       view.items.push(...forwardAuditRows(store));
-      view.items.push(...publicCrewAuditRows(store));
       view.items.push(...publicBranchRows(store));
       // A role waiting on Kiro Crew on a machine with none, with this
       // machine's approved harnesses for Run on (NK8.2).
@@ -3931,42 +3923,6 @@ export class Operations {
         by: context.local ? "cli" : "dashboard",
       });
     }
-    // Stop public crews (R85.9): the cord for every public repository, and
-    // the crews to pause in Kiro Crew. An agent may stop; only a person
-    // resumes (flow.resume).
-    if (name === "publiccrews.stop") {
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        crews = await Promise.all(
-          publicRepositories(store, policy).map((repository) =>
-            readCrews(this.crewReader, repository),
-          ),
-        ),
-        result = stopPublicCrews(
-          store,
-          { policy, crews },
-          {
-            by:
-              context.caller || context.mcp
-                ? {
-                    kind: "agent",
-                    name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
-                  }
-                : { kind: "person", name: context.local ? "cli" : "dashboard" },
-            link: ISSUE_RADAR_PATH,
-          },
-        );
-      const changed = result.stops.filter((s) => s.changed);
-      if (changed.length)
-        queueNotifications(store, [
-          {
-            channel: "failure",
-            title: `Public crews stopped on ${changed.length} ${changed.length === 1 ? "repository" : "repositories"}`,
-            text: `${changed.map((s) => s.repository).join(", ")}. ${result.note}`,
-            resume: "Press Resume on the Dashboard banner when it is safe.",
-          },
-        ]);
-      return result;
-    }
     // Issue Radar's live claims on every registered repository, read from
     // GitHub only (radar-claims.mjs). `refresh` reads GitHub first.
     // The merge path of each Issue Radar repository (RC5.1): three items,
@@ -4129,12 +4085,6 @@ export class Operations {
         fail(result.reason, 409);
       return result;
     }
-    // The public sign-off for one registered repository (R85.8, RC10.1):
-    // person only.
-    if (name === "publiccrews.signoff")
-      return signOff(store, readGitHubPolicyOrNull(this.workspaceRoot), input, {
-        by: this.operator,
-      });
     if (name === "radar.integrationbranch") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         entry = policy?.repositories?.[input.repository];
@@ -4198,8 +4148,7 @@ export class Operations {
         store,
         declaredSources(this.pluginOptions, store),
       );
-      // The Public crews card (R85.8): each public repository's checklist.
-      return { ...tab, publicCrews: publicCrewsView(store, policy) };
+      return tab;
     }
     // Incoming items (§4.12). Submit runs the pipeline at once, under the
     // tick's lock; list and view only read.
@@ -4375,7 +4324,11 @@ export class Operations {
         );
       if (!repository)
         fail(`${input.repository} is not a registered repository.`, 404);
-      return readCrews(this.crewReader, repository);
+      // A public repository's dialog says to add the content hook first.
+      return {
+        ...(await readCrews(this.crewReader, repository)),
+        public: store.get("github_repositories", repository)?.private === false,
+      };
     }
     // Plan this on a GitHub Intake row of a Radar-coded repository: the
     // planner chat's seed, with the issue recorded as the plan's source.

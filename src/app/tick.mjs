@@ -73,7 +73,6 @@ import { refreshProjectedReadiness } from "./github-projection.mjs";
 import { planningIdentity } from "./github-marker.mjs";
 import { syncProject } from "./github-project.mjs";
 import { reviewDispatches } from "./pr-review.mjs";
-import { publicCrewAudit } from "./public-crews.mjs";
 import { respondStep } from "./github-respond.mjs";
 import { steeringStep } from "./github-steering.mjs";
 import { feedbackStep } from "./github-feedback.mjs";
@@ -979,27 +978,6 @@ async function runTick(
           ...(await intakeStep(store, github, workspaceRoot, breakdownHooks))
             .notify,
         );
-      // The public crew audit (R85.6, R85.7, §6.14): what a crew wrote on a
-      // public repository since the last pass, checked with content rules.
-      if (script && github)
-        try {
-          const step = await publicCrewAudit(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-          });
-          planned.notify.push(...step.notify);
-          for (const text of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not audit a public crew",
-              text,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not audit a public crew",
-            text: error.message,
-          });
-        }
       // The waiting label on tracker gates and their gate-only dependents
       // (RC23.4): written from state, so a quiet tick makes no call.
       if (script && github)

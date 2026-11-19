@@ -23,7 +23,6 @@ const PARTS = Object.freeze([
     operations: {
       "untriaged.crews": ["crewReader"],
       "untriaged.handoff": ["crewReader"],
-      "publiccrews.stop": ["crewReader"],
     },
     refuse: { "untriaged.handoff": "crewReader" },
   },

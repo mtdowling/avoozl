@@ -219,6 +219,21 @@ export class Store {
         "FROM incoming_items WHERE json_extract(body,'$.record.kind')='idea'";
       if (this.db.prepare(`SELECT 1 ${idea} LIMIT 1`).get())
         this.db.exec(`DELETE ${idea}`);
+      // The public crew sign-off and audit were removed: drop their records
+      // and the stops they pulled. Writes only when one is left.
+      const publicMeta =
+          "FROM meta WHERE key IN ('publicSignoff','publicCrewAuditCursors','publicCrewAudit')",
+        publicStops =
+          "FROM flow_stops WHERE json_extract(body,'$.by.name')='public crew audit' OR json_extract(body,'$.reason')='Stop public crews was pressed.'";
+      if (
+        this.db.prepare(`SELECT 1 ${publicMeta} LIMIT 1`).get() ||
+        this.db.prepare(`SELECT 1 ${publicStops} LIMIT 1`).get()
+      ) {
+        this.db.exec("BEGIN IMMEDIATE");
+        this.db.exec(`DELETE ${publicMeta}`);
+        this.db.exec(`DELETE ${publicStops}`);
+        this.db.exec("COMMIT");
+      }
     } catch (error) {
       // SQLite can roll a transaction back itself after some failures.
       try {

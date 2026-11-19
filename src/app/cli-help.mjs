@@ -271,10 +271,6 @@ export const HELP_GROUPS = Object.freeze([
         "Resume dispatch while a line stop stays open (a person only)",
       ),
       entry(
-        "public-crews stop",
-        "Stop public crews: pull the cord on every public repository and list the crews to pause",
-      ),
-      entry(
         "gate clear TASK --reason TEXT",
         "Clear a tracker gate as an order (the GitHub login of this machine must be allowed)",
       ),

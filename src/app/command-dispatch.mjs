@@ -118,7 +118,6 @@ export const APP_OPERATIONS = new Set([
   "task.start",
   "flow.runAnyway",
   "flow.stop",
-  "publiccrews.stop",
   "flow.resume",
   "gate.clear",
   "flow.settings.get",
@@ -162,7 +161,6 @@ export const APP_OPERATIONS = new Set([
   "mirror.create",
   "mirror.forward",
   "mirror.forward.review",
-  "publiccrews.signoff",
   // The Onboard flow's reads; its writes are the operations above.
   "onboarding.inspect",
   "onboarding.scan",
