@@ -68,7 +68,8 @@ Each minute the tick starts a worker session for each ready task, in its own
 worktree. The worker runs as a Kiro Crew chat or as a process harness such as
 Claude Code or Codex. See [Agents and the CLI](agents.md#roles-and-models) for
 choosing one. Sessions run on this machine unless a worker machine pulls the
-work with `avoozl worker setup`.
+work with `avoozl worker setup`. See
+[People and machines](scale-out.md#worker-machines) for worker machines.
 
 When a session reports done, Avoozl runs the checks itself on the exact commit
 in a clean worktree, with no model call. It then integrates the commit and

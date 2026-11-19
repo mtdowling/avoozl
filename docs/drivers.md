@@ -62,3 +62,6 @@ at most one tick's worth, can overlap, and it shows as away on the new driver.
 In Local only mode the lock guards only instances that open that database file
 or a copy of it. It cannot see another machine, and it has no forced take
 over.
+
+See [People and machines](scale-out.md) for running each spec of an epic on
+its own person's machine, and for worker machines.

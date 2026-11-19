@@ -48,7 +48,8 @@ Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it again.
 A task never gets a GitHub issue. A spec can have one issue, its journal, and a
 fix started from an issue keeps its record there. See [Specs](specs.md) for the
 task format and [Workspaces](workspaces.md#rebuilding-the-database) for
-rebuilding.
+rebuilding. See [People and machines](scale-out.md) for how several people's
+machines share this state.
 
 ## Workflows
 
