@@ -87,7 +87,7 @@ of the other specs.
   - $after: ta-4.1, ta-2.3
   - Runs in progress, every run with its item, class, reason, writes and result, counts per day, caps left and calls used; Pause per repository and Stop all; Stop the line stops triage in its scope.
 
-- [ ] ta-p1 Proof: triage on a scratch repository, after ta-1.1, ta-2.3, ta-3.2, ta-4.2, ta-4.3, ta-4.4, ta-4.5, ta-4.6 [TA1 to TA10] (§D2 to §D8)
+- [x] ta-p1 Proof: triage on a scratch repository, after ta-1.1, ta-2.3, ta-3.2, ta-4.2, ta-4.3, ta-4.4, ta-4.5, ta-4.6 [TA1 to TA10] (§D2 to §D8)
   - $done: Expected: (1) the question is answered with a citation; the collaborator's bug is reproduced, fixed and landed; the stranger's bug waits as Fix ready; the feature goes to the owner; the hostile issue changes nothing outside its rules; the small pull request gets a full review and the large one a partial review that says so; (2) each page action makes its one write; (3) the page's call counts stay under one hundred for the hour and show every write.
   - $done: Expected result observed; receipt under `docs/evidence/`, with no image committed.
   - $manual: true
@@ -97,6 +97,7 @@ of the other specs.
   - Expected: (1) the question is answered with a citation; the collaborator's bug is reproduced, fixed and landed; the stranger's bug waits as Fix ready; the feature goes to the owner; the hostile issue changes nothing outside its rules; the small pull request gets a full review and the large one a partial review that says so; (2) each page action makes its one write; (3) the page's call counts stay under one hundred for the hour and show every write.
   - Failure means: the agent cannot be left alone on a public repository, or it costs GitHub calls the owner cannot afford.
   - Next decision: whether to remove the old ways in (Phase 5).
+  - Proved: `docs/evidence/ta-p1-triage-agent-live.md` (2026-11-19, Claude Code at `53f16feb`); fixes `1241b33b`, `a9da5e0b`, `f63eb972`, `bf103e29`, `53f16feb`.
 
 ## Phase 5: One way in
 
