@@ -79,6 +79,7 @@ import {
   investigates,
   recordFalsifier,
   recordFindings,
+  TABLE as INVESTIGATIONS,
 } from "./investigate.mjs";
 import { currentPrompts } from "./retro-memory.mjs";
 import { routeResultNotes, submittedTaskIds } from "./routes.mjs";
@@ -1535,19 +1536,30 @@ export function reconcileDeliveries(
         open &&
         !binding.member &&
         binding.status === "idle" &&
-        binding.source === "tick"
+        binding.source === "tick" &&
+        (binding.report?.kind !== "findings" || decisionSent(store, binding))
       ) {
         // Only the cron can message a session it opened; a Crew Mode
         // conductor watches its own workers.
         // Quiet: the session ended its turn without a done or blocked report.
         // It is nudged, never replaced; past the nudge bound a person decides.
+        // A worker that sent findings waits on Avoozl, not quiet, until the
+        // decision on them is sent; its quiet time counts from then.
         const nudge = next.nudge?.slot === binding.slot ? next.nudge : null,
-          step = quietStep(binding, nudge, policy, now);
+          sent = decisionSent(store, binding),
+          step = quietStep(
+            sent && sent > binding.statusAt
+              ? { ...binding, statusAt: sent }
+              : binding,
+            nudge,
+            policy,
+            now,
+          );
         if (step === "nudge") {
           messages.push({
             slot: binding.slot,
             task: taskId,
-            text: `Avoozl task ${taskId}: you have not reported a result. Continue the task in its worktree, then call plans_report with kind "done" and the commit SHA, or "blocked" or "question" with the reason.`,
+            text: `Avoozl task ${taskId}: you have not reported a result. Continue the task in its worktree, then report done, blocked or question the way your brief says.`,
           });
           next = {
             ...next,
@@ -1571,6 +1583,13 @@ export function reconcileDeliveries(
       store.transaction(() => store.put("task_deliveries", next));
   }
   return { messages, notify };
+}
+
+// When Avoozl sent the decision on this session's findings (Go ahead,
+// Investigate again or Stop), or null while none is sent.
+function decisionSent(store, binding) {
+  const row = store.get(INVESTIGATIONS, binding.taskId);
+  return row?.slot === binding.slot ? row.message?.sentAt || null : null;
 }
 
 // Plan order: lower rank first (unset ranks last, as the workbench orders
