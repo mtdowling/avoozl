@@ -10,7 +10,7 @@ import { Tooltip } from './ui/Tooltip.tsx'
 import type { FieldRule } from './settings-api.ts'
 import { Hint } from './ui/Hint'
 import { Switch } from './ui/Switch'
-import { Box } from './ui/Box'
+import { Box, type LookProps } from './ui/Box'
 import { PlainButton } from './ui/Plain'
 
 export const FIELD_WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
@@ -68,6 +68,17 @@ export function fieldDescribedBy(id: string, parts: { help?: ReactNode; note?: R
   return ids.length ? ids.join(' ') : undefined
 }
 
+// A field row on its own (stacked) or lined up with its neighbors in a
+// FieldGrid's subgrid rows (aligned).
+const STACKED = { 'css-display': 'flex', 'css-flex-direction': 'column', 'css-gap': 4 } as const satisfies LookProps
+const ALIGNED = {
+  'css-display': 'grid',
+  'css-grid-row': 'span 4',
+  'css-grid-template-rows': 'subgrid',
+  'css-row-gap': 4,
+  'css-align-content': 'start',
+} as const satisfies LookProps
+
 export function FieldRow(props: {
   id: string
   label: ReactNode
@@ -113,14 +124,7 @@ export function FieldRow(props: {
     </Box>
   )
   return (
-    <div
-      className="min-w-0 text-sm"
-      data-field-row={props.id}
-      {...props.attrs}
-      style={
-        props.align ? { display: 'grid', gridRow: 'span 4', gridTemplateRows: 'subgrid', rowGap: 4, alignContent: 'start' } : { display: 'flex', flexDirection: 'column', gap: 4 }
-      }
-    >
+    <Box minW0 size="sm" data-field-row={props.id} {...props.attrs} {...(props.align ? ALIGNED : STACKED)}>
       {label}
       {control}
       {lines}
@@ -130,7 +134,7 @@ export function FieldRow(props: {
         </PlainButton>
       )}
       {props.raw ? <RawKey name={props.raw} /> : props.align ? <span /> : null}
-    </div>
+    </Box>
   )
 }
 

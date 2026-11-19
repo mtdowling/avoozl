@@ -20,6 +20,7 @@ export function settleActionOf(item: ConflictItem): SettleAction | null {
   if (item.kind === 'needs-human' && item.reason === 'crew-mode') return null
   if (item.kind === 'needs-human') return item.reason === 'blocked' ? 'unblock' : 'reviewed'
   if (item.kind === 'decision') return 'settle'
+  if (item.kind === 'untick') return 'reopen'
   return null
 }
 
@@ -28,6 +29,8 @@ export const ACTION_LABELS: Record<SettleAction, string> = {
   unblock: 'Unblock',
   dismiss: 'Dismiss',
   settle: 'Settle',
+  reopen: 'Reopen',
+  keep: 'Keep done',
 }
 
 // What each action does, for its tooltip. Checked against confirmSettle.
@@ -36,6 +39,8 @@ export const ACTION_TIPS: Record<SettleAction, string> = {
   unblock: 'Return it to planned so it may start when ready.',
   dismiss: 'Remove the ended session from this list. Its chat is kept.',
   settle: 'Clear the decision and note your answer on the task.',
+  reopen: 'Return the task to planned; its tick was taken out of tasks.md.',
+  keep: 'Leave the task done and clear this item.',
 }
 
 export const itemKey = (item: { kind?: string; taskId: string | null; field?: string; slot?: string; id?: string }) =>
@@ -57,7 +62,7 @@ export function withoutSettled(items: ConflictItem[], action: SettleAction, resu
   const gone = new Set(result.settled.map((entry) => `${entry.taskId}\u0000${entry.slot ?? ''}`))
   const settled = (id: string) => gone.has(`${id}\u0000`)
   return items.flatMap((item) => {
-    if (settleActionOf(item) !== action) return [item]
+    if (action === 'keep' ? item.kind !== 'untick' : settleActionOf(item) !== action) return [item]
     if (item.kind === 'review') {
       const left = (item.tasks ?? []).filter((task) => !settled(task.id))
       return left.length === (item.tasks ?? []).length ? [item] : left.length ? [reviewGroup(item, left)] : []
@@ -127,7 +132,11 @@ export const CONFLICT_TABS: { key: string; label: string; keep: (item: ConflictI
   { key: 'all', label: 'All', keep: () => true },
   { key: 'github-conflict', label: 'GitHub edits', keep: (item) => item.kind === 'github-conflict' },
   { key: 'decision', label: 'Decisions', keep: (item) => ['decision', 'content-match', 'content-unavailable'].includes(item.kind) },
-  { key: 'needs-human', label: 'Needs you', keep: (item) => ['needs-human', 'review', 'investigation', 'ready-to-merge', 'tick-failed', 'branch-landing'].includes(item.kind) },
+  {
+    key: 'needs-human',
+    label: 'Needs you',
+    keep: (item) => ['needs-human', 'untick', 'review', 'investigation', 'ready-to-merge', 'tick-failed', 'branch-landing'].includes(item.kind),
+  },
   { key: 'other', label: 'Sessions', keep: (item) => ['stale-session'].includes(item.kind) },
 ]
 
@@ -147,6 +156,7 @@ export function whyLine(item: ConflictItem): string {
     return item.reason === 'blocked' ? 'Marked blocked: nothing starts until you unblock it.' : 'New or edited: it waits for your review before it can start.'
   if (item.kind === 'review') return item.detail
   if (item.kind === 'decision') return `An open question stops this task: ${item.detail}`
+  if (item.kind === 'untick') return item.detail
   if (item.kind === 'stale-session') return `Its chat ended before the task finished. ${item.detail}`
   return item.detail
 }
@@ -171,6 +181,8 @@ export function confirmSettle(action: SettleAction, count: number, title?: strin
     unblock: 'They go back to planned and may start when ready.',
     dismiss: 'The ended sessions leave the list. Their chats are not deleted.',
     settle: 'The decision is cleared and your answer is noted on the task.',
+    reopen: 'The task goes back to planned and may start when ready.',
+    keep: 'The task stays done.',
   }
   return { title: `${ACTION_LABELS[action]}: ${what}?`, body: body[action], action: ACTION_LABELS[action] }
 }

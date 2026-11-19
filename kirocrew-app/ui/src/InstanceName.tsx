@@ -8,6 +8,7 @@ import { SaveFooter } from './SaveFooter.tsx'
 import { NAME_RULE, instanceClient, nameFor, validName, type InstanceView } from './instance-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 // The instance, read again after a rename anywhere on the page.
 const CHANGED = 'avoozl:instance-changed'
@@ -27,13 +28,13 @@ export function useInstance(workspaceId: string | null): InstanceView | null {
   return view
 }
 
-export function InstanceBadge(props: { workspaceId: string | null; className?: string }) {
+export function InstanceBadge(props: { workspaceId: string | null; plain?: boolean }) {
   const name = nameFor(useInstance(props.workspaceId), 'header')
   if (!name) return null
   return (
-    <span data-instance-name className={props.className ?? 'text-sm text-muted'}>
+    <Box as="span" data-instance-name size={props.plain ? undefined : 'sm'} tone="muted">
       {name}
-    </span>
+    </Box>
   )
 }
 

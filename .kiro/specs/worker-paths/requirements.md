@@ -223,6 +223,10 @@ extra step.
 5. `plans_report` SHALL stay for the roles that are not the worker, and for
    an MCP client Avoozl did not start. The README SHALL say that a worker
    needs no MCP sharing.
+6. A falsifier chat on `kirocrew` SHALL report its verdict with `avoozl
+   runner report TASK done --role falsifier --file PATH` and a token issued
+   for its own role and attempt. The worker's token SHALL NOT count for it. Without MCP sharing, a chat has no caller identity for
+   `plans_report` (found by proof wp-p1).
 
 ### Requirement WP5: One remote route
 

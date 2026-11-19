@@ -295,7 +295,7 @@ export interface SettleResult {
   refused: { taskId: string; slot?: string; reason: string }[]
 }
 
-export type SettleAction = 'reviewed' | 'unblock' | 'dismiss' | 'settle'
+export type SettleAction = 'reviewed' | 'unblock' | 'dismiss' | 'settle' | 'reopen' | 'keep'
 
 export function taskClient(api: AppApi) {
   const run = async <T>(operation: string, input: Record<string, unknown>, workspaceId: string, expectedRevision?: number) => {

@@ -1090,6 +1090,17 @@ export function conflictsView(store, data) {
         choices: [],
         resolution: null,
       });
+    // A tick taken out of tasks.md on the base branch, on a done task: it
+    // stays done until a person says (spec-ticks.mjs).
+    if (task.untick && complete(task.status))
+      items.push({
+        kind: "untick",
+        taskId: task.id,
+        ...ownership(task),
+        title: task.title ?? task.id,
+        detail: `Its tick was taken out of tasks.md on ${task.untick.branch}, but the task is done. Reopen it, or keep it done.`,
+        openedAt: task.untick.at,
+      });
     if (!complete(task.status) && task.status === "blocked")
       items.push({
         kind: "needs-human",
