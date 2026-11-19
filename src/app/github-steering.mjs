@@ -16,6 +16,7 @@ import { codeRepository, findPlanningLeak } from "./github-plans-repo.mjs";
 import { fence } from "./github-respond.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { taskAuthority } from "../work-model.mjs";
+import { isPosted } from "./github-posted.mjs";
 
 const lower = (value) => String(value || "").toLowerCase();
 const receiptId = (slot, comment) => `github-steer:${slot}:${comment}`;
@@ -94,6 +95,8 @@ export async function steeringStep(store, github, policy) {
         !comment.id ||
         String(comment.created_at || "") < since ||
         !mentions(comment.body, mention) ||
+        // Avoozl's own post never steers a worker.
+        isPosted(comment.body) ||
         relayed.has(comment.id) ||
         store.get("receipts", receiptId(binding.slot, comment.id))
       )
