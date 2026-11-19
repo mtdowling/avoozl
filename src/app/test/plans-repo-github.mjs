@@ -214,7 +214,7 @@ export function workspace(t, { repository = {} } = {}) {
       },
     }),
   );
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: checkout,
     baseBranch: "main",
@@ -231,7 +231,7 @@ export function workspace(t, { repository = {} } = {}) {
     id: CODE,
     owner: "example",
     repo: "code",
-    projectId: "code",
+    repositoryId: "code",
     activeMachine: machine,
   });
   const issues = [

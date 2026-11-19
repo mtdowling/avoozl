@@ -34,7 +34,7 @@ import {
 import { workspaceRepositories } from "../workspace-repositories.mjs";
 import { person, routed } from "../operation-policy.mjs";
 
-function intakeDeliverHandler({ name, input }) {
+async function intakeDeliverHandler({ name, input }) {
   const store = this.store;
 
   const action = name === "intake.deliver" ? "deliver" : "plan",

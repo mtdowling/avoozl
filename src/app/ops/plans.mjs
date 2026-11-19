@@ -533,7 +533,7 @@ export const entries = [
               plan,
               data: {
                 ...this.read(),
-                projects: store.list("projects"),
+                repositories: store.list("repositories"),
               },
             }),
         ...(plan.spec ? { disk: this.specOnDisk(plan) } : {}),
@@ -572,7 +572,7 @@ export const entries = [
         plan,
         data: {
           ...this.read(),
-          projects: store.list("projects"),
+          repositories: store.list("repositories"),
         },
       });
     },
@@ -622,7 +622,7 @@ export const entries = [
           plan,
           data: {
             ...data,
-            projects: store.list("projects"),
+            repositories: store.list("repositories"),
           },
           ...(extraction ? { proposals } : {}),
         });

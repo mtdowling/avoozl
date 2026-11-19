@@ -399,7 +399,7 @@ test("P35: a pack is refused by name for an unknown key and never runs code", as
       { settings: { repositories: { untriaged: { scope: "org" } } } },
       /settings\.repositories\.untriaged\.scope/,
     ],
-    [{ settings: { project: {} } }, /settings\.project is not/],
+    [{ settings: { repository: {} } }, /settings\.repository is not/],
     [
       { settings: { delivery: { agent: "a", hooks: [] } } },
       /settings\.delivery\.hooks is not/,

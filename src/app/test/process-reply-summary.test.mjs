@@ -58,7 +58,7 @@ function responder(t, harness) {
       },
     }),
   );
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: checkout,
     baseBranch: "main",
@@ -68,7 +68,7 @@ function responder(t, harness) {
     id: REPO,
     owner: "example",
     repo: "code",
-    projectId: "code",
+    repositoryId: "code",
   });
   const source = {
     number: 7,
@@ -223,14 +223,14 @@ test("a child's task summary is stored and shown", async (t) => {
   assert.equal(shown.text, summary);
 });
 
-test("neither child gets a network path, whatever its project allows", async (t) => {
+test("neither child gets a network path, whatever its repository allows", async (t) => {
   const state = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-offline-"));
   t.after(() => fs.rmSync(state, { recursive: true, force: true }));
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-offline-w-"));
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
   const executor = processExecutor({
     stateDirectory: state,
-    projectFor: () => ({
+    repositoryFor: () => ({
       harness: "fake-cli",
       sandbox: { network: ["localhost:8080"] },
     }),
@@ -246,6 +246,6 @@ test("neither child gets a network path, whatever its project allows", async (t)
   };
   assert.equal((await settings("responder")).network, "off");
   assert.equal((await settings("task-summary")).network, "off");
-  // A verifier still gets its project's network.
+  // A verifier still gets its repository's network.
   assert.notEqual((await settings("verifier")).network, "off");
 });

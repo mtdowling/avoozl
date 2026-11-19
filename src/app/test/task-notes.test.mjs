@@ -38,7 +38,7 @@ async function workspace(t) {
     path.join(dir, "fake.txt"),
     "# Fake terms\ncodename: \\bsecretword\\b\n",
   );
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: temporaryDirectory(),
     baseBranch: "main",

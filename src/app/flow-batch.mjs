@@ -64,7 +64,7 @@ function groupProblem(store, data, task, members, approved, config) {
   // commits (a `process` child) runs the group's tasks singly (WP3.3).
   for (const t of members) {
     const { declined } = briefCell(
-      workerExecutor(t, store.get("projects", taskRepository(t)), config)
+      workerExecutor(t, store.get("repositories", taskRepository(t)), config)
         .executor,
       "batch",
     );
@@ -116,7 +116,7 @@ export function batchRules(
 }
 
 // Fold ready leaves into the planner's batches. `leaves` are the slots
-// readyLeaves filled (each {task, project, attempt, delivery}); `candidates`
+// readyLeaves filled (each {task, repository, attempt, delivery}); `candidates`
 // every ready task before capacity, so a batch takes members no slot was
 // left for. Returns the leaves to dispatch, a batch leader carrying `batch`
 // and a task that runs alone because its group broke a rule carrying

@@ -436,9 +436,9 @@ export const entries = [
           ...input,
         },
         {
-          writeProject: (project) => {
+          writeRepository: (repository) => {
             this.configuration?.assertWritable();
-            this.configuration?.updateExecutionProject(project);
+            this.configuration?.updateExecutionRepository(repository);
           },
           // The repository's landing block holds the mode (§4.25).
           writeLanding: (repository, mode) => {

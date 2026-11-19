@@ -64,7 +64,7 @@ function local(t, delivery = {}) {
     ],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
@@ -357,7 +357,7 @@ test("P45 (5) local: a task branch behind the integration branch is merged forwa
   fs.mkdirSync(path.join(tree.path, ".avoozl"), { recursive: true });
   fs.writeFileSync(path.join(tree.path, ".avoozl", "result.json"), "{}");
   const moved = await rebaseForIntegration(
-    w.store.get("projects", "app"),
+    w.store.get("repositories", "app"),
     w.store.get("task_worktrees", "a1"),
     commit,
   );

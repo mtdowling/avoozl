@@ -192,11 +192,11 @@ export async function startGitHubItem(store, github, policy, input = {}) {
         id: "github",
         repository: name,
         github: name,
-        project: repo?.localCheckout ? repo.id : null,
+        executionRepository: repo?.localCheckout ? repo.id : null,
       },
       policy,
     );
-  if (action === "deliver" && !source.project)
+  if (action === "deliver" && !source.executionRepository)
     fail(
       `Repository ${name} has no local checkout, so Avoozl cannot code it.`,
       409,

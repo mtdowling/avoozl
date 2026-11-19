@@ -40,26 +40,26 @@ import {
 const BISECT_RUNS = 8;
 const TAIL_LINES = 20;
 
-const landingOf = (project) =>
-  project.integrationBranch || project.baseBranch || "main";
+const landingOf = (repository) =>
+  repository.integrationBranch || repository.baseBranch || "main";
 
 // Run one declared check at one commit in a scratch worktree, never in the
 // landing checkout (R44.4): {exitCode, durationMs, tail}.
-export async function runCheckAt(project, commit, argv) {
+export async function runCheckAt(repository, commit, argv) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-line-"));
   try {
-    await git(project.root, ["worktree", "add", "--detach", dir, commit]);
-    const ready = await prepareChecks(project, dir);
+    await git(repository.root, ["worktree", "add", "--detach", dir, commit]);
+    const ready = await prepareChecks(repository, dir);
     if (ready && ready.exitCode !== 0)
       return {
         exitCode: null,
         durationMs: 0,
         tail: `prepare failed: ${String(ready.stderr || "").split("\n")[0]}`,
       };
-    const blind = await containerBlindness(project, dir);
+    const blind = await containerBlindness(repository, dir);
     if (blind) return { exitCode: null, durationMs: 0, tail: blind };
     const started = Date.now(),
-      result = await commandEvidence(dir, argv, checkOptions(project, dir));
+      result = await commandEvidence(dir, argv, checkOptions(repository, dir));
     return {
       exitCode: result.exitCode,
       ...(result.isolation !== undefined
@@ -73,7 +73,7 @@ export async function runCheckAt(project, commit, argv) {
         .join("\n"),
     };
   } finally {
-    await git(project.root, ["worktree", "remove", "--force", dir]).catch(
+    await git(repository.root, ["worktree", "remove", "--force", dir]).catch(
       () => {},
     );
     fs.rmSync(dir, { recursive: true, force: true });
@@ -98,12 +98,12 @@ function safeTail(store, text, repository) {
   }
 }
 
-const landingId = (projectId) => "landing:" + projectId;
+const landingId = (repositoryId) => "landing:" + repositoryId;
 
 // Integrated task commits between two commits, oldest first.
-async function taskCommits(store, project, from, to) {
+async function taskCommits(store, repository, from, to) {
   const listed = (
-    await git(project.root, [
+    await git(repository.root, [
       "rev-list",
       "--reverse",
       from ? `${from}..${to}` : to,
@@ -113,7 +113,7 @@ async function taskCommits(store, project, from, to) {
     .filter(Boolean);
   const byCommit = new Map();
   for (const task of store.read().tasks)
-    if (task.integration?.commit && taskRepository(task) === project.id)
+    if (task.integration?.commit && taskRepository(task) === repository.id)
       byCommit.set(task.integration.commit, task.id);
   return {
     commits: listed,
@@ -128,13 +128,13 @@ async function taskCommits(store, project, from, to) {
 // runs; else unknown with the range recorded.
 export async function findCulprit(
   store,
-  project,
+  repository,
   argv,
   green,
   red,
   { run = runCheckAt } = {},
 ) {
-  const { tasks } = await taskCommits(store, project, green, red),
+  const { tasks } = await taskCommits(store, repository, green, red),
     range = { from: green || null, to: red };
   if (tasks.length === 1)
     return {
@@ -152,7 +152,7 @@ export async function findCulprit(
     if (runs >= BISECT_RUNS)
       return { culprit: null, commit: null, range, runs };
     const mid = Math.floor((lo + hi) / 2),
-      result = await run(project, tasks[mid].commit, argv);
+      result = await run(repository, tasks[mid].commit, argv);
     runs += 1;
     if (result.exitCode === 0) lo = mid + 1;
     else hi = mid;
@@ -164,7 +164,7 @@ export async function findCulprit(
 // culprit's repository, local authority, first in line. Its brief
 // names the check, the culprit commit or range, and the output's last lines,
 // and allows a fix or a revert. A second stop for the same check reuses it.
-function createFixTask(store, stop, culpritTask, project, tail) {
+function createFixTask(store, stop, culpritTask, repository, tail) {
   const data = store.read(),
     base = (stop.culprit || "line") + ".fix-",
     taken = new Set(data.tasks.map((t) => t.id));
@@ -173,7 +173,7 @@ function createFixTask(store, stop, culpritTask, project, tail) {
   const id = base + n,
     template =
       culpritTask ||
-      data.tasks.find((t) => taskRepository(t) === project.id) ||
+      data.tasks.find((t) => taskRepository(t) === repository.id) ||
       data.tasks[0],
     lines = [
       `The line is stopped: check \`${stop.check}\` passed on ${stop.branch} and now fails.`,
@@ -198,7 +198,7 @@ function createFixTask(store, stop, culpritTask, project, tail) {
       ...(template.parent ? { parent: template.parent } : {}),
       acceptance: [`\`${stop.check}\` passes on ${stop.branch}.`],
       checks: [stop.check],
-      repository: project.id,
+      repository: repository.id,
       route: "local",
       authority: "local",
       summary: lines.join("\n"),
@@ -210,12 +210,12 @@ function createFixTask(store, stop, culpritTask, project, tail) {
 
 function openStop(
   store,
-  project,
+  repository,
   { check, culprit, notify, now, scope, tail },
 ) {
   const at = new Date(now).toISOString(),
     reuse = openStops(store).find(
-      (s) => !s.manual && s.projectId === project.id && s.check === check,
+      (s) => !s.manual && s.repositoryId === repository.id && s.check === check,
     );
   if (reuse) return reuse;
   const data = store.read(),
@@ -223,10 +223,10 @@ function openStop(
       ? data.tasks.find((t) => t.id === culprit.culprit)
       : null,
     stop = {
-      id: `stop:${project.id}:${at}`,
-      projectId: project.id,
+      id: `stop:${repository.id}:${at}`,
+      repositoryId: repository.id,
       check,
-      branch: landingOf(project),
+      branch: landingOf(repository),
       culprit: culprit.culprit,
       commit: culprit.commit,
       range: culprit.range,
@@ -239,7 +239,7 @@ function openStop(
   // A second stop for the same check reuses its open fix task.
   const earlier = listOr(store, "flow_stops").find(
     (s) =>
-      s.projectId === project.id &&
+      s.repositoryId === repository.id &&
       s.check === check &&
       s.fixTaskId &&
       fixOpen(store, s.fixTaskId),
@@ -250,8 +250,8 @@ function openStop(
       store,
       stop,
       culpritTask,
-      project,
-      safeTail(store, tail, project.repository || project.id),
+      repository,
+      safeTail(store, tail, repository.github || repository.id),
     );
   store.transaction(() => store.put("flow_stops", stop));
   notify.push({
@@ -293,15 +293,15 @@ function closeStop(store, stop, notify, now) {
   return closed;
 }
 
-function recordFlaky(store, project, check, commit, now) {
+function recordFlaky(store, repository, check, commit, now) {
   const at = new Date(now).toISOString(),
-    id = `flaky:${project.id}:${check}:${commit}`;
+    id = `flaky:${repository.id}:${check}:${commit}`;
   if (!store.get("flow_records", id))
     store.transaction(() =>
       store.put("flow_records", {
         id,
         kind: "flaky",
-        projectId: project.id,
+        repositoryId: repository.id,
         check,
         commit,
         at,
@@ -311,19 +311,19 @@ function recordFlaky(store, project, check, commit, now) {
 
 // A head Avoozl integrated: a merge it recorded, or a `direct` landing,
 // which marks the delivery integrated at the pushed commit.
-const integratedHead = (store, project, head) =>
+const integratedHead = (store, repository, head) =>
   store
     .list("integration")
     .some(
       (e) =>
-        e.projectId === project.id &&
+        e.repositoryId === repository.id &&
         e.state === "integrated" &&
         e.integratedCommit === head,
     ) ||
   store.list("task_deliveries").some((d) => {
     if (d.state !== "integrated" || d.integratedCommit !== head) return false;
     const task = store.read().tasks.find((t) => t.id === d.taskId);
-    return Boolean(task) && taskRepository(task) === project.id;
+    return Boolean(task) && taskRepository(task) === repository.id;
   });
 
 // Results of the repository's checks at its landing branch head, one run
@@ -333,16 +333,16 @@ const integratedHead = (store, project, head) =>
 // checks again even after integration ran them, because a check can pass in
 // the task's worktree and fail on the branch; reuse integration's results
 // if that proves never to happen.
-async function headResults(store, project, head, run, known) {
+async function headResults(store, repository, head, run, known) {
   const out = new Map();
   if (!known) {
-    if (integratedHead(store, project, head))
-      for (const check of repositoryChecks(project))
+    if (integratedHead(store, repository, head))
+      for (const check of repositoryChecks(repository))
         out.set(check.name, { exitCode: 0, tail: "" });
     return out;
   }
-  for (const check of repositoryChecks(project))
-    out.set(check.name, await run(project, head, check.argv));
+  for (const check of repositoryChecks(repository))
+    out.set(check.name, await run(repository, head, check.argv));
   return out;
 }
 
@@ -354,45 +354,49 @@ export async function watchLine(
 ) {
   const notify = [],
     policy = flowPolicy(config || {});
-  for (const project of store.list("projects")) {
-    if (!project.root || !repositoryChecks(project).length) continue;
+  for (const repository of store.list("repositories")) {
+    if (!repository.root || !repositoryChecks(repository).length) continue;
     // Its checks run in scratch worktrees: a full volume skips this watch.
     try {
-      requireDiskSpace(store, os.tmpdir(), `The line watch of ${project.id}`);
+      requireDiskSpace(
+        store,
+        os.tmpdir(),
+        `The line watch of ${repository.id}`,
+      );
     } catch (error) {
       if (error.lowDisk) continue;
       throw error;
     }
     let head;
     try {
-      head = await git(project.root, [
+      head = await git(repository.root, [
         "rev-parse",
         "--verify",
         "--quiet",
-        landingOf(project),
+        landingOf(repository),
       ]);
     } catch {
       continue;
     }
-    const stateId = landingId(project.id),
+    const stateId = landingId(repository.id),
       state = store.get("flow_records", stateId) || {
         id: stateId,
         kind: "landing",
-        projectId: project.id,
+        repositoryId: repository.id,
         green: {},
       };
     if (state.head === head) continue;
     const known = Object.keys(state.green).length > 0;
     // Nothing known green and a head Avoozl did not integrate: nothing to
     // compare against, so nothing is written.
-    if (!known && !integratedHead(store, project, head)) continue;
-    const results = await headResults(store, project, head, run, known),
+    if (!known && !integratedHead(store, repository, head)) continue;
+    const results = await headResults(store, repository, head, run, known),
       green = { ...state.green },
-      scope = policy.for(project.id).stopTheLine.scope;
-    for (const { name, argv } of repositoryChecks(project)) {
+      scope = policy.for(repository.id).stopTheLine.scope;
+    for (const { name, argv } of repositoryChecks(repository)) {
       const result = results.get(name),
         open = openStops(store).find(
-          (s) => s.projectId === project.id && s.check === name,
+          (s) => s.repositoryId === repository.id && s.check === name,
         );
       if (!result) continue;
       if (result.exitCode === 0) {
@@ -402,21 +406,21 @@ export async function watchLine(
       }
       // Never green here before: nothing broke that worked.
       if (!green[name] || open) continue;
-      const again = await run(project, head, argv);
+      const again = await run(repository, head, argv);
       if (again.exitCode === 0) {
-        recordFlaky(store, project, name, head, now);
+        recordFlaky(store, repository, name, head, now);
         green[name] = head;
         continue;
       }
       const culprit = await findCulprit(
         store,
-        project,
+        repository,
         argv,
         green[name],
         head,
         { run },
       );
-      openStop(store, project, {
+      openStop(store, repository, {
         check: name,
         culprit,
         notify,
@@ -434,8 +438,8 @@ export async function watchLine(
       }),
     );
   }
-  for (const project of store.list("projects"))
-    await releaseHeld(store, project);
+  for (const repository of store.list("repositories"))
+    await releaseHeld(store, repository);
   // A stop with no check (a worker named the culprit) closes when its fix
   // task integrates.
   for (const stop of openStops(store))
@@ -446,8 +450,8 @@ export async function watchLine(
 
 // Deliveries a stop held are judged again once the line is green: rebased
 // onto the fixed branch first, so the new head is a new round (R36.9).
-async function releaseHeld(store, project) {
-  if (openStops(store).some((s) => s.projectId === project.id)) return;
+async function releaseHeld(store, repository) {
+  if (openStops(store).some((s) => s.repositoryId === repository.id)) return;
   for (const delivery of store.list("task_deliveries")) {
     if (delivery.state !== "done") continue;
     const held = (delivery.verifications || []).filter(
@@ -456,11 +460,11 @@ async function releaseHeld(store, project) {
     );
     if (!held.length) continue;
     const worktree = store.get("task_worktrees", delivery.taskId);
-    if ((worktree?.repository || project.id) !== project.id) continue;
+    if ((worktree?.repository || repository.id) !== repository.id) continue;
     let rebased = null;
     try {
       rebased = worktree?.path
-        ? await rebaseForIntegration(project, worktree, delivery.commit)
+        ? await rebaseForIntegration(repository, worktree, delivery.commit)
         : null;
     } catch {}
     const at = new Date().toISOString(),
@@ -491,10 +495,10 @@ async function releaseHeld(store, project) {
 
 // The check a stop holds on a verifier's report: a failure of the stopped
 // check on another task's commit is not judged (R44.6, R38).
-export function heldByStop(store, projectId, checks = []) {
+export function heldByStop(store, repositoryId, checks = []) {
   const stopped = new Set(
     openStops(store)
-      .filter((s) => s.projectId === projectId && s.check)
+      .filter((s) => s.repositoryId === repositoryId && s.check)
       .map((s) => s.check),
   );
   if (!stopped.size) return null;
@@ -521,15 +525,16 @@ export async function judgeBaseFailures(
     if (!last || last.role || last.outcome !== "rejected" || last.baseChecked)
       continue;
     const task = data.tasks.find((t) => t.id === delivery.taskId),
-      project = task && store.get("projects", taskRepository(task) || "");
-    if (!project?.root) continue;
+      repository =
+        task && store.get("repositories", taskRepository(task) || "");
+    if (!repository?.root) continue;
     const failing = (last.checks || []).find(
         (c) => Number.isInteger(c.exitCode) && c.exitCode !== 0,
       ),
       failingName = failing ? checkKey(failing) : null,
       argv =
         failing &&
-        repositoryChecks(project).find(
+        repositoryChecks(repository).find(
           (check) =>
             check.name === failingName ||
             checkCommand(check) === failing.command,
@@ -537,13 +542,13 @@ export async function judgeBaseFailures(
     let base = null;
     if (argv)
       try {
-        base = await git(project.root, [
+        base = await git(repository.root, [
           "merge-base",
           last.commit,
-          landingOf(project),
+          landingOf(repository),
         ]);
       } catch {}
-    const result = base ? await run(project, base, argv) : null,
+    const result = base ? await run(repository, base, argv) : null,
       broken = result && result.exitCode !== 0;
     const verifications = delivery.verifications.map((v, i, all) =>
       i === all.length - 1
@@ -573,15 +578,17 @@ export async function judgeBaseFailures(
         state: "done",
         commit: last.commit,
       };
-      const stateRecord = store.get("flow_records", landingId(project.id)),
+      const stateRecord = store.get("flow_records", landingId(repository.id)),
         green = stateRecord?.green?.[failingName] || null,
-        culprit = await findCulprit(store, project, argv, green, base, { run });
-      openStop(store, project, {
+        culprit = await findCulprit(store, repository, argv, green, base, {
+          run,
+        });
+      openStop(store, repository, {
         check: failingName,
         culprit,
         notify,
         now,
-        scope: policy.for(project.id).stopTheLine.scope,
+        scope: policy.for(repository.id).stopTheLine.scope,
         tail: result.tail,
       });
     }
@@ -624,10 +631,10 @@ export function blockedNaming(store, config, { now = Date.now() } = {}) {
         at: binding.report.at,
       }),
     );
-    const project = store.get("projects", taskRepository(named) || "");
-    if (!project || openStops(store).some((s) => s.culprit === named.id))
+    const repository = store.get("repositories", taskRepository(named) || "");
+    if (!repository || openStops(store).some((s) => s.culprit === named.id))
       continue;
-    openStop(store, project, {
+    openStop(store, repository, {
       check: null,
       culprit: {
         culprit: named.id,
@@ -637,7 +644,7 @@ export function blockedNaming(store, config, { now = Date.now() } = {}) {
       },
       notify,
       now,
-      scope: policy.for(project.id).stopTheLine.scope,
+      scope: policy.for(repository.id).stopTheLine.scope,
       tail: "",
     });
   }
@@ -687,9 +694,9 @@ export function pullCord(
   const data = store.read(),
     target = {};
   if (input.scope === "repo") {
-    if (!store.get("projects", String(input.repository || "")))
+    if (!store.get("repositories", String(input.repository || "")))
       fail(`Repository ${input.repository ?? "(none)"} was not found.`, 404);
-    target.projectId = input.repository;
+    target.repositoryId = input.repository;
   } else if (input.scope === "spec") {
     const plan = listOr(store, "plans").find(
       (p) => p.id === input.spec && !p.deletedAt,
@@ -701,7 +708,7 @@ export function pullCord(
     const task = data.tasks.find((t) => t.id === input.taskId);
     if (!task) fail(`Task ${input.taskId ?? "(none)"} was not found.`, 404);
     target.taskId = task.id;
-    target.projectId = taskRepository(task) || null;
+    target.repositoryId = taskRepository(task) || null;
   }
   // The reason shows on the banner and reaches the retro brief (R64.4).
   if (contentBinding(store)?.workspaceRoot)
@@ -709,7 +716,7 @@ export function pullCord(
       store,
       {
         boundary: "brief",
-        repository: target.projectId || null,
+        repository: target.repositoryId || null,
         target: "flow-stop",
         text: reason,
       },
@@ -722,7 +729,7 @@ export function pullCord(
       by,
       reason,
       scope: input.scope,
-      projectId: null,
+      repositoryId: null,
       planId: null,
       spec: null,
       taskId: null,
@@ -849,7 +856,7 @@ const stopTarget = (stop) =>
   stop.scope === "all"
     ? "everything"
     : stop.scope === "repo"
-      ? `repository ${stop.projectId}`
+      ? `repository ${stop.repositoryId}`
       : stop.scope === "spec"
         ? `spec ${stop.planId}`
         : `task ${stop.taskId} and its dependents`;

@@ -667,13 +667,13 @@ test("single-repo mode reads spec folders from code repositories only", async (t
   writeSpec(root, "planning-only");
   writeSpec(app, "config");
   setMode(root, { mode: "single-repo" });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: app,
     baseBranch: "main",
     checks: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "lib",
     root: lib,
     baseBranch: "main",
@@ -711,7 +711,7 @@ test("plan preview shows each task's authority and issue link", async (t) => {
     "avoozl/manifest.json": JSON.stringify(files),
   });
   setMode(root, { mode: "single-repo" });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: app,
     baseBranch: "main",
@@ -754,7 +754,7 @@ test("plans-repo mode needs a planning repository", async (t) => {
   setMode(root, { mode: "plans-repo", planningRepository: "example/plans" });
   await assert.rejects(ops.execute("plan.specs"), /no planning repository/);
   writeSpec(planning, "config");
-  store.put("projects", {
+  store.put("repositories", {
     id: "plans",
     root: planning,
     baseBranch: "main",
@@ -766,7 +766,7 @@ test("plans-repo mode needs a planning repository", async (t) => {
 });
 
 // Regression: Nupp keeps .avoozl.json in its planning checkout with no
-// planning project registered, and the Plans tab read nothing.
+// planning repository registered, and the Plans tab read nothing.
 test("plans-repo mode reads the workspace root when it is the planning checkout", async (t) => {
   const { root, ops } = workspace(t);
   writeSpec(root, "config");

@@ -254,10 +254,11 @@ function planIssueConfig(store, plan, identity) {
   const task = planTasks(store.read(), plan.id).find(
       (entry) => entry.authority !== "local",
     ),
-    projectId = task?.projectId || plan.context?.projectId,
+    repositoryId = task?.repositoryId || plan.context?.repositoryId,
     configs = store.list("github_repositories");
   const own =
-      projectId && configs.find((entry) => entry.projectId === projectId),
+      repositoryId &&
+      configs.find((entry) => entry.repositoryId === repositoryId),
     config =
       (identity.mode === "plans-repo"
         ? configs.find((entry) => same(entry.id, identity.planningRepository))

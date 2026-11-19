@@ -142,7 +142,7 @@ function workspace(t, github, policy = POLICY(), extra = {}) {
     id: REPO,
     owner: "mtdowling",
     repo: "avoozl-radar-test",
-    projectId: "code",
+    repositoryId: "code",
     activeMachine: machineIdentity(store).id,
   });
   const ops = new Operations(store, { github, workspaceRoot: root });
@@ -171,7 +171,7 @@ test("Radar intake, asks and back-links read the intake list", async (t) => {
         "github-radar": {
           via: "github",
           repository: REPO,
-          project: "code",
+          executionRepository: "code",
           assignee: "operator",
         },
       },

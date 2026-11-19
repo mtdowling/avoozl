@@ -462,20 +462,22 @@ export class Operations {
   // itself, so the workspace root is the planning root when its origin is
   // the policy's planning repository.
   specRoots(mode = this.githubMode()) {
-    const projects = this.store.list("projects"),
+    const repositories = this.store.list("repositories"),
       planningRoot =
         this.store.getMeta("workspaceRepository")?.root ||
-        projects.find((project) => project.planning && project.root)?.root ||
+        repositories.find(
+          (repository) => repository.planning && repository.root,
+        )?.root ||
         (mode === null || this.workspaceIsPlanningCheckout(mode)
           ? this.workspaceRoot
           : null);
     return specRoots({
       mode,
       planningRoot,
-      codeRoots: projects
-        .filter((project) => !project.planning && project.root)
+      codeRoots: repositories
+        .filter((repository) => !repository.planning && repository.root)
         .sort((a, b) => a.id.localeCompare(b.id))
-        .map((project) => project.root),
+        .map((repository) => repository.root),
     });
   }
   // Repository files by git, with the API as the fallback (repo-files.mjs).
@@ -536,7 +538,7 @@ export class Operations {
   async applyBaseTicks() {
     this.ticksSeen ??= new Map();
     this.ticksFetched = new Set();
-    const projects = this.store.list("projects");
+    const repositories = this.store.list("repositories");
     for (const plan of this.store.list("plans")) {
       if (
         !plan.spec ||
@@ -551,7 +553,8 @@ export class Operations {
         const branch = spec.root
             ? spec.home === "plansBranch"
               ? spec.ref
-              : projects.find((p) => p.root === spec.root)?.baseBranch || "main"
+              : repositories.find((p) => p.root === spec.root)?.baseBranch ||
+                "main"
             : spec.ref,
           read = spec.root
             ? await baseTasks(spec.root, branch, plan.spec, {
@@ -654,7 +657,7 @@ export class Operations {
     const namespace = this.specNamespace();
     const data = {
         ...this.read(),
-        projects: store.list("projects"),
+        repositories: store.list("repositories"),
       },
       plans = store
         .list("plans")
@@ -1235,7 +1238,7 @@ export class Operations {
           plan,
           data: {
             ...this.read(),
-            projects: this.store.list("projects"),
+            repositories: this.store.list("repositories"),
           },
           ...(extraction ? { proposals } : {}),
         });
@@ -1433,7 +1436,7 @@ export class Operations {
         plan,
         data: {
           ...this.read(),
-          projects: this.store.list("projects"),
+          repositories: this.store.list("repositories"),
         },
         approved: this.approvedSpec(plan),
         retitled,
@@ -1469,11 +1472,12 @@ export class Operations {
       task = store.read().tasks.find((t) => t.id === input.taskId);
     if (!task) fail("Task not found.", 404);
     const worktree = store.get("task_worktrees", task.id),
-      project = store.get(
-        "projects",
+      repository = store.get(
+        "repositories",
         worktree?.repository || taskRepository(task),
       );
-    if (!project?.root) fail(`Task ${task.id} names no local checkout.`, 409);
+    if (!repository?.root)
+      fail(`Task ${task.id} names no local checkout.`, 409);
     const heads = input.push
       ? pushedCommits(input.stdin).map((p) => p.local)
       : [input.head || "HEAD"];
@@ -1481,7 +1485,7 @@ export class Operations {
     for (const head of heads) {
       gitRevision(head);
       enforceDiff(store, {
-        project: { ...project, root: worktree?.path || project.root },
+        repository: { ...repository, root: worktree?.path || repository.root },
         head,
         taskId: task.id,
         mode: "refuse",
@@ -1554,7 +1558,7 @@ export class Operations {
     return createExtraction(this.store, {
       planId: plan.id,
       revisionHash: input.revisionHash || plan.hash,
-      projectId: input.projectId || plan.context?.projectId || null,
+      repositoryId: input.repositoryId || plan.context?.repositoryId || null,
       sequence: [],
       parentRunId: input.parentRunId || null,
     });
@@ -1735,7 +1739,7 @@ export class Operations {
           action,
           prompt: input.prompt,
           provider: input.provider,
-          projectId: input.projectId,
+          repositoryId: input.repositoryId,
           model: input.model,
           approvalMode: input.approvalMode,
           parentRunId: input.parentRunId,

@@ -56,13 +56,13 @@ test("named checks validate; the older argv list loads named by its command", ()
 });
 
 test("a check with paths runs only for a change that touches one", () => {
-  const project = { checks: NAMED },
-    names = (files) => selectedChecks(project, files).map((c) => c.name);
+  const repository = { checks: NAMED },
+    names = (files) => selectedChecks(repository, files).map((c) => c.name);
   assert.deepEqual(names(["README.md"]), ["test", "diff"]);
   assert.deepEqual(names(["src/ui/Panel.tsx"]), ["test", "diff", "ui"]);
   assert.deepEqual(names(null), ["test", "diff", "ui"], "unknown diff: all");
   // A result matches its check by name, or by command when it has none.
-  const [first] = repositoryChecks(project);
+  const [first] = repositoryChecks(repository);
   assert.ok(resultFor([{ name: "test", exitCode: 0 }], first));
   assert.ok(resultFor([{ command: "npm test", exitCode: 0 }], first));
   assert.equal(
@@ -84,7 +84,7 @@ test("a check run skips a check whose paths the commit does not touch", async (t
       prefix: "avoozl-named-checks-",
       // A stored task's own list is ignored.
       tasks: [leaf("a", { checks: ["false"] })],
-      project: {
+      repository: {
         checks: {
           unit: [node, "-e", "process.exit(0)"],
           ui: { run: [node, "-e", "process.exit(1)"], paths: ["src/ui/**"] },
@@ -99,7 +99,7 @@ test("a check run skips a check whose paths the commit does not touch", async (t
   git(checkout, "checkout", "-q", "main");
   queueCheckRun(store, {
     task: { id: "a" },
-    project: store.get("projects", "app"),
+    repository: store.get("repositories", "app"),
     commit,
     attempt: 1,
   });

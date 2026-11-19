@@ -74,7 +74,7 @@ export interface Metrics {
 
 export interface LineStop {
   id: string
-  projectId: string
+  repositoryId: string
   check: string | null
   branch: string
   culprit: string | null
@@ -550,8 +550,8 @@ export function pdcaText(p: Proposal): string | null {
 }
 
 // What a pulled stop covers, in words.
-export function scopeText(stop: Pick<LineStop, 'scope' | 'projectId' | 'planId' | 'taskId'>): string {
-  if (stop.scope === 'repo') return `repository ${stop.projectId}`
+export function scopeText(stop: Pick<LineStop, 'scope' | 'repositoryId' | 'planId' | 'taskId'>): string {
+  if (stop.scope === 'repo') return `repository ${stop.repositoryId}`
   if (stop.scope === 'spec') return `spec ${stop.planId}`
   if (stop.scope === 'task') return `task ${stop.taskId} and its dependents`
   return 'everything in this workspace'
@@ -607,6 +607,33 @@ export function toPull(form: PullForm): { input?: PullInput; error?: string } {
 }
 
 // The banner's sentence (§8.4).
+// One row of Flow's Line stops list (R64.11): every stop in the window,
+// pulled and automatic, newest first, with its time to fix once it closed.
+export interface StopRow {
+  id: string
+  kind: 'Pulled' | 'Automatic' | 'All agents'
+  what: string
+  who: string | null
+  openedAt: string
+  fix: string
+}
+export function stopRows(stops: LineStop[]): StopRow[] {
+  return [...stops]
+    .sort((a, b) => (a.openedAt < b.openedAt ? 1 : a.openedAt > b.openedAt ? -1 : 0))
+    .map((stop) => ({
+      id: stop.id,
+      kind: stop.manual ? (stop.full ? 'All agents' : 'Pulled') : 'Automatic',
+      what: stop.manual
+        ? `${stop.reason ?? ''} (${scopeText(stop)})`
+        : stop.check
+          ? `\`${stop.check}\` failed on ${stop.branch ?? stop.projectId}`
+          : `a worker named ${stop.culprit ?? 'a task'} as the cause`,
+      who: stop.manual ? (stop.by?.name ?? null) : null,
+      openedAt: stop.openedAt,
+      fix: stop.closedAt ? duration(stop.timeToFixMs ?? Date.parse(stop.closedAt) - Date.parse(stop.openedAt)) : 'open',
+    }))
+}
+
 export function bannerText(stop: LineStop): string {
   if (stop.manual && stop.full) {
     const sessions = stop.sessions ?? [],

@@ -38,12 +38,12 @@ async function workspace(t) {
     workspaceRoot: root,
     driver: { settingsFile: path.join(temporaryDirectory(), "driver.json") },
   });
-  store.put("projects", { id: "code", root, baseBranch: "main" });
+  store.put("repositories", { id: "code", root, baseBranch: "main" });
   writeSpec(root, "config");
   const plan = await ops.execute("plan.create", {
     spec: "config",
     prompt: "Load config",
-    context: { projectId: "code" },
+    context: { repositoryId: "code" },
   });
   await ops.execute("spec.publish", { planId: plan.id });
   await ops.execute("spec.takeover", { planId: plan.id });

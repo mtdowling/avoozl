@@ -73,7 +73,7 @@ export function validationAt(store, data, task) {
   for (const result of results) latest.set(result.command, result);
   const declared = declaredChecks(
       task,
-      store.get("projects", taskRepository(task) || ""),
+      store.get("repositories", taskRepository(task) || ""),
     ).map(checkCommand),
     checks = declared.length ? declared : [...latest.keys()];
   if (!checks.length || checks.some((c) => latest.get(c)?.exitCode !== 0))
@@ -210,7 +210,7 @@ export function refuseGateBypass(data, task, input, hasReviewers) {
     );
 }
 
-export function repositoryBase(store, task, projectId) {
+export function repositoryBase(store, task, repositoryId) {
   if (typeof task.github?.url === "string") {
     try {
       const url = new URL(task.github.url);
@@ -227,28 +227,28 @@ export function repositoryBase(store, task, projectId) {
     task.github?.repository ||
     store
       .list("github_repositories")
-      .find((entry) => entry.projectId === projectId)?.id ||
-    store.get("projects", projectId)?.repository ||
+      .find((entry) => entry.repositoryId === repositoryId)?.id ||
+    store.get("repositories", repositoryId)?.github ||
     "";
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)
     ? `https://github.com/${repository}`
     : "";
 }
 
-export function taskLocalChanges(store, task, projectId, repositoryUrl) {
-  const project = store.get("projects", projectId);
-  if (!project) return null;
+export function taskLocalChanges(store, task, repositoryId, repositoryUrl) {
+  const repository = store.get("repositories", repositoryId);
+  if (!repository) return null;
   return {
-    projectId,
-    root: project.root || "",
+    repositoryId,
+    root: repository.root || "",
     branch: task.integration?.branch || "",
     repositoryUrl,
   };
 }
 
 export function taskCodeChanges(store, data, task, evidenceRecords) {
-  const projectId = task.projectId || "",
-    base = repositoryBase(store, task, projectId),
+  const repositoryId = task.repositoryId || "",
+    base = repositoryBase(store, task, repositoryId),
     commits = new Map(),
     pulls = new Map();
   const addCommit = (sha, source) => {
@@ -305,7 +305,7 @@ export function taskCodeChanges(store, data, task, evidenceRecords) {
     issue,
     commits: [...commits.values()],
     pullRequests: [...pulls.values()],
-    local: taskLocalChanges(store, task, projectId, base),
+    local: taskLocalChanges(store, task, repositoryId, base),
   };
 }
 

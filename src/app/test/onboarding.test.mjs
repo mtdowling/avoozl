@@ -84,8 +84,8 @@ const snapshot = ({ store, github, settings }) =>
   JSON.stringify({
     data: store.read(),
     plans: store.list("plans"),
-    projects: store.list("projects"),
-    repositories: store.list("github_repositories"),
+    repositories: store.list("repositories"),
+    github: store.list("github_repositories"),
     approvals: store.list("approvals"),
     events: store.events({ latest: true, limit: 1 }),
     settings: fs.readFileSync(settings, "utf8"),

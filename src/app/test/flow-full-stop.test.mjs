@@ -57,7 +57,10 @@ function setup(t, { refuse = new Set() } = {}) {
     tasks: [leaf("a1"), leaf("a2"), leaf("a3"), leaf("b1")],
     edges: [],
   });
-  store.put("projects", { id: "r1", root: temporaryDirectory("avoozl-r1-") });
+  store.put("repositories", {
+    id: "r1",
+    root: temporaryDirectory("avoozl-r1-"),
+  });
   // a1: a running worker the tick opened, on its own model.
   store.put("session_bindings", binding("s-a1", "a1", { model: "model-a1" }));
   // a2: a checks session the tick opened on a done delivery.

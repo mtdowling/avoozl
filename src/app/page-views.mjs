@@ -1175,7 +1175,7 @@ export function taskDetailView(
       acceptance: detail.acceptance || [],
       // The repository's checks, which every task runs.
       checks: repositoryChecks(
-        store.get("projects", taskRepository(detail) || ""),
+        store.get("repositories", taskRepository(detail) || ""),
       ).map((check) =>
         check.name === checkCommand(check)
           ? check.name

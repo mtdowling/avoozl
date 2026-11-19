@@ -17,11 +17,11 @@ The library lands before the client consumes it.
 ## Proposed work
 
 \`\`\`task
-{"id":"library","title":"Publish library contract","summary":"Expose the shared contract.","acceptance":["The contract test reads the published schema."],"projectId":"library","requires":[]}
+{"id":"library","title":"Publish library contract","summary":"Expose the shared contract.","acceptance":["The contract test reads the published schema."],"repositoryId":"library","requires":[]}
 \`\`\`
 
 \`\`\`task
-{"id":"client","title":"Adopt library contract","summary":"Use the shared contract from the client.","acceptance":["The client compatibility suite passes against the published schema."],"projectId":"client","requires":["library"]}
+{"id":"client","title":"Adopt library contract","summary":"Use the shared contract from the client.","acceptance":["The client compatibility suite passes against the published schema."],"repositoryId":"client","requires":["library"]}
 \`\`\`
 `;
 
@@ -29,19 +29,19 @@ test("ordinary design prose is valid without prescribed headings or task blocks"
   const result = lintPlan({
     text: "Ship the portable release after its compatibility check succeeds.",
     plan: { context: {} },
-    data: { projects: [], tasks: [] },
+    data: { repositories: [], tasks: [] },
   });
   assert.equal(result.canApprove, true);
   assert.equal(result.taskCount, 0);
   assert.deepEqual(result.diagnostics, []);
 });
 
-test("plan quality reports reusable line diagnostics and cross-project dependencies", () => {
+test("plan quality reports reusable line diagnostics and cross-repository dependencies", () => {
   const result = lintPlan({
     text: design,
     plan: { context: {} },
     data: {
-      projects: [
+      repositories: [
         { id: "library", checks: [["npm", "test"]] },
         { id: "client", checks: [["npm", "test"]] },
       ],
@@ -51,24 +51,24 @@ test("plan quality reports reusable line diagnostics and cross-project dependenc
   assert.equal(result.canApprove, true);
   assert.equal(result.taskCount, 2);
   assert.equal(result.counts.error, 0);
-  const crossProject = result.diagnostics.find(
-    (item) => item.code === "task.cross-project-dependency",
+  const crossRepository = result.diagnostics.find(
+    (item) => item.code === "task.cross-repository-dependency",
   );
-  assert.equal(crossProject.taskId, "client");
-  assert.equal(crossProject.relatedTaskId, "library");
-  assert.ok(crossProject.lineStart > 1);
+  assert.equal(crossRepository.taskId, "client");
+  assert.equal(crossRepository.relatedTaskId, "library");
+  assert.ok(crossRepository.lineStart > 1);
 });
 
-test("plan quality blocks unknown projects, references, and dependency cycles", () => {
+test("plan quality blocks unknown repositories, references, and dependency cycles", () => {
   const text = design
-    .replace('"projectId":"client"', '"projectId":"missing"')
+    .replace('"repositoryId":"client"', '"repositoryId":"missing"')
     .replace('"requires":["library"]', '"requires":["library","missing-task"]')
     .replace('"requires":[]', '"requires":["client"]');
   const result = lintPlan({
     text,
     plan: { context: {} },
     data: {
-      projects: [
+      repositories: [
         { id: "library", checks: [["npm", "test"]] },
         { id: "client", checks: [["npm", "test"]] },
       ],
@@ -83,7 +83,7 @@ test("plan quality blocks unknown projects, references, and dependency cycles", 
         .map((item) => item.code),
     ),
     new Set([
-      "task.unknown-project",
+      "task.unknown-repository",
       "task.unknown-dependency",
       "task.dependency-cycle",
     ]),
@@ -98,7 +98,7 @@ test("plan quality catches an existing duplicate before approval", () => {
     ),
     plan: { id: "portable-release", context: {} },
     data: {
-      projects: [
+      repositories: [
         { id: "library", checks: [["npm", "test"]] },
         { id: "client", checks: [["npm", "test"]] },
       ],
@@ -120,7 +120,7 @@ test("plan quality catches an existing duplicate before approval", () => {
 
 test("operations expose live quality checks and refuse a blocking approval", async (t) => {
   const { store } = fixture(t);
-  store.put("projects", {
+  store.put("repositories", {
     id: "library",
     root: "/tmp/library",
     baseBranch: "main",
@@ -131,12 +131,12 @@ test("operations expose live quality checks and refuse a blocking approval", asy
   const plan = await ops.execute("plan.create", {
     id: "plan-quality",
     prompt: "Plan a portable release.",
-    text: design.replace('"projectId":"client"', '"projectId":"missing"'),
+    text: design.replace('"repositoryId":"client"', '"repositoryId":"missing"'),
   });
   const quality = await ops.execute("plan.lint", { id: plan.id });
   assert.equal(quality.canApprove, false);
   assert.equal(
-    quality.diagnostics.some((item) => item.code === "task.unknown-project"),
+    quality.diagnostics.some((item) => item.code === "task.unknown-repository"),
     true,
   );
   const preview = await ops.execute("plan.preview", { id: plan.id });
@@ -147,6 +147,6 @@ test("operations expose live quality checks and refuse a blocking approval", asy
       expectedHash: plan.hash,
       expectedRevision: preview.expectedRevision,
     }),
-    /task\.unknown-project/,
+    /task\.unknown-repository/,
   );
 });

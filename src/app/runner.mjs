@@ -174,8 +174,8 @@ export function nextView(store, { policy, github = null }) {
       result.ready.push({
         ...item,
         attempt: leaf.attempt,
-        repository: leaf.project.id,
-        checkout: leaf.project.root,
+        repository: leaf.repository.id,
+        checkout: leaf.repository.root,
       });
       continue;
     }

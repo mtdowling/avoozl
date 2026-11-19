@@ -59,10 +59,10 @@ function stopHold(stop) {
 }
 
 // Why a queued portion waits, at its place in its queue.
-function queuedHold(store, entry, position, project, checks) {
+function queuedHold(store, entry, position, repository, checks) {
   const stop = pausedBy(store, entry);
   if (stop) return stopHold(stop);
-  if (project?.landing === "off")
+  if (repository?.landing === "off")
     return { kind: "off", text: "Landing is off for this repository." };
   if (position > 0)
     return {
@@ -118,7 +118,7 @@ export function landingQueueView(
   { now = Date.now(), config = null } = {},
 ) {
   const tasks = new Map((data?.tasks ?? []).map((t) => [t.id, t])),
-    projects = new Map(listOr(store, "projects").map((p) => [p.id, p])),
+    repositories = new Map(listOr(store, "repositories").map((p) => [p.id, p])),
     deliveries = new Map(
       listOr(store, "task_deliveries").map((d) => [d.taskId ?? d.id, d]),
     ),
@@ -127,16 +127,16 @@ export function landingQueueView(
     ),
     links = linkSets(store, { now }).tasks,
     groups = new Map();
-  const group = (projectId, base) => {
-    const key = `${projectId}\0${base}`;
+  const group = (repositoryId, base) => {
+    const key = `${repositoryId}\0${base}`;
     if (!groups.has(key)) {
-      const project = projects.get(projectId);
+      const repository = repositories.get(repositoryId);
       groups.set(key, {
         key,
-        projectId,
-        repository: project?.repository ?? null,
+        repositoryId,
+        repository: repository?.github ?? null,
         base,
-        landing: project?.landing ?? null,
+        landing: repository?.landing ?? null,
         items: [],
       });
     }
@@ -144,9 +144,9 @@ export function landingQueueView(
   };
   // Every `direct` base shows its size and its last merge batches, even
   // while nothing waits.
-  for (const project of projects.values())
-    if (project.landing === "direct")
-      group(project.id, project.baseBranch || "main");
+  for (const repository of repositories.values())
+    if (repository.landing === "direct")
+      group(repository.id, repository.baseBranch || "main");
   const item = (entry, ids, extra) => {
     const first = links[ids[0]] ?? null;
     return {
@@ -171,7 +171,7 @@ export function landingQueueView(
     positions = new Map(),
     shown = new Set();
   for (const entry of queued) {
-    const line = group(entry.projectId, entry.base),
+    const line = group(entry.repositoryId, entry.base),
       position = positions.get(line.key) ?? 0,
       ids = taskIds(entry),
       first = links[ids[0]] ?? null;
@@ -188,7 +188,7 @@ export function landingQueueView(
           store,
           entry,
           position,
-          projects.get(entry.projectId),
+          repositories.get(entry.repositoryId),
           first?.checks,
         ),
       }),
@@ -207,7 +207,7 @@ export function landingQueueView(
     if (!["running", "decision"].includes(delivery.state)) continue;
     shown.add(id);
     later.push({
-      line: group(entry.projectId, entry.base),
+      line: group(entry.repositoryId, entry.base),
       at: entry.finishedAt ?? null,
       row: item(entry, [id], {
         key: id,
@@ -222,13 +222,14 @@ export function landingQueueView(
     if (!held) continue;
     const task = tasks.get(id),
       worktree = worktrees.get(id),
-      projectId = worktree?.repository ?? (task ? taskRepository(task) : null),
-      project = projects.get(projectId);
-    if (!projectId) continue;
+      repositoryId =
+        worktree?.repository ?? (task ? taskRepository(task) : null),
+      repository = repositories.get(repositoryId);
+    if (!repositoryId) continue;
     later.push({
       line: group(
-        projectId,
-        worktree?.base?.branch || project?.baseBranch || "main",
+        repositoryId,
+        worktree?.base?.branch || repository?.baseBranch || "main",
       ),
       at: held.at ?? delivery.updatedAt ?? null,
       row: item({ commit: delivery.commit }, [id], {
@@ -249,12 +250,12 @@ export function landingQueueView(
   // stored records (MB7.1).
   for (const line of groups.values()) {
     if (line.landing !== "direct") continue;
-    const at = { projectId: line.projectId, base: line.base },
+    const at = { repositoryId: line.repositoryId, base: line.base },
       record = sizeRecord(store, at),
       setting = landingSettings(
         config,
         line.repository,
-        projects.get(line.projectId),
+        repositories.get(line.repositoryId),
       ).mergeBatch;
     line.testing = testingNow(store, at);
     line.last = [...record.last].reverse();
@@ -268,8 +269,8 @@ export function landingQueueView(
   return {
     bases: [...groups.values()].sort(
       (a, b) =>
-        String(a.repository ?? a.projectId).localeCompare(
-          String(b.repository ?? b.projectId),
+        String(a.repository ?? a.repositoryId).localeCompare(
+          String(b.repository ?? b.repositoryId),
         ) || a.base.localeCompare(b.base),
     ),
     readAt: new Date(now).toISOString(),
@@ -292,7 +293,7 @@ export function landingWaitNeedsYou(
       .map((i) => ({
         kind: "needs-human",
         reason: "approval",
-        id: `landing-wait:${line.projectId}:${line.base}:${i.key}`,
+        id: `landing-wait:${line.repositoryId}:${line.base}:${i.key}`,
         taskId: i.tasks[0]?.id ?? null,
         authority: "avoozl",
         title: `${i.tasks[0]?.id ?? i.key} has waited ${i.waitedMinutes} minutes to land on ${line.base}`,

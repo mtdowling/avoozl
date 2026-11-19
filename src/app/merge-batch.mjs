@@ -37,7 +37,7 @@ const NO_PROMPT = { GIT_TERMINAL_PROMPT: "0" };
 // passing evidence for exactly it, and a task without its definition.
 export function queuePortion(
   store,
-  { projectId, base, spec, driver, commit, tasks, evidence, key },
+  { repositoryId, base, spec, driver, commit, tasks, evidence, key },
 ) {
   const problem = verifiedEvidence(evidence, commit);
   if (problem)
@@ -52,7 +52,7 @@ export function queuePortion(
     fail("A portion names each task with its definition.", 400);
   if (!spec || !driver) fail("A portion names its spec and driver.", 400);
   return enqueueLanding(store, {
-    projectId,
+    repositoryId,
     base,
     spec,
     driver,
@@ -243,7 +243,7 @@ export function directSteps({
   configFile,
   checksEnv,
   // The repository's id and isolation: each check runs under it.
-  projectId,
+  repositoryId,
   isolation,
   run = runCheckAt,
   scan = privacyScan,
@@ -315,7 +315,7 @@ export function directSteps({
       for (const check of checks) {
         if (!wanted(check.name) || !checkApplies(check, files)) continue;
         const result = await run(
-          { id: projectId, root, checksEnv, isolation },
+          { id: repositoryId, root, checksEnv, isolation },
           candidate,
           check.argv,
         );

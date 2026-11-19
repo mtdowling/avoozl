@@ -23,12 +23,12 @@ const HARNESS_PLACEHOLDERS = Object.freeze([
   "message_file",
   "permission",
   "tmp",
-  "project_cache_dirs",
-  "project_allow_commands",
+  "repository_cache_dirs",
+  "repository_allow_commands",
 ]);
 const PERMISSION_CLASSES = EXECUTOR_CONTRACT.permissionClasses;
 export const HARNESS_UNCONFINED = "harness-unconfined.json";
-const WRITE_ROOTS = ["{worktree}", "{tmp}", "{project_cache_dirs}"];
+const WRITE_ROOTS = ["{worktree}", "{tmp}", "{repository_cache_dirs}"];
 const NAME = /^[a-z][a-z0-9-]{0,60}$/;
 const KEYS = new Set([
   "name",
@@ -438,7 +438,7 @@ export function approveHarnessDefinition({ configDirectory, name, hash }) {
 
 // Fill a validated argv list. Every placeholder used must have a value;
 // a list value (cache dirs, allow commands) expands to one argument per
-// item, keeping the text around it (`Bash({project_allow_commands}:*)`), and
+// item, keeping the text around it (`Bash({repository_allow_commands}:*)`), and
 // is refused next to a second placeholder.
 export function fillHarnessArgv(list, values) {
   return list.flatMap((item) => {
@@ -463,7 +463,7 @@ export function fillHarnessArgv(list, values) {
 const overlaps = (a, b) =>
   a === b || a.startsWith(b + path.sep) || b.startsWith(a + path.sep);
 
-// A project's cache directories (`sandbox.writeRoots`, R94.4): absolute,
+// A repository's cache directories (`sandbox.writeRoots`, R94.4): absolute,
 // never the filesystem root, the home folder or one above it, and never
 // over the git directory, which the child must not reach (R94.4a).
 export function sandboxWriteRoots(
@@ -543,7 +543,7 @@ export function allowUnconfinedWrites({
 // What one session may do (R94.4, R94.5): the definition's value for the
 // permission class, and the folders a write class may write. A read class
 // writes only its temp and result folders. A write class writes the task folder, the temp folder and
-// the project's cache folders; a harness with no way to confine writes runs
+// the repository's cache folders; a harness with no way to confine writes runs
 // a write class only with this machine's opt-in at its current hash.
 export function harnessPermission(
   definition,
@@ -560,7 +560,7 @@ export function harnessPermission(
     fail(`Permission class must be ${PERMISSION_CLASSES.join(" or ")}.`);
   const permission = definition.permission[permissionClass];
   // A read class writes only its own temp folder, its result folder
-  // (R96.1) and the harness's own cache folders named in project config
+  // (R96.1) and the harness's own cache folders named in repository config
   // (Claude Code's config folder, P59), never the task folder itself.
   if (permissionClass === "read") {
     const task =
@@ -618,7 +618,7 @@ export function harnessPermission(
   const values = {
     worktree: roots[0],
     tmp: roots[1],
-    project_cache_dirs: sandboxWriteRoots(cacheDirs, { gitCommonDir }),
+    repository_cache_dirs: sandboxWriteRoots(cacheDirs, { gitCommonDir }),
   };
   return {
     permissionClass,

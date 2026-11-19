@@ -46,7 +46,7 @@ function setup(t, config = {}) {
     tasks: [leaf("a1"), leaf("a2")],
     edges: [{ from: "a1", to: "a2", kind: "requires" }],
   });
-  store.put("projects", { id: "r1" });
+  store.put("repositories", { id: "r1" });
   fs.mkdirSync(path.join(root, ".avoozl", "local", "content-rules"), {
     recursive: true,
   });

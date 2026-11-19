@@ -162,7 +162,7 @@ test("a private remote folder can be stored and approved in its mirror home", as
       },
     }),
   );
-  store.put("projects", { id: "code", root, repository: "acme/app" });
+  store.put("repositories", { id: "code", root, github: "acme/app" });
   putPrivate(github, "private-one");
   const ops = new Operations(store, {
     github,
@@ -210,7 +210,7 @@ test("an orphan plans checkout is one private home, not a public duplicate", asy
       },
     }),
   );
-  store.put("projects", { id: "code", root, repository: "acme/app" });
+  store.put("repositories", { id: "code", root, github: "acme/app" });
   writeSpec(root, "private-one");
   putPrivate(github, "private-one");
   const ops = new Operations(store, {
@@ -259,7 +259,7 @@ test("a review branch derived from private plans is never approved into the code
     "Create generic fixture",
   );
   git("checkout", "-qb", "review/draft");
-  store.put("projects", { id: "code", root, repository: "acme/app" });
+  store.put("repositories", { id: "code", root, github: "acme/app" });
   const ops = new Operations(store, {
     github,
     workspaceRoot: root,
@@ -306,7 +306,7 @@ test("a proved public review branch in a mirror keeps the plain approval", async
     "Create generic fixture",
   );
   git("checkout", "-qb", "review/public");
-  store.put("projects", { id: "code", root, repository: "acme/app" });
+  store.put("repositories", { id: "code", root, github: "acme/app" });
   const ops = new Operations(store, {
     github,
     workspaceRoot: root,

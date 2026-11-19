@@ -4,7 +4,7 @@
 // (a terms file in the workspace, a report set whose terms file sits outside
 // it, and a set from the fake rules plugin), and fake GitHub writers. Every
 // term is fake. Actions (3), (6) and the Project field write (4) have their
-// own tests at the end of this file and in github-project.test.mjs.
+// own tests at the end of this file and in github-repository.test.mjs.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -50,7 +50,7 @@ const TERMS = [
   /zorb%6cat/i,
   /build7\.corp\.example/i,
   /build7%2ecorp/i,
-  /project[- ]?x\b/i,
+  /repository[- ]?x\b/i,
 ];
 
 const leaf = (summary, extra = {}) => ({
@@ -177,7 +177,7 @@ async function workspace(t) {
     id: "fake-rules",
     hash: listed.plugins[0].hash,
   });
-  await ops.execute("project.configure", {
+  await ops.execute("repository.configure", {
     id: "app",
     root: checkout,
     baseBranch: "main",
@@ -461,7 +461,7 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
       target: "t",
       text: "Project X launch",
     }).findings.map((f) => [f.set, f.rule, f.version]),
-    [["fake-plugin-set", "project", "1.0.0"]],
+    [["fake-plugin-set", "repository", "1.0.0"]],
   );
   // A slow rule times out in about two seconds; its set fails closed.
   fs.appendFileSync(file, "slow: (a+)+$\n");

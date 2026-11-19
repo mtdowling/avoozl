@@ -34,7 +34,7 @@ export const RETIRED_LANDING =
 
 // One line per base for `landing status`.
 export const landingStatusLine = (b) =>
-  `${b.repository ?? b.projectId} ${b.base}: ${b.items.length} waiting` +
+  `${b.repository ?? b.repositoryId} ${b.base}: ${b.items.length} waiting` +
   (b.testing
     ? `, testing ${b.testing.members.length} (${b.testing.step})`
     : "") +

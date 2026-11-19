@@ -108,9 +108,11 @@ function coverageCandidate(fact, kind, id, title, body, extra = {}) {
   };
 }
 
-function codeCoverage(store, fact, projectId) {
-  const project = projectId ? store.get("projects", projectId) : null;
-  if (!project?.root || !fs.existsSync(project.root)) return [];
+function codeCoverage(store, fact, repositoryId) {
+  const repository = repositoryId
+    ? store.get("repositories", repositoryId)
+    : null;
+  if (!repository?.root || !fs.existsSync(repository.root)) return [];
   const sought = [...wordTerms(`${fact.text}\n${fact.quote || ""}`)]
     .filter((term) => term.length >= 5)
     .slice(0, 6);
@@ -157,8 +159,8 @@ function codeCoverage(store, fact, projectId) {
       if (line >= 0)
         found.push({
           targetKind: "code",
-          targetId: path.relative(project.root, filename),
-          title: path.relative(project.root, filename),
+          targetId: path.relative(repository.root, filename),
+          title: path.relative(repository.root, filename),
           score: 20,
           reasons: [
             {
@@ -168,24 +170,27 @@ function codeCoverage(store, fact, projectId) {
               weight: 20,
             },
           ],
-          file: path.relative(project.root, filename),
+          file: path.relative(repository.root, filename),
           line: line + 1,
           signal: "weak",
           advisory: true,
         });
     }
   }
-  walk(project.root);
+  walk(repository.root);
   return found;
 }
 
-function factCoverage(store, fact, { projectId } = {}) {
+function factCoverage(store, fact, { repositoryId } = {}) {
   if (fact.kind !== "task") return [];
   const data = store.read();
   const candidates = [
     ...data.tasks
       .filter(
-        (task) => !projectId || !task.projectId || task.projectId === projectId,
+        (task) =>
+          !repositoryId ||
+          !task.repositoryId ||
+          task.repositoryId === repositoryId,
       )
       .map((task) =>
         coverageCandidate(
@@ -194,7 +199,7 @@ function factCoverage(store, fact, { projectId } = {}) {
           task.id,
           task.title,
           [task.summary, task.acceptance, task.nextAction].flat().join("\n"),
-          { projectId: task.projectId || null },
+          { repositoryId: task.repositoryId || null },
         ),
       ),
     ...store
@@ -209,7 +214,7 @@ function factCoverage(store, fact, { projectId } = {}) {
           `${plan.prompt || ""}\n${plan.text || ""}`,
         ),
       ),
-    ...codeCoverage(store, fact, projectId),
+    ...codeCoverage(store, fact, repositoryId),
   ];
   return candidates
     .filter(Boolean)
@@ -274,7 +279,13 @@ function normalizeFact(plan, extraction, input, previous) {
 
 export function createExtraction(
   store,
-  { planId, revisionHash, projectId = null, sequence = [], parentRunId = null },
+  {
+    planId,
+    revisionHash,
+    repositoryId = null,
+    sequence = [],
+    parentRunId = null,
+  },
 ) {
   const plan = planRevision(store, planId, revisionHash);
   const previous = store
@@ -293,7 +304,7 @@ export function createExtraction(
     id: "extraction-" + randomUUID(),
     planId: plan.id,
     revisionHash: plan.hash,
-    projectId,
+    repositoryId,
     parentRunId,
     sequence,
     state: "running",
@@ -367,7 +378,7 @@ export function submitExtraction(
       const previous = store.get("plan_facts", provisionalId);
       const fact = normalizeFact(plan, extraction, input, previous);
       fact.coverage = factCoverage(store, fact, {
-        projectId: extraction.projectId,
+        repositoryId: extraction.repositoryId,
       });
       if (!extraction.factIds.includes(fact.id)) newFacts++;
       store.put("plan_facts", fact);

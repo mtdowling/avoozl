@@ -33,7 +33,7 @@ export const SOURCES = [
     entry: {
       via: 'github',
       repository: 'example/web',
-      project: 'web',
+      executionRepository: 'web',
       label: 'avoozl:ready',
       assignee: 'example-bot',
       autoStart: false,

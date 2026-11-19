@@ -389,7 +389,7 @@ function current(row, bindings) {
 // read-only job: find evidence that they are wrong.
 // With `cliReport` ({token, workspace}) a chat reports by command line and
 // needs no MCP sharing; without it, by plans_report.
-function falsifierBrief(task, project, round, cliReport = null) {
+function falsifierBrief(task, repository, round, cliReport = null) {
   const verdict = `{"verdict": "stands" | "refuted", "evidence": "<what you found, with paths>", "confidence": "low" | "medium" | "high"}`,
     where = cliReport?.workspace
       ? ` --workspace ${JSON.stringify(cliReport.workspace)}`
@@ -400,7 +400,7 @@ function falsifierBrief(task, project, round, cliReport = null) {
   return [
     `Avoozl falsifier for task ${task.id}.`,
     "",
-    `Repository: ${project.id}, checkout ${project.root}, base branch ${project.baseBranch || "main"}.`,
+    `Repository: ${repository.id}, checkout ${repository.root}, base branch ${repository.baseBranch || "main"}.`,
     "A worker read this task and wrote the findings below before coding. Your job is to find evidence that they are wrong: a cause it missed, a file it misread, a plan that would not meet the acceptance, or a check that would not catch a failure.",
     "1. Read the code in the checkout and run read-only commands. Edit, commit, merge, and push nothing.",
     `2. When you are done, ${report}. Say "refuted" when you found evidence against the findings, "stands" when you looked and found none.`,
@@ -451,7 +451,7 @@ export function investigationStep(
     const task = data.tasks.find((t) => t.id === row.taskId),
       worker = current(row, bindings);
     if (!task || !worker) continue;
-    const project = store.get("projects", taskRepository(task) || "");
+    const repository = store.get("repositories", taskRepository(task) || "");
     if (row.message && !row.message.sentAt && script) {
       messages.push({
         slot: worker.slot,
@@ -529,14 +529,14 @@ export function investigationStep(
         );
       }
     }
-    if (row.state !== "falsifying" || falsifier || !project?.root) continue;
-    const settings = investigatePolicy(policy, project.id),
+    if (row.state !== "falsifying" || falsifier || !repository?.root) continue;
+    const settings = investigatePolicy(policy, repository.id),
       writer = writerModel(worker),
       own = bindings.filter(
         (b) => b.taskId === task.id && b.role === "falsifier",
       ),
       attempt = Math.max(0, ...own.map((b) => b.attempt)) + 1,
-      run = roleRun("falsifier", { config, task, project }),
+      run = roleRun("falsifier", { config, task, repository }),
       token =
         run.executor === "process"
           ? null
@@ -547,7 +547,7 @@ export function investigationStep(
             }),
       brief = falsifierBrief(
         task,
-        project,
+        repository,
         round,
         token
           ? { token, workspace: contentBinding(store)?.workspaceRoot ?? null }
@@ -562,7 +562,7 @@ export function investigationStep(
         taskId: task.id,
         role: "falsifier",
         brief,
-        repository: project.repository || project.id,
+        repository: repository.github || repository.id,
       })
     )
       continue;
@@ -570,7 +570,7 @@ export function investigationStep(
     if (run.executor === "process")
       try {
         commit = headOf(
-          store.get("task_worktrees", task.id)?.path ?? project.root,
+          store.get("task_worktrees", task.id)?.path ?? repository.root,
         );
       } catch {
         // No readable code yet: the next tick tries again.
@@ -592,16 +592,16 @@ export function investigationStep(
         // Its brief names the checkout, so no folder project is needed
         // (R88.2, as for the worker). A `process` child reads a detached
         // copy that Avoozl adds before it starts (NK2.1).
-        ...kirocrewDetachedSession(project.id),
+        ...kirocrewDetachedSession(repository.id),
         agent: settings.agent,
         ...(model ? { model } : {}),
-        checkout: project.root,
+        checkout: repository.root,
         ...(run.executor === "process"
           ? {
               commit,
               worktree: path.join(
-                project.worktreeRoot ||
-                  path.join(path.dirname(project.root), ".avoozl-worktrees"),
+                repository.worktreeRoot ||
+                  path.join(path.dirname(repository.root), ".avoozl-worktrees"),
                 `avoozl-${task.id}-falsify-${attempt}`,
               ),
             }

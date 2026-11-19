@@ -33,7 +33,10 @@ function pinned(t) {
     tasks: [leaf("chat", { session: { harness: "kirocrew" } }), leaf("plain")],
     edges: [],
   });
-  store.put("projects", { id: "r1", root: temporaryDirectory("avoozl-r1-") });
+  store.put("repositories", {
+    id: "r1",
+    root: temporaryDirectory("avoozl-r1-"),
+  });
   return { store, root };
 }
 

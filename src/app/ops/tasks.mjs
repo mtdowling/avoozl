@@ -1,8 +1,6 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import { applyActivity } from "../../activity.mjs";
 import { captureTask } from "../../capture.mjs";
-import { fixToSpec, startFix } from "../fix.mjs";
-import { withWorkLock } from "../git.mjs";
 import { dispatchMcp } from "../../mcp.mjs";
 import {
   blocks,
@@ -32,9 +30,11 @@ import { crewLabelNeedsYou } from "../crew-label-backfill.mjs";
 import { startNow } from "../delivery.mjs";
 import { diskNeedsYou } from "../disk-space.mjs";
 import { taskEvidence } from "../evidence.mjs";
+import { fixToSpec, startFix } from "../fix.mjs";
 import { lineBanner } from "../flow-line.mjs";
 import { flowView } from "../flow.mjs";
 import { forwardAuditRows } from "../forward-audit.mjs";
+import { withWorkLock } from "../git.mjs";
 import { paceNeedsYou } from "../github-pacer.mjs";
 import { readGitHubPolicyOrNull } from "../github-policy.mjs";
 import { rateNeedsYou } from "../github-rate.mjs";
@@ -144,6 +144,22 @@ function taskNotesListHandler({ name, input, context }) {
     );
   if (name === "task.notes.edit") return editNote(store, task, input);
   if (name === "task.notes.remove") return removeNote(store, task, input);
+}
+// A fix (triage-agent TA9): one change with no spec files. Starting it
+// is the approval, so only a person starts one or makes it a spec.
+function fixStartHandler({ name, input, context }) {
+  const store = this.store;
+
+  if (context.caller || context.mcp)
+    fail("Only a person starts a fix or makes it a spec.", 403);
+  return withWorkLock(store, WORKSPACE_LOCK, async () =>
+    name === "fix.start"
+      ? startFix(store, input, {
+          workspaceRoot: this.workspaceRoot,
+          actor: this.operator,
+        })
+      : fixToSpec(store, this.workspaceRoot, input),
+  );
 }
 
 function taskArchiveHandler({ name, input, expectedRevision }) {
@@ -349,33 +365,6 @@ export const entries = [
   },
 
   {
-    name: "fix.start",
-    class: "protect",
-    policy: person("Only a person starts a fix; starting it approves it."),
-    handler({ input, context }) {
-      if (context.caller || context.mcp)
-        fail("Only a person starts a fix or makes it a spec.", 403);
-      return withWorkLock(this.store, WORKSPACE_LOCK, async () =>
-        startFix(this.store, input, {
-          workspaceRoot: this.workspaceRoot,
-          actor: this.operator,
-        }),
-      );
-    },
-  },
-  {
-    name: "fix.spec",
-    class: "protect",
-    policy: person("Only a person makes a fix a spec."),
-    handler({ input, context }) {
-      if (context.caller || context.mcp)
-        fail("Only a person starts a fix or makes it a spec.", 403);
-      return withWorkLock(this.store, WORKSPACE_LOCK, async () =>
-        fixToSpec(this.store, this.workspaceRoot, input),
-      );
-    },
-  },
-  {
     name: "task.start",
     class: "protect",
     policy: routed,
@@ -569,6 +558,18 @@ export const entries = [
     class: "protect",
     policy: person("Only a person removes a link."),
     handler: taskNotesListHandler,
+  },
+  {
+    name: "fix.start",
+    class: "protect",
+    policy: person("Only a person starts a fix; starting it approves it."),
+    handler: fixStartHandler,
+  },
+  {
+    name: "fix.spec",
+    class: "protect",
+    policy: person("Only a person makes a fix a spec."),
+    handler: fixStartHandler,
   },
 
   {

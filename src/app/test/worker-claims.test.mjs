@@ -493,7 +493,7 @@ const commitAs = (cwd, message) =>
   );
 
 // A target, a fork, the driver's own checkout, and a store holding task t1
-// of spec `demo` with its project. `push` adds the worker's checkpoint.
+// of spec `demo` with its repository. `push` adds the worker's checkpoint.
 async function driverWorld(
   t,
   { files = { "b.txt": "b\n" }, claim = true } = {},
@@ -538,9 +538,9 @@ async function driverWorld(
     ],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "example/code",
-    repository: "example/code",
+    github: "example/code",
     root,
     baseBranch: "main",
     checks: [["node", "-e", "process.exit(0)"]],
@@ -633,8 +633,8 @@ test("a result that touches a protected path, and one whose checks fail, are fai
 
   const failing = await driverWorld(t);
   failing.push();
-  failing.store.put("projects", {
-    ...failing.store.get("projects", "example/code"),
+  failing.store.put("repositories", {
+    ...failing.store.get("repositories", "example/code"),
     checks: [["node", "-e", "process.exit(3)"]],
   });
   const rejected = await failing.step();
@@ -717,9 +717,9 @@ test("the driver's tick offers ready tasks once, holds them here and acknowledge
     planId: SPEC,
   };
   store.importSnapshot({ ...snapshot(), tasks: [task], edges: [] });
-  store.put("projects", {
+  store.put("repositories", {
     id: "example/code",
-    repository: "example/code",
+    github: "example/code",
     root,
     baseBranch: "main",
   });

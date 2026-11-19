@@ -221,7 +221,7 @@ export function forwardStop(store, repository) {
   const stop = store
     .list("flow_stops")
     .filter((s) => !s.closedAt)
-    .find((s) => s.scope === "all" || s.projectId === repository);
+    .find((s) => s.scope === "all" || s.repositoryId === repository);
   return stop ? String(stop.reason || "A stop the line is open.") : null;
 }
 

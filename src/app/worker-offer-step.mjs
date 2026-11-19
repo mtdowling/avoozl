@@ -71,14 +71,14 @@ export async function workerOffersStep(
     let claims = null,
       baseBranch = null;
     for (const task of leaves) {
-      const project = store.get("projects", taskRepository(task));
-      if (!project?.root) continue;
-      const repository = project.repository || project.id;
-      baseBranch = project.baseBranch || "main";
+      const registered = store.get("repositories", taskRepository(task));
+      if (!registered?.root) continue;
+      const repository = registered.github || registered.id;
+      baseBranch = registered.baseBranch || "main";
       claims ??= repository;
       const base = (
           await run("git", ["rev-parse", `refs/heads/${baseBranch}`], {
-            cwd: project.root,
+            cwd: registered.root,
           })
         ).stdout.trim(),
         definition = taskDefinition({
@@ -135,12 +135,12 @@ export async function workerOffersStep(
   return result;
 }
 
-// The repository of a spec's first task with a project, or null.
+// The repository of a spec's first task with a repository, or null.
 function firstRepository(store, spec) {
   for (const task of store.read().tasks)
     if ((task.planId ?? null) === spec) {
-      const project = store.get("projects", taskRepository(task));
-      if (project) return project.repository || project.id;
+      const repository = store.get("repositories", taskRepository(task));
+      if (repository) return repository.github || repository.id;
     }
   return null;
 }

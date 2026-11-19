@@ -58,7 +58,7 @@ async function approve({ store, ops }, name, home) {
   const plan = await ops.execute("plan.create", {
     spec: name,
     prompt: name,
-    context: { projectId: "code" },
+    context: { repositoryId: "code" },
   });
   store.setMeta(`spec-approval:${plan.id}:${plan.hash}`, {
     state: "merged",

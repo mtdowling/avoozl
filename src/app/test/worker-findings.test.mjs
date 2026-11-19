@@ -103,7 +103,7 @@ async function workspace(t, { process: onProcess = false } = {}) {
     ],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
@@ -375,7 +375,7 @@ async function falsifierChild(t, { withCommit = false } = {}) {
   // script goes in its .avoozl folder, as for the worker.
   const tree = w.store.get("task_worktrees", "a").path,
     head = git(tree, "rev-parse", "HEAD"),
-    checkout = w.store.get("projects", "app").root;
+    checkout = w.store.get("repositories", "app").root;
   git(checkout, "worktree", "add", "-q", "--detach", request.worktree, head);
   fs.mkdirSync(path.join(request.worktree, ".avoozl"), { recursive: true });
   fs.writeFileSync(
@@ -401,7 +401,7 @@ test("a process falsifier's verdict opens the gate as a chat's does, with no com
   // It wrote no file but its result, and its copy is gone.
   assert.equal(fs.existsSync(request.worktree), false);
   assert.equal(
-    git(w.store.get("projects", "app").root, "status", "--porcelain"),
+    git(w.store.get("repositories", "app").root, "status", "--porcelain"),
     "",
   );
 });
@@ -417,8 +417,8 @@ test("a process falsifier's report with a commit field is refused", async (t) =>
 
 test("with every role on process, investigate first reaches Go ahead and lands", async (t) => {
   const { w, worker } = await falsifierChild(t);
-  w.store.put("projects", {
-    ...w.store.get("projects", "app"),
+  w.store.put("repositories", {
+    ...w.store.get("repositories", "app"),
     checks: [["node", "--version"]],
   });
   const slot = worker().slot;

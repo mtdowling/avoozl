@@ -339,7 +339,7 @@ export function landingFacts(store, tasks) {
     return [
       {
         repository,
-        landing: store.get("projects", repository)?.landing ?? null,
+        landing: store.get("repositories", repository)?.landing ?? null,
         tasks: list.length,
         medianLeadMs,
         medianLandWaitMs,
@@ -811,12 +811,12 @@ export function retroStep(
     s = { ...s, pending: [], reverts: [], finishedCount: found.finishedCount };
     changed = true;
     if (repository && allowed) {
-      // R97.3: a `process` project's retro runs as a read-only child in a
+      // R97.3: a `process` repository's retro runs as a read-only child in a
       // scratch folder the drain makes; its reply comes back as the result
       // file.
-      const project = store.get("projects", repository);
-      // Settings › Models' retro harness (R98.3), else the project's.
-      const run = roleRun("retro", { config, project });
+      const registered = store.get("repositories", repository);
+      // Settings › Models' retro harness (R98.3), else the repository's.
+      const run = roleRun("retro", { config, repository: registered });
       dispatch.push(
         kirocrewRequest(store, {
           task: retro.id,

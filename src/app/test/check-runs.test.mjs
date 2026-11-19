@@ -25,7 +25,7 @@ const setup = (t, { tasks = [leaf("a")], checks = [["git", "status"]] } = {}) =>
   deliveryWorkspace(t, {
     prefix: "avoozl-checkrun-",
     tasks,
-    project: { checks },
+    repository: { checks },
   });
 
 // The script cron's tick: a roster (even empty) marks it.

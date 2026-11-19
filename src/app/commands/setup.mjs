@@ -323,21 +323,21 @@ export const commands = [
     run: runWorkspace,
   },
   {
-    command: "project",
+    command: "repository",
     help: [
       help(
         "setup",
-        "project configure ID --root PATH [--branch main] [--worktrees PATH] [--json CONFIG]",
+        "repository configure ID --root PATH [--branch main] [--worktrees PATH] [--json CONFIG]",
         "",
       ),
     ],
     async run({ options, positionals, input, localOrRequest }) {
       const action = positionals[0],
         provided = input();
-      if (action !== "configure") throw Error("Choose project configure.");
+      if (action !== "configure") throw Error("Choose repository configure.");
       console.log(
         JSON.stringify(
-          await localOrRequest("project.configure", {
+          await localOrRequest("repository.configure", {
             ...provided,
             id: options.id || positionals[1] || provided.id,
             root: options.root || provided.root,
@@ -355,7 +355,7 @@ export const commands = [
     help: [
       help(
         "setup",
-        "github configure OWNER/REPO --project ID [--assignee LOGIN] [--allowed-actors LOGINS]",
+        "github configure OWNER/REPO --repo ID [--assignee LOGIN] [--allowed-actors LOGINS]",
         "",
       ),
       help(
@@ -390,7 +390,7 @@ export const commands = [
         operation = "github.configure";
         value = {
           repository: options.repository || positionals[1],
-          projectId: options.project,
+          repositoryId: options.repo,
           assignee: options.assignee,
           label: options.label,
           managedLabel: options["managed-label"],
@@ -469,7 +469,7 @@ export const commands = [
     help: [
       help(
         "setup",
-        "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+        "setup OWNER/REPO --repo ID --checks NAME[,NAME] [--base BRANCH]\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
         "Preview repository setup for landing; --checks names the required GitHub checks, not the repository's own checks; --yes applies it",
       ),
     ],
@@ -485,9 +485,9 @@ export const commands = [
           await localOrRequest("repository.setup", {
             repository: need(
               positionals[0],
-              "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+              "setup OWNER/REPO --repo ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
             ),
-            project: options.project,
+            repositoryId: options.repo,
             base: options.base,
             checks: list(options.checks),
             methods: list(options.methods),
@@ -586,12 +586,12 @@ export const commands = [
       ),
       help(
         "setup",
-        "plugins pack-preview ID [--repo OWNER/REPO]",
+        "plugins pack-preview ID [--github OWNER/REPO]",
         "What importing a plugin's pack would create, change, or keep",
       ),
       help(
         "setup",
-        "plugins pack-import ID --preview HASH [--repo OWNER/REPO] [--accept-lowered] [--confirm-public]",
+        "plugins pack-import ID --preview HASH [--github OWNER/REPO] [--accept-lowered] [--confirm-public]",
         "Import the exact preview",
       ),
     ],
@@ -620,7 +620,9 @@ export const commands = [
             "plugin.pack.preview",
             {
               id,
-              ...(options.repo ? { repositories: [options.repo].flat() } : {}),
+              ...(options.github
+                ? { repositories: [options.github].flat() }
+                : {}),
             },
           ],
           "pack-import": () => [
@@ -628,7 +630,9 @@ export const commands = [
             {
               id,
               previewHash: options.preview,
-              ...(options.repo ? { repositories: [options.repo].flat() } : {}),
+              ...(options.github
+                ? { repositories: [options.github].flat() }
+                : {}),
               acceptLowered: Boolean(options["accept-lowered"]),
               confirmPublic: Boolean(options["confirm-public"]),
             },

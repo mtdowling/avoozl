@@ -191,16 +191,16 @@ test("approval with too few baseline PRs stays unmeasured without suggesting an 
   assert.equal(approved.pdca.pendingReason, undefined);
 });
 
-test("project class overrides work for observed repositories without GitHub authorization", async (t) => {
+test("repository class overrides work for observed repositories without GitHub authorization", async (t) => {
   const { store } = setup(t),
     config = {
       flow: { ci: { classes: { docs: ["guide/"] } } },
-      projects: {
+      repositories: {
         local: { flow: { ci: { classes: { docs: ["handbook/"] } } } },
       },
     },
     state = { pulls: [pull(["handbook/intro.adoc"])], runs: [] };
-  store.put("projects", { id: "local", repository: "EXAMPLE/Code" });
+  store.put("repositories", { id: "local", github: "EXAMPLE/Code" });
   assert.deepEqual(store.list("github_repositories"), []);
   await ciStep(store, fake(state), { policy: POLICY, config, now: NOW });
   assert.deepEqual(store.list("pr_ci")[0].classes, ["docs"]);
@@ -303,7 +303,7 @@ test("CI collection, triggers, brief and PDCA share validated layered settings a
         ci: { docsOnlyMinutes: 17, classes: { docs: ["manual/"] } },
         retro: { everyTasks: 2 },
       },
-      projects: {
+      repositories: {
         local: {
           root: "/fake/private/root",
           flow: { ci: { waitShare: 0.7, classes: { docs: ["handbook/"] } } },
@@ -314,10 +314,10 @@ test("CI collection, triggers, brief and PDCA share validated layered settings a
   const repositoryConfig = {
     version: 1,
     flow: { ci: { waitShare: 0.3 } },
-    projects: { local: { flow: { ci: { docsOnlyMinutes: 23 } } } },
+    repositories: { local: { flow: { ci: { docsOnlyMinutes: 23 } } } },
   };
   fs.writeFileSync(repositoryFile, JSON.stringify(repositoryConfig));
-  store.put("projects", { id: "local", repository: REPO });
+  store.put("repositories", { id: "local", github: REPO });
   const effective = readEffectiveCIConfig(store, { workspaceRoot: root });
   assert.equal(
     store.getMeta("flow.ci.config"),

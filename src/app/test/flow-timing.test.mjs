@@ -49,7 +49,7 @@ function setup(t, { tasks = [leaf("a")], edges = [] } = {}) {
     store = new Store(dbPath);
   t.after(() => store.close());
   store.importSnapshot({ ...snapshot(), tasks, edges });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
@@ -74,7 +74,9 @@ const report = (ops, slot, input) =>
 test("flow settings: defaults, per-repository overrides, and refused keys", () => {
   const policy = flowPolicy({
     flow: { retro: { everyTasks: 5 } },
-    projects: { app: { root: ".", flow: { stopTheLine: { scope: "repo" } } } },
+    repositories: {
+      app: { root: ".", flow: { stopTheLine: { scope: "repo" } } },
+    },
   });
   assert.equal(policy.workspace.retro.everyTasks, 5);
   assert.equal(
@@ -112,11 +114,11 @@ test("flow settings: defaults, per-repository overrides, and refused keys", () =
   assert.throws(
     () =>
       flowPolicy({
-        projects: {
+        repositories: {
           app: { root: ".", flow: { retro: { instructions: "x" } } },
         },
       }),
-    /projects\.app\.flow\.retro\.instructions is saved on this machine only/,
+    /repositories\.app\.flow\.retro\.instructions is saved on this machine only/,
   );
 });
 

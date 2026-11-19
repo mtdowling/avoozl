@@ -124,15 +124,15 @@ import { landDirect } from "./direct-landing.mjs";
 import { applyLandingModes, landingSettings } from "./landing-config.mjs";
 
 // Each repository's `conflicts.maxAttempts`, older keys folded in (R87.6).
-const attemptsFor = (config) => (project) =>
-  landingSettings(config || {}, project.repository, project).maxAttempts;
+const attemptsFor = (config) => (repository) =>
+  landingSettings(config || {}, repository.github, repository).maxAttempts;
 import { noteTickRun } from "./tick-activity.mjs";
 
-// The colon keeps this lock out of every configured project's namespace.
+// The colon keeps this lock out of every configured repository's namespace.
 // GitHub projection takes it too, so one workspace has one writer at a time.
 export const WORKSPACE_LOCK = {
   id: "avoozl:workspace-tick",
-  projectId: "avoozl:workspace",
+  repositoryId: "avoozl:workspace",
   kind: "tick",
 };
 const MAX_POLICY_BYTES = 512 * 1024;
@@ -638,7 +638,7 @@ async function runTick(
         delivery = ["loaded", "invalid"].includes(policy.status)
           ? deliveryPolicy(memory.value, { machineLanes: machineLanes() })
           : null;
-      // Each repository's `landing.mode` onto its checkouts' project rows,
+      // Each repository's `landing.mode` onto its checkouts' repository rows,
       // which the landing code reads (§4.25).
       if (memory.value) applyLandingModes(store, memory.value);
       const planned = { messages: [], notify: [] };
@@ -685,7 +685,7 @@ async function runTick(
           planned.notify.push(...integrated.notify);
           // A conflict at integration goes back to the worker chat.
           planned.messages.push(...(integrated.messages ?? []));
-          // `pr` projects land through pull requests (task 42.6).
+          // `pr` repositories land through pull requests (task 42.6).
           const landed = await landPullRequests(store, {
             github,
             workspaceRoot,
@@ -693,7 +693,7 @@ async function runTick(
           });
           planned.notify.push(...landed.notify);
           planned.messages.push(...landed.messages);
-          // `direct` projects push to their remote from the tick (41.9).
+          // `direct` repositories push to their remote from the tick (41.9).
           const pushed = await landDirect(store, {
             github,
             workspaceRoot,
@@ -1033,7 +1033,7 @@ async function runTick(
       // sessions, and merge. Always on; writes only what changed.
       syncSpans(store);
       // Retrospectives (§4.11): one at a time, on the cron only.
-      const home = store.list("projects").find((p) => p.root),
+      const home = store.list("repositories").find((p) => p.root),
         retro =
           script && !unobserved.length
             ? retroStep(store, memory.value || {}, {

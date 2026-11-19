@@ -68,12 +68,12 @@ test("2 GiB free is enough; less throws before anything is made, with one Needs 
 test("a check run waits, queued, while its volume is full, then runs", async (t) => {
   const { store, checkout } = deliveryWorkspace(t, {
       prefix: "avoozl-disk-run-",
-      project: { isolation: { run: "unconfined" } },
+      repository: { isolation: { run: "unconfined" } },
     }),
     commit = git(checkout, "rev-parse", "HEAD");
   queueCheckRun(store, {
     task: { id: "a" },
-    project: store.get("projects", "app"),
+    repository: store.get("repositories", "app"),
     commit,
     attempt: 1,
   });

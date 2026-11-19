@@ -55,10 +55,10 @@ export function triageWorkspace(
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
-    repository: REPO,
+    github: REPO,
     baseBranch: "main",
     landing,
     checks: [CHECK],

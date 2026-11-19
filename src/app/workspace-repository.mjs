@@ -124,7 +124,7 @@ function taskForPublication(store, task) {
     track: task.track,
     tags: task.tags || [],
     resources: task.resources || [],
-    projectId: task.projectId || null,
+    repositoryId: task.repositoryId || null,
     planId: task.planId || null,
     planHash: task.planHash || null,
     archivedAt: task.archivedAt || null,
@@ -153,8 +153,8 @@ function workspacePublication(store) {
           schemaVersion: 1,
           workspaceId: store.getMeta("workspaceIdentity") || null,
           project: store.read().project,
-          projects: repositories.map((repo) => ({
-            key: repo.projectId,
+          repositories: repositories.map((repo) => ({
+            key: repo.repositoryId,
             repository: repo.id,
             label: repo.label,
           })),
@@ -430,7 +430,7 @@ function importedTask(value) {
     track: value.track || "catalog",
     tags: value.tags || [],
     resources: value.resources || [],
-    projectId: value.projectId || undefined,
+    repositoryId: value.repositoryId || undefined,
     planId: value.planId || undefined,
     planHash: value.planHash || undefined,
     approvedSource: value.approvedSource || undefined,
@@ -503,7 +503,7 @@ export async function syncWorkspaceRepository(store) {
   if (!commit) fail("The workspace branch does not exist yet.", 404);
   const files = await readRemoteFiles(config, commit),
     policy = await readRemoteAvoozlPolicy(config, commit),
-    projectPolicies = configuredRepositoryInstructionSources(store, {
+    repositoryPolicies = configuredRepositoryInstructionSources(store, {
       exclude: [path.join(config.root, ".avoozl.json")],
     }),
     manifest = JSON.parse(files["workspace.json"] || "{}");
@@ -529,7 +529,7 @@ export async function syncWorkspaceRepository(store) {
           repositoryId: null,
           revision: commit,
         },
-        ...projectPolicies.map((source) => ({
+        ...repositoryPolicies.map((source) => ({
           value: source.value,
           path: source.path,
           repositoryId: source.repositoryId,
@@ -636,7 +636,7 @@ export async function syncWorkspaceRepository(store) {
           text: policy.text,
           value: policy.value,
         },
-        ...projectPolicies.map(
+        ...repositoryPolicies.map(
           ({ path, repositoryId, revision, text, value }) => ({
             path,
             repositoryId,

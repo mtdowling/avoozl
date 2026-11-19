@@ -72,31 +72,37 @@ async function passes(dir, checks, check, context) {
 // Run the checks without and with the file. Returns {state} with state
 // reproduced, not-reproduced, base-fails or cannot-run, and `why`.
 export async function reproduce(
-  project,
+  repository,
   file,
   { check = sandboxedCheck, workspaceRoot } = {},
 ) {
-  if (!project?.localCheckout)
+  if (!repository?.localCheckout)
     return {
       state: "cannot-run",
       why: "The repository has no local checkout.",
     };
-  const checks = repositoryChecks(project).map((entry) => entry.argv);
+  const checks = repositoryChecks(repository).map((entry) => entry.argv);
   if (!checks.length)
     return {
       state: "cannot-run",
       why: "The repository has no configured checks.",
     };
-  const base = project.baseBranch || "main",
+  const base = repository.baseBranch || "main",
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-repro-"));
   let ref = `origin/${base}`;
   try {
-    await git(project.localCheckout, [
+    await git(repository.localCheckout, [
       "rev-parse",
       "--verify",
       `${ref}^{commit}`,
     ]).catch(() => (ref = base));
-    await git(project.localCheckout, ["worktree", "add", "--detach", dir, ref]);
+    await git(repository.localCheckout, [
+      "worktree",
+      "add",
+      "--detach",
+      dir,
+      ref,
+    ]);
     const context = { workspaceRoot };
     if (!(await passes(dir, checks, check, context)))
       return {
@@ -121,7 +127,7 @@ export async function reproduce(
       why: `The reproduction could not run: ${error.message}`,
     };
   } finally {
-    await git(project.localCheckout, [
+    await git(repository.localCheckout, [
       "worktree",
       "remove",
       "--force",
@@ -240,7 +246,7 @@ export async function reproduceStep(store, github, run, row, context) {
     });
     return writes;
   }
-  const outcome = await reproduce(context.project, result.reproduction, {
+  const outcome = await reproduce(context.repository, result.reproduction, {
     ...(context.run?.check ? { check: context.run.check } : {}),
     workspaceRoot: context.workspaceRoot,
   });

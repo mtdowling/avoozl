@@ -326,7 +326,7 @@ export function startAppBackend({
                   .tasks.find((t) => t.id === binding.taskId);
                 return declaredChecks(
                   task,
-                  store.get("projects", taskRepository(task) || ""),
+                  store.get("repositories", taskRepository(task) || ""),
                 ).map(checkCommand);
               },
             });

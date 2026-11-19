@@ -220,7 +220,7 @@ async function setup() {
       promptFrom: "stdin",
       model: ["--model", "{model}"],
       permission: { write: "workspace-write", read: "read-only" },
-      writeRoots: ["{worktree}", "{tmp}", "{project_cache_dirs}"],
+      writeRoots: ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
       resultAllow: ["--result-file"],
     });
   }
@@ -266,7 +266,7 @@ async function setup() {
       tasks: [task(GO, WORDS[GO]), task(AGAIN, WORDS[AGAIN])],
       edges: [],
     });
-    store.put("projects", {
+    store.put("repositories", {
       id: "app",
       root: fs.realpathSync.native(P.checkout),
       baseBranch: "main",

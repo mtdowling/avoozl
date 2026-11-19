@@ -1,5 +1,5 @@
 // The Isolation panel's form: defaults, what it refuses, and the setting it
-// writes with project.configure.
+// writes with repository.configure.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { RUN_CHOICES, isolationForm, isolationInput, isolationProblem } from '../src/isolation-form.ts'

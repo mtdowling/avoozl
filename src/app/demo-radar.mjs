@@ -205,7 +205,7 @@ export function radarOverlay(now, repository) {
 export function seedRadar(store, { repository, now = Date.now() }) {
   store.put("github_repositories", {
     id: repository,
-    projectId: "app",
+    repositoryId: "app",
     // Release does not wait on the public sign-off for a private repository.
     private: true,
     label: READY,

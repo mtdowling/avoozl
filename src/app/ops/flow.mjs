@@ -48,15 +48,16 @@ export const entries = [
 
       const task = this.read().tasks.find((t) => t.id === input.taskId);
       if (!task) fail("Task not found.", 404);
-      const project = store.get("projects", taskRepository(task) || "");
-      if (!project?.root) fail(`Task ${task.id} names no local checkout.`, 409);
+      const repository = store.get("repositories", taskRepository(task) || "");
+      if (!repository?.root)
+        fail(`Task ${task.id} names no local checkout.`, 409);
       if (typeof input.cwd !== "string" || !path.isAbsolute(input.cwd))
         fail("Name the worktree folder to run the checks in.");
       return runLocalChecks({
         cwd: input.cwd,
-        root: project.root,
-        project,
-        env: project.checksEnv,
+        root: repository.root,
+        repository,
+        env: repository.checksEnv,
       });
     },
   },

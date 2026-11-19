@@ -201,7 +201,7 @@ test("a superseded task gets no new verifier or check run; its running session i
     { store, ops } = workspace(t, {
       tasks: [leaf("a", { repository: "app" })],
     });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: checkout,
     baseBranch: "main",
@@ -331,7 +331,7 @@ test("task.accept on an acceptFrom leaf takes only Avoozl's validation at the in
   const { store, ops } = workspace(t, {
     tasks: [leaf("w", { acceptFrom: "validation", repository: "app" })],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: "/tmp/app",
     baseBranch: "main",
@@ -407,7 +407,7 @@ test("derived acceptance evidence is for the current commit and every declared c
   const { store, ops } = workspace(t, {
     tasks: [leaf("p", { repository: "app" })],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: "/tmp/app",
     baseBranch: "main",

@@ -1,6 +1,6 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import { crewLabelBackfill } from "../crew-label-backfill.mjs";
-import { projectGitHubRepository } from "../git.mjs";
+import { repositoryGitHubRemote } from "../git.mjs";
 import {
   branchReviewRule,
   ruleBranch,
@@ -225,30 +225,30 @@ export const entries = [
   },
 
   {
-    name: "github.project.detect",
+    name: "github.repository.detect",
     class: "observe",
     policy: routed,
     handler({ input }) {
       const store = this.store;
-      return projectGitHubRepository(store, input);
+      return repositoryGitHubRemote(store, input);
     },
   },
 
   {
-    name: "github.project.connect",
+    name: "github.repository.connect",
     class: "protect",
-    policy: person("Only a person connects a GitHub Project."),
+    policy: person("Only a person connects a repository to GitHub."),
     async handler({ input }) {
       const store = this.store;
 
       this.configuration?.assertWritable();
       const detected = input.repository
-          ? { projectId: input.projectId, repository: input.repository }
-          : await projectGitHubRepository(store, input),
+          ? { repositoryId: input.repositoryId, repository: input.repository }
+          : await repositoryGitHubRemote(store, input),
         configuration = {
           ...input,
           repository: detected.repository,
-          projectId: detected.projectId,
+          repositoryId: detected.repositoryId,
         },
         execution = await configureGitHubRepository(
           store,

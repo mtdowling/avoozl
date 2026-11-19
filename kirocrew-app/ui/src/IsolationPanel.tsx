@@ -1,6 +1,6 @@
 // Settings > Repository setup > Landing: the Isolation panel. How this
 // repository's checks run: in the sandbox (the default, network off), in a
-// container, or not sandboxed. It saves on its own with project.configure,
+// container, or not sandboxed. It saves on its own with repository.configure,
 // which only a person may call.
 import { useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
@@ -34,7 +34,7 @@ function Lines(props: { id: string; value: string; onChange: (value: string) => 
   )
 }
 
-export default function IsolationPanel(props: { workspaceId: string; projectId: string; value: Partial<Isolation> | null | undefined }) {
+export default function IsolationPanel(props: { workspaceId: string; repositoryId: string; value: Partial<Isolation> | null | undefined }) {
   const api = useAppApi()
   const [saved, setSaved] = useState<IsolationForm>(isolationForm(props.value))
   const [form, setForm] = useState<IsolationForm>(saved)
@@ -51,7 +51,7 @@ export default function IsolationPanel(props: { workspaceId: string; projectId: 
     if (problem) return
     setSaving(true)
     try {
-      await api.post(COMMAND_PATH, { operation: 'project.configure', input: { id: props.projectId, isolation: isolationInput(form) }, workspaceId: props.workspaceId })
+      await api.post(COMMAND_PATH, { operation: 'repository.configure', input: { id: props.repositoryId, isolation: isolationInput(form) }, workspaceId: props.workspaceId })
       setSaved(form)
       setMessage({ ok: 'Saved.' })
     } catch (error) {
@@ -60,7 +60,7 @@ export default function IsolationPanel(props: { workspaceId: string; projectId: 
       setSaving(false)
     }
   }
-  const id = `avoozl-isolation-${props.projectId}`
+  const id = `avoozl-isolation-${props.repositoryId}`
   return (
     <FieldGroup
       title="Isolation"

@@ -8,7 +8,7 @@ import {
 } from "../check-isolation.mjs";
 import { driverStatus } from "../driver.mjs";
 import { listExamples, seedExample } from "../examples.mjs";
-import { detectCheckout, projectConfig, withWorkLock } from "../git.mjs";
+import { detectCheckout, repositoryConfig, withWorkLock } from "../git.mjs";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { machineIdentity, prepareGitHubRepository } from "../github-sync.mjs";
 import { requirePrivateRepository } from "../github.mjs";
@@ -196,7 +196,7 @@ export const entries = [
                   plan: { id: spec.name },
                   data: {
                     ...this.read(),
-                    projects: store.list("projects"),
+                    repositories: store.list("repositories"),
                   },
                 }),
                 spec,
@@ -305,7 +305,7 @@ export const entries = [
           .slice(0, 40),
         recentIntegrations: recentIntegrations(store),
         configuration: this.configuration?.metadata() || null,
-        projects: store.list("projects"),
+        repositories: store.list("repositories"),
         github: {
           available: this.github.available(),
           machine: machineIdentity(store),
@@ -437,17 +437,17 @@ export const entries = [
         fail("Planning documents require a local checkout.");
       if (authorizeIssues && !localCheckout)
         fail("Label-authorized work requires a local checkout.");
-      let project = null;
+      let repository = null;
       if (localCheckout) {
-        project = await projectConfig({
+        repository = await repositoryConfig({
           id,
           root: localCheckout,
           baseBranch: String(input.baseBranch || "main").trim() || "main",
           worktreeRoot: input.worktreeRoot || undefined,
           checks: input.checks ?? [],
         });
-        project = {
-          ...project,
+        repository = {
+          ...repository,
           ...(String(input.name || "").trim()
             ? { name: String(input.name).trim() }
             : {}),
@@ -457,13 +457,13 @@ export const entries = [
       }
       if (
         existing?.localCheckout &&
-        (!project || existing.localCheckout !== project.root)
+        (!repository || existing.localCheckout !== repository.root)
       )
         assertRepositoryRemovable(store, existing);
       const binding = this.repositoryBindingGuard?.({
         repositoryId: id,
-        root: project?.root || null,
-        editable: Boolean(project?.editable),
+        root: repository?.root || null,
+        editable: Boolean(repository?.editable),
       });
       try {
         const labels = input.labelBehaviors,
@@ -472,8 +472,8 @@ export const entries = [
               ? await prepareGitHubRepository(store, this.github, {
                   repository: githubRepository,
                   workspaceRepositoryId: id,
-                  projectId: project.id,
-                  project,
+                  repositoryId: repository.id,
+                  registering: repository,
                   assignee: input.assignee,
                   label:
                     input.readyLabel || labels?.ready?.[0] || "avoozl:ready",
@@ -488,7 +488,7 @@ export const entries = [
         this.configuration?.updateUnifiedRepository({
           id,
           previousRepository: existing?.github,
-          project,
+          repository,
           issueIntake,
         });
         store.transaction(() => {
@@ -497,8 +497,8 @@ export const entries = [
               .prepare("DELETE FROM github_repositories WHERE id=?")
               .run(existing.github);
           }
-          if (project) store.put("projects", project);
-          else store.db.prepare("DELETE FROM projects WHERE id=?").run(id);
+          if (repository) store.put("repositories", repository);
+          else store.db.prepare("DELETE FROM repositories WHERE id=?").run(id);
           if (issueIntake) store.put("github_repositories", issueIntake);
           else if (existing?.github)
             store.db
@@ -507,8 +507,8 @@ export const entries = [
           store.event(null, "workspace.repository.configured", {
             repositoryId: id,
             github: githubRepository || null,
-            planning: Boolean(project?.planning),
-            editable: Boolean(project?.editable),
+            planning: Boolean(repository?.planning),
+            editable: Boolean(repository?.editable),
             issueAuthorization: authorizeIssues,
           });
         });
@@ -609,7 +609,7 @@ export const entries = [
   },
 
   {
-    name: "project.configure",
+    name: "repository.configure",
     class: "protect",
     policy: person("Only a person adds or changes a repository."),
     async handler({ input }) {
@@ -634,57 +634,60 @@ export const entries = [
         keys.includes("isolation") &&
         keys.every((key) => ["id", "isolation"].includes(key))
       ) {
-        const existing = store.get("projects", String(input.id || ""));
-        if (!existing) fail("Project not found.", 404);
+        const existing = store.get("repositories", String(input.id || ""));
+        if (!existing) fail("Repository not found.", 404);
         const isolation = allowIsolation(
           isolationSetting(input.isolation, "isolation"),
         );
         this.configuration?.assertWritable();
-        const configured = store.put("projects", { ...existing, isolation });
-        this.configuration?.updateExecutionProject(configured);
+        const configured = store.put("repositories", {
+          ...existing,
+          isolation,
+        });
+        this.configuration?.updateExecutionRepository(configured);
         return configured;
       }
-      const project = await projectConfig(input);
-      allowIsolation(project.isolation);
+      const repository = await repositoryConfig(input);
+      allowIsolation(repository.isolation);
       this.configuration?.assertWritable();
-      const configured = store.put("projects", project);
-      this.configuration?.updateExecutionProject(configured);
+      const configured = store.put("repositories", repository);
+      this.configuration?.updateExecutionRepository(configured);
       return configured;
     },
   },
 
   {
-    name: "project.remove",
+    name: "repository.remove",
     class: "protect",
     policy: person("Only a person removes a repository."),
     handler({ input }) {
       const store = this.store;
 
       const id = String(input.id || "").trim(),
-        project = id ? store.get("projects", id) : null;
-      if (!project) fail("Project not found.", 404);
+        repository = id ? store.get("repositories", id) : null;
+      if (!repository) fail("Repository not found.", 404);
       const locked = store.db
-        .prepare("SELECT id FROM work_locks WHERE project_id=? LIMIT 1")
+        .prepare("SELECT id FROM work_locks WHERE repository_id=? LIMIT 1")
         .get(id);
       if (locked)
         fail(
-          `Project ${id} is currently locked by active work. Wait for it to finish before removing the project.`,
+          `Repository ${id} is currently locked by active work. Wait for it to finish before removing the repository.`,
           409,
         );
       const authorization = store
         .list("github_repositories")
-        .find((entry) => entry.projectId === id);
+        .find((entry) => entry.repositoryId === id);
       if (authorization)
         fail(
-          `Project ${id} is still connected to GitHub. Remove or reassign its label-authorized repositories first.`,
+          `Repository ${id} is still connected to GitHub. Remove or reassign its label-authorized repositories first.`,
           409,
         );
       this.configuration?.assertWritable();
-      this.configuration?.removeExecutionProject(id);
-      store.remove("projects", id);
+      this.configuration?.removeExecutionRepository(id);
+      store.remove("repositories", id);
       this.configuration?.reload();
-      store.event(null, "project.removed", { projectId: id });
-      return { ...project, removed: true };
+      store.event(null, "repository.removed", { repositoryId: id });
+      return { ...repository, removed: true };
     },
   },
 ];
