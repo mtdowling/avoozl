@@ -32,6 +32,9 @@ local bare repository.
 
 - The worker is a fake harness: this proves the loop's plumbing, not a
   model's work.
+- A rerun after merging `origin/main` at `a1c4274a` times out at the
+  planner step. The same run fails the same way on `origin/main` itself,
+  so it is not from this change; the pass above is the receipt.
 - Radar modules remain. Most serve what Requirement 91.6 keeps: Radar
   intake (56.8), Radar asks in Triage (56.14), back-links (44.6) and
   Settings › Issue Radar. The Radar coder leftovers (`radar-coder-queue`,
