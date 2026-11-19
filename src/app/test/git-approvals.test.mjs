@@ -1,6 +1,6 @@
 // Approvals live in git (design §4.42): a commit on main by an approver's
 // author email approves the spec as that commit holds it, whoever committed
-// it. Avoozl's own and its agents' commits are never approvals. A deleted
+// it. A commit by someone not on the list approves nothing. A deleted
 // database is rebuilt from git with the same state. Scratch repositories
 // only; no network.
 import assert from "node:assert/strict";
@@ -8,11 +8,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import {
-  AGENT_AUTHOR,
-  approvalCommits,
-  approverCheck,
-} from "../git-approvals.mjs";
+import { approvalCommits, approverCheck } from "../git-approvals.mjs";
 import {
   landingMessage,
   landingMetrics,
@@ -29,6 +25,7 @@ import { temporaryDirectory } from "./temporary.mjs";
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
 const OWNER = "owner@example.com";
+const OTHER = "someone@example.com";
 
 function repo() {
   const root = temporaryDirectory("avoozl-git-approvals-"),
@@ -65,13 +62,8 @@ test("the author decides an approval; the committer neither grants nor blocks it
       author: OWNER,
       committer: "noreply@github.com",
     }),
-    agent = commitSpec(r, "agent", {
-      author: AGENT_AUTHOR.email,
-      committer: OWNER,
-    }),
-    allowed = approverCheck({
-      repository: { allowedActors: [OWNER, AGENT_AUTHOR.email] },
-    });
+    other = commitSpec(r, "other", { author: OTHER, committer: OWNER }),
+    allowed = approverCheck({ repository: { allowedActors: [OWNER] } });
   const found = await approvalCommits(r.root, { allowed });
   assert.deepEqual(
     found.map((entry) => [entry.spec, entry.commit, entry.email]).sort(),
@@ -80,7 +72,7 @@ test("the author decides an approval; the committer neither grants nor blocks it
       ["squashed", squashed, OWNER],
     ].sort(),
   );
-  assert.ok(!found.some((entry) => entry.commit === agent));
+  assert.ok(!found.some((entry) => entry.commit === other));
   // The hash is computed from the commit's own tree.
   assert.ok(found.every((entry) => /^[0-9a-f]{64}$/.test(entry.hash)));
   // A GitHub noreply address counts for its login.
@@ -182,7 +174,7 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   writeSpec(r.root, "intake", files);
   await first.ops.execute("plan.create", { spec: "intake" });
   await approve(first.ops, "intake");
-  // A task lands: Avoozl's agent commits the tick with its trailers.
+  // A task lands: Avoozl commits the tick with its trailers.
   const tasks = path.join(r.root, ".kiro/specs/feature/tasks.md");
   fs.writeFileSync(
     tasks,
@@ -212,12 +204,9 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
     ]);
   assert.equal(parseLanding(message)[0].spans.length, 2);
   r.run(["add", ".kiro"]);
-  r.run(["commit", "-q", "-m", message], {
-    GIT_AUTHOR_NAME: AGENT_AUTHOR.name,
-    GIT_AUTHOR_EMAIL: AGENT_AUTHOR.email,
-  });
+  r.run(["commit", "-q", "-m", message]);
   await first.ops.applyBaseTicks();
-  // A finished retro becomes a committed file, authored by the agent.
+  // A finished retro becomes a committed file, authored as git's own user.
   first.store.put("flow_retros", {
     id: "retro-1",
     state: "done",
@@ -228,15 +217,12 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   });
   const wrote = await first.ops.writeRetroFiles();
   assert.deepEqual(wrote.written, ["retro-1"]);
-  assert.equal(
-    r.run(["log", "-1", "--format=%ae", "--", RETRO_DIR]),
-    AGENT_AUTHOR.email,
-  );
+  assert.equal(r.run(["log", "-1", "--format=%ae", "--", RETRO_DIR]), OWNER);
   assert.equal(await first.ops.writeRetroFiles(), null, "written once");
-  // An agent's spec on main is no approval, and Approve refuses it.
-  commitSpec(r, "agent", { author: AGENT_AUTHOR.email, committer: OWNER });
-  await first.ops.execute("plan.create", { spec: "agent" });
-  await assert.rejects(approve(first.ops, "agent"), /spec branch/);
+  // A non-approver's spec on main is no approval, and Approve refuses it.
+  commitSpec(r, "other", { author: OTHER, committer: OWNER });
+  await first.ops.execute("plan.create", { spec: "other" });
+  await assert.rejects(approve(first.ops, "other"), /spec branch/);
   const before = state(first.store);
   assert.ok(
     before.tasks.some(
@@ -265,7 +251,7 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   });
   const rebuilt = await second.ops.execute("workspace.rebuild", {});
   assert.deepEqual(rebuilt.approved.sort(), ["feature", "intake"]);
-  assert.deepEqual(rebuilt.drafts, ["agent"]);
+  assert.deepEqual(rebuilt.drafts, ["other"]);
   assert.deepEqual(
     rebuilt.landed.map((entry) => entry.task),
     ["feature.1.1"],

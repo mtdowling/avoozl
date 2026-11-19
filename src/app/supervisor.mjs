@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { readServeConfig } from "./serve-config.mjs";
 import { fail } from "./store.mjs";
-import { AGENT_AUTHOR, withoutPushCredentials } from "./git.mjs";
+import { withoutPushCredentials } from "./git.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
 import {
   fillHarnessArgv,
@@ -817,9 +817,6 @@ export function startSupervisor({
             : {}),
           AVOOZL_CHILD: "1",
           AVOOZL_CHILD_SESSION: row.session_id,
-          // An agent's own commits are never approvals (git-approvals.mjs).
-          GIT_AUTHOR_NAME: AGENT_AUTHOR.name,
-          GIT_AUTHOR_EMAIL: AGENT_AUTHOR.email,
         }),
       });
       const out = fs.openSync(log, "a", 0o600);

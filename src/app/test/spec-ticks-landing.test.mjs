@@ -340,6 +340,33 @@ test("a spec in a separate plans repository is ticked there, as its own commit, 
     "Tick s.1.1",
   );
   assert.ok(fs.existsSync(marker), "the race happened");
+  assert.deepEqual(whoAndTrailers(plans.origin, head), IDENTITY);
+});
+
+// Avoozl's commits use the checkout's own git identity as author and
+// committer, and carry no Co-authored-by or other attribution.
+const IDENTITY = {
+  who: "Test <test@example.com> | Test <test@example.com>",
+  attribution: false,
+};
+const whoAndTrailers = (dir, ref) => {
+  const [who, ...trailers] = git(
+    dir,
+    "log",
+    "-1",
+    "--format=%an <%ae> | %cn <%ce>%n%(trailers)",
+    ref,
+  ).split("\n");
+  return {
+    who,
+    attribution: trailers.some((line) => /^co-authored-by:/i.test(line)),
+  };
+};
+
+test("a landing commit is authored and committed by the configured identity, with no Co-authored-by", async (t) => {
+  const w = await workspace(t);
+  await land(w, "t1");
+  assert.deepEqual(whoAndTrailers(w.origin, mainOf(w)), IDENTITY);
 });
 
 test("tickedText ticks a parent only when every child is ticked, and nothing else", () => {

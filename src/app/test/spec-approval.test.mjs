@@ -211,7 +211,7 @@ test("a merge whose author may not approve approves nothing", async () => {
   await openApproval(store, args);
   github.merge(1);
   github.commit = async () => ({
-    commit: { author: { email: "agent@avoozl.invalid" } },
+    commit: { author: { email: "someone@example.com" } },
     author: null,
   });
   const seen = [];
@@ -222,7 +222,7 @@ test("a merge whose author may not approve approves nothing", async () => {
       return false;
     },
   });
-  assert.deepEqual(seen, ["agent@avoozl.invalid"]);
+  assert.deepEqual(seen, ["someone@example.com"]);
   assert.equal(refused.state, "refused");
   assert.throws(
     () => approvalChangedAtMerge(refused),

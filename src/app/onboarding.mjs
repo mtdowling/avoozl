@@ -12,7 +12,7 @@ import {
   matchLine,
   specContentDiagnostics,
 } from "./content-rules.mjs";
-import { AGENT_AUTHOR, detectCheckout, git } from "./git.mjs";
+import { detectCheckout, git } from "./git.mjs";
 import { approvalBase, approverCheck, gitTop } from "./git-approvals.mjs";
 import { listSpecFolders } from "./spec-plans.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
@@ -107,8 +107,7 @@ export function scanSpecs(store, readSpec, names) {
 }
 
 // The people who authored commits on the repository's main branch, most
-// commits first, for the person to pick the approvers list from. Avoozl's
-// own author is left out: its commits never approve anything.
+// commits first, for the person to pick the approvers list from.
 export async function commitAuthors(folder, { limit = 50 } = {}) {
   const root = await gitTop(folder);
   if (!root) fail("That folder is not a Git checkout.");
@@ -122,7 +121,7 @@ export async function commitAuthors(folder, { limit = 50 } = {}) {
   for (const row of out.split("\n").filter(Boolean)) {
     const [email, name, at] = row.split("\x1f"),
       key = email.toLowerCase();
-    if (!key || key === AGENT_AUTHOR.email.toLowerCase()) continue;
+    if (!key) continue;
     const entry = people.get(key) ?? { email, name, commits: 0, last: at };
     entry.commits += 1;
     people.set(key, entry);

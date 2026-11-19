@@ -66,18 +66,6 @@ export async function withWorkLock(store, { id, repositoryId, kind }, fn) {
       .run(id, token);
   }
 }
-// Who Avoozl's own commits and its agents' commits are authored by
-// (git-approvals.mjs): never an approver, so a spec edit it commits is never
-// an approval. The committer stays git's own configuration, the person.
-export const AGENT_AUTHOR = Object.freeze({
-  name: "Avoozl agent",
-  email: "agent@avoozl.invalid",
-});
-export const agentAuthorEnv = (env = process.env) => ({
-  ...env,
-  GIT_AUTHOR_NAME: AGENT_AUTHOR.name,
-  GIT_AUTHOR_EMAIL: AGENT_AUTHOR.email,
-});
 export async function git(cwd, args, { env } = {}) {
   return (
     await exec("git", args, {
@@ -105,9 +93,7 @@ export async function commitWorkerChanges(worktree, message) {
   // A file the worker staged itself (`git add -f`) is unstaged again.
   await git(worktree, ["reset", "-q", "--", AVOOZL_FILES]);
   if (!(await git(worktree, ["diff", "--cached", "--name-only"]))) return null;
-  await git(worktree, ["commit", "-q", "-m", message], {
-    env: agentAuthorEnv(),
-  });
+  await git(worktree, ["commit", "-q", "-m", message]);
   return git(worktree, ["rev-parse", "HEAD"]);
 }
 // Refuse when any commit in from..to adds, changes or removes a path under

@@ -2,11 +2,12 @@
 // rebuilt database has its retros back. The file is
 // `.kiro/retros/<retro id>.md`: a short readable summary, then the whole
 // record as one fenced `json avoozl-retro` block, which is what a rebuild
-// reads. Avoozl's agent identity authors the commit; it touches no spec.
+// reads. The checkout's own git identity authors the commit; it touches no
+// spec.
 import fs from "node:fs";
 import path from "node:path";
 import { check as checkContent, contentBinding } from "./content-rules.mjs";
-import { agentAuthorEnv, git } from "./git.mjs";
+import { git } from "./git.mjs";
 import { commitOnMain } from "./git-approvals.mjs";
 import { digest } from "../model.mjs";
 
@@ -83,7 +84,6 @@ export async function writeRetroFiles(store, root) {
       written.length === 1
         ? `Record retro ${written[0][0]}`
         : `Record ${written.length} retros`,
-    env: agentAuthorEnv({}),
   });
   store.setMeta(META, { ...known, ...Object.fromEntries(written) });
   // The checkout shows the files it now holds, so its work tree stays clean.

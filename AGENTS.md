@@ -12,9 +12,10 @@ command is an entry `{command, help, run}` in `src/app/commands/`. Add an
 operation or command as one entry; never add it to a list elsewhere.
 Git and GitHub own everything that matters; SQLite is a cache that
 `avoozl rebuild` makes again. Markdown owns design prose. An approval is
-a person's authored commit on main: author your commits as
-`Avoozl agent <agent@avoozl.invalid>` and never push `.kiro/specs/` edits
-to main; put them on a `spec/<name>` branch for the owner to approve.
+a person's authored commit on main. Author and commit as the repo owner's
+normal git identity, and never add `Co-authored-by` or any other
+attribution. Never push `.kiro/specs/` edits to main; put them on a
+`spec/<name>` branch for the owner to approve.
 
 Keep application source independent of workspace paths and data. Tests use
 isolated temporary workspaces. Do not add real workspace databases, machine

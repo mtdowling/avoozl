@@ -21,7 +21,7 @@
 //   last verified commit is kept under a private local ref so the work can be
 //   recovered after a fork is deleted or the database is lost.
 import { createHash } from "node:crypto";
-import { agentAuthorEnv, git } from "./git.mjs";
+import { git } from "./git.mjs";
 export { withoutPushCredentials } from "./git.mjs";
 import { branchNameProblem } from "./integration-branch.mjs";
 import { enforce, pushLines } from "./content-rules.mjs";
@@ -438,20 +438,16 @@ export async function integrateVerified(
         409,
       );
     }
-    const merged = await git(
-      root,
-      [
-        "commit-tree",
-        tree,
-        "-p",
-        head,
-        "-p",
-        commit,
-        "-m",
-        `Integrate task ${task} at ${short(commit)}`,
-      ],
-      { env: agentAuthorEnv() },
-    );
+    const merged = await git(root, [
+      "commit-tree",
+      tree,
+      "-p",
+      head,
+      "-p",
+      commit,
+      "-m",
+      `Integrate task ${task} at ${short(commit)}`,
+    ]);
     await lock(() => moveRef(root, name, merged, head));
     return { branch, head: merged, task, commit, integrated: true };
   });

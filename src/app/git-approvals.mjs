@@ -6,19 +6,17 @@
 // grants nor blocks an approval, so a squash merge (committer GitHub) or a
 // commit made on the author's behalf counts the same as the author's own.
 //
-// Avoozl's own commits (worker results, ticks, landing commits) and its
-// agents' commits are authored by AGENT_AUTHOR, which is never an approver,
-// with the person as committer. Their spec edits are never approvals.
+// Every commit is made with the checkout's own git identity. An agent's spec
+// draft stays on a spec branch, and Approve squashes it onto main as the
+// person clicking, so a draft reaches main only through an approval.
 import { execFile, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { AGENT_AUTHOR, git } from "./git.mjs";
+import { git } from "./git.mjs";
 import { actorAllowed } from "./github-policy.mjs";
 import { REVISION_FILES, specHash, specName } from "./spec-plans.mjs";
 import { fail } from "./store.mjs";
-
-export { AGENT_AUTHOR, agentAuthorEnv } from "./git.mjs";
 
 const lower = (value) => String(value ?? "").toLowerCase();
 const specPath = (spec) => `.kiro/specs/${specName(spec)}`;
@@ -74,7 +72,6 @@ export function approverCheck({
   // person clicking Approve); otherwise the commit is read.
   return async (email, commit, login = null) => {
     const key = lower(email);
-    if (key === lower(AGENT_AUTHOR.email)) return false;
     if (!key && !login) return false;
     if (!repository) return Boolean(localEmail) && key === lower(localEmail);
     const actors = (repository.allowedActors || []).map(lower);
@@ -214,8 +211,6 @@ export async function commitOnMain(root, files, { message, env = {} }) {
 export async function commitApproval(root, files, { message } = {}) {
   const specs = Object.keys(files),
     author = await gitAuthor(root);
-  if (lower(author.email) === lower(AGENT_AUTHOR.email))
-    fail("The agent identity cannot approve a spec.", 403);
   const paths = {};
   for (const spec of specs)
     for (const file of REVISION_FILES)

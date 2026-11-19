@@ -46,7 +46,6 @@ import {
   waitingForBatch,
 } from "./flow-batch.mjs";
 import {
-  agentAuthorEnv,
   git,
   integrateRun,
   prepareTaskWorktree,
@@ -2961,18 +2960,14 @@ export async function rebaseForIntegration(repository, worktree, commit) {
   // Merged forward, never rebased (R77.5): the task's own commits stay as
   // they were reviewed, and a conflict leaves the worktree as it was.
   try {
-    await git(
-      worktree.path,
-      [
-        "merge",
-        "--no-ff",
-        "--no-edit",
-        "-m",
-        `Merge ${target} into ${worktree.branch || "the task branch"}`,
-        target,
-      ],
-      { env: agentAuthorEnv() },
-    );
+    await git(worktree.path, [
+      "merge",
+      "--no-ff",
+      "--no-edit",
+      "-m",
+      `Merge ${target} into ${worktree.branch || "the task branch"}`,
+      target,
+    ]);
   } catch (error) {
     // The conflicted files, read before the merge is undone, so the
     // worker chat can be told what to resolve (R87.6).

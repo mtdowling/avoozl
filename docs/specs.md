@@ -123,12 +123,13 @@ The commit message carries nothing. The committer neither grants nor blocks
 an approval, so a squash merge or a commit someone made for the author counts
 the same.
 
-Avoozl and its agents author their commits as
-`Avoozl agent <agent@avoozl.invalid>`, which is never an approver, with you as
-committer. Spec drafts stay on a spec branch. **Approve** writes one commit on
-main, authored by you, with the spec as you reviewed it, and pushes it without
-force. If main already holds that exact text from someone who is not an
-approver, Approve refuses, and you edit it through a spec branch.
+Avoozl and its agents commit with the checkout's own git identity as author
+and committer, with no `Co-authored-by` or other attribution. Spec drafts
+stay on a spec branch, so an agent's spec edit reaches main only through
+**Approve**. Approve writes one commit on main, authored by you, with the spec
+as you reviewed it, and pushes it without force. If main already holds that
+exact text from someone who is not an approver, Approve refuses, because git
+cannot record an approval that changes nothing; edit it through a spec branch.
 
 ## Dependencies across specs
 

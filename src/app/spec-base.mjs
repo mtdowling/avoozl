@@ -11,7 +11,7 @@
 //   keeps its first-parent history, so verified but unlanded integrations
 //   stay; task checkpoint refs are never touched. Nothing is pushed or
 //   forced here.
-import { agentAuthorEnv, git } from "./git.mjs";
+import { git } from "./git.mjs";
 import { branchNameProblem } from "./integration-branch.mjs";
 import { qualifiedRef, workingBranch } from "./working-heads.mjs";
 import { fail } from "./store.mjs";
@@ -107,20 +107,16 @@ export async function mergeBaseBack(
     ];
     return { branch, head, merged: false, conflict: files };
   }
-  const merged = await git(
-    root,
-    [
-      "commit-tree",
-      tree,
-      "-p",
-      head,
-      "-p",
-      landed,
-      "-m",
-      `Merge landed ${base ?? "base"} at ${landed.slice(0, 12)} into ${branch}`,
-    ],
-    { env: agentAuthorEnv() },
-  );
+  const merged = await git(root, [
+    "commit-tree",
+    tree,
+    "-p",
+    head,
+    "-p",
+    landed,
+    "-m",
+    `Merge landed ${base ?? "base"} at ${landed.slice(0, 12)} into ${branch}`,
+  ]);
   await lock(async () => {
     try {
       await git(root, ["update-ref", name, merged, head]);

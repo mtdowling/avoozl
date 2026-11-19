@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { agentAuthorEnv, git } from "./git.mjs";
+import { git } from "./git.mjs";
 import { recordActivity } from "./activity-log.mjs";
 import { FINAL_STATUSES } from "./session-bindings.mjs";
 import { checkedItems, specItems } from "./spec-plans.mjs";
@@ -193,7 +193,7 @@ export async function tickBranch(
       }
       if (!ticked.length) return { ticked };
       await git(dir, ["commit", "--quiet", "-m", `Tick ${ticked.join(", ")}`], {
-        env: agentAuthorEnv(env ?? process.env),
+        env,
       });
       const commit = await git(dir, ["rev-parse", "HEAD"]);
       try {

@@ -21,7 +21,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { agentAuthorEnv, git } from "./git.mjs";
+import { git } from "./git.mjs";
 import { guardedFastForward, landIntent } from "./driver-generations.mjs";
 import { runCheckAt } from "./flow-line.mjs";
 import { enqueueLanding } from "./landing-queue.mjs";
@@ -184,9 +184,7 @@ export async function stackMembers(
       if (!merging) continue;
       // The landing commit ticks its own task (Requirement 113.8): one commit.
       await tickOf?.(dir, entry);
-      await git(dir, ["commit", "--quiet", "--cleanup=strip", "-m", message], {
-        env: agentAuthorEnv(),
-      });
+      await git(dir, ["commit", "--quiet", "--cleanup=strip", "-m", message]);
       made[made.length - 1] += 1;
     }
     // Each landing commit is the first parent of the next one's, so this
