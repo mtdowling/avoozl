@@ -102,7 +102,6 @@ test("status says a named workspace is registered, by path, by ID and from the e
     [["--workspace", directory], {}, "--workspace", directory],
     [["--workspace", "status-fixture"], {}, "--workspace", "status-fixture"],
     [[], { AVOOZL_WORKSPACE: directory }, "AVOOZL_WORKSPACE", directory],
-    [[], { NUPP_WORKSPACE: directory }, "NUPP_WORKSPACE", directory],
   ]) {
     const status = cli({ ...env, ...extra }, "status", ...args);
     assert.equal(status.workspace.named, named);

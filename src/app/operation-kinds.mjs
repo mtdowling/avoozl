@@ -238,7 +238,6 @@ const PROTECT = new Set([
   "driver.takeover",
   "driver.forceTakeover",
   "driver.away.decide",
-  "relay.forget",
   "provider.switch",
   "provider.switch.dryRun",
   "provider.health.clear",

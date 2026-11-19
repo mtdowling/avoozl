@@ -145,6 +145,8 @@ export function dispatchMcp(message, { versionHeader } = {}) {
     const view = readView(String(args.uri ?? ""));
     if (!view) return error(-32602, "Unknown resource");
     result = view;
+  } else if (method === "tools/call") {
+    return error(-32602, "Unknown tool");
   } else return error(-32601, "Method not found");
   result = complete(message, result);
   if (modern)

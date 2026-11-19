@@ -30,6 +30,7 @@ import { createHash } from "node:crypto";
 import { git, withWorkLock } from "./git.mjs";
 import {
   assertPortableRepositoryConfig,
+  assertKnownKeys,
   assertSafeConfig,
 } from "./layered-config.mjs";
 import { flowPolicy, syncSpans } from "./flow.mjs";
@@ -177,6 +178,7 @@ function parsePolicy(text) {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw Error(".avoozl.json must contain a JSON object.");
   if (value.version !== 1) throw Error("Unsupported .avoozl.json version.");
+  assertKnownKeys(value, ".avoozl.json");
   assertSafeConfig(value, ".avoozl.json");
   assertPortableRepositoryConfig(value, ".avoozl.json");
   deliveryPolicy(value);

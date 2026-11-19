@@ -117,8 +117,6 @@ async function workspace(t, coder) {
       repositories: {
         [REPO]: {
           baseBranch: "main",
-          // An old file's coder is ignored (R91.6).
-          ...(coder ? { coder } : {}),
           allowedActors: ["maintainer"],
           managedLabels: { managed: "agent:managed", ready: "agent:ready" },
         },
@@ -234,20 +232,6 @@ test("a repository's leaves get linked branches; each close releases the next in
   // GitHub closed both; Avoozl never wrote an issue's state.
   assert.deepEqual(github.stateWrites, []);
   assert.equal(issueOf(ids.three).state, "open");
-});
-
-test("a repository still set to coder issue-radar runs its leaves on Avoozl's executor (R91.6)", async (t) => {
-  const { github, ids, issueOf, readyLabels, run, briefs } = await workspace(
-    t,
-    "issue-radar",
-  );
-  let result = await run();
-  assert.deepEqual(github.branches, [`avoozl/${ids.one}`]);
-  assert.deepEqual(briefs(result), [ids.one]);
-  github.mergeAndClose(issueOf(ids.one), `avoozl/${ids.one}`);
-  result = await run();
-  assert.ok(briefs(result).includes(ids.two));
-  assert.deepEqual(readyLabels(), [], "no ready label for a crew");
 });
 
 test("Settings refuses a non-default baseBranch, naming the file and field", async (t) => {

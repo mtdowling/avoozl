@@ -3317,12 +3317,6 @@ export class Operations {
         }),
       );
     }
-    // Retired: an old page may still send it.
-    if (name === "relay.forget")
-      fail(
-        "The Remote relay was removed. Use Avoozl worker sessions and runner report instead.",
-        410,
-      );
     // Provider health and model switches (§4.20, R72). The writes are a
     // person's: mcp-policy.mjs refuses them for MCP, the backend for tokens.
     if (name === "providers.view")

@@ -172,7 +172,6 @@ export const PERSON_ONLY = new Map([
     "activity.settings.update",
     person("Only a person changes how long activity is kept."),
   ],
-  ["relay.forget", person("Only a person forgets the relay chat.")],
   ["provider.switch", person("Only a person switches models.")],
   [
     "provider.switch.dryRun",
