@@ -48,6 +48,28 @@ requests, and comments in the code repositories.
 An `.avoozl.json` with no `role` keys is read through its stored
 `github.mode`.
 
+### Plans repository
+
+Plans-repo mode keeps spec issues and Kiro specs in a planning repository and
+lands code in the code repositories. This example triggers nothing, because work
+comes only from approved specs.
+
+```json [.avoozl.json]
+{
+  "github": {
+    "mode": "plans-repo",
+    "planningRepository": "example-org/plans",
+    "repositories": {
+      "example-org/app": {
+        "baseBranch": "main",
+        "checkout": "../app",
+        "allowedActors": ["your-login"]
+      }
+    }
+  }
+}
+```
+
 ## Issues
 
 Tasks always live in the workspace database. A task never gets a GitHub
@@ -78,5 +100,57 @@ has **Pause** and **Stop all**. **Needs you › From the agent** is your queue.
 A fix is one task with no spec files. Start one with **Fix** on an issue,
 **New fix**, or `avoozl fix "TEXT" --repo ID`; starting it is the approval.
 
-See [policies.md](policies.md) for the triage agent, fixes, and example
-policies.
+See [Triage agent](triage.md) for the runs, the settings and fixes.
+
+## Pull-request reviews
+
+GitHub owns the review of a task that lands as a pull request. When the base
+branch's ruleset or branch protection requires approving reviews, Avoozl reads
+the reviews on the pull request's head commit and releases dependents only when
+that commit has as many approvals as the rule asks. There is no Avoozl setting
+for it, so change the rule on GitHub.
+
+- A review counts when it is `APPROVED` or `CHANGES_REQUESTED`, on the head
+  commit, by a reviewer that `allowedActors` and `minimumPermission` allow.
+- One allowed change request on the head holds the task, whatever the approvals.
+- `COMMENTED` and dismissed reviews count for nothing. A review on an older
+  commit is stale once the head moves. Reviews by anyone else show as ignored.
+- A merged pull request without its approvals holds the task's dependents and
+  opens a decision. The Delivery view shows the verdict and links to the pull
+  request.
+- Local review roles (`delivery.reviewers`) apply only to local tasks. Branch
+  protection's required reviews still gate the merge itself.
+
+## Discussions
+
+The `discussions` setting on a repository entry turns on replies to GitHub
+Discussions. It is off unless set, and it is tested against a fake GitHub only,
+so treat it as early.
+
+```json [.avoozl.json]
+{
+  "github": {
+    "mode": "plans-repo",
+    "planningRepository": "example-org/plans",
+    "repositories": {
+      "example-org/app": {
+        "baseBranch": "main",
+        "allowedActors": ["your-login"],
+        "discussions": { "categories": ["Q&A"] }
+      }
+    }
+  }
+}
+```
+
+Each open, unanswered, unlocked discussion in one of `categories` whose author
+the policy allows gets one responder session and at most one reply, screened by
+the [content rules](content-rules.md) like every post. Discussions must be
+turned on for the repository, and the repository needs a local checkout. The
+check uses the repository's `allowedActors` and `minimumPermission` (`write`
+when it names nobody).
+
+## GitHub rate limit
+
+Every chat and the tick share one GitHub login. See
+[GitHub rate limit](rate-limit.md) for how Avoozl stays under its limits.

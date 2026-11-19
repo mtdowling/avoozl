@@ -1,33 +1,10 @@
 # Writing a plugin
 
-A plugin adds to Avoozl without changing Avoozl itself. One plugin can
-bundle several parts, so a team installs one plugin and gets its settings,
-its content rules and its intake source together:
+A plugin adds to Avoozl without changing Avoozl itself, and one plugin can
+bundle several parts. A team installs one plugin and gets its settings, its
+content rules and its intake source together.
 
-| Part       | What it is                                                        | Runs code |
-| ---------- | ----------------------------------------------------------------- | --------- |
-| `pack`     | Settings a person previews and copies into `.avoozl.json` once    | No        |
-| `rules`    | Content rule sets supplied while Avoozl runs                      | Yes       |
-| `intake`   | An intake source: its `poll` brings outside work in               | Yes       |
-| `template` | A workflow template that starts a new spec from a reusable folder | No        |
-
-Avoozl's own worker paths deliver every task, and each task's record is
-local. A plugin cannot add a delivery route or a task
-tracker. A manifest that lists `route`, `tracker` or `gate` is refused when
-it loads.
-
-The examples on this page are the test-only plugins in Avoozl's own test
-tree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, content rules and
-an intake source; `sdk-templates/` holds one workflow template;
-`fake-intake/` and `fake-rules/` each provide one part. Read them alongside this guide. These
-fakes are the only plugins tested so far; no real plugin has run live.
-
-## What a plugin is
-
-A plugin is a folder with a manifest, `avoozl-plugin.json`, an entry module
-for the parts that run code, and, with a pack, `avoozl-pack.json`:
-
-```json
+```json [avoozl-plugin.json]
 {
   "id": "sdk-team",
   "version": "1.0.0",
@@ -38,6 +15,31 @@ for the parts that run code, and, with a pack, `avoozl-pack.json`:
   "entry": "index.mjs"
 }
 ```
+
+A plugin is a folder with a manifest, `avoozl-plugin.json`, an entry module for
+the parts that run code, and, with a pack, `avoozl-pack.json`. The manifest
+lists the parts the plugin provides:
+
+| Part       | What it is                                                        | Runs code |
+| ---------- | ----------------------------------------------------------------- | --------- |
+| `pack`     | Settings a person previews and copies into `.avoozl.json` once    | No        |
+| `rules`    | Content rule sets supplied while Avoozl runs                      | Yes       |
+| `intake`   | An intake source: its `poll` brings outside work in               | Yes       |
+| `template` | A workflow template that starts a new spec from a reusable folder | No        |
+
+Avoozl's own worker paths deliver every task, and each task's record is local.
+A plugin cannot add a delivery route or a task tracker, and Avoozl refuses a
+manifest that lists `route`, `tracker` or `gate` when it loads.
+
+The examples on this page are the test-only plugins in Avoozl's own test tree.
+`src/app/test/fixtures/plugins/sdk-team/` bundles a pack, content rules and an
+intake source, `sdk-templates/` holds one workflow template, and `fake-intake/`
+and `fake-rules/` each provide one part. Read them alongside this guide. These
+fakes are the only plugins tested so far, and no real plugin has run live.
+
+## Plugin manifest
+
+These keys appear in the manifest:
 
 - `id` is lowercase letters, digits and dashes. `local` and `github` are
   reserved. An intake source names the plugin as `plugin:<id>`.
@@ -66,7 +68,7 @@ export const intake = {
 };
 ```
 
-## Declaring and approving a plugin
+## Declaring and approving
 
 A `plugins` entry declares each plugin, either in the repository's
 `.avoozl.json` (shared and reviewed in Git) or in this machine's
@@ -115,7 +117,7 @@ A `plugins` entry declares each plugin, either in the repository's
 4. **Review and approve**: the version, content hash and, for git, the commit.
    Cancel here removes the entry step 3 declared.
 
-### A plugin from a git repository
+### Plugins from git
 
 ```json
 {
@@ -155,7 +157,7 @@ computer, its `config` holds no machine path: name an environment variable
 (`termsFileEnv`, `intakeFileEnv`) that holds each computer's own path, as the
 `sdk-team` sample does.
 
-## How Avoozl runs a plugin
+## Plugin processes
 
 - Each approved plugin runs in its own Node child process. Avoozl talks to it
   in JSON lines over stdin and stdout, and gives it no port.
@@ -176,12 +178,11 @@ computer, its `config` holds no machine path: name an environment variable
 ## Rules kind
 
 A rules plugin supplies content rule sets: terms Avoozl must never write
-(see [Ban private terms](policies.md#ban-private-terms-from-everything-avoozl-writes)). It lets a team ship its
+(see [Content rules](content-rules.md)). It lets a team ship its
 list as a private package that public Avoozl never sees.
 
-| Call           | Reply                                             |
-| -------------- | ------------------------------------------------- |
-| `ruleSets({})` | `{sets: [{id, version, rules: [{id, pattern}]}]}` |
+The call is `ruleSets({})`, and it replies with
+`{sets: [{id, version, rules: [{id, pattern}]}]}`.
 
 - `pattern` is a regular expression, matched per line ignoring case.
 - A set or rule must not carry `allow`. Allow lines exist only in a person's
@@ -191,13 +192,8 @@ list as a private package that public Avoozl never sees.
 - A `.avoozl.json` set `{ "id": "<set id>", "plugin": "<plugin id>" }` picks
   one set by id. In **Settings > Content rules**, pick the plugin as the set's
   **Rules plugin**; such a set has no terms file to edit there.
-- Without a plugin, a set's rules live in its terms file,
-  `.avoozl/local/content-rules/<set id>.txt`, one `name: pattern` per line,
-  plus `allow:` lines for false matches.
-  Settings edits it with a Rule builder (word or phrase, or pattern) and a
-  File view, writes it readable by your account only, and refuses to write
-  it where Git could commit it. **How rules work** on that tab explains the
-  format with made-up examples.
+- Without a plugin, a set's rules live in its terms file. See
+  [Content rules](content-rules.md) for the format and the Rule builder.
 - Avoozl keeps the rules in memory for the tick. It never writes them to
   SQLite, receipts, or Git; findings record the set's `version`.
 - A plugin that is missing, unapproved, or broken makes only its own sets
@@ -225,13 +221,15 @@ file:
 
 What a pack may set, and where each lands in `.avoozl.json`:
 
-| Pack key                     | Sets                                                                                                                                                                       |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `settings.repositories`      | For each repository you pick at import: `allowedActors`, `minimumPermission`, `requiredChecks`, `priorityLabels`, `waitingLabels`. |
-| `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                                                  |
-| `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                                               |
-| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `concurrency`.                                                                                                                                      |
-| `settings.flow`              | Flow settings, such as `retro.everyTasks`                                                                                                                                                |
+- `settings.repositories` sets, for each repository you pick at import,
+  `allowedActors`, `minimumPermission`, `requiredChecks`, `priorityLabels` and
+  `waitingLabels`.
+- `settings.epicIssueType` sets `github.epicIssueType`.
+- `settings.contentRules.sets` holds rule set references by ID (`plugin`,
+  `action`, `boundaries`), never rules.
+- `settings.delivery` sets `reviewers` (review roles), `agent`, `model` and
+  `concurrency`.
+- `settings.flow` sets flow settings, such as `retro.everyTasks`.
 
 - Every key is checked with the same rules Settings uses. Any other key is
   refused by name, such as `Pack key settings.repositories.autoMerge is not
@@ -273,7 +271,7 @@ A workflow template starts a new spec the same way each time, such as one
 SDK rewrite after another. It is data only. Each template is a folder under
 `templates/` in the plugin:
 
-```
+```text
 templates/sdk-rewrite/
   avoozl-template.json
   prompt.md
@@ -284,16 +282,18 @@ templates/sdk-rewrite/
 
 `avoozl-template.json` holds:
 
-| Key                          | Holds                                                                                                                                    |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`, `title`, `description` | What the New spec drawer shows                                                                                                           |
-| `inputs`                     | Fields the person fills; each has `id`, `label`, `type` (`text`, `choice` with `options`, `file`, `repositories`, `epic`) and `required` |
-| `prompt`                     | The planner prompt, a Markdown file                                                                                                      |
-| `starter`                    | A spec folder in the usual layout                                                                                                        |
-| `phases`                     | Optional: the starter's phases, `{id, title}` in order                                                                                   |
-| `proofKinds`                 | Optional: proof outlines the prompt asks the planner to fill in                                                                          |
-| `pack`                       | Optional: a settings pack, as in the pack part                                                                                           |
-| `flow`                       | Optional: flow defaults: `batch`, `stopTheLine`, `localChecksFirst`, `retro.everyTasks`                                                  |
+- `id`, `title` and `description` are what the New spec drawer shows.
+- `inputs` are the fields the person fills. Each has `id`, `label`, `type`
+  (`text`, `choice` with `options`, `file`, `repositories` or `epic`) and
+  `required`.
+- `prompt` is the planner prompt, a Markdown file.
+- `starter` is a spec folder in the usual layout.
+- `phases` is optional: the starter's phases, `{id, title}` in order.
+- `proofKinds` is optional: proof outlines the prompt asks the planner to fill
+  in.
+- `pack` is optional: a settings pack, as in the pack part.
+- `flow` is optional: flow defaults `batch`, `stopTheLine`, `localChecksFirst`
+  and `retro.everyTasks`.
 
 The prompt and starter files may use a placeholder for an input:
 
@@ -301,9 +301,9 @@ The prompt and starter files may use a placeholder for an input:
 {{<input id>}}
 ```
 
-Avoozl puts in what the person typed, as plain text, once, and never runs it. A `file` input is
-read in the page, at most 200 KB of text; Avoozl never opens a path someone
-typed. The plugin shows as invalid, naming the key or file, when:
+Avoozl puts in what the person typed, as plain text, once, and never runs it. A
+`file` input is read in the page, at most 200 KB of text; Avoozl never opens a
+path someone typed. The plugin shows as invalid, naming the key or file, when:
 
 - a key or input setting is unknown, or an input ID is used twice;
 - a file uses a placeholder that is no input ID;
@@ -329,7 +329,7 @@ flow defaults. A test runs it with a fake GitHub; no template has run live
 yet.
 
 A starter may hold manual tasks (`"manual": true`): steps only a person
-does. See [Manual tasks and task links](policies.md#manual-tasks-and-task-links).
+does. See [Manual tasks and task links](manual-tasks.md).
 
 ## Intake part
 
@@ -337,9 +337,8 @@ An intake source is the `intake` part. Its one call is `poll`. The fake
 intake plugin (`fake-intake/`) is the example: its `poll` reads a JSON file
 of items and returns those changed since the cursor.
 
-| Call                    | Reply                                                                  |
-| ----------------------- | ---------------------------------------------------------------------- |
-| `poll({cursor, limit})` | `{items, cursor, more}`: items changed since `cursor`, at most `limit` |
+The call is `poll({cursor, limit})`, and it replies with
+`{items, cursor, more}`: the items changed since `cursor`, at most `limit`.
 
 ```js
 export const intake = {
@@ -357,24 +356,24 @@ export const intake = {
 };
 ```
 
-- `cursor` is your own text of at most 2,000 characters, or null on the
-  first poll. Return the cursor for the next poll and `more: true` when a
-  page is left. Avoozl asks for at most 500 items, polls each source at most
-  once per tick, and stores the new cursor only after every item of the
-  reply is handled, so a crash replays the same page. A failed poll keeps
-  the cursor and the items and shows the error on the source.
+- `cursor` is your own text of at most 2,000 characters, or null on the first
+  poll. Return the cursor for the next poll and `more: true` when a page is
+  left. Avoozl asks for at most 500 items, polls each source at most once per
+  tick, and stores the new cursor only after every item of the reply is handled,
+  so a crash replays the same page. A failed poll keeps the cursor and the items
+  and shows the error on the source.
 - Each item has `id`, `link` (`http` or `https`), `kind` (`issue`, `pr`,
-  `review` or `ticket`), `title`, `state` (`open` or `closed`), and
-  `updatedAt`; and may have `body`, `labels`, `author`, `assignees`,
-  `closeReason`, `closedBy`, `closedAt`, `fields` (text, number or
-  true/false values) and `trigger`. An item that breaks a limit is refused
-  with a reason naming the field; the other items of the reply still count.
-- `trigger` is `{actor, permission, eventId, at}`: who last changed the
-  item, and that person's standing in your system, mapped to
-  `none`, `read`, `triage`, `write`, `maintain` or `admin`. Avoozl checks it
-  against the source's `allowedActors` and `minimumPermission` (default
-  `write`). Without the `actor` capability nobody counts. A close counts as an order only when
-  `closedBy` is the trigger's actor and that actor counts.
+  `review` or `ticket`), `title`, `state` (`open` or `closed`), and `updatedAt`;
+  and may have `body`, `labels`, `author`, `assignees`, `closeReason`,
+  `closedBy`, `closedAt`, `fields` (text, number or true/false values) and
+  `trigger`. An item that breaks a limit is refused with a reason naming the
+  field; the other items of the reply still count.
+- `trigger` is `{actor, permission, eventId, at}`: who last changed the item,
+  and that person's standing in your system, mapped to `none`, `read`, `triage`,
+  `write`, `maintain` or `admin`. Avoozl checks it against the source's
+  `allowedActors` and `minimumPermission` (default `write`). Without the `actor`
+  capability nobody counts. A close counts as an order only when `closedBy` is
+  the trigger's actor and that actor counts.
 - Avoozl writes nothing back to an intake source.
 
 Declare the source under `intake.sources`, in `.avoozl.json` or in this
@@ -405,6 +404,6 @@ there. `labelFields` adds a `<field>:<value>` label per field and
 
 Copy the fake plugins' approach: keep the remote system in a file or a local
 stand-in, declare the plugin in a temporary `plugins.json`, approve its hash,
-and run ticks. Avoozl's own tests install, preview, import and poll the `sdk-team`
-bundle, start a spec from the `sdk-templates` template, and poll the fake
-intake plugin as an intake source.
+and run ticks. Avoozl's own tests install, preview, import and poll the
+`sdk-team` bundle, start a spec from the `sdk-templates` template, and poll the
+fake intake plugin as an intake source.

@@ -31,20 +31,41 @@ export default defineConfig({
         ],
       },
       {
-        text: "Guides",
+        text: "Working with Avoozl",
         items: [
           { text: "Workspaces", link: "/workspaces" },
           { text: "Specs", link: "/specs" },
+          { text: "Epic types", link: "/epic-types" },
+          { text: "Manual tasks and task links", link: "/manual-tasks" },
           { text: "Delivery", link: "/delivery" },
           { text: "Drivers", link: "/drivers" },
-          { text: "GitHub", link: "/github" },
           { text: "Flow", link: "/flow" },
           { text: "Agents and the CLI", link: "/agents" },
-          { text: "Triage agent and policies", link: "/policies" },
-          { text: "Epic types", link: "/epic-types" },
-          { text: "Writing a plugin", link: "/plugins" },
+        ],
+      },
+      {
+        text: "GitHub",
+        items: [
+          { text: "GitHub", link: "/github" },
+          { text: "Triage agent", link: "/triage" },
+          { text: "Intake sources", link: "/intake" },
+          { text: "GitHub rate limit", link: "/rate-limit" },
+        ],
+      },
+      {
+        text: "Safety",
+        items: [
+          { text: "Content rules", link: "/content-rules" },
           { text: "Content hook", link: "/content-hook" },
-          { text: "Build report", link: "/build-report" },
+          { text: "Repository checks and isolation", link: "/checks" },
+          { text: "Person-only operations", link: "/person-only" },
+        ],
+      },
+      {
+        text: "Extending",
+        items: [
+          { text: "Writing a plugin", link: "/plugins" },
+          { text: "Build report format", link: "/build-report" },
         ],
       },
     ],

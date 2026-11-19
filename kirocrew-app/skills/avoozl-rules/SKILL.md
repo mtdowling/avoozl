@@ -7,8 +7,8 @@ description: Plan an Avoozl content rule set with the user, suggest its rule and
 
 A rule set is a named list of words Avoozl must never write. `.avoozl.json`
 only names the set and where it checks. The words live in a terms file on
-the user's computer, or come from an approved rules plugin. The full text is
-"Ban private terms" in `docs/policies.md`.
+the user's computer, or come from an approved rules plugin. The full text is in
+`docs/content-rules.md`.
 
 ## Rules for this chat
 

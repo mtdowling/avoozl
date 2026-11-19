@@ -171,8 +171,18 @@ See the [documentation site](https://mtdowling.com/avoozl/) for the rest:
 - [Flow](docs/flow.md) for Stop the line, retros, and rules from corrections
 - [Agents and the CLI](docs/agents.md) for roles and models, MCP tools, and
   person-only actions
-- [Triage agent and policies](docs/policies.md) for issue and pull request
-  triage on GitHub
+- [Triage agent](docs/triage.md) for issue and pull request triage on GitHub
+- [Content rules](docs/content-rules.md) for keeping private terms out of
+  everything Avoozl writes
+- [Repository checks and isolation](docs/checks.md) for check commands and the
+  sandbox they run in
+- [Person-only operations](docs/person-only.md) for what an agent session cannot
+  do
+- [Manual tasks and task links](docs/manual-tasks.md) for steps only a person
+  does
+- [Intake sources](docs/intake.md) for bringing in work from trackers and
+  scripts
+- [GitHub rate limit](docs/rate-limit.md) for the cache and write pacing
 - [Writing a plugin](docs/plugins.md) for intake sources, content rules, and
   workflow templates
 - [Glossary](docs/glossary.md) for terms that look alike
