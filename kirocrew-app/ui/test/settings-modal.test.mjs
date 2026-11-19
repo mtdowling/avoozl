@@ -54,7 +54,7 @@ test('Add rule set is the panel main action, styled like Add plugin and Add repo
 })
 
 test('the add-workspace choices have a How to add heading', () => {
-  assert.match(source('WorkspaceView.tsx'), /<Box as="h4" mt="2" size="xs" weight="semibold" uppercase trackingWide tone="muted" data-add-how>\s*How to add:\s*<\/Box>/)
+  assert.match(source('WorkspaceView.tsx'), /<Hint as="h4" mt="2" size="xs" weight="semibold" uppercase trackingWide data-add-how>\s*How to add:\s*<\/Hint>/)
 })
 
 test('Settings opens on Workspaces each visit and drops an unknown tab', async () => {

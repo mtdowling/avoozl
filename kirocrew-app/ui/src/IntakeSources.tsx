@@ -109,9 +109,9 @@ function SourceBox(props: {
           </Box>
           {props.badges}
         </Row>
-        <Box as="p" mt="1" size="xs" tone="muted" data-intake-status>
+        <Hint as="p" mt="1" size="xs" data-intake-status>
           {props.status}
-        </Box>
+        </Hint>
         {props.problem && (
           <Box as="p" mt="1" flex items="start" gap="1.5" size="xs" tone="danger" data-intake-problem>
             <Glyph icon={CircleAlert} size={14} aria-hidden="true" css-flex="none" css-margin-top="1" />
@@ -309,13 +309,13 @@ function Field(props: { id: string; label: string; marker: 'required' | 'optiona
       <Box flex flexWrap items="baseline" gapX="2">
         <Box htmlFor={props.id} as="label" size="sm" weight="medium">
           {props.label}{' '}
-          <Box as="span" size="xs" weight="normal" tone="muted">
+          <Hint as="span" size="xs" weight="normal">
             ({props.marker})
-          </Box>
+          </Hint>
         </Box>
-        <Box id={`${props.id}-raw`} as="code" size="11" tone="muted">
+        <Hint id={`${props.id}-raw`} as="code" size="11">
           {props.raw}
-        </Box>
+        </Hint>
       </Box>
       {props.children(described)}
       {props.hint && (

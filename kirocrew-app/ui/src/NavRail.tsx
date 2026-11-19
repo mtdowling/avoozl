@@ -7,6 +7,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, Search, X, type LucideIcon } from './icons.ts'
 import { Box } from './ui/Box'
+import { Hint } from './ui/Hint'
 import { RailCss } from './ui/PageStyles'
 import { PlainButton, PlainInput } from './ui/Plain'
 import { Glyph } from './ui/Glyph'
@@ -197,9 +198,9 @@ export function RailChips(props: {
         })}
       </Box>
       {open && shown.length === 0 && (
-        <Box css-font-size="12" css-color="muted">
+        <Hint as="div" css-font-size="12">
           No {props.noun} matches “{query}”.
-        </Box>
+        </Hint>
       )}
     </RailBlock>
   )

@@ -14,6 +14,7 @@ import { fixturesClient, type DemoFixtures } from './demo-fixtures.ts'
 import { errorMessage } from './workspace-api.ts'
 import { TAGLINE } from '../../../src/work-split.mjs'
 import { Box } from './ui/Box'
+import { Hint } from './ui/Hint'
 import { PlainButton } from './ui/Plain'
 
 interface Demo {
@@ -205,9 +206,9 @@ export function DemoBar() {
         size="xs"
       >
         <DemoBadge />
-        <Box as="span" css-min-width="160" minW0 flex1 tone="muted" data-demo-intro>
+        <Hint as="span" css-min-width="160" minW0 flex1 data-demo-intro>
           {DEMO_INTRO}
-        </Box>
+        </Hint>
         <DemoControls />
         <PlainButton
           type="button"

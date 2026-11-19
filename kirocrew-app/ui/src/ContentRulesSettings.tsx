@@ -109,9 +109,9 @@ function SetRow(props: { selected: boolean; onClick: () => void; title: string; 
           )}
         </Box>
         {props.raw && (
-          <Box as="code" size="11" tone="muted">
+          <Hint as="code" size="11">
             {props.raw}
-          </Box>
+          </Hint>
         )}
       </PlainButton>
     </li>
@@ -155,9 +155,9 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
                 onClick={() => props.onSelect({ kind: 'set', id: set.id })}
                 note={
                   set.available ? (
-                    <Box as="span" size="11" tone="muted">
+                    <Hint as="span" size="11">
                       {set.action === 'report' ? 'Reports' : 'Blocks'}
-                    </Box>
+                    </Hint>
                   ) : (
                     <Badge variant="warning">Unavailable</Badge>
                   )
@@ -184,9 +184,9 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
                 onClick={() => props.onSelect({ kind: 'builtin', id: set.id })}
                 note={
                   builtinUsed(set.id, value?.mode) ? null : (
-                    <Box as="span" size="11" tone="muted">
+                    <Hint as="span" size="11">
                       not used
-                    </Box>
+                    </Hint>
                   )
                 }
               />
@@ -378,9 +378,9 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
     return (
       <Box as="li" flex flexCol gap="1" data-term-row={index + 1}>
         <Box css-display="grid" css-grid-template-columns="auto-minmax-0-1fr-auto" css-gap="8" css-align-items="center">
-          <Box as="span" css-width="4.5rem" size="xs" tone="muted">
+          <Hint as="span" css-width="4.5rem" size="xs">
             {row.kind === 'note' ? 'Note' : `Line ${index + 1}`}
-          </Box>
+          </Hint>
           <PlainInput
             value={row.text}
             aria-label={row.kind === 'note' ? `Note on line ${index + 1}` : `Line ${index + 1}`}
@@ -614,13 +614,11 @@ function TryIt({ rows }: { rows: TermRow[] }) {
                 ).map((piece, i) =>
                   !piece.rules.length && piece.allowed ? (
                     <span key={i} data-allowed={piece.allowed.join(' ')}>
-                      <Box as="del" css-color="muted">
-                        {piece.text}
-                      </Box>
-                      <Box as="span" css-margin-left="2" size="xs" tone="muted">
+                      <Hint as="del">{piece.text}</Hint>
+                      <Hint as="span" css-margin-left="2" size="xs">
                         {' '}
                         (allowed)
-                      </Box>
+                      </Hint>
                     </span>
                   ) : piece.rules.length ? (
                     <Box
@@ -814,13 +812,13 @@ function TermsEditor(props: {
         <FileView text={text} onChange={fromText} />
       )}
       <TryIt rows={rows} />
-      <Box as="p" flex items="start" gap="1.5" size="xs" tone="muted">
+      <Hint as="p" flex items="start" gap="1.5" size="xs">
         <Glyph icon={ShieldCheck} size={ICON} aria-hidden="true" css-flex-shrink="0" css-margin-top="1" />
         <span>
           Saved only to <code>{file.file}</code>, which Git must ignore and only your account can read. A rule’s name can show in logs and notices; its words never do, so keep the
           words out of the name.
         </span>
-      </Box>
+      </Hint>
       {error && (
         <ErrorText size="sm" role="alert">
           {error}
@@ -1032,7 +1030,7 @@ function HowRulesWork() {
           <Box as="h4" weight="semibold">
             Where it checks
           </Box>
-          <Box as="ul" tone="muted">
+          <Hint as="ul">
             {BOUNDARIES.map((b) => (
               <li key={b}>
                 <Box as="span" css-color="text">
@@ -1041,10 +1039,10 @@ function HowRulesWork() {
                 {BOUNDARY_HINTS[b]}
               </li>
             ))}
-          </Box>
-          <Box as="p" mt="1" tone="muted">
+          </Hint>
+          <Hint as="p" mt="1">
             It also reads through percent and HTML escapes and hidden zero-width characters.
-          </Box>
+          </Hint>
         </section>
         <section>
           <Box as="h4" weight="semibold">

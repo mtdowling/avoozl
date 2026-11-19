@@ -59,9 +59,9 @@ export default function PromptInstructions(props: {
             </div>
           </Box>
         ) : (
-          <Box as="p" pb="2" size="xs" tone="muted">
+          <Hint as="p" pb="2" size="xs">
             The built-in prompt could not be read.
-          </Box>
+          </Hint>
         )}
       </Fold>
       <Box htmlFor={props.id} as="label" css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-column-gap="8" flex flexWrap items="baseline" gapX="2">
@@ -88,9 +88,9 @@ export default function PromptInstructions(props: {
       />
       {props.note && <Hint size="xs">{props.note}</Hint>}
       <Tooltip text=".avoozl.json key">
-        <Box as="code" css-overflow-wrap="anywhere" css-opacity="0.8" size="11" tone="muted">
+        <Hint as="code" css-overflow-wrap="anywhere" css-opacity="0.8" size="11">
           {props.raw}
-        </Box>
+        </Hint>
       </Tooltip>
     </Box>
   )

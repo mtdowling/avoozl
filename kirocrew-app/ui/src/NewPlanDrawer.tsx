@@ -54,9 +54,9 @@ function Field(props: { id: string; label: string; need: 'required' | 'optional'
     <Box flex flexCol gap="1" size="sm">
       <Box htmlFor={props.id} as="label" weight="medium">
         {props.label}{' '}
-        <Box as="span" weight="normal" tone="muted">
+        <Hint as="span" weight="normal">
           ({props.need})
-        </Box>
+        </Hint>
       </Box>
       {props.children}
       {props.problem ? (
@@ -255,9 +255,9 @@ export default function NewPlanDrawer(props: {
       <Box as="fieldset" flex flexCol gap="1" size="sm">
         <Box as="legend" weight="medium">
           Repositories{' '}
-          <Box as="span" weight="normal" tone="muted">
+          <Hint as="span" weight="normal">
             (required)
-          </Box>
+          </Hint>
         </Box>
         {repositories === null ? (
           <Hint size="xs">Loading…</Hint>

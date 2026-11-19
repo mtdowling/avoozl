@@ -8,6 +8,7 @@ import { PanelLeftOpen, X } from './icons.ts'
 import { TOP_CARD } from './LeftNav.tsx'
 import { NavAccordion, type NavGroup } from './NavAccordion.tsx'
 import { Box } from './ui/Box'
+import { Hint } from './ui/Hint'
 import { PlainButton } from './ui/Plain'
 
 // The current page's name and the open-the-list icon, for the phone's header row.
@@ -69,13 +70,11 @@ export function RailButton(props: { groups: NavGroup[]; value: string; child?: s
         <Box as="span" css-min-width="0" css-flex="0-1-auto" css-display="flex" css-overflow="hidden">
           {current?.label}
         </Box>
-        {sub && (
-          <Box as="span" css-min-width="0" css-flex="0-1-auto" css-overflow="hidden" css-text-overflow="ellipsis" css-font-weight="400" css-color="muted">{` · ${sub.label}`}</Box>
-        )}
+        {sub && <Hint as="span" css-min-width="0" css-flex="0-1-auto" css-overflow="hidden" css-text-overflow="ellipsis" css-font-weight="400">{` · ${sub.label}`}</Hint>}
       </Box>
-      <Box aria-hidden="true" as="span" css-display="inline-flex" css-flex-shrink="0" css-color="muted">
+      <Hint aria-hidden="true" as="span" css-display="inline-flex" css-flex-shrink="0">
         <PanelLeftOpen size={16} />
-      </Box>
+      </Hint>
     </PlainButton>
   )
 }

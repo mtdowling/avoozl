@@ -178,9 +178,9 @@ export function SetupDialog(props: {
           {groups.length === 0 && <p>Nothing to change on GitHub.</p>}
           {groups.map((group) => (
             <section key={group.key} data-setup-group={group.key}>
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+              <Hint as="h4" size="xs" weight="semibold" uppercase trackingWide>
                 {group.title}
-              </Box>
+              </Hint>
               <Box as="ul" mt="1" flex flexCol gap="1">
                 {group.writes.map((write, i) => (
                   <Box key={i} as="li" flex flexWrap items="baseline" gap="2">
@@ -189,9 +189,9 @@ export function SetupDialog(props: {
                       {write.object} <code>{write.name}</code>
                       {write.visibility ? ` (${write.visibility})` : ''} in {write.owner}
                     </span>
-                    <Box as="span" wFull pl="12" size="xs" tone="muted">
+                    <Hint as="span" wFull pl="12" size="xs">
                       {write.detail}
-                    </Box>
+                    </Hint>
                   </Box>
                 ))}
               </Box>
@@ -199,9 +199,9 @@ export function SetupDialog(props: {
           ))}
           {result.checklist.length > 0 && (
             <section>
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+              <Hint as="h4" size="xs" weight="semibold" uppercase trackingWide>
                 Left for you on GitHub
-              </Box>
+              </Hint>
               <Box as="ul" mt="1" listDisc pl="5" size="xs">
                 {result.checklist.map((item) => (
                   <li key={item.id}>

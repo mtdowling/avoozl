@@ -37,7 +37,7 @@ export function RawKey({ name }: { name: string }) {
   const parts = name.split('.')
   return (
     <Tooltip text=".avoozl.json key">
-      <Box as="code" css-overflow-wrap="break-word" css-opacity="0.8" size="11" tone="muted" data-raw-key>
+      <Hint as="code" css-overflow-wrap="break-word" css-opacity="0.8" size="11" data-raw-key>
         {parts.map((part, at) => (
           <span key={at}>
             {at > 0 && (
@@ -48,7 +48,7 @@ export function RawKey({ name }: { name: string }) {
             {part}
           </span>
         ))}
-      </Box>
+      </Hint>
     </Tooltip>
   )
 }

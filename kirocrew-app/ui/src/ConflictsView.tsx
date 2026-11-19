@@ -491,9 +491,9 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
               {detail.timeline.slice(0, 12).map((entry, i) => (
                 <Box key={i} as="li" flex gap="2">
                   <Tooltip text={entry.at}>
-                    <Box as="span" w20 shrink0 tone="muted">
+                    <Hint as="span" w20 shrink0>
                       {relativeTime(entry.at)}
-                    </Box>
+                    </Hint>
                   </Tooltip>
                   <span>{entry.text}</span>
                 </Box>
@@ -553,17 +553,17 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
                 {item.title}
               </Box>
               {time && (
-                <Box as="span" shrink0 size="xs" tone="muted">
+                <Hint as="span" shrink0 size="xs">
                   {relativeTime(time)}
-                </Box>
+                </Hint>
               )}
             </Box>
-            <Box as="span" truncate size="xs" tone="muted" data-row-reason>
+            <Hint as="span" truncate size="xs" data-row-reason>
               {whyLine(item)}
-            </Box>
+            </Hint>
           </PlainButton>
           {(spec || task) && (
-            <Box as="span" truncate size="xs" tone="muted" data-row-where>
+            <Hint as="span" truncate size="xs" data-row-where>
               {spec && (
                 <>
                   Spec: <SpecLink spec={spec} />
@@ -571,7 +571,7 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
               )}
               {spec && task && ' · '}
               {task && <span data-row-task>Task {task.id}</span>}
-            </Box>
+            </Hint>
           )}
         </Box>
       </Box>

@@ -89,7 +89,7 @@ function LaneCardView(props: {
           {props.phase && <StateIcon phase={props.phase} />}
           <TaskTitleLink id={card.id} title={card.title} size={props.compact ? 'sm' : 'base'} weight="semibold" tight />
         </Box>
-        <Box mt="1" flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
+        <Hint as="div" mt="1" flex flexWrap items="center" gap="1.5" size="xs">
           <span>{card.id}</span>
           {card.epic && <Badge>{card.epic}</Badge>}
           {card.plan && (
@@ -111,7 +111,7 @@ function LaneCardView(props: {
           {card.deferred && <Badge>deferred</Badge>}
           {card.review && <Badge>review</Badge>}
           {card.planArchived && <Badge>Archived</Badge>}
-        </Box>
+        </Hint>
         {card.subIssue && (
           <Box as="p" css-color="warning-muted" mt="1" size="xs" data-sub-issue>
             {card.subIssue.reason}
@@ -133,9 +133,9 @@ function LaneCardView(props: {
           </Box>
         )}
         {card.alone && (
-          <Box as="p" mt="1" size="xs" tone="muted" data-runs-alone>
+          <Hint as="p" mt="1" size="xs" data-runs-alone>
             Runs alone: {card.alone}
-          </Box>
+          </Hint>
         )}
         {card.item && (
           <Box mt="1.5">
@@ -339,21 +339,21 @@ export function DeliveryBoard(props: {
               </PlainButton>
               {!shut &&
                 (cards.length === 0 ? (
-                  <Box as="p" size="xs" tone="muted" px={compact ? '2' : '3'}>
+                  <Hint as="p" size="xs" px={compact ? '2' : '3'}>
                     None
-                  </Box>
+                  </Hint>
                 ) : lane.id === 'in-progress' ? (
                   <>
                     {props.machines?.length ? (
-                      <Box as="p" size="xs" tone="muted" px={compact ? '2' : '3'} data-machine-counts>
+                      <Hint as="p" size="xs" px={compact ? '2' : '3'} data-machine-counts>
                         {props.machines.map(loadLabel).join(' · ')}
-                      </Box>
+                      </Hint>
                     ) : null}
                     {progressGroups(lanes).map((group) => (
                       <Stack key={group.id} gap={2} role="group" aria-label={`${group.label}: ${group.cards.length}`}>
-                        <Box as="h4" flex items="center" gap="1.5" px={compact ? '2' : '3'} size="xs" weight="semibold" uppercase trackingWide tone="muted">
+                        <Hint as="h4" flex items="center" gap="1.5" px={compact ? '2' : '3'} size="xs" weight="semibold" uppercase trackingWide>
                           {group.label} <Badge>{group.cards.length}</Badge>
-                        </Box>
+                        </Hint>
                         {list(`${lane.id}:${group.id}`, group.cards, group.id)}
                       </Stack>
                     ))}
@@ -439,9 +439,9 @@ function DeliveryFilters(props: {
               onClick={() => set({ state: filter.state === state.id ? undefined : state.id })}
               attrs={{ 'data-rail-state': state.id }}
               trail={
-                <Box as="span" css-font-size="12" css-color="muted" css-font-variant-numeric="tabular-nums">
+                <Hint as="span" css-font-size="12" css-font-variant-numeric="tabular-nums">
                   {states.get(state.id) ?? 0}
-                </Box>
+                </Hint>
               }
             />
           ))}
@@ -690,9 +690,9 @@ function ContentReports({ reports }: { reports: ContentReport[] }) {
   return (
     <Card>
       <SectionHeading title="Content rule reports" mb="2" />
-      <Box as="p" mt="1" size="xs" tone="muted">
+      <Hint as="p" mt="1" size="xs">
         A rule set whose action is report lets the content through and records the match here. Change the set to block once its rules are right.
-      </Box>
+      </Hint>
       <Box as="ul" mt="2" flex flexCol gap="1" size="sm">
         {reports.map((report) => (
           <Box key={report.id} as="li" flex flexWrap items="center" gap="1.5">

@@ -89,9 +89,9 @@ function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (j
           {WHO_TEXT[card.who]}
         </Box>
         {card.tag && (
-          <Box as="span" css-border-color="border" rounded="base" border="all" px="1" size="11" tone="muted" data-status-tag>
+          <Hint as="span" css-border-color="border" rounded="base" border="all" px="1" size="11" data-status-tag>
             {card.tag}
-          </Box>
+          </Hint>
         )}
       </Box>
       <Box as="span" weight="medium">
@@ -125,9 +125,9 @@ function LaneRow({ lane, onJump }: { lane: Lane; onJump?: (jump: Jump) => void }
         {lane.cards.map((card, index) => (
           <Fragment key={card.key}>
             {index > 0 && (
-              <Box aria-hidden="true" as="li" self="center" tone="muted">
+              <Hint aria-hidden="true" as="li" self="center">
                 →
-              </Box>
+              </Hint>
             )}
             <Step card={card} off={Boolean(lane.muted)} onJump={onJump} />
           </Fragment>
@@ -170,7 +170,7 @@ export default function WorkflowMap(props: { workspaceId: string; mode: string; 
                 Labels
               </Box>
               <thead>
-                <Box as="tr" tone="muted">
+                <Hint as="tr">
                   <Box as="th" css-padding-inline-end="0.5rem" weight="normal">
                     Label
                   </Box>
@@ -183,7 +183,7 @@ export default function WorkflowMap(props: { workspaceId: string; mode: string; 
                   <Box as="th" weight="normal">
                     Setting
                   </Box>
-                </Box>
+                </Hint>
               </thead>
               <tbody>
                 {map.labels.map((row) => (

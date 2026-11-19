@@ -94,35 +94,17 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
             <Box as="table" css-border-collapse="collapse" size="sm">
               <tbody>
                 <tr>
-                  <Box
-                    scope="row"
-                    as="th"
-                    css-text-align="left"
-                    css-font-weight="600"
-                    css-padding="2px-12px-2px-0"
-                    css-color="text-muted-muted"
-                    css-white-space="nowrap"
-                    css-vertical-align="top"
-                  >
+                  <Hint scope="row" as="th" css-text-align="left" css-font-weight="600" css-padding="2px-12px-2px-0" css-white-space="nowrap" css-vertical-align="top">
                     Reviewer
-                  </Box>
+                  </Hint>
                   <Box as="td" css-padding="2px-0">
                     {review.reviewerModel ?? 'not set'}
                   </Box>
                 </tr>
                 <tr>
-                  <Box
-                    scope="row"
-                    as="th"
-                    css-text-align="left"
-                    css-font-weight="600"
-                    css-padding="2px-12px-2px-0"
-                    css-color="text-muted-muted"
-                    css-white-space="nowrap"
-                    css-vertical-align="top"
-                  >
+                  <Hint scope="row" as="th" css-text-align="left" css-font-weight="600" css-padding="2px-12px-2px-0" css-white-space="nowrap" css-vertical-align="top">
                     Revision
-                  </Box>
+                  </Hint>
                   <Box as="td" css-padding="2px-0">
                     <Tooltip text={review.revisionHash}>
                       <code>{shortHash(review.revisionHash)}</code>
@@ -131,18 +113,9 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
                   </Box>
                 </tr>
                 <tr>
-                  <Box
-                    scope="row"
-                    as="th"
-                    css-text-align="left"
-                    css-font-weight="600"
-                    css-padding="2px-12px-2px-0"
-                    css-color="text-muted-muted"
-                    css-white-space="nowrap"
-                    css-vertical-align="top"
-                  >
+                  <Hint scope="row" as="th" css-text-align="left" css-font-weight="600" css-padding="2px-12px-2px-0" css-white-space="nowrap" css-vertical-align="top">
                     Writer
-                  </Box>
+                  </Hint>
                   <Box as="td" css-padding="2px-0">
                     {review.writerModel ?? 'unknown'}
                   </Box>

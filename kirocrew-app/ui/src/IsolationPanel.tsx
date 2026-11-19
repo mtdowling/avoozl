@@ -7,6 +7,7 @@ import { useAppApi } from './host.ts'
 import { FieldGroup } from './ui/FieldGroup.tsx'
 import { Btn } from './ui/Btn'
 import { Box } from './ui/Box'
+import { Hint } from './ui/Hint'
 import { Input } from './ui/Input'
 import { SelectField } from './ui/SelectField'
 import { Checkbox } from './ui/Checkbox'
@@ -83,9 +84,9 @@ export default function IsolationPanel(props: { workspaceId: string; projectId: 
           </SelectField>
         </Box>
         {hint && (
-          <Box as="p" m0 size="xs" tone="muted" data-isolation-hint>
+          <Hint as="p" m0 size="xs" data-isolation-hint>
             {hint}
-          </Box>
+          </Hint>
         )}
         {form.run === 'container' && (
           <Box as="label" flex flexCol gap="1" size="sm" htmlFor={`${id}-image`}>
@@ -115,9 +116,9 @@ export default function IsolationPanel(props: { workspaceId: string; projectId: 
           </Box>
         )}
         {message?.ok && (
-          <Box as="p" m0 size="xs" tone="muted" role="status">
+          <Hint as="p" m0 size="xs" role="status">
             {message.ok}
-          </Box>
+          </Hint>
         )}
         {message?.error && (
           <Box as="p" m0 size="xs" tone="danger" role="alert">

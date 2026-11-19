@@ -1,22 +1,16 @@
-// Muted text: a note, a label, a count. `size` is the type size (`xs`, `sm`, or
-// the surrounding size), `flush` drops the browser's margin, `block` makes a
-// span a block. The element is a span unless `as` names another.
-import type { ComponentProps, ElementType } from 'react'
+// Muted text: a note, a label, a count, a column head. It is a Box in the
+// theme's muted color, so it takes Box's props for size, weight and layout,
+// but not a color of its own: every muted line on the page is a Hint, and a
+// new look for hints is an edit here (D1). `flush` drops the browser's margin,
+// `block` makes a span a block. The element is a span unless `as` names
+// another.
+import { forwardRef } from 'react'
+import { Box, type BoxProps } from './Box'
 
-type HintTag = 'span' | 'p' | 'div' | 'dt' | 'dd' | 'li' | 'small'
-
-export type HintProps = Omit<ComponentProps<'span'>, 'className' | 'style' | 'ref'> & {
-  as?: HintTag
-  size?: 'xs' | 'sm'
+export type HintProps = Omit<BoxProps, 'tone' | 'css-color'> & {
   flush?: boolean
-  block?: boolean
 }
 
-export function hintClass({ size, flush, block }: Pick<HintProps, 'size' | 'flush' | 'block'>) {
-  return [block && 'block', flush && 'm-0', size && `text-${size}`, 'text-muted'].filter(Boolean).join(' ')
-}
-
-export function Hint({ as, size, flush, block, ...rest }: HintProps) {
-  const Tag: ElementType = as ?? 'span'
-  return <Tag className={hintClass({ size, flush, block })} {...rest} />
-}
+export const Hint = forwardRef<HTMLElement, HintProps>(function Hint({ as = 'span', flush, m0, ...rest }, ref) {
+  return <Box ref={ref} as={as} m0={flush || m0} tone="muted" {...rest} />
+})

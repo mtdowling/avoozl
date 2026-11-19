@@ -122,12 +122,12 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
           </li>
         ) : (
           <li key={node.path}>
-            <Box css-padding-left={4 + props.depth * 14} flex items="center" gap="1" px="1" py="0.5" size="sm" tone="muted">
+            <Hint as="div" css-padding-left={4 + props.depth * 14} flex items="center" gap="1" px="1" py="0.5" size="sm">
               <Folder size={14} aria-hidden="true" />
               <Box as="span" truncate>
                 {node.name}
               </Box>
-            </Box>
+            </Hint>
             <Tree nodes={node.children} depth={props.depth + 1} selected={props.selected} onPick={props.onPick} />
           </li>
         ),
@@ -137,9 +137,9 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
 }
 
 const num = (n: number | null) => (
-  <Box as="span" css-display="inline-block" css-min-width="36" selectNone pr="2" align="right" tone="muted">
+  <Hint as="span" css-display="inline-block" css-min-width="36" selectNone pr="2" align="right">
     {n ?? ''}
-  </Box>
+  </Hint>
 )
 
 function UnifiedDiff({ lines }: { lines: DiffLine[] }) {
@@ -147,9 +147,9 @@ function UnifiedDiff({ lines }: { lines: DiffLine[] }) {
     <Box role="group" aria-label="Unified diff" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px">
       {lines.map((line, i) =>
         !isText(line) ? (
-          <Box key={i} css-white-space="pre" css-background={line.kind === 'hunk' ? LINE_BG.hunk : undefined} tone="muted">
+          <Hint as="div" key={i} css-white-space="pre" css-background={line.kind === 'hunk' ? LINE_BG.hunk : undefined}>
             {line.text}
-          </Box>
+          </Hint>
         ) : (
           <Box key={i} data-line={line.kind} css-white-space="pre" css-background={line.kind === 'context' ? undefined : LINE_BG[line.kind]}>
             {num(line.old)}
@@ -186,9 +186,9 @@ function SplitDiff({ lines }: { lines: DiffLine[] }) {
             {side(row.right, 'right')}
           </Box>
         ) : (
-          <Box key={i} css-white-space="pre" css-background={row.kind === 'hunk' ? LINE_BG.hunk : undefined} tone="muted">
+          <Hint as="div" key={i} css-white-space="pre" css-background={row.kind === 'hunk' ? LINE_BG.hunk : undefined}>
             {row.text}
-          </Box>
+          </Hint>
         ),
       )}
     </Box>

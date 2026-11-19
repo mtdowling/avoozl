@@ -73,9 +73,9 @@ function NeedCard({
           <Badge variant={FAILED_KINDS.has(item.kind) ? 'danger' : 'warning'}>{KIND_LABEL[item.kind] ?? item.kind}</Badge>
         </span>
         {item.taskId && (
-          <Box as="span" truncate size="xs" tone="muted">
+          <Hint as="span" truncate size="xs">
             {item.taskId}
-          </Box>
+          </Hint>
         )}
       </Box>
       <Tooltip text={attentionTip(item)} display="inline">
@@ -802,9 +802,9 @@ export default function DashboardView(props: {
                 <ShowMore {...pages.more('flight', summary.inFlight.length)} />
                 {summary.radarFlight.length > 0 && (
                   <>
-                    <Box data-on-the-line as="h4" mt="2" size="xs" weight="semibold" tone="muted">
+                    <Hint data-on-the-line as="h4" mt="2" size="xs" weight="semibold">
                       On the line ({summary.radarFlight.length}): Ready, Claimed, PR, CI, Merge
-                    </Box>
+                    </Hint>
                     {summary.radarGroups.length > 0 ? (
                       <RadarFlightGroups groups={summary.radarGroups} now={now} />
                     ) : (
@@ -817,9 +817,9 @@ export default function DashboardView(props: {
                         <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
                       </>
                     )}
-                    <Box as="p" my="2" size="xs" tone="muted">
+                    <Hint as="p" my="2" size="xs">
                       Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat.
-                    </Box>
+                    </Hint>
                   </>
                 )}
               </>
@@ -876,7 +876,7 @@ export default function DashboardView(props: {
                             <Box as="span" truncate>
                               {title}
                             </Box>
-                            <Box as="span" flex shrink0 items="center" gap="2" size="xs" tone="muted">
+                            <Hint as="span" flex shrink0 items="center" gap="2" size="xs">
                               {entry.running > 0 && (
                                 <Box as="span" css-color="tile-purple-aim" inlineFlex items="center" gap="1" aria-label={`${entry.running} Avoozl chats running`}>
                                   <Activity size={12} aria-hidden="true" />
@@ -884,7 +884,7 @@ export default function DashboardView(props: {
                                 </Box>
                               )}
                               {entry.done} of {entry.total}
-                            </Box>
+                            </Hint>
                           </Box>
                           <Box
                             role="progressbar"

@@ -58,9 +58,9 @@ function Field(props: { label: string; marker?: 'required' | 'optional'; raw?: s
       {props.children}
       {props.hint && <Hint size="xs">{props.hint}</Hint>}
       {props.raw && (
-        <Box as="code" size="11" tone="muted">
+        <Hint as="code" size="11">
           {props.raw}
-        </Box>
+        </Hint>
       )}
     </Box>
   )
@@ -477,9 +477,9 @@ export default function AddPlugin(props: { workspaceId: string; client: Client; 
         </IconLabel>
       </Box>
       {note && (
-        <Box as="p" mt="2" size="xs" tone="muted" role="status">
+        <Hint as="p" mt="2" size="xs" role="status">
           {note}
-        </Box>
+        </Hint>
       )}
       {open && <AddPluginDialog workspaceId={props.workspaceId} client={props.client} supported={props.supported} onChanged={props.onChanged} onClose={close} />}
     </PairedCard>

@@ -233,7 +233,8 @@ export default function GraphPage(props: {
       <ViewHeading id="avoozl-graph-title" view="graph">
         Graph
       </ViewHeading>
-      <Box
+      <Hint
+        as="div"
         css-border-color="border"
         css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
         css-letter-spacing=".08em"
@@ -245,7 +246,6 @@ export default function GraphPage(props: {
         border="b"
         pb="2"
         size="11"
-        tone="muted"
         data-graph-header
       >
         <Box as="span" whitespace="nowrap">
@@ -323,7 +323,7 @@ export default function GraphPage(props: {
           </datalist>
           {workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void source.reload()} busy={source.busy} />}
         </Box>
-      </Box>
+      </Hint>
       {jumpError && (
         <ErrorText id="avoozl-graph-jump-error" role="alert" size="xs" flush>
           {jumpError}
@@ -362,7 +362,8 @@ export default function GraphPage(props: {
         />
       )}
       {place.tab !== 'all' && graph && graph.total > 0 && (
-        <Box
+        <Hint
+          as="div"
           id={HINT_ID}
           css-border-color="border"
           css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
@@ -375,7 +376,6 @@ export default function GraphPage(props: {
           border="t"
           pt="2"
           size="11"
-          tone="muted"
           data-graph-hint
         >
           <Box as="span" minW0 flex1>
@@ -386,7 +386,7 @@ export default function GraphPage(props: {
           <Box as="span" flexNone tabularNums>
             {lists?.ready.length ?? 0} newly unlocked
           </Box>
-        </Box>
+        </Hint>
       )}
       {modal && graph && (
         <ItemModal
@@ -446,9 +446,9 @@ export function Frontier(props: { ready: FrontierItem[]; waiting: FrontierItem[]
         {ready.length} newly unlocked · {waiting.length} still waiting
       </Box>
       {ready.length === 0 && waiting.length === 0 && (
-        <Box as="p" size="11" tone="muted">
+        <Hint as="p" size="11">
           No task has a blocker on record.
-        </Box>
+        </Hint>
       )}
       {ready.map((item) => (
         <FrontierRow key={item.task.id} item={item} unlocked {...props} />
@@ -529,7 +529,7 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
         <Chip task={task} />
       </PlainButton>
       {open && (
-        <Box id={why} css-padding-left="30" css-line-height="1.6" px="3.5" pb="3" text105px tone="muted" data-frontier-why>
+        <Hint as="div" id={why} css-padding-left="30" css-line-height="1.6" px="3.5" pb="3" text105px data-frontier-why>
           {props.unlocked ? (
             <>
               All blockers satisfied: <Refs tasks={met} struck />
@@ -553,7 +553,7 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
           <PlainButton type="button" css-color="accent" css-background="transparent" cursorPointer underline underlineOffset2 onClick={() => props.onOpen(task.id)}>
             details
           </PlainButton>
-        </Box>
+        </Hint>
       )}
     </Box>
   )
@@ -742,7 +742,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                         {task.title}
                       </Box>
                       {waits.length > 0 && (
-                        <Box as="span" size="10" tone="muted">
+                        <Hint as="span" size="10">
                           waits on{' '}
                           {waits.map((e, i) => (
                             <Box key={e.from} as="span" css-text-decoration={e.satisfied ? 'line-through' : undefined}>
@@ -751,7 +751,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                               {e.kind === 'sequence' ? ' (sequence)' : ''}
                             </Box>
                           ))}
-                        </Box>
+                        </Hint>
                       )}
                     </Box>
                   </Box>

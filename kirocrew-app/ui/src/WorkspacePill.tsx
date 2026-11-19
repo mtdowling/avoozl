@@ -8,6 +8,7 @@ import { LAYER } from './layers.ts'
 import { NAV_PILL } from './nav-style.ts'
 import type { WorkspaceList } from './workspace-api.ts'
 import { Box } from './ui/Box'
+import { Hint } from './ui/Hint'
 import { PlainButton } from './ui/Plain'
 import { Glyph } from './ui/Glyph'
 
@@ -105,9 +106,9 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
           css-flex-direction="column"
           css-gap="2"
         >
-          <Box css-padding="4px-8px" css-font-size="12" css-font-weight="600" css-letter-spacing=".04em" css-text-transform="uppercase" css-color="muted">
+          <Hint as="div" css-padding="4px-8px" css-font-size="12" css-font-weight="600" css-letter-spacing=".04em" css-text-transform="uppercase">
             Workspaces
-          </Box>
+          </Hint>
           {(list?.items ?? []).map((item) => {
             const here = item.id === props.value
             return (

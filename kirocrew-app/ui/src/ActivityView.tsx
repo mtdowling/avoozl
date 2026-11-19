@@ -102,66 +102,21 @@ function Table({ rows, now }: { rows: ActivityRow[]; now: number }) {
       <Box as="table" css-border-collapse="collapse" wFull size="sm" data-activity-table>
         <thead>
           <tr>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               When
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Source
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Who
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               What
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" css-font-size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Target
-            </Box>
+            </Hint>
           </tr>
         </thead>
         <tbody>
@@ -309,9 +264,9 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
             css-border="1px-solid-border"
           />
         </Tooltip>
-        <Box as="span" css-font-size="13" css-color="muted">
+        <Hint as="span" css-font-size="13">
           days
-        </Box>
+        </Hint>
         {note && !parsed.error && (
           <Box role={note.ok ? 'status' : 'alert'} as="span" ml="auto" size="xs" tone={note.ok ? 'muted' : 'danger'}>
             {note.text}

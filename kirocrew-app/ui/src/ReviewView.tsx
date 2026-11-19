@@ -192,9 +192,9 @@ function FindingCard(props: {
             </Box>
           </Tooltip>
         </Box>
-        <Box data-state-label as="span" css-flex="none" css-font-size="11" tone="muted">
+        <Hint data-state-label as="span" css-flex="none" css-font-size="11">
           {finding.state}
-        </Box>
+        </Hint>
       </Box>
       <Box css-padding-left="22" css-display="flex" css-flex-direction="column" css-gap="4" css-min-width="0">
         <Box as="p" css-margin="0" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="2px-8px" css-font-size="11" m0>
@@ -202,9 +202,9 @@ function FindingCard(props: {
             {SEVERITY_LABEL[finding.severity]}
           </Box>
           <Hint>{finding.category}</Hint>
-          <Box as="code" tone="muted" data-finding-lines={props.showFile ? 'file' : undefined}>
+          <Hint as="code" data-finding-lines={props.showFile ? 'file' : undefined}>
             {lineText(finding.anchor)}
-          </Box>
+          </Hint>
           {finding.anchor.moved && (
             <Hint data-moved>
               Moved or removed (from <code>{shortHash(finding.anchor.revisionHash)}</code>)
@@ -260,26 +260,14 @@ function FindingCard(props: {
           )}
         </Box>
         {finding.decisions.length > 0 && (
-          <Box
-            as="ul"
-            css-margin="0"
-            css-padding="0"
-            css-display="flex"
-            css-flex-direction="column"
-            css-gap="2"
-            css-list-style="none"
-            css-font-size="11"
-            m0
-            tone="muted"
-            data-finding-history
-          >
+          <Hint as="ul" css-margin="0" css-padding="0" css-display="flex" css-flex-direction="column" css-gap="2" css-list-style="none" css-font-size="11" m0 data-finding-history>
             {finding.decisions.map((d, i) => (
               <li key={i}>
                 {ACTION_TEXT[d.action]} by {d.by} at <code>{shortHash(d.revisionHash)}</code>
                 {d.note ? ` · ${d.note}` : ''}
               </li>
             ))}
-          </Box>
+          </Hint>
         )}
         {asking ? (
           <Box css-display="flex" css-flex-direction="column" css-gap="4" css-margin-top="2">
@@ -323,9 +311,9 @@ function FindingCard(props: {
                 </CardBtn>
               ))}
             </Box>
-            <Box as="p" css-margin="0" css-font-size="11" m0 tone="muted" data-finding-hint>
+            <Hint as="p" css-margin="0" css-font-size="11" m0 data-finding-hint>
               {actions.hint}
-            </Box>
+            </Hint>
           </Box>
         )}
       </Box>
@@ -593,9 +581,9 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   )
   const movedGroup = moved.length > 0 && (
     <Box data-moved-group css-display="flex" css-flex-direction="column" css-gap="8" flex flexCol gap="2">
-      <Box as="h4" css-text-transform="uppercase" css-letter-spacing="0.05em" m0 size="xs" weight="medium" tone="muted">
+      <Hint as="h4" css-text-transform="uppercase" css-letter-spacing="0.05em" m0 size="xs" weight="medium">
         Moved or removed
-      </Box>
+      </Hint>
       {moved.map((f) => card(f))}
     </Box>
   )
@@ -617,13 +605,13 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
         <Box as="h3" css-flex="1-1-auto" m0 size="base" weight="semibold">
           Review
           {data && (
-            <Box as="span" css-margin-left="8" size="sm" weight="normal" tone="muted">
+            <Hint as="span" css-margin-left="8" size="sm" weight="normal">
               at{' '}
               <Tooltip text={data.revisionHash}>
                 <code data-review-revision>{shortHash(data.revisionHash)}</code>
               </Tooltip>
               {!data.current && ' · older revision'}
-            </Box>
+            </Hint>
           )}
         </Box>
         {data && !data.current && (

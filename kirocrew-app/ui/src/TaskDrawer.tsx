@@ -132,9 +132,9 @@ function SourceSnippet(props: { source: OriginSource; workspaceId: string; open:
           {read.error}
         </Box>
       ) : read.text === null ? (
-        <Box as="p" css-border-color="border" border="t" p="2" tone="muted">
+        <Hint as="p" css-border-color="border" border="t" p="2">
           Reading…
-        </Box>
+        </Hint>
       ) : (
         <Box as="ol" css-border-color="border" m0 listNone overflow="x-auto" border="t" p="0" fontMono aria-label={`Lines from ${source.document}`} data-snippet-lines>
           {rows.map((row) => (
@@ -150,9 +150,9 @@ function SourceSnippet(props: { source: OriginSource; workspaceId: string; open:
               px="2"
               py="px"
             >
-              <Box as="span" w8 shrink0 selectNone align="right" tone="muted">
+              <Hint as="span" w8 shrink0 selectNone align="right">
                 {row.number}
-              </Box>
+              </Hint>
               <Box as="span" css-overflow-wrap="anywhere" whitespace="pre-wrap">
                 {row.text || ' '}
               </Box>
@@ -212,9 +212,9 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
           ))}
       </Box>
       {origin.prompt && (
-        <Box as="blockquote" css-border-color="border" borderL2 pl="2" size="xs" tone="muted">
+        <Hint as="blockquote" css-border-color="border" borderL2 pl="2" size="xs">
           {origin.prompt}
-        </Box>
+        </Hint>
       )}
       {origin.sources
         .filter((source) => source.readable)
@@ -371,12 +371,12 @@ function TaskPanel(props: {
   return (
     <Stack gap={3}>
       <div>
-        <Box flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
+        <Hint as="div" flex flexWrap items="center" gap="1.5" size="xs">
           <Authority owner={task} />
           {task.state && <Badge variant={task.state === 'needs-you' ? 'warning' : undefined}>{task.state}</Badge>}
           {detail.locked && <Badge>locked</Badge>}
           {task.planArchived && <Badge>Archived</Badge>}
-        </Box>
+        </Hint>
       </div>
       <Box flex flexWrap gap="2">
         {props.onFocus && (
@@ -560,9 +560,9 @@ function TaskPanel(props: {
                     {pages.take('timeline', detail.timeline).map((entry, i) => (
                       <Box key={i} as="li" flex gap="2">
                         <Tooltip text={entry.at}>
-                          <Box as="span" w28 shrink0 size="xs" tone="muted">
+                          <Hint as="span" w28 shrink0 size="xs">
                             {relativeTime(entry.at)}
-                          </Box>
+                          </Hint>
                         </Tooltip>
                         <span>{entry.text}</span>
                       </Box>
@@ -872,9 +872,9 @@ export function TaskDrawerProvider({
     mode?.kind === 'task' ? (
       <>
         {titled ?? 'Loading…'}{' '}
-        <Box as="small" weight="normal" tone="muted" data-modal-title-id>
+        <Hint as="small" weight="normal" data-modal-title-id>
           {mode.id}
-        </Box>
+        </Hint>
       </>
     ) : mode?.kind === 'review' ? (
       mode.group.title

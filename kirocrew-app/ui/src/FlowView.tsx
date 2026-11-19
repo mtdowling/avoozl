@@ -84,14 +84,14 @@ export function StageBar({ stages, scale, label }: { stages: Record<string, numb
 
 export function StageLegend() {
   return (
-    <Box as="ul" flex flexWrap gapX="3" gapY="1" size="xs" tone="muted" aria-label="Stages">
+    <Hint as="ul" flex flexWrap gapX="3" gapY="1" size="xs" aria-label="Stages">
       {STAGES.map((stage) => (
         <Box key={stage} as="li" inlineFlex items="center" gap="1">
           <Box aria-hidden="true" as="span" css-width="10" css-height="10" css-border-radius="2" css-background={STAGE_COLORS[stage]} css-display="inline-block" />
           {STAGE_LABELS[stage]}
         </Box>
       ))}
-    </Box>
+    </Hint>
   )
 }
 
@@ -208,7 +208,7 @@ function MetricCards({ view }: { view: FlowViewModel }) {
         <Card key={card.key} css-min-width="0" flex flexCol gap="1">
           <Tooltip text={card.tip}>
             {(describedBy) => (
-              <Box
+              <Hint
                 aria-describedby={describedBy}
                 tabIndex={0}
                 as="span"
@@ -218,10 +218,9 @@ function MetricCards({ view }: { view: FlowViewModel }) {
                 css-text-transform="uppercase"
                 css-font-size="0.75rem"
                 size="xs"
-                tone="muted"
               >
                 {card.title}
-              </Box>
+              </Hint>
             )}
           </Tooltip>
           {card.empty ? (
@@ -231,9 +230,9 @@ function MetricCards({ view }: { view: FlowViewModel }) {
               <Box as="span" css-overflow-wrap="anywhere" css-font-size="1.25rem" textXl weight="semibold" tabularNums>
                 {card.value}
               </Box>
-              <Box as="span" size="xs" tone="muted" tabularNums>
+              <Hint as="span" size="xs" tabularNums>
                 {card.was ? `was ${card.was}` : 'no earlier window'}
-              </Box>
+              </Hint>
             </>
           )}
         </Card>
@@ -477,7 +476,7 @@ export function TimingFold({
         ))}
       </Box>
       {timing.versions && timing.versions.length > 0 && (
-        <Box as="ul" flex flexCol gap="0.5" size="xs" tone="muted" data-timing-versions>
+        <Hint as="ul" flex flexCol gap="0.5" size="xs" data-timing-versions>
           {timing.versions.map((v) => (
             <Box key={v.attempt} as="li" css-overflow-wrap="anywhere">
               Attempt {v.attempt} ran on {Object.values(v.prompts).join(', ') || 'the built-in prompts'}
@@ -489,7 +488,7 @@ export function TimingFold({
               .
             </Box>
           ))}
-        </Box>
+        </Hint>
       )}
     </Box>
   )

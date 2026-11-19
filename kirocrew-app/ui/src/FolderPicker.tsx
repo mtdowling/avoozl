@@ -105,9 +105,9 @@ export function FolderField(props: {
             >
               <ArrowUp size={14} aria-hidden="true" />
             </Btn>
-            <Box as="span" css-overflow-wrap="anywhere" minW0 flex1 size="xs" tone="muted" data-folder-at>
+            <Hint as="span" css-overflow-wrap="anywhere" minW0 flex1 size="xs" data-folder-at>
               {listing ? listing.path : 'Loading…'}
-            </Box>
+            </Hint>
             {listing?.workspace && <Badge variant="info">Workspace</Badge>}
           </Box>
           {error && (
@@ -117,9 +117,9 @@ export function FolderField(props: {
           )}
           <Box as="ul" css-max-height="200" css-list-style="none" css-margin="0" css-padding-left="0" flex flexCol overflow="y-auto" py="1" aria-label="Folders" data-folder-list>
             {listing && listing.folders.length === 0 && (
-              <Box as="li" px="2" py="1" size="xs" tone="muted">
+              <Hint as="li" px="2" py="1" size="xs">
                 No folders here.
-              </Box>
+              </Hint>
             )}
             {listing?.folders.map((folder) => (
               <li key={folder.path}>
@@ -149,9 +149,9 @@ export function FolderField(props: {
               </li>
             ))}
             {listing?.truncated && (
-              <Box as="li" px="2" py="1" size="xs" tone="muted">
+              <Hint as="li" px="2" py="1" size="xs">
                 Only the first 500 folders show. Type the rest of the path.
-              </Box>
+              </Hint>
             )}
           </Box>
           <Box css-border-color="border" flex justify="end" border="t" px="2" py="1">

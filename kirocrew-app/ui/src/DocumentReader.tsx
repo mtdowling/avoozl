@@ -148,9 +148,9 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
             </Tooltip>
           )}
           {note && (
-            <Box role="status" as="p" css-overflow-wrap="anywhere" size="xs" tone="muted">
+            <Hint role="status" as="p" css-overflow-wrap="anywhere" size="xs">
               {note}
-            </Box>
+            </Hint>
           )}
         </Box>
       )}
@@ -174,9 +174,9 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
             </Box>
           ) : (
             <Box aria-label="File outline" as="nav" css-border-color="border" overflow="y-auto" borderR px="3" py="3" size="sm">
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+              <Hint as="h4" size="xs" weight="semibold" uppercase trackingWide>
                 Outline
-              </Box>
+              </Hint>
               <Outline headings={headings} onJump={jump} />
             </Box>
           ))}

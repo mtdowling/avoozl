@@ -171,19 +171,9 @@ export function SpecCard(props: { title: string; id?: string; actions?: ReactNod
         css-border-bottom="1px-solid-border"
         css-background="mix-bg-elevated-60%-transparent"
       >
-        <Box
-          as="h3"
-          css-margin="0"
-          css-flex="1-1-auto"
-          css-font-size="11"
-          css-font-weight="500"
-          css-line-height="17px"
-          css-letter-spacing="0.05em"
-          css-text-transform="uppercase"
-          css-color="muted"
-        >
+        <Hint as="h3" css-margin="0" css-flex="1-1-auto" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase">
           {props.title}
-        </Box>
+        </Hint>
         {props.actions}
       </Box>
       <Box data-spec-card-body css-padding="12px-14px" css-min-width="0">
@@ -197,9 +187,9 @@ function RailSection(props: { title: string; edit?: { label: string; onClick: ()
   return (
     <Box data-rail-section={props.title} {...props.attrs} as="section" css-padding-bottom="14" css-margin-bottom="14" css-border-bottom="1px-solid-border">
       <Box css-display="flex" css-align-items="center" css-justify-content="space-between" css-gap="8" css-margin-bottom="8">
-        <Box as="h4" css-margin="0" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase" css-color="muted">
+        <Hint as="h4" css-margin="0" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase">
           {props.title}
-        </Box>
+        </Hint>
         {props.edit && (
           <Tooltip text="Edit">
             <PlainButton type="button" data-rail-edit aria-label={props.edit.label} onClick={props.edit.onClick} css-display="inline-flex" css-padding="2">
@@ -309,10 +299,10 @@ function Documents({ docs, error }: { docs: SpecDocuments | null; error: string 
           title={tab.label}
           id={`avoozl-doc-${tab.file}`}
           actions={
-            <Box as="span" css-overflow-wrap="anywhere" minW0 size="xs" tone="muted">
+            <Hint as="span" css-overflow-wrap="anywhere" minW0 size="xs">
               {docs.folder}
               {tab.file}
-            </Box>
+            </Hint>
           }
         >
           <Markdown text={tab.text} idPrefix={docPrefix(tab.file)} measure={PROSE_MEASURE} />
@@ -342,10 +332,10 @@ function DocumentTab({ docs, error, file }: { docs: SpecDocuments | null; error:
       id={`avoozl-doc-${file}`}
       actions={
         docs ? (
-          <Box as="span" css-overflow-wrap="anywhere" minW0 size="xs" tone="muted">
+          <Hint as="span" css-overflow-wrap="anywhere" minW0 size="xs">
             {docs.folder}
             {file}
-          </Box>
+          </Hint>
         ) : undefined
       }
     >
@@ -444,7 +434,7 @@ function SpecAiSummary(props: { plan: SpecPlan; spec: SpecSummary; onRetry?: () 
           )}
         </Hint>
       )}
-      <Box flex flexWrap items="center" gapX="2" gapY="1" size="xs" tone="muted" data-spec-summary-data>
+      <Hint as="div" flex flexWrap items="center" gapX="2" gapY="1" size="xs" data-spec-summary-data>
         <span>
           Revision {plan.revision} · <code>{shortHash(plan.hash)}</code> · {plan.state}
         </span>
@@ -452,7 +442,7 @@ function SpecAiSummary(props: { plan: SpecPlan; spec: SpecSummary; onRetry?: () 
           {spec.folder} · {spec.files.join(', ') || 'no files'}
         </span>
         <SeverityBadges counts={review?.openBySeverity} label="Open review findings" />
-      </Box>
+      </Hint>
     </Stack>
   )
 }
@@ -511,9 +501,9 @@ function SpecDetail(props: {
                 <Box as="p" size="sm">
                   Not imported. Import stores this folder as a draft spec, so you can check and approve it. It approves nothing and starts nothing.
                 </Box>
-                <Box as="p" mt="1" size="sm" tone="muted">
+                <Hint as="p" mt="1" size="sm">
                   {spec.folder} · {spec.files.join(', ') || 'no files'}
-                </Box>
+                </Hint>
               </>
             )}
             {plan?.disk.changed && (
@@ -522,13 +512,13 @@ function SpecDetail(props: {
               </Box>
             )}
             {plan && blocker && (
-              <Box as="p" mt="1" size="sm" tone="muted">
+              <Hint as="p" mt="1" size="sm">
                 {blocker}
-              </Box>
+              </Hint>
             )}
-            <Box as="p" mt="2" size="xs" tone="muted">
+            <Hint as="p" mt="2" size="xs">
               Avoozl delivers this spec. Do not use Spec Builder&apos;s Approve tasks or Kiro&apos;s Run all Tasks on it.
-            </Box>
+            </Hint>
           </SpecCard>
 
           {props.details}
@@ -592,9 +582,9 @@ function SpecDetail(props: {
                   {critique.current ? 'Reviews this revision.' : `Reviews ${shortHash(critique.reviewedHash)}, not this revision.`}
                 </Box>
                 {critique.findings.length === 0 ? (
-                  <Box as="p" mt="1" size="sm" tone="muted">
+                  <Hint as="p" mt="1" size="sm">
                     No findings.
-                  </Box>
+                  </Hint>
                 ) : (
                   <Box as="ul" mt="2" flex flexCol gap="1" size="sm">
                     {critique.findings.map((f) => (
@@ -670,9 +660,9 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
   const fold = (children: ReactNode) =>
     props.fold ? (
       <details data-phase-tasks-fold>
-        <Box as="summary" cursorPointer size="sm" tone="muted">
+        <Hint as="summary" cursorPointer size="sm">
           Show the task list ({leaves.length})
-        </Box>
+        </Hint>
         <Box mt="2">{children}</Box>
       </details>
     ) : (
@@ -696,9 +686,9 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
                 <div key={id ?? '(none)'}>
                   <Box as="h4" size="sm" weight="medium">
                     {group.title}{' '}
-                    <Box as="span" size="xs" weight="normal" tone="muted">
+                    <Hint as="span" size="xs" weight="normal">
                       {group.tasks.filter((t) => nodeState(t) === 'done').length}/{group.tasks.length}
-                    </Box>
+                    </Hint>
                   </Box>
                   <Box as="ul" mt="1" flex flexCol gap="0.5" size="sm">
                     {group.tasks.map((task) => (
@@ -706,9 +696,9 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
                         <PlainButton type="button" minW0 truncate align="left" hoverUnderline onClick={() => props.onOpenTask(task.id)}>
                           {task.title}
                         </PlainButton>
-                        <Box as="span" shrink0 size="xs" tone="muted">
+                        <Hint as="span" shrink0 size="xs">
                           {STATES.find((state) => state.id === nodeState(task))?.label}
-                        </Box>
+                        </Hint>
                       </Box>
                     ))}
                   </Box>
@@ -752,9 +742,9 @@ export function ProgressBar({ tasks }: { tasks: { total: number; done: number } 
         <Box as="span" css-color="ok-text-ok" weight="semibold" tabularNums>
           {percent}%
         </Box>
-        <Box as="span" tabularNums tone="muted">
+        <Hint as="span" tabularNums>
           {tasks.done}/{tasks.total}
-        </Box>
+        </Hint>
       </Box>
       <Box
         role="progressbar"
@@ -1046,9 +1036,9 @@ export function SpecList(props: {
   return (
     <>
       {sorted.some((row) => specChip(row) === 'draft') && (
-        <Box data-spec-legend as="p" m0 px="2" pb="1" size="xs" tone="muted">
+        <Hint data-spec-legend as="p" m0 px="2" pb="1" size="xs">
           Grey titles are drafts.
-        </Box>
+        </Hint>
       )}
       <Box as="ul" m0 flex listNone flexCol p="0" data-spec-list>
         {pages.take('specs', sorted).map((row) => {
@@ -1081,13 +1071,13 @@ export function SpecList(props: {
                 {chip === 'draft' ? (
                   // A draft has no badge: its title is in the muted theme color, the
                   // word stays for screen readers, and the row has a Draft tooltip.
-                  <Box as="span" css-color="muted" minW0 flex1 truncate size="sm" weight="medium" data-spec-name="draft">
+                  <Hint as="span" minW0 flex1 truncate size="sm" weight="medium" data-spec-name="draft">
                     {row.name}
                     <Box as="span" srOnly>
                       {' '}
                       ({SPEC_CHIP_LABEL.draft})
                     </Box>
-                  </Box>
+                  </Hint>
                 ) : (
                   <>
                     <Box as="span" minW0 flex1 truncate size="sm" weight="medium" data-spec-name="">
@@ -1097,7 +1087,7 @@ export function SpecList(props: {
                   </>
                 )}
               </Box>
-              <Box as="span" flex minW0 flexWrap items="center" gapX="2" gapY="0.5" size="xs" tone="muted">
+              <Hint as="span" flex minW0 flexWrap items="center" gapX="2" gapY="0.5" size="xs">
                 <Box as="span" tabularNums>
                   {row.tasks.total} {row.tasks.total === 1 ? 'task' : 'tasks'}
                 </Box>
@@ -1115,7 +1105,7 @@ export function SpecList(props: {
                 )}
                 {batch !== undefined && <Badge>Batch {batch}</Badge>}
                 {row.archived && <Badge>Archived</Badge>}
-              </Box>
+              </Hint>
             </PlainButton>
           )
           return (
@@ -1265,7 +1255,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
         >
           {row.name}
         </Box>
-        <Box
+        <Hint
           data-spec-meta
           as="p"
           css-margin="12px-0-0"
@@ -1275,7 +1265,6 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
           css-gap="8"
           css-font-size="12.5"
           css-line-height="19.4px"
-          css-color="muted"
         >
           {specMeta(row, plan).map((part, i) => (
             <Box key={i} as="span" css-display="contents">
@@ -1284,7 +1273,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
             </Box>
           ))}
           {props.driver}
-        </Box>
+        </Hint>
       </Box>
       <Box
         data-spec-actions
@@ -1299,9 +1288,9 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
         css-padding-right={pad}
       >
         <StatePill status={row.status} archived={Boolean(row.archived)} />
-        <Box data-spec-id as="span" css-font-size="12.5" css-color="muted" css-font-family="font-mono-ui-monospace-monospace" css-overflow-wrap="anywhere">
+        <Hint data-spec-id as="span" css-font-size="12.5" css-font-family="font-mono-ui-monospace-monospace" css-overflow-wrap="anywhere">
           {id}
-        </Box>
+        </Hint>
         <Box as="span" css-display="inline-flex" css-align-items="stretch" css-gap="6">
           <Tooltip text={primaryButton.tooltip}>
             {(describedBy) => (
@@ -1896,12 +1885,12 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
           <Switch label="Also delete the spec folder from the repo" checked={folder} onChange={setFolder}>
             Also delete the spec folder (.kiro/specs/{preview.spec}/) from the repo.
           </Switch>
-          <Box as="code" css-overflow-wrap="anywhere" pl="6" size="xs" tone="muted">
+          <Hint as="code" css-overflow-wrap="anywhere" pl="6" size="xs">
             {preview.folder.path}
-          </Box>
-          <Box as="span" pl="6" size="xs" tone="muted">
+          </Hint>
+          <Hint as="span" pl="6" size="xs">
             Only the working tree. Avoozl never commits or pushes this.
-          </Box>
+          </Hint>
           {folder && preview.folder.dirty && (
             <Box role="alert" as="span" pl="6" size="xs" tone="danger">
               {preview.folder.reason}
@@ -1930,46 +1919,43 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
         </colgroup>
         <thead>
           <tr>
-            <Box
+            <Hint
               as="th"
               css-padding="6px-10px"
               css-font-weight="600"
               css-white-space="nowrap"
-              css-color="text-muted-muted"
               css-background="bg-elevated"
               css-border-bottom="1px-solid-border"
               css-text-align="left"
             >
               Spec
-            </Box>
+            </Hint>
             {!props.phone && (
-              <Box
+              <Hint
                 as="th"
                 css-padding="6px-10px"
                 css-font-weight="600"
                 css-white-space="nowrap"
-                css-color="text-muted-muted"
                 css-background="bg-elevated"
                 css-border-bottom="1px-solid-border"
                 css-text-align="left"
               >
                 Revision
-              </Box>
+              </Hint>
             )}
             {!props.phone && (
-              <Box
+              <Hint
                 as="th"
                 css-padding="6px-10px"
                 css-font-weight="600"
                 css-white-space="nowrap"
-                css-color="text-muted-muted"
                 css-background="bg-elevated"
                 css-border-bottom="1px-solid-border"
                 css-text-align="right"
                 css-font-variant-numeric="tabular-nums"
               >
                 Tasks
-              </Box>
+              </Hint>
             )}
           </tr>
         </thead>
@@ -1987,9 +1973,9 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
                 </Box>
                 {!props.phone && (
                   <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap">
-                    <Box as="code" size="xs" tone="muted">
+                    <Hint as="code" size="xs">
                       {shortHash(entry.hash)}
-                    </Box>
+                    </Hint>
                   </Box>
                 )}
                 {!props.phone && (
@@ -2842,9 +2828,9 @@ export default function PlansView(props: {
           </Hint>
         )}
         {table?.problem && (
-          <Box as="p" mt="2" size="xs" tone="muted">
+          <Hint as="p" mt="2" size="xs">
             Spec folders: {table.problem}
-          </Box>
+          </Hint>
         )}
       </Stack>
     </Stack>

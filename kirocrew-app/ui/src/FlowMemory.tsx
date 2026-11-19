@@ -100,9 +100,9 @@ function ProposalCard({
       </Box>
       {proposal.base && <Hint size="xs">Base {proposal.base.slice(0, 12)}</Hint>}
       <DiffBlock diff={proposal.diff} label={`Diff of ${proposalText(proposal)}`} />
-      <Box as="span" css-overflow-wrap="anywhere" size="xs" tone="muted">
+      <Hint as="span" css-overflow-wrap="anywhere" size="xs">
         Evidence: {evidenceText(proposal)}
-      </Box>
+      </Hint>
       {proposal.leaf && (
         <Box as="span" size="xs">
           Delivered as task {proposal.leaf}.
@@ -287,7 +287,7 @@ export function ProposalsView({
         </ErrorText>
       )}
       {!value.available && (
-        <Box as="p" flex flexWrap items="center" gapX="3" gapY="1" size="sm" tone="muted">
+        <Hint as="p" flex flexWrap items="center" gapX="3" gapY="1" size="sm">
           <span>This Avoozl process has no settings folder, so prompt overrides are off.</span>
           <AskForHelp
             workspaceId={workspaceId}
@@ -299,7 +299,7 @@ export function ProposalsView({
               docs: 'README.md, sections Flow and Configuration and secrets',
             }}
           />
-        </Box>
+        </Hint>
       )}
       <Card flex flexCol gap="2">
         <SectionHeading title="Proposals" />

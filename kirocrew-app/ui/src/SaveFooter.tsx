@@ -38,10 +38,10 @@ export function SaveFooter(props: {
       css-background="bg-accent-bg-elevated"
       css-border-top="1px-solid-border"
     >
-      <Box as="span" css-margin-right="auto" size="xs" tone="muted">
+      <Hint as="span" css-margin-right="auto" size="xs">
         {props.dirty ? 'Unsaved changes. ' : ''}
         {props.note ?? ''}
-      </Box>
+      </Hint>
       {props.problem && props.dirty && (
         <ErrorText role="alert" as="span" size="sm" data-save-problem>
           {props.problem}

@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { Card } from './ui/Card'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { Box } from './ui/Box'
+import { Hint } from './ui/Hint'
 
 export default function SetupCard(props: { id: string; title: string; line: string; action?: ReactNode; children?: ReactNode }) {
   return (
@@ -16,9 +17,9 @@ export default function SetupCard(props: { id: string; title: string; line: stri
         </Box>
         <Tooltip text={props.line} display="block">
           {(describedBy) => (
-            <Box tabIndex={0} aria-describedby={describedBy} as="p" m0 truncate size="xs" tone="muted" data-card-line>
+            <Hint tabIndex={0} aria-describedby={describedBy} as="p" m0 truncate size="xs" data-card-line>
               {props.line}
-            </Box>
+            </Hint>
           )}
         </Tooltip>
         {props.children}

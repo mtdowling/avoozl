@@ -86,10 +86,10 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
               {item.repository} #{item.number}
             </PlainLink>
             <Badge variant={VARIANT[item.state] ?? 'info'}>{DRAFT_STATE_TEXT[item.state]}</Badge>
-            <Box as="span" css-overflow-wrap="anywhere" tone="muted">
+            <Hint as="span" css-overflow-wrap="anywhere">
               {item.title} · for {item.reviewer}
               {item.state === 'stale' && item.headSha && item.staleHead ? ` · reviews ${item.headSha.slice(0, 7)}, now at ${item.staleHead.slice(0, 7)}` : ''}
-            </Box>
+            </Hint>
             {item.chat && (
               <PlainLink href={linkHref(item.chat)} size="xs">
                 Open chat

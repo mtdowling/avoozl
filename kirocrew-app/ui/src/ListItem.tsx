@@ -6,6 +6,7 @@
 import type { ReactNode } from 'react'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { Box } from './ui/Box'
+import { Hint } from './ui/Hint'
 
 export interface ListFact {
   label: string
@@ -61,7 +62,7 @@ export default function ListItem(props: { title: ReactNode; actions?: ReactNode;
         )}
       </Box>
       {facts.length > 0 && (
-        <Box as="dl" css-grid-template-columns="repeat-auto-fill-minmax-min-100%-15rem-1fr" m0 grid gapX="4" gapY="0.5" size="xs" tone="muted" data-list-facts>
+        <Hint as="dl" css-grid-template-columns="repeat-auto-fill-minmax-min-100%-15rem-1fr" m0 grid gapX="4" gapY="0.5" size="xs" data-list-facts>
           {facts.map((fact) => (
             <Box key={fact.label} flex minW0 items="baseline" gap="1.5" data-fact={fact.label}>
               <Box as="dt" shrink0>
@@ -72,7 +73,7 @@ export default function ListItem(props: { title: ReactNode; actions?: ReactNode;
               </Box>
             </Box>
           ))}
-        </Box>
+        </Hint>
       )}
     </Box>
   )

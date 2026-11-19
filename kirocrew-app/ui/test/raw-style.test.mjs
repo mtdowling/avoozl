@@ -121,3 +121,29 @@ test('the counter reads className, style, <style> and var(-- in a view', () => {
     cssVariable: 2,
   })
 })
+
+// Muted text is a Hint, so a new look for hints is one edit (D1, proof
+// uc-p1): a view's Box takes no muted text color of its own. Buttons and
+// icons in the muted color are not hints and keep it.
+const MUTED = { tone: ['muted'], 'css-color': ['muted', 'text-muted-muted'] }
+export function mutedBoxes(file, text) {
+  const { program } = parseSync(file, text, { lang: 'tsx' })
+  let n = 0
+  const visit = (node) => {
+    if (Array.isArray(node)) return node.forEach(visit)
+    if (!node || typeof node !== 'object') return
+    if (node.type === 'JSXOpeningElement' && node.name.type === 'JSXIdentifier' && node.name.name === 'Box')
+      for (const a of node.attributes) if (a.type === 'JSXAttribute' && MUTED[a.name.name]?.includes(a.value?.type === 'Literal' ? a.value.value : undefined)) n++
+    for (const key of Object.keys(node)) if (key !== 'type') visit(node[key])
+  }
+  visit(program)
+  return n
+}
+
+test('muted text in a view is a Hint, not a muted Box', () => {
+  const found = walk(srcDir)
+    .filter((file) => file.endsWith('.tsx') && mutedBoxes(file, readFileSync(file, 'utf8')))
+    .map((file) => path.relative(srcDir, file).split(path.sep).join('/'))
+  assert.deepEqual(found, [])
+  assert.equal(mutedBoxes('x.tsx', '<><Box tone="muted" /><Box css-color="muted" /><Box tone="danger" /><Hint /></>'), 2)
+})

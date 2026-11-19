@@ -42,9 +42,9 @@ export default function IntegrationBranches(props: { workspaceId: string | null 
               {row.branch}
             </Box>
             {row.checks && <Badge variant={VARIANT[row.checks] ?? 'info'}>{row.checks}</Badge>}
-            <Box as="span" css-overflow-wrap="anywhere" tone="muted">
+            <Hint as="span" css-overflow-wrap="anywhere">
               {branchLine(row)}
-            </Box>
+            </Hint>
             {row.error && <Hint>Last read failed: {row.error}</Hint>}
           </Box>
         ))}
