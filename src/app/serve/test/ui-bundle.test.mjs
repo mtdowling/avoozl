@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash, createHmac, randomBytes } from "node:crypto";
+
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -13,6 +13,7 @@ import {
   writeUiStamp,
 } from "../ui-bundle.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
+import { SECRET, sign } from "../../test/signed-principal.mjs";
 
 const SECRET = "test-proxy-secret",
   repoUi = fileURLToPath(
@@ -51,33 +52,6 @@ test("a page built from the ui/src beside it passes; a stale or missing one name
 test("the build stamps the page it wrote", () => {
   assert.equal(uiBundleProblem(repoUi), null);
 });
-
-// Mirrors kiro_crew/apps/proxy_auth.py `sign_proxy_principal_claim`.
-function sign(body) {
-  const issuedAt = Math.floor(Date.now() / 1000),
-    encoded = Buffer.from(
-      JSON.stringify({
-        issuedAt,
-        kind: "owner-session",
-        ownerId: "owner",
-        requestId: randomBytes(16).toString("hex"),
-        version: 1,
-      }),
-    ).toString("base64url"),
-    signature = createHmac("sha256", SECRET)
-      .update(
-        [
-          "kirocrew-proxy-principal-v1",
-          String(issuedAt),
-          "POST",
-          "/api/command",
-          createHash("sha256").update(body).digest("hex"),
-          encoded,
-        ].join("\n"),
-      )
-      .digest("hex");
-  return `${encoded}.${signature}`;
-}
 
 test("the backend answers a stale page's requests with the update command", async (t) => {
   const root = temporaryDirectory(),
