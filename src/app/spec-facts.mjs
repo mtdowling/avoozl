@@ -62,7 +62,7 @@ const KEYS = {
   ship: { as: "ship", type: "text" },
   tags: { as: "tags", type: "list" },
   resources: { as: "resources", type: "list" },
-  paths: { as: "paths", type: "list" },
+  paths: { as: "paths", type: "list", item: (text) => pathOf(text) },
   labels: { as: "labels", type: "list" },
   needs: { as: "needs", type: "list" },
   session: { as: "session", type: "json" },
@@ -126,11 +126,27 @@ function problem(code, line, message, extra = {}) {
   return { code, line, message, ...extra };
 }
 
-const split = (value) =>
-  value
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
+// A list's items: its text split on commas outside backticks, so
+// `src/{a,b}.js` stays one item.
+function split(value) {
+  const parts = [""];
+  let quoted = false;
+  for (const char of value) {
+    if (char === "`") quoted = !quoted;
+    if (char === "," && !quoted) parts.push("");
+    else parts[parts.length - 1] += char;
+  }
+  return parts.map((part) => part.trim()).filter(Boolean);
+}
+
+// A path as a task's Files note writes it, such as `src/a.nupp` (new): the
+// backticks, a note in parentheses after it and a sentence's closing period
+// are not part of the path.
+function pathOf(item) {
+  const text = item.trim().replace(/([^./])\.$/, "$1"),
+    quoted = /^`([^`]+)`(?:\s*\([^)]*\))?$/.exec(text);
+  return quoted ? quoted[1] : text.replace(/\s+\([^)]*\)$/, "");
+}
 
 // Read one key: `inline` is the text after the colon, `nested` the child
 // bullets as [{line, text}]. Returns {value} or {error}.
@@ -144,7 +160,8 @@ function readValue(key, spec, inline, nested) {
     const items = nested.length
       ? nested.map((item) => item.text)
       : split(inline);
-    if (spec.type === "list") return { value: items };
+    if (spec.type === "list")
+      return { value: spec.item ? items.map(spec.item) : items };
     return {
       value: items.map((item) => {
         const at = item.indexOf(":");

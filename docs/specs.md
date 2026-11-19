@@ -35,7 +35,10 @@ repo: app
 The facts give the task's kind, its acceptance (`$done`), its dependencies
 (`$after`), and its completion level. Each fact is one bullet on one line. A
 list is comma-separated (`$after: 1.1, 1.2`) or the same fact written again,
-and each `$done:` bullet is one result. The front matter holds defaults for
+and each `$done:` bullet is one result. A comma inside backticks does not
+split. `$paths` also reads a Files note as written: in
+``$paths: `src/a.nupp` (new), `README.md`.`` the backticks, the `(new)` note
+and the closing period are not part of the paths. The front matter holds defaults for
 every task, such as `repo`, written without the `$`.
 
 The summary says what the task delivers and how, and its worker reads it after
