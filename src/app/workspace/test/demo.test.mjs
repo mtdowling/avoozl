@@ -3,7 +3,7 @@
 // preview, never writes to GitHub or starts an agent, and leaves the
 // person's own workspace and settings exactly as they were.
 import assert from "node:assert/strict";
-import { createHash, createHmac, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -25,6 +25,7 @@ import {
   installDemo,
 } from "../demo.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
+import { SECRET, sign } from "../../test/signed-principal.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
@@ -199,32 +200,6 @@ test("the fake GitHub refuses every write and any method it does not know", asyn
   );
   assert.equal((await github.projectItems()).length, 13);
 });
-
-const SECRET = "test-proxy-secret";
-function sign(body) {
-  const issuedAt = Math.floor(Date.now() / 1000),
-    claim = {
-      issuedAt,
-      kind: "owner-session",
-      ownerId: "owner",
-      requestId: randomBytes(16).toString("hex"),
-      version: 1,
-    },
-    encoded = Buffer.from(JSON.stringify(claim)).toString("base64url"),
-    signature = createHmac("sha256", SECRET)
-      .update(
-        [
-          "kirocrew-proxy-principal-v1",
-          String(issuedAt),
-          "POST",
-          "/api/command",
-          createHash("sha256").update(body).digest("hex"),
-          encoded,
-        ].join("\n"),
-      )
-      .digest("hex");
-  return `${encoded}.${signature}`;
-}
 
 // Every file under `dir`, with its hash.
 function hashes(dir) {
