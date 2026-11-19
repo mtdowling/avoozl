@@ -66,7 +66,7 @@ of the other specs.
     - after: nk-1.1
   - Its row: write root the spec folder's `avoozl/` folder only.
 
-- [ ] nk-p1 Proof: investigate first with no Kiro Crew chat, after nk-2.1, nk-2.2, nk-2.3 [NK1, NK2] (§D2)
+- [x] nk-p1 Proof: investigate first with no Kiro Crew chat, after nk-2.1, nk-2.2, nk-2.3 [NK1, NK2] (§D2)
   - Facts:
     - done:
       - Expected: (1) each worker reports findings and each falsifier gives a verdict; (2) the first task lands, the second investigates again and then lands; (3) every session has executor `process` and no request for `kirocrew` was written.
@@ -78,6 +78,7 @@ of the other specs.
   - Expected: (1) each worker reports findings and each falsifier gives a verdict; (2) the first task lands, the second investigates again and then lands; (3) every session has executor `process` and no request for `kirocrew` was written.
   - Failure means: a machine with no Kiro Crew must still turn investigate first off.
   - Next decision: none.
+  - Proved: `docs/evidence/nk-p1-investigate-without-kirocrew.md` (2026-11-19, Claude Code at `a5f3e698`); fix #710.
 
 ## Phase 3: Roles with rules about who wrote what
 
