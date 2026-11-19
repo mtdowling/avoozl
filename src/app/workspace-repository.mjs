@@ -15,26 +15,9 @@ import {
   assertSafeConfig,
 } from "./layered-config.mjs";
 
-// Older workspaces published operator-confirmed Queue links; their portable
-// files keep this identity so publication and hydration still match them.
-function queueAssociationId(item, targetKind, targetId) {
-  return (
-    "github-queue-association:" +
-    digest(
-      [
-        item.repository,
-        item.kind,
-        item.nodeId || `#${item.number}`,
-        targetKind,
-        targetId,
-      ].join("\0"),
-    ).slice(0, 24)
-  );
-}
-
 const exec = promisify(execFile);
 const allowedPath =
-  /^(workspace\.json|designs\/[a-z][a-z0-9-]{2,80}\.(md|approval\.json)|tasks\/[a-z][a-z0-9-]{2,80}\.json|reviews\/[a-zA-Z0-9_.-]+\.json|associations\/github-[a-f0-9]{24}\.json|incidents\/andon-[A-Za-z0-9-]{8,100}\.json)$/;
+  /^(workspace\.json|designs\/[a-z][a-z0-9-]{2,80}\.(md|approval\.json)|tasks\/[a-z][a-z0-9-]{2,80}\.json|reviews\/[a-zA-Z0-9_.-]+\.json)$/;
 
 async function git(root, args, options = {}) {
   const { raw = false, ...execOptions } = options;
@@ -161,22 +144,6 @@ function taskForPublication(store, task) {
   };
 }
 
-function queueAssociationForPublication(association) {
-  return {
-    schemaVersion: 1,
-    repository: association.repository,
-    kind: association.kind,
-    nodeId: association.nodeId || null,
-    number: association.number,
-    bodyHash: association.bodyHash || null,
-    targetKind: association.targetKind,
-    targetId: association.targetId,
-    confirmedBy: association.confirmedBy || null,
-    confirmedAt: association.confirmedAt,
-    source: "operator-confirmed",
-  };
-}
-
 export function workspacePublication(store) {
   const repositories = store.list("github_repositories");
   const files = {
@@ -233,23 +200,6 @@ export function workspacePublication(store) {
       JSON.stringify(taskForPublication(store, task), null, 2) + "\n";
   for (const thread of store.list("review_threads"))
     files[`reviews/${thread.id}.json`] = JSON.stringify(thread, null, 2) + "\n";
-  for (const association of store
-    .list("github_queue_associations")
-    .filter((item) => item.source === "operator-confirmed")) {
-    const portable = queueAssociationForPublication(association),
-      id = queueAssociationId(
-        portable,
-        portable.targetKind,
-        portable.targetId,
-      ).slice("github-queue-association:".length);
-    files[`associations/github-${id}.json`] =
-      JSON.stringify(portable, null, 2) + "\n";
-  }
-  // Andon incidents from before the rule actions stay published as read-only
-  // history; nothing raises a new one.
-  for (const incident of store.list("safety_incidents"))
-    files[`incidents/${incident.id}.json`] =
-      JSON.stringify(portableIncident(incident), null, 2) + "\n";
   scanWorkspacePublication(files);
   return files;
 }
@@ -546,88 +496,6 @@ function importedReport(value) {
   };
 }
 
-function importedQueueAssociation(value, filename, commit, store, data) {
-  const allowedKeys = new Set([
-      "schemaVersion",
-      "repository",
-      "kind",
-      "nodeId",
-      "number",
-      "bodyHash",
-      "targetKind",
-      "targetId",
-      "confirmedBy",
-      "confirmedAt",
-      "source",
-    ]),
-    keys = value && typeof value === "object" ? Object.keys(value) : [],
-    validRepository =
-      typeof value?.repository === "string" &&
-      /^[^/\s]+\/[^/\s]+$/.test(value.repository) &&
-      value.repository.length <= 200,
-    validNode =
-      value?.nodeId === null ||
-      (typeof value?.nodeId === "string" &&
-        value.nodeId.length > 0 &&
-        value.nodeId.length <= 300),
-    validHash =
-      value?.bodyHash === null ||
-      (typeof value?.bodyHash === "string" &&
-        /^[a-f0-9]{64}$/i.test(value.bodyHash)),
-    validActor =
-      value?.confirmedBy === null ||
-      (typeof value?.confirmedBy === "string" &&
-        value.confirmedBy.length > 0 &&
-        value.confirmedBy.length <= 200),
-    validTimestamp =
-      typeof value?.confirmedAt === "string" &&
-      value.confirmedAt.length <= 40 &&
-      Number.isFinite(Date.parse(value.confirmedAt));
-  if (
-    value?.schemaVersion !== 1 ||
-    keys.some((key) => !allowedKeys.has(key)) ||
-    !validRepository ||
-    !["issue", "pull-request"].includes(value.kind) ||
-    !validNode ||
-    !Number.isInteger(value.number) ||
-    value.number < 1 ||
-    !validHash ||
-    !["task", "plan"].includes(value.targetKind) ||
-    !/^[a-z][a-z0-9-]{2,80}$/.test(value.targetId || "") ||
-    !validActor ||
-    !validTimestamp ||
-    value.source !== "operator-confirmed"
-  )
-    fail("Invalid portable Queue association record.");
-  const id = queueAssociationId(value, value.targetKind, value.targetId),
-    suffix = id.slice("github-queue-association:".length);
-  if (filename !== `associations/github-${suffix}.json`)
-    fail("Portable Queue association identity does not match its path.");
-  const target =
-    value.targetKind === "task"
-      ? data.tasks.find((task) => task.id === value.targetId)
-      : store.get("plans", value.targetId);
-  if (!target || (value.targetKind === "plan" && target.deletedAt))
-    fail("Portable Queue association target does not exist.");
-  return {
-    id,
-    queueItemId: `github-queue:${value.repository}:${value.kind}:${value.nodeId || value.number}`,
-    repository: value.repository,
-    kind: value.kind,
-    nodeId: value.nodeId,
-    number: value.number,
-    bodyHash: value.bodyHash,
-    targetKind: value.targetKind,
-    targetId: value.targetId,
-    title: target.title,
-    confirmedBy: value.confirmedBy || undefined,
-    confirmedAt: value.confirmedAt,
-    source: "operator-confirmed",
-    portable: true,
-    portableCommit: commit,
-  };
-}
-
 export async function syncWorkspaceRepository(store) {
   const config = store.getMeta("workspaceRepository");
   if (!config) fail("Configure a workspace repository first.", 409);
@@ -646,8 +514,6 @@ export async function syncWorkspaceRepository(store) {
       Object.entries(files).map(([name, text]) => [name, digest(text)]),
     ),
     conflicts = [];
-  // A published andon incident file is old history. The andon gate is gone, so
-  // an incoming incident is not imported; local history stays as it was.
   store.transaction(() => {
     const data = structuredClone(store.read());
     if (manifest.reports !== undefined) {
@@ -742,26 +608,6 @@ export async function syncWorkspaceRepository(store) {
               "Imported from portable workspace revision " +
               commit.slice(0, 12),
           });
-    }
-    for (const [name, text] of Object.entries(files)) {
-      if (!name.startsWith("associations/")) continue;
-      const next = importedQueueAssociation(
-          JSON.parse(text),
-          name,
-          commit,
-          store,
-          data,
-        ),
-        local = store.get("github_queue_associations", next.id);
-      if (
-        local &&
-        JSON.stringify(queueAssociationForPublication(local)) !==
-          JSON.stringify(queueAssociationForPublication(next))
-      ) {
-        conflicts.push(name);
-        continue;
-      }
-      store.put("github_queue_associations", next);
     }
     if (conflicts.length)
       fail(
@@ -871,38 +717,4 @@ Requests team review of the exact Avoozl design revision \`${plan.hash}\`. Mergi
   store.put("receipts", receipt);
   store.event(null, "planning.pull-request", receipt);
   return receipt;
-}
-
-function portableIncident(incident) {
-  return {
-    schemaVersion: 1,
-    id: incident.id,
-    revision: incident.revision,
-    safetyEpoch: incident.safetyEpoch,
-    state: incident.state,
-    scope: incident.scope,
-    mode: incident.mode,
-    reason: incident.reason,
-    category: incident.category,
-    severity: incident.severity,
-    raisedBy: incident.raisedBy,
-    raisedPrincipal: incident.raisedPrincipal || null,
-    authorityReceipt: incident.authorityReceipt || null,
-    raisedAt: incident.raisedAt,
-    resolvedBy: incident.resolvedBy || null,
-    resolvedAt: incident.resolvedAt || null,
-    resumedBy: incident.resumedBy || null,
-    resumedAt: incident.resumedAt || null,
-    reviews: incident.reviews || [],
-    coordinator: incident.coordinator || null,
-    recurrenceOf: incident.recurrenceOf || null,
-    notes: (incident.notes || []).map((note) => ({
-      id: note.id,
-      text: note.text,
-      actor: note.actor,
-      at: note.at,
-      evidence: note.evidence || [],
-    })),
-    transitions: incident.transitions || [],
-  };
 }

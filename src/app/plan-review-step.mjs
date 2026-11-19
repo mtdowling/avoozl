@@ -326,12 +326,7 @@ async function cleanFinished(store, remove, notify) {
 function stopUnclaimedReviews(store) {
   store.transaction(() => {
     for (const round of listSpecReviewRounds(store).items) {
-      if (
-        round.state !== "running" ||
-        round.slot ||
-        store.list("runs").some((run) => run.review?.roundId === round.id)
-      )
-        continue;
+      if (round.state !== "running" || round.slot) continue;
       const requests = store
         .list("session_requests")
         .filter(

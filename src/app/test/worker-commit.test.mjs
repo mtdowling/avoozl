@@ -4,14 +4,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fixture, recordedRun } from "./fixtures.mjs";
+import { fixture, recordedRun, validateRun } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
-import {
-  git,
-  commitWorkerChanges,
-  integrateRun,
-  validateRun,
-} from "../git.mjs";
+import { git, commitWorkerChanges, integrateRun } from "../git.mjs";
 
 async function project(t) {
   const { store, root } = fixture(t),
@@ -31,7 +26,6 @@ async function project(t) {
   });
   const run = await recordedRun(store, {
     projectId: "fixture",
-    state: "running",
     taskId: "sample-task",
     id: "run-worker",
   });
@@ -42,8 +36,7 @@ async function project(t) {
     fs.writeFileSync(path.join(run.worktree, file), text);
   };
   const finish = async () => {
-    store.put("runs", { ...store.get("runs", run.id), state: "completed" });
-    const validation = await validateRun(store, run.id);
+    const validation = await validateRun(store, run);
     assert.equal(validation.passed, true);
     return validation;
   };

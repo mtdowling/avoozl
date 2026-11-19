@@ -264,7 +264,6 @@ export const PERSON_ONLY = new Map([
     "workspace.repository.sync",
     person("Only a person syncs the workspace repository."),
   ],
-  ["run.delete", person("Only a person deletes a past run.")],
   ["report.delete", person("Only a person deletes a report.")],
   ["visualization.delete", person("Only a person deletes a visualization.")],
 ]);
@@ -365,7 +364,6 @@ export const NOT_ON_MCP = new Map([
     "run.queue",
     "driver.open",
     "driver.context",
-    "driver.list",
     "concurrency.status",
     "openhands.profiles",
     "openhands.models",

@@ -6,17 +6,8 @@ import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const postMainTables = [
-  "run_capabilities",
-  "provider_events",
-  "surface_capabilities",
   "github_repositories",
   "github_issues",
-  "github_queue_repositories",
-  "github_queue_items",
-  "github_queue_associations",
-  "github_intake_capabilities",
-  "github_intake_generations",
-  "github_intake_deliveries",
   "review_threads",
   "review_rounds",
 ];
@@ -74,19 +65,6 @@ test("same-database upgrade and SQLite backup preserve durable workspace history
     at: "2026-11-09T08:00:00.000Z",
     taskIds: ["sample-task"],
   });
-  store.put("runs", {
-    id: "run-migrated",
-    taskId: "sample-task",
-    provider: "openhands",
-    providerSessionId: "conversation-migrated",
-    state: "completed",
-    expectedCommit: "1234567890abcdef",
-    pullRequest: {
-      nodeId: "PR_node",
-      number: 18,
-      url: "https://github.com/example/private/pull/18",
-    },
-  });
   store.put("evidence", {
     id: "evidence-migrated",
     taskId: "sample-task",
@@ -123,10 +101,6 @@ test("same-database upgrade and SQLite backup preserve durable workspace history
   assert.equal(store.read().tasks[0].github.nodeId, "ISSUE_node");
   assert.equal(store.get("plans", "plan-migrated").revision, 2);
   assert.equal(store.get("approvals", "approval-migrated").hash, "plan-hash");
-  assert.equal(
-    store.get("runs", "run-migrated").providerSessionId,
-    "conversation-migrated",
-  );
   assert.equal(store.get("evidence", "evidence-migrated").exitCode, 0);
   assert.equal(
     store.get("integration", "integration-migrated").commit,
@@ -152,19 +126,6 @@ test("same-database upgrade and SQLite backup preserve durable workspace history
     number: 17,
     bodyHash: "body-hash",
   });
-  store.put("github_queue_associations", {
-    id: "association-migrated",
-    repository: "example/private",
-    kind: "issue",
-    nodeId: "ISSUE_node",
-    number: 17,
-    bodyHash: "body-hash",
-    targetKind: "task",
-    targetId: "sample-task",
-    confirmedBy: "operator",
-    confirmedAt: "2026-11-09T11:00:00.000Z",
-    source: "operator-confirmed",
-  });
   store.put("review_threads", {
     id: "review-migrated",
     planId: "plan-migrated",
@@ -176,16 +137,11 @@ test("same-database upgrade and SQLite backup preserve durable workspace history
 
   store = new Store(backup);
   assert.equal(store.read().tasks[0].acceptanceEvidence.acceptedBy, "operator");
-  assert.equal(store.get("runs", "run-migrated").pullRequest.number, 18);
   assert.equal(
     store.get("evidence", "evidence-migrated").commit,
     "1234567890abcdef",
   );
   assert.equal(store.get("github_issues", "ISSUE_node").number, 17);
-  assert.equal(
-    store.get("github_queue_associations", "association-migrated").targetId,
-    "sample-task",
-  );
   assert.equal(store.get("review_threads", "review-migrated").state, "open");
   store.close();
 });
@@ -212,5 +168,80 @@ test("opening a store drops stored ideas and keeps other incoming items (RC30.3)
     store.list("incoming_items").map((row) => row.id),
     ["t"],
   );
+  store.close();
+});
+
+// Tables nothing writes to any more: runs, teams, the safety gate, execution
+// jobs, and the GitHub queue and intake.
+const DROPPED = [
+  "runs",
+  "run_capabilities",
+  "surface_capabilities",
+  "provider_events",
+  "usage_counters",
+  "usage_samples",
+  "deliveries",
+  "requests",
+  "execution_targets",
+  "execution_jobs",
+  "team_checkpoints",
+  "review_requests",
+  "safety_incidents",
+  "safety_permits",
+  "safety_submissions",
+  "github_intake_capabilities",
+  "github_intake_generations",
+  "github_intake_deliveries",
+  "github_queue_repositories",
+  "github_queue_items",
+  "github_queue_associations",
+];
+
+test("opening an older database drops the tables nothing writes to and keeps the rest", () => {
+  const database = path.join(
+      temporaryDirectory("avoozl-dropped-"),
+      "store.sqlite",
+    ),
+    tables = (store) =>
+      new Set(
+        store.db
+          .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+          .all()
+          .map((row) => row.name),
+      );
+  let store = new Store(database);
+  store.importSnapshot(snapshot());
+  store.put("plans", { id: "kept", title: "Kept" });
+  for (const name of DROPPED)
+    store.db.exec(`CREATE TABLE ${name}(id TEXT PRIMARY KEY, body TEXT)`);
+  store.db.exec("INSERT INTO runs VALUES ('run-old', '{}')");
+  store.setMeta("runArchive:run-old", "2026-01-01T00:00:00Z");
+  store.setMeta("kept", true);
+  store.close();
+
+  store = new Store(database);
+  const present = tables(store);
+  for (const name of DROPPED) assert.ok(!present.has(name), name);
+  assert.equal(store.get("plans", "kept").title, "Kept");
+  assert.equal(store.getMeta("runArchive:run-old"), null);
+  assert.equal(store.getMeta("kept"), true);
+  assert.equal(store.read().tasks.length > 0, true);
+  store.close();
+
+  // A second open has nothing to drop and still opens.
+  store = new Store(database);
+  assert.equal(store.get("plans", "kept").title, "Kept");
+  store.close();
+});
+
+test("a new database never creates the dropped tables", () => {
+  const store = new Store(":memory:"),
+    present = new Set(
+      store.db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all()
+        .map((row) => row.name),
+    );
+  for (const name of DROPPED) assert.ok(!present.has(name), name);
   store.close();
 });

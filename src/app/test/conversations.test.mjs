@@ -3,37 +3,9 @@ import assert from "node:assert/strict";
 import { fixture } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
 import { createPlan, approvePlan } from "../plans.mjs";
-import { runPage, planPage, viewSnapshot } from "../views.mjs";
+import { planPage, viewSnapshot } from "../views.mjs";
 
-test("conversation history starts at the latest events and pages backward without gaps", async (t) => {
-  const { store } = fixture(t);
-  store.put("runs", {
-    id: "run-history",
-    taskId: "conversation:history",
-    mode: "ask",
-    state: "completed",
-    prompt: "Original question",
-  });
-  // One transaction: 1200 separate commits each wait on a disk flush, which
-  // took 40 s+ on a busy disk.
-  store.transaction(() => {
-    for (let i = 0; i < 1200; i++)
-      store.event("run-history", "message", { text: "Message " + i });
-  });
-  const ops = new Operations(store),
-    recent = await ops.execute("run.get", { id: "run-history", limit: 80 });
-  assert.equal(recent.events.length, 80);
-  assert.equal(recent.events.at(-1).text, "Message 1199");
-  assert.equal(recent.hasEarlier, true);
-  const earlier = await ops.execute("run.get", {
-    id: "run-history",
-    before: recent.events[0].seq,
-    limit: 80,
-  });
-  assert.equal(earlier.events.at(-1).seq, recent.events[0].seq - 1);
-  assert.equal(earlier.events[0].text, "Message 1040");
-});
-test("workspace lists bound session payloads and exclude conversations from the plan library", async (t) => {
+test("conversations stay out of the plan library and the view snapshot drops document text", async (t) => {
   const { store } = fixture(t);
   const question = createPlan(store, {
     prompt: "Question",
@@ -52,209 +24,23 @@ test("workspace lists bound session payloads and exclude conversations from the 
       }),
     /conversation is not a plan/,
   );
-  for (let i = 0; i < 80; i++)
-    store.put("runs", {
-      id: "run-" + i,
-      taskId: "sample-task",
-      state: "completed",
-      mode: "ask",
-      provider: "codex",
-      prompt: "A question " + i + "x".repeat(20000),
-      createdAt: new Date(i * 1000).toISOString(),
-    });
-  const page = runPage(store, { limit: 12 });
-  assert.equal(page.items.length, 12);
-  assert.equal(page.total, 80);
-  assert(JSON.stringify(page).length < 8000);
-  assert.equal(page.items[0].id, "run-79");
   const data = store.read();
   data.documents.large = { id: "large", text: "x".repeat(100000), hash: "abc" };
   const view = viewSnapshot(data);
   assert.equal(view.documents.large.text, undefined);
   assert.equal(data.documents.large.text.length, 100000);
 });
-test("Now resolves task sessions independently of the bounded workspace history", async (t) => {
+test("task.sessions lists the task's Kiro Crew sessions and refuses an unknown task", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
-  store.put("runs", {
-    id: "run-original",
-    taskId: "sample-task",
-    state: "completed",
-    mode: "implement",
-    prompt: "Old task run",
-  });
-  for (let i = 0; i < 60; i++)
-    store.put("runs", {
-      id: "run-other-" + i,
-      taskId: "other-task",
-      state: "running",
-      mode: "implement",
-      prompt: "Other task run",
-      createdAt: new Date((i + 1) * 1000).toISOString(),
-    });
-  assert.equal(
-    (await ops.execute("task.sessions", { id: "sample-task" })).length,
-    0,
-    "Old completed work is not a current external session.",
-  );
-  store.put("runs", {
-    id: "run-current",
-    taskId: "sample-task",
-    state: "running",
-    mode: "implement",
-    prompt: "x".repeat(100000),
-    createdAt: new Date(0).toISOString(),
-  });
-  const active = await ops.execute("task.sessions", { id: "sample-task" });
   assert.deepEqual(
-    active.map((r) => r.id),
-    ["run-current"],
-  );
-  assert(JSON.stringify(active).length < 1000);
-  assert.equal(
-    runPage(store).items.some((r) => r.id === "run-current"),
-    false,
-    "Resolution must not rely on the first page.",
-  );
-  await ops.execute("activity", {
-    id: "sample-task",
-    action: "start",
-    owner: "Fixture agent",
-    sessionId: "saved-provider-thread",
-  });
-  store.put("runs", {
-    id: "run-linked",
-    taskId: "sample-task",
-    providerSessionId: "saved-provider-thread",
-    state: "completed",
-    mode: "implement",
-    prompt: "Linked task run",
-  });
-  assert.deepEqual(
-    (await ops.execute("task.sessions", { id: "sample-task" })).map(
-      (r) => r.id,
-    ),
-    ["run-linked", "run-current"],
-  );
-  store.put("runs", { ...store.get("runs", "run-linked"), deletedAt: "now" });
-  assert.deepEqual(
-    (await ops.execute("task.sessions", { id: "sample-task" })).map(
-      (r) => r.id,
-    ),
-    ["run-current"],
+    await ops.execute("task.sessions", { id: "sample-task" }),
+    [],
   );
   await assert.rejects(
     ops.execute("task.sessions", { id: "missing" }),
     /Task not found/,
   );
-});
-
-test("archiving is reversible, persists independently of run updates, and retains the transcript", async (t) => {
-  const { store } = fixture(t),
-    ops = new Operations(store),
-    run = {
-      id: "archive-chat",
-      taskId: "sample-task",
-      state: "completed",
-      mode: "ask",
-      prompt: "Keep this question",
-      updatedAt: "original",
-    };
-  store.put("runs", run);
-  store.event(run.id, "message", { text: "Keep this answer" });
-  const archived = await ops.execute("run.archive", { id: run.id });
-  assert.ok(archived.archivedAt);
-  assert.equal(
-    (await ops.execute("run.archive", { id: run.id })).archivedAt,
-    archived.archivedAt,
-    "Archive retries retain the first timestamp.",
-  );
-  assert.equal(
-    store.events({ runId: run.id }).filter((e) => e.kind === "run.archive")
-      .length,
-    1,
-  );
-  assert.equal(runPage(store).total, 0);
-  assert.equal(runPage(store, { archived: true }).total, 1);
-  assert.equal(runPage(store, { archived: "all" }).total, 1);
-  assert.equal(
-    runPage(store, { archived: true }).items[0].archivedAt,
-    archived.archivedAt,
-  );
-  store.put("runs", {
-    ...run,
-    state: "completed",
-    updatedAt: "later provider update",
-  });
-  const reload = new Operations(store),
-    detail = await reload.execute("run.get", { id: run.id });
-  assert.equal(detail.archivedAt, archived.archivedAt);
-  assert.equal(detail.events[0].text, "Keep this answer");
-  assert.equal((await reload.execute("run.list")).total, 0);
-  await reload.execute("run.unarchive", { id: run.id });
-  assert.equal(
-    (await reload.execute("run.get", { id: run.id })).archivedAt,
-    null,
-  );
-  assert.equal(runPage(store).total, 1);
-  assert.equal(runPage(store, { archived: true }).total, 0);
-  assert.equal(store.get("runs", run.id).state, "completed");
-});
-test("archiving active and external conversations does not hide ongoing work or affect agents", async (t) => {
-  const { store } = fixture(t),
-    manager = {
-      remote: true,
-      command() {
-        throw Error("Archiving must not call the agent manager");
-      },
-    },
-    ops = new Operations(store, { manager: null });
-  for (const [id, state] of [
-    ["live", "waiting-input"],
-    ["external", "observing"],
-  ]) {
-    store.put("runs", { id, taskId: "sample-task", state, mode: "ask" });
-    await ops.execute("run.archive", { id });
-    assert.equal(store.get("runs", id).state, state);
-  }
-  const active = await ops.execute("task.sessions", { id: "sample-task" });
-  assert.ok(
-    active.some((r) => r.id === "live"),
-    "Task session resolution still finds archived live work.",
-  );
-  assert.equal(runPage(store, { archived: true, limit: 1 }).items.length, 1);
-  assert.equal(runPage(store, { archived: true, limit: 1 }).total, 2);
-  assert.equal(
-    (await ops.execute("workspace")).runs.length,
-    2,
-    "Workspace activity retains archived sessions.",
-  );
-  ops.manager = manager;
-  await ops.execute("run.unarchive", { id: "live" });
-  assert.equal(store.get("runs", "live").state, "waiting-input");
-});
-test("archives exclude trash and return useful errors for missing conversations", async (t) => {
-  const { store } = fixture(t),
-    ops = new Operations(store);
-  store.put("runs", {
-    id: "deleted-chat",
-    state: "completed",
-    taskId: "sample-task",
-  });
-  await ops.execute("run.archive", { id: "deleted-chat" });
-  await ops.execute("run.delete", { id: "deleted-chat" });
-  assert.equal(runPage(store, { archived: true }).total, 0);
-  await assert.rejects(
-    ops.execute("run.archive", { id: "deleted-chat" }),
-    /not found/,
-  );
-  await assert.rejects(
-    ops.execute("run.unarchive", { id: "missing" }),
-    /not found/,
-  );
-  await ops.execute("run.restore", { id: "deleted-chat" });
-  assert.equal(runPage(store).total, 0);
-  assert.equal(runPage(store, { archived: true }).total, 1);
 });
 
 test("external landing metadata remains separate from acceptance and workspace receipts stay bounded", async (t) => {

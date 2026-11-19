@@ -1067,7 +1067,6 @@ const MOVED_TABLES = [
 const COLUMN_TABLES = [
   ["flow_spans", "task_id", []],
   ["flow_usage", "task_id", []],
-  ["usage_samples", "task_id", []],
   // The activity log (§4.16): a new machine numbers its own rows.
   ["activity_log", "target_id", ["seq"]],
 ];

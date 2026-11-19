@@ -88,7 +88,7 @@ test('Conflicts filter: kind with counts, plan, epic, repository, age and who ch
   const choices = conflictChoices(items, graph)
   assert.deepEqual(
     choices.kinds.map((k) => k.label),
-    ['GitHub edits (1)', 'Decisions (0)', 'Needs you (1)', 'Sessions and resources (0)'],
+    ['GitHub edits (1)', 'Decisions (0)', 'Needs you (1)', 'Sessions (0)'],
   )
   assert.deepEqual(choices.changedBy, [{ value: 'octo', label: 'octo' }])
   assert.deepEqual(

@@ -209,22 +209,6 @@ export function factCoverage(store, fact, { projectId } = {}) {
           `${plan.prompt || ""}\n${plan.text || ""}`,
         ),
       ),
-    ...store
-      .list("github_queue_items")
-      .filter((item) => ["issue", "pull-request"].includes(item.kind))
-      .filter(
-        (item) => !projectId || !item.projectId || item.projectId === projectId,
-      )
-      .map((item) =>
-        coverageCandidate(
-          fact,
-          item.kind,
-          item.id,
-          item.title,
-          `${item.summary || ""}\n${item.body || ""}`,
-          { repository: item.repository, url: item.url || null },
-        ),
-      ),
     ...codeCoverage(store, fact, projectId),
   ];
   return candidates

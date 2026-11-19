@@ -410,7 +410,7 @@ function operationRow(name, input, result) {
         targetId: id,
       };
   }
-  if (["plan.delete", "run.delete", "report.delete"].includes(name))
+  if (["plan.delete", "report.delete"].includes(name))
     return {
       kind: "delete",
       summary: `Deleted ${name.split(".")[0]} ${id}`,

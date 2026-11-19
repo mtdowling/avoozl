@@ -81,13 +81,9 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "plan.review.apply",
   "plan.review.pipeline",
   "plan.review.pipeline.get",
-  "driver.list",
   "driver.open",
   "driver.context",
-  "run.list",
-  "run.get",
   "run.context",
-  "run.event",
   "run.start",
   "run.send",
   "run.answer",
@@ -97,10 +93,6 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "run.model",
   "run.unsend",
   "run.queue",
-  "run.changes",
-  "run.validate",
-  "run.archive",
-  "run.unarchive",
   "integration.merge",
   "intent.submit",
   "intent.get",
@@ -355,27 +347,14 @@ export class WorkspaceClient {
       retitled,
     });
   }
-  runs(input = {}) {
-    return this.call("run.list", input);
-  }
-  drivers() {
-    return this.call("driver.list");
-  }
   openDriver(input = {}) {
     return this.call("driver.open", input);
   }
   updateDriverContext(input) {
     return this.call("driver.context", input);
   }
-  run(id, options = {}) {
-    return this.call("run.get", { id, ...options });
-  }
   runContext(runId) {
     return this.call("run.context", { runId });
-  }
-  // Durable sequence cursors, never arrival timestamps.
-  history(id, { before, after, limit = 200, compact = false } = {}) {
-    return this.call("run.get", { id, before, after, limit, compact });
   }
   events(input = {}) {
     if (this.transport.events) return this.transport.events(input);
@@ -416,13 +395,6 @@ export class WorkspaceClient {
   }
   reorderQueue({ id, order }) {
     return this.call("run.queue", { id, order });
-  }
-  // Read-only view of what a conversation changed in its own worktree.
-  changes({ id, path }) {
-    return this.call("run.changes", { id, path });
-  }
-  validate(id) {
-    return this.call("run.validate", { id });
   }
   integrate({ id, expectedCommit }) {
     return this.call("integration.merge", { id, expectedCommit });

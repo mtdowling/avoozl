@@ -243,35 +243,6 @@ test("registry adopts an existing workspace in place and retries idempotently", 
     });
     store.setMeta("workspaceId", "legacy-random-identity");
     store.setMeta("runtimeOwner", { id: "stale", pid: 2147483647 });
-    store.put("runs", {
-      id: "run-one",
-      taskId: "preserved",
-      state: "completed",
-      workspaceId: "legacy-random-identity",
-    });
-    store.put("runs", {
-      id: "run-two",
-      taskId: "preserved",
-      state: "failed",
-    });
-    const now = new Date().toISOString(),
-      later = new Date(Date.now() + 60000).toISOString();
-    store.db
-      .prepare("INSERT INTO run_capabilities VALUES (?,?,?,?,?,?)")
-      .run("run-live", "run-one", Buffer.alloc(32), later, null, "{}");
-    store.db
-      .prepare("INSERT INTO run_capabilities VALUES (?,?,?,?,?,?)")
-      .run("run-old", "run-one", Buffer.alloc(32), later, now, "{}");
-    for (const id of ["surface-one", "surface-two"])
-      store.db
-        .prepare("INSERT INTO surface_capabilities VALUES (?,?,?,?,?,?)")
-        .run(id, "run-one", "conversation", Buffer.alloc(32), later, "{}");
-    store.db
-      .prepare("INSERT INTO github_intake_capabilities VALUES (?,?,?,?,?,?)")
-      .run("intake-live", "owner/repo", Buffer.alloc(32), later, null, "{}");
-    store.db
-      .prepare("INSERT INTO github_intake_capabilities VALUES (?,?,?,?,?,?)")
-      .run("intake-old", "owner/repo", Buffer.alloc(32), later, now, "{}");
   } finally {
     store.close();
   }
@@ -284,13 +255,7 @@ test("registry adopts an existing workspace in place and retries idempotently", 
       adopted.migration.previousWorkspaceId,
       "legacy-random-identity",
     );
-    assert.deepEqual(adopted.migration.changes, {
-      runsUpdated: 2,
-      runCapabilitiesRevoked: 1,
-      surfaceCapabilitiesRevoked: 2,
-      intakeCapabilitiesRevoked: 1,
-      staleOwnersCleared: 1,
-    });
+    assert.deepEqual(adopted.migration.changes, { staleOwnersCleared: 1 });
     assert.equal(
       JSON.parse(fs.readFileSync(path.join(workspace, ".avoozl.json"), "utf8"))
         .workspaceId,
@@ -301,31 +266,6 @@ test("registry adopts an existing workspace in place and retries idempotently", 
       assert.equal(migrated.getMeta("workspaceId"), "legacy");
       assert.equal(migrated.read().tasks.length, 1);
       assert.equal(migrated.read().tasks[0].id, "preserved");
-      assert(
-        migrated.list("runs").every((run) => run.workspaceId === "legacy"),
-      );
-      assert.equal(
-        migrated.db
-          .prepare(
-            "SELECT COUNT(*) count FROM run_capabilities WHERE revoked_at IS NULL",
-          )
-          .get().count,
-        0,
-      );
-      assert.equal(
-        migrated.db
-          .prepare("SELECT COUNT(*) count FROM surface_capabilities")
-          .get().count,
-        0,
-      );
-      assert.equal(
-        migrated.db
-          .prepare(
-            "SELECT COUNT(*) count FROM github_intake_capabilities WHERE revoked_at IS NULL",
-          )
-          .get().count,
-        0,
-      );
     } finally {
       migrated.close();
     }
@@ -336,13 +276,7 @@ test("registry adopts an existing workspace in place and retries idempotently", 
     const retried = registry.adopt("legacy", { root: workspace });
     assert.equal(retried.alreadyRegistered, true);
     assert.equal(retried.migration.alreadyAdopted, true);
-    assert.deepEqual(retried.migration.changes, {
-      runsUpdated: 0,
-      runCapabilitiesRevoked: 0,
-      surfaceCapabilitiesRevoked: 0,
-      intakeCapabilitiesRevoked: 0,
-      staleOwnersCleared: 0,
-    });
+    assert.deepEqual(retried.migration.changes, { staleOwnersCleared: 0 });
     assert.equal(
       registry.catalog.db
         .prepare(
@@ -356,17 +290,15 @@ test("registry adopts an existing workspace in place and retries idempotently", 
   }
 });
 
-test("workspace adoption refuses active runs and live owners", () => {
+test("workspace adoption refuses protected operations and live owners", () => {
   const { env } = machineEnvironment(),
     workspace = initializedWorkspace("Busy"),
     database = workspaceConfig({ workspace }).dbPath,
     store = new Store(database);
   try {
-    store.put("runs", {
-      id: "run-active",
-      taskId: "missing",
-      state: "running",
-    });
+    store.db
+      .prepare("INSERT INTO work_locks VALUES (?,?,?,?,?)")
+      .run("busy", "fixture", "validation", process.pid, "token");
   } finally {
     store.close();
   }
@@ -374,13 +306,11 @@ test("workspace adoption refuses active runs and live owners", () => {
   try {
     assert.throws(
       () => registry.adopt("busy", { root: workspace }),
-      /1 active runs/,
+      /1 protected operations/,
     );
     const owned = new Store(database);
     try {
-      const run = owned.get("runs", "run-active");
-      run.state = "completed";
-      owned.put("runs", run);
+      owned.db.prepare("DELETE FROM work_locks").run();
       owned.setMeta("webOwner", { id: "live", pid: process.pid });
     } finally {
       owned.close();

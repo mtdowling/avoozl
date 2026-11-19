@@ -47,12 +47,6 @@ import { taskLinks } from "./scm-links.mjs";
 import { approvals, batchRules } from "./flow-batch.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
-const ACTIVE_RUNS = new Set([
-  "starting",
-  "running",
-  "waiting-input",
-  "waiting-approval",
-]);
 const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
 // Managed fields a person's choice can settle (github.conflict.resolve).
 const RESOLVABLE_FIELDS = new Set(["title", "body", "labels", "blockers"]);
@@ -848,7 +842,6 @@ export function deliveryView(store, data, { config } = {}) {
     machineAvoozlPaths(),
   );
   const bindings = byTask(bindingRows),
-    runs = byTask(optionalList(store, "runs")),
     evidence = byTask(optionalList(store, "evidence")),
     deliveries = byTask(optionalList(store, "task_deliveries")),
     worktrees = byTask(optionalList(store, "task_worktrees")),
@@ -924,7 +917,6 @@ export function deliveryView(store, data, { config } = {}) {
     if (
       !DELIVERY_STATUSES.has(task.status) &&
       !bindings.has(id) &&
-      !runs.has(id) &&
       !evidence.has(id) &&
       !deliveries.has(id) &&
       !worktrees.has(id) &&
@@ -997,14 +989,6 @@ export function deliveryView(store, data, { config } = {}) {
             : {}),
         }))
         .sort((a, b) => a.attempt - b.attempt || a.role.localeCompare(b.role)),
-      runs: (runs.get(id) || [])
-        .filter((run) => !run.deletedAt)
-        .map((run) => ({
-          id: run.id,
-          state: run.state,
-          provider: run.provider ?? null,
-          createdAt: run.createdAt ?? null,
-        })),
       evidence: [
         ...links.map((text) => ({ text: String(text) })),
         ...(evidence.get(id) || []).map((record) => ({
@@ -1078,8 +1062,7 @@ export function avoozlStates(store, data) {
 
 // Open conflicts and decisions: open decisions on tasks, GitHub projection
 // conflicts (managed fields, duplicate task IDs, closed issues), tasks
-// that need a person, sessions that ended under unfinished tasks, and active
-// runs that share a resource.
+// that need a person, and sessions that ended under unfinished tasks.
 // Issue Radar's hold on a GitHub leaf (github-crew.mjs), in plain words for
 // Needs you (R52.10); null for any other decision.
 function crewHoldText(task) {
@@ -1306,23 +1289,6 @@ export function conflictsView(store, data) {
     const task = byId.get(item.taskId);
     items.push({ ...item, ...(task ? ownership(task) : {}) });
   }
-  const holders = new Map();
-  for (const run of optionalList(store, "runs"))
-    if (ACTIVE_RUNS.has(run.state) && !run.deletedAt)
-      for (const resource of run.resources || []) {
-        if (!holders.has(resource)) holders.set(resource, []);
-        holders.get(resource).push(run);
-      }
-  for (const [resource, runs] of holders)
-    if (runs.length > 1)
-      items.push({
-        kind: "resource",
-        taskId: runs[0].taskId,
-        ...ownership(byId.get(runs[0].taskId)),
-        title: `Shared resource ${resource}`,
-        detail: `Active runs ${runs.map((run) => run.id).join(", ")} share ${resource}.`,
-        runs: runs.map((run) => run.id),
-      });
   for (const item of items) {
     const task = item.taskId ? byId.get(item.taskId) : null;
     item.planArchived = task ? archivedOf(task) : null;
@@ -1573,7 +1539,7 @@ export function taskOrigin(task, data, plan = null) {
 }
 
 // One task's events, newest first, from the rows' own times: the task row,
-// its sessions, evidence, deliveries, integration and runs. Avoozl keeps no
+// its sessions, evidence, deliveries and integration. Avoozl keeps no
 // separate task event log, so this is what "history" means on the page.
 export function taskTimeline(task, delivery) {
   return [
@@ -1602,13 +1568,6 @@ export function taskTimeline(task, delivery) {
       at: delivery.integration.at,
       text: `Integrated ${String(delivery.integration.commit || "").slice(0, 12)}`,
     },
-    ...(task.runs || delivery?.runs || []).map(
-      (run) =>
-        run.createdAt && {
-          at: run.createdAt,
-          text: `Run ${run.id} (${run.state})`,
-        },
-    ),
   ]
     .filter((entry) => entry && typeof entry.at === "string")
     .sort((a, b) => b.at.localeCompare(a.at));

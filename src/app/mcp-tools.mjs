@@ -212,7 +212,6 @@ const tools = {
         "landing.review",
         "open a review pull request for a queued batch branch, only when the person asks: {taskId}",
       ],
-      validate: ["run.validate", "run acceptance checks at the worktree head"],
       integrate: ["integration.merge", "rebase, revalidate, fast-forward"],
       accept: ["task.accept", "record acceptance evidence"],
       activity: ["activity", "an activity lease"],
@@ -309,7 +308,6 @@ const tools = {
       ],
       submit: ["intent.submit", "submit an intent"],
       get: ["intent.get", "read an intent"],
-      search_result: ["search.result", "keep a search result as a saved view"],
       submit_items: [
         "intake.submit",
         "send 1-100 items to an mcp intake source: {source, items}",
@@ -474,18 +472,6 @@ const tools = {
     actions: {
       rules: ["content.rules", "rule sets and their state"],
       check: ["content.check", "check text against the rules"],
-    },
-  },
-  plans_run: {
-    summary: "Past runs (read-only history).",
-    actions: {
-      list: ["run.list", "past runs"],
-      get: ["run.get", "one past run"],
-      changes: ["run.changes", "a run's changes"],
-      event: ["run.event", "one run event"],
-      archive: ["run.archive", "archive a past run"],
-      unarchive: ["run.unarchive", "undo archive"],
-      restore: ["run.restore", "restore a deleted run from trash"],
     },
   },
 };
