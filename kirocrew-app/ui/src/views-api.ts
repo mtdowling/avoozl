@@ -323,7 +323,7 @@ export interface DeliveryItem extends TaskOwner {
   links?: TaskLinks | null
   // The GitHub Project card, when the task is on the board.
   project?: { status: string | null; release: string | null; wave: number | null; notes: string[] } | null
-  // What a person must do before a remote leaf moves (route or plugin).
+  // What a person must do before the task moves (a manual step).
   needsYou?: unknown
   handSetReview?: boolean
   noSession?: 'review' | 'running' | null

@@ -3,8 +3,8 @@
 // when it cannot be used; this wrapper checks every reply against the
 // contract and turns any failure into one reason for that plugin. The first
 // failure marks the plugin unavailable for the rest of the tick, so its
-// tasks park as "needs you" and every other task keeps moving. The next
-// tick tries again.
+// intake source or rule sets show the reason and everything else keeps
+// moving. The next tick tries again.
 import { checkReply } from "./plugin-contract.mjs";
 
 export class PluginUnavailable extends Error {

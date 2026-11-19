@@ -14,7 +14,7 @@ import { initializeWorkspace } from "../workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 // Every read Home's page sends on first load: the shell, the nav, and each
-// Home card (DashboardView, ReleaseQueue, TrackerGates, IntegrationBranches,
+// Home card (DashboardView, ReleaseQueue, IntegrationBranches,
 // ReviewDrafts, ArmedPulls, the driver cell, setup cards).
 const HOME = [
   ["instance.view", {}],

@@ -1,4 +1,4 @@
-// The plugin contract (design §4.8, Requirements 22, 34): the calls Avoozl
+// The plugin contract (design §4.8, Requirement 34): the calls Avoozl
 // makes and the shape each reply must have. A plugin is outside code, so
 // every reply is checked here before anything reads it, and its text stays
 // untrusted data (quoted in briefs, escaped in views). A reply of the wrong
