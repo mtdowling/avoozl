@@ -307,7 +307,8 @@ function complete(task, { key, line, branch, found }) {
 // `read` is {branch, text, head, commits() -> line -> {commit, at}}.
 // Each ticked task keeps `tickCommit`, the base-branch commit that ticked
 // it: receipts and Flow look its CI up by it (R101.14, R113.14). It is read
-// once and kept. Returns the activity lines it wrote.
+// once and kept. With `read.land`, a done task with no landing lands at it.
+// Returns the activity lines it wrote.
 export async function applyTicks(store, plan, read) {
   const { ticked, present } = ticksOf(plan.spec, read.text),
     seenKey = `spec-ticks:${plan.id}`,
@@ -348,6 +349,18 @@ export async function applyTicks(store, plan, read) {
       )?.[1];
       if (commit) task.built = commit;
       if (ticks.has(id)) task.tickCommit = ticks.get(id);
+      if (
+        read.land &&
+        ticks.has(id) &&
+        statusComplete(next, task.status) &&
+        !task.integration?.commit
+      )
+        task.integration = {
+          commit: ticks.get(id),
+          branch: read.branch,
+          into: read.branch,
+          at: task.acceptanceEvidence?.at ?? new Date().toISOString(),
+        };
       if (!found.has(id)) continue;
       complete(task, {
         key: tick.key,

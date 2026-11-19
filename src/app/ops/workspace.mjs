@@ -29,7 +29,12 @@ import {
 } from "../mirror-policy.mjs";
 import { importNewPlans, newPlanStarts } from "../new-plan.mjs";
 import { queueNotifications } from "../notifications.mjs";
-import { inspectFolder, scanSpecs } from "../onboarding.mjs";
+import {
+  adoptRepository,
+  commitAuthors,
+  inspectFolder,
+  scanSpecs,
+} from "../onboarding.mjs";
 import { archiveEnded } from "../plan-retire.mjs";
 import { planReviewStep } from "../plan-review-step.mjs";
 import { runnerTick, workerTick } from "../remote-runner.mjs";
@@ -434,6 +439,28 @@ export const entries = [
     handler({ input }) {
       const store = this.store;
       return scanSpecs(store, (spec) => this.readSpec(spec), input.specs);
+    },
+  },
+
+  {
+    name: "onboarding.authors",
+    class: "observe",
+    policy: notOnMcp("App page rendering only."),
+    handler({ input }) {
+      return commitAuthors(input.folder);
+    },
+  },
+
+  // Adopt from git (design §4.42): the reader `workspace.rebuild` uses, over
+  // one added repository's specs, with the approvers the person confirmed.
+  {
+    name: "onboarding.adopt",
+    class: "protect",
+    policy: person("Only a person adopts a repository from git."),
+    handler({ input, context }) {
+      if (context.caller || context.mcp)
+        fail("Only a person adopts a repository from git.", 403);
+      return adoptRepository(this, input);
     },
   },
 
