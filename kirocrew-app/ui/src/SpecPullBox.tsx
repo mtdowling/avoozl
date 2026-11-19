@@ -15,8 +15,8 @@ import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 import { PlainInput } from './ui/Plain'
+import { DOT } from './ui/looks/SpecPullBox.ts'
 
-const DOT: Record<string, string> = { passing: 'var(--ok, #1a7f37)', failing: 'var(--danger)', pending: 'var(--muted)' }
 
 export function ChecksDot({ checks }: { checks: SpecPull['checks'] }) {
   if (!checks) return <Hint size="xs">No checks yet</Hint>

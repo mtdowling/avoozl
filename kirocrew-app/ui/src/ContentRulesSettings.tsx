@@ -52,6 +52,7 @@ import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
 import { PlainButton, PlainInput, PlainTextarea } from './ui/Plain'
+import { fieldStyle, mono } from './ui/looks/ContentRulesSettings.ts'
 
 type Client = ReturnType<typeof contentClient>
 type Selection = { kind: 'set' | 'builtin'; id: string } | { kind: 'new' }
@@ -296,19 +297,6 @@ function SetFormView(props: {
 // ---------------------------------------------------------------------------
 // The terms editor: Rule builder and File view over one text.
 
-// Native fields: the host Input fills its row, and a rule row needs three
-// fields side by side.
-const fieldStyle = {
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  background: 'var(--card, var(--bg))',
-  color: 'var(--text)',
-  padding: '4px 8px',
-  fontSize: 13,
-  minWidth: 0,
-  width: '100%',
-}
-const mono = { fontFamily: 'var(--mono, monospace)' }
 const rowGrid = { display: 'grid', gridTemplateColumns: 'minmax(6rem, 9rem) minmax(8rem, 10rem) minmax(0, 1fr) auto', gap: 8, alignItems: 'center' }
 const rowGridNarrow = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) auto', gap: 6, alignItems: 'center' }
 

@@ -1,10 +1,9 @@
 import { Tooltip } from './ui/Tooltip.tsx'
 import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
+import { selectStyle } from './ui/looks/FilterSelect.ts'
+export { selectStyle }
 
-// One labelled filter dropdown with an "All" choice, shared by the Graph and
-// Delivery filters so both look and behave the same.
-export const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
 // The label column of an inline filter: wide enough for a one-word label.
 export const INLINE_LABEL = '4rem'
