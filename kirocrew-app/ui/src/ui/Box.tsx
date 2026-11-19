@@ -18,12 +18,49 @@ type Styles = { [K in keyof typeof table.styles as `css-${K}`]?: K extends Free 
 }
 
 export type BoxTag =
-  | 'div' | 'span' | 'p' | 'ul' | 'ol' | 'li' | 'section' | 'header' | 'footer' | 'nav' | 'article' | 'aside' | 'main' | 'figure'
-  | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'dl' | 'dt' | 'dd' | 'code' | 'pre' | 'strong' | 'em' | 'small' | 'label'
-  | 'table' | 'thead' | 'tbody' | 'tr' | 'td' | 'th' | 'details' | 'summary' | 'fieldset' | 'legend'
+  | 'div'
+  | 'span'
+  | 'p'
+  | 'ul'
+  | 'ol'
+  | 'li'
+  | 'section'
+  | 'header'
+  | 'footer'
+  | 'nav'
+  | 'article'
+  | 'aside'
+  | 'main'
+  | 'figure'
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'h4'
+  | 'h5'
+  | 'dl'
+  | 'dt'
+  | 'dd'
+  | 'code'
+  | 'pre'
+  | 'strong'
+  | 'em'
+  | 'small'
+  | 'label'
+  | 'table'
+  | 'thead'
+  | 'tbody'
+  | 'tr'
+  | 'td'
+  | 'th'
+  | 'details'
+  | 'summary'
+  | 'fieldset'
+  | 'legend'
 
 export type BoxProps = Omit<HTMLAttributes<HTMLElement>, 'className' | 'style'> &
-  Pick<TdHTMLAttributes<HTMLElement>, 'colSpan' | 'rowSpan' | 'scope'> & { htmlFor?: string; open?: boolean; children?: ReactNode; as?: BoxTag } & { [K in Flags]?: boolean } & { [K in keyof Scales]?: Scales[K] } & Styles
+  Pick<TdHTMLAttributes<HTMLElement>, 'colSpan' | 'rowSpan' | 'scope'> & { htmlFor?: string; open?: boolean; children?: ReactNode; as?: BoxTag } & { [K in Flags]?: boolean } & {
+    [K in keyof Scales]?: Scales[K]
+  } & Styles
 
 const FLAGS = table.flags as Record<string, string>
 const SCALES = table.scales as Record<string, Record<string, string>>
