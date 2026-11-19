@@ -11,6 +11,7 @@ import type { FieldRule } from './settings-api.ts'
 import { Hint } from './ui/Hint'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export const FIELD_WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 export type FieldWidth = keyof typeof FIELD_WIDTH
@@ -116,9 +117,9 @@ export function FieldRow(props: {
       {control}
       {lines}
       {props.onReset && (
-        <button type="button" className="self-start text-xs underline" style={{ color: 'var(--accent)' }} onClick={props.onReset} data-field-reset={props.id}>
+        <PlainButton type="button" css-color="accent" self="start" size="xs" underline onClick={props.onReset} data-field-reset={props.id}>
           Reset to default{props.defaultText ? ` (${props.defaultText})` : ''}
-        </button>
+        </PlainButton>
       )}
       {props.raw ? <RawKey name={props.raw} /> : props.align ? <span /> : null}
     </div>

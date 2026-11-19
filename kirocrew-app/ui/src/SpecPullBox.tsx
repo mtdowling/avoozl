@@ -14,6 +14,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
+import { PlainInput } from './ui/Plain'
 
 const DOT: Record<string, string> = { passing: 'var(--ok, #1a7f37)', failing: 'var(--danger)', pending: 'var(--muted)' }
 
@@ -124,7 +125,7 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
           <Box as="label" size="xs" htmlFor={`reject-${pull.id}`}>
             Reason
           </Box>
-          <input id={`reject-${pull.id}`} value={reason} onChange={(event) => setReason(event.target.value)} className="min-w-0 flex-1 rounded border px-2 py-1 text-sm" style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'inherit' }} />
+          <PlainInput id={`reject-${pull.id}`} value={reason} onChange={(event) => setReason(event.target.value)} css-border-color="border" css-background="bg" css-color="inherit" minW0 flex1 rounded="base" border="all" px="2" py="1" size="sm" />
           <DangerBtn
             label={`Reject ${pull.repository} #${pull.number}`}
             disabled={busy || !reason.trim()}

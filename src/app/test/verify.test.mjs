@@ -13,6 +13,7 @@ import { Store } from "../store.mjs";
 import {
   allowProtectedPaths,
   checkTimeout,
+  firstErrorLine,
   matchesPath,
   pathOutcome,
   pathVerdict,
@@ -342,4 +343,18 @@ test("the tick fails an attempt outside declared paths and holds a protected pat
     { local: true },
   );
   assert.equal(store.get("task_deliveries", "a").state, "done");
+});
+
+test("a failed check's first error line: the first naming an error, else the first, redacted and cut", () => {
+  assert.equal(
+    firstErrorLine("Running 12 tests\n\nnot ok 3 - Error: got 2", "1 error"),
+    "not ok 3 - Error: got 2",
+  );
+  assert.equal(firstErrorLine("only line", null), "only line");
+  assert.equal(firstErrorLine(null, "", undefined), null);
+  assert.doesNotMatch(
+    firstErrorLine("Error at /Users/someone/app/x.js:3"),
+    /someone/,
+  );
+  assert.equal(firstErrorLine("Error " + "x".repeat(400)).length, 200);
 });

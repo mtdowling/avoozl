@@ -1,12 +1,35 @@
 // What a person needs to decide a Needs you item without opening anything
 // else: its spec, its task, what it unblocks, the task text, and the review
-// evidence for a draft. Built from stored records only; it makes no GitHub
-// call and writes nothing.
+// evidence for a draft, and the failing checks with their first error line
+// when the task stopped on them. Built from stored records only; it makes no
+// GitHub call and writes nothing.
 import { taskSourceRefs } from "../task-identity.mjs";
 import { linkSets } from "./scm-links.mjs";
 import { planReviewSummary } from "./plan-review-summary.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
+
+// The checks a delivery stopped on (pr-landing.mjs sendFailureBack), while
+// it still waits on that same cause; else null.
+function failedChecksOf(store, taskId) {
+  let delivery = null;
+  try {
+    delivery = store.get("task_deliveries", taskId);
+  } catch {
+    return null;
+  }
+  const kept = delivery?.failedChecks;
+  if (delivery?.state !== "decision" || kept?.cause !== delivery.cause)
+    return null;
+  return {
+    commit: kept.commit ?? null,
+    checks: (kept.checks ?? []).map((c) => ({
+      name: String(c.name),
+      conclusion: c.conclusion ?? null,
+      firstError: c.firstError ?? null,
+    })),
+  };
+}
 const SHOWN_DEPENDENTS = 5;
 
 const specName = (task) => {
@@ -140,6 +163,7 @@ export function addItemContext(store, data, items) {
           .map((t) => ({ id: t.id, title: t.title ?? t.id })),
       },
       links: linksOf(id),
+      failedChecks: failedChecksOf(store, id),
     };
   }
   return items;

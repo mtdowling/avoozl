@@ -3,7 +3,10 @@
 // review counts when it is APPROVED or CHANGES_REQUESTED, on the pull
 // request's head commit, by a reviewer the repository policy allows (the
 // same check as trigger labels, R33.8). COMMENTED and DISMISSED reviews
-// count for nothing. A review on an older commit is stale.
+// count for nothing. A review on an older commit is stale, unless the
+// caller follows GitHub's own rule (`standing`): GitHub turns a review it
+// dismisses into DISMISSED, so an APPROVED one on an older commit still
+// stands there (a base merge into the pull request keeps it).
 import { actorAllowed } from "./github-policy.mjs";
 
 const DECISIVE = new Set(["APPROVED", "CHANGES_REQUESTED"]);
@@ -22,8 +25,15 @@ const order = (left, right) =>
 // `reviews` holds each reviewer's newest counting review: on the head when
 // there is one, else their newest one, marked stale. Reviews by people the
 // policy does not allow are listed with `allowed: false` and count for
-// nothing.
-export async function reviewVerdict(repository, pull, reviews, permissionOf) {
+// nothing. With `standing`, a review GitHub still shows as decisive counts
+// on any commit of the pull request.
+export async function reviewVerdict(
+  repository,
+  pull,
+  reviews,
+  permissionOf,
+  { standing = false } = {},
+) {
   const headSha = String(pull?.headRefOid || ""),
     needed = repository.pullRequestReviews?.approvals ?? 1,
     byReviewer = new Map();
@@ -51,7 +61,7 @@ export async function reviewVerdict(repository, pull, reviews, permissionOf) {
       reviewer: login,
       state: state === "APPROVED" ? "approved" : "changes-requested",
       commit: review.commit_id || null,
-      stale: !onHead,
+      stale: !onHead && !standing,
       allowed: check.allowed,
       ...(check.allowed ? {} : { reason: check.reason }),
       at: review.submitted_at || null,

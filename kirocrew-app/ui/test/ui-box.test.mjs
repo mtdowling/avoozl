@@ -73,3 +73,39 @@ for (const theme of ["light", "dark"])
       size: "12px",
     });
   });
+
+for (const theme of ["light", "dark"])
+  test(
+    `the Plain parts render their element with the look props in ${theme}`,
+    { skip },
+    async () => {
+      await page.open(harness.url({ theme }), {
+        width: 600,
+        height: 900,
+        dark: theme === "dark",
+      });
+      await page.until(
+        `Boolean(document.querySelector('[data-part="plain-button"]'))`,
+      );
+      const read = (part) =>
+        page.evaluate(
+          `(() => { const el = document.querySelector('[data-part="${part}"]'); return [el.tagName, el.className, el.getAttribute('style')] })()`,
+        );
+      assert.deepEqual(await read("plain-button"), [
+        "BUTTON",
+        "underline",
+        "background: none; border: 0px;",
+      ]);
+      assert.deepEqual(await read("plain-link"), ["A", "underline", null]);
+      assert.deepEqual(await read("plain-input"), [
+        "INPUT",
+        "rounded border text-sm",
+        null,
+      ]);
+      assert.deepEqual(await read("plain-textarea"), [
+        "TEXTAREA",
+        "rounded border text-xs",
+        null,
+      ]);
+    },
+  );

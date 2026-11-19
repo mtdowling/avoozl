@@ -34,7 +34,8 @@ async function classicHidden(github, repository, branch, protection) {
   return !admin;
 }
 
-// { approvals, dismissStale, sources, hidden, hiddenReason, url }.
+// { approvals, dismissStale, lastPushApproval, sources, hidden,
+//   hiddenReason, url }.
 // `approvals` is the count GitHub showed: both kinds of rule apply on
 // GitHub, so the stricter count wins. `hidden` means classic protection is
 // on but GitHub shows its review rule only to admins, so `approvals` is a
@@ -51,7 +52,8 @@ export async function branchReviewRule(github, repository, branch) {
   ]);
   const hidden = await classicHidden(github, repository, branch, protection);
   let approvals = 0,
-    dismissStale = false;
+    dismissStale = false,
+    lastPushApproval = false;
   const sources = [];
   for (const rule of rules || [])
     if (rule?.type === "pull_request") {
@@ -59,6 +61,7 @@ export async function branchReviewRule(github, repository, branch) {
         Number(rule.parameters?.required_approving_review_count) || 0;
       approvals = Math.max(approvals, count);
       dismissStale ||= rule.parameters?.dismiss_stale_reviews_on_push === true;
+      lastPushApproval ||= rule.parameters?.require_last_push_approval === true;
       sources.push("ruleset");
     }
   const reviews = protection?.required_pull_request_reviews;
@@ -68,12 +71,14 @@ export async function branchReviewRule(github, repository, branch) {
       Number(reviews.required_approving_review_count) || 0,
     );
     dismissStale ||= reviews.dismiss_stale_reviews === true;
+    lastPushApproval ||= reviews.require_last_push_approval === true;
     sources.push("branch protection");
   }
   return {
     branch,
     approvals,
     dismissStale,
+    lastPushApproval,
     sources: [...new Set(sources)],
     hidden,
     hiddenReason: hidden

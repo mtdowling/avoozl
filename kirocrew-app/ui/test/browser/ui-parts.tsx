@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { ErrorText } from '../../src/ui/ErrorText.tsx'
 import { Hint } from '../../src/ui/Hint.tsx'
 import { Box } from '../../src/ui/Box.tsx'
+import { PlainButton, PlainInput, PlainLink, PlainTextarea } from '../../src/ui/Plain.tsx'
 import { Checkbox } from '../../src/ui/Checkbox.tsx'
 import { Row } from '../../src/ui/Row.tsx'
 import { SelectField } from '../../src/ui/SelectField.tsx'
@@ -56,6 +57,10 @@ createRoot(document.getElementById('root')!).render(
     <Box as="section" data-part="box" flex flexCol gap="2" size="xs">
       <span>one</span>
     </Box>
+    <PlainButton data-part="plain-button" type="button" underline css-background="none" css-border="0">Plain</PlainButton>
+    <PlainLink data-part="plain-link" href="#y" underline>Link</PlainLink>
+    <PlainInput data-part="plain-input" rounded="base" border="all" size="sm" defaultValue="x" />
+    <PlainTextarea data-part="plain-textarea" rounded="base" border="all" size="xs" defaultValue="y" />
     <StatTileStyle />
     <StatTile data-part="tile" name="Needs you: 3" value={3} label="Needs you" sub="2 decisions" warm />
     <StatTile data-part="tile-cool" name="Flow: 1" value={1} label="Flow" sub="" />

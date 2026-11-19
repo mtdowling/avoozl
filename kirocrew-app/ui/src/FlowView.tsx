@@ -48,6 +48,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 
 // A stacked bar by stage, scaled to `scale` ms (the longest bar shown).
@@ -235,9 +236,9 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
               {duration(task.leadMs)}
               <Tooltip text="Open this task's details in the drawer">
                 {(describedBy) => (
-                  <button type="button" aria-label={`Details for ${task.taskId}`} aria-describedby={describedBy} onClick={() => drawer.openTask(task.taskId)} style={{ display: 'inline-flex', color: 'var(--muted)' }}>
+                  <PlainButton type="button" aria-label={`Details for ${task.taskId}`} aria-describedby={describedBy} onClick={() => drawer.openTask(task.taskId)} css-display="inline-flex" css-color="muted">
                     <DetailsIcon size={ICON} aria-hidden="true" />
-                  </button>
+                  </PlainButton>
                 )}
               </Tooltip>
             </Box>

@@ -8,8 +8,8 @@ import { Marker } from './SettingsView.tsx'
 import { Check, Copy } from './icons.ts'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { PlainTextarea } from './ui/Plain'
 
-const boxStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
 export default function PromptInstructions(props: {
   id: string
@@ -55,14 +55,13 @@ export default function PromptInstructions(props: {
         <Marker rule={{ required: false }} />
       </Box>
       <Hint size="xs">Added after the built-in prompt.</Hint>
-      <textarea
+      <PlainTextarea
         id={props.id}
         rows={3}
         value={props.value}
         placeholder={props.placeholder}
         onChange={(event) => props.onChange(event.target.value)}
-        className="rounded border px-2 py-1 text-sm"
-        style={boxStyle}
+        css-border-color="border" css-color="text" css-background="card-transparent" rounded="base" border="all" px="2" py="1" size="sm"
       />
       {props.note && <Hint size="xs">{props.note}</Hint>}
       <Tooltip text=".avoozl.json key">

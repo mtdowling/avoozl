@@ -153,6 +153,21 @@ export function outputTail(text, dir = "\u0000") {
   return tail.length > TAIL_CHARS ? tail.slice(-TAIL_CHARS) : tail;
 }
 
+// The first line of a failed check's own text that names an error or a
+// failure, else its first line, redacted and cut to 200 characters; null
+// when the check carries no text. Reads only what the check already holds
+// (a GitHub check run's output, a status description, a local run's tail).
+export function firstErrorLine(...texts) {
+  const lines = texts
+    .flatMap((text) => String(text ?? "").split(/\r?\n/))
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const line =
+    lines.find((l) => /\b(error|fail(ed|ure|ing)?|exception)\b|✖/i.test(l)) ??
+    lines[0];
+  return line ? redactLine(line, "\u0000").slice(0, 200) : null;
+}
+
 // The last `lines` lines of output, redacted like a check's tail, for a log
 // excerpt sent back to a worker (landing-trains LT10.5).
 export function outputExcerpt(text, dir = "\u0000", lines = 200) {
