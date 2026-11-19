@@ -1,0 +1,116 @@
+---
+repo: avoozl
+completion: integrated
+---
+# Tasks: the page draws with components, not class strings
+
+Explicit `after` lists and each task's `after` fact govern execution; phase
+numbers alone do not impose a dependency. Requirement numbers are in
+brackets (`UC1` to `UC5`, in `requirements.md`); `D` sections refer to this
+spec's `design.md`, `R` numbers to `.kiro/specs/avoozl/requirements.md`.
+
+Rules for every task: work in a task worktree; Avoozl runs the repository's
+checks; change no behavior and no text; lower the task's files in the
+raw-style allow-list in the same change.
+A task that changes a screen gives the owner screenshots of each view it
+touched at 390 and 1280 px, light and dark, before and after, taken in Kiro
+Crew (UC5.2, R92.12); screenshots are shown to the owner and never
+committed (AGENTS.md).
+
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts. Task IDs start with `uc-` so they never collide with the IDs
+of the other specs.
+
+## Phase 1: Stop the growth
+
+- [x] uc-1.1 The raw-style test with today's counts [UC3.1, UC3.2, UC3.3] (§D4)
+  - Facts:
+    - done:
+      - The test passes on today's views; it fails on a planted extra `className` in a listed view, on any raw style in a new view, and on a listed file whose count is zero.
+  - `kirocrew-app/ui/test/raw-style.test.mjs` and `raw-style-allow.json`, counting `className`, `style`, `<style>` and `var(--` per view outside `src/ui/`.
+  - Built: PR #614.
+- [x] uc-1.2 The class check runs in CI against Kiro Crew's own stylesheet [UC4] (§D5)
+  - Facts:
+    - done:
+      - The test fails on a planted class Kiro Crew's stylesheet lacks and names the file that uses it; a stylesheet with the wrong digest is refused; the CI classifier selects the test for a change under `kirocrew-app/ui/src`; every class it finds missing today is listed in the pull request with its files.
+  - A Kiro Crew stylesheet named by release and digest, fetched and cached by the test; `host-classes.test.mjs` runs on every change to `kirocrew-app/ui/src` with no skip.
+  - Built: PR #615.
+
+## Phase 2: The parts that remove the most strings
+
+- [x] uc-2.1 `Hint`, `ErrorText`, `Stack`, `Row` and `TextLink`, after uc-1.1 [UC2.1, UC2.3, UC2.4] (§D2)
+  - Facts:
+    - done:
+      - The five render tests pass; the raw-style count across views drops by at least 600; the page tests pass with assertions unchanged; screenshots go to the owner.
+    - after: uc-1.1
+  - Built: PR #620.
+  - The five parts in `src/ui/`, each with a light and dark render test; the views that use the strings of D2 most move first, and the allow-list drops by what they removed.
+- [x] uc-2.2 Move the shared parts into `src/ui/`, after uc-1.1 [UC1.2, UC2.2] (§D1)
+  - Facts:
+    - done:
+      - No view imports `@kirocrew/app-sdk/ui` directly, checked by a source test; the page renders the same, checked by the existing page tests with assertions unchanged.
+    - after: uc-1.1
+  - Built: PR #638.
+  - `Button.tsx`, `Badge.tsx`, `Tabs.tsx`, `Tooltip.tsx`, `RadioFold.tsx`, `PairedCards.tsx` and the components of `controls.tsx` move; one module per Kiro Crew part in use re-exports it.
+
+## Phase 3: Kiro Crew's parts
+
+- [x] uc-3.1 `Select` and `Toggle` for the raw controls, after uc-2.2 [UC1.1, UC1.4] (§D3)
+  - Facts:
+    - done:
+      - No view renders a raw `<select>` or checkbox; each moved control keeps its label, its `aria-describedby` and its keyboard behavior, checked by test; differences found are listed in the pull request; screenshots go to the owner.
+    - after: uc-2.2
+  - Built: PR #644, with checkboxes moved to Toggle in PR #654.
+  - The 19 `<select>` and the checkbox `<input>` elements move to Kiro Crew's `Select` and `Toggle`; their declarations join `kirocrew-app-sdk.d.ts`.
+- [x] uc-3.2 `Modal`, after uc-2.2 [UC1.1, UC1.3] (§D3)
+  - Facts:
+    - done:
+      - The modal tests pass with assertions unchanged, or each changed one is listed with the reason; screenshots of three dialogs go to the owner.
+    - after: uc-2.2
+  - Built: PR #651.
+  - Compare `Modal.tsx` with Kiro Crew's `Modal` on focus, Escape and the footer order the tests hold; swap, or keep Avoozl's in `src/ui/` with the owner's decision recorded.
+- [x] uc-3.3 `InfoTip`, `PageHeader`, `CardTitle`, `StatCard` and `ErrorNotice`, after uc-2.2 [UC1.1, UC1.3, UC1.4] (§D3)
+  - Facts:
+    - done:
+      - The tooltip and heading tests pass with assertions unchanged, or each changed one is listed; Home's tiles use the shared Avoozl `StatTile`; screenshots go to the owner.
+    - after: uc-2.2
+  - Built: PR #658.
+  - Each replaces the page's own version where one exists; the touch behavior of `InfoTip` is compared first. Where Kiro Crew's part lacks a prop the page needs or draws it differently, Avoozl's stays in `src/ui/` (UC1.3), and the pull request lists each kept part and why. Home's tiles use one shared Avoozl `StatTile` in `src/ui/` (value, label, sub line, warm tone), built on Kiro Crew's classes and theme variables.
+- [x] uc-3.4 `MarkdownRenderer`, after uc-2.2 [UC1.1, UC1.3] (§D3)
+  - Facts:
+    - done:
+      - The markdown tests pass with assertions unchanged, or each changed one is listed; screenshots of a spec page and a task drawer go to the owner.
+    - after: uc-2.2
+  - Built: PR #652.
+  - Compare with `Markdown.tsx` on code highlighting, outside links and the size cap; swap, or keep Avoozl's with the owner's decision recorded.
+
+## Phase 4: Settings and the rest of the views
+
+- [x] uc-4.1 Settings onto `Field` and `FieldGroup`, after uc-2.1, uc-3.1 [UC2.1, UC2.2] (§D2)
+  - Facts:
+    - done:
+      - The settings tests pass with assertions unchanged; no Settings view is left in the allow-list; screenshots of every Settings page go to the owner.
+    - after: uc-2.1, uc-3.1
+  - Built: PR #734.
+  - Every Settings page and settings dialog uses the two parts. Kiro Crew's `Settings*` parts have no slot for the page's own control, marker, reset, default line, width or `aria-describedby`, so `Field` and `FieldGroup` stay Avoozl's in `src/ui/` (UC1.3), built on Kiro Crew's classes and theme variables.
+- [x] uc-4.2 The remaining views, after uc-2.1, uc-2.2, uc-3.1, uc-3.2, uc-3.3, uc-3.4 [UC3, UC5] (§D6)
+  - Facts:
+    - done:
+      - The allow-list is empty; no view writes a `className`, `style`, `<style>` or `var(--`; the class check passes; screenshots of every view at 390 and 1280 px, light and dark, go to the owner.
+    - after: uc-2.1, uc-2.2, uc-3.1, uc-3.2, uc-3.3, uc-3.4
+  - Built: PRs #668, #674, #677, #680, #682, #686, #692, #695, #696, #701, #711, #717, #718, #720, #722, #724, #730, and #737 (muted text as `Hint`, found by uc-p1).
+  - The views left in the allow-list move a group at a time, each group its own pull request; the 23 `<style>` elements move into `src/ui/` as constant texts.
+
+- [x] uc-p1 Proof: a change of look is one edit, after uc-1.2, uc-4.1, uc-4.2 [UC1 to UC5] (§D1)
+  - Facts:
+    - done:
+      - Expected: (1) every hint on every view changes, and no view file changed; (2) the check fails naming only files in `src/ui/`; (3) every such file is in `src/ui/`.
+      - Expected result observed; receipt under `docs/evidence/`, with no image committed.
+    - manual: true
+    - after: uc-1.2, uc-4.1, uc-4.2
+  - Setup: the repository at the commit that lands uc-4.2, and a running Kiro Crew at the pinned release.
+  - Action: (1) change `Hint`'s size and color in `src/ui/` only; (2) rename one CSS variable in a scratch copy of Kiro Crew's stylesheet and run the class check against it; (3) count the files that write a class or a variable.
+  - Expected: (1) every hint on every view changes, and no view file changed; (2) the check fails naming only files in `src/ui/`; (3) every such file is in `src/ui/`.
+  - Failure means: a view still carries its own look.
+  - Next decision: none.
+  - Receipt: `docs/evidence/ui-components-p1.md`; script: `scripts/proof-uc-p1.mjs`. The first run failed and #737 fixed it.

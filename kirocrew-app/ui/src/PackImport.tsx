@@ -1,0 +1,196 @@
+// A plugin's settings pack (design §4.14, R55.5-R55.7): the preview table
+// that Add plugin's review step and the Import dialog both show, and the
+// Import dialog itself. Nothing is written until Import, and Import sends the
+// exact preview the person saw.
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Btn } from './ui/Btn'
+import Badge, { type BadgeVariant } from './ui/Badge.tsx'
+import { importBlocked, importInput, packCounts, pluginsClient, shortValue, type PackChange, type PackPreview, type PluginRow } from './plugins-api.ts'
+import { errorMessage } from './workspace-api.ts'
+import { Modal } from './ui/Modal.tsx'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
+
+type Client = ReturnType<typeof pluginsClient>
+
+const ACTION: Record<PackChange['action'], { label: string; variant?: BadgeVariant }> = {
+  create: { label: 'Create', variant: 'success' },
+  change: { label: 'Change', variant: 'info' },
+  keep: { label: 'Keep' },
+  skip: { label: 'Skip' },
+}
+
+// Each setting the pack sets, as create, change, keep or skip. A who-counts
+// change is shown on its line and above the table, never only in a tooltip.
+export function PackChanges({ preview }: { preview: PackPreview }) {
+  const counts = packCounts(preview.changes)
+  return (
+    <Box flex flexCol gap="2" size="sm" data-pack-preview>
+      {preview.description && (
+        <Hint as="p" size="xs">
+          {preview.description}
+        </Hint>
+      )}
+      <Hint as="p" size="xs">
+        {counts.create} to create, {counts.change} to change, {counts.keep} already the same
+        {counts.skip ? `, ${counts.skip} skipped` : ''}
+        {preview.repositories.length ? `. Repositories: ${preview.repositories.join(', ')}.` : '.'}
+      </Hint>
+      {preview.warnings.map((warning) => (
+        <ErrorText key={warning} role="alert" size="sm" data-pack-warning>
+          {warning}
+        </ErrorText>
+      ))}
+      <Box css-overflow-x="auto">
+        <Box as="table" wFull size="xs">
+          <thead>
+            <Hint as="tr" align="left">
+              <Box as="th" py="1" pr="2" weight="normal">
+                Setting
+              </Box>
+              <Box as="th" py="1" pr="2" weight="normal">
+                Action
+              </Box>
+              <Box as="th" py="1" weight="normal">
+                Value
+              </Box>
+            </Hint>
+          </thead>
+          <tbody>
+            {preview.changes.map((change) => (
+              <Box key={change.setting} as="tr" css-border-top="1px-solid-border" alignTop>
+                <Box as="td" py="1" pr="2" breakAll>
+                  <code>{change.setting}</code>
+                </Box>
+                <Box as="td" py="1" pr="2">
+                  <Badge variant={change.warning ? 'warning' : ACTION[change.action].variant}>{ACTION[change.action].label}</Badge>
+                </Box>
+                <Box as="td" py="1" breakAll>
+                  {change.action === 'skip' ? (
+                    <Hint>{change.reason}</Hint>
+                  ) : (
+                    <>
+                      {change.action === 'change' && (
+                        <Hint block>
+                          was <code>{shortValue(change.from)}</code>
+                        </Hint>
+                      )}
+                      <code>{shortValue(change.to)}</code>
+                      {change.warning && (
+                        <Box as="span" block tone="danger">
+                          Lowers who counts, as said above.
+                        </Box>
+                      )}
+                    </>
+                  )}
+                </Box>
+              </Box>
+            ))}
+          </tbody>
+        </Box>
+      </Box>
+    </Box>
+  )
+}
+
+// The Import dialog for one installed plugin with a pack.
+export function PackImportDialog(props: { row: PluginRow; workspaceId: string; client: Client; onClose: (note?: string) => void; onChanged: () => Promise<unknown> }) {
+  const { row, workspaceId, client, onClose, onChanged } = props
+  const [preview, setPreview] = useState<PackPreview | null>(null)
+  const [acceptLowered, setAcceptLowered] = useState(false)
+  const [confirmPublic, setConfirmPublic] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const box = useRef<HTMLDivElement>(null)
+  const cancel = useCallback(() => onClose(), [onClose])
+  useEffect(() => {
+    let live = true
+    client
+      .packPreview(workspaceId, row.id ?? '')
+      .then((found) => live && setPreview(found))
+      .catch((caught) => live && setError(errorMessage(caught)))
+    return () => {
+      live = false
+    }
+  }, [client, workspaceId, row.id])
+  useEffect(() => {
+    box.current?.querySelector<HTMLElement>('button')?.focus()
+  }, [])
+  const blocked = importBlocked(row, preview, acceptLowered, confirmPublic)
+  const run = async () => {
+    if (!preview || blocked) return
+    setBusy(true)
+    setError(null)
+    try {
+      await client.packImport(workspaceId, importInput(preview, acceptLowered, confirmPublic))
+      await onChanged()
+      onClose(`Imported ${row.id} version ${row.version} into .avoozl.json.`)
+    } catch (caught) {
+      setError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    // Esc, Back and a click outside do what Cancel does.
+    <Modal
+      id="avoozl-pack"
+      width="48rem"
+      backLabel="Cancel"
+      dismissLabel="Cancel"
+      boxRef={box}
+      attrs={{ 'data-pack-dialog': true }}
+      title={`Import ${row.id} version ${row.version}`}
+      onDismiss={cancel}
+      footer={
+        <>
+          <Btn type="button" primary onClick={() => void run()} disabled={busy || Boolean(blocked)}>
+            Import settings
+          </Btn>
+        </>
+      }
+    >
+      <div>
+        <Hint as="p" size="sm">
+          Copies these settings into .avoozl.json once. Later versions offer their changes here again.
+        </Hint>
+      </div>
+      {preview ? (
+        <PackChanges preview={preview} />
+      ) : (
+        !error && (
+          <Hint as="p" size="sm">
+            Reading the pack...
+          </Hint>
+        )
+      )}
+      {preview && preview.warnings.length > 0 && (
+        <Switch label="Import the who-counts change above" align="start" size="sm" checked={acceptLowered} onChange={setAcceptLowered}>
+          <span>Import the who-counts change above</span>
+        </Switch>
+      )}
+      {row.source === 'machine' && (
+        <Switch label="Write the plugin id into .avoozl.json" align="start" size="sm" checked={confirmPublic} onChange={setConfirmPublic}>
+          <span>
+            Write the plugin id into .avoozl.json
+            <Hint size="xs" block>
+              This plugin is declared on this computer only. Anyone who can read the repository sees its id and these settings.
+            </Hint>
+          </span>
+        </Switch>
+      )}
+      {blocked && preview && !(preview.warnings.length && !acceptLowered) && (
+        <Hint as="p" size="xs">
+          {blocked}
+        </Hint>
+      )}
+      {error && (
+        <ErrorText role="alert" size="sm">
+          {error}
+        </ErrorText>
+      )}
+    </Modal>
+  )
+}

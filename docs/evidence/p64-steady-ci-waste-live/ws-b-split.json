@@ -1,0 +1,18 @@
+{
+  "at": "2026-11-19T10:44:25Z",
+  "runsBefore": 14,
+  "runsAfter": 5,
+  "afterRuns": [
+    "2026-11-19T10:49:32Z push main fb1cb48",
+    "2026-11-19T10:49:35Z push main 364a70c",
+    "2026-11-19T10:49:39Z push main 38b1ec5",
+    "2026-11-19T10:49:42Z push main 311cd05",
+    "2026-11-19T10:44:28Z push main 015ba1b"
+  ],
+  "repeatsBefore": 4,
+  "repeatsAfter": 0,
+  "specMinutesPerPullRequest": {
+    "before": 1.975,
+    "after": 0
+  }
+}

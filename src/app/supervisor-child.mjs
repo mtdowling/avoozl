@@ -1,0 +1,81 @@
+// The supervisor's wrapper around one agent CLI (R95.1, design §4.28):
+//   node supervisor-child.mjs <exit-file> [--stdin FILE] <program> [args...]
+// It runs the program with no shell, in the supervisor's chosen folder and
+// log, and writes the exit code to <exit-file> before it exits. A supervisor
+// that restarted mid-run cannot wait on a child it did not spawn, so this file
+// is how it still learns the code. With --stdin the program reads FILE (its
+// brief or message) as standard input; the wrapper opens it, so the
+// sandboxed program never needs to reach the supervisor's folder.
+import fs from "node:fs";
+import os from "node:os";
+import { spawn } from "node:child_process";
+
+const rest = process.argv.slice(2);
+const exitFile = rest.shift();
+const input = rest[0] === "--stdin" ? (rest.shift(), rest.shift()) : null;
+const [program, ...args] = rest;
+if (!exitFile || !program || input === undefined) {
+  console.error(
+    "Usage: supervisor-child.mjs <exit-file> [--stdin FILE] <program> [args...]",
+  );
+  process.exit(2);
+}
+
+function finish(code, signal, error) {
+  const value = {
+    code: Number.isInteger(code)
+      ? code
+      : 128 + (os.constants.signals[signal] ?? 0),
+    signal: signal ?? null,
+    ...(error ? { error } : {}),
+    at: new Date().toISOString(),
+  };
+  const temporary = `${exitFile}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(value) + "\n");
+  fs.renameSync(temporary, exitFile);
+  process.exit(value.code);
+}
+
+let stdin = "inherit";
+if (input)
+  try {
+    stdin = fs.openSync(input, "r");
+  } catch (error) {
+    finish(127, null, `Cannot read ${input}: ${error.message}`);
+  }
+const child = spawn(program, args, {
+  stdio: [stdin, "inherit", "inherit"],
+  windowsHide: true,
+});
+if (typeof stdin === "number") fs.closeSync(stdin);
+let done = false;
+child.once("error", (error) => {
+  if (done) return;
+  done = true;
+  // 127: the program could not be started, as a shell reports it.
+  finish(127, null, error.message);
+});
+child.once("exit", (code, signal) => {
+  if (done) return;
+  done = true;
+  finish(code, signal);
+});
+for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"])
+  process.on(signal, () => {
+    try {
+      child.kill(signal);
+    } catch {
+      // Already gone: its exit event writes the file.
+    }
+  });
+// A stop request as a file beside the exit file, because Windows ends a
+// signaled process at once, before it could write its exit code.
+const stopFile = `${exitFile}.stop`;
+setInterval(() => {
+  if (!done && fs.existsSync(stopFile))
+    try {
+      child.kill();
+    } catch {
+      // Already gone.
+    }
+}, 200).unref();

@@ -1,0 +1,35 @@
+{
+  "description": "Who counts, priority and waiting labels for SDK repositories that use p0-p3.",
+  "settings": {
+    "repositories": {
+      "minimumPermission": "write",
+      "priorityLabels": ["p0", "p1", "p2", "p3"],
+      "waitingLabels": ["response-requested"],
+      "requiredChecks": []
+    },
+    "contentRules": {
+      "sets": [
+        {
+          "id": "team-terms",
+          "plugin": "sdk-team",
+          "action": "block"
+        }
+      ]
+    },
+    "delivery": {
+      "reviewers": [
+        {
+          "id": "api-review",
+          "focus": "Public API shape and backward compatibility",
+          "agent": "avoozl-reviewer",
+          "distinctFrom": "session"
+        }
+      ]
+    },
+    "flow": {
+      "retro": {
+        "everyTasks": 20
+      }
+    }
+  }
+}

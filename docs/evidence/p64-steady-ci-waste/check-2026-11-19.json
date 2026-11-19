@@ -1,0 +1,477 @@
+{
+  "at": "2026-11-19T09:34:28.326Z",
+  "repository": "mtdowling/avoozl",
+  "errors": [],
+  "read": {
+    "pullRequests": 50,
+    "openPullRequests": 0,
+    "docsOnlyPullRequests": 5,
+    "runs": 100,
+    "runsLinkedToPullRequests": 51,
+    "oldestRun": "2026-11-19T03:42:35Z",
+    "newestRun": "2026-11-19T09:27:10Z",
+    "events": {
+      "pull_request": 48,
+      "push": 49,
+      "dynamic": 3
+    },
+    "workflows": [
+      ".github/workflows/test.yml",
+      "dynamic/copilot-swe-agent/copilot"
+    ]
+  },
+  "facts": {
+    "docsOnlyMinutes": 3.5,
+    "closed": 50,
+    "waitShare": 0.06472851440388593,
+    "byClass": {
+      "code": {
+        "task": {
+          "minutes": 0,
+          "pullRequests": 0
+        },
+        "other": {
+          "minutes": 252.1,
+          "pullRequests": 30
+        }
+      },
+      "spec": {
+        "task": {
+          "minutes": 0,
+          "pullRequests": 0
+        },
+        "other": {
+          "minutes": 3.5,
+          "pullRequests": 2
+        }
+      },
+      "tests": {
+        "task": {
+          "minutes": 0,
+          "pullRequests": 0
+        },
+        "other": {
+          "minutes": 7.6,
+          "pullRequests": 2
+        }
+      }
+    },
+    "repeats": 0
+  },
+  "triggers": [
+    [
+      "waste-docs",
+      "waste:docs:mtdowling/avoozl:2026-11-19",
+      "mtdowling/avoozl: 3.5 CI min on spec- or docs-only pull requests in 7 days (limit 1)"
+    ]
+  ],
+  "brief": [
+    {
+      "repository": "mtdowling/avoozl",
+      "windowDays": 7,
+      "minutesByClass": {
+        "code": {
+          "task": {
+            "minutes": 0,
+            "pullRequests": 0
+          },
+          "other": {
+            "minutes": 252.1,
+            "pullRequests": 30
+          }
+        },
+        "spec": {
+          "task": {
+            "minutes": 0,
+            "pullRequests": 0
+          },
+          "other": {
+            "minutes": 3.5,
+            "pullRequests": 2
+          }
+        },
+        "tests": {
+          "task": {
+            "minutes": 0,
+            "pullRequests": 0
+          },
+          "other": {
+            "minutes": 7.6,
+            "pullRequests": 2
+          }
+        }
+      },
+      "docsOnlyMinutes": 3.5,
+      "waitShare": 0.065,
+      "closedPullRequests": 50,
+      "repeatRuns": [],
+      "workflows": [
+        ".github/workflows/test.yml",
+        "dynamic/copilot-swe-agent/copilot"
+      ],
+      "pullRequests": [
+        {
+          "kind": "other",
+          "number": 691,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 714,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 715,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 717,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 700,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 718,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 719,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 720,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 721,
+          "author": "mtdowling",
+          "classes": [
+            "code"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 722,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 723,
+          "author": "mtdowling",
+          "classes": [
+            "spec"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 657,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs",
+            "ci",
+            "other"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 676,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 716,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 724,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 725,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 726,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 727,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 728,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 729,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs",
+            "ci"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 732,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 730,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 731,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs",
+            "ci"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 733,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 734,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 735,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 736,
+          "author": "mtdowling",
+          "classes": [
+            "spec"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 737,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 738,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 739,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 740,
+          "author": "mtdowling",
+          "classes": [
+            "tests"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 741,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "tests",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 742,
+          "author": "mtdowling",
+          "classes": [
+            "code",
+            "spec",
+            "docs"
+          ]
+        },
+        {
+          "kind": "other",
+          "number": 743,
+          "author": "mtdowling",
+          "classes": [
+            "tests",
+            "spec"
+          ]
+        }
+      ]
+    }
+  ],
+  "split": null,
+  "requests": {
+    "graphql": 1,
+    "get": 1,
+    "refused": [],
+    "log": [
+      "sent POST /graphql",
+      "  200",
+      "sent GET /repos/mtdowling/avoozl/actions/runs",
+      "  200"
+    ]
+  },
+  "rate": {
+    "core": {
+      "limit": 5000,
+      "remaining": 4958,
+      "resetAt": "2026-11-19T10:19:57.000Z"
+    },
+    "graphql": {
+      "limit": 5000,
+      "remaining": 4959,
+      "resetAt": "2026-11-19T10:16:43.000Z"
+    }
+  }
+}

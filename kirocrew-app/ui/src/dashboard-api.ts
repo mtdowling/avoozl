@@ -1,0 +1,362 @@
+// The Dashboard's summary of one workspace, from the reads the other tabs
+// already make: graph.view, delivery.view, conflicts.view and plan.list.
+// Only graph-specific facts. Kept free of JSX so node can test it
+// directly.
+import type { StoredPlanPage } from './plans-api.ts'
+import { nodeState, waves, type NodeState } from './graph-layout.ts'
+import {
+  modelLabel,
+  safeHref,
+  type ConflictItem,
+  type DeliveryItem,
+  type DeliverySession,
+  type Graph,
+  type GraphTask,
+  type ProcessDetails,
+  type RemoteWorker,
+  type TaskLinks,
+} from './views-api.ts'
+import { TONE } from './ui/tones.ts'
+
+// Session statuses after which a session will not move again.
+const ENDED = new Set(['closed', 'lost'])
+
+export interface Attention {
+  key: string
+  kind: string
+  // Null for a review group, which carries its tasks in `group`.
+  taskId: string | null
+  group?: ConflictItem
+  title: string
+  detail: string
+  // Where the owner acts: Needs you, or the task's own drawer; and a
+  // link out if any.
+  tab: 'waiting' | 'task'
+  href: string | null
+}
+
+// What a Needs you title opens: a review group's list of tasks, the task's
+// drawer (it shows the task's conflicts and decisions), or, for an item
+// with no task, the tab where it is settled.
+export type AttentionTarget = { kind: 'review' } | { kind: 'task'; id: string } | { kind: 'tab'; tab: 'waiting' }
+
+export function attentionTarget(item: Attention): AttentionTarget {
+  if (item.group) return { kind: 'review' }
+  if (item.taskId) return { kind: 'task', id: item.taskId }
+  return { kind: 'tab', tab: 'waiting' }
+}
+
+// The title link's tooltip: where the click goes.
+export function attentionTip(item: Attention): string {
+  const target = attentionTarget(item)
+  if (target.kind === 'review') return 'Open the list of tasks to review'
+  if (target.kind === 'task') return `Open ${target.id} in the drawer`
+  return 'Open it in Needs you'
+}
+
+export interface RunningTask {
+  id: string
+  title: string
+  sessions: DeliverySession[]
+}
+
+// One running agent chat Avoozl started, for the Dashboard's In flight card.
+export interface InFlight {
+  slot: string
+  role: string
+  // A reviewer's focus or another session title, when the session has one.
+  focus: string | null
+  taskId: string
+  title: string
+  epic: string | null
+  attempt: number
+  model: string | null
+  startedAt: string | null
+  lastAt: string | null
+  status: string | null
+  session: DeliverySession
+  // Set for a worker on a runner's crew (R84); Session opens its dashboard.
+  remote?: RemoteWorker
+  // The task's branch, pull request and checks (R92.6); null when the
+  // backend sent none.
+  links: TaskLinks | null
+}
+
+// How long ago a stored read was, from its age in ms.
+function ago(ms: number | null): string {
+  if (ms === null || !Number.isFinite(ms)) return 'read time unknown'
+  const minutes = Math.round(ms / 60000)
+  if (minutes < 1) return 'read just now'
+  if (minutes < 60) return `read ${minutes} min ago`
+  if (minutes < 60 * 24) return `read ${Math.round(minutes / 60)} h ago`
+  return `read ${Math.round(minutes / 60 / 24)} d ago`
+}
+
+const DOT: Record<string, { color: string; words: string }> = {
+  pass: { color: TONE.ok, words: 'Checks pass' },
+  fail: { color: TONE.danger, words: 'Checks fail' },
+  pending: { color: TONE.warn, words: 'Checks running' },
+}
+
+// The check dot on a `PR #N` chip (R92.3, R92.6): its theme color and what
+// it says. State for an older head is grey and says so, never its old state.
+export function checkDot(checks: TaskLinks['checks']): { dot: string; color: string; label: string } {
+  if (!checks) return { dot: 'none', color: TONE.border, label: 'No check result stored' }
+  if (checks.dot === 'stale' || !DOT[checks.dot])
+    return { dot: 'stale', color: TONE.muted, label: `Checks are for an older commit ${checks.head.slice(0, 7)}, not the current one · ${ago(checks.ageMs)}` }
+  return { dot: checks.dot, color: DOT[checks.dot].color, label: `${DOT[checks.dot].words} on ${checks.head.slice(0, 7)} · ${ago(checks.ageMs)}` }
+}
+
+// A `process` session's status words for In flight (R98.1): the harness,
+// the supervisor's state, the run when it was resumed, and the cost when
+// known.
+export function processLine(details: ProcessDetails): string {
+  const state = details.state === 'requested' ? 'starting' : details.state === 'exited' ? `exited ${details.exitCode ?? '?'}` : details.state
+  return [
+    details.harness,
+    state,
+    details.run > 1 ? `run ${details.run}` : null,
+    details.cost === null ? null : `$${details.cost < 0.01 && details.cost > 0 ? details.cost.toFixed(4) : details.cost.toFixed(2)}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+export interface Progress {
+  // An epic across plans; null is No epic (Requirement 59.10).
+  epic: string | null
+  title: string
+  done: number
+  total: number
+  // Avoozl chats running for this epic's tasks now (worker, checks,
+  // reviewer, planner).
+  running: number
+}
+
+export interface DashboardSummary {
+  attention: Attention[]
+  counts: Record<NodeState, number>
+  running: RunningTask[]
+  inFlight: InFlight[]
+  // True only when the delivery read worked and no task has ever run, been
+  // reviewed, integrated or completed (no session, evidence or integration
+  // on any item). Gates the Start demo button; an unread list is false.
+  neverRan: boolean
+  readyNext: (GraphTask & { wave: number })[]
+  progress: Progress[]
+  plans: { approved: number; draft: number; total: number }
+}
+
+const issueHref = (owner: { issue?: { url: string | null } | null }) => safeHref(owner.issue?.url ?? null)
+
+// A delivery the owner must act on: Avoozl stopped it after its retries.
+// A failed attempt with retries left retries on its own, so it is not here.
+function deliveryTrouble(item: DeliveryItem): string | null {
+  if (item.complete) return null
+  if (item.deliveries.some((d) => d.state === 'decision')) return 'Stopped after its retries; retry it or dismiss the findings.'
+  return null
+}
+
+// A remote worker as an In flight row. The chat lives on the runner's crew,
+// so only that crew's own dashboard link opens it.
+function remoteRow(worker: RemoteWorker, links: TaskLinks | null): InFlight {
+  return {
+    slot: `remote:${worker.host}:${worker.chatKey}`,
+    role: 'worker',
+    focus: null,
+    taskId: worker.taskId,
+    title: worker.taskId,
+    epic: null,
+    attempt: 1,
+    model: null,
+    startedAt: null,
+    lastAt: worker.updatedAt || null,
+    status: worker.status,
+    session: {
+      slot: worker.chatKey,
+      role: 'worker',
+      attempt: 1,
+      title: null,
+      status: worker.status,
+      statusAt: worker.updatedAt || null,
+      boundAt: null,
+      link: worker.attachUrl,
+      crew: worker.crewId,
+      crewUnreachable: worker.stale,
+    },
+    remote: worker,
+    links,
+  }
+}
+
+export function summarize(input: {
+  graph: Graph | null
+  delivery: DeliveryItem[] | null
+  conflicts: ConflictItem[] | null
+  plans: StoredPlanPage | null
+  remote?: RemoteWorker[] | null
+  limit?: number
+}): DashboardSummary {
+  const limit = input.limit ?? 8
+  // Archived plans' work is hidden here (Show archived is a Graph and
+  // Delivery filter). Live chats under them still show in In flight, so a
+  // running agent is never out of sight.
+  const graph = input.graph && { ...input.graph, tasks: input.graph.tasks.filter((t) => !t.planArchived) }
+  const allDelivery = input.delivery
+  input = {
+    ...input,
+    delivery: input.delivery && input.delivery.filter((item) => !item.planArchived),
+    conflicts: input.conflicts && input.conflicts.filter((item) => !item.planArchived),
+  }
+  const leaves = (graph?.tasks ?? []).filter((t) => t.kind === 'leaf')
+  const counts: Record<NodeState, number> = { ready: 0, running: 0, waiting: 0, 'needs-you': 0, done: 0, deferred: 0, draft: 0 }
+  // Running counts the same thing In flight lists: an open task with a live
+  // session. A task drawn running with none needs the owner instead.
+  const liveTasks = new Set((allDelivery ?? []).filter((item) => !item.complete && item.sessions.some((s) => !ENDED.has(s.status ?? ''))).map((item) => item.id))
+  for (const task of leaves) {
+    const state = nodeState(task)
+    counts[state === 'done' ? 'done' : liveTasks.has(task.id) ? 'running' : state === 'running' ? 'needs-you' : state] += 1
+  }
+
+  const attention: Attention[] = []
+  const seen = new Set<string>()
+  const push = (entry: Attention) => {
+    if (seen.has(entry.key)) return
+    seen.add(entry.key)
+    attention.push(entry)
+  }
+  for (const item of input.delivery ?? []) {
+    const trouble = deliveryTrouble(item)
+    if (trouble) push({ key: `delivery:${item.id}`, kind: 'delivery', taskId: item.id, title: item.title, detail: trouble, tab: 'task', href: issueHref(item) })
+  }
+  // A manual task once its blockers hold (R61.11): a person's step, tagged
+  // Manual, in the same Needs you list.
+  for (const task of leaves)
+    if (task.needsYou?.manual && nodeState(task) === 'needs-you')
+      push({ key: `manual:${task.id}`, kind: 'manual', taskId: task.id, title: task.title, detail: task.needsYou.reason, tab: 'task', href: null })
+  // Decisions first, then the rest in view order.
+  const rank = (kind: string) => ['decision', 'stale-session'].indexOf(kind) >>> 0
+  for (const item of [...(input.conflicts ?? [])].sort((a, b) => rank(a.kind) - rank(b.kind)))
+    push({
+      key: `${item.kind}:${item.taskId ?? item.id ?? ''}:${item.field ?? ''}`,
+      kind: item.kind,
+      taskId: item.taskId,
+      ...(item.kind === 'review' ? { group: item } : {}),
+      title: item.title,
+      detail: item.detail,
+      tab: 'waiting',
+      href: issueHref(item),
+    })
+
+  const running = (allDelivery ?? [])
+    .filter((item) => !item.complete)
+    .map((item) => ({ id: item.id, title: item.title, sessions: item.sessions.filter((s) => !ENDED.has(s.status ?? '')) }))
+    .filter((item) => item.sessions.length > 0)
+
+  const tasks = new Map((graph?.tasks ?? []).map((t) => [t.id, t]))
+  const epicTitles = new Map((graph?.epics ?? []).map((e) => [e.id, e.title]))
+  const linksOf = new Map((allDelivery ?? []).map((item) => [item.id, item.links ?? null]))
+  const inFlight: InFlight[] = running
+    .flatMap((item) =>
+      item.sessions.map((session) => {
+        const epic = tasks.get(item.id)?.epic ?? null
+        return {
+          slot: session.slot,
+          role: session.role,
+          focus: session.title,
+          taskId: item.id,
+          title: item.title,
+          epic: epic ? (epicTitles.get(epic) ?? epic) : null,
+          attempt: session.attempt,
+          model: modelLabel(session),
+          startedAt: session.boundAt,
+          lastAt: session.statusAt ?? session.boundAt,
+          status: session.status,
+          session,
+          links: linksOf.get(item.id) ?? null,
+        }
+      }),
+    )
+    .concat((input.remote ?? []).map((worker) => remoteRow(worker, linksOf.get(worker.taskId) ?? null)))
+    .sort((a, b) => (b.lastAt ?? '').localeCompare(a.lastAt ?? ''))
+
+  const wave = graph ? waves(graph) : new Map<string, number>()
+  // The tick's own dispatch order (graph.view `order`: start-now, rank,
+  // graph order); an older backend without it falls back to wave.
+  const readyNext = leaves
+    .filter((t) => nodeState(t) === 'ready')
+    .map((t) => ({ ...t, wave: wave.get(t.id) ?? 1 }))
+    .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || a.wave - b.wave || a.id.localeCompare(b.id))
+
+  const titles = new Map((graph?.epics ?? []).map((e) => [e.id, e.title]))
+  const chats = new Map<string, number>()
+  for (const row of inFlight) {
+    const epic = tasks.get(row.taskId)?.epic
+    if (epic) chats.set(epic, (chats.get(epic) ?? 0) + 1)
+  }
+  // One row per epic, counting the tasks of all its member plans, in the
+  // backend's epic order, then No epic.
+  const byEpic = new Map<string | null, Progress>()
+  for (const epic of graph?.epics ?? []) byEpic.set(epic.id, { epic: epic.id, title: epic.title, done: 0, total: 0, running: chats.get(epic.id) ?? 0 })
+  let none = 0
+  for (const task of leaves) {
+    const key = task.epic && titles.has(task.epic) ? task.epic : null
+    if (key === null) none += 1
+    const entry = byEpic.get(key) ?? { epic: null, title: 'No epic', done: 0, total: 0, running: 0 }
+    entry.total += 1
+    if (nodeState(task) === 'done') entry.done += 1
+    byEpic.set(key, entry)
+  }
+  for (const [key, entry] of byEpic) if (!entry.total || (key === null && !none)) byEpic.delete(key)
+
+  const stored = (input.plans?.items ?? []).filter((p) => !p.archivedAt)
+  const archivedPlans = (input.plans?.items ?? []).length - stored.length
+  return {
+    attention,
+    counts,
+    running,
+    inFlight,
+    neverRan:
+      input.delivery != null &&
+      !input.delivery.some((item) => item.complete || item.sessions.length > 0 || item.evidence.length > 0 || item.deliveries.length > 0 || item.integration),
+    readyNext,
+    progress: [...byEpic.values()],
+    plans: {
+      approved: stored.filter((p) => p.state === 'approved').length,
+      draft: stored.filter((p) => p.state === 'draft').length,
+      total: (input.plans?.total ?? stored.length + archivedPlans) - archivedPlans,
+    },
+  }
+}
+
+// How the Dashboard heading row lays out its state buttons, by width:
+// wide (≥1024 px) shares the title's line, pushed right; medium takes its
+// own line under the title, right-aligned and wrapping with even gaps;
+// small (≤480 px) is an even two-column grid of 32 px tall buttons whose
+// labels shorten before a long count can push the row.
+export type CountsLayout = 'wide' | 'medium' | 'small'
+export const SMALL = '(max-width: 480px)'
+
+export function countsLayout(wide: boolean, small: boolean): CountsLayout {
+  return small ? 'small' : wide ? 'wide' : 'medium'
+}
+
+export function countsStyles(layout: CountsLayout) {
+  if (layout === 'small')
+    return {
+      list: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6, width: '100%' },
+      button: { minHeight: 26, width: '100%', justifyContent: 'space-between' },
+    }
+  return {
+    list: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      justifyContent: 'flex-end',
+      gap: 6,
+      ...(layout === 'medium' ? { width: '100%' } : { marginLeft: 'auto' }),
+    },
+    // 8 px sides, not 10, so the title, count, Refresh and all six buttons
+    // fit one line at 1024 px.
+    button: { minHeight: 26, paddingInline: 8 },
+  } as const
+}

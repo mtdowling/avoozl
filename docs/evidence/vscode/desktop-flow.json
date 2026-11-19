@@ -1,0 +1,87 @@
+{
+  "at": "2026-11-10T02:56:32.572Z",
+  "acceptance": "VSC-09 desktop real-work flow",
+  "scope": "Desktop VS Code with a throwaway profile and extensions directory, a disposable workspace and Git repository, and a fixture provider running real child processes. No personal profile and no provider account.",
+  "method": "Commands run from the application's own palette and real mouse presses on its own controls, driven by scripts/cdp.mjs. Assertions are made against the durable records, not the UI.",
+  "limitation": "The desktop build exposes no agent-host bridge, so an owned session has no native chat editor there. This flow accepts the desktop work that does not depend on it; native clicked controls are accepted on the bridged route in native-controls-*.json.",
+  "editor": {
+    "version": null
+  },
+  "versions": {
+    "node": "v26.13.0",
+    "clientApi": "1.0.0"
+  },
+  "plan": {
+    "id": "example-launch-pilot-proposal",
+    "revisionBefore": 1,
+    "revisionAfter": 2
+  },
+  "run": {
+    "state": "waiting-approval",
+    "error": null,
+    "cancellation": null
+  },
+  "process": null,
+  "checks": [
+    {
+      "name": "the packaged extension activates in the desktop application",
+      "passed": true
+    },
+    {
+      "name": "the extension's own view opens in the desktop application",
+      "passed": true,
+      "detail": "Avoozl"
+    },
+    {
+      "name": "the sidebar lists this workspace's own work",
+      "passed": true,
+      "detail": "[\"Attention needed1\",\"Approve: BashDesktop flow check\",\"Running1\",\"Desktop flow checkwaiting-approval · claude · fixture-fast\",\"Ready work3\",\"Blocked4\"]"
+    },
+    {
+      "name": "a plan draft opens as an editable document",
+      "passed": true
+    },
+    {
+      "name": "saving from the editor records a new revision",
+      "passed": true,
+      "detail": "revision 1 → 2"
+    },
+    {
+      "name": "saving never approves the plan",
+      "passed": true,
+      "detail": "0 approvals recorded"
+    },
+    {
+      "name": "the conversation's pending request exists",
+      "passed": true
+    },
+    {
+      "name": "the pending request is offered in the application's own picker",
+      "passed": true,
+      "detail": "Approve: BashDesktop flow check"
+    },
+    {
+      "name": "diagnostics are available in the application",
+      "passed": true
+    },
+    {
+      "name": "the desktop application offers no native chat for an owned session",
+      "passed": true,
+      "detail": "accepted as a documented limitation: the desktop build has no agent-host bridge"
+    }
+  ],
+  "notAttempted": [
+    {
+      "step": "answering the pending request from the sidebar",
+      "reason": "the extension's modal decision dialog did not open from an automated click; request left pending"
+    },
+    {
+      "step": "observing the approved command run",
+      "reason": "no approval was delivered, so no command could start"
+    },
+    {
+      "step": "stopping the conversation from the application",
+      "reason": "nothing was running to stop"
+    }
+  ]
+}

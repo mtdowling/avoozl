@@ -1,0 +1,111 @@
+{
+  "name": "avoozl",
+  "version": "0.1.0",
+  "displayName": "Avoozl",
+  "description": "Approve a spec; Avoozl runs it with coding agents, checks each commit itself, and lands it.",
+  "author": "mtdowling",
+  "license": "MIT",
+  "minKiroCrewVersion": "0.12.2",
+  "iconPath": "assets/icon.png",
+  "skills": [
+    "skills/avoozl",
+    "skills/avoozl-plugin",
+    "skills/avoozl-rules",
+    "skills/avoozl-costs"
+  ],
+  "agents": [
+    "agents/avoozl-planner.json",
+    "agents/avoozl-verifier.json",
+    "agents/avoozl-reviewer.json",
+    "agents/avoozl-falsifier.json",
+    "agents/avoozl-responder.json",
+    "agents/avoozl-retro.json",
+    "agents/avoozl-code-review.json",
+    "agents/avoozl-plan-review.json",
+    "agents/avoozl-plan-answer-read.json",
+    "agents/avoozl-task-summary.json",
+    "agents/avoozl-triage.json"
+  ],
+  "mcpServers": {
+    "avoozl": {
+      "command": "python3",
+      "args": ["bin/avoozl_mcp.py"]
+    }
+  },
+  "backend": {
+    "type": "node",
+    "entryPoint": "bin/avoozl.mjs",
+    "healthCheck": "/health",
+    "signedPrincipal": true
+  },
+  "crons": [
+    {
+      "name": "avoozl-tick",
+      "every": 60,
+      "script": "crons/tick.py:run",
+      "silent": true,
+      "persistent_session": false,
+      "timeout": 120
+    }
+  ],
+  "notifications": {
+    "channels": [
+      {
+        "id": "decision",
+        "name": "Avoozl needs a decision",
+        "icon": "CircleHelp"
+      },
+      {
+        "id": "failure",
+        "name": "Avoozl delivery failed",
+        "icon": "CircleX"
+      },
+      {
+        "id": "untriaged",
+        "name": "New items in Intake",
+        "icon": "Inbox"
+      }
+    ]
+  },
+  "permissions": {
+    "api": [
+      "/apps/avoozl/api/*",
+      "/api/chat/slots/avoozl_*",
+      "/api/reveal",
+      "/api/usage/turns",
+      "/api/models",
+      "/api/apps/spec-builder/specs"
+    ],
+    "cron": true
+  },
+  "tags": ["planning", "github", "automation", "developer-tools"],
+  "contributes": {
+    "panelTabs": [
+      {
+        "id": "avoozl",
+        "title": "Avoozl",
+        "menuLabel": "Avoozl",
+        "menuDescription": "Spec check, the crew a chat is on, and a recap",
+        "icon": "Workflow",
+        "entry": "dist/panel.mjs"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "dist/index.mjs",
+    "pages": [
+      {
+        "route": "/apps/avoozl",
+        "label": "Avoozl",
+        "icon": "Workflow"
+      }
+    ]
+  },
+  "dependencies": {
+    "commands": ["node", "git"],
+    "optionalCommands": ["gh"]
+  },
+  "platform": {
+    "os": ["macos", "linux", "windows"]
+  }
+}

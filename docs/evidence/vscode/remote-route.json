@@ -1,0 +1,53 @@
+{
+  "at": "2026-11-09T23:41:58.916119Z",
+  "acceptance": "Authenticated remote route (VSC-07) and physical-phone parity (VSC-08)",
+  "outcome": "not established",
+  "scope": "Disposable workspace and Git repository, loopback facade, a temporary VS Code tunnel attempted over Microsoft's relay with the operator's own GitHub device login.",
+  "whatHappened": [
+    "The agent host facade started on loopback with a connection token, as in every other check.",
+    "A VS Code tunnel was started against the disposable fixture repository only.",
+    "The operator completed the GitHub device login successfully.",
+    "The tunnel never reported a URL, because it cannot reach Microsoft's relay from this network."
+  ],
+  "networkBoundary": {
+    "reason": "The tunnel relay hostnames do not resolve on this network, while GitHub and vscode.dev do. This is a network policy outside the application.",
+    "probes": [
+      {
+        "host": "global.rel.tunnels.api.visualstudio.com",
+        "result": "DNS timeout"
+      },
+      {
+        "host": "tunnels.api.visualstudio.com",
+        "result": "DNS timeout"
+      },
+      {
+        "host": "x.devtunnels.ms",
+        "result": "DNS timeout"
+      },
+      {
+        "host": "vscode.dev",
+        "result": "HTTP 200"
+      },
+      {
+        "host": "github.com",
+        "result": "HTTP 200"
+      }
+    ]
+  },
+  "cleanup": {
+    "tunnelRegistered": false,
+    "serviceInstalled": false,
+    "verifiedWith": "code tunnel status -> {\"tunnel\":null,\"service_installed\":false}",
+    "note": "The tunnel never registered, so nothing was published and nothing had to be revoked. Its data directory and the fixture were removed."
+  },
+  "notEstablished": [
+    "Whether a remote editor reaches the facade through a tunnel. Untested, not disproven.",
+    "Whether the browser Agents client can see sessions this host owns.",
+    "Every physical-phone behaviour in the plan's checklist, which depended on an off-network route to this machine."
+  ],
+  "remainingRoutes": [
+    "chat.remoteAgentHosts accepts SSH fields (sshConfigHost, sshHostName, sshUser, sshPort, sshServerType, connectionToken). That reaches the facade on this machine's loopback over SSH, with no relay and nothing published. It is the route worth implementing next.",
+    "An SSH local port forward to the facade's loopback port, which needs no editor support at all.",
+    "A tunnel from a network that does not block the relay."
+  ]
+}

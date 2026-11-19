@@ -1,0 +1,162 @@
+name: Test shards
+# One system's tests, split into the shards the plan job in test.yml chose.
+# On Linux the page tests that drive Chrome run in one more job, in a pinned
+# Chrome for Testing.
+on:
+  workflow_call:
+    inputs:
+      os:
+        type: string
+        required: true
+      system:
+        type: string
+        required: true
+      # A JSON list such as ["1/3","2/3","3/3"]; [] runs no shard.
+      shards:
+        type: string
+        required: true
+      chrome:
+        type: boolean
+        default: false
+env:
+  # Bump both together; the cache key follows the version.
+  CHROME_VERSION: 158.0.8127.36
+  BROWSERS_TOOL: "@puppeteer/browsers@3.2.7"
+jobs:
+  shard:
+    if: inputs.shards != '[]'
+    name: shard ${{ matrix.shard }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(inputs.shards != '[]' && inputs.shards || '["1/1"]') }}
+    runs-on: ${{ inputs.os }}
+    # Windows spawns git and node more slowly than the other systems.
+    timeout-minutes: ${{ inputs.system == 'windows' && 20 || 10 }}
+    env:
+      # The page tests that drive Chrome run in the chrome job below.
+      AVOOZL_CHROME: skip
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      # The tests make thousands of temporary folders, git repositories and
+      # SQLite files. The runner's C: drive is slow; its D: work drive cut the
+      # Windows suite from about 11 minutes to about 4.
+      - name: Temp on the work drive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "TEMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
+          "TMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
+      - uses: actions/setup-node@v4
+        id: node
+        with:
+          node-version: 26
+          cache: npm
+      - uses: actions/cache@v4
+        id: modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+      - run: npm ci --ignore-scripts
+        if: steps.modules.outputs.cache-hit != 'true'
+      # The build receipt: one JSON line for this shard (RC32.4).
+      - name: Run tests
+        shell: bash
+        env:
+          AVOOZL_RECEIPT_FILE: build-receipt.jsonl
+        run: |
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            changed="--changed --base HEAD~1"
+          fi
+          node bin/build-receipt --target "${{ inputs.os }} ${{ matrix.shard }}" -- node scripts/run-tests.mjs --ui $changed --system ${{ inputs.system }} --shard ${{ matrix.shard }}
+      # Every shard keeps its receipt, and the summary prints every line (R101.3).
+      - name: Receipt to the job summary
+        if: always() && hashFiles('build-receipt.jsonl') != ''
+        shell: bash
+        run: |
+          echo '### Build receipt (${{ inputs.os }} ${{ matrix.shard }})' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat build-receipt.jsonl >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always() && hashFiles('build-receipt.jsonl') != ''
+        with:
+          name: build-receipt-${{ inputs.os }}-${{ strategy.job-index }}
+          path: build-receipt.jsonl
+          retention-days: 30
+      # The package check does not depend on the tests: main, the nightly and
+      # a manual run do it once per system.
+      - run: npm pack --dry-run
+        if: github.event_name != 'pull_request' && strategy.job-index == 0
+
+  chrome:
+    if: inputs.chrome
+    name: Chrome page tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # The page only loads the local test harness. Ubuntu's AppArmor rules
+      # stop Chrome's sandbox from starting on the runner.
+      AVOOZL_CHROME_NO_SANDBOX: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        id: node
+        with:
+          node-version: 26
+          cache: npm
+      - uses: actions/cache@v4
+        id: modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+      - run: npm ci --ignore-scripts
+        if: steps.modules.outputs.cache-hit != 'true'
+      - uses: actions/cache@v4
+        id: chrome
+        with:
+          path: ~/.cache/avoozl-chrome
+          key: chrome-for-testing-${{ runner.os }}-${{ env.CHROME_VERSION }}
+      - name: Install Chrome for Testing
+        if: steps.chrome.outputs.cache-hit != 'true'
+        run: npx --yes "$BROWSERS_TOOL" install "chrome@$CHROME_VERSION" --path ~/.cache/avoozl-chrome
+      - name: Point the tests at it
+        run: echo "AVOOZL_CHROME=$HOME/.cache/avoozl-chrome/chrome/linux-$CHROME_VERSION/chrome-linux64/chrome" >> "$GITHUB_ENV"
+      - name: Run the Chrome page tests
+        shell: bash
+        env:
+          AVOOZL_RECEIPT_FILE: build-receipt.jsonl
+        run: |
+          test -x "$AVOOZL_CHROME"
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            changed="--changed --base HEAD~1"
+          fi
+          node bin/build-receipt --target "ubuntu-latest chrome" -- node scripts/run-tests.mjs --ui $changed --system linux --chrome-only
+      # Every test browser has a profile folder named avoozl-chrome-*. One
+      # still running after the tests means a test left its browser open.
+      - name: No browser left running
+        if: always()
+        run: |
+          if pgrep -af 'avoozl-chrome-'; then
+            pkill -9 -f 'avoozl-chrome-' || true
+            echo "::error::A test browser was still running after the tests."
+            exit 1
+          fi
+      - name: Receipt to the job summary
+        if: always() && hashFiles('build-receipt.jsonl') != ''
+        shell: bash
+        run: |
+          echo '### Build receipt (ubuntu-latest chrome)' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat build-receipt.jsonl >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always() && hashFiles('build-receipt.jsonl') != ''
+        with:
+          name: build-receipt-ubuntu-latest-chrome
+          path: build-receipt.jsonl
+          retention-days: 30

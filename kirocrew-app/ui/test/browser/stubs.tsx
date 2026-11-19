@@ -1,0 +1,225 @@
+// Stand-ins for the host SDK (@kirocrew/app-sdk and its /ui) and lucide-react
+// in the modal harness. Card makes a containing block (a transform), as a
+// host card or pane may, so a modal that is not portaled shows it.
+import { forwardRef, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+
+type Reply = (body: { operation?: string; input?: unknown }) => unknown
+const replies: Record<string, Reply> = {}
+// The harness answers these operations; any other call never settles, so a
+// dialog stays on its loading line.
+export function answer(operation: string, reply: Reply) {
+  replies[operation] = reply
+}
+export const replyFor = (operation: string): Reply | undefined => replies[operation]
+const never = () => new Promise<never>(() => undefined)
+// A refused call, shaped as the host client rejects: status and raw body.
+export class Refusal extends Error {
+  status: number
+  body: string
+  constructor(status: number, body: unknown) {
+    super(`Request failed (${status}).`)
+    this.status = status
+    this.body = JSON.stringify(body)
+  }
+}
+const api = {
+  request: never,
+  // GET answers are registered as answer('GET <path>', ...).
+  get: (path: string) => {
+    const reply = replies[`GET ${path}`]
+    return reply ? Promise.resolve(reply({})) : never()
+  },
+  put: never,
+  del: never,
+  post: (_path: string, body: { operation?: string; workspaceId?: string }) => {
+    // Every operation the page sent, in order, for tests that check what a
+    // page reads.
+    ;((window as unknown as { __ops?: string[] }).__ops ??= []).push(body?.operation ?? '')
+    // window.__REPLAY: recorded replies from a real backend, each after its
+    // own delay in ms (home-timing.mjs); they win over the harness's own.
+    const replay = (window as unknown as { __REPLAY?: Record<string, { result: unknown; ms: number }> }).__REPLAY?.[body?.operation ?? '']
+    if (replay) {
+      const w = window as unknown as { __pending?: number; __lastReply?: number }
+      w.__pending = (w.__pending ?? 0) + 1
+      return new Promise((resolve) =>
+        setTimeout(() => {
+          w.__pending = (w.__pending ?? 1) - 1
+          w.__lastReply = performance.now()
+          resolve({ result: replay.result })
+        }, replay.ms),
+      )
+    }
+    const reply = replies[body?.operation ?? '']
+    if (!reply) return never()
+    try {
+      return Promise.resolve({ result: reply(body) })
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  },
+}
+export const useAppApi = () => api
+export const useNavigate = () => (path: string) => {
+  ;((window as unknown as { __navigated?: string[] }).__navigated ??= []).push(path)
+}
+// A test reads window.__chats to see what a button asked the host to open.
+export const useChatLauncher = () => ({
+  openChat: (input: unknown) => {
+    ;((window as unknown as { __chats?: unknown[] }).__chats ??= []).push(input)
+  },
+})
+
+export function Icon(props: { size?: number | string; style?: object }) {
+  const size = props.size ?? 16
+  return (
+    <svg data-stub-icon width={size} height={size} viewBox="0 0 16 16" aria-hidden="true" style={props.style}>
+      <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" />
+    </svg>
+  )
+}
+
+export function Card(props: { children?: ReactNode; className?: string; style?: object }) {
+  return (
+    <div
+      data-stub-card
+      className={`rounded-lg border p-4 ${props.className ?? ''}`}
+      style={{ transform: 'translateZ(0)', background: 'var(--card, var(--bg))', borderColor: 'var(--border)', ...props.style }}
+    >
+      {props.children}
+    </div>
+  )
+}
+// A switch as the host draws one: a div with role "switch", named by `label`,
+// toggled by a click or Space or Enter, out of the tab order when disabled.
+export function Toggle(props: { checked: boolean; onChange(checked: boolean): void; disabled?: boolean; label?: string; describedBy?: string; tone?: 'accent' | 'muted' }) {
+  const flip = () => {
+    if (!props.disabled) props.onChange(!props.checked)
+  }
+  return (
+    <div
+      role="switch"
+      aria-checked={props.checked}
+      aria-disabled={props.disabled || undefined}
+      aria-label={props.label}
+      aria-describedby={props.describedBy}
+      tabIndex={props.disabled ? -1 : 0}
+      onClick={flip}
+      onKeyDown={(event) => {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault()
+          flip()
+        }
+      }}
+      className={`w-9 h-5 rounded-full relative shrink-0 cursor-pointer ${props.disabled ? 'opacity-40' : ''} ${props.checked ? 'bg-accent' : 'bg-border'}`}
+    >
+      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white ${props.checked ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+    </div>
+  )
+}
+export const CardTitle = (props: { children?: ReactNode }) => <h3 className="font-semibold">{props.children}</h3>
+export const PageHeader = (props: { title: ReactNode; subtitle?: string; actions?: ReactNode }) => (
+  <header className="flex items-center gap-2">
+    {props.title}
+    {props.actions}
+  </header>
+)
+export const EmptyState = (props: { title: ReactNode; subtitle?: ReactNode; action?: ReactNode }) => (
+  <div className="flex flex-col items-center gap-2 p-4 text-sm" style={{ textAlign: 'center' }}>
+    <strong>{props.title}</strong>
+    {props.subtitle && <span className="text-muted">{props.subtitle}</span>}
+    {props.action}
+  </div>
+)
+// The host's badge colors, so a screenshot shows which badges are yellow.
+const BADGE_TONES: Record<string, string> = { ok: '#16a34a', err: 'var(--danger)', warn: '#ca8a04', aim: '#7c3aed', muted: 'var(--muted)' }
+export const Badge = (props: { children?: ReactNode; variant?: string; className?: string }) => {
+  const tone = BADGE_TONES[props.variant ?? 'warn'] ?? BADGE_TONES.warn
+  return (
+    <span
+      className="rounded border px-1 text-xs"
+      data-badge-variant={props.variant ?? 'warn'}
+      style={{ color: tone, borderColor: tone, background: `color-mix(in srgb, ${tone} 12%, transparent)` }}
+    >
+      {props.children}
+    </span>
+  )
+}
+// Btn and Input carry the host's own classes (its components/ui.tsx), so
+// with the host stylesheet a screenshot shows primary and secondary buttons
+// and inputs as the app does.
+const BTN = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[13px] cursor-pointer font-body transition-all disabled:cursor-not-allowed'
+const BTN_PRIMARY = 'bg-accent text-accent-fg border-accent hover:bg-accent-hover disabled:bg-bg-hover disabled:text-muted disabled:border-transparent disabled:opacity-60'
+const BTN_SECONDARY = 'border-border bg-transparent text-text hover:border-border-strong hover:bg-bg-hover disabled:opacity-30'
+export const Btn = forwardRef<HTMLButtonElement, Record<string, unknown>>(function Btn({ primary, variant, danger, ...rest }, ref) {
+  return (
+    <button
+      ref={ref}
+      {...rest}
+      data-primary={primary ? '' : undefined}
+      className={`${BTN} ${primary ? BTN_PRIMARY : danger ? 'border-border bg-transparent text-danger' : BTN_SECONDARY} ${(rest.className as string) ?? ''}`}
+    />
+  )
+})
+export const Input = forwardRef<HTMLInputElement, Record<string, unknown>>(function Input(props, ref) {
+  return <input ref={ref} {...props} className="bg-bg-elevated border border-border rounded-md px-3 py-2 text-text text-sm font-body flex-1 min-w-0" />
+})
+// Models the host control: with room (80 px a segment) it shows every label; with less
+// it shows only the selected label (`compact`), and under 44 px a segment
+// a single dropdown button. `collapse={false}`
+// (the host prop) keeps the full row. Colors follow the host: inactive text
+// is the theme's muted color, the selected one its accent, on the elevated bg.
+export function SegmentedControl(props: {
+  segments: { key: string; label: ReactNode }[]
+  value: string
+  onChange(key: string): void
+  ariaLabel?: string
+  wrap?: boolean | 'hug'
+  collapse?: boolean
+  compact?: boolean
+  layoutId?: string
+}) {
+  const root = useRef<HTMLDivElement>(null)
+  const [mode, setMode] = useState<'full' | 'compact' | 'dropdown'>(props.compact ? 'compact' : 'full')
+  const n = props.segments.length
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (props.compact) return setMode('compact')
+      if (props.collapse === false) return setMode('full')
+      const width = root.current?.parentElement?.clientWidth ?? 0
+      setMode(width >= n * 80 + 16 ? 'full' : width >= n * 44 + 16 ? 'compact' : 'dropdown')
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    if (root.current?.parentElement) observer.observe(root.current.parentElement)
+    return () => observer.disconnect()
+  }, [n, props.collapse, props.compact])
+  if (mode === 'dropdown') {
+    return (
+      <div ref={root} className="inline-flex">
+        <button type="button" data-collapsed aria-expanded="false" style={{ color: 'var(--accent)', background: 'var(--bg-elevated)' }}>
+          {props.segments.find((s) => s.key === props.value)?.label}
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div ref={root} role="tablist" aria-label={props.ariaLabel} className={`flex gap-1 ${props.wrap ? 'flex-wrap' : ''}`} style={{ background: 'var(--bg-elevated)' }}>
+      {props.segments.map((s) => {
+        const selected = s.key === props.value
+        return (
+          <button
+            key={s.key}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => props.onChange(s.key)}
+            className="rounded border px-2 py-1 text-sm"
+            style={{ color: selected ? 'var(--accent)' : 'var(--muted)', background: 'var(--bg-elevated)' }}
+          >
+            {mode === 'full' || selected ? s.label : null}
+          </button>
+        )
+      })}
+    </div>
+  )
+}

@@ -1,0 +1,187 @@
+name: Test
+# Pushes run only on main; a pull request runs once, from pull_request.
+# Main, the nightly run and a manual run test everything on all three
+# systems. A pull request runs the tests that scripts/select-tests.mjs picks
+# for its changes: all of them on Linux, and on macOS and Windows only the
+# OS-sensitive ones (scripts/test-plan.mjs).
+#
+# The plan job splits each system's tests into up to three shards
+# (.github/workflows/test-shards.yml). The three "test (<os>)" jobs at the
+# end are the required checks: each passes only when its system's shards
+# and the plan passed, and a skipped shard means nothing needed to run.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 5 * * *"
+  # A manual run can limit the platforms: `platforms` names the systems to
+  # run (linux-x64, windows-x64, macos-arm64, comma separated). Empty runs
+  # all three, as a plain dispatch always did.
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: "Platforms to run, comma separated (empty runs all)"
+        required: false
+        default: ""
+permissions:
+  contents: read
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      linux: ${{ steps.legs.outputs.linux }}
+      linux-chrome: ${{ steps.legs.outputs.linux-chrome }}
+      macos: ${{ steps.legs.outputs.macos }}
+      windows: ${{ steps.legs.outputs.windows }}
+    steps:
+      # A pull request checks out the merge of its head into its base, so
+      # the first parent is the base and the diff against it is the change.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      # Prints what runs where. Needs only node and git.
+      - name: Plan the shards
+        id: plan
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            node scripts/test-plan.mjs --base HEAD~1 --github-output
+          else
+            node scripts/test-plan.mjs --full --github-output
+          fi
+      # A dispatch that names platforms runs only those systems: the others
+      # get no shards, and their required check passes with nothing to run,
+      # like a pull request that needs no tests there.
+      - name: Limit to the requested platforms
+        id: legs
+        shell: bash
+        env:
+          PLAN_LINUX: ${{ steps.plan.outputs.linux }}
+          PLAN_LINUX_CHROME: ${{ steps.plan.outputs.linux-chrome }}
+          PLAN_MACOS: ${{ steps.plan.outputs.macos }}
+          PLAN_WINDOWS: ${{ steps.plan.outputs.windows }}
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          wanted() { [ -z "$PLATFORMS" ] || printf ',%s,' "${PLATFORMS// /}" | grep -q ",$1,"; }
+          {
+            if wanted linux-x64; then echo "linux=$PLAN_LINUX"; echo "linux-chrome=$PLAN_LINUX_CHROME"; else echo "linux=[]"; echo "linux-chrome=false"; fi
+            if wanted macos-arm64; then echo "macos=$PLAN_MACOS"; else echo "macos=[]"; fi
+            if wanted windows-x64; then echo "windows=$PLAN_WINDOWS"; else echo "windows=[]"; fi
+          } >> "$GITHUB_OUTPUT"
+
+  # Formatting and spec lint do not depend on the platform, so one runner
+  # checks them, on every change.
+  lint:
+    if: github.event_name != 'workflow_dispatch' || inputs.platforms == '' || contains(inputs.platforms, 'linux-x64')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        id: node
+        with:
+          node-version: 26
+          cache: npm
+      - uses: actions/cache@v4
+        id: modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+      - run: npm ci --ignore-scripts
+        if: steps.modules.outputs.cache-hit != 'true'
+      - run: npm run format:check
+      - run: node scripts/check-no-images.mjs
+      - run: node scripts/spec-lint.mjs
+
+  # Copy/paste check (scripts/dup.mjs): fails when duplicated lines grow past
+  # scripts/dup-baseline.json. Main and the nightly run only; a pull request
+  # runs `npm run dup:changed` before it opens (AGENTS.md).
+  dup:
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        id: node
+        with:
+          node-version: 26
+          cache: npm
+      - uses: actions/cache@v4
+        id: modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+      - run: npm ci --ignore-scripts
+        if: steps.modules.outputs.cache-hit != 'true'
+      - run: npm run dup
+
+  linux:
+    needs: plan
+    if: needs.plan.outputs.linux != '[]' || needs.plan.outputs.linux-chrome == 'true'
+    uses: ./.github/workflows/test-shards.yml
+    with:
+      os: ubuntu-latest
+      system: linux
+      shards: ${{ needs.plan.outputs.linux }}
+      chrome: ${{ needs.plan.outputs.linux-chrome == 'true' }}
+  macos:
+    needs: plan
+    if: needs.plan.outputs.macos != '[]'
+    uses: ./.github/workflows/test-shards.yml
+    with:
+      os: macos-latest
+      system: macos
+      shards: ${{ needs.plan.outputs.macos }}
+  windows:
+    needs: plan
+    if: needs.plan.outputs.windows != '[]'
+    uses: ./.github/workflows/test-shards.yml
+    with:
+      os: windows-latest
+      system: windows
+      shards: ${{ needs.plan.outputs.windows }}
+
+  # The required checks keep their old names. Each reads only the jobs it
+  # needs: the plan must pass, and every other job must pass or be skipped.
+  test-ubuntu:
+    name: test (ubuntu-latest)
+    needs: [plan, lint, linux]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every Linux shard passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node -e 'const n = JSON.parse(process.env.NEEDS); const bad = Object.entries(n).filter(([job, { result }]) => !(result === "success" || (job !== "plan" && result === "skipped"))); for (const [job, { result }] of bad) console.log(`${job}: ${result}`); process.exit(bad.length ? 1 : 0)'
+  test-macos:
+    name: test (macos-latest)
+    needs: [plan, macos]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every macOS shard passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node -e 'const n = JSON.parse(process.env.NEEDS); const bad = Object.entries(n).filter(([job, { result }]) => !(result === "success" || (job !== "plan" && result === "skipped"))); for (const [job, { result }] of bad) console.log(`${job}: ${result}`); process.exit(bad.length ? 1 : 0)'
+  test-windows:
+    name: test (windows-latest)
+    needs: [plan, windows]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every Windows shard passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node -e 'const n = JSON.parse(process.env.NEEDS); const bad = Object.entries(n).filter(([job, { result }]) => !(result === "success" || (job !== "plan" && result === "skipped"))); for (const [job, { result }] of bad) console.log(`${job}: ${result}`); process.exit(bad.length ? 1 : 0)'

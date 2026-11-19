@@ -1,0 +1,37 @@
+// Types for delivery-lanes.mjs, for the Kiro Crew app page.
+export type LaneId =
+  | "ready"
+  | "running"
+  | "reviewing"
+  | "needs-you"
+  | "waiting"
+  | "done";
+export type LaneNodeState =
+  | "done"
+  | "needs-you"
+  | "deferred"
+  | "running"
+  | "ready"
+  | "waiting"
+  | "draft";
+
+export interface LaneTask {
+  state?: LaneNodeState | null;
+  complete?: boolean;
+  decision?: string | null;
+  status?: string | null;
+  ready?: boolean;
+}
+
+export interface LaneItem {
+  deliveries?: { state?: unknown }[];
+  sessions?: { status?: string | null; role?: string }[];
+  needsYou?: unknown;
+  complete?: boolean;
+  status?: string | null;
+  handSetReview?: boolean;
+}
+
+export const NODE_STATES: readonly (readonly [LaneNodeState, string])[];
+export function nodeState(task: LaneTask): LaneNodeState;
+export function laneOf(task: LaneTask | null, item: LaneItem | null): LaneId;

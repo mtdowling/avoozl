@@ -1,0 +1,613 @@
+// Settings > Plugins > Intake sources (design §4.12, §4.39, R50.6, R110):
+// where work comes in from, one list. A GitHub source is a repository whose
+// issues may start work; it is set in Repository setup and shows here with
+// a link there. The GitHub box is the Triage reader: what no source covers.
+// Any other source is a plugin that provides intake, or `mcp` for a script or
+// cron job that sends items. Each source is one box with
+// its status (on or off, last poll, items, last error), what it can set
+// off, and who counts. A source is declared on this computer by default;
+// sharing it in `.avoozl.json` asks you to confirm, because its id and
+// plugin may be private names. The backend has add and remove only, so a
+// source is changed by removing it and adding it again.
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useAppApi } from './host.ts'
+import { Card } from './ui/Card'
+import { EmptyState } from './ui/EmptyState'
+import { Input } from './ui/Input'
+import Badge, { type BadgeVariant } from './ui/Badge.tsx'
+import { DangerBtn, IconLabel, SectionHeading } from './ui/controls.tsx'
+import { Modal } from './ui/Modal.tsx'
+import { RadioFold } from './ui/RadioFold.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
+import { CircleAlert, Plus, Settings, Trash2 } from './icons.ts'
+import {
+  emptySourceForm,
+  intakeClient,
+  isGitHubSource,
+  listText,
+  sourceEntry,
+  sourceStatus,
+  sourceTriggers,
+  viaLabel,
+  whoCounts,
+  type IntakeGitHub,
+  type IntakeSourceRow,
+  type PluginRow,
+  type SourceForm,
+  type SourceTone,
+} from './plugins-api.ts'
+import { relativeTime } from './task-api.ts'
+import { useMedia } from './use-media.ts'
+import { useRead } from './useRead.ts'
+import { errorMessage, workspaceClient } from './workspace-api.ts'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { SelectField } from './ui/SelectField'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
+import { Glyph } from './ui/Glyph'
+
+const TONE: Record<SourceTone, BadgeVariant | undefined> = { ok: 'success', off: undefined, error: 'danger', waiting: 'info' }
+const SCOPE = { machine: 'This computer only', repository: 'Shared with the repo' }
+const SCOPE_TIP = {
+  machine: "Saved in this computer's Avoozl settings. Nobody else sees it.",
+  repository: "Saved in the repo's .avoozl.json, so everyone with the repo gets it.",
+}
+type Change = { target: { value: string } }
+
+// One fact: a plain label, its raw setting name small, and its value.
+function Fact({ label, raw, children }: { label: string; raw?: string; children: ReactNode }) {
+  return (
+    <Box contents>
+      <Hint as="dt">
+        {label}
+        {raw && (
+          <Box as="code" ml="1" size="11">
+            {raw}
+          </Box>
+        )}
+      </Hint>
+      <Box as="dd" css-overflow-wrap="anywhere" m0 minW0>
+        {children}
+      </Box>
+    </Box>
+  )
+}
+
+// Labels in one column of the same width in every box; on a narrow page
+// each label sits over its value.
+function Facts({ children }: { children: ReactNode }) {
+  const narrow = useMedia('(max-width: 767px)')
+  return (
+    <Box as="dl" css-grid-template-columns={narrow ? 'minmax-0-1fr' : '13rem-minmax-0-1fr'} css-row-gap={narrow ? '2' : '4'} mt="2" grid gapX="4" size="xs" data-intake-facts>
+      {children}
+    </Box>
+  )
+}
+
+// The box every source shares: a titled header with badges, the status
+// line, any problem, the facts, and the actions on the right.
+function SourceBox(props: {
+  id: string
+  title: string
+  badges: ReactNode
+  status: string
+  problem?: { kind: string; text: string } | null
+  children: ReactNode
+  actions?: ReactNode
+  attrs?: Record<string, string>
+}) {
+  const heading = `avoozl-intake-${props.id}`
+  return (
+    <li>
+      <Box as="article" aria-labelledby={heading} rounded="lg" border="all" p="3" css-border-color="border" {...props.attrs}>
+        <Row gap={2}>
+          <Box id={heading} as="h4" css-overflow-wrap="anywhere" m0 size="sm" weight="semibold">
+            {props.title}
+          </Box>
+          {props.badges}
+        </Row>
+        <Hint as="p" mt="1" size="xs" data-intake-status>
+          {props.status}
+        </Hint>
+        {props.problem && (
+          <Box as="p" mt="1" flex items="start" gap="1.5" size="xs" tone="danger" data-intake-problem>
+            <Glyph icon={CircleAlert} size={14} aria-hidden="true" css-flex="none" css-margin-top="1" />
+            <span>
+              <Box as="span" weight="semibold">
+                {props.problem.kind}:
+              </Box>{' '}
+              {props.problem.text}
+            </span>
+          </Box>
+        )}
+        {props.children}
+        {props.actions && (
+          <Box mt="3" flex flexWrap justify="end" gap="2">
+            {props.actions}
+          </Box>
+        )}
+      </Box>
+    </li>
+  )
+}
+
+function ScopeBadge({ scope }: { scope: 'machine' | 'repository' }) {
+  return (
+    <Tooltip text={SCOPE_TIP[scope]}>
+      <Box tabIndex={0} as="span" inlineFlex>
+        <Badge>{SCOPE[scope]}</Badge>
+      </Box>
+    </Tooltip>
+  )
+}
+
+function GitHubBox({ github, onOpen }: { github: IntakeGitHub; onOpen?: () => void }) {
+  const now = Date.now()
+  const errors = github.repositories.filter((r) => r.error)
+  const read = github.repositories
+    .map((r) => r.checkedAt)
+    .filter((at): at is string => Boolean(at))
+    .sort()
+  const on = Boolean(github.mode)
+  const status = on
+    ? [read.length ? `Read ${relativeTime(read[0], now)}` : 'Not read yet', github.items ? `${github.items.total} items, ${github.items.untriaged} untriaged` : null]
+        .filter(Boolean)
+        .join(' · ')
+    : 'Off: no GitHub mode is set for this workspace.'
+  return (
+    <SourceBox
+      id="github"
+      title="GitHub"
+      badges={
+        <>
+          <Badge>Built in</Badge>
+          <Badge variant={!on ? undefined : errors.length ? 'danger' : 'success'}>{!on ? 'Off' : errors.length ? 'Error' : 'On'}</Badge>
+        </>
+      }
+      status={status}
+      problem={errors.length ? { kind: 'Last error', text: errors.map((r) => `${r.repository}: ${r.error}`).join(' ') } : null}
+      attrs={{ 'data-intake-source-row': 'github' }}
+      actions={
+        onOpen ? (
+          <IconLabel icon={Settings} onClick={onOpen} tooltip="Its mode, repositories and trigger rules are set there">
+            Open GitHub settings
+          </IconLabel>
+        ) : undefined
+      }
+    >
+      <Facts>
+        <Fact label="Mode">{github.mode ?? 'None'}</Fact>
+        <Fact label="Repositories">{github.repositories.map((r) => r.repository).join(', ') || 'None read yet'}</Fact>
+        <Fact label="Can trigger">{on ? "Full rules: each repository's trigger rules, for people with its minimum permission." : 'Nothing until a GitHub mode is set.'}</Fact>
+      </Facts>
+    </SourceBox>
+  )
+}
+
+function SourceRow({
+  row,
+  plugins,
+  busy,
+  onRemove,
+  onOpenRepositories,
+}: {
+  row: IntakeSourceRow
+  plugins: PluginRow[]
+  busy: boolean
+  onRemove: () => void
+  onOpenRepositories?: () => void
+}) {
+  const entry = row.entry ?? {}
+  const status = sourceStatus(row, plugins)
+  const triggers = sourceTriggers(row, plugins)
+  const id = row.id ?? 'unreadable'
+  const github = isGitHubSource(row)
+  return (
+    <SourceBox
+      id={`source-${id}`}
+      title={row.id ?? 'Unreadable entry'}
+      badges={
+        <>
+          <ScopeBadge scope={row.scope} />
+          <Badge variant={TONE[status.tone]}>{status.label}</Badge>
+        </>
+      }
+      status={status.facts.join(' · ')}
+      problem={status.problem ? { kind: status.tone === 'off' ? 'Off' : row.error ? 'Not used' : 'Last error', text: status.problem } : null}
+      attrs={{ 'data-intake-source-row': row.id ?? '', 'data-tone': status.tone }}
+      actions={
+        github ? (
+          onOpenRepositories ? (
+            <IconLabel icon={Settings} onClick={onOpenRepositories} tooltip="Its labels and who counts are set there">
+              Open Repository setup
+            </IconLabel>
+          ) : undefined
+        ) : row.id ? (
+          <DangerBtn
+            icon={Trash2}
+            label={`Remove intake source ${row.id}`}
+            disabled={busy}
+            confirm={{
+              title: `Remove intake source ${row.id}?`,
+              body: `Avoozl stops reading ${row.id}. Items it already brought in stay in Intake, and their tasks are not touched.`,
+              action: 'Remove source',
+            }}
+            onConfirm={onRemove}
+          >
+            Remove
+          </DangerBtn>
+        ) : undefined
+      }
+    >
+      <Facts>
+        <Fact label="Comes from" raw="via">
+          {viaLabel(entry.via)}
+        </Fact>
+        <Fact label={github ? 'Repository' : 'Work lands in'} raw="repository">
+          {String(entry.repository ?? '')}
+        </Fact>
+        {github && (
+          <>
+            <Fact label="Work runs in" raw="executionRepository">
+              {String(entry.executionRepository ?? '')}
+            </Fact>
+            <Fact label="Assigned to" raw="assignee">
+              {String(entry.assignee ?? '')}
+            </Fact>
+            <Fact label="Starts on its own" raw="autoStart">
+              {entry.autoStart ? 'Yes' : 'No'}
+            </Fact>
+          </>
+        )}
+        <Fact label="Can trigger">
+          <Box as="span" weight="semibold">
+            {triggers.level}.
+          </Box>{' '}
+          {triggers.line}
+        </Fact>
+        <Fact label="Who counts">{whoCounts(row)}</Fact>
+        {listText(entry.labelFields) && (
+          <Fact label="Fields as labels" raw="labelFields">
+            {listText(entry.labelFields)}
+          </Fact>
+        )}
+        {typeof entry.assigneeField === 'string' && (
+          <Fact label="Assignee field" raw="assigneeField">
+            {entry.assigneeField}
+          </Fact>
+        )}
+        {row.state?.cursor && (
+          <Fact label="Next poll from" raw="cursor">
+            <code>{row.state.cursor}</code>
+          </Fact>
+        )}
+      </Facts>
+    </SourceBox>
+  )
+}
+
+// A form field: a plain label with (required) or (optional), the raw
+// setting name small beside it, the control, then a hint. The hint and raw
+// name describe the control; they are not part of its name.
+function Field(props: { id: string; label: string; marker: 'required' | 'optional'; raw: string; hint?: string; children: (describedBy: string) => ReactNode }) {
+  const described = [props.hint ? `${props.id}-hint` : '', `${props.id}-raw`].filter(Boolean).join(' ')
+  return (
+    <Box flex minW0 flexCol gap="1">
+      <Box flex flexWrap items="baseline" gapX="2">
+        <Box htmlFor={props.id} as="label" size="sm" weight="medium">
+          {props.label}{' '}
+          <Hint as="span" size="xs" weight="normal">
+            ({props.marker})
+          </Hint>
+        </Box>
+        <Hint id={`${props.id}-raw`} as="code" size="11">
+          {props.raw}
+        </Hint>
+      </Box>
+      {props.children(described)}
+      {props.hint && (
+        <Hint id={`${props.id}-hint`} size="xs">
+          {props.hint}
+        </Hint>
+      )}
+    </Box>
+  )
+}
+
+function Group({ legend, children }: { legend: string; children: ReactNode }) {
+  return (
+    <Box as="fieldset" m0 flex minW0 flexCol gap="3" border="0" p="0">
+      <Box as="legend" mb="1" p="0" size="sm" weight="semibold">
+        {legend}
+      </Box>
+      {children}
+    </Box>
+  )
+}
+
+function AddSourceDialog(props: {
+  plugins: PluginRow[]
+  repositories: { id: string; github?: string | null }[]
+  taken: string[]
+  onClose: () => void
+  onAdd: (made: { id: string; entry: Record<string, unknown> }, form: SourceForm, confirmPublic: boolean) => Promise<void>
+}) {
+  const [form, setForm] = useState<SourceForm>(emptySourceForm)
+  const [confirmPublic, setConfirmPublic] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<{ text: string; field?: keyof SourceForm } | null>(null)
+  const set = (patch: Partial<SourceForm>) => setForm({ ...form, ...patch })
+  const pollers = props.plugins.filter((row) => row.id && row.provides?.includes('intake'))
+  const dirty = JSON.stringify(form) !== JSON.stringify(emptySourceForm())
+  const invalid = (field: keyof SourceForm) => (problem?.field === field ? true : undefined)
+  const add = () => {
+    const made = sourceEntry(form, props.taken)
+    if (made.error || !made.id || !made.entry) {
+      setProblem({ text: made.error ?? 'Check the fields.', field: made.field })
+      if (made.field) document.getElementById(`intake-${made.field}`)?.focus()
+      return
+    }
+    if (form.scope === 'repository' && !confirmPublic) {
+      setProblem({ text: 'Tick the box to share this source in .avoozl.json.', field: 'scope' })
+      document.getElementById('intake-confirm-public')?.focus()
+      return
+    }
+    setBusy(true)
+    setProblem(null)
+    props
+      .onAdd({ id: made.id, entry: made.entry }, form, confirmPublic)
+      .then(props.onClose)
+      .catch((caught) => setProblem({ text: errorMessage(caught) }))
+      .finally(() => setBusy(false))
+  }
+  const via = [
+    ...pollers.map((row) => {
+      const t = sourceTriggers({ id: null, scope: 'machine', error: null, entry: { via: `plugin:${row.id}` } }, props.plugins)
+      return {
+        key: `plugin:${row.id}`,
+        title: `Plugin ${row.id}`,
+        line: `Avoozl polls it on each tick.${row.state === 'approved' ? '' : ' The plugin is off until you approve or enable it.'}`,
+        description: (
+          <Box as="p" size="xs">
+            <Box as="span" weight="semibold">
+              {t.level}.
+            </Box>{' '}
+            {t.line}
+          </Box>
+        ),
+      }
+    }),
+    {
+      key: 'mcp',
+      title: 'MCP',
+      line: "A script or cron job sends items through Avoozl's MCP tools.",
+      description: (
+        <Box as="p" size="xs">
+          <Box as="span" weight="semibold">
+            You start it.
+          </Box>{' '}
+          Its items wait for you. You start work with Plan this or Deliver this.
+        </Box>
+      ),
+    },
+  ]
+  return (
+    <Modal
+      id="avoozl-intake-add"
+      title="Add an intake source"
+      width="40rem"
+      onDismiss={props.onClose}
+      unsaved={dirty ? { title: 'Discard this source?', body: 'What you typed is lost.', action: 'Discard' } : null}
+      backLabel="Close Add an intake source"
+      dismissLabel="Cancel"
+      attrs={{ 'data-intake-source-add': true }}
+      footer={
+        <>
+          {problem && (
+            <Box role="alert" as="p" css-order={-1} m0 mrAuto size="xs" tone="danger">
+              {problem.text}
+            </Box>
+          )}
+          <IconLabel icon={Plus} primary onClick={add} disabled={busy}>
+            Add source
+          </IconLabel>
+        </>
+      }
+    >
+      <Box flex flexCol gap="5">
+        <Group legend="Source">
+          <Field id="intake-id" label="Name" marker="required" raw="intake.sources.<id>" hint="Lowercase letters, digits and dashes. Rules match it with source:<name>.">
+            {(described) => (
+              <Input
+                id="intake-id"
+                value={form.id}
+                onChange={(event: Change) => set({ id: event.target.value })}
+                placeholder="e.g. tickets"
+                aria-describedby={described}
+                aria-invalid={invalid('id')}
+                css-width="20ch"
+                css-max-width="100%"
+              />
+            )}
+          </Field>
+          <Field id="intake-repository" label="Work lands in" marker="required" raw="repository" hint="Its rules apply, and a delivered item's task lands there.">
+            {(described) => (
+              <SelectField
+                id="intake-repository"
+                look="field"
+                round="md"
+                maxWidth="100%"
+                width="fit-content"
+                value={form.repository}
+                onChange={(event: Change) => set({ repository: event.target.value })}
+                aria-describedby={described}
+                aria-invalid={invalid('repository')}
+              >
+                <option value="">Pick a repository</option>
+                {props.repositories.map((repo) => (
+                  <option key={repo.id} value={repo.github ?? repo.id}>
+                    {repo.github ?? repo.id}
+                  </option>
+                ))}
+              </SelectField>
+            )}
+          </Field>
+        </Group>
+        <Group legend="Comes from (required)">
+          <RadioFold name="intake-via" label="Comes from" value={form.via} onChange={(value) => set({ via: value })} sections={via} />
+          {!pollers.length && (
+            <Hint as="p" size="xs" flush>
+              No plugin provides intake. Add one above to poll it.
+            </Hint>
+          )}
+        </Group>
+        <Group legend="Item fields">
+          <Field id="intake-labelFields" label="Fields as labels" marker="optional" raw="labelFields" hint="Comma list. Each adds a field:value label before rules match.">
+            {(described) => (
+              <Input
+                id="intake-labelFields"
+                value={form.labelFields}
+                onChange={(event: Change) => set({ labelFields: event.target.value })}
+                placeholder="none"
+                aria-describedby={described}
+                css-width="28ch"
+                css-max-width="100%"
+              />
+            )}
+          </Field>
+          <Field id="intake-assigneeField" label="Assignee field" marker="optional" raw="assigneeField" hint="The item field that names who it's assigned to.">
+            {(described) => (
+              <Input
+                id="intake-assigneeField"
+                value={form.assigneeField}
+                onChange={(event: Change) => set({ assigneeField: event.target.value })}
+                placeholder="none"
+                aria-describedby={described}
+                css-width="20ch"
+                css-max-width="100%"
+              />
+            )}
+          </Field>
+        </Group>
+        <Group legend="Saved in (required)">
+          <RadioFold
+            name="intake-scope"
+            label="Saved in"
+            value={form.scope}
+            onChange={(scope) => set({ scope })}
+            sections={[
+              { key: 'machine', title: SCOPE.machine, line: SCOPE_TIP.machine },
+              {
+                key: 'repository',
+                title: SCOPE.repository,
+                line: SCOPE_TIP.repository,
+                fields: (
+                  <Switch
+                    id="intake-confirm-public"
+                    label="I understand .avoozl.json may be public"
+                    inline
+                    align="start"
+                    size="xs"
+                    checked={confirmPublic}
+                    onChange={setConfirmPublic}
+                    data-intake-public-warning
+                  >
+                    <span>.avoozl.json may be public. Saving there publishes this source's name and plugin. I understand.</span>
+                  </Switch>
+                ),
+              },
+            ]}
+          />
+        </Group>
+      </Box>
+    </Modal>
+  )
+}
+
+export default function IntakeSources({
+  workspaceId,
+  plugins,
+  onOpenGitHub,
+  onOpenRepositories,
+}: {
+  workspaceId: string
+  plugins: PluginRow[]
+  onOpenGitHub?: () => void
+  onOpenRepositories?: () => void
+}) {
+  const api = useAppApi()
+  const client = useMemo(() => intakeClient(api), [api])
+  const load = useCallback((id: string) => client.list(id), [client])
+  const { value, error, reload } = useRead(workspaceId, load)
+  const repos = useMemo(() => workspaceClient(api), [api])
+  const loadRepos = useCallback((id: string) => repos.repositories(id), [repos])
+  const { value: registered } = useRead(workspaceId, loadRepos)
+  const [adding, setAdding] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  const rows = value?.sources ?? []
+  // The empty state and the Add button count plugin and MCP sources only:
+  // GitHub sources are added in Repository setup.
+  const others = rows.filter((row) => !isGitHubSource(row))
+  const remove = (row: IntakeSourceRow) => {
+    setBusy(true)
+    setProblem(null)
+    client
+      .remove(workspaceId, row)
+      .then(() => reload())
+      .catch((caught) => setProblem(errorMessage(caught)))
+      .finally(() => setBusy(false))
+  }
+  const addButton = (
+    <IconLabel icon={Plus} primary={!others.length} onClick={() => setAdding(true)} disabled={busy}>
+      Add a source
+    </IconLabel>
+  )
+  return (
+    <section data-intake-sources aria-labelledby="avoozl-intake-title">
+      <Card>
+        <SectionHeading
+          id="avoozl-intake-title"
+          title="Intake sources"
+          actions={others.length ? addButton : undefined}
+          blurb="Where work comes in. Items show in the Intake tab. Avoozl writes nothing back to a source."
+          mb="3"
+        />
+        {error || problem ? (
+          <Box role="alert" as="p" mb="2" size="xs" tone="danger">
+            {error ?? problem}
+          </Box>
+        ) : null}
+        <Box as="ul" m0 flex listNone flexCol gap="3" p="0" aria-label="Intake sources">
+          {value?.github && <GitHubBox github={value.github} onOpen={onOpenGitHub} />}
+          {rows.map((row, i) => (
+            <SourceRow key={`${row.id}-${row.scope}-${i}`} row={row} plugins={plugins} busy={busy} onRemove={() => remove(row)} onOpenRepositories={onOpenRepositories} />
+          ))}
+        </Box>
+        {value && !others.length && (
+          <Box css-border-color="border" css-border-style="dashed" mt="3" rounded="lg" border="all" p="3" data-intake-empty>
+            <EmptyState
+              title="No other source yet"
+              subtitle="Add one to poll an intake plugin, or to take items a script or cron job sends through MCP."
+              // TODO: add the shared "Ask for help" chat link here once it is on main.
+              action={addButton}
+            />
+          </Box>
+        )}
+      </Card>
+      {adding && (
+        <AddSourceDialog
+          plugins={plugins}
+          repositories={registered ?? []}
+          taken={rows.flatMap((row) => (row.id ? [row.id] : []))}
+          onClose={() => setAdding(false)}
+          onAdd={async (made, form, confirmPublic) => {
+            await client.add(workspaceId, { id: made.id, entry: made.entry, scope: form.scope, confirmPublic })
+            await reload()
+          }}
+        />
+      )}
+    </section>
+  )
+}

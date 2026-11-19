@@ -1,0 +1,41 @@
+{
+  "name": "claude-code",
+  "start": [
+    "claude",
+    "-p",
+    "--output-format",
+    "json",
+    "--session-id",
+    "{session_uuid}",
+    "--permission-mode",
+    "{permission}"
+  ],
+  "resume": [
+    "claude",
+    "-p",
+    "--output-format",
+    "json",
+    "--resume",
+    "{session_uuid}",
+    "--permission-mode",
+    "{permission}"
+  ],
+  "attach": ["claude", "--resume", "{session_uuid}"],
+  "promptFrom": "stdin",
+  "model": ["--model", "{model}"],
+  "permission": { "write": "acceptEdits", "read": "dontAsk" },
+  "writeRoots": ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
+  "allow": ["--allowedTools", "Bash({repository_allow_commands}:*)"],
+  "resultAllow": [
+    "--allowedTools",
+    "Edit(.avoozl/result.json)",
+    "--allowedTools",
+    "Edit(.avoozl/output/*)"
+  ],
+  "servedModel": { "from": "output", "field": "modelUsage" },
+  "cost": { "from": "output", "field": "total_cost_usd", "per": "session" },
+  "keepEnv": ["ANTHROPIC_API_KEY"],
+  "reads": ["~/.claude", "~/.claude.json"],
+  "tmpEnv": ["CLAUDE_CODE_TMPDIR"],
+  "proved": ["read", "write"]
+}

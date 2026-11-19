@@ -1,0 +1,405 @@
+// Shared steps for the live proofs that run Avoozl as a machine of its own
+// under a temporary HOME. Avoozl's modules are imported only when called, so
+// a script sets XDG_CONFIG_HOME and XDG_STATE_HOME first.
+import { execFileSync, spawn, spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { parseArgs } from "node:util";
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// The machine's Avoozl folders, refused unless both are under `home`.
+export async function isolatedMachine(home) {
+  const { machineAvoozlPaths } = await import("../../src/app/host-config.mjs");
+  const machine = machineAvoozlPaths();
+  for (const dir of [machine.configDirectory, machine.stateDirectory])
+    if (!dir.startsWith(home + path.sep)) throw Error(`Not isolated: ${dir}`);
+  return machine;
+}
+
+// Write and approve a harness definition. With `unconfined`, a host with no
+// sandbox runs it anyway (the fake agent only). Returns its hash.
+export async function installHarness(
+  configDirectory,
+  name,
+  bytes,
+  { unconfined = false } = {},
+) {
+  const { approveHarnessDefinition, harnessDefinitionHash } = await import(
+    "../../src/app/harness-definitions.mjs"
+  );
+  const dir = path.join(configDirectory, "harnesses");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, `${name}.json`), bytes);
+  const hash = harnessDefinitionHash(Buffer.from(bytes));
+  approveHarnessDefinition({ configDirectory, name, hash });
+  const { sandboxKind } = await import("../../src/app/sandbox.mjs");
+  if (unconfined && !sandboxKind())
+    fs.writeFileSync(
+      path.join(configDirectory, "harness-unconfined.json"),
+      JSON.stringify({ [name]: hash }),
+    );
+  return hash;
+}
+
+// Stop the proof's backend, its model proxy and the machine's supervisor.
+export async function stopMachine({ root, backend, proxy, stateDirectory }) {
+  fs.writeFileSync(path.join(root, "stop-backend"), "");
+  await sleep(5000);
+  backend.kill("SIGTERM");
+  if (proxy) proxy.kill("SIGTERM");
+  try {
+    const { runningSupervisor } = await import("../../src/app/supervisor.mjs");
+    const sup = runningSupervisor(stateDirectory, {});
+    if (sup?.pid) process.kill(sup.pid, "SIGTERM");
+  } catch {}
+}
+
+// ---- A headless proof run (nk-p1, ta-p1) ----------------------------------------
+
+// The command line every headless proof takes, and the paths under --root.
+// `prefix` names its environment overrides (NKP1_CLAUDE, NKP1_MODEL, ...).
+export function proofRun({ tag, prefix, script, proxyPort }) {
+  const repo = path.resolve(path.dirname(script), "..");
+  const { values, positionals } = parseArgs({
+    args: process.argv.slice(2),
+    allowPositionals: true,
+    options: {
+      root: { type: "string" },
+      agent: { type: "string", default: "claude" },
+      "backend-for": { type: "string" },
+    },
+  });
+  if (!values.root) {
+    console.error(
+      `Usage: node scripts/${path.basename(script)} --root DIR [--agent claude|fake]`,
+    );
+    process.exit(64);
+  }
+  const agent = values.agent;
+  if (!["claude", "fake"].includes(agent))
+    throw Error("--agent is claude or fake");
+  const root = path.resolve(values.root);
+  const cli = path.join(repo, "cli.mjs");
+  const paths = {
+    origin: path.join(root, "origin.git"),
+    checkout: path.join(root, "app"),
+    ws: path.join(root, "ws"),
+    wt: path.join(root, "wt"),
+    claudeConfig: path.join(root, "claude-config"),
+    report: path.join(root, "report.json"),
+    events: path.join(root, "events.jsonl"),
+    proxyLog: path.join(root, "proxy.log"),
+    backendLog: path.join(root, "backend.log"),
+  };
+  const event = (kind, data = {}) => {
+    const line = { at: new Date().toISOString(), kind, ...data };
+    fs.mkdirSync(root, { recursive: true });
+    fs.appendFileSync(paths.events, JSON.stringify(line) + "\n");
+    console.log(`[${tag}] ${kind} ${JSON.stringify(data)}`);
+  };
+  return {
+    repo,
+    root,
+    agent,
+    command: positionals[0] ?? "prove",
+    backendFor: Number(values["backend-for"] || 600),
+    harness: agent === "claude" ? "claude-code" : "fake-cli",
+    claude:
+      process.env[`${prefix}_CLAUDE`] ||
+      spawnSync("command -v claude", {
+        shell: true,
+        encoding: "utf8",
+      }).stdout.trim() ||
+      "claude",
+    model: process.env[`${prefix}_MODEL`] || "global.anthropic.claude-sonnet-5",
+    proxyPort: Number(process.env[`${prefix}_PROXY_PORT`] || proxyPort),
+    paths,
+    db: path.join(paths.ws, ".avoozl", "local", "workspace.sqlite"),
+    event,
+    git: (cwd, ...args) =>
+      execFileSync("git", args, { cwd, encoding: "utf8" }).trim(),
+    cli: (...args) =>
+      execFileSync(process.execPath, [cli, ...args], {
+        encoding: "utf8",
+        env: process.env,
+      }),
+    sleep,
+  };
+}
+
+// The isolated home under --root, set before any Avoozl module loads.
+export function isolateHome(root) {
+  const home = path.join(root, "home");
+  process.env.XDG_CONFIG_HOME = path.join(home, "config");
+  process.env.XDG_STATE_HOME = path.join(home, "state");
+  delete process.env.KIROCREW_HOME;
+  for (const key of Object.keys(process.env))
+    if (/^KIROCREW_/.test(key)) delete process.env[key];
+  return home;
+}
+
+// A bare remote and its checkout holding `files`, pushed to main.
+export function scratchRepository(run, { name, email, files, message }) {
+  const { git, paths } = run;
+  git(run.root, "init", "-q", "--bare", "-b", "main", paths.origin);
+  git(run.root, "clone", "-q", paths.origin, paths.checkout);
+  git(paths.checkout, "config", "user.name", name);
+  git(paths.checkout, "config", "user.email", email);
+  for (const [file, text] of Object.entries(files)) {
+    fs.mkdirSync(path.dirname(path.join(paths.checkout, file)), {
+      recursive: true,
+    });
+    fs.writeFileSync(path.join(paths.checkout, file), text);
+  }
+  git(paths.checkout, "add", ".");
+  git(paths.checkout, "commit", "-q", "-m", message);
+  git(paths.checkout, "push", "-q", "origin", "main");
+}
+
+// The harness definition: Claude Code on Bedrock, or the fake agent the
+// script wrote. Installed and approved; the fake runs unconfined on a host
+// with no sandbox.
+export async function proofHarness(run, machine, fakeAgent) {
+  let bytes;
+  if (run.agent === "claude") {
+    const definition = JSON.parse(
+      fs.readFileSync(
+        path.join(run.repo, "examples", "harnesses", "claude-code.json"),
+        "utf8",
+      ),
+    );
+    // Bedrock sign-in: only short-lived credentials pass.
+    definition.keepEnv = [
+      ...definition.keepEnv,
+      "AWS_REGION",
+      "AWS_ACCESS_KEY_ID",
+      "AWS_SECRET_ACCESS_KEY",
+      "AWS_SESSION_TOKEN",
+    ];
+    definition.start[0] = run.claude;
+    definition.resume[0] = run.claude;
+    bytes = JSON.stringify(definition, null, 2) + "\n";
+  } else {
+    const file = path.join(run.root, "fake-agent.mjs");
+    fs.writeFileSync(file, fakeAgent);
+    const argv = [process.execPath, file];
+    bytes = JSON.stringify({
+      name: run.harness,
+      start: argv,
+      resume: argv,
+      promptFrom: "stdin",
+      model: ["--model", "{model}"],
+      permission: { write: "workspace-write", read: "read-only" },
+      writeRoots: ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
+      resultAllow: ["--result-file"],
+    });
+  }
+  const hash = await installHarness(
+    machine.configDirectory,
+    run.harness,
+    bytes,
+    {
+      unconfined: run.agent === "fake",
+    },
+  );
+  run.event("setup.harness", { name: run.harness, hash });
+  return hash;
+}
+
+// The scratch repository's row: direct landing on the `process` executor,
+// its one check allowed in the sandbox, and only the model proxy reachable.
+export function processRepository(run, check, extra = {}) {
+  return {
+    id: "app",
+    root: fs.realpathSync.native(run.paths.checkout),
+    baseBranch: "main",
+    landing: "direct",
+    checks: [check],
+    worktreeRoot: run.paths.wt,
+    executor: "process",
+    harness: run.harness,
+    sandbox: {
+      writeRoots: [run.paths.claudeConfig],
+      allowCommands: [
+        check,
+        ["git", "rev-parse"],
+        ["git", "diff"],
+        ["git", "status"],
+        ["git", "log"],
+      ],
+      network: [`localhost:${run.proxyPort}`],
+    },
+    ...extra,
+  };
+}
+
+// The children's environment: Claude Code on Bedrock with credentials from
+// `claude default-credential-export`, through the loopback model proxy.
+export function agentEnv(run, { noProxy = "" } = {}) {
+  const env = { ...process.env };
+  if (run.agent !== "claude") return env;
+  const settings = JSON.parse(
+    fs.readFileSync(
+      path.join(os.homedir(), ".claude", "settings.json"),
+      "utf8",
+    ),
+  );
+  const creds = JSON.parse(
+    execFileSync(run.claude, ["default-credential-export"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }),
+  ).Credentials;
+  return {
+    ...env,
+    PATH: `${path.dirname(run.claude)}:${env.PATH}`,
+    CLAUDE_CONFIG_DIR: run.paths.claudeConfig,
+    CLAUDE_CODE_USE_BEDROCK: "1",
+    AWS_REGION: settings.env?.AWS_REGION || "us-west-2",
+    AWS_ACCESS_KEY_ID: creds.AccessKeyId,
+    AWS_SECRET_ACCESS_KEY: creds.SecretAccessKey,
+    AWS_SESSION_TOKEN: creds.SessionToken,
+    HTTPS_PROXY: `http://localhost:${run.proxyPort}`,
+    https_proxy: `http://localhost:${run.proxyPort}`,
+    NO_PROXY: noProxy,
+  };
+}
+
+// The headless tick of a machine with no Kiro Crew: the tick, the drain of
+// `process` requests and the checks, every 3 s until `seconds` pass or the
+// prover writes stop-backend. `between(store, log)` runs after each drain.
+export async function runBackend(
+  run,
+  machine,
+  { seconds, env, between = () => {} },
+) {
+  const { Store } = await import("../../src/app/store.mjs");
+  const { Operations } = await import("../../src/app/operations.mjs");
+  const { prepareWorktree } = await import("../../src/app/delivery.mjs");
+  const { drainProcessRequests } = await import(
+    "../../src/app/executors/process.mjs"
+  );
+  const { drainCheckRuns } = await import("../../src/app/check-runs.mjs");
+  const { launchSupervisor } = await import("../../src/app/supervisor.mjs");
+  const store = new Store(run.db);
+  const ops = new Operations(store, {
+    workspaceRoot: run.paths.ws,
+    configDirectory: machine.configDirectory,
+  });
+  const end = Date.now() + seconds * 1000;
+  const log = (line) =>
+    fs.appendFileSync(
+      run.paths.backendLog,
+      `${new Date().toISOString()} [${process.pid}] ${line}\n`,
+    );
+  log("backend start");
+  while (Date.now() < end) {
+    const sup = launchSupervisor({
+      stateDirectory: machine.stateDirectory,
+      configDirectory: machine.configDirectory,
+      env,
+    });
+    if (sup.started) log(`supervisor started pid ${sup.pid}`);
+    try {
+      const tick = await ops.execute("workspace.tick", { cron: true });
+      if (tick.dispatch?.length)
+        log(
+          `tick dispatch ${JSON.stringify(tick.dispatch.map((d) => [d.task, d.role, d.executor]))}`,
+        );
+      for (const notice of tick.notify ?? [])
+        if (notice.channel === "failure")
+          log(`tick failure ${notice.title}: ${notice.text}`);
+    } catch (error) {
+      log(`tick error ${error.message}`);
+    }
+    try {
+      const { errors } = await drainProcessRequests(store, {
+        stateDirectory: machine.stateDirectory,
+        prepareWorktree,
+        ops,
+      });
+      for (const e of errors) log(`drain error ${e.id}: ${e.error}`);
+      await drainCheckRuns(store);
+    } catch (error) {
+      log(`drain failure ${error.message}`);
+    }
+    try {
+      between(store, log);
+    } catch (error) {
+      log(`between failure ${error.message}`);
+    }
+    if (fs.existsSync(path.join(run.root, "stop-backend"))) break;
+    await sleep(3000);
+  }
+  log("backend stop");
+  store.close();
+}
+
+// The backend as a child of the prover (this same script, `backend`), and
+// the model proxy when the agent is Claude Code.
+export async function startMachine(run, script, seconds) {
+  let proxy = null;
+  if (run.agent === "claude") {
+    proxy = spawn(
+      process.execPath,
+      [
+        path.join(run.repo, "scripts", "live-proofs", "p57-model-proxy.mjs"),
+        String(run.proxyPort),
+        run.paths.proxyLog,
+      ],
+      { stdio: "ignore" },
+    );
+    await sleep(1000);
+    run.event("proxy.start", { pid: proxy.pid, port: run.proxyPort });
+  }
+  const out = fs.openSync(run.paths.backendLog, "a");
+  const backend = spawn(
+    process.execPath,
+    [
+      script,
+      "--root",
+      run.root,
+      "--agent",
+      run.agent,
+      "--backend-for",
+      String(seconds),
+      "backend",
+    ],
+    { stdio: ["ignore", out, out], env: process.env },
+  );
+  fs.closeSync(out);
+  run.event("backend.start", { pid: backend.pid });
+  return { backend, proxy };
+}
+
+// A file's text on origin's main, or null when it is not there: landed
+// means on the remote, not only a delivery state.
+export function originFile(run, file) {
+  try {
+    return execFileSync("git", ["show", `main:${file}`], {
+      cwd: run.paths.origin,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Claude Code needs sandbox-exec, which refuses to nest (inside Kiro Crew).
+export async function needSandbox(run, tag) {
+  const { sandboxKind } = await import("../../src/app/sandbox.mjs");
+  if (run.agent === "claude" && !sandboxKind())
+    throw Error(
+      `sandbox-exec cannot run here (inside another sandbox?). Run ${tag} from a terminal outside Kiro Crew.`,
+    );
+}
+
+// The one line a proof prints last.
+export function printResult(run, tag, pass) {
+  console.log(
+    `${tag} ${pass ? "PASS" : "FAIL"}${run.agent === "fake" ? " (fake agent: plumbing only, not the proof)" : ""}`,
+  );
+}
