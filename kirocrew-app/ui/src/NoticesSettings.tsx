@@ -6,7 +6,7 @@ import { Btn } from './ui/Btn'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { FormSection } from './FormSection.tsx'
+import { FieldGroup } from './ui/FieldGroup.tsx'
 import { useInstance } from './InstanceName.tsx'
 import { NOTICES_CHANGED, noticesOn, setNotices } from './notices.ts'
 
@@ -35,7 +35,7 @@ export function NoticesSettings(props: { workspaceId: string | null }) {
     if (answer === 'granted') change(true)
   }
   return (
-    <FormSection title="Notifications" blurb="A browser notice for each new Needs you item, with its title. Off by default. The page reads Needs you only while it is open.">
+    <FieldGroup title="Notifications" blurb="A browser notice for each new Needs you item, with its title. Off by default. The page reads Needs you only while it is open.">
       <Stack gap={2} data-notices>
         <Row gap={2}>
           {on ? (
@@ -51,6 +51,6 @@ export function NoticesSettings(props: { workspaceId: string | null }) {
         </Row>
         {allowed === 'denied' && <Hint size="xs">The browser blocked notices for this page. Allow them in its site settings, then turn them on. The page works as before.</Hint>}
       </Stack>
-    </FormSection>
+    </FieldGroup>
   )
 }

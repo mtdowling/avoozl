@@ -6,12 +6,12 @@
 // aria-describedby (fieldDescribedBy). A width limits the control only, so a
 // narrow number box never squeezes its label or help into a thin column.
 import type { ReactNode } from 'react'
-import { Tooltip } from './ui/Tooltip.tsx'
-import type { FieldRule } from './settings-api.ts'
-import { Hint } from './ui/Hint'
-import { Switch } from './ui/Switch'
-import { Box, type LookProps } from './ui/Box'
-import { PlainButton } from './ui/Plain'
+import { Tooltip } from './Tooltip.tsx'
+import type { FieldRule } from '../settings-api.ts'
+import { Hint } from './Hint'
+import { Switch } from './Switch'
+import { Box, type LookProps } from './Box'
+import { PlainButton } from './Plain'
 
 export const FIELD_WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 export type FieldWidth = keyof typeof FIELD_WIDTH
@@ -79,7 +79,7 @@ const ALIGNED = {
   'css-align-content': 'start',
 } as const satisfies LookProps
 
-export function FieldRow(props: {
+export function Field(props: {
   id: string
   label: ReactNode
   raw?: string
@@ -139,7 +139,7 @@ export function FieldRow(props: {
 }
 
 // A checkbox setting: the box, its label, then the help line and raw key
-// under the label, in the same order and style as a FieldRow.
+// under the label, in the same order and style as a Field.
 export function CheckRow(props: { id?: string; label: ReactNode; checked: boolean; onChange: (checked: boolean) => void; raw?: string; help?: ReactNode; disabled?: boolean }) {
   return (
     <Switch

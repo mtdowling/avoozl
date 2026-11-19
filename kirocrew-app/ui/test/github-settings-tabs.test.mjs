@@ -183,8 +183,8 @@ test('each settings page uses the shared field row', () => {
   const pages = ['SettingsView.tsx', 'DeliverySettings.tsx', 'FlowSettings.tsx', 'ContentRulesSettings.tsx', 'CrewsRulesSettings.tsx']
   for (const name of pages) {
     const text = source(name)
-    assert.match(text, /from '\.\/FieldRow\.tsx'/, `${name} imports the shared field row`)
-    assert.match(text, /<FieldRow\b|<CheckRow\b/, `${name} draws a shared row`)
+    assert.match(text, /from '\.\/ui\/Field\.tsx'/, `${name} imports the shared field row`)
+    assert.match(text, /<Field\b|<CheckRow\b/, `${name} draws a shared row`)
     assert.doesNotMatch(text, /\.avoozl\.json key|function Raw\(|function Field\(props: \{[^}]*\}\) \{\s*return \(\s*<div/, `${name} has no raw-key or field markup of its own`)
     assert.doesNotMatch(text, /<input type="checkbox"[^>]*\/>\s*\n?\s*[A-Z][^<{]*\n?\s*<\/label>/, `${name} has no bare checkbox setting`)
   }
