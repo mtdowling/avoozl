@@ -34,6 +34,7 @@ test("Avoozl's own repository keeps pr, auto-merge, squash and 2 rounds", () => 
     autoMerge: true,
     method: "squash",
     mergeBatch: "auto",
+    commitPrefix: "",
     maxAttempts: 2,
   });
   const task = { id: "t", repository: "avoozl" };

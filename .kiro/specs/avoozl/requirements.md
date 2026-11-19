@@ -5856,10 +5856,10 @@ rebuilds its database from main and GitHub.
    someone else (a squash merge, a commit made for the author), SHALL both
    approve.
 4. Avoozl's own commits (worker results, ticks, landing and merge commits)
-   and its agents' commits SHALL be authored by `Avoozl agent
-   <agent@avoozl.invalid>`, which SHALL never approve, with the person as
-   committer. Worker and planner prompts SHALL say so, and SHALL say never to
-   push spec edits to main.
+   and its agents' commits SHALL use the checkout's own git identity as both
+   author and committer, and SHALL carry no `Co-authored-by` or other
+   attribution. Worker and planner prompts SHALL say so, and SHALL say never
+   to push spec edits to main: a draft reaches main only through Approve.
 5. Spec drafts SHALL stay on a spec branch. Approve SHALL write one commit on
    main, authored by the person clicking, that sets the spec's files to the
    reviewed revision, and push it without force. It SHALL refuse a person

@@ -11,6 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { git } from "./git.mjs";
+import { commitSubject } from "./landing-config.mjs";
 import { recordActivity } from "./activity-log.mjs";
 import { FINAL_STATUSES } from "./session-bindings.mjs";
 import { checkedItems, specItems } from "./spec-plans.mjs";
@@ -161,6 +162,9 @@ export async function tickPlansRepo(
       branch,
       files: [{ spec: plan.spec, ids: idsOf(plan, entry) }],
       env,
+      // shortcut: the code repository's prefix, since the plans repository
+      // has no setting of its own; add one when the two differ.
+      commitPrefix: repository.commitPrefix,
     }).catch(() => null);
     if (out?.commit) return { root, branch, ...out };
   }
@@ -173,7 +177,7 @@ export async function tickPlansRepo(
 // {ticked, commit}; no commit when nothing ticked.
 export async function tickBranch(
   root,
-  { branch, files, remote = "origin", tries = 5, env },
+  { branch, files, remote = "origin", tries = 5, env, commitPrefix = "" },
 ) {
   for (let attempt = 1; ; attempt++) {
     await git(root, ["fetch", "--quiet", remote, branch], { env });
@@ -192,9 +196,16 @@ export async function tickBranch(
         ticked.push(...tick.ticked);
       }
       if (!ticked.length) return { ticked };
-      await git(dir, ["commit", "--quiet", "-m", `Tick ${ticked.join(", ")}`], {
-        env,
-      });
+      await git(
+        dir,
+        [
+          "commit",
+          "--quiet",
+          "-m",
+          commitSubject(commitPrefix, `Tick ${ticked.join(", ")}`),
+        ],
+        { env },
+      );
       const commit = await git(dir, ["rev-parse", "HEAD"]);
       try {
         await git(

@@ -2018,6 +2018,11 @@ if (query.get('page') === 'models' || query.get('page') === 'app') {
   }
   answer('GET /api/models', () => ['fake-writer', 'fake-reviewer'])
   answer('models.settings.get', () => settings)
+  answer('harness.approve', (body) => {
+    const { name } = body.input as { name: string }
+    settings = { ...settings, harnessDefinitions: settings.harnessDefinitions.map((d) => (d.name === name ? { ...d, approved: true } : d)) }
+    return { name, path: `/config/harnesses/${name}.json`, hash: 'a'.repeat(64) }
+  })
   answer('models.settings.update', (body) => {
     state.calls.push(body)
     const input = body.input as { roles: typeof settings.roles }

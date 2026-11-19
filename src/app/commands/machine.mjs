@@ -20,6 +20,11 @@ import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { help } from "../command-help.mjs";
+import {
+  approveHarnessByName,
+  listHarnessDefinitions,
+} from "../harness-definitions.mjs";
+import { agentSessionNote, cliRefusal } from "../mcp-policy.mjs";
 
 const send = (body) => process.stdout.write(JSON.stringify(body) + "\n");
 
@@ -317,6 +322,46 @@ export const commands = [
             `\nTo stop it: ${unit.unload.join("; ")}`,
         );
       }
+    },
+  },
+  {
+    command: "harness",
+    help: [
+      help(
+        "machine",
+        "harness list",
+        "This machine's harness files and whether each is approved",
+      ),
+      help(
+        "machine",
+        "harness approve NAME",
+        "Approve the harness file as it is now, by hash (a person only)",
+      ),
+    ],
+    // Harness files belong to the machine, so no workspace is needed.
+    run({ positionals, need }) {
+      const usage = "harness list | harness approve NAME",
+        { configDirectory } = machineAvoozlPaths();
+      if (positionals[0] === "list") {
+        const found = listHarnessDefinitions(configDirectory);
+        if (!found.length) console.log("No harness files on this machine.");
+        for (const d of found)
+          console.log(
+            `${d.name}  ${d.approved ? "approved" : d.changed ? "changed since approval" : "not approved"}`,
+          );
+      } else if (positionals[0] === "approve") {
+        // Approving lets a program run here: the same person-only rule as
+        // the operation (R95.5), and a note when an agent session typed it.
+        const refusal = cliRefusal("harness.approve", {}),
+          note = agentSessionNote("harness.approve", {});
+        if (refusal) throw Error(refusal);
+        if (note) console.error(note);
+        const done = approveHarnessByName({
+          configDirectory,
+          name: need(positionals[1], usage),
+        });
+        console.log(`Approved ${done.name}\n${done.path}\nsha256 ${done.hash}`);
+      } else throw Error(`Use ${usage}.`);
     },
   },
   {
