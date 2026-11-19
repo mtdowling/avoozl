@@ -344,7 +344,7 @@ export default function WorkspaceView(
           footer={
             <>
               {/* Remove sits at the footer's left, red; it asks first. */}
-              <Button type="button" variant="danger" data-remove-workspace onClick={() => setDialog({ remove: current.id })} disabled={busy} style={{ order: -1, marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Button type="button" variant="danger" data-remove-workspace onClick={() => setDialog({ remove: current.id })} disabled={busy} css-order={-1} css-margin-right="auto" css-display="inline-flex" css-align-items="center" css-gap="6">
                 <Trash2 size={14} aria-hidden="true" />
                 Remove
               </Button>

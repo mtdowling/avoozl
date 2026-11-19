@@ -198,11 +198,11 @@ function Outline(props: { headings: { level: number; text: string; id: string }[
   return (
     <Box as="ul" mt="1" flex flexCol gap="0.5">
       {props.headings.map((h) => (
-        <li key={h.id} className="truncate" style={{ paddingLeft: (h.level - 1) * 12 }}>
+        <Box key={h.id} as="li" css-padding-left={(h.level - 1) * 12} truncate>
           <button type="button" className={`text-left hover:underline ${h.level === 1 ? 'font-medium' : 'text-xs text-muted'}`} onClick={() => props.onJump(h.id)}>
             {h.text}
           </button>
-        </li>
+        </Box>
       ))}
     </Box>
   )
