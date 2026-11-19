@@ -85,7 +85,7 @@ test('one failed read leaves the other sections showing', { skip }, async () => 
 
 test('with nothing to show, each section says so', { skip }, async () => {
   await open({ sid: 'chat-1', state: 'empty' }, `/Nothing is waiting/.test(document.body.textContent)`)
-  assert.match(await text('[data-panel-fold="in-flight"]'), /No crew has a claim/)
+  assert.match(await text('[data-panel-fold="in-flight"]'), /No crew is working on an issue/)
   await shot('empty')
 })
 

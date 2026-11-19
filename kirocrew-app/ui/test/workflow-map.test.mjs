@@ -217,7 +217,7 @@ const shown = (page, selector) => page.evaluate(`[...document.querySelectorAll($
 test('page: issue-radar single repository shows the configured labels, and no horizontal scroll at 320 px', { skip }, async () => {
   const page = await draw('single', 320)
   const text = await page.evaluate(`document.querySelector('[data-workflow-map]').innerText`)
-  for (const name of ['shape-it', 'ship-it', 'rebase-me', 'go-crew', 'taken', 'wants-person', 'sam, lee']) assert.ok(text.includes(name), name)
+  for (const name of ['shape-it', 'avoozl:plan-approved', 'avoozl:merge-conflict', 'go-crew', 'taken', 'wants-person', 'sam, lee']) assert.ok(text.includes(name), name)
   assert.doesNotMatch(text, /to plan|plan approved/)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-lane]').length`), 3)
   assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `no sideways scroll: ${(await page.overflow()).join('; ')}`)
