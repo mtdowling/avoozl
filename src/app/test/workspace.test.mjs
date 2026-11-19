@@ -185,7 +185,6 @@ test("examples preserve user state and edits on retries and keep proposal tasks 
   assert.equal(store.list("plans").length, 1);
   assert.equal(store.list("plans")[0].state, "draft");
   assert.equal(store.list("approvals").length, 0);
-  assert.equal(store.list("runs").length, 0);
   assert.equal(store.list("projects").length, 0);
   const taskId = result.taskIds[0];
   await ops.execute("task.update", {
@@ -274,7 +273,6 @@ test("the default example is draft spec folders, installed once, edits kept", as
     result.specs.map((spec) => [spec, spec, "draft"]).sort(),
   );
   assert.equal(store.list("approvals").length, 0);
-  assert.equal(store.list("runs").length, 0);
   assert.equal(store.list("projects").length, 0);
   assert.deepEqual(store.read().tasks, []);
   assert.deepEqual(store.read().epics, []);

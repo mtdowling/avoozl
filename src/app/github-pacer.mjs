@@ -9,15 +9,15 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { fail } from "./store.mjs";
 
-export const WRITES_PER_MINUTE = 60;
-export const WRITES_PER_HOUR = 400;
+const WRITES_PER_MINUTE = 60;
+const WRITES_PER_HOUR = 400;
 // GitHub's own ceilings; a setting above them is held to them.
 export const MAX_WRITES_PER_MINUTE = 80;
 export const MAX_WRITES_PER_HOUR = 500;
 // Below this share of the primary limit left, no write goes out.
-export const LOW_SHARE = 0.1;
+const LOW_SHARE = 0.1;
 // A wait up to this long is slept in the call; a longer one stops the run.
-export const MAX_SLEEP_MS = 5000;
+const MAX_SLEEP_MS = 5000;
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const RUN = "githubProjectionRun";
@@ -35,7 +35,7 @@ export function clampLimits({ perMinute, perHour } = {}) {
 
 // When the next write may go, given the times of the earlier ones (ascending,
 // all within the last hour) and the limits. Pure, so the preview can replay it.
-export function nextSlot(times, now, { perMinute, perHour }) {
+function nextSlot(times, now, { perMinute, perHour }) {
   let at = now;
   const last = times[times.length - 1];
   if (last !== undefined) at = Math.max(at, last + MINUTE / perMinute);
@@ -49,7 +49,7 @@ export function nextSlot(times, now, { perMinute, perHour }) {
 
 // When `count` more writes would all be done, as a time in ms, and the first
 // time the pace stops to wait on the hour cap.
-export function finishTime(count, history, now, limits) {
+function finishTime(count, history, now, limits) {
   const times = history.filter((time) => time > now - HOUR);
   let at = now;
   for (let index = 0; index < count; index += 1) {
@@ -73,7 +73,7 @@ export function paceEstimate(count, history, now, limits) {
   };
 }
 
-export function pacedError({ until, reason }) {
+function pacedError({ until, reason }) {
   const error = Error(
     `GitHub writes are paced (${reason}); they resume at ${iso(until)}.`,
   );
@@ -302,7 +302,7 @@ export function dueRun(store, now = Date.now()) {
   return run && run.state !== "done" && (run.resumeAt ?? 0) <= now ? run : null;
 }
 
-export const runLine = (done, total, resumeAt) =>
+const runLine = (done, total, resumeAt) =>
   `${done.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} writes` +
   (resumeAt ? `, resumes at ${hhmm(resumeAt)}` : "");
 

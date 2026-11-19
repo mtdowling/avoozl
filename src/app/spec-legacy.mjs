@@ -7,7 +7,7 @@
 import { factsLines, withDefaults } from "./spec-facts.mjs";
 import { specItems } from "./spec-plans.mjs";
 
-export const OLD_MANIFEST = "avoozl/manifest.json";
+const OLD_MANIFEST = "avoozl/manifest.json";
 const MANIFEST = OLD_MANIFEST;
 const key = (value) => JSON.stringify(value);
 

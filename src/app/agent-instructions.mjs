@@ -2,7 +2,7 @@ import { taskEpic } from "./epics.mjs";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
 
-export const AGENT_INSTRUCTION_CATEGORIES = Object.freeze([
+const AGENT_INSTRUCTION_CATEGORIES = Object.freeze([
   "all",
   "chat",
   "chat.project",

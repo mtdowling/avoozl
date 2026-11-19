@@ -30,7 +30,7 @@ export const APPROVAL_MARKER = "avoozl/approval.json";
 
 const key = (planId, hash) => `spec-approval:${planId}:${hash}`;
 
-export function proseFiles(files) {
+function proseFiles(files) {
   const names = PROSE.filter((name) => files[name] !== undefined);
   // A spec has requirements.md or bugfix.md, never both.
   return names.filter(
@@ -531,7 +531,7 @@ export async function reconcileApproval(
 
 // The logins whose newest decisive review approved the pull request. A
 // failed read records none; the approval itself does not depend on them.
-export async function approvingReviewers(github, repository, number) {
+async function approvingReviewers(github, repository, number) {
   let reviews;
   try {
     reviews = (await github.pullRequestReviews?.(repository, number)) ?? [];

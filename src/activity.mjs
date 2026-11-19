@@ -1,5 +1,5 @@
 import { endLease, leaseState, renewLease, takeLease } from "./lease.mjs";
-export const ACTIVITY_LEASE_MINUTES = 30;
+const ACTIVITY_LEASE_MINUTES = 30;
 export function activityState(task, now = Date.now()) {
   const a = task.activity;
   if (!a) return "none";

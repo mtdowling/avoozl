@@ -568,13 +568,6 @@ test("creating repository JSON materializes already-applied non-secret settings"
     allowedActors: [],
     minimumPermission: "write",
   });
-  store.put("github_queue_repositories", {
-    id: "example/code",
-    projectId: "code",
-    enabled: true,
-    includeIssues: true,
-    includePullRequests: true,
-  });
   store.setMeta("workspaceRepository", {
     root: path.join(realRoot, "planning"),
     remote: "origin",
@@ -612,12 +605,6 @@ test("project removal clears persisted configuration and records the action", as
     };
   store.put("projects", project);
   configuration.updateExecutionProject(project);
-  store.put("runs", {
-    id: "completed-run",
-    taskId: "sample-task",
-    projectId: project.id,
-    state: "complete",
-  });
 
   const removed = await ops.execute("project.remove", { id: project.id });
 
@@ -638,11 +625,11 @@ test("project removal clears persisted configuration and records the action", as
   );
 });
 
-test("project removal refuses active work, locks, and GitHub connections", async (t) => {
+test("project removal refuses locks and GitHub connections", async (t) => {
   const { root, store } = fixture(t),
     configuration = new RepositorySettings(store, { workspaceRoot: root }),
     ops = new Operations(store, { configuration });
-  for (const id of ["active", "locked", "authorized", "monitored"])
+  for (const id of ["locked", "authorized"])
     store.put("projects", {
       id,
       root: path.join(root, id),
@@ -650,12 +637,6 @@ test("project removal refuses active work, locks, and GitHub connections", async
       worktreeRoot: path.join(root, "worktrees", id),
       checks: [],
     });
-  store.put("runs", {
-    id: "active-run",
-    taskId: "sample-task",
-    projectId: "active",
-    state: "waiting-input",
-  });
   store.db
     .prepare("INSERT INTO work_locks VALUES (?,?,?,?,?)")
     .run("lock", "locked", "integration", process.pid, "token");
@@ -663,23 +644,17 @@ test("project removal refuses active work, locks, and GitHub connections", async
     id: "owner/authorized",
     projectId: "authorized",
   });
-  store.put("github_queue_repositories", {
-    id: "owner/monitored",
-    projectId: "monitored",
-  });
 
   for (const [id, message] of [
-    ["active", /active conversation/],
     ["locked", /currently locked/],
     ["authorized", /still connected to GitHub/],
-    ["monitored", /still connected to GitHub/],
   ])
     await assert.rejects(
       ops.execute("project.remove", { id }),
       (error) => error.status === 409 && message.test(error.message),
     );
 
-  for (const id of ["active", "locked", "authorized", "monitored"])
+  for (const id of ["locked", "authorized"])
     assert.ok(store.get("projects", id));
 });
 

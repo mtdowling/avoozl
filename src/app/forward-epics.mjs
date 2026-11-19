@@ -17,30 +17,6 @@ export function planManifest(store, plan) {
   return files?.["tasks.md"] === undefined ? null : specFacts(files);
 }
 
-// The target in force for one record: {forwardTarget, publicBranch, from,
-// label, plan, integrationBranch}. A manifest that cannot be read counts as
-// none, so the repository's setting decides.
-export function forwardPlanOf(store, mirror, record) {
-  const task = record.taskId
-      ? store.read().tasks.find((t) => t.id === record.taskId)
-      : null,
-    plan = task?.planId ? store.get("plans", task.planId) : null,
-    manifest = record.planId
-      ? planManifest(store, store.get("plans", record.planId))
-      : planManifest(store, plan);
-  let target;
-  try {
-    target = forwardTargetOf(mirror, manifest);
-  } catch {
-    target = forwardTargetOf(mirror, null);
-  }
-  return {
-    ...target,
-    plan: plan ?? (record.planId ? store.get("plans", record.planId) : null),
-    integrationBranch: manifest?.integrationBranch ?? null,
-  };
-}
-
 // The epics of a repository that forward in one batch: approved, with an
 // integration branch and the `batch` target in force.
 export function batchEpics(store, policy, repository) {

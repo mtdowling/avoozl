@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fixture, markdown, recordedRun } from "./fixtures.mjs";
+import { fixture, markdown, recordedRun, validateRun } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
-import { git, validateRun, integrateRun } from "../git.mjs";
+import { git, integrateRun } from "../git.mjs";
 import { operatorName } from "../config.mjs";
 
 test("approval needs only the two hashes, and records the operator it ran as", async (t) => {
@@ -94,16 +94,14 @@ test("acceptance derives its evidence from a validated run and requires none wit
   });
   assert.equal(component.acceptanceEvidence.evidence, "");
   assert.equal(component.status, "implemented");
-  // A run the removed agent host had finished, as an old workspace holds it.
   const run = await recordedRun(store, {
     id: "run-accept",
     projectId: "fixture",
-    state: "completed",
   });
   fs.writeFileSync(path.join(run.worktree, "result.txt"), "done");
   await git(run.worktree, ["add", "."]);
   await git(run.worktree, ["commit", "-m", "Complete fixture"]);
-  const validation = await validateRun(store, run.id);
+  const validation = await validateRun(store, run);
   assert.equal(validation.passed, true);
   await integrateRun(store, { id: run.id, expectedCommit: validation.commit });
   const landed = store.read().tasks[0].integration.commit;

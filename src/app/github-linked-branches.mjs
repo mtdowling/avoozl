@@ -49,7 +49,7 @@ function failed(store, task, error, notify) {
 // unmet requires or sequence blocker is a linked-branch leaf in the same code
 // repository that already has its branch and no open decision. Whether that
 // blocker's pull request is open is GitHub's to say, below. Reads only.
-export function stackCandidates(store, policy) {
+function stackCandidates(store, policy) {
   const candidates = new Map();
   if (
     !Object.values(policy?.repositories || {}).some(

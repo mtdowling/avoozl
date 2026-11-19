@@ -21,7 +21,7 @@ const lower = (value) => String(value).toLowerCase();
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 // The settings that setup writes, checked and in one fixed shape.
-export function accessSettings(input = {}) {
+function accessSettings(input = {}) {
   const { target, base, roots, sources } = input;
   if (typeof target !== "string") fail("Setup needs a target repository.", 400);
   parseRepository(target);

@@ -12,9 +12,6 @@ const META = "releaseRanking";
 const BLOCKING = new Set(["requires", "sequence"]);
 const HOUR = 3_600_000;
 
-// What the Release queue shows: {taskId: {kind, reason}}.
-export const rankingNotes = (store) => store.getMeta(META)?.notes ?? {};
-
 // `eligible` is in release order (holders first, then priority, then plan
 // order). `rank(item)` is the priority-label rank: ranking never crosses it.
 // Returns the new order. A repository with ranking off, or no

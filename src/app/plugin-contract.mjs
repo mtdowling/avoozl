@@ -10,13 +10,7 @@ import { checkRuleSets } from "./content-rules.mjs";
 
 export const SUPPORTED_CONTRACTS = [1];
 
-export const ROUTE_STATES = [
-  "queued",
-  "running",
-  "needs-person",
-  "failed",
-  "done",
-];
+const ROUTE_STATES = ["queued", "running", "needs-person", "failed", "done"];
 
 export class ContractError extends Error {}
 
@@ -96,12 +90,12 @@ export const routeReplies = {
   },
 };
 
-export const GATE_STATES = ["open", "done", "failed", "unknown"];
-export const GATE_EVIDENCE_MAX = 500;
+const GATE_STATES = ["open", "done", "failed", "unknown"];
+const GATE_EVIDENCE_MAX = 500;
 
 // Gate kind (RC23.6): one read-only call, status. The evidence and link are
 // untrusted data: Avoozl screens them before it stores or shows them.
-export const gateReplies = {
+const gateReplies = {
   status(reply) {
     object(reply, "status reply");
     if (!GATE_STATES.includes(reply.state))
@@ -316,7 +310,7 @@ function trigger(value, where) {
 
 // Rules kind (R40.9): one call, ruleSets, returning {sets: [{id, version,
 // rules: [{id, pattern}]}]}. The rules stay in memory (content-rules.mjs).
-export const rulesReplies = {
+const rulesReplies = {
   ruleSets(reply) {
     try {
       return { sets: checkRuleSets(reply) };

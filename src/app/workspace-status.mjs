@@ -98,11 +98,6 @@ function contents(database) {
           "SELECT COUNT(*) AS n FROM entities WHERE kind = 'document'",
         ),
         plans: count("SELECT COUNT(*) AS n FROM plans"),
-        runsByState: Object.fromEntries(
-          rows(
-            "SELECT state, COUNT(*) AS n FROM runs GROUP BY state ORDER BY state",
-          ).map((row) => [row.state, row.n]),
-        ),
       },
     };
   } finally {

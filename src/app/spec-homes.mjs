@@ -15,7 +15,7 @@ import {
   specItems,
 } from "./spec-plans.mjs";
 
-export const HOMES = Object.freeze(["main", "plansBranch"]);
+const HOMES = Object.freeze(["main", "plansBranch"]);
 const NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const FILES = [
   "requirements.md",
@@ -127,11 +127,6 @@ export function mergeHomes(publicSpecs, privateSpecs) {
     ],
     errors,
   };
-}
-
-export function requireHome(home) {
-  if (!HOMES.includes(home)) fail("A spec home is main or plansBranch.");
-  return home;
 }
 
 // A private plans checkout is another view of that home, not a public twin.

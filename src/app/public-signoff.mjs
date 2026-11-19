@@ -17,13 +17,11 @@ import { covers, resolveSets, sha256 } from "./content-rules.mjs";
 import { AUDIT_CURSORS } from "./public-crews.mjs";
 import { fail } from "./store.mjs";
 
-export const SIGNOFF_KEY = "publicSignoff";
+const SIGNOFF_KEY = "publicSignoff";
 export const DEFAULT_AGENT = "avoozl-crew";
 export const AUDIT_FRESH_MS = 10 * 60 * 1000;
 export const PUBLIC_HELD =
   "This repository is public, or its visibility could not be read, and its public sign-off is not complete, so nothing is released.";
-export const HOME_LIMIT =
-  "A separate crew home removes injected context only. The crew can still read every file this operating-system user can read and use its credentials. A crew that must not read them runs as another user, in a container, or on another machine.";
 export const NO_RULES =
   "No content rule set covers this public repository, so sign-off stays closed. Add one in Settings › Content rules.";
 // What a home holds that would put the owner's context in front of a crew.
@@ -47,7 +45,7 @@ const nonEmpty = (file) => {
   }
 };
 
-export const publicRepository = (store, id) =>
+const publicRepository = (store, id) =>
   store.get("github_repositories", id)?.private !== true;
 
 // Item 1: the crew home (R85.2).
@@ -208,7 +206,7 @@ export function checklist(
 const records = (store) => store.getMeta(SIGNOFF_KEY) ?? {};
 
 // The sign-off for one repository with whether it is still current.
-export function signoffState(store, repository, now = Date.now()) {
+function signoffState(store, repository, now = Date.now()) {
   const record = records(store)[repository] ?? null,
     current = record?.complete === true && typeof record.hash === "string",
     list = checklist(store, repository, record ?? {}, now);

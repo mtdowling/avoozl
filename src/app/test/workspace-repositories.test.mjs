@@ -116,14 +116,10 @@ test("unified repositories preserve legacy execution and GitHub records", async 
     undefined,
   );
   assert.equal(store.get("projects", "compiler"), null);
-  assert.equal(
-    store.get("github_queue_repositories", "example/compiler"),
-    null,
-  );
   assert.equal(store.get("github_repositories", "example/compiler"), null);
 });
 
-test("legacy project and Queue records project as one repository", (t) => {
+test("a project with a GitHub repository projects as one repository", (t) => {
   const { store } = fixture(t),
     operations = new Operations(store);
   store.put("projects", {
@@ -133,12 +129,6 @@ test("legacy project and Queue records project as one repository", (t) => {
     repository: "example/code",
     baseBranch: "main",
     checks: [],
-  });
-  store.put("github_queue_repositories", {
-    id: "example/code",
-    visibility: "private",
-    includeIssues: true,
-    includePullRequests: true,
   });
 
   return operations.execute("repositories.list").then(({ items }) => {

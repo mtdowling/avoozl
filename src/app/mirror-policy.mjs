@@ -6,7 +6,7 @@ import { parseRepository } from "./github.mjs";
 import { DEFAULT_FORWARD_MAX_FILE_BYTES } from "./forward-scan.mjs";
 import { branchNameProblem } from "./integration-branch.mjs";
 
-export const FORWARD_MODES = Object.freeze(["off", "nudge", "auto"]);
+const FORWARD_MODES = Object.freeze(["off", "nudge", "auto"]);
 export const MIRROR_KEYS = Object.freeze([
   "source",
   "mirror",
@@ -22,7 +22,7 @@ export const MIRROR_KEYS = Object.freeze([
   "forwardExclude",
   "forwardAllow",
 ]);
-export const FORWARD_TARGETS = Object.freeze(["each", "branch", "batch"]);
+const FORWARD_TARGETS = Object.freeze(["each", "branch", "batch"]);
 export const MIRROR_DEFAULTS = Object.freeze({
   forwardTo: "source",
   forward: "nudge",
@@ -30,7 +30,7 @@ export const MIRROR_DEFAULTS = Object.freeze({
   squash: true,
   plansBranch: "avoozl-plans",
 });
-export const DEFAULT_FORWARD_TARGET = "each";
+const DEFAULT_FORWARD_TARGET = "each";
 
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const BRANCH_PREFIX = /^[A-Za-z0-9_][A-Za-z0-9._/-]*$/;
