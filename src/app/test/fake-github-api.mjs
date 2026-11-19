@@ -119,6 +119,18 @@ export class FakeGitHubApi {
     const parts = url.pathname.split("/").filter(Boolean),
       [, , , section, number, sub] = parts;
     if (section === "issues" && !number) return this.list(url, headers);
+    if (section === "issues" && number && !sub) {
+      const item = this.items.get(Number(number));
+      return item
+        ? json({ ...item, node_id: `issue-${item.number}`, id: item.number })
+        : json({ message: "Not Found" }, 404);
+    }
+    if (section === "issues" && sub === "comments")
+      return json(
+        this.comments
+          .filter((comment) => comment.number === Number(number))
+          .map((comment) => ({ id: comment.id, body: comment.body, user: { login: comment.login } })),
+      );
     if (section === "pulls" && sub === "files")
       return json(this.files.get(Number(number)) ?? []);
     if (section === "collaborators") {
@@ -229,6 +241,9 @@ export class FakeGitHubApi {
             reviewDecision: null,
             reviewRequests: { nodes: [] },
             latestReviews: { nodes: [] },
+            files: {
+              nodes: (this.files.get(item.number) ?? []).map((file) => ({ path: file.filename })),
+            },
             commits: this.checks(item),
           }
         : {}),
