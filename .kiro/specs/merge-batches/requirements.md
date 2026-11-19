@@ -124,9 +124,12 @@ that passed, so that a merge batch never turns the branch red.
 1. The candidate SHALL be built in a landing worktree at the current base
    head, stacking each member's commits in order. Each commit SHALL keep its
    author and message.
-2. The repository's `checks` SHALL run on the candidate. A check MAY itself
-   run another platform, through a container or a VM, as the repository
-   chooses.
+2. The repository's checks SHALL run on the candidate: every check whose
+   paths a member's diff touches, and every check that names no paths. Each
+   SHALL be keyed by its name in reruns, bisect steps and the journal. A
+   check MAY itself run another platform, through a container or a VM, as
+   the repository chooses. (Changed 2026-11-18: checks are named and MAY
+   name paths.)
 3. Only a candidate whose checks pass SHALL be pushed, as a guarded
    fast-forward from the base it was built on (Requirement 87.4). A base
    that moved SHALL mean a new candidate and new checks.

@@ -257,9 +257,6 @@ export default function TaskForm(props: {
       <Field id="avoozl-task-acceptance" label="Acceptance" hint="One condition per line.">
         <Area id="avoozl-task-acceptance" value={form.acceptance} onChange={(acceptance) => set({ acceptance })} />
       </Field>
-      <Field id="avoozl-task-checks" label="Checks" hint="One command per line, such as npm test.">
-        <Area id="avoozl-task-checks" rows={2} value={form.checks} onChange={(checks) => set({ checks })} />
-      </Field>
       <Prerequisites graph={graph} self={id} value={form.prerequisites} onChange={(prerequisites) => set({ prerequisites })} />
       {cycle && (
         <ErrorText role="alert" size="sm">

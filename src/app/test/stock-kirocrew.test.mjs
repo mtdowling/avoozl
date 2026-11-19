@@ -22,6 +22,7 @@ import { Store } from "../store.mjs";
 import { tickHealth } from "../tick.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { gitCheckout } from "./delivery-fixture.mjs";
 
 function git(cwd, ...args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -43,14 +44,7 @@ const leaf = (id) => ({
 
 function setup(t, tasks = [leaf("a")]) {
   const root = temporaryDirectory("avoozl-stock-"),
-    checkout = path.join(root, "app");
-  fs.mkdirSync(checkout);
-  git(checkout, "init", "-b", "main");
-  git(checkout, "config", "user.name", "Test");
-  git(checkout, "config", "user.email", "test@example.com");
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-m", "Start");
+    checkout = gitCheckout(path.join(root, "app"));
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   store.importSnapshot({ ...snapshot(), tasks, edges: [] });

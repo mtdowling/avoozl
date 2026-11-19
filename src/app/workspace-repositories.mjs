@@ -19,6 +19,7 @@ export function workspaceRepositories(store) {
       landing: project.landing || null,
       harness: project.harness || null,
       checks: structuredClone(project.checks || []),
+      isolation: project.isolation ? structuredClone(project.isolation) : null,
       queue: {
         enabled: false,
         issues: false,

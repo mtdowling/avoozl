@@ -89,6 +89,8 @@ export function processExecutor({
             project_cache_dirs: sandbox.writeRoots ?? [],
           },
           allowCommands: sandbox.allowCommands,
+          // Home paths the repository lets its checks and sessions read.
+          readable: project.isolation?.readable ?? [],
           // A role that reads only its folder gets no network (NK2.2).
           network: offline ? undefined : sandbox.network,
         }),

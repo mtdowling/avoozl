@@ -4,7 +4,7 @@ Status 2026-11-18: see `tasks.md`. Most of the plan is built.
 
 Requirements are in `requirements.md` (AN1 to AN4). This spec adds no design
 of its own. Behavior is defined in `.kiro/specs/radar-coder/design.md`
-(D28 gates, D30 private plans) and `.kiro/specs/avoozl/design.md` (§6.14 public
+(D30 private plans; D28 gates were retired 2026-11-18) and `.kiro/specs/avoozl/design.md` (§6.14 public
 crews, and §4.11, §4.18, §4.19, §8.7, §8.8 for the proofs). This file says how
 the open work was chosen, how it is ordered, and what a person must do.
 
@@ -35,7 +35,7 @@ only for Avoozl's own workers.
 ## Order
 
 ```text
-Phase 1 gates:   an-1.1 -> an-1.2 -> an-1.3 -> an-p1
+Phase 1 gates:   retired 2026-11-18
 Phase 2 plans:   an-2.1 -> an-2.3 -> an-p2   (an-2.2 joins an-p2)
 Phase 3 public:  an-3.1 -> an-3.2 -> an-3.3 / an-3.4 -> an-3.5 -> an-p3
 Phase 4 proofs:  an-4.1, an-4.2, an-4.3, an-4.4   (independent)

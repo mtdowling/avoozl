@@ -1,7 +1,6 @@
 ---
 repo: avoozl
 completion: integrated
-checks: npm test, git diff --check
 ---
 # Tasks: the triage agent and the GitHub pages
 
@@ -17,14 +16,13 @@ text. Removal (Phase 5) waits for the first proof.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces, a fake GitHub that counts calls by kind (REST, conditional,
-GraphQL, write), and fake executors; run `npm test` and `git diff --check`
-before landing, and `npm run test:ui` for UI changes; no real workspace
-data, machine configuration, credentials or personal plans in the
-repository (AGENTS.md). Every task that reads or writes GitHub states, in
-its pull request, the calls it adds per tick and per item. Screen changes
-need phone and desktop, light and dark screenshots for owner approval
-before merge (R92.12); screenshots are shown to the owner and never
-committed (AGENTS.md).
+GraphQL, write), and fake executors; Avoozl runs the repository's checks;
+no real workspace data, machine configuration, credentials or personal
+plans in the repository (AGENTS.md). Every task that reads or writes GitHub
+states, in its pull request, the calls it adds per tick and per item.
+Screen changes need phone and desktop, light and dark screenshots for owner
+approval before merge (R92.12); screenshots are shown to the owner and
+never committed (AGENTS.md).
 
 Approval lives in Avoozl, not in these files. Approving the spec, creating
 issues and starting agents are separate acts. Task IDs start with `ta-` so they never collide with the IDs
@@ -36,7 +34,6 @@ of the other specs.
   - Facts:
     - done:
       - Tests: a fix from text and one from an issue each run, verify and land with the two acceptance lines; a version 1 record loads and lands; the definition hash changes when the text changes; Make this a spec writes a folder that lints clean and archives the fix with a link; screenshots of New fix go to the owner.
-    - checks: npm test, npm run test:ui, git diff --check
   - `task.fix` version 2 with a source of an issue or text; version 1 loads as version 2; **New fix** beside **New spec**; `avoozl fix "TEXT" --repo ID`; **Make this a spec**.
 
 ## Phase 2: Reading GitHub within its limits
@@ -65,14 +62,12 @@ of the other specs.
   - Facts:
     - done:
       - UI tests from fixture items show each part; the owner queue filter shows only held items; a search finds an item by a word in its body; screenshots of both pages at 390 and 1280 px, light and dark, go to the owner.
-    - checks: npm test, npm run test:ui, git diff --check
     - after: ta-2.2
   - Two pages with one layout: the list with its sorts, filters and search, and the detail with summary, body, checks, reviewers, assignees, labels, branches, counts and timeline.
 - [ ] ta-3.2 Actions, after ta-3.1, ta-1.1 [TA8.4, TA8.5, TA8.6] (§D8)
   - Facts:
     - done:
       - Tests: each action makes one write of the right kind on the fake GitHub and records it on the item; Approve, Request changes and Close are refused over MCP and from an agent; Fix on an issue starts a fix from it; screenshots go to the owner.
-    - checks: npm test, npm run test:ui, git diff --check
     - after: ta-3.1, ta-1.1
   - Fix, Answer, Make this a spec, Run triage again, Assign to me, Edit labels, Snooze, Close with a reason, and on a pull request Review, Edit review, Approve, Request changes, Comment, Close; Review as spec kept; each write through the pacer.
 
@@ -106,7 +101,6 @@ of the other specs.
   - Facts:
     - done:
       - Tests: a feature, an unciteable answer, a stranger's fix and a review needing a decision each enter the queue once with their reason; each sends one notification; screenshots of Home's count go to the owner.
-    - checks: npm test, npm run test:ui, git diff --check
     - after: ta-4.1, ta-3.1
   - Items the agent hands over, with class and reason; one count on Home and in Needs you; one notification per item.
 - [ ] ta-4.6 The Triage agent page, Pause and Stop all, after ta-4.1, ta-2.3 [TA6] (§D2)
@@ -114,7 +108,6 @@ of the other specs.
     - done:
       - UI tests show each part; Pause stops new runs before the next tick and holds a running session's writes for the owner; Stop all does the same everywhere; a pulled stop line stops triage in its scope; screenshots go to the owner.
       - Tests: an item closed or merged while its run runs stops the run, sends none of its writes and records why.
-    - checks: npm test, npm run test:ui, git diff --check
     - after: ta-4.1, ta-2.3
   - Runs in progress, every run with its item, class, reason, writes and result, counts per day, caps left and calls used; Pause per repository and Stop all; Stop the line stops triage in its scope.
 

@@ -614,7 +614,7 @@ export default function GraphView({
           <Box mt="2">
             <Legend />
           </Box>
-          <div ref={canvas} className="mt-2 overflow-hidden rounded border" style={{ borderColor: 'var(--border)', height: CANVAS_HEIGHT, touchAction: 'none' }}>
+          <Box ref={canvas} css-border-color="border" css-height="640" css-touch-action="none" mt="2" overflow="hidden" rounded="base" border="all">
             <SvgRoot
               role="group"
               aria-label="Task graph. Drag to pan; pinch or hold Ctrl or Cmd and scroll to zoom."
@@ -709,7 +709,7 @@ export default function GraphView({
                 ))}
               </g>
             </SvgRoot>
-          </div>
+          </Box>
         </Card>
       )}
       {graph && task && <Details task={task} batch={graph.batches?.find((entry) => entry.id === task.batch) ?? null} neighbors={neighbors(graph, task.id)} onSelect={selectId} />}

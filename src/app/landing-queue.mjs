@@ -26,6 +26,7 @@ import { withWorkLock } from "./git.mjs";
 import { openStops } from "./flow.mjs";
 import { outputExcerpt } from "./verify.mjs";
 import { fail } from "./store.mjs";
+import { checkKey } from "./repository-checks.mjs";
 
 const SHA = /^[0-9a-f]{40}$/;
 const TABLE = "landing_queue";
@@ -141,7 +142,8 @@ export function pausedBy(store, entry) {
 // capped at 8 KB (MB4.3). `tail` is the check's last output lines.
 const EXCERPT_BYTES = 8192;
 const failedOf = (checks = []) => checks.filter((c) => c.exitCode !== 0);
-const commandsOf = (checks) => failedOf(checks).map((c) => c.command);
+// Reruns and bisect steps name the checks they run again by check name.
+const namesOf = (checks) => failedOf(checks).map(checkKey);
 const bare = (checks = []) => checks.map(({ tail, ...rest }) => rest);
 const excerptOf = (checks) =>
   outputExcerpt(
@@ -167,7 +169,8 @@ function noteWait(store, entry, candidate, verdict) {
   const waiting = {
     reason: verdict.reason === "review" ? "review" : "checks",
     candidate,
-    checks: (verdict.checks ?? []).map(({ command, conclusion }) => ({
+    checks: (verdict.checks ?? []).map(({ name, command, conclusion }) => ({
+      ...(name !== undefined ? { name } : {}),
       command,
       conclusion: conclusion ?? null,
     })),
@@ -343,7 +346,7 @@ export async function landNext(
         };
       }
       // MB4.1: a failing check runs once more on the same head.
-      let failing = commandsOf(verdict.checks);
+      let failing = namesOf(verdict.checks);
       options.onStep?.("rerun", entries);
       const again = await steps.check(candidate, entries, baseHead, failing);
       if (again?.ok) {
@@ -352,12 +355,12 @@ export async function landNext(
           ...verdict,
           ok: true,
           checks: verdict.checks.map(
-            (c) => again.checks.find((a) => a.command === c.command) ?? c,
+            (c) => again.checks.find((a) => checkKey(a) === checkKey(c)) ?? c,
           ),
         };
         break;
       }
-      if (commandsOf(again?.checks).length) failing = commandsOf(again.checks);
+      if (namesOf(again?.checks).length) failing = namesOf(again.checks);
       // MB4.2: the first boundary where the failing checks fail.
       options.onStep?.("bisect", entries);
       let lo = 1,

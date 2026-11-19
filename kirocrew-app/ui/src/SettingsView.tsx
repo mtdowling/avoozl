@@ -86,6 +86,7 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryList, repositoryRows, useRe
 import { EditRepository, ViewRepository, type EditSettings } from './RepositoryModals.tsx'
 import type { EditTab } from './repo-edit-tabs.ts'
 import { FormSection } from './FormSection.tsx'
+import IsolationPanel from './IsolationPanel.tsx'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
@@ -147,8 +148,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   radar: 'The labels Avoozl reads from Issue Radar crews and the handoff they use to pass issues to Avoozl, one repository at a time. Save only writes .avoozl.json.',
   repositories:
     "Each repository's role says where its tasks live. Its labels, Workflow map, checks and reviews are tabs under its name. Issue Radar settings have their own page. Save only writes .avoozl.json.",
-  plugins:
-    'A plugin can bring a team’s settings pack, content rules, a tracker, an intake source or a delivery route. Each one runs or imports only after you approve it on this machine.',
+  plugins: 'A plugin can bring a team’s settings pack, content rules, an intake source or workflow templates. Each one runs or imports only after you approve it on this machine.',
   content: 'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   models: "Each role's harness, agent and model, in one place. Issue Radar crews pick their own.",
@@ -265,15 +265,19 @@ function Hint({ children }: { children: ReactNode }) {
 export function Section(props: { title: string; blurb?: string; actions?: ReactNode; children?: ReactNode; level?: 'card' | 'sub'; icon?: LucideIcon }) {
   const sub = props.level === 'sub'
   return (
-    <div
-      className="flex flex-col gap-2.5"
+    <Box
+      css-border-top={sub ? '1px-solid-border' : undefined}
+      css-padding-top={sub ? '12' : undefined}
+      css-margin-top={sub ? '4' : undefined}
+      flex
+      flexCol
+      gap="2.5"
       data-section={props.title}
       data-sub-section={sub ? '' : undefined}
-      style={sub ? { borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 } : undefined}
     >
       <SectionHeading level={props.level === 'sub' ? 4 : 3} title={props.title} blurb={props.blurb} actions={props.actions} icon={props.icon} />
       {props.children}
-    </div>
+    </Box>
   )
 }
 
@@ -1218,9 +1222,26 @@ function RepositoriesTab(props: {
     }
     setMessage({ ok: true, text: `Added ${id}.` })
   }
-  // The repository's own settings, inside its Edit dialog, on its open tab:
-  // the editor, or what a local or settings-less repository has instead.
+  // The repository's own settings, inside its Edit dialog, on its open tab,
+  // with the Isolation panel under Landing for a registered checkout.
   const settingsFor = (
+    row: RepositoryRow,
+    view: { entry: RepositoryForm | null; setEntry: (entry: RepositoryForm) => void; tab: EditTab; setTab: (tab: EditTab) => void },
+  ): EditSettings => {
+    const own = repositorySettings(row, view)
+    if (view.tab !== 'landing' || !row.checkout) return own
+    return {
+      ...own,
+      body: (
+        <>
+          {own.body}
+          <IsolationPanel key={row.checkout.id} workspaceId={props.workspaceId} projectId={row.checkout.id} value={row.checkout.isolation} />
+        </>
+      ),
+    }
+  }
+  // The editor, or what a local or settings-less repository has instead.
+  const repositorySettings = (
     row: RepositoryRow,
     view: { entry: RepositoryForm | null; setEntry: (entry: RepositoryForm) => void; tab: EditTab; setTab: (tab: EditTab) => void },
   ): EditSettings => {
@@ -1266,8 +1287,8 @@ function RepositoriesTab(props: {
       body: tab === 'landing' && (
         <FormSection title="Checks" blurb="A local-only repository: no GitHub remote, so the GitHub settings do not apply.">
           <Box as="p" size="sm" data-local-checks>
-            Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from its facts in tasks.md, or this repository&apos;s checks when a
-            task names none.
+            Required checks apply only to GitHub pull requests. Here Avoozl runs this repository&apos;s checks for every task; a check with paths runs only when a change touches
+            them.
           </Box>
         </FormSection>
       ),
@@ -1409,7 +1430,7 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
             </dd>
           </Box>
           <Box as="p" size="sm" data-local-checks>
-            Avoozl runs each task&apos;s own checks from its facts in tasks.md, or this repository&apos;s checks when a task names none.
+            Avoozl runs this repository&apos;s checks for every task; a check with paths runs only when a change touches them.
           </Box>
         </FormSection>
         <ReviewRoles review={props.review} repository={row.github ?? row.name} />
@@ -1982,7 +2003,6 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
   )
 }
 
-const CELL: CSSProperties = { padding: '4px 8px' }
 const USAGE_COLUMNS: { key: UsageKey; label: string }[] = [
   { key: 'source', label: 'Source' },
   { key: 'calls', label: 'Calls' },

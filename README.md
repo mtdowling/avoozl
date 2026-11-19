@@ -138,16 +138,16 @@ plan, so those names stay.
 
 Each checkbox in `tasks.md` has a task ID and a title, and a `Facts:` bullet
 as its first child gives the task its kind, acceptance (`done`), dependencies
-(`after`), checks and completion level. The item's other bullets are its
+(`after`) and completion level. A task never names checks: every task runs
+its repository's checks. The item's other bullets are its
 summary: what it delivers and how, which its worker reads after the title.
 Write one only when it adds to the title; lint refuses one that repeats it.
 Front-matter at the top of `tasks.md`
-holds defaults for every task, such as `repo` and `checks`:
+holds defaults for every task, such as `repo`:
 
 ```markdown
 ---
 repo: app
-checks: npm test
 ---
 
 - [ ] 1.2 Validate config
@@ -212,12 +212,41 @@ workspace database, not in Git, and an agent cannot grant or revoke over MCP.
 ## Deliver locally
 
 Register the Git checkout the work changes, with its base branch, a worktree
-directory, and the check commands:
+directory, and its named checks:
 
 ```sh
 node cli.mjs project configure code --workspace ~/plans \
-  --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":[["npm","test"]]}'
+  --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":{"test":["npm","test"],"diff":["git","diff","--check"],"ui":{"run":["npm","run","test:ui"],"paths":["src/ui/**"]}}}'
 ```
+
+Each check is a name (lowercase letters, digits and dashes) and its command
+arguments, run with no shell. A check with `paths` runs only when a commit's
+diff touches one of them; the others run for every commit. These are the
+only checks there are: every task runs them, and setting them is a
+person's, never an agent's. A check sees only the environment a process
+needs to start plus the names in `checksEnv`, and never a push or GitHub
+token. An older list of commands, `[["npm","test"]]`, still loads, each
+check named by its command.
+
+Checks run in the repository's isolation. By default each runs in the
+process sandbox (sandbox-exec on macOS, bubblewrap on Linux): it writes only
+its folder, its own temp folder, a cache folder and the paths you list, and
+the network is off. Set it in Settings › Repository setup › Landing, or with
+`project configure`:
+
+```sh
+node cli.mjs project configure code --workspace ~/plans \
+  --json '{"isolation":{"run":"sandbox","network":"on","prepare":["npm","ci"]}}'
+```
+
+`run` is `sandbox`, `container` (with `image`, run by docker or podman
+with no network unless it is on and no home folder) or `unconfined`, which
+needs this machine's opt-in; a machine with no sandbox runs checks
+unconfined, and the Landing page and the task's timeline then say "not
+sandboxed". `prepare` runs once per worktree and commit, before the
+checks and outside isolation. As an example, a repository whose checks
+drive Linux and Windows VMs, such as Nupp's, would use the sandbox with the
+network on.
 
 Checkout paths are per machine, so they are kept out of `.avoozl.json`. Then
 turn on Autopilot, Avoozl's name for delivery, with the `delivery` block in
@@ -260,7 +289,7 @@ in its own worktree. Every session runs on this machine unless a worker
 machine pulls the work (`avoozl worker setup`). When a session reports done, Avoozl runs the checks itself on
 the exact commit in a clean worktree, with no model call, then integrates
 it and releases the leaf's dependents. A verifier session opens only when a
-task's bar needs judgment: prose acceptance with no checks, or
+task's bar needs judgment: a repository with no checks, or
 `verify: "agent"`. Implementation, integration, and acceptance stay
 separate steps, each with its own record.
 
@@ -290,7 +319,9 @@ When the base moves and a merge conflicts, or the checks fail, the task goes
 back to its worker chat, for at most `landing.conflictRounds` rounds (default
 2); after that it goes to Needs you. Stop the line pauses the queue.
 `avoozl setup OWNER/REPO --project ID --checks NAME --landing pr|direct|off`
-previews the repository setup and `--yes` applies it.
+previews the repository setup and `--yes` applies it. Its `--checks` names
+the required GitHub checks a pull request needs, not the repository's
+own checks above.
 
 To let a Crew Mode conductor claim leaves instead, set
 `"delivery": {"runner": "crew-mode"}` and follow
@@ -319,9 +350,8 @@ syntax (for example `label:agent:go -label:hold`), and is checked against
 With nobody named, that is anyone with `write` permission. See
 [trigger rules and example policies](docs/policies.md).
 
-Other delivery routes, task trackers, intake sources, content rules, and
-settings packs plug in as separate packages that you approve on each
-machine. See [writing a plugin](docs/plugins.md).
+Intake sources, content rules, settings packs and workflow templates plug
+in as separate packages that you approve on each machine. See [writing a plugin](docs/plugins.md).
 
 ## One driver per spec
 
@@ -371,7 +401,7 @@ Proposals are pages of the **Retros** entry in the nav.
   first. Running sessions keep going. It resumes when the check passes, or
   when a person presses **Run anyway**.
 - **Local checks first** (`localChecksFirst`, default `true`): a session that
-  pushes runs the declared checks in its worktree before each push.
+  pushes runs the repository's checks in its worktree before each push.
 - **Batching** has no setting. The planner groups small related leaves in
   `tasks.md`: each member's facts say `batch: <group>`, and the front-matter
   gives the group's one-line reason as `batch-<group>: <reason>`. A group runs in one

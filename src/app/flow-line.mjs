@@ -25,13 +25,18 @@ import { taskRepository } from "../work-model.mjs";
 import { INTERRUPTED, liveAttempt, rebaseForIntegration } from "./delivery.mjs";
 import { fence } from "./github-respond.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
+import { checkOptions, prepareChecks } from "./check-isolation.mjs";
+import {
+  checkCommand,
+  checkKey,
+  repositoryChecks,
+} from "./repository-checks.mjs";
 
 const BISECT_RUNS = 8;
 const TAIL_LINES = 20;
 
 const landingOf = (project) =>
   project.integrationBranch || project.baseBranch || "main";
-const checkName = (argv) => argv.join(" ");
 
 // Run one declared check at one commit in a scratch worktree, never in the
 // landing checkout (R44.4): {exitCode, durationMs, tail}.
@@ -39,10 +44,20 @@ export async function runCheckAt(project, commit, argv) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-line-"));
   try {
     await git(project.root, ["worktree", "add", "--detach", dir, commit]);
+    const ready = await prepareChecks(project, dir);
+    if (ready && ready.exitCode !== 0)
+      return {
+        exitCode: null,
+        durationMs: 0,
+        tail: `prepare failed: ${String(ready.stderr || "").split("\n")[0]}`,
+      };
     const started = Date.now(),
-      result = await commandEvidence(dir, argv, { env: project.checksEnv });
+      result = await commandEvidence(dir, argv, checkOptions(project, dir));
     return {
       exitCode: result.exitCode,
+      ...(result.isolation !== undefined
+        ? { isolation: result.isolation }
+        : {}),
       durationMs: Date.now() - started,
       tail: String((result.stdout || "") + (result.stderr || ""))
         .split("\n")
@@ -308,12 +323,12 @@ async function headResults(store, project, head, run, known) {
   const out = new Map();
   if (!known) {
     if (integratedHead(store, project, head))
-      for (const argv of project.checks || [])
-        out.set(checkName(argv), { exitCode: 0, tail: "" });
+      for (const check of repositoryChecks(project))
+        out.set(check.name, { exitCode: 0, tail: "" });
     return out;
   }
-  for (const argv of project.checks || [])
-    out.set(checkName(argv), await run(project, head, argv));
+  for (const check of repositoryChecks(project))
+    out.set(check.name, await run(project, head, check.argv));
   return out;
 }
 
@@ -326,7 +341,7 @@ export async function watchLine(
   const notify = [],
     policy = flowPolicy(config || {});
   for (const project of store.list("projects")) {
-    if (!project.root || !(project.checks || []).length) continue;
+    if (!project.root || !repositoryChecks(project).length) continue;
     let head;
     try {
       head = await git(project.root, [
@@ -353,9 +368,8 @@ export async function watchLine(
     const results = await headResults(store, project, head, run, known),
       green = { ...state.green },
       scope = policy.for(project.id).stopTheLine.scope;
-    for (const argv of project.checks) {
-      const name = checkName(argv),
-        result = results.get(name),
+    for (const { name, argv } of repositoryChecks(project)) {
+      const result = results.get(name),
         open = openStops(store).find(
           (s) => s.projectId === project.id && s.check === name,
         );
@@ -465,7 +479,7 @@ export function heldByStop(store, projectId, checks = []) {
   if (!stopped.size) return null;
   const failing = checks
     .filter((c) => c.exitCode !== 0 && c.notRun === undefined)
-    .map((c) => c.command);
+    .map(checkKey);
   if (!failing.length || failing.some((c) => !stopped.has(c))) return null;
   return failing[0];
 }
@@ -491,9 +505,14 @@ export async function judgeBaseFailures(
     const failing = (last.checks || []).find(
         (c) => Number.isInteger(c.exitCode) && c.exitCode !== 0,
       ),
+      failingName = failing ? checkKey(failing) : null,
       argv =
         failing &&
-        (project.checks || []).find((a) => checkName(a) === failing.command);
+        repositoryChecks(project).find(
+          (check) =>
+            check.name === failingName ||
+            checkCommand(check) === failing.command,
+        )?.argv;
     let base = null;
     if (argv)
       try {
@@ -511,7 +530,7 @@ export async function judgeBaseFailures(
           ? {
               ...v,
               outcome: "held",
-              cause: `not judged: \`${failing.command}\` also fails on the base ${base.slice(0, 12)}`,
+              cause: `not judged: \`${failingName}\` also fails on the base ${base.slice(0, 12)}`,
               baseChecked: true,
             }
           : { ...v, baseChecked: true }
@@ -534,10 +553,10 @@ export async function judgeBaseFailures(
         commit: last.commit,
       };
       const stateRecord = store.get("flow_records", landingId(project.id)),
-        green = stateRecord?.green?.[failing.command] || null,
+        green = stateRecord?.green?.[failingName] || null,
         culprit = await findCulprit(store, project, argv, green, base, { run });
       openStop(store, project, {
-        check: failing.command,
+        check: failingName,
         culprit,
         notify,
         now,

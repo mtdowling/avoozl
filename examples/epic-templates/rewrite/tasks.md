@@ -1,6 +1,5 @@
 ---
 completion: integrated
-checks: npm test
 integrationBranch: rewrite/my-epic
 integrationSync: weekly
 ---

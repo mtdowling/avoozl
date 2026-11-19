@@ -206,7 +206,7 @@ test("the spec reader knows epic folders and refuses the old plan forms", (t) =>
     "tasks.md": [
       "---",
       "epics: W1",
-      "checks: npm test",
+      "repo: app",
       "---",
       "# Tasks",
       "",

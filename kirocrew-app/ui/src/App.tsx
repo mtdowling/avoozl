@@ -355,7 +355,7 @@ function AvoozlPage() {
                 />
               )}
               {/* Desktop: the left nav, then the page. A phone has the hamburger. */}
-              <div className={`flex min-h-0 flex-1 ${phone ? 'flex-col' : 'px-6'}`} style={showRail ? { display: 'none' } : undefined} data-shell>
+              <Box css-display={showRail ? 'none' : undefined} flex minH0 flex1 flexCol={phone} px={phone ? undefined : '6'} data-shell>
                 {!phone && <LeftNav groups={groups} value={navTab(tab)} child={child} onPick={pickNav} top={pill} brand={<BrandCard workspaceId={active} />} />}
                 <Box flex minH0 minW0 flex1 flexCol pb={phone ? undefined : '2'} data-shell-main>
                   <Box flex flexWrap items="center" gap="3" pb="2" px={phone ? '4' : '2'} data-main-top>
@@ -454,7 +454,7 @@ function AvoozlPage() {
                     )}
                   </div>
                 </Box>
-              </div>
+              </Box>
             </Box>
           </TaskDrawerProvider>
         </SpecLinkContext.Provider>

@@ -2,12 +2,9 @@
 // Avoozl itself in a clean detached worktree, not by a verifier chat. One
 // test per rule; each lists the nearby inputs it checks.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
 import {
   checkRuns,
   drainCheckRuns,
@@ -15,83 +12,21 @@ import {
   outputTail,
 } from "../check-runs.mjs";
 import { listSpans } from "../flow.mjs";
-import { snapshot } from "./fixtures.mjs";
-import { temporaryDirectory } from "./temporary.mjs";
-
-function git(cwd, ...args) {
-  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-}
+import {
+  deliveryWorkspace,
+  git,
+  leaf,
+  workerDone,
+} from "./delivery-fixture.mjs";
 
 const node = process.execPath;
-const leaf = (id, extra = {}) => ({
-  id,
-  title: "Task " + id,
-  kind: "leaf",
-  scope: "catalog",
-  status: "planned",
-  epic: "sample",
-  track: "catalog",
-  tags: [],
-  acceptance: ["Works."],
-  repository: "app",
-  ...extra,
-});
 
-function setup(t, { tasks = [leaf("a")], checks = [["git", "status"]] } = {}) {
-  const root = temporaryDirectory("avoozl-checkrun-"),
-    checkout = path.join(root, "app");
-  fs.mkdirSync(checkout);
-  git(checkout, "init", "-b", "main");
-  git(checkout, "config", "user.name", "Test");
-  git(checkout, "config", "user.email", "test@example.com");
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-m", "Start");
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks, edges: [] });
-  store.put("projects", {
-    id: "app",
-    root: fs.realpathSync.native(checkout),
-    baseBranch: "main",
-    checks,
+const setup = (t, { tasks = [leaf("a")], checks = [["git", "status"]] } = {}) =>
+  deliveryWorkspace(t, {
+    prefix: "avoozl-checkrun-",
+    tasks,
+    project: { checks },
   });
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    JSON.stringify({ version: 1, delivery: { concurrency: 4, retries: 1 } }),
-  );
-  return {
-    root,
-    checkout: fs.realpathSync.native(checkout),
-    store,
-    ops: new Operations(store, { workspaceRoot: root }),
-  };
-}
-
-const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
-
-async function workerDone(ops, taskId, slot, attempt = 1) {
-  await ops.execute("session.bind", {
-    taskId,
-    slot,
-    role: "worker",
-    attempt,
-    source: "tick",
-    title: `avoozl:${taskId} worker`,
-  });
-  const { path: worktree } = await ops.execute("worktree.prepare", { taskId });
-  fs.writeFileSync(path.join(worktree, `${taskId}-${attempt}.txt`), "work\n");
-  git(worktree, "add", ".");
-  git(worktree, "commit", "-m", `Work ${taskId} ${attempt}`);
-  const commit = git(worktree, "rev-parse", "HEAD");
-  await ops.execute(
-    "session.report",
-    { taskId, kind: "done", commit },
-    undefined,
-    as(slot),
-  );
-  return commit;
-}
 
 // The script cron's tick: a roster (even empty) marks it.
 const tick = (ops, slots = []) =>
@@ -155,12 +90,12 @@ test("a command-only bar opens no verifier chat: Avoozl runs the checks at the e
   );
 
   // Judgment bars keep their verifier chat.
-  assert.equal(needsJudgment(leaf("x", { checks: ["npm test"] }), {}), false);
-  assert.equal(
-    needsJudgment(leaf("x", { checks: ["npm test"], verify: "agent" }), {}),
-    true,
-  );
+  const named = { checks: { test: ["npm", "test"] } };
+  assert.equal(needsJudgment(leaf("x"), named), false);
+  assert.equal(needsJudgment(leaf("x", { verify: "agent" }), named), true);
   assert.equal(needsJudgment(leaf("x"), { checks: [] }), true);
+  // A task's own list is not a check: only the repository's are.
+  assert.equal(needsJudgment(leaf("x", { checks: ["npm test"] }), {}), true);
   const judged = setup(t, { tasks: [leaf("j", { verify: "agent" })] });
   await workerDone(judged.ops, "j", "w-j");
   const opened = await tick(judged.ops, ["w-j"]);

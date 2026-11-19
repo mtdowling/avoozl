@@ -107,6 +107,11 @@ function Row(props: { item: LandingItem; now: number }) {
           </PlainLink>
         ))}
         {!item.pr && item.checks && <CheckDot checks={item.checks} />}
+        {item.unsandboxed && (
+          <Box as="span" tone="danger" data-landing-unsandboxed>
+            not sandboxed
+          </Box>
+        )}
         {item.since && (
           <Box as="span" tabularNums>
             waiting {duration(item.since, props.now)}

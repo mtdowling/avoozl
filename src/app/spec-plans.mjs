@@ -1414,7 +1414,8 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
   if (!proposal || typeof proposal !== "object" || Array.isArray(proposal))
     fail("Describe one proposed task as a JSON object.");
   // Its summary goes under the item as bullets.
-  const { id: given, title, summary, ...entry } = proposal;
+  // A task never names checks; an older caller's list is ignored.
+  const { id: given, title, summary, checks: _checks, ...entry } = proposal;
   if (
     typeof given !== "string" ||
     !(NAMED.test(given) || NUMBERED.test(given) || LETTERED.test(given))

@@ -19,7 +19,6 @@ import { nameFor } from './instance-api.ts'
 import { setupCards } from './setup-api.ts'
 import { useSetupFacts } from './setup-facts.ts'
 import ReleaseQueue from './ReleaseQueue.tsx'
-import TrackerGates from './TrackerGates.tsx'
 import RadarFlightGroups from './RadarFlightGroups.tsx'
 import IntegrationBranches from './IntegrationBranches.tsx'
 import ReviewDrafts from './ReviewDrafts.tsx'
@@ -267,17 +266,16 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
             .join(', ')}
         >
           {railFor(row).map((step) => (
-            <i
+            <Box
               key={step.label}
               data-rail-step={step.state}
               title={step.label}
-              style={{
-                display: 'block',
-                width: 16,
-                height: 8,
-                borderRadius: 3,
-                background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)',
-              }}
+              as="i"
+              css-display="block"
+              css-width="16"
+              css-height="8"
+              css-border-radius="3"
+              css-background={step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)'}
             />
           ))}
         </Box>
@@ -375,7 +373,17 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
               css-text-decoration="none"
               aria-label={`Pull request ${links.pr.number} for ${title}${links.pr.state === 'open' || links.pr.state === 'unknown' ? '' : `, ${links.pr.state}`}. ${dot.label}`}
             >
-              <i data-check-dot={dot.dot} aria-hidden="true" style={{ display: 'block', flex: '0 0 auto', width: 8, height: 8, borderRadius: 999, background: dot.color }} />
+              <Box
+                data-check-dot={dot.dot}
+                aria-hidden="true"
+                as="i"
+                css-display="block"
+                css-flex="0-0-auto"
+                css-width="8"
+                css-height="8"
+                css-border-radius="999"
+                css-background={dot.color}
+              />
               PR #{links.pr.number}
               {links.pr.state === 'merged' || links.pr.state === 'closed' ? <Hint>{links.pr.state}</Hint> : null}
             </PlainLink>
@@ -915,7 +923,6 @@ export default function DashboardView(props: {
           </HomeBox>
         </HomeSection>
       </HomePair>
-      <TrackerGates workspaceId={workspaceId} />
       <ReleaseQueue workspaceId={workspaceId} onOpenSettings={() => props.onOpenSettings?.('repositories')} />
       <IntegrationBranches workspaceId={workspaceId} />
       <ReviewDrafts workspaceId={workspaceId} />

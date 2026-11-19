@@ -1,5 +1,5 @@
 // Checks in code (design §5.2 Checks, R7.1, R38): a reported commit's
-// declared checks are run by Avoozl itself, not by a verifier chat. The tick
+// repository checks are run by Avoozl itself, not by a verifier chat. The tick
 // only queues a run (a `check-run` flow record); the app backend runs the
 // queue off the tick's path, one run at a time per repository. A run first
 // checks the diff's paths (verify.mjs, R86.6); then its checks run warm in
@@ -7,11 +7,12 @@
 // worktree there, every check as argv with its own timeout (R86.7). The next
 // tick judges the result with the same rules as
 // before (verdictCause). A verifier chat opens only for a bar that needs
-// judgment: `verify: "agent"` on the task, or a prose-only bar.
+// judgment: `verify: "agent"` on the task, or a repository with no checks.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { commandEvidence, git, withWorkLock } from "./git.mjs";
+import { selectedChecks } from "./repository-checks.mjs";
 import { openStops, putSpan, readFlowPolicy } from "./flow.mjs";
 import { contentBinding } from "./content-rules.mjs";
 import {
@@ -27,21 +28,16 @@ export { outputTail };
 export const CHECK_TIMEOUT_MS = 20 * 60_000;
 const KIND = "check-run";
 
-// The declared checks as argv: the leaf's own (split on spaces, as the
-// verifier brief showed them), else its repository's argv lists. Each is
-// named by its argv joined with spaces, as declaredChecks names it.
-// shortcut: a task check is split on whitespace, so an argument holding a
-// space cannot be written in tasks.md; take argv lists there if one needs it.
-export function declaredArgv(task, project) {
-  if (task.checks?.length)
-    return task.checks.map((check) => String(check).trim().split(/\s+/));
-  return (project?.checks || []).map((argv) => [...argv]);
-}
+// The checks a commit runs: the repository's, keeping a check with paths
+// only when `files` (the commit's diff against the base) touches one.
+// Without a file list, every check. Tasks never name checks.
+export const declaredArgv = (_task, project, files = null) =>
+  selectedChecks(project, files);
 
 // Whether this leaf's bar needs a verifier chat's judgment (§5.2): an
-// explicit `verify: "agent"`, or acceptance in prose with no declared check.
+// explicit `verify: "agent"`, or a repository with no checks.
 export const needsJudgment = (task, project) =>
-  task.verify === "agent" || !declaredArgv(task, project).length;
+  task.verify === "agent" || !selectedChecks(project).length;
 
 export const checkRuns = (store) => {
   try {
@@ -81,16 +77,20 @@ export const queueCheckRuns = (store, runs, now = Date.now()) =>
 export async function runChecksAt(
   project,
   commit,
-  argvs,
+  checks,
   { timeoutMs = CHECK_TIMEOUT_MS, timeoutFor, run = commandEvidence } = {},
 ) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-checks-")),
     notRunAll = (why) =>
-      argvs.map((argv) => ({
-        command: argv.join(" "),
-        exitCode: null,
-        notRun: why,
-      }));
+      checks.map((check) => {
+        const argv = Array.isArray(check) ? check : check.argv;
+        return {
+          name: Array.isArray(check) ? argv.join(" ") : check.name,
+          command: argv.join(" "),
+          exitCode: null,
+          notRun: why,
+        };
+      });
   let head = null;
   try {
     try {
@@ -111,12 +111,13 @@ export async function runChecksAt(
           `the worktree is at ${head.slice(0, 12)}, not ${commit.slice(0, 12)}`,
         ),
       };
-    const checks = await runEach(dir, argvs, {
+    const results = await runEach(dir, checks, {
       timeoutFor: timeoutFor || (() => timeoutMs),
       run,
       env: project.checksEnv,
+      project,
     });
-    return { head, checks };
+    return { head, checks: results };
   } finally {
     await git(project.root, ["worktree", "remove", "--force", dir]).catch(
       () => {},
@@ -216,10 +217,12 @@ async function runOne(store, project, record, options) {
       startedAt,
     }),
   );
-  const argvs = task ? declaredArgv(task, project) : [],
-    flow = readFlowPolicy(contentBinding(store)?.workspaceRoot).for(project.id),
-    timeoutFor = (command) => checkTimeout(command, flow, options.timeoutMs),
-    paths = task
+  const flow = readFlowPolicy(contentBinding(store)?.workspaceRoot).for(
+      project.id,
+    ),
+    timeoutFor = (name, command) =>
+      checkTimeout(name, flow, options.timeoutMs, command),
+    verdict = task
       ? await verifyPaths(store, {
           task,
           project,
@@ -227,7 +230,9 @@ async function runOne(store, project, record, options) {
           flow,
         }).catch(() => null)
       : null,
-    held = Boolean(paths?.outside.length || paths?.protected.length),
+    { files = null, ...paths } = verdict ?? {},
+    argvs = task ? declaredArgv(task, project, files) : [],
+    held = Boolean(paths.outside?.length || paths.protected?.length),
     warm = held
       ? null
       : await warmWorktree(store, record.taskId, record.commit),
@@ -240,6 +245,7 @@ async function runOne(store, project, record, options) {
               timeoutFor,
               run: options.run,
               env: project.checksEnv,
+              project,
             }),
           }
         : await runChecksAt(project, record.commit, argvs, {
@@ -254,7 +260,9 @@ async function runOne(store, project, record, options) {
       pid: undefined,
       head,
       checks,
-      ...(paths ? { paths } : {}),
+      // The checks this commit's diff picked, by name (R7.1).
+      selected: argvs.map((check) => check.name),
+      ...(verdict ? { paths } : {}),
       ...(warm ? { warm: true } : {}),
       endedAt,
     }),

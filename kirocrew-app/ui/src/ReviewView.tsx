@@ -771,17 +771,17 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               ))}
             </Box>
           ) : (
-            <div
+            <Box
               ref={row}
               data-review-layout={wide ? 'rail' : 'inline'}
-              style={{
-                display: 'flex',
-                flexDirection: wide ? 'row' : 'column',
-                alignItems: props.fill && wide ? 'stretch' : wide ? 'flex-start' : 'stretch',
-                gap: wide ? 6 : 20,
-                minWidth: 0,
-                ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: wide ? 'hidden' : 'auto' } : {}),
-              }}
+              css-display="flex"
+              css-flex-direction={wide ? 'row' : 'column'}
+              css-align-items={props.fill && wide ? 'stretch' : wide ? 'flex-start' : 'stretch'}
+              css-gap={wide ? '6' : '20'}
+              css-min-width="0"
+              css-flex={props.fill ? '1-1-0%' : undefined}
+              css-min-height={props.fill ? '0' : undefined}
+              css-overflow-y={props.fill ? (wide ? 'hidden' : 'auto') : undefined}
             >
               <Box
                 role="tabpanel"
@@ -919,7 +919,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                   </Box>
                 )}
               </aside>
-            </div>
+            </Box>
           )}
         </>
       )}
