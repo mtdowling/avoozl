@@ -95,7 +95,11 @@ const snapshot = ({ store, github, settings }) =>
   });
 
 test("the Onboard reads are classified, page-only and read-only", () => {
-  for (const name of ["onboarding.inspect", "onboarding.scan"]) {
+  for (const name of [
+    "onboarding.inspect",
+    "onboarding.scan",
+    "onboarding.authors",
+  ]) {
     assert.equal(classifyOperation(name), "observe", name);
     assert.equal(principalAllows({ kind: "owner-session" }, name), true, name);
     assert.equal(principalAllows({ kind: "app-token" }, name), true, name);
@@ -246,4 +250,82 @@ test("Onboard end to end: reads before setup write nothing; nothing is approved"
   // The flow never approved, dispatched or pushed.
   assert.equal(ws.store.list("approvals").length, 0);
   assert.ok(ws.store.list("plans").every((row) => row.state !== "approved"));
+});
+
+test("adopting a repository reads approvals, ticks and authors from git", async (t) => {
+  const ws = workspace(t),
+    code = checkout(null),
+    run = (email, ...args) =>
+      execFileSync(
+        "git",
+        ["-c", `user.email=${email}`, "-c", "user.name=n", ...args],
+        {
+          cwd: code,
+          stdio: "ignore",
+          env: {
+            ...process.env,
+            GIT_AUTHOR_EMAIL: email,
+            GIT_AUTHOR_NAME: "n",
+          },
+        },
+      ),
+    sha = () =>
+      execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd: code,
+        encoding: "utf8",
+      }).trim();
+  writeSpec(code, "approved-spec");
+  writeSpec(code, "stranger-spec");
+  run("owner@example.com", "add", ".");
+  run("owner@example.com", "commit", "-q", "-m", "Add specs");
+  const strangerSpec = path.join(code, ".kiro/specs/stranger-spec/design.md");
+  fs.writeFileSync(strangerSpec, "# Design\n\nChanged by someone else.\n");
+  run("stranger@example.com", "commit", "-q", "-a", "-m", "Edit design");
+  const tasks = path.join(code, ".kiro/specs/approved-spec/tasks.md");
+  fs.writeFileSync(
+    tasks,
+    fs.readFileSync(tasks, "utf8").replace("- [ ] 1.1 ", "- [x] 1.1 "),
+  );
+  run("owner@example.com", "commit", "-q", "-a", "-m", "Tick 1.1");
+  const tick = sha();
+  await ws.ops.execute("repositories.configure", {
+    id: "code",
+    localCheckout: code,
+    baseBranch: "main",
+    planning: true,
+  });
+
+  const authors = await ws.ops.execute("onboarding.authors", { folder: code });
+  assert.deepEqual(authors.items.map((a) => a.email).sort(), [
+    "a@b",
+    "owner@example.com",
+    "stranger@example.com",
+  ]);
+  // Nothing is approved until the person confirms a list.
+  await assert.rejects(
+    ws.ops.execute("onboarding.adopt", {
+      folder: code,
+      specs: ["approved-spec"],
+    }),
+    /Confirm the approvers list/,
+  );
+  const result = await ws.ops.execute("onboarding.adopt", {
+    folder: code,
+    specs: ["approved-spec", "stranger-spec"],
+    approvers: ["owner@example.com"],
+  });
+  assert.deepEqual(result.approved, ["approved-spec"]);
+  assert.deepEqual(result.drafts, ["stranger-spec"]);
+  const task = ws.store
+    .read()
+    .tasks.find((entry) => entry.id === "approved-spec.1.1");
+  assert.equal(task.status, "accepted");
+  assert.equal(task.integration.commit, tick);
+  // Adopting again leaves what is there alone.
+  const again = await ws.ops.execute("onboarding.adopt", {
+    folder: code,
+    specs: ["approved-spec"],
+    approvers: ["owner@example.com"],
+  });
+  assert.equal(again.plans, 0);
 });

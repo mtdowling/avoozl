@@ -2592,7 +2592,7 @@ approve without my running setup steps by hand.
 
 1. Settings › Repository setup SHALL offer **Onboard** (now the **Add repository** entry, #515), a stepped dialog with
    Cancel on every step: pick folder, pick mode, check GitHub, set up,
-   import specs, leak scan, preview issues, finish. A step that does not
+   pick approvers, import specs, leak scan, finish. A step that does not
    apply SHALL be left out; a step already satisfied SHALL show as done and
    MAY be skipped.
 2. Pick folder SHALL show the checkout, its remote, default branch,
@@ -2602,15 +2602,28 @@ approve without my running setup steps by hand.
    item as create, change or keep.
 4. WHEN the person cancels before Set up THEN nothing SHALL have been
    written. In Set up each GitHub write SHALL ask first.
-5. Import specs SHALL list spec folders with their lint results and import
-   them as drafts only.
-6. WHEN the repository that would hold the issues is public THEN the leak
+5. Import specs SHALL list spec folders with their lint results and adopt
+   them from git with the reader `avoozl rebuild` uses (Requirement 114,
+   design §4.42), and no second reader: a spec whose current text a commit
+   on main by an approver touched SHALL come in approved; a task ticked
+   `[x]` on main SHALL come in done, with the commit that ticked it as its
+   landing commit; landing trailers and retro files SHALL be read back; and
+   every other spec SHALL come in as a draft. A spec that already has a plan
+   SHALL be left alone. An approval is the commit's author email on the
+   approvers list; the commit message plays no part.
+6. Pick approvers SHALL list the repository's commit authors on its base
+   branch, most commits first, leaving out Avoozl's own author. Nothing SHALL
+   be approved until the person has confirmed the list; an empty list SHALL
+   import every spec as a draft. In a GitHub mode the confirmed emails SHALL
+   be added to the repository's `allowedActors`.
+7. WHEN the repository that holds the specs is public THEN the leak
    scan SHALL check the specs against the content rules and the public
    secret and machine-path rules, name each finding by file and line only,
    and hold the next step while any finding remains.
-7. Preview issues SHALL show the issues approval would make, without making
-   them or approving the plan.
-8. The flow SHALL never approve a plan, start an agent, or push.
+8. The flow SHALL approve a plan only through the adopt step above, and for
+   no author the person left off the confirmed list. It SHALL never start an
+   agent or push. It SHALL make no per-task issue text: Avoozl makes no
+   per-task issues.
 
 ### Requirement 59: Epics span plans, phases sit inside plans
 

@@ -1,9 +1,12 @@
 // The Onboard flow (Settings > Repository setup > Set up GitHub and import specs): calls and pure
 // helpers. Adding a repository goes from a folder to plans ready to approve
 // in Plans. Every step reuses an existing operation; the flow's own reads
-// are onboarding.inspect and onboarding.scan. Nothing
+// are onboarding.inspect, onboarding.authors and onboarding.scan. Nothing
 // is written before Set up, each GitHub write there asks first, and the
-// flow never approves a plan, starts an agent or pushes. Keep this module
+// flow starts no agent and pushes nothing. Its one approval path is
+// onboarding.adopt, which reads git as `avoozl rebuild` does and approves
+// only what a person on the approvers list the person confirmed committed.
+// Keep this module
 // free of JSX and runtime imports so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
@@ -38,18 +41,42 @@ export interface ScanResult {
   items: { name: string; findings: ScanFinding[]; missing: boolean }[]
 }
 
-export type StepKey = 'folder' | 'mode' | 'check' | 'setup' | 'import' | 'scan' | 'finish'
+export interface Author {
+  email: string
+  name: string
+  commits: number
+  last: string
+}
+export interface AdoptResult {
+  plans: number
+  approved: string[]
+  drafts: string[]
+  done: string[]
+  landed: { task: string; commit: string }[]
+  retros: string[]
+}
+
+export type StepKey = 'folder' | 'mode' | 'check' | 'setup' | 'approvers' | 'import' | 'scan' | 'finish'
 
 export const ONBOARD_STEPS: { key: StepKey; title: string; line: string }[] = [
   { key: 'folder', title: 'Pick folder', line: 'Point at a Git checkout. Avoozl reads its remote, branch, settings file and specs. Nothing is changed.' },
   { key: 'mode', title: 'Pick mode', line: 'Where its tasks live. Nothing is saved until Set up.' },
   { key: 'check', title: 'Check GitHub', line: 'Avoozl reads GitHub and lists what Set up would create, change or keep. It writes nothing.' },
   { key: 'setup', title: 'Set up', line: 'The writes, in order. Each GitHub write asks first.' },
-  { key: 'import', title: 'Import specs', line: 'Spec folders and their lint results. Import makes drafts; nothing is approved.' },
+  {
+    key: 'approvers',
+    title: 'Pick approvers',
+    line: 'People who committed to this repository. A spec an approver committed on main comes in approved, with its ticked tasks done. Nothing is approved until you confirm the list.',
+  },
+  {
+    key: 'import',
+    title: 'Import specs',
+    line: 'Spec folders and their lint results. Import reads git: a spec an approver committed on main comes in approved, and ticked tasks come in done. The rest become drafts.',
+  },
   {
     key: 'scan',
     title: 'Leak scan',
-    line: 'This repository is public, so its issues are too. Avoozl checks the specs for secrets, paths on this computer and your content rules.',
+    line: 'This repository is public, so its specs are too. Avoozl checks them for secrets, paths on this computer and your content rules.',
   },
   { key: 'finish', title: 'Finish', line: 'What was done. Approve specs in Specs when you are ready.' },
 ]
@@ -79,8 +106,8 @@ export function onboardForm(found: FolderFacts, settings: GitHubSettings | null)
 
 const githubMode = (mode: OnboardMode) => mode !== 'local'
 
-// Whether issues land in this folder's repository.
-export function issuesHere(form: OnboardForm): boolean {
+// Whether this folder's repository holds the specs.
+export function specsHere(form: OnboardForm): boolean {
   return form.mode === 'single-repo' || (form.mode === 'plans-repo' && form.isPlanning)
 }
 
@@ -88,8 +115,10 @@ export function issuesHere(form: OnboardForm): boolean {
 export function onboardSteps(form: OnboardForm, found: FolderFacts | null): StepKey[] {
   const keys: StepKey[] = ['folder', 'mode']
   if (githubMode(form.mode)) keys.push('check')
-  keys.push('setup', 'import')
-  if (githubMode(form.mode) && issuesHere(form) && found?.visibility === 'public') keys.push('scan')
+  keys.push('setup')
+  if (found && found.specs.length > 0) keys.push('approvers')
+  keys.push('import')
+  if (githubMode(form.mode) && specsHere(form) && found?.visibility === 'public') keys.push('scan')
   keys.push('finish')
   return keys
 }
@@ -104,7 +133,7 @@ export function modeProblem(form: OnboardForm, found: FolderFacts): string | nul
       ? `${found.remote} is not a GitHub remote, so GitHub modes can't use this folder. Pick Local only.`
       : 'This folder has no GitHub remote. Pick Local only, or add a GitHub remote first.'
   if (form.mode === 'plans-repo' && !form.isPlanning && !/^[\w.-]+\/[\w.-]+$/.test(form.planningRepository.trim())) return 'Name the planning repository as owner/name.'
-  if (form.mode === 'plans-repo' && form.isPlanning && found.visibility === 'public') return 'A planning repository must be private: its issues name specs and code repositories.'
+  if (form.mode === 'plans-repo' && form.isPlanning && found.visibility === 'public') return 'A planning repository must be private: it holds the specs of your code repositories.'
   return null
 }
 
@@ -162,22 +191,12 @@ export function setupWrites(form: OnboardForm, found: FolderFacts, settings: Git
     done: !settingsChange,
     confirm: null,
   })
-  const repo = issuesHere(form) && githubMode(form.mode) ? found.github : null
   steps.push({
     key: 'register',
     title: found.registered ? `${found.registered.id} is already added` : `Add ${form.id.trim()} to this workspace`,
-    detail: found.registered
-      ? `Its folder is ${found.registered.localCheckout ?? 'not on this computer'}.`
-      : `Tasks land on ${form.baseBranch.trim()} in ${found.root}.${repo ? ` Issues for ${repo} are read from GitHub.` : ''}`,
+    detail: found.registered ? `Its folder is ${found.registered.localCheckout ?? 'not on this computer'}.` : `Tasks land on ${form.baseBranch.trim()} in ${found.root}.`,
     done: Boolean(found.registered),
-    confirm:
-      repo && !found.registered
-        ? {
-            title: `Link ${repo} to this workspace?`,
-            body: `Avoozl makes sure the labels avoozl:ready and avoozl:managed exist on ${repo}, then reads its issues. Nothing else changes on GitHub.`,
-            action: 'Link it',
-          }
-        : null,
+    confirm: null,
   })
   return steps
 }
@@ -190,7 +209,6 @@ export function registerInput(form: OnboardForm, found: FolderFacts, planningReg
     localCheckout: found.root,
     baseBranch: form.baseBranch.trim(),
     ...(repo ? { github: repo } : {}),
-    ...(repo && issuesHere(form) ? { issueAuthorization: true } : {}),
     // Local only and plans-repo mode read specs from the planning checkout.
     planning: form.mode === 'plans-repo' ? form.isPlanning : form.mode === 'local' && found.specs.length > 0 && !planningRegistered,
   }
@@ -204,13 +222,26 @@ export function folderSpecs(list: SpecList | null, found: FolderFacts): (SpecSum
 
 export const imported = (spec: SpecSummary) => Boolean(spec.plan)
 
+// The settings with `emails` on the approvers list of `repository`, for a
+// repository the policy already names; null when there is nothing to save.
+export function withApprovers(github: Policy, repository: string | null, emails: string[]): Policy | null {
+  const repositories = (github.repositories ?? {}) as Record<string, Record<string, unknown>>
+  const key = Object.keys(repositories).find((id) => id.toLowerCase() === repository?.toLowerCase())
+  if (!key || emails.length === 0) return null
+  const known = (repositories[key].allowedActors ?? []) as string[]
+  const merged = [...new Set([...known, ...emails])]
+  if (merged.length === known.length) return null
+  return { ...github, repositories: { ...repositories, [key]: { ...repositories[key], allowedActors: merged } } }
+}
+
 // Findings across every scanned spec.
 export const scanFindings = (scan: ScanResult | null) => (scan?.items ?? []).flatMap((item) => item.findings.map((f) => ({ spec: item.name, ...f })))
 
 // Every operation the flow may call. Reads come first; the writes are the
-// ones Set up and Import make. Nothing here approves, starts or pushes.
-export const ONBOARD_READS = ['onboarding.inspect', 'github.settings.get', 'repositories.list', 'github.setup', 'plan.specs', 'onboarding.scan'] as const
-export const ONBOARD_WRITES = ['github.setup', 'github.settings.update', 'repositories.configure', 'plan.create'] as const
+// ones Set up and Import make. Only onboarding.adopt approves, and only for
+// the approvers the person confirmed. Nothing here starts an agent or pushes.
+export const ONBOARD_READS = ['onboarding.inspect', 'github.settings.get', 'repositories.list', 'github.setup', 'plan.specs', 'onboarding.scan', 'onboarding.authors'] as const
+export const ONBOARD_WRITES = ['github.setup', 'github.settings.update', 'repositories.configure', 'onboarding.adopt'] as const
 
 export function onboardClient(api: AppApi) {
   const run = async <T>(workspaceId: string, operation: string, input: Record<string, unknown> = {}) => {
@@ -229,7 +260,9 @@ export function onboardClient(api: AppApi) {
     applyGitHub: (w: string, input: SetupInput, previewHash: string) => run<SetupResult>(w, 'github.setup', { ...input, confirm: true, previewHash }),
     saveSettings: (w: string, github: Policy, expectedHash: string | null) => run<GitHubSettings>(w, 'github.settings.update', { github, expectedHash }),
     register: (w: string, input: Record<string, unknown>) => run<{ id: string }>(w, 'repositories.configure', input),
-    importSpec: (w: string, spec: string) => run<{ id: string; state: string }>(w, 'plan.create', { spec }),
+    authors: (w: string, folder: string) => run<{ items: Author[] }>(w, 'onboarding.authors', { folder }),
+    // The reader `avoozl rebuild` uses, over these specs and the approvers the person confirmed.
+    adopt: (w: string, folder: string, specs: string[], approvers: string[]) => run<AdoptResult>(w, 'onboarding.adopt', { folder, specs, approvers }),
   }
 }
 export type OnboardClient = ReturnType<typeof onboardClient>

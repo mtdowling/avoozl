@@ -1,7 +1,7 @@
 // Settings > Repository setup > Set up GitHub and import specs: a stepped
 // dialog for a repository that was just added (Add repository picked its
-// folder). Pick mode, check GitHub, set up, import specs, leak scan (public
-// repositories), finish. Steps that do not apply are left out; steps
+// folder). Pick mode, check GitHub, set up, pick approvers, import specs,
+// leak scan (public repositories), finish. Steps that do not apply are left out; steps
 // already satisfied show as done and can be skipped. Cancel is on every
 // step. Nothing is written before Set up, each GitHub write there asks
 // first, and the flow never approves a plan, starts an agent or pushes.
@@ -13,7 +13,7 @@ import Badge from './ui/Badge.tsx'
 import { useConfirm } from './ui/controls.tsx'
 import { Check, GitBranch, Laptop, Lock } from './icons.ts'
 import { RadioFold } from './ui/RadioFold.tsx'
-import { MODE_CARDS, groupWrites, writeBadge, type GitHubSettings, type SetupResult } from './settings-api.ts'
+import { MODE_CARDS, groupWrites, writeBadge, type GitHubSettings, type Policy, type SetupResult } from './settings-api.ts'
 import type { SpecList } from './plans-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Modal } from './ui/Modal.tsx'
@@ -29,6 +29,8 @@ import {
   scanFindings,
   setupRequest,
   setupWrites,
+  withApprovers,
+  type Author,
   type FolderFacts,
   type OnboardClient,
   type OnboardForm,
@@ -105,7 +107,7 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
                   </Box>
                   {(
                     [
-                      [true, 'The planning repository', 'Specs and issues live here. It must be private.'],
+                      [true, 'The planning repository', 'Specs live here. It must be private.'],
                       [false, 'A code repository', 'Code and pull requests live here; specs live in the planning repository.'],
                     ] as const
                   ).map(([value, label, hint]) => (
@@ -258,6 +260,8 @@ function OnboardDialog(props: {
   const [specs, setSpecs] = useState<SpecList | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [scan, setScan] = useState<ScanResult | null>(null)
+  const [authors, setAuthors] = useState<Author[] | null>(null)
+  const [approvers, setApprovers] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const box = useRef<HTMLDivElement>(null)
@@ -362,12 +366,32 @@ function OnboardDialog(props: {
     if (step === 'import') setPicked(new Set(shown.filter((s) => !imported(s)).map((s) => s.name)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, specs])
+  // Step: the commit authors, for the person to pick the approvers from.
+  useEffect(() => {
+    if (step === 'approvers' && !authors && found)
+      void call(async () => {
+        setAuthors((await client.authors(workspaceId, found.root)).items)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step])
+  // Import reads git as `avoozl rebuild` does. Only the people picked in the approvers step approve.
   const importPicked = () =>
     call(async () => {
-      for (const name of picked) {
-        await client.importSpec(workspaceId, name)
-        setWritten((list) => [...list, `imported ${name} as a draft`])
+      if (!found) return
+      const emails = [...approvers]
+      const fresh = await client.settings(workspaceId)
+      const saved = form && form.mode !== 'local' ? withApprovers((fresh.github ?? {}) as Policy, found.github, emails) : null
+      if (saved) {
+        setSettings(await client.saveSettings(workspaceId, saved, fresh.hash))
+        setWritten((list) => [...list, `saved ${emails.length} approver${emails.length === 1 ? '' : 's'} to .avoozl.json`])
       }
+      const result = await client.adopt(workspaceId, found.root, [...picked], emails)
+      setWritten((list) => [
+        ...list,
+        ...(result.approved.length ? [`imported ${result.approved.join(', ')} as approved`] : []),
+        ...(result.drafts.length ? [`imported ${result.drafts.join(', ')} as ${result.drafts.length === 1 ? 'a draft' : 'drafts'}`] : []),
+        ...(result.done.length ? [`${result.done.length} ticked task${result.done.length === 1 ? '' : 's'} came in done`] : []),
+      ])
       setSpecs(await client.specs(workspaceId))
       await props.onChanged()
     })
@@ -393,6 +417,7 @@ function OnboardDialog(props: {
     (key === 'mode' && typeof (settings?.github as { mode?: unknown } | undefined)?.mode === 'string') ||
     (key === 'check' && Boolean(check) && check!.writes.length === 0) ||
     (key === 'setup' && (setupDone || (Boolean(form) && setupLeft.length === 0))) ||
+    (key === 'approvers' && approvers.size > 0) ||
     (key === 'import' && shown.length > 0 && shown.every(imported))
   return (
     // Esc, Back and a click outside do what Cancel does.
@@ -442,13 +467,18 @@ function OnboardDialog(props: {
             <>
               {picked.size > 0 && (
                 <Btn type="button" onClick={() => void importPicked()} disabled={busy}>
-                  Import {picked.size} as draft{picked.size === 1 ? '' : 's'}
+                  Import {picked.size} spec{picked.size === 1 ? '' : 's'}
                 </Btn>
               )}
               <Btn type="button" primary onClick={next} disabled={busy}>
                 {shown.length && !shown.every(imported) && picked.size ? 'Skip import' : 'Next'}
               </Btn>
             </>
+          )}
+          {step === 'approvers' && (
+            <Btn type="button" primary onClick={next} disabled={busy || !authors}>
+              {approvers.size ? `Confirm ${approvers.size} approver${approvers.size === 1 ? '' : 's'}` : 'Next, no approvers'}
+            </Btn>
           )}
           {step === 'scan' && (
             <>
@@ -523,6 +553,36 @@ function OnboardDialog(props: {
               </Box>
             </Box>
           ))}
+        </Box>
+      )}
+      {step === 'approvers' && (
+        <Box flex flexCol gap="2" size="sm" data-onboard-approvers>
+          {!authors && <Hint as="p">Reading the commit history…</Hint>}
+          {authors && authors.length === 0 && <Hint as="p">No commit authors found on {found?.baseBranch}.</Hint>}
+          <Box as="ul" flex flexCol gap="1.5">
+            {(authors ?? []).map((author) => (
+              <Box key={author.email} as="li" flex flexWrap items="center" gap="2" data-onboard-author={author.email}>
+                <Switch
+                  label={`Approver ${author.email}`}
+                  checked={approvers.has(author.email)}
+                  onChange={(on) => {
+                    const nextApprovers = new Set(approvers)
+                    if (on) nextApprovers.add(author.email)
+                    else nextApprovers.delete(author.email)
+                    setApprovers(nextApprovers)
+                  }}
+                />
+                <span>{author.name}</span>
+                <code>{author.email}</code>
+                <Hint size="xs">
+                  {author.commits} commit{author.commits === 1 ? '' : 's'}
+                </Hint>
+              </Box>
+            ))}
+          </Box>
+          <Hint as="p" size="xs">
+            Pick only people you trust to approve specs. Leave all off to import drafts only.
+          </Hint>
         </Box>
       )}
       {step === 'import' && (
@@ -607,7 +667,7 @@ function OnboardDialog(props: {
             <Hint as="p">Nothing needed changing.</Hint>
           )}
           <Hint as="p" size="xs">
-            Nothing was approved, no agent was started and nothing was pushed. Approve each draft in Specs when you are ready.
+            No agent was started and nothing was pushed. Only specs an approver you picked had committed came in approved. Approve each draft in Specs when you are ready.
           </Hint>
         </Box>
       )}
