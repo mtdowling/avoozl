@@ -46,7 +46,7 @@ function setup(t, config = {}) {
     tasks: [leaf("a1"), leaf("a2")],
     edges: [{ from: "a1", to: "a2", kind: "requires" }],
   });
-  store.put("projects", { id: "r1" });
+  store.put("repositories", { id: "r1" });
   fs.mkdirSync(path.join(root, ".avoozl", "local", "content-rules"), {
     recursive: true,
   });
@@ -264,7 +264,7 @@ test("local actions record one row with the person, and MCP calls the session", 
   await ops.execute("flow.resume", { stopId: stop.id });
   await ops.execute(
     "flow.stop",
-    { scope: "all", reason: "agent stop" },
+    { scope: "repo", repository: "r1", reason: "agent stop" },
     undefined,
     { mcp: true },
   );
@@ -277,6 +277,9 @@ test("local actions record one row with the person, and MCP calls the session", 
       ["andon.pull", "local", "owner"],
     ],
   );
+  // The stop names the person, as the row does; the row names the scope.
+  assert.equal(stop.by.name, "owner");
+  assert.equal(items[0].summary, "Pulled the Andon cord for repository r1");
   // A person's reason is free text: it is not copied into the log.
   assert.ok(!everything(store).includes("private text"));
   assert.equal(items[2].targetId, "a1");
@@ -298,8 +301,15 @@ test("a settings save and a Deferred stop are recorded", async (t) => {
     7,
   );
   await ops.execute("task.update", { id: "a2", status: "deferred" });
+  // Settings › Models is a settings save too (the writer model, R71.2).
+  const models = await ops.execute("models.settings.get", {});
+  await ops.execute("models.settings.update", {
+    roles: { worker: { model: "m1" } },
+    expectedHash: models.hash,
+  });
   const kinds = listActivity(store).items.map((item) => item.kind);
-  assert.deepEqual(kinds, ["stop", "settings.save"]);
+  assert.deepEqual(kinds, ["settings.save", "stop", "settings.save"]);
+  assert.equal(listActivity(store).items[0].summary, "Saved model settings");
 });
 
 test("retention is a person's setting, bounded, and the tick prunes by it", async (t) => {

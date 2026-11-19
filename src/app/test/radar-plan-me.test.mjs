@@ -15,14 +15,14 @@ import { machineIdentity } from "../github-sync.mjs";
 import { renderMarker } from "../github-marker.mjs";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import {
-  claimsView,
+  crewsView,
   isStale,
   latestSkip,
   liveClaim,
   parseMarkers,
-  refreshClaims,
+  refreshCrews,
   skipScope,
-} from "../radar-claims.mjs";
+} from "../radar-crews.mjs";
 import { INTAKE_SCOPES, routeOf } from "../radar-plan-me.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -121,7 +121,7 @@ function workspace(t, github, { policy = POLICY() } = {}) {
     id: REPO,
     owner: "mtdowling",
     repo: "avoozl-radar-test",
-    projectId: "code",
+    repositoryId: "code",
     activeMachine: machineIdentity(store).id,
   });
   const ops = new Operations(store, { github, workspaceRoot: root });
@@ -350,11 +350,11 @@ test("the In flight read lists each live claim with its crew, phase, PR and age"
   const github = fakeGitHub([recorded(16), recorded(17), recorded(12)]),
     { store } = workspace(t, github),
     now = Date.parse("2026-11-14T06:00:00Z");
-  await refreshClaims(store, github, normalizeGitHubPolicy(POLICY()), {
+  await refreshCrews(store, github, normalizeGitHubPolicy(POLICY()), {
     now,
     force: true,
   });
-  const view = claimsView(store, now);
+  const view = crewsView(store, now);
   assert.deepEqual(
     view.rows.map((row) => [
       row.number,
@@ -384,10 +384,10 @@ test("the In flight read lists each live claim with its crew, phase, PR and age"
   github.listIssues = async () => {
     throw Error("read again");
   };
-  await refreshClaims(store, github, normalizeGitHubPolicy(POLICY()), {
+  await refreshCrews(store, github, normalizeGitHubPolicy(POLICY()), {
     now: now + 1000,
   });
-  assert.equal(claimsView(store, now).rows.length, 2);
+  assert.equal(crewsView(store, now).rows.length, 2);
 });
 
 test("a claim label with no live marker is listed as stale, with no crew", async (t) => {
@@ -395,10 +395,10 @@ test("a claim label with no live marker is listed as stale, with no crew", async
   issue.labels.push({ name: "crew: in progress" });
   const github = fakeGitHub([issue]),
     { store } = workspace(t, github);
-  await refreshClaims(store, github, normalizeGitHubPolicy(POLICY()), {
+  await refreshCrews(store, github, normalizeGitHubPolicy(POLICY()), {
     force: true,
   });
-  const [row] = claimsView(store).rows;
+  const [row] = crewsView(store).rows;
   assert.deepEqual([row.crewId, row.noMarker, row.stale], [null, true, true]);
 });
 

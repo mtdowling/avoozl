@@ -1,6 +1,6 @@
 ---
 name: avoozl
-description: Find, claim, plan and maintain work in the Avoozl workspace through its shared CLI or MCP. Use for tracked tasks, design documents and work extraction, plan drafting and approval, progress updates, evidence and agent handoffs.
+description: Find, pick up, plan and maintain work in the Avoozl workspace through its shared CLI or MCP. Use for tracked tasks, design documents and work extraction, plan drafting and approval, progress updates, evidence and agent handoffs.
 ---
 
 # Avoozl workflow
@@ -45,7 +45,7 @@ an unrelated stale artifact discovered along the way. It reports these only
 when a consequence remains: changed product state, incomplete validation,
 material risk, an unresolved blocker, or a decision the user must make.
 
-## Find and claim work
+## Find and pick up work
 
 The workspace is `{{PLANS_ROOT}}`; the site is {{BASE}}/ and MCP is {{BASE}}/mcp. Commands below work from any directory. MCP is optional; the CLI reaches the same operations.
 
@@ -161,7 +161,7 @@ To refresh an installed copy, print the maintained skill with `{{CLI}} skill` an
 Every chat, Issue Radar and the Avoozl tick share one GitHub login and its rate limit (5,000 REST calls an hour). To wait on a pull request's checks, run `gh pr checks <number>` once every 2 to 3 minutes. Do not use `gh pr checks --watch`, `gh run watch`, or a loop that polls faster. While Avoozl shows "GitHub rate limit reached", make no GitHub calls until the time it gives.
 
 `session.discover` lists local session metadata
-inside the task's projects. The site also offers **Link Claude session** when a
+inside the task's repositories. The site also offers **Link Claude session** when a
 worker has no transcript. Choose the exact session/subagent; do not guess from
 a similar name. `task.sessions` (MCP `plans_task {action: "sessions"}`) resolves the explicit
 link first, then the exact reported provider/run ID, then active managed runs.

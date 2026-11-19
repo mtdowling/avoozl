@@ -30,14 +30,11 @@ const example = () => ({
       allowedActors: ["maintainer-login"],
       minimumPermission: "maintain",
       requiredChecks: ["build", "test"],
-      priority: ["critical", "high"],
+      priorityLabels: ["critical", "high"],
       managedLabels: {
         managed: "agent:managed",
         responding: "agent:responding",
-        planning: "agent:planning",
         ready: "agent:ready",
-        stale: "agent:stale",
-        decision: "agent:decision",
       },
       rules: [
         {
@@ -100,14 +97,17 @@ test("validation refuses each §4.4 violation", () => {
       app((repo) => (repo.rules[0].labelsAll = ["Agent:Ready"])),
       /managed label Agent:Ready as a trigger/,
     ],
-    [app((repo) => repo.priority.push("agent:stale")), /priority cannot use/],
+    [
+      app((repo) => repo.priorityLabels.push("agent:ready")),
+      /priorityLabels cannot use/,
+    ],
     [app((repo) => (repo.rules[1].id = "answer")), /repeats rule ID answer/],
     [
       app((repo) => (repo.rules[0].labelsAll = [])),
       /needs labelsAll or labelsAny/,
     ],
     [
-      app((repo) => (repo.managedLabels.stale = "agent:ready")),
+      app((repo) => (repo.managedLabels.responding = "agent:ready")),
       /different label for each state/,
     ],
     [app((repo) => (repo.label = "agent:ready")), /Unknown setting/],
@@ -314,7 +314,7 @@ async function workspace(t, github, policy = SINGLE_REPO) {
       github: policy,
     }),
   );
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: "/tmp/code",
     baseBranch: "main",
@@ -323,7 +323,7 @@ async function workspace(t, github, policy = SINGLE_REPO) {
   const ops = new Operations(store, { github, workspaceRoot: root });
   await ops.execute("github.configure", {
     repository: "example/code",
-    projectId: "code",
+    repositoryId: "code",
     allowedActors: ["maintainer"],
   });
   return { store, ops, root };
@@ -358,7 +358,7 @@ const leaf = (id, extra = {}) => ({
   title: "Task " + id,
   acceptance: [id + " is observable."],
   checks: ["npm test"],
-  projectId: "code",
+  repositoryId: "code",
   ...extra,
 });
 

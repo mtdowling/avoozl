@@ -41,14 +41,13 @@ Radar.
 | -------------------------------------------------- | ----------------------- | ----------------------------- | ---------------- |
 | Planning (starts a plan)                           | `radar.planLabel`       | `avoozl:plan`                 | A person         |
 | Ready                                              | `managedLabels.ready`   | `avoozl:ready`                | Avoozl           |
-| Managed marker                                     | `managedLabel`          | `avoozl:managed`              | Avoozl           |
-| Approval                                           | `radar.approvalLabel`   | `avoozl:plan-approved`        | A person         |
-| Merge conflict                                     | `radar.conflictLabel`   | `avoozl:merge-conflict`       | Avoozl           |
+| Managed marker                                     | `managedLabels.managed` | `avoozl:managed`              | Avoozl           |
+| Approval (fixed name)                              | none                    | `avoozl:plan-approved`        | A person         |
+| Merge conflict (fixed name)                        | none                    | `avoozl:merge-conflict`       | Avoozl           |
 | Review (starts a draft)                            | `radar.reviewLabel`     | `avoozl:review`               | A person         |
 | Drafted                                            | `radar.draftedLabel`    | `avoozl:drafted`              | Avoozl           |
 | Accepted (a skipped issue may be planned)          | `acceptedLabel`         | unset                         | An allowed person |
-| Task states: ready, blocked, review, quarantined   | `githubLabelBehaviors`  | `avoozl:ready`, `avoozl:blocked`, `avoozl:review`, `avoozl:quarantined` | Avoozl |
-| Radar's claim                                      | `crewLabels.claim`      | `crew: in progress`           | Radar            |
+| Radar's in-progress label                          | `crewLabels.inProgress` | `crew: in progress`           | Radar            |
 | Radar's escalation (its needs-human label)         | `crewLabels.needsHuman` | `crew: needs human`; recommended `crew: needs avoozl` | Radar |
 
 Two labels that are equal are refused.

@@ -1,4 +1,4 @@
-// The tick lands `pr` projects through pull requests (task 42.6). Real git
+// The tick lands `pr` repositories through pull requests (task 42.6). Real git
 // (a bare "origin" and a checkout), a fake GitHub; nothing live.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -18,7 +18,7 @@ import { landPullRequests } from "../pr-landing.mjs";
 import { addItemContext } from "../needs-you-context.mjs";
 import { taskLinks } from "../scm-links.mjs";
 import { takeOverSpec } from "../spec-takeover.mjs";
-import { snapshot } from "./fixtures.mjs";
+import { snapshot, verifiedTask } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
@@ -60,12 +60,12 @@ async function workspace(t) {
     tasks: [leaf("t1"), leaf("t2"), leaf("t3")],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
     landing: "pr",
-    repository: "acme/app",
+    github: "acme/app",
     worktreeRoot: path.join(root, "wt"),
   });
   store.put("plans", { id: "s", spec: "s", hash: digest("plan s") });
@@ -79,45 +79,20 @@ async function workspace(t) {
   return { root, origin, checkout: fs.realpathSync.native(checkout), store };
 }
 
-// A task worktree with one commit, a verified delivery and a worker chat.
-function verified(w, taskId, file = `${taskId}.txt`) {
-  const branch = `avoozl/${taskId}`,
-    wt = path.join(w.root, "wt", taskId);
-  git(w.checkout, "worktree", "add", "-q", "-b", branch, wt, "main");
-  fs.writeFileSync(path.join(wt, file), taskId + "\n");
-  git(wt, "add", ".");
-  git(wt, "commit", "-qm", "Do " + taskId);
-  const commit = git(wt, "rev-parse", "HEAD");
-  w.store.put("task_worktrees", {
-    id: taskId,
-    taskId,
-    path: wt,
-    branch,
-    repository: "app",
-  });
-  w.store.put("task_deliveries", {
-    id: taskId,
-    taskId,
-    state: "verified",
-    commit,
-    attempts: [{ attempt: 1, outcome: "done", commit }],
-    verifications: [],
-  });
-  w.store.put("session_bindings", {
-    id: "slot-" + taskId,
-    slot: "slot-" + taskId,
-    taskId,
-    role: "worker",
-    attempt: 1,
-    status: "working",
-    report: { kind: "done", text: "", commit, at: "2026-11-17T00:00:00Z" },
-    // Claimed by the command line, as `avoozl claim` does.
-    source: "conductor",
-    conductor: "cli",
-    boundAt: "2026-11-17T00:00:00Z",
-  });
-  return commit;
-}
+// A task worktree with one commit, a verified delivery and a worker chat
+// claimed by the command line, as `avoozl claim` does.
+const verified = (w, taskId, file) =>
+  verifiedTask(w, taskId, file, {
+    delivery: (commit) => ({
+      attempts: [{ attempt: 1, outcome: "done", commit }],
+    }),
+    binding: (commit) => ({
+      report: { kind: "done", text: "", commit, at: "2026-11-17T00:00:00Z" },
+      source: "conductor",
+      conductor: "cli",
+      boundAt: "2026-11-17T00:00:00Z",
+    }),
+  }).commit;
 
 // GitHub as far as pull request landing reads and writes it. A merge moves
 // the bare origin's main to the head (a fast-forward stands in for it).
@@ -215,7 +190,7 @@ test("a verified task is pushed, waits for its check on the exact head, then mer
   assert.equal(git(w.origin, "rev-parse", "avoozl/t1"), commit);
   assert.equal(w.store.get("task_deliveries", "t1").state, "verified");
   assert.equal(
-    landingQueue(w.store, { projectId: "app", base: "main" }).length,
+    landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
     1,
   );
   // Nothing lands locally or on GitHub before the check passes.
@@ -261,7 +236,7 @@ test("a private plan's task goes by an opaque name on a public repository", asyn
   w.store.put("github_repositories", { id: "acme/app", private: false });
   const commit = verified(w, "t1");
   await integrateVerified(w.store);
-  const [entry] = landingQueue(w.store, { projectId: "app", base: "main" }),
+  const [entry] = landingQueue(w.store, { repositoryId: "app", base: "main" }),
     named = entry.tasks[0].public;
   assert.match(named, /^t-[0-9a-f]{24}$/);
   assert.equal(entry.source.branch, `avoozl/${named}`);
@@ -385,7 +360,7 @@ test("a queued task whose base moved is withdrawn, merged with the base and veri
   assert.equal(delivery.state, "done", "back to verification");
   assert.notEqual(delivery.commit, first);
   assert.equal(
-    landingQueue(w.store, { projectId: "app", base: "main" }).length,
+    landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
     0,
   );
 });

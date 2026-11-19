@@ -1628,9 +1628,9 @@ Phase 8 because task IDs never move.
   - Facts:
     - done:
       - Review roles in policy
-      - `delivery.model` and `delivery.reviewers` (`id`, `focus`, `agent`, `model`, `distinctFrom` `model` by default or `session`), replaceable per repository; validation per §5.2, including a refused `auto` or equal model for `distinctFrom: model`; `tick.py` passes `model` to `open_session`; `runner.claim` takes the worker's model; every binding records the model it was opened on. No new writer limit: per-repository `concurrency: 1` is the one-writer rule, and review sessions do not count against it.
+      - `delivery.model` and `delivery.reviewers` (`id`, `focus`, `agent`, `model`, `distinctFrom` `model` by default or `session`), replaceable per repository; validation per §5.2, including a refused `auto` or equal model for `distinctFrom: model`; `tick.py` passes `model` to `open_session`; `runner.take` takes the worker's model; every binding records the model it was opened on. No new writer limit: per-repository `concurrency: 1` is the one-writer rule, and review sessions do not count against it.
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
-  - `delivery.model` and `delivery.reviewers` (`id`, `focus`, `agent`, `model`, `distinctFrom` `model` by default or `session`), replaceable per repository; validation per §5.2, including a refused `auto` or equal model for `distinctFrom: model`; `tick.py` passes `model` to `open_session`; `runner.claim` takes the worker's model; every binding records the model it was opened on. No new writer limit: per-repository `concurrency: 1` is the one-writer rule, and review sessions do not count against it.
+  - `delivery.model` and `delivery.reviewers` (`id`, `focus`, `agent`, `model`, `distinctFrom` `model` by default or `session`), replaceable per repository; validation per §5.2, including a refused `auto` or equal model for `distinctFrom: model`; `tick.py` passes `model` to `open_session`; `runner.take` takes the worker's model; every binding records the model it was opened on. No new writer limit: per-repository `concurrency: 1` is the one-writer rule, and review sessions do not count against it.
   - Built: `4b82981`.
 - [x] 9.2 Roles on one delivery [R36.2–R36.8, R37.1, R37.2] (§5.2, F56)
   - Facts:
@@ -2021,9 +2021,9 @@ never move.
   - Facts:
     - done:
       - Settings Flow group and validation, after 12.6, 12.7, 12.8, and 12.9
-      - `flow` in `.avoozl.json` per workspace and per repository (`projects.<id>.flow`); validation of every key and value; `flow.retro.instructions` machine-local only and refused in tracked files; Settings sub-groups Timing, Stop the line, Local checks first, Batching, Retro, each with a heading and one line, raw keys small, "(optional)" markers, defaults as placeholders; edits through the shared operations with expected revisions.
+      - `flow` in `.avoozl.json` per workspace and per repository (`repositories.<id>.flow`); validation of every key and value; `flow.retro.instructions` machine-local only and refused in tracked files; Settings sub-groups Timing, Stop the line, Local checks first, Batching, Retro, each with a heading and one line, raw keys small, "(optional)" markers, defaults as placeholders; edits through the shared operations with expected revisions.
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 12.6, 12.7, 12.8, 12.9
-  - `flow` in `.avoozl.json` per workspace and per repository (`projects.<id>.flow`); validation of every key and value; `flow.retro.instructions` machine-local only and refused in tracked files; Settings sub-groups Timing, Stop the line, Local checks first, Batching, Retro, each with a heading and one line, raw keys small, "(optional)" markers, defaults as placeholders; edits through the shared operations with expected revisions.
+  - `flow` in `.avoozl.json` per workspace and per repository (`repositories.<id>.flow`); validation of every key and value; `flow.retro.instructions` machine-local only and refused in tracked files; Settings sub-groups Timing, Stop the line, Local checks first, Batching, Retro, each with a heading and one line, raw keys small, "(optional)" markers, defaults as placeholders; edits through the shared operations with expected revisions.
   - Built: `07a7d4c`; model dropdown and built-in prompt part `fc2db02`.
 - [x] 12.13 MC-13 upstream ask [R43.4, R43.5] (§4.11, §7.1, F90–F94)
   - Facts:
@@ -2314,7 +2314,7 @@ proves against a fake GitHub and fake workers. It is numbered after Phase
       - `delivery.feedbackRounds` (default 5) and `delivery.prFeedback` (default on) per repository and workspace, validated; a round counted on send or attempt; stop and one **Needs you** decision on the bound, on the same check failing on 3 head commits in a row, or on `blocked`.
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 4.7, 10.4, 15.3
   - `delivery.feedbackRounds` (default 5) and `delivery.prFeedback` (default on) per repository and workspace, validated; a round counted on send or attempt; stop and one **Needs you** decision on the bound, on the same check failing on 3 head commits in a row, or on `blocked`.
-  - Built: `d192dfb`. Settings are `delivery.prFeedback` and `delivery.feedbackRounds` (1–20), also under `delivery.repositories.<project>`. Settling the decision resumes with a fresh bound.
+  - Built: `d192dfb`. Settings are `delivery.prFeedback` and `delivery.feedbackRounds` (1–20), also under `delivery.repositories.<repository>`. Settling the decision resumes with a fresh bound.
 - [x] 15.5 Delivery view, after 15.4 [R54.4, R54.13] (§4.13, §8)
   - Facts:
     - done:
@@ -2712,7 +2712,7 @@ people read, and it builds on the incoming-item record of Phase 14.
   - Expected: (1) no plan word outside the allowlist; every `plans_*` tool and CLI command still answers; (2) the bad three refused by field or rule with nothing recorded; the session idea and note name the session; (3) no task, no rule match and an unchanged Untriaged count; both actions refused; (4) refused with 403; (5) the seed holds the idea as data and asks for no edits; only the link is added; (6) the cancel changes nothing; the submit prefills New spec and the idea shows Graduated with the spec name; (7) the archived and graduated ideas are still there.
   - Failure means: an idea can start work, or the page still says plan.
   - Next decision: keep ideas as a separate local list instead of intake items.
-  - Open: no named proof run; the parts are covered by `src/app/test/ideas.test.mjs`, `kirocrew-app/ui/test/ideas.test.mjs` and `specs-name.test.mjs`.
+  - Superseded 2026-11-19: Ideas were retired (R63, #228, #616) and the kept `plans_*` compatibility names were removed (#643, #698), so steps 2 to 7 and the compatibility half of step 1 have nothing to prove; the page-word check is `kirocrew-app/ui/test/specs-name.test.mjs`; not run.
 
 ## Phase 24: Pull the Andon cord
 
@@ -2738,7 +2738,7 @@ automatic stops of 12.6.
   - A red Stop the line button in the Dashboard header opens a dialog with a scope, its target and a required reason; the Line stopped banner shows who, when, scope, reason and the paused count, with a Resume button that asks first; checked by drawing the page at 375 and 1280 px in light and dark.
   - Built: `79e5fa7` (`StopLine.tsx`, the Line stopped banner in `DashboardView.tsx`; `kirocrew-app/ui/test/stop-line.test.mjs`).
 
-- [ ] avoozl-p39 P39 Proof: pull the Andon cord [R64] (§4.11)
+- [x] avoozl-p39 P39 Proof: pull the Andon cord [R64] (§4.11)
   - Facts:
     - done:
       - Proof: pull the Andon cord
@@ -2749,7 +2749,7 @@ automatic stops of 12.6.
   - Expected: (1) `a1` and `a2` are not dispatched, `b1` is, a running session is untouched, and the banner shows the owner, the time, the scope and `bad base`; (2) each refused by field, the unknown repository named, the content rule named without the matched text, nothing recorded; (3) the stop names the session, `b1` waits, the owner is notified once; (4) both pulled stops stay open; (5) both refused with 403; (6) both refused; (7) dispatch resumes in each scope and each stop records who resumed it; (8) both pulls are listed and counted with a time to fix, the retro sees their scope and reason, and the CLI pulls and resumes the same way.
   - Failure means: a person cannot stop new work by hand, or a pulled stop resumes without a person.
   - Next decision: keep the pull as a person-only button and drop the MCP action.
-  - Open: no named proof run; the parts are covered by `src/app/test/flow-andon.test.mjs` and `kirocrew-app/ui/test/stop-line.test.mjs`.
+  - Proved: `docs/evidence/p39-andon-live.md` (2026-11-19, live on a throwaway Kiro Crew); fixes in the same change: the stop names the person, the line watch takes a direct landing as its first green head, and a chat that reported done no longer counts as running.
 
 ## Phase 25: New plan hands off to Spec Builder
 
@@ -2943,7 +2943,8 @@ retro model.
   - Share expected: (13) only the kept lesson is a candidate; MCP gets 403; the owner's share opens one pull request to the plans repository with `.avoozl/lessons.json` holding summaries only (no context, history, workspace ID, task ID or repository name); (14) Share is off and says lessons share nowhere.
   - Next decision: keep prompt proposals and drop shared lessons, or share lessons only through packs.
   - Built: `a0a0771`, `src/app/test/proof-p42.test.mjs`, steps 1–12 with fake workers, a fake retro model, a fake model list and a fake plugin; W1 uses leaves a1–a70 because the steps finish more than 12 tasks. Not run live.
-  - Open: steps 13–14 (Share) are covered by `src/app/test/lessons-share.test.mjs`, not yet by the proof test.
+  - Superseded 2026-11-19: steps 13–14 (Share) went with the lessons store (#228, #619); nothing to add.
+  - Open: not run live. A live retro on the P39 workspace (4 finished tasks, all first pass) made no proposal, so steps 1 to 4 and 10 need a scripted low first-pass window; `src/app/test/proof-p42.test.mjs` passes.
 
 ## Phase 29: Activity log
 
@@ -2984,7 +2985,7 @@ workspaces, a fake GitHub and a fake plugin.
   - The Activity tab with the `History` icon, `ViewHeading`, the shared filter panel (Source, Kind, Actor), 100 rows per page with Show more, task targets that open the drawer and GitHub links with `target="_blank" rel="noopener noreferrer"`; the Keep activity (days) field on the tab, saved by a person.
   - Built: `84b92b4`, `e8c84e7`, PR #12 (`ActivityView.tsx`, Keep activity (days) on the tab; `kirocrew-app/ui/test/activity.test.mjs`).
 
-- [ ] avoozl-p43 P43 Proof: activity log [R71] (§4.19)
+- [x] avoozl-p43 P43 Proof: activity log [R71] (§4.19)
   - Facts:
     - done:
       - Proof: activity log
@@ -2995,7 +2996,7 @@ workspaces, a fake GitHub and a fake plugin.
   - Expected: (1) one `local` row each, with the person as actor; (2) one `mcp` row naming the session; (3) one row each for the merge, the order, the ignored move, the revert, the label and the conflict, the same after the second tick; (4) one `plugin` row each; (5) both saved redacted, and no row holds either value; (6) the old row is gone; (7) the tab and MCP show the same rows newest first, a task row opens the drawer and a GitHub row opens a new tab.
   - Failure means: something that changed the workspace leaves no row, or the log can hold a secret or a private term.
   - Next decision: record from each step instead of a snapshot diff, or keep redacted rows out of the log.
-  - Open: no named proof run; the parts are covered by `src/app/test/activity-log.test.mjs`.
+  - Proved: `docs/evidence/p43-activity-live.md` (2026-11-19, live on a throwaway Kiro Crew); step 3's GitHub rows are superseded by Phase 56, and step 4's tracker conflict is covered by `activity-log.test.mjs`; fixes in the same change: Settings › Models, Delivery and driver saves are recorded, and a repository stop's row names its repository.
 
 ## Phase 30: Provider health and switching models
 
@@ -3281,7 +3282,7 @@ Phase 36 because task IDs never move.
     - done:
       - Name repository-owned code; approve the worktree helper's hash
       - Repository-owned code is named in docs/policies.md, and the worktree helper runs only at its approved hash.
-  - `docs/policies.md`; `worktreeHelper` in `git.mjs` and project settings; same test file.
+  - `docs/policies.md`; `worktreeHelper` in `git.mjs` and repository settings; same test file.
 - [x] 37.4 Hash a local plugin again before it starts [R83.6] (§6.12)
   - Facts:
     - done:
@@ -3293,7 +3294,7 @@ Phase 36 because task IDs never move.
     - done:
       - Opt-in `checksEnv` allowlist
       - Checks see only the environment variables the opt-in checksEnv allowlist names.
-  - `repositoryEnvironment`, `commandEvidence`, project settings; same test file as 37.2.
+  - `repositoryEnvironment`, `commandEvidence`, repository settings; same test file as 37.2.
 
 ## Phase 38: Runner mode over SSH
 
@@ -3528,7 +3529,7 @@ the record of what was built then.
       - Nupp AGENTS.md clause for Avoozl-run work
       - A proposed Nupp AGENTS.md clause, checked against the core-dev copy, says Avoozl-run work edits, commits nothing or only locally, and stops: no merge, push or worktree removal.
     - after: 41.3
-  - Nupp's AGENTS.md tells agents to rebase, fast-forward merge, push and delete the worktree. Propose a clause for work Avoozl runs: edit, commit nothing (or only locally, as the project config says), and stop; no merge, push or worktree removal. Check the copy on `core-dev`, not only `main`. Proposed as a Nupp change, not made from Avoozl's repository.
+  - Nupp's AGENTS.md tells agents to rebase, fast-forward merge, push and delete the worktree. Propose a clause for work Avoozl runs: edit, commit nothing (or only locally, as the repository config says), and stop; no merge, push or worktree removal. Check the copy on `core-dev`, not only `main`. Proposed as a Nupp change, not made from Avoozl's repository.
 - [ ] 41.7 Nupp setup: `direct` on public `core-dev` with the repository's helper and check, after 41.3 [R91.5] (§4.26)
   - Facts:
     - done:
@@ -3614,9 +3615,9 @@ required check; 42.4 is an independent owner settings review, not its gate.
   - Facts:
     - done:
       - `avoozl setup REPO`: one preview, `--yes` applies
-      - CLI over `previewAccess` and `previewLanding`: prints every change, writes only with `--yes`, and a second run prints "Nothing to change" and writes nothing. Writes the project's landing setting and checks. The old Radar `github setup` stays as it is.
+      - CLI over `previewAccess` and `previewLanding`: prints every change, writes only with `--yes`, and a second run prints "Nothing to change" and writes nothing. Writes the repository's landing setting and checks. The old Radar `github setup` stays as it is.
     - after: 42.2, 42.3
-  - CLI over `previewAccess` and `previewLanding`: prints every change, writes only with `--yes`, and a second run prints "Nothing to change" and writes nothing. Writes the project's landing setting and checks. The old Radar `github setup` stays as it is.
+  - CLI over `previewAccess` and `previewLanding`: prints every change, writes only with `--yes`, and a second run prints "Nothing to change" and writes nothing. Writes the repository's landing setting and checks. The old Radar `github setup` stays as it is.
 
 - [x] avoozl-p52 P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3, 42.5, 42.6, 42.7 [R87, R89] (§4.26)
   - Facts:
@@ -3663,9 +3664,9 @@ GitHub, and a race between two workers shows exactly one claim wins.
   - Facts:
     - done:
       - Person-only release and stale-claim status
-      - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.claimStaleAfter.
+      - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.grantStaleAfter.
     - after: 43.3
-  - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.claimStaleAfter.
+  - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.grantStaleAfter.
 
 - [x] 43.5 Verify fetched worker results before integration, after 43.2 [R90.2, R102.6, R102.7] (§4.32)
   - Facts:
@@ -3908,9 +3909,9 @@ recovers, and a backend restart mid-run.
   - Facts:
     - done:
       - Permission classes, write roots and the skip-flag refusal
-      - Definitions with bypassPermissions, danger-full-access or a --dangerously-* flag are refused at load in a test; write roots are the task folder, temp and project cache dirs.
+      - Definitions with bypassPermissions, danger-full-access or a --dangerously-* flag are refused at load in a test; write roots are the task folder, temp and repository cache dirs.
     - after: 47.1
-  - Write roots: task folder, temp, project cache dirs; read-only roles read-only; a test loads definitions with `bypassPermissions`, `danger-full-access` and a `--dangerously-*` flag and sees each refused; the per-machine opt-in is person-only.
+  - Write roots: task folder, temp, repository cache dirs; read-only roles read-only; a test loads definitions with `bypassPermissions`, `danger-full-access` and a `--dangerously-*` flag and sees each refused; the per-machine opt-in is person-only.
   - Built: `harnessPermission`, `sandboxWriteRoots` and `allowUnconfinedWrites` in `src/app/harness-definitions.mjs`; tests in `src/app/test/harness-permissions.test.mjs`.
 - [x] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
   - Facts:
@@ -3926,11 +3927,11 @@ recovers, and a backend restart mid-run.
       - Avoozl's worker commit never stages a path under `.avoozl/`, and landing refuses a worker commit that holds one
       - Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git.mjs`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.mjs`.
   - Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git.mjs`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.mjs`.
-- [x] 47.8 Per-project command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
+- [x] 47.8 Per-repository command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
   - Facts:
     - done:
-      - Per-project command allow-list; `git push` never allowed
-      - Unattended children run the project's build and test commands without a prompt; adding git push is refused.
+      - Per-repository command allow-list; `git push` never allowed
+      - Unattended children run the repository's build and test commands without a prompt; adding git push is refused.
     - after: 47.2
   - Built: `src/app/harness-allow.mjs` (`sandboxAllowCommands`, `harnessAllow`); tests in `src/app/test/harness-allow.test.mjs`.
 - [x] 47.9 Plan-quota stop, after 47.4 [R94.6a] (§4.28)
@@ -3963,7 +3964,7 @@ recovers, and a backend restart mid-run.
       - Default for the Nupp compiler repository.
     - after: 47.2, 47.3
   - Default for the Nupp compiler repository.
-  - Built: `src/app/executors/process.mjs` (start, send by resume, status, stop over the supervisor; `drainProcessRequests` takes `process` requests in the app backend, prepares a worker's task worktree and binds the session); a project opts in with `executor: "process"`, `harness` and `sandbox` in its settings, which is how the Nupp compiler repository makes it its default; the definition at `examples/harnesses/claude-code.json` (stdin prompt, `--session-id`/`--resume`, `acceptEdits`/`plan`, `--allowedTools Bash(...)`), copied to the machine config and approved by hash; tests in `src/app/test/process-executor.test.mjs`.
+  - Built: `src/app/executors/process.mjs` (start, send by resume, status, stop over the supervisor; `drainProcessRequests` takes `process` requests in the app backend, prepares a worker's task worktree and binds the session); a repository opts in with `executor: "process"`, `harness` and `sandbox` in its settings, which is how the Nupp compiler repository makes it its default; the definition at `examples/harnesses/claude-code.json` (stdin prompt, `--session-id`/`--resume`, `acceptEdits`/`plan`, `--allowedTools Bash(...)`), copied to the machine config and approved by hash; tests in `src/app/test/process-executor.test.mjs`.
 - [x] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
   - Facts:
     - done:
@@ -4006,7 +4007,7 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
       - Its start and resume argv, permission values and cost source.
     - after: avoozl-p57
   - Its start and resume argv, permission values and cost source.
-  - Built: `examples/harnesses/codex.json`: `codex exec --json -C {worktree} --sandbox {permission} -c approval_policy=never`, brief on stdin; resume adds `resume --last -`, since Codex takes no session ID at start and `--last` reads only the worktree's own sessions; `workspace-write` and `read-only`; no allow flag, no spend cap and no cost source (its JSON reports tokens, not dollars). Tests in `src/app/test/codex-definition.test.mjs`. For P58: Codex applies its own `sandbox-exec` per command on macOS, and a nested `sandbox-exec` fails (`sandbox_apply: Operation not permitted`); the project's `sandbox.writeRoots` must name the Codex home, where it records sessions.
+  - Built: `examples/harnesses/codex.json`: `codex exec --json -C {worktree} --sandbox {permission} -c approval_policy=never`, brief on stdin; resume adds `resume --last -`, since Codex takes no session ID at start and `--last` reads only the worktree's own sessions; `workspace-write` and `read-only`; no allow flag, no spend cap and no cost source (its JSON reports tokens, not dollars). Tests in `src/app/test/codex-definition.test.mjs`. For P58: Codex applies its own `sandbox-exec` per command on macOS, and a nested `sandbox-exec` fails (`sandbox_apply: Operation not permitted`); the repository's `sandbox.writeRoots` must name the Codex home, where it records sessions.
 
 - [x] 48.2 Inner sandbox off only under Avoozl's sandbox, after 48.1 [R94.4b, R94.4d] (§4.28)
   - Facts:
@@ -4042,7 +4043,7 @@ Requirement 97.3 (design §4.28).
       - Read-only roles get the read-only class.
     - after: avoozl-p57
   - Read-only roles get the read-only class.
-  - Built: a `process` project's verifier and review roles (`planVerifierDispatches`), retro (`retroStep`) and New plan planner (`newPlanStarts`) request `process`; `drainProcessRequests` adds a verdict role's detached worktree at the commit and removes it after, gives a retro a scratch folder, and gives the planner only its spec folder (`src/app/executors/process.mjs`). `processBrief` puts the role's `prompts/<role>.md` first and says how to finish without Avoozl's tools; a read class writes only its temp folder and `.avoozl/` (`harnessPermission`), and a definition's `resultAllow` lets it write the result file (Claude Code: `dontAsk` plus `Edit(.avoozl/result.json)`, checked on Claude Code 2.1.326, where `plan` refused the file). The result file's `report` carries a verdict or a retro's reply. No watch session exists: the line watch runs in the tick with no agent. The GitHub breakdown planner, plan review and pull request review chats stay on `kirocrew`. Tests in `src/app/test/process-roles.test.mjs`.
+  - Built: a `process` repository's verifier and review roles (`planVerifierDispatches`), retro (`retroStep`) and New plan planner (`newPlanStarts`) request `process`; `drainProcessRequests` adds a verdict role's detached worktree at the commit and removes it after, gives a retro a scratch folder, and gives the planner only its spec folder (`src/app/executors/process.mjs`). `processBrief` puts the role's `prompts/<role>.md` first and says how to finish without Avoozl's tools; a read class writes only its temp folder and `.avoozl/` (`harnessPermission`), and a definition's `resultAllow` lets it write the result file (Claude Code: `dontAsk` plus `Edit(.avoozl/result.json)`, checked on Claude Code 2.1.326, where `plan` refused the file). The result file's `report` carries a verdict or a retro's reply. No watch session exists: the line watch runs in the tick with no agent. The GitHub breakdown planner, plan review and pull request review chats stay on `kirocrew`. Tests in `src/app/test/process-roles.test.mjs`.
 
 - [x] avoozl-p59 P59 Proof: each role runs on either executor, after 49.1 [R97] (§4.28)
   - Facts:
@@ -4133,10 +4134,10 @@ mode of Phase 43.
 
 Requirement 96.4 (design §4.28).
 
-- [x] 52.1 `next`, `claim` and `runner report` keep working for a person, after avoozl-p56 [R96.4] (§4.28)
+- [x] 52.1 `next`, `take` and `runner report` keep working for a person, after avoozl-p56 [R96.4] (§4.28)
   - Facts:
     - done:
-      - `next`, `claim` and `runner report` keep working for a person
+      - `next`, `take` and `runner report` keep working for a person
       - One test per command from a plain shell.
     - after: avoozl-p56
   - One test per command from a plain shell.
@@ -4149,7 +4150,7 @@ Requirement 96.4 (design §4.28).
       - Expected: the task lands as if a worker did it.
     - after: 52.1
   - Setup: a scratch workspace with one ready task.
-  - Action: `avoozl next`, `avoozl claim`, edit and commit, `avoozl runner report TASK done`.
+  - Action: `avoozl next`, `avoozl take`, edit and commit, `avoozl runner report TASK done`.
   - Expected: the task lands as if a worker did it.
   - Failure means: the manual path broke.
   - Next decision: fix it before removing anything else.
@@ -4518,7 +4519,7 @@ proof or run a real workspace to get past that wait.
   - Facts:
     - done:
       - P67 Proof: fork source and upstream permissions
-      - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real project settings.
+      - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real repository settings.
       - Action: register a pre-PR fork head, checkpoint there, then discover a fork PR head. Rebuild from both while keeping the source branch out of upstream. Move the base and require a refreshed check/review; let the maintainer merge. Try an unregistered source and a private-plan reference on every public surface. Export twice; exercise a divergent mirror import.
       - Expected: fork branches work without upstream copies, source push rights never permit target merge, the exact checked/approved head is accepted from the maintainer merge, public/private homes remain separate, untrusted fetches and leaks are refused. Retry export creates nothing new; import is not forwarded upstream.
       - Also record: source and target repository/ref/SHA identities, both logins' permission results, PR head and merge SHA, standing review/check evidence, sanitized discovery and reconstruction records, export issue/link counts and import/forward ancestry. No credentials or private planning data in the receipt.
@@ -4526,7 +4527,7 @@ proof or run a real workspace to get past that wait.
       - Next decision: enable fork heads in ordinary worker pulls, or fix source resolution and permissions before enabling them.
     - after: avoozl-p66, 42.1, 42.2, 56.9, 56.10
     - manual: true
-  - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real project settings.
+  - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real repository settings.
   - Action: register a pre-PR fork head, checkpoint there, then discover a fork PR head. Rebuild from both while keeping the source branch out of upstream. Move the base and require a refreshed check/review; let the maintainer merge. Try an unregistered source and a private-plan reference on every public surface. Export twice; exercise a divergent mirror import.
   - Expected: fork branches work without upstream copies, source push rights never permit target merge, the exact checked/approved head is accepted from the maintainer merge, public/private homes remain separate, untrusted fetches and leaks are refused. Retry export creates nothing new; import is not forwarded upstream.
   - Also record: source and target repository/ref/SHA identities, both logins' permission results, PR head and merge SHA, standing review/check evidence, sanitized discovery and reconstruction records, export issue/link counts and import/forward ancestry. No credentials or private planning data in the receipt.

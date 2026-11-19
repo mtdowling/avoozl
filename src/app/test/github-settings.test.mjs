@@ -316,7 +316,7 @@ test("Local only is a mode: no GitHub mode, and stored GitHub settings are kept 
   assert.equal(policy.mode, null);
   assert.equal(policy.planningRepository, null);
   // Task issues and the Project are gone (R102.20): their keys are refused.
-  for (const key of ["project", "defaultAuthority", "subIssues", "issues"])
+  for (const key of ["repository", "defaultAuthority", "subIssues", "issues"])
     assert.throws(
       () => normalizeGitHubPolicy({ ...stored, [key]: {} }),
       new RegExp(key),
@@ -355,13 +355,14 @@ test("githubMode() is null in Local only", async (t) => {
   ]);
 });
 
-test("github.cacheSeconds and a repository's own are whole seconds from 0 to 3600", () => {
-  const ok = normalizeGitHubPolicy({
-    cacheSeconds: 30,
-    repositories: { "o/r": { cacheSeconds: 0 } },
-  });
+test("github.cacheSeconds is whole seconds from 0 to 3600, and a repository has none of its own", () => {
+  const ok = normalizeGitHubPolicy({ cacheSeconds: 30 });
   assert.equal(ok.cacheSeconds, 30);
-  assert.equal(ok.repositories["o/r"].cacheSeconds, 0);
+  assert.throws(
+    () =>
+      normalizeGitHubPolicy({ repositories: { "o/r": { cacheSeconds: 0 } } }),
+    /Unknown setting .*cacheSeconds/,
+  );
   assert.equal(normalizeGitHubPolicy({}).cacheSeconds, null);
   for (const bad of [-1, 3601, 1.5, "60"])
     assert.throws(

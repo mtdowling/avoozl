@@ -164,7 +164,7 @@ export interface PlanReviewSummary {
     anchor?: { file: string; lineStart: number; lineEnd: number; moved?: boolean }
     file: string
     line: number
-    claim: string
+    statement: string
     evidence: string
     answer: { action: 'fixed' | 'answered'; revisionHash?: string; text: string; at: string } | null
   }[]

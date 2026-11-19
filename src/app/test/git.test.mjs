@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
-import {
-  githubRepositoryFromRemote,
-  projectGitHubRepository,
-} from "../git.mjs";
+import { githubRepositoryFromRemote, repositoryGitHubRemote } from "../git.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -16,12 +13,12 @@ function git(root, ...args) {
   }).trim();
 }
 
-function projectWithRemote(t, remoteUrl) {
+function repositoryWithRemote(t, remoteUrl) {
   const root = temporaryDirectory("avoozl-git-");
   git(root, "init");
   git(root, "remote", "add", "origin", remoteUrl);
   const { store } = fixture(t);
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root,
     baseBranch: "main",
@@ -57,20 +54,20 @@ test("githubRepositoryFromRemote rejects non-GitHub remotes", () => {
   );
 });
 
-test("projectGitHubRepository detects HTTPS and SSH origin repositories", async (t) => {
+test("repositoryGitHubRemote detects HTTPS and SSH origin repositories", async (t) => {
   const remotes = [
     "https://github.com/openai/codex.git",
     "git@github.com:openai/codex.git",
   ];
   for (const remoteUrl of remotes) {
     await t.test(remoteUrl, async (t) => {
-      const { store, root } = projectWithRemote(t, remoteUrl);
-      const result = await projectGitHubRepository(store, {
-        projectId: "code",
+      const { store, root } = repositoryWithRemote(t, remoteUrl);
+      const result = await repositoryGitHubRemote(store, {
+        repositoryId: "code",
       });
       assert.deepEqual(result, {
-        projectId: "code",
-        projectRoot: root,
+        repositoryId: "code",
+        repositoryRoot: root,
         remote: "origin",
         remoteUrl,
         repository: "openai/codex",
@@ -79,10 +76,13 @@ test("projectGitHubRepository detects HTTPS and SSH origin repositories", async 
   }
 });
 
-test("projectGitHubRepository rejects a non-GitHub origin", async (t) => {
-  const { store } = projectWithRemote(t, "https://gitlab.com/openai/codex.git");
+test("repositoryGitHubRemote rejects a non-GitHub origin", async (t) => {
+  const { store } = repositoryWithRemote(
+    t,
+    "https://gitlab.com/openai/codex.git",
+  );
   await assert.rejects(
-    projectGitHubRepository(store, { projectId: "code" }),
+    repositoryGitHubRemote(store, { repositoryId: "code" }),
     /origin remote is not a GitHub repository/,
   );
 });

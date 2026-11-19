@@ -8,7 +8,7 @@ import { fixture, recordedRun, validateRun } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
 import { git, commitWorkerChanges, integrateRun } from "../git.mjs";
 
-async function project(t) {
+async function repository(t) {
   const { store, root } = fixture(t),
     repo = path.join(root, "repo");
   fs.mkdirSync(repo);
@@ -19,13 +19,13 @@ async function project(t) {
   await git(repo, ["add", "."]);
   await git(repo, ["commit", "-m", "Prepare fixture"]);
   assert.equal(fs.existsSync(path.join(repo, ".gitignore")), false);
-  await new Operations(store).execute("project.configure", {
+  await new Operations(store).execute("repository.configure", {
     id: "fixture",
     root: repo,
     checks: [[process.execPath, "check.mjs"]],
   });
   const run = await recordedRun(store, {
-    projectId: "fixture",
+    repositoryId: "fixture",
     taskId: "sample-task",
     id: "run-worker",
   });
@@ -46,7 +46,7 @@ async function project(t) {
 const result = JSON.stringify({ state: "done", text: "Done." });
 
 test("a worker commit leaves out .avoozl/ files the repository does not ignore", async (t) => {
-  const { store, repo, run, write, finish } = await project(t);
+  const { store, repo, run, write, finish } = await repository(t);
   write("work.txt", "work");
   write(".avoozl/result.json", result);
   write("sub/.avoozl/notes.json", "{}");
@@ -81,7 +81,7 @@ test("a worker commit leaves out .avoozl/ files the repository does not ignore",
 });
 
 test("nothing but .avoozl/ files makes no commit", async (t) => {
-  const { run, write } = await project(t);
+  const { run, write } = await repository(t);
   const head = await git(run.worktree, ["rev-parse", "HEAD"]);
   write(".avoozl/result.json", result);
   assert.equal(await commitWorkerChanges(run.worktree, "Work"), null);
@@ -89,7 +89,7 @@ test("nothing but .avoozl/ files makes no commit", async (t) => {
 });
 
 test("landing refuses a worker commit that holds .avoozl/result.json", async (t) => {
-  const { store, repo, run, write, finish } = await project(t);
+  const { store, repo, run, write, finish } = await repository(t);
   const base = await git(repo, ["rev-parse", "main"]);
   write(".avoozl/result.json", result);
   await git(run.worktree, ["add", "-f", ".avoozl/result.json"]);

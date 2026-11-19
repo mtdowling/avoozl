@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import { digest, summarizeErrors, validate } from "../model.mjs";
+import { keepNamedEpics, ownLegacyEpics } from "./epics.mjs";
 
 export const canonical = (value) => JSON.stringify(normalize(value));
 function normalize(value) {
@@ -94,6 +95,140 @@ const DROPPED_TABLES = [
   "github_queue_associations",
 ];
 
+// The tables of {id, body} rows; the read tables add the three with
+// columns of their own. A stored GitHub response is never removed.
+const BODY_TABLES = new Set([
+  "plans",
+  "repositories",
+  "receipts",
+  "batches",
+  "github_repositories",
+  "github_issues",
+  "review_threads",
+  "review_rounds",
+  "review_followups",
+  "extractions",
+  "plan_facts",
+  "session_bindings",
+  "session_requests",
+  "github_responses",
+  "task_worktrees",
+  "task_deliveries",
+  "github_linked_branches",
+  "app_notifications",
+  "mirror_forward",
+  "plugin_health",
+  "content_decisions",
+  "content_allowances",
+  "content_reports",
+  "flow_records",
+  "flow_stops",
+  "flow_retros",
+  "flow_batches",
+  "pr_feedback",
+  "pr_ci",
+  "ci_runs",
+  "incoming_items",
+  "intake_sources",
+  "provider_health",
+  "provider_switches",
+  "drivers",
+  "task_investigations",
+  "corrections",
+  "task_notes",
+  "landing_queue",
+  "github_items",
+  "triage_runs",
+]);
+const READ_TABLES = new Set([
+  ...BODY_TABLES,
+  "approvals",
+  "evidence",
+  "integration",
+]);
+const REMOVABLE_TABLES = new Set(
+  [...BODY_TABLES].filter((table) => table !== "github_responses"),
+);
+
+// Rename a stored record's `projectId` keys, at any depth, to `repositoryId`.
+function renameProjectIds(value) {
+  if (Array.isArray(value)) return value.map(renameProjectIds);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [
+      key === "projectId" ? "repositoryId" : key,
+      renameProjectIds(child),
+    ]),
+  );
+}
+
+// Migration: a registered repository was once called a project. An older
+// database (one with a `projects` table) moves to the current names once, in
+// one transaction: the table becomes `repositories` and its owner/name field
+// `github`, the lock column `repository_id`, every stored `projectId` key
+// `repositoryId`, and `repository.*` events `repository.*`.
+function renameProjects(db) {
+  const tables = new Set(
+    db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+      .all()
+      .map((row) => row.name),
+  );
+  if (!tables.has("projects")) return;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.exec("ALTER TABLE projects RENAME TO repositories");
+    for (const row of db.prepare("SELECT id, body FROM repositories").all()) {
+      const { repository, ...body } = JSON.parse(row.body);
+      if (repository !== undefined) body.github ??= repository;
+      db.prepare("UPDATE repositories SET body=? WHERE id=?").run(
+        JSON.stringify(body),
+        row.id,
+      );
+    }
+    if (
+      db
+        .prepare(
+          "SELECT 1 FROM pragma_table_info('work_locks') WHERE name='project_id'",
+        )
+        .get()
+    )
+      db.exec(
+        "ALTER TABLE work_locks RENAME COLUMN project_id TO repository_id",
+      );
+    // Stored JSON is in each table's `body`, and in meta's `value`.
+    for (const table of [...tables, "repositories"]) {
+      const column = table === "meta" ? "value" : "body";
+      if (
+        !db
+          .prepare("SELECT 1 FROM pragma_table_info(?) WHERE name=?")
+          .get(table, column)
+      )
+        continue;
+      const update = db.prepare(
+        `UPDATE "${table}" SET ${column}=? WHERE rowid=?`,
+      );
+      for (const row of db
+        .prepare(
+          `SELECT rowid AS id, ${column} AS value FROM "${table}" WHERE ${column} LIKE '%"projectId"%'`,
+        )
+        .all())
+        update.run(
+          JSON.stringify(renameProjectIds(JSON.parse(row.value))),
+          row.id,
+        );
+    }
+    if (tables.has("events"))
+      db.exec(
+        "UPDATE events SET kind='repository'||substr(kind,8) WHERE kind LIKE 'project.%'",
+      );
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 export class Store {
   constructor(filename) {
     if (filename !== ":memory:") {
@@ -126,6 +261,7 @@ export class Store {
       this.db.exec(
         "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;",
       );
+      renameProjects(this.db);
       // Defer the write lock so reopening a complete schema can still read
       // alongside a writer. New tables and indexes commit together.
       this.db.exec("BEGIN");
@@ -140,8 +276,8 @@ export class Store {
    CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY,path TEXT NOT NULL,text TEXT NOT NULL,expected_hash TEXT,state TEXT NOT NULL DEFAULT 'pending');
    CREATE TABLE IF NOT EXISTS evidence(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS integration(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,state TEXT NOT NULL,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS work_locks(id TEXT PRIMARY KEY,project_id TEXT NOT NULL,kind TEXT NOT NULL,pid INTEGER NOT NULL,token TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS work_locks(id TEXT PRIMARY KEY,repository_id TEXT NOT NULL,kind TEXT NOT NULL,pid INTEGER NOT NULL,token TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS batches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
@@ -186,6 +322,8 @@ export class Store {
    CREATE TABLE IF NOT EXISTS corrections(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS task_notes(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS landing_queue(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS triage_runs(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS planning_spans(id TEXT PRIMARY KEY,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,slot TEXT NOT NULL,role TEXT NOT NULL,model TEXT,started_at TEXT NOT NULL,ended_at TEXT);
    CREATE TABLE IF NOT EXISTS planning_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,role TEXT NOT NULL,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
    CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
@@ -240,6 +378,37 @@ export class Store {
       this.db.close();
       throw error;
     }
+    this.keepLegacyEpics();
+  }
+  // Epic rows from before Requirement 59 get their plan once, on open, and
+  // one an older approval dropped while a task still names it comes back
+  // from the import baseline (design §6.9). Commit does the work. Writes
+  // only when there is something to do, so a plain open stays read-only. A
+  // snapshot that cannot be written as it is still opens; its next commit
+  // does the same.
+  keepLegacyEpics() {
+    if (this.readOnly) return;
+    const epics = this.getMeta("snapshot")?.epics;
+    if (!epics) return;
+    const have = new Set(epics.map((epic) => epic?.id)),
+      missing = (this.getMeta("baselineMetadata")?.epics || [])
+        .map((epic) => epic?.id)
+        .filter((id) => id && !have.has(id)),
+      unowned = epics.some((epic) => epic && typeof epic.planId !== "string"),
+      named =
+        missing.length &&
+        this.db
+          .prepare(
+            "SELECT 1 FROM entities WHERE kind='task' AND json_extract(body,'$.epic') IN (SELECT value FROM json_each(?)) LIMIT 1",
+          )
+          .get(JSON.stringify(missing));
+    if (!unowned && !named) return;
+    try {
+      this.mutate(
+        "Keep each epic from before Requirement 59, with its plan",
+        () => {},
+      );
+    } catch {}
   }
   transaction(fn) {
     // A nested call is a savepoint, so an outer transaction (plan.approveMany)
@@ -367,6 +536,14 @@ export class Store {
   commit(data, summary, expectedRevision) {
     if (this.read().revision !== (expectedRevision ?? data.revision))
       fail("Database changed. Reload and review before saving.", 409);
+    // No write drops an epic a stored task names, and each epic from
+    // before Requirement 59 has its plan before it is written (§6.9).
+    keepNamedEpics(
+      data,
+      this.read().epics || [],
+      this.getMeta("baselineMetadata")?.epics || [],
+    );
+    ownLegacyEpics(data, this.list("plans"));
     reconcileSpecDependencies(data, this.list("plans"), this.list("approvals"));
     data.revision = this.read().revision + 1;
     data.updatedAt = stamp();
@@ -543,106 +720,14 @@ export class Store {
     }));
   }
   get(table, id) {
-    if (
-      ![
-        "plans",
-        "approvals",
-        "evidence",
-        "integration",
-        "projects",
-        "receipts",
-        "batches",
-        "github_repositories",
-        "github_issues",
-        "review_threads",
-        "review_rounds",
-        "review_followups",
-        "extractions",
-        "plan_facts",
-        "session_bindings",
-        "session_requests",
-        "github_responses",
-        "task_worktrees",
-        "task_deliveries",
-        "github_linked_branches",
-        "app_notifications",
-        "mirror_forward",
-        "plugin_health",
-        "content_decisions",
-        "content_allowances",
-        "content_reports",
-        "flow_records",
-        "flow_stops",
-        "flow_retros",
-        "flow_batches",
-        "pr_feedback",
-        "pr_ci",
-        "ci_runs",
-        "incoming_items",
-        "intake_sources",
-        "provider_health",
-        "provider_switches",
-        "drivers",
-        "task_investigations",
-        "corrections",
-        "task_notes",
-        "landing_queue",
-      ].includes(table)
-    )
-      fail("Unknown record type");
+    if (!READ_TABLES.has(table)) fail("Unknown record type");
     // A missing or non-text ID names no record; SQLite would throw on it.
     if (typeof id !== "string" && typeof id !== "number") return null;
     const row = this.db.prepare(`SELECT body FROM ${table} WHERE id=?`).get(id);
     return row ? JSON.parse(row.body) : null;
   }
   list(table) {
-    if (
-      ![
-        "plans",
-        "approvals",
-        "evidence",
-        "integration",
-        "projects",
-        "receipts",
-        "batches",
-        "github_repositories",
-        "github_issues",
-        "review_threads",
-        "review_rounds",
-        "review_followups",
-        "extractions",
-        "plan_facts",
-        "session_bindings",
-        "session_requests",
-        "github_responses",
-        "task_worktrees",
-        "task_deliveries",
-        "github_linked_branches",
-        "app_notifications",
-        "mirror_forward",
-        "plugin_health",
-        "content_decisions",
-        "content_allowances",
-        "content_reports",
-        "flow_records",
-        "flow_stops",
-        "flow_retros",
-        "flow_batches",
-        "pr_feedback",
-        "pr_ci",
-        "ci_runs",
-        "incoming_items",
-        "intake_sources",
-        "provider_health",
-        "provider_switches",
-        "drivers",
-        "task_investigations",
-        "corrections",
-        "task_notes",
-        "landing_queue",
-      ].includes(table)
-    )
-      fail("Unknown record type");
+    if (!READ_TABLES.has(table)) fail("Unknown record type");
     return this.db
       .prepare(`SELECT body FROM ${table} ORDER BY rowid DESC`)
       .all()
@@ -650,49 +735,7 @@ export class Store {
   }
   put(table, item) {
     const body = JSON.stringify(item);
-    if (
-      [
-        "plans",
-        "projects",
-        "receipts",
-        "batches",
-        "github_repositories",
-        "github_issues",
-        "review_threads",
-        "review_rounds",
-        "review_followups",
-        "extractions",
-        "plan_facts",
-        "session_bindings",
-        "session_requests",
-        "github_responses",
-        "task_worktrees",
-        "task_deliveries",
-        "github_linked_branches",
-        "app_notifications",
-        "mirror_forward",
-        "plugin_health",
-        "content_decisions",
-        "content_allowances",
-        "content_reports",
-        "flow_records",
-        "flow_stops",
-        "flow_retros",
-        "flow_batches",
-        "pr_feedback",
-        "pr_ci",
-        "ci_runs",
-        "incoming_items",
-        "intake_sources",
-        "provider_health",
-        "provider_switches",
-        "drivers",
-        "task_investigations",
-        "corrections",
-        "task_notes",
-        "landing_queue",
-      ].includes(table)
-    )
+    if (BODY_TABLES.has(table))
       this.db
         .prepare(
           `INSERT INTO ${table} VALUES (?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body`,
@@ -716,49 +759,7 @@ export class Store {
     return item;
   }
   remove(table, id) {
-    if (
-      ![
-        "plans",
-        "projects",
-        "receipts",
-        "batches",
-        "github_repositories",
-        "github_issues",
-        "review_threads",
-        "review_rounds",
-        "review_followups",
-        "extractions",
-        "plan_facts",
-        "session_bindings",
-        "session_requests",
-        "task_worktrees",
-        "task_deliveries",
-        "github_linked_branches",
-        "app_notifications",
-        "mirror_forward",
-        "plugin_health",
-        "content_decisions",
-        "content_allowances",
-        "content_reports",
-        "flow_records",
-        "flow_stops",
-        "flow_retros",
-        "flow_batches",
-        "pr_feedback",
-        "pr_ci",
-        "ci_runs",
-        "incoming_items",
-        "intake_sources",
-        "provider_health",
-        "provider_switches",
-        "drivers",
-        "task_investigations",
-        "corrections",
-        "task_notes",
-        "landing_queue",
-      ].includes(table)
-    )
-      fail("Unknown record type");
+    if (!REMOVABLE_TABLES.has(table)) fail("Unknown record type");
     return (
       this.db.prepare(`DELETE FROM ${table} WHERE id=?`).run(id).changes > 0
     );

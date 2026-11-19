@@ -35,8 +35,8 @@ const count = (name) =>
   Number(tests.stdout.match(new RegExp(`^ℹ ${name} (\\d+)`, "m"))?.[1] ?? -1);
 
 // 2. Every module whose source writes a session request with role worker,
-// as the source test reads them, and the manual claim, which binds a
-// person's claim without a request.
+// as the source test reads them, and the manual take, which binds a
+// person's take without a request.
 const REQUEST = /\b(kirocrewRequest|startRequest|enqueueSessionRequests)\(/g;
 const sources = [
   ...fs.readdirSync(APP).map((name) => [name, path.join(APP, name)]),
@@ -60,8 +60,8 @@ for (const [name, file] of sources) {
     }
   }
 }
-const claimBinds = /role:\s*"worker"/.test(
-  fs.readFileSync(path.join(APP, "manual-claim.mjs"), "utf8"),
+const takeBinds = /role:\s*"worker"/.test(
+  fs.readFileSync(path.join(APP, "manual-take.mjs"), "utf8"),
 );
 
 // 3. Every worker brief the pair table builds, searched for the words.
@@ -69,7 +69,7 @@ const { workerBrief } = await import("../src/app/delivery.mjs");
 const { briefCell, EXECUTORS, KINDS } = await import(
   "../src/app/worker-briefs.mjs"
 );
-const PROJECT = { id: "app", root: "/tmp/app", baseBranch: "main" };
+const REPOSITORY = { id: "app", root: "/tmp/app", baseBranch: "main" };
 const TASK = { id: "a", title: "Task a", acceptance: ["Works."] };
 const DATA = { tasks: [TASK, { ...TASK, id: "b", title: "Task b" }] };
 const LEAF = { task: TASK, batch: { id: "x", tasks: ["a", "b"] } };
@@ -83,11 +83,11 @@ const build = (executor, kind) => {
   if (picked.declined || kind !== picked.kind) return null;
   const cliReport = { worktree: "/tmp/wt", token: "tok", workspace: "/tmp/ws" };
   if (kind === "single" || kind === "investigate")
-    return workerBrief(TASK, PROJECT, {
+    return workerBrief(TASK, REPOSITORY, {
       attempt: 1,
       investigate: kind === "investigate",
       findingsVia: { executor, cliReport },
-      steps: cell.steps({ task: TASK, project: PROJECT, cliReport }),
+      steps: cell.steps({ task: TASK, repository: REPOSITORY, cliReport }),
     });
   if (kind === "batch") return cell.brief(null, DATA, LEAF, "");
   if (kind === "round") return cell.finish;
@@ -148,7 +148,7 @@ const result = {
   before,
   tests: { status: tests.status, pass: count("pass"), fail: count("fail") },
   workerRequestWriters: writers,
-  manualClaimBinds: claimBinds,
+  manualTakeBinds: takeBinds,
   briefs,
   found,
   forbidding,
@@ -163,7 +163,7 @@ const verdict = {
       ["delivery.mjs", "remote-runner.mjs"].includes(name),
     ) &&
     writers.includes("delivery.mjs") &&
-    claimBinds,
+    takeBinds,
   noPushInBriefs: briefs.length > 0 && found.length === 0,
 };
 console.log(JSON.stringify({ verdict, result }, null, 2));

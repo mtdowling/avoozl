@@ -10,7 +10,7 @@ import { landNext, landingQueue, enqueueLanding } from "../landing-queue.mjs";
 import { pullSteps } from "../landing-pulls.mjs";
 import { sourceRegistry } from "../working-heads.mjs";
 
-const Q = { projectId: "fixture", base: "main" };
+const Q = { repositoryId: "fixture", base: "main" };
 const owner = { login: "owner", from: "spec" };
 const person = { kind: "person", login: "owner" };
 const REVISION = digest("revision");

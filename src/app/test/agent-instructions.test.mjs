@@ -242,15 +242,15 @@ test("planning and code repositories contribute repository-scoped rules", async 
       rules: [
         {
           ...policy.agentInstructions.rules[1],
-          appliesTo: ["task.implement", "chat.project"],
+          appliesTo: ["task.implement", "chat.repository"],
           when: {},
         },
       ],
     },
   });
-  store.put("projects", {
-    id: "code-project",
-    title: "Code project",
+  store.put("repositories", {
+    id: "code-repository",
+    title: "Code repository",
     root: codeRoot,
   });
   const result = reconcileAgentInstructions(store, planningPolicy);
@@ -261,7 +261,7 @@ test("planning and code repositories contribute repository-scoped rules", async 
       .agentInstructions.map((rule) => [rule.id, rule.source.repositoryId]),
     [
       ["shared-task-policy", null],
-      ["record-required-cleanup", "code-project"],
+      ["record-required-cleanup", "code-repository"],
     ],
   );
   assert.deepEqual(
@@ -275,13 +275,13 @@ test("planning and code repositories contribute repository-scoped rules", async 
   assert.deepEqual(
     matchingAgentInstructions(store.read(), "task.implement", {
       ...store.read().tasks[0],
-      projectId: "code-project",
+      repositoryId: "code-repository",
     }).map((rule) => rule.id),
     ["shared-task-policy", "record-required-cleanup"],
   );
   const codeSource = await new Operations(store).execute(
     "agent.instructions.source",
-    { repositoryId: "code-project" },
+    { repositoryId: "code-repository" },
   );
   assert.equal(codeSource.path, codePolicy);
   assert.match(codeSource.text, /record-required-cleanup/);

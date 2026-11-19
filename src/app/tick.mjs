@@ -1,3 +1,4 @@
+import { offeredTaskIds } from "./worker-offer-step.mjs";
 import { withGitHubReadSnapshots } from "./github-read-snapshot.mjs";
 import {
   enqueueSessionRequests,
@@ -70,6 +71,7 @@ import { revertCorrections } from "./corrections.mjs";
 import { evidenceCommentStep } from "./evidence.mjs";
 import { intakeNotices, syncGitHubIssues } from "./github-sync.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
+import { triageStep } from "./triage.mjs";
 import {
   RATE_LIMIT_TEXT,
   githubGate,
@@ -122,15 +124,15 @@ import { landDirect } from "./direct-landing.mjs";
 import { applyLandingModes, landingSettings } from "./landing-config.mjs";
 
 // Each repository's `conflicts.maxAttempts`, older keys folded in (R87.6).
-const attemptsFor = (config) => (project) =>
-  landingSettings(config || {}, project.repository, project).maxAttempts;
+const attemptsFor = (config) => (repository) =>
+  landingSettings(config || {}, repository.github, repository).maxAttempts;
 import { noteTickRun } from "./tick-activity.mjs";
 
-// The colon keeps this lock out of every configured project's namespace.
+// The colon keeps this lock out of every configured repository's namespace.
 // GitHub projection takes it too, so one workspace has one writer at a time.
 export const WORKSPACE_LOCK = {
   id: "avoozl:workspace-tick",
-  projectId: "avoozl:workspace",
+  repositoryId: "avoozl:workspace",
   kind: "tick",
 };
 const MAX_POLICY_BYTES = 512 * 1024;
@@ -636,7 +638,7 @@ async function runTick(
         delivery = ["loaded", "invalid"].includes(policy.status)
           ? deliveryPolicy(memory.value, { machineLanes: machineLanes() })
           : null;
-      // Each repository's `landing.mode` onto its checkouts' project rows,
+      // Each repository's `landing.mode` onto its checkouts' repository rows,
       // which the landing code reads (§4.25).
       if (memory.value) applyLandingModes(store, memory.value);
       const planned = { messages: [], notify: [] };
@@ -683,7 +685,7 @@ async function runTick(
           planned.notify.push(...integrated.notify);
           // A conflict at integration goes back to the worker chat.
           planned.messages.push(...(integrated.messages ?? []));
-          // `pr` projects land through pull requests (task 42.6).
+          // `pr` repositories land through pull requests (task 42.6).
           const landed = await landPullRequests(store, {
             github,
             workspaceRoot,
@@ -691,7 +693,7 @@ async function runTick(
           });
           planned.notify.push(...landed.notify);
           planned.messages.push(...landed.messages);
-          // `direct` projects push to their remote from the tick (41.9).
+          // `direct` repositories push to their remote from the tick (41.9).
           const pushed = await landDirect(store, {
             github,
             workspaceRoot,
@@ -865,6 +867,24 @@ async function runTick(
             text: error.message,
           });
         }
+      // The triage agent (triage-agent §D2): read what changed, queue one
+      // run per new item, and carry out finished runs' writes.
+      let triage = { dispatch: [], notify: [] };
+      if (script && github)
+        try {
+          triage = await under("triage", triageStep)(store, github, {
+            policy: readGitHubPolicyOrNull(workspaceRoot),
+            config: memory.value || {},
+            workspaceRoot,
+          });
+          planned.notify.push(...triage.notify);
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not run the triage agent",
+            text: error.message,
+          });
+        }
       // The evidence comment on each open pull request (§4.22, R76.4).
       if (script && github && delivery)
         try {
@@ -954,7 +974,11 @@ async function runTick(
         }
       // No new work for a spec driven elsewhere or being handed off, and
       // none for an away task (R66.6, R66.10, R66.11).
-      const held = driverHeldTaskIds(store),
+      // A task offered to worker machines runs there, not here (WP5).
+      const held = new Set([
+          ...driverHeldTaskIds(store),
+          ...offeredTaskIds(store),
+        ]),
         readOnly = readOnlyPlanIds(store);
       const requested = unobserved.length
           ? []
@@ -1009,7 +1033,7 @@ async function runTick(
       // sessions, and merge. Always on; writes only what changed.
       syncSpans(store);
       // Retrospectives (§4.11): one at a time, on the cron only.
-      const home = store.list("projects").find((p) => p.root),
+      const home = store.list("repositories").find((p) => p.root),
         retro =
           script && !unobserved.length
             ? retroStep(store, memory.value || {}, {
@@ -1049,6 +1073,7 @@ async function runTick(
         ...responders.filter((d) => !heldTask(d.task)),
         ...retro.dispatch,
         ...reviews.filter((d) => !heldTask(d.task)),
+        ...triage.dispatch,
       ];
       // Settings › Models: the planner, retro and review-draft chats open on
       // the saved model.

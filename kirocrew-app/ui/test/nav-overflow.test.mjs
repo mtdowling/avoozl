@@ -74,7 +74,7 @@ for (const [width, height] of [
       })()`)
       assert.deepEqual(pill, { first: true, cut: true, inMain: false })
       const lefts = {}
-      for (const section of ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings']) {
+      for (const section of ['Dashboards', 'Specs', 'Needs you', 'GitHub', 'Flow', 'Retros', 'Activity', 'Settings']) {
         if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
           await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await open(width, section)
@@ -194,6 +194,7 @@ const HOME_READS = new Set([
   'repositories.list',
   'github.settings.get',
   'untriaged.view',
+  'triage.view',
   'radar.releasequeue',
   'integration.view',
   'review.drafts',

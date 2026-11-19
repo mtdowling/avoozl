@@ -124,7 +124,7 @@ proposes; the person decides, as for every retro proposal (R47).
 
 | Old                                                   | After                                                        |
 | ----------------------------------------------------- | ------------------------------------------------------------ |
-| `landing.mode: "train"`, project `landing: "train"`   | Loads as `direct`                                            |
+| `landing.mode: "train"`, repository `landing: "train"`   | Loads as `direct`                                            |
 | `landing.trains.*`                                    | Loads, ignored                                               |
 | `machine.platforms`, `machine.slots`, `lease.*`       | Load, ignored                                                |
 | `avoozl integrator run|status`                        | One line naming `direct` landing                             |

@@ -1,5 +1,5 @@
-// Task 43.4 (R90.6, R102.14): claims end only by a settled verified result or
-// a person's release; quiet never releases, and a stale claim reaches Needs
+// Task 43.4 (R90.6, R102.14): grants end only by a settled verified result or
+// a person's release; quiet never releases, and a stale grant reaches Needs
 // you with the release offered.
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,18 +9,18 @@ import path from "node:path";
 import { appendRecord, githubJournal } from "../spec-journal.mjs";
 import { Store } from "../store.mjs";
 import {
-  claimBranch,
+  grantBranch,
   publishOffer,
   requestBody,
-  reserveClaims,
-} from "../worker-claims.mjs";
+  reserveGrants,
+} from "../worker-grants.mjs";
 import {
-  checkStaleClaims,
-  claimRows,
-  claimStaleMs,
-  claimStatus,
-  reconcileClaims,
-  releaseClaim,
+  checkStaleGrants,
+  grantRows,
+  grantStaleMs,
+  grantStatus,
+  reconcileGrants,
+  releaseGrant,
   staleNotices,
 } from "../worker-release.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -84,7 +84,7 @@ const driving = (w, journal, driver = D1) => ({
   owner: OWNER,
   login: "owner",
   spec: SPEC,
-  claims: "example/code",
+  grants: "example/code",
 });
 const offer = (journal, worker, driver = D1, task = "t1") =>
   publishOffer(
@@ -115,8 +115,8 @@ const ask = (w, login, generation = 1, task = "t1") =>
       requestBody({ spec: SPEC, task, definition: DEF, generation }),
     );
 
-// A claimed task: generation 1, one offer, one request, one acknowledgment.
-async function claimed() {
+// A granted task: generation 1, one offer, one request, one acknowledgment.
+async function granted() {
   const w = world(),
     journal = githubJournal(w.as("owner"), "example/plans", 1);
   await appendRecord(
@@ -132,53 +132,53 @@ async function claimed() {
   );
   await offer(journal, "worker-a");
   await ask(w, "worker-a");
-  const result = await reserveClaims({ ...driving(w, journal), base: "main" });
+  const result = await reserveGrants({ ...driving(w, journal), base: "main" });
   assert.equal(result.acknowledged.length, 1);
   return { w, journal };
 }
 const state = async (journal) =>
-  (await claimStatus(journal, OPTIONS, { now: T0 + 48 * HOUR }))[0];
+  (await grantStatus(journal, OPTIONS, { now: T0 + 48 * HOUR }))[0];
 
-test("a quiet claim turns stale and is never released by itself", async () => {
-  const { w, journal } = await claimed();
+test("a quiet grant turns stale and is never released by itself", async () => {
+  const { w, journal } = await granted();
   w.clock.now = T0 + 48 * HOUR;
   const row = await state(journal);
   assert.equal(row.stale, true);
   assert.equal(row.settled, false);
   // Every driver pass leaves it alone.
-  const pass = await reconcileClaims(driving(w, journal));
+  const pass = await reconcileGrants(driving(w, journal));
   assert.deepEqual([pass.carried, pass.settled], [[], []]);
-  const again = await reserveClaims({ ...driving(w, journal), base: "main" });
+  const again = await reserveGrants({ ...driving(w, journal), base: "main" });
   assert.deepEqual(again.acknowledged, []);
   assert.equal(w.branches.size, 1);
-  assert.equal((await claimStatus(journal, OPTIONS, {})).length, 1);
+  assert.equal((await grantStatus(journal, OPTIONS, {})).length, 1);
 });
 
-test("the stale limit is configurable and a recent claim is not stale", async () => {
-  assert.equal(claimStaleMs(undefined), 24 * HOUR);
-  assert.equal(claimStaleMs("90m"), 90 * 60_000);
-  assert.equal(claimStaleMs("2d"), 48 * HOUR);
-  assert.throws(() => claimStaleMs("soon"));
-  const { journal } = await claimed();
-  const rows = await claimStatus(journal, OPTIONS, {
+test("the stale limit is configurable and a recent grant is not stale", async () => {
+  assert.equal(grantStaleMs(undefined), 24 * HOUR);
+  assert.equal(grantStaleMs("90m"), 90 * 60_000);
+  assert.equal(grantStaleMs("2d"), 48 * HOUR);
+  assert.throws(() => grantStaleMs("soon"));
+  const { journal } = await granted();
+  const rows = await grantStatus(journal, OPTIONS, {
     now: T0 + 2 * HOUR,
-    staleAfter: claimStaleMs("1h"),
+    staleAfter: grantStaleMs("1h"),
   });
   assert.equal(rows[0].stale, true);
-  const fresh = await claimStatus(journal, OPTIONS, { now: T0 + HOUR / 2 });
+  const fresh = await grantStatus(journal, OPTIONS, { now: T0 + HOUR / 2 });
   assert.equal(fresh[0].stale, false);
-  // A worker seen later keeps the claim fresh.
-  const seen = await claimStatus(journal, OPTIONS, {
+  // A worker seen later keeps the grant fresh.
+  const seen = await grantStatus(journal, OPTIONS, {
     now: T0 + 30 * HOUR,
     seen: { t1: new Date(T0 + 29 * HOUR).toISOString() },
   });
   assert.equal(seen[0].stale, false);
 });
 
-test("only a person releases, only the owner, and the task can be claimed again", async () => {
-  const { w, journal } = await claimed(),
+test("only a person releases, only the owner, and the task can be granted again", async () => {
+  const { w, journal } = await granted(),
     release = (over = {}) =>
-      releaseClaim({
+      releaseGrant({
         ...driving(w, journal),
         task: "t1",
         by: { kind: "person" },
@@ -190,20 +190,20 @@ test("only a person releases, only the owner, and the task can be claimed again"
   const done = await release();
   assert.equal(done.task, "t1");
   assert.equal(w.branches.size, 0);
-  assert.deepEqual(await claimStatus(journal, OPTIONS, {}), []);
-  await assert.rejects(release(), /no active claim/);
-  // The released task is claimed afresh by another worker.
+  assert.deepEqual(await grantStatus(journal, OPTIONS, {}), []);
+  await assert.rejects(release(), /no active grant/);
+  // The released task is granted afresh by another worker.
   await offer(journal, "worker-b");
   await ask(w, "worker-b");
-  const next = await reserveClaims({ ...driving(w, journal), base: "main" });
+  const next = await reserveGrants({ ...driving(w, journal), base: "main" });
   assert.deepEqual(
     next.acknowledged.map((a) => a.task),
     ["t1"],
   );
 });
 
-test("a takeover carries the claim to the same worker and reissues nothing", async () => {
-  const { w, journal } = await claimed();
+test("a takeover carries the grant to the same worker and reissues nothing", async () => {
+  const { w, journal } = await granted();
   await appendRecord(
     journal,
     {
@@ -216,27 +216,27 @@ test("a takeover carries the claim to the same worker and reissues nothing", asy
     OPTIONS,
   );
   const second = driving(w, journal, D2);
-  assert.equal((await claimStatus(journal, OPTIONS, {}))[0].carried, true);
-  const pass = await reconcileClaims(second);
+  assert.equal((await grantStatus(journal, OPTIONS, {}))[0].carried, true);
+  const pass = await reconcileGrants(second);
   assert.deepEqual(pass.carried, ["t1"]);
-  const [row] = await claimStatus(journal, OPTIONS, {});
+  const [row] = await grantStatus(journal, OPTIONS, {});
   assert.equal(row.carried, false);
   assert.equal(row.generation, 2);
-  // Another worker asking now is refused: the claim is held, not reissued.
+  // Another worker asking now is refused: the grant is held, not reissued.
   await offer(journal, "worker-b", D2);
   await ask(w, "worker-b", 2);
-  const refused = await reserveClaims({ ...second, base: "main" });
+  const refused = await reserveGrants({ ...second, base: "main" });
   assert.deepEqual(refused.acknowledged, []);
   assert.deepEqual(
     refused.declined.map((d) => d.reason),
-    ["claimed"],
+    ["granted"],
   );
   // A second reconcile writes nothing more.
-  assert.deepEqual((await reconcileClaims(second)).carried, []);
+  assert.deepEqual((await reconcileGrants(second)).carried, []);
 });
 
-test("an accepted result settles its claim", async () => {
-  const { w, journal } = await claimed();
+test("an accepted result settles its grant", async () => {
+  const { w, journal } = await granted();
   await appendRecord(
     journal,
     {
@@ -249,32 +249,32 @@ test("an accepted result settles its claim", async () => {
     },
     OPTIONS,
   );
-  const result = await reconcileClaims(driving(w, journal));
+  const result = await reconcileGrants(driving(w, journal));
   assert.deepEqual(result.settled, ["t1"]);
   assert.equal(w.branches.size, 0);
-  assert.deepEqual(await claimStatus(journal, OPTIONS, {}), []);
+  assert.deepEqual(await grantStatus(journal, OPTIONS, {}), []);
 });
 
-test("Needs you shows a stale claim once, with Release claim offered", async () => {
-  const { journal } = await claimed(),
-    rows = await claimStatus(journal, OPTIONS, { now: T0 + 48 * HOUR }),
+test("Needs you shows a stale grant once, with Release grant offered", async () => {
+  const { journal } = await granted(),
+    rows = await grantStatus(journal, OPTIONS, { now: T0 + 48 * HOUR }),
     [notice] = staleNotices(rows, { spec: SPEC });
   assert.equal(notice.channel, "decision");
-  assert.match(notice.resume, /spec claims release demo t1/);
+  assert.match(notice.resume, /spec grants release demo t1/);
   assert.deepEqual(
-    staleNotices(claimRows({ claims: [], generation: 1, outcomes: [] }), {
+    staleNotices(grantRows({ grants: [], generation: 1, outcomes: [] }), {
       spec: SPEC,
     }),
     [],
   );
 
-  const root = temporaryDirectory("avoozl-claim-notice-"),
+  const root = temporaryDirectory("avoozl-grant-notice-"),
     { dbPath } = workspaceConfig({ workspace: root, env: {} });
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const store = new Store(dbPath);
   try {
     const run = (now) =>
-      checkStaleClaims(store, {
+      checkStaleGrants(store, {
         workspaceRoot: root,
         driving: [SPEC],
         now,

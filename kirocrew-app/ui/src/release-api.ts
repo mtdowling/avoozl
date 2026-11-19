@@ -148,7 +148,7 @@ export function releaseClient(api: AppApi) {
 
 export const STATE_LABEL: Record<RowState, string> = {
   released: 'Released',
-  claimed: 'Claimed',
+  claimed: 'In progress',
   next: 'Next',
   held: 'Held',
 }

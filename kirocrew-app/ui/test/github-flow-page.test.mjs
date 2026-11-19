@@ -27,7 +27,7 @@ test('the GitHub flow section shows the four stages and what was left out', { sk
     const text = await page.evaluate(`document.querySelector('[data-github-flow]').textContent`)
     assert.match(text, /2 issues · median lead time 1 h 45 min · flow efficiency 43%/)
     assert.match(text, /Left out for a missing or unordered time: #61/)
-    assert.equal(await page.evaluate(`document.querySelector('[data-flow-stage="Claim to PR"]').textContent.includes('Slowest')`), true)
+    assert.equal(await page.evaluate(`document.querySelector('[data-flow-stage="Start to PR"]').textContent.includes('Slowest')`), true)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth > document.documentElement.clientWidth`), false, `no sideways scroll at ${width}px`)
   }
 })

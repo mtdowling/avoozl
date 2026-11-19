@@ -43,28 +43,21 @@ test('what a source can set off, who counts, and where it comes from', () => {
   assert.equal(sourceTriggers(row('plugin:tracker'), PLUGINS).level, 'Full rules')
   assert.equal(sourceTriggers(row('plugin:mute'), PLUGINS).level, 'No rules')
   assert.equal(sourceTriggers(row('mcp'), PLUGINS).level, 'Untriaged only')
-  assert.equal(whoCounts({ via: 'plugin:tracker' }), 'Anyone with write or higher (default)')
-  assert.equal(whoCounts({ via: 'plugin:tracker', minimumPermission: 'triage' }), 'Anyone with triage or higher')
-  assert.equal(whoCounts({ via: 'plugin:tracker', allowedActors: ['sam', 'riley'] }), 'sam, riley')
-  assert.match(whoCounts({ via: 'mcp' }), /Not used/)
+  // Who counts is the repository's setting, carried on the row.
+  const who = (via, value) => whoCounts({ id: 'x', scope: 'machine', error: null, entry: { via }, who: value })
+  assert.equal(who('plugin:tracker', null), 'Anyone with write or higher')
+  assert.equal(who('plugin:tracker', { allowedActors: [], minimumPermission: 'triage' }), 'Anyone with triage or higher')
+  assert.equal(who('plugin:tracker', { allowedActors: ['sam', 'riley'], minimumPermission: null }), 'sam, riley')
+  assert.match(who('mcp', null), /Not used/)
   assert.equal(viaLabel('plugin:tracker'), 'Plugin tracker')
   assert.match(viaLabel('mcp'), /^MCP/)
   assert.equal(sourceTriggers(row('github'), PLUGINS).level, 'Full rules')
   assert.match(viaLabel('github'), /^GitHub/)
-  assert.equal(whoCounts({ via: 'github', minimumPermission: 'write' }), 'Anyone with write or higher')
 })
 
-test('the form saves who counts for a plugin only, and names the field to fix', () => {
+test('the form saves no who counts, and names the field to fix', () => {
   const form = { ...emptySourceForm(), id: 'tickets', via: 'plugin:tracker', repository: 'o/app' }
-  assert.deepEqual(sourceEntry({ ...form, minimumPermission: 'triage' }, []).entry, { via: 'plugin:tracker', repository: 'o/app', minimumPermission: 'triage' })
-  assert.deepEqual(sourceEntry({ ...form, who: 'people', allowedActors: 'sam, riley', minimumPermission: 'triage' }, []).entry, {
-    via: 'plugin:tracker',
-    repository: 'o/app',
-    allowedActors: ['sam', 'riley'],
-  })
-  assert.equal(sourceEntry({ ...form, who: 'people' }, []).field, 'allowedActors')
-  // An MCP caller is the owner: who counts is never saved for it.
-  assert.deepEqual(sourceEntry({ ...form, via: 'mcp', who: 'people', allowedActors: 'sam', minimumPermission: 'admin' }, []).entry, { via: 'mcp', repository: 'o/app' })
+  assert.deepEqual(sourceEntry(form, []).entry, { via: 'plugin:tracker', repository: 'o/app' })
   assert.equal(sourceEntry({ ...form, id: '' }, []).field, 'id')
   assert.equal(sourceEntry({ ...form, repository: '' }, []).field, 'repository')
 })
@@ -72,7 +65,7 @@ test('the form saves who counts for a plugin only, and names the field to fix', 
 test('the form uses the shared Modal and radio fold-out, and status lives in one place', () => {
   const page = source('IntakeSources.tsx')
   assert.match(page, /<Modal(\s+close)?\s+id="avoozl-intake-add"/)
-  for (const name of ['intake-via', 'intake-who', 'intake-scope']) assert.match(page, new RegExp(`<RadioFold\\s+name="${name}"`))
+  for (const name of ['intake-via', 'intake-scope']) assert.match(page, new RegExp(`<RadioFold\\s+name="${name}"`))
   assert.doesNotMatch(page, /<select[^>]*>\s*<option value="mcp">/, 'Comes from is a radio choice, not a select')
   assert.match(page, /<Tooltip text=\{SCOPE_TIP\[scope\]\}>/, 'tooltips are the shared Tooltip')
   // The Intake tab shows only a source's error and points to Settings.

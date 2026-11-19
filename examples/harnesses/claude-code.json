@@ -24,8 +24,8 @@
   "promptFrom": "stdin",
   "model": ["--model", "{model}"],
   "permission": { "write": "acceptEdits", "read": "dontAsk" },
-  "writeRoots": ["{worktree}", "{tmp}", "{project_cache_dirs}"],
-  "allow": ["--allowedTools", "Bash({project_allow_commands}:*)"],
+  "writeRoots": ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
+  "allow": ["--allowedTools", "Bash({repository_allow_commands}:*)"],
   "resultAllow": [
     "--allowedTools",
     "Edit(.avoozl/result.json)",

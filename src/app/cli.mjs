@@ -70,7 +70,7 @@ const RETIRED_LANDING =
 
 // One line per base for `landing status`.
 const landingStatusLine = (b) =>
-  `${b.repository ?? b.projectId} ${b.base}: ${b.items.length} waiting` +
+  `${b.repository ?? b.repositoryId} ${b.base}: ${b.items.length} waiting` +
   (b.testing
     ? `, testing ${b.testing.members.length} (${b.testing.step})`
     : "") +
@@ -603,7 +603,9 @@ try {
           "plugin.pack.preview",
           {
             id,
-            ...(options.repo ? { repositories: [options.repo].flat() } : {}),
+            ...(options.github
+              ? { repositories: [options.github].flat() }
+              : {}),
           },
         ],
         "pack-import": () => [
@@ -611,7 +613,9 @@ try {
           {
             id,
             previewHash: options.preview,
-            ...(options.repo ? { repositories: [options.repo].flat() } : {}),
+            ...(options.github
+              ? { repositories: [options.github].flat() }
+              : {}),
             acceptLowered: Boolean(options["accept-lowered"]),
             confirmPublic: Boolean(options["confirm-public"]),
           },
@@ -748,11 +752,9 @@ try {
         await localOrRequest("repository.setup", {
           repository: need(
             positionals[0],
-            "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+            "setup OWNER/REPO --repo ID [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
           ),
-          project: options.project,
-          base: options.base,
-          checks: list(options.checks),
+          repositoryId: options.repo,
           methods: list(options.methods),
           landing: options.landing,
           confirm: Boolean(options.yes),
@@ -998,15 +1000,15 @@ try {
         2,
       ),
     );
-  } else if (command === "claim") {
-    // A manual claim is a person's: not from an agent the supervisor started.
+  } else if (command === "take") {
+    // Taking a task by hand is a person's: not from an agent the supervisor started.
     if (process.env.AVOOZL_CHILD)
       throw Error(
-        "A claim is a person's. This command is running inside an agent the supervisor started.",
+        "Taking a task is a person's. This command is running inside an agent the supervisor started.",
       );
     console.log(
       JSON.stringify(
-        await localOrRequest("runner.claim", {
+        await localOrRequest("runner.take", {
           taskId: positionals[0],
           ...(options.release ? { release: true } : {}),
           ...(options.discard ? { discard: true } : {}),
@@ -1086,19 +1088,12 @@ try {
       operation = "github.configure";
       value = {
         repository: options.repository || positionals[1],
-        projectId: options.project,
+        repositoryId: options.repo,
         assignee: options.assignee,
-        label: options.label,
-        managedLabel: options["managed-label"],
         provider: options.provider,
         model: options.model,
         autoStart: options["auto-start"],
         active: !options.inactive,
-        minimumPermission: options.permission,
-        allowedActors: options["allowed-actors"]
-          ?.split(",")
-          .map((entry) => entry.trim())
-          .filter(Boolean),
       };
     } else if (action === "setup") {
       // Preview first; rerun with --confirm --preview-hash HASH to write.
@@ -1160,13 +1155,13 @@ try {
     );
   } else if (
     command === "spec" &&
-    ["offer", "claims"].includes(positionals[0])
+    ["offer", "grants"].includes(positionals[0])
   ) {
-    // The driver offers a task to a worker login and reserves the claims its
+    // The driver offers a task to a worker login and reserves the grants its
     // workers ask for (R90.4): each a person's own act at this machine.
-    // `spec claims release SPEC TASK` and `spec claims status SPEC`.
+    // `spec grants release SPEC TASK` and `spec grants status SPEC`.
     const sub =
-        positionals[0] === "claims" &&
+        positionals[0] === "grants" &&
         ["release", "status"].includes(positionals[1])
           ? positionals.splice(1, 1)[0]
           : null,
@@ -1174,7 +1169,7 @@ try {
     console.log(
       JSON.stringify(
         await localOrRequest(
-          sub ? `spec.claims.${sub}` : `spec.${positionals[0]}`,
+          sub ? `spec.grants.${sub}` : `spec.${positionals[0]}`,
           sub === "status"
             ? { planId }
             : sub === "release"
@@ -1182,9 +1177,9 @@ try {
                   planId,
                   task: need(
                     positionals[2],
-                    "spec claims release SPEC TASK --claims OWNER/REPO",
+                    "spec grants release SPEC TASK --grants OWNER/REPO",
                   ),
-                  claims: need(options.claims, "--claims OWNER/REPO"),
+                  grants: need(options.grants, "--grants OWNER/REPO"),
                 }
               : positionals[0] === "offer"
                 ? {
@@ -1204,9 +1199,9 @@ try {
                   }
                 : {
                     planId,
-                    claims: need(
-                      options.claims,
-                      "spec claims SPEC --claims OWNER/REPO --base BRANCH [--cap N]",
+                    grants: need(
+                      options.grants,
+                      "spec grants SPEC --grants OWNER/REPO --base BRANCH [--cap N]",
                     ),
                     base: need(options.base, "--base BRANCH"),
                     ...(options.cap ? { cap: Number(options.cap) } : {}),
@@ -1280,13 +1275,13 @@ try {
         2,
       ),
     );
-  } else if (command === "project") {
+  } else if (command === "repository") {
     const action = positionals[0],
       provided = input();
-    if (action !== "configure") throw Error("Choose project configure.");
+    if (action !== "configure") throw Error("Choose repository configure.");
     console.log(
       JSON.stringify(
-        await localOrRequest("project.configure", {
+        await localOrRequest("repository.configure", {
           ...provided,
           id: options.id || positionals[1] || provided.id,
           root: options.root || provided.root,
@@ -1498,7 +1493,7 @@ try {
               : `${anchor.lineStart}-${anchor.lineEnd}`,
           where = `${anchor.file}:${lines}${anchor.moved ? " (moved or removed)" : ""}`;
         console.log(
-          `${finding.id} ${where} ${finding.severity} ${finding.findingState} ${finding.category}: ${finding.claim}\n  Evidence: ${finding.evidence}${finding.answer ? "\n  Planner: " + finding.answer.action + " " + finding.answer.text : ""}`,
+          `${finding.id} ${where} ${finding.severity} ${finding.findingState} ${finding.category}: ${finding.statement}\n  Evidence: ${finding.evidence}${finding.answer ? "\n  Planner: " + finding.answer.action + " " + finding.answer.text : ""}`,
         );
       }
     }
@@ -1731,6 +1726,21 @@ try {
     } finally {
       store.close();
     }
+  } else if (command === "fix") {
+    const result =
+      positionals[0] === "spec"
+        ? await localOrRequest("fix.spec", {
+            taskId: need(positionals[1], "fix spec TASK_ID"),
+          })
+        : await localOrRequest("fix.start", {
+            text: need(positionals.join(" ").trim(), 'fix "TEXT" --repo ID'),
+            repository: need(options.repo, 'fix "TEXT" --repo ID'),
+          });
+    console.log(
+      result.spec
+        ? `${result.taskId} is now spec ${result.spec} (${result.folder}); the fix is archived.`
+        : `Started ${result.taskId}.`,
+    );
   } else if (command === "show") {
     const id = need(positionals[0], "show TASK_ID");
     // A pull request review a `process` child wrote (NK4.4).

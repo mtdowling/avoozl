@@ -133,7 +133,7 @@ function setup(t, { paths, checks, flow } = {}) {
     ],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
@@ -165,7 +165,7 @@ async function committed(store, ops, files) {
     task = store.read().tasks.find((x) => x.id === "a");
   queueCheckRun(store, {
     task,
-    project: store.get("projects", "app"),
+    repository: store.get("repositories", "app"),
     commit,
     attempt: checkRuns(store).length + 1,
   });
@@ -261,7 +261,7 @@ test("a file outside declared paths runs no check; a protected path waits for a 
   assert.deepEqual([delivery.state, delivery.cause], ["done", undefined]);
   queueCheckRun(store, {
     task: store.read().tasks[0],
-    project: store.get("projects", "app"),
+    repository: store.get("repositories", "app"),
     commit,
     attempt: 2,
   });

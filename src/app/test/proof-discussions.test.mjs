@@ -30,7 +30,7 @@ class DiscussionsGitHub extends FakeGitHub {
       number,
       url: `https://example.test/${REPO}/discussions/${number}`,
       title: "How do I build it?",
-      body: "Which command builds the project?",
+      body: "Which command builds the repository?",
       closed: false,
       locked: false,
       isAnswered: false,
@@ -80,7 +80,7 @@ function workspace(t, { discussions } = {}) {
       },
     }),
   );
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: checkout,
     baseBranch: "main",
@@ -90,7 +90,7 @@ function workspace(t, { discussions } = {}) {
     id: REPO,
     owner: "example",
     repo: "code",
-    projectId: "code",
+    repositoryId: "code",
   });
   const ops = new Operations(store, { github, workspaceRoot: root }),
     tick = (sessions = []) => ops.execute("workspace.tick", { sessions }),

@@ -64,7 +64,7 @@ export function driverState(replay) {
     controls: new Map(),
     intents: new Map(),
     offers: [],
-    claims: [],
+    grants: [],
     released: [],
     voided: new Set(),
     outcomes: [],
@@ -87,17 +87,17 @@ export function driverState(replay) {
     else if (record.kind === "intent")
       state.intents.set(record.op, { id, ...record });
     else if (record.kind === "offer") state.offers.push({ id, ...record });
-    else if (record.kind === "claim" && record.released) {
-      // The claim on that task ends; its claim ref is the driver's to delete.
+    else if (record.kind === "grant" && record.released) {
+      // The grant on that task ends; its grant ref is the driver's to delete.
       const task = record.tasks[0].task;
-      state.claims = state.claims.filter((c) => c.tasks[0].task !== task);
+      state.grants = state.grants.filter((c) => c.tasks[0].task !== task);
       state.released.push({ id, at, ...record });
-    } else if (record.kind === "claim") {
-      // The latest claim on a task stands: a carried claim replaces the one
+    } else if (record.kind === "grant") {
+      // The latest grant on a task stands: a carried grant replaces the one
       // an earlier generation wrote.
       const task = record.tasks[0].task;
-      state.claims = state.claims.filter((c) => c.tasks[0].task !== task);
-      state.claims.push({ id, at, ...record });
+      state.grants = state.grants.filter((c) => c.tasks[0].task !== task);
+      state.grants.push({ id, at, ...record });
     } else if (record.kind === "void") state.voided.add(record.voids);
     else if (record.kind === "outcome")
       for (const entry of record.outcomes) {

@@ -26,7 +26,7 @@ function titleFor(t, attempt) {
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   store.importSnapshot({ ...snapshot(), tasks: [leaf], edges: [] });
-  store.put("projects", { id: "app", root, baseBranch: "main" });
+  store.put("repositories", { id: "app", root, baseBranch: "main" });
   const at = new Date().toISOString(),
     slot = `w-${attempt}`;
   store.put("session_bindings", {

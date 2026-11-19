@@ -67,15 +67,6 @@ test("unified repositories preserve legacy execution and GitHub records", async 
     editable: true,
     issueAuthorization: true,
     assignee: "operator",
-    allowedActors: ["maintainer"],
-    readyLabel: "team:ready",
-    managedLabel: "team:managed",
-    labelBehaviors: {
-      ready: ["team:ready"],
-      blocked: ["team:blocked"],
-      review: ["team:review"],
-      quarantined: ["team:quarantined"],
-    },
     checks: [["npm", "test"]],
   });
 
@@ -83,30 +74,25 @@ test("unified repositories preserve legacy execution and GitHub records", async 
   assert.equal(configured.github, "example/compiler");
   assert.equal(configured.planning, true);
   assert.equal(configured.issueAuthorization.enabled, true);
-  assert.deepEqual(configured.labels.ready, ["team:ready"]);
   assert.equal(
-    store.get("projects", "compiler").root,
+    store.get("repositories", "compiler").root,
     fs.realpathSync.native(checkout),
   );
   assert.equal(
     store.get("github_repositories", "example/compiler").workspaceRepositoryId,
     "compiler",
   );
-  assert.deepEqual(github.labels, ["team:ready", "team:managed"]);
+  assert.deepEqual(github.labels, ["avoozl:ready", "avoozl:managed"]);
 
   const saved = JSON.parse(
     fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
   );
-  assert.equal(saved.projects.compiler.planning, true);
+  assert.equal(saved.repositories.compiler.planning, true);
   // Repository setup's "issues here" writes a GitHub source (R110.3).
   assert.equal(saved.github, undefined);
   assert.equal(
-    saved.intake.sources["github-example-compiler"].project,
+    saved.intake.sources["github-example-compiler"].executionRepository,
     "compiler",
-  );
-  assert.equal(
-    saved.intake.sources["github-example-compiler"].managedLabel,
-    "team:managed",
   );
 
   await operations.execute("repositories.remove", { id: "compiler" });
@@ -115,18 +101,18 @@ test("unified repositories preserve legacy execution and GitHub records", async 
     JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8")).intake,
     undefined,
   );
-  assert.equal(store.get("projects", "compiler"), null);
+  assert.equal(store.get("repositories", "compiler"), null);
   assert.equal(store.get("github_repositories", "example/compiler"), null);
 });
 
-test("a project with a GitHub repository projects as one repository", (t) => {
+test("a repository with a GitHub repository projects as one repository", (t) => {
   const { store } = fixture(t),
     operations = new Operations(store);
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     name: "Code",
     root: "/tmp/code",
-    repository: "example/code",
+    github: "example/code",
     baseBranch: "main",
     checks: [],
   });

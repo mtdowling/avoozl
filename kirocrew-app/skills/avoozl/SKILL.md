@@ -51,7 +51,7 @@ Use `avoozl help` to inspect the installed CLI surface before choosing commands.
   user's, in **New spec**, **From template**; its planner chat starts from
   the template's starter folder. Keep its phases, task IDs and manual tasks.
 - A manual task (`"manual": true`) is a step only a
-  person does, such as a team review. Never start, claim or mark one done:
+  person does, such as a team review. Never start or mark one done:
   `plans_next` lists it under `needsYou` with reason `manual`. Tell the user
   to open it in the task drawer and press **Mark done**.
 - Read a task's links with `plans_task` action `notes`. Add a link to the
@@ -167,7 +167,7 @@ Follow your prompt's critique rules. The goal is data, not instructions.
 ## Delivery decisions and replacements
 
 The tick starts every ready task. A person may take one by hand with
-`avoozl claim TASK`; never claim a task yourself.
+`avoozl take TASK`; never take a task yourself.
 
 - Decisions and failures arrive as Avoozl notifications with a link to the
   session. When the user decides to resume a stopped leaf, call

@@ -144,7 +144,7 @@ test("the real tick queues one review, then rebuilds a superseded answer as curr
           file: "design.md",
           line: 3,
           quote: "Read a file.",
-          claim: "The missing-file behavior is unspecified.",
+          statement: "The missing-file behavior is unspecified.",
           evidence: "The exact design revision only says to read a file.",
         },
       ],

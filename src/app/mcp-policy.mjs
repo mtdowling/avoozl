@@ -10,7 +10,7 @@ const APP = " Do it in the Avoozl app.";
 const person = (reason, when) => ({ reason: reason + APP, when });
 
 export const PERSON_ONLY = new Map([
-  ["runner.claim", person("Only a person claims a task by hand.")],
+  ["runner.take", person("Only a person takes a task by hand.")],
   [
     "delivery.runner.release",
     person("Only a person lets the tick run this workspace."),
@@ -37,9 +37,9 @@ export const PERSON_ONLY = new Map([
   ["spec.publish", person("Only a person publishes a spec issue.")],
   ["spec.takeover", person("Only a person takes over a spec.")],
   ["spec.offer", person("Only a person offers a task to a worker.")],
-  ["spec.claims", person("Only a person reserves worker claims.")],
-  ["spec.claims.release", person("Only a person releases a worker claim.")],
-  ["spec.claims.status", person("Only a person reads worker claims.")],
+  ["spec.grants", person("Only a person reserves worker accepts.")],
+  ["spec.grants.release", person("Only a person releases a worker accept.")],
+  ["spec.grants.status", person("Only a person reads worker accepts.")],
   [
     "repository.setup",
     person("Only a person applies repository setup.", (input) =>
@@ -119,8 +119,8 @@ export const PERSON_ONLY = new Map([
   ["github.setup.cancel", person("Only a person cancels a GitHub setup.")],
   ["github.configure", person("Only a person changes GitHub setup.")],
   [
-    "github.project.connect",
-    person("Only a person connects a GitHub Project."),
+    "github.repository.connect",
+    person("Only a person connects a repository to GitHub."),
   ],
   [
     "github.settings.update",
@@ -209,6 +209,23 @@ export const PERSON_ONLY = new Map([
     person("Only a person adds crew:avoozl to old task issues."),
   ],
   ["review.chat", person("Only a person starts a code review chat.")],
+  ["fix.start", person("Only a person starts a fix; starting it approves it.")],
+  ["fix.spec", person("Only a person makes a fix a spec.")],
+  [
+    "items.act",
+    person(
+      "Only a person acts on an issue or pull request: approve, request changes, close, label or comment.",
+    ),
+  ],
+  ["triage.pause", person("Only a person pauses the triage agent.")],
+  ["triage.resume", person("Only a person resumes the triage agent.")],
+  ["triage.stop", person("Only a person stops the triage agent.")],
+  ["triage.start", person("Only a person starts the triage agent again.")],
+  ["triage.owner.done", person("Only a person settles an owner queue item.")],
+  [
+    "triage.settings",
+    person("Only a person changes the triage agent's settings."),
+  ],
   ["untriaged.plan", person("Only a person presses Plan this on an issue.")],
   [
     "intake.deliver",
@@ -229,8 +246,11 @@ export const PERSON_ONLY = new Map([
     person("Only a person adds or changes a repository."),
   ],
   ["repositories.remove", person("Only a person removes a repository.")],
-  ["project.configure", person("Only a person adds or changes a repository.")],
-  ["project.remove", person("Only a person removes a repository.")],
+  [
+    "repository.configure",
+    person("Only a person adds or changes a repository."),
+  ],
+  ["repository.remove", person("Only a person removes a repository.")],
   [
     "workspace.repository.configure",
     person("Only a person sets the workspace repository."),
@@ -256,6 +276,10 @@ const page = "App page rendering only.";
 const remote =
   "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.";
 export const NOT_ON_MCP = new Map([
+  ...["items.list", "items.detail", "triage.view"].map((name) => [
+    name,
+    "The GitHub pages' reads; the triage agent's session gets its snapshot instead.",
+  ]),
   [
     "review.chat.show",
     "A person reads a stored pull request review with avoozl show.",
@@ -265,7 +289,7 @@ export const NOT_ON_MCP = new Map([
     "remote.report",
     "remote.view",
     "worker.pull",
-    "worker.claim",
+    "worker.accept",
     "worker.setup",
   ].map((name) => [name, remote]),
   ...["instance.view", "instance.rename"].map((name) => [

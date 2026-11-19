@@ -17,6 +17,7 @@
 // - Check state carries the head SHA it was read for and its read time. It
 //   is `current` only when that head is the task's current commit; any
 //   other head shows as "stale", never as its old state.
+import { fixIssue } from "./fix.mjs";
 import { branchNameProblem } from "./integration-branch.mjs";
 
 const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
@@ -59,11 +60,13 @@ const ms = (value) => {
   return Number.isFinite(at) ? at : null;
 };
 
-// The GitHub repository a project ID or an owner/name names, or null.
+// The GitHub repository a repository ID or an owner/name names, or null.
 function resolver(store) {
-  const projects = new Map(listOr(store, "projects").map((p) => [p.id, p]));
+  const repositories = new Map(
+    listOr(store, "repositories").map((p) => [p.id, p]),
+  );
   return (value) =>
-    repositoryOf(projects.get(value)?.repository) ?? repositoryOf(value);
+    repositoryOf(repositories.get(value)?.github) ?? repositoryOf(value);
 }
 
 function linker(host) {
@@ -253,7 +256,7 @@ function taskSet(rows, links, task, now) {
     entry = landingOf(rows, task.id),
     repository =
       rows.resolve(worktree?.repository) ??
-      rows.resolve(entry?.projectId) ??
+      rows.resolve(entry?.repositoryId) ??
       rows.resolve(task.repository) ??
       null,
     branchRef = refOf(worktree?.branch),
@@ -312,7 +315,7 @@ function taskSet(rows, links, task, now) {
       null,
     source:
       issueLink(links, task.intake?.issue, rows.resolve) ??
-      issueLink(links, task.fix?.issue, rows.resolve) ??
+      issueLink(links, fixIssue(task), rows.resolve) ??
       null,
   };
 }

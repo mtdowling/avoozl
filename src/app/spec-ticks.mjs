@@ -122,11 +122,11 @@ export async function tickEntry(store, dir, entry) {
 // the API) is not written; add a contents write when such a spec needs it.
 export async function tickPlansRepo(
   store,
-  { entry, candidate, project, workspaceRoot, env },
+  { entry, candidate, repository, workspaceRoot, env },
 ) {
   const plan = store.get("plans", entry.spec);
   if (!plan?.spec) return null;
-  const inCode = await git(project.root, [
+  const inCode = await git(repository.root, [
     "cat-file",
     "-e",
     `${candidate}:${tasksPath(plan.spec)}`,
@@ -139,18 +139,18 @@ export async function tickPlansRepo(
     roots = [
       store.getMeta("workspaceRepository")?.root,
       ...store
-        .list("projects")
+        .list("repositories")
         .filter((p) => p.planning && p.root)
         .map((p) => p.root),
       workspaceRoot,
     ].filter(
       (root, i, all) =>
-        root && root !== project.root && all.indexOf(root) === i,
+        root && root !== repository.root && all.indexOf(root) === i,
     );
   for (const root of roots) {
     const branch =
       mirrorOf(policy)?.plansBranch ??
-      store.list("projects").find((p) => p.root === root)?.baseBranch ??
+      store.list("repositories").find((p) => p.root === root)?.baseBranch ??
       "main";
     const out = await tickBranch(root, {
       branch,

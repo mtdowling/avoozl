@@ -5,30 +5,32 @@ import { flowPolicy, listOr } from "./flow.mjs";
 const lower = (value) => String(value || "").toLowerCase();
 
 function repositoryNames(store) {
-  const projects = listOr(store, "projects"),
+  const repositories = listOr(store, "repositories"),
     observed = listOr(store, "github_repositories");
   return {
     matches(repository, value) {
       if (lower(repository) === lower(value)) return true;
-      const project = projects.find((row) => row.id === value);
-      if (project?.repository)
-        return lower(project.repository) === lower(repository);
+      const registered = repositories.find((row) => row.id === value);
+      if (registered?.github)
+        return lower(registered.github) === lower(repository);
       return observed.some(
-        (row) => row.projectId === value && lower(row.id) === lower(repository),
+        (row) =>
+          row.repositoryId === value && lower(row.id) === lower(repository),
       );
     },
     pickerId(repository) {
       return (
-        projects.find((row) => lower(row.repository) === lower(repository))
+        repositories.find((row) => lower(row.github) === lower(repository))
           ?.id ??
         observed.find(
           (row) =>
             lower(row.id) === lower(repository) &&
-            row.projectId &&
-            !projects.some(
-              (project) => project.id === row.projectId && project.repository,
+            row.repositoryId &&
+            !repositories.some(
+              (registered) =>
+                registered.id === row.repositoryId && registered.github,
             ),
-        )?.projectId ??
+        )?.repositoryId ??
         repository
       );
     },
@@ -36,7 +38,7 @@ function repositoryNames(store) {
 }
 
 // Add CI-only repositories without renaming the task filter's existing values
-// or adding a GitHub-name alias for a project already in the picker.
+// or adding a GitHub-name alias for a repository already in the picker.
 export function ciRepositoryPickerIds(store, policy, existing = []) {
   const names = repositoryNames(store);
   return [

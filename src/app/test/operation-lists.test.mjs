@@ -9,7 +9,11 @@ import { NOT_ON_MCP, PERSON_ONLY } from "../mcp-policy.mjs";
 
 const read = (name) =>
   fs.readFileSync(new URL(`../${name}`, import.meta.url), "utf8");
-const HANDLER_FILES = ["operations.mjs", "retro-operations.mjs"];
+const HANDLER_FILES = [
+  "operations.mjs",
+  "retro-operations.mjs",
+  "triage-operations.mjs",
+];
 const handlerText = HANDLER_FILES.map(read).join("\n");
 const listed = (name) => Boolean(classifyOperation(name));
 const NAME = /^[a-z][A-Za-z0-9]*(\.[A-Za-z0-9]+)*$/;

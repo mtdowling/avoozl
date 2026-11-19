@@ -32,7 +32,7 @@
   "promptFrom": "stdin",
   "model": ["--model", "{model}"],
   "permission": { "write": "danger-full-access", "read": "read-only" },
-  "writeRoots": ["{worktree}", "{tmp}", "{project_cache_dirs}"],
+  "writeRoots": ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
   "keepEnv": ["OPENAI_API_KEY", "CODEX_API_KEY"],
   "reads": ["~/.codex"],
   "proved": ["write"]

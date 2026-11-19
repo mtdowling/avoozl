@@ -13,7 +13,7 @@ import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
-const PROJECT = { id: "app", root: "/tmp/app", baseBranch: "main" };
+const REPOSITORY = { id: "app", root: "/tmp/app", baseBranch: "main" };
 const TASK = { id: "a", title: "Task a", acceptance: ["Works."] };
 
 // An instruction to publish: push, open or edit a pull request, merge,
@@ -40,13 +40,13 @@ function editsAndReportsOnly(text, label, { boundary = true } = {}) {
 
 test("worker briefs say edit, commit and report, never push, merge or comment", () => {
   editsAndReportsOnly(
-    workerBrief(TASK, PROJECT, { attempt: 1 }) + "\n" + rolePrompt("worker"),
+    workerBrief(TASK, REPOSITORY, { attempt: 1 }) + "\n" + rolePrompt("worker"),
     "local",
   );
   editsAndReportsOnly(
-    workerBrief(TASK, PROJECT, {
+    workerBrief(TASK, REPOSITORY, {
       attempt: 1,
-      steps: localSteps(TASK, PROJECT, { relay: true }),
+      steps: localSteps(TASK, REPOSITORY, { relay: true }),
     }),
     "relay",
   );
@@ -94,7 +94,7 @@ function setup(t) {
     ],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",

@@ -1,4 +1,4 @@
-// One isolation setting per repository, used for its checks. A project's
+// One isolation setting per repository, used for its checks. A repository's
 // `isolation` is {run, image, network, readable, writable, prepare}:
 //
 //   run       "sandbox" (the default): the process sandbox (sandbox.mjs)
@@ -16,6 +16,7 @@
 //             outside isolation, with the checks' environment allowlist.
 //
 // Every check record names the isolation it ran under.
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -104,9 +105,9 @@ export function isolationSetting(value, label = "isolation") {
   };
 }
 
-// A project's isolation with its defaults.
-export const isolationOf = (project) =>
-  isolationSetting(project?.isolation ?? {}, "isolation");
+// A repository's isolation with its defaults.
+export const isolationOf = (repository) =>
+  isolationSetting(repository?.isolation ?? {}, "isolation");
 
 // Whether this machine lets checks run unconfined (the per-machine opt-in
 // file harness opt-ins use).
@@ -139,12 +140,12 @@ export function containerRuntime() {
 
 // The repository's cache folder for its checks: under Avoozl's state area,
 // beside the state folder a check must not reach.
-export function checkCacheDirectory(projectId, stateDirectory) {
+export function checkCacheDirectory(repositoryId, stateDirectory) {
   const state = stateDirectory ?? machineAvoozlPaths().stateDirectory;
   return path.join(
     path.dirname(path.resolve(state)),
     "avoozl-check-cache",
-    String(projectId || "repository").replace(/[^A-Za-z0-9._-]/g, "_"),
+    String(repositoryId || "repository").replace(/[^A-Za-z0-9._-]/g, "_"),
   );
 }
 
@@ -152,7 +153,7 @@ export function checkCacheDirectory(projectId, stateDirectory) {
 // process to start, or {refused} when the setting cannot run here. `env`
 // is the checks' allowlisted environment.
 export function isolatedCheck(
-  project,
+  repository,
   dir,
   argv,
   env,
@@ -162,7 +163,7 @@ export function isolatedCheck(
     paths: machine = machineAvoozlPaths(),
   } = {},
 ) {
-  const setting = isolationOf(project),
+  const setting = isolationOf(repository),
     configDirectory = machine.configDirectory;
   if (setting.run === "container") {
     const tool = typeof runtime === "function" ? runtime() : runtime;
@@ -208,7 +209,7 @@ export function isolatedCheck(
     return { argv: [...argv], env, isolation: "unconfined" };
   }
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-check-tmp-")),
-    cache = checkCacheDirectory(project?.id, machine.stateDirectory);
+    cache = checkCacheDirectory(repository?.id, machine.stateDirectory);
   fs.mkdirSync(cache, { recursive: true });
   const confined = confineChild(argv, {
     definition: { name: "checks", hash: "" },
@@ -239,9 +240,9 @@ export function isolatedCheck(
 
 // The commandEvidence options for a repository check in `dir`: its
 // environment allowlist and its isolation.
-export const checkOptions = (project, dir) => ({
-  env: project?.checksEnv,
-  isolate: (argv, env) => isolatedCheck(project, dir, argv, env),
+export const checkOptions = (repository, dir) => ({
+  env: repository?.checksEnv,
+  isolate: (argv, env) => isolatedCheck(repository, dir, argv, env),
 });
 
 const prepared = new Set();
@@ -249,16 +250,57 @@ const prepared = new Set();
 // isolation, with the checks' environment allowlist. Returns null when
 // there is nothing to run (or it already ran here), else its result; a
 // failed prepare runs again next time.
-export async function prepareChecks(project, dir, { run } = {}) {
-  const setting = isolationOf(project);
+export async function prepareChecks(repository, dir, { run } = {}) {
+  const setting = isolationOf(repository);
   if (!setting.prepare) return null;
   const { commandEvidence, git } = await import("./git.mjs"),
     head = await git(dir, ["rev-parse", "HEAD"]).catch(() => ""),
-    key = [project?.id, path.resolve(dir), head, ...setting.prepare].join("\0");
+    key = [repository?.id, path.resolve(dir), head, ...setting.prepare].join(
+      "\0",
+    );
   if (prepared.has(key)) return null;
   const result = await (run ?? commandEvidence)(dir, setting.prepare, {
-    env: project?.checksEnv,
+    env: repository?.checksEnv,
   });
   if (result.exitCode === 0) prepared.add(key);
   return result;
+}
+
+// How long the visibility probe may take: the first run pulls the image.
+const PROBE_TIMEOUT_MS = 300_000;
+// Exit codes the probe's own command gives: found, or not there.
+const PROBE_EXITS = new Set([0, 1]);
+
+// Why a container check in `dir` would run against an empty folder, or
+// null. A folder the container VM does not share (on a Mac, Colima's
+// mounts) mounts empty, so a file Avoozl writes there with random content
+// must read back the same inside the container setup the checks use. A
+// probe that cannot start, or a runtime error, is left to the checks to
+// report. `run` is commandEvidence or a test's fake.
+export async function containerBlindness(
+  repository,
+  dir,
+  { run, env = repository?.checksEnv } = {},
+) {
+  if (isolationOf(repository).run !== "container") return null;
+  const name = `.avoozl-probe-${crypto.randomBytes(8).toString("hex")}`,
+    file = path.join(dir, name),
+    content = crypto.randomBytes(16).toString("hex");
+  fs.writeFileSync(file, content);
+  try {
+    const result = await (run ?? (await import("./git.mjs")).commandEvidence)(
+      dir,
+      ["sh", "-c", 'test -f "$1" && cat "$1"', "sh", file],
+      {
+        timeoutMs: PROBE_TIMEOUT_MS,
+        env,
+        isolate: checkOptions(repository, dir).isolate,
+      },
+    );
+    if (String(result.stdout ?? "").trim() === content) return null;
+    if (!PROBE_EXITS.has(result.exitCode)) return null;
+    return `The container cannot see ${dir}; share it with the container VM (for Colima, its mounts setting).`;
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
 }

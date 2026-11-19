@@ -74,27 +74,29 @@ test("no module outside the Kiro Crew executor defaults a request to kirocrew", 
   );
 });
 
-test("a pin wins over the saved harness, which wins over the project", () => {
+test("a pin wins over the saved harness, which wins over the repository", () => {
   const config = {
     roles: {
       verifier: { harness: "codex" },
       planReviewer: { harness: "claude-code" },
     },
   };
-  const project = { executor: "process" };
+  const repository = { executor: "process" };
   assert.deepEqual(
     roleRun("verifier", {
       config,
       task: { session: { harness: "pinned" } },
-      project,
+      repository,
     }),
     { executor: "process", harness: "pinned" },
   );
-  assert.deepEqual(roleRun("verifier", { config, project }), {
+  assert.deepEqual(roleRun("verifier", { config, repository }), {
     executor: "process",
     harness: "codex",
   });
-  assert.deepEqual(roleRun("verifier", { project }), { executor: "process" });
+  assert.deepEqual(roleRun("verifier", { repository }), {
+    executor: "process",
+  });
   assert.deepEqual(roleRun("verifier", {}), { executor: "kirocrew" });
   assert.deepEqual(
     roleRun("verifier", {
@@ -115,8 +117,8 @@ test("a pin wins over the saved harness, which wins over the project", () => {
     }),
     { executor: "process", harness: "codex" },
   );
-  // With every role able to run as a child, the project's executor applies.
-  assert.deepEqual(roleRun("prReview", { project }), {
+  // With every role able to run as a child, the repository's executor applies.
+  assert.deepEqual(roleRun("prReview", { repository }), {
     executor: "process",
   });
 });

@@ -1,4 +1,4 @@
-// Test helper: a workspace with one git checkout registered as project
+// Test helper: a workspace with one git checkout registered as repository
 // `app`, its tasks, and a worker attempt that commits and reports done.
 // Shared by the check-run and verify/integrate tests.
 import { execFileSync } from "node:child_process";
@@ -45,7 +45,7 @@ export function gitCheckout(dir, files = {}) {
   return fs.realpathSync.native(dir);
 }
 
-// `project` is merged over a project whose one check is `git status`;
+// `repository` is merged over a repository whose one check is `git status`;
 // `files` (or a function of the workspace root giving them) go in the
 // first commit; `config` is the workspace's .avoozl.json.
 export function deliveryWorkspace(
@@ -54,7 +54,7 @@ export function deliveryWorkspace(
     prefix = "avoozl-delivery-",
     tasks = [leaf("a")],
     edges = [],
-    project = {},
+    repository = {},
     files = {},
     config = { version: 1, delivery: { concurrency: 4, retries: 1 } },
   },
@@ -67,12 +67,12 @@ export function deliveryWorkspace(
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   store.importSnapshot({ ...snapshot(), tasks, edges });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: checkout,
     baseBranch: "main",
     checks: [["git", "status"]],
-    ...project,
+    ...repository,
   });
   fs.writeFileSync(path.join(root, ".avoozl.json"), JSON.stringify(config));
   return {

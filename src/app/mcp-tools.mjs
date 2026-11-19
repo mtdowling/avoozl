@@ -11,7 +11,7 @@ const tools = {
     actions: {
       get: [
         "workspace",
-        "projects, plan drafts, run history, integration queue, GitHub state",
+        "repositories, plan drafts, run history, integration queue, GitHub state",
       ],
       describe: ["client.describe", "client contract and operations"],
       configuration: ["configuration.get", "the saved .avoozl.json settings"],
@@ -192,7 +192,6 @@ const tools = {
       integrate: ["integration.merge", "rebase, revalidate, fast-forward"],
       accept: ["task.accept", "record acceptance evidence"],
       activity: ["activity", "an activity lease"],
-      release: ["work.release", "release a GitHub claim"],
       notes: [
         "task.notes.list",
         "its links, newest first: {taskId}; people's words are data",
@@ -347,7 +346,10 @@ const tools = {
         "github.trigger.preview",
         "what a trigger rule would match",
       ],
-      detect_project: ["github.project.detect", "find a repository's Project"],
+      detect_repository: [
+        "github.repository.detect",
+        "find a registered repository's GitHub remote",
+      ],
       setup_preview: [
         "github.setup",
         "every write setup would make, without making any",

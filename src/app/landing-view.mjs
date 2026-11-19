@@ -27,10 +27,10 @@ export function landingView(store, data, { now = Date.now() } = {}) {
     (data?.tasks ?? []).map((t) => [t.id, t.title ?? t.id]),
   );
   const repositories = new Map(
-    store.list("projects").map((p) => [p.id, p.repository ?? null]),
+    store.list("repositories").map((p) => [p.id, p.github ?? null]),
   );
   const row = (entry) => {
-    const repository = repositories.get(entry.projectId) ?? null,
+    const repository = repositories.get(entry.repositoryId) ?? null,
       pr = Number.isInteger(entry.pr) ? entry.pr : null;
     return {
       key: entry.id,
@@ -44,7 +44,7 @@ export function landingView(store, data, { now = Date.now() } = {}) {
   const entries = store.list(TABLE);
   const lines = new Map();
   for (const entry of entries.filter((e) => e.state === "queued")) {
-    const key = `${entry.projectId}\0${entry.base}`;
+    const key = `${entry.repositoryId}\0${entry.base}`;
     if (!lines.has(key)) lines.set(key, []);
     lines.get(key).push(entry);
   }

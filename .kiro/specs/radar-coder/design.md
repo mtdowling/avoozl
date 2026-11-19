@@ -111,9 +111,8 @@ list call for plain open issues.
 
 When a plan is projected from a source issue, the source becomes the parent
 in the sub-issue tree and gets no ready label. The person clears the
-needs-human label. The planning label is removed by Avoozl only when
-`radar.clearPlanLabel` is on (default off), so Avoozl's write list stays
-short.
+needs-human label. Avoozl does not remove the planning label, so its write
+list stays short.
 
 ## D4. Projection (RC2)
 
@@ -838,7 +837,7 @@ person adds `avoozl:review` on a PR
   a new event and a new draft (RC20.9).
 - **Brief.** Read through GitHub: the pull request (title, author, head,
   base), closing issues (GraphQL `closingIssuesReferences`), the claim marker
-  and crew comments on each (`radar-claims.mjs`), and the provenance marker
+  and crew comments on each (`radar-crews.mjs`), and the provenance marker
   (`radar-provenance.mjs`), with task titles and acceptance from the store.
   Quoted text is fenced as data. The brief passes content rules (`brief`
   boundary) before the receipt is queued.
@@ -1243,7 +1242,7 @@ meta record `radarConflictFix` with `seen` (pull request to head and read, for
 the one-full-read rule), `asked` (rows), `held` (Resolve myself or Dismiss at a
 head) and `ours` (merge commits Avoozl's chats pushed, which never count as
 human commits). The chat is dispatched like the review draft chat (role
-`conflict-fix`, agent `avoozl-conflict-fix`), in the repository's project
+`conflict-fix`, agent `avoozl-conflict-fix`), in the repository's Kiro Crew
 folder, with the checkout path and the repository's checks in its brief.
 
 ### D33.1 The drop check

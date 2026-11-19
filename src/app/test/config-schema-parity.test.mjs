@@ -27,7 +27,6 @@ import {
   REVIEWER_KEYS,
 } from "../delivery.mjs";
 import { FLOW_PATHS } from "../flow.mjs";
-import { BEHAVIOR_NAMES } from "../github-label-behaviors.mjs";
 import {
   CREW_LABEL_KEYS,
   GITHUB_BLOCK_KEYS,
@@ -47,7 +46,7 @@ import { ENTRY_KEYS } from "../plugins.mjs";
 import {
   CONVERSATION_KEYS,
   PLANNING_REPOSITORY_KEYS,
-  PROJECT_KEYS,
+  REPOSITORY_KEYS,
   SANDBOX_KEYS,
 } from "../repository-settings.mjs";
 import { CHECK_KEYS } from "../repository-checks.mjs";
@@ -106,18 +105,17 @@ const PAIRS = [
   ["#/$defs/agentInstructionWhen", [...whenKeys]],
   ["#/$defs/conversations", [...CONVERSATION_KEYS]],
   // `flow` is the repository's own flow settings: Settings > Flow writes it
-  // and flowPolicy in flow.mjs reads it, beside the keys projectInput lists.
-  ["#/$defs/project", PROJECT_KEYS],
-  ["#/$defs/project/properties/sandbox", SANDBOX_KEYS],
-  ["#/$defs/project/properties/isolation", ISOLATION_KEYS],
+  // and flowPolicy in flow.mjs reads it, beside the keys repositoryInput lists.
+  ["#/$defs/repository", REPOSITORY_KEYS],
+  ["#/$defs/repository/properties/sandbox", SANDBOX_KEYS],
+  ["#/$defs/repository/properties/isolation", ISOLATION_KEYS],
   [
-    "#/$defs/project/properties/checks/oneOf/0/additionalProperties/oneOf/1",
+    "#/$defs/repository/properties/checks/oneOf/0/additionalProperties/oneOf/1",
     CHECK_KEYS,
   ],
   ["#/$defs/planningRepository", PLANNING_REPOSITORY_KEYS],
   ["#/$defs/github", POLICY_KEYS],
   ["#/$defs/githubRule", GITHUB_BLOCK_KEYS.rule],
-  ["#/$defs/githubLabelBehaviors", BEHAVIOR_NAMES],
   ["#/$defs/githubMirror", MIRROR_KEYS],
   ["#/$defs/githubRepositoryPolicy", GITHUB_BLOCK_KEYS.repository],
   [`${REPOSITORY}/radar`, RADAR_KEYS],
@@ -127,6 +125,7 @@ const PAIRS = [
   [`${REPOSITORY}/pullRequestReviews`, GITHUB_BLOCK_KEYS.pullRequestReviews],
   [`${REPOSITORY}/discussions`, GITHUB_BLOCK_KEYS.discussions],
   [`${REPOSITORY}/untriaged`, GITHUB_BLOCK_KEYS.untriaged],
+  [`${REPOSITORY}/triage`, GITHUB_BLOCK_KEYS.triage],
   [`${REPOSITORY}/conflicts`, GITHUB_BLOCK_KEYS.conflicts],
   [`${REPOSITORY}/merge`, GITHUB_BLOCK_KEYS.merge],
   [`${REPOSITORY}/landing`, GITHUB_BLOCK_KEYS.landing],
@@ -150,7 +149,7 @@ const UNPAIRED = new Map([
   ["#/properties/intake", "sourceDeclarations in intake.mjs reads sources"],
   ["#/properties/activity", "validateActivitySettings in activity-log.mjs"],
   ["#/$defs/agentInstructions", "agent-instructions.mjs accepts only rules"],
-  ["#/properties/workers", "claimStaleMs in worker-release.mjs"],
+  ["#/properties/workers", "grantStaleMs in worker-release.mjs"],
 ]);
 
 // Open schema objects (unknown keys pass) and the keys their readers read.
@@ -172,7 +171,7 @@ const OPEN = new Map([
       "runner",
       "agentInstructions",
       "conversations",
-      "projects",
+      "repositories",
       "receipts",
       "github",
       "roles",
@@ -223,7 +222,7 @@ const OPEN = new Map([
   ["#/$defs/runner/properties/checks/additionalProperties", ["argv"]],
   [
     "#/$defs/runner/properties/pools/items",
-    ["spec", "repository", "target", "claims", "issue", "base", "visibility"],
+    ["spec", "repository", "target", "grants", "issue", "base", "visibility"],
   ],
   ["#/$defs/runner/properties/sources/additionalProperties", ["url", "parent"]],
 ]);

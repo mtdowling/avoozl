@@ -6,7 +6,7 @@
 // pick their agent here, and no other page picks a role's agent or model.
 // Save writes `roles` in .avoozl.json with the file's hash and drops the
 // older keys. Auto leaves the plan reviewer unset; other roles use their
-// agent's own model and their project's harness.
+// agent's own model and their repository's harness.
 import { useInstance } from './InstanceName.tsx'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Input } from './ui/Input'
@@ -124,7 +124,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
             </Box>
           ))}
         </Box>
-        {definitions.length === 0 && <Hint size="xs">No harness files here. Roles run as Kiro Crew chats or on their project’s executor.</Hint>}
+        {definitions.length === 0 && <Hint size="xs">No harness files here. Roles run as Kiro Crew chats or on their repository’s executor.</Hint>}
       </FieldGroup>
       <FieldGroup
         title="Roles"

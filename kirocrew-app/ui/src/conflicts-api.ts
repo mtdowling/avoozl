@@ -74,7 +74,7 @@ export function withoutSettled(items: ConflictItem[], action: SettleAction, resu
 // A review group with fewer tasks left, titled to match.
 function reviewGroup(item: ConflictItem, tasks: NonNullable<ConflictItem['tasks']>): ConflictItem {
   const n = tasks.length
-  return { ...item, tasks, title: `Review ${n} ${n === 1 ? 'task' : 'tasks'} in ${item.plan ?? 'this spec'}: their design text changed` }
+  return { ...item, tasks, title: `${n} ${n === 1 ? 'task' : 'tasks'} in ${item.plan ?? 'this spec'} changed: check ${n === 1 ? 'it' : 'them'}` }
 }
 
 // One line for the result: how many were settled, and each refusal's reason.

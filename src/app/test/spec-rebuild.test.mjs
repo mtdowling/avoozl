@@ -151,8 +151,8 @@ test("a lost database and a missing tail rebuild held from git and the journal",
       ],
     },
     {
-      op: "claim-t2",
-      kind: "claim",
+      op: "grant-t2",
+      kind: "grant",
       driver: DRIVER,
       tasks: [{ task: "t2", definition: DEF.t2 }],
     },
@@ -191,7 +191,7 @@ test("a lost database and a missing tail rebuild held from git and the journal",
     t1: ["intent-landed"],
     t2: ["landed-unverified"],
   });
-  assert.deepEqual(rebuilt.claims, [
+  assert.deepEqual(rebuilt.grants, [
     { task: "t2", generation: 1, record: 102 },
   ]);
   assert.equal(rebuilt.heads[0].state, "exact");

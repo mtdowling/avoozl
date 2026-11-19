@@ -8,6 +8,8 @@ import {
   evaluateRules,
   legacyRepositoryPolicy,
   matchingRules,
+  MANAGED_LABEL_DEFAULT,
+  READY_LABEL_DEFAULT,
   requireDefaultBranch,
 } from "./github-policy.mjs";
 import { mirrorGitHubIssue } from "./intake.mjs";
@@ -65,16 +67,16 @@ export function issueRecordId(repository, issue) {
 export async function prepareGitHubRepository(store, github, input) {
   const repository = parseRepository(input.repository || input.id);
   if (
-    !store.get("projects", input.projectId) &&
-    input.project?.id !== input.projectId
+    !store.get("repositories", input.repositoryId) &&
+    input.registering?.id !== input.repositoryId
   )
-    fail("Configure the execution project before its GitHub repository.");
+    fail("Configure the execution repository before its GitHub repository.");
   const [remote, user] = await Promise.all([
     github.repository(repository),
     github.currentUser(),
   ]);
-  const label = input.label || "avoozl:ready",
-    managedLabel = input.managedLabel || "avoozl:managed";
+  const label = READY_LABEL_DEFAULT,
+    managedLabel = MANAGED_LABEL_DEFAULT;
   await github.ensureLabel(repository, {
     name: label,
     description: "Authorized for Avoozl execution",
@@ -88,15 +90,13 @@ export async function prepareGitHubRepository(store, github, input) {
     id: repository.id,
     nodeId: remote.node_id,
     private: Boolean(remote.private),
-    projectId: input.projectId,
+    repositoryId: input.repositoryId,
     ...(input.workspaceRepositoryId
       ? { workspaceRepositoryId: input.workspaceRepositoryId }
       : {}),
     label,
     managedLabel,
     assignee: input.assignee || user.login,
-    allowedActors: [...new Set(input.allowedActors || [])],
-    minimumPermission: input.minimumPermission || "write",
     provider: input.provider || null,
     model: input.model || null,
     autoStart: Boolean(input.autoStart),
@@ -104,8 +104,6 @@ export async function prepareGitHubRepository(store, github, input) {
     configuredBy: user.login,
     configuredAt: new Date().toISOString(),
   };
-  if (!["write", "maintain", "admin"].includes(record.minimumPermission))
-    fail("Minimum label permission must be write, maintain, or admin.");
   return record;
 }
 
@@ -114,7 +112,7 @@ export async function configureGitHubRepository(store, github, input) {
   store.put("github_repositories", record);
   store.event(null, "github.repository.configured", {
     repository: record.id,
-    projectId: record.projectId,
+    repositoryId: record.repositoryId,
     assignee: record.assignee,
   });
   return record;

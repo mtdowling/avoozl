@@ -40,11 +40,11 @@ for (const width of [390, 1280]) {
     await page.evaluate(`document.querySelector('#avoozl-model-worker').focus()`)
     await page.until(`document.querySelector('#avoozl-model-worker').getAttribute('aria-expanded') === 'true'`)
     await page.evaluate(pick('avoozl-model-worker', 'fake-reviewer'))
-    assert.equal(await page.evaluate(`document.querySelector('#avoozl-harness-worker').value`), 'auto (project default)')
+    assert.equal(await page.evaluate(`document.querySelector('#avoozl-harness-worker').value`), 'auto (repository default)')
     await page.evaluate(`document.querySelector('#avoozl-harness-worker').focus()`)
     await page.until(`document.querySelector('#avoozl-harness-worker').getAttribute('aria-expanded') === 'true'`)
     assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('#avoozl-harness-worker-list [role="option"]')].map((o) => o.textContent.trim())`), [
-      'auto (project default)',
+      'auto (repository default)',
       'Kiro Crew chat',
       'claude-code',
       'codex (not approved)',

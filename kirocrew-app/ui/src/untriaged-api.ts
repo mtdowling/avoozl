@@ -69,7 +69,7 @@ export interface Escalation {
   // A crew claim label is on it too: taking it over asks first.
   claimed: boolean
   // The escalation rule's local draft (radar.escalationDraft), if on.
-  draft: { kind: 'bounded-fix'; acceptance: string[]; definition: string } | null
+  draft: { v: 2; acceptance: string[]; definition: string } | null
 }
 
 // The confirm step for Plan this or Deliver this on an escalation. It says
@@ -81,7 +81,7 @@ export function escalationAsk(name: string, title: string, escalation: Escalatio
       ? `Avoozl makes one bounded-fix task from "${title}", pinned to its text now, and a worker starts it.`
       : `Avoozl adds "${title}" to the Inbox for a planner, who drafts a fix spec. Nothing starts until you approve it.`
   const writes = `On GitHub it adds crew:avoozl, so crews skip the issue, and posts one status comment. "${escalation.label}" stays; clear it yourself if you want.`
-  const claim = escalation.claimed ? ' An Issue Radar crew has claimed this issue. Taking it over does not remove the crew’s label.' : ''
+  const claim = escalation.claimed ? ' An Issue Radar crew is working on this issue. Taking it over does not remove the crew’s label.' : ''
   return {
     title: `${escalation.claimed ? 'Take over' : action === 'deliver' ? 'Deliver' : 'Plan'} ${name}?`,
     body: `${what} ${writes}${claim}`,

@@ -134,7 +134,7 @@ creation (`avoozl-crew`).
   config instead of calling `/connect`. A crew runs its own `gh` from its shell.
 - Crews and `gh` use the machine's existing `gh` and Kiro sign-ins. The harness
   has its own dashboard token only.
-- A chat the tick opens in a folder (`Avoozl/<project>`) gets no checkout until
+- A chat the tick opens in a folder (`Avoozl/<repository>`) gets no checkout until
   the folder has a project directory, and the tick skips it silently. After the
   first tick made the folder, set it with
   `harness.sh api PATCH /api/chat/folders/<folder id> '{"project_dir":"<clone>"}'`

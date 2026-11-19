@@ -52,7 +52,7 @@ of the other specs.
     - after: wp-1.1, wp-1.2
   - One helper gives the brief the Node binary and the running CLI's path, quoted for a shell; the batch brief and the investigate lines use the command-line report; the README says a worker needs no MCP sharing.
 
-- [ ] wp-p1 Proof: every pair of executor and task kind reaches a result, after wp-1.1, wp-1.2, wp-1.3, wp-1.4 [WP3, WP4] (§D3, §D4, §D5)
+- [x] wp-p1 Proof: every pair of executor and task kind reaches a result, after wp-1.1, wp-1.2, wp-1.3, wp-1.4 [WP3, WP4] (§D3, §D4, §D5)
   - Facts:
     - done:
       - Expected: (1) every task lands on both executors, the batch as one chat on `kirocrew` and as three children on `process`; (2) each investigated task codes only after Go ahead, in the same session it investigated in; (3) no brief names an MCP tool or a bare `avoozl`, and no `process` brief asks for a commit; MCP sharing for `avoozl:avoozl` is off for the whole `kirocrew` run.
@@ -71,13 +71,13 @@ of the other specs.
   - Facts:
     - done:
       - Tests with the tick on: a claimed task stays unstarted across three ticks; `runner report` from its worktree with no token finishes it and Avoozl runs the checks; a claim is refused for a task that is not ready, has a running session or is held by Stop the line, each with its reason; a claim over MCP and from a child of the supervisor is refused; release refuses a dirty worktree without `--discard`.
-  - `src/app/manual-claim.mjs` from `claimTask`, with no Crew Mode test and no conductor branch; a test that the ready query's existing rule keeps the tick off a claimed task; `avoozl claim TASK --release` and `--discard`.
+  - `src/app/manual-take.mjs` from `claimTask` (now `manualTake`), with no Crew Mode test and no conductor branch; a test that the ready query's existing rule keeps the tick off a claimed task; `avoozl take TASK --release` and `--discard`.
 - [x] wp-2.2 Remove Crew Mode dispatch, and hold the workspaces that used it, after wp-2.1, wp-p1 [WP1.1, WP1.2, WP1.3, WP1.4, WP2.6, WP7.4, WP7.5] (§D7)
   - Facts:
     - done:
       - Tests: a `crew-mode` workspace starts nothing across three ticks and shows one Needs you item; the operation is refused from MCP and from an agent session, and from a person it removes the key and the next tick starts work; `"runner": "tick"` loads and is ignored; the source test of WP1.4 passes and fails on a planted second dispatcher; the pull request lists what each moved or deleted test covered and where it is covered now; the schema parity test passes.
     - after: wp-2.1, wp-p1
-  - `delivery.runner` leaves the validators and the schema; a file with `crew-mode` reads as held with one Needs you item and the person-only **Let the tick run it**; `runner.mjs` keeps `nextView`; the hook file, the runner prompt, the relay branches and the `--slot` forms go; the app entry point lists the commands it still runs; the seven test files that name `crew-mode` move to the manual claim or the tick.
+  - `delivery.runner` leaves the validators and the schema; a file with `crew-mode` reads as held with one Needs you item and the person-only **Let the tick run it**; `runner.mjs` keeps `nextView`; the hook file, the runner prompt, the relay branches and the `--slot` forms go; the app entry point lists the commands it still runs; the seven test files that name `crew-mode` move to the manual take or the tick.
 
 - [x] wp-p2 Proof: a person finishes a task by hand while the tick runs the rest, after wp-2.2 [WP1, WP2] (§D6, §D7)
   - Facts:
@@ -98,7 +98,7 @@ of the other specs.
     - done:
       - Tests with a fake GitHub and a fake driver: a worker with two free lanes and three offers claims two and starts two with no command run by hand; a request with no acknowledgment starts nothing; a tick with no GitHub records one line and starts nothing; the hand-run commands give the same result as one tick.
     - after: wp-1.1
-  - On `runner.role: "worker"` the tick pulls offers, requests claims for its free lanes and starts acknowledged tasks, before `runnerTick`; `avoozl worker pull` and `avoozl worker claim` call the same functions.
+  - On `runner.role: "worker"` the tick pulls offers, requests claims for its free lanes and starts acknowledged tasks, before `runnerTick`; `avoozl worker pull` and `avoozl worker accept` call the same functions.
 - [x] wp-3.2 The driver checks a pulled result on its tick, after wp-3.1 [WP5.3] (§D8)
   - Facts:
     - done:
@@ -110,9 +110,9 @@ of the other specs.
     - done:
       - Tests: a file with `runner.role: "runner"` or `"driver"` is refused naming the key and worker pull; an envelope is taken only from an acknowledged claim; a search of `src/` finds no `ssh` argv outside the plugin and mirror code; the pull request lists what the deleted tests covered and where it is covered now.
     - after: wp-3.2
-  - The roles `runner` and `driver`, the SSH transport and `driverTick` go; `remote.accept`, `remote.handoff` and `remote.pull` answer with their replacement; the worker cases of `remote-runner.test.mjs` move to `worker-mode.test.mjs`.
+  - The roles `runner` and `driver`, the SSH transport and `driverTick` go; `remote.accept`, `remote.handoff` and `remote.pull` are deleted and refused as unknown; the worker cases of `remote-runner.test.mjs` move to `worker-mode.test.mjs`.
 
-- [ ] wp-p3 Proof: two workspaces, one driver and one worker, with only ticks, after wp-3.3 [WP5] (§D8)
+- [x] wp-p3 Proof: two workspaces, one driver and one worker, with only ticks, after wp-3.3 [WP5] (§D8)
   - Facts:
     - done:
       - Expected: (1) and (2) both tasks land on the driver's base branch and no `worker` command was run by hand; (3) the driver refuses it as a failed attempt and nothing lands.
@@ -143,12 +143,12 @@ of the other specs.
 
 ## Phase 5: Names
 
-- [x] wp-5.1 Removed commands answer with their replacement, after wp-2.2, wp-3.3, wp-4.2 [WP7.1, WP7.2, WP7.3] (§D7, §D8, §D9)
+- [x] wp-5.1 Removed commands and operations are refused as unknown, after wp-2.2, wp-3.3, wp-4.2 [WP7.1, WP7.2, WP7.3] (§D7, §D8, §D9)
   - Facts:
     - done:
-      - A test calls each removed command and operation and gets one line naming its replacement and no change to the workspace; the help test passes; the `plans_*` tool names, the environment aliases and the `aicommander` command pass their existing tests.
+      - (Changed 2026-11-19, owner decision: no replacement messages.) A test calls each removed command and operation and gets the generic unknown error and no change to the workspace; the help test passes; the `plans_*` tools a shipped agent, prompt or brief names, the `AVOOZL_*` variables and the `avoozl` command pass their existing tests.
     - after: wp-2.2, wp-3.3, wp-4.2
-  - Every command and operation this spec removes, and `register-session` and `session-hook`, answers through `moved-operations.mjs`; the help table drops them.
+  - Every command and operation this spec removes, and `register-session` and `session-hook`, is deleted; a call to one gets the generic unknown error, and the help table drops them.
 - [x] wp-5.2 One meaning for each word, and the product spec says the same, after wp-5.1 [WP8, WP9] (§D1)
   - Facts:
     - done:
@@ -156,14 +156,14 @@ of the other specs.
     - after: wp-5.1
   - The word test over the page's strings, the help table, `README.md` and `docs/*.md`; the edits to Requirements 41, 84, 90.7 and 96.5, to design §4.10, §5.1 and §6.13, and to tasks 11.1, 11.10, 16.7 and `avoozl-p29` of the avoozl spec.
 
-- [ ] wp-p4 Proof: one dispatcher, two executors, one remote route, after wp-p1, wp-p2, wp-p3, wp-4.2, wp-5.2 [WP1 to WP9] (§D1)
+- [x] wp-p4 Proof: one dispatcher, two executors, one remote route, after wp-p1, wp-p2, wp-p3, wp-4.2, wp-5.2 [WP1 to WP9] (§D1)
   - Facts:
     - done:
-      - Expected: (1) both pass; (2) the list is the tick's planner and the manual claim; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
+      - Expected: (1) both pass; (2) the list is the tick's planner and the manual take; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
       - Expected result observed; receipt under `docs/evidence/`.
     - after: wp-p1, wp-p2, wp-p3, wp-4.2, wp-5.2
   - Setup: the repository at the commit that lands wp-5.2.
   - Action: (1) run the source test of WP1.4 and the pair table's test; (2) list every operation that writes a session request with role `worker`; (3) search every worker brief the pair table builds for "push", "pull request" and "auto-merge"; (4) count the lines of `src/app` before Phase 2 and now.
-  - Expected: (1) both pass; (2) the list is the tick's planner and the manual claim; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
+  - Expected: (1) both pass; (2) the list is the tick's planner and the manual take; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
   - Failure means: a second route to an agent is still in the code.
   - Next decision: whether the settings that pick a worker's executor become one table (simplification audit, F7).

@@ -64,7 +64,7 @@ function workspace() {
         quote,
         quoteHash: quoteHash(quote),
       },
-      claim: "No task reads the folder.",
+      statement: "No task reads the folder.",
       evidence: "tasks.md has none.",
     });
   });

@@ -29,11 +29,11 @@ The routes, counted at `deca253`:
 | #   | Route                                | Selected by                                       |
 | --- | ------------------------------------ | ------------------------------------------------- |
 | 1   | Tick, Kiro Crew chat, local task     | default                                           |
-| 2   | Tick, `process` child                | `harnesses.worker`, `projects.*.executor`, a pin  |
+| 2   | Tick, `process` child                | `harnesses.worker`, `repositories.*.executor`, a pin  |
 | 3   | Tick, batch of tasks in one chat     | the tasks' `batch` facts                          |
 | 4   | Tick, worker pushes and opens the PR | the task's GitHub route                           |
 | 5   | Crew Mode conductor claims and relays | `delivery.runner: "crew-mode"`                   |
-| 6   | A person claims and reports          | `avoozl claim`, only under route 5's setting      |
+| 6   | A person claims and reports          | `avoozl take`, only under route 5's setting      |
 | 7   | Runner mode over SSH                 | `runner.role: "runner"` or `"driver"`             |
 | 8   | Worker machine pulls                 | `runner.role: "worker"`, by hand-run commands     |
 
@@ -66,7 +66,7 @@ What that costs:
   only the tasks it already holds (V: `runnerTick`,
   `src/app/remote-runner.mjs:487`, called from `workspace.tick` in
   `src/app/operations.mjs:3369`). Pulling and claiming are reached only by
-  the `worker.pull` and `worker.claim` operations, which the commands of
+  the `worker.pull` and `worker.accept` operations, which the commands of
   the same names call (V: `src/app/operations.mjs:3180` and `:3188`).
   `src/app/worker-results.mjs` is imported only by its own test (V).
 - Work on another Kiro Crew instance was wired into the tick, delivery, plans
@@ -110,7 +110,7 @@ that spec.
 | Dispatcher     | The code that decides a ready task starts now and writes its session request                |
 | Executor       | What runs the agent: `kirocrew` (a Kiro Crew chat) or `process` (a child of the supervisor) |
 | Worker machine | A second machine that pulls offers, runs the task and pushes a branch (Requirement 90)      |
-| Manual claim   | A person taking a ready task with `avoozl claim` and finishing it by hand                   |
+| Manual take   | A person taking a ready task with `avoozl take` and finishing it by hand                   |
 | Crew           | An Issue Radar crew, and nothing else, once this spec is done                               |
 
 ## Requirements
@@ -136,7 +136,7 @@ place.
    until a person says so.
 4. A source test SHALL fail when any module other than the tick's planner
    writes a session request with role `worker` for a ready task, apart from
-   the manual claim of WP2.
+   the manual take of WP2.
 
 ### Requirement WP2: A person can still take a task by hand
 
@@ -145,25 +145,25 @@ myself, so that I am never blocked on an agent.
 
 #### Acceptance criteria
 
-1. `avoozl claim TASK` from the local command line SHALL work with the tick
-   as the dispatcher. It SHALL bind the task to a manual claim, prepare its
+1. `avoozl take TASK` from the local command line SHALL work with the tick
+   as the dispatcher. It SHALL bind the task to a manual take, prepare its
    worktree, and print the worktree path and the report command. The tick
-   SHALL NOT start a session for a task that has a manual claim.
-2. `avoozl claim` SHALL refuse a task that is not ready, a task with a
+   SHALL NOT start a session for a task that has a manual take.
+2. `avoozl take` SHALL refuse a task that is not ready, a task with a
    running session, and a task held by Stop the line, each with the reason.
 3. `avoozl runner report TASK done|blocked`, run from the task's worktree
-   with no token, SHALL finish a manual claim, as it does today (V:
-   `matchClaimReport`, `src/app/report-match.mjs:75`). Avoozl SHALL read the
+   with no token, SHALL finish a manual take, as it does today (V:
+   `matchTakeReport`, `src/app/report-match.mjs:75`). Avoozl SHALL read the
    commit from the worktree and SHALL run the checks itself.
-4. `avoozl claim TASK --release` SHALL give the task back, and SHALL refuse
+4. `avoozl take TASK --release` SHALL give the task back, and SHALL refuse
    when the worktree has uncommitted changes unless `--discard` is given.
 5. `avoozl next` SHALL stay as a read of the ready, running, waiting, Needs
    you and done lists.
-6. The `--slot` forms of `claim` and `report`, the `next --hook` form and
+6. The `--slot` forms of `take` and `report`, the `next --hook` form and
    the conductor relay SHALL be removed. A call to one SHALL answer with one
-   line naming `avoozl claim TASK` and `avoozl runner report`.
+   line naming `avoozl take TASK` and `avoozl runner report`.
 7. A claim over MCP, or from an agent session the supervisor started, SHALL
-   be refused. A manual claim is a person's.
+   be refused. A manual take is a person's.
 
 ### Requirement WP3: Every kind of task runs on both executors
 
@@ -239,7 +239,7 @@ that there is one set of rules about what that machine is trusted to do.
    another machine.
 2. On a worker machine the tick SHALL pull offers, request claims and start
    the acknowledged tasks by itself, within its free lanes. `avoozl worker
-   pull` and `avoozl worker claim` SHALL stay as the same steps run once by
+   pull` and `avoozl worker accept` SHALL stay as the same steps run once by
    hand.
 3. On the driver the tick SHALL fetch a worker machine's pushed result,
    check its diff and run the repository's checks again before it lands (Requirement
@@ -256,6 +256,12 @@ that there is one set of rules about what that machine is trusted to do.
 5. A machine with no GitHub access SHALL NOT be a worker machine. It can
    run its own workspace. Requirement 90.7 is retired (WP9).
 6. Proof P53 of the avoozl spec SHALL stay the live proof of worker pull.
+7. With `workers.offerTo` naming worker logins, the driver's tick SHALL
+   offer each ready task of a spec it drives to them once, SHALL NOT start
+   those tasks itself, SHALL answer their claim requests, and SHALL land a
+   checked result's working branch on the base branch. Without it, `spec
+   offer` and `spec grants` stay a person's commands (found by proof
+   wp-p3, where a person was needed at each step).
 
 ### Requirement WP6: Every session runs on this machine
 
@@ -319,7 +325,7 @@ is built, so that a later reader does not rebuild a retired route.
 
 #### Acceptance criteria
 
-1. Requirement 96.5 of the avoozl spec SHALL be changed to: "`avoozl claim`,
+1. Requirement 96.5 of the avoozl spec SHALL be changed to: "`avoozl take`,
    `avoozl next` and `avoozl runner report` SHALL stay as the manual path
    for a person."
 2. Requirement 84 and Requirement 90.7 SHALL be marked retired by WP5, and

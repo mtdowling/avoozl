@@ -18,9 +18,8 @@ import { digest } from "../model.mjs";
 import { captureTask } from "../capture.mjs";
 import { ContractError, incomingItem } from "./plugin-contract.mjs";
 import {
-  DEFAULT_PERMISSION,
-  PERMISSIONS,
   actorAllowed,
+  legacyRepositoryPolicy,
   matchingRules,
   priorityRank,
 } from "./github-policy.mjs";
@@ -45,8 +44,6 @@ export const SOURCE_KEYS = [
   "repository",
   "labelFields",
   "assigneeField",
-  "allowedActors",
-  "minimumPermission",
 ];
 // GitHub intake's order (github-sync.mjs PRECEDENCE).
 const PRECEDENCE = ["quarantine", "pause", "deliver", "execute", "plan"];
@@ -115,14 +112,6 @@ export function validateSource(id, value, where = `intake.sources.${id}`) {
     (typeof value.assigneeField !== "string" || !value.assigneeField.trim())
   )
     fail(`${where}.assigneeField must name one field.`);
-  const allowedActors = names(value.allowedActors, `${where}.allowedActors`);
-  if (
-    value.minimumPermission !== undefined &&
-    !PERMISSIONS.includes(value.minimumPermission)
-  )
-    fail(
-      `${where}.minimumPermission must be one of ${PERMISSIONS.join(", ")}.`,
-    );
   return {
     id,
     via,
@@ -130,12 +119,6 @@ export function validateSource(id, value, where = `intake.sources.${id}`) {
     repository: value.repository,
     labelFields,
     assigneeField: value.assigneeField ?? null,
-    allowedActors,
-    // A source that names nobody defaults to people with write standing,
-    // like a GitHub repository (R10.2).
-    minimumPermission:
-      value.minimumPermission ??
-      (allowedActors.length ? null : DEFAULT_PERMISSION),
   };
 }
 
@@ -282,7 +265,7 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
       else
         row.source = {
           ...row.source,
-          project: repository.localCheckout ? repository.id : null,
+          executionRepository: repository.localCheckout ? repository.id : null,
           github: repository.github || null,
         };
     }
@@ -474,14 +457,22 @@ export function judgeItem(
         allowed: false,
         reason: `Plugin ${source.plugin} cannot say who acted (no actor capability).`,
       };
-    return { ...base, ...actorAllowed(source, base.actor, base.permission) };
+    // Who counts is the repository's setting (R10.2), never the source's.
+    return {
+      ...base,
+      ...actorAllowed(
+        repository ?? legacyRepositoryPolicy(),
+        base.actor,
+        base.permission,
+      ),
+    };
   });
 }
 
 // ---------------------------------------------------------------------------
 // Tasks.
 
-function ensureInbox(data) {
+export function ensureInbox(data) {
   if (!data.tracks.some((track) => track.id === "catalog"))
     data.tracks.push({ id: "catalog", label: "General" });
 }
@@ -494,7 +485,7 @@ export function labelEffects(repository, labels) {
     waiting = (repository?.waitingLabels || []).some((label) =>
       have.has(lower(label)),
     ),
-    priority = repository?.priority || [];
+    priority = repository?.priorityLabels || [];
   return {
     waiting,
     labelRank: priority.length ? priorityRank(priority, labels) : null,
@@ -521,7 +512,7 @@ function leafFor(row, source, how) {
     scope: "runtime",
     kind: "leaf",
     authority: "local",
-    repository: source.project,
+    repository: source.executionRepository,
     track: "catalog",
     tags: ["intake", `source:${item.source}`],
     // Pinned to this snapshot of the item (R50.15, R12).
@@ -627,7 +618,11 @@ function judgeClose(task, item, source, { mcp, actorCapable }, notify) {
     check =
       mcp || !actorCapable || !item.closedBy
         ? { allowed: false }
-        : actorAllowed(source, item.closedBy, standing);
+        : actorAllowed(
+            source.policy ?? legacyRepositoryPolicy(),
+            item.closedBy,
+            standing,
+          );
   if (check.allowed) {
     task.intakeVerdict = {
       state: "order",
@@ -685,8 +680,8 @@ export function takeItem(store, source, item, context = {}) {
     key = itemKey(source.id, item.id),
     stored = store.get("incoming_items", key),
     record = { source: source.id, ...item },
-    // An MCP caller's author and trigger are its claims, never an actor.
-    claims = context.mcp
+    // An MCP caller's author and trigger are what it says, never an actor.
+    asserted = context.mcp
       ? { author: item.author, trigger: item.trigger }
       : null;
   if (context.mcp) {
@@ -718,7 +713,7 @@ export function takeItem(store, source, item, context = {}) {
     record,
     hash,
     via: context.mcp ? "mcp" : source.via,
-    ...(claims ? { claims } : {}),
+    ...(asserted ? { asserted } : {}),
     firstSeenAt: stored?.firstSeenAt ?? now,
     seenAt: now,
     taskId: stored?.taskId ?? null,
@@ -1041,7 +1036,7 @@ function summary(row) {
     kind: item.kind,
     title: item.title,
     labels: item.labels,
-    author: item.author ?? row.claims?.author ?? null,
+    author: item.author ?? row.asserted?.author ?? null,
     assignees: item.assignees,
     state: item.state,
     updatedAt: item.updatedAt,
@@ -1099,7 +1094,7 @@ export function viewItem(store, input = {}) {
     body: row.record.body,
     fields: row.record.fields,
     trigger: row.record.trigger ?? null,
-    claims: row.claims ?? null,
+    asserted: row.asserted ?? null,
     findings: row.findings ?? [],
     history: row.history ?? [],
     snapshotHash: snapshotDigest(row.record),
@@ -1174,7 +1169,7 @@ export function startByPerson(
   if (row.taskId && store.read().tasks.some((task) => task.id === row.taskId))
     fail(`${itemId} is already tied to task ${row.taskId}.`, 409);
   const bound = withPolicy(source, githubPolicy);
-  if (action === "deliver" && !bound.project)
+  if (action === "deliver" && !bound.executionRepository)
     fail(
       `Repository ${source.repository} has no local checkout, so Avoozl cannot code it.`,
       409,
@@ -1248,8 +1243,8 @@ function deliverRetroItem(
   githubPolicy,
   { retro, proposal, repository, title, body, reason },
 ) {
-  const project = store.get("projects", repository);
-  if (!project?.root)
+  const registered = store.get("repositories", repository);
+  if (!registered?.root)
     fail(
       `Repository ${repository} has no local checkout, so Avoozl cannot code it.`,
       409,
@@ -1297,8 +1292,8 @@ function deliverRetroItem(
       {
         id: "retro",
         repository,
-        project: project.id,
-        github: project.github || null,
+        executionRepository: registered.id,
+        github: registered.github || null,
       },
       githubPolicy,
     ),
@@ -1412,7 +1407,7 @@ export function intakeTab(view, store, declared) {
           title: item.title,
           url: item.link,
           repository: bySource.get(row.source).repository,
-          author: item.author ?? row.claims?.author ?? null,
+          author: item.author ?? row.asserted?.author ?? null,
           createdAt: row.firstSeenAt,
           labels: item.labels,
           assignees: item.assignees,
@@ -1430,7 +1425,7 @@ export function intakeTab(view, store, declared) {
             plan: item.kind !== "review",
             deliver:
               item.kind !== "review" &&
-              Boolean(bySource.get(row.source).project),
+              Boolean(bySource.get(row.source).executionRepository),
           },
         };
       });

@@ -249,7 +249,7 @@ yours by label, not by login:
   issue, both for Avoozl tasks and for issues sent from Intake.
 
 Labels a crew watches are set in Issue Radar. Labels it writes are set under
-`crewLabels` (`claim`, `needsHuman`) when yours differ from the defaults.
+`crewLabels` (`inProgress`, `needsHuman`) when yours differ from the defaults.
 
 Where a skipped issue goes (the needs-human label, for example `plan me`)
 depends on who may ask for work:
@@ -449,9 +449,8 @@ six things about it:
 
 - **One cache.** Every view, command and MCP tool reads GitHub through one
   client. An answer it holds is reused with no call for `github.cacheSeconds`
-  seconds (default 60, 0 turns it off). A repository may set its own under
-  `github.repositories.<owner/name>.cacheSeconds`. Both are in Settings >
-  GitHub and in `.avoozl.json`. A write (a comment, a label, a
+  seconds (default 60, 0 turns it off). It is one value for the workspace, in
+  Settings > GitHub and in `.avoozl.json`. A write (a comment, a label, a
   merge) makes the answers for its repository stale, not gone, so the next
   read asks with the `ETag` and a 304 is free. While the rate limit holds, a
   stored answer is served at any age. GraphQL queries are kept the same way,
@@ -499,11 +498,11 @@ does not start.
 Some code Avoozl runs is owned by the repository, not by you. Read it before
 you point Avoozl at a repository you do not trust, public ones included.
 
-| Code                              | When it runs                                  | What guards it                                                                                                                                      |
-| --------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts/worktree` in the project | Every time Avoozl adds a worktree             | A person approves its SHA-256 hash first. The refusal prints the hash; set `worktreeHelper` on the project to that hash. A changed file asks again. |
-| The project's `checks`            | On worker commits and on commits Avoozl lands | They are in the project settings a person edits. Checks never see the gateway, push or GitHub credentials.                                          |
-| A local-folder plugin             | When the tick uses it                         | A person approves its hash. Avoozl hashes it again just before it starts and refuses if it changed.                                                 |
+| Code                                 | When it runs                                  | What guards it                                                                                                                                         |
+| ------------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `scripts/worktree` in the repository | Every time Avoozl adds a worktree             | A person approves its SHA-256 hash first. The refusal prints the hash; set `worktreeHelper` on the repository to that hash. A changed file asks again. |
+| The repository's `checks`            | On worker commits and on commits Avoozl lands | They are in the repository settings a person edits. Checks never see the gateway, push or GitHub credentials.                                          |
+| A local-folder plugin                | When the tick uses it                         | A person approves its hash. Avoozl hashes it again just before it starts and refuses if it changed.                                                    |
 
 A repository's checks are the only checks there are. Every task runs them;
 a task never names its own. Each has a name and its command arguments, and
@@ -511,7 +510,7 @@ one with `paths` runs only when a commit's diff touches one of them:
 
 ```json
 {
-  "projects": {
+  "repositories": {
     "code": {
       "checks": {
         "test": ["npm", "test"],
@@ -529,10 +528,10 @@ its name, and `verify.checkTimeouts` sets a check's own timeout by its name.
 An older list of commands still loads, each check named by its command.
 
 A check sees only the basics a process needs to start (`PATH`, `HOME`, temp
-folders) plus the names a project lists in `checksEnv`:
+folders) plus the names a repository lists in `checksEnv`:
 
 ```json
-{ "projects": { "code": { "checksEnv": ["NODE_OPTIONS"] } } }
+{ "repositories": { "code": { "checksEnv": ["NODE_OPTIONS"] } } }
 ```
 
 Push and GitHub credentials (`GH_TOKEN`, `GITHUB_TOKEN`, `SSH_AUTH_SOCK`
@@ -542,7 +541,7 @@ Every check runs in the repository's `isolation`:
 
 ```json
 {
-  "projects": {
+  "repositories": {
     "code": {
       "isolation": {
         "run": "sandbox",
@@ -561,7 +560,12 @@ Every check runs in the repository's `isolation`:
   `readable` where those would hide a file it needs.
 - `container`: `docker` or `podman` runs `image` with the folder mounted
   at the same path, `--network none` unless the network is on, the same
-  environment allowlist, and no home folder.
+  environment allowlist, and no home folder. Before the checks, Avoozl
+  writes a file with random content in the folder and reads it back in the
+  same container. A runtime in a VM mounts a folder the VM does not share
+  as empty (on a Mac, Colima shares only its `mounts`), so when the content
+  does not match, no check runs, and each is recorded as not run because
+  the container cannot see the folder.
 - `unconfined`: no isolation. Only with this machine's opt-in,
   `"checks": true` in `harness-unconfined.json` in Avoozl's config
   folder. A machine with no sandbox runs a `sandbox` check unconfined too.
@@ -622,11 +626,11 @@ a person-only act is the sandbox the supervisor wraps it in:
   folders, the repository's git directory, the harness's own config (the
   definition's `reads`, such as `~/.claude` and `~/.claude.json` for
   Claude Code), `~/.gitconfig`, `~/.config/git` and the repository's
-  `isolation.readable` paths. Your other projects and documents are not
+  `isolation.readable` paths. Your other repositories and documents are not
   readable. System and toolchain folders outside home stay readable.
-- It writes only to its task folder, its own temp folder and the project's
+- It writes only to its task folder, its own temp folder and the repository's
   cache folders. Read-only roles write nowhere.
-- Its network is off. On macOS a project can name loopback ports instead
+- Its network is off. On macOS a repository can name loopback ports instead
   (`localhost:PORT`, for a proxy).
 - Token, key, secret and password variables, `GH_*`, `GITHUB_*`, `AWS_*`,
   `KIROCREW_*` and `SSH_AUTH_SOCK` are removed from its environment, and git

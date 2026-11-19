@@ -404,7 +404,7 @@ test("a confined child reads under home only its folders, its harness config and
   skip: !kind && "this machine has no usable sandbox",
 }, async (t) => {
   const s = scratch(t),
-    worktree = path.join(s.home, "projects", "app-wt"),
+    worktree = path.join(s.home, "repositories", "app-wt"),
     file = (name, text = name) => {
       fs.mkdirSync(path.dirname(name), { recursive: true });
       fs.writeFileSync(name, text);
@@ -412,8 +412,8 @@ test("a confined child reads under home only its folders, its harness config and
     },
     reads = {
       worktree: file(path.join(worktree, "a.txt")),
-      sibling: file(path.join(s.home, "projects", "app-other", "b.txt")),
-      projects: file(path.join(s.home, "projects", "notes.txt")),
+      sibling: file(path.join(s.home, "repositories", "app-other", "b.txt")),
+      repositories: file(path.join(s.home, "repositories", "notes.txt")),
       claude: file(path.join(s.home, ".claude", "settings.json")),
       claudeJson: file(path.join(s.home, ".claude.json")),
       gitconfig: file(path.join(s.home, ".gitconfig")),
@@ -440,6 +440,6 @@ test("a confined child reads under home only its folders, its harness config and
   const out = await run(confined.argv, confined.env);
   for (const name of ["worktree", "claude", "claudeJson", "gitconfig"])
     assert.equal(out.read[name], "ok", `${name} was not readable`);
-  for (const name of ["sibling", "projects", "documents"])
+  for (const name of ["sibling", "repositories", "documents"])
     assert.notEqual(out.read[name], "ok", `${name} was readable`);
 });

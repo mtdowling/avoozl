@@ -1,4 +1,6 @@
 import { allowProtectedPaths } from "./verify.mjs";
+import { fixToSpec, openFixJournal, startFix } from "./fix.mjs";
+import { triageOperation } from "./triage-operations.mjs";
 import {
   ciSettingsView,
   ciFlowView,
@@ -99,9 +101,9 @@ import {
   extractPlan,
 } from "./plans.mjs";
 import {
-  projectConfig,
+  repositoryConfig,
   originRepositorySync,
-  projectGitHubRepository,
+  repositoryGitHubRemote,
   integrateRun,
   withWorkLock,
   detectCheckout,
@@ -128,7 +130,7 @@ import {
   planningIdentity,
   requireNamespace,
 } from "./github-marker.mjs";
-import { claimsFresh, claimsView, refreshClaims } from "./radar-claims.mjs";
+import { crewsFresh, crewsView, refreshCrews } from "./radar-crews.mjs";
 import { mergePath } from "./radar-merge-path.mjs";
 import { instanceIdentity } from "./instance.mjs";
 import { mirrorEntryKey, mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
@@ -412,7 +414,7 @@ import { taskEvidence } from "./evidence.mjs";
 import { instanceView, renameInstance } from "./instance.mjs";
 import { panelView, pullChecks } from "./panel-view.mjs";
 import {
-  claimedTaskIds,
+  busyTaskIds,
   declaredChecks,
   prepareWorktree,
   reportSession,
@@ -431,9 +433,9 @@ import {
   updateProviders,
 } from "./provider-health.mjs";
 import { nextView } from "./runner.mjs";
-import { manualClaim } from "./manual-claim.mjs";
+import { manualTake } from "./manual-take.mjs";
 import {
-  claimWork,
+  acceptWork,
   pullWork,
   readRunnerConfig,
   reportDone,
@@ -448,7 +450,7 @@ import { supersedeTask } from "./supersede.mjs";
 // session tables reads as having no claims.
 function claimedOrNone(store) {
   try {
-    return claimedTaskIds(store);
+    return busyTaskIds(store);
   } catch {
     return new Set();
   }
@@ -532,14 +534,15 @@ import {
 import { publishSpec } from "./spec-publication.mjs";
 import { specLinks } from "./scm-links.mjs";
 import { specAuthority, takeOverSpec } from "./spec-takeover.mjs";
-import { publishOffer, reserveClaims } from "./worker-claims.mjs";
+import { publishOffer, reserveGrants } from "./worker-grants.mjs";
 import { workerResultsStep } from "./worker-result-step.mjs";
+import { offerLogins, workerOffersStep } from "./worker-offer-step.mjs";
 import {
-  checkStaleClaims,
-  claimStaleMs,
-  claimStatus,
-  reconcileClaims,
-  releaseClaim,
+  checkStaleGrants,
+  grantStaleMs,
+  grantStatus,
+  reconcileGrants,
+  releaseGrant,
 } from "./worker-release.mjs";
 import { driverIdOf, journalOf } from "./spec-scheduler.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
@@ -626,7 +629,7 @@ function validationAt(store, data, task) {
   for (const result of results) latest.set(result.command, result);
   const declared = declaredChecks(
       task,
-      store.get("projects", taskRepository(task) || ""),
+      store.get("repositories", taskRepository(task) || ""),
     ).map(checkCommand),
     checks = declared.length ? declared : [...latest.keys()];
   if (!checks.length || checks.some((c) => latest.get(c)?.exitCode !== 0))
@@ -762,7 +765,7 @@ function refuseGateBypass(data, task, input, hasReviewers) {
     );
 }
 
-function repositoryBase(store, task, projectId) {
+function repositoryBase(store, task, repositoryId) {
   if (typeof task.github?.url === "string") {
     try {
       const url = new URL(task.github.url);
@@ -779,28 +782,28 @@ function repositoryBase(store, task, projectId) {
     task.github?.repository ||
     store
       .list("github_repositories")
-      .find((entry) => entry.projectId === projectId)?.id ||
-    store.get("projects", projectId)?.repository ||
+      .find((entry) => entry.repositoryId === repositoryId)?.id ||
+    store.get("repositories", repositoryId)?.github ||
     "";
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)
     ? `https://github.com/${repository}`
     : "";
 }
 
-function taskLocalChanges(store, task, projectId, repositoryUrl) {
-  const project = store.get("projects", projectId);
-  if (!project) return null;
+function taskLocalChanges(store, task, repositoryId, repositoryUrl) {
+  const repository = store.get("repositories", repositoryId);
+  if (!repository) return null;
   return {
-    projectId,
-    root: project.root || "",
+    repositoryId,
+    root: repository.root || "",
     branch: task.integration?.branch || "",
     repositoryUrl,
   };
 }
 
 function taskCodeChanges(store, data, task, evidenceRecords) {
-  const projectId = task.projectId || "",
-    base = repositoryBase(store, task, projectId),
+  const repositoryId = task.repositoryId || "",
+    base = repositoryBase(store, task, repositoryId),
     commits = new Map(),
     pulls = new Map();
   const addCommit = (sha, source) => {
@@ -857,7 +860,7 @@ function taskCodeChanges(store, data, task, evidenceRecords) {
     issue,
     commits: [...commits.values()],
     pullRequests: [...pulls.values()],
-    local: taskLocalChanges(store, task, projectId, base),
+    local: taskLocalChanges(store, task, repositoryId, base),
   };
 }
 
@@ -973,7 +976,7 @@ export class Operations {
     // Conditional reads and the rate-limit pause live in this workspace.
     if (client instanceof GitHubClient)
       client.bind(store, {
-        cacheSeconds: (repo) => this.cacheSeconds(repo),
+        cacheSeconds: () => this.cacheSeconds(),
         countFile: countFilePath(),
         writeLimits: () => this.writeLimits(),
       });
@@ -1206,20 +1209,22 @@ export class Operations {
   // itself, so the workspace root is the planning root when its origin is
   // the policy's planning repository.
   specRoots(mode = this.githubMode()) {
-    const projects = this.store.list("projects"),
+    const repositories = this.store.list("repositories"),
       planningRoot =
         this.store.getMeta("workspaceRepository")?.root ||
-        projects.find((project) => project.planning && project.root)?.root ||
+        repositories.find(
+          (repository) => repository.planning && repository.root,
+        )?.root ||
         (mode === null || this.workspaceIsPlanningCheckout(mode)
           ? this.workspaceRoot
           : null);
     return specRoots({
       mode,
       planningRoot,
-      codeRoots: projects
-        .filter((project) => !project.planning && project.root)
+      codeRoots: repositories
+        .filter((repository) => !repository.planning && repository.root)
         .sort((a, b) => a.id.localeCompare(b.id))
-        .map((project) => project.root),
+        .map((repository) => repository.root),
     });
   }
   // Repository files by git, with the API as the fallback (repo-files.mjs).
@@ -1252,7 +1257,7 @@ export class Operations {
     if (
       cached &&
       this.privateSpecsAt &&
-      now - this.privateSpecsAt < this.cacheSeconds(mirror.mirror) * 1000
+      now - this.privateSpecsAt < this.cacheSeconds() * 1000
     )
       return;
     try {
@@ -1280,7 +1285,7 @@ export class Operations {
   async applyBaseTicks() {
     this.ticksSeen ??= new Map();
     this.ticksFetched = new Set();
-    const projects = this.store.list("projects");
+    const repositories = this.store.list("repositories");
     for (const plan of this.store.list("plans")) {
       if (
         !plan.spec ||
@@ -1295,7 +1300,8 @@ export class Operations {
         const branch = spec.root
             ? spec.home === "plansBranch"
               ? spec.ref
-              : projects.find((p) => p.root === spec.root)?.baseBranch || "main"
+              : repositories.find((p) => p.root === spec.root)?.baseBranch ||
+                "main"
             : spec.ref,
           read = spec.root
             ? await baseTasks(spec.root, branch, plan.spec, {
@@ -1398,7 +1404,7 @@ export class Operations {
     const namespace = this.specNamespace();
     const data = {
         ...this.read(),
-        projects: store.list("projects"),
+        repositories: store.list("repositories"),
       },
       plans = store
         .list("plans")
@@ -1979,7 +1985,7 @@ export class Operations {
           plan,
           data: {
             ...this.read(),
-            projects: this.store.list("projects"),
+            repositories: this.store.list("repositories"),
           },
           ...(extraction ? { proposals } : {}),
         });
@@ -2002,6 +2008,33 @@ export class Operations {
       review: planReviewSummary(this.store, plan.id),
     };
   }
+  // The driver's offers and claim answers for worker machines (WP5).
+  async workerOffers(store, driving) {
+    const config = loadLayeredConfig({
+        workspaceRoot: this.workspaceRoot,
+      }).config,
+      logins = offerLogins(config.workers?.offerTo);
+    if (!logins.length) return null;
+    return workerOffersStep(store, {
+      driving,
+      logins,
+      authorityFor: async (spec) => {
+        const driver = driverIdOf(store, spec);
+        if (!driver) return null;
+        const authority = await specAuthority(
+          store,
+          {
+            github: this.github,
+            workspaceRoot: this.workspaceRoot,
+            actor: this.operator,
+          },
+          spec,
+        );
+        return { ...authority, driver, github: this.github };
+      },
+    });
+  }
+
   // The driver's step for worker machines' pushed results (WP5.3).
   async workerResults(store, driving, journalFor) {
     const config = loadLayeredConfig({
@@ -2150,7 +2183,7 @@ export class Operations {
         plan,
         data: {
           ...this.read(),
-          projects: this.store.list("projects"),
+          repositories: this.store.list("repositories"),
         },
         approved: this.approvedSpec(plan),
         retitled,
@@ -2186,11 +2219,12 @@ export class Operations {
       task = store.read().tasks.find((t) => t.id === input.taskId);
     if (!task) fail("Task not found.", 404);
     const worktree = store.get("task_worktrees", task.id),
-      project = store.get(
-        "projects",
+      repository = store.get(
+        "repositories",
         worktree?.repository || taskRepository(task),
       );
-    if (!project?.root) fail(`Task ${task.id} names no local checkout.`, 409);
+    if (!repository?.root)
+      fail(`Task ${task.id} names no local checkout.`, 409);
     const heads = input.push
       ? pushedCommits(input.stdin).map((p) => p.local)
       : [input.head || "HEAD"];
@@ -2198,7 +2232,7 @@ export class Operations {
     for (const head of heads) {
       gitRevision(head);
       enforceDiff(store, {
-        project: { ...project, root: worktree?.path || project.root },
+        repository: { ...repository, root: worktree?.path || repository.root },
         head,
         taskId: task.id,
         mode: "refuse",
@@ -2271,7 +2305,7 @@ export class Operations {
     return createExtraction(this.store, {
       planId: plan.id,
       revisionHash: input.revisionHash || plan.hash,
-      projectId: input.projectId || plan.context?.projectId || null,
+      repositoryId: input.repositoryId || plan.context?.repositoryId || null,
       sequence: [],
       parentRunId: input.parentRunId || null,
     });
@@ -2356,9 +2390,9 @@ export class Operations {
       perHour: policy?.writesPerHour ?? undefined,
     };
   }
-  // github.cacheSeconds, with a repository's own value first. The files are
-  // read at most every five seconds; an unreadable file means the default.
-  cacheSeconds(repo = "") {
+  // github.cacheSeconds, one value for the workspace. The files are read at
+  // most every five seconds; an unreadable file means the default.
+  cacheSeconds() {
     const at = Date.now();
     if (!this.cachePolicy || at - this.cachePolicy.at > 5000)
       this.cachePolicy = {
@@ -2366,11 +2400,7 @@ export class Operations {
         policy: readGitHubPolicyOrNull(this.workspaceRoot),
       };
     const policy = this.cachePolicy.policy;
-    return (
-      policy?.repositories?.[repo]?.cacheSeconds ??
-      policy?.cacheSeconds ??
-      DEFAULT_CACHE_SECONDS
-    );
+    return policy?.cacheSeconds ?? DEFAULT_CACHE_SECONDS;
   }
   // The merge path of the named repository; none without a name.
   async mergePaths(only) {
@@ -2452,7 +2482,7 @@ export class Operations {
           action,
           prompt: input.prompt,
           provider: input.provider,
-          projectId: input.projectId,
+          repositoryId: input.repositoryId,
           model: input.model,
           approvalMode: input.approvalMode,
           parentRunId: input.parentRunId,
@@ -2772,15 +2802,16 @@ export class Operations {
     if (name === "flow.checks.run") {
       const task = this.read().tasks.find((t) => t.id === input.taskId);
       if (!task) fail("Task not found.", 404);
-      const project = store.get("projects", taskRepository(task) || "");
-      if (!project?.root) fail(`Task ${task.id} names no local checkout.`, 409);
+      const repository = store.get("repositories", taskRepository(task) || "");
+      if (!repository?.root)
+        fail(`Task ${task.id} names no local checkout.`, 409);
       if (typeof input.cwd !== "string" || !path.isAbsolute(input.cwd))
         fail("Name the worktree folder to run the checks in.");
       return runLocalChecks({
         cwd: input.cwd,
-        root: project.root,
-        project,
-        env: project.checksEnv,
+        root: repository.root,
+        repository,
+        env: repository.checksEnv,
       });
     }
     // Runner mode over SSH (R84): off unless .avoozl.json has `runner`.
@@ -2792,8 +2823,8 @@ export class Operations {
       return runnerStatus(store, this.workspaceRoot);
     if (name === "remote.report")
       return reportDone(store, this.workspaceRoot, input);
-    if (name === "worker.claim")
-      return claimWork(store, this.workspaceRoot, this.github);
+    if (name === "worker.accept")
+      return acceptWork(store, this.workspaceRoot, this.github);
     if (name === "worker.setup") {
       const config = readRunnerConfig(this.workspaceRoot);
       if (config?.role !== "worker")
@@ -2812,17 +2843,17 @@ export class Operations {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
-    // A manual claim is the person's at this machine's command line
+    // Taking a task by hand is the person's at this machine's command line
     // (worker-paths WP2.7): never over MCP or from an agent session.
-    if (name === "runner.claim") {
+    if (name === "runner.take") {
       if (context.local !== true || context.caller || context.mcp)
         fail(
-          "A claim is a person's: run avoozl claim TASK from the command line.",
+          "Taking a task is a person's: run avoozl take TASK from the command line.",
           403,
         );
       return stampPrompts(
         store,
-        await manualClaim(
+        await manualTake(
           store,
           { ...input, workspaceRoot: this.workspaceRoot },
           { github: readGitHubPolicyOrNull(this.workspaceRoot) },
@@ -2935,7 +2966,7 @@ export class Operations {
       return deliverNotifications(store, this.notifier);
     if (name === "worktree.prepare") return prepareWorktree(store, input);
     if (name === "workspace.tick") {
-      // A worker machine pulls and claims before it runs what it was given.
+      // A worker machine pulls and accepts before it runs what it was given.
       await workerTick(store, this.workspaceRoot, this.github);
       // A runner holds no plans, so its tick only runs handed tasks.
       const remote = await runnerTick(store, this.workspaceRoot, {
@@ -2965,12 +2996,18 @@ export class Operations {
                 }
               : null;
           };
-        // Stale worker claims reach Needs you; nothing releases them (R90.6).
-        await checkStaleClaims(store, {
+        // Stale worker accepts reach Needs you; nothing releases them (R90.6).
+        await checkStaleGrants(store, {
           workspaceRoot: this.workspaceRoot,
           driving,
           journalFor,
         }).catch(() => 0);
+        // Worker machines get the driven specs' ready tasks, and their
+        // grants are answered, when workers.offerTo names them (WP5).
+        if (driving.length)
+          await this.workerOffers(store, driving).catch((error) =>
+            store.event(null, "worker.offers", { error: error.message }),
+          );
         // What worker machines pushed is fetched, checked and landed here
         // (R90.2, worker-paths WP5.3); a result that fails is a failed attempt.
         if (driving.length)
@@ -3017,7 +3054,7 @@ export class Operations {
                   plan: { id: spec.name },
                   data: {
                     ...this.read(),
-                    projects: store.list("projects"),
+                    repositories: store.list("repositories"),
                   },
                 }),
                 spec,
@@ -3078,7 +3115,7 @@ export class Operations {
     // Proposals and prompt overrides (design §4.18).
     if (RETRO_READS.has(name) || RETRO_WRITES.has(name))
       return retroOperation(store, name, input, context, {
-        by: context.local ? "cli" : "dashboard",
+        by: context.local ? "cli" : this.operator || "dashboard",
       });
     if (PLUGIN_OPERATIONS.has(name)) {
       const result = await this.pluginOperation(name, input, context);
@@ -3531,7 +3568,7 @@ export class Operations {
           403,
         );
       return runAnyway(store, input, {
-        operator: context.local ? "cli" : "dashboard",
+        operator: context.local ? "cli" : this.operator || "dashboard",
       });
     }
     // Stop all agents (R64.12): a person only, through the app backend,
@@ -3540,7 +3577,10 @@ export class Operations {
       if (context.caller || context.mcp)
         fail("Only a person stops all agents. Do it in the Avoozl app.", 403);
       return pullFullStop(store, input, {
-        by: { kind: "person", name: context.local ? "cli" : "dashboard" },
+        by: {
+          kind: "person",
+          name: context.local ? "cli" : this.operator || "dashboard",
+        },
         stopSession: this.sessionStopper,
       });
     }
@@ -3554,7 +3594,10 @@ export class Operations {
                 kind: "agent",
                 name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
               }
-            : { kind: "person", name: context.local ? "cli" : "dashboard" },
+            : {
+                kind: "person",
+                name: context.local ? "cli" : this.operator || "dashboard",
+              },
       });
     if (name === "flow.resume") {
       if (context.caller || context.mcp)
@@ -3563,11 +3606,11 @@ export class Operations {
           403,
         );
       return resumeStop(store, input, {
-        by: context.local ? "cli" : "dashboard",
+        by: context.local ? "cli" : this.operator || "dashboard",
       });
     }
     // Issue Radar's live claims on every registered repository, read from
-    // GitHub only (radar-claims.mjs). `refresh` reads GitHub first.
+    // GitHub only (radar-crews.mjs). `refresh` reads GitHub first.
     // The merge path of each Issue Radar repository (RC5.1): three items,
     // read from GitHub; nothing is written.
     // The Release queue (RC4.5): what is released, claimed, next or held, and
@@ -3584,7 +3627,7 @@ export class Operations {
       if (context.caller || context.mcp)
         fail("Only a person releases a phase, in the Avoozl page.", 403);
       return releaseStep(store, input, {
-        by: context.local ? "cli" : "dashboard",
+        by: context.local ? "cli" : this.operator || "dashboard",
       });
     }
     // Flow from GitHub data: stage times cached earlier and every stored
@@ -3603,7 +3646,7 @@ export class Operations {
           403,
         );
       return landBranch(store, input, {
-        by: context.local ? "cli" : "dashboard",
+        by: context.local ? "cli" : this.operator || "dashboard",
       });
     }
     // An external gap report becomes proposed tasks in the sub-specs; nothing is
@@ -3749,21 +3792,21 @@ export class Operations {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         github = policy?.mode && this.github?.available?.();
       if (this.backgroundReads && input.refresh !== true) {
-        const stale = github && !claimsFresh(store, Date.now());
+        const stale = github && !crewsFresh(store, Date.now());
         const refreshing =
           (stale || this.refreshing.has("radar.crews")) &&
           this.refreshLater("radar.crews", () =>
-            refreshClaims(store, this.github, policy),
+            refreshCrews(store, this.github, policy),
           );
-        const view = claimsView(store);
+        const view = crewsView(store);
         return refreshing ? { ...view, refreshing: true } : view;
       }
       // Read at most every 2 minutes, however often the Dashboard asks.
       if (github)
-        await refreshClaims(store, this.github, policy, {
+        await refreshCrews(store, this.github, policy, {
           force: input.refresh === true,
         });
-      return claimsView(store);
+      return crewsView(store);
     }
     // The Untriaged list (§8.5): cached GitHub items no rule, triage label,
     // or task covers. `refresh` reads GitHub first (Check now); read only.
@@ -3851,20 +3894,30 @@ export class Operations {
       return {
         sources: declaredSources(this.pluginOptions, store).map(
           ({ id, scope, entry, error, source }) => {
+            // Who counts is the repository's setting, shown here read only.
+            const configured = source
+                ? Object.entries(policy?.repositories || {}).find(
+                    ([repository]) => same(repository, source.repository),
+                  )?.[1]
+                : null,
+              who = configured
+                ? {
+                    allowedActors: configured.allowedActors,
+                    minimumPermission: configured.minimumPermission,
+                  }
+                : null;
             // A GitHub source (§4.39): its repository's read, and the Issue
             // Radar escalation label its Triage rows open first with.
             if (source?.via === "github") {
               const read = reads.find((r) =>
-                  same(r.repository, source.repository),
-                ),
-                configured = Object.entries(policy?.repositories || {}).find(
-                  ([repository]) => same(repository, source.repository),
-                )?.[1];
+                same(r.repository, source.repository),
+              );
               return {
                 id,
                 scope,
                 entry,
                 error,
+                who,
                 state: read
                   ? { cursor: null, readAt: read.checkedAt, error: read.error }
                   : null,
@@ -3877,6 +3930,7 @@ export class Operations {
               scope,
               entry,
               error,
+              who,
               state: id ? sourceRowOf(store, `source:${id}`) : null,
               items: (id && counts.get(id)) || none,
             };
@@ -3910,14 +3964,43 @@ export class Operations {
       return withWorkLock(store, WORKSPACE_LOCK, async () =>
         confirmSnapshot(store, input),
       );
+    // The triage agent and the Issues and Pull requests pages
+    // (triage-operations.mjs).
+    if (name.startsWith("triage.") || name.startsWith("items."))
+      return triageOperation(this, name, input, context);
+    // A fix (triage-agent TA9): one change with no spec files. Starting it
+    // is the approval, so only a person starts one or makes it a spec.
+    if (name === "fix.start" || name === "fix.spec") {
+      if (context.caller || context.mcp)
+        fail("Only a person starts a fix or makes it a spec.", 403);
+      return withWorkLock(store, WORKSPACE_LOCK, async () =>
+        name === "fix.start"
+          ? startFix(store, input, {
+              workspaceRoot: this.workspaceRoot,
+              actor: this.operator,
+            })
+          : fixToSpec(store, this.workspaceRoot, input),
+      );
+    }
     if (name === "intake.deliver" || name === "intake.plan") {
       const action = name === "intake.deliver" ? "deliver" : "plan",
         policy = readGitHubPolicyOrNull(this.workspaceRoot);
       // A GitHub item (R102.19): its two writes need the GitHub client.
+      // Deliver this is a fix, which lands through its own journal.
       if (input.source === "github")
-        return withWorkLock(store, WORKSPACE_LOCK, async () =>
-          startGitHubItem(store, this.github, policy, { ...input, action }),
-        );
+        return withWorkLock(store, WORKSPACE_LOCK, async () => {
+          const started = await startGitHubItem(store, this.github, policy, {
+            ...input,
+            action,
+          });
+          if (action === "deliver")
+            await openFixJournal(
+              store,
+              { workspaceRoot: this.workspaceRoot, actor: this.operator },
+              started.taskId,
+            );
+          return started;
+        });
       return withWorkLock(store, WORKSPACE_LOCK, async () =>
         startByPerson(store, sourceMap(this.pluginOptions, store), policy, {
           ...input,
@@ -4526,7 +4609,7 @@ export class Operations {
           .slice(0, 40),
         recentIntegrations: recentIntegrations(store),
         configuration: this.configuration?.metadata() || null,
-        projects: store.list("projects"),
+        repositories: store.list("repositories"),
         github: {
           available: this.github.available(),
           machine: machineIdentity(store),
@@ -5069,7 +5152,7 @@ export class Operations {
               plan,
               data: {
                 ...this.read(),
-                projects: store.list("projects"),
+                repositories: store.list("repositories"),
               },
             }),
         ...(plan.spec ? { disk: this.specOnDisk(plan) } : {}),
@@ -5100,7 +5183,7 @@ export class Operations {
         plan,
         data: {
           ...this.read(),
-          projects: store.list("projects"),
+          repositories: store.list("repositories"),
         },
       });
     }
@@ -5142,7 +5225,7 @@ export class Operations {
           plan,
           data: {
             ...data,
-            projects: store.list("projects"),
+            repositories: store.list("repositories"),
           },
           ...(extraction ? { proposals } : {}),
         });
@@ -5432,8 +5515,8 @@ export class Operations {
       if (!round) fail("Review pipeline not found.", 404);
       return round;
     }
-    if (name === "github.project.detect")
-      return projectGitHubRepository(store, input);
+    if (name === "github.repository.detect")
+      return repositoryGitHubRemote(store, input);
     if (name === "repositories.list")
       return { items: workspaceRepositories(store) };
     // Read only: what the Add repository form would register for a folder.
@@ -5464,17 +5547,17 @@ export class Operations {
         fail("Planning documents require a local checkout.");
       if (authorizeIssues && !localCheckout)
         fail("Label-authorized work requires a local checkout.");
-      let project = null;
+      let repository = null;
       if (localCheckout) {
-        project = await projectConfig({
+        repository = await repositoryConfig({
           id,
           root: localCheckout,
           baseBranch: String(input.baseBranch || "main").trim() || "main",
           worktreeRoot: input.worktreeRoot || undefined,
           checks: input.checks ?? [],
         });
-        project = {
-          ...project,
+        repository = {
+          ...repository,
           ...(String(input.name || "").trim()
             ? { name: String(input.name).trim() }
             : {}),
@@ -5484,38 +5567,32 @@ export class Operations {
       }
       if (
         existing?.localCheckout &&
-        (!project || existing.localCheckout !== project.root)
+        (!repository || existing.localCheckout !== repository.root)
       )
         assertRepositoryRemovable(store, existing);
       const binding = this.repositoryBindingGuard?.({
         repositoryId: id,
-        root: project?.root || null,
-        editable: Boolean(project?.editable),
+        root: repository?.root || null,
+        editable: Boolean(repository?.editable),
       });
       try {
-        const labels = input.labelBehaviors,
-          issueIntake =
-            githubRepository && authorizeIssues
-              ? await prepareGitHubRepository(store, this.github, {
-                  repository: githubRepository,
-                  workspaceRepositoryId: id,
-                  projectId: project.id,
-                  project,
-                  assignee: input.assignee,
-                  label:
-                    input.readyLabel || labels?.ready?.[0] || "avoozl:ready",
-                  managedLabel: input.managedLabel,
-                  allowedActors: input.allowedActors,
-                  minimumPermission: input.minimumPermission,
-                  provider: input.provider,
-                  model: input.model,
-                  autoStart: input.autoStart,
-                })
-              : null;
+        const issueIntake =
+          githubRepository && authorizeIssues
+            ? await prepareGitHubRepository(store, this.github, {
+                repository: githubRepository,
+                workspaceRepositoryId: id,
+                repositoryId: repository.id,
+                registering: repository,
+                assignee: input.assignee,
+                provider: input.provider,
+                model: input.model,
+                autoStart: input.autoStart,
+              })
+            : null;
         this.configuration?.updateUnifiedRepository({
           id,
           previousRepository: existing?.github,
-          project,
+          repository,
           issueIntake,
         });
         store.transaction(() => {
@@ -5524,8 +5601,8 @@ export class Operations {
               .prepare("DELETE FROM github_repositories WHERE id=?")
               .run(existing.github);
           }
-          if (project) store.put("projects", project);
-          else store.db.prepare("DELETE FROM projects WHERE id=?").run(id);
+          if (repository) store.put("repositories", repository);
+          else store.db.prepare("DELETE FROM repositories WHERE id=?").run(id);
           if (issueIntake) store.put("github_repositories", issueIntake);
           else if (existing?.github)
             store.db
@@ -5534,8 +5611,8 @@ export class Operations {
           store.event(null, "workspace.repository.configured", {
             repositoryId: id,
             github: githubRepository || null,
-            planning: Boolean(project?.planning),
-            editable: Boolean(project?.editable),
+            planning: Boolean(repository?.planning),
+            editable: Boolean(repository?.editable),
             issueAuthorization: authorizeIssues,
           });
         });
@@ -5569,15 +5646,15 @@ export class Operations {
         binding?.release?.();
       }
     }
-    if (name === "github.project.connect") {
+    if (name === "github.repository.connect") {
       this.configuration?.assertWritable();
       const detected = input.repository
-          ? { projectId: input.projectId, repository: input.repository }
-          : await projectGitHubRepository(store, input),
+          ? { repositoryId: input.repositoryId, repository: input.repository }
+          : await repositoryGitHubRemote(store, input),
         configuration = {
           ...input,
           repository: detected.repository,
-          projectId: detected.projectId,
+          repositoryId: detected.repositoryId,
         },
         execution = await configureGitHubRepository(
           store,
@@ -5649,33 +5726,6 @@ export class Operations {
       });
       return { plan, extraction };
     }
-    if (name === "work.release") {
-      const task = this.read().tasks.find(
-          (candidate) =>
-            candidate.id === resolveTaskId(this.read(), input.taskId),
-        ),
-        claim = task?.githubClaim;
-      if (!task) fail("Task not found.", 404);
-      if (!claim?.repository || !claim.number || !claim.login)
-        fail("This task is not owned through a GitHub claim.", 409);
-      await this.github.removeAssignees(
-        parseRepository(claim.repository),
-        claim.number,
-        [claim.login],
-      );
-      return store.mutate(`Release ${task.id}`, (data) => {
-        const current = data.tasks.find(
-          (candidate) => candidate.id === task.id,
-        );
-        current.owner = "";
-        current.githubClaim = {
-          ...current.githubClaim,
-          releasedAt: new Date().toISOString(),
-        };
-        current.updatedAt = new Date().toISOString();
-        return current;
-      });
-    }
     if (name === "github.sync") {
       const result = await syncGitHubIssues(store, this.github, {
         ...input,
@@ -5717,16 +5767,20 @@ export class Operations {
         fail("Only a person applies repository setup.", 403);
       if (!this.github?.available?.())
         fail("Repository setup needs GitHub; run gh auth login.", 503);
+      // The checks and the base branch are the repository's own settings.
+      const wanted = this.githubPolicy().repositories?.[input.repository];
       return repositorySetup(
         store,
         this.github,
         {
           ...input,
+          checks: wanted?.requiredChecks,
+          base: wanted?.baseBranch ?? undefined,
         },
         {
-          writeProject: (project) => {
+          writeRepository: (repository) => {
             this.configuration?.assertWritable();
-            this.configuration?.updateExecutionProject(project);
+            this.configuration?.updateExecutionRepository(repository);
           },
           // The repository's landing block holds the mode (§4.25).
           writeLanding: (repository, mode) => {
@@ -5747,19 +5801,19 @@ export class Operations {
         },
       );
     }
-    // The driver's side of worker claims (R90.4): offer a task to a worker
+    // The driver's side of worker accepts (R90.4): offer a task to a worker
     // login, and reserve and acknowledge the requests. A person's own act at
     // this machine; no session or MCP caller.
     if (
       [
         "spec.offer",
-        "spec.claims",
-        "spec.claims.release",
-        "spec.claims.status",
+        "spec.grants",
+        "spec.grants.release",
+        "spec.grants.status",
       ].includes(name)
     ) {
       if (context.caller || context.mcp)
-        fail("Only a person drives worker offers and claims.", 403);
+        fail("Only a person drives worker offers and grants.", 403);
       const authority = await specAuthority(
           store,
           {
@@ -5782,27 +5836,27 @@ export class Operations {
         github: this.github,
         journal: authority.journal,
         options: authority.options,
-        claims: input.claims,
+        grants: input.grants,
       };
-      if (name === "spec.claims.status")
-        return claimStatus(authority.journal, authority.options, {
-          staleAfter: claimStaleMs(
+      if (name === "spec.grants.status")
+        return grantStatus(authority.journal, authority.options, {
+          staleAfter: grantStaleMs(
             loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config
-              ?.workers?.claimStaleAfter,
+              ?.workers?.grantStaleAfter,
           ),
         });
-      if (name === "spec.claims.release")
-        return releaseClaim({
+      if (name === "spec.grants.release")
+        return releaseGrant({
           ...held,
           task: input.task,
           by: { kind: "person" },
         });
-      if (name === "spec.claims") {
+      if (name === "spec.grants") {
         // Carry or settle what exists first, then answer new requests.
-        const reconciled = await reconcileClaims(held);
+        const reconciled = await reconcileGrants(held);
         return {
           reconciled,
-          ...(await reserveClaims({
+          ...(await reserveGrants({
             ...held,
             base: input.base,
             ...(input.cap ? { cap: input.cap } : {}),
@@ -5895,7 +5949,7 @@ export class Operations {
       return publishPlanningPullRequest(store, this.github, input);
     if (name === "planning.reconcile")
       return this.reconcilePlanningPullRequests();
-    if (name === "project.configure") {
+    if (name === "repository.configure") {
       // Unconfined checks need this machine's opt-in.
       const allowIsolation = (isolation) => {
         if (
@@ -5915,49 +5969,52 @@ export class Operations {
         keys.includes("isolation") &&
         keys.every((key) => ["id", "isolation"].includes(key))
       ) {
-        const existing = store.get("projects", String(input.id || ""));
-        if (!existing) fail("Project not found.", 404);
+        const existing = store.get("repositories", String(input.id || ""));
+        if (!existing) fail("Repository not found.", 404);
         const isolation = allowIsolation(
           isolationSetting(input.isolation, "isolation"),
         );
         this.configuration?.assertWritable();
-        const configured = store.put("projects", { ...existing, isolation });
-        this.configuration?.updateExecutionProject(configured);
+        const configured = store.put("repositories", {
+          ...existing,
+          isolation,
+        });
+        this.configuration?.updateExecutionRepository(configured);
         return configured;
       }
-      const project = await projectConfig(input);
-      allowIsolation(project.isolation);
+      const repository = await repositoryConfig(input);
+      allowIsolation(repository.isolation);
       this.configuration?.assertWritable();
-      const configured = store.put("projects", project);
-      this.configuration?.updateExecutionProject(configured);
+      const configured = store.put("repositories", repository);
+      this.configuration?.updateExecutionRepository(configured);
       return configured;
     }
-    if (name === "project.remove") {
+    if (name === "repository.remove") {
       const id = String(input.id || "").trim(),
-        project = id ? store.get("projects", id) : null;
-      if (!project) fail("Project not found.", 404);
+        repository = id ? store.get("repositories", id) : null;
+      if (!repository) fail("Repository not found.", 404);
       const locked = store.db
-        .prepare("SELECT id FROM work_locks WHERE project_id=? LIMIT 1")
+        .prepare("SELECT id FROM work_locks WHERE repository_id=? LIMIT 1")
         .get(id);
       if (locked)
         fail(
-          `Project ${id} is currently locked by active work. Wait for it to finish before removing the project.`,
+          `Repository ${id} is currently locked by active work. Wait for it to finish before removing the repository.`,
           409,
         );
       const authorization = store
         .list("github_repositories")
-        .find((entry) => entry.projectId === id);
+        .find((entry) => entry.repositoryId === id);
       if (authorization)
         fail(
-          `Project ${id} is still connected to GitHub. Remove or reassign its label-authorized repositories first.`,
+          `Repository ${id} is still connected to GitHub. Remove or reassign its label-authorized repositories first.`,
           409,
         );
       this.configuration?.assertWritable();
-      this.configuration?.removeExecutionProject(id);
-      store.remove("projects", id);
+      this.configuration?.removeExecutionRepository(id);
+      store.remove("repositories", id);
       this.configuration?.reload();
-      store.event(null, "project.removed", { projectId: id });
-      return { ...project, removed: true };
+      store.event(null, "repository.removed", { repositoryId: id });
+      return { ...repository, removed: true };
     }
     if (name === "integration.merge") {
       return integrateRun(store, input);

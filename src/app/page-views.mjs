@@ -20,9 +20,10 @@ import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { draftGraph } from "./graph-drafts.mjs";
 import { FINAL_STATUSES } from "./session-bindings.mjs";
 import {
-  claimedTaskIds,
+  busyTaskIds,
   deliveryFindings,
   dispatchOrder,
+  liveAttempt,
   startNowIds,
 } from "./delivery.mjs";
 import { sessionUrl } from "./notifications.mjs";
@@ -66,7 +67,7 @@ function optionalGet(store, table, id) {
 
 function claimedLeaves(store) {
   try {
-    return claimedTaskIds(store);
+    return busyTaskIds(store);
   } catch {
     return new Set();
   }
@@ -130,14 +131,17 @@ function needsTextReview(data, task) {
 }
 
 // Tasks with a live Avoozl session (worker, checks, reviewer, planner):
-// bound, not closed, lost, gone or dismissed. The Graph's Running state and
-// the Dashboard's In flight list both read this, so they always agree.
+// bound, not closed, lost, gone or dismissed, and not past its done or
+// blocked report. A Kiro Crew chat that reported done stays open and its
+// last read status stays "working" (P39 live), so the report ends it here.
+// The Graph's Running state and the Dashboard's In flight list both read
+// this, so they always agree.
 function liveSessions(store) {
   const ids = new Set();
   for (const row of optionalList(store, "session_bindings"))
     if (
       typeof row?.taskId === "string" &&
-      !FINAL_STATUSES.has(row.status) &&
+      liveAttempt(row) &&
       row.status !== "gone" &&
       !row.dismissedAt
     )
@@ -215,7 +219,7 @@ function reviewGroups(store, data) {
       id: `review:${group.key}`,
       taskId: null,
       plan: group.name,
-      title: `Review ${group.tasks.length} ${group.tasks.length === 1 ? "task" : "tasks"} in ${group.name}: their design text changed`,
+      title: `${group.tasks.length} ${group.tasks.length === 1 ? "task" : "tasks"} in ${group.name} changed: check ${group.tasks.length === 1 ? "it" : "them"}`,
       detail:
         "Each is new, or its own text in the plan changed since it was last reviewed. None starts until you mark it reviewed.",
       tasks: group.tasks,
@@ -914,7 +918,7 @@ function crewHoldText(task) {
   if (!hold || !String(task.decision || "").startsWith("crew-")) return null;
   return hold.kind === "needs-human"
     ? `An Issue Radar crew added "${hold.label}" to issue #${hold.number}: it needs a person. Answer it on GitHub; dependents wait until the label comes off.`
-    : `Issue #${hold.number} has Issue Radar's claim "${hold.label}" but is no longer ready. Avoozl does not stop the crew; dependents wait until the claim comes off or the task is ready again.`;
+    : `Issue #${hold.number} has Issue Radar's in-progress label "${hold.label}" but is no longer ready. Avoozl does not stop the crew; dependents wait until the label comes off or the task is ready again.`;
 }
 
 export function conflictsView(store, data) {
@@ -1171,7 +1175,7 @@ export function taskDetailView(
       acceptance: detail.acceptance || [],
       // The repository's checks, which every task runs.
       checks: repositoryChecks(
-        store.get("projects", taskRepository(detail) || ""),
+        store.get("repositories", taskRepository(detail) || ""),
       ).map((check) =>
         check.name === checkCommand(check)
           ? check.name

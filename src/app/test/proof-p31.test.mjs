@@ -179,7 +179,7 @@ function workspace(t) {
   // The workspace database must be on disk: the cache sits beside it.
   assert.ok(untriagedPath(store), "the store has a file");
   writePolicy(root, { triageLabels: ["triaged"] });
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: "/tmp/code",
     baseBranch: "main",
@@ -189,7 +189,7 @@ function workspace(t) {
     id: REPO,
     owner: "o",
     repo: "app",
-    projectId: "code",
+    repositoryId: "code",
     activeMachine: machineIdentity(store).id,
   });
   // Issue 4 is a task's issue, and pull request 8 is recorded on it.

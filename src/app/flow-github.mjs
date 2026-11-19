@@ -7,8 +7,8 @@
 //   merged  the pull request merged
 // Times are ISO strings. Pure: it reads nothing and writes nothing.
 export const STAGE_NAMES = Object.freeze([
-  "Ready to Claim",
-  "Claim to PR",
+  "Ready to start",
+  "Start to PR",
   "PR to green",
   "Green to merge",
 ]);
@@ -48,7 +48,7 @@ export function flowFromEvents(rows) {
     skipped,
     median: issues.length ? median_ : null,
     medianLead: median(issues.map((x) => x.lead)),
-    // Time a crew spent building (Claim to PR) over time from ready to merge.
+    // Time a crew spent building (Start to PR) over time from ready to merge.
     efficiency: lead
       ? issues.reduce((sum, x) => sum + x.stages[1], 0) / lead
       : null,

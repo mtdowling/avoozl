@@ -115,19 +115,20 @@ async function privateQuotes(store, github, config, body) {
     if (remote?.private === true) visibility = "private";
   } catch {}
   if (visibility === "private") return [];
-  const own = config.projectId && store.get("projects", config.projectId),
+  const own =
+      config.repositoryId && store.get("repositories", config.repositoryId),
     target = path.resolve(
       own?.root ||
         store
-          .list("projects")
-          .find((p) => p.repository?.toLowerCase() === config.id.toLowerCase())
+          .list("repositories")
+          .find((p) => p.github?.toLowerCase() === config.id.toLowerCase())
           ?.root ||
         "/nonexistent",
     ),
     others = [
       ...new Set(
         store
-          .list("projects")
+          .list("repositories")
           .map((p) => p.root && path.resolve(p.root))
           .filter((root) => root && root !== target),
       ),
@@ -154,7 +155,7 @@ export function machineRoots(store, workspaceRoot) {
   return [
     os.homedir(),
     workspaceRoot,
-    ...store.list("projects").flatMap((p) => [p.root, p.worktreeRoot]),
+    ...store.list("repositories").flatMap((p) => [p.root, p.worktreeRoot]),
   ].filter(Boolean);
 }
 
@@ -302,7 +303,7 @@ export async function respondStep(
         label = rules?.managedLabels?.responding || null,
         checkout = repositories.find(
           (entry) =>
-            entry.id === config?.projectId ||
+            entry.id === config?.repositoryId ||
             entry.github === record.repository,
         );
       // shortcut: a repository with no local checkout or no responding label
@@ -351,11 +352,11 @@ export async function respondStep(
     const checkout = repositories.find(
         (entry) =>
           entry.id ===
-            store.get("github_repositories", response.repository)?.projectId ||
-          entry.github === response.repository,
+            store.get("github_repositories", response.repository)
+              ?.repositoryId || entry.github === response.repository,
       ),
-      project = checkout ? store.get("projects", checkout.id) : null,
-      run = roleRun("responder", { config, project });
+      repository = checkout ? store.get("repositories", checkout.id) : null,
+      run = roleRun("responder", { config, repository });
     // A `process` responder reads a detached copy of the base branch, which
     // Avoozl adds before it starts (NK2.2); a chat opens in the checkout.
     const child =
@@ -423,7 +424,7 @@ async function openDiscussionResponses(store, github, policy, repositories) {
     if (!rules.discussions) continue;
     const config = store.get("github_repositories", id),
       checkout = repositories.find(
-        (entry) => entry.id === config?.projectId || entry.github === id,
+        (entry) => entry.id === config?.repositoryId || entry.github === id,
       );
     if (!config || !checkout?.localCheckout) continue;
     let list;

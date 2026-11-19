@@ -32,7 +32,7 @@ of the other specs.
   - Facts:
     - done:
       - The source test fails on a module outside the `kirocrew` executor that defaults a request to `kirocrew`; a test fails when `HARNESS_ROLES` holds a role no dispatch reads; the tests of the four roles that already run on `process` pass with their assertions unchanged; a harness saved for the plan reviewer and for review drafts is the one their requests name; screenshots of Settings › Models at 390 and 1280 px, light and dark, go to the owner.
-  - `src/app/role-table.mjs` with one row per role, read by `processFinish`, the drain's folder rule and `finishProcessSession`; the verifier, reviewers, planner and retro move into it unchanged; every dispatch takes its executor from the pin, `harnesses.<role>` and the project; Settings › Models lists every role.
+  - `src/app/role-table.mjs` with one row per role, read by `processFinish`, the drain's folder rule and `finishProcessSession`; the verifier, reviewers, planner and retro move into it unchanged; every dispatch takes its executor from the pin, `harnesses.<role>` and the repository; Settings › Models lists every role.
 - [x] nk-1.2 Output files and snapshots for a child, after nk-1.1 [NK3.1, NK3.2, NK3.4, NK5.5] (§D3, §D4)
   - Facts:
     - done:

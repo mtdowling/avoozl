@@ -1,4 +1,4 @@
-// Task 43.3 (R90.4, R102.14): the driver reserves one claim ref in the spec's
+// Task 43.3 (R90.4, R102.14): the driver reserves one grant ref in the spec's
 // canonical namespace, then acknowledges; a worker starts only on its own
 // acknowledgment. Comments are requests, never the lock.
 import assert from "node:assert/strict";
@@ -13,11 +13,11 @@ import { githubJournal, appendRecord } from "../spec-journal.mjs";
 import { Store } from "../store.mjs";
 import {
   acknowledged,
-  claimBranch,
+  grantBranch,
   publishOffer,
   requestBody,
-  reserveClaims,
-} from "../worker-claims.mjs";
+  reserveGrants,
+} from "../worker-grants.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { checkpointBranch } from "../working-heads.mjs";
 import { workerResultsStep } from "../worker-result-step.mjs";
@@ -25,7 +25,7 @@ import { temporaryDirectory } from "./temporary.mjs";
 
 // The worker's machine config is written under this folder, never the real one.
 delete process.env.KIROCREW_HOME;
-process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-claim-home-");
+process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-grant-home-");
 
 const SPEC = "demo",
   DRIVER = "d".repeat(16),
@@ -40,7 +40,7 @@ const git = (cwd, ...args) =>
     stdio: ["ignore", "pipe", "pipe"],
   }).trim();
 
-// One spec issue's comments and the claim repository's branches, acted on
+// One spec issue's comments and the grant repository's branches, acted on
 // by `actor`. Branch creation refuses a name that exists, as GitHub does.
 function world() {
   const comments = [],
@@ -101,7 +101,7 @@ const driving = (w, journal) => ({
   owner: OWNER,
   login: "owner",
   spec: SPEC,
-  claims: "example/code",
+  grants: "example/code",
   base: "main",
 });
 const offerFor = (journal, worker, repository, task = "t1") =>
@@ -134,24 +134,24 @@ const ask = (w, login, task = "t1", generation = 1) =>
       requestBody({ spec: SPEC, task, definition: DEF, generation }),
     );
 
-test("two forks race for one task: one claim branch, one acknowledgment", async () => {
+test("two forks race for one task: one grant branch, one acknowledgment", async () => {
   const w = world(),
     { journal } = await started(w);
   await offerFor(journal, "worker-a", "fork-a/code");
   await offerFor(journal, "worker-b", "fork-b/code");
   await ask(w, "worker-b");
   await ask(w, "worker-a");
-  const result = await reserveClaims(driving(w, journal));
+  const result = await reserveGrants(driving(w, journal));
   assert.equal(result.acknowledged.length, 1);
   assert.equal(result.acknowledged[0].task, "t1");
   assert.deepEqual(
     result.declined.map((d) => d.reason),
-    ["claimed"],
+    ["granted"],
   );
   assert.equal([...w.branches.keys()].length, 1);
   assert.equal(
     [...w.branches.keys()][0],
-    `example/code:${claimBranch(SPEC, "t1")}`,
+    `example/code:${grantBranch(SPEC, "t1")}`,
   );
   // Only the winner may start; the loser's agent never opens.
   const offer = {
@@ -178,7 +178,7 @@ test("two forks race for one task: one claim branch, one acknowledgment", async 
     [0, 1],
   );
   // A repeat pass writes and reserves nothing more.
-  const again = await reserveClaims(driving(w, journal));
+  const again = await reserveGrants(driving(w, journal));
   assert.deepEqual(again.acknowledged, []);
   assert.equal(w.branches.size, 1);
 });
@@ -188,8 +188,8 @@ test("a name already reserved elsewhere gets no acknowledgment", async () => {
     { journal } = await started(w);
   await offerFor(journal, "worker-a", "fork-a/code");
   await ask(w, "worker-a");
-  w.branches.set(`example/code:${claimBranch(SPEC, "t1")}`, "someone");
-  const result = await reserveClaims(driving(w, journal));
+  w.branches.set(`example/code:${grantBranch(SPEC, "t1")}`, "someone");
+  const result = await reserveGrants(driving(w, journal));
   assert.deepEqual(result.acknowledged, []);
   assert.deepEqual(
     result.declined.map((d) => d.reason),
@@ -206,7 +206,7 @@ test("an unoffered author, a stale generation and an over-cap request are declin
   await ask(w, "worker-a", "t1", 0);
   await ask(w, "worker-a", "t1");
   await ask(w, "worker-a", "t2");
-  const result = await reserveClaims(driving(w, journal));
+  const result = await reserveGrants(driving(w, journal));
   assert.deepEqual(
     result.acknowledged.map((a) => a.task),
     ["t1"],
@@ -218,7 +218,7 @@ test("an unoffered author, a stale generation and an over-cap request are declin
       ["t2", "over-cap"],
     ],
   );
-  const raised = await reserveClaims({ ...driving(w, journal), cap: 2 });
+  const raised = await reserveGrants({ ...driving(w, journal), cap: 2 });
   assert.deepEqual(
     raised.acknowledged.map((a) => a.task),
     ["t2"],
@@ -230,7 +230,7 @@ test("a displaced or stopped driver reserves nothing", async () => {
     { journal } = await started(w);
   await offerFor(journal, "worker-a", "fork-a/code");
   await ask(w, "worker-a");
-  const wrong = await reserveClaims({
+  const wrong = await reserveGrants({
     ...driving(w, journal),
     driver: "e".repeat(16),
   });
@@ -247,13 +247,13 @@ test("a displaced or stopped driver reserves nothing", async () => {
     },
     OPTIONS,
   );
-  const stopped = await reserveClaims(driving(w, journal));
+  const stopped = await reserveGrants(driving(w, journal));
   assert.equal(stopped.reason, "stopped");
   assert.equal(w.branches.size, 0);
 });
 
 function workerWorkspace(t, origin, repo, { lanes } = {}) {
-  const root = temporaryDirectory("avoozl-claim-worker-");
+  const root = temporaryDirectory("avoozl-grant-worker-");
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
@@ -299,7 +299,7 @@ function workerWorkspace(t, origin, repo, { lanes } = {}) {
 }
 
 test("a worker starts only on its own acknowledgment", async (t) => {
-  const dir = temporaryDirectory("avoozl-claim-repo-"),
+  const dir = temporaryDirectory("avoozl-grant-repo-"),
     origin = path.join(dir, "origin.git"),
     repo = path.join(dir, "app");
   fs.mkdirSync(repo);
@@ -343,8 +343,8 @@ test("a worker starts only on its own acknowledgment", async (t) => {
     (await worker.execute("worker.pull", {}, local)).offers.length,
     1,
   );
-  // First claim: asks, and starts nothing without an acknowledgment.
-  const first = await worker.execute("worker.claim", {}, local);
+  // First grant: asks, and starts nothing without an acknowledgment.
+  const first = await worker.execute("worker.accept", {}, local);
   assert.deepEqual(first.requested, [{ spec: SPEC, task: "t1" }]);
   assert.deepEqual(first.started, []);
   assert.equal(first.waiting.length, 1);
@@ -355,13 +355,13 @@ test("a worker starts only on its own acknowledgment", async (t) => {
   );
   // The comment named no login; the driver reads the author.
   assert.ok(!w.comments.at(-1).body.includes("worker-a"));
-  const reserved = await reserveClaims({
+  const reserved = await reserveGrants({
     ...driving(w, journal),
     cap: 1,
   });
   assert.equal(reserved.acknowledged.length, 1);
   // The same worker asking again does not ask twice, and now it starts.
-  const second = await worker.execute("worker.claim", {}, local);
+  const second = await worker.execute("worker.accept", {}, local);
   assert.deepEqual(second.requested, []);
   assert.deepEqual(second.started, [{ spec: SPEC, task: "t1" }]);
   assert.equal(Object.keys(ws.store.getMeta("runner.tasks")).length, 1);
@@ -371,7 +371,7 @@ test("a worker starts only on its own acknowledgment", async (t) => {
 // Worker-paths WP5.2: the worker machine's tick pulls, asks and starts on its
 // own, with the functions the hand-run commands call.
 function codeRepo() {
-  const dir = temporaryDirectory("avoozl-claim-repo-"),
+  const dir = temporaryDirectory("avoozl-grant-repo-"),
     origin = path.join(dir, "origin.git"),
     repo = path.join(dir, "app");
   fs.mkdirSync(repo);
@@ -426,7 +426,7 @@ test("a worker tick with two free lanes and three offers asks for two and starts
   assert.equal(Object.keys(ws.store.getMeta("worker.requested")).length, 2);
   assert.deepEqual(accepted(ws), []);
   // The driver acknowledges what was asked.
-  const reserved = await reserveClaims({ ...driving(w, journal), cap: 3 });
+  const reserved = await reserveGrants({ ...driving(w, journal), cap: 3 });
   assert.equal(reserved.acknowledged.length, 2);
   // Tick 2 starts the two; tick 3 has no free lane for the third.
   await workerTickOf(worker);
@@ -450,14 +450,14 @@ test("the hand-run commands give what one tick gives", async (t) => {
   // Both workers ask for the same two tasks; the driver acknowledges them.
   await workerTickOf(ops(byTick));
   await ops(byHand).execute("worker.pull", {}, local);
-  await ops(byHand).execute("worker.claim", {}, local);
+  await ops(byHand).execute("worker.accept", {}, local);
   assert.equal(
-    (await reserveClaims({ ...driving(w, journal), cap: 2 })).acknowledged
+    (await reserveGrants({ ...driving(w, journal), cap: 2 })).acknowledged
       .length >= 1,
     true,
   );
   await workerTickOf(ops(byTick));
-  await ops(byHand).execute("worker.claim", {}, local);
+  await ops(byHand).execute("worker.accept", {}, local);
   assert.deepEqual(accepted(byTick).sort(), accepted(byHand).sort());
   assert.ok(accepted(byTick).length >= 1);
 });
@@ -493,10 +493,10 @@ const commitAs = (cwd, message) =>
   );
 
 // A target, a fork, the driver's own checkout, and a store holding task t1
-// of spec `demo` with its project. `push` adds the worker's checkpoint.
+// of spec `demo` with its repository. `push` adds the worker's checkpoint.
 async function driverWorld(
   t,
-  { files = { "b.txt": "b\n" }, claim = true } = {},
+  { files = { "b.txt": "b\n" }, grant = true } = {},
 ) {
   const dir = temporaryDirectory("avoozl-driver-results-"),
     target = path.join(dir, "target.git"),
@@ -513,8 +513,8 @@ async function driverWorld(
   git(seed, "push", "-q", "origin", "main");
   const base = git(seed, "rev-parse", "HEAD");
   git(dir, "clone", "-q", "--bare", target, fork);
-  fs.mkdirSync(root);
-  git(root, "init", "-q", "-b", "main");
+  // The driver's own checkout of the target, on its base branch.
+  git(dir, "clone", "-q", target, root);
   git(root, "config", "user.name", "Driver");
   git(root, "config", "user.email", "driver@example.com");
   const store = new Store(path.join(dir, "workspace.sqlite"));
@@ -538,9 +538,9 @@ async function driverWorld(
     ],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "example/code",
-    repository: "example/code",
+    github: "example/code",
     root,
     baseBranch: "main",
     checks: [["node", "-e", "process.exit(0)"]],
@@ -566,9 +566,9 @@ async function driverWorld(
     },
     OPTIONS,
   );
-  if (claim) {
+  if (grant) {
     await ask(w, "worker-a");
-    const reserved = await reserveClaims({ ...driving(w, journal), cap: 1 });
+    const reserved = await reserveGrants({ ...driving(w, journal), cap: 1 });
     assert.equal(reserved.acknowledged.length, 1);
   }
   const sources = {
@@ -608,6 +608,15 @@ test("a pushed result lands on the driver's tick with no command run by hand", a
     head,
     "the working branch merged the verified head",
   );
+  // The working branch landed on the driver's base branch (wp-p3).
+  assert.equal(
+    git(d.root, "rev-parse", "main"),
+    git(d.root, "rev-parse", "refs/heads/avoozl/demo/work"),
+  );
+  assert.equal(
+    d.store.read().tasks.find((task) => task.id === "t1").integration.into,
+    "main",
+  );
   // The same head is judged once.
   assert.deepEqual((await d.step()).landed, []);
 });
@@ -624,8 +633,8 @@ test("a result that touches a protected path, and one whose checks fail, are fai
 
   const failing = await driverWorld(t);
   failing.push();
-  failing.store.put("projects", {
-    ...failing.store.get("projects", "example/code"),
+  failing.store.put("repositories", {
+    ...failing.store.get("repositories", "example/code"),
     checks: [["node", "-e", "process.exit(3)"]],
   });
   const rejected = await failing.step();
@@ -640,8 +649,8 @@ test("a result that touches a protected path, and one whose checks fail, are fai
   );
 });
 
-test("a result for a claim the driver did not acknowledge is ignored", async (t) => {
-  const d = await driverWorld(t, { claim: false });
+test("a result for a grant the driver did not acknowledge is ignored", async (t) => {
+  const d = await driverWorld(t, { grant: false });
   d.push();
   const result = await d.step();
   assert.deepEqual(result, { landed: [], failed: [], waiting: [], notify: [] });
@@ -667,4 +676,96 @@ test("worker-results.mjs has an importer that is not a test", () => {
       ),
     );
   assert.ok(sources.includes("worker-result-step.mjs"), sources.join(", "));
+});
+
+// wp-p3: with workers.offerTo, the driver's tick offers each ready task of a
+// driven spec once, holds it from local dispatch, and answers the grant.
+test("the driver's tick offers ready tasks once, holds them here and acknowledges the grant", async (t) => {
+  const { taskDefinition } = await import("../task-outcomes.mjs");
+  const { offeredTaskIds, workerOffersStep } = await import(
+    "../worker-offer-step.mjs"
+  );
+  const dir = temporaryDirectory("avoozl-driver-offers-"),
+    root = path.join(dir, "code");
+  fs.mkdirSync(root);
+  git(root, "init", "-q", "-b", "main");
+  fs.writeFileSync(path.join(root, "a.txt"), "a\n");
+  git(root, "add", ".");
+  git(
+    root,
+    "-c",
+    "user.name=D",
+    "-c",
+    "user.email=d@example.com",
+    "commit",
+    "-qm",
+    "Start",
+  );
+  const store = new Store(path.join(dir, "workspace.sqlite"));
+  t.after(() => store.close());
+  const task = {
+    id: "t1",
+    title: "Task t1",
+    kind: "leaf",
+    scope: "catalog",
+    status: "planned",
+    epic: "sample",
+    track: "catalog",
+    tags: [],
+    acceptance: ["Works."],
+    repository: "example/code",
+    planId: SPEC,
+  };
+  store.importSnapshot({ ...snapshot(), tasks: [task], edges: [] });
+  store.put("repositories", {
+    id: "example/code",
+    github: "example/code",
+    root,
+    baseBranch: "main",
+  });
+  const w = world(),
+    { journal } = await started(w),
+    step = () =>
+      workerOffersStep(store, {
+        driving: [SPEC],
+        logins: ["worker-a"],
+        authorityFor: async () => ({
+          journal,
+          options: OPTIONS,
+          login: "owner",
+          owner: OWNER,
+          driver: DRIVER,
+          github: w.as("owner"),
+        }),
+      });
+  const first = await step();
+  assert.deepEqual(first.offered, [{ task: "t1", worker: "worker-a" }]);
+  assert.ok(offeredTaskIds(store).has("t1"), "held from local dispatch");
+  // Nearby input: a second tick offers nothing new.
+  assert.deepEqual((await step()).offered, []);
+  const definition = taskDefinition({
+    id: "t1",
+    title: "Task t1",
+    acceptance: ["Works."],
+  });
+  await w
+    .as("worker-a")
+    .createIssueComment(
+      "example/plans",
+      1,
+      requestBody({ spec: SPEC, task: "t1", definition, generation: 1 }),
+    );
+  const answered = await step();
+  assert.equal(answered.acknowledged.length, 1);
+  assert.equal(answered.acknowledged[0].task, "t1");
+  assert.ok(w.branches.has(`example/code:${grantBranch(SPEC, "t1")}`));
+  // Without workers.offerTo the step does nothing.
+  const none = await workerOffersStep(store, {
+    driving: [SPEC],
+    logins: [],
+    authorityFor: async () => {
+      throw Error("not called");
+    },
+  });
+  assert.deepEqual(none.offered, []);
 });

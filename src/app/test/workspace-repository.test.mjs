@@ -186,9 +186,9 @@ test("planning repository .avoozl.json supplies shared agent rules while enablem
       2,
     ) + "\n",
   );
-  second.store.put("projects", {
-    id: "code-project",
-    title: "Code project",
+  second.store.put("repositories", {
+    id: "code-repository",
+    title: "Code repository",
     root: codeRoot,
   });
   await secondOps.execute("workspace.repository.configure", {
@@ -210,7 +210,7 @@ test("planning repository .avoozl.json supplies shared agent rules while enablem
       .read()
       .agentInstructions.find((rule) => rule.id === "code-repository-policy")
       .source.repositoryId,
-    "code-project",
+    "code-repository",
   );
   await secondOps.execute("agent.instructions.toggle", {
     id: "record-required-cleanup",

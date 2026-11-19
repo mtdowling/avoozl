@@ -38,7 +38,7 @@ try {
   const all = [
     ['github', 'GitHub'],
     ['github-sync', 'GitHub', 'sync'],
-    ['github-project', 'GitHub', 'project'],
+    ['github-repository', 'GitHub', 'repository'],
     ['radar', 'Issue Radar'],
     ['delivery', 'Delivery'],
     ['flow', 'Flow', null, { flow: '1' }],

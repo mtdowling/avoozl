@@ -14,7 +14,7 @@ import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));
-const config = temporaryDirectory("avoozl-claim-config-");
+const config = temporaryDirectory("avoozl-take-config-");
 const git = (cwd, ...args) =>
   execFileSync("git", args, {
     cwd,
@@ -39,7 +39,7 @@ const local = { local: true };
 // A workspace on the tick: two lanes, a real checkout, tasks a, b, c, where c
 // requires a.
 function setup(t) {
-  const root = temporaryDirectory("avoozl-claim-"),
+  const root = temporaryDirectory("avoozl-take-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
   git(checkout, "init", "-q", "-b", "main");
@@ -61,20 +61,20 @@ function setup(t) {
     tasks: [leaf("a"), leaf("b"), leaf("c")],
     edges: [{ from: "a", to: "c", kind: "requires" }],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
     checks: [["git", "status"]],
   });
   const ops = new Operations(store, { workspaceRoot: root }),
-    claim = (input, context = local) =>
-      ops.execute("runner.claim", input, undefined, context),
+    take = (input, context = local) =>
+      ops.execute("runner.take", input, undefined, context),
     tick = (slots = []) =>
       ops.execute("workspace.tick", {
         sessions: slots.map((target) => ({ target, status: "working" })),
       });
-  return { root, store, ops, claim, tick };
+  return { root, store, ops, take, tick };
 }
 
 function run(root, args, env = {}) {
@@ -88,9 +88,9 @@ function run(root, args, env = {}) {
   });
 }
 
-test("a claimed task stays unstarted across three ticks, and the tick still starts the others", async (t) => {
-  const { claim, tick } = setup(t),
-    mine = await claim({ taskId: "a" });
+test("a taken task stays unstarted across three ticks, and the tick still starts the others", async (t) => {
+  const { take, tick } = setup(t),
+    mine = await take({ taskId: "a" });
   assert.equal(mine.binding.conductor, "cli");
   assert.match(mine.report, /runner report a done/);
   assert.ok(fs.existsSync(mine.worktree.path));
@@ -98,13 +98,13 @@ test("a claimed task stays unstarted across three ticks, and the tick still star
   for (let i = 0; i < 3; i++)
     for (const d of (await tick([mine.binding.slot])).dispatch)
       started.push(d.task);
-  assert.ok(!started.includes("a"), "the tick never starts a claimed task");
+  assert.ok(!started.includes("a"), "the tick never starts a taken task");
   assert.ok(started.includes("b"), "it starts the other ready task");
 });
 
 test("runner report from the worktree with no token finishes it, and Avoozl runs the checks", async (t) => {
-  const { root, store, claim, tick } = setup(t),
-    mine = await claim({ taskId: "a" });
+  const { root, store, take, tick } = setup(t),
+    mine = await take({ taskId: "a" });
   fs.writeFileSync(path.join(mine.worktree.path, "a.txt"), "a\n");
   git(mine.worktree.path, "add", ".");
   git(mine.worktree.path, "commit", "-qm", "Do a");
@@ -132,14 +132,14 @@ test("runner report from the worktree with no token finishes it, and Avoozl runs
   );
 });
 
-test("a claim is refused with its reason for a task that is not ready, running, or held", async (t) => {
-  const { store, ops, claim } = setup(t);
+test("a take is refused with its reason for a task that is not ready, running, or held", async (t) => {
+  const { store, ops, take } = setup(t);
   await assert.rejects(
-    claim({ taskId: "c" }),
+    take({ taskId: "c" }),
     (e) =>
       e.status === 409 && /not ready to start: it is blocked/.test(e.message),
   );
-  await assert.rejects(claim({ taskId: "zzz" }), (e) => e.status === 404);
+  await assert.rejects(take({ taskId: "zzz" }), (e) => e.status === 404);
   // A chat the tick started holds b.
   await ops.execute("session.bind", {
     taskId: "b",
@@ -149,7 +149,7 @@ test("a claim is refused with its reason for a task that is not ready, running, 
     title: "avoozl:b Task b",
   });
   await assert.rejects(
-    claim({ taskId: "b" }),
+    take({ taskId: "b" }),
     (e) =>
       e.status === 409 &&
       /not ready to start: it has a session running/.test(e.message),
@@ -159,40 +159,40 @@ test("a claim is refused with its reason for a task that is not ready, running, 
     id: "stop-1",
     manual: true,
     scope: "all",
-    projectId: "app",
+    repositoryId: "app",
     openedAt: new Date().toISOString(),
     closedAt: null,
     runAnyway: null,
   });
   await assert.rejects(
-    claim({ taskId: "a" }),
+    take({ taskId: "a" }),
     (e) => e.status === 409 && /Stop the line holds it/.test(e.message),
   );
 });
 
-test("a claim over MCP, from an agent session, or from a supervisor child is refused", async (t) => {
-  const { root, claim } = setup(t);
+test("a take over MCP, from an agent session, or from a supervisor child is refused", async (t) => {
+  const { root, take } = setup(t);
   for (const context of [{}, as("chat"), { caller: { sessionKey: null } }])
     await assert.rejects(
-      claim({ taskId: "a" }, context),
+      take({ taskId: "a" }, context),
       (e) => e.status === 403 && /person/.test(e.message),
     );
-  const child = run(root, ["claim", "a"], { AVOOZL_CHILD: "1" });
+  const child = run(root, ["take", "a"], { AVOOZL_CHILD: "1" });
   assert.notEqual(child.status, 0);
   assert.match(child.stderr, /supervisor started/);
-  const person = run(root, ["claim", "a"]);
+  const person = run(root, ["take", "a"]);
   assert.equal(person.status, 0, person.stderr);
 });
 
 test("release gives the task back, refuses a dirty worktree without --discard", async (t) => {
-  const { root, store, claim, tick } = setup(t),
-    mine = await claim({ taskId: "a" });
+  const { root, store, take, tick } = setup(t),
+    mine = await take({ taskId: "a" });
   fs.writeFileSync(path.join(mine.worktree.path, "wip.txt"), "wip\n");
-  const refused = run(root, ["claim", "a", "--release"]);
+  const refused = run(root, ["take", "a", "--release"]);
   assert.notEqual(refused.status, 0);
   assert.match(refused.stderr, /uncommitted changes/);
-  assert.ok(store.get("session_bindings", mine.binding.slot), "still claimed");
-  const out = run(root, ["claim", "a", "--release", "--discard"]);
+  assert.ok(store.get("session_bindings", mine.binding.slot), "still taken");
+  const out = run(root, ["take", "a", "--release", "--discard"]);
   assert.equal(out.status, 0, out.stderr);
   assert.equal(JSON.parse(out.stdout).discarded, true);
   assert.equal(fs.existsSync(path.join(mine.worktree.path, "wip.txt")), false);
@@ -200,9 +200,9 @@ test("release gives the task back, refuses a dirty worktree without --discard", 
   // Ready again: the next tick starts it.
   const started = (await tick()).dispatch.map((d) => d.task);
   assert.ok(started.includes("a"));
-  // A clean claim releases without a flag.
-  const second = await claim({ taskId: "b" }),
-    clean = await claim({ taskId: "b", release: true });
+  // A clean take releases without a flag.
+  const second = await take({ taskId: "b" }),
+    clean = await take({ taskId: "b", release: true });
   assert.equal(clean.released, "b");
   assert.equal(clean.discarded, false);
   assert.equal(store.get("session_bindings", second.binding.slot), null);

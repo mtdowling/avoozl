@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -7,7 +9,7 @@ export function snapshot() {
     schemaVersion: 1,
     revision: 1,
     updatedAt: new Date(0).toISOString(),
-    project: {
+    repository: {
       name: "Nupp",
       title: "Fixture",
       integration: {
@@ -147,7 +149,7 @@ export function workspaceFixture(t, shape = "local") {
       ...fixtureRepository,
       nodeId: "fixture-repository",
       private: true,
-      projectId: "fixture",
+      repositoryId: "fixture",
       label: "avoozl:ready",
       managedLabel: "avoozl:managed",
       assignee: "fixture-worker",
@@ -173,20 +175,20 @@ export function workspaceFixture(t, shape = "local") {
 // integration read it.
 export async function recordedRun(
   store,
-  { id, taskId = "sample-task", projectId },
+  { id, taskId = "sample-task", repositoryId },
 ) {
-  const project = store.get("projects", projectId),
-    worktree = await createWorktree(store, project, id);
-  return { id, taskId, projectId, ...worktree };
+  const repository = store.get("repositories", repositoryId),
+    worktree = await createWorktree(store, repository, id);
+  return { id, taskId, repositoryId, ...worktree };
 }
 // Record acceptance checks for a worktree from recordedRun and a ready
-// integration entry, under the project work lock.
+// integration entry, under the repository work lock.
 export function validateRun(store, run) {
   return withWorkLock(
     store,
     {
       id: "validation:" + run.id,
-      projectId: run.projectId,
+      repositoryId: run.repositoryId,
       kind: "validation",
     },
     () => validateUnlocked(store, run.id, { source: run }),
@@ -206,3 +208,45 @@ export async function waitFor(predicate, { timeoutMs = 20000, label } = {}) {
   }
 }
 export const markdown = `# A small plan\n\n## Design\n\nKeep the design in one document.\n\n\`\`\`task\n{"id":"foundation","title":"Build foundation","acceptance":["Foundation passes"],"checks":["npm test"],"track":"catalog"}\n\`\`\`\n\n\`\`\`task\n{"id":"delivery","title":"Deliver feature","acceptance":["Feature passes"],"checks":["npm test"],"requires":["foundation"],"track":"catalog"}\n\`\`\`\n`;
+
+// A task worktree under `root`/wt with one commit, a verified delivery and
+// a worker chat, in workspace {root, checkout, store}. Returns its commit,
+// folder and branch. `extra` adds fields to the delivery and the binding,
+// each a function of the commit.
+export function verifiedTask(w, taskId, file = `${taskId}.txt`, extra = {}) {
+  const git = (cwd, ...args) =>
+    execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  const branch = `avoozl/${taskId}`,
+    wt = path.join(w.root, "wt", taskId);
+  git(w.checkout, "worktree", "add", "-q", "-b", branch, wt, "main");
+  fs.writeFileSync(path.join(wt, file), taskId + "\n");
+  git(wt, "add", ".");
+  git(wt, "commit", "-qm", "Do " + taskId);
+  const commit = git(wt, "rev-parse", "HEAD");
+  w.store.put("task_worktrees", {
+    id: taskId,
+    taskId,
+    path: wt,
+    branch,
+    repository: "app",
+  });
+  w.store.put("task_deliveries", {
+    id: taskId,
+    taskId,
+    state: "verified",
+    commit,
+    attempts: [],
+    verifications: [],
+    ...extra.delivery?.(commit),
+  });
+  w.store.put("session_bindings", {
+    id: "slot-" + taskId,
+    slot: "slot-" + taskId,
+    taskId,
+    role: "worker",
+    attempt: 1,
+    status: "working",
+    ...extra.binding?.(commit),
+  });
+  return { commit, wt, branch };
+}

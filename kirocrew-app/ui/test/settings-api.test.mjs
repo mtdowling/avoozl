@@ -9,8 +9,6 @@ const POLICY = {
   cacheSeconds: 45,
   writesPerMinute: 50,
   writesPerHour: 300,
-  mode: 'plans-repo',
-  planningRepository: 'example/plans',
   epicIssueType: 'Epic',
   repositories: {
     'example/app': {
@@ -20,7 +18,8 @@ const POLICY = {
       allowedActors: ['maintainer', 'second'],
       minimumPermission: 'maintain',
       requiredChecks: ['build'],
-      priority: ['critical'],
+      priorityLabels: ['critical'],
+      role: 'both',
       pullRequestReviews: { approvals: 2 },
       managedLabels: { managed: 'agent:managed', ready: 'agent:ready' },
       rules: [
@@ -43,14 +42,12 @@ test('the form keeps settings it does not show', () => {
 
 test('cleared fields become null at the top and vanish below it', () => {
   const form = toForm(POLICY)
-  form.mode = ''
-  form.planningRepository = '  '
   form.epicIssueType = ''
   form.repositories[0].minimumPermission = ''
   form.repositories[0].rules[0].author = ''
   const policy = toPolicy(form)
-  assert.equal(policy.mode, null)
-  assert.equal(policy.planningRepository, null)
+  assert.equal('mode' in policy, false)
+  assert.equal('planningRepository' in policy, false)
   assert.equal(policy.epicIssueType, null)
   const repository = policy.repositories['example/app']
   assert.equal('minimumPermission' in repository, false)
@@ -143,8 +140,6 @@ test('the backend accepts the reviews setting and refuses a bad one', () => {
 
 test('an empty form clears every policy key', () => {
   assert.deepEqual(toPolicy(toForm({})), {
-    mode: null,
-    planningRepository: null,
     epicIssueType: null,
     cacheSeconds: null,
     writesPerMinute: null,
@@ -192,7 +187,8 @@ test('the client calls the three settings operations for the workspace', async (
 })
 
 test('the setup form starts from saved settings and builds the wizard input', () => {
-  const form = setupForm(POLICY)
+  // The setup wizard reads the mode the roles make, as the backend derives it.
+  const form = setupForm({ ...POLICY, mode: 'plans-repo', planningRepository: 'example/plans' })
   assert.equal(form.mode, 'plans-repo')
   assert.equal(form.repositories, 'example/app')
   assert.deepEqual(setupInput(form), {
@@ -231,24 +227,24 @@ test('the setup client previews, then confirms with the preview hash', async () 
   )
 })
 
-test('the approval label round-trips and keeps the other radar keys', () => {
-  const policy = { mode: 'single-repo', repositories: { 'example/app': { baseBranch: 'main', radar: { planLabel: 'plan me', approvalLabel: 'lgtm' } } } }
+test('the plan label round-trips and keeps the other radar keys', () => {
+  const policy = { mode: 'single-repo', repositories: { 'example/app': { baseBranch: 'main', radar: { planLabel: 'plan me', escalationDraft: true } } } }
   const form = toForm(policy)
-  assert.equal(form.repositories[0].approvalLabel, 'lgtm')
-  assert.deepEqual(toPolicy(form).repositories['example/app'].radar, { planLabel: 'plan me', approvalLabel: 'lgtm' })
-  form.repositories[0].approvalLabel = ''
-  assert.deepEqual(toPolicy(form).repositories['example/app'].radar, { planLabel: 'plan me' })
+  assert.equal(form.repositories[0].planLabel, 'plan me')
+  assert.deepEqual(toPolicy(form).repositories['example/app'].radar, { planLabel: 'plan me', escalationDraft: true })
+  form.repositories[0].planLabel = ''
+  assert.deepEqual(toPolicy(form).repositories['example/app'].radar, { escalationDraft: true })
   const none = toForm({ mode: 'single-repo', repositories: { 'example/app': { baseBranch: 'main' } } })
   assert.equal(toPolicy(none).repositories['example/app'].radar, undefined)
 })
 
-test('the cache seconds round-trip, for the workspace and for one repository', () => {
-  const github = { cacheSeconds: 45, repositories: { 'o/r': { baseBranch: 'main', cacheSeconds: 0 } } }
+test('the cache seconds round-trip for the workspace only', () => {
+  const github = { cacheSeconds: 45, repositories: { 'o/r': { baseBranch: 'main' } } }
   const form = toForm(github)
   assert.equal(form.cacheSeconds, '45')
-  assert.equal(form.repositories[0].cacheSeconds, '0')
+  assert.equal('cacheSeconds' in form.repositories[0], false)
   const policy = toPolicy(form)
   assert.equal(policy.cacheSeconds, 45)
-  assert.equal(policy.repositories['o/r'].cacheSeconds, 0)
+  assert.equal('cacheSeconds' in policy.repositories['o/r'], false)
   assert.equal(toPolicy({ ...form, cacheSeconds: '' }).cacheSeconds, null)
 })

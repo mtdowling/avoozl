@@ -7,18 +7,13 @@ export const GITHUB_VIA = "github";
 export const GITHUB_SOURCE_KEYS = Object.freeze([
   "via",
   "repository",
-  "project",
+  "executionRepository",
   "workspaceRepository",
-  "label",
-  "managedLabel",
   "assignee",
   "autoStart",
   "provider",
   "model",
-  "allowedActors",
-  "minimumPermission",
 ]);
-const PERMISSIONS = ["write", "maintain", "admin"];
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -31,30 +26,13 @@ function text(value, label, { nullable = false } = {}) {
   return value.trim();
 }
 
-function actors(value, where) {
-  const list = value ?? [];
-  if (
-    !Array.isArray(list) ||
-    list.some((actor) => typeof actor !== "string" || !actor.trim())
-  )
-    fail(`${where} allowedActors must be names.`);
-  return [...new Set(list.map((actor) => actor.trim()))].sort();
-}
-
-function permission(value, where) {
-  const chosen = value || "write";
-  if (!PERMISSIONS.includes(chosen))
-    fail(`${where} minimumPermission must be write, maintain or admin.`);
-  return chosen;
-}
-
 // The `github_repositories` settings a GitHub source stands for, in the
 // shape the settings diff compares (appliedActions in repository-settings).
 function settings(fields, where) {
   return {
-    projectId: text(fields.projectId, `${where} project`),
+    repositoryId: text(fields.repositoryId, `${where} execution repository`),
     ...(fields.workspaceRepositoryId &&
-    fields.workspaceRepositoryId !== fields.projectId
+    fields.workspaceRepositoryId !== fields.repositoryId
       ? {
           workspaceRepositoryId: text(
             fields.workspaceRepositoryId,
@@ -63,17 +41,10 @@ function settings(fields, where) {
         }
       : {}),
     assignee: text(fields.assignee, `${where} assignee`),
-    label: text(fields.label || "avoozl:ready", `${where} label`),
-    managedLabel: text(
-      fields.managedLabel || "avoozl:managed",
-      `${where} managed label`,
-    ),
     enabled: true,
     autoStart: Boolean(fields.autoStart),
     provider: text(fields.provider, `${where} provider`, { nullable: true }),
     model: text(fields.model, `${where} model`, { nullable: true }),
-    allowedActors: actors(fields.allowedActors, where),
-    minimumPermission: permission(fields.minimumPermission, where),
   };
 }
 
@@ -93,7 +64,7 @@ export function validateGitHubSource(value, where) {
     settings: settings(
       {
         ...value,
-        projectId: value.project,
+        repositoryId: value.executionRepository,
         workspaceRepositoryId: value.workspaceRepository,
       },
       where,
@@ -106,21 +77,15 @@ export function sourceEntry(repository, value) {
   return {
     via: GITHUB_VIA,
     repository,
-    project: value.projectId,
+    executionRepository: value.repositoryId,
     ...(value.workspaceRepositoryId &&
-    value.workspaceRepositoryId !== value.projectId
+    value.workspaceRepositoryId !== value.repositoryId
       ? { workspaceRepository: value.workspaceRepositoryId }
-      : {}),
-    label: value.label || "avoozl:ready",
-    ...(value.managedLabel && value.managedLabel !== "avoozl:managed"
-      ? { managedLabel: value.managedLabel }
       : {}),
     assignee: value.assignee,
     autoStart: Boolean(value.autoStart),
     provider: value.provider || null,
     model: value.model || null,
-    allowedActors: [...new Set(value.allowedActors || [])].sort(),
-    minimumPermission: value.minimumPermission || "write",
   };
 }
 

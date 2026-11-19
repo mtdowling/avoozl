@@ -248,7 +248,7 @@ What a pack may set, and where each lands in `.avoozl.json`:
 
 | Pack key                     | Sets                                                                                                                                                                       |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`. |
+| `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priorityLabels`, `managedLabels`. |
 | `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                                                  |
 | `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                                               |
 | `settings.delivery`          | `reviewers` (review roles), `agent`, `model`.                                                                                                                                      |
@@ -284,7 +284,7 @@ newer version arrives, approve it, and the card offers its preview again;
 importing it records the new version. At the command line:
 
 ```sh
-avoozl plugins pack-preview sdk-team
+avoozl plugins pack-preview sdk-team [--github OWNER/REPO]
 avoozl plugins pack-import sdk-team --preview HASH [--accept-lowered]
 ```
 

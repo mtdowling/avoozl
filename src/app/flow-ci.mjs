@@ -89,17 +89,17 @@ export function ciRepositories(policy) {
   return Object.keys(policy.repositories || {});
 }
 
-// The flow settings for one GitHub repository: its project's override when
+// The flow settings for one GitHub repository: its repository's override when
 // a registered repository names one.
 export function ciSettings(store, config, repository) {
-  const project =
-    listOr(store, "projects").find(
-      (entry) => lower(entry.repository) === lower(repository),
+  const id =
+    listOr(store, "repositories").find(
+      (entry) => lower(entry.github) === lower(repository),
     )?.id ??
     listOr(store, "github_repositories").find(
       (entry) => lower(entry.id) === lower(repository),
-    )?.projectId;
-  return flowPolicy(config || {}).for(project || repository).ci;
+    )?.repositoryId;
+  return flowPolicy(config || {}).for(id || repository).ci;
 }
 
 function flowConfig(config) {
@@ -109,7 +109,7 @@ function flowConfig(config) {
     // The place build reports are kept (§4.31), validated on load.
     ...(report ? { receipts: { report } } : {}),
     flow: checked.workspace,
-    projects: Object.fromEntries(
+    repositories: Object.fromEntries(
       Object.entries(checked.repositories).map(([id, flow]) => [id, { flow }]),
     ),
   };

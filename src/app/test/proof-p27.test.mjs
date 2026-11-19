@@ -115,7 +115,7 @@ async function workspace(t, delivery) {
   fs.writeFileSync(path.join(root, ".avoozl.json"), policy(delivery));
   const ops = new Operations(store, { workspaceRoot: root });
   // Integration runs the repository's validation script at the landed commit.
-  await ops.execute("project.configure", {
+  await ops.execute("repository.configure", {
     id: "app",
     root: checkout,
     baseBranch: "main",
@@ -480,9 +480,9 @@ test("P27 action 6: a reviewer on the writer's model or auto is refused; an unkn
   }
   fs.writeFileSync(path.join(root, ".avoozl.json"), policy({}));
 
-  // A person claims w1 by hand; nothing says which model wrote it.
+  // A person takes w1 by hand; nothing says which model wrote it.
   const claim = await ops.execute(
-    "runner.claim",
+    "runner.take",
     { taskId: W1, slot: "w-1" },
     undefined,
     { local: true },

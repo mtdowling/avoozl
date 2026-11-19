@@ -26,6 +26,8 @@ const ROLES = new Set([
   "task-summary",
   // Tries to prove a worker's findings wrong (§4.21).
   "falsifier",
+  // One issue or pull request's triage run (triage.mjs).
+  "triage",
 ]);
 // A review role's session (§5.2): `review:<role id>`, so each role numbers its
 // own attempts.
@@ -186,6 +188,8 @@ export function bindSession(
         // A page-opened assistant binds to its record (session-open.mjs).
         (role === "assist" &&
           store.get("receipts", named)?.kind === "assist-session") ||
+        // A triage session binds to its run (triage.mjs).
+        (role === "triage" && store.get("triage_runs", named)) ||
         // New plan's planner binds to its pending request (new-plan.mjs).
         (role === "planner" && newPlanRequested(store, named))
           ? named
@@ -230,8 +234,8 @@ export function bindSession(
         : ["title", "tick"].includes(input.source)
           ? input.source
           : "bind",
-      // Who claimed it for a Crew Mode conductor: its own session slot, or
-      // "cli" for the local command line. Set only by runner.claim.
+      // Who took it, for a Crew Mode conductor: its own session slot, or
+      // "cli" for the local command line. Set only by runner.take.
       ...(conductor ? { conductor } : {}),
       // The model the session was opened on, and the commit a checks or
       // review session judges (§5.2). Unset means unknown.

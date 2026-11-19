@@ -53,7 +53,7 @@ async function setup(t) {
     tasks: [task("a"), task("b")],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
@@ -106,10 +106,10 @@ const commandsOf = (steps) => {
 // app package's, which Kiro Crew installs without a checkout around it.
 async function runsWithEmptyPath(t, steps) {
   const w = await setup(t),
-    project = w.store.get("projects", "app"),
+    repository = w.store.get("repositories", "app"),
     token = issueReportToken(w.store, { taskId: "a", attempt: 1 }),
     cliReport = { worktree: "/unused", token, workspace: w.dir },
-    given = commandsOf(await steps(project, cliReport));
+    given = commandsOf(await steps(repository, cliReport));
   assert.ok(given.prepare, "the brief gives a worktree command");
   assert.ok(given.report, "the brief gives a report command");
   const prepared = bare(given.prepare, w.dir);
@@ -143,8 +143,8 @@ async function runsWithEmptyPath(t, steps) {
 
 test("the report command runs with no node or avoozl on PATH against the source checkout", async (t) => {
   const { localSteps } = await import("../delivery.mjs");
-  await runsWithEmptyPath(t, (project, cliReport) =>
-    localSteps({ id: "a" }, project, { cliReport }),
+  await runsWithEmptyPath(t, (repository, cliReport) =>
+    localSteps({ id: "a" }, repository, { cliReport }),
   );
 });
 
@@ -154,8 +154,8 @@ test("the report command runs with no node or avoozl on PATH against the built a
   const built = await import(
     pathToFileURL(path.join(lib, "src", "app", "delivery.mjs"))
   );
-  await runsWithEmptyPath(t, (project, cliReport) =>
-    built.localSteps({ id: "a" }, project, { cliReport }),
+  await runsWithEmptyPath(t, (repository, cliReport) =>
+    built.localSteps({ id: "a" }, repository, { cliReport }),
   );
 });
 
@@ -171,7 +171,7 @@ test("no chat worker brief in the pair table names an MCP tool", async (t) => {
     { workerBrief, localSteps } = await import("../delivery.mjs"),
     { investigateLines } = await import("../investigate.mjs"),
     token = issueReportToken(w.store, { taskId: "a", attempt: 1 }),
-    project = w.store.get("projects", "app"),
+    repository = w.store.get("repositories", "app"),
     task = w.store.read().tasks[0],
     cliReport = { worktree: "/tmp/wt", token, workspace: w.dir },
     data = w.store.read(),
@@ -185,11 +185,11 @@ test("no chat worker brief in the pair table names an MCP tool", async (t) => {
     const { cell } = briefCell("kirocrew", kind);
     let text;
     if (kind === "single" || kind === "investigate")
-      text = workerBrief(task, project, {
+      text = workerBrief(task, repository, {
         attempt: 1,
         investigate: kind === "investigate",
         findingsVia: { executor: "kirocrew", cliReport },
-        steps: cell.steps({ task, project, relay: false, cliReport }),
+        steps: cell.steps({ task, repository, relay: false, cliReport }),
       });
     else if (kind === "batch") text = cell.brief(w.store, data, leaf, "");
     else if (kind === "round") text = cell.finish;
@@ -210,7 +210,7 @@ test("no chat worker brief in the pair table names an MCP tool", async (t) => {
   // The pieces the brief is built from, too.
   assert.doesNotMatch(
     [
-      ...localSteps({ id: "a" }, project, { cliReport }),
+      ...localSteps({ id: "a" }, repository, { cliReport }),
       ...investigateLines({ id: "a" }, "kirocrew", cliReport),
     ].join("\n"),
     /plans_/,

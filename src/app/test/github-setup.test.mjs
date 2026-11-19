@@ -369,14 +369,11 @@ test("the preview lists every write and writes nothing", async () => {
     [
       ["repository", "create-repository", "example/plans"],
       ["epic", "create-issue-type", "Epic"],
-      ...[
-        "avoozl:managed",
-        "avoozl:responding",
-        "avoozl:planning",
-        "avoozl:ready",
-        "avoozl:stale",
-        "avoozl:decision",
-      ].map((name) => ["labels", "create-label", name]),
+      ...["avoozl:managed", "avoozl:responding", "avoozl:ready"].map((name) => [
+        "labels",
+        "create-label",
+        name,
+      ]),
     ],
   );
   for (const write of preview.writes) {
@@ -399,7 +396,7 @@ test("confirming runs the preview; a second run changes nothing", async () => {
   const plans = fake.state.repositories["example/plans"];
   assert.deepEqual([plans.private, plans.has_issues], [true, true]);
   assert.ok(fake.state.issueTypes.example.some((type) => type.name === "Epic"));
-  assert.equal(fake.state.labels["example/plans"].length, 6);
+  assert.equal(fake.state.labels["example/plans"].length, 3);
 
   // The proposed .avoozl.json: valid.
   assert.equal(first.settings.error, null);
@@ -414,7 +411,8 @@ test("confirming runs the preview; a second run changes nothing", async () => {
     first.settings.github.repositories["example/plans"].managedLabels.ready,
     "avoozl:ready",
   );
-  assert.match(first.settings.diff, /^\+ {3}"mode": "plans-repo",$/m);
+  assert.match(first.settings.diff, /"role": "planning"/);
+  assert.doesNotMatch(first.settings.diff, /"mode"/);
 
   const writes = fake.log.length,
     saved = {
@@ -450,7 +448,7 @@ test("a permission failure in one step is reported while the others run", async 
     result.results.filter(
       (entry) => entry.step === "labels" && entry.status === "failed",
     ).length,
-    6,
+    3,
   );
 });
 
@@ -486,8 +484,8 @@ test("single-repo mode turns issues on and labels each code repository", async (
   );
   const named = await apply(fake, input, EMPTY_SETTINGS, []);
   assert.equal(fake.state.repositories["example/app"].has_issues, true);
-  assert.equal(fake.state.labels["example/app"].length, 6);
-  assert.equal(fake.state.labels["example/lib"].length, 6);
+  assert.equal(fake.state.labels["example/app"].length, 3);
+  assert.equal(fake.state.labels["example/lib"].length, 3);
   assert.equal(named.settings.github.planningRepository, undefined);
   assert.equal(named.settings.error, null);
 });

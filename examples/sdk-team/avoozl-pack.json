@@ -4,8 +4,7 @@
     "crews": {
       "labels": {
         "plan": "to plan",
-        "ready": "ready",
-        "conflict": "merge conflict"
+        "ready": "ready"
       }
     }
   }

@@ -152,7 +152,7 @@ test("a worker refuses an SSH envelope, then runs a pulled one to a checkpoint p
     /Unknown operation|refused/,
   );
   assert.equal(ws.store.getMeta("runner.tasks") ?? null, null);
-  // An envelope is taken only from an acknowledged claim.
+  // An envelope is taken only from an acknowledged grant.
   assert.throws(
     () => acceptEnvelope(ws.store, ws.root, JSON.stringify(envelope)),
     /acknowledged/,
@@ -337,7 +337,7 @@ const pulledEnvelope = (code) =>
     spec: "demo",
   });
 
-test("a restarted worker claims nothing twice and never replaces a worker whose chat ended", async (t) => {
+test("a restarted worker accepts nothing twice and never replaces a worker whose chat ended", async (t) => {
   const code = checkout(),
     ws = setup(t, code.repo),
     envelope = pulledEnvelope(code);

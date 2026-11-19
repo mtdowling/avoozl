@@ -26,7 +26,7 @@ import {
   taskCompletion,
   taskRepository,
 } from "../work-model.mjs";
-import { claimedTaskIds, readyCandidates, startNowIds } from "./delivery.mjs";
+import { busyTaskIds, readyCandidates, startNowIds } from "./delivery.mjs";
 import { driverState, heldTasks } from "./driver-generations.mjs";
 import { lineFirstIds } from "./flow.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
@@ -165,9 +165,9 @@ export function scheduleReady({
 // or complete. Reads only.
 export function scheduleHolds(store, { github = null, skip = new Set() } = {}) {
   const data = store.read(),
-    projects = new Map(store.list("projects").map((p) => [p.id, p])),
+    repositories = new Map(store.list("repositories").map((p) => [p.id, p])),
     bindings = listSessionBindings(store),
-    claimed = claimedTaskIds(store, bindings),
+    claimed = busyTaskIds(store, bindings),
     flight = data.tasks.filter(
       (task) =>
         claimed.has(task.id) &&
@@ -180,12 +180,12 @@ export function scheduleHolds(store, { github = null, skip = new Set() } = {}) {
         skip,
         github,
         data,
-        projects,
+        repositories,
         bindings,
       }),
       flight,
       pinned: new Set([...lineFirstIds(store), ...startNowIds(store)]),
-      baseOf: (id) => projects.get(id)?.baseBranch || "main",
+      baseOf: (id) => repositories.get(id)?.baseBranch || "main",
     });
   return { ...result, skip: new Set(result.held.keys()) };
 }

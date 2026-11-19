@@ -96,8 +96,8 @@ system temp folder and kept, with any edits, for the next demo.
 
 Each repository has a role, chosen in **Settings > Repository setup** (in
 **Edit**, or in **Add repository**). The workspace's GitHub mode follows from
-the roles and nothing else sets it (`github.mode` in `.avoozl.json` is
-derived):
+the roles and nothing else sets it (Avoozl never writes `github.mode` or
+`github.planningRepository`):
 
 | Role       | Issues live in          | Pull requests land in | Needs a GitHub remote |
 | ---------- | ----------------------- | --------------------- | --------------------- |
@@ -228,7 +228,7 @@ Register the Git checkout the work changes, with its base branch, a worktree
 directory, and its named checks:
 
 ```sh
-node cli.mjs project configure code --workspace ~/plans \
+node cli.mjs repository configure code --workspace ~/plans \
   --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":{"test":["npm","test"],"diff":["git","diff","--check"],"ui":{"run":["npm","run","test:ui"],"paths":["src/ui/**"]}}}'
 ```
 
@@ -245,10 +245,10 @@ Checks run in the repository's isolation. By default each runs in the
 process sandbox (sandbox-exec on macOS, bubblewrap on Linux): it writes only
 its folder, its own temp folder, a cache folder and the paths you list, and
 the network is off. Set it in Settings › Repository setup › Landing, or with
-`project configure`:
+`repository configure`:
 
 ```sh
-node cli.mjs project configure code --workspace ~/plans \
+node cli.mjs repository configure code --workspace ~/plans \
   --json '{"isolation":{"run":"sandbox","network":"on","prepare":["npm","ci"]}}'
 ```
 
@@ -331,15 +331,15 @@ check or review. Each repository has a `landing` setting:
 When the base moves and a merge conflicts, or the checks fail, the task goes
 back to its worker chat, for at most `landing.conflictRounds` rounds (default
 2); after that it goes to Needs you. Stop the line pauses the queue.
-`avoozl setup OWNER/REPO --project ID --checks NAME --landing pr|direct|off`
-previews the repository setup and `--yes` applies it. Its `--checks` names
-the required GitHub checks a pull request needs, not the repository's
-own checks above.
+`avoozl setup OWNER/REPO --repo ID --landing pr|direct|off`
+previews the repository setup and `--yes` applies it. It requires the
+GitHub checks named in the repository's Required checks setting (Edit
+repository > Landing), not the repository's own checks above.
 
 To take one task by hand while the tick runs the rest, run
-`avoozl claim TASK`. It prints the task's worktree and the report command;
+`avoozl take TASK`. It prints the task's worktree and the report command;
 commit there and run `avoozl runner report TASK done`, and Avoozl runs the
-checks. `avoozl claim TASK --release` gives it back. A workspace whose
+checks. `avoozl take TASK --release` gives it back. A workspace whose
 `.avoozl.json` still says `"runner": "crew-mode"` starts nothing until a
 person chooses **Let the tick run it** in Needs you.
 
@@ -365,7 +365,7 @@ Each rule names an action and a `match` line in GitHub's issue-search
 syntax (for example `label:agent:go -label:hold`), and is checked against
 **Who counts**: who may give orders with a label. With nobody named, that is
 anyone with `write` permission. See
-[trigger rules and example policies](docs/policies.md).
+[trigger rules and example policies](docs/policies.md). Words that look alike (claim, take, grant, review) are set apart in the [glossary](docs/glossary.md).
 
 Intake sources, content rules, settings packs and workflow templates plug
 in as separate packages that you approve on each machine. See [writing a plugin](docs/plugins.md).
@@ -439,7 +439,7 @@ one `roles` table in `.avoozl.json`, for example
 A row's `harness` is `kirocrew` for a Kiro Crew chat, or the name of a
 harness definition in this machine's config; only the worker and the
 falsifier take an `agent`. A field left out, or `auto`, keeps the role's
-default: its agent's own model and its project's executor. A task's
+default: its agent's own model and its repository's executor. A task's
 `session` pin wins over its role's row. The worker, planner and retro
 follow the harness; the falsifier, plan reviewer and review drafts still
 run as Kiro Crew chats. Avoozl moves no running chat to another model.
@@ -569,8 +569,8 @@ file with an unknown top-level key fails to load, naming the file and the key.
 Two older inputs still read:
 
 - Older fenced-`task` plan files, so their work can move to spec folders.
-- An `.avoozl.json` with no `role` keys, which gets its roles from its
-  stored `github.mode`.
+- An `.avoozl.json` with no `role` keys, which is read through its stored
+  `github.mode`.
 
 ## Develop
 

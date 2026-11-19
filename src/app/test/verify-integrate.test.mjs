@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { projectConfig } from "../git.mjs";
+import { repositoryConfig } from "../git.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 import {
@@ -414,7 +414,10 @@ test("a verified commit integrates with integrateRun and records the integrated 
 
   // A repository with no checks is judged by its verifier, and integration
   // still needs checks to run on the rebased work.
-  const unchecked = setup(t, { tasks: [leaf("c")], project: { checks: [] } }),
+  const unchecked = setup(t, {
+      tasks: [leaf("c")],
+      repository: { checks: [] },
+    }),
     judgedCommit = await workerDone(unchecked.ops, "c", "w-c");
   await unchecked.ops.execute("workspace.tick", {});
   await bind(unchecked.ops, "c", "v-c", "verifier", 1);
@@ -430,11 +433,11 @@ test("an integration branch takes the verified commit and leaves the checkout un
   // Nearby inputs: a branch that does not exist yet (created from the base),
   // the branch checked out in a clean worktree (fast-forwarded there), in a
   // worktree with an edit or an untracked file in the way (decision, nothing
-  // touched), and project configuration naming the base branch or an
+  // touched), and repository configuration naming the base branch or an
   // invalid name.
   const { store, ops, checkout, root } = setup(t, {
     tasks: [leaf("a"), leaf("b"), leaf("c"), leaf("d")],
-    project: { integrationBranch: "avoozl-integration" },
+    repository: { integrationBranch: "avoozl-integration" },
   });
   const main = git(checkout, "rev-parse", "main"),
     commit = await verified(ops, "a");
@@ -511,13 +514,13 @@ test("an integration branch takes the verified commit and leaves the checkout un
 
   for (const integrationBranch of ["main", "bad..name"])
     await assert.rejects(
-      projectConfig({ id: "app", root: checkout, integrationBranch }),
+      repositoryConfig({ id: "app", root: checkout, integrationBranch }),
       /integration branch/,
       integrationBranch,
     );
   assert.equal(
     (
-      await projectConfig({
+      await repositoryConfig({
         id: "app",
         root: checkout,
         integrationBranch: "next",
@@ -646,8 +649,8 @@ test("preparing a task runs the approved scripts/worktree helper", {
     ops.execute("worktree.prepare", { taskId: "a" }),
     /runs every time a worktree is added/,
   );
-  store.put("projects", {
-    ...store.list("projects")[0],
+  store.put("repositories", {
+    ...store.list("repositories")[0],
     worktreeHelper: helperHash(helper),
   });
   const made = await ops.execute("worktree.prepare", { taskId: "a" });

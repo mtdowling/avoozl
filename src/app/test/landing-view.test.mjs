@@ -7,13 +7,13 @@ import { enqueueLanding } from "../landing-queue.mjs";
 import { landingView } from "../landing-view.mjs";
 import { Operations } from "../operations.mjs";
 
-const Q = { projectId: "fixture", base: "main" };
+const Q = { repositoryId: "fixture", base: "main" };
 const SHA = (n) => String(n).repeat(40).slice(0, 40);
 const DAY = 24 * 60 * 60 * 1000;
 
 test("the queue is in order with one held reason each, and landings are newest first", async (t) => {
   const { store } = fixture(t);
-  store.put("projects", { id: "fixture", repository: "example/fixture" });
+  store.put("repositories", { id: "fixture", github: "example/fixture" });
   enqueueLanding(store, {
     ...Q,
     key: "one",

@@ -461,6 +461,10 @@ const SAYS = [
   ["plugin", "change plugins"],
   ["content.", "change content rules"],
   ["review.chat", "open a review chat"],
+  ["fix.start", "start this fix as a ready task"],
+  ["fix.spec", "make this fix a draft spec folder"],
+  ["items.act", "write this to GitHub"],
+  ["triage.", "change the triage agent"],
   ["untriaged.plan", "plan this issue"],
   ["untriaged.handoff", "hand this item to Issue Radar"],
   ["conflicts.", "settle this conflict"],
@@ -592,14 +596,14 @@ export async function buildDemo(
     store = new Store(config.dbPath);
   try {
     store.importSnapshot(emptySnapshot(DEMO_NAME));
-    const project = {
+    const repository = {
       id: "app",
       name: "Recipe Box app",
       root: fs.realpathSync.native(checkout),
       baseBranch: "main",
       github: DEMO_REPOSITORY,
     };
-    store.put("projects", project);
+    store.put("repositories", repository);
     const ops = new Operations(store, {
       operator: OWNER,
       github: demoGitHub(),
@@ -631,7 +635,10 @@ export async function buildDemo(
       fs.realpathSync.native(path.dirname(finalRoot)),
       path.basename(finalRoot),
     );
-    store.put("projects", { ...project, root: path.join(finalReal, "app") });
+    store.put("repositories", {
+      ...repository,
+      root: path.join(finalReal, "app"),
+    });
     store.put("receipts", {
       id: DEMO_RECEIPT,
       kind: "demo",
@@ -793,7 +800,7 @@ function seedState(store, now) {
       by: OWNER,
       reason: "Tests went red on main after the parser change.",
       scope: "repo",
-      projectId: "app",
+      repositoryId: "app",
       planId: null,
       spec: null,
       taskId: null,

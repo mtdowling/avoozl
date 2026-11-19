@@ -21,9 +21,11 @@ export interface Tile {
   warm: boolean
 }
 
-export function homeTiles(summary: DashboardSummary | null, landing: LandingView | null): Tile[] {
+// `agent` is the triage agent's owner queue (triage-agent TA5.2), counted
+// once with the rest of Needs you.
+export function homeTiles(summary: DashboardSummary | null, landing: LandingView | null, agent = 0): Tile[] {
   const counts = summary?.counts,
-    needs = summary ? summary.attention.length : null
+    needs = summary ? summary.attention.length + agent : null
   return [
     { key: 'ready', label: 'Ready', value: counts ? counts.ready : null, sub: 'can start now', target: 'graph', tip: 'Open the Graph', warm: false },
     {
@@ -111,7 +113,7 @@ export function stuckRows(summary: DashboardSummary | null, now: number, session
         key: `claim:${claim.repository}#${claim.number}`,
         taskId: null,
         title: `#${claim.number} ${claim.title}`,
-        why: 'Issue Radar claim is stale.',
+        why: 'Issue Radar crew has not updated this in a while.',
         href: safeHref(claim.url),
         external: true,
         quiet: Infinity,

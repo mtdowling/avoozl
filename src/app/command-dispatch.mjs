@@ -1,6 +1,6 @@
 // One dispatch for both servers that run the Avoozl page's operations: the
 // Kiro Crew app backend (app-backend.mjs) and `avoozl serve`. The caller
-// authenticates and passes the principal claim; this module authorizes the
+// authenticates and passes the principal; this module authorizes the
 // operation, opens the workspace, and runs it. Each Kiro Crew reader in the
 // context is optional: an operation that needs an absent one answers
 // "Needs Kiro Crew" instead of throwing.
@@ -78,6 +78,18 @@ export const APP_OPERATIONS = new Set([
   "specpr.requestChanges",
   "github.crewlabel.backfill",
   "review.chat",
+  "fix.start",
+  "fix.spec",
+  "items.list",
+  "items.detail",
+  "items.act",
+  "triage.view",
+  "triage.pause",
+  "triage.resume",
+  "triage.stop",
+  "triage.start",
+  "triage.owner.done",
+  "triage.settings",
   "untriaged.plan",
   "github.repository.labels",
   "task.detail",
@@ -203,13 +215,13 @@ const MACHINE_OPERATIONS = new Map([
 // Action-level authorization. The dashboard owner may call any app operation.
 // App tokens and agent tools are authenticated but act for no person, so they
 // may only observe; their writes go through the MCP server.
-export function principalAllows(claim, operation) {
+export function principalAllows(principal, operation) {
   const kind =
     MACHINE_OPERATIONS.get(operation) ||
     (APP_OPERATIONS.has(operation) ? classifyOperation(operation) : null);
   if (!kind) return false;
-  if (claim.kind === "owner-session") return true;
-  if (claim.kind === "app-token" || claim.kind === "agent-tool")
+  if (principal.kind === "owner-session") return true;
+  if (principal.kind === "app-token" || principal.kind === "agent-tool")
     return kind === "observe";
   return false;
 }
@@ -415,7 +427,7 @@ export function commandContext({
 
 // Run one request for an authenticated principal. Returns `{ status, body }`
 // and never throws: an error becomes its status and message.
-export async function dispatchCommand({ claim, request, context }) {
+export async function dispatchCommand({ principal, request, context }) {
   try {
     const {
       operation,
@@ -423,7 +435,7 @@ export async function dispatchCommand({ claim, request, context }) {
       expectedRevision,
       workspaceId,
     } = request || {};
-    if (typeof operation !== "string" || !principalAllows(claim, operation))
+    if (typeof operation !== "string" || !principalAllows(principal, operation))
       return {
         status: 403,
         body: {
@@ -477,7 +489,7 @@ export async function dispatchCommand({ claim, request, context }) {
       operation,
       input,
       expectedRevision,
-      claim.kind === "owner-session" ? { person: true } : {},
+      principal.kind === "owner-session" ? { person: true } : {},
     );
     return {
       status: 200,

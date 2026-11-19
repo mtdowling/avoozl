@@ -21,10 +21,8 @@ const FILE = {
       "github-example-app": {
         via: "github",
         repository: "Example/App",
-        project: "app",
+        executionRepository: "app",
         assignee: "bot",
-        label: "go",
-        allowedActors: ["sam"],
       },
     },
   },
@@ -48,7 +46,7 @@ test("a write upserts and removes by repository", () => {
   writeGitHubSources(value, {
     upsert: {
       repository: "example/app",
-      settings: { projectId: "app", assignee: "riley" },
+      settings: { repositoryId: "app", assignee: "riley" },
     },
   });
   assert.deepEqual(Object.keys(value.intake.sources), ["github-example-app"]);
@@ -74,7 +72,7 @@ test("Intake sources lists GitHub sources; poll and submit never see them", (t) 
           "github-here": {
             via: "github",
             repository: "example/here",
-            project: "here",
+            executionRepository: "here",
             assignee: "bot",
           },
           tickets: { via: "mcp", repository: "app" },
@@ -102,7 +100,7 @@ test("Intake sources lists GitHub sources; poll and submit never see them", (t) 
         entry: {
           via: "github",
           repository: "example/x",
-          project: "x",
+          executionRepository: "x",
           assignee: "bot",
         },
         confirmPublic: true,

@@ -48,7 +48,7 @@ export function kirocrewDispatches(store, dispatches, reading) {
   }
   return [...pending].map(([folder, root]) => {
     const id = folder.split("/").pop(),
-      checkout = root ?? store.get("projects", id)?.root;
+      checkout = root ?? store.get("repositories", id)?.root;
     return {
       channel: "decision",
       title: `Set the project directory of chat folder ${folder.replaceAll("/", " › ")}`,
@@ -205,6 +205,7 @@ const ROLE_AGENTS = {
   responder: "avoozl-responder",
   retro: "avoozl-retro",
   "pr-review": "avoozl-code-review",
+  triage: "avoozl-triage",
   "review-draft": "avoozl-review-draft",
   falsifier: "avoozl-falsifier",
   "plan-review": "avoozl-plan-review",

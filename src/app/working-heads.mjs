@@ -6,7 +6,7 @@
 //   checkpoint names its source repository, branch and exact commit, apart
 //   from the target repository and base it lands on. Two forks with the
 //   same branch name are two references.
-// - Sources are registered by trusted project setup only (`sources`: the
+// - Sources are registered by trusted repository setup only (`sources`: the
 //   repository identity and where to fetch it). A pull request or a journal
 //   record may name a registered repository; neither can add a fetch URL,
 //   local path or command. A fork needs no upstream copy of its branch.
@@ -108,7 +108,7 @@ export const integrationRef = ({ repository, branch, commit, base }) =>
     target: { repository, base },
   });
 
-// The trusted registry of fetchable repositories, from project setup only:
+// The trusted registry of fetchable repositories, from repository setup only:
 // {"owner/name": {url, parent?}}. `parent` names the target a fork belongs
 // to when GitHub cannot be asked. Returns a lookup by repository identity.
 export function sourceRegistry(sources = {}) {
@@ -130,7 +130,7 @@ export function sourceRegistry(sources = {}) {
       const found = entries.get(lower(repository));
       if (!found)
         fail(
-          `${repository} is not a registered repository. Add it in project setup first; a pull request or record cannot add one.`,
+          `${repository} is not a registered repository. Add it in repository setup first; a pull request or record cannot add one.`,
           403,
         );
       return found;

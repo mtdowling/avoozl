@@ -235,7 +235,9 @@ test('Frontier, drill two levels, Back, Forward, the modal and Esc', { skip }, a
   assert.equal(ops.filter((op) => op === 'graph.view').length, 1 + 2, ops.join(','))
   assert.equal(ops.filter((op) => op === 'task.detail').length, 2, ops.join(','))
   assert.deepEqual(
-    [...new Set(ops)].filter((op) => !['graph.view', 'github.settings.get', 'conflicts.view', 'untriaged.view', 'task.summary.request', ...detailReads].includes(op)),
+    [...new Set(ops)].filter(
+      (op) => !['graph.view', 'github.settings.get', 'conflicts.view', 'untriaged.view', 'triage.view', 'task.summary.request', ...detailReads].includes(op),
+    ),
     [],
     ops.join(','),
   )

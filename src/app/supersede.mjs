@@ -33,7 +33,7 @@ const COPIED = [
   "completion",
   "route",
   "repository",
-  "projectId",
+  "repositoryId",
   "parent",
   "rank",
   "resources",

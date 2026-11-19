@@ -82,7 +82,7 @@ test("acceptance derives its evidence from a validated run and requires none wit
   await git(repo, ["add", "."]);
   await git(repo, ["commit", "-m", "Prepare fixture"]);
   const ops = new Operations(store);
-  await ops.execute("project.configure", {
+  await ops.execute("repository.configure", {
     id: "fixture",
     root: repo,
     checks: [[process.execPath, "check.mjs"]],
@@ -96,7 +96,7 @@ test("acceptance derives its evidence from a validated run and requires none wit
   assert.equal(component.status, "implemented");
   const run = await recordedRun(store, {
     id: "run-accept",
-    projectId: "fixture",
+    repositoryId: "fixture",
   });
   fs.writeFileSync(path.join(run.worktree, "result.txt"), "done");
   await git(run.worktree, ["add", "."]);

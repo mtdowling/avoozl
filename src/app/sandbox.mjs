@@ -107,7 +107,7 @@ export function sandboxSecretPaths({
     path.join(home, ".aws"),
     // Codex's default home: its auth.json (an API key or ChatGPT tokens)
     // and the person's own transcripts. A Codex child runs with its own
-    // CODEX_HOME in a project write root instead (found by P58).
+    // CODEX_HOME in a repository write root instead (found by P58).
     path.join(home, ".codex"),
     // Avoozl's own machine config (approvals, opt-ins) and state (the
     // supervisor's database, the catalog).
@@ -147,8 +147,8 @@ export function sandboxEnv(env = process.env, { keep = [] } = {}) {
   return out;
 }
 
-// A project's network setting: absent is off; a list of `localhost:PORT`
-// entries allows only those loopback ports (a proxy the project names).
+// A repository's network setting: absent is off; a list of `localhost:PORT`
+// entries allows only those loopback ports (a proxy the repository names).
 export function sandboxNetwork(value) {
   if (value === undefined || value === "off") return { mode: "off", ports: [] };
   if (!Array.isArray(value) || !value.length)

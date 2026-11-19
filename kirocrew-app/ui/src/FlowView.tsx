@@ -33,6 +33,7 @@ import {
   duration,
   flowChoices,
   sortTasks,
+  stopRows,
   LINE_EVENT,
   flowClient,
   lineChanged,
@@ -316,6 +317,39 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
   )
 }
 
+// Every line stop in the window, pulled and automatic (R64.11): what it was,
+// who pulled it, when, and its time to fix.
+function LineStops({ stops }: { stops: LineStop[] }) {
+  const rows = useMemo(() => stopRows(stops), [stops])
+  const pages = usePages(String(rows.length))
+  if (!rows.length) return null
+  return (
+    <section data-line-stops aria-label="Line stops">
+      <Card flex flexCol gap="2" size="sm">
+        <SectionHeading title="Line stops" />
+        <Box as="ul" flex flexCol gap="2">
+          {pages.take('line-stops', rows).map((row) => (
+            <Box key={row.id} as="li" flex flexWrap items="baseline" gapX="2" gapY="0.5" data-line-stop={row.id}>
+              <Badge variant={row.kind === 'Automatic' ? 'warning' : 'danger'}>{row.kind}</Badge>{' '}
+              <Box as="span" minW0 css-flex="1-1-16rem" css-overflow-wrap="anywhere">
+                {row.what}
+              </Box>
+              <Hint as="span" size="xs">
+                {[row.who, relativeTime(row.openedAt)].filter(Boolean).join(' · ')}
+                {' · '}
+                <Box as="span" tabularNums data-stop-fix>
+                  {row.fix === 'open' ? 'still open' : `fixed in ${row.fix}`}
+                </Box>
+              </Hint>
+            </Box>
+          ))}
+        </Box>
+        <ShowMore {...pages.more('line-stops', rows.length)} />
+      </Card>
+    </section>
+  )
+}
+
 function Records({ view }: { view: FlowViewModel }) {
   if (!view.flaky.length && !view.ciOnly.length) return null
   return (
@@ -410,6 +444,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
             </Card>
           )}
           <FlowCharts view={view} unit={unit} onUnit={setUnit} />
+          <LineStops stops={view.stops} />
           <PlanningFlow groups={view.planning ?? []} />
           <CiFlow value={view.ci} />
           <UsagePanel view={view} unit={unit} />

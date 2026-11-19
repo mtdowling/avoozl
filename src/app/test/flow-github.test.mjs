@@ -7,9 +7,9 @@ const MIN = 60_000;
 const at = (minutes) =>
   new Date(Date.UTC(2026, 10, 14, 0, 0) + minutes * MIN).toISOString();
 // Issue 1: ready 0, claimed 10, PR 40, green 90, merged 100.
-//   Ready to Claim 10, Claim to PR 30, PR to green 50, green to merge 10, lead 100.
+//   Ready to start 10, Start to PR 30, PR to green 50, green to merge 10, lead 100.
 // Issue 2: ready 0, claimed 20, PR 80, green 100, merged 110.
-//   Ready to Claim 20, Claim to PR 60, PR to green 20, green to merge 10, lead 110.
+//   Ready to start 20, Start to PR 60, PR to green 20, green to merge 10, lead 110.
 const events = [
   {
     number: 1,
@@ -32,8 +32,8 @@ const events = [
 test("each issue's stage times match the hand-computed minutes", () => {
   const { issues } = flowFromEvents(events);
   assert.deepEqual(STAGE_NAMES, [
-    "Ready to Claim",
-    "Claim to PR",
+    "Ready to start",
+    "Start to PR",
     "PR to green",
     "Green to merge",
   ]);
@@ -57,7 +57,7 @@ test("medians, lead time and flow efficiency", () => {
     [15, 45, 35, 10],
   );
   assert.equal(flow.medianLead / MIN, 105);
-  // Efficiency is Claim to PR over lead time: (30 + 60) / (100 + 110).
+  // Efficiency is Start to PR over lead time: (30 + 60) / (100 + 110).
   assert.equal(flow.efficiency, 90 / 210);
   assert.equal(flow.count, 2);
 });
@@ -97,5 +97,5 @@ test("no finished issue gives no numbers, not zeros", () => {
 });
 
 test("the slowest median stage is the bottleneck", () => {
-  assert.equal(flowFromEvents(events).bottleneck, "Claim to PR");
+  assert.equal(flowFromEvents(events).bottleneck, "Start to PR");
 });

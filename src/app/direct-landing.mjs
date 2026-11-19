@@ -1,12 +1,12 @@
-// The tick lands `direct` projects' verified work on the registered remote
+// The tick lands `direct` repositories' verified work on the registered remote
 // in merge batches (Requirements 87.1, 87.2, 88.6, MB1 to MB6, design §4.26
 // Land; task 41.9).
 //
-// - A verified task in a project with `landing: "direct"` is queued as one
+// - A verified task in a repository with `landing: "direct"` is queued as one
 //   member for its base (`enqueueLanding`). Nothing is pushed yet.
 // - Each tick takes up to the base's size limit of members one step
 //   (`landNext` with `directSteps`, merge-batch.mjs): stack them on origin's
-//   current base, run the project's checks on that exact candidate, write
+//   current base, run the repository's checks on that exact candidate, write
 //   each spec's intent in its journal, and push a guarded fast-forward.
 //   Never forced. A failed batch is narrowed to its culprit, which goes back
 //   to its worker; the members before it land.
@@ -35,26 +35,30 @@ import { driverIdOf } from "./spec-scheduler.mjs";
 import { specAuthority } from "./spec-takeover.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
 import { fail } from "./store.mjs";
+import { landingSpecOf, specRevision } from "./fix.mjs";
 import { repositoryChecks } from "./repository-checks.mjs";
 import { requireDiskSpace } from "./disk-space.mjs";
 
 const ERRORS = "directLandingErrors";
-export const isDirectLanding = (project) => project?.landing === "direct";
+export const isDirectLanding = (repository) => repository?.landing === "direct";
 
 // Queues one verified task. Returns the delivery with the queued commit.
-export function queueDirect(store, { delivery, project, task, at }) {
-  const planId = task?.planId,
+export function queueDirect(store, { delivery, repository, task, at }) {
+  const planId = landingSpecOf(task),
     driver = planId ? driverIdOf(store, planId) : null;
   if (!driver)
     fail(
       `Take over ${planId ?? "the spec"} before it lands: avoozl spec takeover ${planId ?? "SPEC"}.`,
       409,
     );
-  if (!repositoryChecks(project).length)
-    fail(`Project ${project.id} has no checks to land directly with.`, 409);
+  if (!repositoryChecks(repository).length)
+    fail(
+      `Repository ${repository.id} has no checks to land directly with.`,
+      409,
+    );
   enqueueLanding(store, {
-    projectId: project.id,
-    base: project.baseBranch || "main",
+    repositoryId: repository.id,
+    base: repository.baseBranch || "main",
     key: delivery.taskId,
     commit: delivery.commit,
     spec: planId,
@@ -73,7 +77,7 @@ export function queueDirect(store, { delivery, project, task, at }) {
   return { ...delivery, landing: { commit: delivery.commit, queuedAt: at } };
 }
 
-// One step for each `direct` project's queue. Returns {notify, messages}.
+// One step for each `direct` repository's queue. Returns {notify, messages}.
 export async function landDirect(
   store,
   {
@@ -91,23 +95,23 @@ export async function landDirect(
   const notify = [],
     messages = [],
     at = new Date(now).toISOString();
-  for (const project of store.list("projects").filter(isDirectLanding)) {
-    // `rounds` is a count or, per repository, a function of the project.
-    const tries = typeof rounds === "function" ? rounds(project) : rounds,
-      base = project.baseBranch || "main",
-      queue = landingQueue(store, { projectId: project.id, base });
+  for (const repository of store.list("repositories").filter(isDirectLanding)) {
+    // `rounds` is a count or, per repository, a function of the repository.
+    const tries = typeof rounds === "function" ? rounds(repository) : rounds,
+      base = repository.baseBranch || "main",
+      queue = landingQueue(store, { repositoryId: repository.id, base });
     if (!queue.length) continue;
     const head = queue[0];
     // A landing candidate needs a worktree: a full volume holds the queue.
     try {
-      requireDiskSpace(store, os.tmpdir(), `Landing on ${project.id}`);
+      requireDiskSpace(store, os.tmpdir(), `Landing on ${repository.id}`);
     } catch (error) {
       if (error.lowDisk) continue;
       throw error;
     }
     try {
-      const setting = landingSettings(config, project.repository, project),
-        record = sizeRecord(store, { projectId: project.id, base }),
+      const setting = landingSettings(config, repository.github, repository),
+        record = sizeRecord(store, { repositoryId: repository.id, base }),
         limit = sizeLimit(record, setting.mergeBatch),
         // Each spec's driver journal, for the specs this batch may hold.
         // A member whose spec cannot be read waits; the head's error stops
@@ -124,18 +128,18 @@ export async function landDirect(
           if (entry === head) throw error;
         }
       }
-      const url = await git(project.root, ["remote", "get-url", "origin"]),
+      const url = await git(repository.root, ["remote", "get-url", "origin"]),
         steps = directSteps({
-          root: project.root,
+          root: repository.root,
           url,
           branch: base,
           // A journal reference names owner/name; a remote that is not on
-          // GitHub (a bare folder) is named by its project.
-          repository: project.repository || `local/${project.id}`,
-          checks: repositoryChecks(project),
-          checksEnv: project.checksEnv,
-          projectId: project.id,
-          isolation: project.isolation,
+          // GitHub (a bare folder) is named by its repository.
+          repository: repository.github || `local/${repository.id}`,
+          checks: repositoryChecks(repository),
+          checksEnv: repository.checksEnv,
+          repositoryId: repository.id,
+          isolation: repository.isolation,
           unionPaths: config?.landing?.unionPaths ?? [],
           tickOf: (dir, entry) => tickEntry(store, dir, entry),
           env,
@@ -151,37 +155,44 @@ export async function landDirect(
                 driver: own[0].driver,
                 owner: authority.owner,
                 login: authority.login,
-                revision: store.get("plans", spec).hash,
+                revision: specRevision(store, spec),
               },
             };
           },
         });
       const startedAt = new Date().toISOString(),
-        result = await landNext(store, { projectId: project.id, base }, steps, {
-          limit,
-          bisect: true,
-          onStep: (step, members) =>
-            setTesting(
-              store,
-              { projectId: project.id, base },
-              {
-                members: members.map((e) => e.key),
-                step,
-                since:
-                  step === "testing"
-                    ? at
-                    : (testingNow(store, { projectId: project.id, base })
-                        ?.since ?? at),
-              },
-            ),
-          isAlone: (entry) => record.alone.includes(entry.key),
-          accept: (entry) => authorities.has(entry.spec),
-        });
-      setTesting(store, { projectId: project.id, base }, null);
+        result = await landNext(
+          store,
+          { repositoryId: repository.id, base },
+          steps,
+          {
+            limit,
+            bisect: true,
+            onStep: (step, members) =>
+              setTesting(
+                store,
+                { repositoryId: repository.id, base },
+                {
+                  members: members.map((e) => e.key),
+                  step,
+                  since:
+                    step === "testing"
+                      ? at
+                      : (testingNow(store, {
+                          repositoryId: repository.id,
+                          base,
+                        })?.since ?? at),
+                },
+              ),
+            isAlone: (entry) => record.alone.includes(entry.key),
+            accept: (entry) => authorities.has(entry.spec),
+          },
+        );
+      setTesting(store, { repositoryId: repository.id, base }, null);
       if (result.batch)
         recordBatch(
           store,
-          { projectId: project.id, base },
+          { repositoryId: repository.id, base },
           {
             ...result.batch,
             at,
@@ -210,7 +221,7 @@ export async function landDirect(
               );
         messages.push(...out.messages);
         notify.push(...out.notify);
-        await dropMember(project.root, sent.entry);
+        await dropMember(repository.root, sent.entry);
       }
       if (result.state === "landed") {
         for (const entry of result.entries) {
@@ -219,7 +230,7 @@ export async function landDirect(
             branch: store.get("task_worktrees", entry.key)?.branch,
             at,
           });
-          await dropMember(project.root, entry);
+          await dropMember(repository.root, entry);
         }
         // A spec in a separate plans repository is ticked there, as its own
         // guarded commit (spec-ticks.mjs).
@@ -227,17 +238,17 @@ export async function landDirect(
           await tickPlansRepo(store, {
             entry,
             candidate: result.candidate,
-            project,
+            repository,
             workspaceRoot,
             env,
           }).catch(() => null);
-        await syncBase(project, { env }).catch(() => null);
+        await syncBase(repository, { env }).catch(() => null);
         for (const entry of result.entries) {
           const worktree = store.get("task_worktrees", entry.key);
           if (worktree?.path)
             await removeLandedTaskWorktree(
               store,
-              project,
+              repository,
               { worktree: worktree.path, branch: worktree.branch },
               base,
               result.candidate,
@@ -251,15 +262,15 @@ export async function landDirect(
         });
         messages.push(...sent.messages);
         notify.push(...sent.notify);
-        await dropMember(project.root, result.entry);
+        await dropMember(repository.root, result.entry);
       } else if (result.state === "conflict") {
         const sent = sendConflictBack(store, result, { rounds: tries, now });
         messages.push(...sent.messages);
         notify.push(...sent.notify);
-        await dropMember(project.root, result.entry);
+        await dropMember(repository.root, result.entry);
       }
     } catch (error) {
-      setTesting(store, { projectId: project.id, base }, null);
+      setTesting(store, { repositoryId: repository.id, base }, null);
       if (error.contention) continue;
       // One notice per head and cause, not one per tick.
       const seen = store.getMeta(ERRORS) ?? {},
