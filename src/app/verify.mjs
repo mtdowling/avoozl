@@ -80,6 +80,19 @@ export function pathVerdict(changed, { declared = [], protectedPaths = [] }) {
   };
 }
 
+// The paths a run's head may touch: the task's own, or, for the head of a
+// batch, every member's (found by worker-paths wp-p1: a batch head touches
+// each member's file and was held as outside its leader's paths). A member
+// that declares none lifts the rule, as a task with none does.
+function declaredPaths(store, task) {
+  const batch = store.get("task_deliveries", task.id)?.batch,
+    members = batch ? store.get("flow_batches", batch)?.tasks : null;
+  if (!members?.length) return task.paths || [];
+  const tasks = store.read().tasks.filter((t) => members.includes(t.id));
+  if (tasks.some((t) => !t.paths?.length)) return [];
+  return [...new Set(tasks.flatMap((t) => t.paths))];
+}
+
 // The path verdict for one run, with a person's allowance for this exact
 // commit applied: an allowed commit's protected paths no longer hold it.
 export async function verifyPaths(store, { task, project, commit, flow }) {
@@ -89,7 +102,7 @@ export async function verifyPaths(store, { task, project, commit, flow }) {
       commit,
     ),
     verdict = pathVerdict(paths, {
-      declared: task.paths || [],
+      declared: declaredPaths(store, task),
       protectedPaths: flow?.verify?.protectedPaths || [],
     }),
     allowed = protectedAllowance(store, task.id, commit);
