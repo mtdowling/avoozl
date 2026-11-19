@@ -36,7 +36,7 @@ import {
   type TermsFile,
 } from './content-api.ts'
 import { SaveFooter } from './SaveFooter.tsx'
-import { CheckRow, FieldRow, Marker, RawKey } from './FieldRow.tsx'
+import { CheckRow, Field, Marker, RawKey } from './ui/Field.tsx'
 import { ChoiceCards, DangerBtn, ICON, IconBtn, IconLabel, SectionHeading } from './ui/controls.tsx'
 import { BookOpen, Ban, Eye, Lock, MessagesSquare, Plus, ShieldCheck, Trash2, X } from './icons.ts'
 import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
@@ -269,7 +269,7 @@ function SetFormView(props: { form: SetForm; set: (patch: Partial<SetForm>) => v
   const nameHelp = props.isNew ? 'Lowercase letters, digits, dots and dashes. It also names the terms file.' : 'The name is the terms file’s name, so it stays.'
   return (
     <Stack gap={3} data-set-form>
-      <FieldRow id="avoozl-set-id" label="Name" raw="id" rule={{ required: true }} width="22rem" help={nameHelp}>
+      <Field id="avoozl-set-id" label="Name" raw="id" rule={{ required: true }} width="22rem" help={nameHelp}>
         <Input
           id="avoozl-set-id"
           aria-describedby="avoozl-set-id-help"
@@ -278,7 +278,7 @@ function SetFormView(props: { form: SetForm; set: (patch: Partial<SetForm>) => v
           placeholder="company-terms"
           onChange={(e: { target: { value: string } }) => set({ id: e.target.value })}
         />
-      </FieldRow>
+      </Field>
       <Box as="fieldset" flex flexCol gap="1.5">
         <Box as="legend" mb="1" flex flexWrap items="baseline" gapX="2" size="sm">
           <Box as="span" weight="medium">
@@ -342,7 +342,7 @@ function SetFormView(props: { form: SetForm; set: (patch: Partial<SetForm>) => v
         )}
         <Hint size="xs">None checked: every repository.</Hint>
       </Box>
-      <FieldRow
+      <Field
         id="avoozl-set-plugin"
         label="Rules plugin"
         raw="plugin"
@@ -358,7 +358,7 @@ function SetFormView(props: { form: SetForm; set: (patch: Partial<SetForm>) => v
             </option>
           ))}
         </SelectField>
-      </FieldRow>
+      </Field>
     </Stack>
   )
 }

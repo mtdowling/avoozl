@@ -40,9 +40,10 @@ import { nameFor } from './instance-api.ts'
 import { useInstance } from './InstanceName.tsx'
 import { relativeTime } from './task-api.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
-import { linkHref, viewsClient } from './views-api.ts'
+import { linkHref } from './views-api.ts'
 import { errorMessage, readPageState, workspaceClient, type WorkspaceList } from './workspace-api.ts'
 import { Box } from './ui/Box'
+import { TONE } from './ui/tones.ts'
 
 const AVOOZL_PAGE = '/apps/avoozl'
 
@@ -199,7 +200,6 @@ export default function AvoozlPanel() {
   const instance = useInstance(workspaceId)
   const chat = useMemo(() => currentChat(window.location), [])
   const plans = useMemo(() => plansClient(api), [api])
-  const views = useMemo(() => viewsClient(api), [api])
   const releases = useMemo(() => releaseClient(api), [api])
   useEffect(() => {
     if (workspaceId)
@@ -348,8 +348,7 @@ export default function AvoozlPanel() {
     if (!workspaceId || action.kind === 'link') return
     setBusy(row.key)
     try {
-      if (action.kind === 'resolve') await views.resolveConflict(workspaceId, action.taskId, action.field, action.choice)
-      else await releases.land(workspaceId, action.repository, action.branch, action.head)
+      await releases.land(workspaceId, action.repository, action.branch, action.head)
       setNote(null)
       await load()
     } catch (caught) {
@@ -644,7 +643,7 @@ export default function AvoozlPanel() {
                             css-width="16"
                             css-height="8"
                             css-border-radius="3"
-                            css-background={step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)'}
+                            css-background={step.state === 'done' ? TONE.ok : step.state === 'now' ? TONE.accent : TONE.border}
                           />
                         ))}
                       </Box>

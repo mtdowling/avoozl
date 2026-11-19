@@ -16,6 +16,7 @@ import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 import { NeedsContextStyle } from './ui/PageStyles'
 import { PlainButton } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
 
 // The spec's title; it opens Specs on that spec when a stored plan exists.
 export function SpecLink({ spec }: { spec: NonNullable<ItemContext['spec']> }) {
@@ -60,7 +61,7 @@ export function TaskLink({ task }: { task: { id: string; title: string } }) {
   )
 }
 
-const DIFF_INK: Record<DiffLine['kind'], string | undefined> = { same: undefined, add: 'var(--success, var(--text))', remove: 'var(--danger)' }
+const DIFF_INK: Record<DiffLine['kind'], string | undefined> = { same: undefined, add: TONE.successText, remove: TONE.danger }
 const DIFF_MARK: Record<DiffLine['kind'], string> = { same: ' ', add: '+', remove: '−' }
 
 // Task text, old against new, or the text with its file path and lines.
@@ -154,29 +155,6 @@ function Section(props: { name: string; title: string; children: ReactNode }) {
   )
 }
 
-const shownValue = (value: string | string[] | null | undefined) => (Array.isArray(value) ? (value.length ? value.join(', ') : 'none') : value ? value : 'empty')
-
-// A GitHub edit: what Avoozl expected and what GitHub has.
-export function Values({ item }: { item: ConflictItem }) {
-  if (item.expected === undefined && item.actual === undefined) return null
-  const block = (label: string, value: ConflictItem['expected']) => (
-    <Box minW0>
-      <Hint as="div" size="xs">
-        {label}
-      </Hint>
-      <Box as="pre" css-border-color="border" mt="1" maxH40 overflow="auto" whitespace="pre-wrap" breakWords rounded="base" border="all" p="2" size="xs">
-        {shownValue(value)}
-      </Box>
-    </Box>
-  )
-  return (
-    <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-16rem-1fr" grid gap="2">
-      {block('Avoozl expected', item.expected)}
-      {block(item.changedBy ? `GitHub has (changed by ${item.changedBy})` : 'GitHub has', item.actual)}
-    </Box>
-  )
-}
-
 const CONFIDENCE = { low: 'Low', medium: 'Medium', high: 'High' } as const
 
 // A worker's findings and the falsifier's reply.
@@ -223,7 +201,6 @@ function Evidence({ item }: { item: ConflictItem }) {
   const link = safeHref(item.link ?? null)
   return (
     <>
-      {kinds.includes('values') && <Values item={item} />}
       {kinds.includes('investigation') && <InvestigationEvidence item={item} />}
       {kinds.includes('review') && (
         <Box as="ul" m0 flex listNone flexCol p="0" data-review-tasks>

@@ -100,8 +100,8 @@ Requirement AN3 (R85, §6.14).
     - done:
       - `avoozl content hook` refuses a gh or git write that holds a rule match or text it cannot read, naming the rule set, id and place and never the text.
   - Built: PR #381 (main spec task 39.1).
-  - `avoozl content hook`, `src/app/public-crews.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
-  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command (triage-agent TA11.3); ta-5.2 deletes the rest of this work.
+  - `avoozl content hook`, now `src/app/content-hook.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
+  - Superseded 2026-11-18: public crews are removed except the content hook, which is now a general pre-tool-use command (triage-agent TA11.3); the rest was deleted 2026-11-19.
 - [x] an-3.2 Audit on the tick: delete a hit, pull the cord, alert, after an-3.1 [AN3.1] (§6.14)
   - Facts:
     - done:
@@ -132,8 +132,8 @@ Requirement AN3 (R85, §6.14).
       - `docs/public-crews.md` states the limits in generic terms and drafts the Kiro Crew requests without filing them.
     - after: an-3.3, an-3.4
   - Built: PR #425 (main spec task 39.5).
-  - `docs/public-crews.md` in generic terms; limits stated; requests drafted, none filed.
-  - Superseded 2026-11-18: public crews are removed except the content hook, which becomes a general pre-tool-use command (triage-agent TA11.3); ta-5.2 deletes the rest of this work.
+  - `docs/public-crews.md` (now `docs/content-hook.md`) in generic terms; limits stated; requests drafted, none filed.
+  - Superseded 2026-11-18: public crews are removed except the content hook, which is now a general pre-tool-use command (triage-agent TA11.3); the rest was deleted 2026-11-19.
 - [x] an-p3 Proof: a public crew's leak is stopped, deleted and alerted, after an-3.1, an-3.2, an-3.3, an-3.4, an-3.5 [AN3.2] (§6.14)
   - Facts:
     - done:

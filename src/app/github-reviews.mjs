@@ -88,16 +88,3 @@ export async function reviewVerdict(
     reviews: entries,
   };
 }
-
-// Why a merged pull request's reviews hold its leaf, or "" when they pass.
-export function reviewHoldReason(verdict) {
-  const head = verdict.headSha ? verdict.headSha.slice(0, 12) : "its head";
-  if (verdict.state === "changes-requested")
-    return `Pull request ${verdict.pullRequest} merged with changes requested on ${head} by ${verdict.reviews
-      .filter((r) => r.allowed && !r.stale && r.state === "changes-requested")
-      .map((r) => r.reviewer)
-      .join(", ")}.`;
-  if (verdict.state === "pending")
-    return `Pull request ${verdict.pullRequest} merged with ${verdict.approvals} of ${verdict.needed} allowed approvals on ${head}.`;
-  return "";
-}

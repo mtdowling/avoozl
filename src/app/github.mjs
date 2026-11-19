@@ -1190,28 +1190,6 @@ export class GitHubClient {
     return result?.data;
   }
 
-  // Turns on GitHub auto-merge for one pull request (RC5.2). GitHub merges
-  // later, when its own rules pass; this never merges and has no admin path.
-  // `method` is MERGE or SQUASH (RC28.7). A squash lands with the pull
-  // request's own title and body as the commit's headline and body.
-  armAutoMerge(_repository, pullRequestId, method = "MERGE", commit = {}) {
-    const squash = method === "SQUASH" && commit.headline;
-    return this.graphql(
-      squash
-        ? `mutation($id:ID!,$method:PullRequestMergeMethod!,$headline:String,$body:String){enablePullRequestAutoMerge(input:{pullRequestId:$id,mergeMethod:$method,commitHeadline:$headline,commitBody:$body}){pullRequest{number}}}`
-        : `mutation($id:ID!,$method:PullRequestMergeMethod!){enablePullRequestAutoMerge(input:{pullRequestId:$id,mergeMethod:$method}){pullRequest{number}}}`,
-      squash
-        ? {
-            id: pullRequestId,
-            method,
-            headline: commit.headline,
-            body: commit.body ?? "",
-          }
-        : { id: pullRequestId, method },
-      "arm auto-merge",
-    );
-  }
-
   // One commit, with its parents.
   commit(value, sha) {
     const { owner, repo } =
@@ -1219,15 +1197,6 @@ export class GitHubClient {
     return this.request(
       "GET",
       `/repos/${owner}/${repo}/commits/${encodeURIComponent(sha)}`,
-    );
-  }
-
-  // Turns GitHub auto-merge off for one pull request (RC5.4, Disarm).
-  disarmAutoMerge(_repository, pullRequestId) {
-    return this.graphql(
-      `mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){pullRequest{number}}}`,
-      { id: pullRequestId },
-      "disarm auto-merge",
     );
   }
 

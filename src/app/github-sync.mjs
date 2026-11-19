@@ -2,19 +2,15 @@ import { randomUUID } from "node:crypto";
 import os from "node:os";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
-import { taskIssuesRetired } from "./task-issue-retirement.mjs";
 import { parseRepository } from "./github.mjs";
-import { isParentMarker, parseMarker } from "./github-marker.mjs";
+import { parseMarker } from "./github-marker.mjs";
 import {
   evaluateRules,
   legacyRepositoryPolicy,
   matchingRules,
   requireDefaultBranch,
 } from "./github-policy.mjs";
-import { breakdownHold, nextBreakdown } from "./github-breakdown.mjs";
-import { labelEffects, mirrorGitHubIssue, WAITING_REASON } from "./intake.mjs";
-
-const taskFence = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
+import { mirrorGitHubIssue } from "./intake.mjs";
 
 function linkedPullRequests(events, repository) {
   return [
@@ -45,103 +41,6 @@ function linkedPullRequests(events, repository) {
   ];
 }
 
-function textList(value, name, { required = false } = {}) {
-  if (value === undefined && !required) return [];
-  if (
-    !Array.isArray(value) ||
-    (required && !value.length) ||
-    value.some((entry) => typeof entry !== "string" || !entry.trim())
-  )
-    fail(`${name} must be a list of non-empty strings.`);
-  return value.map((entry) => entry.trim());
-}
-
-function headingChecklist(markdown, heading) {
-  const lines = markdown.split(/\r?\n/);
-  let inSection = false,
-    level = 0;
-  const result = [];
-  for (const line of lines) {
-    const match = line.match(/^(#{1,6})\s+(.+?)\s*$/);
-    if (match) {
-      if (!inSection && match[2].trim().toLowerCase() === heading) {
-        inSection = true;
-        level = match[1].length;
-        continue;
-      }
-      if (inSection && match[1].length <= level) break;
-    }
-    if (!inSection) continue;
-    const checkbox = line.match(/^\s*[-*]\s+\[[ xX]\]\s+(.+?)\s*$/);
-    if (checkbox) result.push(checkbox[1].trim());
-  }
-  return result;
-}
-
-export function parseIssueTask(issue) {
-  const body = String(issue.body || ""),
-    matches = [...body.matchAll(taskFence())];
-  if (matches.length > 1)
-    fail("An issue may contain only one fenced task block.");
-  if (matches.length) {
-    let item;
-    try {
-      item = JSON.parse(matches[0][1]);
-    } catch {
-      fail("The issue task block contains invalid JSON.");
-    }
-    const allowed = new Set([
-      "title",
-      "summary",
-      "acceptance",
-      "requires",
-      "tags",
-      "resources",
-      "track",
-      "projectId",
-    ]);
-    const unexpected = Object.keys(item).filter((key) => !allowed.has(key));
-    if (unexpected.length)
-      fail("Unsupported issue task fields: " + unexpected.join(", ") + ".");
-    if (
-      item.title !== undefined &&
-      (typeof item.title !== "string" ||
-        !item.title.trim() ||
-        item.title.length > 240)
-    )
-      fail("Issue task title must contain 1–240 characters.");
-    for (const field of ["summary", "track", "projectId"])
-      if (item[field] !== undefined && typeof item[field] !== "string")
-        fail(field + " must be text.");
-    return {
-      title: item.title?.trim() || issue.title,
-      summary: item.summary?.trim() || body.slice(0, 4000),
-      acceptance: textList(item.acceptance, "acceptance", { required: true }),
-      requires: textList(item.requires, "requires"),
-      tags: textList(item.tags, "tags"),
-      resources: textList(item.resources, "resources"),
-      track: item.track,
-      projectId: item.projectId,
-      parser: "fenced-task",
-    };
-  }
-  const checklist = headingChecklist(body, "acceptance criteria");
-  return {
-    title: issue.title,
-    summary: body.slice(0, 4000),
-    acceptance: checklist.length
-      ? checklist
-      : [
-          "Configured required checks pass.",
-          "A human explicitly accepts the result.",
-        ],
-    requires: [],
-    tags: [],
-    resources: [],
-    parser: checklist.length ? "acceptance-checklist" : "required-checks",
-  };
-}
-
 export function projectedMarker(body) {
   return parseMarker(body);
 }
@@ -161,106 +60,6 @@ export function machineIdentity(store) {
 
 export function issueRecordId(repository, issue) {
   return "github:" + repository.id + ":" + (issue.node_id || issue.number);
-}
-
-function taskIdFor(issue) {
-  return "github-" + digest(issue.node_id || String(issue.id)).slice(0, 20);
-}
-
-export function ensureInbox(data) {
-  if (!data.tracks.some((track) => track.id === "catalog"))
-    data.tracks.push({ id: "catalog", label: "General" });
-}
-
-function applyIssueTask(
-  data,
-  record,
-  parsed,
-  config,
-  marker,
-  { labels = [], repository = null } = {},
-) {
-  ensureInbox(data);
-  const existing = marker
-    ? data.tasks.find((task) => task.id === marker.taskId)
-    : data.tasks.find((task) => task.id === record.taskId);
-  if (marker && !existing)
-    fail("Projected issue refers to a task that is not present locally.");
-  const task = existing || {
-    id: record.taskId,
-    scope: "runtime",
-    kind: "task",
-    status: "planned",
-    track: parsed.track || "catalog",
-    createdAt: new Date().toISOString(),
-  };
-  // A quarantined issue keeps the task planned from its frozen snapshot.
-  const fresh = !marker && !(existing && record.state === "quarantined");
-  if (fresh) {
-    Object.assign(task, {
-      title: parsed.title,
-      summary: parsed.summary,
-      acceptance: parsed.acceptance,
-      tags: [...new Set(["github", ...(parsed.tags || [])])],
-      resources: parsed.resources || [],
-      track: parsed.track || task.track || "catalog",
-      // The issue's repository decides where its work runs: issue text
-      // cannot send it to another registered repository.
-      projectId: config.projectId,
-      approvedSource: {
-        hash: record.bodyHash,
-        text: record.body,
-      },
-    });
-  }
-  task.owner = record.assignees.join(", ");
-  task.github = {
-    repository: config.id,
-    nodeId: record.nodeId,
-    number: record.number,
-    url: record.url,
-    origin: marker ? "design" : "issue",
-    labelEventId: record.labelEventId,
-    bodyHash: record.bodyHash,
-    pullRequests: record.pullRequests || [],
-    ...(record.issueType ? { issueType: record.issueType } : {}),
-  };
-  // A broad issue, or one whose dependency text awaits approval, is held;
-  // so is one with a waiting label (Waiting on the author).
-  const { waiting, labelRank } = labelEffects(repository, labels),
-    hold =
-      record.state === "authorized" &&
-      (breakdownHold(record.breakdown) ||
-        (waiting ? { state: "waiting", reason: WAITING_REASON } : null));
-  if (labelRank === null) delete task.labelRank;
-  else task.labelRank = labelRank;
-  task.dispatch = {
-    ready: record.state === "authorized" && !hold,
-    state: hold ? hold.state : record.state,
-    reason: hold ? hold.reason : record.reason,
-    assignee: record.assignees,
-    machineId: config.activeMachine || null,
-  };
-  if (!marker) task.needsReview = record.state !== "authorized";
-  task.updatedAt = new Date().toISOString();
-  if (!existing) data.tasks.push(task);
-  if (fresh) {
-    data.edges = data.edges.filter(
-      (edge) =>
-        edge.to !== task.id || edge.kind !== "requires" || edge.githubIssue,
-    );
-    for (const from of parsed.requires || [])
-      if (data.tasks.some((candidate) => candidate.id === from))
-        data.edges.push({
-          id: `${from}:requires:${task.id}`,
-          from,
-          to: task.id,
-          kind: "requires",
-          githubIssue: record.id,
-          reason: "Declared in authorized GitHub issue snapshot.",
-        });
-  }
-  return task;
 }
 
 export async function prepareGitHubRepository(store, github, input) {
@@ -345,7 +144,6 @@ async function candidateIssues(github, config, policy, issueNumber, store) {
     if (
       previous.repository === config.id &&
       previous.state === "authorized" &&
-      !previous.projectedPlanId &&
       !found.has(previous.number)
     ) {
       const issue = await github.issue(config, previous.number);
@@ -404,15 +202,8 @@ const fingerprint = (issues) =>
     ),
   );
 
-const DELIVERING = new Set(["deliver", "execute"]);
-const PRECEDENCE = [
-  "quarantine",
-  "pause",
-  "deliver",
-  "execute",
-  "plan",
-  "respond",
-];
+// Only `respond` acts on a GitHub issue; pause and quarantine hold it.
+const PRECEDENCE = ["quarantine", "pause", "respond"];
 
 // `policy` is the normalized `.avoozl.json` GitHub policy. A registered
 // repository it does not name keeps its single ready label as one rule.
@@ -542,15 +333,13 @@ export async function syncGitHubIssues(
           });
         continue;
       }
-      // A plan or epic issue is never delivered (Requirement 59.8).
-      if (isParentMarker(projectedMarker(issue.body))) continue;
-      // A retired task issue (R102.20) never binds its task again.
-      if (projectedMarker(issue.body) && taskIssuesRetired(store)) continue;
+      // An issue Avoozl itself wrote (a spec, epic or old task issue) is
+      // never answered.
+      if (projectedMarker(issue.body)) continue;
       seen.add(id);
       const previous = store.get("github_issues", id),
         body = String(issue.body || ""),
         bodyHash = digest(body),
-        marker = projectedMarker(body),
         // The trigger events whose snapshot the previous sync froze.
         frozen = new Set(
           previous?.matches?.map((match) => match.eventId) ??
@@ -589,113 +378,63 @@ export async function syncGitHubIssues(
         state = "authorized";
         reason = "Confirmed locally for this exact issue snapshot.";
       }
-      const parsed = parseIssueTask(issue),
-        delivers = allowed.some((match) => DELIVERING.has(match.action)),
-        record = {
-          id,
-          repository: config.id,
-          taskId: marker?.taskId || previous?.taskId || taskIdFor(issue),
-          nodeId: issue.node_id,
-          number: issue.number,
-          url: issue.html_url,
-          title: issue.title,
-          body,
-          bodyHash,
-          snapshotHash:
-            state === "authorized" ? bodyHash : snapshot || bodyHash,
-          snapshotTitle:
-            state === "authorized"
-              ? issue.title
-              : (snapshotTitle ?? issue.title),
-          assignees: (issue.assignees || []).map((entry) => entry.login),
-          rule: primary.rule,
-          action: primary.action,
-          matches: allowed.map(
-            ({ rule, action, eventId, actor, at, permission }) => ({
-              rule,
-              action,
-              eventId,
-              actor,
-              at,
-              permission,
-            }),
-          ),
-          labelEventId: primary.eventId,
-          labelActor: primary.actor,
-          labelAt: primary.at,
-          permission: primary.permission,
-          pullRequests: linkedPullRequests(timeline, config.id),
-          // The issue's type, for fix work in Flow (§4.11, R79.1).
-          issueType: issue.type?.name ?? null,
-          parser: parsed.parser,
-          state,
-          reason,
-          observedAt: new Date().toISOString(),
-        };
-      // Dependency text is read only from an authorized snapshot, and only
-      // when the repository policy turns it on (R27.8).
-      const breakdown = delivers
-        ? nextBreakdown(previous?.breakdown, {
-            bodyHash,
-            body,
-            repository: config.id,
-            number: issue.number,
-            dependencyText: configured?.dependencyText === true,
-            authorized: state === "authorized",
-          })
-        : previous?.breakdown;
-      if (breakdown) record.breakdown = breakdown;
+      const record = {
+        id,
+        repository: config.id,
+        nodeId: issue.node_id,
+        number: issue.number,
+        url: issue.html_url,
+        title: issue.title,
+        body,
+        bodyHash,
+        snapshotHash: state === "authorized" ? bodyHash : snapshot || bodyHash,
+        snapshotTitle:
+          state === "authorized" ? issue.title : (snapshotTitle ?? issue.title),
+        assignees: (issue.assignees || []).map((entry) => entry.login),
+        rule: primary.rule,
+        action: primary.action,
+        matches: allowed.map(
+          ({ rule, action, eventId, actor, at, permission }) => ({
+            rule,
+            action,
+            eventId,
+            actor,
+            at,
+            permission,
+          }),
+        ),
+        labelEventId: primary.eventId,
+        labelActor: primary.actor,
+        labelAt: primary.at,
+        permission: primary.permission,
+        pullRequests: linkedPullRequests(timeline, config.id),
+        // The issue's type, for fix work in Flow (§4.11, R79.1).
+        issueType: issue.type?.name ?? null,
+        state,
+        reason,
+        observedAt: new Date().toISOString(),
+      };
       store.transaction(() => {
         // The issue is also a `github` incoming item (R50.4).
         record.item = mirrorGitHubIssue(store, config.id, issue, record);
         store.put("github_issues", record);
-        const data = structuredClone(store.read());
-        if (
-          delivers ||
-          marker ||
-          data.tasks.some((task) => task.id === record.taskId)
-        ) {
-          applyIssueTask(data, record, parsed, config, marker, {
-            labels: (issue.labels || []).map((label) =>
-              typeof label === "string" ? label : label?.name,
-            ),
-            repository: configured,
-          });
-          store.commit(data, "Synchronize " + config.id + "#" + issue.number);
-        }
       });
-      result[
-        state === "authorized" && !delivers && !marker ? "matched" : state
-      ].push(record);
+      result[state === "authorized" ? "matched" : state].push(record);
     }
-    for (const previous of store.list("github_issues").filter(
-      (entry) =>
-        entry.repository === config.id &&
-        entry.state === "authorized" &&
-        // A projected plan issue is authorized by its approved plan, not
-        // by a trigger label, so intake never withdraws it.
-        !entry.projectedPlanId &&
-        (!issueNumber || entry.number === issueNumber) &&
-        !seen.has(entry.id),
-    )) {
+    for (const previous of store
+      .list("github_issues")
+      .filter(
+        (entry) =>
+          entry.repository === config.id &&
+          entry.state === "authorized" &&
+          (!issueNumber || entry.number === issueNumber) &&
+          !seen.has(entry.id),
+      )) {
       previous.state = "withdrawn";
       previous.reason =
         unchecked.get(previous.id) ||
         "No rule matches this issue for an allowed actor any more.";
-      store.transaction(() => {
-        store.put("github_issues", previous);
-        const data = structuredClone(store.read()),
-          task = data.tasks.find((item) => item.id === previous.taskId);
-        if (task) {
-          task.dispatch = {
-            ...task.dispatch,
-            ready: false,
-            state: "withdrawn",
-            reason: previous.reason,
-          };
-          store.commit(data, "Withdraw " + previous.id);
-        }
-      });
+      store.transaction(() => store.put("github_issues", previous));
       result.withdrawn.push(previous);
     }
     result.repositories.push({

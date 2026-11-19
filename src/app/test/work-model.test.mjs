@@ -42,7 +42,7 @@ test("legacy rows read with work-model defaults and are not rewritten", (t) => {
   assert.equal(taskCompletion(local), "integrated");
   assert.deepEqual(
     [taskAuthority(github), taskRoute(github), taskCompletion(github)],
-    ["github", "github", "merged-pr"],
+    ["github", "local", "integrated"],
   );
   assert.equal(taskKind({ kind: "milestone" }), "leaf");
   assert.deepEqual(validate(data), []);
@@ -265,17 +265,14 @@ test("a leaf whose repository has no checks is judged, with a warning", () => {
   );
 });
 
-test("a leaf's completion must be observable on its route", () => {
-  assert.ok(
-    codes(lint(block(leaf("alpha", { completion: "merged-pr" })))).includes(
-      "leaf.completion",
-    ),
-  );
-  assert.equal(
-    lint(block(leaf("alpha", { completion: "merged-pr", route: "github" })))
-      .canApprove,
-    true,
-  );
+test("an old merged-pr completion reads as landed on every route", () => {
+  for (const route of [undefined, "github"])
+    assert.equal(
+      codes(
+        lint(block(leaf("alpha", { completion: "merged-pr", route }))),
+      ).includes("leaf.completion"),
+      false,
+    );
 });
 
 test("a stored row with completion person reads as manual", () => {

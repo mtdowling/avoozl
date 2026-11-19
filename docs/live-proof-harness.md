@@ -139,7 +139,7 @@ creation (`avoozl-crew`).
   first tick made the folder, set it with
   `harness.sh api PATCH /api/chat/folders/<folder id> '{"project_dir":"<clone>"}'`
   (ids are in `<harness>/home/folders.json`).
-- A chat the tick opens for a conflict fix asks for approval of its first
+- A chat the tick opens asks for approval of its first
   `git` call, and an unattended chat declines it after 3 minutes. Approve the
   chat with `harness.sh api POST /api/chat/mode '{"slot":"<slot>","mode":"trust"}'`,
   then send it a message to carry on.

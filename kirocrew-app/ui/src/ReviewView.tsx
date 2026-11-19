@@ -46,7 +46,9 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { REVIEW_ACCENT, ReviewCss } from './ui/PageStyles'
-import { PlainButton, PlainTextarea } from './ui/Plain'
+import { PlainButton, PlainLink, PlainTextarea } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
+import { Glyph } from './ui/Glyph'
 
 const PROSE = '72ch'
 // Below this width the text and the rail do not fit side by side.
@@ -62,9 +64,9 @@ function Chat(props: { label: string; link: ChatLink | null; attr: string }) {
   if (!props.link) return null
   const href = linkHref(props.link.href)
   return href ? (
-    <a href={linkHref(props.link.href)} className="text-xs underline" {...{ [props.attr]: 'open' }}>
+    <PlainLink href={linkHref(props.link.href)} size="xs" underline {...{ [props.attr]: 'open' }}>
       {props.label}
-    </a>
+    </PlainLink>
   ) : (
     <Hint size="xs" {...{ [props.attr]: 'closed' }}>
       {props.label.replace(/^Open (\w)/, (_, c: string) => c.toUpperCase())}: Chat closed
@@ -123,7 +125,6 @@ function FindingCard(props: {
   selected?: boolean
   onSelect?: () => void
   cardRef?: (el: HTMLElement | null) => void
-  style?: CSSProperties
   // All findings: the file and lines lead the card.
   showFile?: boolean
 }) {
@@ -147,33 +148,31 @@ function FindingCard(props: {
     props.onSelect?.()
   }
   return (
-    <article
+    <Box
       data-finding-card={finding.id}
       data-severity={finding.severity}
       data-finding-state={finding.state}
       data-selected={props.selected ? 'true' : undefined}
       ref={props.cardRef}
       onClick={select}
-      className="text-sm"
-      style={{
-        ...props.style,
-        boxShadow: props.selected ? `0 0 0 2px color-mix(in srgb, ${REVIEW_ACCENT} 55%, transparent)` : undefined,
-        cursor: props.onSelect ? 'pointer' : undefined,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-        minWidth: 0,
-        border: `1.5px solid ${SEVERITY_COLOR[finding.severity]}`,
-        borderRadius: 12,
-        padding: '10px 12px',
-        background: 'var(--card, var(--bg))',
-        color: 'var(--text)',
-        overflowWrap: 'anywhere',
-        boxSizing: 'border-box',
-      }}
+      as="article"
+      css-box-shadow={props.selected ? `0 0 0 2px color-mix(in srgb, ${REVIEW_ACCENT} 55%, transparent)` : undefined}
+      css-cursor={props.onSelect ? 'pointer' : undefined}
+      css-display="flex"
+      css-flex-direction="column"
+      css-gap="4"
+      css-min-width="0"
+      css-border={`1.5px solid ${SEVERITY_COLOR[finding.severity]}`}
+      css-border-radius="12"
+      css-padding="10px-12px"
+      css-background="card-bg"
+      css-color="text"
+      css-overflow-wrap="anywhere"
+      css-box-sizing="border-box"
+      size="sm"
     >
       <Box css-display="flex" css-align-items="center" css-gap="8" css-min-width="0">
-        <Icon size={14} aria-hidden="true" style={{ flex: 'none', color: ink }} />
+        <Glyph icon={Icon} size={14} aria-hidden="true" css-flex="none" css-color={ink} />
         <Box css-flex="1-1-auto" css-min-width="0">
           <Tooltip text={finding.claim} display="block">
             <Box
@@ -330,7 +329,7 @@ function FindingCard(props: {
           </Box>
         )}
       </Box>
-    </article>
+    </Box>
   )
 }
 
@@ -577,7 +576,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
     setSelected(id)
     return true
   }
-  const card = (finding: ReviewFinding, style?: CSSProperties) => (
+  const card = (finding: ReviewFinding) => (
     <FindingCard
       key={finding.id}
       finding={finding}
@@ -588,7 +587,6 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
         if (el) cardEls.current.set(finding.id, el)
         else cardEls.current.delete(finding.id)
       }}
-      style={style}
       onDecide={(action, note) => decide(finding, action, note)}
       onRevision={(hash) => set({ rev: hash })}
     />
@@ -831,22 +829,26 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                   onReset={() => resizeSide(SIDE.initial)}
                 />
               )}
-              <aside
+              <Box
+                as="aside"
                 ref={sideEl}
                 aria-label="Side column"
                 data-review-rail
-                className="flex min-w-0 flex-col gap-2"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                  minWidth: 0,
-                  ...(wide
-                    ? props.fill
-                      ? { flex: `0 0 ${shownSide}px`, width: shownSide, minHeight: 0, overflowY: 'auto' }
-                      : { flex: `0 0 ${shownSide}px`, width: shownSide, position: 'sticky', top: 8, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }
-                    : { width: '100%', flex: 'none' }),
-                }}
+                flex
+                minW0
+                flexCol
+                gap="2"
+                css-display="flex"
+                css-flex-direction="column"
+                css-gap={8}
+                css-min-width={0}
+                css-flex={wide ? `0 0 ${shownSide}px` : 'none'}
+                css-width={wide ? shownSide : '100%'}
+                css-min-height={wide && props.fill ? 0 : undefined}
+                css-position={wide && !props.fill ? 'sticky' : undefined}
+                css-top={wide && !props.fill ? 8 : undefined}
+                css-max-height={wide && !props.fill ? 'calc(100vh - 16px)' : undefined}
+                css-overflow-y={wide ? 'auto' : undefined}
               >
                 <DocTabs
                   tabs={['contents', 'comments']}
@@ -918,7 +920,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                     )}
                   </Box>
                 )}
-              </aside>
+              </Box>
             </Box>
           )}
         </>

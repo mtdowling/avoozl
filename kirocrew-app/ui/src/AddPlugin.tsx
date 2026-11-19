@@ -33,7 +33,7 @@ import { PackChanges } from './PackImport.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { IconLabel } from './ui/controls.tsx'
 import { PairedCard } from './ui/PairedCards.tsx'
-import { FormSection } from './FormSection.tsx'
+import { FieldGroup } from './ui/FieldGroup.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { Folder, GitBranch, Laptop, Package, Plus, Users } from './icons.ts'
 import { Facts, Parts } from './PluginsSettings.tsx'
@@ -410,7 +410,7 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       {step === 2 && <ScopeStep form={form} set={set} confirmPublic={confirmPublic} setConfirmPublic={setConfirmPublic} />}
       {step === 3 && added && (
         <Box flex flexCol gap="3" size="sm" data-plugin-review>
-          <FormSection title={added.id} meta={<Badge variant={stateLabel(added).attention ? 'warning' : undefined}>{stateLabel(added).label}</Badge>}>
+          <FieldGroup title={added.id} meta={<Badge variant={stateLabel(added).attention ? 'warning' : undefined}>{stateLabel(added).label}</Badge>}>
             {added.reason && (
               <Hint as="p" size="xs">
                 {added.reason}
@@ -418,11 +418,11 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
             )}
             <Parts row={added} />
             <Facts row={added} />
-          </FormSection>
+          </FieldGroup>
           {pack && (
-            <FormSection title="Settings pack" blurb="After you approve, import these from the plugin’s card. Nothing is imported now.">
+            <FieldGroup title="Settings pack" blurb="After you approve, import these from the plugin’s card. Nothing is imported now.">
               <PackChanges preview={pack} />
-            </FormSection>
+            </FieldGroup>
           )}
           <Hint as="p" size="xs">
             Cancel removes the entry just added. Nothing has run.

@@ -10,6 +10,8 @@ import { Box } from './ui/Box'
 import { RailCss } from './ui/PageStyles'
 import { PlainButton, PlainInput } from './ui/Plain'
 import { Glyph } from './ui/Glyph'
+import { TONE } from './ui/tones.ts'
+import { tileTint as tint } from './ui/tones.ts'
 
 export function RailStyle() {
   return <RailCss />
@@ -78,7 +80,7 @@ export function RailSortList<K extends string>(props: { fields: RailSort<K>[]; s
             trail={
               on ? (
                 <>
-                  <Dir size={14} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--accent)' }} />
+                  <Glyph icon={Dir} size={14} aria-hidden="true" css-flex-shrink="0" css-color="accent" />
                   <Box as="span" srOnly>
                     {props.dir === 'asc' ? ', ascending' : ', descending'}
                   </Box>
@@ -91,11 +93,6 @@ export function RailSortList<K extends string>(props: { fields: RailSort<K>[]; s
     </>
   )
 }
-
-// Soft pill colors, by place in the list: Kiro Crew's tile colors at a
-// light tint, the full mix while picked.
-const TILES = ['purple', 'blue', 'green', 'orange', 'teal', 'pink', 'indigo', 'red']
-const tint = (at: number, picked: boolean) => `color-mix(in srgb, var(--tile-${TILES[at % TILES.length]}) ${picked ? 45 : 16}%, transparent)`
 
 export interface RailChipItem {
   value: string

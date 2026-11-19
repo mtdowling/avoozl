@@ -10,8 +10,9 @@ import { useNavSlotHost } from './nav-slot.tsx'
 import { ChevronDown } from './icons.ts'
 import { NAV_PILL } from './nav-style.ts'
 import Badge from './ui/Badge.tsx'
-import { Box } from './ui/Box'
+import { Box, type LookProps } from './ui/Box'
 import { NavStyle } from './ui/PageStyles'
+import { TONE } from './ui/tones.ts'
 
 export interface NavChild {
   key: string
@@ -34,20 +35,20 @@ export interface NavGroup {
 }
 
 const CARD = {
-  position: 'relative',
-  overflow: 'hidden',
-  border: '1px solid var(--border)',
-  borderRadius: 16,
-  background: 'var(--bg-elevated)',
-  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-  flexShrink: 0,
-} as const
+  'css-position': 'relative',
+  'css-overflow': 'hidden',
+  'css-border': '1px-solid-border',
+  'css-border-radius': 16,
+  'css-background': TONE.bgElevated,
+  'css-box-shadow': '0-1px-2px-rgba-0-0-0-0.05',
+  'css-flex-shrink': '0',
+} as const satisfies LookProps
 // Open sections share the height the closed ones leave, so the nav always
 // ends at the bottom, as in Radar's rail. A short one shows its background
 // to the bottom edge; a tall one scrolls its body. Closed sections keep
 // their own height.
 const OPEN_MIN = 96
-const OPEN_CARD = { ...CARD, flex: '1 1 0%', minHeight: OPEN_MIN, display: 'flex', flexDirection: 'column' } as const
+const OPEN_CARD = { ...CARD, 'css-flex': '1 1 0%', 'css-min-height': OPEN_MIN, 'css-display': 'flex', 'css-flex-direction': 'column' } as const satisfies LookProps
 
 export function NavAccordion(props: {
   groups: NavGroup[]
@@ -97,7 +98,7 @@ export function NavAccordion(props: {
         const here = props.value === group.key
         const expanded = Boolean(kids) && shown(group)
         return (
-          <div key={group.key} data-nav-section={group.key} data-open={expanded ? '' : undefined} style={expanded ? OPEN_CARD : CARD}>
+          <Box key={group.key} data-nav-section={group.key} data-open={expanded ? '' : undefined} {...(expanded ? OPEN_CARD : CARD)}>
             <button
               type="button"
               data-nav-head
@@ -162,11 +163,11 @@ export function NavAccordion(props: {
                   )
                 })}
                 {group.slot && (
-                  <div data-nav-slot={group.key} ref={slotRef(group.key)} style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: kids.length ? 6 : 2 }} />
+                  <Box data-nav-slot={group.key} ref={slotRef(group.key)} css-display="flex" css-flex-direction="column" css-gap="8" css-padding-top={kids.length ? '6' : '2'} />
                 )}
               </Box>
             )}
-          </div>
+          </Box>
         )
       })}
     </Box>

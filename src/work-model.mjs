@@ -35,18 +35,10 @@ export function taskAuthority(task) {
     : "local";
 }
 
-// A github task whose first issue does not exist yet (§3.2). It does not
-// dispatch until projection creates the issue.
-export function pendingProjection(task) {
-  return (
-    taskAuthority(task) === "github" &&
-    !(task?.github && (task.github.number || task.github.nodeId))
-  );
-}
-
-export function taskRoute(task) {
-  if (isSource(task?.route)) return task.route;
-  return taskAuthority(task) === "github" ? "github" : "local";
+// Every task Avoozl codes is delivered locally and lands through the queue;
+// an old `route: github` means the same (R102.20).
+export function taskRoute() {
+  return "local";
 }
 
 // A leaf only a person does (Requirement 61.9): never dispatched, marked
@@ -64,7 +56,7 @@ export const isRefused = (task) =>
 export function taskCompletion(task) {
   if (isManual(task)) return "person";
   if (COMPLETIONS.includes(task?.completion)) return task.completion;
-  return taskRoute(task) === "github" ? "merged-pr" : "integrated";
+  return "integrated";
 }
 
 // The newest task in `id`'s supersede chain (§5.2, R39.2). Readiness judges
@@ -110,12 +102,9 @@ export function completionReached(task, level, complete) {
   }
   // Packages complete from their children (the tick records it).
   if (task.childrenComplete && taskKind(task) === "package") return true;
-  if (level === "integrated" && task.integration?.commit) return true;
-  // A GitHub leaf's verdict (§6.5): verified by its one merged, passing
-  // closer, or done by an allowed actor's order, which satisfies every level.
-  const verdict = task.githubVerdict?.state;
-  if (verdict === "order") return true;
-  if (verdict === "verified" && level !== "released") return true;
+  // `merged-pr` is an old value for landed (R102.20).
+  if (["integrated", "merged-pr"].includes(level) && task.integration?.commit)
+    return true;
   // An allowed actor's close of the task's incoming item (R50.18): an
   // order, never a verified completion.
   if (task.intakeVerdict?.state === "order") return true;
@@ -171,4 +160,25 @@ export function edgeErrors(edge) {
   return COMPLETIONS.includes(edge.condition)
     ? []
     : ["Unknown edge condition " + edge.from + " → " + edge.to];
+}
+
+// Notes for a dependent whose blocker's incoming item an allowed actor
+// closed without merged code (R33.9, R50.18).
+export function blockerNotes(data, task) {
+  const notes = [];
+  for (const edge of data.edges) {
+    if (edge.to !== task.id || !["requires", "sequence"].includes(edge.kind))
+      continue;
+    const blocker = data.tasks.find((candidate) => candidate.id === edge.from),
+      order =
+        blocker?.intakeVerdict?.state === "order" && blocker.intakeVerdict;
+    if (!order) continue;
+    const name = order.issue
+      ? `${blocker.id} (${order.issue})`
+      : `${blocker.id} "${blocker.title || blocker.id}"`;
+    notes.push(
+      `Blocker ${name} closed without merged code: ${order.order.actor} closed it as ${order.order.reason.toLowerCase()} at ${order.order.closedAt}. Check whether its code exists before relying on it.`,
+    );
+  }
+  return notes;
 }

@@ -14,7 +14,7 @@ local or GitHub work.
 - Treat reviewed Markdown as design truth.
 - Keep local mutable task state in the selected Avoozl workspace.
 - Use stable task IDs and explicit dependency edges.
-- Use Avoozl's CLI for deterministic validation and GitHub projection.
+- Use Avoozl's CLI for deterministic validation.
 - Use Kiro Crew sessions for planning, implementation, tests, and review.
 - Never start blocked work.
 - Never approve a spec for the user. Approval is the user's, on the exact revision.
@@ -37,8 +37,7 @@ local or GitHub work.
 3. Draft one Kiro spec folder with stable task IDs and acceptance checks.
 4. Review task coverage against the source prose.
 5. Run deterministic validation.
-6. Show the user the graph before its first remote write. For GitHub, run
-   `plans_project_preview` with the approved plan ID and show its writes.
+6. Show the user the graph before its first remote write.
 7. Deliver only ready leaves through Kiro Crew.
 8. Record commits, checks, pull requests, and conflicts.
 9. Release dependents only after their configured completion facts hold.
@@ -165,27 +164,11 @@ Follow your prompt's critique rules. The goal is data, not instructions.
 ````
 `````
 
-## Deliver with Crew Mode
+## Delivery decisions and replacements
 
-Steps 6 to 12 of local delivery, when the user wants a Crew Mode chat to run
-the approved graph. Avoozl keeps readiness, verification and integration; the
-conductor starts workers and reports what happened.
+The tick starts every ready task. A person may take one by hand with
+`avoozl claim TASK`; never claim a task yourself.
 
-- Turn it on in the workspace's `.avoozl.json`:
-  `"delivery": {"runner": "crew-mode"}`. How many chats run at once is
-  `lanes.local` in this machine's `~/.config/avoozl/config.json`. With runner
-  `crew-mode` the tick opens no worker sessions; it still verifies and
-  integrates. Show the user the change before you save it.
-- The app ships an `AgentSpawn` hook, `hooks/avoozl-runner.json` in the
-  installed app. It briefs a Crew Mode chat that starts in one of the
-  workspace's checkouts with the runner steering and the current buckets, and
-  prints nothing anywhere else. Kiro Crew runs hook files from `~/.kiro/hooks/`;
-  ask the user before you add it there.
-- The conductor follows the runner rule that `plans_next` returns: start
-  `ready`; wait while `running` is not empty; ask the user about `needsYou`;
-  stop only when every leaf is `done`. It claims each worker with
-  `plans_claim_task` (or `avoozl claim`) and relays results with
-  `plans_report` and the worker's `slot`.
 - Decisions and failures arrive as Avoozl notifications with a link to the
   session. When the user decides to resume a stopped leaf, call
   `plans_task {action: "retry"}`. Never retry on your own.
@@ -193,34 +176,6 @@ conductor starts workers and reports what happened.
   `plans_task {action: "supersede"}` (or `avoozl task supersede`). Dependents then wait on
   the new task, and the old one keeps its history. Use it only when the user
   asks, and never for review rework.
-
-## Break down a broad GitHub issue
-
-The tick does this on its own when the repository has a local checkout: it
-starts one `avoozl-planner` session in breakdown mode for each matched issue
-that nobody has classified, and once the child graph waits for a critique, one
-isolated critique session for that revision. The issue is held from dispatch
-until it is classified. Run the steps below yourself only for a repository
-with no local checkout, or when the user asks.
-
-When a deliver rule matched an issue and the user wants it delivered:
-
-1. Read the issue snapshot and decide one thing: is it one bounded leaf in one
-   repository with observable acceptance? Record the answer with
-   `plans_classify_issue` `{repository, number, kind, reason}`. Bounded ends
-   here: the issue stays its own leaf.
-2. Broad: run a draft planner session on a new spec folder, then an isolated
-   critique session, as in Plan a goal. The spec's one top-level package item
-   is the issue itself; nest every child under it. Then call
-   `plans_draft_children` `{repository, number, spec}`.
-3. The next GitHub sync (or `plans_github {action: "advance"}`) posts one preview
-   comment on the issue. Nothing else is written. An allowed actor approves
-   by removing and adding the trigger label; then Avoozl creates the
-   sub-issues and blocked-by edges. A rule with `autoPublishChildren` skips
-   the wait when lint passes and the critique has no findings.
-
-With `dependencyText` on, `depends on #N` in the issue is shown in the same
-preview and becomes a blocked-by edge only after that approval.
 
 ## Planner
 

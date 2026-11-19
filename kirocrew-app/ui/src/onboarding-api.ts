@@ -1,7 +1,7 @@
 // The Onboard flow (Settings > Repository setup > Set up GitHub and import specs): calls and pure
 // helpers. Adding a repository goes from a folder to plans ready to approve
 // in Plans. Every step reuses an existing operation; the flow's own reads
-// are onboarding.inspect, onboarding.scan and plan.issues.preview. Nothing
+// are onboarding.inspect and onboarding.scan. Nothing
 // is written before Set up, each GitHub write there asks first, and the
 // flow never approves a plan, starts an agent or pushes. Keep this module
 // free of JSX and runtime imports so node can test it directly.
@@ -9,7 +9,7 @@ import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import type { ConfirmCopy } from './ui/controls.tsx'
 import type { GitHubSettings, Policy, SetupInput, SetupResult } from './settings-api.ts'
-import type { PlannedWrite, SpecList, SpecSummary } from './plans-api.ts'
+import type { SpecList, SpecSummary } from './plans-api.ts'
 
 export type OnboardMode = 'local' | 'plans-repo' | 'single-repo'
 
@@ -38,16 +38,7 @@ export interface ScanResult {
   items: { name: string; findings: ScanFinding[]; missing: boolean }[]
 }
 
-export interface IssuePreview {
-  planId: string
-  writes: PlannedWrite[]
-  blocked?: { code: string; message: string }[]
-  notes?: string[]
-  previewOnly?: string[]
-  simulated: boolean
-}
-
-export type StepKey = 'folder' | 'mode' | 'check' | 'setup' | 'import' | 'scan' | 'issues' | 'finish'
+export type StepKey = 'folder' | 'mode' | 'check' | 'setup' | 'import' | 'scan' | 'finish'
 
 export const ONBOARD_STEPS: { key: StepKey; title: string; line: string }[] = [
   { key: 'folder', title: 'Pick folder', line: 'Point at a Git checkout. Avoozl reads its remote, branch, settings file and specs. Nothing is changed.' },
@@ -60,7 +51,6 @@ export const ONBOARD_STEPS: { key: StepKey; title: string; line: string }[] = [
     title: 'Leak scan',
     line: 'This repository is public, so its issues are too. Avoozl checks the specs for secrets, paths on this computer and your content rules.',
   },
-  { key: 'issues', title: 'Preview issues', line: 'The issues approving each draft would make. Nothing is made now.' },
   { key: 'finish', title: 'Finish', line: 'What was done. Approve specs in Specs when you are ready.' },
 ]
 
@@ -100,7 +90,6 @@ export function onboardSteps(form: OnboardForm, found: FolderFacts | null): Step
   if (githubMode(form.mode)) keys.push('check')
   keys.push('setup', 'import')
   if (githubMode(form.mode) && issuesHere(form) && found?.visibility === 'public') keys.push('scan')
-  if (githubMode(form.mode)) keys.push('issues')
   keys.push('finish')
   return keys
 }
@@ -218,19 +207,9 @@ export const imported = (spec: SpecSummary) => Boolean(spec.plan)
 // Findings across every scanned spec.
 export const scanFindings = (scan: ScanResult | null) => (scan?.items ?? []).flatMap((item) => item.findings.map((f) => ({ spec: item.name, ...f })))
 
-// The issue titles a preview would create, per repository.
-export function issueSummary(preview: IssuePreview | null) {
-  const writes = preview?.writes ?? []
-  return {
-    create: writes.filter((w) => w.kind === 'issue.create'),
-    update: writes.filter((w) => w.kind === 'issue.update'),
-    other: writes.filter((w) => w.kind !== 'issue.create' && w.kind !== 'issue.update').length,
-  }
-}
-
 // Every operation the flow may call. Reads come first; the writes are the
 // ones Set up and Import make. Nothing here approves, starts or pushes.
-export const ONBOARD_READS = ['onboarding.inspect', 'github.settings.get', 'repositories.list', 'github.setup', 'plan.specs', 'onboarding.scan', 'plan.issues.preview'] as const
+export const ONBOARD_READS = ['onboarding.inspect', 'github.settings.get', 'repositories.list', 'github.setup', 'plan.specs', 'onboarding.scan'] as const
 export const ONBOARD_WRITES = ['github.setup', 'github.settings.update', 'repositories.configure', 'plan.create'] as const
 
 export function onboardClient(api: AppApi) {
@@ -246,7 +225,6 @@ export function onboardClient(api: AppApi) {
     checkGitHub: (w: string, input: SetupInput) => run<SetupResult>(w, 'github.setup', { ...input }),
     specs: (w: string) => run<SpecList>(w, 'plan.specs'),
     scan: (w: string, specs: string[]) => run<ScanResult>(w, 'onboarding.scan', { specs }),
-    previewIssues: (w: string, planId: string) => run<IssuePreview>(w, 'plan.issues.preview', { planId }),
     // Writes: only from Set up and Import, after the person asks.
     applyGitHub: (w: string, input: SetupInput, previewHash: string) => run<SetupResult>(w, 'github.setup', { ...input, confirm: true, previewHash }),
     saveSettings: (w: string, github: Policy, expectedHash: string | null) => run<GitHubSettings>(w, 'github.settings.update', { github, expectedHash }),

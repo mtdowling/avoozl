@@ -9,7 +9,6 @@ import { allowWrite } from "./content-rules.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
 import { actorAllowed } from "./github-policy.mjs";
 import { AVOOZL_CREW_LABEL, hasAvoozlLabel } from "./github.mjs";
-import { publicHold } from "./public-signoff.mjs";
 import { fail } from "./store.mjs";
 import {
   HANDOFF_KIND,
@@ -22,7 +21,6 @@ import {
 // Issue Radar's crew list route (crew_routes.py `GET /crews`).
 export const CREWS_ROUTE = "/api/apps/issue-radar/crews";
 // The pipeline route that lists one issue's sessions (pipeline_routes.py).
-export const SESSIONS_ROUTE = "/api/apps/issue-radar/pipeline/item/sessions";
 // GitHub refuses longer label names.
 export const LABEL_MAX = 50;
 export const HANDOFF_MAX = 100;
@@ -44,24 +42,6 @@ export function issueRadarReader(env = process.env, request = fetch) {
     const [owner, repo] = repository.split("/"),
       response = await client.call(
         `${CREWS_ROUTE}?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`,
-        { method: "GET" },
-      );
-    return {
-      status: response.status,
-      body: await response.json().catch(() => ({})),
-    };
-  };
-}
-
-// A function that reads one issue's sessions and their credits from Issue
-// Radar's pipeline route, or null without a gateway client.
-export function issueRadarSessionsReader(env = process.env, request = fetch) {
-  const client = gatewayClient(env, request);
-  if (!client) return null;
-  return async (repository, number) => {
-    const [owner, repo] = repository.split("/"),
-      response = await client.call(
-        `${SESSIONS_ROUTE}?number=${encodeURIComponent(number)}&owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`,
         { method: "GET" },
       );
     return {
@@ -232,12 +212,6 @@ export async function handOff(store, github, policy, tasks, input, { reader }) {
         ([name]) => lower(name) === lower(repository),
       ) || [];
   if (!settings) fail(`${repository} is not a registered repository.`, 404);
-  // A public repository goes to a crew only with a current sign-off (R85.8).
-  if (publicHold(store, id))
-    fail(
-      `${id} is public, or its visibility could not be read, and its public crew sign-off is not current. Sign off its checklist under Public crews first.`,
-      409,
-    );
   // The crew, read again here so the label is Issue Radar's, not the page's.
   let crew = null,
     label = typeof input.label === "string" ? input.label.trim() : "";

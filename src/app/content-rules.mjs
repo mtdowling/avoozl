@@ -2102,11 +2102,6 @@ const GITHUB_WRITES = {
     extra: [args[1]?.message, args[1]?.head, args[1]?.base],
     target: `merge:${repositoryOf(args[0])}:${sha256(args[1]?.message).slice(0, 12)}`,
   }),
-  armAutoMerge: (args) => ({
-    text: [],
-    extra: [args[3]?.headline, args[3]?.body],
-    target: `merge:${repositoryOf(args[0])}:${args[1]}`,
-  }),
   createCommitStatus: (args) => ({
     text: [],
     extra: [args[2]?.description, args[2]?.context, args[2]?.target_url],

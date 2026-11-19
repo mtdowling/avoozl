@@ -72,6 +72,9 @@ export type BoxTag =
   | 'caption'
   | 'figcaption'
   | 'hr'
+  | 'form'
+  | 'col'
+  | 'colgroup'
 
 export type BoxProps = Omit<HTMLAttributes<HTMLElement>, 'className' | 'style'> &
   Pick<TdHTMLAttributes<HTMLElement>, 'colSpan' | 'rowSpan' | 'scope'> & { htmlFor?: string; open?: boolean; children?: ReactNode; as?: BoxTag } & { [K in Flags]?: boolean } & {
@@ -86,7 +89,8 @@ const STYLES = table.styles as Record<string, Record<string, string | number>>
 // as the value itself; every other style value is named in the table. A view
 // can't write a theme variable itself: raw-style.test.mjs counts them.
 const FREE = new Set<string>(table.free)
-const camel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
+// A custom property (`--lane-line`) keeps its name; any other is camelCased.
+const camel = (name: string) => (name.startsWith('--') ? name : name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase()))
 
 // Splits look props from the element's own: the look becomes className and
 // style, the rest pass through. Shared by Box and the Plain* parts.

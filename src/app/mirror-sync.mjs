@@ -25,17 +25,6 @@ export function writeRepo(entry, repository) {
   return entry?.mirror?.mirror ?? repository;
 }
 
-// The policy entry for a repository Avoozl writes: its own, or for a mirror
-// the entry of the repository it mirrors.
-export function policyEntryOf(repositories, id) {
-  return (
-    repositories?.[id] ??
-    Object.values(repositories || {}).find(
-      (entry) => entry.mirror?.mirror === id,
-    )
-  );
-}
-
 // `config` (a github_repositories record) pointed at the write repository.
 // The node ID belongs to the source, so it is dropped for a mirror.
 export function mirrorConfig(config, repositories) {

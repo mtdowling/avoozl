@@ -134,7 +134,6 @@ export function notesClient(api: AppApi) {
         ...change,
       }),
     remove: (workspaceId: string, taskId: string, id: string) => run<NoteEntry>('task.notes.remove', workspaceId, { taskId, id }),
-    show: (workspaceId: string, taskId: string, id: string, onIssue: boolean) => run<NoteEntry>('task.notes.show', workspaceId, { taskId, id, onIssue }),
     allowOnce: (workspaceId: string, id: string, reason: string) => run<unknown>('content.allow', workspaceId, { id, reason }),
     markDone: (
       workspaceId: string,

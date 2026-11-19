@@ -109,3 +109,16 @@ for (const theme of ['light', 'dark'])
     assert.deepEqual(await read('svg-path'), ['path', 'stroke: var(--accent);'])
     assert.deepEqual(await read('svg-text'), ['text', 'font-size: 11px;'])
   })
+
+for (const theme of ['light', 'dark'])
+  test(`Field and FieldGroup draw a labelled field in a titled group in ${theme}`, { skip }, async () => {
+    await page.open(harness.url({ theme }), { width: 600, height: 1200, dark: theme === 'dark' })
+    await page.until(`Boolean(document.querySelector('[data-field-row="part-field"]'))`)
+    const got = await page.evaluate(`(() => {
+      const row = document.querySelector('[data-field-row="part-field"]')
+      const input = document.getElementById('part-field')
+      const box = document.querySelector('[data-field-box="Boxed group"]')
+      return { label: input.labels[0]?.textContent.trim(), group: row.closest('[data-form-section]')?.getAttribute('data-form-section'), legend: box.querySelector('legend').textContent, tag: box.tagName }
+    })()`)
+    assert.deepEqual(got, { label: 'Name', group: 'Group one', legend: 'Boxed group', tag: 'FIELDSET' })
+  })

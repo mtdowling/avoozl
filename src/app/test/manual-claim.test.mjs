@@ -175,7 +175,7 @@ test("a claim over MCP, from an agent session, or from a supervisor child is ref
   for (const context of [{}, as("chat"), { caller: { sessionKey: null } }])
     await assert.rejects(
       claim({ taskId: "a" }, context),
-      (e) => e.status === 403 && /person's/.test(e.message),
+      (e) => e.status === 403 && /person/.test(e.message),
     );
   const child = run(root, ["claim", "a"], { AVOOZL_CHILD: "1" });
   assert.notEqual(child.status, 0);

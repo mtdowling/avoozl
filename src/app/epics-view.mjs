@@ -1,12 +1,8 @@
 // The Epics screen's read (RC8, experience proposal): epic > spec > phase with
 // Avoozl's own release state (phase gate, release count, held reason), the
-// specs that are not on GitHub yet, and where Issue Radar's graph is. Read
-// only. The Release queue rows carry each held reason; this file only groups.
+// specs that are not on GitHub yet. Read only. The Release queue rows carry each held reason; this file only groups.
 import { statusComplete } from "../model.mjs";
-
-// Issue Radar's page. Its Graph view and the issue it focuses on are kept in
-// the browser's local storage and have no address, so the link is the tab.
-export const RADAR_GRAPH = Object.freeze({ url: "/issue-radar", focus: false });
+import { crossPlanEpics } from "./epics.mjs";
 
 const phaseOf = (task) => task.phase?.id ?? "";
 
@@ -60,7 +56,7 @@ function whyUnprojected(plan, tasks) {
 
 export function epicsView(store, queue) {
   const data = store.read(),
-    epicsOf = data.epics ?? [],
+    epicsOf = crossPlanEpics(data),
     plans = new Map(store.list("plans").map((plan) => [plan.id, plan])),
     rows = queue.repositories.flatMap((entry) => entry.rows),
     tasksOf = (planId) => data.tasks.filter((task) => task.planId === planId),
@@ -116,5 +112,5 @@ export function epicsView(store, queue) {
       tasks: tasksOf(plan.id).length || listedTasks(plan),
       reason: whyUnprojected(plan, tasksOf(plan.id)),
     }));
-  return { epics, unprojected, radarGraph: RADAR_GRAPH };
+  return { epics, unprojected };
 }

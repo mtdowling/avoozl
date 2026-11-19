@@ -31,7 +31,6 @@ import {
   X,
   type LucideIcon,
 } from './icons.ts'
-import { PublicCrews } from './PublicCrews.tsx'
 import { SendToRadar } from './SendToRadar.tsx'
 import { useMedia } from './use-media.ts'
 import { relativeTime } from './task-api.ts'
@@ -72,16 +71,7 @@ import { TextLink } from './ui/TextLink'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { PlainButton, PlainLink } from './ui/Plain'
-
-const ROW: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }
-const LINK_BUTTON: CSSProperties = {
-  ...ROW,
-  padding: '4px 6px',
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  color: 'var(--text)',
-  background: 'var(--card, transparent)',
-}
+import { TONE } from './ui/tones.ts'
 
 // A link styled as the page's icon button. Kiro Crew pages open in the
 // dashboard itself (target _top); GitHub opens in a new tab.
@@ -90,17 +80,25 @@ function IconLink(props: { icon: LucideIcon; label: string; tooltip: string; hre
   return (
     <Tooltip text={props.tooltip}>
       {(describedBy) => (
-        <a
+        <PlainLink
           href={linkHref(props.href)}
           aria-label={props.label}
           aria-describedby={describedBy}
           {...(props.external ? { target: '_blank', rel: 'noopener noreferrer' } : { target: '_top' })}
-          style={LINK_BUTTON}
-          className="text-sm"
+          css-display="inline-flex"
+          css-align-items="center"
+          css-justify-content="center"
+          css-gap="6"
+          css-padding="4px-6px"
+          css-border="1px-solid-border"
+          css-border-radius="6"
+          css-color="text"
+          css-background="card-transparent"
+          size="sm"
         >
           <Icon size={ICON} aria-hidden="true" />
           {props.children}
-        </a>
+        </PlainLink>
       )}
     </Tooltip>
   )
@@ -127,7 +125,7 @@ function PullState({ item }: { item: UntriagedItem }) {
     <Box as="span" inlineFlex flexWrap items="center" gap="1.5" size="xs">
       {item.draft && <Badge>draft</Badge>}
       {checks && (
-        <Box as="span" css-color={checks === 'passing' ? 'var(--ok)' : checks === 'failing' ? 'var(--danger)' : 'var(--muted)'} inlineFlex items="center" gap="1">
+        <Box as="span" css-color={checks === 'passing' ? TONE.ok : checks === 'failing' ? TONE.danger : TONE.muted} inlineFlex items="center" gap="1">
           {checks === 'passing' ? <Check size={12} aria-hidden="true" /> : checks === 'failing' ? <X size={12} aria-hidden="true" /> : null}
           {CHECK_TEXT[checks]}
         </Box>
@@ -905,7 +903,6 @@ export default function UntriagedView({
           Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
         </Hint>
       )}
-      {list?.publicCrews?.length && workspaceId ? <PublicCrews rows={list.publicCrews} workspaceId={workspaceId} onChange={() => void reload()} /> : null}
       {note && (
         <Hint role="status" as="p" size="sm" data-radar-note>
           {note}

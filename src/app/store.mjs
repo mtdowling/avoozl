@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
 import { digest, summarizeErrors, validate } from "../model.mjs";
+import { keepNamedEpics, ownLegacyEpics } from "./epics.mjs";
 
 export const canonical = (value) => JSON.stringify(normalize(value));
 function normalize(value) {
@@ -274,6 +275,21 @@ export class Store {
         "FROM incoming_items WHERE json_extract(body,'$.record.kind')='idea'";
       if (this.db.prepare(`SELECT 1 ${idea} LIMIT 1`).get())
         this.db.exec(`DELETE ${idea}`);
+      // The public crew sign-off and audit were removed: drop their records
+      // and the stops they pulled. Writes only when one is left.
+      const publicMeta =
+          "FROM meta WHERE key IN ('publicSignoff','publicCrewAuditCursors','publicCrewAudit')",
+        publicStops =
+          "FROM flow_stops WHERE json_extract(body,'$.by.name')='public crew audit' OR json_extract(body,'$.reason')='Stop public crews was pressed.'";
+      if (
+        this.db.prepare(`SELECT 1 ${publicMeta} LIMIT 1`).get() ||
+        this.db.prepare(`SELECT 1 ${publicStops} LIMIT 1`).get()
+      ) {
+        this.db.exec("BEGIN IMMEDIATE");
+        this.db.exec(`DELETE ${publicMeta}`);
+        this.db.exec(`DELETE ${publicStops}`);
+        this.db.exec("COMMIT");
+      }
     } catch (error) {
       // SQLite can roll a transaction back itself after some failures.
       try {
@@ -282,6 +298,37 @@ export class Store {
       this.db.close();
       throw error;
     }
+    this.keepLegacyEpics();
+  }
+  // Epic rows from before Requirement 59 get their plan once, on open, and
+  // one an older approval dropped while a task still names it comes back
+  // from the import baseline (design §6.9). Commit does the work. Writes
+  // only when there is something to do, so a plain open stays read-only. A
+  // snapshot that cannot be written as it is still opens; its next commit
+  // does the same.
+  keepLegacyEpics() {
+    if (this.readOnly) return;
+    const epics = this.getMeta("snapshot")?.epics;
+    if (!epics) return;
+    const have = new Set(epics.map((epic) => epic?.id)),
+      missing = (this.getMeta("baselineMetadata")?.epics || [])
+        .map((epic) => epic?.id)
+        .filter((id) => id && !have.has(id)),
+      unowned = epics.some((epic) => epic && typeof epic.planId !== "string"),
+      named =
+        missing.length &&
+        this.db
+          .prepare(
+            "SELECT 1 FROM entities WHERE kind='task' AND json_extract(body,'$.epic') IN (SELECT value FROM json_each(?)) LIMIT 1",
+          )
+          .get(JSON.stringify(missing));
+    if (!unowned && !named) return;
+    try {
+      this.mutate(
+        "Keep each epic from before Requirement 59, with its plan",
+        () => {},
+      );
+    } catch {}
   }
   transaction(fn) {
     // A nested call is a savepoint, so an outer transaction (plan.approveMany)
@@ -409,6 +456,14 @@ export class Store {
   commit(data, summary, expectedRevision) {
     if (this.read().revision !== (expectedRevision ?? data.revision))
       fail("Database changed. Reload and review before saving.", 409);
+    // No write drops an epic a stored task names, and each epic from
+    // before Requirement 59 has its plan before it is written (§6.9).
+    keepNamedEpics(
+      data,
+      this.read().epics || [],
+      this.getMeta("baselineMetadata")?.epics || [],
+    );
+    ownLegacyEpics(data, this.list("plans"));
     reconcileSpecDependencies(data, this.list("plans"), this.list("approvals"));
     data.revision = this.read().revision + 1;
     data.updatedAt = stamp();

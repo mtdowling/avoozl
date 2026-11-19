@@ -32,7 +32,7 @@ function policy(
         baseBranch: "main",
         // Plain issues are listed only for a repository Avoozl triages.
         managedLabels: { managed: "avoozl:managed", ready: "avoozl:ready" },
-        rules: [{ id: "go", action: "deliver", match: "label:go" }],
+        rules: [{ id: "go", action: "pause", match: "label:go" }],
         untriaged,
       },
     },

@@ -201,8 +201,6 @@ export const CSS_TreeStyle = `[data-tree-node]:focus-visible > rect:last-of-type
 
 export const CSS_NeedsContextStyle = '[data-needs-context] :is(dl,dd,h4,p,ul){margin:0}[data-needs-context] dd{margin-left:0}'
 
-export const CSS_WalkStyle = `[data-walk-slide]{animation:avoozl-walk 220ms ease}@keyframes avoozl-walk{from{opacity:.2;transform:translateX(12px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion: reduce){[data-walk-slide]{animation:none}}`
-
 export const CSS_PanningStyle = '[data-graph-view] svg[data-panning] *{cursor:grabbing!important}'
 
 // Kiro Crew's own accent for an action, as on its Needs your input cards.
@@ -222,6 +220,10 @@ const REVIEW_CARD = `[data-finding-card] [data-card-btn]{display:inline-flex;ali
 [data-finding-card] [data-card-btn]:focus-visible{outline:2px solid ${REVIEW_ACCENT};outline-offset:1px}
 [data-finding-card] [data-clamp]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}`
 export const CSS_ReviewCss = REVIEW_HIT + REVIEW_CARD
+
+// A release row's state and title columns from the small breakpoint up, the
+// widths Kiro Crew's stylesheet has no class for (sm:w-28, sm:w-1/3).
+export const CSS_ReleaseRowStyle = '@media (min-width:40rem){[data-release-state]{width:7rem}[data-release-title]{width:33.333333%}}'
 
 export function CitedStyle() {
   return <style>{CSS_CitedStyle}</style>
@@ -287,14 +289,14 @@ export function NeedsContextStyle() {
   return <style>{CSS_NeedsContextStyle}</style>
 }
 
-export function WalkStyle() {
-  return <style>{CSS_WalkStyle}</style>
-}
-
 export function PanningStyle() {
   return <style>{CSS_PanningStyle}</style>
 }
 
 export function ReviewCss() {
   return <style>{CSS_ReviewCss}</style>
+}
+
+export function ReleaseRowStyle() {
+  return <style>{CSS_ReleaseRowStyle}</style>
 }

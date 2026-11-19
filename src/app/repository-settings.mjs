@@ -463,8 +463,6 @@ export function conversationSettings(store) {
 // The worker's agent and model are in the roles table (Settings › Models,
 // R98.7); a save here keeps any older `delivery.agent` and `model`.
 const DELIVERY_FORM_KEYS = [
-  "prFeedback",
-  "feedbackRounds",
   // Investigate first and ship mode (§4.21, §4.25).
   "investigate",
   "ship",
@@ -983,6 +981,26 @@ export class RepositorySettings {
     value.delivery = next;
     this.write(value, { expectedHash: before.hash });
     return this.readDeliverySettings();
+  }
+
+  // Let the tick run it (worker-paths WP1.3): remove the old
+  // `delivery.runner` key, so a workspace a conductor drove is started by
+  // the tick from now on. Refused when the file moved since it was read.
+  removeDeliveryRunner({ expectedHash } = {}) {
+    const before = this.readFile();
+    if (expectedHash !== before.hash)
+      fail("Avoozl configuration changed; reload before saving.", 409);
+    const value = this.updateValue(before);
+    if (!record(value.delivery) || value.delivery.runner === undefined)
+      fail(
+        "delivery.runner is not set; the tick already runs this workspace.",
+        409,
+      );
+    const { runner, ...rest } = value.delivery;
+    void runner;
+    value.delivery = rest;
+    this.write(value, { expectedHash: before.hash });
+    return this.readFile();
   }
 
   // An approved retro proposal for a delivery setting (§4.11): one key,

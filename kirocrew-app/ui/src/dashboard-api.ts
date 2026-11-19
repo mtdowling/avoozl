@@ -11,7 +11,6 @@ import {
   type RadarClaim,
   type RadarGroup,
   type RadarCrews,
-  type RadarCrewStrip,
   type ConflictItem,
   type DeliveryItem,
   type DeliverySession,
@@ -149,7 +148,6 @@ export interface DashboardSummary {
   // What GitHub cannot show about them; empty when nothing was read.
   radarUnseen: string[]
   // Variant A only: Issue Radar's crews, counts and credits per issue.
-  radarCrewStrip: RadarCrewStrip | null
   // True only when the delivery read worked and no task has ever run, been
   // reviewed, integrated or completed (no session, evidence or integration
   // on any item). Gates the Start demo button; an unread list is false.
@@ -247,8 +245,8 @@ export function summarize(input: {
   for (const task of leaves)
     if (task.needsYou?.manual && nodeState(task) === 'needs-you')
       push({ key: `manual:${task.id}`, kind: 'manual', taskId: task.id, title: task.title, detail: task.needsYou.reason, tab: 'task', href: null })
-  // Decisions and GitHub conflicts first, then the rest in view order.
-  const rank = (kind: string) => ['decision', 'github-conflict', 'stale-session'].indexOf(kind) >>> 0
+  // Decisions first, then the rest in view order.
+  const rank = (kind: string) => ['decision', 'stale-session'].indexOf(kind) >>> 0
   for (const item of [...(input.conflicts ?? [])].sort((a, b) => rank(a.kind) - rank(b.kind)))
     push({
       key: `${item.kind}:${item.taskId ?? item.id ?? ''}:${item.field ?? ''}`,
@@ -332,7 +330,6 @@ export function summarize(input: {
     radarFlight: input.radar?.rows ?? [],
     radarGroups: input.radar?.groups ?? [],
     radarUnseen: input.radar?.unseen ?? [],
-    radarCrewStrip: input.radar?.crewStrip ?? null,
     neverRan:
       input.delivery != null &&
       !input.delivery.some((item) => item.complete || item.sessions.length > 0 || item.evidence.length > 0 || item.deliveries.length > 0 || item.integration),

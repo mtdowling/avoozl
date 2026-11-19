@@ -10,11 +10,13 @@ import test from "node:test";
 import {
   CHECKS_UNCONFINED,
   checkOptions,
+  containerBlindness,
   containerRuntime,
   isolatedCheck,
   isolationSetting,
   prepareChecks,
 } from "../check-isolation.mjs";
+import { verdictCause } from "../delivery.mjs";
 import { commandEvidence } from "../git.mjs";
 import { HARNESS_UNCONFINED } from "../harness-definitions.mjs";
 import { sandboxKind } from "../sandbox.mjs";
@@ -41,7 +43,7 @@ test("the setting validates, with sandbox and network off by default", () => {
       run: "container",
       image: "alpine:3",
       network: "on",
-      readable: ["/opt/sdk"],
+      readable: [path.resolve("/opt/sdk")],
       prepare: ["npm", "ci"],
     },
   );
@@ -226,6 +228,64 @@ test("prepare runs once per worktree and commit, before the checks", async () =>
     });
   assert.equal(results[0].exitCode, null);
   assert.match(results[0].notRun, /prepare failed/);
+});
+
+test("a container check runs only when the container sees its folder", async () => {
+  const dir = temporaryDirectory("avoozl-isolation-probe-"),
+    project = { id: "app-ctr", isolation: { run: "container", image: "img" } },
+    checks = [
+      { name: "test", argv: ["npm", "test"] },
+      { name: "lint", argv: ["npm", "run", "lint"] },
+    ];
+  // A fake runner: the probe's `cat` reads the sentinel when the container
+  // shares the folder, and finds nothing when it mounts empty.
+  const fake = (shared) => {
+    const ran = [];
+    const run = async (_dir, argv) => {
+      ran.push(argv);
+      if (argv[0] !== "sh") return { exitCode: 0, stdout: "", stderr: "" };
+      const file = argv.at(-1);
+      assert.equal(path.dirname(file), dir);
+      return shared
+        ? { exitCode: 0, stdout: fs.readFileSync(file, "utf8"), stderr: "" }
+        : { exitCode: 1, stdout: "", stderr: "" };
+    };
+    return { ran, run };
+  };
+  const options = (run) => ({ timeoutFor: () => 10_000, run, project });
+  const seen = fake(true),
+    results = await runEach(dir, checks, options(seen.run));
+  assert.deepEqual(
+    results.map((r) => r.exitCode),
+    [0, 0],
+  );
+  assert.deepEqual(seen.ran.slice(1), [
+    ["npm", "test"],
+    ["npm", "run", "lint"],
+  ]);
+  const blind = fake(false),
+    refused = await runEach(dir, checks, options(blind.run));
+  assert.equal(blind.ran.length, 1, "only the probe ran");
+  const why = `The container cannot see ${dir}; share it with the container VM (for Colima, its mounts setting).`;
+  assert.deepEqual(
+    refused.map((r) => [r.name, r.exitCode, r.notRun]),
+    [
+      ["test", null, why],
+      ["lint", null, why],
+    ],
+  );
+  // The run's cause names the folder.
+  assert.match(
+    verdictCause({}, project, "c1", { commit: "c1", checks: refused }, checks)
+      ?.cause ?? "",
+    /was not run: The container cannot see/,
+  );
+  // The sentinel never stays in the worktree.
+  assert.deepEqual(fs.readdirSync(dir), []);
+  // A sandboxed check needs no probe.
+  const sandboxed = fake(false);
+  await containerBlindness({ id: "app-sbx" }, dir, { run: sandboxed.run });
+  assert.deepEqual(sandboxed.ran, []);
 });
 
 test("project.configure with {id, isolation} changes only how its checks run", async (t) => {

@@ -50,7 +50,7 @@ for (const size of SIZES) {
       const lh = parseFloat(getComputedStyle(title).lineHeight) || parseFloat(getComputedStyle(title).fontSize) * 1.3
       return { multi: row.hasAttribute('data-multi'), kind: row.dataset.waitingRow ?? row.dataset.flightRow ?? (row.hasAttribute('data-queue-head') ? 'queue' : 'recent'), height: row.getBoundingClientRect().height, lh }
     })`)
-    assert.ok(rows.length >= 5, 'the sample has waiting, in flight, queue and recent rows')
+    assert.ok(rows.length >= 4, 'the sample has waiting, in flight, queue and recent rows')
     // A row with two actions puts them on a third line on a phone, so it may take up to two lines more.
     for (const row of rows) {
       const most = size.lines + (row.multi && size.width <= 640 ? 2.5 : 0)

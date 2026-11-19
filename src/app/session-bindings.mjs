@@ -2,7 +2,6 @@ import { bindSessionRequest } from "./session-requests.mjs";
 import { saveKirocrewIntent } from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
 import { queryTasks } from "../query.mjs";
-import { pendingProjection } from "../work-model.mjs";
 // Kiro Crew session bindings: which visible session (slot key) works on which
 // task. Kiro Crew owns the sessions; Avoozl keeps only this pointer, and a lost
 // pointer is recovered from the session title `avoozl:<task-id> <short title>`.
@@ -25,8 +24,6 @@ const ROLES = new Set([
   "plan-answer",
   // The AI summary on a task's Overview tab (task-summary.mjs).
   "task-summary",
-  // A conflict fix chat (radar-conflict-fix.mjs, RC28).
-  "conflict-fix",
   // Tries to prove a worker's findings wrong (§4.21).
   "falsifier",
   // One issue or pull request's triage run (triage.mjs).
@@ -193,9 +190,6 @@ export function bindSession(
           store.get("receipts", named)?.kind === "assist-session") ||
         // A triage session binds to its run (triage.mjs).
         (role === "triage" && store.get("triage_runs", named)) ||
-        // A conflict fix chat binds to its attempt (radar-conflict-fix.mjs).
-        (role === "conflict-fix" &&
-          store.get("receipts", named)?.kind === "conflict-fix") ||
         // New plan's planner binds to its pending request (new-plan.mjs).
         (role === "planner" && newPlanRequested(store, named))
           ? named
@@ -370,7 +364,6 @@ export function sessionRequestHold(data, taskId, role = "worker") {
     const task = tasks.get(taskId);
     if (
       !task ||
-      pendingProjection(task) ||
       !queryTasks(data, { scope: "all", q: "ready:true" }).some(
         (row) => row.id === taskId,
       )

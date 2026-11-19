@@ -102,8 +102,9 @@ test('the progress bar uses theme variables and is still under reduced motion', 
   const plans = source('PlansView.tsx')
   assert.match(plans, /useMedia\('\(prefers-reduced-motion: reduce\)'\)/)
   assert.match(plans, /transition: still \? 'none'/)
-  assert.match(plans, /var\(--ok\)/)
-  assert.match(plans, /var\(--border\)/)
+  // The bar's colors are theme variables, named in src/ui/tones.ts.
+  assert.match(plans, /TONE\.okBar/)
+  assert.match(source('ui/tones.ts'), /okBar: 'linear-gradient\(90deg, color-mix\(in srgb, var\(--ok\) 70%, var\(--card\)\), var\(--ok\)\)'/)
   assert.doesNotMatch(plans.slice(plans.indexOf('export function ProgressBar'), plans.indexOf('const STATUS_VARIANT')), /#[0-9a-f]{3,6}\b/i)
   assert.match(plans, /no tasks/)
 })

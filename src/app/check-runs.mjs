@@ -19,6 +19,7 @@ import { contentBinding } from "./content-rules.mjs";
 import {
   checkTimeout,
   outputTail,
+  notRunChecks,
   runEach,
   verifyPaths,
   warmWorktree,
@@ -82,16 +83,7 @@ export async function runChecksAt(
   { timeoutMs = CHECK_TIMEOUT_MS, timeoutFor, run = commandEvidence } = {},
 ) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-checks-")),
-    notRunAll = (why) =>
-      checks.map((check) => {
-        const argv = Array.isArray(check) ? check : check.argv;
-        return {
-          name: Array.isArray(check) ? argv.join(" ") : check.name,
-          command: argv.join(" "),
-          exitCode: null,
-          notRun: why,
-        };
-      });
+    notRunAll = (why) => notRunChecks(checks, why);
   let head = null;
   try {
     try {

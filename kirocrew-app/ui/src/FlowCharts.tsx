@@ -10,6 +10,7 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
+import { TONE } from './ui/tones.ts'
 
 const W = 300,
   H = 90,
@@ -47,7 +48,7 @@ function Line({ points, value, format, color }: { points: SeriesPoint[]; value: 
         aria-label={points.map((p, i) => `${p.key}: ${values[i] === null ? 'none' : format(values[i]!)}`).join(', ')}
         preserveAspectRatio="none"
       >
-        <line x1={0} x2={W} y1={H - PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={1} />
+        <line x1={0} x2={W} y1={H - PAD} y2={H - PAD} stroke={TONE.border} strokeWidth={1} />
         {path.map((run, i) => (
           <polyline key={i} points={run.join(' ')} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
         ))}
@@ -165,22 +166,22 @@ export function FlowCharts({ view, unit, onUnit }: { view: FlowViewModel; unit: 
       <SectionHeading title="Over time" actions={<UnitPicker unit={unit} onUnit={onUnit} />} />
       <Box css-grid-template-columns="repeat-auto-fill-minmax-min-100%-16rem-1fr" grid gap="3" data-flow-charts>
         <Chart title="Lead time (median)" empty={none}>
-          <Line points={points} value={(p) => p.leadTimeMs} format={duration} color="var(--accent)" />
+          <Line points={points} value={(p) => p.leadTimeMs} format={duration} color={TONE.accent} />
         </Chart>
         <Chart title="Flow efficiency" empty={none}>
-          <Line points={points} value={(p) => p.flowEfficiency} format={percent} color="var(--ok)" />
+          <Line points={points} value={(p) => p.flowEfficiency} format={percent} color={TONE.ok} />
         </Chart>
         <Chart title="First-pass rate" empty={none}>
-          <Line points={points} value={(p) => p.firstPassRate} format={percent} color="var(--accent)" />
+          <Line points={points} value={(p) => p.firstPassRate} format={percent} color={TONE.accent} />
         </Chart>
         <Chart title="Fix work" empty={!points.some((p) => p.fixShare != null)}>
-          <Line points={points} value={(p) => p.fixShare ?? null} format={percent} color="var(--accent)" />
+          <Line points={points} value={(p) => p.fixShare ?? null} format={percent} color={TONE.accent} />
         </Chart>
         <Chart title="Corrections" empty={!points.some((p) => (p.corrections ?? 0) > 0)}>
-          <Line points={points} value={(p) => p.corrections ?? 0} format={(n) => String(n ?? 0)} color="var(--danger)" />
+          <Line points={points} value={(p) => p.corrections ?? 0} format={(n) => String(n ?? 0)} color={TONE.danger} />
         </Chart>
         <Chart title="Time to fix" empty={!points.some((p) => p.timeToFixMs !== null)}>
-          <Line points={points} value={(p) => p.timeToFixMs} format={duration} color="var(--danger)" />
+          <Line points={points} value={(p) => p.timeToFixMs} format={duration} color={TONE.danger} />
         </Chart>
         <Chart title="Stage mix" empty={none}>
           <StageMix points={points} />

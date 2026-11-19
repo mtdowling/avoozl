@@ -4,7 +4,7 @@
 // which only a person may call.
 import { useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { FormSection } from './FormSection.tsx'
+import { FieldGroup } from './ui/FieldGroup.tsx'
 import { Btn } from './ui/Btn'
 import { Box } from './ui/Box'
 import { Input } from './ui/Input'
@@ -62,7 +62,7 @@ export default function IsolationPanel(props: { workspaceId: string; projectId: 
   }
   const id = `avoozl-isolation-${props.projectId}`
   return (
-    <FormSection
+    <FieldGroup
       title="Isolation"
       blurb="How Avoozl runs this repository's checks. The network is off unless you turn it on."
       actions={
@@ -125,6 +125,6 @@ export default function IsolationPanel(props: { workspaceId: string; projectId: 
           </Box>
         )}
       </Box>
-    </FormSection>
+    </FieldGroup>
   )
 }

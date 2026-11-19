@@ -6,9 +6,6 @@ import {
   approvalDelegation,
   delegationEvidence,
 } from "./approval-delegation.mjs";
-import { claimedTaskIds } from "./delivery.mjs";
-import { planningIdentity } from "./github-marker.mjs";
-import { previewProjection } from "./github-preview.mjs";
 import { approvePlan } from "./plans.mjs";
 import { planReviewSummary } from "./plan-review-summary.mjs";
 import {
@@ -377,36 +374,6 @@ async function openGatePullRequests(ops, gated) {
   return [...pulls.values()];
 }
 
-// GitHub issue writes projecting each plan would make, read against a
-// scratch store where the plans are approved. Null without a GitHub mode.
-async function projectionWrites(ops, target, planIds) {
-  let policy = null;
-  try {
-    policy = ops.githubPolicy();
-  } catch {
-    policy = null;
-  }
-  const configured = ops.store.list("github_repositories");
-  if (!policy?.mode || policy.mode === "local" || configured.length !== 1)
-    return new Map();
-  const result = new Map();
-  for (const planId of planIds) {
-    try {
-      const preview = await previewProjection(target, ops.github, {
-        planId,
-        repository: configured[0].id,
-        identity: planningIdentity(ops.workspaceRoot),
-        policy,
-        claimed: claimedTaskIds(target),
-      });
-      result.set(planId, { writes: preview.writes.length });
-    } catch (error) {
-      result.set(planId, { writes: null, writesError: error.message });
-    }
-  }
-  return result;
-}
-
 function gateOf(ops, plan) {
   try {
     return Boolean(ops.approvalGateTarget(plan));
@@ -434,9 +401,7 @@ function entryOf(draft, batch, inBatch) {
 }
 
 // plan.approvalBatches: read only. Draft spec plans in the order they can
-// be approved. With {writes:true}, each entry also counts the GitHub issue
-// writes projecting it would make once its batch and the ones before it
-// are approved. With {ids}, `selection` simulates approving just those.
+// be approved. With {ids}, `selection` simulates approving just those.
 export async function approvalBatches(ops, input = {}) {
   const all = drafts(ops),
     byId = new Map(all.map((draft) => [draft.plan.id, draft])),
@@ -468,28 +433,6 @@ export async function approvalBatches(ops, input = {}) {
       { githubPolicy: ops.githubPolicy(), operator: ops.operator },
     );
   const result = { batches };
-  if (input.writes) {
-    const scratch = ops.store.scratch();
-    try {
-      for (const batch of batches) {
-        const ids = batch.specs.map((entry) => entry.id),
-          approved = simulate(scratch, ids);
-        if (!approved.ok) {
-          for (const failure of approved.failures)
-            Object.assign(
-              batch.specs.find((entry) => entry.id === failure.id) || {},
-              { failure: failure.error },
-            );
-          break;
-        }
-        const writes = await projectionWrites(ops, scratch, ids);
-        for (const entry of batch.specs)
-          Object.assign(entry, writes.get(entry.id) || { writes: 0 });
-      }
-    } finally {
-      scratch.close();
-    }
-  }
   if (Array.isArray(input.ids)) {
     const unknown = input.ids.filter((id) => !byId.has(id));
     if (unknown.length) fail(`Not a draft spec: ${unknown.join(", ")}.`, 404);
@@ -508,21 +451,16 @@ export async function approvalBatches(ops, input = {}) {
                   task.pendingSpecDependencies?.length,
               ).length
           : 0,
-        writes = approved.ok
-          ? await projectionWrites(ops, scratch, input.ids)
-          : new Map(),
         inSet = new Set(input.ids),
         specs = input.ids.map((id) => ({
           ...batches
             .flatMap((batch) => batch.specs)
             .find((entry) => entry.id === id),
-          ...(writes.get(id) || {}),
           ...(gateOf(ops, byId.get(id).plan) ? { pullRequest: true } : {}),
         }));
       result.selection = {
         ok: approved.ok && specs.every((entry) => !entry.errors),
         specs,
-        writes: specs.reduce((sum, entry) => sum + (entry.writes || 0), 0),
         // Specs approved through an approval pull request: approving opens
         // one for them, and they are approved once it merges.
         pullRequest: specs.filter((entry) => entry.pullRequest).length,

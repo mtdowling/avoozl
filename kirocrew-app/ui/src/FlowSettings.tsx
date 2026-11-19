@@ -8,7 +8,7 @@ import { Card } from './ui/Card'
 import { Input } from './ui/Input'
 import { ChoiceCards, SectionHeading } from './ui/controls.tsx'
 import { Section } from './SettingsView.tsx'
-import { CheckRow, FieldGrid as SharedGrid, FieldRow, Marker, RawKey } from './FieldRow.tsx'
+import { CheckRow, FieldGrid as SharedGrid, Field, Marker, RawKey } from './ui/Field.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Pause } from './icons.ts'
@@ -22,13 +22,13 @@ import { Box } from './ui/Box'
 
 const OPTIONAL = { required: false } as const
 
-// One field in a FieldGrid: the shared FieldRow, lined up with the fields
+// One field in a FieldGrid: the shared Field, lined up with the fields
 // beside it (align), every Flow value optional.
 function Labeled(props: { id: string; label: string; raw: string; children: React.ReactNode; note?: string }) {
   return (
-    <FieldRow id={props.id} label={props.label} raw={props.raw} rule={OPTIONAL} help={props.note} align attrs={{ 'data-flow-field': true }}>
+    <Field id={props.id} label={props.label} raw={props.raw} rule={OPTIONAL} help={props.note} align attrs={{ 'data-flow-field': true }}>
       {props.children}
-    </FieldRow>
+    </Field>
   )
 }
 

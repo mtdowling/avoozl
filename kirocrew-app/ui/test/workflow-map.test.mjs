@@ -143,14 +143,14 @@ test('the Labels table lists each label, its writer and a setting to open', () =
   assert.equal(rows.review.jump, undefined)
 })
 
-test('the source-conflict setting round-trips, and no crew conflict-fix card shows', () => {
+test('the conflict count round-trips, and no crew conflict-fix card shows', () => {
   const policy = structuredClone(SINGLE)
-  policy.repositories['example/code'].conflicts = { onSourceConflict: 'ask', maxAttempts: 2 }
+  policy.repositories['example/code'].conflicts = { maxAttempts: 2 }
   assert.equal(
     cards(map(policy), 'epic').find((item) => item.key === 'epic-conflict-fix'),
     undefined,
   )
-  assert.deepEqual(toPolicy(toForm(policy)).repositories['example/code'].conflicts, { onSourceConflict: 'ask', maxAttempts: 2 })
+  assert.deepEqual(toPolicy(toForm(policy)).repositories['example/code'].conflicts, { maxAttempts: 2 })
   assert.equal(toPolicy(toForm(SINGLE)).repositories['example/code'].conflicts, undefined)
 })
 

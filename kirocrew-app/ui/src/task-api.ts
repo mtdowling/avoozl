@@ -51,8 +51,6 @@ export interface TaskDetail {
     // backends omit them.
     manual?: boolean
     manualDone?: import('./notes-api.ts').ManualDone | null
-    // It has an issue on GitHub, so Show on the issue applies.
-    onGitHub?: boolean
   }
   plan: { id: string; title: string; spec: string | null; state: string | null; approved: boolean } | null
   // Where the task came from (page-views.mjs taskOrigin).
