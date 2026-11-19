@@ -62,7 +62,6 @@ import {
 } from "../task-identity.mjs";
 import {
   COMPLETIONS,
-  pluginId,
   taskAuthority,
   taskKind,
   taskRepository,
@@ -247,7 +246,6 @@ import {
   resolveProjectionConflict,
 } from "./github-projection.mjs";
 import { rebuildFromGitHub } from "./github-rebuild.mjs";
-import { cancelSubmission, resubmit } from "./routes.mjs";
 import {
   addGitPlugin,
   addPlugin,
@@ -270,7 +268,6 @@ import { queueSessionSend } from "./session-send.mjs";
 import { openSession, viewOpened } from "./session-open.mjs";
 import { kirocrewPinNeedsYou } from "./kirocrew-pin.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
-import { rebuiltRows } from "./trackers.mjs";
 import { SUPPORTED_CONTRACTS } from "./plugin-contract.mjs";
 import {
   allowOnce,
@@ -310,8 +307,6 @@ import {
   reviewDraftNeedsYou,
   reviewDraftsView,
 } from "./review-draft.mjs";
-import { clearGate, gateNeedsYou } from "./gate-clear.mjs";
-import { gateRows } from "./gate-view.mjs";
 import { handOff, readCrews } from "./radar-handoff.mjs";
 import {
   adoptPull,
@@ -728,15 +723,6 @@ function refuseGitHubAuthority(data, name, input) {
       : [input.id];
   for (const id of ids) {
     const task = data.tasks.find((t) => t.id === resolveTaskId(data, id));
-    if (task && taskAuthority(task).startsWith("plugin:")) {
-      const error = Error(
-        `Task ${task.id} is owned by its record in ${taskAuthority(task)}${task.tracker?.link ? ` (${task.tracker.link})` : ""}. Change it through its plan: amend and approve the plan, and the tick projects it.`,
-      );
-      error.status = 409;
-      error.code = "authority-plugin";
-      error.route = "projection";
-      throw error;
-    }
     if (!task || taskAuthority(task) !== "github") continue;
     const issue = task.github?.number
       ? ` issue ${task.github.repository}#${task.github.number}`
@@ -1134,163 +1120,6 @@ export class Operations {
           : [],
     };
   }
-  // Tracker plugin tasks rebuilt from each approved tracker's `list` and the
-  // approved spec folders the records pin (§3.3, R35.7). A plan row is
-  // recreated only from a folder whose revision equals the pinned hash, the
-  // revision that was approved before. A second run writes nothing.
-  async rebuildTrackers() {
-    if (!this.plugins) return [];
-    const trackers = this.plugins
-      .inspect()
-      // An intake-only plugin is never asked to list (R50.7).
-      .filter((p) => p.state === "approved" && p.provides?.includes("tracker"));
-    if (!trackers.length) return [];
-    const namespace = requireNamespace(planningIdentity(this.workspaceRoot)),
-      session = this.plugins.open(),
-      results = [];
-    try {
-      for (const plugin of trackers) {
-        const notes = [];
-        let records;
-        try {
-          ({ records } = await session.call(plugin.id, "tracker", "list", {
-            namespace,
-          }));
-        } catch (error) {
-          results.push({
-            plugin: plugin.id,
-            error: error.reason || error.message,
-          });
-          continue;
-        }
-        const rows = rebuiltRows(plugin.id, records, namespace),
-          plans = new Map();
-        for (const row of rows)
-          plans.set(row.planId, [...(plans.get(row.planId) || []), row]);
-        for (const [planId, list] of plans) {
-          if (!planId) continue;
-          if (this.store.get("plans", planId)?.state === "approved") continue;
-          const hashes = new Set(list.map((row) => row.hash));
-          if (hashes.size !== 1) {
-            notes.push(
-              `Plan ${planId} is not rebuilt: its records pin more than one revision.`,
-            );
-            continue;
-          }
-          try {
-            await this.perform("plan.create", {
-              id: planId,
-              spec: list[0].spec,
-            });
-            const preview = await this.perform("plan.preview", { id: planId });
-            if (preview.reviewedHash !== list[0].hash) {
-              notes.push(
-                `Plan ${planId} is not rebuilt: its folder is at ${String(preview.reviewedHash).slice(0, 12)}, but its records pin ${String(list[0].hash).slice(0, 12)}. Reload and approve the folder.`,
-              );
-              continue;
-            }
-            await this.perform("plan.approve", {
-              id: planId,
-              expectedHash: preview.reviewedHash,
-              expectedRevision: preview.expectedRevision,
-              evidence: `Rebuilt from plugin:${plugin.id}: ${list.length} records pin this revision.`,
-            });
-          } catch (error) {
-            notes.push(`Plan ${planId} is not rebuilt: ${error.message}`);
-          }
-        }
-        const data = this.read(),
-          changes = [];
-        for (const row of rows) {
-          const task = data.tasks.find((t) => t.id === row.taskId);
-          if (!task) {
-            notes.push(
-              `Record ${row.tracker.id} names task ${row.taskId}, which no approved plan has.`,
-            );
-            continue;
-          }
-          if (taskAuthority(task) !== `plugin:${plugin.id}`) {
-            notes.push(
-              `Task ${row.taskId} is not owned by plugin:${plugin.id}; skipped.`,
-            );
-            continue;
-          }
-          // Conflicts are the tick's judgment; rebuild keeps them.
-          const next = {
-            ...task,
-            tracker: {
-              ...row.tracker,
-              conflicts: task.tracker?.conflicts ?? [],
-            },
-          };
-          if (row.verdict) {
-            next.trackerVerdict = row.verdict;
-            if (row.verdict.status) next.status = row.verdict.status;
-          }
-          if (canonical(next) !== canonical(task)) changes.push(next);
-        }
-        if (changes.length)
-          this.store.mutate(
-            `Rebuild ${changes.length} tasks from plugin:${plugin.id}`,
-            (draft) => {
-              for (const next of changes)
-                draft.tasks[draft.tasks.findIndex((t) => t.id === next.id)] =
-                  next;
-            },
-          );
-        results.push({
-          plugin: plugin.id,
-          tasks: rows.map((row) => row.taskId),
-          written: changes.length > 0,
-          notes,
-        });
-      }
-    } finally {
-      await session.close();
-    }
-    return results;
-  }
-  // "Take back local" (§3.2, R35.10): close the record as not planned and
-  // make SQLite the task's authority again. shortcut: the plan still names
-  // the plugin authority, so its next approval projects the task again;
-  // drop the authority from the manifest before re-approving.
-  async takeBackLocal(input) {
-    if (!input.taskId) fail("Choose a task ID.");
-    const data = this.read(),
-      task = data.tasks.find((t) => t.id === resolveTaskId(data, input.taskId));
-    if (!task) fail(`Task ${input.taskId} was not found.`, 404);
-    const id = pluginId(taskAuthority(task));
-    if (!id) fail(`Task ${task.id} is not owned by a tracker plugin.`, 409);
-    if (!this.plugins) fail("No plugin can run in this process.", 409);
-    if (task.tracker?.id && task.tracker.state === "open") {
-      const session = this.plugins.open();
-      try {
-        await session.call(id, "tracker", "close", {
-          id: task.tracker.id,
-          reason: "not_planned",
-        });
-      } finally {
-        await session.close();
-      }
-    }
-    this.store.mutate(
-      `Take ${task.id} back local from plugin:${id}`,
-      (draft) => {
-        const row = draft.tasks.find((t) => t.id === task.id);
-        row.authority = "local";
-        row.takenBack = {
-          from: `plugin:${id}`,
-          record: task.tracker ?? null,
-          at: new Date().toISOString(),
-        };
-        delete row.tracker;
-        delete row.trackerVerdict;
-        delete row.trackerHold;
-        delete row.trackerPaused;
-      },
-    );
-    return this.read().tasks.find((t) => t.id === task.id);
-  }
   // Settings' plugin list and actions (§4.8, R34.9). Approval is a person's
   // act in Settings or the CLI: an agent session cannot approve a plugin,
   // and no MCP tool offers it.
@@ -1343,14 +1172,6 @@ export class Operations {
         }));
       return {
         supportedContracts: SUPPORTED_CONTRACTS,
-        // Local and GitHub are built in; every other route is a plugin's.
-        routes: [
-          "local",
-          "github",
-          ...plugins
-            .filter((p) => p.kinds?.includes("route"))
-            .map((p) => `plugin:${p.id}`),
-        ],
         plugins,
       };
     }
@@ -1602,7 +1423,6 @@ export class Operations {
     const data = {
         ...this.read(),
         projects: store.list("projects"),
-        pluginIds: () => this.gatePluginIds(),
       },
       plans = store
         .list("plans")
@@ -2184,7 +2004,6 @@ export class Operations {
           data: {
             ...this.read(),
             projects: this.store.list("projects"),
-            pluginIds: () => this.gatePluginIds(),
           },
           ...(extraction ? { proposals } : {}),
         });
@@ -2347,19 +2166,6 @@ export class Operations {
     }
     return this.specNamespace();
   }
-  // Plugins a gate may name (RC23.1): declared, readable, and providing the
-  // `gate` part. Read only when a plan holds a gate.
-  gatePluginIds() {
-    return inspectPlugins(this.pluginOptions)
-      .filter(
-        (p) =>
-          p.id &&
-          p.state !== "invalid" &&
-          p.state !== "missing" &&
-          p.provides?.includes("gate"),
-      )
-      .map((p) => p.id);
-  }
   lintSpecPlan(plan, retitled = [], { content = true } = {}) {
     const spec = { name: plan.spec, exists: true, files: plan.files || {} },
       declarations = specDeclarations(this.store.list("plans")),
@@ -2369,7 +2175,6 @@ export class Operations {
         data: {
           ...this.read(),
           projects: this.store.list("projects"),
-          pluginIds: () => this.gatePluginIds(),
         },
         approved: this.approvedSpec(plan),
         retitled,
@@ -2652,7 +2457,6 @@ export class Operations {
             data: {
               ...this.read(),
               projects: store.list("projects"),
-              pluginIds: () => this.gatePluginIds(),
             },
           }),
           spec,
@@ -3090,24 +2894,6 @@ export class Operations {
         context.caller,
         { roots: machineRoots(store, this.workspaceRoot) },
       );
-    if (name === "gate.list") return { gates: gateRows(store) };
-    if (name === "gate.clear")
-      return clearGate(
-        store,
-        this.github,
-        readGitHubPolicyOrNull(this.workspaceRoot),
-        {
-          taskId: input?.taskId,
-          reason: input?.reason,
-          how:
-            context.caller || context.mcp
-              ? "mcp"
-              : context.local
-                ? "command"
-                : "control",
-          local: context.local ? "cli" : "dashboard",
-        },
-      );
     if (name === "review.drafts")
       return reviewDraftsView(
         store,
@@ -3405,7 +3191,6 @@ export class Operations {
                   data: {
                     ...this.read(),
                     projects: store.list("projects"),
-                    pluginIds: () => this.gatePluginIds(),
                   },
                 }),
                 spec,
@@ -3463,11 +3248,6 @@ export class Operations {
       }
       return result;
     }
-    if (name === "route.cancel") {
-      if (!this.plugins) fail("No plugin can run in this process.", 409);
-      return cancelSubmission(store, this.plugins.open(), input);
-    }
-    if (name === "route.resubmit") return resubmit(store, input);
     // Proposals and prompt overrides (design §4.18).
     if (RETRO_READS.has(name) || RETRO_WRITES.has(name))
       return retroOperation(store, name, input, context, {
@@ -3638,7 +3418,6 @@ export class Operations {
       view.items.push(...reviewDraftNeedsYou(store));
       view.items.push(...planReviewNeedsYou(store));
       view.items.push(...specPullNeedsYou(store));
-      view.items.push(...gateNeedsYou(store));
       if (this.kirocrewAbsent) view.items.push(...kirocrewPinNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
       view.items.push(...landingWaitNeedsYou(store, this.read()));
@@ -5702,7 +5481,6 @@ export class Operations {
               data: {
                 ...this.read(),
                 projects: store.list("projects"),
-                pluginIds: () => this.gatePluginIds(),
               },
             }),
         ...(plan.spec ? { disk: this.specOnDisk(plan) } : {}),
@@ -5734,7 +5512,6 @@ export class Operations {
         data: {
           ...this.read(),
           projects: store.list("projects"),
-          pluginIds: () => this.gatePluginIds(),
         },
       });
     }
@@ -5778,7 +5555,6 @@ export class Operations {
           data: {
             ...data,
             projects: store.list("projects"),
-            pluginIds: () => this.gatePluginIds(),
           },
           ...(extraction ? { proposals } : {}),
         });
@@ -6356,14 +6132,13 @@ export class Operations {
     if (name === "github.conflict.resolve")
       return resolveProjectionConflict(store, input);
     // `avoozl rebuild`: GitHub tasks from their issues when repositories are
-    // registered, and tracker plugin tasks from their records (§3.3).
+    // registered (§3.3).
     if (name === "workspace.rebuild") {
       const github = store.list("github_repositories").length
         ? await this.perform("github.rebuild", input, undefined, context)
         : null;
-      return { ...(github || {}), trackers: await this.rebuildTrackers() };
+      return github || {};
     }
-    if (name === "tracker.takeBack") return this.takeBackLocal(input);
     if (name === "github.rebuild")
       return rebuildFromGitHub(store, this.github, {
         repository: input.repository,

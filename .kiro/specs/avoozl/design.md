@@ -171,25 +171,18 @@ a coder. It still hosts no UI outside Kiro Crew.
 | Completion                                        | Derived: GitHub facts (Requirement 16) or local verified-and-integrated commit                                                                                                    | Cached verdict                                         | Never written as an independent fact for GitHub tasks                                                                         |
 | Activity and evidence                             | Append-only event log in SQLite, pointing at real sources                                                                                                                         | Authoritative for local; receipt for GitHub            | Evidence links, not copies                                                                                                    |
 | Human decisions                                   | SQLite for local tasks; GitHub labels and comments for GitHub tasks                                                                                                               | Authoritative / cache                                  |                                                                                                                               |
-| Tracker plugin records (`authority: plugin:<id>`) | The plugin's tracker: records, open or closed, managed fields, the stored marker, and native links when the plugin has `edges`                                                    | **Cache**                                              | Same rule as GitHub. Without `edges`, the graph's edges come from the approved manifest and SQLite caches them (§4.8)         |
 | Plugin approvals                                  | Machine-local Avoozl settings: id, version, content hash                                                                                                                          | Receipt                                                | Never in Git; never set by the tick (§4.8)                                                                                    |
 | Spec driver (which machine may write for a spec)  | GitHub: the plan issue's single assignee (else its epic issue's) plus the machine claim in its marker; Local only: a SQLite row                                                   | **Cache** in GitHub modes; authoritative in Local only | Moves only by a person: a reassignment then Take over, or Force take over (§6.10)                                             |
 
 ### 3.2 When SQLite is authoritative
 
-**Proposed.** Every task row carries `authority: "local" | "github" | "plugin:<id>"`.
+**Proposed.** Every task row carries `authority: "local" | "github"`.
 
 - `local`: SQLite owns the row. Writes go through operations. Portable records
   publish to Git for durability and review. A local task never syncs to GitHub.
 - `github`: the row is a cache. Operations refuse direct edits and route the
   change to GitHub (title, body, labels, edges, Project fields) through
   projection. The tick overwrites the row from GitHub on every sync.
-- `plugin:<id>`: the row is a cache of a record in a tracker plugin's system
-  (§4.8). The same rules as `github` apply: operations refuse direct edits
-  with 409 (as task 2.2 does for `github`) and route the change through the
-  plugin's `project`; the tick overwrites the row from `read`. A plugin task
-  shows the plugin's record link and the plugin id on every card. Added
-  2026-11-12 (Requirement 35).
 - **Default.** With no GitHub mode, every task is `local`. With a GitHub mode
   (§6.6), a new task's default is `github`: once its plan is approved, the
   next projection creates its issue. Local is opt-in, either per task
@@ -205,7 +198,7 @@ a coder. It still hosts no UI outside Kiro Crew.
   **Verified** in the Phase 2 work model (`taskAuthority` in
   `src/work-model.mjs` on branch `task/phase2-model-validation`).
 - A task changes authority only through an approved projection (local →
-  github, or local → `plugin:<id>`) or an explicit "take back local" action that closes the GitHub issue
+  github) or an explicit "take back local" action that closes the GitHub issue
   as `not_planned`. Projecting an opt-in local task needs a plan change that
   removes its `authority: local`, then approval. One task never has two
   writable rows.
@@ -217,8 +210,6 @@ a coder. It still hosts no UI outside Kiro Crew.
 `avoozl tick`. The result must equal the previous state for every task, edge,
 status, completion verdict, and managed-field baseline. Only session bindings may
 be missing; the tick rediscovers them from session titles (`avoozl:<task-id>`).
-The same test holds for `authority: "plugin:<id>"` tasks, rebuilt from the
-plugin's `list` and `read` plus the approved task facts (§4.8, proof P26).
 
 ### 3.4 Managed issue marker, version 2
 
@@ -375,8 +366,8 @@ plugin's `list` and `read` plus the approved task facts (§4.8, proof P26).
 | ------------ | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `id`         | lowercase, dotted path allowed (`w3.reactor-timers`)                                         | Immutable after approval; comes from the `tasks.md` item's ID (§6.8)                                                                                  |
 | `kind`       | `epic`, `package`, `leaf`                                                                    | Only leaves dispatch; epics and packages complete from children. Changed 2026-11-13: inside a plan only `package` and `leaf`; epics span plans (§6.9) |
-| `authority`  | `local`, `github`, `plugin:<id>`                                                             | §3.2; default `github` when a GitHub mode is set; `plugin:<id>` needs a loaded tracker plugin (§4.8)                                                  |
-| `route`      | `local`, `github`, `plugin:<id>`                                                             | How a leaf is delivered; `plugin:<id>` needs a loaded route plugin (§4.8)                                                                             |
+| `authority`  | `local`, `github`                                                                           | §3.2; default `github` when a GitHub mode is set                                                                                                      |
+| `route`      | `local`, `github`                                                                           | How a leaf is delivered                                                                                                                               |
 | `repository` | registered repository ID                                                                     | Required for leaves; exactly one                                                                                                                      |
 | `acceptance` | list of observable statements                                                                | Required for leaves                                                                                                                                   |
 | `checks`     | named commands (local) or check names (GitHub)                                               | Required for code leaves                                                                                                                              |
@@ -654,13 +645,14 @@ New MCP tools (**Proposed**, `plans_` prefix kept for consistency):
 - Plugins run only after a person approves their exact version and hash, each
   in a local child process over stdio, with no port and no listener (§4.8).
 
-### 4.8 Plugins: routes, trackers, and loading
+### 4.8 Plugins and loading
 
-**Proposed**, owner request 2026-11-12 (Requirements 22, 34, 35). This is the
-one way to add a delivery system or a task tracker. It stays a schema and an
-interface until the gate in Requirement 22.4 holds: every proof in Phases 0–7
-passes, and a second real route exists. A private code-review route in its own
-private package counts as that second real route. Test fakes never count.
+**Proposed**, owner request 2026-11-12 (Requirement 34). This is the one way
+to add an intake source or content rules from outside Avoozl. (Changed
+2026-11-18: route and tracker plugins are retired with Requirements 22 and
+35. Worker paths are the one dispatch path, and a task's record is local or
+a GitHub issue. A manifest that lists `route`, `tracker` or `gate` is
+refused when it loads.)
 
 **Where plugins live and how they are declared.** A plugin is a package
 installed into Avoozl's plugin folder under the app's data directory, a
@@ -671,18 +663,17 @@ Settings does it. A `plugins` entry declares each plugin:
 {
   "plugins": [
     {
-      "id": "example-tracker",
-      "package": "@example/avoozl-tracker",
+      "id": "example-intake",
+      "package": "@example/avoozl-intake",
       "contract": 1,
       "config": {
-        "baseUrl": "https://tracker.example.com",
-        "tokenEnv": "EXAMPLE_TRACKER_TOKEN",
-        "allowedActors": ["maintainer-login"]
+        "baseUrl": "https://tickets.example.com",
+        "tokenEnv": "EXAMPLE_INTAKE_TOKEN"
       }
     },
     {
-      "id": "example-review",
-      "path": "../avoozl-example-review",
+      "id": "example-rules",
+      "path": "../avoozl-example-rules",
       "contract": 1
     }
   ]
@@ -702,8 +693,8 @@ name a git repository instead of a package or a folder:
 
 ```json
 {
-  "id": "example-review",
-  "git": "https://git.example.com/team/review-plugin.git",
+  "id": "example-rules",
+  "git": "https://git.example.com/team/rules-plugin.git",
   "ref": "v1.4.0",
   "subdir": "plugin",
   "contract": 1
@@ -740,20 +731,17 @@ credentials masked.
 
 ```json
 {
-  "id": "example-tracker",
+  "id": "example-intake",
   "version": "1.2.0",
   "contract": 1,
-  "kinds": ["tracker"],
-  "capabilities": {
-    "tracker": ["edges", "subtasks", "actor", "pause"],
-    "route": []
-  },
+  "kinds": ["intake"],
+  "capabilities": { "intake": ["actor"] },
   "entry": "index.mjs"
 }
 ```
 
 The manifest `id` must equal the entry's `id`. `local` and `github` are
-reserved. Route names and authorities are `plugin:<id>`.
+reserved. An intake source names a plugin as `plugin:<id>`.
 
 **Consent.** Before the first load, and after any change of version or
 content hash (a SHA-256 over the package's files), Settings shows the id,
@@ -766,7 +754,7 @@ and talks to it with JSON messages over stdio. It gives the plugin no port.
 A plugin must open no listener; Avoozl checks the child's open sockets after
 start and on each health check, and stops and marks broken one that listens.
 (**Inferred**: listing a child's listening sockets needs no extra rights on
-macOS and Linux; proof P26 checks it.)
+macOS and Linux; `src/app/test/plugins.test.mjs` checks it.)
 The plugin may call its own system over the network. Every reply is checked
 against the contract schema and treated as untrusted data: quoted as data in
 briefs, escaped in views.
@@ -774,60 +762,23 @@ briefs, escaped in views.
 **Failure isolation.** Each call has a time limit (default 20 seconds) inside
 the tick's budget (§4.5). When a plugin is missing, unapproved, crashes, times
 out, replies with an invalid shape, or expects an unsupported contract version,
-Avoozl marks it unavailable for this tick, parks each of its tasks as "needs
-you" with the reason, writes nothing for those tasks, and finishes the tick for
-everything else. The next tick tries again. A plugin's tasks never fall back to
-another route or authority on their own.
+Avoozl marks it unavailable for this tick, shows the reason on its intake
+sources and rule sets, and finishes the tick for everything else. The next
+tick tries again.
 
 **Contract version.** One integer, `contract`. Avoozl lists the versions it
 supports and refuses others at load. Changes inside a version only add
 optional fields or capabilities.
 
-**Route kind** (Requirement 22). `submit(task, brief)` returns a remote ID and
-link; `status(id)` returns `queued`, `running`, `needs-person` (with a link),
-`failed`, or `done`; `completion(id)` returns a pull request link, an answer,
-or both; `cancel(id)`. Readiness and dependent release work as in §4.3 and
-Requirement 22.5–22.9.
+**Intake kind** (Requirement 50.7). One call, `poll({cursor, limit})`:
+changed items since the cursor, as incoming items (§4.12). With the `actor`
+capability the plugin reports who acted, so trigger rules can run on its
+items.
 
-**Tracker kind** (Requirement 35). The same jobs GitHub authority does, stated
-generically:
-
-| Job                                                                  | Contract call                                                                                             | GitHub equivalent                                 |
-| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| Create or update a task's record                                     | `project(task, desired)`, idempotent by namespace and task ID; returns record ID and link                 | Projection (§6.3), marker v2 (§3.4)               |
-| Read state                                                           | `read(ids)`: open or closed, close reason, last close or pause actor, managed field values, stored marker | Tick step 4                                       |
-| Rebuild                                                              | `list(namespace)`: every record carrying the namespace and task ID                                        | Rebuild from markers (§3.3)                       |
-| Close                                                                | `close(id, reason)` with `completed` or `not_planned`                                                     | Parent close; take back local (Requirement 33.3)  |
-| Bring outside work in (optional capability `poll`, Requirement 50.7) | `poll({cursor, limit})`: changed items since the cursor, as incoming items (§4.12)                        | Issue intake (§4.4) and the Untriaged read (§8.5) |
-
-- **Marker.** The plugin stores the namespace, task ID, and last applied
-  managed values with each record, where its tracker allows (a hidden field or
-  a managed description section). A tracker that cannot store them is refused
-  for the kind `tracker`.
-- **Graph.** Most trackers have no native blocked-by links. Then the graph
-  stays in Avoozl: blocking edges come from the approved task facts in Git,
-  SQLite caches them, and the tracker holds only records. An edge change is a
-  plan change. With the `edges` capability, Avoozl projects blocking edges as
-  the tracker's own links, and they become managed fields.
-- **Conflicts.** Managed fields are the title, the managed description
-  section, managed tags, and (with `edges`) blocking links. The three-way rule
-  of Requirement 15.1–15.3 applies with the marker's last applied values.
-  Avoozl edits no other field.
-- **Completion.** The verdict stays Avoozl's, from the task's route: local
-  verified-and-integrated commit (§5) or a route plugin's `completion`
-  (Requirement 22.8). After the verdict Avoozl calls `close(id, "completed")`.
-- **Orders.** A close or pause by someone else follows Requirement
-  33.8–33.10, using the actor from `read` and the entry's `allowedActors` or
-  the tracker permission the plugin reports. Without the `actor` capability,
-  every outside close or pause holds its dependents and opens a decision.
-- **One authority.** A task is `local`, `github`, or one `plugin:<id>`, never
-  two. A plugin row refuses direct edits with 409.
-
-**Private integrations.** A route for an internal code review system, or a
-tracker for an internal tracker, is a separate private package that plugs in
-here. Nothing in the public Avoozl repository names a company-internal tool:
-not code, tests, fixtures, docs, or this spec. Tests use only the fake route
-and fake tracker plugins under `test/fixtures/plugins/`. The release leak scan
+**Private integrations.** An intake source for an internal tracker is a
+separate private package that plugs in here. Nothing in the public Avoozl
+repository names a company-internal tool: not code, tests, fixtures, docs,
+or this spec. Tests use only the fake plugins under `test/fixtures/plugins/`. The release leak scan
 (§13 gate 5, task 7.4) covers plugin docs and fixtures.
 
 ### 4.9 Content rules
@@ -1061,8 +1012,8 @@ The writer's session comes from: the task's `session` fact, `delivery`
 retry keeps its last model unless it is out. Checks and review roles keep
 their own agent and model (§5.2). The binding records `agent`, `model`,
 `modelUsed` (when Kiro Crew reports it, F65), and `sessionReason`. Issue
-Radar and `plugin:<id>` leaves ignore `session`. A coding agent outside Kiro
-Crew is a route plugin (§4.8).
+Radar leaves ignore `session`. A coding agent outside Kiro Crew is a
+process harness (§4.28).
 
 ### 4.11 Flow: timing, stop the line, and retrospectives
 
@@ -1636,8 +1587,8 @@ Local only included, because a plugin or MCP source does not need GitHub.
 
 #### Two ways in
 
-**A plugin's `poll`** (preferred). A tracker plugin declares the new
-capability `poll` and implements `poll({cursor, limit})`, which returns
+**A plugin's `poll`** (preferred). A plugin provides `intake` and
+implements `poll({cursor, limit})`, which returns
 `{items, cursor, more}`: at most `limit` items (Avoozl asks for 500),
 an opaque cursor of at most 2,000 characters, and whether more are
 waiting. The tick cron calls it once per source per tick, after the
@@ -1785,7 +1736,7 @@ source is removed from the settings.
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | One record for every source                 | One matcher, one check, one list; a new source is a plugin, not a feature                        |
 | SQLite, not a file                          | The cron and the backend already share the database; one lock, one quiet-tick rule               |
-| `poll` on tracker plugins                   | Reuses plugin consent, health, and isolation (§4.8); no model turn; the cursor survives restarts |
+| `poll` on intake plugins                    | Reuses plugin consent, health, and isolation (§4.8); no model turn; the cursor survives restarts |
 | MCP only for declared `mcp` sources         | An MCP caller cannot pose as GitHub or a plugin                                                  |
 | Plugin states standing, Avoozl decides      | One `actorAllowed` and one visible bar                                                           |
 | MCP is the owner but meets no starting rule | It cannot prove an outside order (F108); stopping rules are safe                                 |
@@ -1896,7 +1847,7 @@ gets 403), like approval. The tick never imports. The CLI has
 | Who-counts change needs acceptance                 | Lowering who can give orders must never be silent                                   |
 | `packs` provenance in `.avoozl.json`               | A reviewer of the commit sees where each setting came from                          |
 | No follow mode, no org minimums                    | After import the settings are the repository's own; nobody upstream can change them |
-| Intake is the tracker kind's `poll`                | Reuses plugin consent, health, and isolation; Requirement 50 adds storage           |
+| Intake is its own plugin kind's `poll`             | Reuses plugin consent, health, and isolation; Requirement 50 adds storage           |
 
 ### 4.15 Onboard a repository
 
@@ -7062,7 +7013,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P23   | Moving a workspace to the Kiro spec layout with the issue mapping unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | P24   | The Set up GitHub wizard creates everything on a fresh account, then changes nothing on a second run; a token without `project` gets the fix command and no Project writes                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | P25   | The linked-branch close and logged-out leak check repeated inside one organization (private planning repo, public code repo), before Phase 4 builds on it and before Phase 6                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| P26   | Fake tracker and fake route plugins load only after approval, run a mixed chain end to end, rebuild from the tracker, and a broken plugin parks its tasks without stopping the tick (Phase 8)                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| P26   | Retired 2026-11-18 with route and tracker plugins (Phase 8)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | P27   | Review gates with fake writers and reviewers: two review roles on distinct models gate integration of the exact commit, changes requested rework the same delivery, closures are checked against changed files, a not-run check keeps the gate shut without costing a writer attempt, a rebase forces re-review, typed paths around the gate are refused, and supersede survives plan re-approval (Phase 9)                                                                                                                                                                                                                                             |
 | P28   | Content rules with a fake terms file and a fake rules plugin: every boundary blocks a match and opens a decision without logging the term, agent calls are refused in-call, allow once passes one exact write, a missing or broken set fails closed, the built-in screens behave as before, and the terms never reach Git (Phase 10)                                                                                                                                                                                                                                                                                                                    |
 | P29   | Retired 2026-11-18 (Phase 11) |
@@ -7117,7 +7068,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 5. Removal                                                                    | Delete host, providers, OpenHands, website, extension, intake callback, queue browser                                                                                                                                                                                                                                                                               | Full test suite passes; no listener besides the app backend                                                         |
 | 6. Move an existing workspace                                                 | Migration on a copy, cutover to planning-repository issues and the Project, then stale-plan cleanup and the move to spec folders                                                                                                                                                                                                                                    | P14, P22, P23                                                                                                       |
 | 7. Release                                                                    | Docs, license audit, scans, npm and app publish                                                                                                                                                                                                                                                                                                                     | P15                                                                                                                 |
-| 8. Later                                                                      | Plugin seam: route and tracker contracts, loading and consent (§4.8); deferred GitHub features                                                                                                                                                                                                                                                                      | Only after P1–P25 pass; the seam also waits for a second real route (§14); then P26                                 |
+| 8. Later                                                                      | Plugin seam: loading and consent (§4.8); deferred GitHub features                                                                                                                                                                                                                                                                                                    | Only after P1–P25 pass; the seam also waits for a second real route (§14); then P26                                 |
 | 9. Review gates                                                               | Review roles on a local delivery, findings closure, not-run checks, `acceptFrom: "validation"`, supersede by hand (§5.2); GitHub pull-request reviews as verdicts later                                                                                                                                                                                             | Starts after Phase 2's proofs, independent of Phases 3–8; P27                                                       |
 | 10. Content rules                                                             | One matcher for banned terms at every write and approval boundary; terms outside Git; built-in sets from today's screens; rules plugins (§4.9)                                                                                                                                                                                                                      | Starts after Phase 2's proofs; GitHub and plugin tasks also wait for the tasks that built those boundaries; P28     |
 | 11. Retired                                                                   | Removed 2026-11-18. Only the `session` facts and the crew snapshot remain (§4.10)                                                                                                                                                                                                                                                                                          | None |
@@ -7246,8 +7197,6 @@ Stop after P6 passes or when a proof fails twice; report what failed and why.
 | Iteration field sync                  | No configured Project names an iteration field by release                                                                                                             |
 | Separate integration branch           | No user enables it by release                                                                                                                                         |
 | Graph view layout engine              | The Delivery and Conflicts views answer every proof question without it                                                                                               |
-| Plugin seam (routes and loading)      | Never built beyond schema until a second real route exists. A private code-review route in its own private package counts as the second real route; test fakes do not |
-| Tracker plugin contract               | Never built beyond schema until the route seam's gate holds and a real tracker plugin is being written                                                                |
 | Any new listener, server, or database | Always, unless a failed proof shows no small contract fixes it                                                                                                        |
 
 ---

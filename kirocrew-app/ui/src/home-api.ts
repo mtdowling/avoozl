@@ -59,7 +59,6 @@ const ANSWERS: Record<string, string> = {
   delivery: 'Retry or dismiss',
   manual: 'Do the step',
   'github-conflict': 'Pick a version',
-  'tracker-conflict': 'Pick a version',
   'stale-session': 'Restart or close',
   'ready-to-merge': 'Merge',
   'branch-landing': 'Approve the landing',

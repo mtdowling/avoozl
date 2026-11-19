@@ -89,7 +89,6 @@ test("every key the reader uses round-trips through Facts bullets", () => {
     labels: ["x"],
     needs: ["gpu"],
     session: { agent: "coder" },
-    tracker: { plugin: "p", ref: "r" },
   };
   const text = lines("- [ ] 1.1 Read", ...factsLines(entry)),
     { manifest, problems } = readFacts(text, specItems("config", text));

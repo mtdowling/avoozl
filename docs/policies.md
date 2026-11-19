@@ -413,7 +413,7 @@ This is tested with a fake GitHub (proof P37); it has not run live yet.
 
 ## Bring in work from other trackers and scripts
 
-GitHub is one source of incoming items. A tracker plugin with `poll` is
+GitHub is one source of incoming items. A plugin that provides `intake` is
 another (see the Intake part in `docs/plugins.md`), and so is anything you
 script, through MCP. Every item lands in the **Intake** tab with its
 source; **Untriaged** is that tab's default filter.

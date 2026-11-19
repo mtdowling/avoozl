@@ -222,7 +222,7 @@
       "$ref": "#/$defs/planningRepository"
     },
     "plugins": {
-      "description": "Route and tracker plugins this repository declares (design \u00a74.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
+      "description": "Plugins this repository declares (design \u00a74.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
       "type": "array",
       "items": {
         "type": "object",
@@ -277,7 +277,7 @@
       }
     },
     "intake": {
-      "description": "Every source that brings work in (design \u00a74.12, \u00a74.39): GitHub repositories (via github, set in Repository setup), tracker plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
+      "description": "Every source that brings work in (design \u00a74.12, \u00a74.39): GitHub repositories (via github, set in Repository setup), intake plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -296,7 +296,7 @@
             "properties": {
               "via": {
                 "type": "string",
-                "description": "github for a GitHub repository whose issues may start work, plugin:<id> for a tracker plugin with poll, or mcp for callers of intake.submit.",
+                "description": "github for a GitHub repository whose issues may start work, plugin:<id> for a plugin that provides intake, or mcp for callers of intake.submit.",
                 "pattern": "^(github|mcp|plugin:[a-z][a-z0-9-]{0,60})$"
               },
               "repository": {
@@ -1328,7 +1328,7 @@
         },
         "radar": {
           "type": "object",
-          "description": "Avoozl's workflow labels. Planning, needs-human, claim, ready, conflict, approval, review, drafted and waiting-on-tracker names must all differ.",
+          "description": "Avoozl's workflow labels. Planning, needs-human, claim, ready, conflict, approval, review and drafted names must all differ.",
           "properties": {
             "planLabel": {
               "type": "string",
@@ -1354,11 +1354,6 @@
               "type": "string",
               "minLength": 1,
               "default": "avoozl:drafted"
-            },
-            "trackerLabel": {
-              "type": "string",
-              "minLength": 1,
-              "default": "avoozl:waiting-on-tracker"
             },
             "clearPlanLabel": {
               "type": "boolean",

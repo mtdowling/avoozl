@@ -319,9 +319,8 @@ syntax (for example `label:agent:go -label:hold`), and is checked against
 With nobody named, that is anyone with `write` permission. See
 [trigger rules and example policies](docs/policies.md).
 
-Other delivery routes, task trackers, intake sources, content rules, and
-settings packs plug in as separate packages that you approve on each
-machine. See [writing a plugin](docs/plugins.md).
+Intake sources, content rules, settings packs and workflow templates plug
+in as separate packages that you approve on each machine. See [writing a plugin](docs/plugins.md).
 
 ## One driver per spec
 

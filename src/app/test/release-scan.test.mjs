@@ -103,7 +103,7 @@ test("plugin docs and the fake plugins pass the scan", () => {
   const files = pluginFiles();
   assert.ok(files.includes("docs/plugins.md"));
   assert.ok(
-    files.includes("src/app/test/fixtures/plugins/fake-route/index.mjs"),
+    files.includes("src/app/test/fixtures/plugins/fake-intake/index.mjs"),
   );
   assert.deepEqual(scanPlugins().findings, []);
 });

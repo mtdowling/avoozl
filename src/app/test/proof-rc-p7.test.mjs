@@ -113,7 +113,6 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
   Object.assign(process.env, {
     SDK_TEAM_TERMS: path.join(outside, "terms.json"),
     SDK_TEAM_INTAKE: path.join(outside, "intake.json"),
-    SDK_TEAM_STATE: path.join(outside, "records.json"),
   });
   fs.writeFileSync(process.env.SDK_TEAM_INTAKE, JSON.stringify({ items: [] }));
   const store = new Store(path.join(root, "workspace.sqlite"));
@@ -144,7 +143,6 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
       config: {
         intakeFileEnv: "SDK_TEAM_INTAKE",
         termsFileEnv: "SDK_TEAM_TERMS",
-        stateFileEnv: "SDK_TEAM_STATE",
       },
     },
   });
@@ -201,8 +199,8 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
   }
   const after = await ops.execute("radar.setup", { repository: REPO });
   assert.ok(after.steps.every((s) => s.status === "ok"));
-  // The pack's names are kept; Set up adds the approval, review, drafted and
-  // waiting-on-tracker labels at their avoozl: defaults (RC21.4).
+  // The pack's names are kept; Set up adds the approval, review and drafted
+  // labels at their avoozl: defaults (RC21.4).
   assert.deepEqual(github.state.labels, [
     "to plan",
     "ready",
@@ -210,7 +208,6 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
     "avoozl:plan-approved",
     "avoozl:review",
     "avoozl:drafted",
-    "avoozl:waiting-on-tracker",
   ]);
   assert.equal(github.state.autoMerge, true);
   assert.deepEqual(github.state.rules, ["build"]);

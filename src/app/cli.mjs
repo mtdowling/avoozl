@@ -129,7 +129,7 @@ try {
         options[key] = true;
       else if (
         key === "json" &&
-        ["runner", "review", "gate", "plan"].includes(args[0]) &&
+        ["runner", "review", "plan"].includes(args[0]) &&
         (args[i + 1] === undefined || args[i + 1].startsWith("--"))
       )
         options.json = true;
@@ -803,28 +803,7 @@ try {
         2,
       ),
     );
-  else if (command === "gate" && positionals[0] === "list") {
-    // Tracker gates (RC23.11): the rows the page shows.
-    const { gates } = await localOrRequest("gate.list", {});
-    if (options.json) console.log(JSON.stringify({ gates }, null, 2));
-    else if (!gates.length) console.log("No tracker gates.");
-    else
-      for (const gate of gates)
-        console.log(
-          `${gate.state.padEnd(8)} ${gate.taskId}  ${gate.tracker} ${gate.item}  last ${gate.lastCheck ?? "never"}  next ${gate.nextCheck ?? "-"}${gate.held.length ? `  holds ${gate.held.join(", ")}` : ""}`,
-        );
-  } else if (command === "gate" && positionals[0] === "clear") {
-    // A person's order (RC23.10): the gate counts as done, recorded as cleared.
-    const result = await localOrRequest("gate.clear", {
-      taskId: need(positionals[1], "gate clear TASK --reason TEXT"),
-      reason: need(options.reason, "gate clear TASK --reason TEXT"),
-    });
-    console.log(
-      result.cleared
-        ? `Cleared ${positionals[1]} as an order by ${result.actor}.`
-        : `${positionals[1]} was already ${result.state}.`,
-    );
-  } else if (command === "review" && positionals[0] === "drafts") {
+  else if (command === "review" && positionals[0] === "drafts") {
     // Review drafts made from the review label (RC20.6): what waits on
     // people, and the GitHub search that finds them.
     const view = await localOrRequest("review.drafts", {

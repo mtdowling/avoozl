@@ -3,8 +3,8 @@
 // when it cannot be used; this wrapper checks every reply against the
 // contract and turns any failure into one reason for that plugin. The first
 // failure marks the plugin unavailable for the rest of the tick, so its
-// tasks park as "needs you" and every other task keeps moving. The next
-// tick tries again.
+// intake source or rule sets show the reason and everything else keeps
+// moving. The next tick tries again.
 import { checkReply } from "./plugin-contract.mjs";
 
 export class PluginUnavailable extends Error {
@@ -60,14 +60,7 @@ export function pluginSession(connect, { close = async () => {} } = {}) {
       }
     },
     unavailable: (id) => unavailable.get(id) ?? null,
-    // Mark a plugin unavailable for a reason found outside one reply, such
-    // as a tracker that did not store its marker.
-    fail(id, reason) {
-      used.add(id);
-      unavailable.set(id, reason);
-    },
-    // The opened plugin's manifest and entry config, for capabilities and
-    // allowedActors. Null before `use` succeeded.
+    // The opened plugin's manifest and entry config, for capabilities. Null before `use` succeeded.
     describe(id, kind) {
       const connection = opened.get(`${id}\0${kind}`);
       return connection && !connection.reason

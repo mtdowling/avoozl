@@ -195,8 +195,8 @@ Refined statement (**Proposed**):
   release.
 - Use of Issue Radar, Task Runner, Spec Builder, Crew Mode, Workflows, chat,
   sessions, and cron through supported interfaces only.
-- A plugin seam for delivery routes and task trackers, with plugin loading
-  and consent (Requirements 22, 34, 35). The public repository ships only
+- A plugin seam for intake sources, content rules, packs and templates, with
+  plugin loading and consent (Requirements 34, 55). The public repository ships only
   test-only fake plugins; real integrations are separate packages.
 - Moving an existing workspace (Nupp's) as the large proof.
 - An open-source release.
@@ -661,10 +661,10 @@ so that two stores never disagree.
 1. The design SHALL name exactly one authority for: reviewed design, local task
    graph, local task status, GitHub issue graph, Kiro Crew sessions, worktrees
    and branches, pull requests, test results, completion, activity and
-   evidence, and tracker plugin state (Requirement 35).
+   evidence. (Changed 2026-11-18: tracker plugin state went with
+   Requirement 35.)
 2. Avoozl SQLite SHALL be authoritative for local-only tasks and SHALL be only a
-   cache and receipt store for GitHub-backed tasks and for the records a
-   tracker plugin owns.
+   cache and receipt store for GitHub-backed tasks.
 3. No task SHALL be writable in two stores.
 4. GitHub Project Status SHALL be owned by GitHub's built-in workflows and
    by people; Avoozl SHALL NOT write it. Avoozl SHALL set Release at
@@ -704,42 +704,11 @@ so that I can trust automatic delivery.
 2. Evidence SHALL point to its real source (session, commit, check, pull
    request) rather than copy it.
 
-### Requirement 22: Delivery route plugins
+### Requirement 22: Retired
 
-**User story:** As a future contributor, I want a small seam for other delivery
-systems, so that one can be added later without changing task identity.
-
-#### Acceptance criteria
-
-1. Settings SHALL list delivery routes per workspace or repository. Local and
-   GitHub SHALL be the only routes built into Avoozl; any other route SHALL
-   come from a plugin loaded under Requirement 34 (changed 2026-11-12).
-2. A route contract SHALL cover submit, status, completion, and cancel.
-3. No private delivery integration SHALL be named, documented, or tested in
-   the public repository. Tests SHALL use only fake route plugins in the test
-   tree (Requirement 34.10; changed 2026-11-12).
-4. The seam SHALL NOT be built beyond a schema and interface until every proof
-   in Phases 0–7 of `tasks.md` (P1–P25) passes. It SHALL also wait until a
-   second real route exists. A private code-review route, in its own private
-   package, SHALL count as that second real route; a test fake SHALL NOT
-   (clarified 2026-11-12).
-5. A task's facts MAY name a `route`, which overrides the
-   workspace or repository route for that task only, so one graph can mix
-   local and remote leaves (for example local -> remote -> local).
-6. WHEN a ready leaf's route is not local THEN dispatch SHALL call that
-   route's `submit` and SHALL NOT open a worker session for it.
-7. WHILE a remote leaf is not done THE SYSTEM SHALL read its route's `status`
-   on each tick. A status of waiting on a person SHALL show as "needs you" in
-   `plans_graph` and the app page, with the link the route gives.
-8. A remote leaf SHALL be done only when its route's `completion` says so. A
-   GitHub issue closer SHALL NOT be required, because a remote route writes
-   its own pull request text and cannot be relied on to close the issue.
-9. A route's `completion` SHALL return a result: a pull request link, an
-   answer, or both. Each dependent released by that leaf SHALL get the result
-   in its brief, quoted as untrusted data.
-10. A route plugin SHALL declare the kind `route` in its manifest
-    (Requirement 34.3). Route names `local` and `github` SHALL stay reserved;
-    a plugin route SHALL be named `plugin:<id>`. (Added 2026-11-12.)
+Retired 2026-11-18 (owner decision). Route plugins are gone: worker-paths is
+the one dispatch path. Every task runs in a local worker or on GitHub. The
+number stays so that other requirements keep their references.
 
 ### Requirement 23: Move an existing workspace
 
@@ -1269,8 +1238,8 @@ only what GitHub cannot work out.
 
 Added 2026-11-12 (owner request). Design §4.8.
 
-**User story:** As a maintainer, I want outside packages to add delivery routes
-and task trackers to Avoozl, loaded only with my consent and unable to break
+**User story:** As a maintainer, I want outside packages to add intake
+sources and content rules to Avoozl, loaded only with my consent and unable to break
 the tick, so that private integrations stay out of the public repository.
 
 #### Acceptance criteria
@@ -1286,8 +1255,10 @@ the tick, so that private integrations stay out of the public repository.
    credential; a plugin SHALL read credentials from the environment or Kiro
    Crew's secret store by a name `config` gives.
 3. Each plugin SHALL ship a manifest, `avoozl-plugin.json`, naming its `id`,
-   `version`, `contract` version, `kinds` (`route`, `tracker`, or both), the
-   capabilities it supports for each kind, and its entry module. The ids
+   `version`, `contract` version, `kinds` (`intake`, `rules`, or both), the
+   capabilities it supports for each kind, and its entry module. (Changed
+   2026-11-18: the `route` and `tracker` kinds are retired, with
+   Requirements 22 and 35; a manifest that lists one is refused.) The ids
    `local` and `github` SHALL be refused.
 4. Before a plugin's first load, and again whenever its version or content
    hash changes, Avoozl SHALL show its id, version, kinds, capabilities,
@@ -1302,22 +1273,19 @@ the tick, so that private integrations stay out of the public repository.
    SHALL treat reply text as untrusted data in every brief and view.
 7. WHEN a plugin is missing, unapproved, crashes, times out, returns an
    invalid reply, or expects an unsupported contract version THEN Avoozl
-   SHALL mark that plugin unavailable, SHALL park each of its tasks as "needs
-   you" with the reason, SHALL write nothing for those tasks, and SHALL finish
-   the tick for every other task. The next tick SHALL try again.
+   SHALL mark that plugin unavailable, SHALL show the reason on its intake
+   sources and rule sets, and SHALL finish the tick for everything else. The next tick SHALL try again.
 8. The plugin contract SHALL be versioned by one integer. Avoozl SHALL list
    the contract versions it supports and SHALL refuse to load a plugin whose
    version it does not support. Changes inside one version SHALL be additive.
 9. Settings SHALL list every declared plugin with its kinds, version,
    approval state, and health, and SHALL offer approve, disable, and remove.
-   Removing a plugin SHALL NOT delete its tasks; they park as "needs you".
-10. Private and company-internal integrations, such as a route for an
-    internal code review system or a tracker for an internal tracker, SHALL
-    live outside the public Avoozl repository and plug in only through this
+10. Private and company-internal integrations, such as an intake source for
+    an internal tracker, SHALL live outside the public Avoozl repository and plug in only through this
     seam. Public Avoozl files (code, tests, fixtures, docs, and this spec)
     SHALL NOT name any company-internal tool. The release leak scan
     (Requirement 24.2) SHALL cover plugin docs and test fixtures.
-11. Tests SHALL use only fake route and tracker plugins kept in the test tree.
+11. Tests SHALL use only fake plugins kept in the test tree.
 12. A `plugins` entry MAY name a git source instead of `package` or `path`:
     `git` (a repository URL or local repository path), `ref` (a tag, branch,
     or full commit), and an optional `subdir` (the plugin's folder inside the
@@ -1342,57 +1310,12 @@ the tick, so that private integrations stay out of the public repository.
     guide, which shows the plugin guide in the full-file reader. The chat
     SHALL NOT approve a plugin or import a pack.
 
-### Requirement 35: Tracker plugins
+### Requirement 35: Retired
 
-Added 2026-11-12 (owner request). Design §3.2, §4.8.
-
-**User story:** As a maintainer whose team tracks work outside GitHub, I want a
-plugin to hold Avoozl's task records in that tracker, so that the team sees the
-work where it already looks and Avoozl keeps the graph moving.
-
-#### Acceptance criteria
-
-1. A task MAY have `authority: plugin:<id>`, naming a loaded plugin whose
-   manifest declares the kind `tracker`. One task SHALL have exactly one
-   authority (Requirement 19.3).
-2. A tracker contract SHALL cover the jobs GitHub authority does: `project`
-   (create or update a task's record, idempotent by task ID), `read` (each
-   record's state, managed field values, link, and the actor of its last
-   close or pause), `list` (every record carrying this workspace's namespace,
-   for rebuild), and `close` (close a record with a reason).
-3. Each record SHALL carry the workspace namespace, the task ID, and the last
-   applied managed values, stored by the plugin where its tracker allows (a
-   hidden field or a managed description section). A plugin that cannot store
-   them SHALL be refused for the kind `tracker`.
-4. WHEN the tracker has no native blocked-by links THEN the graph SHALL stay
-   in Avoozl: edges SHALL come from the approved task facts in Git and be cached
-   in SQLite, and the tracker SHALL hold only records. Edge changes SHALL go
-   through a plan change. WHEN the plugin declares the `edges` capability THEN
-   Avoozl SHALL project blocking edges as the tracker's own links, and those
-   links SHALL be managed fields.
-5. Avoozl SQLite SHALL be only a cache for plugin-owned records. Operations
-   SHALL refuse direct edits to a plugin-owned row with 409 and route the
-   change through `project` (as Requirement 19.3 and task 2.2 do for GitHub).
-6. Managed fields SHALL be the title, the managed description section,
-   managed tags, and (with `edges`) blocking links. Conflicts SHALL follow
-   Requirement 15.1–15.3. Avoozl SHALL never edit any other field.
-7. Rebuild SHALL hold for a workspace of plugin tasks: delete SQLite, run
-   `avoozl rebuild`, then `avoozl tick`, and every task, edge, status,
-   completion verdict, and managed-field baseline SHALL match, from `list`,
-   `read`, and the approved task facts alone.
-8. The completion verdict SHALL stay Avoozl's, from the task's route
-   (Requirement 7 for local, Requirement 22.8 for a route plugin). After the
-   verdict, Avoozl SHALL call `close` with reason `completed`.
-9. WHEN a record is closed or paused in the tracker by someone else THEN
-   Avoozl SHALL apply Requirement 33.8–33.10 with the actor from `read`,
-   checked against the plugin entry's `allowedActors` or the tracker's own
-   permission the plugin reports. WHEN the actor cannot be read THEN Avoozl
-   SHALL hold the dependents and open a decision.
-10. A task SHALL move from local to `plugin:<id>` only through an approved
-    projection, and back only through an explicit "take back local" that
-    closes the record as not planned.
-11. The tracker contract SHALL NOT be built beyond a schema until the gate of
-    Requirement 22.4 holds and a real tracker plugin is being written.
+Retired 2026-11-18 (owner decision). Tracker plugins are gone: a task keeps
+one record, local or a GitHub issue. Intake plugins (Requirement 50) still
+bring work in. The number stays so that other requirements keep their
+references.
 
 ### Requirement 36: Review gates on a local delivery
 
@@ -2081,8 +2004,7 @@ come into Avoozl the same way, so that one set of trigger rules, one
 "who counts" check, and one Untriaged list cover all of it, and an outside
 tool can hand Avoozl an item over MCP.
 
-Today intake and the Untriaged list read GitHub only, and tracker plugins
-only push Avoozl's own tasks out (design F101–F105). This requirement adds
+Today intake and the Untriaged list read GitHub only (design F101–F105). This requirement adds
 one record, one operation, and two ways in, and moves the GitHub intake
 and the Untriaged reader onto the record without changing what they do.
 
@@ -2127,15 +2049,14 @@ and the Untriaged reader onto the record without changing what they do.
    (Changed 2026-11-18, Requirement 110: GitHub repositories are declared
    here too, as `via: "github"`, and `github.issueIntake` and
    `github.queue` are retired into this list.)
-7. A tracker plugin MAY declare the `poll` capability and implement
+7. A plugin MAY provide `intake` and implement
    `poll({cursor, limit})`, returning `{items, cursor, more}`. The tick
    cron SHALL call it at most once per source per tick with the stored
    cursor, and SHALL store the new cursor only after every item of the
    reply is handled. A failed or invalid poll SHALL keep the cursor and
    the stored items, show the error on the source, and leave the rest of
-   the tick running (design §4.8 failure isolation). A plugin with
-   `poll` that no task names as authority SHALL never be asked to
-   `project`, `read`, `list`, or `close`.
+   the tick running (design §4.8 failure isolation). (Changed 2026-11-18:
+   `intake` is its own plugin kind now that tracker plugins are retired.)
 8. `intake.submit` SHALL take `{source, items}` with 1–100 items for a
    source whose `via` is `mcp`, and return a result per item (`created`,
    `updated`, `unchanged`, `stale`, or `refused`, with a reason) and
@@ -2393,7 +2314,7 @@ role names its own `agent` and `model` (design §5.2).
     Crew reports it ran on, when Kiro Crew reports one (design F65).
 11. The Delivery view SHALL show the agent and model of each running
     session.
-12. A leaf on the Issue Radar route or a `plugin:<id>` route SHALL ignore
+12. A leaf on the Issue Radar route SHALL ignore
     `session`, because Avoozl opens no session for it.
 13. With no `session` set anywhere, every session SHALL open as it does
     today. Installing or upgrading Avoozl SHALL NOT change which agent or
@@ -2486,16 +2407,17 @@ config-pack idea of 2026-11-13: a pack is now one part of a plugin, and a
 plugin may also ship a pack alone.
 
 **User story:** As a team lead, I want one shared plugin to carry our
-settings, our content rules, our tracker, and our intake source, so that
+settings, our content rules, and our intake source, so that
 each repository mostly installs one plugin, and nothing in it changes a
 setting or runs until someone on that computer has seen it and approved it.
 
 #### Acceptance criteria
 
-1. A plugin manifest MAY list `provides`: any of `pack`, `rules`,
-   `tracker`, `intake`, and `route`, each once. Each part SHALL run as a
-   code kind (Requirement 34.3): `rules` as `rules`, `tracker` and
-   `intake` as `tracker`, `route` as `route`; `pack` SHALL run as nothing.
+1. A plugin manifest MAY list `provides`: any of `pack`, `rules`, and
+   `intake`, each once. Each part SHALL run as a code kind (Requirement
+   34.3): `rules` as `rules`, `intake` as `intake`; `pack` SHALL run as
+   nothing. (Changed 2026-11-18: the `tracker` and `route` parts are
+   retired.)
    A manifest without `provides` SHALL keep working, each of its `kinds`
    being one part. A manifest with both SHALL have `kinds` equal to the
    kinds its parts need, or be refused naming the mismatch. (Changed
@@ -2543,12 +2465,9 @@ setting or runs until someone on that computer has seen it and approved it.
    preview again; only a person imports it.
 8. The `rules` part SHALL supply rule sets at run time (Requirement 40.9),
    so private terms are never stored in a public repository. The `intake`
-   part SHALL be the tracker kind's `poll` (Requirement 50.7) and SHALL
-   need the `poll` capability. Each polled item SHALL be checked as in
-   Requirement 50.2: a bad item refused naming its field, the others kept.
-   A plugin that provides `intake` but not `tracker` SHALL never be asked
-   to `project`, `read`, `list`, or `close`. Storing items and the
-   pipeline stay with Requirement 50.
+   part SHALL answer `poll` (Requirement 50.7). Each polled item SHALL be
+   checked as in Requirement 50.2: a bad item refused naming its field, the
+   others kept. Storing items and the pipeline stay with Requirement 50.
 9. A plugin **shared with the repo** SHALL put its entry in `.avoozl.json`
    (Requirement 34.1) and SHALL still be approved on each computer.
    Importing the pack of a plugin declared on this computer only SHALL
@@ -3408,7 +3327,7 @@ what and when without reading chats, the tick log or GitHub.
 1. Avoozl SHALL keep an `activity_log` table in the workspace's SQLite.
    Each row SHALL hold its time, source (`local`, `github`, `plugin` or
    `mcp`), actor, kind, a short summary, a target ID and a link. `plugin`
-   covers plugin sync: tracker and intake plugins.
+   covers plugin sync: intake plugins.
 2. Avoozl SHALL record these local actions when they succeed: dispatch
    (Start now and dispatch requests), stop (a task set to Deferred),
    pulling and resuming the Andon cord, merge, plan approval, archive and

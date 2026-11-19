@@ -4,7 +4,6 @@ import { Operations } from "../operations.mjs";
 import { lintPlan } from "../plan-quality.mjs";
 import { queryTasks, validate } from "../../model.mjs";
 import {
-  isGate,
   isManual,
   taskAuthority,
   taskCompletion,
@@ -129,14 +128,14 @@ test("task.update writes work-model fields but never authority", async (t) => {
     ops = new Operations(store),
     task = await ops.execute("task.update", {
       id: "sample-task",
-      route: "plugin:remote",
+      route: "github",
       completion: "released",
       repository: "code",
       checks: ["unit"],
     });
   assert.deepEqual(
     [task.route, task.completion, task.repository, task.checks],
-    ["plugin:remote", "released", "code", ["unit"]],
+    ["github", "released", "code", ["unit"]],
   );
   await assert.rejects(
     ops.execute("task.update", { id: "sample-task", authority: "github" }),
@@ -276,16 +275,12 @@ test("a leaf's completion must be observable on its route", () => {
   );
 });
 
-test("a stored row with completion person reads as manual; a gate stays a gate", () => {
+test("a stored row with completion person reads as manual", () => {
   const stored = { id: "r", kind: "leaf", completion: "person" },
-    manual = { id: "m", kind: "leaf", manual: true },
-    gate = { id: "g", kind: "leaf", completion: "tracker" };
+    manual = { id: "m", kind: "leaf", manual: true };
   assert.equal(isManual(stored), true);
   assert.equal(taskCompletion(stored), "person");
   assert.equal(taskCompletion(manual), "person");
-  assert.equal(isGate(stored), false);
-  assert.equal(isGate(gate), true);
-  assert.equal(isManual(gate), false);
   assert.equal(isManual({ ...stored, kind: "package" }), false);
 });
 

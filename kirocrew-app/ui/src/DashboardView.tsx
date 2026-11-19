@@ -19,7 +19,6 @@ import { nameFor } from './instance-api.ts'
 import { setupCards } from './setup-api.ts'
 import { useSetupFacts } from './setup-facts.ts'
 import ReleaseQueue from './ReleaseQueue.tsx'
-import TrackerGates from './TrackerGates.tsx'
 import RadarFlightGroups from './RadarFlightGroups.tsx'
 import IntegrationBranches from './IntegrationBranches.tsx'
 import ReviewDrafts from './ReviewDrafts.tsx'
@@ -915,7 +914,6 @@ export default function DashboardView(props: {
           </HomeBox>
         </HomeSection>
       </HomePair>
-      <TrackerGates workspaceId={workspaceId} />
       <ReleaseQueue workspaceId={workspaceId} onOpenSettings={() => props.onOpenSettings?.('repositories')} />
       <IntegrationBranches workspaceId={workspaceId} />
       <ReviewDrafts workspaceId={workspaceId} />

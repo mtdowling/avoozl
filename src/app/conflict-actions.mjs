@@ -13,8 +13,6 @@ function lockReason(task) {
   const authority = taskAuthority(task);
   if (authority === "github")
     return "GitHub owns this task. Settle it on its issue.";
-  if (authority.startsWith("plugin:"))
-    return `${authority} owns this task. Settle it in its record.`;
   return null;
 }
 

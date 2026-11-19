@@ -61,7 +61,6 @@ const KEYS = {
   labels: { as: "labels", type: "list" },
   needs: { as: "needs", type: "list" },
   session: { as: "session", type: "json" },
-  tracker: { as: "tracker", type: "json" },
   // An epic folder's rows (Requirement 59.1).
   plan: { as: "plan", type: "text" },
   step: { as: "step", type: "text" },

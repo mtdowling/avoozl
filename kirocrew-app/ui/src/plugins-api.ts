@@ -39,7 +39,6 @@ export interface PluginRow {
 
 export interface PluginList {
   supportedContracts: number[]
-  routes: string[]
   plugins: PluginRow[]
 }
 
@@ -144,9 +143,7 @@ export const locationOf = (form: PluginForm) => form[form.where].trim()
 export const PLUGIN_PARTS: Record<string, { title: string; line: string }> = {
   pack: { title: 'Settings pack', line: 'Settings you preview and copy into .avoozl.json once. Runs no code.' },
   rules: { title: 'Content rules', line: 'Rule sets supplied while Avoozl runs. The terms never go into Git.' },
-  tracker: { title: 'Tracker', line: 'Keeps task records in another system.' },
   intake: { title: 'Intake source', line: 'Brings outside work in, read on each tick.' },
-  route: { title: 'Delivery route', line: 'Delivers tasks somewhere other than a local worker.' },
   // Still listed by older plugins; Avoozl reads nothing from it (RC30.4).
   lessons: { title: 'Lessons pack (removed)', line: 'Avoozl no longer reads lessons packs. Remove lessons from provides.' },
 }
@@ -154,6 +151,18 @@ export const PLUGIN_PARTS: Record<string, { title: string; line: string }> = {
 // A row's parts; a plugin from before `provides` has one part per kind.
 export const partsOf = (row: { provides?: string[]; kinds?: string[] }) => row.provides ?? row.kinds ?? []
 export const partTitles = (row: { provides?: string[]; kinds?: string[] }) => partsOf(row).map((part) => PLUGIN_PARTS[part]?.title ?? part)
+
+// Each code part runs in a Node child process, so the runtime is node; a
+// plugin of data parts only runs nothing.
+export const runsAs = (kinds: string[] | undefined): string | undefined => (kinds === undefined ? undefined : kinds.length ? 'node' : 'nothing: settings only')
+
+// Each kind with its optional features: "intake", or "intake, actor".
+export const capabilityLine = (capabilities: Record<string, string[]> | undefined): string | undefined =>
+  capabilities
+    ? Object.entries(capabilities)
+        .map(([kind, list]) => [kind, ...list].join(', '))
+        .join('; ') || undefined
+    : undefined
 
 // The preview's lines by action, for the summary above the table.
 export function packCounts(changes: PackChange[]): Record<PackChange['action'], number> {
@@ -227,7 +236,7 @@ export function sharedBlocked(form: PluginForm): string | null {
 export function addInput(form: PluginForm, confirmPublic = false): { input?: Record<string, unknown>; error?: string } {
   const id = form.id.trim()
   if (!/^[a-z][a-z0-9-]{0,60}$/.test(id)) return { error: 'Give the plugin a lowercase id.' }
-  if (id === 'local' || id === 'github') return { error: `${id} is a built-in route.` }
+  if (id === 'local' || id === 'github') return { error: `${id} is a reserved id.` }
   const location = locationOf(form)
   if (!location)
     return {
@@ -409,7 +418,7 @@ export function sourceEntry(form: SourceForm, taken: string[]): { id?: string; e
   }
 }
 
-// "Plugin ticket-tracker" or "MCP", from a source's `via`.
+// "Plugin ticket-intake" or "MCP", from a source's `via`.
 export function viaLabel(via: unknown): string {
   const text = String(via ?? '')
   return text.startsWith('plugin:')
@@ -460,7 +469,7 @@ export function sourceTriggers(row: IntakeSourceRow, plugins: PluginRow[]): { le
   if (!via.startsWith('plugin:')) return { level: 'Untriaged only', line: 'Rules can only pause or quarantine its items. You start work with Plan this or Deliver this.' }
   const id = via.slice(7)
   const plugin = plugins.find((p) => p.id === id)
-  if (plugin && !plugin.capabilities?.tracker?.includes('actor')) return { level: 'No rules', line: `Plugin ${id} can't say who acted, so no rule runs. Items wait in Untriaged.` }
+  if (plugin && !plugin.capabilities?.intake?.includes('actor')) return { level: 'No rules', line: `Plugin ${id} can't say who acted, so no rule runs. Items wait in Untriaged.` }
   return { level: 'Full rules', line: 'Its rules can start, deliver, pause or quarantine work, when the person who acted counts.' }
 }
 
