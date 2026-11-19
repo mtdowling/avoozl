@@ -14,7 +14,7 @@ import { parseRepository } from "./github.mjs";
 import { assertNoInstance } from "./instance.mjs";
 import { MERGE_METHOD_DEFAULT } from "./github-policy.mjs";
 import { mirrorInput } from "./mirror-policy.mjs";
-import { labelsWanted, writeSetupStep } from "./radar-setup.mjs";
+import { labelsWanted, writeSetupStep } from "./setup-steps.mjs";
 import { fail } from "./store.mjs";
 
 const run = promisify(execFile);
@@ -359,23 +359,6 @@ async function inspect(kind, deps, target) {
         },
   );
 
-  // The Radar values: read only. Entering them is the next screen.
-  if (deps.radarValues) {
-    let values = null;
-    try {
-      values = await deps.radarValues();
-    } catch {
-      values = null;
-    }
-    add({
-      id: "radar-values",
-      state: values ? "found" : "missing",
-      status: "ok",
-      detail: values
-        ? "Issue Radar's values were read."
-        : "Issue Radar's values were not read. Enter them on the Radar values screen.",
-    });
-  }
   return { lines, stop: false };
 }
 
@@ -556,9 +539,5 @@ export async function mirrorSetup(kind, deps, input = {}) {
     needsYou: applied.filter(
       (row) => !["done", "skipped"].includes(row.status),
     ),
-    ...(kind === "create" &&
-    applied.some((row) => row.id === "setting" && row.status === "done")
-      ? { next: "radar-values" }
-      : {}),
   };
 }

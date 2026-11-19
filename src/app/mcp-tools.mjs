@@ -274,14 +274,6 @@ const tools = {
         "reviewdraft.post",
         "post a review draft chat's one pending review",
       ],
-      conflict_check: [
-        "conflictfix.check",
-        "a conflict fix chat's drop check before it pushes",
-      ],
-      conflict_report: [
-        "conflictfix.report",
-        "a conflict fix chat's one report",
-      ],
     },
   },
   plans_conflicts: {
@@ -352,15 +344,6 @@ const tools = {
         "radar.flow",
         "stage times of finished Issue Radar issues, from GitHub",
       ],
-      retro: [
-        "radar.retro",
-        "applied retro rules with the check after N issues and an undo offer",
-      ],
-      radar_setup_preview: [
-        "radar.setup",
-        "what each Radar set up step (labels, branch rule, auto-merge, review-rules pull request, Project) would write, without writing",
-        ({ confirm, ...input }) => input,
-      ],
       mirror_adopt_preview: [
         "mirror.adopt",
         "dry run of Adopt existing setup for a private mirror: what exists and what would be written (repository, source)",
@@ -370,18 +353,6 @@ const tools = {
         "mirror.create",
         "dry run of Create setup for a private mirror: the steps that would run, in order (repository, source)",
         ({ confirm, ...input }) => input,
-      ],
-      values: [
-        "radar.values",
-        "the values to enter in Issue Radar, ticked where Radar's own read confirms them",
-      ],
-      mergepath: [
-        "radar.mergepath",
-        "can crew pull requests merge by themselves",
-      ],
-      preflight: [
-        "radar.preflight",
-        "the Create and release checks for a spec: approval, decision record, merge path, crew label scope, public sign-off",
       ],
       gap_report: [
         "gap.preview",
@@ -394,10 +365,6 @@ const tools = {
       integration_branches: [
         "integration.view",
         "each integration branch: tasks merged, commits behind the default branch, head checks, acceptance and landing approval",
-      ],
-      armed: [
-        "radar.armed",
-        "pull requests Avoozl armed for auto-merge that are still open",
       ],
       epics: [
         "epics.view",

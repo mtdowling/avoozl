@@ -104,18 +104,6 @@ test('the Dashboard shows the queue, Settings has no release mode, Step has one 
   assert.match(queue, /css-flex-direction="row"[^>]*css-flex-wrap="wrap"/)
 })
 
-test('the Dashboard lists armed pull requests under a stop, with a Disarm that calls the person-only operation', async () => {
-  const calls = []
-  const client = releaseClient({ post: async (path, body) => (calls.push([body.operation, body.input]), { result: { pullRequests: [] } }) })
-  await client.armed('w')
-  await client.disarm('w', 'example/app', 7)
-  assert.deepEqual(calls, [['radar.armed', {}], ['radar.disarm', { repository: 'example/app', pullRequest: 7 }]])
-  assert.match(source('DashboardView.tsx'), /<ArmedPulls workspaceId=\{workspaceId\} stopped=/)
-  const armed = source('ArmedPulls.tsx')
-  assert.match(armed, /if \(!props\.stopped \|\| !props\.workspaceId \|\| !pulls\.length\) return null/)
-  assert.match(armed, /Disarm/)
-})
-
 test('integration branches: one line per branch, a read client, and a person-only Land on the Needs you row', async () => {
   const calls = []
   const client = releaseClient({ post: async (path, body) => (calls.push([body.operation, body.input]), { result: { branches: [] } }) })

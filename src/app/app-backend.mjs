@@ -37,10 +37,7 @@ import {
   switchModels,
 } from "./provider-health.mjs";
 import { taskRepository } from "../work-model.mjs";
-import {
-  issueRadarReader,
-  issueRadarSessionsReader,
-} from "./radar-handoff.mjs";
+import { issueRadarReader } from "./radar-handoff.mjs";
 import { WORKSPACE_LOCK, tickHealth } from "./tick.mjs";
 import { withWorkLock } from "./git.mjs";
 import { launchSupervisor } from "./supervisor.mjs";
@@ -198,8 +195,6 @@ export function startAppBackend({
   modelReader = gatewayModelList(gatewayClient(process.env)),
   // Reads Issue Radar's crews for Send to Issue Radar (radar-handoff.mjs).
   crewReader = issueRadarReader(process.env),
-  // Reads an issue's sessions and credits from Issue Radar (radar-crews.mjs).
-  sessionsReader = issueRadarSessionsReader(process.env),
   // Stops a session for Stop all agents (session-observer.mjs).
   sessionStopper = gatewaySessionStopper(process.env),
   // Where Demo mode keeps its sample workspace (demo.mjs).
@@ -230,7 +225,6 @@ export function startAppBackend({
       modelSwitcher,
       modelReader,
       crewReader,
-      sessionsReader,
       sessionStopper,
     },
     follow: () => follow(),

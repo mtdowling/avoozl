@@ -27,7 +27,6 @@ const HOME = [
   ["flow.view", { window: "10" }],
   ["github.settings.get", {}],
   ["repositories.list", {}],
-  ["radar.armed", {}],
   ["gate.list", {}],
   ["radar.releasequeue", {}],
   ["integration.view", {}],
@@ -112,13 +111,10 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
       },
     }),
   );
-  // A repository and an armed pull request, so radar.armed has GitHub to read.
+  // A repository, so the reads have GitHub to call.
   const seed = new Store(config.dbPath);
   const [owner, repo] = REPO.split("/");
   seed.put("github_repositories", { id: REPO, owner, repo, projectId: "code" });
-  seed.setMeta("radarMerge", {
-    armed: { [`${REPO}#7`]: "2026-11-16T00:00:00Z" },
-  });
   seed.close();
 
   // GitHub never answers; the test's own loopback calls go through.
@@ -159,7 +155,6 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
     modelSwitcher: null,
     modelReader: null,
     crewReader: never,
-    sessionsReader: never,
     sessionStopper: null,
     registryOptions: {
       configPath: hostConfig,

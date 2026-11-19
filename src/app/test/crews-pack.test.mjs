@@ -8,7 +8,6 @@ import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { packPreview, validatePack } from "../plugin-pack.mjs";
 import { validateManifest } from "../plugins.mjs";
-import { radarValues } from "../radar-values.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -72,12 +71,6 @@ test("the preview lists each value as a setting, creates nothing in Radar and fi
     models: ["model-a", "model-b"],
     template: "sdk-change",
   });
-  const values = radarValues({
-    repository: REPO,
-    settings: entry,
-    crew: entry.radar.crew,
-  });
-  assert.equal(values.find((v) => v.id === "model").value, "model-a");
   // Nothing in the preview asks for a crew, a model price or a prompt write.
   assert.equal(
     names.some((name) => /prompt|price/i.test(name)),

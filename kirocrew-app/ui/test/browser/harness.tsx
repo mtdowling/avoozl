@@ -640,11 +640,6 @@ if (query.get('page') === 'app') {
         bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
       },
     }))
-    answer('radar.values', (body) => {
-      const repository = (body as { input: { repository: string } }).input.repository
-      const item = (id: string, label: string, value: string) => ({ id, label, value, controls: `What ${label} controls.`, status: 'cannot-verify', note: 'Tick it yourself.' })
-      return { repository, grant: false, link: '/issue-radar', items: [item('repository', 'Repository to connect', repository), item('scope', 'Label scope', 'ready')] }
-    })
   }
 }
 // ?page=app&home=1: a busy Home (task home-radar-layout shots): tasks in
@@ -1692,20 +1687,6 @@ function NeedsPage() {
     {query.get('draftReview') === '1' && <button data-review-workspace={workspaceId} onClick={() => setWorkspaceId('other')}>Switch workspace</button>}
     <ConflictsView workspaceId={workspaceId} />
   </>
-}
-// ?page=radar-values[&grant=1]: the Radar values screen on a fake Radar read.
-if (page === 'radar-values') {
-  const grant = query.get('grant') === '1'
-  const item = (id: string, label: string, value: string, status: string) => ({ id, label, value, controls: `What ${label} controls.`, status, note: status === 'ok' ? 'Issue Radar shows this value.' : 'Tick it yourself.' })
-  answer('radar.values', () => ({
-    repository: 'example/code',
-    grant,
-    link: '/issue-radar',
-    items: [
-      item('repository', 'Repository to connect', 'example/code', grant ? 'ok' : 'cannot-verify'),
-      item('scope', 'Label scope', 'ready', grant ? 'differs' : 'cannot-verify'),
-    ],
-  }))
 }
 // ?page=forward[&state=ok|blocked|stopped]: the Forward screen on replies the
 // real operations gave in the live scratch run (forward-live-replies.json).

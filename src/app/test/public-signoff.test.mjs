@@ -182,7 +182,7 @@ test("the sign-off lapses when any hashed item changes, and withdraw holds again
 });
 
 test("only a person signs off: agents, app tokens, MCP and supervisor children are refused", () => {
-  for (const name of ["publiccrews.signoff", "radar.signoff"]) {
+  for (const name of ["publiccrews.signoff"]) {
     for (const kind of ["app-token", "agent-tool", "none"])
       assert.equal(principalAllows({ kind }, name), false, `${name} ${kind}`);
     assert.equal(principalAllows({ kind: "owner-session" }, name), true);

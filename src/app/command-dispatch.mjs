@@ -54,22 +54,14 @@ export const APP_OPERATIONS = new Set([
   "review.drafts",
   "gate.list",
   "radar.flow",
-  "radar.retro",
-  "radar.retro.apply",
-  "radar.mergepath",
-  "radar.values",
   "radar.releasequeue",
   "epics.view",
   "radar.releasestep",
-  "radar.armed",
   "integration.view",
   "landing.view",
   "gap.preview",
   "gap.accept",
   "integration.land",
-  "radar.preflight",
-  "radar.disarm",
-  "conflictfix.decide",
   "radar.integrationbranch",
   "intake.list",
   "intake.view",
@@ -166,12 +158,10 @@ export const APP_OPERATIONS = new Set([
   "github.settings.update",
   "github.setup",
   "github.setup.cancel",
-  "radar.setup",
   "mirror.adopt",
   "mirror.create",
   "mirror.forward",
   "mirror.forward.review",
-  "radar.signoff",
   "publiccrews.signoff",
   // The Onboard flow's reads; its writes are the operations above.
   "onboarding.inspect",
@@ -325,7 +315,7 @@ function missingReader(context, operation, input) {
 
 // Everything a dispatch needs, built once per server. `readers` holds the
 // optional Kiro Crew readers by name (`notifier`, `crewReader`,
-// `sessionsReader`, `sessionStopper`, ...); absent ones stay out.
+// `sessionStopper`, ...); absent ones stay out.
 export function commandContext({
   host,
   config,
@@ -404,7 +394,6 @@ export function commandContext({
           configDirectory: machineAvoozlPaths().configDirectory,
           notifier: readers.notifier ?? null,
           crewReader: readers.crewReader ?? null,
-          sessionsReader: readers.sessionsReader ?? null,
           sessionStopper: readers.sessionStopper ?? null,
           kirocrewAbsent: host === "standalone",
           driver: { settingsFile: driverSettingsPath() },

@@ -233,7 +233,6 @@ test("Create runs the steps in order and reads the mirror back private", async (
   assert.equal(repo.autoMerge, true);
   assert.equal(d.saved[0][0], MIRROR);
   assert.equal(d.saved[0][1].source, SOURCE);
-  assert.equal(done.next, "radar-values");
   assert.equal(github.state.deletes.length, 0);
   // Every write went to the mirror, none to the source.
   assert.ok(

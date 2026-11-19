@@ -22,7 +22,6 @@ import {
 // Issue Radar's crew list route (crew_routes.py `GET /crews`).
 export const CREWS_ROUTE = "/api/apps/issue-radar/crews";
 // The pipeline route that lists one issue's sessions (pipeline_routes.py).
-export const SESSIONS_ROUTE = "/api/apps/issue-radar/pipeline/item/sessions";
 // GitHub refuses longer label names.
 export const LABEL_MAX = 50;
 export const HANDOFF_MAX = 100;
@@ -44,24 +43,6 @@ export function issueRadarReader(env = process.env, request = fetch) {
     const [owner, repo] = repository.split("/"),
       response = await client.call(
         `${CREWS_ROUTE}?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`,
-        { method: "GET" },
-      );
-    return {
-      status: response.status,
-      body: await response.json().catch(() => ({})),
-    };
-  };
-}
-
-// A function that reads one issue's sessions and their credits from Issue
-// Radar's pipeline route, or null without a gateway client.
-export function issueRadarSessionsReader(env = process.env, request = fetch) {
-  const client = gatewayClient(env, request);
-  if (!client) return null;
-  return async (repository, number) => {
-    const [owner, repo] = repository.split("/"),
-      response = await client.call(
-        `${SESSIONS_ROUTE}?number=${encodeURIComponent(number)}&owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`,
         { method: "GET" },
       );
     return {

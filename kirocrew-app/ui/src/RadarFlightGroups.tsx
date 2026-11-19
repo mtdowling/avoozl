@@ -7,7 +7,6 @@ import { relativeTime } from "./task-api.ts";
 import {
   linkHref,
   type RadarClaim,
-  type RadarCrewStrip,
   type RadarGroup,
 } from "./views-api.ts";
 import { Hint } from './ui/Hint'
@@ -16,17 +15,7 @@ import { Box } from './ui/Box'
 
 const HEAD = ["Issue", "Crew", "Phase", "Claimed", "Last update", "PR"];
 
-type Cost = RadarCrewStrip["cost"];
-
-function Row({
-  row,
-  now,
-  cost,
-}: {
-  row: RadarClaim;
-  now: number;
-  cost?: Cost[string];
-}) {
+function Row({ row, now }: { row: RadarClaim; now: number }) {
   return (
     <Box
       data-radar-group-row
@@ -52,11 +41,6 @@ function Row({
       </Box>
       <Box as="td" py="1" pr="2">
         {row.crewName ?? row.crewId ?? "no crew named"}
-        {cost && cost.stages.length > 0 && (
-          <Hint data-radar-cost size="xs" block>
-            {cost.credits.toFixed(1)} credits, {cost.turns} turns
-          </Hint>
-        )}
       </Box>
       <Box as="td" py="1" pr="2">
         {row.phase ?? "claim label, no claim comment"}
@@ -111,11 +95,9 @@ function PhoneRow({ row, now }: { row: RadarClaim; now: number }) {
 export default function RadarFlightGroups({
   groups,
   now,
-  cost,
 }: {
   groups: RadarGroup[];
   now: number;
-  cost?: Cost;
 }) {
   const phone = usePhone();
   return (
@@ -156,7 +138,6 @@ export default function RadarFlightGroups({
                   key={`${row.repository}#${row.number}`}
                   row={row}
                   now={now}
-                  cost={cost?.[`${row.repository}#${row.number}`]}
                 />
               ))}
             </tbody>

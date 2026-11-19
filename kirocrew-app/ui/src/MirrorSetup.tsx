@@ -176,11 +176,6 @@ export default function MirrorSetup(props: {
               ))}
             </Box>
           )}
-          {result.next === "radar-values" && (
-            <Box as="p" size="sm">
-              Next: enter the Radar values on Settings › Issue Radar.
-            </Box>
-          )}
           {!result.applied && (
             <Row gap={2} align="start">
               <Btn

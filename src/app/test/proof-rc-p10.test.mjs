@@ -13,28 +13,28 @@ const visibility = (w, value) =>
     private: value,
   });
 
-test("radar.signoff records the sign-off, owner only", async (t) => {
+test("publiccrews.signoff records the sign-off, owner only", async (t) => {
   const { principalAllows } = await import("../app-backend.mjs");
   for (const kind of ["app-token", "agent-tool"])
-    assert.equal(principalAllows({ kind }, "radar.signoff"), false, kind);
+    assert.equal(principalAllows({ kind }, "publiccrews.signoff"), false, kind);
   assert.equal(
-    principalAllows({ kind: "owner-session" }, "radar.signoff"),
+    principalAllows({ kind: "owner-session" }, "publiccrews.signoff"),
     true,
   );
   const w = await setup(t, { release: { capacity: 2 } }, [leaf("leaf-a")]);
   visibility(w, false);
-  await assert.rejects(w.ops.execute("radar.signoff", { repository: "x/y" }), {
+  await assert.rejects(w.ops.execute("publiccrews.signoff", { repository: "x/y" }), {
     status: 404,
   });
-  await w.ops.execute("radar.signoff", { repository: REPO, complete: false });
+  await w.ops.execute("publiccrews.signoff", { repository: REPO, complete: false });
   // The checklist is not met yet, so the sign-off is refused.
   await assert.rejects(
-    w.ops.execute("radar.signoff", { repository: REPO, complete: true }),
+    w.ops.execute("publiccrews.signoff", { repository: REPO, complete: true }),
     { status: 409 },
   );
   fakeRuleSet(w.store);
   auditRan(w.store, REPO);
-  await w.ops.execute("radar.signoff", {
+  await w.ops.execute("publiccrews.signoff", {
     repository: REPO,
     complete: true,
     home: crewHome(),

@@ -80,18 +80,6 @@ test('a review group is one item that settles all its local tasks and shrinks as
   assert.match(noActionReason(remote), /where they live/)
 })
 
-test('the source-conflict choices call conflictfix.decide', async () => {
-  const { viewsClient } = await import('../src/views-api.ts')
-  const calls = []
-  const api = { post: async (_path, body) => (calls.push(body), { result: {} }) }
-  const client = viewsClient(api)
-  for (const action of ['resolve', 'dismiss']) await client.decideConflictFix('w1', 'o/r', 3, action)
-  assert.deepEqual(
-    calls.map((call) => [call.operation, call.input.action, call.input.pullRequest]),
-    [['conflictfix.decide', 'resolve', 3], ['conflictfix.decide', 'dismiss', 3]],
-  )
-})
-
 test('a failing tick is a Needs you row with its own words', async () => {
   const { CONFLICT_TABS, noActionReason, settleActionOf } = await import('../src/conflicts-api.ts')
   const { CONFLICT_LABELS } = await import('../src/views-api.ts')

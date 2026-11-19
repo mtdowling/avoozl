@@ -70,7 +70,6 @@ async function both(t) {
       modelSwitcher: null,
       modelReader: null,
       crewReader: null,
-      sessionsReader: null,
       sessionStopper: null,
     });
   t.after(() => server.close());
