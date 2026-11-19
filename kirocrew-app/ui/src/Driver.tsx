@@ -40,6 +40,7 @@ import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { PlainLink } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 
 // The driver status for one spec, read again every minute and after each
@@ -67,7 +68,7 @@ export function DriverChip(props: { spec: DriverSpec | null }) {
   if (!spec) return null
   return (
     <Box data-driver-chip as="span" inlineFlex items="center" gap="1.5" size="sm">
-      <Laptop size={14} aria-hidden="true" style={{ color: 'var(--muted)' }} />
+      <Glyph icon={Laptop} size={14} aria-hidden="true" css-color="muted" />
       <Badge variant={spec.you ? 'success' : spec.stale ? 'warning' : undefined}>{chipText(spec)}</Badge>
     </Box>
   )
@@ -86,7 +87,7 @@ export function DriverBanner(props: { workspaceId: string; spec: DriverSpec | nu
       data-driver-banner
       css-border-color="warning-border" css-background="mix-warning-muted-10%-card-transparent" mb="3" flex flexWrap items="center" gap="3" rounded="lg" border="all" p="3" size="sm"
     >
-      <Lock size={18} aria-hidden="true" style={{ color: 'var(--muted)' }} />
+      <Glyph icon={Lock} size={18} aria-hidden="true" css-color="muted" />
       <Box as="span" minW0 flex1>
         <Box as="span" weight="medium">Read only here. {bannerTitle(spec)}.</Box> <Hint>{spec.text}</Hint>
         {issueUrl && (

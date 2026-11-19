@@ -110,6 +110,7 @@ import { Box } from './ui/Box'
 import { DetailsStyle, SpecRailStyle } from './ui/PageStyles'
 import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
 import { PILL, cell } from './ui/looks/PlansView.ts'
+import { Glyph } from './ui/Glyph'
 
 // Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
@@ -1498,7 +1499,7 @@ function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () =>
       data-archived-banner
       css-border-color="border" css-background="mix-muted-10%-card-transparent" mb="3" flex flexWrap items="center" gap="3" rounded="lg" border="all" p="3" size="sm"
     >
-      <Archive size={18} aria-hidden="true" style={{ color: 'var(--muted)' }} />
+      <Glyph icon={Archive} size={18} aria-hidden="true" css-color="muted" />
       <Box as="span" minW0 flex1>
         <Box as="span" weight="medium">This spec is archived.</Box>{' '}
         <Hint>

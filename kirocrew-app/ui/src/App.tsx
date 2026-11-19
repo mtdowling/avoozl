@@ -54,6 +54,7 @@ import {
   type WorkspaceList,
 } from './workspace-api'
 import { Box } from './ui/Box'
+import { Glyph } from './ui/Glyph'
 
 function storage(): Storage | null {
   try {
@@ -69,7 +70,7 @@ function NavLabel(props: { view: keyof typeof VIEW_ICONS; text: string; count?: 
   const Icon = VIEW_ICONS[props.view]
   return (
     <Box data-nav-label-row as="span" css-display="flex" css-align-items="center" css-gap="6" css-min-width="0" css-max-width="100%">
-      <Icon size={ICON} aria-hidden="true" style={{ flexShrink: 0 }} />
+      <Glyph icon={Icon} size={ICON} aria-hidden="true" css-flex-shrink="0" />
       <Box data-nav-text as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{props.text}</Box>
       {props.count ? (
         <Box data-nav-count as="span" css-flex-shrink="0" css-display="inline-flex">
