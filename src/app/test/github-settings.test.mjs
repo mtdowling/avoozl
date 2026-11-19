@@ -28,23 +28,6 @@ const noGitHub = new Proxy(
 const POLICY = {
   mode: "plans-repo",
   planningRepository: "example/plans",
-  defaultAuthority: "github",
-  project: {
-    owner: "example",
-    number: 7,
-    fields: {
-      status: "Status",
-      release: "Release",
-      wave: "Wave",
-      iteration: null,
-    },
-    statusValues: {
-      todo: "Todo",
-      inProgress: "In progress",
-      done: "Done",
-      deferred: "Deferred",
-    },
-  },
   epicIssueType: "Epic",
   repositories: {
     "example/app": {
@@ -55,7 +38,7 @@ const POLICY = {
       rules: [
         {
           id: "build",
-          action: "deliver",
+          action: "pause",
           labelsAll: ["agent:build"],
           labelsNone: ["agent:paused"],
           assignee: "maintainer",
@@ -91,19 +74,12 @@ test("an empty workspace loads empty GitHub settings with the default policy", a
   assert.deepEqual(settings.github, {});
   assert.equal(settings.error, null);
   assert.equal(settings.effective.mode, null);
-  assert.equal(settings.effective.defaultAuthority, "local");
   assert.deepEqual(settings.choices.modes, [
     "local",
     "plans-repo",
     "single-repo",
   ]);
   assert.ok(settings.choices.actions.includes("quarantine"));
-  assert.deepEqual(settings.choices.statusValues, [
-    "todo",
-    "inProgress",
-    "done",
-    "deferred",
-  ]);
 });
 
 for (const server of [false, true])
@@ -132,13 +108,10 @@ for (const server of [false, true])
     assert.notEqual(saved.hash, before.hash);
     assert.equal(saved.error, null);
     assert.equal(saved.effective.mode, "plans-repo");
-    assert.equal(saved.effective.project.statusValues.deferred, "Deferred");
     assert.equal(
       saved.effective.repositories["example/app"].minimumPermission,
       "maintain",
     );
-    // `iteration: null` is a cleared field, kept as written.
-    assert.deepEqual(saved.github.project, POLICY.project);
     assert.deepEqual(
       Object.keys(saved.github.repositories),
       ["example/app"],
@@ -199,27 +172,11 @@ const INVALID = [
     /plans-repo needs github.planningRepository/,
   ],
   [
-    "github authority with no mode",
-    { defaultAuthority: "github" },
-    /defaultAuthority github needs a github.mode/,
-  ],
-  [
-    "an unknown Status value key",
-    {
-      ...POLICY,
-      project: { ...POLICY.project, statusValues: { ready: "Ready" } },
-    },
-    /Unknown setting github.project.statusValues.ready/,
-  ],
-  [
-    "an unknown Project field key",
-    { ...POLICY, project: { ...POLICY.project, fields: { size: "Size" } } },
-    /Unknown setting github.project.fields.size/,
-  ],
-  [
-    "a Project with no number",
-    { ...POLICY, project: { owner: "example" } },
-    /project.number must be a positive whole number/,
+    "a rule that would deliver a GitHub issue",
+    repository({
+      rules: [{ id: "x", action: "deliver", labelsAll: ["agent:x"] }],
+    }),
+    /would deliver a GitHub issue/,
   ],
   [
     "an unknown rule action",
@@ -231,7 +188,7 @@ const INVALID = [
   [
     "a trigger label that is a managed label",
     repository({
-      rules: [{ id: "x", action: "deliver", labelsAll: ["agent:ready"] }],
+      rules: [{ id: "x", action: "pause", labelsAll: ["agent:ready"] }],
     }),
     /uses managed label agent:ready as a trigger/,
   ],
@@ -360,6 +317,7 @@ test("Local only is a mode: no GitHub mode, and stored GitHub settings are kept 
     planningRepository: "example/plans",
     defaultAuthority: "github",
     project: { owner: "example", number: 7 },
+    issues: { includeDone: true },
     repositories: {
       "example/app": { coder: "issue-radar", rules: [] },
     },
@@ -367,10 +325,11 @@ test("Local only is a mode: no GitHub mode, and stored GitHub settings are kept 
   const policy = normalizeGitHubPolicy(stored);
   assert.equal(policy.mode, null);
   assert.equal(policy.planningRepository, null);
-  assert.equal(policy.defaultAuthority, "local");
-  assert.equal(newTaskAuthority(policy), "local");
-  // Kept: the Project and the repository settings still validate and stay.
-  assert.equal(policy.project.number, 7);
+  // Retired keys (R102.20) load and are ignored.
+  assert.equal("project" in policy, false);
+  assert.equal("defaultAuthority" in policy, false);
+  assert.equal(newTaskAuthority(), "local");
+  assert.equal(newTaskAuthority("github"), "local");
   assert.ok(policy.repositories["example/app"]);
   // A switch back to plans-repo uses the kept planning repository.
   assert.equal(

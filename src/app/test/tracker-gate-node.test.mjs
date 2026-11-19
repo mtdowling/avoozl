@@ -7,8 +7,6 @@ import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 import { readyCandidates } from "../delivery.mjs";
-import { gateLine } from "../github-projection.mjs";
-import { planProjectionBatches } from "../radar-coder-batch.mjs";
 import {
   completionReached,
   isGate,
@@ -183,37 +181,4 @@ test("a done or cleared gate satisfies every level and releases its dependent", 
         true,
       );
   }
-});
-
-test("a gate is never batched, never ready, and its issue says what it waits on", async (t) => {
-  const { store, ops } = workspace(t);
-  await approve(ops);
-  const data = store.read(),
-    gate = data.tasks.find((task) => task.id === "sdk.2"),
-    small = (id, completion) => ({
-      id,
-      kind: "leaf",
-      batch: { id: "g1", tasks: ["a", "g", "c"], reason: "Small edits" },
-      completion,
-      status: "ready",
-    }),
-    batches = planProjectionBatches({
-      tasks: [
-        small("a", "integrated"),
-        small("g", "tracker"),
-        small("c", "integrated"),
-      ],
-      mode: "auto",
-    });
-  assert.deepEqual(
-    batches.batches.map((batch) => batch.tasks),
-    [["a", "c"]],
-  );
-  assert.match(
-    gateLine(gate),
-    /fake-gate item REV-1\. Done when: the review shipped to the live release/,
-  );
-  // A gate with a ready label asked for in dispatch is still not ready.
-  gate.dispatch = { ready: true };
-  assert.equal(ours(readyCandidates(store, { data })).includes("sdk.2"), false);
 });

@@ -2,7 +2,7 @@
 // and the fake gate plugin: Needs you rows, the order, a stranger's removal.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { blockerNotes } from "../github-close.mjs";
+import { blockerNotes } from "../gate-clear.mjs";
 import { clearGate, gateNeedsYou } from "../gate-clear.mjs";
 import { gateRecord } from "../gate-step.mjs";
 import { queryTasks } from "../../query.mjs";

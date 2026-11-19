@@ -99,53 +99,6 @@ function checkContainment(github) {
   );
 }
 
-test("a public task waits on a private task: both issues are in the mirror and the public one names nothing private", async (t) => {
-  const context = await setup(t),
-    { github, ops } = context;
-  await putPrivate(context, "secret", SECRET_TITLE, null, "pubspec.1.1");
-  putPublic(context, "pubspec", "Ship the public change");
-  const hidden = await approve(context, "secret", "plansBranch"),
-    open = await approve(context, "pubspec", "main");
-  assert.equal(hidden.home, "plansBranch");
-  await ops.execute("github.project", { planId: hidden.id });
-  await ops.execute("github.project", { planId: open.id });
-  checkContainment(github);
-
-  const priv = issueFor(github, "secret.1.1"),
-    pub = issueFor(github, "pubspec.1.1");
-  assert.match(pub.body, /^Waits on a private task\.$/m);
-  for (const text of [SECRET_TITLE, "secret", PLANS])
-    assert.ok(!pub.body.includes(text), `public issue holds no "${text}"`);
-  // The blocked-by link GitHub holds stays in the mirror.
-  const key = `${MIRROR}#${pub.number}`;
-  assert.deepEqual(
-    [...github.blockers.get(key).values()].map((blocker) => blocker.number),
-    [priv.number],
-  );
-});
-
-test("a private task waits on a public task, and its issue may name it", async (t) => {
-  const context = await setup(t),
-    { github, ops } = context;
-  putPublic(context, "pubspec", "Ship the public change");
-  await putPrivate(context, "secret", SECRET_TITLE, "pubspec.1.1");
-  const open = await approve(context, "pubspec", "main"),
-    hidden = await approve(context, "secret", "plansBranch");
-  await ops.execute("github.project", { planId: open.id });
-  await ops.execute("github.project", { planId: hidden.id });
-  checkContainment(github);
-
-  const pub = issueFor(github, "pubspec.1.1"),
-    priv = issueFor(github, "secret.1.1");
-  assert.doesNotMatch(pub.body, /Waits on a private task/);
-  assert.match(priv.body, /- pubspec\.1\.1/);
-  const key = `${MIRROR}#${priv.number}`;
-  assert.deepEqual(
-    [...github.blockers.get(key).values()].map((blocker) => blocker.number),
-    [pub.number],
-  );
-});
-
 test("a public spec that names a private task is refused at approval", async (t) => {
   const context = await setup(t),
     { github } = context;

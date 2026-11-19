@@ -123,7 +123,7 @@ function workspace(
             // Plain issues are listed only for a repository Avoozl triages.
             coder: "worker",
             managedLabels: { managed: "avoozl:managed", ready: "avoozl:ready" },
-            rules: [{ id: "go", action: "deliver", match: "label:go" }],
+            rules: [{ id: "go", action: "pause", match: "label:go" }],
           },
         },
       },
@@ -494,7 +494,7 @@ test("crew label events never make a trigger rule true, and a rule may not name 
         rules: [
           {
             id: "free",
-            action: "deliver",
+            action: "pause",
             match: `label:go -label:"${CLAIM}"`,
           },
         ],
@@ -530,7 +530,7 @@ test("crew label events never make a trigger rule true, and a rule may not name 
             [REPO]: {
               baseBranch: "main",
               rules: [
-                { id: "bad", action: "deliver", match: `label:"${label}"` },
+                { id: "bad", action: "pause", match: `label:"${label}"` },
               ],
             },
           },

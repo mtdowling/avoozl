@@ -3,11 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { normalizeGitHubPolicy, readGitHubPolicy } from "../github-policy.mjs";
-import { isLinkedBranchLeaf } from "../github-plans-repo.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 // R91.6: Who codes was removed. An old file's `coder` loads, is ignored and
-// says nothing; every repository's leaves go to the Avoozl worker.
+// says nothing.
 test("an old coder setting loads silently and changes nothing", (t) => {
   const warned = [];
   t.mock.method(console, "warn", (...args) => warned.push(args));
@@ -33,13 +32,6 @@ test("an old coder setting loads silently and changes nothing", (t) => {
         repositories: { "example/app": { baseBranch: "main" } },
       }).repositories["example/app"],
     );
-    const leaf = {
-      id: "a",
-      kind: "leaf",
-      authority: "github",
-      github: { repository: "example/app", number: 1 },
-    };
-    assert.equal(isLinkedBranchLeaf(leaf, policy), true, String(coder));
   }
   assert.deepEqual(warned, []);
 });

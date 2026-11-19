@@ -5,28 +5,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { crewLabelBackfill } from "../crew-label-backfill.mjs";
-import { isLinkedBranchLeaf } from "../github-plans-repo.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const REPO = "o/app";
-
-test("Avoozl's executor runs the leaves of an Issue Radar repository", () => {
-  const leaf = {
-    kind: "leaf",
-    route: "github",
-    github: { repository: REPO, number: 4 },
-  };
-  for (const coder of ["issue-radar", undefined, "worker"])
-    assert.equal(
-      isLinkedBranchLeaf(leaf, {
-        mode: "single-repo",
-        repositories: { [REPO]: coder ? { coder } : {} },
-      }),
-      true,
-      String(coder),
-    );
-});
 
 // ---- the backfill ----------------------------------------------------------
 

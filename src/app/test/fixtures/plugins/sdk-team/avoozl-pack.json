@@ -21,7 +21,7 @@
         },
         {
           "id": "deliver",
-          "action": "deliver",
+          "action": "pause",
           "match": "label:avoozl:deliver -label:needs-triage -label:response-requested -label:blocked -label:avoozl:paused"
         },
         { "id": "pause", "action": "pause", "match": "label:avoozl:paused" },

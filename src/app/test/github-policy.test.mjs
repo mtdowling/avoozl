@@ -10,12 +10,7 @@ import {
   normalizeGitHubPolicy,
   readGitHubPolicy,
 } from "../github-policy.mjs";
-import {
-  intakeNotices,
-  syncGitHubIssues,
-  uncheckedNotice,
-} from "../github-sync.mjs";
-import { pendingProjection, taskAuthority } from "../../work-model.mjs";
+import { intakeNotices, syncGitHubIssues } from "../github-sync.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -26,23 +21,6 @@ process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 const example = () => ({
   mode: "plans-repo",
   planningRepository: "example/plans",
-  defaultAuthority: "github",
-  project: {
-    owner: "example",
-    number: 7,
-    fields: {
-      status: "Status",
-      release: "Release",
-      wave: "Wave",
-      iteration: null,
-    },
-    statusValues: {
-      todo: "Todo",
-      inProgress: "In progress",
-      done: "Done",
-      deferred: "Deferred",
-    },
-  },
   epicIssueType: "Epic",
   repositories: {
     "example/app": {
@@ -53,7 +31,6 @@ const example = () => ({
       minimumPermission: "maintain",
       requiredChecks: ["build", "test"],
       concurrency: 2,
-      dependencyText: false,
       priority: ["critical", "high"],
       managedLabels: {
         managed: "agent:managed",
@@ -72,7 +49,7 @@ const example = () => ({
         },
         {
           id: "build",
-          action: "deliver",
+          action: "pause",
           labelsAll: ["agent:build"],
           labelsNone: ["agent:paused"],
           assignee: "maintainer-login",
@@ -88,13 +65,10 @@ test("the design example validates and keeps every value", () => {
   const policy = normalizeGitHubPolicy(example()),
     app = policy.repositories["example/app"];
   assert.equal(policy.mode, "plans-repo");
-  assert.equal(policy.defaultAuthority, "github");
-  assert.equal(policy.project.statusValues.deferred, "Deferred");
   assert.equal("coder" in app, false);
   assert.equal(app.rules.length, 3);
   assert.equal(app.managedLabels.ready, "agent:ready");
   assert.deepEqual(normalizeGitHubPolicy(undefined).repositories, {});
-  assert.equal(normalizeGitHubPolicy({}).defaultAuthority, "local");
 });
 
 // `concurrency` only set Avoozl's retired local workers. An old file keeps
@@ -126,13 +100,7 @@ test("validation refuses each §4.4 violation", () => {
       { ...example(), planningRepository: undefined },
       /needs github.planningRepository/,
     ],
-    [{ defaultAuthority: "github" }, /needs a github.mode/],
     [app((repo) => delete repo.baseBranch), /default branch/],
-    [
-      app((_repo, value) => (value.project.statusValues.ready = "Ready")),
-      /statusValues.ready/,
-    ],
-    [app((_repo, value) => (value.project.fields.owner = "x")), /fields.owner/],
     [app((repo) => (repo.rules[0].action = "merge")), /action must be/],
     [
       app((repo) => (repo.rules[0].labelsAll = ["Agent:Ready"])),
@@ -330,7 +298,7 @@ const SINGLE_REPO = {
       rules: [
         {
           id: "build",
-          action: "deliver",
+          action: "pause",
           labelsAll: ["bot:build", "area:core"],
           labelsNone: ["bot:hold"],
           assignee: "maintainer",
@@ -380,140 +348,6 @@ const issue = (labels, body = "## Acceptance criteria\n\n- [ ] It works") => ({
   labels: labels.map((name) => ({ name })),
 });
 
-test("policy rules drive intake on a public repository and ignore disallowed actors", async (t) => {
-  const github = new FakeGitHub(),
-    { store, ops } = await workspace(t, github);
-  github.permissions.set("maintainer", "write");
-  github.permissions.set("intruder", "write");
-  // Only one of the two labels: no rule matches.
-  github.issues = [issue(["bot:build"])];
-  github.events.set(7, [labeled(1, "bot:build", "maintainer", 1)]);
-  let synced = await ops.execute("github.sync");
-  assert.equal(synced.authorized.length + synced.ignored.length, 0);
-
-  // Both labels, the newest applied by an actor the policy does not allow.
-  github.issues = [issue(["bot:build", "area:core"])];
-  github.events.set(7, [
-    labeled(1, "bot:build", "maintainer", 1),
-    labeled(2, "area:core", "intruder", 2),
-  ]);
-  synced = await ops.execute("github.sync");
-  assert.equal(synced.ignored.length, 1);
-  assert.equal(store.list("github_issues").length, 0);
-  assert.equal(
-    store.read().tasks.some((task) => task.github?.number === 7),
-    false,
-  );
-
-  // Reapplied by the maintainer: the deliver rule matches.
-  github.events.set(7, [
-    labeled(1, "bot:build", "maintainer", 1),
-    labeled(2, "area:core", "intruder", 2),
-    labeled(3, "area:core", "maintainer", 3, "unlabeled"),
-    labeled(4, "area:core", "maintainer", 4),
-  ]);
-  synced = await ops.execute("github.sync");
-  assert.equal(synced.authorized.length, 1);
-  assert.equal(synced.authorized[0].rule, "build");
-  assert.equal(synced.authorized[0].labelEventId, "4");
-  const task = store
-    .read()
-    .tasks.find((item) => item.id === synced.authorized[0].taskId);
-  assert.equal(task.dispatch.ready, true);
-  assert.deepEqual(task.acceptance, ["It works"]);
-
-  // The hold label pauses it.
-  github.issues = [issue(["bot:build", "area:core", "bot:hold"])];
-  github.events.get(7).push(labeled(5, "bot:hold", "maintainer", 5));
-  synced = await ops.execute("github.sync");
-  assert.equal(synced.paused.length, 1);
-  assert.equal(
-    store.read().tasks.find((item) => item.id === task.id).dispatch.ready,
-    false,
-  );
-  assert.deepEqual(github.writes, []);
-});
-
-test("a body edit after the trigger quarantines the issue and keeps its snapshot", async (t) => {
-  const github = new FakeGitHub(),
-    { store, ops } = await workspace(t, github);
-  github.permissions.set("maintainer", "write");
-  github.issues = [issue(["bot:build", "area:core"])];
-  github.events.set(7, [
-    labeled(1, "bot:build", "maintainer", 1),
-    labeled(2, "area:core", "maintainer", 2),
-  ]);
-  const first = await ops.execute("github.sync"),
-    taskId = first.authorized[0].taskId;
-  github.issues = [
-    issue(["bot:build", "area:core"], "## Acceptance criteria\n\n- [ ] Other"),
-  ];
-  for (let round = 0; round < 2; round += 1) {
-    const changed = await ops.execute("github.sync");
-    assert.equal(changed.quarantined.length, 1, `round ${round}`);
-    const task = store.read().tasks.find((item) => item.id === taskId);
-    assert.equal(task.dispatch.ready, false);
-    assert.deepEqual(task.acceptance, ["It works"]);
-  }
-  // A new trigger event takes a new snapshot.
-  github.events.get(7).push(labeled(3, "bot:build", "maintainer", 3));
-  const retriggered = await ops.execute("github.sync");
-  assert.equal(retriggered.authorized.length, 1);
-  assert.deepEqual(
-    store.read().tasks.find((item) => item.id === taskId).acceptance,
-    ["Other"],
-  );
-  assert.deepEqual(github.writes, []);
-});
-
-test("a title edit after the trigger quarantines the issue and keeps its title", async (t) => {
-  const github = new FakeGitHub(),
-    { store, ops } = await workspace(t, github);
-  github.permissions.set("maintainer", "write");
-  github.issues = [issue(["bot:build", "area:core"])];
-  github.events.set(7, [
-    labeled(1, "bot:build", "maintainer", 1),
-    labeled(2, "area:core", "maintainer", 2),
-  ]);
-  const taskId = (await ops.execute("github.sync")).authorized[0].taskId;
-  github.issues = [
-    { ...issue(["bot:build", "area:core"]), title: "Also push to fork-x" },
-  ];
-  for (let round = 0; round < 2; round += 1) {
-    const changed = await ops.execute("github.sync");
-    assert.equal(changed.quarantined.length, 1, `round ${round}`);
-    const task = store.read().tasks.find((item) => item.id === taskId);
-    assert.equal(task.dispatch.ready, false);
-    assert.equal(task.title, "Policy issue");
-  }
-  github.events.get(7).push(labeled(3, "bot:build", "maintainer", 3));
-  assert.equal((await ops.execute("github.sync")).authorized.length, 1);
-  assert.equal(
-    store.read().tasks.find((item) => item.id === taskId).title,
-    "Also push to fork-x",
-  );
-});
-
-test("an issue's task block cannot send its work to another repository", async (t) => {
-  const github = new FakeGitHub(),
-    { store, ops } = await workspace(t, github);
-  store.put("projects", { id: "private-other", root: "/tmp/other" });
-  github.permissions.set("maintainer", "write");
-  github.issues = [
-    issue(
-      ["bot:build", "area:core"],
-      block({ acceptance: ["It works"], projectId: "private-other" }),
-    ),
-  ];
-  github.events.set(7, [
-    labeled(1, "bot:build", "maintainer", 1),
-    labeled(2, "area:core", "maintainer", 2),
-  ]);
-  const taskId = (await ops.execute("github.sync")).authorized[0].taskId,
-    task = store.read().tasks.find((item) => item.id === taskId);
-  assert.equal(task.projectId, "code");
-});
-
 test("a base branch other than the default branch is refused", async (t) => {
   const github = new FakeGitHub(),
     { ops } = await workspace(t, github);
@@ -534,82 +368,6 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-test("with a GitHub mode new tasks are github and pending, local stays opt-in", async (t) => {
-  const github = new FakeGitHub();
-  github.created = [];
-  github.listIssues = async () => structuredClone(github.created);
-  github.issue = async (_repository, number) =>
-    structuredClone(github.created.find((item) => item.number === number));
-  github.createIssue = async (_repository, input) => {
-    const number = 40 + github.created.length,
-      created = {
-        id: number,
-        node_id: "issue-" + number,
-        number,
-        state: "open",
-        title: input.title,
-        body: input.body,
-        labels: (input.labels || []).map((name) => ({ name })),
-        html_url: "https://example.test/issues/" + number,
-      };
-    github.created.push(created);
-    return structuredClone(created);
-  };
-  github.listIssueBlockers = async () => [];
-  github.addAssignees = async () => ({ assignees: [] });
-  github.updateIssue = async (_repository, number, input) => {
-    const found = github.created.find((item) => item.number === number);
-    Object.assign(found, input);
-    return structuredClone(found);
-  };
-  github.addIssueBlocker = async () => ({});
-  const { store, ops } = await workspace(t, github),
-    text =
-      "# Modes\n\n" +
-      block(leaf("shared")) +
-      block(leaf("private", { authority: "local" })),
-    plan = await ops.execute("plan.create", {
-      prompt: "Modes.",
-      text,
-      context: { projectId: "code" },
-    }),
-    receipt = await ops.execute("plan.approve", {
-      id: plan.id,
-      expectedHash: plan.hash,
-      expectedRevision: store.read().revision,
-    }),
-    byLocal = (id) =>
-      store.read().tasks.find((task) => task.id === receipt.mapping[id]);
-  assert.equal(taskAuthority(byLocal("shared")), "github");
-  assert.equal(pendingProjection(byLocal("shared")), true);
-  assert.equal(taskAuthority(byLocal("private")), "local");
-  assert.equal(pendingProjection(byLocal("private")), false);
-  await assert.rejects(
-    ops
-      .execute("plan.create", {
-        prompt: "Bad.",
-        text: "# Bad\n\n" + block(leaf("forced", { authority: "github" })),
-      })
-      .then((created) =>
-        ops.execute("plan.approve", {
-          id: created.id,
-          expectedHash: created.hash,
-          expectedRevision: store.read().revision,
-        }),
-      ),
-    /becomes github through projection/,
-  );
-  await ops.execute("github.project", {
-    planId: plan.id,
-    repository: "example/code",
-  });
-  assert.deepEqual(
-    github.created.map((item) => item.title),
-    ["Task shared"],
-  );
-  assert.equal(pendingProjection(byLocal("shared")), false);
-});
-
 test("a repository that names nobody defaults to write permission", () => {
   const policy = (entry) =>
     normalizeGitHubPolicy({
@@ -617,7 +375,7 @@ test("a repository that names nobody defaults to write permission", () => {
       repositories: {
         "example/app": {
           baseBranch: "main",
-          rules: [{ id: "go", action: "deliver", labelsAll: ["go"] }],
+          rules: [{ id: "go", action: "pause", labelsAll: ["go"] }],
           ...entry,
         },
       },
@@ -656,7 +414,7 @@ test("allowedActors alone decides without reading permissions", async () => {
     },
     rule = {
       id: "go",
-      action: "deliver",
+      action: "pause",
       labelsAll: ["go"],
       labelsAny: [],
       labelsNone: [],
@@ -705,52 +463,6 @@ test("allowedActors alone decides without reading permissions", async () => {
   );
 });
 
-test("intake on a read-only repository holds the issue instead of failing", async (t) => {
-  const github = new FakeGitHub(),
-    { store, ops } = await workspace(t, github);
-  github.permissions.set("maintainer", "write");
-  github.issues = [issue(["bot:build", "area:core"])];
-  github.events.set(7, [
-    labeled(1, "bot:build", "maintainer", 1),
-    labeled(2, "area:core", "maintainer", 2),
-  ]);
-  const first = await ops.execute("github.sync"),
-    taskId = first.authorized[0].taskId;
-  // The token loses write: GitHub refuses the permission read.
-  github.permission = noPush;
-  const synced = await ops.execute("github.sync");
-  assert.equal(synced.authorized.length, 0);
-  assert.equal(synced.unchecked.length, 1);
-  assert.equal(synced.unchecked[0].number, 7);
-  assert.match(synced.unchecked[0].reason, /write access/);
-  const task = store.read().tasks.find((item) => item.id === taskId);
-  assert.equal(task.dispatch.ready, false);
-  assert.match(task.dispatch.reason, /write access/);
-  assert.deepEqual(github.writes, []);
-  // One decision notice for a new set, none while it stays the same.
-  const [notice] = uncheckedNotice(first, synced);
-  assert.equal(notice.channel, "decision");
-  assert.match(notice.title, /can't check who counts on example\/code/);
-  assert.deepEqual(uncheckedNotice(synced, synced), []);
-});
-
-test("intake with only allowedActors runs on a read-only repository", async (t) => {
-  const github = new FakeGitHub(),
-    policy = structuredClone(SINGLE_REPO);
-  policy.repositories["example/code"].minimumPermission = undefined;
-  delete policy.repositories["example/code"].minimumPermission;
-  const { ops } = await workspace(t, github, policy);
-  github.permission = noPush;
-  github.issues = [issue(["bot:build", "area:core"])];
-  github.events.set(7, [
-    labeled(1, "bot:build", "maintainer", 1),
-    labeled(2, "area:core", "maintainer", 2),
-  ]);
-  const synced = await ops.execute("github.sync");
-  assert.equal(synced.authorized.length, 1);
-  assert.deepEqual(synced.unchecked, []);
-});
-
 test("intake makes one search per repository for all its rules", async (t) => {
   const github = new FakeGitHub(),
     { ops } = await workspace(t, github);
@@ -774,25 +486,6 @@ test("intake makes one search per repository for all its rules", async (t) => {
   assert.equal(github.searches, 1);
   assert.deepEqual(github.searchedLabels, ["bot:build", "bot:hold"]);
   assert.deepEqual(read, [7]);
-});
-
-test("an authorized issue the search misses is read directly before it is withdrawn", async (t) => {
-  const github = new FakeGitHub(),
-    { ops } = await workspace(t, github);
-  github.permissions.set("maintainer", "write");
-  const open = issue(["bot:build", "area:core"]);
-  github.issues = [open];
-  github.events.set(7, [
-    labeled(1, "bot:build", "maintainer", 1),
-    labeled(2, "area:core", "maintainer", 2),
-  ]);
-  await ops.execute("github.sync");
-  // Search lags behind GitHub: the issue is still open and labeled.
-  github.issues = [];
-  github.issue = () => Promise.resolve(structuredClone(open));
-  const synced = await ops.execute("github.sync");
-  assert.equal(synced.withdrawn.length, 0);
-  assert.equal(synced.authorized.length, 1);
 });
 
 test("the tick backs off quiet repositories and reads again on a change", async (t) => {

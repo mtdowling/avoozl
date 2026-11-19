@@ -33,13 +33,11 @@ import { FLOW_PATHS } from "../flow.mjs";
 import { BEHAVIOR_NAMES } from "../github-label-behaviors.mjs";
 import {
   CREW_LABEL_KEYS,
-  FIELD_KEYS,
   GITHUB_BLOCK_KEYS,
   LEGACY_KEYS,
   MANAGED_LABEL_KEYS,
   POLICY_KEYS,
   RADAR_KEYS,
-  STATUS_VALUE_KEYS,
 } from "../github-policy.mjs";
 import { SOURCE_KEYS } from "../intake.mjs";
 import { SERVE_KEYS } from "../serve-config.mjs";
@@ -119,11 +117,6 @@ const PAIRS = [
   ["#/$defs/project/properties/sandbox", SANDBOX_KEYS],
   ["#/$defs/planningRepository", PLANNING_REPOSITORY_KEYS],
   ["#/$defs/github", [...LEGACY_KEYS, ...POLICY_KEYS]],
-  ["#/$defs/github/properties/subIssues", GITHUB_BLOCK_KEYS.subIssues],
-  ["#/$defs/github/properties/issues", GITHUB_BLOCK_KEYS.issues],
-  ["#/$defs/githubProject", GITHUB_BLOCK_KEYS.project],
-  ["#/$defs/githubProject/properties/fields", FIELD_KEYS],
-  ["#/$defs/githubProject/properties/statusValues", STATUS_VALUE_KEYS],
   ["#/$defs/githubRule", GITHUB_BLOCK_KEYS.rule],
   ["#/$defs/githubIssueIntake", ISSUE_INTAKE_KEYS],
   ["#/$defs/githubQueueRepository", QUEUE_KEYS],

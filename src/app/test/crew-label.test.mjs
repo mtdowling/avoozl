@@ -206,7 +206,7 @@ test("Settings refuses crew:avoozl as the name of any other label", () => {
     { crewLabels: { claim: "crew:avoozl" } },
     { crewLabels: { needsHuman: "CREW:AVOOZL" } },
     {
-      rules: [{ id: "go", labelsAll: ["crew:avoozl"], action: "plan" }],
+      rules: [{ id: "go", labelsAll: ["crew:avoozl"], action: "pause" }],
     },
   ])
     assert.throws(

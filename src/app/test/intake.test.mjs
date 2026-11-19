@@ -47,7 +47,7 @@ test("a rule takes one source: term; none means GitHub; a filter refuses it", ()
   );
   const repository = policy({
     rules: [
-      { id: "go", action: "deliver", match: "label:go" },
+      { id: "go", action: "pause", match: "label:go" },
       { id: "t", action: "deliver", match: "label:go source:tickets" },
     ],
   });
