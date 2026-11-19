@@ -25,7 +25,8 @@ fs.mkdirSync(out, { recursive: true })
 const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
 const browser = await launch(chrome)
 const TOP = `[...document.querySelectorAll('dialog[data-modal]')].at(-1)`
-const clickText = (selector, text) => `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((b) => (b.getAttribute('aria-label') || b.textContent).trim().startsWith(${JSON.stringify(text)})); b?.click(); return Boolean(b) })()`
+const clickText = (selector, text) =>
+  `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((b) => (b.getAttribute('aria-label') || b.textContent).trim().startsWith(${JSON.stringify(text)})); b?.click(); return Boolean(b) })()`
 try {
   const page = await browser.page()
   const settle = (ms = 500) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
@@ -39,7 +40,9 @@ try {
     if (phone(width)) {
       await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
       await settle()
-      await page.evaluate(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head], [data-top-rail-list] [data-nav-item]')].find((t) => t.textContent.includes(${JSON.stringify(label)})).click()`)
+      await page.evaluate(
+        `[...document.querySelectorAll('[data-top-rail-list] [data-nav-head], [data-top-rail-list] [data-nav-item]')].find((t) => t.textContent.includes(${JSON.stringify(label)})).click()`,
+      )
       await settle()
       if (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
     } else await page.evaluate(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(label)})).click()`)
@@ -71,7 +74,9 @@ try {
         await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`, 30000)
       }
-      await page.evaluate(`(() => { const h = document.querySelector('${scope} [data-nav-head][data-nav-group="dashboard"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`)
+      await page.evaluate(
+        `(() => { const h = document.querySelector('${scope} [data-nav-head][data-nav-group="dashboard"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`,
+      )
       await page.until(`Boolean(document.querySelector('${scope} [data-nav-item="dashboard/delivery"]'))`, 30000)
       await page.evaluate(`document.querySelector('${scope} [data-nav-item="dashboard/delivery"]').click()`)
       await page.until(`Boolean(document.querySelector('[data-stop-line]'))`, 30000)

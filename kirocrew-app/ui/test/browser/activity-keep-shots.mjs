@@ -36,9 +36,12 @@ try {
       await page.evaluate(sleep(1200))
       // The nav's scope: the left nav on a desktop, the open menu on a phone.
       const scope = box.width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
-      if (box.width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+      if (box.width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
       await page.evaluate(sleep(200))
-      await page.evaluate(`(() => { const b = [...document.querySelectorAll('${scope} [data-nav-head]')].find((x) => x.textContent.includes('Activity')); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`)
+      await page.evaluate(
+        `(() => { const b = [...document.querySelectorAll('${scope} [data-nav-head]')].find((x) => x.textContent.includes('Activity')); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`,
+      )
       await page.until(`Boolean(document.getElementById('avoozl-activity-keep') && !document.getElementById('avoozl-activity-keep').disabled)`)
       const shoot = async (state) => {
         await page.evaluate(scrollDown)
@@ -50,18 +53,38 @@ try {
         console.log(file)
       }
       await page.until(`Boolean(document.getElementById('avoozl-activity-keep'))`)
-      await page.evaluate(`(() => { for (let e = document.getElementById('avoozl-activity-keep'); e; e = e.parentElement) if (e.scrollHeight > e.clientHeight + 1 && getComputedStyle(e).overflowY !== 'visible') return true })()`)
+      await page.evaluate(
+        `(() => { for (let e = document.getElementById('avoozl-activity-keep'); e; e = e.parentElement) if (e.scrollHeight > e.clientHeight + 1 && getComputedStyle(e).overflowY !== 'visible') return true })()`,
+      )
       await page.evaluate(type('14'))
       await page.evaluate(sleep(300))
       const early = await page.evaluate(`document.querySelector('[data-activity-keep]').textContent`)
       await page.evaluate(sleep(1200))
       await shoot('saved')
-      console.log(size, theme, 'after 300 ms:', JSON.stringify(early), 'after 1.5 s:', JSON.stringify(await page.evaluate(`document.querySelector('[data-activity-keep]').textContent`)))
+      console.log(
+        size,
+        theme,
+        'after 300 ms:',
+        JSON.stringify(early),
+        'after 1.5 s:',
+        JSON.stringify(await page.evaluate(`document.querySelector('[data-activity-keep]').textContent`)),
+      )
       await page.evaluate(type('500'))
       await page.evaluate(sleep(1200))
       await shoot('invalid')
-      console.log(await page.evaluate(`(() => { const e = document.getElementById('avoozl-activity-keep-error'); const r = e.getBoundingClientRect(); const c = getComputedStyle(e); const i = document.getElementById('avoozl-activity-keep').getBoundingClientRect(); return JSON.stringify([i.y, i.height, r.x, r.y, r.width, r.height, c.color, c.display, c.visibility, c.opacity]) })()`))
-      console.log(size, theme, 'invalid:', JSON.stringify(await page.evaluate(`document.querySelector('[data-activity-keep]').textContent`)), 'save buttons:', await page.evaluate(`[...document.querySelectorAll('[data-activity-keep] button')].length`))
+      console.log(
+        await page.evaluate(
+          `(() => { const e = document.getElementById('avoozl-activity-keep-error'); const r = e.getBoundingClientRect(); const c = getComputedStyle(e); const i = document.getElementById('avoozl-activity-keep').getBoundingClientRect(); return JSON.stringify([i.y, i.height, r.x, r.y, r.width, r.height, c.color, c.display, c.visibility, c.opacity]) })()`,
+        ),
+      )
+      console.log(
+        size,
+        theme,
+        'invalid:',
+        JSON.stringify(await page.evaluate(`document.querySelector('[data-activity-keep]').textContent`)),
+        'save buttons:',
+        await page.evaluate(`[...document.querySelectorAll('[data-activity-keep] button')].length`),
+      )
     }
   if (page.errors.length) console.error(page.errors.join('\n'))
 } finally {

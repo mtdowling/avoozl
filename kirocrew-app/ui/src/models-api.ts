@@ -35,7 +35,22 @@ export interface RoleRow {
 export type RoleTable = Partial<Record<Role, RoleRow>>
 // What each role may do to files: the worker writes code and the planner
 // writes spec files; the others only read.
-export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = { worker: 'write', falsifier: 'read', planner: 'write', planReviewer: 'read', retro: 'read', reviewDraft: 'read', verifier: 'read', reviewer: 'read', responder: 'read', taskSummary: 'read', issuePlanner: 'write', planAnswer: 'write', prReview: 'read', assist: 'read' }
+export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = {
+  worker: 'write',
+  falsifier: 'read',
+  planner: 'write',
+  planReviewer: 'read',
+  retro: 'read',
+  reviewDraft: 'read',
+  verifier: 'read',
+  reviewer: 'read',
+  responder: 'read',
+  taskSummary: 'read',
+  issuePlanner: 'write',
+  planAnswer: 'write',
+  prReview: 'read',
+  assist: 'read',
+}
 // The Kiro Crew chat; any other harness is a supervisor child.
 export const KIROCREW_HARNESS = 'kirocrew'
 // The agent each agent role opens on when none is picked.
@@ -98,8 +113,7 @@ export function modelsClient(api: AppApi) {
     api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId }).then((reply) => reply.result)
   return {
     get: (workspaceId: string) => run<ModelSettings>(workspaceId, 'models.settings.get'),
-    save: (workspaceId: string, roles: RoleTable, expectedHash: string) =>
-      run<ModelSettings>(workspaceId, 'models.settings.update', { roles: toRoles(roles), expectedHash }),
+    save: (workspaceId: string, roles: RoleTable, expectedHash: string) => run<ModelSettings>(workspaceId, 'models.settings.update', { roles: toRoles(roles), expectedHash }),
     list: () => api.get<unknown>('/api/models').then(parseModels),
   }
 }

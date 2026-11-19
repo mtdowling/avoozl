@@ -10,7 +10,6 @@ import { linkHref } from './views-api.ts'
 import { StatTile, StatTileStyle } from './ui/StatTile'
 import { HomeCss } from './ui/PageStyles'
 
-
 export function HomeStyle() {
   return (
     <>
@@ -57,11 +56,7 @@ export function HomeSection({ id, title, hint, children }: { id: string; title: 
 }
 
 export function HomePair({ id, children }: { id: string; children: ReactNode }) {
-  return (
-    <div data-home-pair={id}>
-      {children}
-    </div>
-  )
+  return <div data-home-pair={id}>{children}</div>
 }
 
 export function HomeBox({ children }: { children: ReactNode }) {

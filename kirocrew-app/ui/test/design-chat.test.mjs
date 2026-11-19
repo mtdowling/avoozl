@@ -4,14 +4,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
-import {
-  DESIGN_PLUGIN_TIP,
-  DESIGN_RULES_TIP,
-  PLUGIN_GUIDE,
-  PLUGIN_GUIDE_TIP,
-  pluginDesignMessage,
-  rulesDesignMessage,
-} from '../src/design-chat.ts'
+import { DESIGN_PLUGIN_TIP, DESIGN_RULES_TIP, PLUGIN_GUIDE, PLUGIN_GUIDE_TIP, pluginDesignMessage, rulesDesignMessage } from '../src/design-chat.ts'
 
 const src = new URL('../src/', import.meta.url)
 const source = (name) => readFileSync(new URL(name, src), 'utf8')

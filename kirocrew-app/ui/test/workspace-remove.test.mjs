@@ -16,7 +16,10 @@ test('the confirm names the folder, says nothing is deleted, and asks to stop a 
   const on = { name: 'Nupp plans', root: '/plans/nupp', enabled: true, state: 'closed' }
   const lines = removeLines(on)
   assert.match(lines.join(' '), /off Avoozl's list/)
-  assert.ok(lines.some((line) => line.includes('/plans/nupp')), 'names the folder')
+  assert.ok(
+    lines.some((line) => line.includes('/plans/nupp')),
+    'names the folder',
+  )
   assert.match(lines.join(' '), /Its folder stays, with its database and repositories/)
   assert.match(lines.join(' '), /Nothing is deleted/)
   assert.match(lines.at(-1), /Stop it first/)
@@ -52,7 +55,12 @@ async function openRemove(width, dark, query = {}) {
   await wait()
 }
 
-for (const [width, dark] of [[1280, false], [1280, true], [390, false], [390, true]])
+for (const [width, dark] of [
+  [1280, false],
+  [1280, true],
+  [390, false],
+  [390, true],
+])
   test(`Remove is red at the left of the edit dialog's footer and asks first at ${width} px ${dark ? 'dark' : 'light'}`, { skip }, async () => {
     await openRemove(width, dark)
     const footer = await page.evaluate(`(() => {
@@ -109,5 +117,8 @@ test('a workspace that is already off has no Stop it first', { skip }, async () 
   await openRemove(1280, false, { stopped: '1' })
   await click('[data-remove-workspace]')
   await page.until(`Boolean(document.querySelector('[data-remove-workspace-confirm]'))`)
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-remove-workspace-confirm] [data-modal-footer] button')].map((b) => b.textContent.trim())`), ['Cancel', 'Remove from list'])
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-remove-workspace-confirm] [data-modal-footer] button')].map((b) => b.textContent.trim())`), [
+    'Cancel',
+    'Remove from list',
+  ])
 })

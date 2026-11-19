@@ -1,0 +1,6 @@
+# Commits that only reformat code. Use with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub's blame view reads this file on its own.
+
+# Replace Prettier with the Biome formatter and format the whole repo (#687)
+3ed29ade13ef3c4883814b5b1d845d5a488a05b6

@@ -263,7 +263,7 @@ export interface PlanRow {
   epic?: string | null
   epicTitle?: string | null
   // An epic folder's member plans, in its order.
-  members?: { key: string; plan: string; summary: string; title: string }[]
+  members?: { key: string; plan: string; prose: string; title: string }[]
   lastChange: string | null
   // Set while the plan is archived (plan.archive); older backends omit it.
   archived?: { at: string; by: string | null } | null
@@ -326,11 +326,7 @@ export function changeMessage(row: PlanRow): string {
 }
 
 export function plansClient(api: AppApi) {
-  const run = async <T>(
-    workspaceId: string,
-    operation: string,
-    input: Record<string, unknown> = {},
-  ): Promise<T> => {
+  const run = async <T>(workspaceId: string, operation: string, input: Record<string, unknown> = {}): Promise<T> => {
     const reply = await api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId })
     return reply.result
   }
@@ -345,35 +341,26 @@ export function plansClient(api: AppApi) {
     // A spec folder's requirements (or bugfix), design and tasks, to read.
     documents: (workspaceId: string, name: string) => run<SpecDocuments>(workspaceId, 'plan.spec.read', { name }),
     // An older stored plan's Markdown body.
-    text: (workspaceId: string, id: string) =>
-      run<{ id: string; title: string | null; text: string | null }>(workspaceId, 'plan.get', { id }).then((plan) => plan.text ?? ''),
+    text: (workspaceId: string, id: string) => run<{ id: string; title: string | null; text: string | null }>(workspaceId, 'plan.get', { id }).then((plan) => plan.text ?? ''),
     // Store the folder on disk as a draft plan named after it.
     store: (workspaceId: string, spec: string) => run<SpecPlan>(workspaceId, 'plan.create', { spec }),
-    reload: (workspaceId: string, id: string, expectedHash: string) =>
-      run<SpecPlan>(workspaceId, 'plan.save', { id, expectedHash }),
+    reload: (workspaceId: string, id: string, expectedHash: string) => run<SpecPlan>(workspaceId, 'plan.save', { id, expectedHash }),
     preview,
     // Archive a plan, or bring it back (plan.archive, plan.unarchive). Both
     // are reversible and only a person calls them.
-    archive: (workspaceId: string, id: string) =>
-      run<{ id: string; held: number; running: number; decisions: number }>(workspaceId, 'plan.archive', { id }),
-    unarchive: (workspaceId: string, id: string) =>
-      run<{ id: string; released: number; decisions: number }>(workspaceId, 'plan.unarchive', { id }),
+    archive: (workspaceId: string, id: string) => run<{ id: string; held: number; running: number; decisions: number }>(workspaceId, 'plan.archive', { id }),
+    unarchive: (workspaceId: string, id: string) => run<{ id: string; released: number; decisions: number }>(workspaceId, 'plan.unarchive', { id }),
     // What deleting a plan would do (plan.delete.preview); writes nothing.
     deletePreview: (workspaceId: string, id: string) => run<DeletePreview>(workspaceId, 'plan.delete.preview', { id }),
     // Delete it. A plan with an approved revision needs retire: true, sent
     // only after the person confirmed the dialog that says what happens.
-    remove: (workspaceId: string, id: string, input: { retire: boolean; deleteSpecFolder: boolean }) =>
-      run<DeleteResult>(workspaceId, 'plan.delete', { id, ...input }),
+    remove: (workspaceId: string, id: string, input: { retire: boolean; deleteSpecFolder: boolean }) => run<DeleteResult>(workspaceId, 'plan.delete', { id, ...input }),
     // Extra code-fence grammars the workspace names (.avoozl.json
     // highlight.languages), as data for highlight.ts.
     languages: (workspaceId: string) =>
-      run<{ languages: Record<string, { tokens: { type: string; pattern: string; flags?: string }[] }>; problems: string[] }>(
-        workspaceId,
-        'highlight.languages',
-      ),
+      run<{ languages: Record<string, { tokens: { type: string; pattern: string; flags?: string }[] }>; problems: string[] }>(workspaceId, 'highlight.languages'),
     // Every GitHub write projecting this approved plan would make; none is made.
-    projection: (workspaceId: string, planId: string) =>
-      run<ProjectionPreview>(workspaceId, 'github.project.preview', { planId }),
+    projection: (workspaceId: string, planId: string) => run<ProjectionPreview>(workspaceId, 'github.project.preview', { planId }),
     // Approve exactly the revision the user is looking at. The backend refuses
     // a changed hash, a changed database, or a folder that moved on disk.
     // Draft specs in the order they can be approved (plan.approvalBatches).
@@ -472,12 +459,13 @@ export function revisionChange(
   from: { hash: string; files?: Record<string, string> | null; review?: PlanReviewSummary | null },
   to: { hash: string; files?: Record<string, string> | null; review?: PlanReviewSummary | null },
 ): RevisionChange {
-  const files = from.files && to.files
-    ? revisionDiff(from.files, to.files).map(({ file, diff }) => {
-        const lines = diff.split('\n')
-        return { file, added: lines.filter((line) => line.startsWith('+')).length, removed: lines.filter((line) => line.startsWith('-')).length }
-      })
-    : []
+  const files =
+    from.files && to.files
+      ? revisionDiff(from.files, to.files).map(({ file, diff }) => {
+          const lines = diff.split('\n')
+          return { file, added: lines.filter((line) => line.startsWith('+')).length, removed: lines.filter((line) => line.startsWith('-')).length }
+        })
+      : []
   const before = new Map((from.review?.open ?? []).map((finding) => [finding.id, finding]))
   const after = to.review?.open ?? []
   return {
@@ -492,10 +480,9 @@ export function revisionChange(
 // "2 blocker · 3 warn · 1 info · 1 for you": severities, then states, each
 // left out at zero.
 export function reviewCounts(review?: PlanReviewSummary | null): string {
-  const parts = [
-    ...SEVERITIES.map((name) => [name, review?.bySeverity?.[name] ?? 0] as const),
-    ...STATES.map((name) => [name, review?.byState?.[name] ?? 0] as const),
-  ].filter(([, count]) => count > 0)
+  const parts = [...SEVERITIES.map((name) => [name, review?.bySeverity?.[name] ?? 0] as const), ...STATES.map((name) => [name, review?.byState?.[name] ?? 0] as const)].filter(
+    ([, count]) => count > 0,
+  )
   return parts.length ? parts.map(([name, count]) => `${count} ${name}`).join(' · ') : 'No findings'
 }
 
@@ -572,8 +559,7 @@ export function documentTabs(docs: SpecDocuments | null): { file: string; label:
 
 export const shortHash = (hash: string | null | undefined) => (hash ? hash.slice(0, 12) : '—')
 
-export const location = (diagnostic: Diagnostic) =>
-  `${diagnostic.file ?? 'tasks.md'}:${diagnostic.lineStart}`
+export const location = (diagnostic: Diagnostic) => `${diagnostic.file ?? 'tasks.md'}:${diagnostic.lineStart}`
 
 // One short line for a spec folder's row.
 export function specStatus(spec: SpecSummary): string {
@@ -660,24 +646,19 @@ export function filterRows(rows: PlanRow[], filter: PlanListFilter, batchOf: Map
   return rows.filter(
     (row) =>
       (!row.archived || filter.archived) &&
-      (!text ||
-        row.name.toLowerCase().includes(text) ||
-        (row.spec ?? '').toLowerCase().includes(text) ||
-        (row.planId ?? '').toLowerCase().includes(text)) &&
+      (!text || row.name.toLowerCase().includes(text) || (row.spec ?? '').toLowerCase().includes(text) || (row.planId ?? '').toLowerCase().includes(text)) &&
       (!filter.category || (row.category ?? UNCATEGORIZED) === filter.category) &&
       (!filter.status || row.status === filter.status) &&
       (!filter.kind || row.kind === filter.kind) &&
       (!filter.epic || (row.epic ?? NO_EPIC) === filter.epic) &&
       (!filter.batch || (row.planId !== null && batchOf.get(row.planId) === Number(filter.batch))) &&
-      (!filter.has ||
-        (filter.has === 'ready' ? row.now.ready > 0 : filter.has === 'running' ? row.now.running > 0 : row.now.needsYou > 0)),
+      (!filter.has || (filter.has === 'ready' ? row.now.ready > 0 : filter.has === 'running' ? row.now.running > 0 : row.now.needsYou > 0)),
   )
 }
 
 // The values each Plans filter offers, from the rows.
 export function rowChoices(rows: PlanRow[]) {
-  const values = (pick: (row: PlanRow) => string) =>
-    [...new Set(rows.map(pick))].sort((a, b) => (a === UNCATEGORIZED ? 1 : b === UNCATEGORIZED ? -1 : a.localeCompare(b)))
+  const values = (pick: (row: PlanRow) => string) => [...new Set(rows.map(pick))].sort((a, b) => (a === UNCATEGORIZED ? 1 : b === UNCATEGORIZED ? -1 : a.localeCompare(b)))
   const epics = new Map<string, { value: string; label: string; count: number }>()
   for (const row of rows) {
     if (row.kind === 'epic') continue

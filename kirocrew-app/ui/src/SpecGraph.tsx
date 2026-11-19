@@ -44,7 +44,11 @@ export function SpecGraph(props: { graph: Graph | null; planId: string; only?: M
       data-spec-graph-tab={key}
       onClick={() => (key === 'tree' ? drill({ kind: 'spec', id: planId }) : setMode('frontier'))}
       className="h-6 cursor-pointer whitespace-nowrap rounded-sm border px-3 text-[11px]"
-      style={mode === key ? { borderColor: 'var(--border-strong, var(--border))', color: 'var(--accent)', background: 'var(--card)' } : { borderColor: 'transparent', color: 'var(--muted)', background: 'transparent' }}
+      style={
+        mode === key
+          ? { borderColor: 'var(--border-strong, var(--border))', color: 'var(--accent)', background: 'var(--card)' }
+          : { borderColor: 'transparent', color: 'var(--muted)', background: 'transparent' }
+      }
     >
       {label}
     </button>
@@ -56,7 +60,9 @@ export function SpecGraph(props: { graph: Graph | null; planId: string; only?: M
           Loading…
         </Hint>
       ) : graph.tasks.length === 0 ? (
-        <Hint as="p" size="sm">No task yet.</Hint>
+        <Hint as="p" size="sm">
+          No task yet.
+        </Hint>
       ) : (
         <>
           <Row gap={2}>

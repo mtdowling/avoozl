@@ -48,7 +48,9 @@ try {
       }
       const nav = async (group, item) => {
         await menu(true)
-        await page.evaluate(`(() => { const h = document.querySelector('${scope(width)} [data-nav-head][data-nav-group="${group}"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`)
+        await page.evaluate(
+          `(() => { const h = document.querySelector('${scope(width)} [data-nav-head][data-nav-group="${group}"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`,
+        )
         await wait(page, 200)
         await page.evaluate(`document.querySelector('${scope(width)} [data-nav-item="${group}/${item}"]')?.click()`)
         await wait(page, 500)
@@ -64,7 +66,9 @@ try {
       // A phone shows the menu with the filters first, then the page.
       if (width < 768) {
         await menu(true)
-        await page.evaluate(`(() => { const h = document.querySelector('${scope(width)} [data-nav-head][data-nav-group="dashboard"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`)
+        await page.evaluate(
+          `(() => { const h = document.querySelector('${scope(width)} [data-nav-head][data-nav-group="dashboard"]'); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`,
+        )
         await wait(page, 300)
         await shot('delivery-filters')
         await menu(false)

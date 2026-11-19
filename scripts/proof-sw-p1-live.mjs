@@ -32,6 +32,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { claudeBinaries } from "./real-claude.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = path.join(REPO, "cli.mjs");
@@ -80,7 +81,8 @@ P.proxyLog = path.join(ROOT, "proxy.log");
 // the run's own Claude config folder); set once, before the isolated home.
 let AGENT_ENV = null;
 function bedrockEnvironment() {
-  const claude = claudeBinary();
+  const { exportWith, child: claude } = binaries();
+  if (!exportWith || !claude) throw Error("Claude Code was not found.");
   const settings = JSON.parse(
     fs.readFileSync(
       path.join(realEnv.HOME ?? os.homedir(), ".claude", "settings.json"),
@@ -88,7 +90,9 @@ function bedrockEnvironment() {
     ),
   );
   const creds = JSON.parse(
-    execFileSync(claude, ["default-credential-export"], {
+    // The person's own command, in the person's own environment: the login
+    // that issues the keys is theirs, as in nk-p1.
+    execFileSync(exportWith, ["default-credential-export"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
       env: realEnv,
@@ -109,6 +113,8 @@ function bedrockEnvironment() {
 }
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const results = [];
+// A step that cannot go on ends the run, with its failure recorded.
+class ProofAbort extends Error {}
 
 function isolate() {
   for (const name of Object.keys(process.env))
@@ -138,15 +144,22 @@ const cli = (...args) =>
   });
 const imp = (file) => import(pathToFileURL(path.join(REPO, file)).href);
 
-function claudeBinary() {
-  if (process.env.SWP1_CLAUDE) return process.env.SWP1_CLAUDE;
-  const found = spawnSync("command -v claude", {
-    shell: true,
-    encoding: "utf8",
-    env: realEnv,
-  }).stdout.trim();
-  return found || null;
+// Which binary exports the credentials and which one the child runs.
+function binaries() {
+  const onPath =
+    spawnSync("command -v claude", {
+      shell: true,
+      encoding: "utf8",
+      env: realEnv,
+    }).stdout.trim() || null;
+  return claudeBinaries({
+    named: realEnv.SWP1_CLAUDE || null,
+    onPath,
+    home: realEnv.HOME ?? os.homedir(),
+  });
 }
+// The real binary, for the sandboxed child.
+const claudeBinary = () => binaries().child;
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -246,7 +259,14 @@ async function setup(port) {
     bytes = JSON.stringify(definition, null, 2) + "\n";
   } else {
     name = "fake-cli";
-    fs.writeFileSync(path.join(ROOT, "fake-agent.mjs"), FAKE_AGENT);
+    // SWP1_FAKE_FAIL=1 makes the scripted agent exit 3 with no report, to check
+    // that the proof fails fast on a worker that ends that way.
+    fs.writeFileSync(
+      path.join(ROOT, "fake-agent.mjs"),
+      process.env.SWP1_FAKE_FAIL
+        ? 'console.error("scripted failure"); process.exit(3);\n'
+        : FAKE_AGENT,
+    );
     bytes = JSON.stringify({
       name,
       start: [process.execPath, path.join(ROOT, "fake-agent.mjs")],
@@ -508,17 +528,62 @@ async function step2(page, port, machine) {
     height: 900,
     dark: false,
   });
+  // The task lands on the bare remote, unless its worker ends first: a worker
+  // that exits non-zero, or exits and no done report lands the task within two
+  // minutes, fails the proof now instead of after the long wait.
+  const { machineStatus } = await imp("src/app/machine-status.mjs");
+  let failure = null,
+    exitedAt = null;
+  const workerFailed = () => {
+    const workers = machineStatus({
+      stateDirectory: machine.stateDirectory,
+    }).children.filter((child) => child.role === "worker");
+    const ended = workers.find((child) => child.state === "exited");
+    if (!ended || workers.some((child) => child.state !== "exited")) {
+      exitedAt = null;
+      return null;
+    }
+    exitedAt ??= Date.now();
+    if (ended.exitCode !== 0 || Date.now() - exitedAt > 120_000) {
+      const log = path.join(
+        machine.stateDirectory,
+        "supervisor",
+        "children",
+        ended.sessionId,
+        "log",
+      );
+      let tail = "";
+      try {
+        tail = fs.readFileSync(log, "utf8").slice(-800);
+      } catch {
+        // No log to show.
+      }
+      return {
+        exitCode: ended.exitCode,
+        reason:
+          ended.exitCode !== 0
+            ? `the worker exited with code ${ended.exitCode}`
+            : "the worker exited without a done report that landed the task",
+        logTail: tail,
+      };
+    }
+    return null;
+  };
   const row = await until(
     "the worker's In flight row",
-    () =>
-      page.evaluate(
+    async () => {
+      // A worker that has already failed ends the wait.
+      failure = workerFailed();
+      if (failure) return "failed";
+      return page.evaluate(
         "document.querySelector('[data-in-flight-row]') ? document.querySelector('[data-process-log]')?.textContent ?? 'row' : null",
-      ),
+      );
+    },
     { timeoutMs: 10 * 60_000, everyMs: 3000 },
   ).catch(() => null);
   event("step2.row", { seen: row !== null });
   let queued = false;
-  if (row !== null) {
+  if (row !== null && !failure) {
     await page.evaluate(
       "document.querySelector('[data-in-flight-row] button[aria-label^=\"Send message\"]')?.click(); true",
     );
@@ -539,19 +604,32 @@ async function step2(page, port, machine) {
     ).catch(() => false);
     await page.screenshot(path.join(P.shots, "in-flight.png"));
   }
-  // The task lands on the bare remote.
   const landed = await until(
     "the task to land",
     () => {
       try {
         git(P.checkout, "fetch", "-q", "origin");
-        return git(P.checkout, "show", `origin/main:${TASK[1]}`) === TASK[2];
+        if (git(P.checkout, "show", `origin/main:${TASK[1]}`) === TASK[2])
+          return true;
       } catch {
-        return false;
+        // Not landed yet.
       }
+      failure = workerFailed();
+      return Boolean(failure);
     },
     { timeoutMs: 30 * 60_000, everyMs: 5000 },
-  ).catch(() => false);
+  ).then(
+    () => !failure,
+    () => false,
+  );
+  if (failure) {
+    record("2 the task lands and the message reaches the child", false, {
+      sawRow: row !== null,
+      queued,
+      ...failure,
+    });
+    throw new ProofAbort(failure.reason);
+  }
   // The message reached the child: a message file in its folder.
   const children = path.join(machine.stateDirectory, "supervisor", "children");
   const delivered = await until(
@@ -806,6 +884,88 @@ async function step5(page, port, supervisor, machine, restart) {
 
 // ── Main ─────────────────────────────────────────────────────────────────
 
+// One real model turn, the way the proof's child runs: the real binary, an
+// isolated HOME and Claude config folder, the Bedrock keys from the person's
+// export, and only the loopback proxy for the network. Prints what failed.
+async function claudeAnswers() {
+  let env;
+  try {
+    env = bedrockEnvironment();
+  } catch (error) {
+    console.log(
+      `  the credential export failed: ${error.message.split("\n")[0]}`,
+    );
+    return false;
+  }
+  const claude = binaries().child;
+  const home = fs.mkdtempSync(path.join(tmp, "swp1-claude-"));
+  const proxyLog = path.join(home, "proxy.log");
+  const proxy = spawn(
+    process.execPath,
+    [
+      path.join(REPO, "scripts", "live-proofs", "p57-model-proxy.mjs"),
+      String(PROXY_PORT),
+      proxyLog,
+    ],
+    { stdio: "ignore" },
+  );
+  try {
+    await sleep(1000);
+    const isolated = {
+      ...Object.fromEntries(
+        Object.entries(realEnv).filter(
+          ([name]) =>
+            !/^(KIROCREW|AVOOZL|AICOMMANDER|NUPP_WORKSPACE|AWS_|ANTHROPIC)/.test(
+              name,
+            ),
+        ),
+      ),
+      ...env,
+      HOME: home,
+      USERPROFILE: home,
+      XDG_CONFIG_HOME: path.join(home, "config"),
+      XDG_STATE_HOME: path.join(home, "state"),
+      CLAUDE_CONFIG_DIR: path.join(home, "claude-config"),
+    };
+    fs.mkdirSync(isolated.CLAUDE_CONFIG_DIR, { recursive: true });
+    const ran = await new Promise((resolve) => {
+      const child = spawn(
+        claude,
+        ["-p", "--model", MODEL, "Reply with the single word ok."],
+        { cwd: home, env: isolated, stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let out = "",
+        err = "";
+      child.stdout.on("data", (chunk) => (out += chunk));
+      child.stderr.on("data", (chunk) => (err += chunk));
+      const timer = setTimeout(() => child.kill("SIGKILL"), 180_000);
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        resolve({ code, out, err });
+      });
+      child.on("error", (error) => {
+        clearTimeout(timer);
+        resolve({ code: -1, out, err: error.message });
+      });
+    });
+    if (ran.code === 0 && /\bok\b/i.test(ran.out)) return true;
+    console.log(`  claude -p exited ${ran.code}:`);
+    for (const line of `${ran.err}\n${ran.out}`.trim().split("\n").slice(-8))
+      console.log(`    ${line}`);
+    if (fs.existsSync(proxyLog))
+      for (const line of fs
+        .readFileSync(proxyLog, "utf8")
+        .trim()
+        .split("\n")
+        .slice(-4))
+        console.log(`    proxy: ${line}`);
+    return false;
+  } finally {
+    proxy.kill("SIGTERM");
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+}
+
 async function preflight() {
   const checks = [
     [
@@ -836,7 +996,7 @@ async function preflight() {
     ...(AGENT === "claude"
       ? [
           [
-            "the Claude Code binary (SWP1_CLAUDE or PATH)",
+            "the real Claude Code binary (SWP1_CLAUDE, PATH or ~/.toolbox/tools/claude-code)",
             Boolean(claudeBinary()),
           ],
           [
@@ -848,17 +1008,6 @@ async function preflight() {
                 "settings.json",
               ),
             ),
-          ],
-          [
-            "`claude default-credential-export` gives short-lived keys",
-            (() => {
-              try {
-                bedrockEnvironment();
-                return true;
-              } catch {
-                return false;
-              }
-            })(),
           ],
           [
             "sandbox-exec works here (a terminal outside Kiro Crew)",
@@ -875,7 +1024,16 @@ async function preflight() {
   ];
   for (const [what, ok] of checks)
     console.log(`${ok ? "ok     " : "MISSING"} ${what}`);
-  return checks.every(([, ok]) => ok);
+  if (AGENT !== "claude") return checks.every(([, ok]) => ok);
+  const { exportWith, child } = binaries();
+  console.log(`        credential export with ${exportWith ?? "(none)"}`);
+  console.log(`        the child runs ${child ?? "(none)"}`);
+  // Last, since it spends one small model turn.
+  const answered = await claudeAnswers();
+  console.log(
+    `${answered ? "ok     " : "FAILED "} one \`claude -p\` turn under the isolated environment, through the proxy`,
+  );
+  return answered && checks.every(([, ok]) => ok);
 }
 
 async function prove() {
@@ -921,6 +1079,9 @@ async function prove() {
     await step3(page, port, machine);
     await step4(page, port);
     supervisor = await step5(page, port, supervisor, machine, startSupervisor);
+  } catch (error) {
+    if (!(error instanceof ProofAbort)) throw error;
+    event("abort", { reason: error.message });
   } finally {
     await browser.close();
     await stopSupervisor(supervisor);

@@ -23,7 +23,7 @@ export function desiredFields(task, blockedBy) {
   return {
     title: task.title || task.id,
     section: [
-      task.summary || "",
+      task.prose || "",
       acceptance.length
         ? "Acceptance:\n" + acceptance.map((line) => "- " + line).join("\n")
         : "",

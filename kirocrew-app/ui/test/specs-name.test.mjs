@@ -79,13 +79,14 @@ export function phrases(text) {
   const jsx = []
   for (const match of body.matchAll(/'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g)) found.push(match[1] ?? match[2] ?? match[3])
   // JSX text next to an expression: `{n} plans<` or `>Plan: {name}`.
-  for (const match of body.matchAll(/[>}]([^<>{}]+)(?=[<{])/g))
-    if (!/[=('`"[\]]|\)\s*$|^\s*[,.)]/.test(match[1]) || /^\s*[.·]\s/.test(match[1])) jsx.push(match[1])
-  return found
-    .map((value) => dropInterpolations(value).replace(/\s+/g, ' ').trim())
-    .filter((value) => value && !CODE.test(value) && (/\s/.test(value) || /^[A-Z]/.test(value)))
-    // A lowercase `name:` is a type's field, not text.
-    .concat(jsx.map((value) => dropInterpolations(value).replace(/\s+/g, ' ').trim()).filter((value) => value && !/^[a-z]\w*\??:$/.test(value)))
+  for (const match of body.matchAll(/[>}]([^<>{}]+)(?=[<{])/g)) if (!/[=('`"[\]]|\)\s*$|^\s*[,.)]/.test(match[1]) || /^\s*[.·]\s/.test(match[1])) jsx.push(match[1])
+  return (
+    found
+      .map((value) => dropInterpolations(value).replace(/\s+/g, ' ').trim())
+      .filter((value) => value && !CODE.test(value) && (/\s/.test(value) || /^[A-Z]/.test(value)))
+      // A lowercase `name:` is a type's field, not text.
+      .concat(jsx.map((value) => dropInterpolations(value).replace(/\s+/g, ' ').trim()).filter((value) => value && !/^[a-z]\w*\??:$/.test(value)))
+  )
 }
 
 export const offending = (value) => {
@@ -96,8 +97,7 @@ export const offending = (value) => {
 
 test('the page shows no plan or plans word for a spec', () => {
   const found = []
-  for (const name of files)
-    for (const value of phrases(readFileSync(new URL(name, src), 'utf8'))) if (offending(value)) found.push(`${name}: ${value}`)
+  for (const name of files) for (const value of phrases(readFileSync(new URL(name, src), 'utf8'))) if (offending(value)) found.push(`${name}: ${value}`)
   assert.deepEqual(found, [])
   // A count's word is a one-word string, so check the plural pair by name.
   for (const name of files) assert.doesNotMatch(readFileSync(new URL(name, src), 'utf8'), /'plan' : 'plans'/, name)

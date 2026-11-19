@@ -1951,7 +1951,7 @@ try {
     const create = {};
     if (options.id) create.id = options.id;
     if (options.title) create.title = options.title;
-    if (options.summary) create.summary = options.summary;
+    if (options.prose) create.prose = options.prose;
     if (options.requires !== undefined)
       create.requires = options.requires
         .split(",")
@@ -1979,7 +1979,7 @@ try {
     for (const key of [
       "status",
       "title",
-      "summary",
+      "prose",
       "notes",
       "nextAction",
       "owner",

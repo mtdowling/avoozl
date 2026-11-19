@@ -19,7 +19,9 @@ function failedChecksOf(store, taskId) {
     return null;
   }
   const kept = delivery?.failedChecks;
-  if (delivery?.state !== "decision" || kept?.cause !== delivery.cause)
+  // A decision with no kept failed checks (the cause was not a failing check)
+  // has nothing to show; reading `kept.commit` there was a 500.
+  if (delivery?.state !== "decision" || !kept || kept.cause !== delivery.cause)
     return null;
   return {
     commit: kept.commit ?? null,
@@ -44,7 +46,7 @@ const specName = (task) => {
 };
 
 const textOf = (task) => ({
-  summary: typeof task.summary === "string" ? task.summary : null,
+  prose: typeof task.prose === "string" ? task.prose : null,
   acceptance: Array.isArray(task.acceptance)
     ? task.acceptance.map(String)
     : typeof task.acceptance === "string"

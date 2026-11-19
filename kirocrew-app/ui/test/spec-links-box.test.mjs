@@ -33,7 +33,10 @@ let browser, page
 const harnesses = {}
 before(async () => {
   if (skip) return
-  for (const [name, links] of [['full', specLinksFixture()], ['empty', noLinksFixture()]])
+  for (const [name, links] of [
+    ['full', specLinksFixture()],
+    ['empty', noLinksFixture()],
+  ])
     harnesses[name] = await buildHarness({ scripts: { 'demo.js': demoScript(await demoReplies({ plan: { id: 'meal-planner', with: { links } } })) } })
   browser = await launch(chrome)
   page = await browser.page()
@@ -59,7 +62,9 @@ async function openSpec(harness, width) {
   if (width < 768) await click(`document.querySelector('[data-top-rail-bar]')`)
   await page.until(`Boolean(document.querySelector('[data-plans-list]'))`)
   await click(button('Meal planner', `document.querySelector('[data-plans-list]')`))
-  await page.until(`Boolean(document.querySelector('[data-spec-links] [data-spec-link]') || document.querySelector('[data-spec-links-row="Spec issue"] dd')?.textContent === 'None')`)
+  await page.until(
+    `Boolean(document.querySelector('[data-spec-links] [data-spec-link]') || document.querySelector('[data-spec-links-row="Spec issue"] dd')?.textContent === 'None')`,
+  )
 }
 
 const read = () =>
@@ -82,7 +87,10 @@ for (const width of [1280, 390]) {
     assert.equal(box.rows['Working branch'], 'avoozl/meal-planner/work')
     assert.deepEqual(box.pulls, ['12', '14', '15'])
     assert.equal(box.rows['Radar issues'], 'example/radar#3')
-    assert.deepEqual(box.dots.map(([dot]) => dot), ['pass', 'pending', 'stale'])
+    assert.deepEqual(
+      box.dots.map(([dot]) => dot),
+      ['pass', 'pending', 'stale'],
+    )
     assert.match(box.dots[2][1], /older commit/)
     assert.ok(box.anchors.length >= 9)
     for (const a of box.anchors) {

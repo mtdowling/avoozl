@@ -86,7 +86,12 @@ for (const [width, height] of [
     // Tasks: the spec's whole tree, its four tasks and its live edges, then the list.
     await click('[data-spec-tab="tasks"]')
     await page.until(`Boolean(document.querySelector('[data-spec-graph] [data-focus-tree="spec:byte-types"]'))`)
-    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-spec-graph] [data-tree-node]')].map((n) => n.dataset.treeNode).sort()`), ['1.1', '1.2', '1.3', '1.4'])
+    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-spec-graph] [data-tree-node]')].map((n) => n.dataset.treeNode).sort()`), [
+      '1.1',
+      '1.2',
+      '1.3',
+      '1.4',
+    ])
     assert.match(await text('[data-spec-graph] [data-tree-stat]'), /4 nodes · 2 live edges/)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= window.innerWidth`), true)
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-phase-tasks] li').length`), 4)

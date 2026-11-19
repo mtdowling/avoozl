@@ -23,7 +23,9 @@ after(async () => {
 
 const HANDLE = `document.querySelector('[role="separator"][aria-label="Resize the side column"]')`
 const widths = () =>
-  page.evaluate(`({ side: Math.round(document.querySelector('[data-review-rail]').getBoundingClientRect().width), doc: Math.round(document.querySelector('[data-review-doc]').getBoundingClientRect().width), now: Number(${HANDLE}.getAttribute('aria-valuenow')) })`)
+  page.evaluate(
+    `({ side: Math.round(document.querySelector('[data-review-rail]').getBoundingClientRect().width), doc: Math.round(document.querySelector('[data-review-doc]').getBoundingClientRect().width), now: Number(${HANDLE}.getAttribute('aria-valuenow')) })`,
+  )
 
 async function openReview(size) {
   await page.open(harness.url({ page: 'specs', review: '1' }), size)

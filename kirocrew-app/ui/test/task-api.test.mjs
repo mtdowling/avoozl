@@ -1,18 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
-import {
-  duration,
-  emptyForm,
-  findCycle,
-  formFrom,
-  newTaskId,
-  relativeTime,
-  saveError,
-  sessionHref,
-  taskClient,
-  taskInput,
-} from '../src/task-api.ts'
+import { duration, emptyForm, findCycle, formFrom, newTaskId, relativeTime, saveError, sessionHref, taskClient, taskInput } from '../src/task-api.ts'
 
 const edge = (from, to, kind = 'requires') => ({ from, to, kind })
 
@@ -40,7 +29,7 @@ test('a new task is created as a draft with its prerequisites and kinds', () => 
       ...emptyForm(),
       id: 'new-task',
       title: ' New task ',
-      summary: 'Do it.',
+      prose: 'Do it.',
       acceptance: 'One\n\n Two ',
       checks: 'npm test',
       prerequisites: [
@@ -54,7 +43,7 @@ test('a new task is created as a draft with its prerequisites and kinds', () => 
   assert.deepEqual(input, {
     id: 'new-task',
     title: 'New task',
-    summary: 'Do it.',
+    prose: 'Do it.',
     acceptance: ['One', 'Two'],
     checks: ['npm test'],
     requires: ['a', { task: 'b', condition: 'integrated' }],
@@ -69,7 +58,7 @@ const detail = {
   task: {
     id: 't',
     title: 'T',
-    summary: 'S',
+    prose: 'S',
     acceptance: ['A'],
     checks: [],
     epic: 'e1',

@@ -54,8 +54,7 @@ export function unblockLine(item: ConflictItem): string | null {
   const more = dependents && dependents.total > names.length ? ` and ${dependents.total - names.length} more` : ''
   if (item.kind === 'review') return 'Each reviewed task may start when its other needs are met.'
   if (item.kind === 'plan-review') return 'Approval of this draft waits on the review or your skip.'
-  if (item.kind === 'ready-to-merge' || item.kind === 'branch-landing')
-    return names.length ? `Landing it starts: ${names.join(', ')}${more}.` : 'Landing it finishes this work.'
+  if (item.kind === 'ready-to-merge' || item.kind === 'branch-landing') return names.length ? `Landing it starts: ${names.join(', ')}${more}.` : 'Landing it finishes this work.'
   if (!item.taskId) return null
   if (names.length) return `${item.taskId} moves on, and then ${names.join(', ')}${more} can start.`
   return `${item.taskId} moves on. Nothing else waits on it.`
@@ -67,9 +66,9 @@ const range = (source: { lineStart: number | null; lineEnd: number | null }) =>
 // The snippet header: file path, then its lines when the record has them.
 export const sourceLine = (source: NonNullable<ItemContext['source']>) => [source.path, range(source)].filter(Boolean).join(' · ')
 
-// A task's text as lines: its title, summary and each acceptance line.
+// A task's text as lines: its title, its prose and each acceptance line.
 export function taskLines(title: string | null | undefined, text: TaskText | undefined): string[] {
-  return [title ?? '', text?.summary ?? '', ...(text?.acceptance ?? []).map((line) => `- ${line}`)].filter((line) => line.trim() !== '')
+  return [title ?? '', text?.prose ?? '', ...(text?.acceptance ?? []).map((line) => `- ${line}`)].filter((line) => line.trim() !== '')
 }
 
 export interface DiffLine {
@@ -82,8 +81,7 @@ export function lineDiff(before: string[], after: string[]): DiffLine[] {
   const n = before.length
   const m = after.length
   const table = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0))
-  for (let i = n - 1; i >= 0; i--)
-    for (let j = m - 1; j >= 0; j--) table[i][j] = before[i] === after[j] ? table[i + 1][j + 1] + 1 : Math.max(table[i + 1][j], table[i][j + 1])
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) table[i][j] = before[i] === after[j] ? table[i + 1][j + 1] + 1 : Math.max(table[i + 1][j], table[i][j + 1])
   const out: DiffLine[] = []
   let i = 0
   let j = 0
@@ -102,10 +100,7 @@ export function lineDiff(before: string[], after: string[]): DiffLine[] {
 
 // The evidence a review task carries: a diff when Avoozl kept the earlier
 // text, else the current text and a plain note that no earlier text exists.
-export function reviewEvidence(title: string, context: ItemContext | undefined):
-  | { kind: 'diff'; lines: DiffLine[] }
-  | { kind: 'text'; lines: string[]; note: string }
-  | null {
+export function reviewEvidence(title: string, context: ItemContext | undefined): { kind: 'diff'; lines: DiffLine[] } | { kind: 'text'; lines: string[]; note: string } | null {
   if (!context) return null
   const now = taskLines(title, context.text)
   if (context.prior) return { kind: 'diff', lines: lineDiff(taskLines(context.prior.title, context.prior), now) }
@@ -121,7 +116,7 @@ export function evidenceOf(item: ConflictItem): Evidence[] {
   if (item.findings || item.reply) out.push('investigation')
   if (item.kind === 'review' && item.tasks?.length) out.push('review')
   if (item.kind === 'plan-review' && item.context?.review) out.push('summary')
-  if (item.context?.text && item.kind !== 'review' && item.context.text.summary) out.push('text')
+  if (item.context?.text && item.kind !== 'review' && item.context.text.prose) out.push('text')
   const links = item.context?.links
   if (links && (links.branch || links.pr || links.checks)) out.push('links')
   if (item.context?.failedChecks?.checks.length) out.push('checks')
@@ -131,4 +126,5 @@ export function evidenceOf(item: ConflictItem): Evidence[] {
 }
 
 // The spec a list row names: its title, or the review group's plan.
-export const specOfItem = (item: ConflictItem) => item.context?.spec ?? item.tasks?.find((t) => t.context?.spec)?.context?.spec ?? (item.plan ? { planId: null, name: item.plan, title: item.plan } : null)
+export const specOfItem = (item: ConflictItem) =>
+  item.context?.spec ?? item.tasks?.find((t) => t.context?.spec)?.context?.spec ?? (item.plan ? { planId: null, name: item.plan, title: item.plan } : null)

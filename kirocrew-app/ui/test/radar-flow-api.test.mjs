@@ -32,12 +32,15 @@ test('spans read in minutes, hours and days', () => {
 
 test('one row per stage, the slowest marked', () => {
   const rows = flowRows(view())
-  assert.deepEqual(rows.map((r) => [r.name, r.median, r.slowest]), [
-    ['Ready to Claim', '15 min', false],
-    ['Claim to PR', '45 min', true],
-    ['PR to green', '35 min', false],
-    ['Green to merge', '10 min', false],
-  ])
+  assert.deepEqual(
+    rows.map((r) => [r.name, r.median, r.slowest]),
+    [
+      ['Ready to Claim', '15 min', false],
+      ['Claim to PR', '45 min', true],
+      ['PR to green', '35 min', false],
+      ['Green to merge', '10 min', false],
+    ],
+  )
   assert.deepEqual(flowRows(view({ count: 0, median: null, bottleneck: null })), [])
 })
 

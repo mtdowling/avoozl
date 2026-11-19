@@ -9,8 +9,7 @@ import test from 'node:test'
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('Graph nodes, Home lists and Conflicts items open the drawer', () => {
-  for (const name of ['GraphView.tsx', 'DashboardView.tsx', 'ConflictsView.tsx'])
-    assert.match(source(name), /drawer\.openTask\(/, name)
+  for (const name of ['GraphView.tsx', 'DashboardView.tsx', 'ConflictsView.tsx']) assert.match(source(name), /drawer\.openTask\(/, name)
   assert.match(source('GraphView.tsx'), /drawer\.addTask\(/)
   assert.match(source('PlansView.tsx'), /drawer\.addTask\(/)
   assert.match(source('App.tsx'), /<TaskDrawerProvider workspaceId=\{active\} onFocus=/)
@@ -53,8 +52,7 @@ test('the drawer shows every section, and a linked task opens in it', () => {
   assert.match(drawer, /props\.onFocus!\(task\.id, task\.title\)/)
   assert.match(drawer, /chat\.ask\(\{ tasks: \[task\.id\] \}\)/)
   assert.match(drawer, /<EdgeList label=\{title\} items=\{items\} onOpen=\{open\} \/>/)
-  for (const action of ['Retry', 'Defer', 'Resume', 'SupersedeForm', 'ConflictActions', 'TaskForm'])
-    assert.match(drawer, new RegExp(action))
+  for (const action of ['Retry', 'Defer', 'Resume', 'SupersedeForm', 'ConflictActions', 'TaskForm']) assert.match(drawer, new RegExp(action))
 })
 
 test('In flight rows have Info and a Session link to their chat', () => {

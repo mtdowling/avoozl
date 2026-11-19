@@ -39,7 +39,8 @@ test('Crews and rules modes are radio fold-outs, not selects', () => {
   // merges and conflicts are on the repository's Landing tab, once each.
   const view = readFileSync(new URL('../src/SettingsView.tsx', import.meta.url), 'utf8')
   for (const part of ['ReviewRulesFields', 'AvoozlLabelFields']) assert.match(view, new RegExp(`<${part} \\{\\.\\.\\.part\\}`), part)
-  for (const part of ['AutoMergeFields', 'ConflictFields', 'MergeMethodFields']) assert.equal((view.match(new RegExp(`<${part} id=\\{id\\} repository=\\{repository\\} set=\\{set\\}[ />]`, 'g')) ?? []).length, 1, part)
+  for (const part of ['AutoMergeFields', 'ConflictFields', 'MergeMethodFields'])
+    assert.equal((view.match(new RegExp(`<${part} id=\\{id\\} repository=\\{repository\\} set=\\{set\\}[ />]`, 'g')) ?? []).length, 1, part)
 })
 
 test('the seven Avoozl labels show with their job, writer and avoozl: default (RC21.4)', () => {
@@ -64,7 +65,10 @@ test('the seven Avoozl labels show with their job, writer and avoozl: default (R
 })
 
 test('the review and drafted labels round-trip, and ready stays in managedLabels', () => {
-  const policy = { mode: 'single-repo', repositories: { 'example/code': { baseBranch: 'main', managedLabels: { ready: 'go' }, radar: { reviewLabel: 'review me', draftedLabel: 'drafted', trackerLabel: 'waiting' } } } }
+  const policy = {
+    mode: 'single-repo',
+    repositories: { 'example/code': { baseBranch: 'main', managedLabels: { ready: 'go' }, radar: { reviewLabel: 'review me', draftedLabel: 'drafted', trackerLabel: 'waiting' } } },
+  }
   const form = toForm(policy)
   assert.equal(form.repositories[0].reviewLabel, 'review me')
   assert.equal(form.repositories[0].draftedLabel, 'drafted')
@@ -75,7 +79,10 @@ test('the review and drafted labels round-trip, and ready stays in managedLabels
 })
 
 test('the three values round-trip and a blank one leaves the file', () => {
-  const policy = { mode: 'single-repo', repositories: { 'example/code': { baseBranch: 'main', radar: { planLabel: 'to plan', reviewRules: '- Run lint.', clearPlanLabel: true } } } }
+  const policy = {
+    mode: 'single-repo',
+    repositories: { 'example/code': { baseBranch: 'main', radar: { planLabel: 'to plan', reviewRules: '- Run lint.', clearPlanLabel: true } } },
+  }
   const form = toForm(policy)
   const repository = form.repositories[0]
   assert.equal(repository.planLabel, 'to plan')
@@ -113,8 +120,15 @@ for (const width of [320, 768, 1280])
   test(`at ${width} px the rules mode opens its field and the default shows its source`, { skip }, async () => {
     await page.open(harness.url({ page: 'crews-rules' }), { width, height: 900, dark: false })
     await page.until(`document.querySelectorAll('[data-radio-fold]').length === 3`)
-    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-radio-fold]')].map((element) => element.dataset.radioFold)`), ['t-rules-mode', 't-on-source-conflict', 't-merge-method'])
-    assert.match(await page.evaluate(`document.querySelector('[data-radio-fold="t-rules-mode"] [data-radio-section="default"][data-open="true"]').textContent`), /Using Avoozl's built-in review rules/)
+    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-radio-fold]')].map((element) => element.dataset.radioFold)`), [
+      't-rules-mode',
+      't-on-source-conflict',
+      't-merge-method',
+    ])
+    assert.match(
+      await page.evaluate(`document.querySelector('[data-radio-fold="t-rules-mode"] [data-radio-section="default"][data-open="true"]').textContent`),
+      /Using Avoozl's built-in review rules/,
+    )
     assert.equal(await page.evaluate(`Boolean(document.getElementById('t-rules'))`), false)
     await page.evaluate(`document.getElementById('t-rules-mode-custom').click()`)
     await page.until(`Boolean(document.getElementById('t-rules'))`)

@@ -4,6 +4,11 @@
 import type { LucideIcon } from 'lucide-react'
 import { lookProps, type LookProps } from './Box'
 
-export function Glyph({ icon: Icon, size, strokeWidth, ...props }: { icon: LucideIcon; size?: number | string; strokeWidth?: number; 'aria-hidden'?: boolean | 'true' | 'false' } & Omit<LookProps, 'size'>) {
+export function Glyph({
+  icon: Icon,
+  size,
+  strokeWidth,
+  ...props
+}: { icon: LucideIcon; size?: number | string; strokeWidth?: number; 'aria-hidden'?: boolean | 'true' | 'false' } & Omit<LookProps, 'size'>) {
   return <Icon size={size} strokeWidth={strokeWidth} {...lookProps(props)} />
 }

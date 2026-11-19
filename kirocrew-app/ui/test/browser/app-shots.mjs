@@ -56,8 +56,7 @@ try {
     }
     await visit('home', [])
     for (const tab of TABS.slice(1, -1)) await visit(`tab-${slug(tab)}`, [click(tab, 'document.querySelector("[data-top-row]")')])
-    for (const tab of SETTINGS)
-      await visit(`settings-${slug(tab)}`, [click('Settings', 'document.querySelector("[data-top-row]")'), click(tab)])
+    for (const tab of SETTINGS) await visit(`settings-${slug(tab)}`, [click('Settings', 'document.querySelector("[data-top-row]")'), click(tab)])
   }
   if (page.errors.length) console.error(page.errors.join('\n'))
 } finally {

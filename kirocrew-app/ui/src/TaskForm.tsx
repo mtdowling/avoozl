@@ -30,7 +30,6 @@ import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
 import { PlainTextarea } from './ui/Plain'
 
-
 function Field({ id, label, children, hint }: { id: string; label: string; children: ReactNode; hint?: string }) {
   return (
     <Box htmlFor={id} as="label" flex flexCol gap="1" size="sm">
@@ -49,7 +48,14 @@ function Area(props: { id: string; value: string; onChange: (value: string) => v
       value={props.value}
       placeholder={props.placeholder}
       onChange={(event) => props.onChange(event.target.value)}
-      css-border-color="border" css-color="text" css-background="card-transparent" rounded="base" border="all" px="2" py="1" size="sm"
+      css-border-color="border"
+      css-color="text"
+      css-background="card-transparent"
+      rounded="base"
+      border="all"
+      px="2"
+      py="1"
+      size="sm"
     />
   )
 }
@@ -62,8 +68,7 @@ function Prerequisites(props: { graph: Graph | null; self: string; value: Prereq
     const chosen = new Set(chosenKey.split('\n'))
     return taskItems(props.graph?.tasks ?? []).filter((t) => t.id !== props.self && !chosen.has(t.id))
   }, [props.graph, props.self, chosenKey])
-  const update = (at: number, change: Partial<Prerequisite>) =>
-    props.onChange(props.value.map((p, i) => (i === at ? { ...p, ...change } : p)))
+  const update = (at: number, change: Partial<Prerequisite>) => props.onChange(props.value.map((p, i) => (i === at ? { ...p, ...change } : p)))
   return (
     <Box flex flexCol gap="2" size="sm">
       <span>Prerequisites</span>
@@ -77,17 +82,14 @@ function Prerequisites(props: { graph: Graph | null; self: string; value: Prereq
             <SelectField
               aria-label={`Link kind for ${p.id}`}
               value={p.kind}
-              onChange={(event) => update(i, { kind: event.target.value as Prerequisite['kind'], condition: '' })} look="tight"
+              onChange={(event) => update(i, { kind: event.target.value as Prerequisite['kind'], condition: '' })}
+              look="tight"
             >
               <option value="requires">needs it done</option>
               <option value="sequence">runs after it</option>
             </SelectField>
             {p.kind === 'requires' && (
-              <SelectField
-                aria-label={`Level for ${p.id}`}
-                value={p.condition}
-                onChange={(event) => update(i, { condition: event.target.value })} look="tight"
-              >
+              <SelectField aria-label={`Level for ${p.id}`} value={p.condition} onChange={(event) => update(i, { condition: event.target.value })} look="tight">
                 <option value="">its own completion</option>
                 {COMPLETION_LEVELS.map((level) => (
                   <option key={level} value={level}>
@@ -141,7 +143,9 @@ function PreviewBlock({ preview }: { preview: ChangePreview }) {
           </Box>
         </Box>
       )}
-      <Hint as="p" size="xs">Nothing was written. Approving the changed spec stays your step.</Hint>
+      <Hint as="p" size="xs">
+        Nothing was written. Approving the changed spec stays your step.
+      </Hint>
     </Box>
   )
 }
@@ -161,8 +165,8 @@ export default function TaskForm(props: {
   const api = useAppApi()
   const client = useMemo(() => taskClient(api), [api])
   const original = useMemo(() => (detail ? formFrom(detail) : null), [detail])
-  const [form, setForm] = useState<Form>(() =>
-    original ?? { ...emptyForm(), prerequisites: props.prerequisite ? [{ id: props.prerequisite, kind: 'requires', condition: '' }] : [] },
+  const [form, setForm] = useState<Form>(
+    () => original ?? { ...emptyForm(), prerequisites: props.prerequisite ? [{ id: props.prerequisite, kind: 'requires', condition: '' }] : [] },
   )
   const [idTouched, setIdTouched] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -170,7 +174,11 @@ export default function TaskForm(props: {
   const [preview, setPreview] = useState<ChangePreview | null>(null)
   const taken = useMemo(() => new Set((graph?.tasks ?? []).map((t) => t.id)), [graph])
   const id = detail ? detail.task.id : idTouched ? form.id : newTaskId(form.title, taken)
-  const cycle = findCycle(graph?.edges ?? [], id || '(new)', form.prerequisites.map((p) => p.id))
+  const cycle = findCycle(
+    graph?.edges ?? [],
+    id || '(new)',
+    form.prerequisites.map((p) => p.id),
+  )
   const set = (change: Partial<Form>) => setForm({ ...form, ...change })
   const locked = detail?.locked ?? null
   const valid = Boolean(form.title.trim()) && (Boolean(detail) || /^[a-z][a-z0-9-]{2,80}$/.test(id)) && !cycle
@@ -196,7 +204,8 @@ export default function TaskForm(props: {
 
   return (
     <Stack
-      as="form" gap={3}
+      as="form"
+      gap={3}
       onSubmit={(event) => {
         event.preventDefault()
         void submit()
@@ -207,9 +216,13 @@ export default function TaskForm(props: {
           <Badge variant="warning">Locked</Badge> {locked.message}
         </Box>
       ) : !detail ? (
-        <Hint as="p" size="xs">A new task starts as a draft. It waits for your review before it can start.</Hint>
+        <Hint as="p" size="xs">
+          A new task starts as a draft. It waits for your review before it can start.
+        </Hint>
       ) : (
-        <Hint as="p" size="xs">Changing the text marks this task for review again. Other tasks are not touched.</Hint>
+        <Hint as="p" size="xs">
+          Changing the text marks this task for review again. Other tasks are not touched.
+        </Hint>
       )}
       <Field id="avoozl-task-title" label="Title">
         <Input id="avoozl-task-title" value={form.title} onChange={(event) => set({ title: event.target.value })} required />
@@ -226,16 +239,12 @@ export default function TaskForm(props: {
           />
         </Field>
       )}
-      <Field id="avoozl-task-summary" label="Description">
-        <Area id="avoozl-task-summary" rows={4} value={form.summary} onChange={(summary) => set({ summary })} />
+      <Field id="avoozl-task-prose" label="Description">
+        <Area id="avoozl-task-prose" rows={4} value={form.prose} onChange={(prose) => set({ prose })} />
       </Field>
       <Box grid gap="3" smGridCols2>
         <Field id="avoozl-task-repository" label="Repository">
-          <SelectField
-            id="avoozl-task-repository"
-            value={form.repository}
-            onChange={(event) => set({ repository: event.target.value })} look="field"
-          >
+          <SelectField id="avoozl-task-repository" value={form.repository} onChange={(event) => set({ repository: event.target.value })} look="field">
             <option value="">None</option>
             {(graph?.repositories ?? []).map((repository) => (
               <option key={repository} value={repository}>

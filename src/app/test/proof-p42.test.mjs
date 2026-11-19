@@ -404,10 +404,7 @@ test("P42: prompt and skill proposals", async (t) => {
     leafTask = W1.store.read().tasks.find((x) => x.id === leafId);
   assert.equal(leafTask.repository, "wonerepo", "one leaf in W1's repository");
   assert.equal(leafTask.intake.source, "retro");
-  assert.match(
-    leafTask.summary,
-    /```diff[\s\S]*\+Add a test for each branch\./,
-  );
+  assert.match(leafTask.prose, /```diff[\s\S]*\+Add a test for each branch\./);
   assert.deepEqual(
     (await W1.ops.execute("flow.proposals", {})).notes.map((n) => [
       n.plugin,

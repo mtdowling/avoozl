@@ -43,11 +43,11 @@ export function routeBrief(task, notes = []) {
   return [
     `Avoozl task ${task.id}: ${task.title || task.id}`,
     "",
+    task.prose || null,
     task.acceptance?.length
       ? `Acceptance: ${[].concat(task.acceptance).join("; ")}`
       : null,
     task.checks?.length ? `Checks: ${task.checks.join("; ")}` : null,
-    task.summary ? `Summary: ${task.summary}` : null,
     ...(notes.length ? ["", ...notes] : []),
     "",
     "Deliver this task on your own system. Avoozl reads its status from this route and takes your completion as the task's result.",
@@ -131,7 +131,7 @@ export async function routeStep(
       const own = {
           id: task.id,
           title: task.title,
-          summary: task.summary || "",
+          prose: task.prose || "",
           acceptance: task.acceptance || [],
           checks: task.checks || [],
           repository: task.repository ?? task.projectId ?? null,

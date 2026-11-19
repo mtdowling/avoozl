@@ -103,81 +103,76 @@ async function pool(jobs, limit) {
 }
 
 // About a hundred node processes; the walk outlasts the default timeout.
-test(
-  "every CLI command and subcommand runs without crashing",
-  { timeout: 240000 },
-  async () => {
-    const machine = temporaryDirectory("avoozl-cli-smoke-"),
-      env = machineEnvironment(machine),
-      template = path.join(machine, "template");
-    execFileSync(process.execPath, [cli, "init", template, "--port", "0"], {
+test("every CLI command and subcommand runs without crashing", {
+  timeout: 240000,
+}, async () => {
+  const machine = temporaryDirectory("avoozl-cli-smoke-"),
+    env = machineEnvironment(machine),
+    template = path.join(machine, "template");
+  execFileSync(process.execPath, [cli, "init", template, "--port", "0"], {
+    env,
+  });
+  execFileSync(process.execPath, [cli, "seed", "--workspace", template], {
+    env,
+  });
+
+  const help = (await run(["help", "all"], env)).stdout,
+    paths = helpPaths(help),
+    listed = new Set(paths.map(([command]) => command));
+
+  // A command the CLI dispatches is one the help names.
+  for (const [, command] of source.matchAll(/command === "([a-z][a-z-]*)"/g))
+    if (!UNLISTED.has(command))
+      assert(listed.has(command), `avoozl help does not list ${command}`);
+
+  // Subcommands the CLI itself offers ("Choose X a, b, or c.").
+  for (const command of listed) {
+    if (LONG_RUNNING.has(command)) continue;
+    const { stderr } = await run(
+      [command, "smoke-unknown", "--workspace", template],
       env,
-    });
-    execFileSync(process.execPath, [cli, "seed", "--workspace", template], {
-      env,
-    });
+    );
+    const offered = stderr.match(
+      new RegExp(`^Choose ${command} (.+)\\.$`, "m"),
+    );
+    if (!offered) continue;
+    for (const action of offered[1].split(/, or |, | or /))
+      if (!paths.some(([c, a]) => c === command && a === action))
+        paths.push([command, action]);
+  }
 
-    const help = (await run(["help", "all"], env)).stdout,
-      paths = helpPaths(help),
-      listed = new Set(paths.map(([command]) => command));
-
-    // A command the CLI dispatches is one the help names.
-    for (const [, command] of source.matchAll(/command === "([a-z][a-z-]*)"/g))
-      if (!UNLISTED.has(command))
-        assert(listed.has(command), `avoozl help does not list ${command}`);
-
-    // Subcommands the CLI itself offers ("Choose X a, b, or c.").
-    for (const command of listed) {
-      if (LONG_RUNNING.has(command)) continue;
-      const { stderr } = await run(
-        [command, "smoke-unknown", "--workspace", template],
-        env,
-      );
-      const offered = stderr.match(
-        new RegExp(`^Choose ${command} (.+)\\.$`, "m"),
-      );
-      if (!offered) continue;
-      for (const action of offered[1].split(/, or |, | or /))
-        if (!paths.some(([c, a]) => c === command && a === action))
-          paths.push([command, action]);
+  // Each top-level command gets its own copy of the seeded workspace, so
+  // commands run side by side without sharing a database.
+  const workspaces = new Map();
+  const workspaceFor = (command) => {
+    if (!workspaces.has(command)) {
+      const copy = path.join(machine, "ws-" + command);
+      fs.cpSync(template, copy, { recursive: true });
+      workspaces.set(command, copy);
     }
-
-    // Each top-level command gets its own copy of the seeded workspace, so
-    // commands run side by side without sharing a database.
-    const workspaces = new Map();
-    const workspaceFor = (command) => {
-      if (!workspaces.has(command)) {
-        const copy = path.join(machine, "ws-" + command);
-        fs.cpSync(template, copy, { recursive: true });
-        workspaces.set(command, copy);
-      }
-      return workspaces.get(command);
-    };
-    const runs = paths
-      .filter(
-        (words) =>
-          !LONG_RUNNING.has(words[0]) &&
-          !LONG_RUNNING_PATHS.has(words.join(" ")),
-      )
-      .map((words) => {
-        const args = [...words, "--workspace", workspaceFor(words[0])];
-        return async () => ({ args, ...(await run(args, env)) });
-      });
-    assert(runs.length > 60, `walked only ${runs.length} command paths`);
-
-    const failures = (
-      await pool(runs, Math.max(2, Math.min(8, os.availableParallelism())))
+    return workspaces.get(command);
+  };
+  const runs = paths
+    .filter(
+      (words) =>
+        !LONG_RUNNING.has(words[0]) && !LONG_RUNNING_PATHS.has(words.join(" ")),
     )
-      .filter(
-        (r) => r.signal || ![0, 1].includes(r.code) || CRASH.test(r.stderr),
-      )
-      .map(
-        (r) =>
-          `avoozl ${r.args.slice(0, -2).join(" ")} -> ${r.signal || r.code}: ${r.stderr.slice(0, 300)}`,
-      );
-    assert.deepEqual(failures, []);
-  },
-);
+    .map((words) => {
+      const args = [...words, "--workspace", workspaceFor(words[0])];
+      return async () => ({ args, ...(await run(args, env)) });
+    });
+  assert(runs.length > 60, `walked only ${runs.length} command paths`);
+
+  const failures = (
+    await pool(runs, Math.max(2, Math.min(8, os.availableParallelism())))
+  )
+    .filter((r) => r.signal || ![0, 1].includes(r.code) || CRASH.test(r.stderr))
+    .map(
+      (r) =>
+        `avoozl ${r.args.slice(0, -2).join(" ")} -> ${r.signal || r.code}: ${r.stderr.slice(0, 300)}`,
+    );
+  assert.deepEqual(failures, []);
+});
 
 test("AVOOZL_WORKSPACE and registered IDs reach the database", async () => {
   const machine = temporaryDirectory("avoozl-cli-smoke-alias-"),

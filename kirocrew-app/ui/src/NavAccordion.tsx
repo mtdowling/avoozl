@@ -33,14 +33,21 @@ export interface NavGroup {
   slot?: boolean
 }
 
-const CARD = { position: 'relative', overflow: 'hidden', border: '1px solid var(--border)', borderRadius: 16, background: 'var(--bg-elevated)', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)', flexShrink: 0 } as const
+const CARD = {
+  position: 'relative',
+  overflow: 'hidden',
+  border: '1px solid var(--border)',
+  borderRadius: 16,
+  background: 'var(--bg-elevated)',
+  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+  flexShrink: 0,
+} as const
 // Open sections share the height the closed ones leave, so the nav always
 // ends at the bottom, as in Radar's rail. A short one shows its background
 // to the bottom edge; a tall one scrolls its body. Closed sections keep
 // their own height.
 const OPEN_MIN = 96
 const OPEN_CARD = { ...CARD, flex: '1 1 0%', minHeight: OPEN_MIN, display: 'flex', flexDirection: 'column' } as const
-
 
 export function NavAccordion(props: {
   groups: NavGroup[]
@@ -73,7 +80,17 @@ export function NavAccordion(props: {
   // their head. Below it the nav scrolls; above it the open ones stretch.
   const least = props.groups.reduce((sum, group) => sum + (shown(group) ? OPEN_MIN : NAV_PILL + 2), 8 * (props.groups.length - 1))
   return (
-    <Box data-nav-card data-nav-accordion role="group" aria-label="Avoozl pages" css-display="flex" css-flex-direction="column" css-gap="8" css-flex="1-1-auto" css-min-height={least}>
+    <Box
+      data-nav-card
+      data-nav-accordion
+      role="group"
+      aria-label="Avoozl pages"
+      css-display="flex"
+      css-flex-direction="column"
+      css-gap="8"
+      css-flex="1-1-auto"
+      css-min-height={least}
+    >
       <NavStyle />
       {props.groups.map((group) => {
         const kids = opens(group) ? (group.children ?? []) : null
@@ -101,7 +118,9 @@ export function NavAccordion(props: {
                 }
               }}
             >
-              <Box data-nav-label as="span" css-flex="1" css-min-width="0" css-display="flex" css-align-items="center" css-overflow="hidden">{group.label}</Box>
+              <Box data-nav-label as="span" css-flex="1" css-min-width="0" css-display="flex" css-align-items="center" css-overflow="hidden">
+                {group.label}
+              </Box>
               {kids && (
                 <Box aria-hidden="true" data-nav-chevron as="span" css-transform={expanded ? 'none' : 'rotate-90deg'}>
                   <ChevronDown size={14} />
@@ -109,7 +128,16 @@ export function NavAccordion(props: {
               )}
             </button>
             {expanded && kids && (
-              <Box data-nav-children={group.key} css-display="flex" css-flex-direction="column" css-gap="2" css-padding="2px-12px-8px" css-min-height="0" css-flex="1-1-auto" css-overflow-y="auto">
+              <Box
+                data-nav-children={group.key}
+                css-display="flex"
+                css-flex-direction="column"
+                css-gap="2"
+                css-padding="2px-12px-8px"
+                css-min-height="0"
+                css-flex="1-1-auto"
+                css-overflow-y="auto"
+              >
                 {kids.map((item) => {
                   const selected = here && props.child === item.key
                   return (
@@ -125,11 +153,17 @@ export function NavAccordion(props: {
                       }}
                     >
                       <span data-nav-text>{item.label}</span>
-                      {item.count ? <Box data-nav-count as="span" css-flex-shrink="0" css-display="inline-flex"><Badge variant="warning">{item.count}</Badge></Box> : null}
+                      {item.count ? (
+                        <Box data-nav-count as="span" css-flex-shrink="0" css-display="inline-flex">
+                          <Badge variant="warning">{item.count}</Badge>
+                        </Box>
+                      ) : null}
                     </button>
                   )
                 })}
-                {group.slot && <div data-nav-slot={group.key} ref={slotRef(group.key)} style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: kids.length ? 6 : 2 }} />}
+                {group.slot && (
+                  <div data-nav-slot={group.key} ref={slotRef(group.key)} style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: kids.length ? 6 : 2 }} />
+                )}
               </Box>
             )}
           </div>

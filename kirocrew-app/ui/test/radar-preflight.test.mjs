@@ -11,7 +11,10 @@ test('only failing items count, and an unverified one does not', () => {
   assert.deepEqual(preflightFailures(null), [])
   assert.deepEqual(preflightFailures({ writes: [] }), [])
   const preview = { preflight: { ok: false, items: [item('spec', 'ok'), item('crew-scope', 'unverified'), item('merge-path', 'fail')] } }
-  assert.deepEqual(preflightFailures(preview).map((entry) => entry.id), ['merge-path'])
+  assert.deepEqual(
+    preflightFailures(preview).map((entry) => entry.id),
+    ['merge-path'],
+  )
 })
 
 test('the modal lists the items and gates only Create and release', () => {

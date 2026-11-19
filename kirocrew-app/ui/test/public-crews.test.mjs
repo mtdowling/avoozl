@@ -6,7 +6,18 @@ import test from 'node:test'
 import { publicCrewsClient, signoffBadge, signoffLine } from '../src/untriaged-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
-const row = (extra = {}) => ({ repository: 'acme/web', visibility: 'public', home: null, agent: 'avoozl-crew', signedOff: null, lapsed: false, banner: null, items: [], ready: false, ...extra })
+const row = (extra = {}) => ({
+  repository: 'acme/web',
+  visibility: 'public',
+  home: null,
+  agent: 'avoozl-crew',
+  signedOff: null,
+  lapsed: false,
+  banner: null,
+  items: [],
+  ready: false,
+  ...extra,
+})
 
 test('each sign-off state has its own badge and line', () => {
   assert.deepEqual(signoffBadge(row()), { text: 'Not signed off', variant: 'warning' })

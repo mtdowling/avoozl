@@ -11,7 +11,11 @@ export function FieldBox(props: { title: string; blurb?: string; children: React
       <Box as="legend" css-padding="0-4px" size="sm" weight="semibold">
         {props.title}
       </Box>
-      {props.blurb && <Hint as="p" size="xs">{props.blurb}</Hint>}
+      {props.blurb && (
+        <Hint as="p" size="xs">
+          {props.blurb}
+        </Hint>
+      )}
       {props.children}
     </Box>
   )

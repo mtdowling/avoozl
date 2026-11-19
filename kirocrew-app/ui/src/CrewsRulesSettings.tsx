@@ -10,7 +10,19 @@ import { FieldBox } from './FieldBox.tsx'
 import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { SHIP_CHOICES } from './delivery-api.ts'
-import { AVOOZL_LABELS, CONFLICT_ACTIONS, CONFLICT_ACTION_TEXT, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
+import {
+  AVOOZL_LABELS,
+  CONFLICT_ACTIONS,
+  CONFLICT_ACTION_TEXT,
+  CONFLICT_DEFAULTS,
+  MERGE_METHODS,
+  MERGE_METHOD_TEXT,
+  OLD_LABEL_NOTE,
+  RADAR_DEFAULTS_SHOWN,
+  rulesMode,
+  valueSource,
+  type RepositoryForm,
+} from './settings-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
@@ -21,7 +33,14 @@ function Line(props: { id: string; label: string; value: string; fallback: strin
   const note = valueSource(props.value, props.fallback, props.unit)
   return (
     <FieldRow id={props.id} label={props.label} raw={props.raw} help={props.help} note={<span data-source>{note}</span>}>
-      <Input id={props.id} type={props.type} value={props.value} placeholder={props.fallback} aria-describedby={fieldDescribedBy(props.id, { help: props.help, note })} onChange={(event) => props.onChange(event.target.value)} />
+      <Input
+        id={props.id}
+        type={props.type}
+        value={props.value}
+        placeholder={props.fallback}
+        aria-describedby={fieldDescribedBy(props.id, { help: props.help, note })}
+        onChange={(event) => props.onChange(event.target.value)}
+      />
     </FieldRow>
   )
 }
@@ -43,11 +62,13 @@ export const CREW_PART_TEXT = {
   rules: { title: 'Review rules', blurb: 'Text Set up adds to AGENTS.md in a pull request, so crews read it for every issue.' },
   conflicts: {
     title: 'Conflicts',
-    blurb: "How Avoozl handles a merge conflict, and how many tries it makes before it asks you. A landing conflict goes back to the task's worker chat; a crew pull request gets one resolver chat that merges the base in.",
+    blurb:
+      "How Avoozl handles a merge conflict, and how many tries it makes before it asks you. A landing conflict goes back to the task's worker chat; a crew pull request gets one resolver chat that merges the base in.",
   },
   merge: {
     title: 'Who merges',
-    blurb: 'How verified work lands here, who merges its pull request, and the merge method. A conflict fix still merges the base into the branch; with squash that merge commit never reaches the base.',
+    blurb:
+      'How verified work lands here, who merges its pull request, and the merge method. A conflict fix still merges the base into the branch; with squash that merge commit never reaches the base.',
   },
 } as const
 
@@ -88,7 +109,11 @@ export function AutoMergeFields({ id, repository, set, inherited = null }: Part 
           ),
         }))}
       />
-      {value === 'manual' && <Hint as="p" size="xs">Briefs tell writers not to turn on auto-merge.</Hint>}
+      {value === 'manual' && (
+        <Hint as="p" size="xs">
+          Briefs tell writers not to turn on auto-merge.
+        </Hint>
+      )}
       {unknown && (
         <ErrorText role="alert" size="xs" data-ship-unknown>
           .avoozl.json has landing.autoMerge "{unknown}", which Avoozl does not accept. Pick one above and save.
@@ -106,7 +131,11 @@ export function ReviewRulesFields({ id, repository, set }: Part) {
       value={rulesMode(repository)}
       onChange={(mode) => set({ reviewRules: mode === 'default' ? '' : 'Say what you skipped or did not check.' })}
       sections={[
-        { key: 'default', title: "Use Avoozl's rules", line: "Not set on this repository. Using Avoozl's built-in review rules. Set up shows the exact text before it opens the pull request." },
+        {
+          key: 'default',
+          title: "Use Avoozl's rules",
+          line: "Not set on this repository. Using Avoozl's built-in review rules. Set up shows the exact text before it opens the pull request.",
+        },
         {
           key: 'custom',
           title: 'Write your own',
@@ -116,7 +145,21 @@ export function ReviewRulesFields({ id, repository, set }: Part) {
               <Box htmlFor={`${id}-rules`} as="label" size="sm" weight="medium">
                 Review rules <Hint size="xs">radar.reviewRules</Hint>
               </Box>
-              <PlainTextarea id={`${id}-rules`} rows={6} value={repository.reviewRules} onChange={(event) => set({ reviewRules: event.target.value })} css-border-color="border" css-background="transparent" css-color="inherit" minW0 rounded="base" border="all" px="2" py="1" size="sm" />
+              <PlainTextarea
+                id={`${id}-rules`}
+                rows={6}
+                value={repository.reviewRules}
+                onChange={(event) => set({ reviewRules: event.target.value })}
+                css-border-color="border"
+                css-background="transparent"
+                css-color="inherit"
+                minW0
+                rounded="base"
+                border="all"
+                px="2"
+                py="1"
+                size="sm"
+              />
               <Hint size="xs">{valueSource(repository.reviewRules ? 'your text' : '', "Avoozl's built-in rules")}</Hint>
             </Box>
           ),
@@ -142,7 +185,16 @@ export function ConflictFields({ id, repository, set }: Part) {
           }))}
         />
       </div>
-      <Line id={`${id}-max-attempts`} label="Attempts per conflict" raw="conflicts.maxAttempts" type="number" help="After this many, the conflict waits for you. 0 asks you at once." value={repository.maxAttempts} fallback={CONFLICT_DEFAULTS.maxAttempts} onChange={(value) => set({ maxAttempts: value })} />
+      <Line
+        id={`${id}-max-attempts`}
+        label="Attempts per conflict"
+        raw="conflicts.maxAttempts"
+        type="number"
+        help="After this many, the conflict waits for you. 0 asks you at once."
+        value={repository.maxAttempts}
+        fallback={CONFLICT_DEFAULTS.maxAttempts}
+        onChange={(value) => set({ maxAttempts: value })}
+      />
     </Stack>
   )
 }

@@ -20,13 +20,7 @@ export function setSharedFilter(workspaceId: string, filter: TaskFilter) {
 
 // The Graph and Delivery task filter: search, epic, plan, phase, repository, state,
 // wave range, owner and Needs me, in the shared filter panel.
-export function FilterBar(props: {
-  id: string
-  filter: TaskFilter
-  choices: ReturnType<typeof filterChoices>
-  onChange: (filter: TaskFilter) => void
-  children?: ReactNode
-}) {
+export function FilterBar(props: { id: string; filter: TaskFilter; choices: ReturnType<typeof filterChoices>; onChange: (filter: TaskFilter) => void; children?: ReactNode }) {
   const { filter, choices } = props
   const set = (change: Partial<TaskFilter>) => props.onChange(changed(filter, change))
   return (

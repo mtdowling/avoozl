@@ -14,8 +14,7 @@ import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
 
-export const WORKFLOW_BLURB =
-  "How work flows through this repository, read from its saved settings. A value in a card opens the field that sets it."
+export const WORKFLOW_BLURB = 'How work flows through this repository, read from its saved settings. A value in a card opens the field that sets it.'
 
 // Focus the input a jump names: open any closed fold around it, scroll to it.
 // False when the input is not on the page (its sub-tab is not open yet).
@@ -35,11 +34,24 @@ function ValueLine({ value, onJump }: { value: Value; onJump?: (jump: Jump) => v
     <Box as="span" size="xs" data-value={value.label} data-source={value.source}>
       <Hint>{value.label}: </Hint>
       {value.jump && onJump ? (
-        <PlainButton type="button" css-color="inherit" css-background="none" css-border="0" css-padding="0" css-cursor="pointer" css-overflow-wrap="anywhere" css-text-align="start" underline onClick={() => onJump(value.jump!)}>
+        <PlainButton
+          type="button"
+          css-color="inherit"
+          css-background="none"
+          css-border="0"
+          css-padding="0"
+          css-cursor="pointer"
+          css-overflow-wrap="anywhere"
+          css-text-align="start"
+          underline
+          onClick={() => onJump(value.jump!)}
+        >
           <code>{value.text}</code>
         </PlainButton>
       ) : (
-        <Box as="code" css-overflow-wrap="anywhere">{value.text}</Box>
+        <Box as="code" css-overflow-wrap="anywhere">
+          {value.text}
+        </Box>
       )}
       <Hint>{SOURCE_TEXT[value.source]}</Hint>
       {value.elsewhere && <Hint> (set in {value.elsewhere})</Hint>}
@@ -52,7 +64,15 @@ function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (j
   return (
     <li
       className="flex min-w-0 flex-col gap-1 rounded border p-2 text-sm"
-      style={{ borderColor: 'var(--border)', borderInlineStartColor: WHO_COLOR[card.who], borderInlineStartWidth: 4, background: 'var(--card, transparent)', opacity: muted ? 0.65 : 1, flex: '1 1 11rem', maxWidth: '16rem' }}
+      style={{
+        borderColor: 'var(--border)',
+        borderInlineStartColor: WHO_COLOR[card.who],
+        borderInlineStartWidth: 4,
+        background: 'var(--card, transparent)',
+        opacity: muted ? 0.65 : 1,
+        flex: '1 1 11rem',
+        maxWidth: '16rem',
+      }}
       data-step={card.key}
       data-who={card.who}
       data-muted={muted ? 'true' : undefined}
@@ -67,7 +87,9 @@ function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (j
           </Box>
         )}
       </Box>
-      <Box as="span" weight="medium">{card.title}</Box>
+      <Box as="span" weight="medium">
+        {card.title}
+      </Box>
       <Hint size="xs">{card.text}</Hint>
       {card.values.map((value) => (
         <ValueLine key={value.label} value={value} onJump={onJump} />
@@ -84,7 +106,9 @@ function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (j
 function LaneRow({ lane, onJump }: { lane: Lane; onJump?: (jump: Jump) => void }) {
   return (
     <Box aria-label={`${lane.title} lane`} as="section" flex flexCol gap="1.5" data-lane={lane.key} data-lane-off={lane.muted ? 'true' : undefined}>
-      <Box as="h5" size="sm" weight="semibold">{lane.title}</Box>
+      <Box as="h5" size="sm" weight="semibold">
+        {lane.title}
+      </Box>
       {lane.muted && (
         <Hint as="p" size="xs" data-reason>
           Off: {lane.muted}
@@ -106,13 +130,7 @@ function LaneRow({ lane, onJump }: { lane: Lane; onJump?: (jump: Jump) => void }
   )
 }
 
-export default function WorkflowMap(props: {
-  workspaceId: string
-  mode: string
-  repository: RepositoryForm
-  planningRepository?: string
-  onJump?: (jump: Jump) => void
-}) {
+export default function WorkflowMap(props: { workspaceId: string; mode: string; repository: RepositoryForm; planningRepository?: string; onJump?: (jump: Jump) => void }) {
   const api = useAppApi()
   const load = useCallback(
     () => api.post<{ result: DeliverySettings }>(COMMAND_PATH, { operation: 'delivery.settings.get', input: {}, workspaceId: props.workspaceId }).then((reply) => reply.result),
@@ -147,7 +165,9 @@ export default function WorkflowMap(props: {
                   <th className="pe-2 font-normal">Label</th>
                   <th className="pe-2 font-normal">Name</th>
                   <th className="pe-2 font-normal">Written by</th>
-                  <Box as="th" weight="normal">Setting</Box>
+                  <Box as="th" weight="normal">
+                    Setting
+                  </Box>
                 </Box>
               </thead>
               <tbody>
@@ -155,7 +175,9 @@ export default function WorkflowMap(props: {
                   <tr key={row.key} data-label-row={row.key}>
                     <td className="pe-2 align-top">{row.label}</td>
                     <td className="pe-2 align-top">
-                      <Box as="code" css-overflow-wrap="anywhere">{row.name}</Box>
+                      <Box as="code" css-overflow-wrap="anywhere">
+                        {row.name}
+                      </Box>
                       <Hint>{SOURCE_TEXT[row.source]}</Hint>
                     </td>
                     <td className="pe-2 align-top" style={{ color: WHO_COLOR[row.writer] }}>
@@ -163,7 +185,16 @@ export default function WorkflowMap(props: {
                     </td>
                     <Box as="td" alignTop>
                       {row.jump && props.onJump ? (
-                        <PlainButton type="button" css-color="inherit" css-background="none" css-border="0" css-padding="0" css-cursor="pointer" underline onClick={() => props.onJump!(row.jump!)}>
+                        <PlainButton
+                          type="button"
+                          css-color="inherit"
+                          css-background="none"
+                          css-border="0"
+                          css-padding="0"
+                          css-cursor="pointer"
+                          underline
+                          onClick={() => props.onJump!(row.jump!)}
+                        >
                           Open setting
                         </PlainButton>
                       ) : (

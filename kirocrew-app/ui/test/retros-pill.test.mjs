@@ -19,22 +19,54 @@ test('Time per task sorts by newest, lead time or task, in either direction, and
   assert.deepEqual(ids({ sort: 'recent', dir: 'asc' }), ['b.1', 'a.2', 'a.10'])
   assert.deepEqual(ids({ sort: 'lead', dir: 'desc' }), ['a.2', 'b.1', 'a.10'])
   assert.deepEqual(ids({ sort: 'task', dir: 'asc' }), ['a.2', 'a.10', 'b.1'])
-  assert.deepEqual(tasks.map((t) => t.taskId), ['a.2', 'a.10', 'b.1'])
+  assert.deepEqual(
+    tasks.map((t) => t.taskId),
+    ['a.2', 'a.10', 'b.1'],
+  )
 })
 
 test('chips count the tasks that carry each value, from the unfiltered read', () => {
-  const base = { tasks, repositories: ['r/one', 'r/two', 'r/none'], epics: [], plans: [{ id: 'a', title: 'Alpha' }, { id: 'b', title: 'Beta' }], stages: ['coding', 'tests'] }
+  const base = {
+    tasks,
+    repositories: ['r/one', 'r/two', 'r/none'],
+    epics: [],
+    plans: [
+      { id: 'a', title: 'Alpha' },
+      { id: 'b', title: 'Beta' },
+    ],
+    stages: ['coding', 'tests'],
+  }
   const got = flowChoices(base)
-  assert.deepEqual(got.repositories.map((c) => [c.value, c.count]), [['r/one', 2], ['r/two', 1], ['r/none', 0]])
-  assert.deepEqual(got.plans.map((c) => [c.label, c.count]), [['Alpha', 2], ['Beta', 1]])
-  assert.deepEqual(got.stages.map((c) => [c.value, c.count]), [['coding', 2], ['tests', 1]])
+  assert.deepEqual(
+    got.repositories.map((c) => [c.value, c.count]),
+    [
+      ['r/one', 2],
+      ['r/two', 1],
+      ['r/none', 0],
+    ],
+  )
+  assert.deepEqual(
+    got.plans.map((c) => [c.label, c.count]),
+    [
+      ['Alpha', 2],
+      ['Beta', 1],
+    ],
+  )
+  assert.deepEqual(
+    got.stages.map((c) => [c.value, c.count]),
+    [
+      ['coding', 2],
+      ['tests', 1],
+    ],
+  )
 })
 
 test('Flow keeps its charts and draws its filters as nav rows and chips, with no dropdowns', () => {
-  const flow = source('FlowView.tsx'), rail = source('FlowRail.tsx')
+  const flow = source('FlowView.tsx'),
+    rail = source('FlowRail.tsx')
   assert.match(rail, /<NavSlotFor section="flow">\s*<div role="search" aria-label="Filter flow timing" data-nav-filters="avoozl-flow" data-filter-panel="avoozl-flow"/)
   assert.match(rail, /<RailSortList/)
-  assert.match(rail, /<RailChips id="repositories"[\s\S]*<RailChips id="plans"[\s\S]*<RailChips id="stages"[\s\S]*<RailChips id="epics"/)
+  assert.match(rail, /<RailChips\s+id="repositories"[\s\S]*<RailChips\s+id="plans"[\s\S]*<RailChips\s+id="stages"[\s\S]*<RailChips\s+id="epics"/)
   assert.doesNotMatch(rail + flow, /<select|<FilterPanel|FilterSelect/)
   assert.match(flow, /<FlowCharts view=\{view\} unit=\{unit\} onUnit=\{setUnit\} \/>/)
   assert.match(source('App.tsx'), /t\.key === 'flow'/)
@@ -47,7 +79,8 @@ test('the Retros pill sits after Flow, lists two pages', () => {
   assert.doesNotMatch(source('FlowView.tsx'), /Retros\b.*SectionHeading|tab: FlowTab/)
 })
 
-const chrome = findChrome(), skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Retros pill test'
+const chrome = findChrome(),
+  skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Retros pill test'
 let harness, browser, page
 before(async () => {
   if (skip) return
@@ -87,7 +120,7 @@ test('Retros is a nav pill after Flow with Retros and Proposals pages, linked bo
   await click('[data-retro-proposal="retro-2:p2"] button')
   await page.until(`Boolean(document.querySelector('[data-proposal="retro-2:p2"][data-linked]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-nav-item="retros/proposals"]').dataset.selected !== undefined`), true)
-  assert.ok(await count('[data-proposal-retro]') >= 3)
+  assert.ok((await count('[data-proposal-retro]')) >= 3)
   assert.match(await text('[data-proposal="retro-2:p2"]'), /Reject[\s\S]*Approve/)
   // And back: the proposal's retro link opens its retro, marked.
   await click('[data-proposal="retro-1:p1"] [data-proposal-retro]')
@@ -106,7 +139,11 @@ test('Flow nav filters change the charts, and By week still works', { skip }, as
   const rail = '[data-nav-filters="avoozl-flow"]'
   assert.equal(await count(`${rail} select`), 0, 'no dropdowns')
   assert.ok((await count(`${rail} [data-rail-sort]`)) === 3 && (await count(`${rail} [data-rail-chip]`)) >= 4)
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('${rail} [data-rail-head]')].map((h) => h.textContent.trim())`).then((x) => x.slice(0, 3)), ['Sort', 'Filters', 'Repositories'])
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('${rail} [data-rail-head]')].map((h) => h.textContent.trim())`).then((x) => x.slice(0, 3)), [
+    'Sort',
+    'Filters',
+    'Repositories',
+  ])
   const bars = () => page.evaluate(`[...document.querySelectorAll('[data-flow-bar]')].map((b) => b.dataset.flowBar)`)
   const points = () => page.evaluate(`document.querySelectorAll('[data-flow-charts] circle').length`)
   const before = await points()
@@ -118,7 +155,7 @@ test('Flow nav filters change the charts, and By week still works', { skip }, as
   assert.ok((await points()) < before, 'the charts follow the pick')
   assert.equal(await page.evaluate(`document.querySelector('${rail} [data-rail-chip="acme/pantry"]').getAttribute('aria-pressed')`), 'true')
   // The other chips stay, so a second pick is possible; Clear resets.
-  assert.equal(await count(`${rail} [data-rail-chip]`) >= 4, true)
+  assert.equal((await count(`${rail} [data-rail-chip]`)) >= 4, true)
   await click(`${rail} [data-rail-icon]:not([aria-label])`)
   await page.until(`document.querySelectorAll('[data-flow-bar]').length === 3`)
   // A stage row, then a spec chip.

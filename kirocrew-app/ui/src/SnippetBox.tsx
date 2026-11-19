@@ -33,12 +33,30 @@ export function SnippetBox(props: {
           aria-controls={body}
           onClick={toggle}
           data-snippet-toggle
-          css-background="none" css-border="0" css-padding="0" css-color="inherit" css-font="inherit" css-cursor="pointer" css-overflow-wrap="anywhere" flex minW0 flex1 items="center" gap="1.5" align="left"
+          css-background="none"
+          css-border="0"
+          css-padding="0"
+          css-color="inherit"
+          css-font="inherit"
+          css-cursor="pointer"
+          css-overflow-wrap="anywhere"
+          flex
+          minW0
+          flex1
+          items="center"
+          gap="1.5"
+          align="left"
         >
           <Chevron size={13} aria-hidden="true" className="shrink-0" />
-          <Box as="span" minW0>{props.title}</Box>
+          <Box as="span" minW0>
+            {props.title}
+          </Box>
         </PlainButton>
-        {props.action && <Box as="span" ml="auto" flexNone>{props.action}</Box>}
+        {props.action && (
+          <Box as="span" ml="auto" flexNone>
+            {props.action}
+          </Box>
+        )}
       </Box>
       <div id={body} hidden={!open}>
         {open && props.children}

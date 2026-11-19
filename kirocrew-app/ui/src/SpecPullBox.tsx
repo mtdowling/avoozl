@@ -17,7 +17,6 @@ import { Box } from './ui/Box'
 import { PlainInput } from './ui/Plain'
 import { DOT } from './ui/looks/SpecPullBox.ts'
 
-
 export function ChecksDot({ checks }: { checks: SpecPull['checks'] }) {
   if (!checks) return <Hint size="xs">No checks yet</Hint>
   return (
@@ -69,7 +68,9 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
         <ChecksDot checks={pull.checks} />
       </Box>
       <Box data-spec-pull-changes css-gap="4" flex flexCol>
-        <Box as="p" m0 size="xs" weight="medium">{pull.newSpec ? 'New spec: every file is added.' : 'Changes since the approved revision'}</Box>
+        <Box as="p" m0 size="xs" weight="medium">
+          {pull.newSpec ? 'New spec: every file is added.' : 'Changes since the approved revision'}
+        </Box>
         {pull.files.length ? (
           <Box as="ul" css-gap="4" m0 flex listNone flexCol p="0">
             {pull.files.map((file) => (
@@ -84,7 +85,9 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
             ))}
           </Box>
         ) : (
-          <Hint as="p" size="xs" flush>No spec document differs.</Hint>
+          <Hint as="p" size="xs" flush>
+            No spec document differs.
+          </Hint>
         )}
         {pull.tasks.length > 0 && (
           <Hint as="p" size="xs" flush data-spec-pull-tasks>
@@ -93,7 +96,9 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
         )}
       </Box>
       <Box css-gap="8" flex flexWrap items="center" data-spec-pull-findings>
-        <Box as="span" size="xs" weight="medium">Review</Box>
+        <Box as="span" size="xs" weight="medium">
+          Review
+        </Box>
         {pull.review.state === 'not-reviewed' ? (
           <Hint size="xs">Not reviewed yet</Hint>
         ) : openCount ? (
@@ -103,9 +108,19 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
         )}
         {!pull.review.current && pull.review.state !== 'not-reviewed' && <Hint size="xs">(an earlier revision)</Hint>}
       </Box>
-      {pull.review.summary && <Hint as="p" size="xs" flush>{pull.review.summary}</Hint>}
+      {pull.review.summary && (
+        <Hint as="p" size="xs" flush>
+          {pull.review.summary}
+        </Hint>
+      )}
       <Box css-gap="8" flex flexWrap items="center" data-spec-pull-actions>
-        <TipBtn variant="primary" tooltip={why ?? `Approve exactly this head (${pull.head.slice(0, 7)}). Avoozl merges the pull request when its checks pass.`} disabled={busy || why !== null} onClick={props.onApprove} data-spec-pull-approve>
+        <TipBtn
+          variant="primary"
+          tooltip={why ?? `Approve exactly this head (${pull.head.slice(0, 7)}). Avoozl merges the pull request when its checks pass.`}
+          disabled={busy || why !== null}
+          onClick={props.onApprove}
+          data-spec-pull-approve
+        >
           Approve
         </TipBtn>
         <TipBtn
@@ -125,11 +140,29 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
           <Box as="label" size="xs" htmlFor={`reject-${pull.id}`}>
             Reason
           </Box>
-          <PlainInput id={`reject-${pull.id}`} value={reason} onChange={(event) => setReason(event.target.value)} css-border-color="border" css-background="bg" css-color="inherit" minW0 flex1 rounded="base" border="all" px="2" py="1" size="sm" />
+          <PlainInput
+            id={`reject-${pull.id}`}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            css-border-color="border"
+            css-background="bg"
+            css-color="inherit"
+            minW0
+            flex1
+            rounded="base"
+            border="all"
+            px="2"
+            py="1"
+            size="sm"
+          />
           <DangerBtn
             label={`Reject ${pull.repository} #${pull.number}`}
             disabled={busy || !reason.trim()}
-            confirm={{ title: `Reject #${pull.number}?`, body: `Avoozl comments "${reason.trim()}" and closes the pull request. The draft revision stays.`, action: 'Reject pull request' }}
+            confirm={{
+              title: `Reject #${pull.number}?`,
+              body: `Avoozl comments "${reason.trim()}" and closes the pull request. The draft revision stays.`,
+              action: 'Reject pull request',
+            }}
             onConfirm={() => void act(async () => (await client.reject(workspaceId, pull.id, reason.trim()), `Closed #${pull.number}.`))}
           >
             Reject pull request

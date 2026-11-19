@@ -514,7 +514,7 @@ function leafFor(row, source, how) {
   return {
     id: intakeTaskId(item.source, item.id),
     title: item.title,
-    summary: item.body || item.title,
+    prose: item.body || "",
     acceptance: [`The request in ${item.link} is done.`],
     checks: [],
     status: "planned",

@@ -52,10 +52,8 @@ export type PickAction = { kind: 'move'; state: PickState } | { kind: 'pick'; in
 
 export function pickKey(state: PickState, key: string, count: number): PickAction {
   const last = count - 1
-  if (key === 'ArrowDown')
-    return { kind: 'move', state: { open: true, active: !state.open ? 0 : Math.min(last, state.active + 1) } }
-  if (key === 'ArrowUp')
-    return { kind: 'move', state: { open: true, active: !state.open ? last : Math.max(0, state.active - 1) } }
+  if (key === 'ArrowDown') return { kind: 'move', state: { open: true, active: !state.open ? 0 : Math.min(last, state.active + 1) } }
+  if (key === 'ArrowUp') return { kind: 'move', state: { open: true, active: !state.open ? last : Math.max(0, state.active - 1) } }
   if (key === 'Home' && state.open) return { kind: 'move', state: { open: true, active: 0 } }
   if (key === 'End' && state.open) return { kind: 'move', state: { open: true, active: last } }
   if (key === 'Enter') return state.open && state.active >= 0 && state.active < count ? { kind: 'pick', index: state.active } : { kind: 'none' }
@@ -65,7 +63,6 @@ export function pickKey(state: PickState, key: string, count: number): PickActio
 }
 
 // Filter choices ({value, label}) as picker items: the label is the title.
-export const optionItems = (options: { value: string; label: string }[]): PickItem[] =>
-  options.map((o) => ({ id: o.value, title: o.label }))
+export const optionItems = (options: { value: string; label: string }[]): PickItem[] => options.map((o) => ({ id: o.value, title: o.label }))
 
 export const pickLabel = (item: PickItem) => (item.title && item.title !== item.id ? `${item.id}: ${item.title}` : item.id)

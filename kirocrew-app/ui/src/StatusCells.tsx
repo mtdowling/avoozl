@@ -11,7 +11,6 @@ import { StatusCellsStyle } from './ui/PageStyles'
 
 export type CellTone = 'ok' | 'warn' | 'danger' | 'muted'
 
-
 export function StatusRow(props: { children: ReactNode }) {
   return (
     <div data-sc-row>
