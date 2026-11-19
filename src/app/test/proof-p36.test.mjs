@@ -123,7 +123,6 @@ async function workspace(t) {
         mode: "plans-repo",
         planningRepository: PLANS,
         epicIssueType: "Epic",
-        subIssues: { maxPerParent: 2 },
         repositories: {
           [PLANS]: { baseBranch: "main", allowedActors: ["maintainer"] },
           "example/code": { baseBranch: "main", allowedActors: ["maintainer"] },

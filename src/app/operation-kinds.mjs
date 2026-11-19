@@ -134,8 +134,6 @@ const DRAFT = new Set([
   "report.save",
   "report.delete",
   "intent.get",
-  "search.prompt",
-  "checkpoint.publish",
 ]);
 
 const EXECUTE = new Set([
