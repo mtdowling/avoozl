@@ -210,5 +210,6 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
   // The refreshes did go out, after the replies: the test reached the network.
   await new Promise((resolve) => setTimeout(resolve, 50));
   assert.ok(github > 0, "a GitHub read was started");
-  assert.ok(crew > 0, "a Kiro Crew read was started");
+  // No Home read asks Kiro Crew anything.
+  assert.equal(crew, 0, "a Kiro Crew read was started");
 });
