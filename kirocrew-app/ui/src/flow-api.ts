@@ -626,7 +626,7 @@ export function stopRows(stops: LineStop[]): StopRow[] {
       what: stop.manual
         ? `${stop.reason ?? ''} (${scopeText(stop)})`
         : stop.check
-          ? `\`${stop.check}\` failed on ${stop.branch ?? stop.projectId}`
+          ? `\`${stop.check}\` failed on ${stop.branch ?? stop.repositoryId}`
           : `a worker named ${stop.culprit ?? 'a task'} as the cause`,
       who: stop.manual ? (stop.by?.name ?? null) : null,
       openedAt: stop.openedAt,
