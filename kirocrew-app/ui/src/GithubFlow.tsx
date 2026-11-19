@@ -30,7 +30,7 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
   const rows = flowRows(view),
     widest = Math.max(1, ...(view.median ?? [0]))
   return (
-    <Card className="flex flex-col gap-2">
+    <Card flex flexCol gap="2">
       <Stack data-github-flow gap={2}>
         <SectionHeading title="From GitHub" />
         {issues && <Hint as="p" size="sm">{summaryLine(view)}. Times are GitHub's.</Hint>}
@@ -42,14 +42,8 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
                 aria-hidden="true"
                 as="span" css-flex="1-1-6rem" css-height="8" css-border-radius="4" css-background="mix-muted-15%-transparent"
               >
-                <span
-                  style={{
-                    display: 'block',
-                    height: '100%',
-                    borderRadius: 4,
-                    width: `${(100 * (view.median?.[index] ?? 0)) / widest}%`,
-                    background: row.slowest ? 'var(--accent)' : 'var(--muted)',
-                  }}
+                <Box
+                  as="span" css-display="block" css-height="100%" css-border-radius="4" css-width={`${(100 * (view.median?.[index] ?? 0)) / widest}%`} css-background={row.slowest ? 'accent' : 'muted'}
                 />
               </Box>
               <Box as="span" tabularNums>{row.median}</Box>

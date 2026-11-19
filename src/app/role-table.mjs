@@ -241,8 +241,8 @@ export const ROLE_TABLE = Object.freeze({
   },
   // The issue planner's sessions are `planner` sessions, so a child runs by
   // the planner row. Its critique runs as a child in the spec folder's
-  // `avoozl/` folder, its one write root (NK2.4); its breakdown stays a
-  // chat unless a harness is saved for it, until nk-3.3.
+  // `avoozl/` folder, its one write root (NK2.4); its breakdown in the spec
+  // folder, handing back its kind and reason (NK5.4).
   issuePlanner: {
     setting: "issuePlanner",
     roles: [],
