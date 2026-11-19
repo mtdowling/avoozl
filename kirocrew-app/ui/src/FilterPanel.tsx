@@ -65,9 +65,19 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
       </Box>
     )
   if (field.kind === 'select')
-    return <FilterSelect id={fieldId} label={field.label} value={field.value} options={field.options} onChange={field.onChange} disabled={field.disabled} hint={field.hint} inline={inline} />
-  if (field.kind === 'pick')
-    return <Picker id={fieldId} label={field.label} items={field.items} value={field.value} onPick={field.onChange} emptyLabel="All" maxWidth="16rem" />
+    return (
+      <FilterSelect
+        id={fieldId}
+        label={field.label}
+        value={field.value}
+        options={field.options}
+        onChange={field.onChange}
+        disabled={field.disabled}
+        hint={field.hint}
+        inline={inline}
+      />
+    )
+  if (field.kind === 'pick') return <Picker id={fieldId} label={field.label} items={field.items} value={field.value} onPick={field.onChange} emptyLabel="All" maxWidth="16rem" />
   if (field.kind === 'check')
     return (
       <Switch label={field.label} size="sm" gap={1.5} checked={field.checked} onChange={field.onChange}>
@@ -76,7 +86,9 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
     )
   return (
     <Box as="fieldset" flex flexCol gap="1" size="sm">
-      <Box as="legend" mb="1">{field.label}</Box>
+      <Box as="legend" mb="1">
+        {field.label}
+      </Box>
       <Row as="span" gap={1} wrap={false}>
         <input
           aria-label={`${field.label} from`}
@@ -112,10 +124,31 @@ const INLINE = { ...selectStyle, height: 24, boxSizing: 'border-box' as const, p
 function InlineField({ id, field }: { id: string; field: FilterField }) {
   const fieldId = `${id}-${field.key}`
   if (field.kind === 'search')
-    return <input id={fieldId} type="search" aria-label={field.label} value={field.value} placeholder={field.placeholder} onChange={(event) => field.onChange(event.target.value)} className="border" style={{ ...INLINE, flex: '1 1 8rem', width: '8rem', maxWidth: '16rem' }} />
+    return (
+      <input
+        id={fieldId}
+        type="search"
+        aria-label={field.label}
+        value={field.value}
+        placeholder={field.placeholder}
+        onChange={(event) => field.onChange(event.target.value)}
+        className="border"
+        style={{ ...INLINE, flex: '1 1 8rem', width: '8rem', maxWidth: '16rem' }}
+      />
+    )
   if (field.kind === 'select')
     return (
-      <SelectField id={fieldId} aria-label={field.label} value={field.value} disabled={field.disabled} onChange={(event) => field.onChange(event.target.value)} look="compact" flex="0 1 7rem" width="7rem" maxWidth="9rem">
+      <SelectField
+        id={fieldId}
+        aria-label={field.label}
+        value={field.value}
+        disabled={field.disabled}
+        onChange={(event) => field.onChange(event.target.value)}
+        look="compact"
+        flex="0 1 7rem"
+        width="7rem"
+        maxWidth="9rem"
+      >
         <option value="">{field.label}: all</option>
         {field.options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -133,7 +166,16 @@ function InlineField({ id, field }: { id: string; field: FilterField }) {
 // (under them on a narrow page): a setting that belongs with the filters.
 // `folded`: the fields fold behind Filters at any width (a list column), and
 // the tab's own line (counts, Refresh) sits on the Filters row: one line.
-export function FilterPanel(props: { id: string; label: string; fields: FilterField[]; active: boolean; onClear: () => void; children?: ReactNode; aside?: ReactNode; folded?: boolean }) {
+export function FilterPanel(props: {
+  id: string
+  label: string
+  fields: FilterField[]
+  active: boolean
+  onClear: () => void
+  children?: ReactNode
+  aside?: ReactNode
+  folded?: boolean
+}) {
   const narrow = useMedia('(max-width: 767px)') || Boolean(props.folded)
   const [open, setOpen] = useState(false)
   const fields = (
@@ -141,7 +183,13 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
       {props.fields.map((field) => (
         <Field key={field.key} id={props.id} field={field} />
       ))}
-      <TipBtn tooltip="Clear every filter on this tab" type="button" onClick={props.onClear} disabled={!props.active} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <TipBtn
+        tooltip="Clear every filter on this tab"
+        type="button"
+        onClick={props.onClear}
+        disabled={!props.active}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+      >
         <X size={ICON} aria-hidden="true" />
         Clear
       </TipBtn>
@@ -197,7 +245,11 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
         ) : (
           fields
         )}
-        {narrow && props.aside && <Box mt="2" data-filter-aside>{props.aside}</Box>}
+        {narrow && props.aside && (
+          <Box mt="2" data-filter-aside>
+            {props.aside}
+          </Box>
+        )}
       </div>
       {props.children && <Box mt="3">{props.children}</Box>}
     </Card>
@@ -215,7 +267,13 @@ export function NavFilters(props: { id: string; label: string; fields: FilterFie
         <Field key={field.key} id={props.id} field={field} inline={props.inline} />
       ))}
       <span>
-        <TipBtn tooltip="Clear every filter on this page" type="button" onClick={props.onClear} disabled={!props.active} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <TipBtn
+          tooltip="Clear every filter on this page"
+          type="button"
+          onClick={props.onClear}
+          disabled={!props.active}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
           <X size={ICON} aria-hidden="true" />
           Clear
         </TipBtn>

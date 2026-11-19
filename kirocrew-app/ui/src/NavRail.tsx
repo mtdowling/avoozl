@@ -10,7 +10,6 @@ import { Box } from './ui/Box'
 import { RailCss } from './ui/PageStyles'
 import { PlainButton, PlainInput } from './ui/Plain'
 
-
 export function RailStyle() {
   return <RailCss />
 }
@@ -24,9 +23,15 @@ export function RailBlock(props: { icon: LucideIcon; title: string; first?: bool
       <div data-rail-head>
         <Icon size={12} aria-hidden="true" />
         <span>{props.title}</span>
-        {props.action && <Box as="span" css-margin-left="auto" css-display="inline-flex" css-text-transform="none" css-letter-spacing="0" css-font-weight="400">{props.action}</Box>}
+        {props.action && (
+          <Box as="span" css-margin-left="auto" css-display="inline-flex" css-text-transform="none" css-letter-spacing="0" css-font-weight="400">
+            {props.action}
+          </Box>
+        )}
       </div>
-      <Box css-display="flex" css-flex-direction="column" css-gap="2">{props.children}</Box>
+      <Box css-display="flex" css-flex-direction="column" css-gap="2">
+        {props.children}
+      </Box>
     </Box>
   )
 }
@@ -73,7 +78,9 @@ export function RailSortList<K extends string>(props: { fields: RailSort<K>[]; s
               on ? (
                 <>
                   <Dir size={14} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--accent)' }} />
-                  <Box as="span" srOnly>{props.dir === 'asc' ? ', ascending' : ', descending'}</Box>
+                  <Box as="span" srOnly>
+                    {props.dir === 'asc' ? ', ascending' : ', descending'}
+                  </Box>
                 </>
               ) : undefined
             }
@@ -97,7 +104,15 @@ export interface RailChipItem {
 
 // A titled block of pills with a search icon that narrows them. Search is
 // local: it hides pills, it never sets the filter.
-export function RailChips(props: { id: string; icon: LucideIcon; title: string; noun: string; items: RailChipItem[]; picked: string | undefined; onPick: (value: string | undefined) => void }) {
+export function RailChips(props: {
+  id: string
+  icon: LucideIcon
+  title: string
+  noun: string
+  items: RailChipItem[]
+  picked: string | undefined
+  onPick: (value: string | undefined) => void
+}) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const shown = useMemo(() => {
@@ -115,7 +130,13 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
       icon={props.icon}
       title={props.title}
       action={
-        <button type="button" data-rail-icon aria-expanded={open} aria-label={open ? `Close ${props.noun} search` : `Search ${props.noun}s`} onClick={() => (open ? close() : setOpen(true))}>
+        <button
+          type="button"
+          data-rail-icon
+          aria-expanded={open}
+          aria-label={open ? `Close ${props.noun} search` : `Search ${props.noun}s`}
+          onClick={() => (open ? close() : setOpen(true))}
+        >
           <Search size={13} aria-hidden="true" />
         </button>
       }
@@ -130,9 +151,25 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
             placeholder={`Search ${props.noun}s…`}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => event.key === 'Escape' && close()}
-            css-width="100%" css-box-sizing="border-box" css-font-size="13" css-padding="6px-28px-6px-12px" css-border-radius="6" css-background="bg" css-color="text" css-border="1px-solid-border"
+            css-width="100%"
+            css-box-sizing="border-box"
+            css-font-size="13"
+            css-padding="6px-28px-6px-12px"
+            css-border-radius="6"
+            css-background="bg"
+            css-color="text"
+            css-border="1px-solid-border"
           />
-          <PlainButton type="button" data-rail-icon aria-label={`Close ${props.noun} search`} onClick={close} css-position="absolute" css-right="6" css-top="50%" css-transform="translateY-50%">
+          <PlainButton
+            type="button"
+            data-rail-icon
+            aria-label={`Close ${props.noun} search`}
+            onClick={close}
+            css-position="absolute"
+            css-right="6"
+            css-top="50%"
+            css-transform="translateY-50%"
+          >
             <X size={13} aria-hidden="true" />
           </PlainButton>
         </Box>
@@ -151,13 +188,21 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
               onClick={() => props.onPick(picked ? undefined : item.value)}
               style={{ background: tint(at, picked) }}
             >
-              <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-flex-shrink="0" css-opacity={picked ? '0.9' : '0.6'}>{item.count}</Box>
-              <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{item.label}</Box>
+              <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-flex-shrink="0" css-opacity={picked ? '0.9' : '0.6'}>
+                {item.count}
+              </Box>
+              <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">
+                {item.label}
+              </Box>
             </button>
           )
         })}
       </Box>
-      {open && shown.length === 0 && <Box css-font-size="12" css-color="muted">No {props.noun} matches “{query}”.</Box>}
+      {open && shown.length === 0 && (
+        <Box css-font-size="12" css-color="muted">
+          No {props.noun} matches “{query}”.
+        </Box>
+      )}
     </RailBlock>
   )
 }

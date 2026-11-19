@@ -77,7 +77,15 @@ test('cleared fields become null at the top and vanish below it', () => {
 test('a legacy rule loads as one match line and saves as match', () => {
   const legacy = structuredClone(POLICY)
   legacy.repositories['example/app'].rules = [
-    { id: 'build', action: 'deliver', labelsAll: ['agent:build', 'needs triage'], labelsAny: ['a,b', 'c'], labelsNone: ['agent:paused'], assignee: 'maintainer', autoPublishChildren: true },
+    {
+      id: 'build',
+      action: 'deliver',
+      labelsAll: ['agent:build', 'needs triage'],
+      labelsAny: ['a,b', 'c'],
+      labelsNone: ['agent:paused'],
+      assignee: 'maintainer',
+      autoPublishChildren: true,
+    },
     { id: 'pause', action: 'pause', labelsAny: ['agent:paused'] },
   ]
   const form = toForm(legacy)
@@ -87,7 +95,10 @@ test('a legacy rule loads as one match line and saves as match', () => {
   )
   const saved = toPolicy(form)
   const rules = saved.repositories['example/app'].rules
-  assert.equal(rules.some((rule) => 'labelsAll' in rule || 'labelsAny' in rule || 'labelsNone' in rule || 'assignee' in rule), false)
+  assert.equal(
+    rules.some((rule) => 'labelsAll' in rule || 'labelsAny' in rule || 'labelsNone' in rule || 'assignee' in rule),
+    false,
+  )
   // The saved match rules mean what the legacy rules meant.
   const fields = (policy) =>
     normalizeGitHubPolicy(policy).repositories['example/app'].rules.map(({ labelsAll, labelsAny, labelsNone, assignee }) => ({
@@ -101,14 +112,11 @@ test('a legacy rule loads as one match line and saves as match', () => {
 })
 
 test('matchChips groups the parsed line; matchClient asks the preview op', async () => {
-  assert.deepEqual(
-    matchChips({ labelsAll: ['go'], labelsAny: [], labelsNone: ['hold'], assignee: null, unassigned: true }),
-    [
-      { kind: 'all', values: ['go'] },
-      { kind: 'none', values: ['hold'] },
-      { kind: 'assignee', values: ['nobody'] },
-    ],
-  )
+  assert.deepEqual(matchChips({ labelsAll: ['go'], labelsAny: [], labelsNone: ['hold'], assignee: null, unassigned: true }), [
+    { kind: 'all', values: ['go'] },
+    { kind: 'none', values: ['hold'] },
+    { kind: 'assignee', values: ['nobody'] },
+  ])
   assert.deepEqual(matchChips(null), [])
   const calls = []
   const ask = matchClient({ post: async (path, body) => (calls.push({ path, body }), { result: { ok: 1 } }) })

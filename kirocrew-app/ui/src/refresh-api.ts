@@ -43,5 +43,4 @@ export function refreshTip(rate: RateView | null | undefined, secondsLeft: numbe
 
 // The side panel's Refresh color for a read `age` from 0 (fresh) to 100 (due or
 // rate limited): the muted text color mixed toward the theme's red.
-export const refreshColor = (age: number): string =>
-  age >= 100 ? 'var(--danger)' : `color-mix(in srgb, var(--danger) ${Math.round(Math.max(0, age) * 0.8)}%, var(--muted))`
+export const refreshColor = (age: number): string => (age >= 100 ? 'var(--danger)' : `color-mix(in srgb, var(--danger) ${Math.round(Math.max(0, age) * 0.8)}%, var(--muted))`)

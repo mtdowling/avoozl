@@ -7,15 +7,23 @@ import { batchNumbers, filterRows, missingOwners } from '../src/plans-api.ts'
 
 const plans = readFileSync(new URL('../src/PlansView.tsx', import.meta.url), 'utf8')
 const entry = (id, batch, needs = []) => ({ id, spec: id, title: id, hash: `${id}-hash`, batch, tasks: 1, errors: 0, loop: false, needs })
-const batches = { batches: [{ batch: 1, specs: [entry('a', 1)] }, { batch: 2, specs: [entry('b', 2, ['a']), entry('c', 2, ['b'])] }] }
+const batches = {
+  batches: [
+    { batch: 1, specs: [entry('a', 1)] },
+    { batch: 2, specs: [entry('b', 2, ['a']), entry('c', 2, ['b'])] },
+  ],
+}
 const row = (planId) => ({ key: `spec:${planId}`, kind: 'spec', name: planId, spec: planId, planId, status: 'draft', now: { ready: 0, running: 0, needsYou: 0 } })
 
 test('each draft plan gets the batch plan.approvalBatches gives it', () => {
-  assert.deepEqual([...batchNumbers(batches)], [
-    ['a', 1],
-    ['b', 2],
-    ['c', 2],
-  ])
+  assert.deepEqual(
+    [...batchNumbers(batches)],
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 2],
+    ],
+  )
   assert.equal(batchNumbers(null).size, 0)
 })
 

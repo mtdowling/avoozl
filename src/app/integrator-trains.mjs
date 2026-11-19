@@ -489,8 +489,9 @@ export async function runIntegrator(
   // on a timer so it does not expire while its holder works.
   const beat = () => {
     try {
-      const { heartbeatSeconds, missedHeartbeats } =
-        leaseSettings(loadConfig());
+      const { heartbeatSeconds, missedHeartbeats } = leaseSettings(
+        loadConfig(),
+      );
       for (const { project, target } of trainTargets(store)) {
         const held = landingLease(store, project.id, target);
         if (held?.sessionId === sessionId && leaseState(held) === "active")

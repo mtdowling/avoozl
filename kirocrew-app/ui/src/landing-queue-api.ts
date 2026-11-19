@@ -53,8 +53,7 @@ export interface LandingQueue {
 
 export function landingQueueClient(api: AppApi) {
   return {
-    read: async (workspaceId: string) =>
-      (await api.post<{ result: LandingQueue }>(COMMAND_PATH, { operation: 'landing.queue', input: {}, workspaceId })).result,
+    read: async (workspaceId: string) => (await api.post<{ result: LandingQueue }>(COMMAND_PATH, { operation: 'landing.queue', input: {}, workspaceId })).result,
   }
 }
 
@@ -95,7 +94,15 @@ export const baseTitle = (base: LandingBase) => `${base.repository ?? base.proje
 
 // How the group lands, for its heading's side note.
 export const landingNote = (base: LandingBase) =>
-  base.landing === 'pr' ? 'by pull request' : base.landing === 'direct' ? 'direct' : base.landing === 'train' ? 'by integrator train' : base.landing === 'off' ? 'landing off' : 'local'
+  base.landing === 'pr'
+    ? 'by pull request'
+    : base.landing === 'direct'
+      ? 'direct'
+      : base.landing === 'train'
+        ? 'by integrator train'
+        : base.landing === 'off'
+          ? 'landing off'
+          : 'local'
 
 // The item's links: only http(s), each opening a new tab.
 export function itemLinks(item: LandingItem): { key: string; label: string; href: string }[] {

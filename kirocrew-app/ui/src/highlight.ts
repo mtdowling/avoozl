@@ -94,11 +94,7 @@ export function grammarFor(lang: string | null): Grammar | null {
 export type Token = string | { types: string[]; content: Token[] }
 
 const flatten = (part: string | PrismToken | (string | PrismToken)[]): Token[] =>
-  Array.isArray(part)
-    ? part.flatMap(flatten)
-    : typeof part === 'string'
-      ? [part]
-      : [{ types: [part.type, ...[part.alias ?? []].flat()], content: flatten(part.content) }]
+  Array.isArray(part) ? part.flatMap(flatten) : typeof part === 'string' ? [part] : [{ types: [part.type, ...[part.alias ?? []].flat()], content: flatten(part.content) }]
 
 // The tokens of one code block, or null to render it plain.
 export function highlight(text: string, lang: string | null): Token[] | null {

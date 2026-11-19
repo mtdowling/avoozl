@@ -34,7 +34,9 @@ export async function showDemo(page, harness, { width, height, theme, view = 'ho
   const section = VIEWS[view]
   if (section) {
     if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
-    await page.evaluate(`(() => { const b = [...document.querySelectorAll('[data-nav-head]')].find((x) => x.textContent.trim().startsWith(${JSON.stringify(section)})); b?.click(); return Boolean(b) })()`)
+    await page.evaluate(
+      `(() => { const b = [...document.querySelectorAll('[data-nav-head]')].find((x) => x.textContent.trim().startsWith(${JSON.stringify(section)})); b?.click(); return Boolean(b) })()`,
+    )
     if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-list]') && document.querySelector('[data-top-rail-bar]')?.click()`)
   }
   // Let the page's reads settle.

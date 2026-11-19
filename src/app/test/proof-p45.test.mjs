@@ -420,12 +420,10 @@ test("P45 (4): a screenshot lands in the drawer and the comment; a 30 MB file is
   const github = {
     listIssueComments: async () => [],
     createIssueComment: async (...args) => (
-      calls.push(["create", ...args]),
-      { id: 501 }
+      calls.push(["create", ...args]), { id: 501 }
     ),
     updateIssueComment: async (...args) => (
-      calls.push(["update", ...args]),
-      {}
+      calls.push(["update", ...args]), {}
     ),
   };
   await evidenceCommentStep(w.store, github);

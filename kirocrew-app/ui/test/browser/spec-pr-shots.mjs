@@ -44,9 +44,14 @@ try {
             await settle(300)
           }
           const scope = phone ? '[data-top-rail-list]' : 'body'
-          await page.evaluate(`(() => { const h = [...document.querySelectorAll('${scope} [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(group)})); if (h && (${JSON.stringify(!item)} || !h.hasAttribute('data-open'))) h.click() })()`)
+          await page.evaluate(
+            `(() => { const h = [...document.querySelectorAll('${scope} [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(group)})); if (h && (${JSON.stringify(!item)} || !h.hasAttribute('data-open'))) h.click() })()`,
+          )
           await settle(300)
-          if (item) await page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-item]:not([data-nav-head])')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(item)}))?.click()`)
+          if (item)
+            await page.evaluate(
+              `[...document.querySelectorAll('${scope} [data-nav-item]:not([data-nav-head])')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(item)}))?.click()`,
+            )
           await settle(300)
           if (phone && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(click('[data-top-rail-bar]'))
         }
@@ -54,7 +59,9 @@ try {
           await nav('Needs you', name === 'decision' ? 'Decisions' : 'Triage')
           if (name === 'decision') {
             await settle(600)
-            await page.evaluate(`(() => { const el = [...document.querySelectorAll('[data-shell-main] *')].filter((e) => e.children.length === 0 && e.textContent.includes('Proposed change to byte-types')).at(0); el?.click() })()`)
+            await page.evaluate(
+              `(() => { const el = [...document.querySelectorAll('[data-shell-main] *')].filter((e) => e.children.length === 0 && e.textContent.includes('Proposed change to byte-types')).at(0); el?.click() })()`,
+            )
             await page.until(`Boolean(document.querySelector('[data-spec-pull]'))`, 30000)
           } else await page.until(`Boolean(document.querySelector('[data-untriaged-table], [data-untriaged-stack]'))`, 30000)
         } else {

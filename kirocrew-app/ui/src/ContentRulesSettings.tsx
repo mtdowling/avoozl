@@ -100,10 +100,20 @@ function SetRow(props: { selected: boolean; onClick: () => void; title: string; 
       >
         <Box as="span" flex wFull items="center" gap="1.5" size="sm" weight="medium">
           {props.locked && <Lock size={12} aria-label="Built in" style={{ color: 'var(--muted)', flexShrink: 0 }} />}
-          <Box as="span" truncate>{props.title}</Box>
-          {props.note && <Box as="span" ml="auto" shrink0>{props.note}</Box>}
+          <Box as="span" truncate>
+            {props.title}
+          </Box>
+          {props.note && (
+            <Box as="span" ml="auto" shrink0>
+              {props.note}
+            </Box>
+          )}
         </Box>
-        {props.raw && <Box as="code" size="11" tone="muted">{props.raw}</Box>}
+        {props.raw && (
+          <Box as="code" size="11" tone="muted">
+            {props.raw}
+          </Box>
+        )}
       </button>
     </li>
   )
@@ -121,55 +131,69 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
   return (
     <PairedCard label="Rule sets" width="18rem" style={panelStyle}>
       <Stack gap={3} data-rule-panel>
-      <Box flex flexCol items="start" gap="2">
-        <Box as="h3" size="sm" weight="semibold">Your rule sets</Box>
-        {!(value && !value.sets.length) && add}
-      </Box>
-      {value && !value.sets.length ? (
-        <Box flex flexCol items="start" gap="1.5" size="xs" data-rule-empty>
-          <p>No rule sets yet. Only the built-in sets run.</p>
-          <Hint as="p">Choose Add rule set to block your own words, like a project code name.</Hint>
-          {add}
-          <span>
-            <HelpLink />
-          </span>
+        <Box flex flexCol items="start" gap="2">
+          <Box as="h3" size="sm" weight="semibold">
+            Your rule sets
+          </Box>
+          {!(value && !value.sets.length) && add}
         </Box>
-      ) : (
-        <Box as="ul" flex flexCol gap="0.5">
-          {value?.sets.map((set) => (
-            <SetRow
-              key={set.id}
-              title={set.id}
-              selected={is('set', set.id)}
-              onClick={() => props.onSelect({ kind: 'set', id: set.id })}
-              note={
-                set.available ? (
-                  <Box as="span" size="11" tone="muted">{set.action === 'report' ? 'Reports' : 'Blocks'}</Box>
-                ) : (
-                  <Badge variant="warning">Unavailable</Badge>
-                )
-              }
-            />
-          ))}
+        {value && !value.sets.length ? (
+          <Box flex flexCol items="start" gap="1.5" size="xs" data-rule-empty>
+            <p>No rule sets yet. Only the built-in sets run.</p>
+            <Hint as="p">Choose Add rule set to block your own words, like a project code name.</Hint>
+            {add}
+            <span>
+              <HelpLink />
+            </span>
+          </Box>
+        ) : (
+          <Box as="ul" flex flexCol gap="0.5">
+            {value?.sets.map((set) => (
+              <SetRow
+                key={set.id}
+                title={set.id}
+                selected={is('set', set.id)}
+                onClick={() => props.onSelect({ kind: 'set', id: set.id })}
+                note={
+                  set.available ? (
+                    <Box as="span" size="11" tone="muted">
+                      {set.action === 'report' ? 'Reports' : 'Blocks'}
+                    </Box>
+                  ) : (
+                    <Badge variant="warning">Unavailable</Badge>
+                  )
+                }
+              />
+            ))}
+          </Box>
+        )}
+        <Box css-border-color="border" border="t" pt="2">
+          <Box as="h3" size="sm" weight="semibold">
+            Built in
+          </Box>
+          <Hint as="p" size="xs">
+            Always on. Settings can’t change them.
+          </Hint>
+          <Box as="ul" mt="1" flex flexCol gap="0.5">
+            {value?.builtins.map((set) => (
+              <SetRow
+                key={set.id}
+                locked
+                title={builtinName(set.id)}
+                raw={set.id}
+                selected={is('builtin', set.id)}
+                onClick={() => props.onSelect({ kind: 'builtin', id: set.id })}
+                note={
+                  builtinUsed(set.id, value?.mode) ? null : (
+                    <Box as="span" size="11" tone="muted">
+                      not used
+                    </Box>
+                  )
+                }
+              />
+            ))}
+          </Box>
         </Box>
-      )}
-      <Box css-border-color="border" border="t" pt="2">
-        <Box as="h3" size="sm" weight="semibold">Built in</Box>
-        <Hint as="p" size="xs">Always on. Settings can’t change them.</Hint>
-        <Box as="ul" mt="1" flex flexCol gap="0.5">
-          {value?.builtins.map((set) => (
-            <SetRow
-              key={set.id}
-              locked
-              title={builtinName(set.id)}
-              raw={set.id}
-              selected={is('builtin', set.id)}
-              onClick={() => props.onSelect({ kind: 'builtin', id: set.id })}
-              note={builtinUsed(set.id, value?.mode) ? null : <Box as="span" size="11" tone="muted">not used</Box>}
-            />
-          ))}
-        </Box>
-      </Box>
       </Stack>
     </PairedCard>
   )
@@ -196,8 +220,21 @@ function BuiltinDetails({ id, appliesAt, mode }: { id: string; appliesAt: string
   const used = builtinUsed(id, mode)
   return (
     <Stack gap={3} data-rule-details={id}>
-      <SectionHeading icon={Lock} title={builtinName(id)} meta={used ? <Badge>Always on</Badge> : <Badge>Not used</Badge>} blurb={<Box as="code" size="11">{id}</Box>} />
-      {!used && <Hint as="p" size="sm">Not used in this mode: there is no planning repository to keep private. It runs in Plans repository mode.</Hint>}
+      <SectionHeading
+        icon={Lock}
+        title={builtinName(id)}
+        meta={used ? <Badge>Always on</Badge> : <Badge>Not used</Badge>}
+        blurb={
+          <Box as="code" size="11">
+            {id}
+          </Box>
+        }
+      />
+      {!used && (
+        <Hint as="p" size="sm">
+          Not used in this mode: there is no planning repository to keep private. It runs in Plans repository mode.
+        </Hint>
+      )}
       <Facts
         rows={[
           ['What it protects', info?.protects ?? 'A check Avoozl runs on its own writes.'],
@@ -228,22 +265,27 @@ function Check(props: { checked: boolean; onChange: (v: boolean) => void; label:
 const toggle = (list: string[], item: string, on: boolean) => (on ? [...new Set([...list, item])] : list.filter((x) => x !== item))
 
 // One set's settings, saved into .avoozl.json.
-function SetFormView(props: {
-  form: SetForm
-  set: (patch: Partial<SetForm>) => void
-  isNew: boolean
-  choices: { repositories: string[]; plugins: string[] }
-}) {
+function SetFormView(props: { form: SetForm; set: (patch: Partial<SetForm>) => void; isNew: boolean; choices: { repositories: string[]; plugins: string[] } }) {
   const { form, set, choices } = props
   const nameHelp = props.isNew ? 'Lowercase letters, digits, dots and dashes. It also names the terms file.' : 'The name is the terms file’s name, so it stays.'
   return (
     <Stack gap={3} data-set-form>
       <FieldRow id="avoozl-set-id" label="Name" raw="id" rule={{ required: true }} width="22rem" help={nameHelp}>
-        <Input id="avoozl-set-id" aria-describedby="avoozl-set-id-help" value={form.id} disabled={!props.isNew} placeholder="company-terms" onChange={(e: { target: { value: string } }) => set({ id: e.target.value })} />
+        <Input
+          id="avoozl-set-id"
+          aria-describedby="avoozl-set-id-help"
+          value={form.id}
+          disabled={!props.isNew}
+          placeholder="company-terms"
+          onChange={(e: { target: { value: string } }) => set({ id: e.target.value })}
+        />
       </FieldRow>
       <Box as="fieldset" flex flexCol gap="1.5">
         <Box as="legend" mb="1" flex flexWrap items="baseline" gapX="2" size="sm">
-          <Box as="span" weight="medium">When a rule matches</Box> <RawKey name="action" />
+          <Box as="span" weight="medium">
+            When a rule matches
+          </Box>{' '}
+          <RawKey name="action" />
         </Box>
         <ChoiceCards
           id="avoozl-set-action"
@@ -251,24 +293,42 @@ function SetFormView(props: {
           value={form.action}
           onChange={(action) => set({ action })}
           cards={[
-            { key: 'block', icon: Ban, title: 'Block', line: 'Nothing is written. You decide in Conflicts, and can allow it once.', when: 'the words must never leave this machine.' },
+            {
+              key: 'block',
+              icon: Ban,
+              title: 'Block',
+              line: 'Nothing is written. You decide in Conflicts, and can allow it once.',
+              when: 'the words must never leave this machine.',
+            },
             { key: 'report', icon: Eye, title: 'Report', line: 'The write goes through. The match is listed in Delivery with one notice.', when: 'you are trying a new set out.' },
           ]}
         />
       </Box>
       <Box as="fieldset" flex flexCol gap="1">
         <Box as="legend" mb="1" flex flexWrap items="baseline" gapX="2" size="sm">
-          <Box as="span" weight="medium">Where it checks</Box> <RawKey name="boundaries" />
+          <Box as="span" weight="medium">
+            Where it checks
+          </Box>{' '}
+          <RawKey name="boundaries" />
         </Box>
         <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-14rem-1fr" grid gap="1.5">
           {BOUNDARIES.map((b) => (
-            <Check key={b} label={BOUNDARY_LABELS[b]} hint={BOUNDARY_HINTS[b]} checked={form.boundaries.includes(b)} onChange={(on) => set({ boundaries: toggle(form.boundaries, b, on) })} />
+            <Check
+              key={b}
+              label={BOUNDARY_LABELS[b]}
+              hint={BOUNDARY_HINTS[b]}
+              checked={form.boundaries.includes(b)}
+              onChange={(on) => set({ boundaries: toggle(form.boundaries, b, on) })}
+            />
           ))}
         </Box>
       </Box>
       <Box as="fieldset" flex flexCol gap="1">
         <Box as="legend" mb="1" flex flexWrap items="baseline" gapX="2" size="sm">
-          <Box as="span" weight="medium">Repositories</Box> <Marker rule={{ required: false }} /> <RawKey name="repositories" />
+          <Box as="span" weight="medium">
+            Repositories
+          </Box>{' '}
+          <Marker rule={{ required: false }} /> <RawKey name="repositories" />
         </Box>
         {choices.repositories.length ? (
           <Box flex flexWrap gapX="4" gapY="1">
@@ -277,17 +337,21 @@ function SetFormView(props: {
             ))}
           </Box>
         ) : (
-          <Hint as="p" size="xs">No repositories are registered yet. Add them under Repositories.</Hint>
+          <Hint as="p" size="xs">
+            No repositories are registered yet. Add them under Repositories.
+          </Hint>
         )}
         <Hint size="xs">None checked: every repository.</Hint>
       </Box>
-      <FieldRow id="avoozl-set-plugin" label="Rules plugin" raw="plugin" rule={{ required: false }} width="22rem" help="A plugin of kind rules, approved under Plugins, can supply this set instead.">
-        <SelectField
-          id="avoozl-set-plugin"
-          aria-describedby="avoozl-set-plugin-help"
-          value={form.plugin}
-          onChange={(e) => set({ plugin: e.target.value })} look="field"
-        >
+      <FieldRow
+        id="avoozl-set-plugin"
+        label="Rules plugin"
+        raw="plugin"
+        rule={{ required: false }}
+        width="22rem"
+        help="A plugin of kind rules, approved under Plugins, can supply this set instead."
+      >
+        <SelectField id="avoozl-set-plugin" aria-describedby="avoozl-set-plugin-help" value={form.plugin} onChange={(e) => set({ plugin: e.target.value })} look="field">
           <option value="">None: use a terms file on this machine</option>
           {choices.plugins.map((p) => (
             <option key={p} value={p}>
@@ -376,7 +440,20 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
       ))}
     </SelectField>
   ) : (
-    <PlainInput value={row.name} aria-label={`Rule name on line ${index + 1}`} placeholder="rule-name" onChange={(e) => props.onChange({ ...row, name: e.target.value })} css-border="1px-solid-border" css-border-radius="6" css-background="card-bg" css-color="text" css-padding="4px-8px" css-font-size="13" css-min-width="0" css-width="100%" />
+    <PlainInput
+      value={row.name}
+      aria-label={`Rule name on line ${index + 1}`}
+      placeholder="rule-name"
+      onChange={(e) => props.onChange({ ...row, name: e.target.value })}
+      css-border="1px-solid-border"
+      css-border-radius="6"
+      css-background="card-bg"
+      css-color="text"
+      css-padding="4px-8px"
+      css-font-size="13"
+      css-min-width="0"
+      css-width="100%"
+    />
   )
   const kind = (
     <SelectField value={current} aria-label={`Kind on line ${index + 1}`} onChange={(e) => switchKind(e.target.value as RowKind)} look="row">
@@ -434,7 +511,12 @@ function FileView(props: { text: string; onChange: (text: string) => void }) {
   return (
     <Stack gap={1}>
       <Box css-border-color="border" css-height="220" flex overflow="hidden" rounded="base" border="all">
-        <div ref={gutter} aria-hidden="true" className="select-none overflow-hidden px-2 py-1.5 text-right" style={{ ...lineStyle, background: 'color-mix(in srgb, var(--text) 5%, var(--card, var(--bg)))', minWidth: '2.5rem' }}>
+        <div
+          ref={gutter}
+          aria-hidden="true"
+          className="select-none overflow-hidden px-2 py-1.5 text-right"
+          style={{ ...lineStyle, background: 'color-mix(in srgb, var(--text) 5%, var(--card, var(--bg)))', minWidth: '2.5rem' }}
+        >
           {Array.from({ length: count + 20 }, (_, i) => (
             <Box key={i} css-color={bad.has(i + 1) ? 'danger' : 'muted'} css-font-weight={bad.has(i + 1) ? '700' : '400'} css-visibility={i < count ? 'visible' : 'hidden'}>
               {i + 1}
@@ -483,7 +565,14 @@ function TryIt({ rows }: { rows: TermRow[] }) {
           onChange={(e) => setSample(e.target.value)}
           rows={3}
           placeholder="Notes from the zebra falcon sync"
-          css-border-color="border" css-background="card-bg" css-color="text" rounded="base" border="all" px="2" py="1" size="sm"
+          css-border-color="border"
+          css-background="card-bg"
+          css-color="text"
+          rounded="base"
+          border="all"
+          px="2"
+          py="1"
+          size="sm"
         />
       </Box>
       {sample && (
@@ -504,7 +593,12 @@ function TryIt({ rows }: { rows: TermRow[] }) {
                       </Box>
                     </span>
                   ) : piece.rules.length ? (
-                    <mark key={i} title={undefined} data-match={piece.rules.join(' ')} style={{ background: 'color-mix(in srgb, var(--danger) 25%, transparent)', color: 'inherit', borderRadius: 3 }}>
+                    <mark
+                      key={i}
+                      title={undefined}
+                      data-match={piece.rules.join(' ')}
+                      style={{ background: 'color-mix(in srgb, var(--danger) 25%, transparent)', color: 'inherit', borderRadius: 3 }}
+                    >
                       {piece.text}
                     </mark>
                   ) : (
@@ -611,11 +705,19 @@ function TermsEditor(props: {
     return () => onState({ dirty: false, problem: null })
   }, [dirty, problem, onState])
   if (error && !file) return <ErrorText size="sm">{error}</ErrorText>
-  if (!file) return <Hint as="p" size="sm">Reading the terms file…</Hint>
+  if (!file)
+    return (
+      <Hint as="p" size="sm">
+        Reading the terms file…
+      </Hint>
+    )
   if (!file.editable)
     return (
       <Hint as="p" size="sm">
-        {file.reason} <Box as="code" size="xs">{file.file}</Box>
+        {file.reason}{' '}
+        <Box as="code" size="xs">
+          {file.file}
+        </Box>
       </Hint>
     )
   return (
@@ -644,7 +746,11 @@ function TermsEditor(props: {
       </Row>
       {view === 'builder' ? (
         <Stack gap={2}>
-          {ruleCount(rows) === 0 && <Hint as="p" size="xs">No rules yet. Add one: a name that shows in logs, and the word or pattern to find.</Hint>}
+          {ruleCount(rows) === 0 && (
+            <Hint as="p" size="xs">
+              No rules yet. Add one: a name that shows in logs, and the word or pattern to find.
+            </Hint>
+          )}
           <Stack as="ul" gap={2} aria-label="Rules">
             {rows.map((row, i) => (
               <RuleRow
@@ -678,8 +784,8 @@ function TermsEditor(props: {
       <Box as="p" flex items="start" gap="1.5" size="xs" tone="muted">
         <ShieldCheck size={ICON} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />
         <span>
-          Saved only to <code>{file.file}</code>, which Git must ignore and only your account can read. A rule’s name can show in logs and
-          notices; its words never do, so keep the words out of the name.
+          Saved only to <code>{file.file}</code>, which Git must ignore and only your account can read. A rule’s name can show in logs and notices; its words never do, so keep the
+          words out of the name.
         </span>
       </Box>
       {error && (
@@ -717,7 +823,10 @@ function SetDetails(props: {
   }, [stored])
   const others = value.sets.filter((s) => s.id !== set?.id)
   const choices = value.choices ?? { repositories: [], plugins: [] }
-  const checked = setEntry(form, others.map((s) => s.id))
+  const checked = setEntry(
+    form,
+    others.map((s) => s.id),
+  )
   const changed = !set || JSON.stringify(checked.entry) !== JSON.stringify(entryOf(set))
   const write = async (sets: Record<string, unknown>[], select: string | null) => {
     setBusy(true)
@@ -760,20 +869,22 @@ function SetDetails(props: {
           )
         }
         blurb={set ? 'Your words to keep out of what Avoozl writes.' : 'Name it and pick where it checks. Add its words after you save.'}
-        actions={set && (
-          <DangerBtn
-            icon={Trash2}
-            disabled={busy}
-            confirm={{
-              title: `Delete the rule set ${set.id}?`,
-              body: 'It is removed from .avoozl.json and stops checking. Its terms file stays on this machine, so a new set with the same name uses it again.',
-              action: 'Delete set',
-            }}
-            onConfirm={() => void write(others.map(entryOf), null)}
-          >
-            Delete set
-          </DangerBtn>
-        )}
+        actions={
+          set && (
+            <DangerBtn
+              icon={Trash2}
+              disabled={busy}
+              confirm={{
+                title: `Delete the rule set ${set.id}?`,
+                body: 'It is removed from .avoozl.json and stops checking. Its terms file stays on this machine, so a new set with the same name uses it again.',
+                action: 'Delete set',
+              }}
+              onConfirm={() => void write(others.map(entryOf), null)}
+            >
+              Delete set
+            </DangerBtn>
+          )
+        }
       />
       {set && (
         <Facts
@@ -790,18 +901,36 @@ function SetDetails(props: {
         </Box>
       )}
       <Stack as="section" gap={2}>
-        <Box as="h4" size="sm" weight="semibold">Settings</Box>
+        <Box as="h4" size="sm" weight="semibold">
+          Settings
+        </Box>
         <SetFormView form={form} set={(patch) => setForm({ ...form, ...patch })} isNew={!set} choices={choices} />
       </Stack>
       {set && set.source === 'file' && (
         <Box as="section" css-border-color="border" flex flexCol gap="2" border="t" pt="3">
-          <Box as="h4" size="sm" weight="semibold">Words and patterns</Box>
-          <Hint as="p" size="xs">One rule per line. Case doesn’t matter. Only you can see these.</Hint>
+          <Box as="h4" size="sm" weight="semibold">
+            Words and patterns
+          </Box>
+          <Hint as="p" size="xs">
+            One rule per line. Case doesn’t matter. Only you can see these.
+          </Hint>
           <TermsEditor workspaceId={props.workspaceId} client={props.client} set={set} onSaved={props.reload} control={termsControl} onState={setTerms} />
         </Box>
       )}
-      {set && set.source === 'plugin' && <Hint as="p" size="sm">The plugin {set.plugin} supplies this set’s rules, so there is no terms file to edit.</Hint>}
-      <SaveFooter dirty={setsDirty || terms.dirty} saving={busy} problem={problem} error={error} note="Settings go to .avoozl.json, words to a file on this machine." onSave={() => void save()} onDiscard={discard} />
+      {set && set.source === 'plugin' && (
+        <Hint as="p" size="sm">
+          The plugin {set.plugin} supplies this set’s rules, so there is no terms file to edit.
+        </Hint>
+      )}
+      <SaveFooter
+        dirty={setsDirty || terms.dirty}
+        saving={busy}
+        problem={problem}
+        error={error}
+        note="Settings go to .avoozl.json, words to a file on this machine."
+        onSave={() => void save()}
+        onDiscard={discard}
+      />
     </Stack>
   )
 }
@@ -828,75 +957,95 @@ function HowRulesWork() {
       </Box>
       <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-20rem-1fr" mt="3" grid gap="4" size="sm">
         <section>
-          <Box as="h4" weight="semibold">Rule sets</Box>
+          <Box as="h4" weight="semibold">
+            Rule sets
+          </Box>
           <Hint as="p">
-            A rule set is a named list of words Avoozl must not write. .avoozl.json only names the set and where it checks. The words live in a
-            file on this machine, or come from a rules plugin.
+            A rule set is a named list of words Avoozl must not write. .avoozl.json only names the set and where it checks. The words live in a file on this machine, or come from a
+            rules plugin.
           </Hint>
         </section>
         <section>
-          <Box as="h4" weight="semibold">One rule per line</Box>
+          <Box as="h4" weight="semibold">
+            One rule per line
+          </Box>
           <Hint as="p">A name, a colon, then what to find. Lines starting with # are notes. Case never matters.</Hint>
           <Box as="pre" css-border-color="border" mt="1" overflow="auto" rounded="base" border="all" p="2" size="xs">
             {EXAMPLE_LINES}
           </Box>
         </section>
         <section>
-          <Box as="h4" weight="semibold">Word or pattern</Box>
+          <Box as="h4" weight="semibold">
+            Word or pattern
+          </Box>
           <Hint as="p">
-            A word or phrase matches only itself. A pattern is a regular expression, for things like any ticket number. The builder saves a word
-            with its dots and brackets escaped, so they mean themselves.
+            A word or phrase matches only itself. A pattern is a regular expression, for things like any ticket number. The builder saves a word with its dots and brackets escaped,
+            so they mean themselves.
           </Hint>
         </section>
         <section>
-          <Box as="h4" weight="semibold">Allow a false match</Box>
+          <Box as="h4" weight="semibold">
+            Allow a false match
+          </Box>
           <Hint as="p">
-            A line starting <code>allow</code> lets text through that a rule would block. <code>allow:</code> works for every rule in the
-            file; <code>allow ticket:</code> works for the ticket rule only. It counts only when it matches the same line the rule matched.
-            Allow lines are as private as rules, and the built-in sets don’t use them.
+            A line starting <code>allow</code> lets text through that a rule would block. <code>allow:</code> works for every rule in the file; <code>allow ticket:</code> works for
+            the ticket rule only. It counts only when it matches the same line the rule matched. Allow lines are as private as rules, and the built-in sets don’t use them.
           </Hint>
           <Box as="pre" css-border-color="border" mt="1" overflow="auto" rounded="base" border="all" p="2" size="xs">
             {ALLOW_LINES}
           </Box>
         </section>
         <section>
-          <Box as="h4" weight="semibold">Where it checks</Box>
+          <Box as="h4" weight="semibold">
+            Where it checks
+          </Box>
           <Box as="ul" tone="muted">
             {BOUNDARIES.map((b) => (
               <li key={b}>
-                <Box as="span" css-color="text">{BOUNDARY_LABELS[b]}:</Box> {BOUNDARY_HINTS[b]}
+                <Box as="span" css-color="text">
+                  {BOUNDARY_LABELS[b]}:
+                </Box>{' '}
+                {BOUNDARY_HINTS[b]}
               </li>
             ))}
           </Box>
-          <Box as="p" mt="1" tone="muted">It also reads through percent and HTML escapes and hidden zero-width characters.</Box>
+          <Box as="p" mt="1" tone="muted">
+            It also reads through percent and HTML escapes and hidden zero-width characters.
+          </Box>
         </section>
         <section>
-          <Box as="h4" weight="semibold">Block or report</Box>
+          <Box as="h4" weight="semibold">
+            Block or report
+          </Box>
           <Hint as="p">
-            Block stops the write and opens a decision in Conflicts. There a person can change the text, or Allow once with a reason: that lets
-            that exact text through one time. Report lets the write through and lists the match in Delivery, with one notice.
+            Block stops the write and opens a decision in Conflicts. There a person can change the text, or Allow once with a reason: that lets that exact text through one time.
+            Report lets the write through and lists the match in Delivery, with one notice.
           </Hint>
         </section>
         <section>
-          <Box as="h4" weight="semibold">Built-in sets</Box>
+          <Box as="h4" weight="semibold">
+            Built-in sets
+          </Box>
           <Hint as="p">
-            Plans repo name, Safe replies and Secrets always run where they apply. Settings can’t turn them off, and a set of yours can’t use a
-            name starting builtin:.
+            Plans repo name, Safe replies and Secrets always run where they apply. Settings can’t turn them off, and a set of yours can’t use a name starting builtin:.
           </Hint>
         </section>
         <section>
-          <Box as="h4" weight="semibold">Privacy</Box>
+          <Box as="h4" weight="semibold">
+            Privacy
+          </Box>
           <Hint as="p">
-            Terms files sit in .avoozl/local/content-rules, which Git must ignore, and only your account can read them. A file Git tracks, or
-            could commit, is refused. A finding names the set, the rule and the line, never the words. A set whose file is missing blocks
-            everything it checks until the file is back.
+            Terms files sit in .avoozl/local/content-rules, which Git must ignore, and only your account can read them. A file Git tracks, or could commit, is refused. A finding
+            names the set, the rule and the line, never the words. A set whose file is missing blocks everything it checks until the file is back.
           </Hint>
         </section>
         <section>
-          <Box as="h4" weight="semibold">Rules plugins</Box>
+          <Box as="h4" weight="semibold">
+            Rules plugins
+          </Box>
           <Hint as="p">
-            A plugin of kind rules can supply sets, for words a team shares without a file on each machine. Add and approve it under Plugins, then
-            pick it as the set’s rules plugin. Its rules stay in memory only.
+            A plugin of kind rules can supply sets, for words a team shares without a file on each machine. Add and approve it under Plugins, then pick it as the set’s rules
+            plugin. Its rules stay in memory only.
           </Hint>
         </section>
       </Box>
@@ -942,7 +1091,9 @@ export default function ContentRulesSettings({ workspaceId }: { workspaceId: str
         <SetList value={value} selection={chosen} onSelect={setSelection} />
         <PairedCard label="Rule set details" grow={1}>
           {!value ? (
-            <Hint as="p" size="sm">Reading rule sets…</Hint>
+            <Hint as="p" size="sm">
+              Reading rule sets…
+            </Hint>
           ) : builtin ? (
             <BuiltinDetails id={builtin.id} appliesAt={builtin.appliesAt} mode={value.mode} />
           ) : chosen?.kind === 'new' || set ? (

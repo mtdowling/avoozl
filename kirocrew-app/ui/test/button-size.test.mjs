@@ -59,10 +59,13 @@ for (const size of SIZES) {
     const found = []
     const settle = () => new Promise((resolve) => setTimeout(resolve, 300))
     // On a phone the nav is behind the rail button; open it when it is shut.
-    const openMenu = () => page.evaluate(`(() => { const bar = document.querySelector('[data-top-rail-bar]'); if (bar && bar.getAttribute('aria-expanded') !== 'true') bar.click(); return true })()`)
+    const openMenu = () =>
+      page.evaluate(`(() => { const bar = document.querySelector('[data-top-rail-bar]'); if (bar && bar.getAttribute('aria-expanded') !== 'true') bar.click(); return true })()`)
     for (const name of TABS) {
       await openMenu()
-      const group = await page.evaluate(`(() => { const b = [...document.querySelectorAll('button[data-nav-head]')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(name)})); b?.click(); return b?.dataset.navGroup ?? '' })()`)
+      const group = await page.evaluate(
+        `(() => { const b = [...document.querySelectorAll('button[data-nav-head]')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(name)})); b?.click(); return b?.dataset.navGroup ?? '' })()`,
+      )
       await settle()
       // The nav itself, with this section open.
       await openMenu()

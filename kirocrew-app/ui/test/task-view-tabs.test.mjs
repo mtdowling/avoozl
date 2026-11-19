@@ -35,7 +35,10 @@ test('one rule for no data: a tab or section with none is not drawn, and says no
   assert.equal(tabHasData('review', detail(), 2), true)
   assert.equal(tabHasData('review', detail({ task: { handSetReview: true } }), 0), true)
   for (const tab of ['overview', 'links', 'details']) assert.equal(tabHasData(tab, detail(), 0), true, tab)
-  assert.deepEqual(visibleTabs(detail(), 0).map((t) => t.key), ['overview', 'links', 'details'])
+  assert.deepEqual(
+    visibleTabs(detail(), 0).map((t) => t.key),
+    ['overview', 'links', 'details'],
+  )
   const drawer = source('TaskDrawer.tsx')
   assert.match(drawer, /tabs=\{shown\}/)
   // A hidden tab named in the address lands on Overview.
@@ -72,7 +75,12 @@ test('page: tabs switch by click and arrow keys, and a tab with no data is not i
   await open('ready')
   assert.equal(await page.evaluate(`document.querySelector('[data-tab-panel]').dataset.tabPanel`), 'overview')
   // The sample task has a timeline but no delivery and no review: no Work or Review tab.
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-tabs="task-tabs"] [role=tab]')].map((t) => t.textContent.trim())`), ['Overview', 'Timeline', 'Links', 'Details'])
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-tabs="task-tabs"] [role=tab]')].map((t) => t.textContent.trim())`), [
+    'Overview',
+    'Timeline',
+    'Links',
+    'Details',
+  ])
   await page.evaluate(`document.querySelector('[data-tab="overview"]').focus()`)
   await page.key('ArrowRight', 'ArrowRight', 39)
   await page.until(`document.querySelector('[data-tab-panel]').dataset.tabPanel === 'timeline'`)
@@ -126,7 +134,10 @@ test('page: a failed summary is a muted line with Retry, and the view still work
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-section-box="summary"]'))`), true)
   await page.evaluate(`document.querySelector('[data-task-summary-retry]').click()`)
   await page.until(`Boolean(document.querySelector('[data-review-working]'))`)
-  assert.deepEqual((await asks()).map((a) => a.retry), [true])
+  assert.deepEqual(
+    (await asks()).map((a) => a.retry),
+    [true],
+  )
 })
 
 test('page: on a phone the tab bar scrolls sideways', { skip }, async () => {

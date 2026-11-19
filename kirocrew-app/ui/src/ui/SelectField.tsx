@@ -30,7 +30,16 @@ const LOOK: Record<SelectLook, { className: string; style: CSSProperties }> = {
   tight: { className: 'rounded border px-1 py-0.5 text-xs', style: BASE },
   row: {
     className: '',
-    style: { border: '1px solid var(--border)', borderRadius: 6, background: 'var(--card, var(--bg))', color: 'var(--text)', padding: '4px 8px', fontSize: 13, minWidth: 0, width: '100%' },
+    style: {
+      border: '1px solid var(--border)',
+      borderRadius: 6,
+      background: 'var(--card, var(--bg))',
+      color: 'var(--text)',
+      padding: '4px 8px',
+      fontSize: 13,
+      minWidth: 0,
+      width: '100%',
+    },
   },
   compact: { className: 'border', style: { ...BASE, height: 24, boxSizing: 'border-box', padding: '0 6px', fontSize: 12.5, borderRadius: 6, minWidth: 0 } },
 }

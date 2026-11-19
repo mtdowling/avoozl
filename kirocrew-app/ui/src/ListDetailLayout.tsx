@@ -90,7 +90,13 @@ export function ListDetailLayout(props: {
     )
   if (props.detail === null)
     return (
-      <div ref={fillRef} data-list-pane={props.id} data-list-only data-list-fill={fillHeight !== null ? '' : undefined} style={fillHeight !== null ? { height: fillHeight, minHeight: 0, overflowY: 'auto', position: 'relative' } : undefined}>
+      <div
+        ref={fillRef}
+        data-list-pane={props.id}
+        data-list-only
+        data-list-fill={fillHeight !== null ? '' : undefined}
+        style={fillHeight !== null ? { height: fillHeight, minHeight: 0, overflowY: 'auto', position: 'relative' } : undefined}
+      >
         {props.list}
       </div>
     )
@@ -99,8 +105,19 @@ export function ListDetailLayout(props: {
   // it fills the nav's filters.
   const folded = props.listFolded
   return (
-    <div ref={fillRef} data-list-detail={props.id} data-list-folded={folded ? '' : undefined} data-list-fill={fillHeight !== null ? '' : undefined} style={{ display: 'flex', alignItems: 'stretch', height: fillHeight ?? '100%', minHeight: 0 }}>
-      <div ref={column} data-list-pane={props.id} hidden={Boolean(folded)} style={{ flex: `0 0 ${width}px`, width, minWidth: 0, minHeight: 0, overflowY: 'auto', position: 'relative', paddingRight: 4, display: folded ? 'none' : undefined }}>
+    <div
+      ref={fillRef}
+      data-list-detail={props.id}
+      data-list-folded={folded ? '' : undefined}
+      data-list-fill={fillHeight !== null ? '' : undefined}
+      style={{ display: 'flex', alignItems: 'stretch', height: fillHeight ?? '100%', minHeight: 0 }}
+    >
+      <div
+        ref={column}
+        data-list-pane={props.id}
+        hidden={Boolean(folded)}
+        style={{ flex: `0 0 ${width}px`, width, minWidth: 0, minHeight: 0, overflowY: 'auto', position: 'relative', paddingRight: 4, display: folded ? 'none' : undefined }}
+      >
         {props.list}
       </div>
       {!folded && (
@@ -120,14 +137,36 @@ export function ListDetailLayout(props: {
           data-list-unfold={props.id}
           aria-label={folded.label}
           onClick={folded.onUnfold}
-          style={{ flex: `0 0 ${LIST_FOLDED_WIDTH}px`, width: LIST_FOLDED_WIDTH, display: 'flex', justifyContent: 'center', padding: '10px 0', background: 'none', border: 0, borderRadius: 6, color: 'var(--muted)', cursor: 'pointer', fontSize: 12.5, fontWeight: 500 }}
+          style={{
+            flex: `0 0 ${LIST_FOLDED_WIDTH}px`,
+            width: LIST_FOLDED_WIDTH,
+            display: 'flex',
+            justifyContent: 'center',
+            padding: '10px 0',
+            background: 'none',
+            border: 0,
+            borderRadius: 6,
+            color: 'var(--muted)',
+            cursor: 'pointer',
+            fontSize: 12.5,
+            fontWeight: 500,
+          }}
         >
-          <Box as="span" css-writing-mode="vertical-rl" css-transform="rotate-180deg" css-white-space="nowrap">{folded.label}</Box>
+          <Box as="span" css-writing-mode="vertical-rl" css-transform="rotate-180deg" css-white-space="nowrap">
+            {folded.label}
+          </Box>
         </button>
       )}
       <div
         data-detail-column={props.id}
-        style={{ flex: '1 1 0%', minWidth: 0, minHeight: 0, paddingLeft: 12, borderLeft: '1px solid var(--border)', ...(fillHeight !== null ? { display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' } : { overflowY: 'auto' }) }}
+        style={{
+          flex: '1 1 0%',
+          minWidth: 0,
+          minHeight: 0,
+          paddingLeft: 12,
+          borderLeft: '1px solid var(--border)',
+          ...(fillHeight !== null ? { display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' } : { overflowY: 'auto' }),
+        }}
       >
         {props.detail}
       </div>

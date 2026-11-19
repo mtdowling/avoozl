@@ -120,7 +120,8 @@ const SCENARIOS = {
   'review-info': ['Open the dialog', 'Meal planner: sections changed', 'Close'],
 }
 
-const press = (text) => `(() => { const b = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)}); b.focus(); b.click(); return true })()`
+const press = (text) =>
+  `(() => { const b = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)}); b.focus(); b.click(); return true })()`
 const hasButton = (text) => `Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)}))`
 
 for (const [name, [openerText, title, label]] of Object.entries(SCENARIOS))
@@ -159,7 +160,11 @@ test('the task modal: the task title with its id, Close, Add task after this', {
   await assertShell('task modal', /^Review with team\s*team-review$/)
   assert.equal(await page.evaluate(`${TOP}.querySelector('[data-modal-title-id]').textContent`), 'team-review', 'the id is small beside the title')
   // The body does not repeat the title.
-  assert.equal(await page.evaluate(`[...${TOP}.querySelectorAll('[data-modal-body] h2')].some((h) => h.textContent.trim() === 'Review with team')`), false, 'the title repeats in the body')
+  assert.equal(
+    await page.evaluate(`[...${TOP}.querySelectorAll('[data-modal-body] h2')].some((h) => h.textContent.trim() === 'Review with team')`),
+    false,
+    'the title repeats in the body',
+  )
   assert.deepEqual(await footerButtons(), ['Close', 'Add task after this'])
   // Add task after this: the add form, with this task as its prerequisite.
   await page.evaluate(`[...${TOP}.querySelectorAll('[data-modal-footer] button')].find((b) => b.textContent.trim() === 'Add task after this').click()`)
@@ -173,7 +178,10 @@ test('the task modal: the task title with its id, Close, Add task after this', {
 })
 
 test('the task modal from Needs you in the full app', { skip }, async () => {
-  for (const [width, dark] of [[1280, false], [390, true]]) {
+  for (const [width, dark] of [
+    [1280, false],
+    [390, true],
+  ]) {
     await page.open(harness.url({ page: 'app', needs: '1', theme: dark ? 'dark' : 'light' }), { width, height: 900, dark })
     const find = `[...document.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'Details for Item 1')`
     await page.until(`Boolean(${find})`, 30000)

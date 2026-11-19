@@ -73,7 +73,14 @@ export function FolderField(props: {
           onChange={(event) => props.onChange(event.target.value)}
           style={{ flex: 1, minWidth: 0 }}
         />
-        <Btn type="button" data-folder-browse aria-expanded={open} aria-controls={`${props.id}-browser`} onClick={toggle} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <Btn
+          type="button"
+          data-folder-browse
+          aria-expanded={open}
+          aria-controls={`${props.id}-browser`}
+          onClick={toggle}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
+        >
           <FolderOpen size={14} aria-hidden="true" /> Browse
         </Btn>
       </Row>
@@ -81,7 +88,14 @@ export function FolderField(props: {
       {open && (
         <Box id={`${props.id}-browser`} data-folder-browser css-border-color="border" flex flexCol rounded="base" border="all">
           <Box css-border-color="border" flex items="center" gap="2" border="b" px="2" py="1">
-            <Btn type="button" data-folder-up aria-label="Up one folder" disabled={!listing?.parent || loading} onClick={() => listing?.parent && pick(listing.parent)} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 6px' }}>
+            <Btn
+              type="button"
+              data-folder-up
+              aria-label="Up one folder"
+              disabled={!listing?.parent || loading}
+              onClick={() => listing?.parent && pick(listing.parent)}
+              style={{ display: 'inline-flex', alignItems: 'center', padding: '0 6px' }}
+            >
               <ArrowUp size={14} aria-hidden="true" />
             </Btn>
             <Box as="span" css-overflow-wrap="anywhere" minW0 flex1 size="xs" tone="muted" data-folder-at>
@@ -95,22 +109,43 @@ export function FolderField(props: {
             </Box>
           )}
           <Box as="ul" css-max-height="200" css-list-style="none" css-margin="0" css-padding-left="0" flex flexCol overflow="y-auto" py="1" aria-label="Folders" data-folder-list>
-            {listing && listing.folders.length === 0 && <Box as="li" px="2" py="1" size="xs" tone="muted">No folders here.</Box>}
+            {listing && listing.folders.length === 0 && (
+              <Box as="li" px="2" py="1" size="xs" tone="muted">
+                No folders here.
+              </Box>
+            )}
             {listing?.folders.map((folder) => (
               <li key={folder.path}>
                 <PlainButton
                   type="button"
                   data-folder={folder.name}
                   onClick={() => pick(folder.path)}
-                  css-background="none" css-border="0" css-color="text" css-cursor="pointer" flex wFull items="center" gap="2" px="2" py="1" align="left" size="sm"
+                  css-background="none"
+                  css-border="0"
+                  css-color="text"
+                  css-cursor="pointer"
+                  flex
+                  wFull
+                  items="center"
+                  gap="2"
+                  px="2"
+                  py="1"
+                  align="left"
+                  size="sm"
                 >
                   <Folder size={14} aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }} />
-                  <Box as="span" minW0 flex1 truncate>{folder.name}</Box>
+                  <Box as="span" minW0 flex1 truncate>
+                    {folder.name}
+                  </Box>
                   {folder.workspace && <Badge variant="info">Workspace</Badge>}
                 </PlainButton>
               </li>
             ))}
-            {listing?.truncated && <Box as="li" px="2" py="1" size="xs" tone="muted">Only the first 500 folders show. Type the rest of the path.</Box>}
+            {listing?.truncated && (
+              <Box as="li" px="2" py="1" size="xs" tone="muted">
+                Only the first 500 folders show. Type the rest of the path.
+              </Box>
+            )}
           </Box>
           <Box css-border-color="border" flex justify="end" border="t" px="2" py="1">
             <Btn type="button" data-folder-done onClick={() => setOpen(false)}>

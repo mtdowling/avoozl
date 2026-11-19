@@ -76,7 +76,11 @@ function Chip(props: { label: string; count?: number; on: boolean; onClick: () =
   return (
     <SmallBtn primary={props.on} onClick={props.onClick} attrs={{ 'aria-pressed': props.on ? 'true' : 'false', ...props.attr }}>
       {props.label}
-      {props.count !== undefined && <Box as="span" css-margin-left="4" css-opacity="0.8">{props.count}</Box>}
+      {props.count !== undefined && (
+        <Box as="span" css-margin-left="4" css-opacity="0.8">
+          {props.count}
+        </Box>
+      )}
     </SmallBtn>
   )
 }
@@ -171,11 +175,23 @@ function FindingCard(props: {
       <Box css-display="flex" css-align-items="center" css-gap="8" css-min-width="0">
         <Icon size={14} aria-hidden="true" style={{ flex: 'none', color: ink }} />
         <Box css-flex="1-1-auto" css-min-width="0">
-        <Tooltip text={finding.claim} display="block">
-          <Box data-finding-title as="h4" css-flex="1-1-auto" css-min-width="0" css-margin="0" css-font-size="13" css-font-weight="600" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap" m0>
-            {finding.claim}
-          </Box>
-        </Tooltip>
+          <Tooltip text={finding.claim} display="block">
+            <Box
+              data-finding-title
+              as="h4"
+              css-flex="1-1-auto"
+              css-min-width="0"
+              css-margin="0"
+              css-font-size="13"
+              css-font-weight="600"
+              css-overflow="hidden"
+              css-text-overflow="ellipsis"
+              css-white-space="nowrap"
+              m0
+            >
+              {finding.claim}
+            </Box>
+          </Tooltip>
         </Box>
         <Box data-state-label as="span" css-flex="none" css-font-size="11" tone="muted">
           {finding.state}
@@ -201,7 +217,14 @@ function FindingCard(props: {
           data-clamp={open ? undefined : 'true'}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
-          as="p" css-margin="0" css-font-size="12" css-color="mix-text-85%-transparent" css-cursor="pointer" css-white-space="pre-wrap" m0 whitespace="pre-wrap"
+          as="p"
+          css-margin="0"
+          css-font-size="12"
+          css-color="mix-text-85%-transparent"
+          css-cursor="pointer"
+          css-white-space="pre-wrap"
+          m0
+          whitespace="pre-wrap"
         >
           {finding.evidence}
         </Box>
@@ -212,7 +235,18 @@ function FindingCard(props: {
               {finding.answer.action === 'fixed' && finding.answer.revisionHash ? (
                 <>
                   Fixed in{' '}
-                  <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" css-font="inherit" underline data-fixed-revision onClick={() => props.onRevision(finding.answer!.revisionHash!)}>
+                  <PlainButton
+                    type="button"
+                    css-background="none"
+                    css-border="0"
+                    css-padding="0"
+                    css-color="inherit"
+                    css-cursor="pointer"
+                    css-font="inherit"
+                    underline
+                    data-fixed-revision
+                    onClick={() => props.onRevision(finding.answer!.revisionHash!)}
+                  >
                     <code>{shortHash(finding.answer.revisionHash)}</code>
                   </PlainButton>
                   .
@@ -227,7 +261,19 @@ function FindingCard(props: {
           )}
         </Box>
         {finding.decisions.length > 0 && (
-          <Box as="ul" css-margin="0" css-padding="0" css-display="flex" css-flex-direction="column" css-gap="2" css-list-style="none" css-font-size="11" m0 tone="muted" data-finding-history>
+          <Box
+            as="ul"
+            css-margin="0"
+            css-padding="0"
+            css-display="flex"
+            css-flex-direction="column"
+            css-gap="2"
+            css-list-style="none"
+            css-font-size="11"
+            m0
+            tone="muted"
+            data-finding-history
+          >
             {finding.decisions.map((d, i) => (
               <li key={i}>
                 {ACTION_TEXT[d.action]} by {d.by} at <code>{shortHash(d.revisionHash)}</code>
@@ -245,7 +291,19 @@ function FindingCard(props: {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={2}
-                css-border-color="border" css-background="bg" css-color="text" css-box-sizing="border-box" css-width="100%" css-border-radius="6" css-margin-top="2" mt="0.5" wFull rounded="base" border="all" p="1" size="sm"
+                css-border-color="border"
+                css-background="bg"
+                css-color="text"
+                css-box-sizing="border-box"
+                css-width="100%"
+                css-border-radius="6"
+                css-margin-top="2"
+                mt="0.5"
+                wFull
+                rounded="base"
+                border="all"
+                p="1"
+                size="sm"
               />
             </Box>
             <Box css-display="flex" css-flex-wrap="wrap" css-gap="6">
@@ -294,7 +352,18 @@ export function DocTabs(props: {
     <Box
       data-tab-count={n}
       aria-label={`${n} open`}
-      as="span" css-min-width="18" css-padding="0-6px" css-border-radius="999" css-font-size="11" css-line-height="18px" css-text-align="center" css-font-family="inherit" css-font-variant-numeric="tabular-nums" css-background={n ? 'bg-hover' : 'transparent'} css-color={n ? 'text' : 'muted'} css-opacity={n ? '1' : '0.6'}
+      as="span"
+      css-min-width="18"
+      css-padding="0-6px"
+      css-border-radius="999"
+      css-font-size="11"
+      css-line-height="18px"
+      css-text-align="center"
+      css-font-family="inherit"
+      css-font-variant-numeric="tabular-nums"
+      css-background={n ? 'bg-hover' : 'transparent'}
+      css-color={n ? 'text' : 'muted'}
+      css-opacity={n ? '1' : '0.6'}
     >
       {n}
     </Box>
@@ -376,11 +445,14 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   const [rowWidth, setRowWidth] = useState(0)
   const sideMax = Math.max(SIDE.min, Math.min(SIDE.max, rowWidth ? rowWidth - MIN_TEXT : SIDE.max))
   const shownSide = Math.min(sideWidth, sideMax)
-  const resizeSide = useCallback((next: number) => {
-    const value = clampWidth({ ...SIDE, max: sideMax }, next)
-    setSideWidth(value)
-    writeWidth(pageStorage(), SIDE, value)
-  }, [sideMax])
+  const resizeSide = useCallback(
+    (next: number) => {
+      const value = clampWidth({ ...SIDE, max: sideMax }, next)
+      setSideWidth(value)
+      writeWidth(pageStorage(), SIDE, value)
+    },
+    [sideMax],
+  )
   const sideEl = useRef<HTMLElement>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const scrollTo = useRef<'text' | 'card' | null>(null)
@@ -560,16 +632,33 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
         </ErrorText>
       )}
       {!data ? (
-        !error && <Hint as="p" size="sm" flush>Loading…</Hint>
+        !error && (
+          <Hint as="p" size="sm" flush>
+            Loading…
+          </Hint>
+        )
       ) : (
         <>
           <Box css-display="flex" css-flex-direction="column" css-gap="4" flex flexCol gap="1" data-review-rounds>
-            {data.rounds.length === 0 && <Hint as="p" size="sm" flush>Not reviewed yet.</Hint>}
+            {data.rounds.length === 0 && (
+              <Hint as="p" size="sm" flush>
+                Not reviewed yet.
+              </Hint>
+            )}
             {data.rounds.map((round) => (
               <Box
                 key={round.id}
                 data-review-round={round.id}
-                css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-gap="4px-12px" flex flexWrap items="baseline" gapX="3" gapY="1" size="sm"
+                css-display="flex"
+                css-flex-wrap="wrap"
+                css-align-items="baseline"
+                css-gap="4px-12px"
+                flex
+                flexWrap
+                items="baseline"
+                gapX="3"
+                gapY="1"
+                size="sm"
               >
                 <Box as="span" weight="medium">
                   Round {round.round}
@@ -585,7 +674,20 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
           </Box>
           {tab && <DocTabs tabs={tabs} current={tab} counts={{ ...open.byFile, [ALL_TAB]: open.total }} onPick={(name) => set({ file: name })} />}
           <Box css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="6" flex flexWrap items="center" gap="1.5" data-review-filters>
-            <Box as="span" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="6" flex flexWrap items="center" gap="1.5" role="group" aria-label="Severity" data-severity-filters>
+            <Box
+              as="span"
+              css-display="flex"
+              css-flex-wrap="wrap"
+              css-align-items="center"
+              css-gap="6"
+              flex
+              flexWrap
+              items="center"
+              gap="1.5"
+              role="group"
+              aria-label="Severity"
+              data-severity-filters
+            >
               <Hint size="xs">Severity</Hint>
               {SEVERITIES.map((s) => (
                 <Chip
@@ -598,7 +700,21 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                 />
               ))}
             </Box>
-            <Box as="span" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="6" css-margin-left={phone ? '0' : '12'} flex flexWrap items="center" gap="1.5" role="group" aria-label="State" data-state-filters>
+            <Box
+              as="span"
+              css-display="flex"
+              css-flex-wrap="wrap"
+              css-align-items="center"
+              css-gap="6"
+              css-margin-left={phone ? '0' : '12'}
+              flex
+              flexWrap
+              items="center"
+              gap="1.5"
+              role="group"
+              aria-label="State"
+              data-state-filters
+            >
               <Hint size="xs">State</Hint>
               {STATES.filter((s) => counts.state[s] || place.state.includes(s)).map((s) => (
                 <Chip
@@ -614,7 +730,13 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
           </Box>
           <ReviewCss />
           {all ? (
-            <section role="tabpanel" id="review-tab-panel" aria-labelledby="review-tab-all" data-review-all style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: 'auto' } : {}) }}>
+            <section
+              role="tabpanel"
+              id="review-tab-panel"
+              aria-labelledby="review-tab-all"
+              data-review-all
+              style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: 'auto' } : {}) }}
+            >
               {shown.length === 0 && (
                 <Hint as="p" size="sm" flush data-review-empty>
                   {data.findings.length === 0 ? 'No findings.' : 'No finding matches these filters.'}
@@ -633,85 +755,157 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               ))}
             </section>
           ) : (
-          <div ref={row} data-review-layout={wide ? 'rail' : 'inline'} style={{ display: 'flex', flexDirection: wide ? 'row' : 'column', alignItems: props.fill && wide ? 'stretch' : wide ? 'flex-start' : 'stretch', gap: wide ? 6 : 20, minWidth: 0, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: wide ? 'hidden' : 'auto' } : {}) }}>
-            <section
-              role="tabpanel"
-              id="review-tab-panel"
-              aria-labelledby={file ? `review-tab-${file.replace(/\W/g, '-')}` : undefined}
-              aria-label={file ? undefined : 'No file'}
-              data-review-doc={file ?? ''}
-              className="min-w-0"
-              style={{ flex: '1 1 0', minWidth: 0, width: wide ? undefined : '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'var(--card, var(--bg))', ...(props.fill && wide ? { minHeight: 0, overflowY: 'auto' } : {}) }}
+            <div
+              ref={row}
+              data-review-layout={wide ? 'rail' : 'inline'}
+              style={{
+                display: 'flex',
+                flexDirection: wide ? 'row' : 'column',
+                alignItems: props.fill && wide ? 'stretch' : wide ? 'flex-start' : 'stretch',
+                gap: wide ? 6 : 20,
+                minWidth: 0,
+                ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: wide ? 'hidden' : 'auto' } : {}),
+              }}
             >
-              <div
-                ref={doc}
-                onClick={(event) => openAnchor(event.target)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' || event.target !== (event.target as Element).closest('[data-review-anchor]')) return
-                  if (openAnchor(event.target)) event.preventDefault()
+              <section
+                role="tabpanel"
+                id="review-tab-panel"
+                aria-labelledby={file ? `review-tab-${file.replace(/\W/g, '-')}` : undefined}
+                aria-label={file ? undefined : 'No file'}
+                data-review-doc={file ?? ''}
+                className="min-w-0"
+                style={{
+                  flex: '1 1 0',
+                  minWidth: 0,
+                  width: wide ? undefined : '100%',
+                  boxSizing: 'border-box',
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  padding: '12px 14px',
+                  background: 'var(--card, var(--bg))',
+                  ...(props.fill && wide ? { minHeight: 0, overflowY: 'auto' } : {}),
                 }}
               >
-                {file ? <Markdown text={text} measure={PROSE} /> : <Hint as="p" size="sm" flush>This revision has no spec files.</Hint>}
-              </div>
-            </section>
-            {wide && (
-              <ResizeHandle
-                label="Resize the side column"
-                width={shownSide}
-                min={SIDE.min}
-                max={sideMax}
-                left={() => sideEl.current?.getBoundingClientRect().right ?? 0}
-                growsLeft
-                onResize={resizeSide}
-                onReset={() => resizeSide(SIDE.initial)}
-              />
-            )}
-            <aside
-              ref={sideEl}
-              aria-label="Side column"
-              data-review-rail
-              className="flex min-w-0 flex-col gap-2"
-              style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, ...(wide ? (props.fill ? { flex: `0 0 ${shownSide}px`, width: shownSide, minHeight: 0, overflowY: 'auto' } : { flex: `0 0 ${shownSide}px`, width: shownSide, position: 'sticky', top: 8, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }) : { width: '100%', flex: 'none' }) }}
-            >
-              <DocTabs
-                tabs={['contents', 'comments']}
-                current={side}
-                counts={{ comments: inFile.length }}
-                onPick={(next) => setSide(next as 'contents' | 'comments')}
-                bar={{ label: 'Side column', attr: 'data-review-side-tab', prefix: 'review-side', labels: { contents: 'Contents', comments: 'Comments' } }}
-              />
-              {side === 'contents' ? (
-                <Box id="review-side-panel" role="tabpanel" aria-labelledby="review-side-contents" aria-label="Contents" data-review-contents as="nav" css-display="flex" css-flex-direction="column" css-gap="2" flex flexCol>
-                  {toc.length === 0 ? (
-                    <Hint as="p" size="sm" flush>This file has no headings.</Hint>
+                <div
+                  ref={doc}
+                  onClick={(event) => openAnchor(event.target)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' || event.target !== (event.target as Element).closest('[data-review-anchor]')) return
+                    if (openAnchor(event.target)) event.preventDefault()
+                  }}
+                >
+                  {file ? (
+                    <Markdown text={text} measure={PROSE} />
                   ) : (
-                    toc.map((h) => (
-                      <button
-                        key={h.id}
-                        type="button"
-                        data-toc-item={h.id}
-                        aria-current={current === h.id ? 'location' : undefined}
-                        onClick={() => goHeading(h.id)}
-                        style={{ textAlign: 'left', border: 0, background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: 13, padding: '4px 8px', paddingLeft: 8 + (h.level - 1) * 12, borderRadius: 4 }}
-                      >
-                        {h.text}
-                      </button>
-                    ))
-                  )}
-                </Box>
-              ) : (
-                <Box id="review-side-panel" role="tabpanel" aria-labelledby="review-side-comments" data-review-comments css-display="flex" css-flex-direction="column" css-gap="8" flex flexCol gap="2">
-                  {movedGroup}
-                  {placed.map((f) => card(f))}
-                  {inFile.length === 0 && (
-                    <Hint as="p" size="sm" flush data-review-empty>
-                      {data.findings.length === 0 ? 'No findings.' : 'No finding in this file matches these filters.'}
+                    <Hint as="p" size="sm" flush>
+                      This revision has no spec files.
                     </Hint>
                   )}
-                </Box>
+                </div>
+              </section>
+              {wide && (
+                <ResizeHandle
+                  label="Resize the side column"
+                  width={shownSide}
+                  min={SIDE.min}
+                  max={sideMax}
+                  left={() => sideEl.current?.getBoundingClientRect().right ?? 0}
+                  growsLeft
+                  onResize={resizeSide}
+                  onReset={() => resizeSide(SIDE.initial)}
+                />
               )}
-            </aside>
-          </div>
+              <aside
+                ref={sideEl}
+                aria-label="Side column"
+                data-review-rail
+                className="flex min-w-0 flex-col gap-2"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  minWidth: 0,
+                  ...(wide
+                    ? props.fill
+                      ? { flex: `0 0 ${shownSide}px`, width: shownSide, minHeight: 0, overflowY: 'auto' }
+                      : { flex: `0 0 ${shownSide}px`, width: shownSide, position: 'sticky', top: 8, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }
+                    : { width: '100%', flex: 'none' }),
+                }}
+              >
+                <DocTabs
+                  tabs={['contents', 'comments']}
+                  current={side}
+                  counts={{ comments: inFile.length }}
+                  onPick={(next) => setSide(next as 'contents' | 'comments')}
+                  bar={{ label: 'Side column', attr: 'data-review-side-tab', prefix: 'review-side', labels: { contents: 'Contents', comments: 'Comments' } }}
+                />
+                {side === 'contents' ? (
+                  <Box
+                    id="review-side-panel"
+                    role="tabpanel"
+                    aria-labelledby="review-side-contents"
+                    aria-label="Contents"
+                    data-review-contents
+                    as="nav"
+                    css-display="flex"
+                    css-flex-direction="column"
+                    css-gap="2"
+                    flex
+                    flexCol
+                  >
+                    {toc.length === 0 ? (
+                      <Hint as="p" size="sm" flush>
+                        This file has no headings.
+                      </Hint>
+                    ) : (
+                      toc.map((h) => (
+                        <button
+                          key={h.id}
+                          type="button"
+                          data-toc-item={h.id}
+                          aria-current={current === h.id ? 'location' : undefined}
+                          onClick={() => goHeading(h.id)}
+                          style={{
+                            textAlign: 'left',
+                            border: 0,
+                            background: 'transparent',
+                            color: 'var(--text)',
+                            cursor: 'pointer',
+                            fontSize: 13,
+                            padding: '4px 8px',
+                            paddingLeft: 8 + (h.level - 1) * 12,
+                            borderRadius: 4,
+                          }}
+                        >
+                          {h.text}
+                        </button>
+                      ))
+                    )}
+                  </Box>
+                ) : (
+                  <Box
+                    id="review-side-panel"
+                    role="tabpanel"
+                    aria-labelledby="review-side-comments"
+                    data-review-comments
+                    css-display="flex"
+                    css-flex-direction="column"
+                    css-gap="8"
+                    flex
+                    flexCol
+                    gap="2"
+                  >
+                    {movedGroup}
+                    {placed.map((f) => card(f))}
+                    {inFile.length === 0 && (
+                      <Hint as="p" size="sm" flush data-review-empty>
+                        {data.findings.length === 0 ? 'No findings.' : 'No finding in this file matches these filters.'}
+                      </Hint>
+                    )}
+                  </Box>
+                )}
+              </aside>
+            </div>
           )}
         </>
       )}

@@ -57,7 +57,10 @@ test('the Delivery heading has the Stop the line icon with a stopped state, and 
   assert.match(app, /const stops = useOpenStops\(active\)/)
   assert.match(app, /!ownBanner && !needsWorkspace && stops\.length > 0 && \([\s\S]*?<LineBanner stops=\{stops\}/)
   assert.doesNotMatch(dialog, /StopLineItem/)
-  assert.match(dialog, /const label = stopped \? 'Resume the line' : 'Stop the line'[\s\S]*?aria-label=\{label\}[\s\S]*?<Icon size=\{props\.bare \? 13 : 14\} aria-hidden="true" \/>/)
+  assert.match(
+    dialog,
+    /const label = stopped \? 'Resume the line' : 'Stop the line'[\s\S]*?aria-label=\{label\}[\s\S]*?<Icon size=\{props\.bare \? 13 : 14\} aria-hidden="true" \/>/,
+  )
   // Stopped: its own words and look while a stop is open; a pull or resume
   // tells the page at once.
   assert.match(dialog, /\{stopped \? 'Line stopped' : 'Stop the line'\}/)

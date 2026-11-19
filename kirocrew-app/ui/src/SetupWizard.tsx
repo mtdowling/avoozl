@@ -173,7 +173,12 @@ export function SetupDialog(props: {
           {!/^\d+$/.test(form.projectNumber.trim()) && (
             <Box as="label" flex flexCol gap="1">
               New Project title <Hint size="xs">(optional)</Hint>
-              <Input id="avoozl-setup-title-field" value={form.projectTitle} placeholder="Avoozl" onChange={(e: { target: { value: string } }) => props.set({ projectTitle: e.target.value })} />
+              <Input
+                id="avoozl-setup-title-field"
+                value={form.projectTitle}
+                placeholder="Avoozl"
+                onChange={(e: { target: { value: string } }) => props.set({ projectTitle: e.target.value })}
+              />
             </Box>
           )}
           <Box as="label" flex flexCol gap="1">
@@ -200,7 +205,9 @@ export function SetupDialog(props: {
           {groups.length === 0 && <p>Nothing to change on GitHub.</p>}
           {groups.map((group) => (
             <section key={group.key} data-setup-group={group.key}>
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">{group.title}</Box>
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+                {group.title}
+              </Box>
               <Box as="ul" mt="1" flex flexCol gap="1">
                 {group.writes.map((write, i) => (
                   <Box key={i} as="li" flex flexWrap items="baseline" gap="2">
@@ -211,7 +218,9 @@ export function SetupDialog(props: {
                       {write.object} <code>{write.name}</code>
                       {write.visibility ? ` (${write.visibility})` : ''} in {write.owner}
                     </span>
-                    <Box as="span" wFull pl="12" size="xs" tone="muted">{write.detail}</Box>
+                    <Box as="span" wFull pl="12" size="xs" tone="muted">
+                      {write.detail}
+                    </Box>
                   </Box>
                 ))}
               </Box>
@@ -219,7 +228,9 @@ export function SetupDialog(props: {
           ))}
           {result.checklist.length > 0 && (
             <section>
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Left for you on GitHub</Box>
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+                Left for you on GitHub
+              </Box>
               <Box as="ul" mt="1" listDisc pl="5" size="xs">
                 {result.checklist.map((item) => (
                   <li key={item.id}>
@@ -237,7 +248,11 @@ export function SetupDialog(props: {
           )}
         </Box>
       )}
-      {step === 2 && <Box as="p" size="sm" role="status">Making {count} changes on GitHub…</Box>}
+      {step === 2 && (
+        <Box as="p" size="sm" role="status">
+          Making {count} changes on GitHub…
+        </Box>
+      )}
       {step === 3 && result && (
         <Box flex flexCol gap="2" size="sm">
           <p role="status">
@@ -265,18 +280,16 @@ export function SetupDialog(props: {
           )}
         </Box>
       )}
-      {error && <ErrorText role="alert" size="sm">{error}</ErrorText>}
+      {error && (
+        <ErrorText role="alert" size="sm">
+          {error}
+        </ErrorText>
+      )}
     </Modal>
   )
 }
 
-export default function SetupWizard(props: {
-  workspaceId: string
-  client: Client
-  settings: GitHubSettings
-  shared: SharedSetup
-  onSaved: () => Promise<unknown>
-}) {
+export default function SetupWizard(props: { workspaceId: string; client: Client; settings: GitHubSettings; shared: SharedSetup; onSaved: () => Promise<unknown> }) {
   const { workspaceId, client, settings, shared } = props
   const [own, setForm] = useState<SetupForm>(() => setupForm(settings.github))
   const form: SetupForm = { ...own, ...shared, mode: shared.mode || own.mode }
@@ -306,7 +319,11 @@ export default function SetupWizard(props: {
       <Hint as="p" size="xs" data-scope-statement="">
         {SCOPE_STATEMENT} {SCOPE_RULE}
       </Hint>
-      {state.kind === 'checking' && <Hint as="p" size="sm">Checking GitHub…</Hint>}
+      {state.kind === 'checking' && (
+        <Hint as="p" size="sm">
+          Checking GitHub…
+        </Hint>
+      )}
       {state.kind === 'set-up' && (
         <Box flex flexWrap items="center" gap="2" size="sm">
           <CircleCheck size={ICON + 2} aria-hidden="true" style={{ color: 'var(--ok)' }} />
@@ -344,7 +361,11 @@ export default function SetupWizard(props: {
           </span>
         </Box>
       )}
-      {note && <Hint as="p" size="xs" role="status">{note}</Hint>}
+      {note && (
+        <Hint as="p" size="xs" role="status">
+          {note}
+        </Hint>
+      )}
       {open && (
         <SetupDialog
           workspaceId={workspaceId}

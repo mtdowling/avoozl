@@ -89,10 +89,16 @@ export function FieldRow(props: {
   children: ReactNode
 }) {
   const note = props.note ?? props.rule?.blank
-  const control = <div style={{ display: 'flex', minWidth: 0, maxWidth: props.width ? (FIELD_WIDTH[props.width as FieldWidth] ?? props.width) : undefined, flexDirection: 'column' }}>{props.children}</div>
+  const control = (
+    <div style={{ display: 'flex', minWidth: 0, maxWidth: props.width ? (FIELD_WIDTH[props.width as FieldWidth] ?? props.width) : undefined, flexDirection: 'column' }}>
+      {props.children}
+    </div>
+  )
   const label = (
     <Box htmlFor={props.id} as="label" css-column-gap="8" css-row-gap="2" css-align-content="flex-start" css-align-self="start" flex flexWrap items="baseline" data-field-label>
-      <Box as="span" weight="medium">{props.label}</Box>
+      <Box as="span" weight="medium">
+        {props.label}
+      </Box>
       <Marker rule={props.rule} />
     </Box>
   )
@@ -111,7 +117,9 @@ export function FieldRow(props: {
       className="min-w-0 text-sm"
       data-field-row={props.id}
       {...props.attrs}
-      style={props.align ? { display: 'grid', gridRow: 'span 4', gridTemplateRows: 'subgrid', rowGap: 4, alignContent: 'start' } : { display: 'flex', flexDirection: 'column', gap: 4 }}
+      style={
+        props.align ? { display: 'grid', gridRow: 'span 4', gridTemplateRows: 'subgrid', rowGap: 4, alignContent: 'start' } : { display: 'flex', flexDirection: 'column', gap: 4 }
+      }
     >
       {label}
       {control}
@@ -130,7 +138,16 @@ export function FieldRow(props: {
 // under the label, in the same order and style as a FieldRow.
 export function CheckRow(props: { id?: string; label: ReactNode; checked: boolean; onChange: (checked: boolean) => void; raw?: string; help?: ReactNode; disabled?: boolean }) {
   return (
-    <Switch id={props.id} label={typeof props.label === 'string' ? props.label : 'Option'} align="start" size="sm" checked={props.checked} disabled={props.disabled} onChange={props.onChange} data-check-row={props.raw ?? ''}>
+    <Switch
+      id={props.id}
+      label={typeof props.label === 'string' ? props.label : 'Option'}
+      align="start"
+      size="sm"
+      checked={props.checked}
+      disabled={props.disabled}
+      onChange={props.onChange}
+      data-check-row={props.raw ?? ''}
+    >
       <Box as="span" css-gap="2" flex minW0 flexCol>
         <span>{props.label}</span>
         {props.help && <FieldHelp>{props.help}</FieldHelp>}
@@ -143,7 +160,11 @@ export function CheckRow(props: { id?: string; label: ReactNode; checked: boolea
 // Fields on a grid: as many columns as fit, each at least `min`.
 export function FieldGrid({ children, min = '13rem', align, group }: { children: ReactNode; min?: string; align?: boolean; group?: string }) {
   return (
-    <div data-field-grid data-flow-group={group} style={{ display: 'grid', columnGap: 16, rowGap: align ? 4 : 12, gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${min}), 1fr))`, alignItems: 'start' }}>
+    <div
+      data-field-grid
+      data-flow-group={group}
+      style={{ display: 'grid', columnGap: 16, rowGap: align ? 4 : 12, gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${min}), 1fr))`, alignItems: 'start' }}
+    >
       {children}
     </div>
   )

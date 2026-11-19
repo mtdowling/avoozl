@@ -24,7 +24,20 @@ export default function IntegrationBranches(props: { workspaceId: string | null 
       <Card className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <SectionHeading title="Integration branches" className="mb-0" />
         {value.branches.map((row) => (
-          <Box key={row.key} data-integration-branch={row.branch} css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-gap="4px-12px" flex flexWrap items="baseline" gapX="3" gapY="1" size="sm">
+          <Box
+            key={row.key}
+            data-integration-branch={row.branch}
+            css-display="flex"
+            css-flex-wrap="wrap"
+            css-align-items="baseline"
+            css-gap="4px-12px"
+            flex
+            flexWrap
+            items="baseline"
+            gapX="3"
+            gapY="1"
+            size="sm"
+          >
             <Box as="span" css-overflow-wrap="anywhere" weight="medium">
               {row.branch}
             </Box>

@@ -31,7 +31,15 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
       aria-roledescription="walkthrough"
       aria-label={props.label}
       data-walkthrough={props.id}
-      as="section" css-border-color="border" css-background="card" flex flexCol gap="3" rounded="lg" border="all" p="4"
+      as="section"
+      css-border-color="border"
+      css-background="card"
+      flex
+      flexCol
+      gap="3"
+      rounded="lg"
+      border="all"
+      p="4"
       onKeyDown={(event) => {
         if (event.key === 'ArrowRight') go(at + 1)
         else if (event.key === 'ArrowLeft') go(at - 1)
@@ -49,8 +57,12 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
           <Hint as="p" size="xs">
             Step {at + 1} of {props.steps.length}
           </Hint>
-          <Box as="h4" size="lg" weight="semibold">{step.title}</Box>
-          <Box as="p" size="base">{step.text}</Box>
+          <Box as="h4" size="lg" weight="semibold">
+            {step.title}
+          </Box>
+          <Box as="p" size="base">
+            {step.text}
+          </Box>
           {step.points && (
             <Box as="ul" css-list-style="disc" flex flexCol gap="1" pl="5" size="sm">
               {step.points.map((point) => (
@@ -73,7 +85,10 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
               aria-label={`Step ${i + 1}: ${s.title}`}
               aria-current={i === at ? 'step' : undefined}
               onClick={() => go(i)}
-              css-width="9" css-height="9" css-background={i === at ? 'accent' : 'border'} rounded="full"
+              css-width="9"
+              css-height="9"
+              css-background={i === at ? 'accent' : 'border'}
+              rounded="full"
             />
           ))}
         </Box>
@@ -116,7 +131,11 @@ export function Flow(props: { boxes: string[]; on?: number; note?: string }) {
           </Box>
         ))}
       </Box>
-      {props.note && <Box as="span" size="11" tone="muted">{props.note}</Box>}
+      {props.note && (
+        <Box as="span" size="11" tone="muted">
+          {props.note}
+        </Box>
+      )}
     </Stack>
   )
 }

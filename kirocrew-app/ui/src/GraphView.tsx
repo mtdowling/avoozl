@@ -104,22 +104,13 @@ function NodeOwner({ task, x, y }: { task: GraphTask; x: number; y: number }) {
   )
 }
 
-function Node(props: {
-  node: LaidNode
-  selected: boolean
-  dim: boolean
-  onSelect: (node: LaidNode) => void
-  onHover: (id: string | null) => void
-  onOpen?: (id: string) => void
-}) {
+function Node(props: { node: LaidNode; selected: boolean; dim: boolean; onSelect: (node: LaidNode) => void; onHover: (id: string | null) => void; onOpen?: (id: string) => void }) {
   const { node, selected } = props
   const color = STATE_COLOR[node.state]
   // A task of a spec not approved yet: faded, dashed, marked Draft.
   const draft = node.state === 'draft'
   const badge = node.task?.review || draft
-  const sub = node.members
-    ? `${node.members.done} of ${node.members.total} done`
-    : `${node.id} · ${STATE_LABEL[node.state]}`
+  const sub = node.members ? `${node.members.done} of ${node.members.total} done` : `${node.id} · ${STATE_LABEL[node.state]}`
   const label = node.members
     ? `${node.title}, collapsed, ${sub}. Press to open it.`
     : `${node.title}, ${node.id}, ${STATE_LABEL[node.state]}${node.task?.review ? ', waits for review' : ''}${node.task?.planArchived ? ', archived plan' : ''}${node.task?.handSetReview ? ', review set by hand, none running' : ''}${props.onOpen ? '. Enter shows its tree; O opens its details' : ''}`
@@ -212,12 +203,7 @@ function Legend() {
   )
 }
 
-function Details(props: {
-  task: GraphTask
-  batch: GraphBatch | null
-  neighbors: ReturnType<typeof neighbors>
-  onSelect: (id: string) => void
-}) {
+function Details(props: { task: GraphTask; batch: GraphBatch | null; neighbors: ReturnType<typeof neighbors>; onSelect: (id: string) => void }) {
   const { task, batch } = props
   const drawer = useTaskDrawer()
   const { waitsOn, blocks } = props.neighbors
@@ -229,8 +215,12 @@ function Details(props: {
           title={task.title}
           actions={
             <>
-              <TipBtn tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(task.id)}>All details</TipBtn>
-              <TipBtn tooltip="Add a draft task that waits on this one" onClick={() => drawer.addTask({ prerequisite: task.id })}>Add a task after this</TipBtn>
+              <TipBtn tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(task.id)}>
+                All details
+              </TipBtn>
+              <TipBtn tooltip="Add a draft task that waits on this one" onClick={() => drawer.addTask({ prerequisite: task.id })}>
+                Add a task after this
+              </TipBtn>
             </>
           }
         />
@@ -239,9 +229,7 @@ function Details(props: {
           <Badge>{task.kind}</Badge>
           <Authority owner={task} />
           <Badge variant={task.complete ? 'success' : undefined}>{task.status ?? 'no status'}</Badge>
-          <Badge variant={state === 'needs-you' ? 'warning' : state === 'ready' ? 'info' : undefined}>
-            {STATE_LABEL[state]}
-          </Badge>
+          <Badge variant={state === 'needs-you' ? 'warning' : state === 'ready' ? 'info' : undefined}>{STATE_LABEL[state]}</Badge>
           {task.review && <Badge>review</Badge>}
           {task.planArchived && <Badge>Archived</Badge>}
           {task.handSetReview && <Badge variant="warning">set by hand</Badge>}
@@ -341,10 +329,7 @@ export default function GraphView({
   const { value: full, error, busy, reload } = source ?? own
   // The shared filter, then the drill-in, decide what is drawn; the level
   // decides the groups: epics, an epic's plans, or a plan's phases.
-  const graph = useMemo(
-    () => (full ? groupGraph(drillGraph(filterGraph(full, filter), drill), drill) : null),
-    [full, filter, drill],
-  )
+  const graph = useMemo(() => (full ? groupGraph(drillGraph(filterGraph(full, filter), drill), drill) : null), [full, filter, drill])
   const choices = useMemo(() => filterChoices(full, {}, filter.plan), [full, filter.plan])
   // null until the reader chooses: big graphs then start collapsed.
   const [collapsed, setCollapsed] = useState<Set<string> | null>(null)
@@ -361,18 +346,11 @@ export default function GraphView({
   const moved = useRef(false)
   const [panning, setPanning] = useState(false)
 
-  const groupKeys = useMemo(
-    () => [...new Set((graph?.tasks ?? []).map((t) => groupKey(t.group ?? null)))],
-    [graph],
-  )
+  const groupKeys = useMemo(() => [...new Set((graph?.tasks ?? []).map((t) => groupKey(t.group ?? null)))], [graph])
   // All and an epic's level open folded when big, so a large epic shows its
   // plans before their tasks.
   const shut = useMemo(
-    () =>
-      collapsed ??
-      new Set(
-        (!drill || drill.kind === 'epic') && (graph?.tasks.length ?? 0) > COLLAPSE_ABOVE ? groupKeys : [],
-      ),
+    () => collapsed ?? new Set((!drill || drill.kind === 'epic') && (graph?.tasks.length ?? 0) > COLLAPSE_ABOVE ? groupKeys : []),
     [collapsed, graph, groupKeys, drill],
   )
   // The canvas width, for the gaps; a resize recomputes them.
@@ -384,8 +362,7 @@ export default function GraphView({
   const byId = useMemo(() => new Map(layout?.nodes.map((n) => [n.id, n]) ?? []), [layout])
   const task = graph?.tasks.find((t) => t.id === selected) ?? null
   const summary = graph ? graphSummary(graph) : null
-  const groupTitle = (group: string | null) =>
-    graph?.groups?.find((g) => g.id === group)?.title ?? group ?? 'None'
+  const groupTitle = (group: string | null) => graph?.groups?.find((g) => g.id === group)?.title ?? group ?? 'None'
   // The drill stack: every level left, with its zoom, pan and selection.
   // The app runs inside the Kiro Crew page (no iframe of its own), so
   // history.pushState would move the host page too. Each level is one step
@@ -558,16 +535,10 @@ export default function GraphView({
     return { up: new Set([...up, active]), down: new Set([...down, active]) }
   }, [layout, active, byId])
   const nodeLit = (id: string) => !lit || lit.up.has(id) || lit.down.has(id)
-  const edgeLit = (from: string, to: string) =>
-    !lit || (lit.up.has(from) && lit.up.has(to)) || (lit.down.has(from) && lit.down.has(to))
+  const edgeLit = (from: string, to: string) => !lit || (lit.up.has(from) && lit.up.has(to)) || (lit.down.has(from) && lit.down.has(to))
 
   return (
-    <Box
-      aria-labelledby={bare ? undefined : 'avoozl-graph-title'}
-      aria-label={bare ? 'All tasks' : undefined}
-      as="section" flex flexCol gap="3.5"
-      data-graph-view
-    >
+    <Box aria-labelledby={bare ? undefined : 'avoozl-graph-title'} aria-label={bare ? 'All tasks' : undefined} as="section" flex flexCol gap="3.5" data-graph-view>
       {!bare && (
         <ViewHeading id="avoozl-graph-title" view="graph">
           Graph
@@ -579,7 +550,9 @@ export default function GraphView({
         </ErrorText>
       )}
       {!workspaceId ? (
-        <Hint as="p" size="sm">Choose a workspace in the header.</Hint>
+        <Hint as="p" size="sm">
+          Choose a workspace in the header.
+        </Hint>
       ) : (
         <FilterBar id="avoozl-graph" filter={filter} choices={choices} onChange={changeFilter}>
           {!bare && (
@@ -596,11 +569,11 @@ export default function GraphView({
           </Box>
         </FilterBar>
       )}
-      {workspaceId && drill?.kind === 'epic' && drill.id && (
-        <EpicPanel workspaceId={workspaceId} id={drill.id} client={client} onDrill={(next) => onDrill?.(next)} />
-      )}
+      {workspaceId && drill?.kind === 'epic' && drill.id && <EpicPanel workspaceId={workspaceId} id={drill.id} client={client} onDrill={(next) => onDrill?.(next)} />}
       {graph && graph.total === 0 && (
-        <Hint as="p" size="sm">No tasks yet. Store and approve a spec in the Specs tab to fill the graph.</Hint>
+        <Hint as="p" size="sm">
+          No tasks yet. Store and approve a spec in the Specs tab to fill the graph.
+        </Hint>
       )}
       {layout && layout.nodes.length > 0 && (
         <Card>
@@ -616,9 +589,7 @@ export default function GraphView({
                       <PlainButton type="button" css-max-width="14rem" truncate underline onClick={() => back(at)}>
                         {label}
                       </PlainButton>
-                      <Hint aria-hidden="true">
-                        ›
-                      </Hint>
+                      <Hint aria-hidden="true">›</Hint>
                     </Box>
                   ))}
                   <Box as="span" css-max-width="min-28rem-60vw" truncate weight="medium" aria-current="page">
@@ -627,8 +598,12 @@ export default function GraphView({
                 </Box>
               </>
             )}
-            <TipBtn tooltip="Fold each group into one box" onClick={() => setCollapsed(new Set(groupKeys))}>Collapse all</TipBtn>
-            <TipBtn tooltip="Show every task inside each group" onClick={() => setCollapsed(new Set())}>Expand all</TipBtn>
+            <TipBtn tooltip="Fold each group into one box" onClick={() => setCollapsed(new Set(groupKeys))}>
+              Collapse all
+            </TipBtn>
+            <TipBtn tooltip="Show every task inside each group" onClick={() => setCollapsed(new Set())}>
+              Expand all
+            </TipBtn>
             <Box as="span" grow />
             <TipBtn tooltip="Zoom out" onClick={() => zoom(1 / 1.25)} aria-label="Zoom out">
               −
@@ -639,16 +614,14 @@ export default function GraphView({
             <TipBtn tooltip="Zoom in" onClick={() => zoom(1.25)} aria-label="Zoom in">
               +
             </TipBtn>
-            <TipBtn tooltip="Fit the whole graph in view" onClick={fit}>Fit</TipBtn>
+            <TipBtn tooltip="Fit the whole graph in view" onClick={fit}>
+              Fit
+            </TipBtn>
           </Row>
           <Box mt="2">
             <Legend />
           </Box>
-          <div
-            ref={canvas}
-            className="mt-2 overflow-hidden rounded border"
-            style={{ borderColor: 'var(--border)', height: CANVAS_HEIGHT, touchAction: 'none' }}
-          >
+          <div ref={canvas} className="mt-2 overflow-hidden rounded border" style={{ borderColor: 'var(--border)', height: CANVAS_HEIGHT, touchAction: 'none' }}>
             <svg
               role="group"
               aria-label="Task graph. Drag to pan; pinch or hold Ctrl or Cmd and scroll to zoom."
@@ -745,29 +718,14 @@ export default function GraphView({
                   )
                 })}
                 {layout.nodes.map((node) => (
-                  <Node
-                    key={node.id}
-                    node={node}
-                    selected={node.id === selected}
-                    dim={!nodeLit(node.id)}
-                    onSelect={select}
-                    onHover={setHovered}
-                    onOpen={onOpenItem}
-                  />
+                  <Node key={node.id} node={node} selected={node.id === selected} dim={!nodeLit(node.id)} onSelect={select} onHover={setHovered} onOpen={onOpenItem} />
                 ))}
               </g>
             </svg>
           </div>
         </Card>
       )}
-      {graph && task && (
-        <Details
-          task={task}
-          batch={graph.batches?.find((entry) => entry.id === task.batch) ?? null}
-          neighbors={neighbors(graph, task.id)}
-          onSelect={selectId}
-        />
-      )}
+      {graph && task && <Details task={task} batch={graph.batches?.find((entry) => entry.id === task.batch) ?? null} neighbors={neighbors(graph, task.id)} onSelect={selectId} />}
     </Box>
   )
 }

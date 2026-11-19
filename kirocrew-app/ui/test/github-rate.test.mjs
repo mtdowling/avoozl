@@ -63,7 +63,10 @@ test('Settings > GitHub lists calls this hour by source, busiest first', () => {
     hourCalls: 14,
     bySource: { view: { calls: 2, notModified: 1, cached: 9 }, tick: { calls: 12, notModified: 0, cached: 0 } },
   })
-  assert.deepEqual(rows.map((row) => row.source), ['tick', 'view'])
+  assert.deepEqual(
+    rows.map((row) => row.source),
+    ['tick', 'view'],
+  )
   assert.equal(rows[1].cached, 9)
 })
 
@@ -81,12 +84,23 @@ test('a projection waiting on the write limits shows its progress and the pace',
   assert.equal(lines.length, 1)
   assert.match(lines[0], /^Projecting to GitHub: 312 of 1,740 writes, resumes at 14:00\. Writes are paced at 60 a minute and 400 an hour\.$/)
   // No waiting run, no line.
-  assert.deepEqual(rateLines({ resources: {}, limitedUntil: null, limitedResource: null, calls: 0, notModified: 0, notModifiedShare: null, writes: { perMinute: 60, perHour: 400, run: null } }), [])
+  assert.deepEqual(
+    rateLines({ resources: {}, limitedUntil: null, limitedResource: null, calls: 0, notModified: 0, notModifiedShare: null, writes: { perMinute: 60, perHour: 400, run: null } }),
+    [],
+  )
 })
 
 test('the calls table sorts by any column, calls descending first', async () => {
   const { sortUsage, nextUsageSort, USAGE_SORT } = await import('../src/settings-api.ts')
-  const rows = usageRows({ resources: {}, limitedUntil: null, limitedResource: null, calls: 0, notModified: 0, notModifiedShare: null, bySource: { tick: { calls: 5, notModified: 1, cached: 9 }, radar: { calls: 20, notModified: 7, cached: 0 }, intake: { calls: 5, notModified: 3, cached: 2 } } })
+  const rows = usageRows({
+    resources: {},
+    limitedUntil: null,
+    limitedResource: null,
+    calls: 0,
+    notModified: 0,
+    notModifiedShare: null,
+    bySource: { tick: { calls: 5, notModified: 1, cached: 9 }, radar: { calls: 20, notModified: 7, cached: 0 }, intake: { calls: 5, notModified: 3, cached: 2 } },
+  })
   const names = (sort) => sortUsage(rows, sort).map((r) => r.source)
   assert.deepEqual(USAGE_SORT, { key: 'calls', dir: 'desc' })
   assert.deepEqual(names(USAGE_SORT), ['radar', 'intake', 'tick'])

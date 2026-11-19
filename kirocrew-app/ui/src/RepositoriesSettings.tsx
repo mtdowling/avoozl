@@ -70,8 +70,12 @@ export function RepositoryList(props: {
   if (!props.rows.length)
     return (
       <Box flex flexCol items="start" gap="2" py="2" data-repositories-empty>
-        <Box as="p" size="sm">No repositories yet.</Box>
-        <Hint as="p" size="sm">{REPOSITORIES_LINE}</Hint>
+        <Box as="p" size="sm">
+          No repositories yet.
+        </Box>
+        <Hint as="p" size="sm">
+          {REPOSITORIES_LINE}
+        </Hint>
         <IconLabel icon={Plus} primary onClick={props.onAdd}>
           Add repository
         </IconLabel>
@@ -85,7 +89,9 @@ export function RepositoryList(props: {
           attrs={{ 'data-repository-row': row.key }}
           title={
             <>
-              <Box as="span" minW0 truncate weight="medium">{row.name}</Box>
+              <Box as="span" minW0 truncate weight="medium">
+                {row.name}
+              </Box>
               <span data-role-badge>
                 <Badge>{props.roleText(row)}</Badge>
               </span>
@@ -104,10 +110,22 @@ export function RepositoryList(props: {
           actions={
             <>
               {row.checkout && (
-                <IconBtn icon={Workflow} label={`Set up GitHub and import specs for ${row.name}`} tooltip={props.setupBlocked ?? 'Set up GitHub and import specs'} disabled={Boolean(props.setupBlocked)} onClick={() => props.onSetup(row)} />
+                <IconBtn
+                  icon={Workflow}
+                  label={`Set up GitHub and import specs for ${row.name}`}
+                  tooltip={props.setupBlocked ?? 'Set up GitHub and import specs'}
+                  disabled={Boolean(props.setupBlocked)}
+                  onClick={() => props.onSetup(row)}
+                />
               )}
               <IconBtn icon={Eye} label={`View ${row.name}`} tooltip="View details" onClick={() => props.onView(row)} />
-              <IconBtn icon={Pencil} label={`Edit ${row.name}`} tooltip={row.githubOnly ? 'GitHub only: add its checkout to edit it' : 'Edit'} disabled={row.githubOnly} onClick={() => props.onEdit(row)} />
+              <IconBtn
+                icon={Pencil}
+                label={`Edit ${row.name}`}
+                tooltip={row.githubOnly ? 'GitHub only: add its checkout to edit it' : 'Edit'}
+                disabled={row.githubOnly}
+                onClick={() => props.onEdit(row)}
+              />
               {!row.githubOnly && (
                 <DangerBtn icon={Trash2} label={`Remove ${row.name}`} tooltip="Remove" disabled={props.busy} confirm={removeCopy(row)} onConfirm={() => props.onRemove(row)}>
                   {null}
@@ -189,7 +207,14 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
       const given = roleFromMode(props.mode, found.github, '')
       setFolder('')
       setFound(null)
-      props.onAdded(saved.id, { folder: found.root, github: found.github, branch: branch.trim() || found.baseBranch, role, source: source.trim(), changed: Boolean(found.github) && (role !== given || role === MIRROR_ROLE) })
+      props.onAdded(saved.id, {
+        folder: found.root,
+        github: found.github,
+        branch: branch.trim() || found.baseBranch,
+        role,
+        source: source.trim(),
+        changed: Boolean(found.github) && (role !== given || role === MIRROR_ROLE),
+      })
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
@@ -202,25 +227,35 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
         <Box id="avoozl-repo-add" as="h3" size="base" weight="semibold">
           Add repository
         </Box>
-        <Box as="p" mt="1" size="sm" tone="muted">Point at a Git checkout on this computer; Avoozl reads its branch and GitHub remote for you.</Box>
+        <Box as="p" mt="1" size="sm" tone="muted">
+          Point at a Git checkout on this computer; Avoozl reads its branch and GitHub remote for you.
+        </Box>
       </div>
       <Box as="ol" css-max-width="40rem" flex flexCol gap="3">
         <Box as="li" flex flexCol gap="1.5" data-step="folder">
-          <Box as="span" size="sm" weight="medium">1. Pick the folder</Box>
+          <Box as="span" size="sm" weight="medium">
+            1. Pick the folder
+          </Box>
           <Hint size="xs">The checkout&apos;s folder, as an absolute path. Any folder inside it works too.</Hint>
           <Row as="span" gap={2} align="end">
             <Box htmlFor="avoozl-repo-folder" as="label" srOnly>
               Folder
             </Box>
             <Input id="avoozl-repo-folder" value={folder} placeholder="/path/to/my-service" onChange={(event) => setFolder(event.target.value)} style={{ minWidth: '18rem' }} />
-            <TipBtn tooltip="Read the folder's branch and GitHub remote. Changes nothing." onClick={() => void detect()} disabled={busy || !folder.trim() || Boolean(props.disabled)}>
+            <TipBtn
+              tooltip="Read the folder's branch and GitHub remote. Changes nothing."
+              onClick={() => void detect()}
+              disabled={busy || !folder.trim() || Boolean(props.disabled)}
+            >
               Check folder
             </TipBtn>
           </Row>
         </Box>
         {found && (
           <Box as="li" flex flexCol gap="2" data-step="confirm">
-            <Box as="span" size="sm" weight="medium">2. Confirm what Avoozl found</Box>
+            <Box as="span" size="sm" weight="medium">
+              2. Confirm what Avoozl found
+            </Box>
             <Hint size="xs">Tasks land on the branch below. Change it if tasks should land elsewhere.</Hint>
             <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1" size="sm">
               <Hint as="dt">Folder</Hint>
@@ -251,14 +286,22 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
                 <span>Branch tasks land on</span>
                 <Input id="avoozl-repo-branch" value={branch} onChange={(event) => setBranch(event.target.value)} />
               </Box>
-              <Btn primary onClick={() => void add()} disabled={busy || !id.trim() || Boolean(props.disabled) || (role === MIRROR_ROLE && Boolean(mirrorSourceProblem(source, found.github)))}>
+              <Btn
+                primary
+                onClick={() => void add()}
+                disabled={busy || !id.trim() || Boolean(props.disabled) || (role === MIRROR_ROLE && Boolean(mirrorSourceProblem(source, found.github)))}
+              >
                 Add repository
               </Btn>
             </Row>
           </Box>
         )}
       </Box>
-      {props.disabled && <Hint as="p" size="xs">{props.disabled}</Hint>}
+      {props.disabled && (
+        <Hint as="p" size="xs">
+          {props.disabled}
+        </Hint>
+      )}
       {error && (
         <ErrorText role="alert" size="sm">
           {error}

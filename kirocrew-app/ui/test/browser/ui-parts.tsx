@@ -57,8 +57,12 @@ createRoot(document.getElementById('root')!).render(
     <Box as="section" data-part="box" flex flexCol gap="2" size="xs">
       <span>one</span>
     </Box>
-    <PlainButton data-part="plain-button" type="button" underline css-background="none" css-border="0">Plain</PlainButton>
-    <PlainLink data-part="plain-link" href="#y" underline>Link</PlainLink>
+    <PlainButton data-part="plain-button" type="button" underline css-background="none" css-border="0">
+      Plain
+    </PlainButton>
+    <PlainLink data-part="plain-link" href="#y" underline>
+      Link
+    </PlainLink>
     <PlainInput data-part="plain-input" rounded="base" border="all" size="sm" defaultValue="x" />
     <PlainTextarea data-part="plain-textarea" rounded="base" border="all" size="xs" defaultValue="y" />
     <StatTileStyle />

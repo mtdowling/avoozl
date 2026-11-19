@@ -29,7 +29,23 @@ const PANELS = {
   ],
 }
 const SCENARIO = { 'task-files-split': 'task-files' }
-const ALL = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'crew', 'task-drawer', 'mark-done', 'new-spec-template']
+const ALL = [
+  'add-plugin',
+  'onboard',
+  'repo-edit',
+  'setup-github',
+  'archive-plan',
+  'delete-plan',
+  'confirm',
+  'file-viewer',
+  'stop-line',
+  'pack-import',
+  'send-to-radar',
+  'crew',
+  'task-drawer',
+  'mark-done',
+  'new-spec-template',
+]
 
 const [out, ...asked] = process.argv.slice(2)
 if (!out) {
@@ -54,8 +70,7 @@ try {
         await page.open(harness.url({ modal: SCENARIO[name] ?? name, theme }), { width, height, dark: theme === 'dark' })
         await page.until(`Boolean(document.querySelector('[data-graph] svg') && ${opener})`)
         await page.evaluate(`(() => { const b = ${opener}; b.focus(); b.click(); return true })()`)
-        if (PANELS[name])
-          for (const [i, step] of PANELS[name].entries()) await (i % 2 ? page.until(step) : page.evaluate(`(() => { ${step}; return true })()`))
+        if (PANELS[name]) for (const [i, step] of PANELS[name].entries()) await (i % 2 ? page.until(step) : page.evaluate(`(() => { ${step}; return true })()`))
         else await page.until(`Boolean(document.querySelector('[aria-modal="true"]'))`)
         await page.evaluate('new Promise((r) => setTimeout(r, 150))')
         const file = path.join(out, `${name}-${width}-${theme}.png`)

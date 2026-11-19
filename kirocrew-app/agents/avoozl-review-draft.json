@@ -11,9 +11,7 @@
     "thinking",
     "@avoozl:avoozl/plans_post_review_draft"
   ],
-  "allowedTools": [
-    "@avoozl:avoozl/plans_post_review_draft"
-  ],
+  "allowedTools": ["@avoozl:avoozl/plans_post_review_draft"],
   "toolsSettings": {
     "execute_bash": {
       "denyByDefault": true,

@@ -49,9 +49,13 @@ async function open() {
   await page.open(harness.url({ page: 'app', radar: '1', roles: 'plans' }), { width: 1280, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   await settle()
-  await page.evaluate(`(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return true })()`)
+  await page.evaluate(
+    `(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return true })()`,
+  )
   await settle()
-  await page.evaluate(`(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-item]')].find((x) => x.textContent.trim() === 'Repository setup'); if (b) b.click(); return true })()`)
+  await page.evaluate(
+    `(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-item]')].find((x) => x.textContent.trim() === 'Repository setup'); if (b) b.click(); return true })()`,
+  )
   await page.until(`Boolean(document.querySelector('[data-repository-list]'))`)
 }
 const footerButtons = `[...document.querySelectorAll('dialog[open] [data-modal-footer] button')].map((b) => b.textContent.trim())`
@@ -82,7 +86,9 @@ test('View has exactly one Close and Edit exactly one Cancel', { skip }, async (
 
 test('after Add repository, the setup action opens the Onboard steps without the folder step', { skip }, async () => {
   await open()
-  await page.evaluate(`(() => { const i = document.getElementById('avoozl-repo-folder'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '/src/new-service'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()`)
+  await page.evaluate(
+    `(() => { const i = document.getElementById('avoozl-repo-folder'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '/src/new-service'); i.dispatchEvent(new Event('input', { bubbles: true })); return true })()`,
+  )
   await page.evaluate(press('[data-add-repository] button', 'Check folder'))
   await page.until(`Boolean(document.querySelector('[data-step="confirm"]'))`)
   await page.evaluate(press('[data-step="confirm"] button', 'Add repository'))

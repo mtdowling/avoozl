@@ -79,93 +79,83 @@ export function Markdown({ text, idPrefix, measure }: { text: string; idPrefix?:
   return (
     <div className="flex min-w-0 flex-col gap-2 break-words text-sm leading-relaxed" style={{ color: 'var(--text)' }}>
       {all.map((block, i) => (
-        <Fragment key={i}>
-          {render(block, i)}
-        </Fragment>
+        <Fragment key={i}>{render(block, i)}</Fragment>
       ))}
     </div>
   )
   function render(block: (typeof all)[number], i: number): ReactNode {
-        if (block.kind === 'heading') {
-          const size = ['text-xl', 'text-lg', 'text-base', 'text-sm', 'text-sm', 'text-sm'][block.level - 1]
-          return (
-            <div
-              key={i}
-              role="heading"
-              aria-level={block.level}
-              data-line={block.line} data-source-line={block.line}
-              id={idPrefix ? headingId(idPrefix, block.text, i) : undefined}
-              className={`${size} mt-2 font-semibold`}
-              style={{ ...prose, scrollMarginTop: 12 }}
-            >
-              <Text text={block.text} />
-            </div>
-          )
-        }
-        if (block.kind === 'paragraph')
-          return (
-            <p key={i} data-line={block.line} data-source-line={block.line} style={prose}>
-              <Text text={block.text} />
-            </p>
-          )
-        if (block.kind === 'rule') return <hr key={i} data-line={block.line} data-source-line={block.line} style={{ borderColor: 'var(--border)' }} />
-        if (block.kind === 'quote')
-          return (
-            <blockquote key={i} data-line={block.line} data-source-line={block.line} className="border-l-2 pl-3 text-muted" style={{ borderColor: 'var(--border)', ...prose }}>
-              <Text text={block.text} />
-            </blockquote>
-          )
-        if (block.kind === 'code') return <Code key={i} text={block.text} lang={block.lang} line={block.line} />
-        if (block.kind === 'table')
-          return (
-            <div key={i} data-line={block.line} data-source-line={block.line} className="max-w-full overflow-x-auto">
-              <table className="border-collapse text-[12px]">
-                <thead>
-                  <tr>
-                    {block.head.map((cell, j) => (
-                      <th key={j} className="border px-2 py-1 text-left font-semibold" style={{ borderColor: 'var(--border)' }}>
-                        <Text text={cell} />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {block.rows.map((row, r) => (
-                    <tr key={r}>
-                      {block.head.map((_, j) => (
-                        <td key={j} className="border px-2 py-1 align-top" style={{ borderColor: 'var(--border)' }}>
-                          <Text text={row[j] ?? ''} />
-                        </td>
-                      ))}
-                    </tr>
+    if (block.kind === 'heading') {
+      const size = ['text-xl', 'text-lg', 'text-base', 'text-sm', 'text-sm', 'text-sm'][block.level - 1]
+      return (
+        <div
+          key={i}
+          role="heading"
+          aria-level={block.level}
+          data-line={block.line}
+          data-source-line={block.line}
+          id={idPrefix ? headingId(idPrefix, block.text, i) : undefined}
+          className={`${size} mt-2 font-semibold`}
+          style={{ ...prose, scrollMarginTop: 12 }}
+        >
+          <Text text={block.text} />
+        </div>
+      )
+    }
+    if (block.kind === 'paragraph')
+      return (
+        <p key={i} data-line={block.line} data-source-line={block.line} style={prose}>
+          <Text text={block.text} />
+        </p>
+      )
+    if (block.kind === 'rule') return <hr key={i} data-line={block.line} data-source-line={block.line} style={{ borderColor: 'var(--border)' }} />
+    if (block.kind === 'quote')
+      return (
+        <blockquote key={i} data-line={block.line} data-source-line={block.line} className="border-l-2 pl-3 text-muted" style={{ borderColor: 'var(--border)', ...prose }}>
+          <Text text={block.text} />
+        </blockquote>
+      )
+    if (block.kind === 'code') return <Code key={i} text={block.text} lang={block.lang} line={block.line} />
+    if (block.kind === 'table')
+      return (
+        <div key={i} data-line={block.line} data-source-line={block.line} className="max-w-full overflow-x-auto">
+          <table className="border-collapse text-[12px]">
+            <thead>
+              <tr>
+                {block.head.map((cell, j) => (
+                  <th key={j} className="border px-2 py-1 text-left font-semibold" style={{ borderColor: 'var(--border)' }}>
+                    <Text text={cell} />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, r) => (
+                <tr key={r}>
+                  {block.head.map((_, j) => (
+                    <td key={j} className="border px-2 py-1 align-top" style={{ borderColor: 'var(--border)' }}>
+                      <Text text={row[j] ?? ''} />
+                    </td>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        const List = block.ordered ? 'ol' : 'ul'
-        return (
-          <List
-            key={i}
-            start={block.ordered ? block.start : undefined}
-            className={`flex flex-col gap-1 pl-5 ${block.ordered ? 'list-decimal' : 'list-disc'}`}
-            style={prose}
-          >
-            {block.items.map((item, j) => (
-              <li
-                key={j}
-                data-line={item.line} data-source-line={item.line}
-                style={{ marginLeft: item.depth * 16, listStyleType: item.checked === null ? undefined : 'none' }}
-              >
-                {item.checked !== null && (
-                  <span aria-label={item.checked ? 'done' : 'not done'} className="mr-1.5">
-                    {item.checked ? '☑' : '☐'}
-                  </span>
-                )}
-                <Text text={item.text} />
-              </li>
-            ))}
-          </List>
-        )
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    const List = block.ordered ? 'ol' : 'ul'
+    return (
+      <List key={i} start={block.ordered ? block.start : undefined} className={`flex flex-col gap-1 pl-5 ${block.ordered ? 'list-decimal' : 'list-disc'}`} style={prose}>
+        {block.items.map((item, j) => (
+          <li key={j} data-line={item.line} data-source-line={item.line} style={{ marginLeft: item.depth * 16, listStyleType: item.checked === null ? undefined : 'none' }}>
+            {item.checked !== null && (
+              <span aria-label={item.checked ? 'done' : 'not done'} className="mr-1.5">
+                {item.checked ? '☑' : '☐'}
+              </span>
+            )}
+            <Text text={item.text} />
+          </li>
+        ))}
+      </List>
+    )
   }
 }

@@ -8,7 +8,18 @@ export function SeverityBadges(props: { counts?: Partial<Record<FindingSeverity,
   const shown = SEVERITIES.filter((s) => (props.counts?.[s] ?? 0) > 0)
   if (!shown.length) return null
   return (
-    <Box data-severity-badges as="span" css-display="inline-flex" css-flex-wrap="wrap" css-align-items="center" css-gap="6" inlineFlex flexWrap items="center" aria-label={props.label}>
+    <Box
+      data-severity-badges
+      as="span"
+      css-display="inline-flex"
+      css-flex-wrap="wrap"
+      css-align-items="center"
+      css-gap="6"
+      inlineFlex
+      flexWrap
+      items="center"
+      aria-label={props.label}
+    >
       {shown.map((s) => (
         <span
           key={s}

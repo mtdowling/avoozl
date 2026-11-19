@@ -22,7 +22,14 @@ export function EdgeList(props: { label: string; items: EdgeItem[]; onOpen: (id:
           <button
             type="button"
             className="cursor-pointer text-left underline"
-            style={{ background: 'transparent', border: 0, padding: 0, color: 'inherit', font: 'inherit', ...(item.met ? { textDecoration: 'line-through', color: 'var(--muted)' } : {}) }}
+            style={{
+              background: 'transparent',
+              border: 0,
+              padding: 0,
+              color: 'inherit',
+              font: 'inherit',
+              ...(item.met ? { textDecoration: 'line-through', color: 'var(--muted)' } : {}),
+            }}
             onClick={() => props.onOpen(item.id)}
           >
             {item.text}

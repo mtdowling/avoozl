@@ -37,7 +37,15 @@ export function homeTiles(summary: DashboardSummary | null, landing: LandingView
     },
     { key: 'needs-you', label: 'Needs you', value: needs, sub: 'wait on your answer', target: 'waiting', tip: 'Open Needs you', warm: (needs ?? 0) > 0 },
     { key: 'waiting', label: 'Waiting', value: counts ? counts.waiting : null, sub: 'on other tasks', target: 'graph', tip: 'Open the Graph', warm: false },
-    { key: 'landing', label: 'Landing queue', value: landing ? landing.queue.length : null, sub: 'checked, not landed', target: 'landing', tip: 'Open the Landing queue', warm: false },
+    {
+      key: 'landing',
+      label: 'Landing queue',
+      value: landing ? landing.queue.length : null,
+      sub: 'checked, not landed',
+      target: 'landing',
+      tip: 'Open the Landing queue',
+      warm: false,
+    },
     { key: 'landed', label: 'Landed this week', value: landing ? landing.landedThisWeek : null, sub: 'last 7 days', target: 'flow', tip: 'Open Flow', warm: false },
   ]
 }
@@ -87,7 +95,16 @@ export function stuckRows(summary: DashboardSummary | null, now: number, session
     const last = Date.parse(row.lastAt ?? '')
     const quiet = Number.isFinite(last) ? now - last : Infinity
     const why = row.session.crewUnreachable ? 'Its crew does not answer.' : quiet >= QUIET_MS ? (Number.isFinite(quiet) ? `No word for ${ago(quiet)}.` : 'No status yet.') : null
-    if (why) rows.push({ key: `chat:${row.slot}`, taskId: row.taskId, title: row.title, why: `${row.role.charAt(0).toUpperCase()}${row.role.slice(1)} chat. ${why}`, href: sessionHref(row), external: false, quiet })
+    if (why)
+      rows.push({
+        key: `chat:${row.slot}`,
+        taskId: row.taskId,
+        title: row.title,
+        why: `${row.role.charAt(0).toUpperCase()}${row.role.slice(1)} chat. ${why}`,
+        href: sessionHref(row),
+        external: false,
+        quiet,
+      })
   }
   for (const claim of summary.radarFlight)
     if (claim.stale)

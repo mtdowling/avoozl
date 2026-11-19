@@ -36,7 +36,9 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
       <Hint as="dt">{label}</Hint>
-      <Box as="dd" minW0 breakWords>{children}</Box>
+      <Box as="dd" minW0 breakWords>
+        {children}
+      </Box>
     </>
   )
 }

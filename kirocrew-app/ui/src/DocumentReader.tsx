@@ -52,10 +52,11 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
   useEffect(() => {
     let live = true
     if (text !== undefined) setDoc({ text, error: null })
-    else tasks.document(workspaceId, target.document).then(
-      (value) => live && setDoc({ text: value.text, error: null }),
-      (caught: unknown) => live && setDoc({ text: null, error: errorMessage(caught) }),
-    )
+    else
+      tasks.document(workspaceId, target.document).then(
+        (value) => live && setDoc({ text: value.text, error: null }),
+        (caught: unknown) => live && setDoc({ text: null, error: errorMessage(caught) }),
+      )
     // The workspace's extra grammars, as the Plans tab loads them.
     plansClient(api)
       .languages(workspaceId)
@@ -161,12 +162,16 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
         {headings.length > 0 &&
           (narrow ? (
             <Box as="details" css-border-color="border" border="b" px="4" py="2" size="sm">
-              <Box as="summary" cursorPointer weight="medium">Outline</Box>
+              <Box as="summary" cursorPointer weight="medium">
+                Outline
+              </Box>
               <Outline headings={headings} onJump={jump} />
             </Box>
           ) : (
             <Box aria-label="File outline" as="nav" css-border-color="border" overflow="y-auto" borderR px="3" py="3" size="sm">
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Outline</Box>
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+                Outline
+              </Box>
               <Outline headings={headings} onJump={jump} />
             </Box>
           ))}
@@ -181,7 +186,9 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
               {doc.error}
             </ErrorText>
           ) : doc.text === null ? (
-            <Hint as="p" size="sm">Reading…</Hint>
+            <Hint as="p" size="sm">
+              Reading…
+            </Hint>
           ) : (
             <>
               <CitedStyle />

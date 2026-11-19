@@ -16,16 +16,15 @@ import { PlainButton } from './ui/Plain'
 
 const bar = (done: number, total: number) => (total ? Math.round((done / total) * 100) : 0)
 
-export function EpicPanel(props: {
-  workspaceId: string
-  id: string
-  client: ReturnType<typeof viewsClient>
-  onDrill: (drill: Drill) => void
-  onOpenPlans?: () => void
-}) {
+export function EpicPanel(props: { workspaceId: string; id: string; client: ReturnType<typeof viewsClient>; onDrill: (drill: Drill) => void; onOpenPlans?: () => void }) {
   const load = useCallback((workspace: string) => props.client.epic(workspace, props.id), [props.client, props.id])
   const { value, error } = useRead<EpicView>(props.workspaceId, load)
-  if (error) return <ErrorText role="alert" size="sm">{error}</ErrorText>
+  if (error)
+    return (
+      <ErrorText role="alert" size="sm">
+        {error}
+      </ErrorText>
+    )
   if (!value) return null
   return (
     <Card data-epic-panel>
@@ -49,19 +48,29 @@ export function EpicPanel(props: {
         <Box css-max-width="75ch" flex flexCol gap="2">
           {value.goal && (
             <div>
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Goal</Box>
-              <Box as="p" mt="1" whitespace="pre-wrap">{value.goal}</Box>
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+                Goal
+              </Box>
+              <Box as="p" mt="1" whitespace="pre-wrap">
+                {value.goal}
+              </Box>
             </div>
           )}
           {value.done && (
             <div>
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">What done means</Box>
-              <Box as="p" mt="1" whitespace="pre-wrap">{value.done}</Box>
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+                What done means
+              </Box>
+              <Box as="p" mt="1" whitespace="pre-wrap">
+                {value.done}
+              </Box>
             </div>
           )}
           {value.decisions.length > 0 && (
             <div>
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Open decisions</Box>
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+                Open decisions
+              </Box>
               <Box as="ul" mt="1" listDisc pl="5">
                 {value.decisions.map((d) => (
                   <li key={d.taskId}>
@@ -73,17 +82,26 @@ export function EpicPanel(props: {
           )}
         </Box>
         <div>
-          <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Member specs</Box>
+          <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+            Member specs
+          </Box>
           <Box as="ul" mt="1" flex flexCol gap="1">
             {value.members.map((member) => (
               <li key={member.plan}>
                 <PlainButton
                   type="button"
-                  wFull rounded="base" px="1" py="0.5" align="left" hoverBgAccent10
+                  wFull
+                  rounded="base"
+                  px="1"
+                  py="0.5"
+                  align="left"
+                  hoverBgAccent10
                   onClick={() => props.onDrill({ kind: 'plan', id: member.plan, title: member.title })}
                 >
                   <Box as="span" flex justify="between" gap="2">
-                    <Box as="span" truncate>{member.title}</Box>
+                    <Box as="span" truncate>
+                      {member.title}
+                    </Box>
                     <Box as="span" shrink0 size="xs" tone="muted">
                       {member.status}
                       {!member.confirmed && ' · not confirmed'} · {member.progress.done}/{member.progress.total}

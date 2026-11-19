@@ -35,7 +35,9 @@ async function openTree(page, { width, height, theme }) {
   await page.until(`Boolean(document.querySelector('[data-nav-item="dashboard/graph"]'))`)
   await page.evaluate(`document.querySelector('[data-nav-item="dashboard/graph"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-frontier]'))`)
-  await page.evaluate(`(() => { const i = document.querySelector('[data-graph-jump]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'billing'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`)
+  await page.evaluate(
+    `(() => { const i = document.querySelector('[data-graph-jump]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'billing'); i.dispatchEvent(new Event('input', { bubbles: true })); i.form.requestSubmit(); return true })()`,
+  )
   await page.until(`document.querySelector('[data-focus-tree]')?.dataset.focusTree === 'spec:billing'`)
   await page.evaluate('new Promise((r) => setTimeout(r, 250))')
 }
@@ -66,7 +68,9 @@ const empty = (page) =>
     return null
   })()`)
 const center = (page, selector) =>
-  page.evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: Math.round(r.left + r.width / 3), y: Math.round(r.top + r.height / 2) } })()`)
+  page.evaluate(
+    `(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: Math.round(r.left + r.width / 3), y: Math.round(r.top + r.height / 2) } })()`,
+  )
 
 try {
   const page = await browser.page()

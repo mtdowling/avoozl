@@ -35,7 +35,9 @@ function Link({ text }: { text: string }) {
       {text}
     </TextLink>
   ) : (
-    <Box as="code" breakAll>{text}</Box>
+    <Box as="code" breakAll>
+      {text}
+    </Box>
   )
 }
 
@@ -43,7 +45,9 @@ function Records({ label, records }: { label: string; records: Record<string, un
   if (!records.length) return null
   return (
     <Box mt="2" size="xs">
-      <Box as="span" weight="medium">{label}</Box>
+      <Box as="span" weight="medium">
+        {label}
+      </Box>
       <Box as="ul" mt="1" flex flexCol gap="1">
         {records.map((record, i) => (
           <Hint key={i} as="li">
@@ -62,7 +66,9 @@ function Rounds({ rounds }: { rounds: ReviewRound[] }) {
   if (!rounds.length) return null
   return (
     <Box mt="2" size="xs">
-      <Box as="span" weight="medium">Review rounds</Box>
+      <Box as="span" weight="medium">
+        Review rounds
+      </Box>
       <Box as="ul" mt="1" flex flexCol gap="2">
         {rounds.map((round, i) => (
           <li key={`${round.commit}-${i}`}>
@@ -71,21 +77,14 @@ function Rounds({ rounds }: { rounds: ReviewRound[] }) {
             <Box as="ul" ml="3" mt="1" flex flexCol gap="1">
               {round.verdicts.map((verdict) => (
                 <li key={`${verdict.role}-${verdict.attempt}`}>
-                  {verdict.link ? (
-                    <TextLink href={linkHref(verdict.link)}>
-                      {verdictLabel(verdict)}
-                    </TextLink>
-                  ) : (
-                    verdictLabel(verdict)
-                  )}
+                  {verdict.link ? <TextLink href={linkHref(verdict.link)}>{verdictLabel(verdict)}</TextLink> : verdictLabel(verdict)}
                   {verdict.cause && <Hint> · {verdict.cause}</Hint>}
                   {verdict.findings.length > 0 && (
                     <Box as="ul" ml="3" mt="1" flex flexCol gap="1">
                       {verdict.findings.map((finding) => (
                         <li key={finding.ref}>
-                          <Badge variant={finding.state === 'open' ? 'danger' : 'success'}>{finding.state}</Badge>{' '}
-                          <code>{finding.ref}</code> {finding.kind} · {finding.paths.join(', ')}:{' '}
-                          <Hint>{finding.text}</Hint>
+                          <Badge variant={finding.state === 'open' ? 'danger' : 'success'}>{finding.state}</Badge> <code>{finding.ref}</code> {finding.kind} ·{' '}
+                          {finding.paths.join(', ')}: <Hint>{finding.text}</Hint>
                         </li>
                       ))}
                     </Box>
@@ -107,11 +106,11 @@ function GitHubReviewsBlock({ reviews }: { reviews: GitHubReviews }) {
   const name = `PR ${reviews.pullRequestNumber ? `#${reviews.pullRequestNumber}` : ''}`
   return (
     <Box mt="2" size="xs">
-      <Box as="span" weight="medium">GitHub reviews</Box>{' '}
-      <Badge variant={reviews.state === 'approved' ? 'success' : reviews.state === 'pending' ? 'info' : 'danger'}>
-        {reviews.state}
-      </Badge>{' '}
-      {reviews.approvals} of {reviews.needed} approvals on <code>{reviews.headSha?.slice(0, 12) ?? 'unknown head'}</code>
+      <Box as="span" weight="medium">
+        GitHub reviews
+      </Box>{' '}
+      <Badge variant={reviews.state === 'approved' ? 'success' : reviews.state === 'pending' ? 'info' : 'danger'}>{reviews.state}</Badge> {reviews.approvals} of {reviews.needed}{' '}
+      approvals on <code>{reviews.headSha?.slice(0, 12) ?? 'unknown head'}</code>
       {' · '}
       {href ? (
         <TextLink href={linkHref(href)} target="_blank" rel="noreferrer">
@@ -140,7 +139,10 @@ function PrFeedbackBlock({ feedback }: { feedback: PrFeedback }) {
   const href = safeHref(feedback.pullRequest)
   return (
     <Box mt="2" size="xs">
-      <Box as="span" weight="medium">PR feedback</Box> {prFeedbackLine(feedback)}
+      <Box as="span" weight="medium">
+        PR feedback
+      </Box>{' '}
+      {prFeedbackLine(feedback)}
       {feedback.session && <Hint> · {feedback.session}</Hint>}
       {href && (
         <>
@@ -187,7 +189,9 @@ export function SupersedeForm({ item, onSupersede }: { item: DeliveryItem; onSup
   if (!open)
     return (
       <Box mt="2">
-        <TipBtn tooltip="Replace this task with a new one. Cannot be undone here." onClick={() => setOpen(true)}>Supersede</TipBtn>
+        <TipBtn tooltip="Replace this task with a new one. Cannot be undone here." onClick={() => setOpen(true)}>
+          Supersede
+        </TipBtn>
       </Box>
     )
   const submit = async () => {
@@ -206,29 +210,16 @@ export function SupersedeForm({ item, onSupersede }: { item: DeliveryItem; onSup
     <Box mt="2" flex flexCol gap="1.5" size="sm">
       <Box htmlFor={`supersede-id-${item.id}`} as="label" flex flexCol gap="1">
         <span>New task ID (blank picks one)</span>
-        <Input
-          id={`supersede-id-${item.id}`}
-          value={form.id}
-          onChange={(event) => setForm({ ...form, id: event.target.value })}
-        />
+        <Input id={`supersede-id-${item.id}`} value={form.id} onChange={(event) => setForm({ ...form, id: event.target.value })} />
       </Box>
       <Box htmlFor={`supersede-title-${item.id}`} as="label" flex flexCol gap="1">
         <span>New task title</span>
-        <Input
-          id={`supersede-title-${item.id}`}
-          value={form.title}
-          onChange={(event) => setForm({ ...form, title: event.target.value })}
-        />
+        <Input id={`supersede-title-${item.id}`} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
       </Box>
       <Hint as="p" size="xs">
-        {item.id} becomes superseded. Tasks that wait on it wait on the new task. Its history stays, and a running
-        session is left alone.
+        {item.id} becomes superseded. Tasks that wait on it wait on the new task. Its history stays, and a running session is left alone.
       </Hint>
-      {error && (
-        <ErrorText role="alert">
-          {error}
-        </ErrorText>
-      )}
+      {error && <ErrorText role="alert">{error}</ErrorText>}
       <Row gap={2} wrap={false} align="start">
         <DangerBtn
           disabled={busy}
@@ -251,9 +242,7 @@ export function SupersedeForm({ item, onSupersede }: { item: DeliveryItem; onSup
 
 // Open review findings a person may dismiss with a reason, then retry.
 function openFindings(item: DeliveryItem) {
-  return (item.rounds ?? [])
-    .filter((round) => round.current)
-    .flatMap((round) => round.verdicts.flatMap((verdict) => verdict.findings.filter((f) => f.state === 'open')))
+  return (item.rounds ?? []).filter((round) => round.current).flatMap((round) => round.verdicts.flatMap((verdict) => verdict.findings.filter((f) => f.state === 'open')))
 }
 
 export type Act = (call: () => Promise<unknown>) => void
@@ -265,7 +254,9 @@ export function RetryForm({ item, busy, onRetry }: { item: DeliveryItem; busy: b
   if (!findings.length) return null
   return (
     <Box mt="2" flex flexCol gap="1.5" size="xs">
-      <Box as="span" weight="medium">Dismiss findings, then retry</Box>
+      <Box as="span" weight="medium">
+        Dismiss findings, then retry
+      </Box>
       {findings.map((finding) => (
         <Switch
           key={finding.ref}
@@ -320,7 +311,9 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
         </Box>
       )}
       {item.runs.length > 0 && (
-        <Box as="p" mt="2" size="xs" tone="muted">Runs: {item.runs.map((run) => `${run.id} (${run.state})`).join(', ')}</Box>
+        <Box as="p" mt="2" size="xs" tone="muted">
+          Runs: {item.runs.map((run) => `${run.id} (${run.state})`).join(', ')}
+        </Box>
       )}
       {item.integration && (
         <Box as="p" mt="2" size="xs">
@@ -351,14 +344,14 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
       {item.prFeedback && <PrFeedbackBlock feedback={item.prFeedback} />}
       {item.evidence.length > 0 && (
         <Box mt="2" size="xs">
-          <Box as="span" weight="medium">Evidence</Box>
+          <Box as="span" weight="medium">
+            Evidence
+          </Box>
           <Box as="ul" mt="1" flex flexCol gap="1">
             {item.evidence.map((entry, i) => (
               <li key={entry.id ?? i}>
                 {entry.text ? <Link text={entry.text} /> : (entry.kind ?? 'record')}
-                {entry.exitCode !== undefined && entry.exitCode !== null && (
-                  <Hint> · exit {entry.exitCode}</Hint>
-                )}
+                {entry.exitCode !== undefined && entry.exitCode !== null && <Hint> · exit {entry.exitCode}</Hint>}
                 {entry.commit && <Hint> · {entry.commit.slice(0, 12)}</Hint>}
               </li>
             ))}
@@ -367,7 +360,9 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
       )}
       {item.project && (
         <Box mt="2" size="xs">
-          <Box as="span" weight="medium">Project</Box>
+          <Box as="span" weight="medium">
+            Project
+          </Box>
           <Hint as="p">
             {[
               item.project.status && `Status ${item.project.status}`,

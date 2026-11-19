@@ -41,7 +41,9 @@ test('a process row shows its log tail and cost, and Attach copies the command',
   // No chat link for a child; the Kiro Crew reviewer row keeps its Session.
   assert.equal(await page.evaluate(`${row}.querySelectorAll('a[aria-label^="Session"]').length`), 0)
   assert.equal(await page.evaluate(`document.querySelectorAll('a[aria-label^="Session"]').length`), 1)
-  await page.evaluate(`(() => { window.__copied = null; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied = t } } }) })()`)
+  await page.evaluate(
+    `(() => { window.__copied = null; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied = t } } }) })()`,
+  )
   await page.evaluate(`${row}.querySelector('[data-copy-attach]').click()`)
   await page.until(`window.__copied !== null`, 5000)
   assert.match(await page.evaluate('window.__copied'), /^cd \/work\/recipe-box-m3 && claude --resume 6f1c/)

@@ -23,7 +23,19 @@ export function GateList(props: { gates: GateRow[]; busy?: boolean; onClear?: (t
   return (
     <Box css-display="flex" css-flex-direction="column" css-gap="8" flex flexCol gap="2">
       {props.gates.map((gate) => (
-        <Box key={gate.taskId} data-gate={gate.state} css-display="flex" css-flex-direction="column" css-gap="4" css-border-top="1px-solid-border" css-padding-top="8" flex flexCol gap="1" size="sm">
+        <Box
+          key={gate.taskId}
+          data-gate={gate.state}
+          css-display="flex"
+          css-flex-direction="column"
+          css-gap="4"
+          css-border-top="1px-solid-border"
+          css-padding-top="8"
+          flex
+          flexCol
+          gap="1"
+          size="sm"
+        >
           <Box css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-gap="4px-12px" flex flexWrap items="baseline" gapX="3" gapY="1">
             <Badge variant={VARIANT[gate.state]}>{gate.state}</Badge>
             <Box as="span" css-overflow-wrap="anywhere" weight="medium">
@@ -58,7 +70,14 @@ export function GateList(props: { gates: GateRow[]; busy?: boolean; onClear?: (t
             <Box css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" flex flexWrap items="center" gap="2">
               {asking === gate.taskId ? (
                 <>
-                  <PlainInput aria-label={`Why clear ${gate.taskId}`} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why it can be cleared" css-flex="1-1-160px" css-min-width="0" />
+                  <PlainInput
+                    aria-label={`Why clear ${gate.taskId}`}
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    placeholder="Why it can be cleared"
+                    css-flex="1-1-160px"
+                    css-min-width="0"
+                  />
                   <Btn type="button" disabled={props.busy || !reason.trim()} onClick={() => props.onClear?.(gate.taskId, reason.trim())}>
                     Confirm clear
                   </Btn>
@@ -102,7 +121,9 @@ export default function TrackerGates(props: { workspaceId: string | null }) {
     <div data-tracker-gates>
       <Card className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <SectionHeading title="Tracker gates" className="mb-0" />
-        <Hint as="p" size="xs">Tasks that wait on an item outside GitHub. Avoozl reads each one and never clears it. A clear is your order, recorded with your name.</Hint>
+        <Hint as="p" size="xs">
+          Tasks that wait on an item outside GitHub. Avoozl reads each one and never clears it. A clear is your order, recorded with your name.
+        </Hint>
         {failure && (
           <Box role="alert" as="p" css-color="danger" size="sm">
             {failure}

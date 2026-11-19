@@ -10,7 +10,22 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 test('every role is one row, and auto or blank fields leave a row out', () => {
   assert.deepEqual(
     ROLES.map((r) => r.key),
-    ['worker', 'falsifier', 'planner', 'planReviewer', 'retro', 'reviewDraft', 'verifier', 'reviewer', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview', 'assist'],
+    [
+      'worker',
+      'falsifier',
+      'planner',
+      'planReviewer',
+      'retro',
+      'reviewDraft',
+      'verifier',
+      'reviewer',
+      'responder',
+      'taskSummary',
+      'issuePlanner',
+      'planAnswer',
+      'prReview',
+      'assist',
+    ],
   )
   // The roles added for harnesses pick no model.
   assert.deepEqual(
@@ -46,8 +61,7 @@ test('Settings > Models says person-only refusal in a Kiro Crew chat is only a s
 
 test('Switch model, its dialog and the bulk switch calls are gone from the page', () => {
   assert.equal(existsSync(new URL('../src/SwitchModel.tsx', import.meta.url)), false)
-  for (const name of ['App.tsx', 'providers-api.ts'])
-    assert.doesNotMatch(source(name), /SwitchModel|provider\.switch/, name)
+  for (const name of ['App.tsx', 'providers-api.ts']) assert.doesNotMatch(source(name), /SwitchModel|provider\.switch/, name)
 })
 
 // R98.3: a harness per role: auto, the Kiro Crew chat, or this machine's files.
@@ -77,8 +91,14 @@ test('a definition with no way to write its result is offered only for write rol
     { name: 'claude-code', approved: true, readRoles: null, proved: ['read', 'write'] },
     { name: 'codex', approved: true, readRoles: 'codex names no resultAllow, so a read-only session cannot write its result file.', proved: ['write'] },
   ]
-  assert.deepEqual(harnessOptions(defs, '', 'read').map((o) => o.value), ['auto', 'kirocrew', 'claude-code'])
-  assert.deepEqual(harnessOptions(defs, '', 'write').map((o) => o.value), ['auto', 'kirocrew', 'claude-code', 'codex'])
+  assert.deepEqual(
+    harnessOptions(defs, '', 'read').map((o) => o.value),
+    ['auto', 'kirocrew', 'claude-code'],
+  )
+  assert.deepEqual(
+    harnessOptions(defs, '', 'write').map((o) => o.value),
+    ['auto', 'kirocrew', 'claude-code', 'codex'],
+  )
   assert.match(roleProblem('verifier', { verifier: { harness: 'codex' } }, defs), /codex names no resultAllow/)
   assert.equal(roleProblem('worker', { worker: { harness: 'codex' } }, defs), null)
   assert.equal(provedLine(defs[0]), 'read: proved, write: proved')

@@ -24,7 +24,10 @@ function addCss() {
   document.head.append(style)
 }
 
-export const Button = forwardRef<HTMLButtonElement, Omit<ComponentProps<typeof Btn>, 'variant' | 'primary'> & { variant?: ButtonVariant }>(function Button({ variant = 'default', ...rest }, ref) {
+export const Button = forwardRef<HTMLButtonElement, Omit<ComponentProps<typeof Btn>, 'variant' | 'primary'> & { variant?: ButtonVariant }>(function Button(
+  { variant = 'default', ...rest },
+  ref,
+) {
   if (variant === 'danger') addCss()
   return <Btn ref={ref} {...rest} primary={variant === 'primary'} data-variant={variant === 'default' ? undefined : variant} data-danger={variant === 'danger' ? '' : undefined} />
 })

@@ -14,7 +14,18 @@ export function BrandCard(props: { workspaceId: string | null; boxed?: boolean }
   // ends its sidebar. The logo at the left, the name and version at the
   // right, in Kiro Crew's caption size (12px name, 11px version).
   return (
-    <Box data-brand-card data-brand-line aria-label="Avoozl" role="group" css-display="flex" css-align-items="center" css-gap="8" css-padding={props.boxed ? '4px-4px' : '4px-4px-4px-8px'} css-min-width="0" css-flex-shrink="0">
+    <Box
+      data-brand-card
+      data-brand-line
+      aria-label="Avoozl"
+      role="group"
+      css-display="flex"
+      css-align-items="center"
+      css-gap="8"
+      css-padding={props.boxed ? '4px-4px' : '4px-4px-4px-8px'}
+      css-min-width="0"
+      css-flex-shrink="0"
+    >
       <Logo size={16} />
       <Box as="span" css-margin-left="auto" css-white-space="nowrap" css-overflow="hidden" css-line-height="16px" flex minW0 items="baseline" gap="1.5">
         <Box as="span" css-font-size="12" minW0 truncate>

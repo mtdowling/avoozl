@@ -12,10 +12,7 @@ const MERGED = 'var(--tile-purple, var(--accent))'
 
 function Pill({ color, children }: { color: string; children: ReactNode }) {
   return (
-    <span
-      className="inline-flex items-center rounded-full px-1.5 text-[10px] font-semibold leading-4"
-      style={{ background: color, color: 'var(--card)' }}
-    >
+    <span className="inline-flex items-center rounded-full px-1.5 text-[10px] font-semibold leading-4" style={{ background: color, color: 'var(--card)' }}>
       {children}
     </span>
   )
@@ -52,16 +49,15 @@ function PullIcon({ color }: { color: string }) {
   )
 }
 
-
 // One repository in GitHub's look: a header with owner/name, then rows.
 function Repo({ name, locked, children }: { name: string; locked?: boolean; children: ReactNode }) {
   return (
     <Box css-border="1px-solid-border" css-border-radius="6" css-background="card" css-min-width="0" css-overflow="hidden" flex1 size="11" leading4>
-      <Box
-        css-background="bg-elevated-transparent" css-border-bottom="1px-solid-border" css-color="text" flex items="center" gap="1" px="2" py="1" weight="semibold"
-      >
+      <Box css-background="bg-elevated-transparent" css-border-bottom="1px-solid-border" css-color="text" flex items="center" gap="1" px="2" py="1" weight="semibold">
         {locked && <Lock />}
-        <Box as="span" truncate>{name}</Box>
+        <Box as="span" truncate>
+          {name}
+        </Box>
       </Box>
       <Stack>{children}</Stack>
     </Box>
@@ -78,7 +74,11 @@ function Row({ icon, title, pill, sub }: { icon: ReactNode; title: string; pill:
         </Box>
         {pill}
       </Box>
-      {sub && <Box truncate tone="muted">{sub}</Box>}
+      {sub && (
+        <Box truncate tone="muted">
+          {sub}
+        </Box>
+      )}
     </Box>
   )
 }
@@ -86,19 +86,14 @@ function Row({ icon, title, pill, sub }: { icon: ReactNode; title: string; pill:
 function PlansRepoPicture() {
   return (
     <div aria-hidden="true">
-    <Box flex gap="3">
-      <Repo name="acme/plans" locked>
-        <Row icon={<IssueIcon color={OPEN} />} title="Add login" pill={<Pill color={OPEN}>Open</Pill>} sub="#12 · spec 1.2" />
-      </Repo>
-      <Repo name="acme/app">
-        <Row
-          icon={<PullIcon color={MERGED} />}
-          title="Add login"
-          pill={<Pill color={MERGED}>Merged</Pill>}
-          sub="branch avoozl/1.2"
-        />
-      </Repo>
-    </Box>
+      <Box flex gap="3">
+        <Repo name="acme/plans" locked>
+          <Row icon={<IssueIcon color={OPEN} />} title="Add login" pill={<Pill color={OPEN}>Open</Pill>} sub="#12 · spec 1.2" />
+        </Repo>
+        <Repo name="acme/app">
+          <Row icon={<PullIcon color={MERGED} />} title="Add login" pill={<Pill color={MERGED}>Merged</Pill>} sub="branch avoozl/1.2" />
+        </Repo>
+      </Box>
       {/* The linked branch: merging its pull request closes the planning issue. */}
       <Box css-color="accent" mt="1.5" flex items="center" gap="1.5" size="11">
         <svg width={64} height={10} viewBox="0 0 64 10" style={{ flex: 'none' }}>
@@ -164,24 +159,34 @@ const MAKES: Record<string, string> = {
 export function RoleHelp() {
   return (
     <Box as="details" size="sm" data-role-help>
-      <Box as="summary" cursorPointer weight="medium">What the roles make</Box>
+      <Box as="summary" cursorPointer weight="medium">
+        What the roles make
+      </Box>
       <Box mt="2" flex flexCol gap="4">
         {MODE_CARDS.map((card) => {
           const Picture = PICTURE[card.mode]
           return (
             <Box key={card.mode} flex minW0 flexCol gap="2" data-role-outcome={card.mode}>
               <div>
-                <Box as="span" weight="semibold">{card.title}</Box>
-                <Hint as="p" size="xs">{MAKES[card.mode]}</Hint>
+                <Box as="span" weight="semibold">
+                  {card.title}
+                </Box>
+                <Hint as="p" size="xs">
+                  {MAKES[card.mode]}
+                </Hint>
               </div>
               <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-280px-1fr" grid gap="3">
                 <Box css-background="bg-elevated-transparent" rounded="md" p="2.5">
                   <Picture />
-                  <Box as="p" mt="2" size="11" tone="muted">{CAPTION[card.mode]}</Box>
+                  <Box as="p" mt="2" size="11" tone="muted">
+                    {CAPTION[card.mode]}
+                  </Box>
                 </Box>
                 <Box flex flexCol gap="2" size="xs">
                   <div>
-                    <Box as="span" weight="semibold">Use it when</Box>
+                    <Box as="span" weight="semibold">
+                      Use it when
+                    </Box>
                     <Box as="ul" css-list-style="disc" mt="1" flex flexCol gap="0.5" pl="4">
                       {card.useWhen.map((item) => (
                         <li key={item}>{item}</li>

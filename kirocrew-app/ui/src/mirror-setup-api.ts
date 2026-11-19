@@ -36,8 +36,16 @@ export interface MirrorSetupResult {
 }
 
 export const MIRROR_BUTTONS: { kind: MirrorKind; label: string; about: string }[] = [
-  { kind: 'adopt', label: 'Adopt existing setup', about: 'Find the mirror, private specs branch, labels and rules you already have. Shows a dry run first and writes only the lines you keep ticked.' },
-  { kind: 'create', label: 'Create setup', about: 'Build a private mirror, copy the source into it once, then add the private specs branch, labels, branch rule and auto-merge. Shows a dry run first.' },
+  {
+    kind: 'adopt',
+    label: 'Adopt existing setup',
+    about: 'Find the mirror, private specs branch, labels and rules you already have. Shows a dry run first and writes only the lines you keep ticked.',
+  },
+  {
+    kind: 'create',
+    label: 'Create setup',
+    about: 'Build a private mirror, copy the source into it once, then add the private specs branch, labels, branch rule and auto-merge. Shows a dry run first.',
+  },
 ]
 
 export const LINE_NAMES: Record<string, string> = {

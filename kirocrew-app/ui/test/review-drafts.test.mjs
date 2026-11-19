@@ -30,8 +30,7 @@ test('the Dashboard shows the list with a repository and a state filter, and the
   assert.match(view, /navigator\.clipboard\.writeText\(query\)/)
   assert.match(view, /\{search\.query\}/)
   assert.match(view, /if \(!items\.length\) return null/)
-  for (const state of ['queued', 'chat', 'waiting', 'stale', 'submitted', 'discarded', 'replaced', 'ended', 'refused', 'closed'])
-    assert.ok(DRAFT_STATE_TEXT[state], state)
+  for (const state of ['queued', 'chat', 'waiting', 'stale', 'submitted', 'discarded', 'replaced', 'ended', 'refused', 'closed']) assert.ok(DRAFT_STATE_TEXT[state], state)
 })
 
 test('a review draft row says its own detail and points at the pull request', () => {

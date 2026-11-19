@@ -29,9 +29,7 @@ try {
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
   const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
   const menu = (width) =>
-    width >= 768
-      ? 'true'
-      : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
+    width >= 768 ? 'true' : `(() => { if (!document.querySelector('[data-top-rail-list]')) document.querySelector('[data-top-rail-bar]').click(); return true })()`
   const head = (width) =>
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`
   const item = (width, text) =>

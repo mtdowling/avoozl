@@ -38,8 +38,7 @@ export function evidenceClient(api: AppApi) {
     (await api.post<{ result: T }>(COMMAND_PATH, { operation: 'task.evidence', input, workspaceId })).result
   return {
     list: (workspaceId: string, taskId: string) => run<{ taskId: string; entries: EvidenceEntry[] }>({ taskId }, workspaceId).then((r) => r.entries),
-    file: (workspaceId: string, taskId: string, file: string) =>
-      run<{ file: EvidenceFile; base64: string }>({ taskId, file }, workspaceId),
+    file: (workspaceId: string, taskId: string, file: string) => run<{ file: EvidenceFile; base64: string }>({ taskId, file }, workspaceId),
   }
 }
 

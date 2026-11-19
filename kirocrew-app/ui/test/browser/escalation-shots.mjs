@@ -45,11 +45,16 @@ try {
         }
         const pick = async (text) => {
           await menu()
-          await page.evaluate(`(() => { const h = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Needs you')); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`)
+          await page.evaluate(
+            `(() => { const h = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Needs you')); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`,
+          )
           await wait(page, 200)
-          await page.evaluate(`[...document.querySelectorAll('${scope(width)} [data-nav-item]:not([data-nav-head])')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))?.click()`)
+          await page.evaluate(
+            `[...document.querySelectorAll('${scope(width)} [data-nav-item]:not([data-nav-head])')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))?.click()`,
+          )
           await wait(page, 300)
-          if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+          if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+            await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         }
         const shot = async (name) => {
           await wait(page, 600)
@@ -61,9 +66,13 @@ try {
         await shot('intake')
         await pick('Decisions')
         // Open the crew row so its actions show beside the list.
-        await page.evaluate(`[...document.querySelectorAll('[data-shell-main] li, [data-shell-main] [role="button"]')].find((el) => el.textContent.includes('#38 needs a person'))?.click()`)
+        await page.evaluate(
+          `[...document.querySelectorAll('[data-shell-main] li, [data-shell-main] [role="button"]')].find((el) => el.textContent.includes('#38 needs a person'))?.click()`,
+        )
         await wait(page, 400)
-        await page.evaluate(`[...document.querySelectorAll('[data-shell-main] *')].filter((el) => el.children.length === 0 && el.textContent.includes('#38 needs a person')).at(0)?.click()`)
+        await page.evaluate(
+          `[...document.querySelectorAll('[data-shell-main] *')].filter((el) => el.children.length === 0 && el.textContent.includes('#38 needs a person')).at(0)?.click()`,
+        )
         await shot('needs-you')
       }
   if (page.errors.length) console.error(page.errors.join('\n'))

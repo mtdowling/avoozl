@@ -42,10 +42,29 @@ test('inside a root means the root or a folder under it, not a sibling with the 
 
 test("the chat's folder comes from the slot list, and a refused read gives none", async () => {
   const api = (rows) => ({ get: async (path) => (assert.equal(path, '/api/chat/slots'), rows) })
-  assert.equal(await chatProject(api([{ key: 'a', project: '/x' }, { key: 'b', project: '/y' }]), 'b'), '/y')
+  assert.equal(
+    await chatProject(
+      api([
+        { key: 'a', project: '/x' },
+        { key: 'b', project: '/y' },
+      ]),
+      'b',
+    ),
+    '/y',
+  )
   assert.equal(await chatProject(api([{ key: 'a', project: '' }]), 'a'), null)
   assert.equal(await chatProject(api([]), 'a'), null)
-  assert.equal(await chatProject({ get: async () => { throw new Error('[app-sdk] App "avoozl" not permitted to access /api/chat/slots') } }, 'a'), null)
+  assert.equal(
+    await chatProject(
+      {
+        get: async () => {
+          throw new Error('[app-sdk] App "avoozl" not permitted to access /api/chat/slots')
+        },
+      },
+      'a',
+    ),
+    null,
+  )
   assert.equal(await chatProject(api([]), ''), null)
 })
 

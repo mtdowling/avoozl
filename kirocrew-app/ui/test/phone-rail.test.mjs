@@ -24,7 +24,9 @@ after(async () => {
 
 const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
 const box = (selector) =>
-  page.evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null; const r = el.getBoundingClientRect(); return { top: r.top, left: r.left, width: r.width, height: r.height, hidden: el.hidden } })()`)
+  page.evaluate(
+    `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null; const r = el.getBoundingClientRect(); return { top: r.top, left: r.left, width: r.width, height: r.height, hidden: el.hidden } })()`,
+  )
 const sideways = () => page.evaluate(`Math.max(document.scrollingElement.scrollWidth, document.querySelector('[data-avoozl-pane]').scrollWidth) > innerWidth`)
 
 for (const dark of [false, true]) {

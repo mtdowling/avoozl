@@ -103,7 +103,15 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
     return (
       <>
         <Tooltip text={label}>
-          <button type="button" {...(props.nav || props.square ? {} : { 'data-pp-icon': '', 'data-bare': '' })} data-stop-line data-stopped={stopped ? '' : undefined} aria-label={label} onClick={() => (stopped ? void resumeAll() : setOpen(true))} style={{ ...(props.square ? SQUARE : props.nav ? NAV_ICON : {}), color: stopped ? 'var(--ok)' : 'var(--danger)', borderColor: 'var(--border)' }}>
+          <button
+            type="button"
+            {...(props.nav || props.square ? {} : { 'data-pp-icon': '', 'data-bare': '' })}
+            data-stop-line
+            data-stopped={stopped ? '' : undefined}
+            aria-label={label}
+            onClick={() => (stopped ? void resumeAll() : setOpen(true))}
+            style={{ ...(props.square ? SQUARE : props.nav ? NAV_ICON : {}), color: stopped ? 'var(--ok)' : 'var(--danger)', borderColor: 'var(--border)' }}
+          >
             <Icon size={props.bare ? 13 : 14} aria-hidden="true" />
           </button>
         </Tooltip>
@@ -113,7 +121,13 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
   }
   return (
     <>
-      <Tooltip text={stopped ? `The line is stopped: ${why}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : 'Stop new work in a scope, or stop all agents, with a reason'}>
+      <Tooltip
+        text={
+          stopped
+            ? `The line is stopped: ${why}. Resume it from the banner on the Dashboard or Flow. Press to stop more.`
+            : 'Stop new work in a scope, or stop all agents, with a reason'
+        }
+      >
         {(describedBy) => (
           <Button
             type="button"
@@ -127,7 +141,9 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
             style={{ ...(stopped ? STOPPED : FILL), padding: '4px 6px' }}
           >
             <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
-            <Box as="span" srOnly>{stopped ? 'Line stopped' : 'Stop the line'}</Box>
+            <Box as="span" srOnly>
+              {stopped ? 'Line stopped' : 'Stop the line'}
+            </Box>
           </Button>
         )}
       </Tooltip>
@@ -180,7 +196,11 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       setBusy(false)
     }
   }
-  const empty = (text: string) => <Hint as="p" size="sm">{choices ? text : 'Reading…'}</Hint>
+  const empty = (text: string) => (
+    <Hint as="p" size="sm">
+      {choices ? text : 'Reading…'}
+    </Hint>
+  )
   const required = (label: string) => (
     <span>
       {label} <Hint size="xs">(required)</Hint>
@@ -219,7 +239,9 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       describedBy="avoozl-stop-line"
       boxRef={box}
       attrs={{ 'data-stop-dialog': true }}
-      unsaved={JSON.stringify(form) !== JSON.stringify(emptyPull()) && { title: 'Discard this stop?', body: 'The line keeps running. What you entered is lost.', action: 'Discard' }}
+      unsaved={
+        JSON.stringify(form) !== JSON.stringify(emptyPull()) && { title: 'Discard this stop?', body: 'The line keeps running. What you entered is lost.', action: 'Discard' }
+      }
       title={
         <Box as="span" inlineFlex items="center" gap="1.5">
           <Pause size={ICON} aria-hidden="true" style={{ color: 'var(--danger)' }} /> Stop the line
@@ -250,7 +272,13 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
           title: k.label,
           line: k.line,
           ...(k.value === 'agents'
-            ? { description: <Hint as="p" size="sm" data-full-warning>{FULL_STOP_WARNING}</Hint> }
+            ? {
+                description: (
+                  <Hint as="p" size="sm" data-full-warning>
+                    {FULL_STOP_WARNING}
+                  </Hint>
+                ),
+              }
             : {
                 fields: (
                   <RadioFold

@@ -26,25 +26,12 @@ declare module '@kirocrew/app-sdk' {
   export function useChatLauncher(): {
     // slotKey opens an existing chat instead of a new one (host: UG() in the
     // dashboard bundle, window.__mc_chat_launch.slotKey).
-    openChat(input: {
-      message?: string
-      autoSend?: boolean
-      agent?: string
-      slotKey?: string
-    }): void
+    openChat(input: { message?: string; autoSend?: boolean; agent?: string; slotKey?: string }): void
   }
 }
 
 declare module '@kirocrew/app-sdk/ui' {
-  import type {
-    ButtonHTMLAttributes,
-    ComponentType,
-    CSSProperties,
-    ForwardRefExoticComponent,
-    InputHTMLAttributes,
-    ReactNode,
-    RefAttributes,
-  } from 'react'
+  import type { ButtonHTMLAttributes, ComponentType, CSSProperties, ForwardRefExoticComponent, InputHTMLAttributes, ReactNode, RefAttributes } from 'react'
 
   export const PageHeader: ComponentType<{
     title: ReactNode
@@ -96,9 +83,7 @@ declare module '@kirocrew/app-sdk/ui' {
       primary?: boolean
     } & RefAttributes<HTMLButtonElement>
   >
-  export const Input: ForwardRefExoticComponent<
-    InputHTMLAttributes<HTMLInputElement> & RefAttributes<HTMLInputElement>
-  >
+  export const Input: ForwardRefExoticComponent<InputHTMLAttributes<HTMLInputElement> & RefAttributes<HTMLInputElement>>
   // Host rule: any other variant renders as `warn` (yellow). Use ./Badge.tsx.
   export const Badge: ComponentType<{
     children?: ReactNode

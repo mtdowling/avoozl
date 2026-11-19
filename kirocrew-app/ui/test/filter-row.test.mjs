@@ -60,7 +60,10 @@ for (const width of [390, 1280])
       assert.ok(got.height <= 28, `one line tall (${got.height} px)`)
       assert.equal(got.oneLine, true, 'every part on the same line')
       assert.ok(got.statusRight <= 1, `the status text ends the line (${got.statusRight} px short)`)
-      assert.ok(got.controls.every((h) => h <= 28), `controls ${got.controls}`)
+      assert.ok(
+        got.controls.every((h) => h <= 28),
+        `controls ${got.controls}`,
+      )
       assert.equal(got.labels, 0, 'no labels stacked above the fields')
       assert.equal(got.sideways, false, 'nothing spills out of the row')
       // The less-used filters open from the filter icon, and the row stays one line.
@@ -83,6 +86,6 @@ for (const width of [390, 1280])
       return { n: counts.length, inStatus: counts.every((el) => el.closest('[data-filter-status]')), rowHeight: Math.round(row.getBoundingClientRect().height) }
     })()`)
     assert.equal(got.n, 1, 'one "4 of 4" on the page')
-    assert.equal(got.inStatus, true, 'it is the filter line\'s status text')
+    assert.equal(got.inStatus, true, "it is the filter line's status text")
     assert.ok(got.rowHeight <= 28, `the filter line is one line (${got.rowHeight} px)`)
   })

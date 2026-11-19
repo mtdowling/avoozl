@@ -85,11 +85,24 @@ export function DriverBanner(props: { workspaceId: string; spec: DriverSpec | nu
     <Box
       role="status"
       data-driver-banner
-      css-border-color="warning-border" css-background="mix-warning-muted-10%-card-transparent" mb="3" flex flexWrap items="center" gap="3" rounded="lg" border="all" p="3" size="sm"
+      css-border-color="warning-border"
+      css-background="mix-warning-muted-10%-card-transparent"
+      mb="3"
+      flex
+      flexWrap
+      items="center"
+      gap="3"
+      rounded="lg"
+      border="all"
+      p="3"
+      size="sm"
     >
       <Lock size={18} aria-hidden="true" style={{ color: 'var(--muted)' }} />
       <Box as="span" minW0 flex1>
-        <Box as="span" weight="medium">Read only here. {bannerTitle(spec)}.</Box> <Hint>{spec.text}</Hint>
+        <Box as="span" weight="medium">
+          Read only here. {bannerTitle(spec)}.
+        </Box>{' '}
+        <Hint>{spec.text}</Hint>
         {issueUrl && (
           <>
             {' '}
@@ -139,8 +152,12 @@ export function SetupList(props: { spec: DriverSpec | null }) {
   if (!items.length) return null
   return (
     <Box data-driver-setup css-border-color="border" mb="3" rounded="lg" border="all" p="3" size="sm">
-      <Box as="p" weight="medium">Set these up on this machine</Box>
-      <Hint as="p" size="xs">They stay on each machine. Until they are back, their tasks wait and their checks block writes.</Hint>
+      <Box as="p" weight="medium">
+        Set these up on this machine
+      </Box>
+      <Hint as="p" size="xs">
+        They stay on each machine. Until they are back, their tasks wait and their checks block writes.
+      </Hint>
       <Box as="ul" mt="1" listDisc pl="5">
         {items.map((item) => (
           <li key={item.kind + (item.id ?? '')}>{setupText(item)}</li>
@@ -154,13 +171,17 @@ function Loss(props: { preview: TakeoverPreview | null }) {
   if (!props.preview?.lost.length) return null
   return (
     <Box data-driver-loss flex flexCol gap="1" size="sm">
-      <Box as="p" weight="medium">A rebuild from GitHub loses</Box>
+      <Box as="p" weight="medium">
+        A rebuild from GitHub loses
+      </Box>
       <Box as="ul" listDisc pl="5">
         {props.preview.lost.map((line) => (
           <li key={line}>{line}</li>
         ))}
       </Box>
-      <Hint as="p" size="xs">The next tick raises again: {props.preview.reraised.join(', ')}.</Hint>
+      <Hint as="p" size="xs">
+        The next tick raises again: {props.preview.reraised.join(', ')}.
+      </Hint>
     </Box>
   )
 }
@@ -202,9 +223,7 @@ export function TakeOverDialog(props: { workspaceId: string; spec: DriverSpec; o
   }
   const options: { key: typeof how; label: string; note: string }[] = [
     { key: 'file', label: 'From an export', note: 'The file the old driver wrote. Avoozl checks it against the claim before anything changes.' },
-    ...(spec.mode === 'local'
-      ? []
-      : [{ key: 'rebuild' as const, label: 'Rebuild from GitHub', note: 'When the old machine is gone. Some local history is lost.' }]),
+    ...(spec.mode === 'local' ? [] : [{ key: 'rebuild' as const, label: 'Rebuild from GitHub', note: 'When the old machine is gone. Some local history is lost.' }]),
     { key: 'claim', label: 'Keep this machine’s records', note: 'Your other machine handed it to you, or this workspace already has its state.' },
   ]
   return (
@@ -222,21 +241,30 @@ export function TakeOverDialog(props: { workspaceId: string; spec: DriverSpec; o
       }
     >
       <Stack gap={3}>
-        <Box as="p" size="sm">{spec.text}</Box>
+        <Box as="p" size="sm">
+          {spec.text}
+        </Box>
         <Box as="fieldset" flex flexCol gap="2">
-          <Box as="legend" size="sm" weight="medium">How its run state comes over</Box>
+          <Box as="legend" size="sm" weight="medium">
+            How its run state comes over
+          </Box>
           {options.map((option) => (
             <Box key={option.key} as="label" flex items="start" gap="2" size="sm">
               <input type="radio" name="avoozl-driver-how" checked={how === option.key} onChange={() => setHow(option.key)} />
               <span>
-                {option.label} <Hint size="xs" block>{option.note}</Hint>
+                {option.label}{' '}
+                <Hint size="xs" block>
+                  {option.note}
+                </Hint>
               </span>
             </Box>
           ))}
         </Box>
         {how === 'file' && <FileField id="avoozl-driver-file" value={file} onChange={setFile} />}
         {how === 'rebuild' && <Loss preview={preview} />}
-        <Hint as="p" size="xs">Avoozl waits 10 seconds and reads the plan issue again; it drives only if its claim is still there.</Hint>
+        <Hint as="p" size="xs">
+          Avoozl waits 10 seconds and reads the plan issue again; it drives only if its claim is still there.
+        </Hint>
         {error && (
           <ErrorText role="alert" size="sm">
             {error}
@@ -298,14 +326,17 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
           <dd>{(preview?.current.assignees ?? spec.assignees ?? []).join(', ') || 'nobody'}</dd>
           <Hint as="dt">Driving machine</Hint>
           <dd>
-            {old?.label || 'no label'} <Box as="code" size="xs">{old?.machine ?? 'none'}</Box>
+            {old?.label || 'no label'}{' '}
+            <Box as="code" size="xs">
+              {old?.machine ?? 'none'}
+            </Box>
           </dd>
           <Hint as="dt">Last heartbeat</Hint>
           <dd>{spec.seenAt ? `${spec.seenAt} (${ago(spec.seenAt)})` : 'never'}</dd>
         </Box>
         <p>
-          That machine may still be running chats for this spec. Their local results will not come here; what they push to GitHub does. Avoozl sets the plan
-          issue&apos;s assignee to you, the one assignee change it ever makes.
+          That machine may still be running chats for this spec. Their local results will not come here; what they push to GitHub does. Avoozl sets the plan issue&apos;s assignee
+          to you, the one assignee change it ever makes.
         </p>
         <FileField id="avoozl-driver-force-file" value={file} onChange={setFile} />
         {!file.trim() && (
@@ -320,11 +351,7 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
           Type <code>{spec.spec}</code> to confirm
           <Input id="avoozl-driver-force-name" value={typed} onChange={(event) => setTyped(event.target.value)} style={FIELD} autoComplete="off" />
         </Box>
-        {error && (
-          <ErrorText role="alert">
-            {error}
-          </ErrorText>
-        )}
+        {error && <ErrorText role="alert">{error}</ErrorText>}
       </Box>
     </Modal>
   )
@@ -394,7 +421,12 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
             </Btn>
           )}
           {step === 'start' && (
-            <Btn type="button" primary disabled={busy} onClick={() => void run(() => client.handoff(props.workspaceId, spec.planId, 'start', folder.trim() ? { folder: folder.trim() } : {}))}>
+            <Btn
+              type="button"
+              primary
+              disabled={busy}
+              onClick={() => void run(() => client.handoff(props.workspaceId, spec.planId, 'start', folder.trim() ? { folder: folder.trim() } : {}))}
+            >
               Stop new work
             </Btn>
           )}
@@ -403,9 +435,7 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
               type="button"
               primary
               disabled={busy || !folder.trim()}
-              onClick={() =>
-                void run(() => client.handoff(props.workspaceId, spec.planId, 'export', { folder: folder.trim(), ...(running.length ? { unfinished: true } : {}) }))
-              }
+              onClick={() => void run(() => client.handoff(props.workspaceId, spec.planId, 'export', { folder: folder.trim(), ...(running.length ? { unfinished: true } : {}) }))}
             >
               {running.length ? `Export with ${running.length} unfinished` : 'Export'}
             </Btn>
@@ -415,7 +445,9 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
     >
       <Box as="ol" flex flexCol gap="4" size="sm" data-driver-handoff>
         <li aria-current={step === 'start' || step === 'drain' ? 'step' : undefined}>
-          <Box as="p" weight="medium">1. Drain</Box>
+          <Box as="p" weight="medium">
+            1. Drain
+          </Box>
           <Hint as="p">No new work starts for this spec. Running chats keep running and are never ended; their reports still apply.</Hint>
           {step !== 'start' && (
             <Box mt="1">
@@ -424,7 +456,10 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
                 <Box as="ul" listDisc pl="5">
                   {running.map((chat) => (
                     <li key={chat.slot}>
-                      {chat.taskId} <Hint>({chat.role}, {chat.status ?? 'unknown'})</Hint>
+                      {chat.taskId}{' '}
+                      <Hint>
+                        ({chat.role}, {chat.status ?? 'unknown'})
+                      </Hint>
                     </li>
                   ))}
                 </Box>
@@ -433,10 +468,12 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
           )}
         </li>
         <li aria-current={step === 'drain' ? 'step' : undefined}>
-          <Box as="p" weight="medium">2. Export</Box>
+          <Box as="p" weight="medium">
+            2. Export
+          </Box>
           <Hint as="p">
-            One file, {spec.spec}.avoozl-driver.json, in a folder you pick outside the workspace repository. It may hold private notes: Avoozl never uploads,
-            commits or pushes it. With a folder set, Avoozl writes it once the last chat ends.
+            One file, {spec.spec}.avoozl-driver.json, in a folder you pick outside the workspace repository. It may hold private notes: Avoozl never uploads, commits or pushes it.
+            With a folder set, Avoozl writes it once the last chat ends.
           </Hint>
           {step !== 'reassign' && (
             <Box as="label" mt="1" flex flexCol gap="1" htmlFor="avoozl-driver-folder">
@@ -444,10 +481,16 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
               <Input id="avoozl-driver-folder" value={folder} onChange={(event) => setFolder(event.target.value)} style={FIELD} placeholder="/path/to/a/folder" />
             </Box>
           )}
-          {file && <Box as="p" mt="1">Written: <code>{file}</code></Box>}
+          {file && (
+            <Box as="p" mt="1">
+              Written: <code>{file}</code>
+            </Box>
+          )}
         </li>
         <li aria-current={step === 'reassign' ? 'step' : undefined}>
-          <Box as="p" weight="medium">3. Reassign</Box>
+          <Box as="p" weight="medium">
+            3. Reassign
+          </Box>
           {handoffLine(instance) && <p data-instance-handoff>{handoffLine(instance)}</p>}
           <Hint as="p">
             {spec.mode === 'local'
@@ -502,35 +545,55 @@ export function ThisComputer(props: { workspaceId: string | null }) {
         <InstanceNickname workspaceId={props.workspaceId} />
         {machine && (
           <>
-        <Hint as="p" size="xs">These stay on this machine. The label shows in plan issues so people can tell your machines apart.</Hint>
-        <Row gap={4} align="start">
-          <Box as="label" flex flexCol gap="1" size="sm" htmlFor="avoozl-machine-label">
-            Machine label <Hint size="xs">(optional)</Hint>
-            <Input id="avoozl-machine-label" maxLength={LABEL_MAX} value={form.label} onChange={(event) => setForm({ ...form, label: event.target.value })} style={FIELD} placeholder="laptop" />
-          </Box>
-          <Box as="label" flex flexCol gap="1" size="sm" htmlFor="avoozl-machine-heartbeat">
-            Heartbeat minutes <Hint size="xs">(optional)</Hint>
-            <Input id="avoozl-machine-heartbeat" inputMode="numeric" value={form.heartbeat} onChange={(event) => setForm({ ...form, heartbeat: event.target.value })} style={FIELD} placeholder={String(HEARTBEAT_PLACEHOLDER)} />
-          </Box>
-        </Row>
-        <Hint as="p" size="xs">
-          Machine ID <code>{machine.id}</code>
-        </Hint>
-        <Hint as="p" size="xs">
-          In Local only mode the driver lock guards only workspaces that open this database or a copy of it. It cannot see another machine, and there is no
-          forced take-over between machines.
-        </Hint>
-        <Row gap={2} wrap={false}>
-          <Btn type="button" primary onClick={() => void save()}>
-            Save
-          </Btn>
-          {notice && <Hint role="status" size="sm">{notice}</Hint>}
-        </Row>
-        {error && (
-          <ErrorText role="alert" size="sm">
-            {error}
-          </ErrorText>
-        )}
+            <Hint as="p" size="xs">
+              These stay on this machine. The label shows in plan issues so people can tell your machines apart.
+            </Hint>
+            <Row gap={4} align="start">
+              <Box as="label" flex flexCol gap="1" size="sm" htmlFor="avoozl-machine-label">
+                Machine label <Hint size="xs">(optional)</Hint>
+                <Input
+                  id="avoozl-machine-label"
+                  maxLength={LABEL_MAX}
+                  value={form.label}
+                  onChange={(event) => setForm({ ...form, label: event.target.value })}
+                  style={FIELD}
+                  placeholder="laptop"
+                />
+              </Box>
+              <Box as="label" flex flexCol gap="1" size="sm" htmlFor="avoozl-machine-heartbeat">
+                Heartbeat minutes <Hint size="xs">(optional)</Hint>
+                <Input
+                  id="avoozl-machine-heartbeat"
+                  inputMode="numeric"
+                  value={form.heartbeat}
+                  onChange={(event) => setForm({ ...form, heartbeat: event.target.value })}
+                  style={FIELD}
+                  placeholder={String(HEARTBEAT_PLACEHOLDER)}
+                />
+              </Box>
+            </Row>
+            <Hint as="p" size="xs">
+              Machine ID <code>{machine.id}</code>
+            </Hint>
+            <Hint as="p" size="xs">
+              In Local only mode the driver lock guards only workspaces that open this database or a copy of it. It cannot see another machine, and there is no forced take-over
+              between machines.
+            </Hint>
+            <Row gap={2} wrap={false}>
+              <Btn type="button" primary onClick={() => void save()}>
+                Save
+              </Btn>
+              {notice && (
+                <Hint role="status" size="sm">
+                  {notice}
+                </Hint>
+              )}
+            </Row>
+            {error && (
+              <ErrorText role="alert" size="sm">
+                {error}
+              </ErrorText>
+            )}
           </>
         )}
       </Stack>

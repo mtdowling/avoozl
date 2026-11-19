@@ -41,14 +41,17 @@ test('headings with buttons pass them as the heading actions', () => {
   assert.match(source('NewPlanDrawer.tsx'), /<Modal\s+id="avoozl-new-plan"[\s\S]*?title="New spec"/)
   // The reader's file name is the shared Modal's title; its copy and reveal buttons are the modal's footer.
   assert.match(source('DocumentReader.tsx'), /<Modal\s+id="avoozl-reader"[\s\S]*?title=\{<code>\{target\.document\}<\/code>\}[\s\S]*?footer=\{/)
-  assert.match(source('SettingsView.tsx'), /<SectionHeading level=\{props\.level === 'sub' \? 4 : 3\} title=\{props\.title\} blurb=\{props\.blurb\} actions=\{props\.actions\} icon=\{props\.icon\} \/>/)
+  assert.match(
+    source('SettingsView.tsx'),
+    /<SectionHeading level=\{props\.level === 'sub' \? 4 : 3\} title=\{props\.title\} blurb=\{props\.blurb\} actions=\{props\.actions\} icon=\{props\.icon\} \/>/,
+  )
   // No hand-made heading row is left beside its buttons.
   for (const name of views) assert.doesNotMatch(source(name), /items-center gap-3">\s*<(ViewHeading|CardTitle)/, name)
 })
 
 test('Specs heading: New spec, then an icon-only Refresh last; New task only in a spec', () => {
   const plans = source('PlansView.tsx')
-  const part = plans.slice(plans.indexOf('function PlansActions'), plans.indexOf('// The row\'s icon buttons'))
+  const part = plans.slice(plans.indexOf('function PlansActions'), plans.indexOf("// The row's icon buttons"))
   const at = (text) => part.indexOf(text)
   assert.ok(at('New spec') > 0 && at('New spec') < at('RefreshCw') && at('Idea') === -1 && at('New task') === -1, 'order')
   assert.equal(part.match(/<IconLabel (?:style=\{COMPACT_BTN\} )?icon=\{Plus\}/g).length, 1)
@@ -83,7 +86,10 @@ test('a Needs you title opens what it is about', () => {
   const dashboard = source('DashboardView.tsx')
   // A button role on an inline link, so a long title wraps beside its tag:
   // Tab reaches it, Enter and Space press it, and its name is the title.
-  assert.match(dashboard, /<(?:a|PlainLink)\s+role="button"\s+tabIndex=\{0\}[\s\S]{0,200}onClick=\{onTitle\}[\s\S]{0,300}event\.key === 'Enter' \|\| event\.key === ' '[\s\S]{0,200}data-attention-title\s*>\s*\{item\.title\}/)
+  assert.match(
+    dashboard,
+    /<(?:a|PlainLink)\s+role="button"\s+tabIndex=\{0\}[\s\S]{0,200}onClick=\{onTitle\}[\s\S]{0,300}event\.key === 'Enter' \|\| event\.key === ' '[\s\S]{0,200}data-attention-title\s*>\s*\{item\.title\}/,
+  )
   assert.match(dashboard, /onTitle=\{\(\) => \{\s*const target = attentionTarget\(item\)/)
   assert.match(dashboard, /target\.kind === 'review' && item\.group\) drawer\.openReview/)
   assert.match(dashboard, /target\.kind === 'task'\) drawer\.openTask\(target\.id\)/)

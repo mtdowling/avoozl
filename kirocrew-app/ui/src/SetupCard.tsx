@@ -11,7 +11,9 @@ export default function SetupCard(props: { id: string; title: string; line: stri
   return (
     <Box data-setup-card={props.id} data-compact-card minW0>
       <Card className="flex h-full min-w-0 flex-col gap-1" style={{ padding: '8px 12px' }}>
-        <Box as="h3" m0 truncate size="sm" weight="semibold">{props.title}</Box>
+        <Box as="h3" m0 truncate size="sm" weight="semibold">
+          {props.title}
+        </Box>
         <Tooltip text={props.line} display="block">
           {(describedBy) => (
             <Box tabIndex={0} aria-describedby={describedBy} as="p" m0 truncate size="xs" tone="muted" data-card-line>
@@ -20,7 +22,11 @@ export default function SetupCard(props: { id: string; title: string; line: stri
           )}
         </Tooltip>
         {props.children}
-        {props.action && <Box flex minW0 flexWrap items="center" gap="1.5">{props.action}</Box>}
+        {props.action && (
+          <Box flex minW0 flexWrap items="center" gap="1.5">
+            {props.action}
+          </Box>
+        )}
       </Card>
     </Box>
   )

@@ -4,18 +4,7 @@
 import { Card } from './ui/Card'
 import { SectionHeading } from './ui/controls.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
-import {
-  STAGES,
-  STAGE_COLORS,
-  STAGE_LABELS,
-  duration,
-  percent,
-  usageMessage,
-  usageText,
-  type FlowViewModel,
-  type SeriesPoint,
-  type UsageRow,
-} from './flow-api.ts'
+import { STAGES, STAGE_COLORS, STAGE_LABELS, duration, percent, usageMessage, usageText, type FlowViewModel, type SeriesPoint, type UsageRow } from './flow-api.ts'
 import { StageLegend } from './FlowView.tsx'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
@@ -35,17 +24,29 @@ function Line({ points, value, format, color }: { points: SeriesPoint[]; value: 
     y = (v: number) => H - PAD - (v / max) * (H - 2 * PAD)
   const path = values
     .map((v, i) => (v === null ? null : `${x(i)},${y(v)}`))
-    .reduce<string[][]>((runs, p) => {
-      if (p === null) runs.push([])
-      else runs[runs.length - 1].push(p)
-      return runs
-    }, [[]])
+    .reduce<string[][]>(
+      (runs, p) => {
+        if (p === null) runs.push([])
+        else runs[runs.length - 1].push(p)
+        return runs
+      },
+      [[]],
+    )
     .filter((run) => run.length)
   const last = known.at(-1)
   return (
     <Stack gap={1}>
-      <Box as="span" size="lg" weight="semibold" tabularNums>{last === undefined ? '–' : format(last)}</Box>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={points.map((p, i) => `${p.key}: ${values[i] === null ? 'none' : format(values[i]!)}`).join(', ')} preserveAspectRatio="none">
+      <Box as="span" size="lg" weight="semibold" tabularNums>
+        {last === undefined ? '–' : format(last)}
+      </Box>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        height={H}
+        role="img"
+        aria-label={points.map((p, i) => `${p.key}: ${values[i] === null ? 'none' : format(values[i]!)}`).join(', ')}
+        preserveAspectRatio="none"
+      >
         <line x1={0} x2={W} y1={H - PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={1} />
         {path.map((run, i) => (
           <polyline key={i} points={run.join(' ')} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
@@ -64,9 +65,26 @@ function StageMix({ points }: { points: SeriesPoint[] }) {
         {points.map((p) => {
           const total = STAGES.reduce((sum, s) => sum + p.stages[s], 0)
           return (
-            <Tooltip key={p.key} text={`${p.key}: ${STAGES.filter((s) => p.stages[s]).map((s) => `${STAGE_LABELS[s]} ${duration(p.stages[s])}`).join(', ') || 'no time'}`}>
+            <Tooltip
+              key={p.key}
+              text={`${p.key}: ${
+                STAGES.filter((s) => p.stages[s])
+                  .map((s) => `${STAGE_LABELS[s]} ${duration(p.stages[s])}`)
+                  .join(', ') || 'no time'
+              }`}
+            >
               {(describedBy) => (
-                <Box tabIndex={0} aria-describedby={describedBy} css-height="90" css-width="14" css-background="mix-muted-12%-transparent" flex flexColReverse overflow="hidden" rounded="sm">
+                <Box
+                  tabIndex={0}
+                  aria-describedby={describedBy}
+                  css-height="90"
+                  css-width="14"
+                  css-background="mix-muted-12%-transparent"
+                  flex
+                  flexColReverse
+                  overflow="hidden"
+                  rounded="sm"
+                >
                   {STAGES.filter((s) => p.stages[s]).map((s) => (
                     <span key={s} style={{ height: `${(100 * p.stages[s]) / (total || 1)}%`, background: STAGE_COLORS[s], display: 'block' }} />
                   ))}
@@ -86,7 +104,11 @@ function Bars({ rows }: { rows: UsageRow[] }) {
   return (
     <Box css-height="90" flex items="end" gap="1" role="img" aria-label={rows.map((r) => `${r.key}: ${usageText(r)}`).join(', ')}>
       {rows.map((r) => (
-        <span key={r.key} className="rounded-sm" style={{ display: 'block', flex: 'none', height: Math.max(2, Math.round((H * value(r)) / max)), width: 14, background: 'var(--accent)' }} />
+        <span
+          key={r.key}
+          className="rounded-sm"
+          style={{ display: 'block', flex: 'none', height: Math.max(2, Math.round((H * value(r)) / max)), width: 14, background: 'var(--accent)' }}
+        />
       ))}
     </Box>
   )
@@ -108,7 +130,21 @@ function UnitPicker({ unit, onUnit }: { unit: Unit; onUnit: (unit: Unit) => void
   return (
     <Box role="radiogroup" aria-label="Group by" css-background="bg-elevated" inlineFlex gap="1" rounded="lg" p="1">
       {(['day', 'week'] as const).map((u) => (
-        <PlainButton key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onUnit(u)} css-background={unit === u ? 'card' : 'transparent'} css-color="text" css-box-shadow={unit === u ? 'inset-0-0-0-1px-accent' : 'none'} rounded="md" px="2.5" py="1" size="xs" weight="medium">
+        <PlainButton
+          key={u}
+          type="button"
+          role="radio"
+          aria-checked={unit === u}
+          onClick={() => onUnit(u)}
+          css-background={unit === u ? 'card' : 'transparent'}
+          css-color="text"
+          css-box-shadow={unit === u ? 'inset-0-0-0-1px-accent' : 'none'}
+          rounded="md"
+          px="2.5"
+          py="1"
+          size="xs"
+          weight="medium"
+        >
           {u === 'day' ? 'By day' : 'By week'}
         </PlainButton>
       ))}
@@ -157,8 +193,12 @@ function UsageTable({ title, rows }: { title: string; rows: UsageRow[] }) {
       <Box as="ul" flex flexCol gap="0.5" size="sm">
         {rows.slice(0, 8).map((r) => (
           <Box key={r.key} as="li" flex flexWrap justify="between" gapX="3">
-            <Box as="span" minW0 truncate>{STAGE_LABELS[r.key as keyof typeof STAGE_LABELS] ?? r.key}</Box>
-            <Box as="span" tabularNums tone="muted">{usageText(r)}</Box>
+            <Box as="span" minW0 truncate>
+              {STAGE_LABELS[r.key as keyof typeof STAGE_LABELS] ?? r.key}
+            </Box>
+            <Box as="span" tabularNums tone="muted">
+              {usageText(r)}
+            </Box>
           </Box>
         ))}
       </Box>
@@ -172,16 +212,22 @@ function UsageTable({ title, rows }: { title: string; rows: UsageRow[] }) {
 export function UsagePanel({ view, unit }: { view: FlowViewModel; unit: Unit }) {
   const usage = view.usage
   const message = usageMessage(usage)
-  const rows = unit === 'day' ? usage?.byDay ?? [] : usage?.byWeek ?? []
+  const rows = unit === 'day' ? (usage?.byDay ?? []) : (usage?.byWeek ?? [])
   return (
     <Card className="flex flex-col gap-3" data-usage-card>
       <SectionHeading title="Tokens and credits" />
       {message || !usage ? (
-        <Hint as="p" size="sm">{message}</Hint>
+        <Hint as="p" size="sm">
+          {message}
+        </Hint>
       ) : (
         <>
           <Box as="p" size="sm">
-            Total: <Box as="span" tabularNums>{usageText(usage.total)}</Box> over {usage.total.turns} turns.
+            Total:{' '}
+            <Box as="span" tabularNums>
+              {usageText(usage.total)}
+            </Box>{' '}
+            over {usage.total.turns} turns.
           </Box>
           {rows.length > 0 && (
             <Box flex minW0 flexCol gap="1">

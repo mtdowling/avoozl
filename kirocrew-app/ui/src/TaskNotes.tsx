@@ -117,7 +117,11 @@ function EntryView(props: {
             Label
             <Input value={label} onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
           </Box>
-          {problem && <ErrorText as="span" size="xs">{problem}</ErrorText>}
+          {problem && (
+            <ErrorText as="span" size="xs">
+              {problem}
+            </ErrorText>
+          )}
           <Row gap={2} align="start">
             <Btn
               type="button"
@@ -133,17 +137,14 @@ function EntryView(props: {
           </Row>
         </Stack>
       ) : href ? (
-        <PlainLink
-          href={linkHref(href)}
-          target="_blank"
-          rel="noopener noreferrer"
-          css-overflow-wrap="anywhere" inlineFlex items="center" gap="1" size="sm" underline
-        >
+        <PlainLink href={linkHref(href)} target="_blank" rel="noopener noreferrer" css-overflow-wrap="anywhere" inlineFlex items="center" gap="1" size="sm" underline>
           <ExternalLink size={ICON} aria-hidden="true" />
           {entry.label}
         </PlainLink>
       ) : (
-        <Box as="span" size="sm">{entry.label}</Box>
+        <Box as="span" size="sm">
+          {entry.label}
+        </Box>
       )}
       {!editing && (
         <Row gap={2}>
@@ -166,7 +167,16 @@ function EntryView(props: {
           {props.onGitHub && (
             <Tooltip text="List it in the issue's managed section on GitHub. Off by default: a link may point at things not meant for the repository.">
               {(describedBy) => (
-                <Switch label="Show on the issue" inline size="xs" gap={1.5} describedBy={describedBy} checked={entry.onIssue} disabled={props.busy} onChange={(on) => props.onShow(entry, on)}>
+                <Switch
+                  label="Show on the issue"
+                  inline
+                  size="xs"
+                  gap={1.5}
+                  describedBy={describedBy}
+                  checked={entry.onIssue}
+                  disabled={props.busy}
+                  onChange={(on) => props.onShow(entry, on)}
+                >
                   Show on the issue
                 </Switch>
               )}
@@ -262,7 +272,9 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
         </Hint>
       )}
       {entries === null ? (
-        <Hint as="p" size="sm">Loading…</Hint>
+        <Hint as="p" size="sm">
+          Loading…
+        </Hint>
       ) : entries.length === 0 ? null : (
         <Stack as="ul" aria-label="Links, newest first">
           {entries.map((entry) => (
@@ -306,7 +318,11 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
               <Input value={label} placeholder="Review doc" onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
             </Box>
           </Row>
-          {linkIssue && <ErrorText as="span" size="xs">{linkIssue}</ErrorText>}
+          {linkIssue && (
+            <ErrorText as="span" size="xs">
+              {linkIssue}
+            </ErrorText>
+          )}
           <Row gap={2} align="start">
             <Btn type="submit" primary disabled={busy} data-add-link-submit>
               Add
@@ -339,14 +355,7 @@ const MARKED: Record<Choice, string> = {
 // Mark done (R61.12): optional outcome links, then Done,
 // Skipped or Refused. Done and Skipped release the tasks that wait on it;
 // Refused is a no-go and keeps them held.
-export function MarkDoneDialog(props: {
-  workspaceId: string
-  taskId: string
-  title: string
-  onIssue: boolean
-  onClose: () => void
-  onDone: (text: string) => void
-}) {
+export function MarkDoneDialog(props: { workspaceId: string; taskId: string; title: string; onIssue: boolean; onClose: () => void; onDone: (text: string) => void }) {
   const client = notesClient(useAppApi())
   const [choice, setChoice] = useState<Choice>('done')
   const [links, setLinks] = useState<{ url: string; label: string }[]>([])
@@ -475,7 +484,11 @@ export function MarkDoneDialog(props: {
             <IconLabel icon={X} aria-label={`Drop link ${i + 1} from this form`} onClick={() => setLinks(links.filter((_, j) => j !== i))}>
               Drop
             </IconLabel>
-            {problems[i] && link.url && <Box as="span" wFull size="xs" tone="danger">{problems[i]}</Box>}
+            {problems[i] && link.url && (
+              <Box as="span" wFull size="xs" tone="danger">
+                {problems[i]}
+              </Box>
+            )}
           </Row>
         ))}
         <div>
@@ -515,10 +528,14 @@ export function ManualTask(props: {
     <Box aria-label="Manual task" as="section" css-border-color="accent" flex flexCol gap="2" rounded="base" border="all" p="3" data-manual-task>
       <Row gap={2}>
         <Badge variant="warning">Manual</Badge>
-        <Box as="span" size="sm">A person does this step. No agent works on it.</Box>
+        <Box as="span" size="sm">
+          A person does this step. No agent works on it.
+        </Box>
       </Row>
       <div>
-        <Box as="h4" size="sm" weight="semibold">What you check</Box>
+        <Box as="h4" size="sm" weight="semibold">
+          What you check
+        </Box>
         <Box as="ul" mt="1" listDisc pl="5" size="sm">
           {props.task.acceptance.map((line, i) => (
             <li key={i}>{line}</li>

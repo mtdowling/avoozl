@@ -116,7 +116,12 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
         {error}
       </ErrorText>
     )
-  if (!value) return <Hint as="p" size="sm">Loading…</Hint>
+  if (!value)
+    return (
+      <Hint as="p" size="sm">
+        Loading…
+      </Hint>
+    )
   const scope = form.scope || FLOW_DEFAULTS.scope
   const local = form.localChecksFirst ? form.localChecksFirst === 'on' : FLOW_DEFAULTS.localChecksFirst
   const ciDefaults = value.ciEffective ?? FLOW_DEFAULTS
@@ -147,23 +152,59 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
           <Stack data-ci-settings gap={4}>
             <FieldGrid group="ci">
               <Labeled id="avoozl-flow-ci-window" label="Window (days)" raw="flow.ci.windowDays" note="Whole number 1–90.">
-                <Input id="avoozl-flow-ci-window" inputMode="numeric" value={form.windowDays} placeholder={String(ciDefaults.windowDays)} onChange={(event) => set({ windowDays: event.target.value })} />
+                <Input
+                  id="avoozl-flow-ci-window"
+                  inputMode="numeric"
+                  value={form.windowDays}
+                  placeholder={String(ciDefaults.windowDays)}
+                  onChange={(event) => set({ windowDays: event.target.value })}
+                />
               </Labeled>
               <Labeled id="avoozl-flow-ci-docs" label="Docs-only CI limit (minutes)" raw="flow.ci.docsOnlyMinutes" note="Whole number 1–100,000. Includes spec-only changes.">
-                <Input id="avoozl-flow-ci-docs" inputMode="numeric" value={form.docsOnlyMinutes} placeholder={String(ciDefaults.docsOnlyMinutes)} onChange={(event) => set({ docsOnlyMinutes: event.target.value })} />
+                <Input
+                  id="avoozl-flow-ci-docs"
+                  inputMode="numeric"
+                  value={form.docsOnlyMinutes}
+                  placeholder={String(ciDefaults.docsOnlyMinutes)}
+                  onChange={(event) => set({ docsOnlyMinutes: event.target.value })}
+                />
               </Labeled>
               <Labeled id="avoozl-flow-ci-wait" label="CI wait share limit" raw="flow.ci.waitShare" note="0.05–1 of lead time. 0.4 means 40%.">
-                <Input id="avoozl-flow-ci-wait" inputMode="decimal" value={form.waitShare} placeholder={String(ciDefaults.waitShare)} onChange={(event) => set({ waitShare: event.target.value })} />
+                <Input
+                  id="avoozl-flow-ci-wait"
+                  inputMode="decimal"
+                  value={form.waitShare}
+                  placeholder={String(ciDefaults.waitShare)}
+                  onChange={(event) => set({ waitShare: event.target.value })}
+                />
               </Labeled>
               <Labeled id="avoozl-flow-ci-min" label="Closed pull requests before wait check" raw="flow.ci.minPullRequests" note="Whole number 1–1,000.">
-                <Input id="avoozl-flow-ci-min" inputMode="numeric" value={form.minPullRequests} placeholder={String(ciDefaults.minPullRequests)} onChange={(event) => set({ minPullRequests: event.target.value })} />
+                <Input
+                  id="avoozl-flow-ci-min"
+                  inputMode="numeric"
+                  value={form.minPullRequests}
+                  placeholder={String(ciDefaults.minPullRequests)}
+                  onChange={(event) => set({ minPullRequests: event.target.value })}
+                />
               </Labeled>
             </FieldGrid>
             <Stack gap={2} data-ci-globs>
               <h4 className="m-0 text-sm font-semibold">File classes (read-only)</h4>
-              <Hint as="p" size="xs" flush>First matching class wins in the order below. A repository can override these lists in its configuration.</Hint>
-              {Object.entries(value.ciClassGlobs ?? {}).map(([name, globs]) => <div key={name} className="flex min-w-0 flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}><span className="text-sm font-medium">{name}</span><code className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{globs.join(', ') || 'No matching paths'}</code></div>)}
-              <div className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}><span className="text-sm font-medium">code</span><Hint size="xs">Anything that does not match a class above.</Hint></div>
+              <Hint as="p" size="xs" flush>
+                First matching class wins in the order below. A repository can override these lists in its configuration.
+              </Hint>
+              {Object.entries(value.ciClassGlobs ?? {}).map(([name, globs]) => (
+                <div key={name} className="flex min-w-0 flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+                  <span className="text-sm font-medium">{name}</span>
+                  <code className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
+                    {globs.join(', ') || 'No matching paths'}
+                  </code>
+                </div>
+              ))}
+              <div className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+                <span className="text-sm font-medium">code</span>
+                <Hint size="xs">Anything that does not match a class above.</Hint>
+              </div>
               <RawKey name="flow.ci.classes" />
             </Stack>
           </Stack>
@@ -174,10 +215,22 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
           <SectionHeading level={4} title="When it runs" />
           <FieldGrid group="when">
             <Labeled id="avoozl-flow-every" label="After this many tasks" raw="flow.retro.everyTasks">
-              <Input id="avoozl-flow-every" inputMode="numeric" value={form.everyTasks} placeholder={String(FLOW_DEFAULTS.everyTasks)} onChange={(event) => set({ everyTasks: event.target.value })} />
+              <Input
+                id="avoozl-flow-every"
+                inputMode="numeric"
+                value={form.everyTasks}
+                placeholder={String(FLOW_DEFAULTS.everyTasks)}
+                onChange={(event) => set({ everyTasks: event.target.value })}
+              />
             </Labeled>
             <Labeled id="avoozl-flow-slow" label="Slow when over (× usual)" raw="flow.retro.slowFactor">
-              <Input id="avoozl-flow-slow" inputMode="decimal" value={form.slowFactor} placeholder={String(FLOW_DEFAULTS.slowFactor)} onChange={(event) => set({ slowFactor: event.target.value })} />
+              <Input
+                id="avoozl-flow-slow"
+                inputMode="decimal"
+                value={form.slowFactor}
+                placeholder={String(FLOW_DEFAULTS.slowFactor)}
+                onChange={(event) => set({ slowFactor: event.target.value })}
+              />
             </Labeled>
           </FieldGrid>
           {/* The retro's model is under Settings › Models. */}

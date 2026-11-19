@@ -29,7 +29,10 @@ export function FilterSelect(props: {
       value={props.value}
       disabled={props.disabled}
       aria-describedby={describedBy}
-      onChange={(event) => props.onChange(event.target.value)} look="field" fill={props.inline} dim={props.disabled}
+      onChange={(event) => props.onChange(event.target.value)}
+      look="field"
+      fill={props.inline}
+      dim={props.disabled}
       // A disabled control takes no pointer events, so the tooltip's anchor
       // around it still hears the hover.
       {...(props.inline ? { 'data-filter-select': '' } : {})}
@@ -44,15 +47,34 @@ export function FilterSelect(props: {
   )
   if (props.inline)
     return (
-      <label htmlFor={props.id} data-filter-line className="min-w-0 text-sm" style={{ display: 'grid', gridTemplateColumns: `${INLINE_LABEL} minmax(0, 1fr)`, alignItems: 'center', columnGap: 8 }}>
-        <Box data-filter-label as="span" css-overflow-wrap="anywhere">{props.label}</Box>
-        {props.hint ? <Tooltip text={props.hint} display="block">{(describedBy) => select(describedBy)}</Tooltip> : select()}
+      <label
+        htmlFor={props.id}
+        data-filter-line
+        className="min-w-0 text-sm"
+        style={{ display: 'grid', gridTemplateColumns: `${INLINE_LABEL} minmax(0, 1fr)`, alignItems: 'center', columnGap: 8 }}
+      >
+        <Box data-filter-label as="span" css-overflow-wrap="anywhere">
+          {props.label}
+        </Box>
+        {props.hint ? (
+          <Tooltip text={props.hint} display="block">
+            {(describedBy) => select(describedBy)}
+          </Tooltip>
+        ) : (
+          select()
+        )}
       </label>
     )
   return (
     <Box htmlFor={props.id} as="label" css-max-width="13rem" flex minW0 flexCol gap="1" size="sm">
       <span>{props.label}</span>
-      {props.hint ? <Tooltip text={props.hint} display="block">{(describedBy) => select(describedBy)}</Tooltip> : select()}
+      {props.hint ? (
+        <Tooltip text={props.hint} display="block">
+          {(describedBy) => select(describedBy)}
+        </Tooltip>
+      ) : (
+        select()
+      )}
     </Box>
   )
 }
