@@ -12,7 +12,6 @@ import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
 // messages sessions. Nothing here opens a session or replaces one.
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { blockerNotes } from "./github-close.mjs";
 import { issueReportToken } from "./report-match.mjs";
 import { fail } from "./store.mjs";
 import { fileURLToPath } from "node:url";
@@ -30,7 +29,6 @@ import {
   linePausedTaskIds,
   openStops,
   PHASES,
-  readFlowPolicy,
 } from "./flow.mjs";
 import { heldByStop } from "./flow-line.mjs";
 import { needsJudgment, taskCheckRuns } from "./check-runs.mjs";
@@ -41,12 +39,6 @@ import {
   resultFor,
   selectedChecks,
 } from "./repository-checks.mjs";
-import {
-  checkDoneList,
-  commitChecks,
-  localCheckList,
-  localPass,
-} from "./flow-checks.mjs";
 import {
   batchBrief,
   planBatches,
@@ -76,7 +68,6 @@ import {
 import { queryTasks, statusComplete } from "../query.mjs";
 import { unblockCounts } from "./release-ranking.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
-import { pausedTaskIds } from "./github-project.mjs";
 import { recordCorrection } from "./corrections.mjs";
 import { addEvidence, attachEvidence, evidenceInput } from "./evidence.mjs";
 import {
@@ -94,14 +85,8 @@ import {
 import { currentPrompts } from "./retro-memory.mjs";
 import { healthContext, modelsOf } from "./provider-health.mjs";
 import {
-  findPlanningLeak,
-  isLinkedBranchLeaf,
-  LINKED_BRANCHES,
-  linkedBranch,
-} from "./github-plans-repo.mjs";
-import {
+  blockerNotes,
   completionReached,
-  pendingProjection,
   supersedingTask,
   taskCompletion,
   taskKind,
@@ -133,10 +118,6 @@ export const DELIVERY_DEFAULTS = Object.freeze({
   // Crew Mode conductor that claims them (§5.1). Verification and integration
   // stay with the tick either way.
   runner: "tick",
-  // Pull request feedback (§4.13, R54.8, R54.14): on by default, at most
-  // this many rounds per leaf.
-  prFeedback: true,
-  feedbackRounds: 5,
 });
 const RUNNERS = new Set(["tick", "crew-mode"]);
 
@@ -151,7 +132,6 @@ const DELIVERY_LIMITS = Object.freeze({
   retries: [0, 10],
   quietMinutes: [1, 1440],
   nudges: [0, 10],
-  feedbackRounds: [1, 20],
 });
 export const DELIVERY_KEYS = Object.freeze([
   ...Object.keys(DELIVERY_LIMITS),
@@ -160,15 +140,12 @@ export const DELIVERY_KEYS = Object.freeze([
   "runner",
   "model",
   "reviewers",
-  "prFeedback",
   "investigate",
   "ship",
 ]);
 export const DELIVERY_REPOSITORY_KEYS = Object.freeze([
   "concurrency",
   "reviewers",
-  "prFeedback",
-  "feedbackRounds",
   "investigate",
   "ship",
 ]);
@@ -200,11 +177,6 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
   for (const [key, [min, max]] of Object.entries(DELIVERY_LIMITS))
     if (delivery[key] !== undefined && !bounded(delivery[key], min, max))
       throw Error(`delivery.${key} must be a whole number ${min}–${max}.`);
-  if (
-    delivery.prFeedback !== undefined &&
-    typeof delivery.prFeedback !== "boolean"
-  )
-    throw Error("delivery.prFeedback must be true or false.");
   if (delivery.agent !== undefined && !AGENT.test(delivery.agent))
     throw Error("delivery.agent must be an agent name.");
   if (delivery.runner !== undefined && !RUNNERS.has(delivery.runner))
@@ -231,24 +203,13 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
       Object.keys(entry).some((key) => !DELIVERY_REPOSITORY_KEYS.includes(key))
     )
       throw Error(
-        `delivery.repositories.${id} may set only reviewers, prFeedback, feedbackRounds, investigate, and ship.`,
+        `delivery.repositories.${id} may set only reviewers, investigate, and ship.`,
       );
     investigateSettings(
       entry.investigate,
       `delivery.repositories.${id}.investigate`,
     );
     shipSetting(entry.ship, `delivery.repositories.${id}.ship`);
-    if (entry.prFeedback !== undefined && typeof entry.prFeedback !== "boolean")
-      throw Error(
-        `delivery.repositories.${id}.prFeedback must be true or false.`,
-      );
-    if (
-      entry.feedbackRounds !== undefined &&
-      !bounded(entry.feedbackRounds, 1, 20)
-    )
-      throw Error(
-        `delivery.repositories.${id}.feedbackRounds must be a whole number 1–20.`,
-      );
     normalized[id] =
       entry.reviewers === undefined
         ? entry
@@ -982,21 +943,13 @@ export async function reportSession(
     );
   // A verifier's done report carries the exit code of every check it ran;
   // a review role's carries its verdict, findings and closures.
-  // A worker that pushes (a plans-repo leaf) lists its local checks for the
-  // pushed commit while local checks first is on (R45.2, R45.3).
-  const pushing =
-      binding.role === "worker" &&
-      kind === "done" &&
-      taskRoute(task) === "github" &&
-      (flow || readFlowPolicy(null)).for(taskRepository(task)).localChecksFirst,
-    checks =
-      (binding.role === "verifier" || pushing) && kind === "done"
+  const checks =
+      binding.role === "verifier" && kind === "done"
         ? input.checks === undefined &&
-          (pushing ||
-            !declaredChecks(
-              task,
-              store.get("projects", taskRepository(task) || ""),
-            ).length)
+          !declaredChecks(
+            task,
+            store.get("projects", taskRepository(task) || ""),
+          ).length
           ? undefined
           : checkResults(input.checks)
         : undefined,
@@ -1013,23 +966,6 @@ export async function reportSession(
     );
   if (checks === undefined && input.checks !== undefined)
     fail("Only a verifier's done report lists checks.");
-  const declaredHere = pushing ? localCheckList(taskProject(store, task)) : [];
-  if (pushing && declaredHere.length) {
-    const project = taskProject(store, task),
-      declared = await commitChecks(project, commit),
-      pushed = checkDoneList(checks, declared);
-    if (pushed !== commit)
-      fail(
-        `Local checks first: the check list is for ${pushed.slice(0, 12)}, but you reported ${commit.slice(0, 12)}. Run the checks on the commit you report.`,
-        409,
-      );
-    const pass = await localPass(project.root, pushed, declared);
-    if (!pass.ok)
-      fail(
-        `Local checks first: ${pass.cause}. Run \`avoozl checks run --task ${task.id}\` in your worktree, then push.`,
-        409,
-      );
-  }
   if (
     !review &&
     (["closures"]
@@ -1146,11 +1082,11 @@ export async function reportSession(
 
 // The commit a done report stands for. A local worker's is HEAD of its
 // task worktree, read here and never taken from the report (R86.3); a
-// reported commit must match it. A plans-repo worker's merge commit, a
-// remote worker's fetched tip and a review role's subject are still named.
+// reported commit must match it. A remote worker's fetched tip and a review
+// role's subject are still named.
 async function doneCommit(store, task, binding, reported) {
   const worktree =
-    binding.role === "worker" && !binding.crew && taskRoute(task) !== "github"
+    binding.role === "worker" && !binding.crew
       ? store.get("task_worktrees", binding.taskId)
       : null;
   if (!worktree?.path) {
@@ -1681,11 +1617,7 @@ export function startNowIds(store) {
 // next tick (or a Crew Mode conductor's next claim) starts it, still within
 // this machine's lanes. A full machine says so
 // and the task stays first in line.
-export function startNow(
-  store,
-  input = {},
-  { policy = null, github = null } = {},
-) {
+export function startNow(store, input = {}, { policy = null } = {}) {
   const task = findTask(store, input.taskId),
     delivery = policy?.delivery;
   if (taskKind(task) !== "leaf")
@@ -1706,7 +1638,7 @@ export function startNow(
       concurrency: Number.MAX_SAFE_INTEGER,
       repositories: {},
     },
-    eligible = readyLeaves(store, unlimited, { github }).some(
+    eligible = readyLeaves(store, unlimited).some(
       (leaf) => leaf.task.id === task.id,
     );
   if (!eligible) {
@@ -1730,7 +1662,7 @@ export function startNow(
       ),
     ]),
   );
-  const starting = readyLeaves(store, delivery, { github }).some(
+  const starting = readyLeaves(store, delivery).some(
       (leaf) => leaf.task.id === task.id,
     ),
     live = [...runnerAttempts(listSessionBindings(store)).values()].filter(
@@ -1836,96 +1768,6 @@ export function processSteps(
 // Crew without the app's slot read is not asked; MC-13 settles it.
 const MARKERS_STEP = (n) =>
   `${n}. For timing, mark each switch between coding, running the checks, running other commands, and waiting on CI with a progress report whose phase is coding, tests, commands, or ci-wait (for example {"kind": "progress", "phase": "tests"}); your conductor relays it.`;
-
-// A plans-repo leaf's steps (§6.6): the tick already created its linked
-// branch in the code repository. The worker pushes there, opens one pull
-// request with no closing keyword, turns on auto-merge, and stays with it
-// until it merges. GitHub closes the planning issue on merge.
-export function plansRepoSteps(
-  task,
-  project,
-  {
-    baseBranch,
-    relay = false,
-    stack = null,
-    localChecks = false,
-    ship = "auto-merge",
-  },
-) {
-  const branch = `avoozl/${task.id}`,
-    base = baseBranch || project.baseBranch || "main",
-    // Ship mode (R80.3): with manual, a person merges; the writer never
-    // turns on auto-merge.
-    merge =
-      ship === "manual"
-        ? "Do not turn on auto-merge and do not merge it: a person merges it on GitHub when its checks and reviews pass."
-        : "Then turn on auto-merge with a merge method the repository allows: `gh pr merge --auto --squash` (or --merge, --rebase).",
-    report = `{"input": {"taskId": "${task.id}", "kind": "done", "commit": "<full SHA of the merge commit>"}}`;
-  // Stacked on a blocker's open pull request (task 8.2): the pull request
-  // starts against the blocker's branch and moves to `base` only after the
-  // blocker merged, so it can never merge first. `stack.at` is the blocker
-  // head this branch was cut from, which survives a squash merge.
-  const middle = stack
-    ? [
-        `3. Your branch starts from the open pull request of blocker ${stack.blocker} (branch ${stack.branch}). Open one pull request from ${branch} against ${stack.branch}, or reuse the open one: \`gh pr create --base ${stack.branch} --head ${branch}\`. Write its title and body from this task's title and acceptance only. Use no closing keyword (Closes, Fixes, Resolves) and link no issue. Do not turn on auto-merge and do not merge it while its base is ${stack.branch}.`,
-        // Merged forward, never rebased: a pushed branch is never rewritten
-        // or force pushed (R77.3).
-        `4. Wait until the pull request from ${stack.branch} has merged (\`gh pr view ${stack.branch} --json state\`). If it closes without merging, report blocked and say so. When it has merged, bring ${base} into your branch with a merge commit: \`git fetch origin ${base}\`, \`git merge origin/${base}\`, fix any conflicts, run the checks, push the branch as before, then \`gh pr edit ${branch} --base ${base}\`. ${merge}`,
-      ]
-    : [
-        `3. Open one pull request from ${branch} against ${base}, or reuse the open one: \`gh pr create --base ${base} --head ${branch}\`. Write its title and body from this task's title and acceptance only. Use no closing keyword (Closes, Fixes, Resolves) and link no issue.`,
-        ship === "manual"
-          ? `4. ${merge}`
-          : "4. Turn on auto-merge for it, with a merge method the repository allows: `gh pr merge --auto --squash` (or --merge, --rebase).",
-      ];
-  const checks = localChecks
-    ? [
-        `Local checks first: before each push, commit, then call plans_run_checks with {"input": {"taskId": "${task.id}", "cwd": "<your worktree>"}} (or run \`avoozl checks run --task ${task.id}\` there). Push only when every check passed; the pre-push hook refuses a commit without a recorded pass. Put the returned checks list in your done report.`,
-      ]
-    : [];
-  return [
-    ...checks,
-    `1. Fetch branch ${branch}, which already exists on origin: \`git -C ${project.root} fetch origin ${branch}\`. Work in your own worktree on it, for example \`git -C ${project.root} worktree add ${worktreePath(task, project)} -B ${branch} origin/${branch}\` (reuse that worktree if it exists). Do not create another branch.`,
-    `2. Commit your change and push it to that branch: \`git push origin HEAD:${branch}\`.`,
-    ...middle,
-    "5. Fix failing checks and answer review on that pull request until it merges. To wait on checks, read them with `gh pr checks <number>` once every 2 to 3 minutes; never use `gh pr checks --watch` or a loop that polls faster, because every chat shares one GitHub rate limit. Do not merge it by hand around required checks or reviews. When its base branch moves, merge the base branch into your branch and push; never rebase a pushed branch and never force push.",
-    `6. When it has merged, fetch ${base} (\`git -C ${project.root} fetch origin ${base}\`) so its merge commit is in the checkout.`,
-    relay
-      ? `7. Then call plans_report with ${report}${localChecks ? " and the checks list" : ""} if you have that tool. Otherwise end with a done report that names the merge commit SHA, and your conductor records it. If you cannot finish, say why: blocked, or a question.`
-      : `7. Then call plans_report with ${report}${localChecks ? " and the checks list" : ""}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
-    ...(relay ? [MARKERS_STEP(8)] : []),
-  ];
-}
-
-// A plans-repo leaf's brief: the task's own title, acceptance and checks only
-// (no summary, no issue), so nothing from the plan reaches the code
-// repository through the worker (R28.7).
-export function plansRepoBrief(
-  task,
-  project,
-  { baseBranch, relay, stack, localChecks = true, ship, ...options },
-) {
-  const own = {
-    id: task.id,
-    title: task.title,
-    acceptance: task.acceptance,
-  };
-  return workerBrief(
-    own,
-    { ...project, baseBranch: baseBranch || project.baseBranch },
-    {
-      outside: outsideSource(task),
-      ...options,
-      steps: plansRepoSteps(own, project, {
-        baseBranch,
-        relay,
-        stack,
-        localChecks,
-        ship,
-      }),
-    },
-  );
-}
 
 // Where a task's own text came from when someone outside wrote it: an
 // issue's author (R10.6) or an intake source (R50.2). It names no
@@ -2053,40 +1895,10 @@ export function claimedTaskIds(store, bindings = listSessionBindings(store)) {
   return claimed;
 }
 
-// Stacked pull requests (task 8.2): dependent task ID -> the one blocker
-// whose open pull request its linked branch was cut from, for code
-// repositories whose policy turns `stackedPullRequests` on. `extra` adds the
-// tick's own candidates before their branch exists.
-function stackedBlockers(store, github, extra) {
-  const stacked = new Map(extra || []);
-  if (!github?.repositories) return stacked;
-  const on = new Set(
-    Object.entries(github.repositories)
-      .filter(([, entry]) => entry.stackedPullRequests)
-      .map(([id]) => id.toLowerCase()),
-  );
-  if (!on.size) return stacked;
-  for (const record of store.list(LINKED_BRANCHES))
-    if (
-      record.stackedOn &&
-      !record.error &&
-      on.has(String(record.repository).toLowerCase())
-    )
-      stacked.set(record.taskId, record.stackedOn);
-  return stacked;
-}
-
 // Ready leaves a runner may start now, by rank then graph order, within
 // the workspace's and each repository's free capacity: [{task, project,
 // attempt, delivery}]. The tick and `avoozl next` both read this. Reads only.
-// With a plans-repo `github` policy, plans-repo leaves count too, but only
-// once the tick has recorded their linked branch, unless `unbranched` (the
-// tick's own question: which leaves need one now).
-export function readyLeaves(
-  store,
-  policy,
-  { skip = new Set(), github = null, unbranched = false, stack = null } = {},
-) {
+export function readyLeaves(store, policy, { skip = new Set() } = {}) {
   const data = store.read(),
     projects = new Map(store.list("projects").map((p) => [p.id, p])),
     bindings = listSessionBindings(store),
@@ -2096,9 +1908,6 @@ export function readyLeaves(
   if (free <= 0) return [];
   const ready = readyCandidates(store, {
     skip,
-    github,
-    unbranched,
-    stack,
     data,
     projects,
     bindings,
@@ -2123,41 +1932,28 @@ export function readyLeaves(
 
 // Ready, unclaimed leaves a runner could start, in dispatch order, before
 // capacity: what readyLeaves fills slots from, and what timing counts as
-// queued (§4.11). A task paused by a Deferred card or a stopped line is
-// not a candidate. Reads only.
+// queued (§4.11). A task paused by a stopped line is not a candidate.
+// Reads only.
 export function readyCandidates(
   store,
   {
     skip = new Set(),
-    github = null,
-    unbranched = false,
-    stack = null,
     data = store.read(),
     projects = new Map(store.list("projects").map((p) => [p.id, p])),
     bindings = listSessionBindings(store),
     paused = true,
   } = {},
 ) {
-  const held = paused ? pausedTaskIds(store) : new Set(),
-    stacked = stackedBlockers(store, github, stack),
-    line = paused ? linePausedTaskIds(store, data) : new Set();
+  const line = paused ? linePausedTaskIds(store, data) : new Set();
   return queryTasks(data, {
     scope: "all",
     repositories: [...projects.keys()],
     claimed: claimedTaskIds(store, bindings),
-    stacked,
     q: "ready:true",
   })
     .filter(
       (task) =>
-        (taskRoute(task) === "local" || isLinkedBranchLeaf(task, github)) &&
-        !pendingProjection(task) &&
-        !held.has(task.id) &&
-        !line.has(task.id) &&
-        !skip.has(task.id) &&
-        (unbranched ||
-          taskRoute(task) === "local" ||
-          linkedBranch(store, task.id)),
+        taskRoute(task) === "local" && !line.has(task.id) && !skip.has(task.id),
     )
     .sort(
       dispatchOrder(
@@ -2230,35 +2026,10 @@ function composeLeafBrief(
       attempt,
       worktree: store.get("task_worktrees", task.id),
       previous: delivery?.attempts.at(-1),
-      notes: [
-        ...blockerNotes(data, task),
-        // Pull request feedback waiting for this attempt (§4.13), as data.
-        ...[feedbackNote(store, task.id)].filter(Boolean),
-      ],
+      notes: blockerNotes(data, task),
       findings: openFindings(delivery),
       linksAndNotes: briefNotes(store, task, blockerTasks(data, task)),
     };
-  if (taskRoute(task) === "github") {
-    const branch = linkedBranch(store, task.id);
-    return plansRepoBrief(task, project, {
-      localChecks: readFlowPolicy(contentBinding(store)?.workspaceRoot).for(
-        project.id,
-      ).localChecksFirst,
-      ...options,
-      relay,
-      ship,
-      ...(branch?.stackedOn
-        ? {
-            baseBranch: branch.finalBase,
-            stack: {
-              branch: branch.baseBranch,
-              blocker: branch.stackedOn,
-              at: branch.stackedAt,
-            },
-          }
-        : { baseBranch: branch?.baseBranch }),
-    });
-  }
   const token = issueReportToken(store, { taskId: task.id, attempt });
   // The pair table (worker-briefs.mjs) picks the steps. A Crew Mode relay is
   // always a chat; a declined pair runs as the kind its cell names.
@@ -2279,15 +2050,7 @@ function composeLeafBrief(
   });
 }
 
-// Pull request feedback a new attempt carries (§4.13, R54.7), or null.
-// Read here, not from github-feedback.mjs, which imports this module.
-function feedbackNote(store, taskId) {
-  return store.get("pr_feedback", taskId)?.pending?.text || null;
-}
-
-// The model a feedback attempt keeps (R54.7, R53.6): the one the leaf's
-// last worker was opened on. shortcut: R53's per-task model is not built,
-// so this keeps only the previous binding's model, else the policy's.
+// The newest worker binding of a task.
 const lastWorker = (store, taskId) =>
   listSessionBindings(store)
     .filter((b) => b.taskId === taskId && b.role === "worker")
@@ -2295,8 +2058,7 @@ const lastWorker = (store, taskId) =>
 // An attempt a full stop interrupted keeps its model and agent too (R64.15).
 function keptModel(store, taskId, policy) {
   const last = lastWorker(store, taskId);
-  if (!feedbackNote(store, taskId) && !last?.interrupted)
-    return policy.model || null;
+  if (!last?.interrupted) return policy.model || null;
   return last?.model || policy.model || null;
 }
 function keptAgent(store, taskId, policy) {
@@ -2312,19 +2074,12 @@ const NO_RESUME =
   "its harness definition has no resume command, so Avoozl cannot send Go ahead to the child";
 const harnessOf = (run, leaf) => run.harness ?? leaf.project.harness ?? null;
 
-// The tick's worker dispatches for ready leaves. Reads only. A plans-repo
-// brief that names the planning repository is never sent; the tick's linked
-// branch step has already opened a decision for it.
+// The tick's worker dispatches for ready leaves. Reads only.
 export function planReadyDispatches(store, policy, options = {}) {
   const resumable = options.resumable ?? (() => true);
   const data = store.read(),
-    planning = options.github?.planningRepository,
     workspaceRoot = contentBinding(store)?.workspaceRoot,
-    candidates = readyCandidates(store, {
-      skip: options.skip,
-      github: options.github,
-      data,
-    }),
+    candidates = readyCandidates(store, { skip: options.skip, data }),
     waiting = waitingForBatch(store, candidates, {
       workspaceRoot,
       data,
@@ -2369,11 +2124,6 @@ export function planReadyDispatches(store, policy, options = {}) {
         ship,
         executor: run.executor,
       });
-    if (
-      taskRoute(leaf.task) === "github" &&
-      findPlanningLeak([["brief", brief]], planning)
-    )
-      return [];
     if (
       !briefAllowed(store, {
         taskId: leaf.task.id,
@@ -2911,7 +2661,7 @@ export function reconcileVerifications(
       )
         next = { ...next, state: "decision", cause: record.cause };
     }
-    if (next.state === "done" && taskRoute(task) !== "github") {
+    if (next.state === "done") {
       if (roles.every((role) => approvedOn(next, role.id, next.commit)))
         next = { ...next, state: "verified" };
     }
@@ -2935,7 +2685,7 @@ export function holdUnprovenReviews(
   for (const delivery of store.list("task_deliveries")) {
     if (delivery.state !== "done") continue;
     const task = data.tasks.find((t) => t.id === delivery.taskId);
-    if (!task || taskRoute(task) === "github") continue;
+    if (!task) continue;
     const writer = writerModel(store, delivery),
       blocked = deliveryRoles(policy, task)
         .filter((role) => role.id !== "checks")
@@ -3072,9 +2822,6 @@ function judgeable(store, data) {
     if (!task || !project?.root) continue;
     // A superseded task gets no new session (R39.1); a running one finishes.
     if (task.status === "superseded") continue;
-    // A GitHub leaf has no verifier: its checks on the pull request's head
-    // are the verification, and GitHub's close is its completion (§6.6).
-    if (taskRoute(task) === "github") continue;
     // A batch is checked and reviewed once, on its head: the last task's
     // commit, once every task in it is done (R46.5).
     if (delivery.batch) {
@@ -3318,7 +3065,6 @@ export async function integrateVerified(
       const task = store.read().tasks.find((t) => t.id === delivery.taskId);
       if (
         task &&
-        taskRoute(task) !== "github" &&
         shipMode(policy, task, store) === "manual" &&
         delivery.integrateApproved?.commit !== delivery.commit
       ) {

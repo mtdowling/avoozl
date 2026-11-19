@@ -1,6 +1,5 @@
-// Check reads for a pull request's head commit. The Issue Radar merge step
-// that used them (RC5.3, RC5.6, design D7) went with Who codes (R91.6); the
-// integration head (integration-head.mjs) still reads checks this way.
+// Check reads for a pull request's head commit, for the integration head
+// (integration-head.mjs).
 const FINE = new Set(["success", "neutral", "skipped"]);
 
 // Every check run and commit status on the head commit, as {name, ok, done}.

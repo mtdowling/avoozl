@@ -2,11 +2,7 @@
 // GitHub. Nothing here reaches the network.
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  effectiveShip,
-  mergePath,
-  requireMergePath,
-} from "../radar-merge-path.mjs";
+import { effectiveShip, mergePath } from "../radar-merge-path.mjs";
 
 const REPO = "example/code";
 
@@ -156,30 +152,4 @@ test("GitHub failing to answer leaves the items not ok and says why", async () =
     "required-check",
     "merge-method",
   ]);
-});
-
-test("requireMergePath refuses auto-merge when not ready, warns for manual", () => {
-  const notReady = {
-    repository: REPO,
-    ship: "auto-merge",
-    ready: false,
-    missing: ["auto-merge"],
-    items: [
-      { id: "auto-merge", ok: false, label: "Auto-merge allowed", detail: "x" },
-    ],
-  };
-  assert.throws(
-    () => requireMergePath([notReady]),
-    (error) =>
-      error.status === 409 &&
-      /example\/code/.test(error.message) &&
-      /Auto-merge allowed/.test(error.message),
-  );
-  assert.deepEqual(requireMergePath([{ ...notReady, ship: "manual" }]), [
-    { repository: REPO, missing: ["auto-merge"] },
-  ]);
-  assert.deepEqual(
-    requireMergePath([{ ...notReady, ready: true, missing: [] }]),
-    [],
-  );
 });

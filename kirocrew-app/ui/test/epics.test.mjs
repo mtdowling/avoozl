@@ -7,7 +7,7 @@ import test from 'node:test'
 import { drillGraph, drillInto, drillLabel, groupGraph, layoutGraph } from '../src/graph-layout.ts'
 import { NO_GROUP, filterChoices, filterGraph } from '../src/filters.ts'
 import { summarize } from '../src/dashboard-api.ts'
-import { SUB_ISSUE_LINE, visibleSettings } from '../src/settings-api.ts'
+import { visibleSettings } from '../src/settings-api.ts'
 
 const task = (id, planId, epic, phase, state = 'waiting') => ({
   id,
@@ -144,11 +144,4 @@ test('P36 (3): the Dashboard shows Progress by epic across member plans, then No
       [null, 'No epic', 0, 1],
     ],
   )
-})
-
-test('P36 (8): the sub-issue cap shows only in GitHub modes', () => {
-  assert.equal(visibleSettings('local').has('subIssueCap'), false)
-  assert.equal(visibleSettings('plans-repo').has('subIssueCap'), true)
-  assert.equal(visibleSettings('single-repo').has('subIssueCap'), true)
-  assert.match(SUB_ISSUE_LINE, /GitHub allows 100, closed ones included/)
 })

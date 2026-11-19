@@ -42,13 +42,12 @@ const PACK_SETTINGS = Object.freeze({
     // Accepted so an old pack still imports; it writes nothing (R6.3).
     "concurrency",
   ],
-  project: ["fields", "statusValues"],
   epicIssueType: null,
   contentRules: ["sets"],
   delivery: ["reviewers", "agent", "model", "runner", "concurrency"],
-  // Issue Radar crews (radar-coder RC7.4): what Set up shows and the labels
-  // and review rules a repository gets. A pack creates no crew.
-  crews: ["count", "models", "labels", "reviewRules", "template"],
+  // The labels a repository shares with Issue Radar crews. A pack creates
+  // no crew.
+  crews: ["labels"],
   flow: null,
 });
 
@@ -62,15 +61,6 @@ function crewSettings(crews) {
     list.push({ path: ["radar", "planLabel"], value: labels.plan });
   if (labels.conflict !== undefined)
     list.push({ path: ["radar", "conflictLabel"], value: labels.conflict });
-  if (crews.reviewRules !== undefined)
-    list.push({ path: ["radar", "reviewRules"], value: crews.reviewRules });
-  const crew = Object.fromEntries(
-    ["count", "models", "template"]
-      .filter((key) => crews[key] !== undefined)
-      .map((key) => [key, crews[key]]),
-  );
-  if (Object.keys(crew).length)
-    list.push({ path: ["radar", "crew"], value: crew });
   return list;
 }
 
@@ -143,15 +133,6 @@ export function validatePack(value) {
       "settings.repositories",
     );
   if (settings.crews) validateCrews(settings.crews);
-  if (settings.project)
-    checked(
-      () =>
-        normalizeGitHubPolicy({
-          project: { owner: "pack", number: 1, ...settings.project },
-        }),
-      "github.project",
-      "settings.project",
-    );
   if (settings.epicIssueType !== undefined)
     checked(
       () => normalizeGitHubPolicy({ epicIssueType: settings.epicIssueType }),
@@ -203,7 +184,6 @@ export function readPack(location, file = PACK_FILE) {
 // with `skip` cannot apply here and says why.
 function units(settings, current, repositories) {
   const list = [];
-  const github = record(current.github) ? current.github : {};
   for (const key of Object.keys(settings.repositories ?? {}))
     if (key === "concurrency") continue;
     else if (!repositories.length)
@@ -230,16 +210,6 @@ function units(settings, current, repositories) {
             path: ["github", "repositories", repository, ...crew.path],
             value: crew.value,
           });
-  for (const group of ["fields", "statusValues"])
-    for (const [key, value] of Object.entries(settings.project?.[group] ?? {}))
-      list.push(
-        record(github.project)
-          ? { path: ["github", "project", group, key], value }
-          : {
-              path: ["github", "project", group, key],
-              skip: "No GitHub Project is set. Set one in Settings > GitHub, then preview again.",
-            },
-      );
   if (settings.epicIssueType !== undefined)
     list.push({
       path: ["github", "epicIssueType"],

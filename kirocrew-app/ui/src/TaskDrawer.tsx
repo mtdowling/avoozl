@@ -461,7 +461,7 @@ function TaskPanel(props: {
       {task.manual && (
         <ManualTask
           workspaceId={workspaceId}
-          task={{ id: task.id, title: task.title, acceptance: task.acceptance, manualDone: task.manualDone ?? null, onGitHub: Boolean(task.onGitHub) }}
+          task={{ id: task.id, title: task.title, acceptance: task.acceptance, manualDone: task.manualDone ?? null }}
           onChanged={(text) => {
             setMessage({ ok: true, text })
             void load()
@@ -532,12 +532,6 @@ function TaskPanel(props: {
                       <Box size="sm" weight="medium">
                         {whyLine(item)}
                       </Box>
-                      {item.changedAt && (
-                        <Hint as="div" size="xs">
-                          Changed {relativeTime(item.changedAt)}
-                          {item.changedBy ? ` by ${item.changedBy}` : ''}. See the Timeline tab for this task&apos;s history.
-                        </Hint>
-                      )}
                       <span>
                         <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with this item" onClick={() => void chat.ask({ items: [itemRef(item)] })}>
                           Ask in a chat
@@ -594,7 +588,7 @@ function TaskPanel(props: {
                   <Box as="h4" size="sm" weight="semibold">
                     Added links
                   </Box>
-                  <TaskLinks workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
+                  <TaskLinks workspaceId={workspaceId} taskId={task.id} refresh={detail.revision} />
                 </Box>
               </Stack>
             </SectionBox>

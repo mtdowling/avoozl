@@ -180,34 +180,6 @@ export interface Preview {
   review?: PlanReviewSummary | null
 }
 
-// One write a projection would make (`github.project.preview`). `issue` is
-// null for an issue the projection would create.
-export interface PlannedWrite {
-  kind: string
-  repository: string | null
-  taskId: string | null
-  issue: number | null
-  title?: string
-  labels?: string[]
-  assignees?: string[]
-  type?: string
-  fields?: string[] | Record<string, string | number | null>
-  childTaskId?: string | null
-  blockerTaskId?: string | null
-}
-
-export interface ProjectionPreview {
-  planId: string
-  planHash: string
-  writes: PlannedWrite[]
-  // How long the writes take at the pace GitHub allows (github-pacer.mjs).
-  pace?: { writes: number; perMinute: number; perHour: number; finishAt: string; minutes: number }
-  conflicts: { taskId: string; field: string; reason: string }[]
-  notes: string[]
-  previewOnly: string[]
-  project: { status: string; problems?: string[]; reason?: string; fix?: string }
-}
-
 export interface StoredPlan {
   id: string
   title: string | null
@@ -359,15 +331,13 @@ export function plansClient(api: AppApi) {
     // highlight.languages), as data for highlight.ts.
     languages: (workspaceId: string) =>
       run<{ languages: Record<string, { tokens: { type: string; pattern: string; flags?: string }[] }>; problems: string[] }>(workspaceId, 'highlight.languages'),
-    // Every GitHub write projecting this approved plan would make; none is made.
-    projection: (workspaceId: string, planId: string) => run<ProjectionPreview>(workspaceId, 'github.project.preview', { planId }),
     // Approve exactly the revision the user is looking at. The backend refuses
     // a changed hash, a changed database, or a folder that moved on disk.
     // Draft specs in the order they can be approved (plan.approvalBatches).
     batches: (workspaceId: string) => run<ApprovalBatches>(workspaceId, 'plan.approvalBatches'),
     reviewAnyway: (workspaceId: string, planId: string, revisionHash: string) => run(workspaceId, 'plan.review.decide', { planId, revisionHash, action: 'review', unproven: true }),
     reviewSummary: (workspaceId: string, planId: string) => run<PlanReviewSummary | null>(workspaceId, 'plan.reviewSummary', { planId }),
-    // What approving just these would do, with each one's issue writes. Writes nothing.
+    // What approving just these would do. Writes nothing.
     selection: (workspaceId: string, ids: string[]) =>
       run<ApprovalBatches & { selection: BatchSelection }>(workspaceId, 'plan.approvalBatches', { ids }).then((value) => value.selection),
     // Approve exactly these revisions together, all or none (plan.approveMany).
@@ -428,11 +398,10 @@ export interface ApprovalBatches {
   batches: { batch: number; specs: BatchEntry[] }[]
 }
 // plan.approvalBatches {ids}: approving just these, tried on a scratch
-// copy. `writes` counts the GitHub issue writes projecting each would make.
+// copy.
 export interface BatchSelection {
   ok: boolean
-  specs: (BatchEntry & { writes?: number | null; writesError?: string; pullRequest?: boolean })[]
-  writes: number
+  specs: (BatchEntry & { pullRequest?: boolean })[]
   failures: { id: string; spec: string | null; error: string }[]
   missing: string[]
 }
@@ -569,50 +538,6 @@ export function specStatus(spec: SpecSummary): string {
   if (spec.plan.changed) return `Changed on disk · ${problems}`
   if (spec.plan.approved) return `Approved · revision ${spec.plan.revision}`
   return `Draft · revision ${spec.plan.revision} · ${problems}`
-}
-
-// One line for a planned write.
-export function describeWrite(write: PlannedWrite): string {
-  const target = write.issue === null ? 'new issue' : `#${write.issue}`
-  const who = write.taskId ?? 'parent issue'
-  switch (write.kind) {
-    case 'issue.create':
-      return `Create ${who}: ${write.title ?? ''}${write.type ? ` (${write.type})` : ''}`
-    case 'issue.update':
-      return `Update ${who} (${target}): ${Array.isArray(write.fields) ? write.fields.join(', ') : ''}`
-    case 'label.add':
-      return `Add label ${(write.labels ?? []).join(', ')} to ${who}`
-    case 'label.remove':
-      return `Remove label ${(write.labels ?? []).join(', ')} from ${who}`
-    case 'assignee.add':
-      return `Assign ${(write.assignees ?? []).join(', ')} to ${who}`
-    case 'sub-issue.add':
-      return `Link ${write.childTaskId} under ${who}`
-    case 'blocker.add':
-      return `${who} blocked by ${write.blockerTaskId}`
-    case 'blocker.remove':
-      return `${who} no longer blocked by ${write.blockerTaskId ?? 'an issue'}`
-    case 'project.add':
-      return `Add ${who} to the Project`
-    case 'project.fields': {
-      const fields = write.fields && !Array.isArray(write.fields) ? write.fields : {}
-      return `Set ${Object.entries(fields)
-        .map(([name, value]) => `${name} ${value ?? 'empty'}`)
-        .join(', ')} on ${who}`
-    }
-    default:
-      return `${write.kind} on ${who}`
-  }
-}
-
-// Writes grouped by repository, in projection order.
-export function writesByRepository(writes: PlannedWrite[]): [string, PlannedWrite[]][] {
-  const groups = new Map<string, PlannedWrite[]>()
-  for (const write of writes) {
-    const key = write.repository ?? 'unknown repository'
-    groups.set(key, [...(groups.get(key) ?? []), write])
-  }
-  return [...groups]
 }
 
 // Why the Approve button is off, or null when it may be pressed.

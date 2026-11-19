@@ -83,10 +83,7 @@ export function startRefresh(load: () => unknown, options: RefreshOptions): () =
   }
 }
 
-export type PanelAction =
-  | { kind: 'link'; label: string; href: string }
-  | { kind: 'resolve'; label: string; taskId: string; field: string; choice: 'desired' | 'github' }
-  | { kind: 'land'; label: string; repository: string; branch: string; head: string }
+export type PanelAction = { kind: 'link'; label: string; href: string } | { kind: 'land'; label: string; repository: string; branch: string; head: string }
 
 export interface WaitingRow {
   key: string
@@ -165,10 +162,9 @@ export interface PanelInput {
 // Items a person settles. Local worker items (a stale session, a delivery
 // decision, findings, a hand-set review, Integrate) are not here: local
 // workers are retired.
-const WAITING_KINDS = new Set(['needs-human', 'github-conflict', 'review', 'ready-to-merge', 'branch-landing', 'content-match', 'content-unavailable'])
+const WAITING_KINDS = new Set(['needs-human', 'review', 'ready-to-merge', 'branch-landing', 'content-match', 'content-unavailable'])
 const LABELS: Record<string, string> = {
   'needs-human': 'Needs you',
-  'github-conflict': 'GitHub edit',
   review: 'Review',
   'ready-to-merge': 'Ready to merge',
   'branch-landing': 'Ready to land',
@@ -182,10 +178,7 @@ function waitingRow(item: ConflictItem): WaitingRow | null {
   if (item.kind === 'ready-to-merge' && item.integrate) return null
   const actions: PanelAction[] = []
   const href = linkHref(item.link) ?? linkHref(item.issue?.url)
-  if (item.kind === 'github-conflict' && item.taskId && item.field)
-    for (const choice of item.choices ?? [])
-      actions.push({ kind: 'resolve', label: choice === 'desired' ? "Keep Avoozl's" : "Keep GitHub's", taskId: item.taskId, field: item.field, choice })
-  else if (item.kind === 'branch-landing' && item.repository && item.branch && item.head)
+  if (item.kind === 'branch-landing' && item.repository && item.branch && item.head)
     actions.push({ kind: 'land', label: 'Land it', repository: item.repository, branch: item.branch, head: item.head })
   else if (href) actions.push({ kind: 'link', label: item.kind === 'ready-to-merge' ? `Open PR${item.pullRequest ? ` #${item.pullRequest}` : ''}` : 'Open issue', href })
   // The host lets an app write only what its own API offers, so a row with no
@@ -197,7 +190,7 @@ function waitingRow(item: ConflictItem): WaitingRow | null {
     label: LABELS[item.kind] ?? item.kind,
     title: item.title,
     detail: item.detail,
-    at: item.changedAt ?? null,
+    at: null,
     actions,
   }
 }

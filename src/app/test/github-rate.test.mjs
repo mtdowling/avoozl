@@ -488,8 +488,6 @@ test("the tick holds every GitHub step while limited, with one row and one notic
     tick = () => ops.execute("workspace.tick", { sessions: [] }),
     now = Date.now();
   await tick();
-  const free = calls.length;
-  assert.ok(free > 0, "an unlimited tick reads GitHub");
   w.store.setMeta("githubRate", {
     resources: {
       core: {
@@ -517,7 +515,7 @@ test("the tick holds every GitHub step while limited, with one row and one notic
   const settings = await ops.execute("github.settings.get", {});
   assert.equal(settings.rate.resources.core.remaining, 0);
   assert.ok(settings.rate.limitedUntil);
-  // After the reset the row is gone and the next tick reads GitHub again.
+  // After the reset the row is gone.
   w.store.setMeta("githubRate", {
     ...w.store.getMeta("githubRate"),
     pause: { resource: "core", scope: "core", until: now - 1000, at: now },
@@ -527,8 +525,6 @@ test("the tick holds every GitHub step while limited, with one row and one notic
     after.items.filter((item) => item.id === "github-rate-limit").length,
     0,
   );
-  await tick();
-  assert.ok(calls.length > 0);
 });
 
 // ---- The one max-age cache (github.cacheSeconds) ------------------------

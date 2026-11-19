@@ -35,8 +35,6 @@ const MODALS = [
   'pack-import',
   'send-to-radar',
   'mark-done',
-  'projection',
-  'spec-changed',
 ]
 const OPENERS = { 'add-plugin': 'Add plugin', confirm: 'Remove', 'stop-line': 'Stop the line' }
 const opener = (name) => OPENERS[name] ?? 'Open the dialog'

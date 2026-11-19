@@ -31,7 +31,6 @@ import {
   X,
   type LucideIcon,
 } from './icons.ts'
-import { PublicCrews } from './PublicCrews.tsx'
 import { SendToRadar } from './SendToRadar.tsx'
 import { useMedia } from './use-media.ts'
 import { relativeTime } from './task-api.ts'
@@ -904,7 +903,6 @@ export default function UntriagedView({
           Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
         </Hint>
       )}
-      {list?.publicCrews?.length && workspaceId ? <PublicCrews rows={list.publicCrews} workspaceId={workspaceId} onChange={() => void reload()} /> : null}
       {note && (
         <Hint role="status" as="p" size="sm" data-radar-note>
           {note}

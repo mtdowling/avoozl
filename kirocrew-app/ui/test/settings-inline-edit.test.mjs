@@ -55,25 +55,24 @@ async function openPage(label, width = 1280, theme = 'light') {
 }
 
 for (const width of [1280, 390]) {
-  test(`Delivery edits in place at ${width} px: inline validation, Discard, Save with the hash`, { skip }, async () => {
+  test(`Delivery edits in place at ${width} px: Discard, Save with the hash`, { skip }, async () => {
     await openPage('Delivery', width)
     assert.equal(await footer(), false, 'no footer before a change')
-    await page.until(`Boolean(document.getElementById('avoozl-delivery-rounds'))`)
-    await set('#avoozl-delivery-rounds', '21')
-    await page.until(`Boolean(document.querySelector('[data-save-footer] [data-save-problem]'))`)
-    assert.equal(await page.evaluate(`document.querySelector('[data-save-footer] [data-save]').disabled`), true, 'Save waits for a valid value')
+    await page.until(`Boolean(document.getElementById('avoozl-delivery-investigate'))`)
+    await set('#avoozl-delivery-investigate', 'all')
+    await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)
     await press('Discard')
     await page.until(`!document.querySelector('[data-save-footer]')`)
-    assert.equal(await page.evaluate(`document.getElementById('avoozl-delivery-rounds').value`), '3')
-    await set('#avoozl-delivery-rounds', '4')
+    assert.equal(await page.evaluate(`document.getElementById('avoozl-delivery-investigate').value`), 'not-small')
+    await set('#avoozl-delivery-investigate', 'off')
     await page.until(`Boolean(document.querySelector('[data-save-footer] [data-save]:not([disabled])'))`)
     await press('Save')
     await page.until(`window.__writes.length === 1`)
     const [call] = await writes()
     assert.equal(call.operation, 'delivery.settings.update')
-    assert.equal(call.input.delivery.feedbackRounds, 4)
+    assert.equal(call.input.delivery.investigate.mode, 'off')
     assert.equal(call.input.expectedHash, 'h1')
-    await page.until(`document.getElementById('avoozl-delivery-rounds').value === '4' && !document.querySelector('[data-save-footer] [data-save]')`)
+    await page.until(`document.getElementById('avoozl-delivery-investigate').value === 'off' && !document.querySelector('[data-save-footer] [data-save]')`)
     assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'), true, 'no sideways scroll')
     assert.deepEqual(page.errors, [])
   })

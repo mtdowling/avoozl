@@ -162,11 +162,11 @@ test("54.1 paths take the first class in order, with overrides and partial lists
 
 test("54.1 rows label task and other pull requests from the shared read", async (t) => {
   const store = setup(t);
-  store.put("github_linked_branches", {
+  store.put("task_worktrees", {
     id: "t1",
     taskId: "t1",
     repository: REPO,
-    name: "branch-1",
+    branch: "branch-1",
   });
   await openThenClose(
     store,
@@ -392,11 +392,11 @@ test("54.4 the brief holds CI facts, with other pull requests as number, author 
   const store = setup(t),
     pulls = [],
     runs = [];
-  store.put("github_linked_branches", {
+  store.put("task_worktrees", {
     id: "t1",
     taskId: "t1",
     repository: REPO,
-    name: "branch-1",
+    branch: "branch-1",
   });
   for (let i = 1; i <= 4; i += 1) {
     const head = sha(i);

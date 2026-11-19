@@ -23,7 +23,6 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { PlainLink } from './ui/Plain'
 import { TONE } from './ui/tones.ts'
@@ -85,11 +84,9 @@ function AllowOnce(props: { workspaceId: string; blocked: Blocked; onDone: (text
 
 function EntryView(props: {
   entry: NoteEntry
-  onGitHub: boolean
   busy: boolean
   onEdit: (entry: NoteEntry, change: { url: string; label: string }) => Promise<void>
   onRemove: (entry: NoteEntry) => void
-  onShow: (entry: NoteEntry, on: boolean) => void
 }) {
   const { entry } = props
   const [editing, setEditing] = useState(false)
@@ -106,7 +103,6 @@ function EntryView(props: {
         </Tooltip>
         {entry.editedAt && <span>· edited</span>}
         {entry.outcome && <Badge>Outcome</Badge>}
-        {entry.onIssue && <Badge>On the issue</Badge>}
       </Box>
       {editing ? (
         <Stack gap={2}>
@@ -165,24 +161,6 @@ function EntryView(props: {
           >
             Remove
           </DangerBtn>
-          {props.onGitHub && (
-            <Tooltip text="List it in the issue's managed section on GitHub. Off by default: a link may point at things not meant for the repository.">
-              {(describedBy) => (
-                <Switch
-                  label="Show on the issue"
-                  inline
-                  size="xs"
-                  gap={1.5}
-                  describedBy={describedBy}
-                  checked={entry.onIssue}
-                  disabled={props.busy}
-                  onChange={(on) => props.onShow(entry, on)}
-                >
-                  Show on the issue
-                </Switch>
-              )}
-            </Tooltip>
-          )}
         </Row>
       )}
     </Box>
@@ -191,7 +169,7 @@ function EntryView(props: {
 
 // The drawer's Links box: the links, then an Add link button that opens the
 // fields for one link. Adding or Cancel closes them again.
-export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub: boolean; refresh?: number }) {
+export function TaskLinks(props: { workspaceId: string; taskId: string; refresh?: number }) {
   const api = useAppApi()
   const client = useMemo(() => notesClient(api), [api])
   const [entries, setEntries] = useState<NoteEntry[] | null>(null)
@@ -282,16 +260,9 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
             <EntryView
               key={entry.id}
               entry={entry}
-              onGitHub={props.onGitHub}
               busy={busy}
               onEdit={(target, change) => save(() => client.edit(props.workspaceId, props.taskId, target, change), 'Saved.')}
               onRemove={(target) => void save(() => client.remove(props.workspaceId, props.taskId, target.id), 'Removed. The activity log keeps a record.')}
-              onShow={(target, on) =>
-                void save(
-                  () => client.show(props.workspaceId, props.taskId, target.id, on),
-                  on ? 'It goes on the issue at the next tick.' : 'It comes off the issue at the next tick.',
-                )
-              }
             />
           ))}
         </Stack>
@@ -362,7 +333,7 @@ const MARKED: Record<Choice, string> = {
 // Mark done (R61.12): optional outcome links, then Done,
 // Skipped or Refused. Done and Skipped release the tasks that wait on it;
 // Refused is a no-go and keeps them held.
-export function MarkDoneDialog(props: { workspaceId: string; taskId: string; title: string; onIssue: boolean; onClose: () => void; onDone: (text: string) => void }) {
+export function MarkDoneDialog(props: { workspaceId: string; taskId: string; title: string; onClose: () => void; onDone: (text: string) => void }) {
   const client = notesClient(useAppApi())
   const [choice, setChoice] = useState<Choice>('done')
   const [links, setLinks] = useState<{ url: string; label: string }[]>([])
@@ -447,7 +418,7 @@ export function MarkDoneDialog(props: { workspaceId: string; taskId: string; tit
     >
       <div>
         <Hint id="avoozl-mark-done-line" as="p" size="sm">
-          {props.onIssue ? 'This closes its issue as you, on GitHub. ' : ''}The tasks that wait on it may start after Done or Skipped. Refused keeps them held.
+          The tasks that wait on it may start after Done or Skipped. Refused keeps them held.
         </Hint>
       </div>
       <RadioFold<Choice>
@@ -525,7 +496,6 @@ export function ManualTask(props: {
     title: string
     acceptance: string[]
     manualDone: ManualDone | null
-    onGitHub: boolean
   }
   onChanged: (text: string) => void
 }) {
@@ -563,7 +533,7 @@ export function ManualTask(props: {
             tooltip="Open it again. The tasks that wait on it stop starting; running chats are left alone."
             confirm={{
               title: 'Reopen this task?',
-              body: `${props.task.onGitHub ? 'Its issue reopens. ' : ''}New work on the tasks that wait on it stops until it is done again. Chats already running are left alone.`,
+              body: `New work on the tasks that wait on it stops until it is done again. Chats already running are left alone.`,
               action: 'Reopen',
             }}
             onConfirm={() =>
@@ -593,7 +563,6 @@ export function ManualTask(props: {
           workspaceId={props.workspaceId}
           taskId={props.task.id}
           title={props.task.title}
-          onIssue={props.task.onGitHub}
           onClose={() => setOpen(false)}
           onDone={(text) => {
             setOpen(false)

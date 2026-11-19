@@ -44,8 +44,6 @@ const MODALS = [
   'pack-import',
   'send-to-radar',
   'mark-done',
-  'projection',
-  'spec-changed',
 ]
 const OPENERS = {
   'add-plugin': 'Add plugin',

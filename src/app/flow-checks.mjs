@@ -1,22 +1,12 @@
-// Local checks first (design §4.11, Requirement 45): a session Avoozl opens
-// that pushes runs the repository's checks in its worktree before
-// each push. The run leaves a record in the repository's git directory, so
-// the pre-push hook and the done report read it instead of running the
-// checks twice. Local delivery pushes nothing and is unchanged.
+// A worker's own check run (design §4.11, Requirement 45): the repository's
+// checks in its worktree, each with its command, exit code and duration. The
+// run leaves a record in the repository's git directory.
 import fs from "node:fs";
 import path from "node:path";
 import { commandEvidence, git } from "./git.mjs";
-import {
-  checkCommand,
-  resultFor,
-  selectedChecks,
-} from "./repository-checks.mjs";
+import { checkCommand, selectedChecks } from "./repository-checks.mjs";
 import { changedPaths } from "./verify.mjs";
 import { fail } from "./store.mjs";
-import { putSpan } from "./flow.mjs";
-import { taskRepository } from "../work-model.mjs";
-
-const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 
 async function recordDir(root) {
   const common = fs.realpathSync.native(
@@ -24,9 +14,6 @@ async function recordDir(root) {
   );
   return path.join(common, "avoozl-checks");
 }
-
-// Every check a pushing session may have to run: the repository's.
-export const localCheckList = (project) => selectedChecks(project);
 
 // The checks one commit runs, the same selection Avoozl's own check run
 // makes: a check with paths only when the commit's diff against the base
@@ -92,133 +79,4 @@ export async function runLocalChecks({ cwd, root, project, env }) {
     checks: entries,
     passed: entries.every((e) => e.exitCode === 0),
   };
-}
-
-// The recorded local pass for one commit, or why there is none.
-export async function localPass(root, commit, checks) {
-  if (!SHA.test(commit))
-    return { ok: false, cause: `${commit} is not a full commit SHA` };
-  let record;
-  try {
-    record = JSON.parse(
-      fs.readFileSync(
-        path.join(await recordDir(root), commit + ".json"),
-        "utf8",
-      ),
-    );
-  } catch {
-    return {
-      ok: false,
-      cause: `no recorded local pass for ${commit.slice(0, 12)}`,
-    };
-  }
-  if (!checks.length && !(record.checks || []).every((e) => e.exitCode === 0))
-    return {
-      ok: false,
-      cause: `a recorded check failed for ${commit.slice(0, 12)}`,
-    };
-  for (const check of checks) {
-    const name = check.name,
-      entry = resultFor(record.checks, check);
-    if (!entry)
-      return {
-        ok: false,
-        cause: `\`${name}\` was not run for ${commit.slice(0, 12)}`,
-      };
-    if (entry.exitCode !== 0)
-      return {
-        ok: false,
-        cause: `\`${name}\` exited ${entry.exitCode} for ${commit.slice(0, 12)}`,
-      };
-  }
-  return { ok: true, record };
-}
-
-// A pushing worker's done report (R45.2, R45.3): every declared check for
-// one commit, each exiting 0. Throws why not; a not-run check keeps the
-// gate shut like R38 and is refused here too.
-export function checkDoneList(entries, checks) {
-  if (!Array.isArray(entries) || !entries.length)
-    fail(
-      "Local checks first: list checks [{name, command, exitCode, durationMs, commit}] for the commit you pushed (run `avoozl checks run --task <id>` in your worktree before each push).",
-      409,
-    );
-  const commits = new Set(entries.map((e) => e.commit));
-  if (commits.size !== 1 || !SHA.test([...commits][0] || ""))
-    fail(
-      "Local checks first: every check entry names the same pushed commit.",
-      409,
-    );
-  for (const check of checks) {
-    const name = check.name,
-      entry = resultFor(entries, check);
-    if (!entry)
-      fail(
-        `Local checks first: \`${name}\` is missing from the check list.`,
-        409,
-      );
-    if (entry.exitCode !== 0)
-      fail(
-        `Local checks first: \`${name}\` ${entry.exitCode === null ? "did not run" : `exited ${entry.exitCode}`}; fix it before reporting done.`,
-        409,
-      );
-    if (!Number.isInteger(entry.durationMs))
-      fail(`Local checks first: give \`${name}\`'s durationMs.`, 409);
-  }
-  return [...commits][0];
-}
-
-const FAILED = new Set([
-  "failure",
-  "timed_out",
-  "cancelled",
-  "action_required",
-  "error",
-]);
-
-// GitHub timing (R43.3, F95), from the check runs completion already reads
-// (§6.5): `ci-wait` from the first required check run started on the pushed
-// head to the last one completed. A required check that failed on a commit
-// with a recorded local pass is a "CI only" failure (R45.5). No new poller.
-export async function recordGitHubTiming(store, task, verdict) {
-  const head = verdict?.headSha,
-    checks = verdict?.checks || [];
-  if (!head || !checks.length) return;
-  const timed = checks.filter((c) => c.startedAt && c.completedAt);
-  if (timed.length) {
-    const start = timed.map((c) => c.startedAt).sort()[0],
-      end = timed
-        .map((c) => c.completedAt)
-        .sort()
-        .at(-1);
-    putSpan(store, {
-      id: `events:${task.id}:github:ci-wait:${head}`,
-      taskId: task.id,
-      stage: "ci-wait",
-      startedAt: start,
-      endedAt: end,
-      source: "events",
-      detail: null,
-    });
-  }
-  const failed = checks.filter((c) =>
-    FAILED.has(String(c.state || "").toLowerCase()),
-  );
-  if (!failed.length) return;
-  const project = store.get("projects", taskRepository(task) || "");
-  if (!project?.root) return;
-  const pass = await localPass(project.root, head, []);
-  const id = `ci-only:${task.id}:${head}`;
-  if (pass.ok && !store.get("flow_records", id))
-    store.transaction(() =>
-      store.put("flow_records", {
-        id,
-        kind: "ci-only",
-        taskId: task.id,
-        projectId: project.id,
-        commit: head,
-        checks: failed.map((c) => c.name),
-        at: new Date().toISOString(),
-      }),
-    );
 }

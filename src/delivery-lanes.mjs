@@ -1,22 +1,9 @@
-// Which Delivery lane a task is in. One rule for the Delivery tab (the page
-// imports this file) and for the Avoozl state Project field the tick fills
-// (src/app/github-project.mjs), so the board and the page never disagree.
+// Which Delivery lane a task is in, for the Delivery tab (the page imports
+// this file).
 // `task` is a graph.view task, `item` its delivery.view item or null.
 
 // Session statuses after which a session will not move again.
 const ENDED = new Set(["closed", "lost"]);
-
-// The Avoozl state values, in board order, with the option name each has on
-// the GitHub Project.
-export const AVOOZL_STATES = Object.freeze([
-  ["ready", "Ready"],
-  ["running", "Running"],
-  ["reviewing", "Reviewing"],
-  ["needs-you", "Needs you"],
-  ["waiting", "Blocked or waiting"],
-  ["done", "Done"],
-  ["deferred", "Deferred"],
-]);
 
 // A task's state on the Graph, with the word the page shows for it. The page
 // (kirocrew-app/ui/src/graph-layout.ts) and the `query` and `task.get`
@@ -65,8 +52,7 @@ export function laneOf(task, item) {
     state === "done" ||
     state === "verified" ||
     (item?.status === "review" && !item.handSetReview) ||
-    live.some((s) => s.role !== "worker") ||
-    item?.githubReviews?.state === "pending"
+    live.some((s) => s.role !== "worker")
   )
     return "reviewing";
   if (
@@ -78,13 +64,4 @@ export function laneOf(task, item) {
     return "running";
   if (task && nodeState(task) === "ready") return "ready";
   return "waiting";
-}
-
-// The Avoozl state: the lane, with Blocked or waiting split into waiting
-// and deferred the way the Graph draws them.
-export function avoozlState(task, item) {
-  const lane = laneOf(task, item);
-  return lane === "waiting" && task && nodeState(task) === "deferred"
-    ? "deferred"
-    : lane;
 }

@@ -43,11 +43,6 @@ export const PERSON_ONLY = new Map([
   ],
   ["spec.journal.reanchor", person("Only a person reanchors a spec journal.")],
   ["spec.journal.resume", person("Only a person resumes a spec journal.")],
-  ["spec.exportIssues", person("Only a person exports a spec's task issues.")],
-  [
-    "github.retireTaskIssues",
-    person("Only a person retires task-issue bindings."),
-  ],
   ["plan.new", person("Only a person starts a new plan.")],
   [
     "plan.review.decide",
@@ -71,7 +66,6 @@ export const PERSON_ONLY = new Map([
   ["task.manual.reopen", person("Only a person reopens a manual task.")],
   ["task.notes.edit", person("Only a person edits a link.")],
   ["task.notes.remove", person("Only a person removes a link.")],
-  ["task.notes.show", person("Only a person shows a link on the issue.")],
   ["plugin.add", person("Only a person changes plugins.")],
   ["plugin.approve", person("Only a person changes plugins.")],
   ["plugin.update", person("Only a person changes plugins.")],
@@ -88,22 +82,12 @@ export const PERSON_ONLY = new Map([
   ["content.terms.update", person("Only a person edits content-rule terms.")],
   ["content.sets.update", person("Only a person edits content-rule sets.")],
   [
-    "github.conflict.resolve",
-    person("Only a person chooses a conflict winner."),
-  ],
-  [
     "github.authorize",
     person("Only a person authorizes an issue for delivery."),
   ],
   [
     "github.setup",
     person("Only a person applies GitHub setup.", (input) =>
-      Boolean(input?.confirm),
-    ),
-  ],
-  [
-    "radar.setup",
-    person("Only a person applies a Radar set up step.", (input) =>
       Boolean(input?.confirm),
     ),
   ],
@@ -127,12 +111,6 @@ export const PERSON_ONLY = new Map([
     "mirror.forward.review",
     person("Only a person reviews a change before it is forwarded."),
   ],
-  ["radar.signoff", person("Only a person signs off a public repository.")],
-  [
-    "publiccrews.signoff",
-    person("Only a person signs off a public repository."),
-  ],
-  ["radar.retro.apply", person("Only a person applies a retro rule.")],
   ["github.setup.cancel", person("Only a person cancels a GitHub setup.")],
   ["github.configure", person("Only a person changes GitHub setup.")],
   [
@@ -204,14 +182,11 @@ export const PERSON_ONLY = new Map([
   ["flow.runAnyway", person("Only a person presses Run anyway.")],
   ["flow.resume", person("Only a person resumes a pulled stop.")],
   ["radar.releasestep", person("Only a person releases a phase.")],
-  ["radar.disarm", person("Only a person disarms auto-merge.")],
-  ["conflictfix.decide", person("Only a person decides a source conflict.")],
   ["gap.accept", person("Only a person accepts gap report proposals.")],
   [
     "integration.land",
     person("Only a person approves landing an integration branch."),
   ],
-  ["spec.changed.apply", person("Only a person applies a spec change.")],
 
   [
     "flow.stop",
@@ -321,10 +296,8 @@ export const NOT_ON_MCP = new Map([
   // repositories, plans_view and the setup preview for the same facts.
   ["onboarding.inspect", page],
   ["onboarding.scan", page],
-  ["plan.issues.preview", page],
   // The spec page's Review view; plans_plan_review reads the same findings.
   ["plan.review.view", page],
-  ["spec.changed.preview", page],
   // The spec page's Proposed change box; plans_view shows the same spec.
   ["specpr.view", page],
 ]);

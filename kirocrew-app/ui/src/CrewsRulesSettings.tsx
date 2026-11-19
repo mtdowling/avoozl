@@ -1,4 +1,4 @@
-// Issue Radar crews and rules for one repository (radar-coder RC7.6), in the
+// Issue Radar labels, conflicts and who merges for one repository, in the
 // app's settings style: titled boxes, plain fields with the default shown,
 // advanced values folded away, each inherited value saying where it comes
 // from, each mode one radio fold-out, and no model price anywhere. It edits
@@ -10,24 +10,11 @@ import { FieldBox } from './FieldBox.tsx'
 import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { SHIP_CHOICES } from './delivery-api.ts'
-import {
-  AVOOZL_LABELS,
-  CONFLICT_ACTIONS,
-  CONFLICT_ACTION_TEXT,
-  CONFLICT_DEFAULTS,
-  MERGE_METHODS,
-  MERGE_METHOD_TEXT,
-  OLD_LABEL_NOTE,
-  RADAR_DEFAULTS_SHOWN,
-  rulesMode,
-  valueSource,
-  type RepositoryForm,
-} from './settings-api.ts'
+import { AVOOZL_LABELS, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, valueSource, type RepositoryForm } from './settings-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
-import { PlainTextarea } from './ui/Plain'
 
 function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string; help?: string }) {
   const note = valueSource(props.value, props.fallback, props.unit)
@@ -57,18 +44,15 @@ function labelChange(repository: RepositoryForm, key: (typeof AVOOZL_LABELS)[num
 type Part = { id: string; repository: RepositoryForm; set: (change: Partial<RepositoryForm>) => void }
 
 // What each part does, said once. Conflicts and who merges are on the
-// repository's Landing tab (design §4.25); review rules on Settings › Issue Radar.
+// repository's Landing tab (design §4.25).
 export const CREW_PART_TEXT = {
-  rules: { title: 'Review rules', blurb: 'Text Set up adds to AGENTS.md in a pull request, so crews read it for every issue.' },
   conflicts: {
     title: 'Conflicts',
-    blurb:
-      "How Avoozl handles a merge conflict, and how many tries it makes before it asks you. A landing conflict goes back to the task's worker chat; a crew pull request gets one resolver chat that merges the base in.",
+    blurb: "How many times a landing conflict goes back to the task's worker chat before Avoozl asks you.",
   },
   merge: {
     title: 'Who merges',
-    blurb:
-      'How verified work lands here, who merges its pull request, and the merge method. A conflict fix still merges the base into the branch; with squash that merge commit never reaches the base.',
+    blurb: 'How verified work lands here, who merges its pull request, and the merge method.',
   },
 } as const
 
@@ -123,68 +107,9 @@ export function AutoMergeFields({ id, repository, set, inherited = null }: Part 
   )
 }
 
-export function ReviewRulesFields({ id, repository, set }: Part) {
-  return (
-    <RadioFold
-      name={`${id}-rules-mode`}
-      label="Review rules"
-      value={rulesMode(repository)}
-      onChange={(mode) => set({ reviewRules: mode === 'default' ? '' : 'Say what you skipped or did not check.' })}
-      sections={[
-        {
-          key: 'default',
-          title: "Use Avoozl's rules",
-          line: "Not set on this repository. Using Avoozl's built-in review rules. Set up shows the exact text before it opens the pull request.",
-        },
-        {
-          key: 'custom',
-          title: 'Write your own',
-          line: 'Your text replaces the built-in rules. The one-line crew prompt is always added.',
-          fields: (
-            <Box flex minW0 flexCol gap="1">
-              <Box htmlFor={`${id}-rules`} as="label" size="sm" weight="medium">
-                Review rules <Hint size="xs">radar.reviewRules</Hint>
-              </Box>
-              <PlainTextarea
-                id={`${id}-rules`}
-                rows={6}
-                value={repository.reviewRules}
-                onChange={(event) => set({ reviewRules: event.target.value })}
-                css-border-color="border"
-                css-background="transparent"
-                css-color="inherit"
-                minW0
-                rounded="base"
-                border="all"
-                px="2"
-                py="1"
-                size="sm"
-              />
-              <Hint size="xs">{valueSource(repository.reviewRules ? 'your text' : '', "Avoozl's built-in rules")}</Hint>
-            </Box>
-          ),
-        },
-      ]}
-    />
-  )
-}
-
 export function ConflictFields({ id, repository, set }: Part) {
   return (
     <Stack gap={3} data-conflicts>
-      <div id={`${id}-on-source-conflict`}>
-        <RadioFold
-          name={`${id}-on-source-conflict`}
-          label="On a source conflict"
-          value={(repository.onSourceConflict || CONFLICT_DEFAULTS.onSourceConflict) as (typeof CONFLICT_ACTIONS)[number]}
-          onChange={(value) => set({ onSourceConflict: value })}
-          sections={CONFLICT_ACTIONS.map((action) => ({
-            key: action,
-            title: action === 'fix' ? 'Fix it (conflicts.onSourceConflict: fix)' : 'Ask me (conflicts.onSourceConflict: ask)',
-            line: `${CONFLICT_ACTION_TEXT[action]}.${!repository.onSourceConflict && action === CONFLICT_DEFAULTS.onSourceConflict ? ' Not set on this repository; this is the default.' : ''}`,
-          }))}
-        />
-      </div>
       <Line
         id={`${id}-max-attempts`}
         label="Attempts per conflict"
@@ -246,9 +171,6 @@ export function AvoozlLabelFields({ id, repository, set, note = true }: Part & {
 export function CrewsRulesSettings(props: Part) {
   return (
     <Stack gap={4} data-crews-rules>
-      <FieldBox title="Review rules" blurb={CREW_PART_TEXT.rules.blurb}>
-        <ReviewRulesFields {...props} />
-      </FieldBox>
       <FieldBox title={CREW_PART_TEXT.conflicts.title} blurb={CREW_PART_TEXT.conflicts.blurb}>
         <ConflictFields {...props} />
       </FieldBox>

@@ -32,7 +32,6 @@ export interface MirrorSetupResult {
   detail?: string
   applied?: MirrorRow[]
   needsYou?: MirrorRow[]
-  next?: string
 }
 
 export const MIRROR_BUTTONS: { kind: MirrorKind; label: string; about: string }[] = [
@@ -56,7 +55,6 @@ export const LINE_NAMES: Record<string, string> = {
   'branch-rule': 'Branch rule',
   'auto-merge': 'Auto-merge',
   setting: 'Mirror setting',
-  'radar-values': 'Radar values',
 }
 
 // Only a line that would write can be ticked.

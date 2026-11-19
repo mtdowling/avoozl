@@ -102,7 +102,7 @@ allowed actor an order that releases dependents.
 | F10 | Removed 2026-11-14: the owner dropped the separate review app. | **Removed** | Avoozl's own code review chat stays (Requirement 49.16). |
 | F11 | GitHub projection supports native cross-repository dependencies.   | **Verified, with limits** | `src/app/github-sync.mjs` `projectPlanIssues` and the live proof. Limits: every target repository must be registered and private; a dependency outside the plan must already be projected; drift detection applies to edges only.                                                                                                                                                              |
 | F12 | Fresh Avoozl workspaces can recover projected issues from markers. | **Corrected**             | Recovery reuses existing issues only when the _same approved plan ID_ is projected again: issues are matched by the hidden marker's `taskId` and `planId` under the managed label. It does not rebuild local tasks, status, or edges from GitHub. `syncGitHubIssues` fails when a marker names a task that is not present locally. A closed projected issue makes re-projection fail with 409. |
-| F13 | Avoozl verifies exact pull-request completion and required checks. | **Corrected**             | `src/app/github-completion.mjs` implements the check correctly and was proved live. It is called only by `scripts/github-completion-live.mjs`. No operation, CLI command, MCP tool, or dependent-release path uses it. It also requires the closing pull request to live in the issue's repository.                                                                                            |
+| F13 | Avoozl verifies exact pull-request completion and required checks. | **Corrected**             | `src/app/github-completion.mjs` implements the check correctly and was proved live. It was called only by a live proof script that now lives in git history. No operation, CLI command, MCP tool, or dependent-release path uses it. It also requires the closing pull request to live in the issue's repository.                                                                                            |
 | F14 | The current Kiro Crew Avoozl app is only a proof shell.            | **Verified**              | `kirocrew-app/app.json` declares one page and one skill, no backend, no MCP server, and no crons. `ui/src/App.tsx` renders four static cards and one button that opens a draft chat.                                                                                                                                                                                                           |
 
 ### Additional facts that change the plan
@@ -3863,95 +3863,46 @@ on a bigger or safer machine without a shared database or a shared gateway.
 10. A worker whose chat ended without a report SHALL raise one decision notice
     and SHALL NOT be replaced.
 
-### Requirement 85: Crews on public repositories
+### Requirement 85: The content hook
 
-Superseded 2026-11-18 (owner decision): public crews are removed except the
-content hook, which becomes a general pre-tool-use command (triage-agent
-TA11.3, task ta-5.2). Until ta-5.2 lands the code below still runs.
-
-Added 2026-11-14 (owner request). Design §6.14. Facts checked in Kiro Crew
-0.12.2.4 and on a scratch repository, written up in `docs/public-crews.md`.
+Added 2026-11-14 (owner request); cut to the hook alone 2026-11-19 (owner
+decision). Design §6.14. Usage in `docs/content-hook.md`. The clean crew
+home, the audit on the tick, the sign-off and Stop public crews were
+removed; they are in git history.
 
 **User story:** As the owner of a machine that holds private names, links and
-notes, I want an Issue Radar crew to work a public repository without any of
-that reaching GitHub, and I want it to fail safe if something slips, so that
-one careless line cannot become a public leak.
-
-Facts. A crew writes its claim comment, labels, commits, pushes, pull request
-and pull request body itself, with `gh` and `git` in its own shell. Issue
-Radar's backend writes to GitHub only when a person clicks in the dashboard,
-and it refuses a crew's session on those routes. The crew's two Kiro Crew
-tools touch only its local ledger. A crew's agent comes from its crew record,
-so a hook on that agent runs before each of its tool calls. A separate
-`KIRO_HOME` hides the owner's global steering and memory from that agent, but
-not any file the same operating-system user can read.
+notes, I want any agent that writes to GitHub with my login to have its
+writes checked before they run, so that one careless line does not become a
+public leak.
 
 #### Acceptance criteria
 
-1. A crew SHALL count as a public crew WHEN its repository is public on
-   GitHub. A repository whose visibility cannot be read SHALL count as
-   public. The layers below SHALL apply to every public crew and SHALL NOT
-   depend on any prompt text.
-2. Layer 1, a clean home. Avoozl SHALL document and check a crew home with
-   no steering, memory or notes of the owner's, reached through its own
-   `KIRO_HOME`. The docs and the checklist SHALL say plainly that this
-   removes injected context only: the crew can still read every file its
-   operating-system user can read, and use that user's credentials. A crew
-   that must not read them SHALL run as another user, in a container, or on
-   another machine.
-3. Layer 2, scan before send. Avoozl SHALL ship a hook command that a crew's
-   agent runs before each shell call. It SHALL read the call from stdin and,
-   for these writes, run content rules (Requirement 40) before they run:
-   `gh issue` create, comment, edit; `gh pr` create, edit, comment, review,
-   merge; `gh api` with a write method or body fields; `git commit`,
-   `git tag` and `git push`. It SHALL check the text, the labels, the branch
-   name, and, for `git push` and `gh pr create`, the commit messages and
-   added lines the call would publish.
-4. WHEN a rule matches, or a rule set the repository needs is unavailable,
+1. Avoozl SHALL ship a hook command, `avoozl content hook`, that any agent
+   can run as a pre-tool-use command before each shell call. It SHALL read
+   the call from stdin and, for these writes, run content rules
+   (Requirement 40) before they run: `gh issue` create, comment, edit;
+   `gh pr` create, edit, comment, review, merge; `gh api` with a write method
+   or body fields; `git commit`, `git tag` and `git push`. It SHALL check the
+   text, the labels, the branch name, and, for `git push` and
+   `gh pr create`, the commit messages and added lines the call would
+   publish.
+2. WHEN a rule matches, or a rule set the repository needs is unavailable,
    THEN the hook SHALL refuse the call (exit code 2) and name the rule set,
    rule id and place, never the matched text (Requirement 40.8). WHEN the
    text cannot be read from the call, because it comes from a shell
-   expansion, THEN the hook SHALL refuse it and say why, so the crew can
+   expansion, THEN the hook SHALL refuse it and say why, so the agent can
    write the text to a file and pass the file.
-5. The hook SHALL be limited as follows, and the docs SHALL say so: it reads
-   the call, not what a script or interpreter does when run, so a write made
-   inside a script, `python -c`, or a build tool is not seen; and it covers
-   only the tools it is attached to. WHERE a write comes from Kiro Crew's own
-   backend instead of the crew's shell, the hook cannot see it either. Those
-   gaps SHALL be covered by criterion 6, and the missing upstream
-   capabilities SHALL be listed as requests in `docs/public-crews.md`.
-   Nothing SHALL be filed.
-6. Layer 3, audit on the tick. For each public crew's repository the tick
-   SHALL read the comments, pull requests, commits and branch names a crew
-   made since the last pass, found by the crew claim marker, the
-   `crew/<name>/` branch prefix and the crew labels, and SHALL check them
-   with content rules. The audit SHALL keep a cursor per repository and SHALL
-   run at the tick's own pace.
-7. WHEN the audit finds a match THEN Avoozl SHALL: delete the comment, and
-   SHALL NOT edit it, because GitHub keeps the edit history; close a matching
-   pull request or issue the crew opened and delete its branch; pull the cord
-   (Requirement 64) for the repository; and tell the owner in a Kiro Crew
-   notification and in Needs you, naming the rule set, rule id, place and
-   link. It SHALL record who, what and when, and a hash instead of the
-   text. The page and the docs SHALL say that a pull request body, a commit
-   or an edit history can stay reachable on GitHub by its address after
-   deletion, and that removing it for good needs a request to GitHub.
-8. Layer 4, sign-off. Avoozl SHALL NOT send an issue of a public repository
-   to Issue Radar (Requirement 52) until a person has signed off a checklist
-   of: the crew home, the hook on the crew's agent (by its hash), the rule
-   sets that cover the repository, and the audit being on. The sign-off SHALL
-   record who and when, SHALL be refused to an agent, plugin, or app token,
-   and SHALL lapse WHEN any of those items changes.
-9. Kill switch. The page and the CLI SHALL offer one **Stop public crews**
-   action that pulls the cord for every public repository and tells the
-   person which crews to pause in Kiro Crew, with a link for each. Pulling
-   the cord SHALL NOT stop a running crew, which Avoozl cannot pause today.
-   Resuming SHALL be a person only (Requirement 64).
-10. Every rule set Requirement 40 names SHALL be usable here. A public
-    repository with a public crew and no rule set SHALL show a banner and
-    SHALL keep sign-off closed. Public Avoozl files, tests and docs SHALL use
-    only fake terms, and SHALL describe the private side as internal names
-    and company hosts.
+3. The docs SHALL say the hook's limit: it reads the call, not what a script
+   or interpreter does when run, so a write made inside a script,
+   `python -c`, or a build tool is not seen, and nothing cleans up such a
+   write afterward.
+4. WHEN a person sends issues of a public repository to Issue Radar
+   (Requirement 52) THEN the dialog SHALL say the repository is public, that
+   the crew writes with the person's GitHub login, and to add
+   `avoozl content hook` to the crew's agent first. Sending SHALL stay the
+   person's act, and Avoozl SHALL store nothing about it.
+5. Public Avoozl files, tests and docs SHALL use only fake terms, and SHALL
+   describe the private side as internal names and company hosts.
 
 ### Requirement 86: Avoozl owns the coding loop
 
@@ -4226,11 +4177,10 @@ removed, so that the app has one way to deliver work.
    marker, the `avoozl-crew` agent and the Issue Radar grant, and the remote
    coder, the relay and the router chat with their agents.
 2. Avoozl SHALL retain PR landing, release ranking, setup push plumbing,
-   build receipts and the executor seam. It SHALL retire per-task projection,
-   Project synchronization and task-issue completion only after the ordered
-   binding migration and its proof (Requirement 102). Spec issue publication,
-   epic links and journals SHALL remain. Export issues SHALL be the sole
-   explicit offboarding path allowed to create task issues.
+   build receipts and the executor seam. Per-task projection, Project
+   synchronization, task-issue completion, rebuild from GitHub and the issue
+   export SHALL be deleted (changed 2026-11-18: no path creates task issues).
+   Spec issue publication, epic links and journals SHALL remain.
 3. Leaf modules MAY be audited and already unreferenced ones deleted at any
    time. Task 45.2 SHALL wait for P52 to prove replacement PR landing.
    Tasks 45.2 and 45.3 MAY edit their shared callers. Remaining
@@ -4268,8 +4218,8 @@ removed, so that the app has one way to deliver work.
      reads, the handoff labels, crew review rules, conflicts and merge
      method. A test SHALL show that a repository whose file still says
      `coder: issue-radar` feeds Triage and its Radar escalations.
-   - The shared task projection and synchronization callers SHALL stay
-     for 45.4 (criterion 2), less their coder handling.
+   - The shared task projection and synchronization callers are deleted
+     by 45.4 (criterion 2).
 
 ### Requirement 92: Links to related GitHub items, and the landing queue
 
@@ -4847,8 +4797,7 @@ GitHub issue per task or exposing private planning information.
 
 1. Git SHALL hold design and implementation; the spec issue SHALL hold
    ownership and durable outcomes; SQLite SHALL cache local execution.
-   There SHALL be one issue per published spec and epic, never per task,
-   except the explicit, idempotent offboarding export in criterion 19.
+   There SHALL be one issue per published spec and epic, never per task.
 2. Publish issue SHALL be an explicit per-spec act in its home repository,
    independent of approval. Approval alone SHALL make no GitHub write.
    A fork checkout SHALL NOT move the registered issue home or require fork issues.
@@ -4950,13 +4899,12 @@ GitHub issue per task or exposing private planning information.
     home/visibility match. Initial intake SHALL make at most two idempotent
     writes: an ownership label and a privacy-safe status comment. Deliver this
     alone MAY use same-repository Fixes; input closure SHALL mean withdrawal,
-    not task completion. Export issues SHALL preview, create only incomplete
-    task issues and their blocked-by links once, then mark the spec Exported
-    and cease driving it. Existing bindings SHALL not be duplicated on retry.
-20. Migration SHALL hold release and stop ticks, disable task projection/close
-    reconciliation, preview and retire issue bindings without status changes,
-    run one tick with unchanged readiness and no task-issue reads/writes, then
-    and only then allow closing obsolete task issues. Spec issues SHALL remain.
+    not task completion. (Changed 2026-11-18: the issue export is deleted;
+    no path creates task issues.)
+20. Task projection, close reconciliation and issue bindings SHALL be gone:
+    a tick makes no task-issue reads or writes, and an old binding row is
+    ignored. Obsolete task issues MAY be closed by hand. Spec issues SHALL
+    remain. (Changed 2026-11-18: the migration path is deleted with them.)
     `route: github` and `merged-pr` SHALL retain their accepted source syntax,
     meaning queue landing and accepted landing, without rewriting approved files.
 21. Private mirror sync SHALL import upstream changes by a reviewed PR after
@@ -5002,7 +4950,7 @@ GitHub issue per task or exposing private planning information.
 Added 2026-11-16 (owner decision). Design §4.32.11. Planning only. Extends
 Requirement 102. Where they conflict it supersedes Requirement 52.7 and,
 in `radar-coder`, the hand-over of projected issues (RC1.6, RC2) and the
-claim at approval (RC19). Phase 45 is no longer paused: 45.2 landed in #509; 45.4 waits on P53, P54 and P66.
+claim at approval (RC19). Phase 45 is no longer paused: 45.2 landed in #509.
 
 The owner's words: Issue Radar should not take on Avoozl-created issues.
 It can take on maintenance and triage, and can punt an issue to Avoozl to
@@ -5048,10 +4996,11 @@ skip is a rule in the crew's prompt, not code.
    confirms, through the write pacer, and idempotently on retry. An issue a
    crew already claimed SHALL be left alone and shown once in Needs you.
    Avoozl SHALL NOT remove a crew's claim or needs-human label.
+   (Changed 2026-11-18: 45.4 deleted per-task issues, so there are no
+   projected task issues left to label.)
 6. Export issues (56.9) SHALL NOT set `crew:avoozl` on any issue they
-   create (owner decision, 2026-11-16). Export hands the work away from
-   Avoozl, so Issue Radar and people may take those issues. A test SHALL
-   check that no export create request carries `crew:avoozl`.
+   create (owner decision, 2026-11-16). (Changed 2026-11-18: 45.4 deleted
+   the issue export.)
 7. Radar SHALL keep maintenance and triage of issues Avoozl did not create.
    Send to Issue Radar (Requirement 52) SHALL stay for those issues and
    SHALL refuse an issue that carries `crew:avoozl`.
