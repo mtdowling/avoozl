@@ -4876,8 +4876,7 @@ database to be a cache (Requirement 114).
 main. A commit counts when its author email passes `approverCheck`: the
 repository's `allowedActors` (email, or login by GitHub noreply address or
 the commit's GitHub author), else `minimumPermission`; locally, the
-checkout's `user.email`. `AGENT_AUTHOR` never counts. The committer is not
-read. Each counted commit's spec files are read with `git cat-file --batch`
+checkout's `user.email`. The committer is not read. Each counted commit's spec files are read with `git cat-file --batch`
 and hashed with `specHash`.
 
 Approve (`approveInGit` in `operations.mjs`, used by `plan.approve` and
@@ -4894,11 +4893,15 @@ one commit of the spec's own files. On merge, `reconcileApproval` reads the
 merge commit's author (`github.commit`, else the pull request's author) and
 records `refused` for a non-approver.
 
-**Agent identity.** `agentAuthorEnv` (`git.mjs`) sets `GIT_AUTHOR_NAME` and
-`GIT_AUTHOR_EMAIL` on every commit Avoozl makes (`commitWorkerChanges`, ticks,
-landing commits, merge-forward commits) and on every supervised child. The
-worker and planner prompts say to author commits that way and never push
-spec edits to main.
+**Commit identity.** Every commit Avoozl makes (`commitWorkerChanges`,
+ticks, landing commits, merge-forward commits) and every supervised child's
+commit uses the checkout's own git identity as author and committer, with no
+`Co-authored-by` trailer. A separate agent author made GitHub's squash add
+one. Approval safety rests on spec drafts staying on `spec/` branches and
+Approve squashing them onto main as the person clicking. A tick commit
+changes only marks, which `specHash` ignores, so it approves nothing new.
+The worker and planner prompts say to commit as the repository's identity,
+add no attribution, and never push spec edits to main.
 
 **Landing trailers.** `landing-trailers.mjs` `landingMetrics` reads a task's
 worker bindings, attempts, usage and Flow spans (at most 200) when it is
