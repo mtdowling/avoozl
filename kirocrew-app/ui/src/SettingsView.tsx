@@ -11,8 +11,6 @@ import Badge from './ui/Badge.tsx'
 import { RoleHelp } from './RoleHelp.tsx'
 import {
   MANAGED_LABEL_TEXT,
-  PROJECT_DEFAULTS,
-  PROJECT_FIELD_RULES,
   REPOSITORY_FIELD_RULES,
   checkRows,
   emptyRepository,
@@ -44,7 +42,6 @@ import {
   type SettingsChoices,
   type SettingsForm,
   LOCAL_HIDDEN_LINE,
-  SUB_ISSUE_LINE,
   OLD_LABEL_NOTE,
   isGitHubMode,
   rateLines,
@@ -63,7 +60,6 @@ import {
   tasksLiveLine,
   withRepositoryEdit,
   unusedInLocal,
-  visibleSettings,
   SETTINGS_HOME,
   settingsTitle,
 } from './settings-api.ts'
@@ -157,13 +153,6 @@ export const REPOSITORY_BLURBS = {
   reviews: "Avoozl follows this branch's review rule on GitHub. To change it, change the rule on GitHub.",
 } as const
 
-const FIELD_LABELS: Record<string, string> = {
-  status: 'Status field',
-  release: 'Release field',
-  wave: 'Wave field',
-  iteration: 'Iteration field',
-  avoozlState: 'Avoozl state field',
-}
 // The escalation label is Issue Radar's "needs-human label" setting. A crew
 // adds it when it gives an issue up, and Avoozl takes such an issue in, so
 // the name Avoozl recommends does not say a person is needed.
@@ -172,12 +161,6 @@ const RADAR_LABELS_BLURB = `Labels Issue Radar puts on issues it claims or gives
 const CREW_LABELS: Record<string, string> = {
   claim: 'Claim label',
   needsHuman: 'Escalation label',
-}
-const STATUS_LABELS: Record<string, string> = {
-  todo: 'Ready option',
-  inProgress: 'In progress option',
-  done: 'Done option',
-  deferred: 'Deferred option',
 }
 
 // Every field here is the shared FieldRow (FieldRow.tsx).
@@ -550,12 +533,6 @@ function RuleEditor(props: { id: string; rule: RuleForm; actions: string[]; repo
       </Box>
       <MatchField id={`${id}-match`} value={rule.match} repository={props.repository} workspaceId={props.workspaceId} onChange={(value) => set({ match: value })} />
       <Row gap={3}>
-        <CheckRow
-          label="Publish a clean breakdown's sub-issues without a re-label"
-          raw="autoPublishChildren"
-          checked={rule.autoPublishChildren}
-          onChange={(autoPublishChildren) => set({ autoPublishChildren })}
-        />
         <Box as="span" ml="auto">
           <DangerBtn
             icon={Trash2}
@@ -1443,9 +1420,8 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
 // and a tab with unsaved changes shows a dot. Switching a role never
 // deletes a stored setting.
 export const GITHUB_TABS = [
-  { key: 'issues', label: 'New tasks' },
+  { key: 'issues', label: 'Epic issues' },
   { key: 'sync', label: 'Sync pace' },
-  { key: 'project', label: 'Project' },
   { key: 'setup', label: 'Set up GitHub' },
   { key: 'calls', label: 'GitHub calls' },
 ] as const
@@ -1453,9 +1429,8 @@ export type GitHubTab = (typeof GITHUB_TABS)[number]['key']
 const GITHUB_TAB_KEYS = GITHUB_TABS.map((tab) => tab.key)
 // The form keys each tab edits; Set up and GitHub calls edit none.
 export const GITHUB_TAB_FIELDS: Record<GitHubTab, readonly (keyof SettingsForm)[]> = {
-  issues: ['defaultAuthority', 'epicIssueType', 'maxPerParent', 'includeDone'],
+  issues: ['epicIssueType'],
   sync: ['cacheSeconds', 'writesPerMinute', 'writesPerHour'],
-  project: ['projectOwner', 'projectNumber', 'fields', 'statusValues'],
   setup: [],
   calls: [],
 }
@@ -1468,9 +1443,8 @@ function WorkspaceGitHub(props: {
   setup: ReactNode
   rate: RateView | undefined
 }) {
-  const { form, choices, set } = props
+  const { form, set } = props
   const [tab, pick] = useTabParam<GitHubTab>('github', GITHUB_TAB_KEYS, 'issues', 'Back to the last GitHub tab')
-  const shown = visibleSettings(form.mode)
   const kept = unusedInLocal(form)
   if (!isGitHubMode(form.mode))
     return (
@@ -1500,19 +1474,8 @@ function WorkspaceGitHub(props: {
       <TabPanel id="avoozl-github-tab" current={tab}>
         {tab === 'issues' && (
           <Card>
-            <Section title="New tasks and issues" blurb="Who owns a new task, and how its GitHub issue is made. For every repository in this workspace.">
+            <Section title="Epic issues" blurb="The issue type a published epic issue gets. For every repository in this workspace.">
               <Box {...grid()}>
-                <Choice
-                  id="avoozl-settings-authority"
-                  label="New tasks belong to"
-                  raw="defaultAuthority"
-                  rule={{ required: false, blank: form.mode ? 'blank: github' : 'blank: local' }}
-                  value={form.defaultAuthority}
-                  options={choices.authorities}
-                  none={`Default: ${form.mode ? 'github' : 'local'}`}
-                  width="md"
-                  onChange={(value) => set({ defaultAuthority: value })}
-                />
                 <Text
                   id="avoozl-settings-epic"
                   label="Epic issue type"
@@ -1523,27 +1486,7 @@ function WorkspaceGitHub(props: {
                   value={form.epicIssueType}
                   onChange={(value) => set({ epicIssueType: value })}
                 />
-                {shown.has('subIssueCap') && (
-                  <Text
-                    id="avoozl-settings-sub-issues"
-                    label="Sub-issues per parent"
-                    raw="subIssues.maxPerParent"
-                    rule={{ required: false, blank: SUB_ISSUE_LINE }}
-                    placeholder="100"
-                    type="number"
-                    width="sm"
-                    value={form.maxPerParent}
-                    onChange={(value) => set({ maxPerParent: value })}
-                  />
-                )}
               </Box>
-              <CheckRow
-                label="Make issues for tasks already done when a spec is approved"
-                help="Off: only open tasks get issues."
-                raw="issues.includeDone"
-                checked={form.includeDone}
-                onChange={(includeDone) => set({ includeDone })}
-              />
             </Section>
           </Card>
         )}
@@ -1588,14 +1531,9 @@ function WorkspaceGitHub(props: {
             </Section>
           </Card>
         )}
-        {tab === 'project' && (
-          <Card>
-            <ProjectFields form={form} choices={choices} set={set} />
-          </Card>
-        )}
         {tab === 'setup' && (
           <Card>
-            <Section title="Set up GitHub" blurb="Creates the labels, Project and fields the other tabs name. It reads GitHub first and shows every write before making one.">
+            <Section title="Set up GitHub" blurb="Creates the labels and epic issue type the other tabs name. It reads GitHub first and shows every write before making one.">
               {props.setup}
             </Section>
           </Card>
@@ -1701,81 +1639,8 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
   )
 }
 
-// The Project board Avoozl adds issues to and fills. One Project serves
-// every repository in the workspace.
-export function ProjectFields({ form, choices, set }: { form: SettingsForm; choices: SettingsChoices; set: (change: Partial<SettingsForm>) => void }) {
-  return (
-    <div>
-      <Section
-        title="Project fields"
-        blurb="The GitHub Project board Avoozl adds managed issues to and fills with Release, Wave and Avoozl state. People move Status; Avoozl never writes it. Leave every field blank to turn Project sync off."
-      >
-        <Box {...grid(180)}>
-          <Text
-            id="avoozl-settings-project-owner"
-            label="Owner"
-            raw="project.owner"
-            rule={PROJECT_FIELD_RULES.owner}
-            placeholder="org or user"
-            width="md"
-            value={form.projectOwner}
-            onChange={(value) => set({ projectOwner: value })}
-          />
-          <Text
-            id="avoozl-settings-project-number"
-            label="Number"
-            raw="project.number"
-            rule={PROJECT_FIELD_RULES.number}
-            placeholder="2"
-            type="number"
-            width="md"
-            value={form.projectNumber}
-            onChange={(value) => set({ projectNumber: value })}
-          />
-        </Box>
-        {choices.fields.length > 0 && (
-          <Section level="sub" title="Field names" blurb="The names of the Project's fields Avoozl fills. Blank uses the name shown.">
-            <Box {...grid(180)}>
-              {choices.fields.map((key) => (
-                <Text
-                  key={key}
-                  id={`avoozl-settings-field-${key}`}
-                  label={FIELD_LABELS[key] ?? key}
-                  raw={`project.fields.${key}`}
-                  rule={PROJECT_FIELD_RULES[key]}
-                  placeholder={PROJECT_DEFAULTS[key] || 'none'}
-                  value={form.fields[key] ?? ''}
-                  onChange={(value) => set({ fields: { ...form.fields, [key]: value } })}
-                />
-              ))}
-            </Box>
-          </Section>
-        )}
-        {choices.statusValues.length > 0 && (
-          <Section level="sub" title="Status options" blurb="The Status options Avoozl reads. Blank uses the name shown.">
-            <Box {...grid(180)}>
-              {choices.statusValues.map((key) => (
-                <Text
-                  key={key}
-                  id={`avoozl-settings-status-${key}`}
-                  label={STATUS_LABELS[key] ?? key}
-                  raw={`project.statusValues.${key}`}
-                  rule={PROJECT_FIELD_RULES[key]}
-                  placeholder={PROJECT_DEFAULTS[key]}
-                  value={form.statusValues[key] ?? ''}
-                  onChange={(value) => set({ statusValues: { ...form.statusValues, [key]: value } })}
-                />
-              ))}
-            </Box>
-          </Section>
-        )}
-      </Section>
-    </div>
-  )
-}
-
 // What Set up GitHub takes from the form above it, so each setting has one
-// place: the mode, planning repository, repositories and Project.
+// place: the mode, planning repository and repositories.
 function sharedSetup(form: SettingsForm) {
   return {
     mode: form.mode,
@@ -1784,8 +1649,6 @@ function sharedSetup(form: SettingsForm) {
       .map((r) => r.name.trim())
       .filter(Boolean)
       .join(', '),
-    projectOwner: form.projectOwner,
-    projectNumber: form.projectNumber,
   }
 }
 

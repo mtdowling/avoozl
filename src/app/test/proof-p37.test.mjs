@@ -293,24 +293,10 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
     ["Inventory", "Codegen", "Runtime", "Protocol tests", "Review", "Cutover"],
   );
 
-  // (2) Lint and approve the plan and the epic's new revision; project.
+  // (2) Lint and approve the plan and the epic's new revision.
   assert.equal(lint.counts.error, 0, JSON.stringify(lint.diagnostics));
   await approve(ops, PLAN);
   await approve(ops, "sdk-target");
-  await ops.execute("github.project", { planId: PLAN });
-  const id = (key) => `${key}`,
-    issueOf = (taskId) =>
-      github.created.find((issue) =>
-        issue.body.includes(`"taskId":"${taskId}"`),
-      ),
-    labels = (issue) => (issue.labels || []).map((label) => label.name),
-    review = issueOf(id("team-review"));
-  assert.match(
-    review.body,
-    /Manual task: a person closes this issue or marks it done in Avoozl\. No agent works on it\./,
-  );
-  assert.equal(labels(review).includes("avoozl:ready"), false);
-
   // (3) Finish every task before the review: it waits in Needs you, tagged
   // Manual, and no session opens for it; cutover waits.
   store.mutate("finish the work before the review", (data) => {
@@ -332,9 +318,6 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
     manual: true,
   });
   assert.equal(node("cutover-callers").state, "waiting");
-  assert.equal(labels(issueOf("team-review")).includes("avoozl:ready"), false);
-  // Ready is the graph's state; no ready label moves while the Radar
-  // hand-over is paused (R103.4).
   const isReady = async (taskId) =>
     (await ops.execute("graph.view", {})).tasks.find(
       (task) => task.id === taskId,
@@ -439,18 +422,6 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
     }),
     /^Error: url must not hold a user name/,
   );
-  // Mark done closes the issue as the person's own login, so a login Who
-  // counts does not allow is refused before anything is written.
-  github.login = "bob";
-  await assert.rejects(
-    ops.execute("task.manual.complete", {
-      taskId: "team-review",
-      choice: "done",
-    }),
-    (error) => error.status === 403 && /Who counts/.test(error.message),
-  );
-  assert.deepEqual(github.stateWrites, []);
-  github.login = "alice";
   const done = await ops.execute("task.manual.complete", {
     taskId: "team-review",
     choice: "done",
@@ -458,23 +429,10 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
       { url: "https://docs.example.test/review-notes", label: "Review notes" },
     ],
   });
-  assert.equal(done.manualDone.login, "alice");
-  assert.deepEqual(github.stateWrites, [
-    [review.number, "closed", "completed"],
-  ]);
+  assert.equal(done.manualDone.choice, "done");
   await ops.execute("workspace.tick", { sessions: [] });
-  assert.equal(
-    store.read().tasks.find((t2) => t2.id === "team-review").githubVerdict
-      .state,
-    "verified",
-  );
   assert.ok(await isReady("cutover-callers"));
   assert.ok(await isReady("cutover-notes"));
-  // No ready label for a crew while the hand-over is paused (R103.4).
-  assert.equal(
-    labels(issueOf("cutover-callers")).includes("avoozl:ready"),
-    false,
-  );
 
   // (6) The first cutover task's brief carries the outcome link as data.
   const data = store.read(),
@@ -494,83 +452,26 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
     "only outcome entries ride along",
   );
 
-  // (7) Show on the issue, on the outcome link only; the tick writes it,
-  // and a rebuild brings it back.
-  const entries = (
-      await ops.execute("task.notes.list", { taskId: "team-review" })
-    ).entries,
-    outcomeLink = entries.find((e) => e.kind === "link" && e.outcome);
-  await ops.execute("task.notes.show", {
-    taskId: "team-review",
-    id: outcomeLink.id,
-    onIssue: true,
-  });
-  await ops.execute("workspace.tick", { sessions: [] });
-  const body = issueOf("team-review").body;
-  assert.match(body, /## Links\n/);
-  assert.doesNotMatch(body, /Links and notes/);
-  assert.match(
-    body,
-    /\[Review notes\]\(https:\/\/docs\.example\.test\/review-notes\)/,
-  );
-  assert.doesNotMatch(body, /Protocol suite/);
-  store.db.prepare("DELETE FROM task_notes").run();
-  await ops.execute("github.rebuild", {});
-  const rebuilt = (
-    await ops.execute("task.notes.list", { taskId: "team-review" })
-  ).entries;
-  assert.deepEqual(
-    rebuilt.map((e) => [e.id, e.kind, e.url, e.onIssue, e.outcome]),
-    [[outcomeLink.id, "link", outcomeLink.url, true, true]],
-    "unshown entries may be missing after a rebuild",
-  );
-
-  // (8) Reopen in Avoozl: dependents wait again. bob's close opens a
-  // decision and is not reopened; alice's close completes it.
+  // (7) Reopen in Avoozl: dependents wait again.
   await ops.execute("task.manual.reopen", { taskId: "team-review" });
-  assert.equal(issueOf("team-review").state, "open");
   assert.equal(await isReady("cutover-callers"), false);
-  github.act(review.number, "closed", "bob");
-  await ops.execute("workspace.tick", { sessions: [] });
-  let task = store.read().tasks.find((t2) => t2.id === "team-review");
-  assert.equal(task.githubVerdict.state, "held");
-  assert.match(String(task.decision), /team-review/);
-  assert.equal(issueOf("team-review").state, "closed", "not reopened");
-  assert.equal(await isReady("cutover-callers"), false);
-  github.act(review.number, "open", "alice");
-  github.act(review.number, "closed", "alice", "not_planned");
-  await ops.execute("workspace.tick", { sessions: [] });
-  task = store.read().tasks.find((t2) => t2.id === "team-review");
-  assert.equal(task.githubVerdict.state, "verified");
-  assert.equal(task.manualDone.choice, "skipped");
-  assert.equal(task.decision, null);
-  assert.ok(await isReady("cutover-callers"));
 
-  // (9) Refused in Avoozl is a no-go: it closes the issue as not planned as
-  // alice, and the tick keeps the refusal, so the cutover stays held.
-  // Reopening the issue on GitHub undoes it.
-  await ops.execute("task.manual.reopen", { taskId: "team-review" });
+  // (8) Refused in Avoozl is a no-go: the cutover stays held until a
+  // person reopens it.
   await ops.execute("workspace.tick", { sessions: [] });
-  github.stateWrites.length = 0;
   const refused = await ops.execute("task.manual.complete", {
     taskId: "team-review",
     choice: "refused",
   });
   assert.equal(refused.manualDone.choice, "refused");
-  assert.deepEqual(github.stateWrites, [
-    [review.number, "closed", "not_planned"],
-  ]);
   await ops.execute("workspace.tick", { sessions: [] });
-  task = store.read().tasks.find((t2) => t2.id === "team-review");
-  assert.equal(task.githubVerdict.state, "refused");
+  let task = store.read().tasks.find((t2) => t2.id === "team-review");
   assert.equal(task.manualDone.choice, "refused");
   assert.equal(task.status, "blocked");
   assert.equal(await isReady("cutover-callers"), false);
   assert.equal(await isReady("cutover-notes"), false);
-  github.act(review.number, "open", "alice");
-  await ops.execute("workspace.tick", { sessions: [] });
+  await ops.execute("task.manual.reopen", { taskId: "team-review" });
   task = store.read().tasks.find((t2) => t2.id === "team-review");
-  assert.equal(task.githubVerdict.state, "open");
   assert.equal(task.manualDone, undefined);
   assert.equal(task.status, "planned");
   assert.equal(await isReady("cutover-callers"), false);

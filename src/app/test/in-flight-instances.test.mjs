@@ -16,11 +16,8 @@ import {
   renameInstance,
   stripInstance,
 } from "../instance.mjs";
-import { Operations } from "../operations.mjs";
 import { claimsView, refreshClaims } from "../radar-claims.mjs";
-import { FakeGitHub } from "./fake-github.mjs";
 import { fixture } from "./fixtures.mjs";
-import { temporaryDirectory } from "./temporary.mjs";
 
 const MIRA = "inst-00000000a001",
   JUNO = "inst-00000000b002",
@@ -240,61 +237,4 @@ test("an unreadable variable list leaves the ID as the group name", async (t) =>
     };
   await refreshClaims(store, github, claimPolicy, { force: true });
   assert.ok(claimsView(store).groups.some((group) => group.name === MIRA));
-});
-
-test("projection stamps the projecting Avoozl's ID in the task marker", async (t) => {
-  const { store } = fixture(t),
-    github = new FakeGitHub(),
-    root = temporaryDirectory();
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    JSON.stringify({
-      version: 1,
-      namespace: "avz_testtesttesttest",
-      github: {
-        mode: "single-repo",
-        repositories: { "example/code": { baseBranch: "main" } },
-      },
-    }),
-  );
-  const ops = new Operations(store, {
-    github,
-    operator: "Operator",
-    workspaceRoot: root,
-  });
-  store.put("projects", {
-    id: "code",
-    root: "/tmp/code",
-    baseBranch: "main",
-    worktreeRoot: "/tmp/code-worktrees",
-    checks: [["npm", "test"]],
-  });
-  await ops.execute("github.configure", {
-    repository: "example/code",
-    projectId: "code",
-    allowedActors: ["maintainer"],
-  });
-  const plan = await ops.execute("plan.create", {
-    id: "stamp",
-    prompt: "Project stamp",
-    text:
-      "# stamp\n\n```task\n" +
-      JSON.stringify({
-        id: "stamp-leaf",
-        title: "Stamp leaf",
-        acceptance: ["passes"],
-        projectId: "code",
-      }) +
-      "\n```\n",
-  });
-  await ops.execute("plan.approve", {
-    id: plan.id,
-    expectedHash: plan.hash,
-    expectedRevision: store.read().revision,
-  });
-  await ops.execute("github.project", { planId: plan.id });
-  const issue = github.created.find((entry) =>
-    /avoozl-task/.test(entry.body ?? ""),
-  );
-  assert.equal(parseMarker(issue.body).instance, instanceIdentity(store).id);
 });

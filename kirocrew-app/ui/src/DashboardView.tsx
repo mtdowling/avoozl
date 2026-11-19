@@ -40,7 +40,7 @@ import { Glyph } from './ui/Glyph'
 
 export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'delivery' | 'landing' | 'flow'
 
-const KIND_LABEL: Record<string, string> = { ...CONFLICT_LABELS, delivery: 'Delivery', 'github-conflict': 'GitHub edit', manual: 'Manual' }
+const KIND_LABEL: Record<string, string> = { ...CONFLICT_LABELS, delivery: 'Delivery', manual: 'Manual' }
 
 // Needs you shows this many cards (two rows of three); the rest are one
 // click away in Needs you.

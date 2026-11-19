@@ -17,13 +17,7 @@ import {
   briefAllowed,
   shipMode,
 } from "./delivery.mjs";
-import {
-  isLinkedBranchLeaf,
-  LINKED_BRANCHES,
-  linkedBranch,
-} from "./github-plans-repo.mjs";
 import { sessionUrl } from "./notifications.mjs";
-import { conductorFeedback } from "./github-feedback.mjs";
 import { bindSession, listSessionBindings } from "./session-bindings.mjs";
 import { readDeliveryPolicy } from "./tick.mjs";
 import { scheduleHolds } from "./spec-scheduler.mjs";
@@ -46,7 +40,7 @@ const NEEDS_YOU_STATUSES = new Set(["blocked", "review"]);
 
 // What a conductor does with the buckets, returned with every answer.
 const RUNNER_RULE =
-  "Start every task in ready. Wait while running is not empty. Send a running item's feedback to its worker once per round. Ask the user about needsYou. Stop only when every leaf is done.";
+  "Start every task in ready. Wait while running is not empty. Ask the user about needsYou. Stop only when every leaf is done.";
 
 const effective = (policy) =>
   policy?.delivery || { ...DELIVERY_DEFAULTS, repositories: {} };
@@ -74,9 +68,7 @@ const phase = (binding, delivery) =>
         ? "working"
         : "recording";
 
-// plans_next / `avoozl next`: every local leaf, and with a plans-repo
-// `github` policy every plans-repo leaf, in exactly one bucket. A plans-repo
-// leaf is ready only once the tick has created its linked branch.
+// plans_next / `avoozl next`: every local leaf, in exactly one bucket.
 export function nextView(store, { policy, github = null }) {
   const data = store.read(),
     delivery = effective(policy),
@@ -88,9 +80,10 @@ export function nextView(store, { policy, github = null }) {
     ),
     schedule = scheduleHolds(store, { github }),
     startable = new Map(
-      readyLeaves(store, delivery, { github, skip: schedule.skip }).map(
-        (leaf) => [leaf.task.id, leaf],
-      ),
+      readyLeaves(store, delivery, { skip: schedule.skip }).map((leaf) => [
+        leaf.task.id,
+        leaf,
+      ]),
     ),
     byId = new Map(data.tasks.map((task) => [task.id, task])),
     complete = (status) => statusComplete(data, status);
@@ -133,7 +126,7 @@ export function nextView(store, { policy, github = null }) {
   const leaves = data.tasks.filter(
     (task) =>
       taskKind(task) === "leaf" &&
-      (taskRoute(task) === "local" || isLinkedBranchLeaf(task, github)) &&
+      taskRoute(task) === "local" &&
       !isArchivedTask(data, task) &&
       !task.source?.removed,
   );
@@ -157,27 +150,17 @@ export function nextView(store, { policy, github = null }) {
       liveAttempt(binding) &&
       binding.report?.kind === "question" &&
       binding.report.text;
-    const linked = isLinkedBranchLeaf(task, github),
-      branchError = linked && store.get(LINKED_BRANCHES, task.id)?.error;
     const reason = task.decision
       ? ["decision", String(task.decision)]
-      : branchError
-        ? ["linked-branch", branchError]
-        : record?.state === "decision"
-          ? [
-              "failed",
-              record.cause || record.attempts.at(-1)?.cause || "stopped",
-            ]
-          : question
-            ? ["question", question]
-            : isRefused(task)
-              ? ["blocked", `Refused by a person: ${title(task)}`]
-              : NEEDS_YOU_STATUSES.has(task.status) || task.needsReview
-                ? [
-                    task.status === "blocked" ? "blocked" : "review",
-                    task.status,
-                  ]
-                : null;
+      : record?.state === "decision"
+        ? ["failed", record.cause || record.attempts.at(-1)?.cause || "stopped"]
+        : question
+          ? ["question", question]
+          : isRefused(task)
+            ? ["blocked", `Refused by a person: ${title(task)}`]
+            : NEEDS_YOU_STATUSES.has(task.status) || task.needsReview
+              ? [task.status === "blocked" ? "blocked" : "review", task.status]
+              : null;
     if (reason) {
       result.needsYou.push({
         ...item,
@@ -198,14 +181,10 @@ export function nextView(store, { policy, github = null }) {
       continue;
     }
     if (claimed.has(task.id)) {
-      // Pull request feedback for the conductor to relay (§4.13, R54.7).
-      const feedback =
-        binding && conductorFeedback(store, task.id, binding.slot);
       result.running.push({
         ...item,
         phase: phase(binding, record),
         ...session,
-        ...(feedback ? { feedback } : {}),
       });
       continue;
     }
@@ -254,9 +233,7 @@ export function nextView(store, { policy, github = null }) {
                   ? "plan archived"
                   : !taskRepository(task)
                     ? "no repository"
-                    : linked && !linkedBranch(store, task.id)
-                      ? "linked branch"
-                      : "capacity",
+                    : "capacity",
           }),
     });
   }
@@ -305,7 +282,6 @@ export async function claimTask(
         guard: (taskId) => {
           if (
             !readyLeaves(store, policy.delivery, {
-              github,
               skip: scheduleHolds(store, { github }).skip,
             }).some((leaf) => leaf.task.id === taskId)
           )
@@ -316,16 +292,6 @@ export async function claimTask(
         },
       },
     );
-  // A linked-branch worker fetches the branch the tick created; a local
-  // worktree on the same branch name would only get in its way.
-  const branch = linkedBranch(store, binding.taskId);
-  if (branch && isLinkedBranchLeaf(task, github))
-    return {
-      binding,
-      changed,
-      link: sessionUrl(binding.slot),
-      linkedBranch: { name: branch.name, baseBranch: branch.baseBranch },
-    };
   let worktree = null,
     worktreeError = null;
   try {

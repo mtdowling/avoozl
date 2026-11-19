@@ -51,9 +51,9 @@ test("2 GiB free is enough; less throws before anything is made, with one Needs 
   const [row] = diskNeedsYou(store);
   assert.equal(row.reason, "disk");
   assert.match(row.title, /Low disk space/);
-  assert.match(
+  assert.ok(
+    row.detail.includes(`${path.dirname(dir)} has 0.5 GiB free`),
     row.detail,
-    new RegExp(`${path.dirname(dir)} has 0\\.5 GiB free`),
   );
   assert.match(row.detail, /Task a's worktree waits/);
   // The row clears once there is room again.

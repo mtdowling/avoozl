@@ -9,7 +9,6 @@ import test from 'node:test'
 import {
   ONBOARD_READS,
   ONBOARD_WRITES,
-  issueSummary,
   modeProblem,
   onboardClient,
   onboardForm,
@@ -51,8 +50,8 @@ test('the steps follow the mode and the repository', () => {
   assert.equal(local.mode, 'local')
   assert.deepEqual(onboardSteps(local, folder({ github: null })), ['folder', 'mode', 'setup', 'import', 'finish'])
   const single = { ...onboardForm(folder(), settings()), mode: 'single-repo' }
-  assert.deepEqual(onboardSteps(single, folder()), ['folder', 'mode', 'check', 'setup', 'import', 'issues', 'finish'])
-  assert.deepEqual(onboardSteps(single, folder({ visibility: 'public' })), ['folder', 'mode', 'check', 'setup', 'import', 'scan', 'issues', 'finish'])
+  assert.deepEqual(onboardSteps(single, folder()), ['folder', 'mode', 'check', 'setup', 'import', 'finish'])
+  assert.deepEqual(onboardSteps(single, folder({ visibility: 'public' })), ['folder', 'mode', 'check', 'setup', 'import', 'scan', 'finish'])
   // A public code repository in plans-repo mode: its issues live elsewhere.
   const code = { ...single, mode: 'plans-repo', isPlanning: false, planningRepository: 'acme/plans' }
   assert.ok(!onboardSteps(code, folder({ visibility: 'public' })).includes('scan'))
@@ -117,15 +116,6 @@ test('the requests name the right repositories and checkout', () => {
   })
   assert.deepEqual(registerInput({ ...form, mode: 'local' }, folder({ specs: ['a'] }), false), { id: 'app', localCheckout: '/work/app', baseBranch: 'main', planning: true })
   assert.equal(registerInput({ ...form, mode: 'local' }, folder({ specs: ['a'] }), true).planning, false)
-})
-
-test('scan findings and issue counts read plainly', () => {
-  assert.deepEqual(scanFindings({ items: [{ name: 's', missing: false, findings: [{ file: 'design.md', line: 3, set: 'builtin:publish', rule: 'macos-home', message: 'm' }] }] }), [
-    { spec: 's', file: 'design.md', line: 3, set: 'builtin:publish', rule: 'macos-home', message: 'm' },
-  ])
-  const sum = issueSummary({ planId: 'p', simulated: true, writes: [{ kind: 'issue.create' }, { kind: 'issue.create' }, { kind: 'label.add' }] })
-  assert.equal(sum.create.length, 2)
-  assert.equal(sum.other, 1)
 })
 
 test('the client calls only the flow operations, and none approves, starts or pushes', async () => {

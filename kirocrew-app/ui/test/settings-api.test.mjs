@@ -11,21 +11,11 @@ const POLICY = {
   writesPerHour: 300,
   mode: 'plans-repo',
   planningRepository: 'example/plans',
-  defaultAuthority: 'github',
   epicIssueType: 'Epic',
-  subIssues: { maxPerParent: 5 },
-  issues: { includeDone: true },
-  project: {
-    owner: 'example',
-    number: 7,
-    fields: { status: 'Status', release: 'Release', wave: 'Wave' },
-    statusValues: { todo: 'Todo', inProgress: 'In progress', done: 'Done', deferred: 'Deferred' },
-  },
   repositories: {
     'example/app': {
       checkout: '../app',
       folder: 'Avoozl/app',
-      dependencyText: true,
       baseBranch: 'main',
       allowedActors: ['maintainer', 'second'],
       minimumPermission: 'maintain',
@@ -34,7 +24,7 @@ const POLICY = {
       pullRequestReviews: { approvals: 2 },
       managedLabels: { managed: 'agent:managed', ready: 'agent:ready' },
       rules: [
-        { id: 'build', action: 'deliver', match: 'label:agent:build -label:agent:paused assignee:maintainer', autoPublishChildren: true },
+        { id: 'build', action: 'quarantine', match: 'label:agent:build -label:agent:paused assignee:maintainer' },
         { id: 'pause', action: 'pause', match: 'label:agent:paused' },
       ],
     },
@@ -47,7 +37,7 @@ test('a policy round-trips through the form unchanged', () => {
 
 test('the form keeps settings it does not show', () => {
   const form = toForm(POLICY)
-  assert.deepEqual(form.repositories[0].rest, { checkout: '../app', folder: 'Avoozl/app', dependencyText: true })
+  assert.deepEqual(form.repositories[0].rest, { checkout: '../app', folder: 'Avoozl/app' })
   assert.equal(form.repositories[0].allowedActors, 'maintainer, second')
 })
 
@@ -56,14 +46,12 @@ test('cleared fields become null at the top and vanish below it', () => {
   form.mode = ''
   form.planningRepository = '  '
   form.epicIssueType = ''
-  form.fields = { status: 'Status', release: '' }
   form.repositories[0].minimumPermission = ''
   form.repositories[0].rules[0].author = ''
   const policy = toPolicy(form)
   assert.equal(policy.mode, null)
   assert.equal(policy.planningRepository, null)
   assert.equal(policy.epicIssueType, null)
-  assert.deepEqual(policy.project.fields, { status: 'Status' })
   const repository = policy.repositories['example/app']
   assert.equal('minimumPermission' in repository, false)
   assert.equal('author' in repository.rules[0], false)
@@ -72,15 +60,7 @@ test('cleared fields become null at the top and vanish below it', () => {
 test('a legacy rule loads as one match line and saves as match', () => {
   const legacy = structuredClone(POLICY)
   legacy.repositories['example/app'].rules = [
-    {
-      id: 'build',
-      action: 'deliver',
-      labelsAll: ['agent:build', 'needs triage'],
-      labelsAny: ['a,b', 'c'],
-      labelsNone: ['agent:paused'],
-      assignee: 'maintainer',
-      autoPublishChildren: true,
-    },
+    { id: 'build', action: 'pause', labelsAll: ['agent:build', 'needs triage'], labelsAny: ['a,b', 'c'], labelsNone: ['agent:paused'], assignee: 'maintainer' },
     { id: 'pause', action: 'pause', labelsAny: ['agent:paused'] },
   ]
   const form = toForm(legacy)
@@ -165,14 +145,10 @@ test('an empty form clears every policy key', () => {
   assert.deepEqual(toPolicy(toForm({})), {
     mode: null,
     planningRepository: null,
-    defaultAuthority: null,
     epicIssueType: null,
     cacheSeconds: null,
     writesPerMinute: null,
     writesPerHour: null,
-    subIssues: null,
-    issues: null,
-    project: null,
     repositories: null,
   })
 })
@@ -181,18 +157,15 @@ test('lists split on commas and lines; numbers stay as typed when not whole', ()
   assert.deepEqual(splitList(' a, b\nc ,, '), ['a', 'b', 'c'])
   assert.equal(splitList(' , '), undefined)
   const form = toForm({})
-  form.projectOwner = 'example'
-  form.projectNumber = 'seven'
   const repository = emptyRepository('example/new')
   repository.releaseCapacity = '3'
   repository.rules = [{ ...emptyRule(), id: 'go', match: ' label:x ' }]
   form.repositories = [repository]
   const policy = toPolicy(form)
-  assert.deepEqual(policy.project, { owner: 'example', number: 'seven' })
   assert.deepEqual(policy.repositories['example/new'], {
     baseBranch: 'main',
     release: { capacity: 3 },
-    rules: [{ id: 'go', action: 'deliver', match: 'label:x' }],
+    rules: [{ id: 'go', action: 'respond', match: 'label:x' }],
   })
 })
 
@@ -226,25 +199,15 @@ test('the setup form starts from saved settings and builds the wizard input', ()
     mode: 'plans-repo',
     planningRepository: 'example/plans',
     repositories: ['example/app'],
-    project: { owner: 'example', number: 7 },
-    iteration: false,
-    tableByWave: false,
     epic: true,
   })
   const fresh = setupForm({})
   fresh.mode = 'single-repo'
   fresh.planningRepository = 'example/ignored'
   fresh.repositories = 'a/b'
-  fresh.projectOwner = 'a'
-  fresh.projectTitle = 'Board'
-  fresh.releases = 'one, two'
   assert.deepEqual(setupInput(fresh), {
     mode: 'single-repo',
     repositories: ['a/b'],
-    project: { owner: 'a', title: 'Board' },
-    releases: ['one', 'two'],
-    iteration: false,
-    tableByWave: false,
     epic: true,
   })
 })

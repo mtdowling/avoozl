@@ -291,10 +291,9 @@ test('all four lanes share one row above phone width; a phone stacks them', () =
   assert.ok(laneWidth(984, 4) >= LANE_LABEL_WIDTH)
 })
 
-test('the lane rule is the one the Avoozl state Project field uses', async () => {
+test('the lane rule is the shared one', async () => {
   const shared = await import('../../../src/delivery-lanes.mjs')
   assert.equal(laneOf, shared.laneOf)
-  assert.equal(shared.avoozlState({ state: 'deferred' }, null), 'deferred')
   assert.equal(shared.laneOf({ state: 'deferred' }, null), 'waiting')
 })
 test('the state icons are labelled, theme-colored, and still under reduced motion', () => {

@@ -12,7 +12,6 @@ import {
   publicBranchStep,
 } from "../mirror-forward-batch.mjs";
 import { mirrorForwardStep } from "../mirror-forward.mjs";
-import { publicMergeReached } from "../mirror-forward-poll.mjs";
 import { withFacts } from "./spec-fixture.mjs";
 import { forwardRecord } from "../mirror-forward-run.mjs";
 import { mirrorNeedsYou, mirrorSyncStep } from "../mirror-sync.mjs";
@@ -316,33 +315,6 @@ test("a batch epic can aim at a public branch, and every protection still runs",
   assert.equal(blocked.blocked, true);
   assert.match(blocked.reason, /path-kiro/);
   assert.equal(blockedGithub.created.length, 0);
-});
-
-test("a batch epic's task counts as done on its mirror merge; others wait for the public merge", async (t) => {
-  const made = epic(t),
-    task = made.store.read().tasks.find((x) => x.id === "t1"),
-    repo = { mirror: policy().repositories[SOURCE].mirror };
-  assert.equal(publicMergeReached(made.store, task, repo), true);
-  // A task under an epic that forwards each change waits for its public merge.
-  made.store.put("approvals", {
-    id: "approval-each",
-    planId: "p2",
-    hash: "h2",
-    files: { "tasks.md": "---\nforwardTarget: each\n---\n" },
-  });
-  made.store.put("plans", {
-    id: "p2",
-    spec: "each",
-    approvalId: "approval-each",
-  });
-  assert.equal(
-    publicMergeReached(made.store, { id: "t9", planId: "p2" }, repo),
-    false,
-  );
-  assert.equal(
-    publicMergeReached(made.store, { id: "other", planId: "none" }, repo),
-    false,
-  );
 });
 
 test("a public branch with a merged change is a Needs you row naming its head; nothing merges it", async (t) => {

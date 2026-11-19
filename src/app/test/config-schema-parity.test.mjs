@@ -30,12 +30,10 @@ import { FLOW_PATHS } from "../flow.mjs";
 import { BEHAVIOR_NAMES } from "../github-label-behaviors.mjs";
 import {
   CREW_LABEL_KEYS,
-  FIELD_KEYS,
   GITHUB_BLOCK_KEYS,
   MANAGED_LABEL_KEYS,
   POLICY_KEYS,
   RADAR_KEYS,
-  STATUS_VALUE_KEYS,
 } from "../github-policy.mjs";
 import { SOURCE_KEYS } from "../intake.mjs";
 import { SERVE_KEYS } from "../serve-config.mjs";
@@ -118,11 +116,6 @@ const PAIRS = [
   ],
   ["#/$defs/planningRepository", PLANNING_REPOSITORY_KEYS],
   ["#/$defs/github", POLICY_KEYS],
-  ["#/$defs/github/properties/subIssues", GITHUB_BLOCK_KEYS.subIssues],
-  ["#/$defs/github/properties/issues", GITHUB_BLOCK_KEYS.issues],
-  ["#/$defs/githubProject", GITHUB_BLOCK_KEYS.project],
-  ["#/$defs/githubProject/properties/fields", FIELD_KEYS],
-  ["#/$defs/githubProject/properties/statusValues", STATUS_VALUE_KEYS],
   ["#/$defs/githubRule", GITHUB_BLOCK_KEYS.rule],
   ["#/$defs/githubLabelBehaviors", BEHAVIOR_NAMES],
   ["#/$defs/githubMirror", MIRROR_KEYS],
@@ -132,7 +125,6 @@ const PAIRS = [
   [`${REPOSITORY}/crewLabels`, CREW_LABEL_KEYS],
   [`${REPOSITORY}/approval`, GITHUB_BLOCK_KEYS.approval],
   [`${REPOSITORY}/pullRequestReviews`, GITHUB_BLOCK_KEYS.pullRequestReviews],
-  [`${REPOSITORY}/commentSteering`, GITHUB_BLOCK_KEYS.commentSteering],
   [`${REPOSITORY}/discussions`, GITHUB_BLOCK_KEYS.discussions],
   [`${REPOSITORY}/untriaged`, GITHUB_BLOCK_KEYS.untriaged],
   [`${REPOSITORY}/conflicts`, GITHUB_BLOCK_KEYS.conflicts],

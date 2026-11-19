@@ -113,7 +113,6 @@ function setup(t, rules) {
       contentRules: { sets: [{ id: "names" }] },
       github: {
         mode: "single-repo",
-        project: { owner: "o", number: 1 },
         repositories: { [REPO]: { baseBranch: "main" } },
       },
     }),

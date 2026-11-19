@@ -20,8 +20,6 @@ export function askLine(item: ConflictItem): string {
       return item.integrate ? 'Press Integrate to land the verified commit.' : 'Merge the pull request on GitHub. Avoozl never merges it.'
     case 'branch-landing':
       return 'Approve this exact head, then merge the branch on GitHub yourself.'
-    case 'github-conflict':
-      return 'Choose whose value stays: Avoozl’s or the edit made on GitHub.'
     case 'untick':
       return 'Reopen the task, or keep it done.'
     case 'stale-session':
@@ -109,10 +107,9 @@ export function reviewEvidence(title: string, context: ItemContext | undefined):
 }
 
 // Which evidence blocks an item has. An item with none says so on the page.
-export type Evidence = 'values' | 'investigation' | 'review' | 'links' | 'checks' | 'content' | 'escalation' | 'summary' | 'text'
+export type Evidence = 'investigation' | 'review' | 'links' | 'checks' | 'content' | 'escalation' | 'summary' | 'text'
 export function evidenceOf(item: ConflictItem): Evidence[] {
   const out: Evidence[] = []
-  if (item.expected !== undefined || item.actual !== undefined) out.push('values')
   if (item.findings || item.reply) out.push('investigation')
   if (item.kind === 'review' && item.tasks?.length) out.push('review')
   if (item.kind === 'plan-review' && item.context?.review) out.push('summary')

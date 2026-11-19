@@ -45,10 +45,9 @@ const tools = {
     },
   },
   plans_maintain: {
-    summary: "Workspace upkeep: the tick, rebuilds, examples.",
+    summary: "Workspace upkeep: the tick, examples.",
     actions: {
       tick: ["workspace.tick", "run one bounded tick"],
-      rebuild: ["workspace.rebuild", "rebuild GitHub tasks from their issues"],
       seed_example: [
         "workspace.seed",
         "load one example pack, once, only when asked",
@@ -116,10 +115,6 @@ const tools = {
       delegates: [
         "approval.delegates",
         "who may approve on a person's behalf, and every grant",
-      ],
-      project_preview: [
-        "github.project.preview",
-        "GitHub writes projecting would make",
       ],
       delete_preview: ["plan.delete.preview", "what deleting would remove"],
       create: ["plan.create", "store a spec folder as a draft: {spec}"],
@@ -296,7 +291,7 @@ const tools = {
   },
   plans_github: {
     summary:
-      "GitHub reads, sync, breakdowns and the Untriaged list. Setup writes, settings and handing items to Issue Radar are a person's, in the app.",
+      "GitHub reads, sync and the Untriaged list. Setup writes, settings and handing items to Issue Radar are a person's, in the app.",
     actions: {
       untriaged: ["untriaged.view", "items no rule claims"],
       crews: ["untriaged.crews", "Issue Radar crews for a repository"],
@@ -360,19 +355,8 @@ const tools = {
         ({ confirm, ...input }) => input,
       ],
       sync: ["github.sync", "sync issues now"],
-      project: ["github.project", "project an approved plan to issues"],
       publish: ["planning.publish", "publish an approved plan"],
       reconcile: ["planning.reconcile", "reconcile planning pull requests"],
-      rebuild: ["github.rebuild", "rebuild GitHub tasks from GitHub"],
-      classify: ["github.breakdown.classify", "bounded or broad"],
-      draft_children: [
-        "github.breakdown.draft",
-        "name a broad issue's child spec",
-      ],
-      advance: [
-        "github.breakdown.advance",
-        "preview, detect approval, publish children",
-      ],
     },
   },
   plans_repos: {

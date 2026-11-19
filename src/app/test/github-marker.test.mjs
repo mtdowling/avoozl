@@ -3,16 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import {
-  assertPlanningLink,
-  assertPlanningProjectItem,
   generateNamespace,
   parseMarker,
   planningIdentity,
   renderMarker,
   requireNamespace,
   validateMarker,
-  withOrder,
-  withoutOrder,
 } from "../github-marker.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -109,30 +105,6 @@ test("markers refuse paths, credentials, planning repository names, and free fie
   );
 });
 
-test("an order records the close and reopening removes it", () => {
-  const ordered = withOrder(marker(), {
-    actor: "mtdowling",
-    reason: "NOT_PLANNED",
-    closedAt: "2026-11-12T06:00:00Z",
-  });
-  assert.deepEqual(ordered.order, {
-    actor: "mtdowling",
-    reason: "NOT_PLANNED",
-    closedAt: "2026-11-12T06:00:00Z",
-  });
-  assert.deepEqual(parseMarker(renderMarker(ordered)), ordered);
-  assert.equal("order" in withoutOrder(ordered), false);
-  assert.throws(
-    () =>
-      withOrder(marker(), {
-        actor: "mtdowling",
-        reason: "DUPLICATE",
-        closedAt: "2026-11-12T06:00:00Z",
-      }),
-    /order.reason/,
-  );
-});
-
 test("the planning identity comes from .avoozl.json", () => {
   const root = temporaryDirectory();
   assert.deepEqual(planningIdentity(root), {
@@ -140,8 +112,6 @@ test("the planning identity comes from .avoozl.json", () => {
     mode: null,
     planningRepository: null,
     epicIssueType: null,
-    maxPerParent: 100,
-    includeDone: false,
     repositories: {},
   });
   assert.throws(
@@ -161,8 +131,6 @@ test("the planning identity comes from .avoozl.json", () => {
     mode: "plans-repo",
     planningRepository: "example/plans",
     epicIssueType: null,
-    maxPerParent: 100,
-    includeDone: false,
     repositories: {},
   });
   fs.writeFileSync(
@@ -170,36 +138,4 @@ test("the planning identity comes from .avoozl.json", () => {
     JSON.stringify({ version: 1, namespace: "avoozl123" }),
   );
   assert.throws(() => planningIdentity(root), /namespace must be avz_/);
-});
-
-test("plans-repo mode links and adds only planning issues", () => {
-  const identity = {
-    mode: "plans-repo",
-    planningRepository: "example/plans",
-  };
-  assert.doesNotThrow(() =>
-    assertPlanningLink(identity, "example/plans", "Example/Plans"),
-  );
-  assert.throws(
-    () => assertPlanningLink(identity, "example/plans", "example/app"),
-    /example\/app is not the planning repository/,
-  );
-  assert.doesNotThrow(() =>
-    assertPlanningProjectItem(identity, { repository: "example/plans" }),
-  );
-  assert.throws(
-    () =>
-      assertPlanningProjectItem(identity, {
-        repository: "example/plans",
-        pullRequest: true,
-      }),
-    /no pull request/,
-  );
-  assert.throws(
-    () => assertPlanningProjectItem(identity, { repository: "example/app" }),
-    /not the planning repository/,
-  );
-  assert.doesNotThrow(() =>
-    assertPlanningLink({ mode: "single-repo" }, "example/a", "other/b"),
-  );
 });

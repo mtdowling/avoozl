@@ -42,7 +42,6 @@ const PACK_SETTINGS = Object.freeze({
     // Accepted so an old pack still imports; it writes nothing (R6.3).
     "concurrency",
   ],
-  project: ["fields", "statusValues"],
   epicIssueType: null,
   contentRules: ["sets"],
   delivery: ["reviewers", "agent", "model", "runner", "concurrency"],
@@ -134,15 +133,6 @@ export function validatePack(value) {
       "settings.repositories",
     );
   if (settings.crews) validateCrews(settings.crews);
-  if (settings.project)
-    checked(
-      () =>
-        normalizeGitHubPolicy({
-          project: { owner: "pack", number: 1, ...settings.project },
-        }),
-      "github.project",
-      "settings.project",
-    );
   if (settings.epicIssueType !== undefined)
     checked(
       () => normalizeGitHubPolicy({ epicIssueType: settings.epicIssueType }),
@@ -194,7 +184,6 @@ export function readPack(location, file = PACK_FILE) {
 // with `skip` cannot apply here and says why.
 function units(settings, current, repositories) {
   const list = [];
-  const github = record(current.github) ? current.github : {};
   for (const key of Object.keys(settings.repositories ?? {}))
     if (key === "concurrency") continue;
     else if (!repositories.length)
@@ -221,16 +210,6 @@ function units(settings, current, repositories) {
             path: ["github", "repositories", repository, ...crew.path],
             value: crew.value,
           });
-  for (const group of ["fields", "statusValues"])
-    for (const [key, value] of Object.entries(settings.project?.[group] ?? {}))
-      list.push(
-        record(github.project)
-          ? { path: ["github", "project", group, key], value }
-          : {
-              path: ["github", "project", group, key],
-              skip: "No GitHub Project is set. Set one in Settings > GitHub, then preview again.",
-            },
-      );
   if (settings.epicIssueType !== undefined)
     list.push({
       path: ["github", "epicIssueType"],

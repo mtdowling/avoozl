@@ -14,8 +14,6 @@ import {
 } from "./delivery.mjs";
 import { linePausedTaskIds } from "./flow.mjs";
 import { git, worktreeChanges } from "./git.mjs";
-import { isLinkedBranchLeaf, linkedBranch } from "./github-plans-repo.mjs";
-import { pausedTaskIds } from "./github-project.mjs";
 import { sessionUrl } from "./notifications.mjs";
 import { bindSession, listSessionBindings } from "./session-bindings.mjs";
 import { scheduleHolds } from "./spec-scheduler.mjs";
@@ -29,11 +27,9 @@ function refusal(store, task, github) {
     return why("it has a session running or a delivery under way");
   if (linePausedTaskIds(store, data).has(task.id))
     return why("Stop the line holds it");
-  if (pausedTaskIds(store).has(task.id))
-    return why("it is deferred on the project board");
   const schedule = scheduleHolds(store, { github });
   if (schedule.held.has(task.id)) return why(schedule.held.get(task.id));
-  if (!readyCandidates(store, { github }).some((t) => t.id === task.id))
+  if (!readyCandidates(store).some((t) => t.id === task.id))
     return why("it is blocked, or not a leaf this machine can run");
   return null;
 }
@@ -64,16 +60,6 @@ export async function manualClaim(store, input = {}, { github = null } = {}) {
       },
     },
   );
-  // A linked-branch worker fetches the branch the tick created; a local
-  // worktree on the same branch name would only get in its way.
-  const branch = linkedBranch(store, binding.taskId);
-  if (branch && isLinkedBranchLeaf(task, github))
-    return {
-      binding,
-      changed,
-      link: sessionUrl(binding.slot),
-      linkedBranch: { name: branch.name, baseBranch: branch.baseBranch },
-    };
   let worktree = null,
     worktreeError = null;
   try {

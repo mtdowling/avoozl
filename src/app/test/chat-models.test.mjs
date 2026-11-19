@@ -212,17 +212,16 @@ test("a Models save moves the older delivery and flow keys into roles; Delivery 
         agent: "alt-worker",
         model: "w1",
         investigate: { agent: "alt-falsifier" },
-        prFeedback: false,
       },
       flow: { retro: { model: "r1" } },
     }),
   );
   const settings = new RepositorySettings(store, { workspaceRoot: root });
   const delivered = settings.updateDeliverySettings({
-    delivery: { feedbackRounds: 4 },
+    delivery: { ship: "manual" },
     expectedHash: settings.readDeliverySettings().hash,
   });
-  assert.equal(delivered.delivery.feedbackRounds, 4);
+  assert.equal(delivered.delivery.ship, "manual");
   const kept = JSON.parse(fs.readFileSync(filename, "utf8")).delivery;
   assert.equal(kept.agent, "alt-worker");
   assert.equal(kept.model, "w1");
@@ -249,6 +248,6 @@ test("a Models save moves the older delivery and flow keys into roles; Delivery 
   const file = JSON.parse(fs.readFileSync(filename, "utf8"));
   assert.deepEqual(file.roles, before.roles);
   for (const key of ["flow"]) assert.equal(file[key], undefined, key);
-  assert.deepEqual(file.delivery, { feedbackRounds: 4 });
+  assert.deepEqual(file.delivery, { ship: "manual" });
   assert.equal(deliveryPolicy(file).agent, "alt-worker");
 });

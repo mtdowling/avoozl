@@ -10,15 +10,20 @@ the repository's **Who counts** check, `allowedActors` or a
 Rules live under `github.repositories.<owner/repo>.rules` in the repository
 root `.avoozl.json`. Each rule maps a `match` line to one fixed action:
 
-| Action       | What the tick does with a matching issue                    |
-| ------------ | ----------------------------------------------------------- |
-| `respond`    | Opens a responder session that answers on the issue         |
-| `plan`       | Records the issue for planning; nothing runs                |
-| `deliver`    | Classifies the issue, then delivers it as a leaf or a graph |
-| `execute`    | Delivers the issue, as `deliver` does                       |
-| `pause`      | Stops new dispatch for the issue                            |
-| `resume`     | Lifts a pause                                               |
-| `quarantine` | Removes the ready label and holds the issue for a person    |
+| Action       | What the tick does with a matching item                  |
+| ------------ | -------------------------------------------------------- |
+| `respond`    | Opens a responder session that answers on the issue      |
+| `plan`       | Makes a planning task from an intake source's item       |
+| `deliver`    | Makes a task from an intake source's item                |
+| `execute`    | Makes a task, as `deliver` does                          |
+| `pause`      | Holds the item                                           |
+| `resume`     | Lifts a pause                                            |
+| `quarantine` | Holds the item for a person                              |
+
+A GitHub issue never becomes a task by rule: `plan`, `deliver` and
+`execute` need a `source:` term. A person starts a GitHub issue with
+**Deliver this** or **Plan this** in Triage; the task lands like any other,
+and the issue is only linked.
 
 A rule's `match` is one line of GitHub's own issue-search syntax. Avoozl
 reads only these qualifiers:
@@ -43,8 +48,7 @@ issues it matches now.
 
 Who may trigger a rule is not part of `match`: search cannot say whose label
 counts, so `allowedActors` and `minimumPermission` stay separate, under
-**Who counts** in Settings. The same check applies to a board drag and to a
-close. A rule's `author` key narrows it to issues one login opened.
+**Who counts** in Settings. A rule's `author` key narrows it to issues one login opened.
 
 Label names are yours to choose; no name needs a particular prefix. Labels
 Avoozl writes are set in `managedLabels` and cannot be used as triggers, and
@@ -57,62 +61,6 @@ of those keys is refused as ambiguous. Settings saves `match`.
 
 Edit these blocks in the Avoozl page under **Settings**, or in the file
 directly. Settings validates the file the same way the tick does.
-
-## Deliver issues you label and assign to yourself
-
-One repository, issues delivered as pull requests in that repository.
-
-```json
-{
-  "github": {
-    "mode": "single-repo",
-    "repositories": {
-      "example-org/app": {
-        "baseBranch": "main",
-        "allowedActors": ["your-login"],
-        "managedLabels": { "ready": "agent:ready" },
-        "rules": [
-          {
-            "id": "deliver",
-            "action": "deliver",
-            "match": "label:agent:go assignee:your-login"
-          }
-        ]
-      }
-    }
-  }
-}
-```
-
-## Let maintainers trigger work, with a hold label
-
-Anyone with `maintain` permission can start delivery with two labels. A
-`hold` label stops a match, and a `pause` rule stops dispatch on an issue
-already in flight.
-
-```json
-{
-  "github": {
-    "mode": "single-repo",
-    "repositories": {
-      "example-org/app": {
-        "baseBranch": "main",
-        "minimumPermission": "maintain",
-        "requiredChecks": ["test"],
-        "managedLabels": { "ready": "agent:ready", "stale": "agent:stale" },
-        "rules": [
-          {
-            "id": "build",
-            "action": "deliver",
-            "match": "label:agent label:area:core -label:hold"
-          },
-          { "id": "hold", "action": "pause", "match": "label:hold" }
-        ]
-      }
-    }
-  }
-}
-```
 
 ## Answer questions without writing code
 
@@ -139,8 +87,8 @@ responder works.
 
 ## Specs in one repository, code in others
 
-Plans-repo mode keeps issues and Kiro specs in a planning repository and
-opens pull requests in the code repositories. This example triggers nothing:
+Plans-repo mode keeps spec issues and Kiro specs in a planning repository
+and lands code in the code repositories. This example triggers nothing:
 work comes only from approved specs.
 
 ```json
@@ -148,7 +96,6 @@ work comes only from approved specs.
   "github": {
     "mode": "plans-repo",
     "planningRepository": "example-org/plans",
-    "project": { "owner": "example-org", "number": 1 },
     "repositories": {
       "example-org/app": {
         "baseBranch": "main",
@@ -163,7 +110,7 @@ work comes only from approved specs.
 ## Ban private terms from everything Avoozl writes
 
 Content rules keep private names, hostnames, repositories and paths out of
-spec files, issues, pull request text, comments, Project fields, session
+spec files, issues, pull request text, comments, session
 briefs and worker diffs. `.avoozl.json` names the rule sets; the rules live
 outside Git, so the list itself never lands in a repository.
 
@@ -297,10 +244,6 @@ yours by label, not by login:
 
 - Avoozl hands no task to a crew: its own worker codes every task, and
   every issue Avoozl creates carries `crew:avoozl`, so crews skip it.
-- A close on an issue that carries `crew: in progress` counts as done only
-  when a closing pull request merged. Otherwise Avoozl holds the dependents
-  and opens a decision, even when the closer is allowed. Any other allowed
-  close is still an order.
 - Adding or removing a crew label never makes a rule true, and a rule may
   not use a crew label as a trigger.
 - The escalation label shows under **Needs you** with a link to the
@@ -388,15 +331,7 @@ shows **Refused** and sits as Blocked in Needs you, its dependents stay
 held, and Flow does not count it as finished. **Reopen** undoes any of
 the three. Only a person marks it or reopens it, in the page or with
 `avoozl task done TASK [--skipped|--refused]` and `avoozl task reopen
-TASK`; MCP refuses both. In a GitHub mode its issue says a person closes
-it, never gets the ready label, and Mark done closes it as your `gh`
-login, which must pass **Who counts**. Refused closes it as not planned,
-and the tick keeps the refusal. A close on GitHub by someone Who counts
-allows is an order and completes it (completed is Done, not planned is
-Skipped), so a hand close as not planned still releases its dependents:
-mark a refusal in Avoozl instead. Reopening the issue undoes a refusal.
-Anyone else's close holds its dependents and opens a decision; Avoozl
-does not reopen the issue.
+TASK`; MCP refuses both.
 Flow counts its time in Needs you as waiting on a person and leaves it out
 of first-pass rate.
 
@@ -410,10 +345,8 @@ one to the task it is bound to, through the `plans_task` tool's
 `add_note`; only a person edits, removes or ticks **Show on the issue**. A
 removed link stays in the activity log. A worker's brief carries the
 newest 20 (at most 8,000 characters) as data, not instructions, and a
-dependent's brief carries each blocker's outcome links. Nothing goes to
-GitHub unless you tick **Show on the issue** on it; then it is listed in
-the issue's managed section under "Links", and a rebuild from GitHub
-brings it back. From the command line: `avoozl task links TASK
+dependent's brief carries each blocker's outcome links. Links stay in
+Avoozl. From the command line: `avoozl task links TASK
 [add|edit|remove|show]`.
 
 This is tested with a fake GitHub (proof P37); it has not run live yet.
@@ -495,8 +428,6 @@ as early.
       "example-org/app": {
         "baseBranch": "main",
         "allowedActors": ["your-login"],
-        "stackedPullRequests": true,
-        "commentSteering": { "mention": "@your-bot" },
         "discussions": { "categories": ["Q&A"] }
       }
     }
@@ -504,22 +435,12 @@ as early.
 }
 ```
 
-- `stackedPullRequests` (plans-repo and single-repo leaves): a leaf whose only unfinished blocker is another such leaf with an
-  open pull request starts early. Its branch is cut from the blocker's
-  branch, its pull request targets that branch, and its worker moves it to
-  `baseBranch` and turns on auto-merge only after the blocker merged. Labels
-  and the Project still show it as waiting.
-- `commentSteering`: while a worker session Avoozl opened runs a GitHub
-  leaf, a new comment on the leaf's issue that names `mention`, by someone
-  `allowedActors` and `minimumPermission` allow, is sent to that session once,
-  quoted as data. Avoozl writes nothing to GitHub for it. Workers a Crew Mode
-  conductor started are not steered.
 - `discussions`: each open, unanswered, unlocked discussion in one of
   `categories` whose author the policy allows gets one responder session and
   at most one reply, screened like a `respond` reply. Discussions must be
   turned on for the repository, and the repository needs a local checkout.
-- `commentSteering` and `discussions` use the repository's Who counts check
-  (`write` when it names nobody).
+- `discussions` uses the repository's Who counts check (`write` when it
+  names nobody).
 
 ## GitHub's rate limit
 
@@ -542,20 +463,8 @@ six things about it:
   through one serial pacer in the client: at most `github.writesPerMinute`
   (default 60, up to 80) and `github.writesPerHour` (default 400, up to 500),
   counted in a journal in the workspace database, and none while under 10% of
-  the primary limit is left. A projection that reaches the hour cap stops, keeps
-  a run record, and the tick carries on when the window opens. It finds what it
-  already made by the marker in each issue, so a stop or a crash makes no
-  duplicate. Issues are made in graph order: a parent before its children and
-  a blocker before the tasks it blocks (a cycle fails the preview). Each
-  GraphQL `createIssue` carries everything known then: title, body (with the
-  issue numbers of its blockers and parent), marker, labels, issue type and
-  parent. A fresh projection edits no issue after it is made. The only writes
-  after are one `addBlockedBy` per dependency, since `createIssue` cannot take
-  one. `addSubIssue` is only for issues that already exist. Each mutation
-  counts as one write against the limits; Avoozl does not batch mutations into
-  one request. The preview shows the write
-  count and how long it takes at this pace. Settings > GitHub and
-  Needs you show `312 of 1,740 writes, resumes at 14:00`.
+  the primary limit is left. Each mutation counts as one write against the
+  limits; Avoozl does not batch mutations into one request.
 - **Conditional reads.** Every REST GET stores GitHub's `ETag` and
   `Last-Modified` and the body in the workspace database, and sends them back
   next time. A 304 answer costs nothing against the limit, and Avoozl reuses
@@ -578,14 +487,9 @@ six things about it:
 - **Numbers.** Settings > GitHub shows the last remaining and reset
   numbers and the share of calls GitHub answered with 304.
 
-GraphQL cannot use ETags. Each tick, per repository, the pull-request
-feedback step makes one GraphQL read of the open pull requests of running
-tasks. When every pull request read unchanged and settled, the next reads wait
-2 minutes, then 4, so a change can wait up to 4 minutes. The other GraphQL
-reads in a tick are issue links and branch heads (for a ready leaf with no
-linked branch yet), stacked-branch pull requests, Project Status moves, and
-discussions (only when turned on). They go through the cache above, so they repeat at most once per
-`github.cacheSeconds`.
+GraphQL cannot use ETags. GraphQL reads in a tick (discussions, only when
+turned on, and pull-request reads) go through the cache above, so they
+repeat at most once per `github.cacheSeconds`.
 
 Chats that wait on CI are told to read `gh pr checks <number>` every 2 to 3
 minutes, not `gh pr checks --watch`. Avoozl cannot enforce that for chats it

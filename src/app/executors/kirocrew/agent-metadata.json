@@ -55,8 +55,6 @@
       "@avoozl:avoozl/plans_documents",
       "@avoozl:avoozl/plans_get_document",
       "@avoozl:avoozl/plans_get_plan",
-      "@avoozl:avoozl/plans_classify_issue",
-      "@avoozl:avoozl/plans_draft_children",
       "@avoozl:avoozl/plans_create_plan",
       "@avoozl:avoozl/plans_save_plan",
       "@avoozl:avoozl/plans_plan_review",

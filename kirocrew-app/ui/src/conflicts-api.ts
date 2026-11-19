@@ -88,12 +88,6 @@ export function noActionReason(item: ConflictItem): string | null {
   if (item.kind === 'plan-review') return null
   // An Issue Radar escalation has its own Plan this and Deliver this (R103.8).
   if (item.start) return null
-  if (item.kind === 'github-conflict' && !item.choices?.length)
-    return item.field === 'identity'
-      ? 'Two issues claim this task. Close or merge the duplicate issue on GitHub; Avoozl reads the result on its next tick.'
-      : item.field === 'Avoozl state'
-        ? 'Avoozl fills Avoozl state and already wrote its value back. Move the card’s Status instead. This clears when the task’s state next changes.'
-        : 'GitHub owns the issue state. Reopen or close it on GitHub; Avoozl reads the result on its next tick.'
   if (item.kind === 'content-unavailable') return 'Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick.'
   if (item.kind === 'content-match') return null
   // Findings and Ready to merge carry their own actions (ConflictsView.tsx).
@@ -113,7 +107,7 @@ export function noActionReason(item: ConflictItem): string | null {
   if (item.kind === 'needs-human' && item.reason === 'review-draft')
     return 'Act on the pull request on GitHub. Avoozl clears this row on its next tick once the draft is submitted or the cause is gone.'
   if (item.kind === 'review' && settleActionOf(item) === null) return 'GitHub owns these tasks. Review them where they live.'
-  if (settleActionOf(item) === null && item.kind !== 'github-conflict') return `${item.authority} owns this task. Settle it where it lives.`
+  if (settleActionOf(item) === null) return `${item.authority} owns this task. Settle it where it lives.`
   return null
 }
 
@@ -121,7 +115,6 @@ export function noActionReason(item: ConflictItem): string | null {
 // item. 'all' is the filter's empty choice.
 export const CONFLICT_TABS: { key: string; label: string; keep: (item: ConflictItem) => boolean }[] = [
   { key: 'all', label: 'All', keep: () => true },
-  { key: 'github-conflict', label: 'GitHub edits', keep: (item) => item.kind === 'github-conflict' },
   { key: 'decision', label: 'Decisions', keep: (item) => ['decision', 'content-match', 'content-unavailable'].includes(item.kind) },
   {
     key: 'needs-human',
@@ -137,7 +130,6 @@ export function tabCounts(items: ConflictItem[]): Record<string, number> {
 
 // Why an item needs a person, in one plain line.
 export function whyLine(item: ConflictItem): string {
-  if (item.kind === 'github-conflict') return `${item.changedBy ?? 'Someone'} changed ${item.field ?? 'a managed field'} on GitHub; Avoozl manages it. ${item.detail}`
   if (item.kind === 'needs-human' && item.reason === 'crew') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'review-draft') return item.detail
@@ -152,7 +144,7 @@ export function whyLine(item: ConflictItem): string {
 }
 
 // When the item started, when the view knows.
-export const itemTime = (item: ConflictItem & { openedAt?: string | null }) => item.changedAt ?? item.openedAt ?? null
+export const itemTime = (item: ConflictItem & { openedAt?: string | null }) => item.openedAt ?? null
 
 // Bulk resolve takes one action for every selected item; it is offered
 // only when they all share it. Settling a decision needs an answer each.
@@ -197,7 +189,6 @@ export interface ConflictFilter {
   repository?: string
   // An AGES value: only items older than that.
   age?: string
-  changedBy?: string
 }
 
 const DAY = 24 * 60 * 60 * 1000
@@ -225,8 +216,7 @@ export function matchesConflict(item: ConflictItem, filter: ConflictFilter, task
     (!filter.plan || (task ? planKey(task) : null) === filter.plan) &&
     (!filter.epic || task?.epic === filter.epic) &&
     (!filter.repository || (filter.repository === NO_REPOSITORY ? !repository : repository === filter.repository)) &&
-    (!age || (time !== null && now - Date.parse(time) > age.ms)) &&
-    (!filter.changedBy || item.changedBy === filter.changedBy)
+    (!age || (time !== null && now - Date.parse(time) > age.ms))
   )
 }
 
@@ -263,14 +253,13 @@ export function conflictChoices(items: ConflictItem[], graph: Graph | null) {
       ...(items.some((item) => !repositoryOf(item, task(item))) ? [{ value: NO_REPOSITORY, label: 'No repository' }] : []),
     ],
     ages: AGES.map(({ value, label }) => ({ value, label })),
-    changedBy: distinct((item) => item.changedBy),
   }
 }
 
 // Saved per workspace beside the task filter, under its own key.
 export const CONFLICT_FILTER_EVENT = 'avoozl-conflict-filter'
 const filterKey = (workspaceId: string) => `avoozl.conflict-filters.${workspaceId}`
-const FILTER_FIELDS = ['q', 'kind', 'plan', 'epic', 'repository', 'age', 'changedBy'] as const
+const FILTER_FIELDS = ['q', 'kind', 'plan', 'epic', 'repository', 'age'] as const
 
 export function readConflictFilter(storage: Pick<Storage, 'getItem'> | null, workspaceId: string): ConflictFilter {
   try {

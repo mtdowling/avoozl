@@ -12,14 +12,12 @@ import {
   groupByCategory,
   progressPercent,
   rowActions,
-  describeWrite,
   location,
   plansClient,
   plansWithoutFolder,
   reviewCounts,
   revisionChange,
   specStatus,
-  writesByRepository,
 } from '../src/plans-api.ts'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
 
@@ -147,30 +145,6 @@ test('approve is off until the revision is stored, current, unapproved, and vali
   assert.equal(approveBlocker(plan), null)
   assert.equal(location({ file: 'avoozl/manifest.json', lineStart: 4 }), 'avoozl/manifest.json:4')
   assert.equal(location({ lineStart: 2 }), 'tasks.md:2')
-})
-
-test('the GitHub preview reads one plan and lines up its writes by repository', async () => {
-  const { api, calls } = fakeApi(() => ({ writes: [] }))
-  await plansClient(api).projection('ws', 'config')
-  assert.deepEqual(calls[0].body, {
-    operation: 'github.project.preview',
-    input: { planId: 'config' },
-    workspaceId: 'ws',
-  })
-  const writes = [
-    { kind: 'issue.create', repository: 'o/a', taskId: 't1', issue: null, title: 'First', type: 'Epic' },
-    { kind: 'blocker.add', repository: 'o/b', taskId: 't2', issue: 4, blockerTaskId: 't1' },
-    { kind: 'project.fields', repository: 'o/a', taskId: 't1', issue: null, fields: { Release: 'one', Wave: 1 } },
-    { kind: 'issue.update', repository: 'o/a', taskId: 't3', issue: 9, fields: ['body', 'title'] },
-  ]
-  assert.deepEqual(writes.map(describeWrite), ['Create t1: First (Epic)', 't2 blocked by t1', 'Set Release one, Wave 1 on t1', 'Update t3 (#9): body, title'])
-  assert.deepEqual(
-    writesByRepository(writes).map(([repository, list]) => [repository, list.length]),
-    [
-      ['o/a', 3],
-      ['o/b', 1],
-    ],
-  )
 })
 
 test('stored plans with no spec folder are listed beside the folders', () => {
