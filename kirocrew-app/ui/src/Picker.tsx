@@ -6,6 +6,7 @@ import { selectStyle } from './ui/looks/FilterSelect.ts'
 import { pickIndex, pickKey, pickLabel, pickMatches, type PickItem } from './picker.ts'
 import { LAYER } from './layers.ts'
 import { Box } from './ui/Box'
+import { Hint } from './ui/Hint'
 import { PlainInput } from './ui/Plain'
 
 export function Picker(props: {
@@ -167,18 +168,18 @@ export function Picker(props: {
                 </Box>
               ) : (
                 <>
-                  <Box as="span" shrink0 size="xs" tone="muted">
+                  <Hint as="span" shrink0 size="xs">
                     {item.id}
-                  </Box>
+                  </Hint>
                   <Box as="span" minW0 flex1 truncate>
                     {item.title !== item.id ? item.title : ''}
                   </Box>
                 </>
               )}
               {item.spec && (
-                <Box as="span" shrink0 size="xs" tone="muted">
+                <Hint as="span" shrink0 size="xs">
                   {item.spec}
-                </Box>
+                </Hint>
               )}
               {item.state && (
                 <Box as="span" css-border-color="border" shrink0 rounded="base" border="all" px="1" size="xs">
@@ -189,14 +190,14 @@ export function Picker(props: {
           ))}
         </Box>
         {total === 0 && (
-          <Box as="p" px="2" py="1" size="xs" tone="muted">
+          <Hint as="p" px="2" py="1" size="xs">
             No match.
-          </Box>
+          </Hint>
         )}
         {total > shown.length && (
-          <Box as="p" px="2" py="1" size="xs" tone="muted">
+          <Hint as="p" px="2" py="1" size="xs">
             {total - shown.length} more; type to narrow.
-          </Box>
+          </Hint>
         )}
       </Box>
     </Box>

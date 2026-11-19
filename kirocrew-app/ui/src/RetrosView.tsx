@@ -117,12 +117,12 @@ function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boo
         {retroName(retro)}
         {retro.state !== 'done' && <Badge variant={STATE_BADGE[retro.state]}>{retro.state}</Badge>}
         {bottleneck && (
-          <Box as="span" weight="normal" tone="muted">
+          <Hint as="span" weight="normal">
             bottleneck {bottleneck}
-          </Box>
+          </Hint>
         )}
       </Box>
-      <Box as="dl" css-display="flex" css-flex-wrap="wrap" css-column-gap="16" css-row-gap="2" m0 size="xs" tone="muted" data-retro-facts>
+      <Hint as="dl" css-display="flex" css-flex-wrap="wrap" css-column-gap="16" css-row-gap="2" m0 size="xs" data-retro-facts>
         <Box css-display="flex" css-gap="4">
           <dt>Scope</dt>
           <Box as="dd" css-margin="0" css-color="text">
@@ -141,7 +141,7 @@ function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boo
             {retro.model ?? 'not recorded'}
           </Box>
         </Box>
-      </Box>
+      </Hint>
       {retro.triggers.length > 0 && <Hint size="xs">Started by {retro.triggers.map((t) => t.detail).join('; ')}.</Hint>}
       {retro.state === 'running' && <Hint size="sm">Running since {relativeTime(retro.startedAt, Date.now())}.</Hint>}
       {retro.state === 'failed' && (

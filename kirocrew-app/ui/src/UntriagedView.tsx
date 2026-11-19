@@ -259,9 +259,9 @@ function Actions({
         </Tooltip>
       ) : item.reviewChat?.state === 'queued' ? (
         <Tooltip text="The next tick opens the chat, within a minute.">
-          <Box as="span" self="center" size="xs" tone="muted" data-review-queued>
+          <Hint as="span" self="center" size="xs" data-review-queued>
             Starting…
-          </Box>
+          </Hint>
         </Tooltip>
       ) : null}
     </Box>
@@ -292,9 +292,9 @@ function Title({ item }: { item: UntriagedItem }) {
   const github = sourceOf(item) === 'github'
   return (
     <PlainLink href={linkHref(item.links.github ?? item.links.item ?? item.url)} target="_blank" rel="noopener noreferrer" css-overflow-wrap="anywhere" minW0>
-      <Box as="span" tone="muted" tabularNums>
+      <Hint as="span" tabularNums>
         {github ? `#${item.number}` : item.id}
-      </Box>{' '}
+      </Hint>{' '}
       <Box as="span" underline>
         {item.title}
       </Box>
@@ -323,136 +323,44 @@ function Table(props: {
       <Box as="table" css-border-collapse="collapse" wFull size="sm" data-untriaged-table>
         <thead>
           <tr>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-              css-width="28"
-            >
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-width="28">
               <Switch label="Select every row shown" checked={all} onChange={(on) => props.onSelect(keys, on)} />
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-              css-width="28"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-width="28">
               <Box as="span" srOnly>
                 Kind
               </Box>
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Item
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Source
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Repository
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Author
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Age
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Labels
-            </Box>
-            <Box
-              as="th"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-              css-text-align="right"
-            >
+            </Hint>
+            <Hint as="th" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-text-align="right">
               <Tooltip text="Comments">
                 <Box role="img" aria-label="Comments" as="span" css-display="inline-flex">
                   <MessageSquare size={12} aria-hidden="true" />
                 </Box>
               </Tooltip>
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               <Box as="span" srOnly>
                 Open in
               </Box>
-            </Box>
+            </Hint>
           </tr>
         </thead>
         <tbody>
@@ -565,7 +473,7 @@ function Checked({ list, now, onOpenSources }: { list: UntriagedList; now: numbe
     .filter((at): at is string => Boolean(at))
     .sort()
   return (
-    <Box flex flexCol gap="0.5" size="xs" tone="muted" data-untriaged-checked>
+    <Hint as="div" flex flexCol gap="0.5" size="xs" data-untriaged-checked>
       {list.repositories.length > 0 && <span>{times.length ? `Checked ${relativeTime(times[0], now)}` : 'Not checked yet'} · GitHub is read at most every 10 minutes.</span>}
       {sources
         .filter((row) => row.error)
@@ -584,7 +492,7 @@ function Checked({ list, now, onOpenSources }: { list: UntriagedList; now: numbe
           {row.repository}: {row.error ?? `GitHub search returns ${row.read} of the ${row.searched ?? 'more'} items it found. Narrow its Untriaged filter to see the rest.`}
         </Box>
       ))}
-    </Box>
+    </Hint>
   )
 }
 
@@ -624,83 +532,28 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
       <Box as="table" css-border-collapse="collapse" wFull size="sm" data-radar-list>
         <thead>
           <tr>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-              css-width="28"
-            >
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap" css-width="28">
               <Box as="span" srOnly>
                 Kind
               </Box>
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Item
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               Repository
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               State
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               How it got there
-            </Box>
-            <Box
-              as="th"
-              css-text-align="left"
-              css-font-weight="500"
-              css-font-size="12"
-              css-color="muted"
-              css-padding="4px-8px"
-              css-border-bottom="1px-solid-border"
-              css-white-space="nowrap"
-            >
+            </Hint>
+            <Hint as="th" css-text-align="left" css-font-weight="500" size="12" css-padding="4px-8px" css-border-bottom="1px-solid-border" css-white-space="nowrap">
               <Box as="span" srOnly>
                 Open in
               </Box>
-            </Box>
+            </Hint>
           </tr>
         </thead>
         <tbody>
@@ -718,9 +571,9 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
               <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <State item={item} />
               </Box>
-              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" tone="muted">
+              <Hint as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top">
                 {sentLine(item)}
-              </Box>
+              </Hint>
               <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <Actions item={item} />
               </Box>

@@ -77,9 +77,9 @@ export function TaskText(props: { title: string; context: ItemContext | undefine
   return (
     <Stack data-task-text gap={1}>
       {source && (
-        <Box as="code" size="xs" tone="muted" data-snippet-head>
+        <Hint as="code" size="xs" data-snippet-head>
           {sourceLine(source)}
-        </Box>
+        </Hint>
       )}
       <Box
         as="pre"
@@ -147,9 +147,9 @@ export function ReviewTaskContext({ task }: { task: ReviewTask }) {
 function Section(props: { name: string; title: string; children: ReactNode }) {
   return (
     <Stack as="section" gap={1} data-context-section={props.name}>
-      <Box as="h4" m0 size="xs" weight="semibold" uppercase tone="muted">
+      <Hint as="h4" m0 size="xs" weight="semibold" uppercase>
         {props.title}
-      </Box>
+      </Hint>
       {props.children}
     </Stack>
   )
@@ -221,10 +221,10 @@ function Evidence({ item }: { item: ConflictItem }) {
               No AI summary is stored for this draft yet.
             </Hint>
           )}
-          <Box as="span" flex flexWrap items="center" gap="2" size="xs" tone="muted">
+          <Hint as="span" flex flexWrap items="center" gap="2" size="xs">
             {context.review.state === 'not-reviewed' ? 'Not reviewed yet' : `${context.review.found} found, ${context.review.fixed} fixed`}
             <SeverityBadges counts={context.review.openBySeverity} label="Open review findings" />
-          </Box>
+          </Hint>
         </Box>
       )}
       {kinds.includes('text') && context?.text && <TaskText title={context.task?.title ?? item.title} context={context} />}

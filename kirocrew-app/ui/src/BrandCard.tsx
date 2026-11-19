@@ -3,6 +3,7 @@
 import Logo from './Logo'
 import { InstanceBadge } from './InstanceName.tsx'
 import { Box } from './ui/Box'
+import { Hint } from './ui/Hint'
 
 // Set from the root package.json by the build (vite.config.ts); absent when a
 // test loads the source directly.
@@ -32,9 +33,9 @@ export function BrandCard(props: { workspaceId: string | null; boxed?: boolean }
           <InstanceBadge workspaceId={props.workspaceId} plain />
         </Box>
         {AVOOZL_VERSION && (
-          <Box data-avoozl-version as="span" css-font-size="11" shrink0 tone="muted">
+          <Hint data-avoozl-version as="span" size="11" shrink0>
             v{AVOOZL_VERSION}
-          </Box>
+          </Hint>
         )}
       </Box>
     </Box>

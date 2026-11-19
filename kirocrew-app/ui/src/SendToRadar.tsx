@@ -235,9 +235,9 @@ export function SendToRadar(props: { workspaceId: string; client: Client; items:
           <Box as="ul" flex flexCol gap="0.5" data-radar-items>
             {preview.items.map((item) => (
               <li key={item.number}>
-                <Box as="span" tone="muted" tabularNums>
+                <Hint as="span" tabularNums>
                   #{item.number}
-                </Box>{' '}
+                </Hint>{' '}
                 {item.title}
               </li>
             ))}

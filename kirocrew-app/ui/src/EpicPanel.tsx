@@ -48,9 +48,9 @@ export function EpicPanel(props: { workspaceId: string; id: string; client: Retu
         <Box css-max-width="75ch" flex flexCol gap="2">
           {value.goal && (
             <div>
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+              <Hint as="h4" size="xs" weight="semibold" uppercase trackingWide>
                 Goal
-              </Box>
+              </Hint>
               <Box as="p" mt="1" whitespace="pre-wrap">
                 {value.goal}
               </Box>
@@ -58,9 +58,9 @@ export function EpicPanel(props: { workspaceId: string; id: string; client: Retu
           )}
           {value.done && (
             <div>
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+              <Hint as="h4" size="xs" weight="semibold" uppercase trackingWide>
                 What done means
-              </Box>
+              </Hint>
               <Box as="p" mt="1" whitespace="pre-wrap">
                 {value.done}
               </Box>
@@ -68,9 +68,9 @@ export function EpicPanel(props: { workspaceId: string; id: string; client: Retu
           )}
           {value.decisions.length > 0 && (
             <div>
-              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+              <Hint as="h4" size="xs" weight="semibold" uppercase trackingWide>
                 Open decisions
-              </Box>
+              </Hint>
               <Box as="ul" mt="1" listDisc pl="5">
                 {value.decisions.map((d) => (
                   <li key={d.taskId}>
@@ -82,9 +82,9 @@ export function EpicPanel(props: { workspaceId: string; id: string; client: Retu
           )}
         </Box>
         <div>
-          <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+          <Hint as="h4" size="xs" weight="semibold" uppercase trackingWide>
             Member specs
-          </Box>
+          </Hint>
           <Box as="ul" mt="1" flex flexCol gap="1">
             {value.members.map((member) => (
               <li key={member.plan}>
@@ -102,10 +102,10 @@ export function EpicPanel(props: { workspaceId: string; id: string; client: Retu
                     <Box as="span" truncate>
                       {member.title}
                     </Box>
-                    <Box as="span" shrink0 size="xs" tone="muted">
+                    <Hint as="span" shrink0 size="xs">
                       {member.status}
                       {!member.confirmed && ' · not confirmed'} · {member.progress.done}/{member.progress.total}
-                    </Box>
+                    </Hint>
                   </Box>
                   <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
                     <Box as="span" css-width={`${bar(member.progress.done, member.progress.total)}%`} css-background="ok" block hFull />

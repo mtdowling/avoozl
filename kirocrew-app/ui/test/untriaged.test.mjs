@@ -180,7 +180,7 @@ test('Intake: the tab is renamed, lists every source, and filters by source', as
   const view = source('UntriagedView.tsx')
   assert.match(view, /<ViewHeading\s+id="avoozl-untriaged-title"\s+view="untriaged"[\s\S]*?>\s*\{show === 'radar' \? 'Issue Radar' : 'Triage'\}\s*<\/ViewHeading>/)
   assert.doesNotMatch(view, /Idea/)
-  assert.match(view, /<Box\s+as="th"[^>]*>\s*Source\s*<\/Box>/)
+  assert.match(view, /<Hint\s+as="th"[^>]*>\s*Source\s*<\/Hint>/)
   const ticket = item(null, {
     source: 'tickets',
     id: 'T-1',

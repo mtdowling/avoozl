@@ -33,9 +33,9 @@ function Step({ steps, index }: { steps: TaskStep[]; index: number }) {
             {step.at ? clock(step.at) : step.state === 'skipped' ? 'Skipped' : step.state === 'now' ? 'In progress' : ''}
           </Hint>
         </Box>
-        <Box as="span" block breakWords size="xs" tone="muted">
+        <Hint as="span" block breakWords size="xs">
           {[step.by && `by ${step.by}`, wait, step.detail].filter(Boolean).join(' · ')}
-        </Box>
+        </Hint>
         {step.builds && (
           <Box data-step-builds as="ul" css-margin="0" css-padding="0" css-list-style="none" m0 mt="1" flex listNone flexCol gap="1" p="0" size="xs">
             {step.builds.map((group) => (
@@ -43,11 +43,18 @@ function Step({ steps, index }: { steps: TaskStep[]; index: number }) {
                 <Box as="span" weight="medium">
                   {group.phase}
                 </Box>
-                {group.items.map((item, at) => (
-                  <Box key={at} data-step-build={item.failed ? 'failed' : 'ok'} as="span" css-color={item.failed ? 'danger' : undefined} block breakWords tone="muted">
-                    {[item.target, item.start, item.attempt > 1 && `attempt ${item.attempt}`, buildMedian(item.ms), item.failed && 'failed'].filter(Boolean).join(' · ')}
-                  </Box>
-                ))}
+                {group.items.map((item, at) => {
+                  const line = [item.target, item.start, item.attempt > 1 && `attempt ${item.attempt}`, buildMedian(item.ms), item.failed && 'failed'].filter(Boolean).join(' · ')
+                  return item.failed ? (
+                    <Box key={at} data-step-build="failed" as="span" block breakWords tone="danger">
+                      {line}
+                    </Box>
+                  ) : (
+                    <Hint key={at} data-step-build="ok" block breakWords>
+                      {line}
+                    </Hint>
+                  )
+                })}
               </li>
             ))}
           </Box>

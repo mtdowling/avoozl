@@ -200,9 +200,9 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
                   <Box as="span" size="sm" weight="medium">
                     {name}
                   </Box>
-                  <Box as="code" css-overflow-wrap="anywhere" size="xs" tone="muted">
+                  <Hint as="code" css-overflow-wrap="anywhere" size="xs">
                     {globs.join(', ') || 'No matching paths'}
-                  </Box>
+                  </Hint>
                 </Box>
               ))}
               <Box css-border-color="border" flex flexCol gap="1" border="t" pt="2">

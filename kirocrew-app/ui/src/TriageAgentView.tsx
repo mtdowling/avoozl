@@ -23,9 +23,9 @@ function RunRow(props: { run: RunView }) {
     <Box as="li" css-border-color="border" border="t" firstBorderT0 py="1.5" flex flexCol gap="0.5" data-triage-run={run.id}>
       <Box as="span" flex minW0 items="center" gap="2" size="sm">
         <Badge variant={run.state === 'failed' || run.state === 'held' ? 'warning' : run.state === 'done' ? 'success' : 'info'}>{RESULT_LABELS[run.state] ?? run.state}</Badge>
-        <Box as="span" shrink0 tone="muted" size="xs">
+        <Hint as="span" shrink0 size="xs">
           {run.repository}#{run.number}
-        </Box>
+        </Hint>
         <Box as="span" minW0 flex1 truncate weight="medium">
           {run.url && safeHref(run.url) ? (
             <TextLink href={safeHref(run.url) ?? undefined} target="_blank" rel="noreferrer">
@@ -35,18 +35,18 @@ function RunRow(props: { run: RunView }) {
             (run.title ?? 'Untitled')
           )}
         </Box>
-        <Box as="span" shrink0 tone="muted" size="xs">
+        <Hint as="span" shrink0 size="xs">
           {ageOf(run.queuedAt)}
-        </Box>
+        </Hint>
       </Box>
-      <Box as="span" size="xs" tone="muted">
+      <Hint as="span" size="xs">
         {run.class ? `${CLASS_LABELS[run.class] ?? run.class}: ` : ''}
         {run.reason ?? (run.why === 'new' ? 'A new item.' : run.why === 'answered' ? 'The author answered.' : 'A person asked.')}
-      </Box>
+      </Hint>
       {run.writes.length > 0 && (
-        <Box as="span" size="xs" tone="muted" data-triage-writes>
+        <Hint as="span" size="xs" data-triage-writes>
           Writes: {run.writes.map((write) => `${write.kind} ${write.state}${write.reason ? ` (${write.reason})` : ''}`).join(', ')}
-        </Box>
+        </Hint>
       )}
     </Box>
   )
@@ -193,9 +193,9 @@ export default function TriageAgentView(props: { workspaceId: string | null }) {
                   </Btn>
                 )}
                 {repo.hold && repo.on && (
-                  <Box as="span" size="xs" tone="muted" css-flex-basis="100%">
+                  <Hint as="span" size="xs" css-flex-basis="100%">
                     {repo.hold}
-                  </Box>
+                  </Hint>
                 )}
               </Box>
             ))}

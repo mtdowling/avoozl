@@ -126,9 +126,9 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
                       Planning repository <Hint size="xs">(required)</Hint>
                     </span>
                     <Input value={form.planningRepository} placeholder="acme/plans" onChange={(e: Change) => set({ planningRepository: e.target.value })} />
-                    <Box as="code" size="11" tone="muted">
+                    <Hint as="code" size="11">
                       github.planningRepository
-                    </Box>
+                    </Hint>
                   </Box>
                 )}
               </Stack>
@@ -173,9 +173,9 @@ function CheckStep({ result }: { result: SetupResult | null }) {
       {result.writes.length === 0 && <Done>Nothing to create or change on GitHub.</Done>}
       {groups.map((group) => (
         <section key={group.key}>
-          <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+          <Hint as="h4" size="xs" weight="semibold" uppercase trackingWide>
             {group.title}
-          </Box>
+          </Hint>
           <Box as="ul" mt="1" flex flexCol gap="1">
             {group.writes.map((write, i) => (
               <Box key={i} as="li" flex flexWrap items="baseline" gap="2">
@@ -184,9 +184,9 @@ function CheckStep({ result }: { result: SetupResult | null }) {
                   {write.object} <code>{write.name}</code>
                   {write.visibility ? ` (${write.visibility})` : ''} in {write.owner}
                 </span>
-                <Box as="span" wFull pl="12" size="xs" tone="muted">
+                <Hint as="span" wFull pl="12" size="xs">
                   {write.detail}
-                </Box>
+                </Hint>
               </Box>
             ))}
           </Box>
@@ -194,18 +194,18 @@ function CheckStep({ result }: { result: SetupResult | null }) {
       ))}
       {kept.length > 0 && (
         <section>
-          <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+          <Hint as="h4" size="xs" weight="semibold" uppercase trackingWide>
             Already there
-          </Box>
+          </Hint>
           <Box as="ul" mt="1" flex flexCol gap="1">
             {kept.map((step) => (
               <Box key={step.id} as="li" flex flexWrap items="baseline" gap="2">
                 <WriteBadge kind="keep" />
                 <span>{step.title}</span>
                 {step.notes[0] && (
-                  <Box as="span" wFull pl="12" size="xs" tone="muted">
+                  <Hint as="span" wFull pl="12" size="xs">
                     {step.notes[0]}
-                  </Box>
+                  </Hint>
                 )}
               </Box>
             ))}
@@ -225,9 +225,9 @@ function CheckStep({ result }: { result: SetupResult | null }) {
       ))}
       {result.settings.changed && (
         <details>
-          <Box as="summary" cursorPointer size="xs" tone="muted">
+          <Hint as="summary" cursorPointer size="xs">
             The .avoozl.json change Set up would save
-          </Box>
+          </Hint>
           <Box as="pre" css-border-color="border" mt="1" overflow="auto" rounded="base" border="all" p="2" size="xs">
             {result.settings.diff}
           </Box>
@@ -508,9 +508,9 @@ function OnboardDialog(props: {
         <Box as="ol" flex flexCol gap="2" size="sm" data-onboard-setup>
           {planned.map((write, i) => (
             <Box key={write.key} as="li" flex items="start" gap="2">
-              <Box as="span" w5 flexNone align="right" tone="muted">
+              <Hint as="span" w5 flexNone align="right">
                 {i + 1}.
-              </Box>
+              </Hint>
               <Box as="span" minW0 flex1>
                 <Box as="span" flex items="center" gap="1.5">
                   {write.done || setupDone ? <Glyph icon={Check} size={13} aria-label="done" css-color="ok" /> : null}

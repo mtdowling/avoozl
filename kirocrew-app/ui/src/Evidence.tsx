@@ -39,7 +39,7 @@ function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskI
       <PlainImg src={url} alt={entry.text} css-border-color="border" mt="1" maxWFull rounded="base" border="all" />
     )
   return (
-    <Box mt="1" flex flexWrap items="center" gap="2" size="xs" tone="muted">
+    <Hint as="div" mt="1" flex flexWrap items="center" gap="2" size="xs">
       <span>
         {file.type}, {sizeText(file.size)}
       </span>
@@ -51,7 +51,7 @@ function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskI
           {error}
         </ErrorText>
       )}
-    </Box>
+    </Hint>
   )
 }
 
@@ -85,12 +85,12 @@ export function EvidenceFold({ workspaceId, taskId, box }: { workspaceId: string
     <Stack as="ol" gap={2} data-evidence={taskId}>
       {value.map((entry) => (
         <Box key={entry.id} as="li" css-border-color="border" rounded="base" border="all" p="2">
-          <Box flex flexWrap items="center" gap="2" size="xs" tone="muted">
+          <Hint as="div" flex flexWrap items="center" gap="2" size="xs">
             <Badge>{EVIDENCE_LABELS[entry.kind] ?? entry.kind}</Badge>
             <span>{entry.source}</span>
             <time dateTime={entry.at}>{relativeTime(entry.at)}</time>
             {entry.redacted && <span>Redacted by content rules</span>}
-          </Box>
+          </Hint>
           <Box as="p" mt="1" whitespace="pre-wrap" breakWords size="sm">
             {entry.text}
           </Box>

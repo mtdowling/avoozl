@@ -96,14 +96,14 @@ function EntryView(props: {
   const href = safeHref(entry.url)
   return (
     <Box as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" firstBorderT0 data-link-entry>
-      <Box flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
+      <Hint as="div" flex flexWrap items="center" gap="1.5" size="xs">
         <span>{authorLabel(entry)}</span>
         <Tooltip text={entry.at}>
           <span>{relativeTime(entry.at)}</span>
         </Tooltip>
         {entry.editedAt && <span>· edited</span>}
         {entry.outcome && <Badge>Outcome</Badge>}
-      </Box>
+      </Hint>
       {editing ? (
         <Stack gap={2}>
           <Box as="label" flex flexCol gap="1" size="xs">

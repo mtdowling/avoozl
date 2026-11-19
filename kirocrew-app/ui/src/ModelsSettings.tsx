@@ -178,9 +178,9 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                     />
                   </Field>
                 ) : (
-                  <Box as="span" css-align-self="end" size="xs" tone="muted" data-fixed-agent>
+                  <Hint as="span" css-align-self="end" size="xs" data-fixed-agent>
                     Agent: Avoozl’s own.
-                  </Box>
+                  </Hint>
                 )}
                 <Field id={`avoozl-model-${role.key}`} label="Model">
                   {modelFree || !role.model ? (
@@ -211,7 +211,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                     </SmallBtn>
                   )}
                 </Box>
-                <Box css-grid-column="1-1" flex flexCol gap="0.5" size="xs" tone="muted">
+                <Hint as="div" css-grid-column="1-1" flex flexCol gap="0.5" size="xs">
                   <span>{role.line}</span>
                   {role.key === 'planReviewer' && (
                     <span data-second-model>
@@ -223,7 +223,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                       {problem}
                     </ErrorText>
                   )}
-                </Box>
+                </Hint>
               </Box>
             )
           })}

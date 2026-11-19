@@ -227,9 +227,9 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
         <Box id="avoozl-repo-add" as="h3" size="base" weight="semibold">
           Add repository
         </Box>
-        <Box as="p" mt="1" size="sm" tone="muted">
+        <Hint as="p" mt="1" size="sm">
           Point at a Git checkout on this computer; Avoozl reads its branch and GitHub remote for you.
-        </Box>
+        </Hint>
       </div>
       <Box as="ol" css-max-width="40rem" flex flexCol gap="3">
         <Box as="li" flex flexCol gap="1.5" data-step="folder">

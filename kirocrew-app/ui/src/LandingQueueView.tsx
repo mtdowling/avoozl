@@ -56,9 +56,9 @@ function Row(props: { item: LandingItem; now: number }) {
   return (
     <Box data-landing-row={item.key} data-hold={item.hold.kind} as="li" css-border-color="border" flex wFull minW0 flexCol gap="1" border="t" py="2" size="sm" firstBorderT0>
       <Box flex minW0 items="center" gap="2">
-        <Box as="span" w6 shrink0 size="xs" tabularNums tone="muted" data-landing-position>
+        <Hint as="span" w6 shrink0 size="xs" tabularNums data-landing-position>
           {item.position ?? '—'}
-        </Box>
+        </Hint>
         {first ? (
           <PlainButton type="button" minW0 flex1 truncate align="left" underline onClick={() => drawer.openTask(first.id)} aria-label={item.tasks.map((t) => t.title).join(', ')}>
             {first.title}
@@ -73,7 +73,7 @@ function Row(props: { item: LandingItem; now: number }) {
           <Badge variant={holdVariant(item.hold.kind)}>{holdWord(item.hold.kind)}</Badge>
         </Box>
       </Box>
-      <Box flex minW0 flexWrap items="center" gapX="3" gapY="1" pl="8" size="xs" tone="muted">
+      <Hint as="div" flex minW0 flexWrap items="center" gapX="3" gapY="1" pl="8" size="xs">
         <Box as="span" minW0 data-landing-hold>
           {item.hold.text}
         </Box>
@@ -107,7 +107,7 @@ function Row(props: { item: LandingItem; now: number }) {
             waiting {duration(item.since, props.now)}
           </Box>
         )}
-      </Box>
+      </Hint>
     </Box>
   )
 }
@@ -117,7 +117,7 @@ const OUTCOME_VARIANT = { landed: 'success', 'partly landed': 'warning', 'culpri
 function LastBatch(props: { batch: FinishedBatch; now: number }) {
   const { batch } = props
   return (
-    <Box as="li" flex minW0 flexWrap items="center" gapX="3" gapY="1" size="xs" tone="muted" data-landing-last={batch.outcome}>
+    <Hint as="li" flex minW0 flexWrap items="center" gapX="3" gapY="1" size="xs" data-landing-last={batch.outcome}>
       <Box as="span" shrink0>
         <Badge variant={OUTCOME_VARIANT[batch.outcome]}>{batch.outcome}</Badge>
       </Box>
@@ -132,7 +132,7 @@ function LastBatch(props: { batch: FinishedBatch; now: number }) {
       <Box as="span" tabularNums>
         {duration(batch.at, props.now)} ago
       </Box>
-    </Box>
+    </Hint>
   )
 }
 
@@ -146,9 +146,9 @@ function MergeBatches(props: { base: LandingBase; now: number }) {
       <Hint as="p" size="xs" data-landing-size>
         {sizeLine(base.size)}
       </Hint>
-      <Box as="p" size="xs" tone="muted" data-landing-testing>
+      <Hint as="p" size="xs" data-landing-testing>
         {base.testing ? `Testing: ${testingLine(base.testing)}.` : 'Testing: no merge batch right now.'}
-      </Box>
+      </Hint>
       {base.last && base.last.length > 0 && (
         <Box flex flexCol gap="1">
           <SectionHeading level={4} title="Last merge batches" />

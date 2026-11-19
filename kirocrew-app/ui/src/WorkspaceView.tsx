@@ -219,17 +219,17 @@ export default function WorkspaceView(props: { selected?: string | null; onSelec
             <Plus size={14} aria-hidden="true" /> Add a workspace
           </Btn>
         </Row>
-        <Box as="p" mt="1" size="sm" tone="muted">
+        <Hint as="p" mt="1" size="sm">
           The workspaces on this computer. The one you pick is the one the other tabs show.
-        </Box>
+        </Hint>
         {list === null ? (
-          <Box as="p" mt="2" size="sm" tone="muted">
+          <Hint as="p" mt="2" size="sm">
             Loading…
-          </Box>
+          </Hint>
         ) : list.items.length === 0 ? (
-          <Box as="p" mt="2" size="sm" tone="muted">
+          <Hint as="p" mt="2" size="sm">
             No workspaces yet. Add one.
-          </Box>
+          </Hint>
         ) : (
           <Box as="ul" mt="2" flex flexCol>
             {list.items.map((workspace) => (
@@ -292,9 +292,9 @@ export default function WorkspaceView(props: { selected?: string | null; onSelec
             <FolderField id="avoozl-ws-root" label="Folder" value={draft.root} placeholder="~/plans" required client={client} onChange={(root) => setDraft({ ...draft, root })} />
             <Field id="avoozl-ws-id" label="Short ID" value={draft.id} placeholder="my-plans" required onChange={(id) => setDraft({ ...draft, id })} />
             <Field id="avoozl-ws-name" label="Name (optional)" value={draft.name} onChange={(name) => setDraft({ ...draft, name })} />
-            <Box as="h4" mt="2" size="xs" weight="semibold" uppercase trackingWide tone="muted" data-add-how>
+            <Hint as="h4" mt="2" size="xs" weight="semibold" uppercase trackingWide data-add-how>
               How to add:
-            </Box>
+            </Hint>
             <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-15rem-1fr" grid gap="2">
               <Box css-border-color="border" flex flexCol gap="1.5" rounded="base" border="all" p="3" data-choice="add">
                 <Box as="span" size="sm" weight="medium">

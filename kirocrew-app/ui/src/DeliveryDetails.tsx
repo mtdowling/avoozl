@@ -215,10 +215,10 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
         {item.repository && <Badge>{item.repository}</Badge>}
       </Box>
       {(item.supersedes || item.supersededBy) && (
-        <Box as="p" mt="1" size="xs" tone="muted">
+        <Hint as="p" mt="1" size="xs">
           {item.supersedes && `Replaces ${item.supersedes}. `}
           {item.supersededBy && `Superseded by ${item.supersededBy}.`}
-        </Box>
+        </Hint>
       )}
       {item.integration && (
         <Box as="p" mt="2" size="xs">

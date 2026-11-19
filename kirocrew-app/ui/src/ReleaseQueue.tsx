@@ -41,18 +41,18 @@ function Row({ row, held }: { row: QueueRow; held?: string }) {
           {row.title}
         </Box>{' '}
         <Hint size="xs">{row.taskId}</Hint>
-        <Box as="span" css-display="block" size="xs" tone="muted">
+        <Hint as="span" css-display="block" size="xs">
           {row.phase}
-        </Box>
+        </Hint>
       </Box>
-      <Box as="span" css-overflow-wrap="anywhere" css-flex="2-1-240px" minW0 flex1 size="sm" tone="muted" data-release-reason>
+      <Hint as="span" css-overflow-wrap="anywhere" css-flex="2-1-240px" minW0 flex1 size="sm" data-release-reason>
         {row.reason}
         {held && (
           <Box as="span" block size="xs" data-sub-issue>
             {held}
           </Box>
         )}
-      </Box>
+      </Hint>
     </Box>
   )
 }

@@ -46,7 +46,7 @@ export function PackChanges({ preview }: { preview: PackPreview }) {
       <Box css-overflow-x="auto">
         <Box as="table" wFull size="xs">
           <thead>
-            <Box as="tr" align="left" tone="muted">
+            <Hint as="tr" align="left">
               <Box as="th" py="1" pr="2" weight="normal">
                 Setting
               </Box>
@@ -56,7 +56,7 @@ export function PackChanges({ preview }: { preview: PackPreview }) {
               <Box as="th" py="1" weight="normal">
                 Value
               </Box>
-            </Box>
+            </Hint>
           </thead>
           <tbody>
             {preview.changes.map((change) => (

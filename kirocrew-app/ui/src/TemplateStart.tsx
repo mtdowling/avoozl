@@ -40,9 +40,9 @@ function InputField(props: {
   const label = (
     <Box as="span" weight="medium">
       {input.label}{' '}
-      <Box as="span" weight="normal" tone="muted">
+      <Hint as="span" weight="normal">
         ({input.required ? 'required' : 'optional'})
-      </Box>
+      </Hint>
     </Box>
   )
   if (input.type === 'repositories')

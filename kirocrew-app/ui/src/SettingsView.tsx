@@ -97,6 +97,7 @@ import { TextLink } from './ui/TextLink'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
 import { Box, type LookProps } from './ui/Box'
+import { Hint } from './ui/Hint'
 import { PlainButton, PlainLink } from './ui/Plain'
 
 // Fields share a row and wrap; each keeps a readable width.
@@ -225,11 +226,11 @@ function Choice(props: {
   )
 }
 
-function Hint({ children }: { children: ReactNode }) {
+function SettingHint({ children }: { children: ReactNode }) {
   return (
-    <Box as="p" mt="1" size="xs" tone="muted">
+    <Hint as="p" mt="1" size="xs">
       {children}
-    </Box>
+    </Hint>
   )
 }
 
@@ -319,16 +320,16 @@ function MatchField(props: {
           fontMono
           onChange={(event) => props.onChange(event.target.value)}
         />
-        <Box as="span" size="xs" tone="muted">
+        <Hint as="span" size="xs">
           {MATCH_HELP}
-        </Box>
+        </Hint>
       </SettingField>
       {!line && (
-        <Box as="span" size="xs" tone="muted">
+        <Hint as="span" size="xs">
           {untriaged
             ? 'Blank with no triage labels: every open issue and pull request counts, less rule matches and tasks.'
             : 'Type a line such as label:agent:go to see what it matches.'}
-        </Box>
+        </Hint>
       )}
       {failed && (
         <ErrorText as="span" size="xs">
@@ -344,9 +345,9 @@ function MatchField(props: {
         <Box flex flexWrap items="center" gap="1.5" data-match-chips>
           {matchChips(current.parsed).map((group) => (
             <Row key={group.kind} as="span" gap={1}>
-              <Box as="span" size="xs" tone="muted">
+              <Hint as="span" size="xs">
                 {CHIP_TEXT[group.kind]}
-              </Box>
+              </Hint>
               {group.values.map((value) => (
                 <Badge key={value} variant={group.kind === 'none' ? undefined : 'info'}>
                   {value}
@@ -365,15 +366,15 @@ function MatchIssues({ preview, untriaged = false }: { preview: MatchPreview; un
   const noun = untriaged ? ['item', 'items'] : ['issue', 'issues']
   if (!preview.repository)
     return (
-      <Box as="span" size="xs" tone="muted">
+      <Hint as="span" size="xs">
         Name the repository to see which open {noun[1]} match.
-      </Box>
+      </Hint>
     )
   if (preview.searchError)
     return (
-      <Box as="span" size="xs" tone="muted">
+      <Hint as="span" size="xs">
         {preview.searchError}
-      </Box>
+      </Hint>
     )
   if (preview.total === null) return null
   const count =
@@ -382,17 +383,17 @@ function MatchIssues({ preview, untriaged = false }: { preview: MatchPreview; un
       : `${preview.total} open ${preview.total === 1 ? `${noun[0]} matches` : `${noun[1]} match`} now${untriaged ? ', before rules and tasks are left out' : ''}`
   if (!preview.issues.length)
     return (
-      <Box as="span" size="xs" tone="muted" data-match-issues>
+      <Hint as="span" size="xs" data-match-issues>
         {count}
-      </Box>
+      </Hint>
     )
   // Closed by default, so a page of rules stays short.
   return (
     <Box as="details" size="xs" data-match-issues>
-      <Box as="summary" cursorPointer tone="muted">
+      <Hint as="summary" cursorPointer>
         {count}
         {preview.total > preview.issues.length ? ` (newest ${preview.issues.length})` : ''}
-      </Box>
+      </Hint>
       <Box as="ul" mt="1" flex flexCol gap="0.5">
         {preview.issues.map((issue) => (
           <Box key={issue.number} as="li" minW0 truncate>
@@ -448,21 +449,21 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
           </Box>
           <Marker rule={{ required: false }} />
         </Box>
-        <Box as="span" size="xs" tone="muted">
+        <Hint as="span" size="xs">
           An item with any of these counts as triaged and leaves the list.
-        </Box>
+        </Hint>
         {!named ? (
-          <Box as="span" size="xs" tone="muted">
+          <Hint as="span" size="xs">
             Name the repository as owner/name under Mode, and its labels show here.
-          </Box>
+          </Hint>
         ) : !labels ? (
-          <Box as="span" size="xs" tone="muted">
+          <Hint as="span" size="xs">
             Reading {repository}&apos;s labels…
-          </Box>
+          </Hint>
         ) : labels.error ? (
-          <Box as="span" size="xs" tone="muted">
+          <Hint as="span" size="xs">
             {labels.error}
-          </Box>
+          </Hint>
         ) : null}
         {rows.length > 0 && (
           <Box as="ul" flex flexWrap gapX="4" gapY="1" aria-label="Triage labels">
@@ -471,9 +472,9 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
                 <Switch label={row.name} gap={1.5} checked={row.checked} onChange={(on) => toggle(row.name, on)}>
                   <code>{row.name}</code>
                   {row.missing && (
-                    <Box as="span" size="xs" tone="muted">
+                    <Hint as="span" size="xs">
                       (not on GitHub)
-                    </Box>
+                    </Hint>
                   )}
                 </Switch>
               </li>
@@ -481,9 +482,9 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
           </Box>
         )}
         {labels?.labels && rows.length === 0 && (
-          <Box as="span" size="xs" tone="muted">
+          <Hint as="span" size="xs">
             {repository} has no labels yet.
-          </Box>
+          </Hint>
         )}
         <RawKey name="untriaged.triageLabels" />
       </Box>
@@ -558,12 +559,12 @@ function Roles({ roles }: { roles: ReviewRole[] }) {
           <Box as="span" weight="medium">
             {role.id}
           </Box>{' '}
-          <Box as="span" tone="muted">
+          <Hint as="span">
             {role.agent} · {role.model ?? 'agent default'} · distinct by {role.distinctFrom}
-          </Box>
-          <Box as="span" block size="xs" tone="muted">
+          </Hint>
+          <Hint as="span" block size="xs">
             {role.focus}
-          </Box>
+          </Hint>
         </li>
       ))}
     </Box>
@@ -585,14 +586,14 @@ function ReviewRoles({ review, repository }: { review: ReviewSettings | undefine
       {review.error ? (
         <ErrorText size="sm">The delivery block is invalid: {review.error}</ErrorText>
       ) : roles.length === 0 ? (
-        <Box as="p" size="sm" tone="muted">
+        <Hint as="p" size="sm">
           No reviewer roles. Checks alone verify a delivery.
-        </Box>
+        </Hint>
       ) : (
         <>
-          <Hint>
+          <SettingHint>
             {own ? 'Set for this repository.' : 'The workspace roles.'} Writer model {review.writerModel ?? 'not named'}.
-          </Hint>
+          </SettingHint>
           <Roles roles={roles} />
         </>
       )}
@@ -618,12 +619,12 @@ function ChecksEditor(props: { id: string; value: string; inspect: RepositoryIns
   if (!named || (props.inspect && !checks))
     return (
       <Stack gap={2} data-checks="typed">
-        <Box as="p" size="xs" tone="muted" data-checks-why>
+        <Hint as="p" size="xs" data-checks-why>
           {!named
             ? 'Name the repository as owner/name under Mode, and Avoozl lists the checks GitHub runs there.'
             : `${props.inspect?.checksError ?? props.inspect?.error ?? 'GitHub could not be read.'} Type the names instead.`}{' '}
           Names are exact and case-sensitive, separated by commas.
-        </Box>
+        </Hint>
         <Text
           id={`${props.id}-checks`}
           label="Required checks"
@@ -639,24 +640,24 @@ function ChecksEditor(props: { id: string; value: string; inspect: RepositoryIns
   if (!props.inspect)
     return (
       <Stack gap={2} data-checks="reading">
-        <Box as="p" size="xs" tone="muted">
+        <Hint as="p" size="xs">
           Reading the checks GitHub runs on {props.repository}…
-        </Box>
+        </Hint>
       </Stack>
     )
   const url = checks?.url ?? `https://github.com/${props.repository}/settings/rules`
   return (
     <Stack gap={3} data-checks="listed">
-      <Box as="p" size="xs" tone="muted">
+      <Hint as="p" size="xs">
         Seen on {checks!.branch}&apos;s recent commits and open pull requests. Checks the branch rule requires stay on; Avoozl&apos;s list adds to them.{' '}
         <TextLink href={linkHref(url)} target="_blank" rel="noopener noreferrer">
           Change the branch rule on GitHub
         </TextLink>
-      </Box>
+      </Hint>
       {rows.length === 0 ? (
-        <Box as="p" size="sm" tone="muted">
+        <Hint as="p" size="sm">
           GitHub shows no checks on {checks!.branch} or its open pull requests yet. Add a name below.
-        </Box>
+        </Hint>
       ) : (
         <Stack as="ul" gap={2} aria-label="Checks">
           {rows.map((row) => (
@@ -671,9 +672,9 @@ function ChecksEditor(props: { id: string; value: string; inspect: RepositoryIns
               >
                 <code>{row.name}</code>
               </Switch>
-              <Box id={`${props.id}-check-${row.name}`} as="span" pl="5" size="xs" tone="muted">
+              <Hint id={`${props.id}-check-${row.name}`} as="span" pl="5" size="xs">
                 {row.where}
-              </Box>
+              </Hint>
             </Box>
           ))}
         </Stack>
@@ -702,10 +703,10 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
       {props.deprecated && (
         <Box css-border-color="border" flex flexWrap items="center" gap="2" rounded="base" border="all" p="2" size="xs">
           <Badge>deprecated</Badge>
-          <Box as="span" tone="muted">
+          <Hint as="span">
             .avoozl.json still sets <code>pullRequestReviews</code>
             {props.approvals ? ` (${props.approvals} approvals)` : ''}. It counts only when GitHub&apos;s rule can&apos;t be read or names no count.
-          </Box>
+          </Hint>
           <Box as="span" ml="auto">
             <DangerBtn
               confirm={{
@@ -762,10 +763,10 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
           onChange={(value) => set({ publicBranch: value })}
         />
       </Box>
-      <Box as="p" size="xs" tone="muted">
+      <Hint as="p" size="xs">
         each: one public pull request per merged change. branch: the same, into the public branch. batch: one public pull request when the epic is done. An epic's tasks.md
         front-matter can set its own forwardTarget and publicBranch.
-      </Box>
+      </Hint>
       <Fold id={`${id}-more`} title="Advanced: mirror">
         <Box {...grid()}>
           <Text
@@ -895,13 +896,13 @@ export function RepositoryEditor(props: {
     <>
       {tab === 'general' && (
         <FieldGroup title="GitHub repository" blurb={REPOSITORY_BLURBS.general}>
-          <Box as="p" size="xs" tone="muted">
+          <Hint as="p" size="xs">
             Workspace mode:{' '}
             <Box as="span" css-color="text" weight="medium">
               {MODE_TITLES[modeKey(props.mode)]}
             </Box>
             . It follows from each repository&apos;s role in Repository setup.
-          </Box>
+          </Hint>
           <Box {...grid()}>
             <Text
               id={`${id}-name`}
@@ -984,7 +985,7 @@ export function RepositoryEditor(props: {
         <>
           <FieldGroup title="Label rules" blurb={REPOSITORY_BLURBS.github}>
             {repository.rules.length === 0 && (
-              <Box as="p" flex flexWrap items="center" gapX="3" gapY="1" size="sm" tone="muted">
+              <Hint as="p" flex flexWrap items="center" gapX="3" gapY="1" size="sm">
                 <span>No rules yet, so labels start nothing. Add one to let a label start work.</span>
                 <AskForHelp
                   workspaceId={props.workspaceId}
@@ -999,7 +1000,7 @@ export function RepositoryEditor(props: {
                     docs: 'README.md, section Deliver through GitHub',
                   }}
                 />
-              </Box>
+              </Hint>
             )}
             {repository.rules.map((rule, index) => (
               <RuleEditor
@@ -1247,9 +1248,9 @@ function RepositoriesTab(props: {
       <Card>
         <Section title={`Added repositories (${rows.length})`} blurb={REPOSITORIES_LINE}>
           {checkouts === null ? (
-            <Box as="p" size="sm" tone="muted">
+            <Hint as="p" size="sm">
               Loading…
-            </Box>
+            </Hint>
           ) : (
             <RepositoryList
               rows={rows}
@@ -1354,9 +1355,9 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
     return (
       <FieldGroup title="Local only" blurb="Avoozl codes, checks and merges here on this Mac.">
         {props.kept && (
-          <Box as="p" size="xs" tone="muted">
+          <Hint as="p" size="xs">
             Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.
-          </Box>
+          </Hint>
         )}
       </FieldGroup>
     )
@@ -1365,9 +1366,7 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
       <>
         <FieldGroup title="Where tasks land">
           <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1" size="sm">
-            <Box as="dt" tone="muted">
-              Landing branch
-            </Box>
+            <Hint as="dt">Landing branch</Hint>
             <dd>
               <code>{row.branch}</code>
             </dd>
@@ -1427,13 +1426,13 @@ function WorkspaceGitHub(props: {
           <Section title="GitHub settings" blurb="They apply once a repository has a GitHub role in Repository setup.">
             <Box flex flexCol gap="1.5" size="sm" data-local-note>
               <p>{LOCAL_HIDDEN_LINE}</p>
-              <Box as="p" size="xs" tone="muted">
+              <Hint as="p" size="xs">
                 Folders, landing branches and checks are under Repository setup. Worker and reviewer chats come from delivery in .avoozl.json.
-              </Box>
+              </Hint>
               {kept.length > 0 && (
-                <Box as="p" size="xs" tone="muted" data-kept>
+                <Hint as="p" size="xs" data-kept>
                   Kept, not used: {kept.join(', ')}. Give a repository a GitHub role to use them again.
-                </Box>
+                </Hint>
               )}
             </Box>
           </Section>
@@ -1518,9 +1517,9 @@ function WorkspaceGitHub(props: {
           ) : (
             <Card>
               <Section title="GitHub calls" blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source.">
-                <Box as="p" size="sm" tone="muted" data-empty="github-calls">
+                <Hint as="p" size="sm" data-empty="github-calls">
                   No GitHub calls recorded yet. They show here after the next sync.
-                </Box>
+                </Hint>
               </Section>
             </Card>
           ))}
@@ -1689,9 +1688,9 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
     )
   if (!settings || !form || !choices)
     return (
-      <Box as="p" size="sm" tone="muted">
+      <Hint as="p" size="sm">
         {busy ? 'Loading…' : 'Not loaded'}
-      </Box>
+      </Hint>
     )
   const dirty = JSON.stringify(toPolicy(form)) !== JSON.stringify(toPolicy(toForm(settings.github)))
   const missing = missingRequired(form)
@@ -1807,17 +1806,17 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
         blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source. Calls count against the limit; 304s and cached answers do not."
       >
         {lines.length > 0 && (
-          <Box flex flexCol gap="1" size="xs" tone="muted" data-github-rate>
+          <Hint as="div" flex flexCol gap="1" size="xs" data-github-rate>
             {lines.map((line) => (
               <p key={line}>{line}</p>
             ))}
-          </Box>
+          </Hint>
         )}
         {rows.length > 0 && (
           <>
-            <Box as="p" size="xs" tone="muted">
+            <Hint as="p" size="xs">
               {rate?.hourCalls ?? 0} calls in the last hour. Click a heading to sort.
-            </Box>
+            </Hint>
             <UsageTable rows={rows} />
           </>
         )}
@@ -1872,9 +1871,9 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
                     onClick={() => setSort(nextUsageSort(sort, col.key))}
                   >
                     {col.label}
-                    <Box aria-hidden="true" as="span" size="xs" tone="muted">
+                    <Hint aria-hidden="true" as="span" size="xs">
                       {on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
-                    </Box>
+                    </Hint>
                   </PlainButton>
                 </Box>
               )
@@ -1924,9 +1923,9 @@ export default function SettingsView(props: {
   const pick = (next: SettingsTab) => choose(next)
   const renderBody = (section: (typeof SETTINGS_TABS)[number]) => (
     <Box flex flexCol gap="3" pb="4" data-settings-body={section.key}>
-      <Box as="p" size="sm" tone="muted" data-blurb={section.key}>
+      <Hint as="p" size="sm" data-blurb={section.key}>
         {SETTINGS_BLURBS[section.key]}
-      </Box>
+      </Hint>
       <TabBoundary key={section.key} label={section.label}>
         <SettingsBody
           tab={section.key}

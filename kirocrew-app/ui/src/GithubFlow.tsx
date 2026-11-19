@@ -159,12 +159,12 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
             {text}
           </ErrorText>
         ))}
-        <Box as="p" flex items="center" gap="2" size="xs" tone="muted">
+        <Hint as="p" flex items="center" gap="2" size="xs">
           {view.readAt ? `Read ${span(Date.now() - Date.parse(view.readAt))} ago.` : ''}
           <Btn type="button" disabled={busy} onClick={() => setPresses((n) => n + 1)}>
             {busy ? 'Reading…' : 'Read again'}
           </Btn>
-        </Box>
+        </Hint>
       </Stack>
     </Card>
   )

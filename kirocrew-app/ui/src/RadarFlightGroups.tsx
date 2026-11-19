@@ -93,13 +93,13 @@ export default function RadarFlightGroups({ groups, now }: { groups: RadarGroup[
           ) : (
             <Box as="table" wFull align="left" size="sm">
               <thead>
-                <Box as="tr" size="xs" tone="muted">
+                <Hint as="tr" size="xs">
                   {HEAD.map((name) => (
                     <Box key={name} scope="col" as="th" pr="2" weight="normal">
                       {name}
                     </Box>
                   ))}
-                </Box>
+                </Hint>
               </thead>
               <tbody>
                 {group.rows.map((row) => (

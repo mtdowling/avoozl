@@ -74,9 +74,9 @@ function Row({ icon, title, pill, sub }: { icon: ReactNode; title: string; pill:
         {pill}
       </Box>
       {sub && (
-        <Box truncate tone="muted">
+        <Hint as="div" truncate>
           {sub}
-        </Box>
+        </Hint>
       )}
     </Box>
   )
@@ -177,9 +177,9 @@ export function RoleHelp() {
               <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-280px-1fr" grid gap="3">
                 <Box css-background="bg-elevated-transparent" rounded="md" p="2.5">
                   <Picture />
-                  <Box as="p" mt="2" size="11" tone="muted">
+                  <Hint as="p" mt="2" size="11">
                     {CAPTION[card.mode]}
-                  </Box>
+                  </Hint>
                 </Box>
                 <Box flex flexCol gap="2" size="xs">
                   <div>

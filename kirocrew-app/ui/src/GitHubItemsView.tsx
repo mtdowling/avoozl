@@ -66,17 +66,17 @@ function ItemListRow(props: { row: ItemRow; focused: boolean; onFocus: () => voi
         css-width="100%"
       >
         <Box as="span" flex minW0 items="center" gap="2">
-          <Box as="span" shrink0 size="xs" tone="muted">
+          <Hint as="span" shrink0 size="xs">
             #{row.number}
-          </Box>
+          </Hint>
           <Box as="span" minW0 flex1 truncate size="sm" weight="medium">
             {row.title}
           </Box>
-          <Box as="span" shrink0 size="xs" tone="muted">
+          <Hint as="span" shrink0 size="xs">
             {ageOf(row.updatedAt)}
-          </Box>
+          </Hint>
         </Box>
-        <Box as="span" flex flexWrap items="center" gap="1" size="xs" tone="muted">
+        <Hint as="span" flex flexWrap items="center" gap="1" size="xs">
           <span>{row.author ?? 'unknown'}</span>
           {row.kind === 'pr' && row.counts && (
             <>
@@ -89,7 +89,7 @@ function ItemListRow(props: { row: ItemRow; focused: boolean; onFocus: () => voi
               {label}
             </Badge>
           ))}
-        </Box>
+        </Hint>
         <Box as="span" truncate size="xs" tone={row.owner ? 'danger' : 'muted'} data-row-agent>
           {agentLine(row)}
         </Box>
@@ -205,9 +205,9 @@ function ActionBar(props: { detail: ItemDetail; busy: boolean; onAct: (action: s
 function Fact(props: { label: string; children: React.ReactNode }) {
   return (
     <Box flex flexWrap items="baseline" gap="2" size="sm">
-      <Box as="span" tone="muted" weight="medium">
+      <Hint as="span" weight="medium">
         {props.label}
-      </Box>
+      </Hint>
       <Box as="span" minW0>
         {props.children}
       </Box>
@@ -221,14 +221,14 @@ function ItemDetailPane(props: { detail: ItemDetail; busy: boolean; onAct: (acti
   const comments = detail.timeline.filter((entry) => entry.body !== undefined).slice(-10)
   return (
     <Stack gap={3} data-item-detail={`${detail.repository}#${detail.number}`}>
-      <Box flex flexWrap items="center" gap="2" size="sm" tone="muted">
+      <Hint as="div" flex flexWrap items="center" gap="2" size="sm">
         <span>
           {detail.repository} #{detail.number}
         </span>
         <Badge variant={detail.state === 'open' ? 'success' : 'info'}>{detail.merged ? 'Merged' : detail.state === 'open' ? 'Open' : 'Closed'}</Badge>
         <span>by {detail.author ?? 'unknown'}</span>
         {detail.firstTime && <Badge variant="wave">First-time contributor</Badge>}
-      </Box>
+      </Hint>
       <Box css-border-color="border" border="all" css-border-radius="8" p="3" data-item-agent>
         <Stack gap={1}>
           <Box weight="semibold" size="sm">

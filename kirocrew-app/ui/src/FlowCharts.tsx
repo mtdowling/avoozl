@@ -202,9 +202,9 @@ function UsageTable({ title, rows }: { title: string; rows: UsageRow[] }) {
             <Box as="span" minW0 truncate>
               {STAGE_LABELS[r.key as keyof typeof STAGE_LABELS] ?? r.key}
             </Box>
-            <Box as="span" tabularNums tone="muted">
+            <Hint as="span" tabularNums>
               {usageText(r)}
-            </Box>
+            </Hint>
           </Box>
         ))}
       </Box>

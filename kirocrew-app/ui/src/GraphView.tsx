@@ -183,7 +183,7 @@ function Node(props: { node: LaidNode; selected: boolean; dim: boolean; onSelect
 
 function Legend() {
   return (
-    <Box aria-label="Node colors" as="ul" flex flexWrap gap="3" size="xs" tone="muted">
+    <Hint aria-label="Node colors" as="ul" flex flexWrap gap="3" size="xs">
       {STATES.map((state) => (
         <Box key={state.id} as="li" flex items="center" gap="1">
           <svg width={10} height={10} aria-hidden="true">
@@ -193,7 +193,7 @@ function Legend() {
         </Box>
       ))}
       <li>Solid arrow: waiting · faded arrow: met · dashed arrow: sequence</li>
-    </Box>
+    </Hint>
   )
 }
 
@@ -554,13 +554,13 @@ export default function GraphView({
               <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy} />
             </Row>
           )}
-          <Box role="status" as="p" mt="2" size="sm" tone="muted">
+          <Hint role="status" as="p" mt="2" size="sm">
             {busy
               ? 'Loading…'
               : summary
                 ? `${summary.tasks} of ${full!.total} tasks · ${summary.blocking} blocking edges · ${summary.ready} ready · ${layout?.waves ?? 0} waves`
                 : ''}
-          </Box>
+          </Hint>
         </FilterBar>
       )}
       {workspaceId && drill?.kind === 'epic' && drill.id && <EpicPanel workspaceId={workspaceId} id={drill.id} client={client} onDrill={(next) => onDrill?.(next)} />}
