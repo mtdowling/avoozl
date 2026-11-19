@@ -144,6 +144,7 @@ export async function landDirect(
           isolation: repository.isolation,
           unionPaths: config?.landing?.unionPaths ?? [],
           tickOf: (dir, entry) => tickEntry(store, dir, entry),
+          commitPrefix: repository.commitPrefix,
           env,
           machine,
           configFile,

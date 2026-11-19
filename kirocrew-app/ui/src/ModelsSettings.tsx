@@ -95,6 +95,16 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
       setSaving(false)
     }
   }
+  const approve = async (name: string) => {
+    setMessage(null)
+    try {
+      const done = await client.approveHarness(workspaceId, name)
+      await reload()
+      setMessage({ ok: `Approved ${done.name} (sha256 ${done.hash.slice(0, 12)}).` })
+    } catch (caught) {
+      setMessage({ error: errorMessage(caught) })
+    }
+  }
   const problems = ROLES.map((role) => roleProblem(role.key, form, definitions)).filter(Boolean) as string[]
   const set = (role: Role, change: RoleRow) => setForm({ ...form, [role]: { ...form[role], ...change } })
   const pickHarness = (role: Role, picked: string) => {
@@ -112,7 +122,12 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
           </Box>
           {definitions.map((d) => (
             <Box key={d.name} as="li" flex items="center" gap="2" data-harness-definition={d.name}>
-              {d.name} <Badge variant={d.approved ? 'success' : 'warning'}>{d.approved ? 'hash approved' : 'not approved'}</Badge>
+              {d.name} <Badge variant={d.approved ? 'success' : 'warning'}>{d.approved ? 'hash approved' : d.changed ? 'changed since approval' : 'not approved'}</Badge>
+              {!d.approved && (
+                <SmallBtn onClick={() => approve(d.name)} attrs={{ 'data-approve-harness': d.name }}>
+                  Approve
+                </SmallBtn>
+              )}
               <Hint size="xs" data-harness-proved>
                 {provedLine(d)}
               </Hint>

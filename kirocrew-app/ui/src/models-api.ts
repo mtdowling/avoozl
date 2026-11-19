@@ -56,6 +56,8 @@ const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
 export interface HarnessDefinition {
   name: string
   approved: boolean
+  // The file was approved once and its bytes differ now.
+  changed?: boolean
   // The file sets `model`, so a session can name one.
   model?: boolean
   // Why it cannot run a read-only role (it names no resultAllow), or null.
@@ -110,6 +112,7 @@ export function modelsClient(api: AppApi) {
   return {
     get: (workspaceId: string) => run<ModelSettings>(workspaceId, 'models.settings.get'),
     save: (workspaceId: string, roles: RoleTable, expectedHash: string) => run<ModelSettings>(workspaceId, 'models.settings.update', { roles: toRoles(roles), expectedHash }),
+    approveHarness: (workspaceId: string, name: string) => run<{ name: string; path: string; hash: string }>(workspaceId, 'harness.approve', { name }),
     list: () => api.get<unknown>('/api/models').then(parseModels),
   }
 }

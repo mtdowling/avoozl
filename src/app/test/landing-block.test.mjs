@@ -37,6 +37,7 @@ test("Avoozl's own repository keeps pr, auto-merge, squash and 2 rounds", () => 
     autoMerge: true,
     method: "squash",
     mergeBatch: "auto",
+    commitPrefix: "",
     maxAttempts: 2,
   });
   const task = { id: "t", repository: "avoozl" };
@@ -68,6 +69,7 @@ test("Nupp keeps auto-merge and core-dev landing", () => {
     autoMerge: true,
     method: "squash",
     mergeBatch: "auto",
+    commitPrefix: "",
     maxAttempts: 2,
   });
   assert.equal(
@@ -98,6 +100,7 @@ test("the block sets each value, and the older keys are refused", () => {
     autoMerge: false,
     method: "merge",
     mergeBatch: "auto",
+    commitPrefix: "",
     maxAttempts: 3,
   });
   const settings = repositoryOf(config, "o/app");

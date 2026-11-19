@@ -30,6 +30,7 @@ import { mergeBaseBack } from "./spec-base.mjs";
 import { fail } from "./store.mjs";
 import { checkApplies } from "./repository-checks.mjs";
 import { landingMessage } from "./landing-trailers.mjs";
+import { commitSubject } from "./landing-config.mjs";
 
 const DIGEST = /^[0-9a-f]{64}$/;
 const NO_PROMPT = { GIT_TERMINAL_PROMPT: "0" };
@@ -138,6 +139,7 @@ export async function stackMembers(
   baseHead,
   unionPaths = [],
   tickOf = null,
+  commitPrefix = "",
 ) {
   const union = new Set(unionPaths),
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-landing-")),
@@ -147,7 +149,10 @@ export async function stackMembers(
     await git(root, ["worktree", "add", "--detach", "--quiet", dir, baseHead]);
     for (const entry of entries) {
       made.push(made.at(-1) ?? 0);
-      const message = landingMessage(`Land ${entry.key}`, entry.tasks);
+      const message = landingMessage(
+        commitSubject(commitPrefix, `Land ${entry.key}`),
+        entry.tasks,
+      );
       let conflicted = false;
       try {
         await git(dir, [
@@ -243,6 +248,7 @@ export async function landWithIntents(intents, push) {
 //   checks      the repository's checks ([{name, argv, paths}]); the ones
 //               the candidate's diff from the base picks run at it
 //   unionPaths  append-only paths merged with union semantics
+//   commitPrefix  the repository's landing.commitPrefix, for each commit subject
 //   tickOf(dir, entry)  ticks the entry's tasks in the candidate worktree
 //               before its merge commit, so the commit carries the tick
 //   intent(spec, entries) -> {journal, input, options}: the spec's driver
@@ -257,6 +263,7 @@ export function directSteps({
   checks = [],
   unionPaths = [],
   tickOf = null,
+  commitPrefix = "",
   intent,
   env,
   machine,
@@ -307,6 +314,7 @@ export function directSteps({
         baseHead,
         unionPaths,
         tickOf,
+        commitPrefix,
       );
       result.heads?.forEach((head, i) =>
         stacked.set(stackId(baseHead, entries.slice(0, i + 1)), head),

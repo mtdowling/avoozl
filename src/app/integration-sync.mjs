@@ -6,6 +6,7 @@
 //
 // shortcut: the files named for a conflict are those both sides changed (the
 // first 300 each, as GitHub lists them). Upgrade when a conflict list is needed.
+import { commitSubject } from "./landing-config.mjs";
 import { integrationOf } from "./integration-branch.mjs";
 import { planManifest } from "./forward-epics.mjs";
 import { ruleBranch } from "./github-branch-rules.mjs";
@@ -139,7 +140,10 @@ export async function syncStep(
         await github.mergeBranch(repository, {
           base: branch,
           head: base,
-          message: `Merge ${base} into ${branch}`,
+          message: commitSubject(
+            policy?.repositories?.[repository]?.landing?.commitPrefix,
+            `Merge ${base} into ${branch}`,
+          ),
         });
         next.entries[key] = { state: "ok", lastAt: now, base };
       } catch (error) {

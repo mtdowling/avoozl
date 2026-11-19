@@ -360,6 +360,7 @@ export async function landPullRequests(
           machine,
           configFile,
           store,
+          commitPrefix: repository.commitPrefix,
           intent: () => ({
             journal: authority.journal,
             options: { ...authority.options, machine, configFile },
