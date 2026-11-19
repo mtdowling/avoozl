@@ -83,6 +83,31 @@ test("Claude Code's read class is dontAsk and may write only its result file", (
   );
 });
 
+// ta-p1 run 5: a triage session ran `cd repo`, and Claude Code kept it; its
+// relative result rules then pointed into repo/ and its result was refused.
+test("no child is moved off its folder: briefs say no cd, result rules are absolute", async () => {
+  const { STAY_IN_FOLDER } = await import("../process.mjs");
+  const { ROLE_TABLE } = await import("../../agents/role-table.mjs");
+  for (const [setting, row] of Object.entries(ROLE_TABLE))
+    if (row.process && row.prompt)
+      // A role pattern (review:*) is checked by one of its names.
+      for (const role of row.roles ?? [setting])
+        if (typeof role === "string")
+          assert.ok(processBrief(role, "x").includes(STAY_IN_FOLDER), role);
+  for (const role of ["triage", "review:security"])
+    assert.ok(processBrief(role, "x").includes(STAY_IN_FOLDER), role);
+  const { processSteps } = await import("../../delivery/delivery.mjs");
+  assert.match(processSteps({ id: "7.1" }).join("\n"), /Do not run cd/);
+  // Whatever folder the shell sits in, the rules name the session's own.
+  const definition = parseHarnessDefinition(
+    JSON.parse(fs.readFileSync(CLAUDE, "utf8")),
+  );
+  const worktree = "/private/var/folders/x/T/avoozl-triage-a";
+  for (const rule of fillHarnessArgv(definition.resultAllow, { worktree }))
+    if (rule !== "--allowedTools")
+      assert.ok(rule.startsWith(`Edit(/${worktree}/.avoozl/`), rule);
+});
+
 test("a role child's brief holds its prompt, the brief, and how it finishes", () => {
   assert.equal(processBrief("worker", "Do it."), "Do it.", "worker unchanged");
   const verifier = processBrief("verifier", "Check abc.");

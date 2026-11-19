@@ -157,6 +157,11 @@ const reportsVerdict = (role) => processRow(role)?.verdict === true;
 // The brief a `process` child reads: its role's prompt, the brief, then how
 // it finishes. A worker's brief is passed as it is. `allowCommands` is the
 // repository's allow-list, which a verdict child is told.
+// Every child's brief says so: a harness keeps a cd for the rest of the
+// session, and a refused command (in a read-only one) cannot move it back.
+export const STAY_IN_FOLDER =
+  "Do not run cd. Name every file by its path from the current folder, such as repo/lib.mjs.";
+
 export function processBrief(role, brief, { allowCommands } = {}) {
   const row = processRow(role);
   if (!row?.prompt) return brief;
@@ -165,6 +170,7 @@ export function processBrief(role, brief, { allowCommands } = {}) {
     "",
     brief,
     "",
+    STAY_IN_FOLDER,
     ...(row.finish?.(allowCommands) ?? []),
   ]
     .join("\n")
