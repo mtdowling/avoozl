@@ -41,7 +41,7 @@ The page is close to portable already:
   `@kirocrew/app-sdk/ui` (`kirocrew-app/ui/vite.config.ts`).
 - Every view calls one route, `POST /apps/avoozl/api/command`, with an
   operation name (`COMMAND_PATH` in `kirocrew-app/ui/src/workspace-api.ts`).
-- The backend (`src/app/app-backend.mjs`) checks a principal that Kiro Crew's
+- The backend (`src/app/executors/kirocrew/app-backend.mjs`) checks a principal that Kiro Crew's
   proxy signs (`KIROCREW_PROXY_SECRET`) and authorizes by kind:
   `owner-session` may run any offered operation, `app-token` and
   `agent-tool` may only observe (`principalAllows`).
@@ -56,7 +56,7 @@ The page is close to portable already:
 `.kiro/specs/avoozl/` stays the product spec. This spec changes Requirement
 98 (SW11) and design §4.28's UI paragraph, and reuses Requirement 95 (one
 supervisor per machine), Requirement 98.1 and 98.2 (process sessions on the
-page), and the operation set in `src/app/operations.mjs`. It adds no
+page), and the operation set in `src/app/api/operations.mjs`. It adds no
 operation for agents.
 
 ### Scope

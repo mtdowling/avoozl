@@ -10,13 +10,13 @@ read in the file cited at `e519494`, **A** assumed.
 | Need                          | Exists today                                                                 | New here                                           |
 | ----------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------- |
 | Read issues and pull requests | Triage reads each repository at most every 10 minutes (V: `UNTRIAGED_INTERVAL_MS`, `src/app/untriaged.mjs:25`) | A conditional list since a cursor (D7)             |
-| Answer a question             | The responder role (V: `src/app/github-respond.mjs`, 490 lines)              | Started per item, citations required (TA2)         |
+| Answer a question             | The responder role (V: `src/app/github/github-respond.mjs`, 490 lines)              | Started per item, citations required (TA2)         |
 | Decide one fix or more        | The breakdown planner's classification (V: `src/app/github-breakdown.mjs`)   | Six classes, one run (D3)                          |
-| Fix and land                  | `Deliver this` and its bounded fix (V: `boundedFix`, `src/app/github-intake.mjs:51`), verify, landing | Reproduction first; fixes without issues (TA9)     |
-| Review a pull request         | Review drafts and the code review chat (V: `src/app/review-draft.mjs`, `src/app/pr-review.mjs`) | Posted reviews, full or partial (TA4)              |
+| Fix and land                  | `Deliver this` and its bounded fix (V: `boundedFix`, `src/app/github/github-intake.mjs:51`), verify, landing | Reproduction first; fixes without issues (TA9)     |
+| Review a pull request         | Review drafts and the code review chat (V: `src/app/review-draft.mjs`, `src/app/reviews/pr-review.mjs`) | Posted reviews, full or partial (TA4)              |
 | Hand items to the owner       | Triage and Needs you                                                         | The owner queue as a page filter (TA5)             |
 | See and stop                  | Activity, Flow, task timelines, Stop the line                                | The Triage agent page, Pause, Stop all (TA6)       |
-| Throttle GitHub               | The write pacer, the conditional cache, the rate pause (V: `src/app/github-pacer.mjs`, `src/app/github-rate.mjs`) | GraphQL detail and batched counts (D7)             |
+| Throttle GitHub               | The write pacer, the conditional cache, the rate pause (V: `src/app/github/github-pacer.mjs`, `src/app/github/github-rate.mjs`) | GraphQL detail and batched counts (D7)             |
 
 ## D2. One run per item, started by the tick
 
@@ -128,7 +128,7 @@ comments on lines in the diff, and `partial` with `notCovered`.
 
 Avoozl posts it as one review with event `COMMENT` and its line comments,
 the call review drafts already use (V: `pullRequestReviews` and the reviews
-endpoint, `src/app/github.mjs:2064` to `:2090`). A line comment outside the
+endpoint, `src/app/github/github.mjs:2064` to `:2090`). A line comment outside the
 diff is dropped, as for a draft today. **Edit review** on the page edits a
 review before it is posted, when the repository sets `triage.reviews:
 draft`; the default is `post`.
@@ -141,9 +141,9 @@ user token, with a 304 answer to a conditional request not counted; the
 search API 30 calls a minute; GraphQL 5,000 points an hour, with no
 conditional requests; content-creating writes about 80 a minute and 500 an
 hour. Avoozl already paces writes at 60 a minute and 400 an hour (V:
-`src/app/github-pacer.mjs:12`), caches GET answers for conditional requests,
+`src/app/github/github-pacer.mjs:12`), caches GET answers for conditional requests,
 and stretches reads when fewer than 200 calls are left (V:
-`src/app/github-rate.mjs`).
+`src/app/github/github-rate.mjs`).
 
 **Finding changes: REST, conditional.** Per repository, one call:
 `GET /repos/{owner}/{repo}/issues?state=open&sort=updated&direction=desc&since=<cursor>&per_page=100`,
@@ -201,7 +201,7 @@ or an unposted draft; Home and Needs you show its count.
 | The label-triggered steps of planner and responder | Their tick wiring; the roles stay |
 | `.kiro/specs/radar-coder/`                         | 5,203 lines of spec               |
 
-Kept and renamed: the content hook moves to `src/app/content-hook.mjs`.
+Kept and renamed: the content hook moves to `src/app/content/content-hook.mjs`.
 
 ## D10. Decisions for the owner
 

@@ -10,7 +10,7 @@ requirements: **V** read in the file cited at `9124dcd`, **A** assumed.
 (`landing-queue.mjs`), a landing worktree that merges a group with the base
 and checks it, a halving search, union paths, intents read back before the
 push, and a guarded fast-forward (V: `src/app/landing-trains.mjs`,
-`src/app/landing-queue.mjs`, `src/app/direct-landing.mjs`). Merge batches are
+`src/app/landing/landing-queue.mjs`, `src/app/landing/direct-landing.mjs`). Merge batches are
 that code with three changes: the group size comes from MB2 instead of a
 fixed four, the bisect confirms its culprit (MB4.3), and the group may cross
 drivers (MB1.4).
@@ -73,7 +73,7 @@ candidate.
 ## D4. The bisect, and the culprit confirmed
 
 The halving search in `landNext` finds the first failing boundary by
-building shorter candidates (V: `src/app/landing-queue.mjs:229`). It keeps
+building shorter candidates (V: `src/app/landing/landing-queue.mjs:229`). It keeps
 doing that, running only the checks that failed. When it names a culprit:
 
 1. Check the culprit alone on the base, with the failing checks.

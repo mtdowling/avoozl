@@ -40,12 +40,12 @@ that worked before the phase without a route after it.
 
 ## D3. The pair table (WP3)
 
-One frozen table in `src/app/worker-briefs.mjs` maps executor and task kind
+One frozen table in `src/app/workers/worker-briefs.mjs` maps executor and task kind
 to the function that builds the brief, or to a reason. Delivery asks the
 table; it no longer picks steps with its own conditionals (V: today the
-choice is spread over the brief builder at `src/app/delivery.mjs:2282`,
-`batchBrief` in `src/app/flow-batch.mjs:192` and `workerBrief`
-in `src/app/remote-runner.mjs:388`).
+choice is spread over the brief builder at `src/app/delivery/delivery.mjs:2282`,
+`batchBrief` in `src/app/flow/flow-batch.mjs:192` and `workerBrief`
+in `src/app/workers/remote-runner.mjs:388`).
 
 | Kind                     | `kirocrew`                                   | `process`                                        |
 | ------------------------ | -------------------------------------------- | ------------------------------------------------ |
@@ -62,7 +62,7 @@ falls back to.
 
 ## D4. Findings without MCP (WP3.2, WP4.2)
 
-`investigateLines` (V: `src/app/investigate.mjs:158`) takes the executor.
+`investigateLines` (V: `src/app/delivery/investigate.mjs:158`) takes the executor.
 
 - `kirocrew`: "write your findings to a file as this JSON, then run
   `<command> runner report TASK findings --file PATH --token T`".
@@ -86,38 +86,38 @@ tool uses, so there is one definition of a valid finding.
 The falsifier chat reports the same way (WP3.6): its brief gives
 `<command> runner report TASK done --role falsifier --file PATH --token T`,
 with a token issued for the falsifier role and the attempt. The verdict file goes
-through the validator `plans_report` uses (V: `src/app/report-match.mjs`,
-`src/app/investigate.mjs` `falsifierBrief`).
+through the validator `plans_report` uses (V: `src/app/workers/report-match.mjs`,
+`src/app/delivery/investigate.mjs` `falsifierBrief`).
 shortcut: the verifier and review roles still report by `plans_report`;
 give them role tokens when one of them runs as a chat without sharing.
 
 ## D5. The report command (WP4.3)
 
-`src/app/delivery.mjs:488` already holds the absolute path of the running
+`src/app/delivery/delivery.mjs:488` already holds the absolute path of the running
 CLI (V). The brief's report line becomes `<node> <cli> runner report …`,
 with the Node binary from `process.execPath`, both quoted for a shell. The
 installed app's copy of the CLI is under `kirocrew-app/bin/lib` and resolves
 the same way. The worker-machine brief already takes a `command`, which the tick
-builds from the running CLI's path (V: `src/app/remote-runner.mjs:388` and
-`src/app/operations.mjs:3369`); both use one helper.
+builds from the running CLI's path (V: `src/app/workers/remote-runner.mjs:388` and
+`src/app/api/operations.mjs:3369`); both use one helper.
 
 Whether a Kiro Crew chat has `avoozl` on its `PATH` today was not tested
 (A). The change makes the answer not matter.
 
 ## D6. Manual take (WP2)
 
-`claimTask` (V: `src/app/runner.mjs:282`) moves to
-`src/app/manual-take.mjs` and loses its Crew Mode test (`:293`) and its
+`claimTask` (V: `src/app/workers/runner.mjs:282`) moves to
+`src/app/workers/manual-take.mjs` and loses its Crew Mode test (`:293`) and its
 conductor branch: the only caller left is the local command line, so the
 binding's `conductor` is always `cli`, which `matchTakeReport` already
-requires (V: `src/app/report-match.mjs:81`).
+requires (V: `src/app/workers/report-match.mjs:81`).
 
 The tick must then leave a claimed task alone. It already does: the
 ready query is given every task that has a session binding and leaves those
 out (V: `claimed: busyTaskIds(store, bindings)` in `readyCandidates`,
-`src/app/delivery.mjs:2132`). No test shows it for a manual take with the
+`src/app/delivery/delivery.mjs:2132`). No test shows it for a manual take with the
 tick on, because the tick starts nothing under Crew Mode today (V:
-`src/app/tick.mjs:1325`). A test claims a task and runs three ticks.
+`src/app/tick/tick.mjs:1325`). A test claims a task and runs three ticks.
 
 Release (`--release`) closes the binding and leaves the worktree. It does
 not delete a worktree with changes; `--discard` is the person saying so.
@@ -132,7 +132,7 @@ says `crew-mode`, delivery reads as held and Needs you has one item.
 through the settings writer with the file's hash, as other settings saves
 do.
 
-Removed with it: `src/app/runner.mjs` (425 lines) apart from `nextView`,
+Removed with it: `src/app/workers/runner.mjs` (425 lines) apart from `nextView`,
 `src/app/runner/avoozl-runner.md`, `kirocrew-app/hooks/avoozl-runner.json`, the
 relay branches of `localSteps` and the GitHub-route steps, and
 `conductorFeedback` (`src/app/github-feedback.mjs:280`). `nextView` stays
@@ -148,7 +148,7 @@ delivery, landing and stacking.
 ## D8. Worker pull on the tick (WP5)
 
 The worker side reuses the plan-less runner role, which stays (V:
-`src/app/remote-runner.mjs` is imported by `executors/process.mjs`,
+`src/app/workers/remote-runner.mjs` is imported by `executors/process.mjs`,
 `session-bindings.mjs` and `session-request-eligibility.mjs`). On a machine
 whose `runner.role` is `worker`, the tick runs, in order: pull offers,
 request claims for free lanes, start acknowledged tasks, report finished
@@ -162,7 +162,7 @@ queue (R90.2). A fetched result that fails is a failed attempt on the
 driver, not on the worker machine.
 
 With `workers.offerTo` set (WP5.7), the driver's tick first offers
-(`src/app/worker-offer-step.mjs`): each ready task of a driven spec goes to
+(`src/app/workers/worker-offer-step.mjs`): each ready task of a driven spec goes to
 each named login once, at the base branch's head, and is held from local
 dispatch. The same step answers claim requests as `spec grants` does. After
 a result is checked into the working branch, the tick lands that branch on
@@ -178,7 +178,7 @@ worker role, which move to `worker-mode.test.mjs`.
 
 ## D9. Sessions run on this machine (WP6)
 
-The `agent`, `model` and `harness` pins stay in `src/app/session-pins.mjs`,
+The `agent`, `model` and `harness` pins stay in `src/app/sessions/session-pins.mjs`,
 and the provider checks stay in `provider-health.mjs`. The crew snapshot
 (`crews.mjs`) stays for the In flight view.
 

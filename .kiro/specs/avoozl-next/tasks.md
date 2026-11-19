@@ -82,7 +82,7 @@ Requirement AN3 (R85, §6.14).
 - [x] an-3.1 Hook command: scan a crew's writes before they run [AN3.1] (§6.14)
   - $done: `avoozl content hook` refuses a gh or git write that holds a rule match or text it cannot read, naming the rule set, id and place and never the text.
   - Built: PR #381 (main spec task 39.1).
-  - `avoozl content hook`, now `src/app/content-hook.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
+  - `avoozl content hook`, now `src/app/content/content-hook.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
   - Superseded 2026-11-18: public crews are removed except the content hook, which is now a general pre-tool-use command (triage-agent TA11.3); the rest was deleted 2026-11-19.
 - [x] an-3.2 Audit on the tick: delete a hit, pull the cord, alert, after an-3.1 [AN3.1] (§6.14)
   - $done: The tick deletes a matching crew comment, closes a matching pull request, pulls the cord for the repository, and sends one notice and one Needs you item.

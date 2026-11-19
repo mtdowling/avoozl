@@ -55,12 +55,12 @@ for the gaps.
 
 | Piece | Today | Gap |
 | --- | --- | --- |
-| Supervisor | `avoozl supervisor` owns every `process` child, one per machine (R95; V: `src/app/supervisor.mjs:577`) | Its lock is a pid file with a rename takeover that two takers can both win (V: `:474-520`; design D3) |
-| Tick on a headless machine | `avoozl supervisor --tick-seconds N` runs the tick and the drain for every catalog workspace (V: `src/app/headless-tick.mjs:42`) | On a Kiro Crew machine the cron runs the tick through MCP and the app backend runs the drain (V: `kirocrew-app/crons/tick.py:51`, `src/app/app-backend.mjs:281-415`); nothing stops both loops running at once |
+| Supervisor | `avoozl supervisor` owns every `process` child, one per machine (R95; V: `src/app/executors/supervisor.mjs:577`) | Its lock is a pid file with a rename takeover that two takers can both win (V: `:474-520`; design D3) |
+| Tick on a headless machine | `avoozl supervisor --tick-seconds N` runs the tick and the drain for every catalog workspace (V: `src/app/tick/headless-tick.mjs:42`) | On a Kiro Crew machine the cron runs the tick through MCP and the app backend runs the drain (V: `kirocrew-app/crons/tick.py:51`, `src/app/executors/kirocrew/app-backend.mjs:281-415`); nothing stops both loops running at once |
 | Page | `avoozl serve`, on `127.0.0.1` with a one-time owner link, hosted by the supervisor with `serve.enabled` (standalone-web SW3, SW9) | None; it moves under the new command names |
-| Login unit | `avoozl supervisor unit` prints or writes a launchd or systemd unit; the person loads it (V: `src/app/supervisor-unit.mjs:1-22`) | No Windows; no command that loads it |
+| Login unit | `avoozl supervisor unit` prints or writes a launchd or systemd unit; the person loads it (V: `src/app/executors/supervisor-unit.mjs:1-22`) | No Windows; no command that loads it |
 | Process executor | Claude Code ran every role class in P57, P59 and nk-p1; Codex ran a write task in P58 (`docs/evidence/`) | No proof of every role under a server no front end started; Codex read roles are not proved (V: `examples/harnesses/codex.json` `proved: ["write"]`) |
-| Codex's inner sandbox | `permission.write` may be `danger-full-access` only inside Avoozl's sandbox (R94.4d, task 48.2; V: `src/app/harness-definitions.mjs:85-90`) | Only the write class may; Codex's own sandbox cannot nest in Avoozl's on macOS (P58), so its read roles cannot run commands (A: from P58's finding, not run for read) |
+| Codex's inner sandbox | `permission.write` may be `danger-full-access` only inside Avoozl's sandbox (R94.4d, task 48.2; V: `src/app/executors/harness-definitions.mjs:85-90`) | Only the write class may; Codex's own sandbox cannot nest in Avoozl's on macOS (P58), so its read roles cannot run commands (A: from P58's finding, not run for read) |
 | MCP bridge | `avoozl mcp --url URL` posts to `URL/mcp` (V: `src/app/commands/machine.mjs:121`) | No server serves `/mcp` (V: no such route in `serve-server.mjs` or `app-backend.mjs`); the bridge is dead |
 | Agents from prompts | `npm run check:agents` builds Kiro Crew agents from `prompts/` and `agent-metadata.json` (V: `src/app/executors/kirocrew/build-agents.mjs`) | Kiro Crew only |
 | Cron | `tick.py` runs the whole tick through `plans_maintain tick` (V: `kirocrew-app/crons/tick.py:51-56`) | The Node backend cannot take over chats: it gets 403 opening them (F129, branch `spec/node-tick`, commit `ce63eb27`) |
@@ -159,7 +159,7 @@ child.
    on the same workspace) SHALL skip that workspace on every pass, and
    `avoozl status` from either SHALL name the holder's pid and state folder.
 4. The in-database work lock of the tick (V: `WORKSPACE_LOCK`,
-   `src/app/tick.mjs:130`) SHALL stay. It serializes a pass with GitHub
+   `src/app/tick/tick.mjs:130`) SHALL stay. It serializes a pass with GitHub
    projection and with operations a person runs.
 5. The lock record (pid, start time, build, state folder, and the control
    address once MS9 lands) SHALL be written only by the holder, after it
@@ -258,7 +258,7 @@ so that unattended work does not fail on a missing login.
    is named. A request for it SHALL open one Needs you item, not repeat a
    failed start.
 4. A login kept only in the macOS keychain is out of a child's reach, since
-   the sandbox denies the keychain (V: `src/app/sandbox.mjs:29` and `:264`). The docs
+   the sandbox denies the keychain (V: `src/app/executors/sandbox.mjs:29` and `:264`). The docs
    SHALL say to use an API key, Bedrock or a model proxy. (A: Claude Code's
    plan sign-in lives in the keychain on macOS; task ms-1.6 checks it.)
 
@@ -270,7 +270,7 @@ with no front end open, so that Kiro Crew is optional.
 #### Acceptance criteria
 
 1. Every row of the role table that runs as a child (V: `process: true` in
-   `src/app/role-table.mjs:102-306`: worker, verifier, reviewer, planner,
+   `src/app/agents/role-table.mjs:102-306`: worker, verifier, reviewer, planner,
    retro, falsifier, responder, task summary, plan reviewer, plan answer,
    pull request review, triage, assist) SHALL run on the `claude-code`
    definition as a child of a machine server started by the login unit,
@@ -379,7 +379,7 @@ starting a chat starts delivery.
    caller block, as today; otherwise the host and session the front end's
    environment names, if any, and the `--workspace` its MCP entry gives. The
    server SHALL resolve the workspace by today's rules (V:
-   `src/app/app-mcp.mjs:1-16`): a bound session's workspace first, then the
+   `src/app/executors/kirocrew/app-mcp.mjs:1-16`): a bound session's workspace first, then the
    named workspace or the catalog default. A claim SHALL route and attribute
    a call. It SHALL never grant one.
 3. WHEN no machine server runs THEN the shim SHALL start one (MS3.5) and

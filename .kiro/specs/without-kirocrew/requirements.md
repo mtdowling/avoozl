@@ -37,27 +37,27 @@ cited at `0afc0ab`; or **A**, assumed and not checked, with the reason.
   The falsifier, the issue planner, the responder, review drafts, the pull
   request review and the task summary build their request with
   `kirocrewRequest`, which names the `kirocrew` executor unless told
-  otherwise (V: `src/app/investigate.mjs:492`,
-  `src/app/github-planner.mjs:202`, `src/app/github-respond.mjs:351`,
-  `src/app/review-draft.mjs:442`, `src/app/pr-review.mjs:177`,
-  `src/app/task-summary.mjs:133`; the default is at
+  otherwise (V: `src/app/delivery/investigate.mjs:492`,
+  `src/app/github-planner.mjs:202`, `src/app/github/github-respond.mjs:351`,
+  `src/app/review-draft.mjs:442`, `src/app/reviews/pr-review.mjs:177`,
+  `src/app/tasks/task-summary.mjs:133`; the default is at
   `src/app/executors/kirocrew.mjs:241`). The plan review step defaults to
-  `kirocrew` (V: `src/app/plan-review-step.mjs:436`).
+  `kirocrew` (V: `src/app/reviews/plan-review-step.mjs:436`).
 - Settings › Models accepts a harness for the plan reviewer and for review
-  drafts (V: `HARNESS_ROLES`, `src/app/chat-models.mjs:82`), and nothing
+  drafts (V: `HARNESS_ROLES`, `src/app/settings/chat-models.mjs:82`), and nothing
   reads it: `roleHarness` is called for the worker, the retro and the New
-  spec planner only (V: `src/app/delivery.mjs:2217`,
-  `src/app/flow-retro.mjs:789`, `src/app/operations.mjs:3463`).
+  spec planner only (V: `src/app/delivery/delivery.mjs:2217`,
+  `src/app/flow/flow-retro.mjs:789`, `src/app/api/operations.mjs:3463`).
 - Investigate first is on by default, and its second chat, the falsifier,
   runs only on Kiro Crew. So a machine with no Kiro Crew must turn
   investigate first off to code anything.
 - On a headless machine a request for a Kiro Crew chat stays queued with no
-  word to anyone (V: the comment at `src/app/headless-tick.mjs:6`).
+  word to anyone (V: the comment at `src/app/tick/headless-tick.mjs:6`).
 - Notifications are queued by the tick and sent only by the Kiro Crew app
   backend, to the gateway (V: `deliverNotifications` and `gatewayPusher`,
-  `src/app/notifications.mjs:82` and `:112`; the one caller is
-  `src/app/app-backend.mjs:711`). The headless tick never sends them (V: no
-  reference to a notifier in `src/app/headless-tick.mjs`). A person with no
+  `src/app/tick/notifications.mjs:82` and `:112`; the one caller is
+  `src/app/executors/kirocrew/app-backend.mjs:711`). The headless tick never sends them (V: no
+  reference to a notifier in `src/app/tick/headless-tick.mjs`). A person with no
   Kiro Crew is told nothing.
 
 ### What this builds on
@@ -67,8 +67,8 @@ The pattern already moved four roles (V: `processFinish` and
 child gets its role's prompt file, then its brief, then one instruction to
 write `.avoozl/result.json` instead of calling an Avoozl tool; Avoozl reads
 the file and does the write the chat used to ask for. A child has no
-database, no network and no credentials (V: `src/app/sandbox.mjs:1`), and
-its result file is at most 8,192 bytes (V: `src/app/supervisor.mjs:251`).
+database, no network and no credentials (V: `src/app/executors/sandbox.mjs:1`), and
+its result file is at most 8,192 bytes (V: `src/app/executors/supervisor.mjs:251`).
 
 This spec keeps Requirements 93 to 97 of `.kiro/specs/avoozl/` and finishes
 Requirement 97.3. It does not change what any role may do: a role that could

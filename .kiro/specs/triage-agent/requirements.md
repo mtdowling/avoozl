@@ -56,11 +56,11 @@ Claims about today's code carry one label: **V**, read in the file cited at
     requests, and CI runs (V: `B/app.json:16`, `B/backend/routes.py:759`).
 - **Label commands are unused weight.** Trigger rules with seven actions,
   Who counts, six managed labels and a plan label exist (V:
-  `RULE_ACTIONS` and `MANAGED_LABEL_KEYS`, `src/app/github-policy.mjs:19`),
+  `RULE_ACTIONS` and `MANAGED_LABEL_KEYS`, `src/app/github/github-policy.mjs:19`),
   and neither Avoozl's own nor Nupp's `.avoozl.json` sets a rule.
 - **One fix should not need a spec folder.** **Deliver this** already
   starts a fix with no files, keyed to the issue's text (V: `boundedFix`,
-  `src/app/github-intake.mjs:51`). Nothing does the same without a GitHub
+  `src/app/github/github-intake.mjs:51`). Nothing does the same without a GitHub
   issue.
 
 ### What this builds on
@@ -326,7 +326,7 @@ inside GitHub's limits, so that landing and everything else keep working.
 
 1. All GitHub traffic of this spec SHALL go through Avoozl's one client:
    its write pacer, its conditional-request cache and its rate-limit pause
-   (V: `src/app/github-pacer.mjs`, `src/app/github-rate.mjs`). No child
+   (V: `src/app/github/github-pacer.mjs`, `src/app/github/github-rate.mjs`). No child
    SHALL call GitHub.
 2. Finding new and changed items SHALL use one conditional REST list per
    repository, the open issues and pull requests updated since the last

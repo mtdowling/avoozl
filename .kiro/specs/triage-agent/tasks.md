@@ -107,7 +107,7 @@ of the other specs.
 - [x] ta-5.2 Remove the Issue Radar integration and public crews, after ta-p1 [TA11.2, TA11.3, TA11.4] (§D9)
   - $done: Tests: Radar settings fail to load naming the key; the content hook refuses a matching write as it does today; no source file imports a removed module; `kirocrew-app/app.json` holds no Issue Radar grant; the pull request lists what each deleted test covered and where it is covered now. (Changed 2026-11-19: no backward compatibility, TA11.4.)
   - $after: ta-p1
-  - The `radar-*` modules, Send to Issue Radar, the crew views and strip, the escalation intake, Settings › Issue Radar and the app grant go; public crews go except the content hook, which moves to `src/app/content-hook.mjs`.
+  - The `radar-*` modules, Send to Issue Radar, the crew views and strip, the escalation intake, Settings › Issue Radar and the app grant go; public crews go except the content hook, which moves to `src/app/content/content-hook.mjs`.
 - [x] ta-5.3 The old spec, the product spec and the docs, after ta-5.1, ta-5.2 [TA11.5, TA12] (§D9)
   - $done: `node scripts/spec-lint.mjs` reports 0 errors; a search of `src/`, `kirocrew-app/`, `README.md` and `docs/*.md` finds no `radar-coder` citation, no Send to Issue Radar and no label-command section.
   - $after: ta-5.1, ta-5.2

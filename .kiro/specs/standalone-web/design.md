@@ -35,12 +35,12 @@ same request to the same dispatch the app backend uses (D4).
 | `scripts/fetch-kirocrew-ui.mjs`           | New            | Fetches the pinned source to a cache and checks it      |
 | `kirocrew-app/ui/vite.config.ts`          | Changed        | `--mode standalone` with aliases and no externals       |
 | `scripts/build-kirocrew-app.mjs`          | Changed        | Runs the third build                                   |
-| `src/app/command-dispatch.mjs`            | New            | The body of today's `/api/command` handler              |
-| `src/app/app-backend.mjs`                 | Changed        | Calls `command-dispatch.mjs`; behavior unchanged        |
-| `src/app/serve-server.mjs`                | New            | `avoozl serve`: listener, sign-in, static files         |
-| `src/app/serve-auth.mjs`                  | New            | Link tokens, sessions, CSRF, header checks              |
-| `src/app/cli.mjs`                         | Changed        | `serve`, `serve link`                                   |
-| `src/app/supervisor.mjs`                  | Changed        | Optional server child (D8)                              |
+| `src/app/api/command-dispatch.mjs`            | New            | The body of today's `/api/command` handler              |
+| `src/app/executors/kirocrew/app-backend.mjs`                 | Changed        | Calls `command-dispatch.mjs`; behavior unchanged        |
+| `src/app/serve/serve-server.mjs`                | New            | `avoozl serve`: listener, sign-in, static files         |
+| `src/app/serve/serve-auth.mjs`                  | New            | Link tokens, sessions, CSRF, header checks              |
+| `src/app/cli/cli.mjs`                         | Changed        | `serve`, `serve link`                                   |
+| `src/app/executors/supervisor.mjs`                  | Changed        | Optional server child (D8)                              |
 
 ## D2. The host shim
 
@@ -120,7 +120,7 @@ for the Kiro Crew bundle (`preserveSymlinks`).
 The handler in `startAppBackend` does, after the principal check: method
 and path checks, JSON parse, `principalAllows`, input shape check, `demo.*`,
 the demo workspace, then the workspace's `Operations`. That body moves to
-`src/app/command-dispatch.mjs` as
+`src/app/api/command-dispatch.mjs` as
 `dispatchCommand({ claim, request, context })`, returning
 `{ status, body }`. `context` holds the registry, demo state and the
 optional Kiro Crew readers. The app backend calls it after

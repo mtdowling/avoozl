@@ -26,7 +26,7 @@ them and the first four did not:
 
 ## D2. The role table
 
-One frozen table in `src/app/role-table.mjs` holds each role's row.
+One frozen table in `src/app/agents/role-table.mjs` holds each role's row.
 `processFinish`, the drain's folder rule and `finishProcessSession` read it,
 so a role is described once. NK1.2's source test and NK1.4's per-role test
 walk the same table.
@@ -55,7 +55,7 @@ is the same code for both executors: the tool handler and
 
 A child may write one file under `.avoozl/output/` and name it in its result
 file as `{"state": "done", "output": "<name>"}`. The supervisor's reader of
-the result file (V: the 8,192-byte limit at `src/app/supervisor.mjs:251`)
+the result file (V: the 8,192-byte limit at `src/app/executors/supervisor.mjs:251`)
 gains the `output` key and checks only that the name is a plain file name.
 `finishProcessSession` reads the file, with the role's limit from the table,
 and validates it with the validator the role's tool uses today.
@@ -78,7 +78,7 @@ there cannot run these roles (NK6).
 ## D4. Snapshots (NK4)
 
 A child has no network and cannot read `~/.config/gh` (V:
-`src/app/sandbox.mjs:1`). Today's review draft brief tells a chat to read
+`src/app/executors/sandbox.mjs:1`). Today's review draft brief tells a chat to read
 the pull request with `gh` (V: `src/app/review-draft.mjs:149`). For a child,
 Avoozl does that reading first, with the GitHub client it already has, and
 writes the result into the session's folder:
@@ -102,7 +102,7 @@ draft is kept, marked as written for an older head, and the person may ask
 for another.
 
 The pull request review has no hand-back today: the chat is the output (V:
-`src/app/pr-review.mjs:3`). For a child, the review is an output file, kept
+`src/app/reviews/pr-review.mjs:3`). For a child, the review is an output file, kept
 with the session and shown where a process session's log is shown
 (Requirement 98.1) and by `avoozl show`.
 
@@ -129,7 +129,7 @@ person asked for is not proof of the model that answered.
 
 ## D6. Notifications (NK7)
 
-`deliverNotifications(store, push)` (V: `src/app/notifications.mjs:82`)
+`deliverNotifications(store, push)` (V: `src/app/tick/notifications.mjs:82`)
 already takes the function that sends. Today that function is
 `gatewayPusher` and the only caller is the app backend.
 
@@ -158,7 +158,7 @@ items waited", and marks the rest sent.
 
 ## D7. The Kiro Crew table (NK8)
 
-`src/app/needs-kirocrew.mjs` lists what needs Kiro Crew and why. The
+`src/app/tick/needs-kirocrew.mjs` lists what needs Kiro Crew and why. The
 `standalone-web` spec's SW10 names the page's states; this table is the one
 source both read. After this spec's tasks it holds four rows (NK8.4). A test
 fails when a module calls a Kiro Crew reader for an operation that is not

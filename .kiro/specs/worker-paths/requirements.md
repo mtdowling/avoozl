@@ -41,14 +41,14 @@ What that costs:
 
 - The manual path of Requirement 96.5 works only when Crew Mode is on.
   `claimTask` refuses unless `delivery.runner` is `crew-mode` (V:
-  `src/app/runner.mjs:293`), and the tick starts no task while it is on (V:
-  `src/app/tick.mjs:1325`).
+  `src/app/workers/runner.mjs:293`), and the tick starts no task while it is on (V:
+  `src/app/tick/tick.mjs:1325`).
 - A `process` worker is given briefs that name what it cannot use.
-  Investigate first is on by default (V: `src/app/investigate.mjs:24`) and
+  Investigate first is on by default (V: `src/app/delivery/investigate.mjs:24`) and
   is added to a worker's brief whatever the executor (V:
-  `src/app/delivery.mjs:2427`). Its lines say "call plans_session" (action report) with the
+  `src/app/delivery/delivery.mjs:2427`). Its lines say "call plans_session" (action report) with the
   findings and then "wait" for a message (V: `investigateLines`,
-  `src/app/investigate.mjs:158`). A child has no MCP tool, and the `process`
+  `src/app/delivery/investigate.mjs:158`). A child has no MCP tool, and the `process`
   executor rewrites the report step only for the verifier, the reviewers,
   the retro and the planner, not for a worker (V: `processFinish`,
   `src/app/executors/process.mjs:137`). `flow-batch.mjs` has no `process`
@@ -56,7 +56,7 @@ What that costs:
   cannot make a batch's one commit per task. What a child does with such a
   brief was not run (A); proof P57 ran with investigate first off.
 - A `process` child on a worker machine gets the chat's brief: "Commit your
-  work there" and "run … runner report" (V: `src/app/remote-runner.mjs:531`
+  work there" and "run … runner report" (V: `src/app/workers/remote-runner.mjs:531`
   names the executor and `:538` still passes `workerBrief`). Its result is
   read from the result file (V: `finishProcessSession`,
   `src/app/executors/process.mjs:277`), which that brief never mentions.
@@ -64,11 +64,11 @@ What that costs:
   Crew.
 - Worker pull does not run by itself. On a worker machine the tick runs
   only the tasks it already holds (V: `runnerTick`,
-  `src/app/remote-runner.mjs:487`, called from `workspace.tick` in
-  `src/app/operations.mjs:3369`). Pulling and claiming are reached only by
+  `src/app/workers/remote-runner.mjs:487`, called from `workspace.tick` in
+  `src/app/api/operations.mjs:3369`). Pulling and claiming are reached only by
   the `worker.pull` and `worker.accept` operations, which the commands of
-  the same names call (V: `src/app/operations.mjs:3180` and `:3188`).
-  `src/app/worker-results.mjs` is imported only by its own test (V).
+  the same names call (V: `src/app/api/operations.mjs:3180` and `:3188`).
+  `src/app/workers/worker-results.mjs` is imported only by its own test (V).
 - Work on another Kiro Crew instance was wired into the tick, delivery, plans
   and settings. Nothing records a crew that can take work.
 - A finished worker's report depends on which route it took: an MCP tool, a
@@ -153,7 +153,7 @@ myself, so that I am never blocked on an agent.
    running session, and a task held by Stop the line, each with the reason.
 3. `avoozl runner report TASK done|blocked`, run from the task's worktree
    with no token, SHALL finish a manual take, as it does today (V:
-   `matchTakeReport`, `src/app/report-match.mjs:75`). Avoozl SHALL read the
+   `matchTakeReport`, `src/app/workers/report-match.mjs:75`). Avoozl SHALL read the
    commit from the worktree and SHALL run the checks itself.
 4. `avoozl take TASK --release` SHALL give the task back, and SHALL refuse
    when the worktree has uncommitted changes unless `--discard` is given.
@@ -214,8 +214,8 @@ extra step.
 3. The report command in a brief SHALL run on that machine without `avoozl`
    on the session's `PATH`. The brief SHALL give the command the running
    Avoozl resolves for itself (V: the worker-machine brief already takes
-   one, `src/app/remote-runner.mjs:388`; the local brief names bare
-   `avoozl`, `src/app/delivery.mjs:1802`). A test SHALL run the command from
+   one, `src/app/workers/remote-runner.mjs:388`; the local brief names bare
+   `avoozl`, `src/app/delivery/delivery.mjs:1802`). A test SHALL run the command from
    a brief in a shell with an empty `PATH`.
 4. A worker's brief SHALL NOT tell it to push, open or edit a pull request,
    or turn on auto-merge (Requirement 86.3). This criterion is met by task
@@ -243,14 +243,14 @@ that there is one set of rules about what that machine is trusted to do.
    hand.
 3. On the driver the tick SHALL fetch a worker machine's pushed result,
    check its diff and run the repository's checks again before it lands (Requirement
-   90.2), with no command run by hand. `src/app/worker-results.mjs` SHALL be
+   90.2), with no command run by hand. `src/app/workers/worker-results.mjs` SHALL be
    called from the tick or removed.
 4. Runner mode over SSH SHALL be removed: `runner.role` values `runner` and
    `driver`, the SSH transport, `avoozl runner accept`, `avoozl runner
    handoff` and `avoozl runner pull`. `runner.role: "worker"` and `avoozl
    runner report` SHALL stay. The envelope SHALL stay as the record of a
    pulled task and SHALL be taken only from an acknowledged claim (V: worker
-   pull already stores one, `src/app/remote-runner.mjs:340`, and a worker
+   pull already stores one, `src/app/workers/remote-runner.mjs:340`, and a worker
    refuses one that was not pulled, `:243`). A file with a removed role
    SHALL be refused when it loads, naming the key and worker pull.
 5. A machine with no GitHub access SHALL NOT be a worker machine. It can

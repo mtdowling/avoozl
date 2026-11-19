@@ -25,14 +25,14 @@ requirements: **V** read in the file cited at `c670051c`, **A** assumed.
 The machine server is today's supervisor with the headless tick turned on
 everywhere, under a new name and a sound lock. It already runs the tick and
 the drain for every catalog workspace when started with `--tick-seconds`
-(V: `startSupervisor`, `src/app/supervisor.mjs:582`; `tickCatalog`,
-`src/app/headless-tick.mjs:102`), and already hosts the page child (V:
+(V: `startSupervisor`, `src/app/executors/supervisor.mjs:582`; `tickCatalog`,
+`src/app/tick/headless-tick.mjs:102`), and already hosts the page child (V:
 `hostServe`, `:643`). What changes is that it becomes the only loop on every
 machine, including a Kiro Crew one.
 
 The CLI and the page keep running operations on the workspace database in
 their own process, as today. SQLite and the in-database work lock already
-make that safe (V: `withWorkLock`, `src/app/git.mjs:35`). Only the loop has
+make that safe (V: `withWorkLock`, `src/app/git/git.mjs:35`). Only the loop has
 one owner. This keeps the change small: the page and the CLI need no new
 transport (D12, question 4).
 
@@ -40,9 +40,9 @@ transport (D12, question 4).
 
 | Job | Today | After |
 | --- | --- | --- |
-| Tick planner, Kiro Crew machine | MCP server process, called by `tick.py` (V: `cronTick`, `src/app/app-mcp.mjs:45`) | Machine server |
+| Tick planner, Kiro Crew machine | MCP server process, called by `tick.py` (V: `cronTick`, `src/app/executors/kirocrew/app-mcp.mjs:45`) | Machine server |
 | Tick planner, headless machine | `avoozl supervisor --tick-seconds` | Machine server |
-| Process requests and check runs | App backend after each tick receipt (V: `src/app/app-backend.mjs:293-372`), or headless tick | Machine server |
+| Process requests and check runs | App backend after each tick receipt (V: `src/app/executors/kirocrew/app-backend.mjs:293-372`), or headless tick | Machine server |
 | Notifications to machine sinks | Headless tick (NK7.1) | Machine server |
 | Notices to Kiro Crew channels | App backend | App backend, unchanged: it holds the gateway credential, which the server must never get |
 | Session status, tool rows and usage of `kirocrew` chats | App backend readers and the cron's observations | Unchanged |
@@ -53,7 +53,7 @@ transport (D12, question 4).
 
 **Today's race.** `acquireSupervisorLock` writes `supervisor.lock` with
 `wx`. On `EEXIST` it reads the holder; if that pid is gone it renames the
-file away and tries again (V: `src/app/supervisor.mjs:474-520`). Two takers A
+file away and tries again (V: `src/app/executors/supervisor.mjs:474-520`). Two takers A
 and B that both read the same dead holder can both win: A renames the stale
 file and writes its own; B's rename then moves A's fresh file, and B writes
 its own. A finds out only on its next pass, when `holds()` turns false (V:
@@ -126,7 +126,7 @@ imports `./lib/cli.mjs`), so its build can differ from the person's global
 (MS3.4). Replacing is safe because children are detached and found again by
 pid and start time (R95.4).
 
-**Login unit.** One module replaces `src/app/supervisor-unit.mjs`:
+**Login unit.** One module replaces `src/app/executors/supervisor-unit.mjs`:
 
 | System | File | Load | Unload |
 | --- | --- | --- | --- |
@@ -184,11 +184,11 @@ fail quietly: the harness program is not on `PATH`, and the model key is
 not set.
 
 - `PATH` is captured into the unit at install (MS4.4), as the supervisor
-  unit does today (V: `pathEnv`, `src/app/supervisor-unit.mjs:58`).
+  unit does today (V: `pathEnv`, `src/app/executors/supervisor-unit.mjs:58`).
 - Model access: `machine.env` in the machine config folder, `KEY=value`
   lines, read by the server at start. Only names in a definition's
   `keepEnv` are passed to that child, as today (V: `sandboxEnv`,
-  `src/app/sandbox.mjs:128`). The file is outside every child's read roots
+  `src/app/executors/sandbox.mjs:128`). The file is outside every child's read roots
   because the whole Avoozl config folder already is (R95.6).
 - Readiness: one function per definition answers "can this start here?"
   and both `avoozl status` and Settings › Models show it per role (MS5.3).
@@ -225,7 +225,7 @@ command (P58, `docs/evidence/p58-codex-by-definition.md`). R94.4d therefore
 lets `permission.write` be `danger-full-access` inside Avoozl's sandbox
 only. A read role on Codex hits the same wall, so MS7.1 extends the same rule
 to `permission.read`. The read class's write roots already exclude the task
-folder (V: `harnessPermission`, `src/app/harness-definitions.mjs:543`), so
+folder (V: `harnessPermission`, `src/app/executors/harness-definitions.mjs:543`), so
 the read role still cannot change code. Only Avoozl's sandbox enforces that.
 
 That is why MS8 exists. One module, `src/app/sandbox-probes.mjs`, lists each
@@ -259,10 +259,10 @@ closes the connection. A browser's request begins `POST / HTTP/1.1`, so it
 never reaches a handler.
 
 **Authorization.** Every call runs through today's MCP path (V:
-`handleMcp`, `src/app/mcp.mjs:155`), whose operations already refuse
-person-only work (V: `mcpRefusal`, `src/app/mcp-policy.mjs:26`). The claim
+`handleMcp`, `src/app/mcp/mcp.mjs:155`), whose operations already refuse
+person-only work (V: `mcpRefusal`, `src/app/mcp/mcp-policy.mjs:26`). The claim
 only picks the workspace and records who called, by the rules
-`src/app/app-mcp.mjs` applies today, moved into the server.
+`src/app/executors/kirocrew/app-mcp.mjs` applies today, moved into the server.
 
 **Shim.** `avoozl mcp` reads stdio, sends `hello`, and pipes lines both ways.
 If the connect fails because no lock is held, it runs the start function
@@ -272,7 +272,7 @@ keeps launching `avoozl mcp --kirocrew`, so Kiro Crew needs no change.
 **Removed.** The `--url` bridge posts to `/mcp`, which nothing serves (V:
 `src/app/commands/machine.mjs:121`). The CLI's `--url` and `AVOOZL_URL` reach
 `/api/command`, which `avoozl serve` refuses without a browser cookie (V:
-`src/app/cli.mjs:140`). Both go.
+`src/app/cli/cli.mjs:140`). Both go.
 
 ## D9. Host packages and one source (MS11)
 

@@ -30,7 +30,7 @@ of the other specs.
 
 - [x] wp-1.1 The pair table, and briefs chosen by executor [WP3.1, WP3.4, WP3.5] (§D3)
   - $done: A test fails when a pair of executor and kind is missing from the table; every cell's brief runs through a fake executor of its kind to a recorded result; no `process` brief holds "commit", "push" or "runner report"; the existing delivery, batch and worker-mode tests pass with their assertions unchanged.
-  - `src/app/worker-briefs.mjs` holds one frozen table from executor and task kind to a brief builder or a stated reason; delivery, `flow-batch.mjs` and `remote-runner.mjs` ask it; a `process` child on a worker machine gets `processSteps`.
+  - `src/app/workers/worker-briefs.mjs` holds one frozen table from executor and task kind to a brief builder or a stated reason; delivery, `flow-batch.mjs` and `remote-runner.mjs` ask it; a `process` child on a worker machine gets `processSteps`.
 - [x] wp-1.2 Findings by the command line and by the result file, after wp-1.1 [WP3.2, WP4.2] (§D4)
   - $done: Tests with fake executors: a chat's findings by the command line and a child's findings by the result file open the same falsifier request and the same gate; Go ahead resumes the same child session and its done result lands; a findings file over the size limit is refused; a done result before Go ahead is still refused; a definition with no `resume` codes the task without the step and shows why.
   - $after: wp-1.1
@@ -59,7 +59,7 @@ of the other specs.
 
 - [x] wp-2.1 A person claims a task with the tick on [WP2.1, WP2.2, WP2.3, WP2.4, WP2.5, WP2.7] (§D6)
   - $done: Tests with the tick on: a claimed task stays unstarted across three ticks; `runner report` from its worktree with no token finishes it and Avoozl runs the checks; a claim is refused for a task that is not ready, has a running session or is held by Stop the line, each with its reason; a claim over MCP and from a child of the supervisor is refused; release refuses a dirty worktree without `--discard`.
-  - `src/app/manual-take.mjs` from `claimTask` (now `manualTake`), with no Crew Mode test and no conductor branch; a test that the ready query's existing rule keeps the tick off a claimed task; `avoozl take TASK --release` and `--discard`.
+  - `src/app/workers/manual-take.mjs` from `claimTask` (now `manualTake`), with no Crew Mode test and no conductor branch; a test that the ready query's existing rule keeps the tick off a claimed task; `avoozl take TASK --release` and `--discard`.
 - [x] wp-2.2 Remove Crew Mode dispatch, and hold the workspaces that used it, after wp-2.1, wp-p1 [WP1.1, WP1.2, WP1.3, WP1.4, WP2.6, WP7.4, WP7.5] (§D7)
   - $done: Tests: a `crew-mode` workspace starts nothing across three ticks and shows one Needs you item; the operation is refused from MCP and from an agent session, and from a person it removes the key and the next tick starts work; `"runner": "tick"` loads and is ignored; the source test of WP1.4 passes and fails on a planted second dispatcher; the pull request lists what each moved or deleted test covered and where it is covered now; the schema parity test passes.
   - $after: wp-2.1, wp-p1

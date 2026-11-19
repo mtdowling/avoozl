@@ -100,7 +100,7 @@ allowed actor an order that releases dependents.
 | F8  | Crew Mode supervises independent worker sessions.                  | **Verified, refined**     | `docs/agents.md`, `docs/work-ledger.md`. Crew Mode is a feature preview behind Settings → Developer. A conductor (`kirocrew-conductor`) dispatches one `kirocrew-worker` session per item. Items must be independent: an item that consumes another item's output is not a valid item.                                                                                                         |
 | F9  | Crew Mode work items are not GitHub tasks.                         | **Verified**              | Work-ledger items hold title, acceptance, state, status, summary, artifacts, and an optional `pr` number. They have no issue identity and no dependency edges.                                                                                                                                                                                                                                 |
 | F10 | Removed 2026-11-14: the owner dropped the separate review app. | **Removed** | Avoozl's own code review chat stays (Requirement 49.16). |
-| F11 | GitHub projection supports native cross-repository dependencies.   | **Verified, with limits** | `src/app/github-sync.mjs` `projectPlanIssues` and the live proof. Limits: every target repository must be registered and private; a dependency outside the plan must already be projected; drift detection applies to edges only.                                                                                                                                                              |
+| F11 | GitHub projection supports native cross-repository dependencies.   | **Verified, with limits** | `src/app/github/github-sync.mjs` `projectPlanIssues` and the live proof. Limits: every target repository must be registered and private; a dependency outside the plan must already be projected; drift detection applies to edges only.                                                                                                                                                              |
 | F12 | Fresh Avoozl workspaces can recover projected issues from markers. | **Corrected**             | Recovery reuses existing issues only when the _same approved plan ID_ is projected again: issues are matched by the hidden marker's `taskId` and `planId` under the managed label. It does not rebuild local tasks, status, or edges from GitHub. `syncGitHubIssues` fails when a marker names a task that is not present locally. A closed projected issue makes re-projection fail with 409. |
 | F13 | Avoozl verifies exact pull-request completion and required checks. | **Corrected**             | `src/app/github-completion.mjs` implements the check correctly and was proved live. It was called only by a live proof script that now lives in git history. No operation, CLI command, MCP tool, or dependent-release path uses it. It also requires the closing pull request to live in the issue's repository.                                                                                            |
 | F14 | The current Kiro Crew Avoozl app is only a proof shell.            | **Verified**              | `kirocrew-app/app.json` declares one page and one skill, no backend, no MCP server, and no crons. `ui/src/App.tsx` renders four static cards and one button that opens a draft chat.                                                                                                                                                                                                           |
@@ -120,7 +120,7 @@ allowed actor an order that releases dependents.
 | F23 | Issue Radar crew configuration lives in Issue Radar's private app data and routes (`/api/apps/issue-radar/crews`). No public contract lets another app read or write a crew's label scope.                                                                                                                                                                                                                                   | **Verified**                                                                             | `crew_ledger_spec.md`, `crew_routes.py`.                                                                                                                                          |
 | F24 | Issue Radar crews can merge and re-arm auto-merge, and hold at most one item per crew in the dirty-worktree phases (Implement, Addressing review).                                                                                                                                                                                                                                                                           | **Verified**                                                                             | `http_routes/pr_actions.py`; `docs/issue-radar-pipeline.md`; `crew_brief.md`.                                                                                                     |
 | F25 | Avoozl readiness treats `requires` and `sequence` edges as blocking and `supports` edges as advisory.                                                                                                                                                                                                                                                                                                                        | **Verified**                                                                             | `src/query.mjs`.                                                                                                                                                                  |
-| F26 | Avoozl runs its own runtime machinery today: `host-scheduler.mjs` (host-wide admission with default limits of 4 per host and 2 per workspace), the agent host with activity leases, the GitHub intake webhook callback with its own capability tokens (`github-intake.mjs`), and GitHub sync and queue polling driven by Avoozl's server.                                                                                    | **Verified**                                                                             | `src/app/host-scheduler.mjs`, `src/app/agent-host.mjs`, `src/app/github-intake.mjs`, `src/app/github-queue.mjs`.                                                                  |
+| F26 | Avoozl runs its own runtime machinery today: `host-scheduler.mjs` (host-wide admission with default limits of 4 per host and 2 per workspace), the agent host with activity leases, the GitHub intake webhook callback with its own capability tokens (`github-intake.mjs`), and GitHub sync and queue polling driven by Avoozl's server.                                                                                    | **Verified**                                                                             | `src/app/host-scheduler.mjs`, `src/app/agent-host.mjs`, `src/app/github/github-intake.mjs`, `src/app/github-queue.mjs`.                                                                  |
 | F27 | Kiro Crew crons can run a shell command with no LLM call (`command` jobs), on an interval, cron expression, or one-shot time. Commands are vetted when added and on every fire; command substitution, loops, and compound commands are refused. The default subprocess limit is 300 seconds and the default wake budget is 30 minutes. An app manifest can declare crons that register on enable and are removed on disable. | **Verified**                                                                             | `docs/cron-and-scheduling.md`; `apps/manifest.py` `crons`; `docs/apps.md`.                                                                                                        |
 | F28 | Kiro Crew monitor loops wake one conversation on an interval and run an agent turn each cycle in that same conversation.                                                                                                                                                                                                                                                                                                     | **Verified**                                                                             | `docs/monitor-loops.md`.                                                                                                                                                          |
 | F29 | No documented Kiro Crew event pushes a session's completion to an app backend. Apps can declare permitted event names (Task Runner declares `refine`; Workflows declares `workflow_run_event`), but no session-lifecycle event for third-party apps was found.                                                                                                                                                               | **Verified** (absence in docs and manifests searched); push support **Inferred** missing | `~/.kiro/crew/apps/*/app.json`; `docs/session-control.md`.                                                                                                                        |
@@ -2342,7 +2342,7 @@ worker, so that the pull request gets fixed and merges without me.
 
 Facts (2026-11-13, Avoozl `kirocrew-native`): the plans-repo brief tells
 the worker to "fix failing checks and answer review on that pull request
-until it merges" (`src/app/delivery.mjs`). Nothing wakes the worker when a
+until it merges" (`src/app/delivery/delivery.mjs`). Nothing wakes the worker when a
 check fails or a review lands, so a worker whose turn has ended never
 hears of it. The tick already relays two kinds of message to a bound
 worker: the leak screen's edit request (`src/app/github-close.mjs`) and
@@ -3884,7 +3884,7 @@ on a bigger or safer machine without a shared database or a shared gateway.
 
 ### Requirement 85: The content hook
 
-**Changed 2026-11-19 (triage-agent TA11.3).** Public crews are gone; the content hook stays as a general pre-tool-use command in `src/app/content-hook.mjs`, and nothing in Avoozl names an Issue Radar crew's agent.
+**Changed 2026-11-19 (triage-agent TA11.3).** Public crews are gone; the content hook stays as a general pre-tool-use command in `src/app/content/content-hook.mjs`, and nothing in Avoozl names an Issue Radar crew's agent.
 
 Added 2026-11-14 (owner request); cut to the hook alone 2026-11-19 (owner
 decision). Design §6.14. Usage in `docs/content-hook.md`. The clean crew
@@ -4037,7 +4037,7 @@ pressing merge.
    never force push, never use `--admin`, and never bypass a required
    review or check.
 5. Landing SHALL be serialized per base branch through one queue, using the
-   work lock (`withWorkLock`, `src/app/git.mjs`). Stop the line SHALL pause
+   work lock (`withWorkLock`, `src/app/git/git.mjs`). Stop the line SHALL pause
    the queue; a paused queue SHALL keep its order.
 6. WHEN a merge of the base into the task branch conflicts THEN Avoozl SHALL
    send the conflict to the same worker chat with the list of conflicted
@@ -4082,7 +4082,7 @@ instead of a stuck chat.
 3. A local worker chat SHALL open with `project: false` and the worktree path
    in its brief, as runner mode does. The earlier claim that an ordinary
    local worker already skips Kiro Crew's project folder and MCP sharing was
-   wrong: only runner mode did (`src/app/remote-runner.mjs`); a local worker
+   wrong: only runner mode did (`src/app/workers/remote-runner.mjs`); a local worker
    used `leaf.repository` and `plans_report` needed MCP sharing.
 4. WHEN Kiro Crew reports a worker chat gone THEN Avoozl SHALL open one new
    chat in the same worktree with the same brief and the last report
@@ -4094,7 +4094,7 @@ instead of a stuck chat.
    as requirements. `lanes.local`, default 3, is a setting in the machine
    file, Requirement 6.3.)
 6. Prepare SHALL use the approved `scripts/worktree` helper
-   (`createWorktree`, `src/app/git.mjs`), which today has no caller.
+   (`createWorktree`, `src/app/git/git.mjs`), which today has no caller.
    Avoozl SHALL remove a task's worktree and its local branch after the
    task lands, and SHALL keep them for a task that did not land.
 7. The Delivery page and the task drawer's Files and diff view SHALL be
@@ -4146,7 +4146,7 @@ plan and without trusting those machines.
 
 1. This machine SHALL be host `local`. Another machine SHALL run Avoozl in
    worker mode, which builds on the plan-less runner role
-   (`src/app/remote-runner.mjs`): it holds no plans, and an envelope carries
+   (`src/app/workers/remote-runner.mjs`): it holds no plans, and an envelope carries
    IDs only. The worker machine SHALL resolve the repository and the checks
    from its own `.avoozl.json`, so nothing it is sent is run as a command.
 2. A worker machine SHALL read the commit from its worktree, run its checks
@@ -4549,11 +4549,11 @@ the task graph unchecked.
 
 Facts. Spec drafting uses one planner chat. Settings › Models has one model
 per role (`planner`, `driver`, `retro`, `reviewDraft`) in
-`src/app/chat-models.mjs`; a role left out or `auto` runs on its agent's own
+`src/app/settings/chat-models.mjs`; a role left out or `auto` runs on its agent's own
 model. The only check on another model today is the falsifier
 (Requirement 75), which runs only for Avoozl's own workers. Plan review
 threads (`review_threads`, `plan.review.submit`, `plans_submit_review` in
-`src/app/plan-reviews.mjs`) are already keyed by plan and revision hash,
+`src/app/reviews/plan-reviews.mjs`) are already keyed by plan and revision hash,
 and a run bound to a review may submit only for its own plan revision.
 
 #### Acceptance criteria
@@ -4646,12 +4646,12 @@ the full test suite on Linux, macOS and Windows, and the test workflow ran on
 both `push` and `pull_request`, so each pull request ran it twice. No
 retrospective fired. That work ran in chats that were not Avoozl tasks, so
 the workspace had no `flow_spans` rows and no `flow_retros` rows. The CI
-trigger in `src/app/flow-retro.mjs` (`triggers`) fires only when one CI wait
+trigger in `src/app/flow/flow-retro.mjs` (`triggers`) fires only when one CI wait
 passes `flow.retro.slowFactor` times the repository's median CI wait (or 30
 minutes with fewer than 5 samples), so a cost that every pull request pays
 is the median and never fires. The retro brief has no field for what a pull
 request changed or for repeat runs. `openPullRequests` in
-`src/app/github.mjs` already reads every open pull request of a repository
+`src/app/github/github.mjs` already reads every open pull request of a repository
 in one GraphQL query per check.
 
 #### Acceptance criteria
@@ -4726,8 +4726,8 @@ retrospective a repository's own breakdown of where build time goes, so
 that the costliest step is visible and a change is judged only against
 builds that did the same work.
 
-Facts. `parseReceipt` in `src/app/build-receipt.mjs` keeps only the last
-line of a JSONL file. `receiptReader` in `src/app/build-receipt-read.mjs`
+Facts. `parseReceipt` in `src/app/flow/build-receipt.mjs` keeps only the last
+line of a JSONL file. `receiptReader` in `src/app/flow/build-receipt-read.mjs`
 lists artifacts named exactly `build-receipt` and takes the first one whose
 run matches the head commit, so one pull request keeps one receipt. The CI
 workflow uploads that artifact from the Linux job only, because artifact
@@ -5102,10 +5102,10 @@ finding either fixed, answered, or decided by me at a known revision.
 Facts. Phase 53 is built (53.1–53.5). Spec findings are `review_threads`
 rows with `source: "plan-review"` and `kind`, `severity` (`blocking`,
 `important`, `suggestion`, `question`), `file`, `line`, `statement`,
-`evidence` and `answer` (`src/app/plan-reviews.mjs`,
-`src/app/plan-review-answers.mjs`). `plan.review.dispose` closes a finding
+`evidence` and `answer` (`src/app/reviews/plan-reviews.mjs`,
+`src/app/reviews/plan-review-answers.mjs`). `plan.review.dispose` closes a finding
 as resolved, accepted, rejected or deferred; it records no revision, does
-not reach the planner, and is not person-only in `src/app/mcp-policy.mjs`.
+not reach the planner, and is not person-only in `src/app/mcp/mcp-policy.mjs`.
 `kirocrew-app/ui/src/PlanReviewSummary.tsx` lists open findings inside
 both Approve dialogs. `plansClient.approve` in
 `kirocrew-app/ui/src/plans-api.ts` throws "This revision changed. Reload
@@ -5342,7 +5342,7 @@ GitHub issue.
 
 ### Requirement 107: Spec pull requests are adopted into their spec
 
-**Changed 2026-11-19 (triage-agent TA8.6, TA11).** Triage is gone; a spec pull request is found by the open-items read (`src/app/github-open-read.mjs`) and keeps **Review as spec**. Adoption is unchanged.
+**Changed 2026-11-19 (triage-agent TA8.6, TA11).** Triage is gone; a spec pull request is found by the open-items read (`src/app/github/github-open-read.mjs`) and keeps **Review as spec**. Adoption is unchanged.
 
 Added 2026-11-18 (owner decision). Design §4.36. Extends Requirements 30
 (spec folders), 49 (Triage), 99 and 104 (second-model review and findings)

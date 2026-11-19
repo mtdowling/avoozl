@@ -52,9 +52,9 @@ evidence baseline.
 | F31 | Kiro Crew script crons are Python callables that run with no LLM call. Their context offers `call_tool(server, tool, args)` for MCP tools, `notify`, `list_session_folders`, `create_session_folder`, `open_session(name, folder_id, agent, model)` returning a slot key, `send_to_session(slot, message)`, and `set_session_mode(slot, mode)`. Flow control is `Skip`, `Done`, and `Report`. Default script timeout is 30 seconds and can be raised per job. | `docs/cron-and-scheduling.md`                                       |
 | F32 | An app manifest cron entry may name a `script` (Python callable) as well as a `command`.                                                                                                                                                                                                                                                                                                                                                                      | `apps/manifest_sections.py` `CronEntry`                             |
 | F33 | An app backend can opt into a gateway-signed principal claim (`signedPrincipal: true`) on every proxied request.                                                                                                                                                                                                                                                                                                                                              | `apps/manifest_sections.py` `BackendConfig`; `apps/routes_proxy.py` |
-| F34 | Avoozl local integration rebases the run branch onto the base branch and merges it into the originating checkout under a per-repository work lock, refusing when that checkout is not on its base branch.                                                                                                                                                                                                                                                     | `src/app/git.mjs` `integrateRun`                                    |
-| F35 | Avoozl reads GitHub with `AVOOZL_GITHUB_TOKEN`, `GITHUB_TOKEN`, or `gh auth token`, over REST. It does not use GitHub sub-issues today.                                                                                                                                                                                                                                                                                                                       | `src/app/github.mjs`; no `sub_issues` reference in `src/app`        |
-| F36 | `workspace-repository.mjs` publishes portable planning records from SQLite into the workspace's Git repository; Nupp uses it.                                                                                                                                                                                                                                                                                                                                 | `src/app/workspace-repository.mjs`; Nupp commit `566ef8a`           |
+| F34 | Avoozl local integration rebases the run branch onto the base branch and merges it into the originating checkout under a per-repository work lock, refusing when that checkout is not on its base branch.                                                                                                                                                                                                                                                     | `src/app/git/git.mjs` `integrateRun`                                    |
+| F35 | Avoozl reads GitHub with `AVOOZL_GITHUB_TOKEN`, `GITHUB_TOKEN`, or `gh auth token`, over REST. It does not use GitHub sub-issues today.                                                                                                                                                                                                                                                                                                                       | `src/app/github/github.mjs`; no `sub_issues` reference in `src/app`        |
+| F36 | `workspace-repository.mjs` publishes portable planning records from SQLite into the workspace's Git repository; Nupp uses it.                                                                                                                                                                                                                                                                                                                                 | `src/app/workspace/workspace-repository.mjs`; Nupp commit `566ef8a`           |
 
 ### GitHub and Kiro facts for the 2026-11-11 decisions
 
@@ -287,7 +287,7 @@ be missing; the tick rediscovers them from session titles (`avoozl:<task-id>`).
  └───────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Avoozl core** (**Verified** exists, **Proposed** scope): `src/app/operations.mjs`
+- **Avoozl core** (**Verified** exists, **Proposed** scope): `src/app/api/operations.mjs`
   and the modules it calls. UI, CLI, and MCP keep sharing it (AGENTS.md).
 - **Node backend** (**Proposed**): `avoozl app-backend`, declared as
   `backend: {type: "node", entryPoint: "...", signedPrincipal: true}` (F20, F33).
@@ -754,7 +754,7 @@ and talks to it with JSON messages over stdio. It gives the plugin no port.
 A plugin must open no listener; Avoozl checks the child's open sockets after
 start and on each health check, and stops and marks broken one that listens.
 (**Inferred**: listing a child's listening sockets needs no extra rights on
-macOS and Linux; `src/app/test/plugins.test.mjs` checks it.)
+macOS and Linux; `src/app/plugins/test/plugins.test.mjs` checks it.)
 The plugin may call its own system over the network. Every reply is checked
 against the contract schema and treated as untrusted data: quoted as data in
 briefs, escaped in views.
@@ -796,12 +796,12 @@ screen beside them. The facts read `kirocrew-native` at `dbf001b`.
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | F67 | **Verified.** The release scan keeps public rules (secrets, home and temp paths) in the script and reads private terms from an untracked file, `rule: regex` per line with `#` comments, at `$AVOOZL_RELEASE_TERMS` or `.avoozl/local/release-terms.txt`, matched per line ignoring case. A missing file prints a warning and the scan goes on. Each finding prints up to 160 characters of the matched line. It scans the npm and app packages, plugin docs, and fake plugins, and optionally the tree and history. | `scripts/release-scan.mjs` `PUBLIC_RULES`, `parseTerms`, `localTerms`, `scanText`                                                                      |
 | F68 | **Verified.** `findPlanningLeak` decodes percent escapes and HTML character references (up to three rounds), drops zero-width characters and backslashes, and matches the planning repository's `owner/name` with whitespace allowed between its characters, ignoring case. It returns `{field, form}`, never the text. Callers: the linked-branch step, comment steering, worker dispatch (a brief that leaks is not sent), and `pullRequestLeak` over pull request titles, bodies, and commit messages.            | `src/app/github-plans-repo.mjs`; `github-linked-branches.mjs`, `github-steering.mjs`, `delivery.mjs` `planReadyDispatches`                             |
-| F69 | **Verified.** `screenReply` checks a reply per line against a secrets table, a paths table, and this machine's own roots. It returns `{kind, line}` and never the matched text. `postReply` refuses with 422, posts nothing, and records a `github.reply.refused` event with the findings; the responder fixes the reply in its session.                                                                                                                                                                             | `src/app/github-respond.mjs` `screenReply`, `machineRoots`, `postReply`                                                                                |
-| F70 | **Verified.** `secretReason` is a third secrets table (with a high-entropy check) that refuses markers (with the planning-repository and path checks), workspace publications, and the broad-issue preview comment, with 422 and a reason.                                                                                                                                                                                                                                                                           | `src/app/workspace-repository.mjs` `secretReason`, `scanWorkspacePublication`; `github-marker.mjs` `validateMarker`; `github-breakdown.mjs` `screened` |
+| F69 | **Verified.** `screenReply` checks a reply per line against a secrets table, a paths table, and this machine's own roots. It returns `{kind, line}` and never the matched text. `postReply` refuses with 422, posts nothing, and records a `github.reply.refused` event with the findings; the responder fixes the reply in its session.                                                                                                                                                                             | `src/app/github/github-respond.mjs` `screenReply`, `machineRoots`, `postReply`                                                                                |
+| F70 | **Verified.** `secretReason` is a third secrets table (with a high-entropy check) that refuses markers (with the planning-repository and path checks), workspace publications, and the broad-issue preview comment, with 422 and a reason.                                                                                                                                                                                                                                                                           | `src/app/workspace/workspace-repository.mjs` `secretReason`, `scanWorkspacePublication`; `github-marker.mjs` `validateMarker`; `github-breakdown.mjs` `screened` |
 | F71 | **Verified.** The three secrets tables (F67, F69, F70) differ in patterns and coverage.                                                                                                                                                                                                                                                                                                                                                                                                                              | Same files                                                                                                                                             |
 | F72 | **Verified.** Nothing screens issue titles, issue body text outside the marker, Project field values, plan files at save or approval, or worker diffs. Only the eight modules in F68–F70 call a screen.                                                                                                                                                                                                                                                                                                              | `grep` for the four screen functions in `src/app`                                                                                                      |
-| F73 | **Verified.** The plugin loader is on `kirocrew-native` with kinds `route` and `tracker`.                                                                                                                                                                                                                                                                                                                                                                                                                            | `src/app/plugins.mjs` `KINDS`; commit `8662302`                                                                                                        |
-| F74 | **Verified.** `.avoozl/local/` is ignored (`.gitignore`, and `local-ignore.mjs` adds it for workspaces). Machine-local settings live at `~/.config/avoozl/config.json`, and shared configuration refuses absolute paths.                                                                                                                                                                                                                                                                                             | `src/app/local-ignore.mjs`; `src/app/layered-config.mjs`                                                                                               |
+| F73 | **Verified.** The plugin loader is on `kirocrew-native` with kinds `route` and `tracker`.                                                                                                                                                                                                                                                                                                                                                                                                                            | `src/app/plugins/plugins.mjs` `KINDS`; commit `8662302`                                                                                                        |
+| F74 | **Verified.** `.avoozl/local/` is ignored (`.gitignore`, and `local-ignore.mjs` adds it for workspaces). Machine-local settings live at `~/.config/avoozl/config.json`, and shared configuration refuses absolute paths.                                                                                                                                                                                                                                                                                             | `src/app/workspace/local-ignore.mjs`; `src/app/settings/layered-config.mjs`                                                                                               |
 
 #### Policy
 
@@ -995,7 +995,7 @@ allow host: \bbuild0\.corp\.example\b
 Replaced 2026-11-18 by the worker-paths spec (D9): every session runs on this machine.
 
 **Decided**, owner 2026-11-18: every session Avoozl opens runs on this
-machine, on the executor its harness names (§4.28). `src/app/session-pins.mjs`
+machine, on the executor its harness names (§4.28). `src/app/sessions/session-pins.mjs`
 checks a task's `session` fact: `agent`, `model` or `harness`, and
 nothing else. The crew snapshot (`crews.mjs`) stays for the In flight
 view's unreachable-crew flag. Its reader had no caller and was deleted; it
@@ -1006,7 +1006,7 @@ is in git history.
 | #   | Fact                                                                                                                                                                                                                                                                                                                  | Evidence                                                                                      |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | F75 | **Verified.** The tick opens every session with `ctx.open_session(title, folder_id=, agent=, model=)`. The script API posts `name`, `title`, `folder_id`, `agent`, and `model` to `/api/chat/slots`. Every Avoozl session runs on this machine.                                                                        | `kirocrew-app/crons/tick.py` `run`; Kiro Crew `cron_script_context.py` `open_session`         |
-| F83 | **Verified.** A worker finds its checkout through its Kiro Crew folder's project directory (MC-1), which exists only on this machine. The content-rules pre-push hook is installed per worktree on this machine (task 10.4).                                                                                          | `src/app/delivery.mjs` folder `Avoozl/<repository id>`; §7.1 MC-1; §4.9                       |
+| F83 | **Verified.** A worker finds its checkout through its Kiro Crew folder's project directory (MC-1), which exists only on this machine. The content-rules pre-push hook is installed per worktree on this machine (task 10.4).                                                                                          | `src/app/delivery/delivery.mjs` folder `Avoozl/<repository id>`; §7.1 MC-1; §4.9                       |
 
 #### Agent and model per session
 
@@ -1098,12 +1098,12 @@ marked so.
 | #   | Fact                                                                                                                                                                                                                                                                                                                                                                            | Evidence                                                                                                                                   |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | F90 | **Verified (source).** Kiro Crew stores each tool call as a transcript row with role `tool`, the row's `ts`, and `meta` holding `tool_call_id`, the ACP `kind` (read, edit, execute, and so on), the redacted `input`, and the MCP server and tool name when the backend sends them.                                                                                            | Kiro Crew `dashboard/chat_turn/tool_rows.py` `_tool_meta`, `_on_tool_call`                                                                 |
-| F91 | **Verified (source), not called live for tool rows.** An app token may read `GET /api/chat/slots/<slot>` only for a slot the app owns; the answer holds the messages with their `meta`, with `limit` and an incremental `cursor=1` read. Avoozl's backend already reads its tick-opened sessions this way for status, under the `/api/chat/slots/avoozl_*` grant in `app.json`. | Kiro Crew `dashboard/slot_ownership.py` `deny_app_slot_access`, `dashboard/chat_api/slot_detail.py`; Avoozl `src/app/session-observer.mjs` |
+| F91 | **Verified (source), not called live for tool rows.** An app token may read `GET /api/chat/slots/<slot>` only for a slot the app owns; the answer holds the messages with their `meta`, with `limit` and an incremental `cursor=1` read. Avoozl's backend already reads its tick-opened sessions this way for status, under the `/api/chat/slots/avoozl_*` grant in `app.json`. | Kiro Crew `dashboard/slot_ownership.py` `deny_app_slot_access`, `dashboard/chat_api/slot_detail.py`; Avoozl `src/app/executors/kirocrew/session-observer.mjs` |
 | F92 | **Inferred.** No end time, duration, or exit code is stored with a tool row; only its start `ts`. A call's length can only be estimated as the gap to the next row, which also counts the model's thinking time after the call.                                                                                                                                                 | F90; no such field found in `tool_rows.py` or `tool_results.py`                                                                            |
 | F93 | **Verified (source).** Session control refuses an app's own cron (`_app_owned_cron_refusal`), so the tick cannot use `session_read_message`; and that read returns only `index`, `role`, `content`, and `ts`, without `meta`.                                                                                                                                                   | Kiro Crew `dashboard/session_control_parts/caller_access.py`; `session_status.py` `read_messages`                                          |
 | F94 | **Verified (source).** A slot the app does not own answers 404 to the app token, so a Crew Mode conductor's workers and the owner's own chats give the app no tool rows. Remote sessions are out of reach for the app (F77).                                                                                                                                                    | `slot_ownership.py` `deny_app_slot_access`; F77                                                                                            |
 | F95 | **Verified (live, 2026-11-12, public repository).** GitHub check runs carry `started_at` and `completed_at`; pull request reviews carry `submitted_at`.                                                                                                                                                                                                                         | REST `commits/{sha}/check-runs`, `pulls/{n}/reviews`                                                                                       |
-| F96 | **Verified.** Avoozl already records the events timing needs: session bindings with role, attempt, `boundAt`, and `statusAt`; `plans_report` with `progress`, `done`, `blocked`, and `question`; verifier entries `{command, exitCode}`; `integrateRun` reruns the checks on the integrated commit (F63); and the `events` table with `at`.                                     | `src/app/session-bindings.mjs`, `src/app/delivery.mjs` `reportSession`, `src/app/store.mjs`                                                |
+| F96 | **Verified.** Avoozl already records the events timing needs: session bindings with role, attempt, `boundAt`, and `statusAt`; `plans_report` with `progress`, `done`, `blocked`, and `question`; verifier entries `{command, exitCode}`; `integrateRun` reruns the checks on the integrated commit (F63); and the `events` table with `at`.                                     | `src/app/sessions/session-bindings.mjs`, `src/app/delivery/delivery.mjs` `reportSession`, `src/app/store/store.mjs`                                                |
 | F97 | **Verified.** Task 5.1 deleted `telemetry.mjs` with the host and providers; the run-era `usage_samples` and `provider_events` tables stay read-only.                                                                                                                                                                                                                            | §9; task 5.1                                                                                                                               |
 
 So per-call detail is partly there: for sessions the tick opens on this
@@ -1507,18 +1507,18 @@ Read against Avoozl `kirocrew-native` at `6d83f83` (2026-11-12), read only.
 
 | #    | Fact                                                                                                                                                                                                                                                                                                                                         | Evidence                                                                                                            |
 | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| F101 | **Verified (source).** Intake is GitHub only. The tick's `intakeStep` calls `syncGitHubIssues` when a repository has rules. That lists open issues by each rule's first label (`candidateIssues`, never search), reads each issue's events and timeline, and stores matched issues as `github_issues` rows.                                  | `src/app/tick.mjs` `intakeStep`; `src/app/github-sync.mjs` `candidateIssues`, `syncGitHubIssues`                    |
-| F102 | **Verified (source).** The Untriaged list is GitHub only and is not in SQLite. The tick runs one GraphQL search per repository per 10 minutes and writes `untriaged.json` beside the database; `untriaged.view` applies the exclusions at read time.                                                                                         | `src/app/untriaged.mjs` `untriagedPath`, `refreshUntriaged`, `untriagedView`; `src/app/tick.mjs`                    |
-| F103 | **Verified (source).** The tracker contract has `project`, `read`, `list`, and `close`, and tracker capabilities `edges`, `subtasks`, `actor`, and `pause`. No call brings outside work in: `list` returns only records that carry Avoozl's own marker.                                                                                      | `src/app/plugin-contract.mjs` `trackerReplies`; `src/app/plugins.mjs` `CAPABILITIES`; `src/app/trackers.mjs` header |
-| F104 | **Verified (source).** The plugin child calls a method by name and fails only when that method is called and missing. Changes inside a contract version only add optional fields or capabilities. So an optional `poll` needs no new contract version.                                                                                       | `src/app/plugin-child.mjs` `handle`; `src/app/plugin-contract.mjs` `SUPPORTED_CONTRACTS`                            |
-| F105 | **Verified (source).** The tick opens only plugins an unfinished task names as route or authority. A plugin that is only a source would never be opened.                                                                                                                                                                                     | `src/app/tick.mjs` `referencedPlugins`, `pluginStep`                                                                |
+| F101 | **Verified (source).** Intake is GitHub only. The tick's `intakeStep` calls `syncGitHubIssues` when a repository has rules. That lists open issues by each rule's first label (`candidateIssues`, never search), reads each issue's events and timeline, and stores matched issues as `github_issues` rows.                                  | `src/app/tick/tick.mjs` `intakeStep`; `src/app/github/github-sync.mjs` `candidateIssues`, `syncGitHubIssues`                    |
+| F102 | **Verified (source).** The Untriaged list is GitHub only and is not in SQLite. The tick runs one GraphQL search per repository per 10 minutes and writes `untriaged.json` beside the database; `untriaged.view` applies the exclusions at read time.                                                                                         | `src/app/untriaged.mjs` `untriagedPath`, `refreshUntriaged`, `untriagedView`; `src/app/tick/tick.mjs`                    |
+| F103 | **Verified (source).** The tracker contract has `project`, `read`, `list`, and `close`, and tracker capabilities `edges`, `subtasks`, `actor`, and `pause`. No call brings outside work in: `list` returns only records that carry Avoozl's own marker.                                                                                      | `src/app/plugins/plugin-contract.mjs` `trackerReplies`; `src/app/plugins/plugins.mjs` `CAPABILITIES`; `src/app/trackers.mjs` header |
+| F104 | **Verified (source).** The plugin child calls a method by name and fails only when that method is called and missing. Changes inside a contract version only add optional fields or capabilities. So an optional `poll` needs no new contract version.                                                                                       | `src/app/plugins/plugin-child.mjs` `handle`; `src/app/plugins/plugin-contract.mjs` `SUPPORTED_CONTRACTS`                            |
+| F105 | **Verified (source).** The tick opens only plugins an unfinished task names as route or authority. A plugin that is only a source would never be opened.                                                                                                                                                                                     | `src/app/tick/tick.mjs` `referencedPlugins`, `pluginStep`                                                                |
 | F106 | **Verified (source).** A tracker close or pause counts as an order only when the plugin has the `actor` capability and the entry's `config.allowedActors` names the actor; anything else holds the task and opens a decision, and Avoozl does not reopen.                                                                                    | `src/app/trackers.mjs` `allowedActor`, `judge`                                                                      |
-| F107 | **Verified (source).** GitHub's check is `actorAllowed(repository, login, held)`: `allowedActors` and `minimumPermission` over the ranks `none` < `read` < `triage` < `write` < `maintain` < `admin`, applied to the newest event that made a rule true. Actions apply by the precedence quarantine, pause, deliver, execute, plan, respond. | `src/app/github-policy.mjs` `PERMISSIONS`, `actorAllowed`, `matchingRules`; `src/app/github-sync.mjs` `PRECEDENCE`  |
-| F108 | **Verified (source).** An MCP request carries Kiro Crew's caller block, which names a session key, not a person; a script cron's own copy of the server has no caller at all. Person-only operations refuse a session caller or MCP with 403.                                                                                                | `src/app/app-mcp.mjs` header; `src/app/operations.mjs` `content.show`, plugin edits                                 |
-| F109 | **Verified (source).** Content-rule boundaries are `plan`, `github`, `brief`, and `diff`. Nothing screens an item when it comes in; issue text is screened later, at `brief`.                                                                                                                                                                | `src/app/content-rules.mjs` `BOUNDARIES`; `src/app/github-sync.mjs`                                                 |
+| F107 | **Verified (source).** GitHub's check is `actorAllowed(repository, login, held)`: `allowedActors` and `minimumPermission` over the ranks `none` < `read` < `triage` < `write` < `maintain` < `admin`, applied to the newest event that made a rule true. Actions apply by the precedence quarantine, pause, deliver, execute, plan, respond. | `src/app/github/github-policy.mjs` `PERMISSIONS`, `actorAllowed`, `matchingRules`; `src/app/github/github-sync.mjs` `PRECEDENCE`  |
+| F108 | **Verified (source).** An MCP request carries Kiro Crew's caller block, which names a session key, not a person; a script cron's own copy of the server has no caller at all. Person-only operations refuse a session caller or MCP with 403.                                                                                                | `src/app/executors/kirocrew/app-mcp.mjs` header; `src/app/api/operations.mjs` `content.show`, plugin edits                                 |
+| F109 | **Verified (source).** Content-rule boundaries are `plan`, `github`, `brief`, and `diff`. Nothing screens an item when it comes in; issue text is screened later, at `brief`.                                                                                                                                                                | `src/app/content/content-rules.mjs` `BOUNDARIES`; `src/app/github/github-sync.mjs`                                                 |
 | F110 | **Verified (source).** `parseMatch` reads `label:`, `-label:`, `assignee:`, and `no:assignee` and refuses every other token by name.                                                                                                                                                                                                         | `src/app/issue-match.mjs`                                                                                           |
-| F111 | **Verified (source).** `task.capture` (`plans_intake {action: "capture"}`) records a person's request as an inbox task, idempotent by a submission ID.                                                                                                                                                                                                          | `src/capture.mjs`; `src/app/mcp.mjs`                                                                                |
-| F112 | **Verified (source).** Each store table is its own SQLite table of `id` and JSON `body`, on an allowlist in `store.mjs`; `github_issues` is one.                                                                                                                                                                                             | `src/app/store.mjs` `get`, `list`, `put`                                                                            |
+| F111 | **Verified (source).** `task.capture` (`plans_intake {action: "capture"}`) records a person's request as an inbox task, idempotent by a submission ID.                                                                                                                                                                                                          | `src/capture.mjs`; `src/app/mcp/mcp.mjs`                                                                                |
+| F112 | **Verified (source).** Each store table is its own SQLite table of `id` and JSON `body`, on an allowlist in `store.mjs`; `github_issues` is one.                                                                                                                                                                                             | `src/app/store/store.mjs` `get`, `list`, `put`                                                                            |
 | F113 | **Inferred.** An internal ticket tracker or code review system can answer "items changed since cursor X" for a query. A source that cannot is still usable, but its plugin must page through every open item each poll.                                                                                                                      | Not checked against any real system; proof P32 uses a fake                                                          |
 
 #### The record
@@ -1757,9 +1757,9 @@ source is removed from the settings.
 
 | ID   | Fact                                                                                                                                                                                                                                                                                             | Source                                                                             |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| F114 | **Verified.** The plans-repo brief tells the worker to fix failing checks and answer review until the pull request merges. No code reads checks, reviews, or mergeable state for a leaf's open pull request.                                                                                     | `src/app/delivery.mjs` (brief step 5); `git grep` for `reviewThreads`, `mergeable` |
+| F114 | **Verified.** The plans-repo brief tells the worker to fix failing checks and answer review until the pull request merges. No code reads checks, reviews, or mergeable state for a leaf's open pull request.                                                                                     | `src/app/delivery/delivery.mjs` (brief step 5); `git grep` for `reviewThreads`, `mergeable` |
 | F115 | **Verified.** The tick already sends two kinds of message to a bound worker through `intents.messages`: the leak screen's edit request and comment-mention steering. Both only reach sessions the tick opened (`source: tick`); a Crew Mode conductor's workers get the leak decision in `next`. | `src/app/github-close.mjs`; `src/app/github-steering.mjs`                          |
-| F116 | **Verified.** Steering fences quoted text with `fence()` and checks the actor with `actorAllowed`.                                                                                                                                                                                               | `src/app/github-steering.mjs`, `src/app/github-respond.mjs`                        |
+| F116 | **Verified.** Steering fences quoted text with `fence()` and checks the actor with `actorAllowed`.                                                                                                                                                                                               | `src/app/github-steering.mjs`, `src/app/github/github-respond.mjs`                        |
 
 #### Flow
 
@@ -1812,10 +1812,10 @@ its parts.
 
 | ID   | Fact                                                                                                                                                                                                                                                    | Source                                                                       |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| F117 | **Verified.** The plugin manifest named `kinds` (route, tracker, rules), and the loader starts a child process only for a kind the manifest declares; an `entry` was always required.                                                                   | `src/app/plugins.mjs` `validateManifest`, `pluginHost`                       |
-| F118 | **Verified.** Every setting a pack may set already has a validator that names the bad key: `normalizeGitHubPolicy` (repositories, project, epic type), `validateContentRules` (refuses rule-like keys), `deliveryPolicy` (review roles), `flowSection`. | `src/app/github-policy.mjs`, `content-rules.mjs`, `delivery.mjs`, `flow.mjs` |
-| F119 | **Verified.** A repository that names nobody counts people with write access (`DEFAULT_PERMISSION`), so a pack that sets a lower permission or adds actors widens who counts.                                                                           | `src/app/github-policy.mjs` `repositoryInput`                                |
-| F120 | **Verified.** A shared (`.avoozl.json`) entry may hold no absolute path, so a bundle reads machine paths from environment variables its config names.                                                                                                   | `src/app/layered-config.mjs` `assertPortableRepositoryConfig`                |
+| F117 | **Verified.** The plugin manifest named `kinds` (route, tracker, rules), and the loader starts a child process only for a kind the manifest declares; an `entry` was always required.                                                                   | `src/app/plugins/plugins.mjs` `validateManifest`, `pluginHost`                       |
+| F118 | **Verified.** Every setting a pack may set already has a validator that names the bad key: `normalizeGitHubPolicy` (repositories, project, epic type), `validateContentRules` (refuses rule-like keys), `deliveryPolicy` (review roles), `flowSection`. | `src/app/github/github-policy.mjs`, `content-rules.mjs`, `delivery.mjs`, `flow.mjs` |
+| F119 | **Verified.** A repository that names nobody counts people with write access (`DEFAULT_PERMISSION`), so a pack that sets a lower permission or adds actors widens who counts.                                                                           | `src/app/github/github-policy.mjs` `repositoryInput`                                |
+| F120 | **Verified.** A shared (`.avoozl.json`) entry may hold no absolute path, so a bundle reads machine paths from environment variables its config names.                                                                                                   | `src/app/settings/layered-config.mjs` `assertPortableRepositoryConfig`                |
 
 #### Shape
 
@@ -2159,10 +2159,10 @@ lessons store (~/.config/avoozl/lessons.sqlite) ─▶ other workspaces' retros
 
 | ID   | Fact                                                                                                                                                                                                                        | Source                                                                                   |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| F121 | **Verified.** Avoozl composes the worker brief and the reviewer role brief itself; each quotes earlier words with "data, not instructions" lines, and a review role's `focus` (1–300 characters) comes from `.avoozl.json`. | `src/app/delivery.mjs` `workerBrief`, `reviewBrief`, `deliveryPolicy`                    |
-| F122 | **Verified.** The retro and planner prompts ship in the app's agent files, and Kiro Crew loads an agent's prompt from the installed app; `retroPrompt()` reads the shipped file.                                            | `kirocrew-app/agents/avoozl-retro.json`, `avoozl-planner.json`; `src/app/flow-retro.mjs` |
-| F123 | **Verified.** The Spec Builder steering text is one constant, written into a repository only after a person agrees and never over a changed copy.                                                                           | `src/app/spec-steering.mjs` `STEERING_TEXT`                                              |
-| F124 | **Verified.** Content-rule boundaries are `plan`, `github`, `brief`, `diff`, and `intake` (opt-in); an unknown boundary is refused.                                                                                         | `src/app/content-rules.mjs` `BOUNDARIES`                                                 |
+| F121 | **Verified.** Avoozl composes the worker brief and the reviewer role brief itself; each quotes earlier words with "data, not instructions" lines, and a review role's `focus` (1–300 characters) comes from `.avoozl.json`. | `src/app/delivery/delivery.mjs` `workerBrief`, `reviewBrief`, `deliveryPolicy`                    |
+| F122 | **Verified.** The retro and planner prompts ship in the app's agent files, and Kiro Crew loads an agent's prompt from the installed app; `retroPrompt()` reads the shipped file.                                            | `kirocrew-app/agents/avoozl-retro.json`, `avoozl-planner.json`; `src/app/flow/flow-retro.mjs` |
+| F123 | **Verified.** The Spec Builder steering text is one constant, written into a repository only after a person agrees and never over a changed copy.                                                                           | `src/app/specs/spec-steering.mjs` `STEERING_TEXT`                                              |
+| F124 | **Verified.** Content-rule boundaries are `plan`, `github`, `brief`, `diff`, and `intake` (opt-in); an unknown boundary is refused.                                                                                         | `src/app/content/content-rules.mjs` `BOUNDARIES`                                                 |
 | F125 | **Unknown.** Whether Kiro Crew lets an app replace an agent's prompt for one session. Until known, an agent-prompt override travels in the seed (below).                                                                    | Not checked live                                                                         |
 
 #### Prompt registry and locked sections
@@ -2429,7 +2429,7 @@ caller can add one without a schema change.
 #### One helper
 
 `recordActivity(store, {source, actor, kind, summary, targetId, link, key,
-at})` in `src/app/activity-log.mjs`. It trims the summary to 200
+at})` in `src/app/store/activity-log.mjs`. It trims the summary to 200
 characters, drops a target that is not a plain ID and a link that is not
 `https:`, screens the row, and inserts it. A read-only store records
 nothing. Bad input (an unknown source or kind) throws, so a caller's test
@@ -2750,7 +2750,7 @@ who merges and how, and how many times a conflict is fixed:
 The older keys `delivery.ship`, `delivery.repositories.<id>.ship`,
 `merge.method` and `landing.conflictRounds` are refused when a file loads,
 naming the file and the key (2026-11-19).
-`landingSettings` in `src/app/landing-config.mjs` is the one reader of the
+`landingSettings` in `src/app/landing/landing-config.mjs` is the one reader of the
 block. The landing code reads the mode from the project
 row, so the tick (and the app on each load of `.avoozl.json`) copies
 `landing.mode` onto the row of each registered checkout whose GitHub
@@ -2785,7 +2785,7 @@ result back from GitHub. Each hand-off was a place to stall (a claim the
 crew never took, a merge that waited on a chat, a conflict no one owned).
 Runner mode already showed the shape that works: the chat edits and
 commits, Avoozl reads the commit, runs the checks and pushes
-(`src/app/remote-runner.mjs`, `reportDone` and the `reported` step of the
+(`src/app/workers/remote-runner.mjs`, `reportDone` and the `reported` step of the
 runner tick). This section makes that the only shape.
 
 **Settled owner decisions, 2026-11-15.**
@@ -2812,7 +2812,7 @@ Avoozl    Avoozl     chat     Avoozl     Avoozl   Avoozl (Stop the line)
   overlap a running task's paths anywhere in the repository is held, not
   skipped: it stays first in line. The owner's picks and the plan order
   still win, as in RC31.
-- **Prepare.** `createWorktree` (`src/app/git.mjs`) gets its first caller.
+- **Prepare.** `createWorktree` (`src/app/git/git.mjs`) gets its first caller.
   With `scripts/worktree` present it runs only the hash-approved version
   (R83.4); otherwise `git worktree add`. A task is cut from its spec's recorded working head, including an authorized fork (§4.32).
   After landing, the worktree and the local task branch are removed.
@@ -2830,7 +2830,7 @@ Avoozl    Avoozl     chat     Avoozl     Avoozl   Avoozl (Stop the line)
   a timeout. A failure goes back to the same chat as one retry round
   (Requirement 8's bound).
 - **Land.** One queue per base branch, held by `withWorkLock`
-  (`src/app/git.mjs`) with kind `integration`. One exact portion lands at a time; direct merge batches follow §4.32.5.
+  (`src/app/git/git.mjs`) with kind `integration`. One exact portion lands at a time; direct merge batches follow §4.32.5.
 - **Accept.** Stop the line (Requirement 64) watches every head Avoozl
   landed. A red head pauses the queue for that base and opens a fix task.
 
@@ -3165,7 +3165,7 @@ With `models.planReviewer` unset, `auto` mode skips every review and says
 "Pick a Plan reviewer model in Settings › Models", so nothing runs on the
 same model by default.
 
-**Role.** `src/app/chat-models.mjs` adds `planReviewer` to `MODEL_ROLES` and
+**Role.** `src/app/settings/chat-models.mjs` adds `planReviewer` to `MODEL_ROLES` and
 dispatch role `plan-review` to `DISPATCH_ROLE`. `validateModels` refuses a
 `planReviewer` equal to a named `planner`. `planReview` is validated with
 the other `.avoozl.json` blocks.
@@ -3267,7 +3267,7 @@ tick's GitHub check, per repository
 
 **File classes.** Each changed path takes the first class whose globs match,
 in this order. A path that matches none is `code`, so an unknown file never
-looks like waste. Globs use `globToRegex` from `src/app/forward-guard.mjs`
+looks like waste. Globs use `globToRegex` from `src/app/mirror/forward-guard.mjs`
 (`*` inside a folder, `**` across folders, a trailing `/` for a folder).
 
 | Class   | Default globs                                                                        |
@@ -3295,7 +3295,7 @@ the order `code`, `tests`, `ci`, `other`, `spec`, `docs`.
 | `flow.ci.minPullRequests` | whole number 1 to 1000   | 5       |
 | `flow.ci.classes`         | class to a list of globs | above   |
 
-`flowSection` in `src/app/flow.mjs` adds `ci` to its groups and the four
+`flowSection` in `src/app/flow/flow.mjs` adds `ci` to its groups and the four
 number keys to `FLOW_KEYS`; `classes` is checked as a record of known class
 names to lists of at most 50 strings. The default of 60 docs-only minutes
 fires on today's 3-OS matrix (about 25 minutes of jobs per spec-only pull
@@ -3356,7 +3356,7 @@ marked an estimate. A pull request's `ci_ms` sums its runs' `job_ms`; its
 | Repeat run      | one workflow has two or more distinct run ids on one head commit                                 | `repeat:<repo>:<workflow>:<window>` |
 
 `<window>` is the window's start date, so each fires at most once a window.
-They are added to `triggers` in `src/app/flow-retro.mjs` and are not spikes,
+They are added to `triggers` in `src/app/flow/flow-retro.mjs` and are not spikes,
 so the one-hour gap does not hold them. A retrospective started only by them
 runs with no finished tasks; its task sections are empty.
 
@@ -3451,7 +3451,7 @@ command.
 
 `bin/build-receipt` gains `--task`, `--attempt` and `--phase`, with
 `AVOOZL_TASK`, `AVOOZL_ATTEMPT` and then `GITHUB_RUN_ATTEMPT` as fallbacks.
-`parseReceipts(text)` in `src/app/build-receipt.mjs` returns
+`parseReceipts(text)` in `src/app/flow/build-receipt.mjs` returns
 `{ records, skipped }` for every line, with the same field checks
 `parseReceipt` does today; `parseReceipt` becomes its last record for any
 caller left. CI uploads `build-receipt-${{ matrix.os }}` from every job
@@ -3531,13 +3531,13 @@ the task that builds the adapter adds.
 `receipts.report` in `.avoozl.json` is `{"field": "<name>"}`, an object at
 that field of each receipt line, or `{"artifact": "<prefix>"}`, artifacts
 whose files hold one report per line. With neither set, nothing is read.
-`src/app/build-report.mjs` holds `parseBuildReport(value)` (a breakdown or
+`src/app/flow/build-report.mjs` holds `parseBuildReport(value)` (a breakdown or
 a skip reason) and `comparisonKey(b)`: the five fields joined, or null when
 any is missing. Avoozl adds no budget, limit or profiler. A repository that
 wants those keeps them in its own tooling and writes the results into the
 report as parts or counters.
 
-**Retrospective.** `retroBrief` in `src/app/flow-retro.mjs` adds
+**Retrospective.** `retroBrief` in `src/app/flow/flow-retro.mjs` adds
 `builds: buildBrief(store, repositories, { now })` beside `ci`. Per
 repository it holds the costliest phase of each pull request in the window,
 labeled `task` or `other` as in §4.30, and, per comparison key, the count,
@@ -3621,7 +3621,7 @@ Packages complete from their children, as now.
 page labels that view as branch progress. Canonical progress and every cross-spec
 release use accepted outcomes only. A checked box on an unmerged branch never releases
 work in another spec, which does not have that code. Marks are already outside the
-approved hash (`withoutMarks`, `src/app/spec-plans.mjs`). Changed 2026-11-19 (§4.41):
+approved hash (`withoutMarks`, `src/app/specs/spec-plans.mjs`). Changed 2026-11-19 (§4.41):
 a tick on the base branch completes the task; a tick on any other branch still does not.
 
 #### 4.32.2 A trailer identifies work; evidence accepts it
@@ -3635,8 +3635,8 @@ the plan is private). A trailer is only a pointer. Reconcile writes `landed` onl
    path and review evidence for the exact candidate and its actual landing (4.32.7),
    or re-verification at that commit — the diff stays inside declared paths, no
    protected path is touched, the repository's checks pass (`runCheckAt`,
-   `src/app/flow-line.mjs:38`), and the repository's review rule was satisfied
-   (`reviewVerdict`, `src/app/github-reviews.mjs:26`).
+   `src/app/flow/flow-line.mjs:38`), and the repository's review rule was satisfied
+   (`reviewVerdict`, `src/app/github/github-reviews.mjs:26`).
 
 Otherwise it writes `landed-unverified` and opens Needs you. Accepting that is
 person-only and writes `done`; it never manufactures a `landed`. A revert of a landing
@@ -3667,7 +3667,7 @@ planning repository.
 - **Exact commits.** A landing intent names an exact commit or range and its tasks. It
   never means "the current head".
 - Builds on the per-epic integration branch that exists today, which the existing module reads but
-  does not create (`src/app/integration-branch.mjs:1-4`, `src/app/git.mjs:230-295`).
+  does not create (`src/app/epics/integration-branch.mjs:1-4`, `src/app/git/git.mjs:230-295`).
   Generalize it to one per spec and have Avoozl create it.
 - An externally pushed unverified head is only a checkpoint until the driver
   verifies its exact commit; retain the last verified head for portion selection.
@@ -3712,7 +3712,7 @@ fork workflow mode is required.
 #### 4.32.4 The spec journal
 
 Durable records are structured comments on the spec's issue. The client calls exist
-(`listIssueComments`, `createIssueComment`, `src/app/github.mjs:768,962`).
+(`listIssueComments`, `createIssueComment`, `src/app/github/github.mjs:768,962`).
 
 **Recorded:** accepted outcomes, reopenings and manual decisions; verified branch
 checkpoints needed for handoff; approval evidence; holds, stops and decisions with their release;
@@ -3796,7 +3796,7 @@ carry only the allowlisted flag and opaque id needed to enforce them.
   The rule covers record bodies, refs, commit messages, pull request titles and bodies,
   check summaries and application-authored logs or artifacts published externally.
 - Sensitive controls, including private spending, travel in a private handoff record.
-  The driver handoff export already exists (`src/app/driver.mjs`, `REBUILD_LOSSES:47`).
+  The driver handoff export already exists (`src/app/workers/driver.mjs`, `REBUILD_LOSSES:47`).
   A public reconstruction reports those values as unavailable and stays held. It never
   resets them to zero.
 
@@ -3809,7 +3809,7 @@ Builds on phases 40–42, revised by Requirement 102.
   validate the outgoing range, added lines, commit messages and ref names in process.
   Reuse the existing push scanner and `enforceDiff` rather than relying on a shell hook.
 - **Hold the lock briefly.** `withWorkLock` kind `integration` blocks every validation
-  (`src/app/git.mjs:36-52`). Hold it for the ref move and push only.
+  (`src/app/git/git.mjs:36-52`). Hold it for the ref move and push only.
 - **`direct`: a portion is an exact commit on the working branch.** The landing worktree
   merges it with the current base, checks that head once, fast-forwards, pushes. A
   merge batch may combine portions of several specs and drivers, up to the size limit
@@ -3835,9 +3835,9 @@ A slice is a spec.
 | Spec approver | Approval evidence in the journal | The design review |
 | Code reviewers | Per spec in `.avoozl.json`, else CODEOWNERS | Approving the slice's pull requests |
 
-- At pull request open, call `requestReviewers` (`src/app/github.mjs:1490`); before
+- At pull request open, call `requestReviewers` (`src/app/github/github.mjs:1490`); before
   landing apply `reviewVerdict` and `branchReviewRule`
-  (`src/app/github-branch-rules.mjs:43`).
+  (`src/app/github/github-branch-rules.mjs:43`).
 - Avoozl adds no review rule of its own; it honors the repository's. Where a rule
   requires approval, GitHub will not let the author approve, so that slice needs a
   second person. With no rule (solo, `direct`), the owner may approve the spec locally.
@@ -3845,12 +3845,12 @@ A slice is a spec.
 - **Approval evidence** is written after the merge, never inside the approval commit:
   `requestedBy`, the approving reviewers, `mergedBy`, the merge commit, and `verified`
   only when the spec re-hashed at that commit equals the approved hash. The code keeps
-  `requestedBy` and `mergedBy` today (`src/app/spec-approval.mjs:443-461`). A local
+  `requestedBy` and `mergedBy` today (`src/app/specs/spec-approval.mjs:443-461`). A local
   approval records `kind: local`.
 
 **Epics.** One epic spec whose rows are the lifecycle of each member spec, with an epic
-issue and one sub-issue per member (`addSubIssue`, `src/app/github.mjs:1002`). Today an
-epic entry may hold only `plan` and `summary` (`src/app/spec-plans.mjs:627-716`); add
+issue and one sub-issue per member (`addSubIssue`, `src/app/github/github.mjs:1002`). Today an
+epic entry may hold only `plan` and `summary` (`src/app/specs/spec-plans.mjs:627-716`); add
 `step`. An entry may hold `plan`, `summary` and `step: design | review | implement`.
 Legacy entries without `step` mean implement. A plan may occur once per step, with
 no duplicate plan/step pair. Rows are derived, never hand-ticked:
@@ -3912,8 +3912,8 @@ unblock more than a threshold stay on the driver's own lanes.
 
 | Cached | Invalidated by |
 |---|---|
-| Repository contents | The branch head and the relevant file hashes (`src/app/repo-files.mjs`) |
-| Journal records | Conditional requests, or a webhook where the host provides one (`issueActivity`, `src/app/github.mjs:657`) |
+| Repository contents | The branch head and the relevant file hashes (`src/app/git/repo-files.mjs`) |
+| Journal records | Conditional requests, or a webhook where the host provides one (`issueActivity`, `src/app/github/github.mjs:657`) |
 | Pull request reviews, checks and merge results | Their own reads, independent of branch commits |
 
 Reparse a spec only when its definition changes. Refresh progress when marks or journal
@@ -3941,7 +3941,7 @@ Resume. Previously authorized landings that finish after take over are handled a
   separately owned areas become an epic. Reuse the input issue as the spec issue only
   when its repository and visibility match the spec's home.
 - `intake.plan` and `intake.deliver` must accept GitHub items; today they refuse them
-  (`src/app/intake.mjs:1134`).
+  (`src/app/intake/intake.mjs:1134`).
 - **Initial intake** makes at most two idempotent writes on the filed issue: a `crew:avoozl` label
   and one status comment. The comment names the spec only where visibility permits;
   a public input never names a private plan or its repository. Radar crews drop any issue carrying a `crew:` label
@@ -3952,12 +3952,12 @@ Resume. Previously authorized landings that finish after take over are handled a
 - Radar runs beside Avoozl with no code tie (Requirement 103). It keeps maintenance
   and triage of issues Avoozl did not create, and never takes an Avoozl issue.
 
-**Every Avoozl issue is labeled at create.** `createIssue` in `src/app/github.mjs`
+**Every Avoozl issue is labeled at create.** `createIssue` in `src/app/github/github.mjs`
 (the one create call, REST and GraphQL) adds `crew:avoozl` to `labels` before the
 request, so the label lands in the create itself and the write pacer's zero-edit
 rule holds. Today's callers are task projection and its extracted-design parent
 (`src/app/github-projection.mjs`), and the mirror follow-up and conflict issues
-(`src/app/mirror-forward-poll.mjs`, `src/app/mirror-forward-run.mjs`); spec and epic
+(`src/app/mirror/mirror-forward-poll.mjs`, `src/app/mirror/mirror-forward-run.mjs`); spec and epic
 publication (56.2) and intake join them. Only export passes the named opt-out. A
 source test lists every `createIssue` caller in `src/` and fails on any other
 opt-out. `crew:avoozl` is Avoozl's own: Untriaged and the plan-me hand-off skip it,
@@ -4002,13 +4002,13 @@ stays for issues Avoozl did not create and refuses one carrying `crew:avoozl`.
 
 #### 4.32.12 Smaller rules
 
-- **Person tasks.** `completeManual` (`src/app/manual-tasks.mjs:101`) writes a journal
+- **Person tasks.** `completeManual` (`src/app/tasks/manual-tasks.mjs:101`) writes a journal
   record instead of closing an issue.
 - **Spec edits.** A changed definition makes earlier outcomes stale. A changed or
   removed task with a live ref goes to Needs you.
 - **Old fact values.** Reinterpret, never rewrite. `route: github` means "lands
   through the queue"; `merged-pr` means "landed". Sites: `src/work-model.mjs:128-140`,
-  `src/app/plan-quality.mjs:59-63`, `src/app/delivery.mjs:2019-2030`.
+  `src/app/specs/plan-quality.mjs:59-63`, `src/app/delivery/delivery.mjs:2019-2030`.
 
 
 #### 4.32.13 Repository layouts and migration
@@ -4289,7 +4289,7 @@ committed under `docs/evidence/repo-roles/`.
 
 Added 2026-11-17 (Requirement 106). Replaces RC8.2 and D10's Trace.
 
-**Source.** `src/app/task-steps.mjs` exports `taskSteps(...)`, a pure
+**Source.** `src/app/tasks/task-steps.mjs` exports `taskSteps(...)`, a pure
 function. `taskDetailView` passes it records it already reads or can read from
 the store, and returns the result as `steps` beside `timeline`:
 
@@ -4322,7 +4322,7 @@ inside the task drawer provider: it reads the graph, finds the task whose
 issue matches and opens its details; with no match it opens Delivery. The
 Trace buttons on On the line rows and the Dashboard drawer are removed.
 
-**Tests.** `src/app/test/task-steps.test.mjs` (records to steps, failed,
+**Tests.** `src/app/tasks/test/task-steps.test.mjs` (records to steps, failed,
 skipped, in progress, builds, no GitHub call); `kirocrew-app/ui/test`
 cases for the redirects, the nav, and the box; `trace.test.mjs`,
 `trace-page.test.mjs` and `trace-api.test.mjs` are removed with the code.
@@ -4335,7 +4335,7 @@ Spec approved without a time; upgrade only if such tasks matter.
 Added 2026-11-18 (Requirement 107). Extends §4.5 (Triage), §4.32 (approval
 as a commit) and §4.33 (review findings).
 
-**Detect (`src/app/spec-pull-requests.mjs`, pure).** The Triage search
+**Detect (`src/app/specs/spec-pull-requests.mjs`, pure).** The Triage search
 (`untriaged.mjs`) already returns each pull request. Its GraphQL node gains
 `headRefName`, `baseRefName` and `files(first: 20) { totalCount nodes
 { path } }`. `specPullOf(entry, repo)` returns `{ spec }` only for an open
@@ -4397,7 +4397,7 @@ the merged files may still say Draft; Avoozl's approval receipt is the record.
 The merge waits for a passing rollup on the exact head, read from the cached
 search item, so it adds no poll; the tick merges the next time it sees green.
 
-**Tests.** `src/app/test/spec-pull-requests.test.mjs` (detect, link, adopt,
+**Tests.** `src/app/specs/test/spec-pull-requests.test.mjs` (detect, link, adopt,
 Triage exclusion, approve then merge, reject, request changes, zero extra
 GitHub calls on a read) with a fake GitHub that records every call;
 `kirocrew-app/ui/test` cases for the chip, the box and the Decisions item.
@@ -4520,7 +4520,7 @@ task that needs its own review or investigation; one line of reason.
 `prompts/retro.md` asks the retro to flag a spec whose related tasks
 landed as many small pull requests.
 
-**Tests.** `src/app/test/flow-batch.test.mjs`: a planner group dispatched as
+**Tests.** `src/app/flow/test/flow-batch.test.mjs`: a planner group dispatched as
 one handoff and its members waiting for each other; each rule of the table
 dispatched alone with its reason; a related group of 12 tasks dispatched
 as one handoff; a failing batch split, each task alone at no attempt cost. `flow.test.mjs`: no batch key in `FLOW_KEYS`, and an old
@@ -4579,7 +4579,7 @@ pull requests; merging one stays the merger's act on GitHub.
 is a speed bump against code running as the owner, not a wall; what it adds
 is a grant to check, a record of who acted, and a revocation.
 
-**Tests.** `src/app/test/approval-delegation.test.mjs`.
+**Tests.** `src/app/specs/test/approval-delegation.test.mjs`.
 
 ### 4.39 One intake list
 
@@ -5035,16 +5035,16 @@ below read `kirocrew-native` at `dd8b28b`.
 
 | #   | Fact                                                                                                                                                                                                                                                                                                                                                                                                      | Evidence                                                                                                                    |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| F56 | **Verified.** A worker's `done` report queues one check run that Avoozl makes itself on the repository's checks the commit's diff picks (changed 2026-11-18: a leaf names none) in a detached worktree at the reported commit; an `avoozl-verifier` session opens only for a bar that needs judgment (§5.2 Checks in code). `verdictCause` refuses a report for another commit, a picked check missing from the report, and a non-zero exit. | `src/app/delivery.mjs` `planVerifierDispatches`, `planCheckRuns`, `verifierBrief`, `verdictCause`; `src/app/check-runs.mjs` |
+| F56 | **Verified.** A worker's `done` report queues one check run that Avoozl makes itself on the repository's checks the commit's diff picks (changed 2026-11-18: a leaf names none) in a detached worktree at the reported commit; an `avoozl-verifier` session opens only for a bar that needs judgment (§5.2 Checks in code). `verdictCause` refuses a report for another commit, a picked check missing from the report, and a non-zero exit. | `src/app/delivery/delivery.mjs` `planVerifierDispatches`, `planCheckRuns`, `verifierBrief`, `verdictCause`; `src/app/delivery/check-runs.mjs` |
 | F57 | **Verified.** A rejected verdict marks the worker's attempt failed; the retry path opens a new worker attempt on the same worktree with the earlier cause quoted as data, up to `retries`, then a decision. A blocked or quiet verifier fails only the verification and is retried. Attempts and verifications stay on the `task_deliveries` row.                                                         | `delivery.mjs` `reconcileVerifications`, `reconcileDeliveries`, `workerBrief`                                               |
 | F58 | **Verified.** Only a `verified` delivery is integrated, and a local leaf's `integrated` completion is reached from `task.integration.commit`, so dependents already wait for the verifier and integration.                                                                                                                                                                                                | `delivery.mjs` `integrateVerified`; `src/work-model.mjs` `completionReached`; `src/query.mjs` `ready`                       |
 | F59 | **Verified.** Per-repository and workspace concurrency count only live worker attempts; verifier sessions do not count. The default workspace concurrency is 1.                                                                                                                                                                                                                                           | `delivery.mjs` `readyLeaves`, `DELIVERY_DEFAULTS`                                                                           |
-| F60 | **Verified.** `task.update` accepts a typed `integration` receipt (commit, time, branch, repository, evidence strings) and sets `task.integration`, which meets `integrated` completion with no verifier and no merge. It also sets `status` directly, including `accepted`, and `checks`.                                                                                                                | `src/app/operations.mjs` `task.update`                                                                                      |
+| F60 | **Verified.** `task.update` accepts a typed `integration` receipt (commit, time, branch, repository, evidence strings) and sets `task.integration`, which meets `integrated` completion with no verifier and no merge. It also sets `status` directly, including `accepted`, and `checks`.                                                                                                                | `src/app/api/operations.mjs` `task.update`                                                                                      |
 | F61 | **Verified.** `task.accept` takes typed `evidence`, or derives it with `acceptanceFromValidation`, which reads the first-listed commit's command records and does not check that every declared check ran. `componentOnly` accepts with no integration.                                                                                                                                                   | `operations.mjs` `acceptanceFromValidation`, `task.accept`                                                                  |
-| F62 | **Verified.** `validateRun` records `exitCode: null` when a command cannot start and stops at the first failure. A verifier report needs an integer exit code for each check; a check it leaves out is a rejection, which fails the worker's attempt.                                                                                                                                                     | `src/app/git.mjs` `commandEvidence`, `validateUnlocked`; `delivery.mjs` `checkResults`, `reconcileVerifications`            |
+| F62 | **Verified.** `validateRun` records `exitCode: null` when a command cannot start and stops at the first failure. A verifier report needs an integer exit code for each check; a check it leaves out is a rejection, which fails the worker's attempt.                                                                                                                                                     | `src/app/git/git.mjs` `commandEvidence`, `validateUnlocked`; `delivery.mjs` `checkResults`, `reconcileVerifications`            |
 | F63 | **Verified.** `integrateRun` rebases the branch onto the integration branch and reruns the repository's checks, so the integrated commit can differ from the verified one.                                                                                                                                                                                                                                | `git.mjs` `integrateRun`                                                                                                    |
-| F64 | **Verified.** Plan approval deletes and rebuilds each task's incoming edges that carry the plan's `planId`.                                                                                                                                                                                                                                                                                               | `src/app/plans.mjs` approval                                                                                                |
-| F65 | **Verified.** The verifier agent's model is `auto`; session bindings record no model; `tick.py` calls `open_session` without the `model` argument F31 lists. Whether Kiro Crew reports the model a session actually ran on is **Inferred** not available.                                                                                                                                                 | `kirocrew-app/agents/avoozl-verifier.json`; `src/app/session-bindings.mjs`; `kirocrew-app/crons/tick.py`                    |
+| F64 | **Verified.** Plan approval deletes and rebuilds each task's incoming edges that carry the plan's `planId`.                                                                                                                                                                                                                                                                                               | `src/app/specs/plans.mjs` approval                                                                                                |
+| F65 | **Verified.** The verifier agent's model is `auto`; session bindings record no model; `tick.py` calls `open_session` without the `model` argument F31 lists. Whether Kiro Crew reports the model a session actually ran on is **Inferred** not available.                                                                                                                                                 | `kirocrew-app/agents/avoozl-verifier.json`; `src/app/sessions/session-bindings.mjs`; `kirocrew-app/crons/tick.py`                    |
 | F66 | **Verified.** Task rows already use `acceptance` (criteria text) and `distinctFrom` (duplicate-review reasons). A new task flag cannot reuse either name.                                                                                                                                                                                                                                                 | `delivery.mjs` `workerBrief`; `operations.mjs` `task.update`                                                                |
 
 So the handoff's two main gaps are already closed on this branch: review
@@ -5753,8 +5753,8 @@ manifest `kind: "epic"` (a parent task inside a plan, before §4.40 moved
 task facts into `tasks.md`), the per-task `epic`
 string with its `epics` list (a grouping), and `doc:<path>` epics that the
 catalog and capture paths make up for any document (`src/catalog.mjs`,
-`src/capture.mjs`, `src/app/plans.mjs`; `specOf` in
-`src/app/page-views.mjs` parses them back). This section gives each word
+`src/capture.mjs`, `src/app/specs/plans.mjs`; `specOf` in
+`src/app/api/page-views.mjs` parses them back). This section gives each word
 one meaning and removes the made-up groups. Changed 2026-11-13 (owner):
 old forms are errors, not warnings, and no migration operation exists. The
 owner is the only user, so task 21.7 rewrites the owner's plans once with a
@@ -6264,7 +6264,7 @@ including the workspace status MCP reply. CLI: `avoozl driver status`,
 
 **Status 2026-11-18.** The demo tour was removed (#311). The sample, the fake GitHub, the badge, the bar and Exit demo stay. **Start demo** is in the empty In flight box on Home.
 
-Requirement 82. `src/app/demo.mjs` builds the sample; the app backend
+Requirement 82. `src/app/workspace/demo.mjs` builds the sample; the app backend
 serves it; `kirocrew-app/ui/src/Demo.tsx` shows it.
 
 **Sample.** `installDemo(root)` builds in `<root>.staging-*` and renames the
@@ -6304,7 +6304,7 @@ at each call site if a person's global file ever names repositories.
 
 Requirement 83. Audit findings S4 to S8 from the PR 29 comment.
 
-**S4, CLI gate.** `cliRefusal` in `src/app/mcp-policy.mjs` runs at the top of
+**S4, CLI gate.** `cliRefusal` in `src/app/mcp/mcp-policy.mjs` runs at the top of
 `localOrRequest` in `cli.mjs`, before the in-process or server path. It uses
 `PERSON_ONLY` and `mcpRefusal`, so the MCP and CLI lists cannot drift. A
 session is `KIROCREW_SPAWNED=1` or `KIRO_SESSION_ID` (found in Kiro Crew's
@@ -6349,7 +6349,7 @@ the child's read; upgrade S4 with the upstream request, S7 by copying first.
 
 Replaced 2026-11-18 by the worker-paths spec (D8): worker pull on the tick is the one remote route.
 
-Requirement 84. Prototype in `src/app/remote-runner.mjs`; research in
+Requirement 84. Prototype in `src/app/workers/remote-runner.mjs`; research in
 `docs/research/runner-mode-ssh.md`.
 
 **Roles.** `.avoozl.json` `runner.role` is `runner` or `driver`. Repo paths
@@ -6392,7 +6392,7 @@ separate check job exist.
 
 Requirement 85. Usage in `docs/content-hook.md`.
 
-`avoozl content hook` (`src/app/content-hook.mjs`) is an agent's
+`avoozl content hook` (`src/app/content/content-hook.mjs`) is an agent's
 pre-tool-use command. It reads the event, splits the shell line into
 commands, and for a write command (criterion 1) takes the text, labels and
 branch from its arguments. For `git push` and `gh pr create` it also runs the
@@ -6903,7 +6903,7 @@ GitHub call for it, and the seed tells the chat to post nothing.
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | F98  | **Verified (source).** Issue Radar's page is the route `/issue-radar` and reads no query string or hash: nothing under `website/src/apps/issue-radar/` calls `useSearchParams` or reads `location.search` or `location.hash`; its repository and selection are restored from local storage. Its own CI notice links to the bare route. So no link can open a repository, a filter, a selection, or one item. | Kiro Crew `01561d008`: `website/src/apps/builtinRegistry.ts:67`; `website/src/apps/issue-radar/IssueRadarPage.tsx`; `website/src/apps/issue-radar/context.tsx:27`; `src/kiro_crew/apps/builtins/issue_radar/backend/ci_watch.py:62` |
 | F99  | Removed 2026-11-14: it recorded the page route of a review app Avoozl no longer uses. | |
-| F100 | **Verified (source).** Avoozl's other links to Issue Radar already use `/issue-radar` with `target="_top"`.                                                                                                                                                                                                                                                                                                  | `src/app/github-policy.mjs` `ISSUE_RADAR_PATH`; `kirocrew-app/ui/src/SettingsView.tsx` `CrewScopes`                                                                                                                                 |
+| F100 | **Verified (source).** Avoozl's other links to Issue Radar already use `/issue-radar` with `target="_top"`.                                                                                                                                                                                                                                                                                                  | `src/app/github/github-policy.mjs` `ISSUE_RADAR_PATH`; `kirocrew-app/ui/src/SettingsView.tsx` `CrewScopes`                                                                                                                                 |
 
 ---
 
@@ -7008,7 +7008,7 @@ short select.
 Added 2026-11-13 (Requirement 81). The task drawer's Files fold
 (`TaskFiles.tsx`, `files-api.ts`) reads only when first opened.
 
-- **Where.** `task.files` and `task.diff` (`src/app/task-files.mjs`) find
+- **Where.** `task.files` and `task.diff` (`src/app/tasks/task-files.mjs`) find
   the task's `task_worktrees` row. A worktree still on disk is read as is,
   untracked files too; else the branch (`refs/heads/<branch>`, then
   `origin/<branch>`) in the repository's checkout; else `mode: none`. The

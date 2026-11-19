@@ -31,7 +31,7 @@ they never collide with the IDs of the other specs.
 
 - [ ] ms-1.1 The machine lock and the workspace loop lock [MS2] (§D3)
   - $done: The first test shows on Linux, macOS and Windows that an exclusive SQLite lock is held for the handle's life and refused at once to a second opener; eight processes started behind one barrier leave exactly one holder and seven that name it; after the holder is killed and eight more start, exactly one new holder exists within 5 seconds; two state folders on one workspace leave one loop lock holder and one skip; a waiter takes over within 5 seconds; no code path renames or deletes a lock file.
-  - Replace `acquireSupervisorLock` and `runningSupervisor` in `src/app/supervisor.mjs` with the OS-held lock on `machine/lock.sqlite` and the `lock.json` record written after it; add the per-workspace `<database>.loop-lock`. If the first test fails on any system, stop and report (D14).
+  - Replace `acquireSupervisorLock` and `runningSupervisor` in `src/app/executors/supervisor.mjs` with the OS-held lock on `machine/lock.sqlite` and the `lock.json` record written after it; add the per-workspace `<database>.loop-lock`. If the first test fails on any system, stop and report (D14).
 - [ ] ms-1.2 `avoozl start`, `stop`, `link` and the loop, after ms-1.1 [MS1.1, MS1.2, MS1.4, MS1.5, MS1.6, MS3] (§D2, §D4)
   - $done: Tests: `avoozl start` returns once the lock is held and a second names the holder; `--foreground` runs until a signal or a stop row; `avoozl stop` stops it through a database row, falls back to the pid after 30 seconds, and a fake child survives and is found again; the loop ticks every catalog workspace each `machine.tickSeconds` and drains after each; a killed starter does not stop the next pass; `avoozl tick` gets a pass from a running server and runs one itself with none; a server of another build is replaced by `avoozl start` only; `machine.tickSeconds` in `.avoozl.json` is refused naming the machine file; `supervisor`, `supervisor unit`, `serve` and `serve link` are deleted with no alias and refused as unknown; `start`, `stop` and `link` are refused with `AVOOZL_CHILD`; the existing `avoozl status` shows pid, build, start time, starter, interval and each workspace's last pass; the source test of MS1.2 passes.
   - $after: ms-1.1
@@ -39,12 +39,12 @@ they never collide with the IDs of the other specs.
 - [ ] ms-1.3 The Kiro Crew backend and cron on a server-owned loop, after ms-1.2 [MS1.3, MS12.1, MS12.3, MS12.4] (§D5)
   - $done: Tests with a fake gateway: the backend starts a machine server when none runs and never a second; it calls neither drain; its notices still reach Kiro Crew's channels; the cron's `plans_maintain tick` call records its observations, returns the pending `kirocrew` dispatch, messages and re-trust for its own job, and never reaches the planner; with no server it starts one and returns no intents; a `kirocrew` task goes from ready to an opened chat in two passes; the design's F129 reason is in the code comment of the cron call.
   - $after: ms-1.2
-  - Delete `machineSupervisor` and the drain block in `src/app/app-backend.mjs`, keeping the channel push and the readers; the cron call in `src/app/app-mcp.mjs` reads pending intents from the database.
+  - Delete `machineSupervisor` and the drain block in `src/app/executors/kirocrew/app-backend.mjs`, keeping the channel push and the readers; the cron call in `src/app/executors/kirocrew/app-mcp.mjs` reads pending intents from the database.
 - [ ] ms-1.4 Login install on macOS and Linux, after ms-1.2 [MS4] (§D4)
   - $done: Tests with a fake `launchctl` and `systemctl`: `avoozl start --at-login` writes the unit with absolute paths, argv lists, the captured `PATH` and no secret, and runs the load commands it prints; `avoozl stop --at-login` unloads and deletes it; `--at-login` replaces its own unit and refuses a file without its marker; a Linux without a user systemd is refused with the `--foreground` line; both are refused with `AVOOZL_CHILD` and have no MCP tool.
   - $after: ms-1.2
   - $batch: login
-  - `avoozl start --at-login` and `avoozl stop --at-login`; `src/app/supervisor-unit.mjs` is replaced by the new unit module.
+  - `avoozl start --at-login` and `avoozl stop --at-login`; `src/app/executors/supervisor-unit.mjs` is replaced by the new unit module.
 - [ ] ms-1.5 Login install on Windows, after ms-1.2 [MS4] (§D4)
   - $done: Tests on the Windows CI leg with a fake `schtasks`: `avoozl start --at-login` writes the XML with a logon trigger for the current user, least privilege, restart on failure and the marker description, and runs `/Create` and `/Run`; `avoozl stop --at-login` runs `/Delete`; a task without the marker is refused.
   - $after: ms-1.2
@@ -100,7 +100,7 @@ they never collide with the IDs of the other specs.
   - $done: `src/app/sandbox-probes.mjs` holds every MS8.1 probe as an argv list; the test runs them under `confineChild` with `danger-full-access` and a stand-in harness on the macOS and Linux legs and every probe is refused; the Linux leg fails rather than skips without a usable `bwrap`; a probe planted to succeed fails the test naming it; `scripts/proof-ms-roles-live.mjs --probes` runs the same set in a live child.
   - $after: ms-1.2, ms-1.7
   - $batch: codex
-  - Fix any probe that gets through in `src/app/sandbox.mjs`, never by changing the probe.
+  - Fix any probe that gets through in `src/app/executors/sandbox.mjs`, never by changing the probe.
 
 - [ ] ms-p3 Proof: every role on Codex, and the sandbox contains it, after ms-2.1, ms-2.2, ms-p2 [MS7, MS8] (§D7)
   - $done: Expected: (1) every row reaches its result kind or the receipt names why it cannot; (2) every probe is refused on both systems, each with its error text; (3) `codex.json`'s `proved` matches the receipt.
@@ -122,7 +122,7 @@ they never collide with the IDs of the other specs.
 - [ ] ms-3.2 `avoozl mcp` is the shim, after ms-3.1, ms-1.3 [MS10] (§D8)
   - $done: Tests: the shim forwards calls and replies and imports no `Store`; `--kirocrew` passes the gateway caller block and a bound session reaches its workspace; with no server it starts one and the call succeeds within 20 seconds; a server of another build fails the call naming `avoozl start`; `tools/list` matches today's for each caller kind; `mcp --url`, `--url` and `AVOOZL_URL` are refused naming what replaces them; the cron's call works through the shim.
   - $after: ms-3.1, ms-1.3
-  - Delete the in-process MCP modes in `src/app/commands/machine.mjs` and the CLI's server request path in `src/app/cli.mjs`.
+  - Delete the in-process MCP modes in `src/app/commands/machine.mjs` and the CLI's server request path in `src/app/cli/cli.mjs`.
 
 - [ ] ms-p4 Proof: two front ends through the shim, after ms-3.2 [MS9, MS10] (§D8, §D10)
   - $done: Expected: (1) the call starts the server and returns; (2) both sessions see the same task state; (3) both approvals are refused through MCP and work from the person's own prompt; (4) the child's attempts are refused; (5) only the socket shows.

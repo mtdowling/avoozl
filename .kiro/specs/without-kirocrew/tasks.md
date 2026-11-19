@@ -30,7 +30,7 @@ of the other specs.
 
 - [x] nk-1.1 The role table, and every role's executor from settings [NK1] (§D2)
   - $done: The source test fails on a module outside the `kirocrew` executor that defaults a request to `kirocrew`; a test fails when `HARNESS_ROLES` holds a role no dispatch reads; the tests of the four roles that already run on `process` pass with their assertions unchanged; a harness saved for the plan reviewer and for review drafts is the one their requests name; screenshots of Settings › Models at 390 and 1280 px, light and dark, go to the owner.
-  - `src/app/role-table.mjs` with one row per role, read by `processFinish`, the drain's folder rule and `finishProcessSession`; the verifier, reviewers, planner and retro move into it unchanged; every dispatch takes its executor from the pin, `harnesses.<role>` and the repository; Settings › Models lists every role.
+  - `src/app/agents/role-table.mjs` with one row per role, read by `processFinish`, the drain's folder rule and `finishProcessSession`; the verifier, reviewers, planner and retro move into it unchanged; every dispatch takes its executor from the pin, `harnesses.<role>` and the repository; Settings › Models lists every role.
 - [x] nk-1.2 Output files and snapshots for a child, after nk-1.1 [NK3.1, NK3.2, NK3.4, NK5.5] (§D3, §D4)
   - $done: Tests with a fake child: an output file within its limit is read and validated; a second file, a path outside `.avoozl/output/`, a file over the limit and an invalid one are each refused with the reason; the result file over 8,192 bytes is still refused; a child cannot write into its snapshot; a write root over a checkout is refused before start.
   - $after: nk-1.1
@@ -115,7 +115,7 @@ of the other specs.
 - [x] nk-7.1 The table, and no silent queue, after nk-1.1 [NK8] (§D7)
   - $done: Tests: a `kirocrew` request on a headless tick opens one item across three ticks and starts nothing; Run on from a person sets the role's harness and the next tick starts the session, and from MCP it is refused; a test fails when a module calls a Kiro Crew reader for an operation outside the table; once nk-2.1 to nk-4.3 have landed the table holds the four rows of NK8.4.
   - $after: nk-1.1
-  - `src/app/needs-kirocrew.mjs`; a headless tick that finds a `kirocrew` request opens one Needs you item per role with the person-only **Run on**; `avoozl status` says whether Kiro Crew is reachable and lists what waits on it.
+  - `src/app/tick/needs-kirocrew.mjs`; a headless tick that finds a `kirocrew` request opens one Needs you item per role with the person-only **Run on**; `avoozl status` says whether Kiro Crew is reachable and lists what waits on it.
 
 - [ ] nk-p2 Proof: all of Avoozl on a machine with no Kiro Crew, after nk-p1, nk-3.1, nk-3.2, nk-3.3, nk-4.2, nk-4.3, nk-5.1, nk-6.2, nk-7.1 [NK1 to NK9] (§D8)
   - $done: Expected: (1) to (5) each step finishes and every session has executor `process`; the pending review is on GitHub and not submitted; (6) the file holds one line per decision and failure, each with only a channel, a title, an ID and a time, and `status` shows nothing waiting on Kiro Crew; (7) the receipt lists each role Codex ran and each it could not, with the reason.
