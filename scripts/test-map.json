@@ -15110,7 +15110,6 @@
   "src/agent-pins.test.mjs",
   "src/app/test/browser-identity.test.mjs",
   "src/app/test/flow-github.test.mjs",
-  "src/app/test/github-label-behaviors.test.mjs",
   "src/app/test/release-ranking.test.mjs",
   "src/app/test/scaling.test.mjs",
   "src/app/test/text-diff.test.mjs",
