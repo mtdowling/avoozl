@@ -147,7 +147,10 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   assert.deepEqual(before.harnessDefinitions, [
     {
       name: "fake-cli",
+      path: path.join(harnesses, "fake-cli.json"),
+      hash: harnessDefinitionHash(bytes),
       approved: true,
+      changed: false,
       model: true,
       readRoles:
         "fake-cli names no resultAllow, so a read-only session cannot write its result file.",
@@ -155,7 +158,10 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
     },
     {
       name: "other-cli",
+      path: path.join(harnesses, "other-cli.json"),
+      hash: harnessDefinitionHash(Buffer.from("{}\n")),
       approved: false,
+      changed: false,
       model: false,
       readRoles:
         "other-cli names no resultAllow, so a read-only session cannot write its result file.",

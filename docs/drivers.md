@@ -22,8 +22,8 @@ In Local only mode the claim is a row in the workspace database. Make this
 workspace the driver once per approved spec:
 
 ```sh
-node cli.mjs spec publish NAME --workspace ~/plans
-node cli.mjs spec takeover NAME --workspace ~/plans
+avoozl spec publish NAME --workspace ~/plans
+avoozl spec takeover NAME --workspace ~/plans
 ```
 
 Nothing moves the role because a machine went quiet.

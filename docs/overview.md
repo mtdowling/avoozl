@@ -5,8 +5,8 @@ lands it. A spec can be one task that becomes one pull request, or an epic
 across specs and repositories.
 
 ```sh
-node cli.mjs plan approve NAME --workspace ~/plans
-node cli.mjs status --workspace ~/plans
+avoozl plan approve NAME --workspace ~/plans
+avoozl status --workspace ~/plans
 ```
 
 Approving a spec turns it into a task graph. The tick starts each ready task in

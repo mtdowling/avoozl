@@ -34,6 +34,7 @@ import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
+import { DatabaseSync } from "node:sqlite";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -430,6 +431,39 @@ function originPasses() {
   }
 }
 
+// A triage child the supervisor started without the model proxy in its
+// network, or null: its model call would be refused after minutes.
+function triageWithoutProxy() {
+  const file = path.join(
+    MACHINE.stateDirectory,
+    "supervisor",
+    "supervisor.sqlite",
+  );
+  if (AGENT !== "claude" || !fs.existsSync(file)) return null;
+  const db = new DatabaseSync(file, { readOnly: true });
+  try {
+    for (const row of db
+      .prepare(
+        "SELECT session_id, task, settings FROM children WHERE role = 'triage'",
+      )
+      .all()) {
+      const network = JSON.parse(row.settings || "{}").network;
+      if (
+        !Array.isArray(network) ||
+        !network.includes(`localhost:${RUN.proxyPort}`)
+      )
+        return {
+          session: row.session_id,
+          task: row.task,
+          network: network ?? null,
+        };
+    }
+    return null;
+  } finally {
+    db.close();
+  }
+}
+
 async function snapshotState() {
   const { Store } = await import("../src/app/store.mjs");
   const store = new Store(DB);
@@ -654,6 +688,14 @@ async function prove() {
     const end = started + (AGENT === "fake" ? 10 * 60_000 : HOUR_MS);
     for (;;) {
       state = await snapshotState();
+      // The first real triage child must reach the model proxy too: the
+      // preflight passes its repository directly, so it cannot catch a
+      // request that names none.
+      const blocked = triageWithoutProxy();
+      if (blocked) {
+        event("sandbox.no-proxy", blocked);
+        break;
+      }
       const fix = state.fixes[2]?.delivery;
       if (settled(state) && fix === "integrated") break;
       // No fix is coming: #2 went to the owner (its reproduction could not run).

@@ -11,7 +11,7 @@ my-plans/
 ```
 
 Create one on the Avoozl page under **Add or initialize a workspace** with
-**Initialize new**, or with `node cli.mjs init ~/plans --name "My plans"`.
+**Initialize new**, or with `avoozl init ~/plans --name "My plans"`.
 **Add existing** opens a directory that already holds a workspace.
 
 ## Example data
@@ -21,9 +21,9 @@ A new workspace has no tasks and no repositories, and the triage agent is off.
 `.kiro/specs/` as drafts:
 
 ```sh
-node cli.mjs seed --workspace ~/plans
-node cli.mjs plan batches --workspace ~/plans
-node cli.mjs epics --workspace ~/plans
+avoozl seed --workspace ~/plans
+avoozl plan batches --workspace ~/plans
+avoozl epics --workspace ~/plans
 ```
 
 `plan batches` lists the specs in approval order, and `epics` shows the epic.
@@ -62,7 +62,7 @@ Settings that belong to one machine, such as `lanes` and `serve`, live in
 `avoozl serve` serves the page without Kiro Crew:
 
 ```sh
-node cli.mjs serve --workspace ~/plans --port 4800
+avoozl serve --workspace ~/plans --port 4800
 ```
 
 It listens on `127.0.0.1` only. `--host`, `--bind`, and `AVOOZL_HOST` refuse to
@@ -85,10 +85,18 @@ browser notices about new **Needs you** items, off until you turn it on.
 The app backend inside Kiro Crew also binds `127.0.0.1`, and it accepts only
 requests the Kiro Crew gateway signed. Do not expose either one.
 
+`npm run build` builds the standalone page into
+`kirocrew-app/ui/dist/standalone/` from Kiro Crew's own source at a pinned
+release: v0.12.2 (`kirocrew-app/ui/kirocrew-pin.json`), the same release as
+the Kiro Crew version this app asks for. The build fetches that source into a
+cache outside git, checks its digest, and edits none of it. The standalone
+page and the page inside Kiro Crew match when the installed Kiro Crew is the
+pinned release.
+
 ## Backup
 
 ```sh
-node cli.mjs backup --workspace ~/plans --output ~/plans-backup.sqlite
+avoozl backup --workspace ~/plans --output ~/plans-backup.sqlite
 ```
 
 Use the backup command rather than copying the database file, because SQLite

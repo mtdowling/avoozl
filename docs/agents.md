@@ -8,15 +8,17 @@ same state.
 {
   "mcpServers": {
     "avoozl": {
-      "command": "node",
-      "args": ["/path/to/avoozl/cli.mjs", "mcp", "--workspace", "/path/to/plans"]
+      "command": "avoozl",
+      "args": ["mcp", "--workspace", "/path/to/plans"]
     }
   }
 }
 ```
 
 Agent sessions in Kiro Crew use the app's `avoozl` MCP server. Any other stdio
-MCP client can run the server directly, as above.
+MCP client can run the server with `avoozl mcp`, as above. A client that does
+not find `avoozl` on its `PATH` takes the full path that `command -v avoozl`
+prints.
 
 ## Roles and models
 
@@ -91,16 +93,15 @@ for what person-only does and does not guard.
 
 ## CLI
 
-In a checkout the CLI is `node cli.mjs`. Help and error text call it
-`avoozl`.
+`npm ci` in a checkout links a global `avoozl` command to it.
 
 ```sh
-node cli.mjs query --workspace ~/plans --q 'ready:true'
-node cli.mjs show TASK_ID --workspace ~/plans
-node cli.mjs tick --workspace ~/plans
+avoozl query --workspace ~/plans --q 'ready:true'
+avoozl show TASK_ID --workspace ~/plans
+avoozl tick --workspace ~/plans
 ```
 
-`node cli.mjs help` shows the commands by job, and `help GROUP`,
+`avoozl help` shows the commands by job, and `help GROUP`,
 `help COMMAND`, and `help all` give the usage lines. Choose a workspace with
 `--workspace PATH` or `AVOOZL_WORKSPACE`; `status` reports on it. Only
 `AVOOZL_*` variables and the `avoozl` command work.

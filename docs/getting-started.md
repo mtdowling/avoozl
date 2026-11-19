@@ -12,6 +12,10 @@ npm run build
 npm test
 ```
 
+`npm ci` also links a global `avoozl` command to the checkout, as `npm link`
+does. It skips CI and `AVOOZL_NO_GLOBAL_LINK=1`, and a failed link only prints
+how to run `npm link` yourself.
+
 `npm run build` writes the page bundle and copies the CLI into
 `kirocrew-app/bin/lib`. The built page is not committed. `npm run test:changed`
 runs only the tests a change reaches, as CI does. Tests use disposable
@@ -44,7 +48,7 @@ run `npm run build && kirocrew app update avoozl` in the checkout.
 
 ```sh
 npm run build
-node cli.mjs serve --workspace ~/plans
+avoozl serve --workspace ~/plans
 ```
 
 `avoozl serve` serves the same page on `127.0.0.1` only. It has no host or
@@ -60,12 +64,11 @@ other server settings.
 The CLI and MCP work with or without the page:
 
 ```sh
-node cli.mjs help
-node cli.mjs status --workspace ~/plans
+avoozl help
+avoozl status --workspace ~/plans
 ```
 
-Any stdio MCP client can run `node /path/to/avoozl/cli.mjs mcp --workspace
-/path/to/my-plans`.
+Any stdio MCP client can run `avoozl mcp --workspace /path/to/my-plans`.
 
 ## Approve a harness
 
@@ -88,7 +91,7 @@ children are refused.
 A workspace is a directory you own, separate from the checkout:
 
 ```sh
-node cli.mjs init ~/plans --name "My plans"
+avoozl init ~/plans --name "My plans"
 ```
 
 ```text
@@ -99,7 +102,7 @@ my-plans/
 ```
 
 A new workspace has no tasks and no repositories, and the triage agent is off.
-`node cli.mjs seed --workspace ~/plans` adds a made-up example epic as draft
+`avoozl seed --workspace ~/plans` adds a made-up example epic as draft
 specs. Loading examples never approves a plan, starts a session, or configures
 a repository. See [Workspaces](workspaces.md) for settings files, demo mode and
 backups.

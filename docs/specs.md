@@ -93,14 +93,14 @@ so and offers an `avoozl-planner` chat instead.
 Once the folder lints clean, Avoozl stores it as a draft. From the CLI:
 
 ```sh
-node cli.mjs plan.create --json '{"spec":"NAME"}' --workspace ~/plans
+avoozl plan.create --json '{"spec":"NAME"}' --workspace ~/plans
 ```
 
 ## Approving a spec
 
 Select the spec, review the lint results and the graph, then choose **Approve
 revision**. Approval records the exact revision hash, so a later edit reads as
-unapproved until you approve again. `node cli.mjs plan approve NAME` previews
+unapproved until you approve again. `avoozl plan approve NAME` previews
 the approval from the CLI.
 
 A spec can be as small as one task. With the repository's `landing` set to

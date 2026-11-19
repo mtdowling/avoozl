@@ -86,10 +86,10 @@ test('the pin is not older than the Kiro Crew the app asks for (SW12.8)', () => 
   assert.ok(at < 0 || a[at] > b[at], `pin ${pin.tag} is older than ${minimum}`)
 })
 
-test('the README names the pin beside the Kiro Crew version it asks for (SW12.8)', () => {
-  const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8')
-  assert.ok(readme.includes(pin.tag), `README.md does not name ${pin.tag}`)
-  assert.match(readme, /standalone page/i)
+test('the docs name the pin beside the Kiro Crew version it asks for (SW12.8)', () => {
+  const page = fs.readFileSync(path.join(root, 'docs', 'workspaces.md'), 'utf8')
+  assert.ok(page.includes(pin.tag), `docs/workspaces.md does not name ${pin.tag}`)
+  assert.match(page, /standalone page/i)
 })
 
 test('the fetch refuses a tree whose digest differs', () => {

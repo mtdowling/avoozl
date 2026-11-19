@@ -121,6 +121,7 @@ export const APP_OPERATIONS = new Set([
   "flow.settings.get",
   "models.settings.get",
   "models.settings.update",
+  "harness.approve",
   "flow.settings.update",
   "driver.status",
   "instance.view",
