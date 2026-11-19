@@ -19,6 +19,8 @@ itself, and lands it. These pages say how to set it up and how each part works.
 - [Manual tasks and task links](manual-tasks.md): steps only a person does.
 - [Delivery](delivery.md): workers, checks, landing and merge batches.
 - [Drivers](drivers.md): which workspace drives a spec, and handing off.
+- [People and machines](scale-out.md): spec lanes per person, shared state
+  in git, worker machines and harnesses per role.
 - [Flow](flow.md): when work pauses, Stop the line, and retros.
 - [Agents and the CLI](agents.md): roles and models, MCP tools and
   person-only actions.
