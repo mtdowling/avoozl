@@ -3866,3 +3866,7 @@ Owner request 2026-11-19 (Requirement 114, design §4.42).
   - $done: Landing commits carry each task's Flow spans; a pull request landing's merge commit carries the same trailers; finished retros are committed files; a deleted database rebuilds to the same Flow spans and retros; Triage has a Dismiss button that adds avoozl:dismissed.
   - $after: 66.2
   - `landing-trailers.mjs` `landingMessage`, `retro-files.mjs`, `landing-pulls.mjs`, `UntriagedView.tsx`.
+- [x] 66.4 The tick adopts approvals that reach main with no click, after 66.3 [R114.13] (§4.42)
+  - $done: An approver-authored spec commit on main, such as a GitHub squash merge, approves the spec on the next tick as rebuild would; a non-approver's commit approves nothing; a later non-approver edit needs approval again; a click adds no second Activity row.
+  - $after: 66.3
+  - `applyMainApprovals` and `adoptApprovals` in `operations.mjs`, `baseHead` in `spec-ticks.mjs`, `src/app/git/test/git-approvals.test.mjs`.

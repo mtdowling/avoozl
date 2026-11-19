@@ -4939,6 +4939,22 @@ dependency passes with `baseline` so ticked tasks start done (each at its
 tick commit as its landing commit), records one `task.landed` Activity row per landing trailer,
 puts back each trailer's Flow spans, and reads every retro file on main.
 
+**Approvals on the tick.** A spec pull request an approver authored and
+GitHub merged, or an approver's push, approves with no click
+(Requirement 114.13). `Operations.applyMainApprovals` runs on each
+`workspace.tick` after `applyBaseTicks`. It takes the plans whose text on
+disk has no approval, groups them by checkout (`approvalCheckout`), and
+reads each checkout's base branch with `baseHead` (`spec-ticks.mjs`), using
+the fetch `applyBaseTicks` already made that tick. When the head, a plan's
+hash or the text on disk changed since the last read, it runs
+`approvalCommits` over those specs. The approver check is kept per checkout
+and approvers list, so each author email is decided once. A plan whose disk
+text an approver committed is approved by `adoptApprovals`, the same pass
+`readFromGit` uses; when the plan still holds an older revision, the disk
+text is saved as the next revision first. Each approval writes one Activity
+row (`plan.approved`, source `tick`, the author as actor) naming the commit.
+A clicked approval already has its receipt, so the tick skips it.
+
 **Dismiss.** Removed 2026-11-19 with Triage (triage-agent TA8.7): the
 GitHub pages' Close with a reason replaces it, and the triage agent reads
 GitHub items again on its own poll after a rebuild.

@@ -5907,3 +5907,18 @@ rebuilds its database from main and GitHub.
     dismissed item and an intake-made task rebuilds to the same plans,
     approvals, tasks, Flow spans and retros after its database is deleted;
     and both a direct and a pull request landing write the trailers.
+13. (Added 2026-11-19, owner request.) The tick SHALL adopt an approval that
+    reaches main with no click: a spec pull request an approver authored and
+    GitHub merged, or a push. When a checkout's base branch, as the tick
+    already fetched it, has moved, or a spec's text has, the reader of
+    criterion 9 SHALL run over the specs whose text on disk has no approval.
+    Each one an approver committed with exactly that text SHALL be approved
+    as that commit's author, and its tasks become ready as after a click.
+    A commit by anyone else SHALL approve nothing and change nothing. Each
+    such approval SHALL get one Activity row naming the commit and the
+    approver; a click's own approval commit SHALL add none. This SHALL make
+    no extra GitHub call and write nothing to git. Tests SHALL show an
+    approver's squash merge with GitHub as committer approved on the next
+    tick, a non-approver's commit not approved, a later edit by a
+    non-approver needing approval again, and no second Activity row after a
+    click.
