@@ -15,6 +15,9 @@ Inside Avoozl's interfaces a spec is stored as a plan, so the `plan.*`
 operations, the `plans_*` MCP tools, and the `plan` CLI commands keep that
 name.
 
+See [GitHub workflow](github-workflow.md) for the protocol any tool can
+follow to run specs on GitHub: approvals, assignees, ready tasks and ticks.
+
 ## Task list
 
 Each checkbox in `tasks.md` is a task with an ID and a title. The bullets
