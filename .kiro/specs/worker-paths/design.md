@@ -83,6 +83,14 @@ owner's (D10, decision 4).
 `avoozl runner report` checks the findings file with the validator the MCP
 tool uses, so there is one definition of a valid finding.
 
+The falsifier chat reports the same way (WP3.6): its brief gives
+`<command> runner report TASK done --role falsifier --file PATH --token T`,
+with a token issued for the falsifier role and the attempt. The verdict file goes
+through the validator `plans_report` uses (V: `src/app/report-match.mjs`,
+`src/app/investigate.mjs` `falsifierBrief`).
+shortcut: the verifier and review roles still report by `plans_report`;
+give them role tokens when one of them runs as a chat without sharing.
+
 ## D5. The report command (WP4.3)
 
 `src/app/delivery.mjs:488` already holds the absolute path of the running

@@ -2,7 +2,7 @@
 // why, what answering unblocks, and the evidence Avoozl holds. It comes before
 // every button, so nothing is approved without it. Theme variables only.
 import type { ReactNode } from 'react'
-import { SeverityBadges } from './SeverityBadges.tsx'
+import { SeverityBadges } from './ui/SeverityBadges.tsx'
 import { checkDot } from './dashboard-api.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { useTaskDrawer } from './drawer-context.ts'

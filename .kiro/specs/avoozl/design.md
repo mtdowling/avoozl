@@ -4801,6 +4801,29 @@ compares the `[x]` items with the database:
 - A task with `acceptFrom: validation` is skipped (Requirement 38.4).
 - Lint reports `task.ticked-unknown-id` for a ticked item with no task ID.
 
+**Write side: ticks are the shared state.** Each machine's SQLite is private,
+so the base branch's `tasks.md` is how coworkers learn a task is done.
+
+- Direct landing builds each landing candidate in a worktree
+  (`stackMembers`, `merge-batch.mjs`). Each member is merged with
+  `--no-commit`, `tickEntry` (`spec-ticks.mjs`) ticks its task in the
+  worktree, and one merge commit holds both. `tickedText` changes only the
+  mark character of that line, then ticks a parent whose children are all
+  ticked and that sits above a task just ticked.
+- A spec in another repository (`tickPlansRepo`): after the push, the
+  workspace's planning checkout fetches the plans branch, ticks in a
+  detached worktree, commits, and pushes without force; a rejected push
+  fetches again and starts over, five times. A plans branch with no local
+  checkout is not written.
+- A task Avoozl landed has `integration.commit`, so the read side treats its
+  tick as known (no Activity line, no worker released).
+- The read side fetches `origin/<base>` (once per checkout and tick) and reads
+  that, so a coworker's pushed tick reaches this machine. A checkout with no
+  remote reads its own branch.
+- Not covered: the pull-request landing and the local integrate path do not
+  tick in their commit yet. A tick there arrives when a person ticks it on
+  the base branch.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.

@@ -1326,6 +1326,7 @@ export class Operations {
   // again only when the branch head or the approved revision moved.
   async applyBaseTicks() {
     this.ticksSeen ??= new Map();
+    this.ticksFetched = new Set();
     const projects = this.store.list("projects");
     for (const plan of this.store.list("plans")) {
       if (
@@ -1344,7 +1345,9 @@ export class Operations {
               : projects.find((p) => p.root === spec.root)?.baseBranch || "main"
             : spec.ref,
           read = spec.root
-            ? await baseTasks(spec.root, branch, plan.spec)
+            ? await baseTasks(spec.root, branch, plan.spec, {
+                fetched: this.ticksFetched,
+              })
             : { head: this.privateSpecsHead, text: spec.files["tasks.md"] };
         if (!read?.text) continue;
         const seen = `${read.head}:${plan.approvalId}`;
@@ -1356,7 +1359,7 @@ export class Operations {
           // there names the branch head it was first read at; use the
           // contents API's commit list for the exact commit if that matters.
           find: spec.root
-            ? (key) => tickCommit(spec.root, branch, plan.spec, key)
+            ? (key) => tickCommit(spec.root, read.ref, plan.spec, key)
             : async () => null,
         });
         this.ticksSeen.set(plan.id, seen);

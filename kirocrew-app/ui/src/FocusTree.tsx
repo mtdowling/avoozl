@@ -53,6 +53,7 @@ import { Box } from './ui/Box'
 import { TreeStyle } from './ui/PageStyles'
 import { PlainButton, PlainInput, SvgG, SvgPath, SvgRect, SvgRoot, SvgText } from './ui/Plain'
 import { COLOR } from './ui/looks/FocusTree.ts'
+import { StatusDot } from './ui/StatusDot'
 
 const STATE_WORD = Object.fromEntries(STATES.map((s) => [s.id, s.label])) as Record<NodeState, string>
 const CARD = { w: 204, h: 52 }
@@ -467,7 +468,7 @@ function Chip({ task }: { task: GraphTask }) {
   const go = state === 'ready' || state === 'running'
   return (
     <Box as="span" inlineFlex flexNone items="center" gap="1.5" data-state-chip={state}>
-      <span aria-hidden="true" className="inline-block h-[7px] w-[7px] rounded-full" style={go ? { background: COLOR[state] } : { border: `1.5px solid ${COLOR[state]}` }} />
+      <StatusDot size={7} color={COLOR[state]} hollow={!go} />
       <Box as="span" css-color={COLOR[state]} css-letter-spacing=".12em" size="9">
         {STATE_CHIP[state]}
         <Box as="span" srOnly>
