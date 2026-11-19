@@ -30,6 +30,16 @@ import { resolveTaskId } from "../../task-identity.mjs";
 import { integrationOf } from "../epics/integration-branch.mjs";
 import { checkForwardTarget } from "../mirror/mirror-policy.mjs";
 import { repeatsTitle } from "../tasks/title-repeat.mjs";
+import {
+  LETTERED,
+  NAMED,
+  NUMBERED,
+  resolveRefs,
+  splitRefs,
+  taskToken,
+} from "./spec-refs.mjs";
+
+export { taskToken };
 
 // Whether tasks.md has a `Facts:` bullet outside a fence: the layout
 // before `$key:` bullets, which lint refuses and nothing reads.
@@ -57,12 +67,6 @@ export const REVISION_FILES = [
 ];
 const NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const MAX_FILE_BYTES = 1000000;
-// `1`, `2.14`, Kiro's own numbering; a trailing period is Kiro's style.
-const NUMBERED = /^\d+(?:\.\d+)*\.?$/;
-// Any other ID has a separator, so a plain first word is not read as an ID.
-const NAMED = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/;
-// `P1`, `P2b`: a proof or other lettered item, namespaced like a number.
-const LETTERED = /^[A-Z]\d+[a-z]?$/;
 const CHECKBOX = /^\s*[-*+] \[([ xX~-])\]\*?[ \t]+(.*)$/;
 // A "Built:" note or "$built:" fact under a checked item names the work that
 // already landed.
@@ -271,7 +275,7 @@ export function listSpecFolders(root) {
 
 function diagnostic(code, file, line, message, extra = {}) {
   return {
-    id: `${code}:${file}:${line}:${extra.taskId || ""}`,
+    id: `${code}:${file}:${line}:${extra.taskId || ""}${extra.ref ? `:${extra.ref}` : ""}`,
     code,
     severity: "error",
     message,
@@ -295,18 +299,25 @@ export function specItems(name, text) {
     const match = raw.replace(/\r$/, "").match(CHECKBOX);
     if (!match) return;
     const mark = match[1].toLowerCase(),
-      [token = "", ...rest] = match[2].trim().split(/\s+/),
+      text = match[2].trim(),
+      // An ID may be a code span, `dl-1`, or bare; Avoozl writes a named
+      // one as a code span (taskToken).
+      quoted = /^`([^`\s]+)`(?:\s+|$)(.*)$/.exec(text),
+      [token = "", ...rest] = quoted
+        ? [quoted[1], quoted[2]]
+        : text.split(/\s+/),
       line = index + 1,
-      title = rest.join(" "),
+      { title, ...refs } = splitRefs(rest.join(" ")),
       indent = /^\s*/.exec(raw)[0].length;
     while (open.length && open.at(-1).indent >= indent) open.pop();
     const parent = open.at(-1)?.item ?? null;
     let item;
     if (NUMBERED.test(token) || LETTERED.test(token)) {
       const key = token.replace(/\.$/, "");
-      item = { key, id: `${name}.${key}`, title, line };
-    } else if (NAMED.test(token)) item = { key: token, id: token, title, line };
-    else item = { key: null, id: null, title: match[2].trim(), line };
+      item = { key, id: `${name}.${key}`, title, refs, line };
+    } else if (NAMED.test(token))
+      item = { key: token, id: token, title, refs, line };
+    else item = { key: null, id: null, title: text, line };
     items.push({ ...item, mark, parent });
     open.push({ indent, item });
   });
@@ -515,6 +526,15 @@ export function parseSpec({
         ),
       );
     else byKey.set(item.key, item);
+    const resolved = resolveRefs(item, files);
+    item.resolvedRefs = resolved.refs;
+    for (const found of resolved.problems)
+      diagnostics.push(
+        diagnostic(found.code, "tasks.md", item.line, found.message, {
+          taskId: item.id,
+          ref: found.ref,
+        }),
+      );
     if (!item.title)
       diagnostics.push(
         diagnostic(
@@ -821,6 +841,7 @@ export function parseSpec({
         specKey: item.key,
         phase,
         ...(parentOk ? { parent: item.parent.id } : {}),
+        ...(item.resolvedRefs.length ? { refs: item.resolvedRefs } : {}),
         lineStart: item.line,
         lineEnd: item.line,
       });
@@ -1427,7 +1448,7 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
       path.join(directory, "tasks.md"),
       tasks +
         (tasks && !tasks.endsWith("\n") ? eol : "") +
-        `- [ ] ${key} ${title}${eol}` +
+        `- [ ] ${taskToken(key)} ${title}${eol}` +
         facts.map((line) => line + eol).join(""),
     );
     const next = read(plan.spec),

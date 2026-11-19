@@ -11,9 +11,21 @@ export interface TaskOwner {
   issue?: { number: number | null; url: string | null; repository: string | null } | null
 }
 
+// A requirement or design ref on a tasks.md item (Requirement 115): the ref
+// as written, the spec file it names, and the line it is on, or null when
+// it names nothing.
+export interface TaskRef {
+  kind: 'requirement' | 'design'
+  ref: string
+  file: string
+  line: number | null
+}
+
 export interface GraphTask extends TaskOwner {
   id: string
   title: string
+  // Its requirement and design refs, in tasks.md order.
+  refs?: TaskRef[]
   // Its plan's epic, across plans (Requirement 59.2); null is No epic.
   epic: string | null
   // The stored plan it came from; older backends omit it.

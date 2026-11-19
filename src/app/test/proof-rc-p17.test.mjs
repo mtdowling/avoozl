@@ -67,7 +67,7 @@ test("Proof 17: a migration from the template, a three-repository proposal and a
   for (const repository of REPOS)
     writeSpec(root, repository, {
       "requirements.md": "---\nepic: parent\n---\n# Sub\n\nThe goal.\n",
-      "tasks.md": `# Tasks\n\n- [ ] ${repository}-1 Task\n`,
+      "tasks.md": `# Tasks\n\n- [ ] \`${repository}-1\` Task\n`,
       "avoozl/manifest.json": JSON.stringify({
         tasks: { [`${repository}-1`]: leaf(repository) },
       }),

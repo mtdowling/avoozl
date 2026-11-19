@@ -50,7 +50,7 @@ for (const name of names) {
   );
   for (const d of errors)
     console.log(
-      `  ${d.file ?? ""}:${d.line ?? ""} ${d.message ?? d.text ?? JSON.stringify(d)}`,
+      `  ${d.file ?? ""}:${d.line ?? d.lineStart ?? ""} ${d.message ?? d.text ?? JSON.stringify(d)}`,
     );
   if (result.counts.error) failed = true;
 }

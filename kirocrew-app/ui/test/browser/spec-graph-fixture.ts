@@ -1,9 +1,10 @@
 // The byte-types spec's graph.view reply for the spec page's Task graph
 // (&review=1): one done task, one that just unlocked, two that wait, and one
 // spec of another name that must not show.
-const task = (id: string, title: string, state: string, complete = false) => ({
+const task = (id: string, title: string, state: string, complete = false, refs: { kind: 'requirement' | 'design'; ref: string; file: string; line: number }[] = []) => ({
   id,
   title,
+  refs,
   epic: null,
   planId: 'byte-types',
   spec: 'byte-types',
@@ -32,8 +33,11 @@ export const specGraph = {
   repositories: ['example/recipe-box'],
   total: 4,
   tasks: [
-    task('1.1', 'Add fixed-width integer types', 'done', true),
-    task('1.2', 'Add byte strings', 'ready'),
+    task('1.1', 'Add fixed-width integer types', 'done', true, [
+      { kind: 'requirement', ref: 'R1.1', file: 'requirements.md', line: 7 },
+      { kind: 'design', ref: '§D1', file: 'design.md', line: 5 },
+    ]),
+    task('1.2', 'Add byte strings', 'ready', false, [{ kind: 'requirement', ref: 'R2', file: 'requirements.md', line: 10 }]),
     task('1.3', 'Convert UTF-8 to byte strings', 'waiting'),
     task('1.4', 'Test that overflow wraps', 'waiting'),
   ],

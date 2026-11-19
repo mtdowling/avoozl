@@ -5,7 +5,7 @@ import test from "node:test";
 import { Operations } from "../api/operations.mjs";
 import { createSpecPlan, readSpecFolder } from "../specs/spec-plans.mjs";
 import { fixture } from "./fixtures.mjs";
-import { writeSpec } from "./spec-fixture.mjs";
+import { writeSpec, syntheticSpecFiles } from "./spec-fixture.mjs";
 
 function workspace(t) {
   const { root, store } = fixture(t);
@@ -31,17 +31,7 @@ const leaf = (summary, requires = []) => ({
   acceptance: ["The synthetic task produces its expected result."],
 });
 function draft(w, spec, entries) {
-  writeSpec(w.root, spec, {
-    "requirements.md": "# Synthetic requirements\n\nStatus: Draft\n",
-    "design.md": "# Synthetic design\n\nStatus: Draft\n",
-    "tasks.md":
-      "# Tasks\n\nStatus: Draft\n\n" +
-      Object.entries(entries)
-        .map(([id, task]) => `- [ ] ${id} ${task.summary}`)
-        .join("\n") +
-      "\n",
-    "avoozl/manifest.json": JSON.stringify({ version: 1, tasks: entries }),
-  });
+  writeSpec(w.root, spec, syntheticSpecFiles(entries));
   return createSpecPlan(
     w.store,
     { id: spec, context: { repositoryId: "app" } },

@@ -2,11 +2,12 @@
 // Demo mode (demo.mjs) builds its sample from them, and the recipe-box
 // example (examples.mjs) installs them as draft spec folders.
 import { factsLines } from "../specs/spec-facts.mjs";
+import { taskToken } from "../specs/spec-refs.mjs";
 
 // A task item, its Facts bullet (Requirement 111) and its summary bullets.
 const item = (id, title, { summary = [], ...entry }) =>
   [
-    `- [ ] ${id} ${title}`,
+    `- [ ] ${taskToken(id)} ${title}`,
     ...factsLines(entry),
     ...summary.map((line) => `  - ${line}`),
   ].join("\n");

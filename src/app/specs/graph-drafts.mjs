@@ -56,6 +56,7 @@ export function draftGraph(data, folders = [], plans = []) {
         planId: null,
         spec: name,
         phase: proposal.phase ?? null,
+        refs: proposal.refs ?? [],
         order: data.tasks.length + tasks.length,
         kind: taskKind(proposal),
         route: taskRoute(proposal),

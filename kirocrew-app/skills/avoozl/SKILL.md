@@ -87,7 +87,11 @@ with `spawn_run` and `include_memory: false`, in the planning repository. Send
 the draft brief below. Wait for it to finish. It writes `requirements.md` (or
 `bugfix.md`), `design.md` and `tasks.md` in the spec folder, with each task's
 facts in `$key:` bullets under it. A spec folder never holds
-`avoozl/manifest.json`.
+`avoozl/manifest.json`. Write a named task ID as a code span
+(``- [ ] `cache-invalidation` Drop stale entries``; a bare ID also reads),
+and end each title with its refs: `[R1.2]` for the requirements it builds,
+`(§2.1)` for the design sections it follows. Lint refuses a ref the spec
+does not define.
 
 Store the revision: `plans_create_plan` with `spec` (the name) and `prompt`
 (the goal); for a spec that is already stored, `plans_save_plan` with its `id`

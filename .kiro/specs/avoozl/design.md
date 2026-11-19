@@ -4959,6 +4959,38 @@ A clicked approval already has its receipt, so the tick skips it.
 GitHub pages' Close with a reason replaces it, and the triage agent reads
 GitHub items again on its own poll after a rebuild.
 
+### 4.43 Task IDs and refs in tasks.md
+
+**Why.** A line such as `- [ ] dl-1 Open exact decisions [DL2, DL3] (D1)`
+was read only for its first word. Its refs were title text: never checked,
+never linked, and free to name a requirement that had been renumbered or
+retired (Requirement 115).
+
+**IDs.** `specItems` reads the first token as the ID, with or without
+backticks. Lint does not ask for either form. Kiro's numbers stay bare.
+`taskToken` (`spec-refs.mjs`) is how every writer spells an ID:
+`proposeSpecWork`, `fix.spec`, the sample specs and the planner prompt.
+
+**Refs.** `splitRefs` takes a trailing `(...)`, then a trailing `[...]`,
+off the title when the list's first entry starts with `§` or capitals and a
+digit. `requirementIds` maps each `Requirement X:` heading (`R<n>` for a
+number) and each numbered criterion under it, to the line it is on, until
+the next heading of the same or a higher level; `designIds` maps each
+heading whose text starts with a section number. Both add fact table rows.
+`resolveRefs` checks each entry's form (`task.ref-form`) and that each end
+of a range exists (`task.ref-unknown`). A proposal carries its refs as
+`{kind, ref, file, line}`, and approval copies them onto the task.
+
+**Page.** Tasks by phase shows a task's refs as chips. A chip opens the
+file's tab and scrolls to the marked block at or above the ref's line.
+Lines come from the files the spec was read with; after an edit on disk the
+page reads the new folder and the plan shows as changed.
+
+**Why each choice.** The refs resolve in the spec's own files only:
+another spec's sections are prose in a summary bullet, so a ref never
+breaks when another spec moves. Ranges check their ends, not every member,
+because a criterion list may skip numbers.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.

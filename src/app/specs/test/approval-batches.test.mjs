@@ -13,7 +13,7 @@ import { createSpecPlan, readSpecFolder } from "../spec-plans.mjs";
 import { Store } from "../../store/store.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { fixture } from "../../test/fixtures.mjs";
-import { writeSpec } from "../../test/spec-fixture.mjs";
+import { writeSpec, syntheticSpecFiles } from "../../test/spec-fixture.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const cli = fileURLToPath(new URL("../../../../cli.mjs", import.meta.url));
@@ -36,20 +36,7 @@ const leaf = (summary, requires = []) => ({
   acceptance: ["The synthetic fixture produces its expected result."],
 });
 function draft({ root, store }, name, entries, { checked = [] } = {}) {
-  writeSpec(root, name, {
-    "requirements.md": "# Synthetic requirement\n\nStatus: Draft\n",
-    "design.md": "# Synthetic design\n\nStatus: Draft\n",
-    "tasks.md":
-      "# Tasks\n\nStatus: Draft\n\n" +
-      Object.entries(entries)
-        .map(
-          ([id, task]) =>
-            `- [${checked.includes(id) ? "x" : " "}] ${id} ${task.summary}`,
-        )
-        .join("\n") +
-      "\n",
-    "avoozl/manifest.json": JSON.stringify({ version: 1, tasks: entries }),
-  });
+  writeSpec(root, name, syntheticSpecFiles(entries, checked));
   return createSpecPlan(store, { id: name }, readSpecFolder(root, name));
 }
 const item = (store, id) => ({ id, expectedHash: store.get("plans", id).hash });

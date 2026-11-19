@@ -4,7 +4,7 @@ A manual task is a step only a person does, such as a team review before a
 cutover. Mark it with `$manual: true` in `tasks.md`:
 
 ```markdown [tasks.md]
-- [ ] team-review Review with the team
+- [ ] `team-review` Review with the team
   - $manual: true
   - $repo: sdk
   - $after: protocol-tests-proof

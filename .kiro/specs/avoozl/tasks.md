@@ -989,7 +989,7 @@ receipts are that workspace's.
   - Works in the planning repository being moved and its GitHub org, which this workspace does not register.
   - Run the Set up GitHub wizard (3.18) in the chosen mode for the setup in §10.1 (issues on in the planning repository, Project with Status and Release, optional `Epic` type) and follow its workflow checklist; Auto-close issue stays on (F55) (changed 2026-11-12: was to turn it off); set each code repository's `baseBranch` to its default branch. Changed 2026-11-12.
   - Superseded 2026-11-18: the move was done by 6.10 and 6.11 (every plan a spec folder, 0 refused); the wizard setup for per-task issues and the Project serves the per-task issues which Phase 56 (R102.20, §4.32) retires and 45.4 deletes, and there is no backward compatibility (#698); not done.
-- [x] 6.9 Project the cutover into the chosen GitHub mode [R23.4, R23.9, R23.10, R29, R33] (§10.2 step 8)
+- [x] 6.9 Project the cutover into the chosen GitHub mode [R23.4, R23.9, R23.10, R29, R33] (§10.2)
   - $done: Project the cutover into the chosen GitHub mode
   - $done: Epics as parent issues, unfinished tasks as sub-issues, blocking edges as issue dependencies, every issue on the Project with Release from the milestones; deferred tasks get Status Deferred once, as the owner's recorded order, and Avoozl writes no other Status; the SQLite database becomes a read-only archive. Changed 2026-11-12.
   - $done: The report names what was done and where the result is.
@@ -998,7 +998,7 @@ receipts are that workspace's.
   - Works in the moved workspace's issues and Project, which this workspace does not register.
   - Epics as parent issues, unfinished tasks as sub-issues, blocking edges as issue dependencies, every issue on the Project with Release from the milestones; deferred tasks get Status Deferred once, as the owner's recorded order, and Avoozl writes no other Status; the SQLite database becomes a read-only archive. Changed 2026-11-12.
   - Superseded 2026-11-18: projects unfinished tasks as issues and sub-issues, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes, and there is no backward compatibility (#698); not done.
-- [x] 6.10 Stale-plan cleanup [R23.13, R23.15] (§10.2 step 10)
+- [x] 6.10 Stale-plan cleanup [R23.13, R23.15] (§10.2)
   - $done: Stale-plan cleanup
   - $done: List plan files in the planning repository that are stale or no longer current, each with one evidence line (every task done or migrated; superseded or no live reference); after owner approval of the list, delete them in one reviewed commit that changes nothing else.
   - $done: The report names what was done and where the result is.
@@ -1131,7 +1131,7 @@ receipts are that workspace's.
   - $after: avoozl-p23
   - $after: avoozl-p15
   - Retired 2026-11-18: route plugins retired; worker-paths is the one dispatch path.
-- [x] 8.6 Plugin loading, after 8.1 [R22.10, R34.1–R34.9, R34.11] (§4.4, §4.7, §4.8)
+- [x] 8.6 Plugin loading, after 8.1 [R34.1–R34.9, R34.11] (§4.4, §4.7, §4.8)
   - $done: Plugin loading, after 8.1
   - $done: `plugins` entries in `.avoozl.json` and in machine-local settings (`id`, one of `package` or `path`, `contract`, non-secret `config`); validation per §4.4; `avoozl-plugin.json` manifest (`id`, `version`, `contract`, `kinds`, capabilities, `entry`), reserved ids `local` and `github`; Settings **Add plugin**, approve, disable, remove; approval per id, version, and content hash, stored on this machine only, never by the tick or example installation; a warning before saving a `plugins` entry into a public repository's `.avoozl.json`; one Node child process per plugin over stdio, no port, a listening-socket check that stops a plugin that listens; reply schema validation, replies quoted as untrusted data; per-call time limit inside the tick budget; a missing, unapproved, crashed, timed-out, invalid, or wrong-contract plugin parks its tasks as "needs you" and the tick finishes everything else; supported contract versions listed and others refused. Move 8.1's fake route behind the loader.
   - $done: Git sources: an entry with `git`, `ref`, and optional `subdir` (exactly one of `package`, `path`, or `git`); Add and Update resolve `ref` to a full commit, store the pin on this machine, and fetch only that commit shallow into `<plugins>/git/<id>/<commit>/` with the person's git, hooks off, no submodules, no install; approval binds to the commit, version, and hash, and a new commit needs a new approval; refuse credentialed URLs, a `subdir` that escapes, a missing manifest, and unshipped dependencies; the tick never fetches. Settings **Add from git** shows the resolved commit before approval. Tests use local `file://` repositories only. [R34.12–R34.15] (§4.8)
@@ -1497,7 +1497,7 @@ numbered after Phase 9 because task IDs never move.
   - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 8.6
   - Plugin kind `rules` beside `route` and `tracker`; contract call `ruleSets()` returning `[{id, version, rules: [{id, pattern}]}]`, schema-checked; the usual consent, child process, and time limit; rules kept in memory only, never in SQLite, receipts, or Git, and findings record the set `version`; a fake rules plugin under `test/fixtures/plugins/`, covered by the 7.4 and 8.8 scans.
   - Built: in the publish commit `ac3825f` (`src/app/content/content-rules.mjs`; `src/app/content/test/content-rules.test.mjs`, `content-terms.test.mjs`).
-- [x] 10.8 Allowed patterns [R40.15, R40.13] (§4.9 Allowed patterns)
+- [x] 10.8 Allowed patterns [R40.15, R40.13] (§4.9)
   - $done: Allowed patterns
   - $done: `allow: regex` and `allow <rule>: regex` lines in terms files, parsed by `parseTerms` and `checkTermsText` with line-numbered errors that never repeat the line; the worker drops a match when an allow pattern matches the same line and returns only counts; built-in sets unchanged; `checkRuleSets` refuses a set with `allow`; the release scan applies a file's allow lines to that file's rules only; the Rule builder gets an Allow row with an optional rule picker, the File view reads allow lines, Try it strikes through allowed matches; How rules work and `docs/plugins.md` updated; tests for allow-all, allow-one-rule, a non-matching line still blocking, built-ins unaffected, no echo, the release scan, and builder and File view round trip.
   - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.1
@@ -1703,7 +1703,7 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 3.13, 3.14
   - `untriaged` per repository in `github.repositories` (`filter`, `triageLabels`, `ignoreOlderThanDays`, `notify`), validated in `github-policy.mjs`; the filter parsed by `parseMatch` without the `label:` requirement; blank means `-label:<triage labels>`; triage labels refused when managed; Settings group with the filter's chips and count, checkboxes from the repository's labels (read only) with missing names kept and marked, and plain "(optional)" markers.
   - Built: `c551205` (policy, filter); Settings group `58ac891`.
-- [x] 13.2 Cached read in the tick, after 13.1 [R49.1, R49.6] (§8.5, F12)
+- [x] 13.2 Cached read in the tick, after 13.1 [R49.1, R49.6, F12] (§8.5)
   - $done: Cached read in the tick, after 13.1
   - $done: One GraphQL search per repository at most every 10 minutes from the cron's tick, up to 3 pages of 100; `untriaged.json` beside the database with `checkedAt`, the query, and any error; a failed read keeps the last items; a changed query reads on the next tick; nothing in Local only mode; no GitHub writes.
   - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 13.1
@@ -2190,21 +2190,21 @@ people read, and it builds on the incoming-item record of Phase 14.
   - $after: 19.1
   - Every user-facing plan word becomes spec; Plan a change becomes Change spec; `plans_*`, `plan.*`, CLI, `.avoozl.json` keys, SQLite, the Plans repo mode and `avoozl-planner` are unchanged; a page-source test fails on any `plan` or `plans` word outside its allowlist.
   - Built: `e179407`, `46ed4da` (page-source test `kirocrew-app/ui/test/specs-name.test.mjs`); the Specs tab, Change spec in `PlansView.tsx`.
-- [x] 23.2 Idea record and operations, after 14.10 and 17.1 [R63.1, R63.3–R63.6, R63.10] (§8.8, §4.12)
+- [x] 23.2 Idea record and operations, after 14.10 and 17.1 [R63] (§8.8, §4.12)
   - $done: Idea record and operations, after 14.10 and 17.1
   - $done: Ideas are `local` incoming items with notes and links and their limits; capture and append pass the `intake` boundary; sessions only capture and append; ideas never match a rule, tie to a task, count as untriaged or get purged.
   - $after: 14.10, 17.1
   - Removed 2026-11-15 (#228): Ideas. `src/app/ideas.mjs`, the `idea.*` operations and the Ideas page are deleted; the `plans_intake` idea actions stay as removed-error stubs.
   - `local` items of kind `idea` with notes and links and their limits; `idea.capture`, `idea.append`, `idea.archive`, `idea.restore`; the `intake` boundary refuses blocked text; no trigger match, no task, no Untriaged count, no purge; `plans_intake` actions `capture_idea` and `add_idea_note`; CLI `avoozl intake idea`.
   - Built: `f254b8f` (`src/app/ideas.mjs`, `idea.capture`, `idea.append`, `idea.archive`, `idea.restore`, `plans_intake` actions `capture_idea` and `add_idea_note`, CLI `avoozl intake idea`; `src/app/test/ideas.test.mjs`).
-- [x] 23.3 Ideas on the page, after 23.1 and 23.2 [R63.2, R63.7, R63.10] (§8.8)
+- [x] 23.3 Ideas on the page, after 23.1 and 23.2 [R63] (§8.8)
   - $done: Ideas on the page, after 23.1 and 23.2
   - $done: + New idea on Specs and Intake, the Idea kind filter and the idea drawer with notes, links, Archive and Restore work at 375 and 1280 px in light and dark.
   - $after: 23.1, 23.2
   - Removed 2026-11-15 (#228): Ideas. See 23.2.
   - - New idea on Specs and Intake; Ideas (N) on Specs; the Idea kind filter; the idea drawer with notes, links, Add note, Add link, Archive and Restore; checked by drawing the page at 375 and 1280 px in light and dark.
   - Built: `f254b8f` (`Ideas.tsx`, + New idea, Ideas (N), the idea drawer; `kirocrew-app/ui/test/ideas.test.mjs`).
-- [x] 23.4 Riff on this and Make it a spec, after 23.3 [R63.8, R63.9] (§8.8, §8.6)
+- [x] 23.4 Riff on this and Make it a spec, after 23.3 [R63] (§8.8, §8.6)
   - $done: Riff on this and Make it a spec, after 23.3
   - $done: Riff on this opens a seeded chat that only appends to the idea; Make it a spec prefills the New spec entry point and graduates the idea when the request is recorded; a cancel changes nothing.
   - $after: 23.3
@@ -2727,17 +2727,17 @@ crews (39.4) and P49 are retired; their code is in git history.
   - $done: Hook command: scan a crew's writes before they run
   - $done: `avoozl content hook` refuses a gh or git write that holds a rule match or text it cannot read, naming the rule set, id and place and never the text.
   - `avoozl content hook`, now `src/app/content/content-hook.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
-- [x] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85.6, R85.7] (§6.14)
+- [x] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85] (§6.14)
   - $done: Audit on the tick: delete a hit, pull the cord, alert, after 39.1
   - $done: The tick deletes a matching crew comment, closes a matching pull request, pulls the cord for the repository, and sends one notice and one Needs you item.
   - $after: 39.1
   - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
-- [x] 39.3 Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2 [R85.1, R85.2, R85.8, R85.10] (§6.14)
+- [x] 39.3 Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2 [R85.1, R85.2, R85] (§6.14)
   - $done: Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2
   - $done: A person signs off the checklist; a public repository is handed to Issue Radar only with a current sign-off, which lapses when a hashed item changes.
   - $after: 39.1, 39.2
   - `publiccrews.signoff`, the Public crews card, the `untriaged.handoff` check; person-only; lapse on a changed hash.
-- [x] 39.4 Stop public crews, after 39.2 [R85.9] (§6.14)
+- [x] 39.4 Stop public crews, after 39.2 [R85] (§6.14)
   - $done: Stop public crews, after 39.2
   - $done: One person-only action pulls the cord for every public repository with a crew and lists the crews to pause.
   - $after: 39.2
@@ -3870,3 +3870,11 @@ Owner request 2026-11-19 (Requirement 114, design §4.42).
   - $done: An approver-authored spec commit on main, such as a GitHub squash merge, approves the spec on the next tick as rebuild would; a non-approver's commit approves nothing; a later non-approver edit needs approval again; a click adds no second Activity row.
   - $after: 66.3
   - `applyMainApprovals` and `adoptApprovals` in `operations.mjs`, `baseHead` in `spec-ticks.mjs`, `src/app/git/test/git-approvals.test.mjs`.
+
+## Phase 67: Task IDs and refs in tasks.md
+
+Owner request 2026-11-19 (Requirement 115, design §4.43).
+
+- [x] 67.1 Checked, linked requirement and design refs, and optional backticked task IDs [R115] (§4.43)
+  - $done: A ref the spec does not define is a lint error naming the ref, file and line; a task ID reads the same bare or backticked; refs are left out of the title and shown as chips that open their section; every spec under `.kiro/specs/` lints clean.
+  - `spec-refs.mjs`, `specItems` and `parseSpec` in `spec-plans.mjs`, `PhaseTasks` in `PlansView.tsx`.

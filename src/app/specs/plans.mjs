@@ -704,6 +704,7 @@ export function approvePlan(
               "specShip",
               "specType",
               "manual",
+              "refs",
             ]
               .filter((key) => proposal[key] !== undefined)
               .map((key) => [key, proposal[key]]),
@@ -817,6 +818,7 @@ export function approvePlan(
           "specType",
           "phase",
           "manual",
+          "refs",
         ])
           if (design[key] === undefined) delete existing[key];
         delete existing.epic;

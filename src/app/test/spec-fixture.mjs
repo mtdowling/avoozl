@@ -5,7 +5,7 @@ import {
   summaryLines,
   withDefaults,
 } from "../specs/spec-facts.mjs";
-import { specItems } from "../specs/spec-plans.mjs";
+import { specItems, taskToken } from "../specs/spec-plans.mjs";
 import { repeatsTitle } from "../tasks/title-repeat.mjs";
 
 // Fixture shorthand: tests may describe a spec's facts as one object under
@@ -127,6 +127,23 @@ export const legacySpecFiles = () => ({
     ) + "\n",
 });
 
+// A synthetic spec's files: one tasks.md item per entry (ticked when its ID
+// is in `checked`), with the entries as its facts.
+export const syntheticSpecFiles = (entries, checked = []) => ({
+  "requirements.md": "# Synthetic requirements\n\nStatus: Draft\n",
+  "design.md": "# Synthetic design\n\nStatus: Draft\n",
+  "tasks.md":
+    "# Tasks\n\nStatus: Draft\n\n" +
+    Object.entries(entries)
+      .map(
+        ([id, task]) =>
+          `- [${checked.includes(id) ? "x" : " "}] ${taskToken(id)} ${task.summary}`,
+      )
+      .join("\n") +
+    "\n",
+  [MANIFEST]: JSON.stringify({ version: 1, tasks: entries }),
+});
+
 // Write a spec folder under root; a file set to null is left out.
 export function writeSpec(root, name, overrides = {}) {
   const directory = path.join(root, ".kiro", "specs", name),
@@ -151,7 +168,7 @@ export const lineIn = (text, needle) =>
 export const factsFiles = (manifest) =>
   withFacts({
     "tasks.md": Object.keys(manifest.tasks ?? {})
-      .map((key) => `- [ ] ${key} Task ${key}\n`)
+      .map((key) => `- [ ] ${taskToken(key)} Task ${key}\n`)
       .join(""),
     [MANIFEST]: JSON.stringify(manifest),
   });

@@ -67,7 +67,7 @@ test("a discovery on a spec plan adds a tasks.md item with its Facts", async (t)
   assert.ok(
     tasks.endsWith(
       [
-        "- [ ] cache-invalidation Invalidate the stale cache entry",
+        "- [ ] `cache-invalidation` Invalidate the stale cache entry",
         "  - $done: A changed record invalidates its cache entry.",
         "  - $completion: integrated",
         "  - $after: 1.2",

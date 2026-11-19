@@ -21,6 +21,7 @@ import {
   SPECS_DIRECTORY,
   lintSpec,
   readSpecFolder,
+  taskToken,
 } from "../specs/spec-plans.mjs";
 
 export const FIX_VERSION = 2;
@@ -212,7 +213,7 @@ function specFiles(task, name) {
       "",
       "## Phase 1",
       "",
-      `- [ ] ${name}.1 ${task.title}`,
+      `- [ ] ${taskToken(`${name}.1`)} ${task.title}`,
       `  - $done: ${FIX_ACCEPTANCE[0]} ${FIX_ACCEPTANCE[1]}`,
       `  - Build what the requirements' text asks; it began as fix ${task.id} and grew past one change.`,
       "",

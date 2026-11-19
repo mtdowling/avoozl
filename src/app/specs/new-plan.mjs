@@ -92,7 +92,7 @@ function newPlanBrief(request) {
     }.`,
     `Repositories: ${repositories.map((repo) => repo.id).join(", ")}. Every leaf's \`repository\` is one of these.`,
     "",
-    "Write the three files your prompt's draft rules name: requirements.md (bugfix.md for a bug fix), design.md and tasks.md. Give every tasks.md item a unique task ID and its facts as $key: bullets under it. Never write avoozl/manifest.json.",
+    "Write the three files your prompt's draft rules name: requirements.md (bugfix.md for a bug fix), design.md and tasks.md. Give every tasks.md item a unique task ID (a named ID as a code span, such as `cache-invalidation`), its requirement and design refs at the end of its title, such as [R1.2] (§2.1), and its facts as $key: bullets under it. Never write avoozl/manifest.json.",
     category || request.epic
       ? `Start requirements.md (or bugfix.md) with this front-matter, exactly:\n---\n${[
           category && `category: ${category}`,

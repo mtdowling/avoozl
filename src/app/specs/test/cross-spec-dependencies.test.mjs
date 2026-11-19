@@ -9,7 +9,7 @@ import { taskSignals } from "../../../workbench-model.mjs";
 import { completionReached } from "../../../work-model.mjs";
 import { completeParents } from "../../delivery/delivery.mjs";
 import { fixture } from "../../test/fixtures.mjs";
-import { writeSpec } from "../../test/spec-fixture.mjs";
+import { writeSpec, syntheticSpecFiles } from "../../test/spec-fixture.mjs";
 
 function setup(t) {
   const { root, store } = fixture(t);
@@ -30,20 +30,7 @@ const leaf = (summary, requires = []) => ({
   acceptance: ["The synthetic fixture produces its expected result."],
 });
 function draft({ root, store }, name, entries, { checked = [] } = {}) {
-  writeSpec(root, name, {
-    "requirements.md": "# Synthetic requirement\n\nStatus: Draft\n",
-    "design.md": "# Synthetic design\n\nStatus: Draft\n",
-    "tasks.md":
-      "# Tasks\n\nStatus: Draft\n\n" +
-      Object.entries(entries)
-        .map(
-          ([id, task]) =>
-            `- [${checked.includes(id) ? "x" : " "}] ${id} ${task.summary}`,
-        )
-        .join("\n") +
-      "\n",
-    "avoozl/manifest.json": JSON.stringify({ version: 1, tasks: entries }),
-  });
+  writeSpec(root, name, syntheticSpecFiles(entries, checked));
   return createSpecPlan(store, { id: name }, readSpecFolder(root, name));
 }
 async function approve({ store, ops }, id) {

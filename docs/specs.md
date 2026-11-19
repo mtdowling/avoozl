@@ -26,11 +26,31 @@ summary:
 repo: app
 ---
 
-- [ ] 1.2 Validate config
+- [ ] 1.2 Validate config [R1.2] (§2.1)
   - $after: 1.1
   - $done: An unknown key is reported with its path
   - Report each key the schema does not name, with its JSON path.
 ```
+
+An ID is Kiro's number (`1`, `1.2`) or a named ID with a hyphen or period.
+Write a named ID as a code span, as Avoozl does:
+``- [ ] `cache-invalidation` Drop stale entries``. A bare
+`- [ ] cache-invalidation Drop stale entries` names the same task.
+
+A title may end in refs. `[R1.2]` names the requirements the task builds and
+`(§2.1)` the design sections it follows; each is a comma-separated list, and
+a range such as `R4.1–R4.3` (or `NK1 to NK3`) names both ends. Each ref must
+exist in the same spec:
+
+- A requirement ref is `R<n>` for a `Requirement <n>:` heading, or the
+  heading's own ID, such as `DL2` for `Requirement DL2:`. Add `.<m>` for its
+  numbered criterion `<m>.`, such as `R1.2` or `DL2.3`.
+- A design ref is `§` and the number a `design.md` heading starts with, such
+  as `§2.1` for `### 2.1 Loader` or `§D1` for `## D1. Shape`.
+- Either list may name a fact row such as `| F13 |` in its own file.
+
+The page shows a task's refs as chips beside it, and a chip opens that
+requirement or section in the spec.
 
 The facts give the task's kind, its acceptance (`$done`), its dependencies
 (`$after`), and its completion level. Each fact is one bullet on one line. A
@@ -73,6 +93,7 @@ Avoozl refuses a folder that:
 
 - is missing one of its files
 - has a `tasks.md` with a missing or repeated ID
+- has a requirement or design ref that names nothing in the spec
 - uses a fact Avoozl does not know
 - still has a `Facts:` bullet, the old layout; write its facts as `$` bullets
 - still holds an `avoozl/manifest.json`

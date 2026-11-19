@@ -13,7 +13,7 @@ import { createSpecPlan, readSpecFolder, specHash } from "../spec-plans.mjs";
 import { Store } from "../../store/store.mjs";
 import { initializeWorkspace } from "../../workspace/workspace.mjs";
 import { fixture } from "../../test/fixtures.mjs";
-import { writeSpec } from "../../test/spec-fixture.mjs";
+import { writeSpec, syntheticSpecFiles } from "../../test/spec-fixture.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import fs from "node:fs";
 
@@ -29,17 +29,7 @@ const leaf = (summary, requires = []) => ({
   acceptance: ["The synthetic fixture produces its expected result."],
 });
 function draft({ root, store }, name, entries) {
-  writeSpec(root, name, {
-    "requirements.md": "# Synthetic requirement\n\nStatus: Draft\n",
-    "design.md": "# Synthetic design\n\nStatus: Draft\n",
-    "tasks.md":
-      "# Tasks\n\nStatus: Draft\n\n" +
-      Object.entries(entries)
-        .map(([id, task]) => `- [ ] ${id} ${task.summary}`)
-        .join("\n") +
-      "\n",
-    "avoozl/manifest.json": JSON.stringify({ version: 1, tasks: entries }),
-  });
+  writeSpec(root, name, syntheticSpecFiles(entries));
   return createSpecPlan(store, { id: name }, readSpecFolder(root, name));
 }
 function setup(t) {

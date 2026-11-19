@@ -399,6 +399,7 @@ export function graphView(store, data, input = {}, folders = []) {
       planId: task.planId ?? null,
       spec: specOf(task),
       phase: task.phase ?? null,
+      refs: task.refs ?? [],
       order: order.get(task.id),
       kind: taskKind(task),
       route: taskRoute(task),

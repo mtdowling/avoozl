@@ -41,11 +41,17 @@ wants other rules. Avoozl never overwrites a changed copy.
 - Every checklist item in \`tasks.md\` starts with its task ID, then its
   title: \`- [ ] 1. Read the config file\` or \`- [ ] 1.2 Validate config\`.
 - Use Kiro's numbers (\`1\`, \`1.1\`, \`1.2\`; a trailing period is fine), or a
-  lowercase named ID with a hyphen or period in it, such as
-  \`cache-invalidation\`.
+  lowercase named ID with a hyphen or period in it. Write a named ID as a
+  code span:
+  \`\`- [ ] \`cache-invalidation\` Drop stale entries\`\`.
 - Each ID appears once. Never reuse an ID for other work, and never
   renumber an item that exists.
 - Group phases under \`##\` headings.
+- End a title with the requirements it builds in brackets, then the design
+  sections it follows in parentheses: \`- [ ] 1.2 Validate config [R1.2]
+  (§2.1)\`. \`R1.2\` is criterion 2 of \`Requirement 1\` (\`DL1.2\` under
+  \`Requirement DL1\`), \`§2.1\` the design heading that starts with \`2.1\`
+  (\`§D1\` for \`## D1.\`). Lint refuses a ref the spec does not define.
 
 ## Tasks
 
@@ -102,6 +108,7 @@ const OLDER_STEERING_HASHES = new Set([
   "40566c57d79fd2800164002811dafde36f58374d4dcb7a2d9280fa07b0ccff2d",
   "f781a3ce6da5348ba85c480c8d1e1b54384d43a71c072c6da6f0f36dd4c7eb1d",
   "dd29090a99dd0c1d46c698a4f2140966835c64b51d6ceedb6d006490631a7c17",
+  "dfdc80a30250940506d743e7337629b2add17517bb6baa07a6107143bc8c8e1d",
 ]);
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 

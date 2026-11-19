@@ -5922,3 +5922,38 @@ rebuilds its database from main and GitHub.
     tick, a non-approver's commit not approved, a later edit by a
     non-approver needing approval again, and no second Activity row after a
     click.
+
+### Requirement 115: Task IDs and refs in tasks.md are checked and linked
+
+Added 2026-11-19 (owner request). Design §4.43.
+
+**User story:** As the owner, I want a task's requirement and design refs
+read, checked and linked, so that a ref that names nothing is caught before
+approval and a task opens the text it builds.
+
+#### Acceptance criteria
+
+1. A task ID MAY be written bare or as a code span: ``- [ ] `dl-1` Open the
+   decision`` and `- [ ] dl-1 Open the decision` name the same task, and
+   neither is a lint error. Avoozl's own writers SHALL write a named ID as a
+   code span, and its prompts and docs SHALL recommend it. Kiro's numbers
+   (`1.`, `1.1`) stay bare.
+2. A trailing `[...]` on a task's title SHALL be read as requirement refs and
+   a trailing `(...)` as design refs, each a comma-separated list, and the
+   title SHALL be shown without them. A trailing bracket whose first entry
+   is not ref-shaped SHALL stay title text.
+3. A requirement ref SHALL be `R<n>` for a `Requirement <n>:` heading, or the
+   heading's own ID (`DL2` for `Requirement DL2:`), with an optional `.<m>`
+   for its numbered criterion `<m>.`. A design ref SHALL be `§` and the
+   number a `design.md` heading starts with (`§4.26`, `§D1`). Either list MAY
+   name a fact row (`| F13 |`) of its own file. A range (`R4.1–R4.3`,
+   `NK1 to NK3`) SHALL check both ends.
+4. Lint SHALL refuse a ref of the wrong form, and a ref the spec's own
+   requirements or design file does not define, naming the ref, the file it
+   is missing from, and the task's line.
+5. The spec page SHALL show a task's refs as chips beside it; a chip SHALL
+   open the spec's requirements or design tab at that requirement, criterion
+   or section.
+6. Refs and the ID's form SHALL be part of the spec text the revision hash
+   reads, as all of `tasks.md` is.
+7. Every spec in this repository SHALL lint clean under the ref rules.

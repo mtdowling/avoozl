@@ -10,6 +10,7 @@ import {
   readCritique,
   readSpecFolder,
   specItems,
+  taskToken,
 } from "../spec-plans.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import {
@@ -786,7 +787,8 @@ test("plans-repo mode reads the workspace root when it is the planning checkout"
 const legacyText = `# Load configuration\n\n\`\`\`task\n{"id":"load","title":"Read the config file","acceptance":["A missing file yields defaults."],"checks":["npm test"],"track":"catalog"}\n\`\`\`\n\n\`\`\`task\n{"id":"check","title":"Validate loaded config","acceptance":["An unknown key is reported."],"checks":["npm test"],"requires":["load"],"track":"catalog"}\n\`\`\`\n`;
 const legacySpec = (ids = ["config-load", "config-check"]) => ({
   "tasks.md":
-    "# Tasks\n\n" + ids.map((id) => `- [ ] ${id} Task ${id}\n`).join(""),
+    "# Tasks\n\n" +
+    ids.map((id) => `- [ ] ${taskToken(id)} Task ${id}\n`).join(""),
   "avoozl/manifest.json": JSON.stringify({
     tasks: Object.fromEntries(
       ids.map((id, index) => [
@@ -1112,7 +1114,7 @@ test("lettered IDs such as P1 and P2b are namespaced like numbers", async (t) =>
       [
         "- [ ] P1 Proof: it runs",
         "- [ ] P2b Proof: again",
-        "- [ ] avoozl-p3 P3 Proof: named",
+        "- [ ] `avoozl-p3` P3 Proof: named",
         "- [ ] p4 lowercase",
         "- [ ] Add a thing",
         "- [ ] PP1 two letters",

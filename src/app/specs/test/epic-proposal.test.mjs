@@ -12,7 +12,7 @@ import {
   parseGapReport,
 } from "../gap-report.mjs";
 import { Operations } from "../../api/operations.mjs";
-import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
+import { lintSpec, readSpecFolder, taskToken } from "../spec-plans.mjs";
 import { fixture } from "../../test/fixtures.mjs";
 import { writeSpec } from "../../test/spec-fixture.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
@@ -43,7 +43,7 @@ function sub(
   writeSpec(root, name, {
     "requirements.md": `---\nepic: parent\n---\n# ${name}\n\nThe goal.\n`,
     "tasks.md": `# Tasks\n\n${Object.keys(entries)
-      .map((id) => `- [ ] ${id} Task ${id}\n`)
+      .map((id) => `- [ ] ${taskToken(id)} Task ${id}\n`)
       .join("")}`,
     "avoozl/manifest.json": JSON.stringify({ tasks: entries }, null, 2),
   });

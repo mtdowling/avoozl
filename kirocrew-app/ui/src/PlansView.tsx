@@ -53,7 +53,8 @@ import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts
 import { rowPlanKey, type TaskFilter } from './filters.ts'
 import { outline } from './markdown.ts'
 import { registerLanguages } from './ui/highlight.ts'
-import { linkHref, safeHref, viewsClient, type Graph } from './views-api.ts'
+import { linkHref, safeHref, viewsClient, type Graph, type TaskRef } from './views-api.ts'
+import { TaskRefs, jumpToLine } from './TaskRefs.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { usePhone } from './list-detail.ts'
 import { ListDetailLayout } from './ListDetailLayout.tsx'
@@ -486,6 +487,8 @@ function SpecDetail(props: {
   graph: Graph | null
   busy: boolean
   onOpenTask: (id: string) => void
+  // A ref chip on a task: its file's tab at its line.
+  onOpenRef?: (ref: TaskRef) => void
   onReview?: () => void
   // The spec's open pull request, adopted into it (R107.4).
   pull?: SpecPull | null
@@ -571,7 +574,7 @@ function SpecDetail(props: {
           <SpecCard title="Task tree">
             <SpecGraph key={plan.id} graph={props.graph} planId={plan.id} only="tree" />
           </SpecCard>
-          <PhaseTasks graph={props.graph} onOpenTask={props.onOpenTask} />
+          <PhaseTasks graph={props.graph} onOpenTask={props.onOpenTask} onOpenRef={props.onOpenRef} />
         </>
       )}
 
@@ -580,7 +583,7 @@ function SpecDetail(props: {
       {!plan && (
         <>
           <Documents key={spec.name} docs={props.docs} error={props.docsError} />
-          <PhaseTasks graph={props.graph} onOpenTask={props.onOpenTask} />
+          <PhaseTasks graph={props.graph} onOpenTask={props.onOpenTask} onOpenRef={props.onOpenRef} />
         </>
       )}
 
@@ -681,7 +684,7 @@ function SpecDetail(props: {
 // The spec's tasks by phase, in task order, No phase last; a title opens
 // the task drawer. Each task is one bulleted line: a title too long for it
 // fades out at the right edge and ends in an ellipsis (FadeText).
-function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => void; fold?: boolean }) {
+function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => void; onOpenRef?: (ref: TaskRef) => void; fold?: boolean }) {
   const leaves = (props.graph?.tasks ?? []).filter((t) => t.kind === 'leaf')
   const groups = new Map<string | null, { title: string; tasks: typeof leaves }>()
   for (const task of leaves) {
@@ -734,6 +737,7 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
                         <PlainButton type="button" minW0 flex1 overflow="hidden" align="left" hoverUnderline onClick={() => props.onOpenTask(task.id)}>
                           <FadeText>{task.title}</FadeText>
                         </PlainButton>
+                        <TaskRefs refs={task.refs} onOpen={props.onOpenRef} />
                         <Hint as="span" shrink0 size="xs">
                           {STATES.find((state) => state.id === nodeState(task))?.label}
                         </Hint>
@@ -2595,6 +2599,25 @@ export default function PlansView(props: {
     setSpecAt({ plan: id, tab: next })
     goAddress(specTabLink(id, next))
   }
+  // A ref chip (Requirement 115.5): its file's tab, then its line once the
+  // file is drawn.
+  const [refJump, setRefJump] = useState<{ file: string; line: number } | null>(null)
+  const openRef = (ref: TaskRef) => {
+    if (ref.line === null) return
+    if (row?.planId) pickTab(ref.file)
+    setRefJump({ file: ref.file, line: ref.line })
+  }
+  useEffect(() => {
+    if (!refJump) return
+    let tries = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const look = () => {
+      if (jumpToLine(refJump.file, refJump.line) || ++tries > 40) setRefJump(null)
+      else timer = setTimeout(look, 50)
+    }
+    look()
+    return () => clearTimeout(timer)
+  }, [refJump])
   // An Approve dialog's Open review: the spec's comments at the revision
   // the dialog showed. The caller closes the dialog.
   const openReview = (planId: string, rev: string) => {
@@ -2900,6 +2923,7 @@ export default function PlansView(props: {
               graph={planGraph}
               busy={busy}
               onOpenTask={(id) => drawer.openTask(id)}
+              onOpenRef={openRef}
               onRetrySummary={retrySummary}
               onReview={row.planId ? () => placeReview(reviewPlace(row.planId!)) : undefined}
               pull={pulls.find((pull) => pull.spec === row.spec) ?? null}

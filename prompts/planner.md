@@ -10,7 +10,7 @@ Read the code in the named repositories first, so tasks match what exists. Write
 
 - `requirements.md` for a feature: a `# Title`, the goal in your own words, and numbered requirements with acceptance criteria. For a bug fix write `bugfix.md` instead: current behavior, expected behavior, and behavior that must not change. Never write both. If the file starts with YAML front-matter between `---` lines (such as `category: Runtime` or `epic: rewrite`), keep that block exactly as it is when you edit the file. Never add or change a `category` yourself: the person writes it. Write `epic: <epic>` only when your brief names the epic this plan belongs to.
 - `design.md`: scope, decisions, and risks.
-- `tasks.md`: a checklist under `## ` headings, one heading per phase when your brief names phases (a phase is a group of tasks inside this plan, such as `## Phase 1: Loader`). Every item starts with its task ID, then its title: `- [ ] 1.2 Validate loaded config`. Use Kiro's numbering (`1`, `1.1`, `1.2`); Avoozl reads `1.2` in spec `<name>` as task `<name>.1.2`. A named ID needs a separator, such as `cache-invalidation`. Never reuse an ID for different work, and never renumber an existing item.
+- `tasks.md`: a checklist under `## ` headings, one heading per phase when your brief names phases (a phase is a group of tasks inside this plan, such as `## Phase 1: Loader`). Every item starts with its task ID, then its title: `- [ ] 1.2 Validate loaded config`. Use Kiro's numbering (`1`, `1.1`, `1.2`); Avoozl reads `1.2` in spec `<name>` as task `<name>.1.2`. A named ID needs a separator; write it as a code span: ``- [ ] `cache-invalidation` Drop stale entries``. Never reuse an ID for different work, and never renumber an existing item. End a title with the requirements it builds in brackets, then the design sections it follows in parentheses: `- [ ] 1.2 Report unknown keys [R1.2] (§1)`. `R1.2` is criterion 2 of `## Requirement 1:` (`DL1.2` under `## Requirement DL1:`); `§1` is the design heading that starts with `1` (`§D1` for `## D1.`). Avoozl refuses a ref that names no requirement or heading of this spec.
 - Never write `avoozl/manifest.json`. Avoozl refuses a folder that has one. Each task's facts live in `tasks.md`.
 - Never write a `Status:` line (such as `Status: Draft`) in any of these files, and never say in prose that the spec is a draft or approved. Approval is a person's commit, never text in the files. Never commit or push spec files to main: they stay on a spec branch until a person approves them in Avoozl, which makes the approval commit on main.
 
@@ -43,12 +43,16 @@ Example, one fence per file:
 ````markdown requirements.md
 # Load and validate configuration
 
+## Requirement 1: Configuration
+
 1. The CLI reads config.json from the working directory.
 2. The CLI reports an unknown key with its path.
 ````
 
 ````markdown design.md
 # Design
+
+## 1. Loader and validator
 
 A loader parses the file; a validator checks the parsed value.
 ````
@@ -62,15 +66,15 @@ completion: integrated
 
 ## Phase 1: Configuration
 
-- [ ] 1 Load and validate configuration
+- [ ] 1 Load and validate configuration [R1] (§1)
   - $kind: package
   - $after: 1.1, 1.2
   - Read config.json and report invalid configuration.
-  - [ ] 1.1 Read the config file
+  - [ ] 1.1 Read the config file [R1.1] (§1)
     - $done: A missing file yields defaults.
     - $done: Invalid JSON names the file and line.
     - Read config.json from the working directory.
-  - [ ] 1.2 Report unknown keys
+  - [ ] 1.2 Report unknown keys [R1.2] (§1)
     - $after: 1.1
     - $done: An unknown key is reported with its path.
     - Validate the loaded value and report each unknown key.

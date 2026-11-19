@@ -124,6 +124,29 @@ test('Tasks by phase puts each task on one bulleted line, and a long title fades
   assert.deepEqual(page.errors, [])
 })
 
+test('a task shows its refs as chips, and a chip opens its file at that line', { skip }, async () => {
+  await openSpec()
+  await click('[data-spec-tab="tasks"]')
+  await page.until(`Boolean(document.querySelector('[data-phase-task="1.1"] [data-task-ref]'))`)
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-phase-task="1.1"] [data-task-ref]')].map((c) => c.dataset.taskRef)`), ['R1.1', '§D1'])
+  assert.equal(await exists('[data-phase-task="1.3"] [data-task-refs]'), false, 'a task with no refs has no chips')
+  // The title is shown without its refs.
+  assert.equal(await text('[data-phase-task="1.1"] [data-fade-text-body]'), 'Add fixed-width integer types')
+  // Requirement chip: the requirements tab, at criterion 1 of Requirement 1.
+  await click('[data-phase-task="1.1"] [data-task-ref="R1.1"]')
+  await page.until(`Boolean(document.querySelector('[data-spec-card="requirements.md"] [data-ref-target]'))`)
+  assert.deepEqual(await selected(), ['requirements.md'])
+  assert.match(await text('[data-spec-card="requirements.md"] [data-ref-target]'), /A byte value SHALL hold 0 to 255/)
+  // Design chip: the design tab, at the D1 heading.
+  await click('[data-spec-tab="tasks"]')
+  await page.until(`Boolean(document.querySelector('[data-phase-task="1.1"] [data-task-ref="§D1"]'))`)
+  await click('[data-phase-task="1.1"] [data-task-ref="§D1"]')
+  await page.until(`Boolean(document.querySelector('[data-spec-card="design.md"] [data-ref-target]'))`)
+  assert.deepEqual(await selected(), ['design.md'])
+  assert.match(await text('[data-spec-card="design.md"] [data-ref-target]'), /D1\. Layout/)
+  assert.deepEqual(page.errors, [])
+})
+
 test('Spec details reads like an about box: one tight row per section, small muted labels in one column, values at one edge', { skip }, async () => {
   await openSpec()
   await page.until(`Boolean(document.querySelector('[data-spec-details-box] [data-rail-section="Epic"]'))`)
