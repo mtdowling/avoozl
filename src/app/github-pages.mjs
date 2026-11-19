@@ -20,7 +20,7 @@ import { startGitHubItem } from "./github-intake.mjs";
 import { openFixJournal } from "./fix.mjs";
 
 const lower = (value) => String(value ?? "").toLowerCase();
-const KINDS = new Set(["issue", "pr"]);
+const KINDS = new Set(["issue", "pr", "all"]);
 const SORTS = new Set(["number", "updated"]);
 const LIMIT = 500;
 
@@ -59,7 +59,7 @@ export function itemsList(
   { login = null, now = Date.now() } = {},
 ) {
   const kind = input.kind ?? "issue";
-  if (!KINDS.has(kind)) fail("kind is issue or pr.");
+  if (!KINDS.has(kind)) fail("kind is issue, pr or all.");
   const sort = input.sort ?? "updated";
   if (!SORTS.has(sort)) fail("sort is number or updated.");
   const state = input.state ?? "open",
@@ -67,7 +67,7 @@ export function itemsList(
     queue = new Set(ownerQueue(store).map((row) => row.id)),
     me = lower(login);
   const rows = itemRows(store)
-    .filter((row) => row.kind === kind)
+    .filter((row) => kind === "all" || row.kind === kind)
     .filter(
       (row) =>
         !input.repository || lower(row.repository) === lower(input.repository),
@@ -110,7 +110,7 @@ export function itemsList(
     );
   const labels = new Set();
   for (const row of itemRows(store))
-    if (row.kind === kind)
+    if (kind === "all" || row.kind === kind)
       for (const label of row.labels || []) labels.add(label);
   return {
     kind,

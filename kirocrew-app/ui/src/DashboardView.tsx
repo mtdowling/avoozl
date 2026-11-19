@@ -1,3 +1,4 @@
+import { itemsClient } from './github-items-api.ts'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { useAppApi } from './host.ts'
@@ -588,6 +589,10 @@ export default function DashboardView(props: {
   // The landing queue and landings, from Avoozl's own store (no GitHub).
   const landingLoad = useCallback((id: string) => views.landing(id), [views])
   const landing = useRead(workspaceId, landingLoad)
+  // The triage agent's owner queue: one count in Needs you (TA5.2).
+  const items = useMemo(() => itemsClient(api), [api])
+  const agentLoad = useCallback((id: string) => items.view(id), [items])
+  const agent = useRead(workspaceId, agentLoad)
   const value = useMemo(
     () =>
       core && {
@@ -602,8 +607,8 @@ export default function DashboardView(props: {
   const flowLoad = useCallback((id: string) => flows.view(id, { window: '10' }), [flows])
   const flow = useRead(workspaceId, flowLoad)
   const reload = useCallback(async () => {
-    await Promise.all([reloadCore(), radarRead.reload(), landing.reload(), flow.reload()])
-  }, [reloadCore, radarRead.reload, landing.reload, flow.reload]) // eslint-disable-line react-hooks/exhaustive-deps
+    await Promise.all([reloadCore(), radarRead.reload(), landing.reload(), flow.reload(), agent.reload()])
+  }, [reloadCore, radarRead.reload, landing.reload, flow.reload, agent.reload]) // eslint-disable-line react-hooks/exhaustive-deps
   const summary = value?.summary
   const instance = useInstance(workspaceId)
   const facts = useSetupFacts(workspaceId)
@@ -687,7 +692,7 @@ export default function DashboardView(props: {
         />
       ))}
       {/* The layout shows at once; each part fills when its read lands. */}
-      <Tiles tiles={homeTiles(summary ?? null, landing.value ?? null)} onOpen={(tile) => onNavigate(tile.target)} />
+      <Tiles tiles={homeTiles(summary ?? null, landing.value ?? null, agent.value?.ownerQueue ?? 0)} onOpen={(tile) => onNavigate(tile.target)} />
       <HomeSection
         id="needs-you"
         title={`Needs you (${attention.length})`}

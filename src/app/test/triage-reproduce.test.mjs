@@ -49,7 +49,9 @@ async function triaged(w, number, result, check) {
   await w.tick({ run: { check: check.check } });
   w.answer(number, result);
   await w.tick({ run: { check: check.check } });
-  return w.store.read().tasks.find((task) => task.intake?.issue?.number === number);
+  return w.store
+    .read()
+    .tasks.find((task) => task.intake?.issue?.number === number);
 }
 
 // The worker's fix on the task's own worktree, and the verifier's pass.
@@ -60,7 +62,10 @@ async function workerFixes(w, task) {
     `Add a reproduction of o/app#${task.intake.issue.number}`,
     "the reproduction is the first commit",
   );
-  fs.writeFileSync(path.join(worktree, "greet.js"), "module.exports = () => 'hi';\n");
+  fs.writeFileSync(
+    path.join(worktree, "greet.js"),
+    "module.exports = () => 'hi';\n",
+  );
   git(worktree, "commit", "-qam", "Drop the trailing space");
   const commit = git(worktree, "rev-parse", "HEAD");
   w.store.put("task_deliveries", {
@@ -127,7 +132,11 @@ test("a reproduction that passes on the base is not a reproduction", async (t) =
   w.fake.add(3);
   const passing = { path: "tests/ok.js", text: "// passes\n" };
   await triaged(w, 3, bug({ reproduction: passing }), check);
-  assert.equal(runRows(w.store).find((run) => run.number === 3 && run.attempt === 1).outcome, "not-reproduced");
+  assert.equal(
+    runRows(w.store).find((run) => run.number === 3 && run.attempt === 1)
+      .outcome,
+    "not-reproduced",
+  );
   assert.equal(w.store.read().tasks.length, 0, "no fix starts");
   // The run is told once, and tries again.
   const retry = w.runOf(3);
@@ -135,7 +144,11 @@ test("a reproduction that passes on the base is not a reproduction", async (t) =
   assert.match(retry.note, /passed on the base branch/);
   w.answer(3, bug({ reproduction: passing }));
   await w.tick({ run: { check: check.check } });
-  assert.equal(runRows(w.store).filter((run) => run.number === 3).length, 2, "no third try");
+  assert.equal(
+    runRows(w.store).filter((run) => run.number === 3).length,
+    2,
+    "no third try",
+  );
   assert.ok(ownerQueue(w.store).some((row) => row.number === 3));
 });
 
@@ -144,12 +157,17 @@ test("a command named in a result is never run", async (t) => {
     check = runner();
   w.fake.add(4);
   await w.tick({ run: { check: check.check } });
-  assert.throws(() => w.answer(4, { ...bug(), command: ["rm", "-rf", "/"] }), /not allowed/);
+  assert.throws(
+    () => w.answer(4, { ...bug(), command: ["rm", "-rf", "/"] }),
+    /not allowed/,
+  );
   await w.tick({ run: { check: check.check } });
   assert.deepEqual(check.ran, []);
 });
 
-test("the sandboxed checks reach no network", { skip: sandboxKind() ? false : "no sandbox on this machine" }, async (t) => {
+test("the sandboxed checks reach no network", {
+  skip: sandboxKind() ? false : "no sandbox on this machine",
+}, async (t) => {
   const server = net.createServer((socket) => socket.end("hello"));
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   t.after(() => server.close());
@@ -160,8 +178,16 @@ test("the sandboxed checks reach no network", { skip: sandboxKind() ? false : "n
       "-e",
       `const s=require('net').connect(${port},'127.0.0.1');s.on('data',()=>process.exit(0));s.on('error',()=>process.exit(3));setTimeout(()=>process.exit(4),3000)`,
     ];
-  assert.equal((await commandEvidence(dir, probe)).exitCode, 0, "the probe connects outside the sandbox");
-  assert.notEqual((await sandboxedCheck(dir, probe)).exitCode, 0, "and not inside it");
+  assert.equal(
+    (await commandEvidence(dir, probe)).exitCode,
+    0,
+    "the probe connects outside the sandbox",
+  );
+  assert.notEqual(
+    (await sandboxedCheck(dir, probe)).exitCode,
+    0,
+    "and not inside it",
+  );
 });
 
 test("a second missing-information case posts no second question", async (t) => {
@@ -172,27 +198,52 @@ test("a second missing-information case posts no second question", async (t) => 
   const ask = { class: "bug", reason: "No steps.", question: "Which version?" };
   w.answer(5, ask);
   await w.tick({ run: { check: check.check } });
-  assert.equal(w.fake.writes.filter((entry) => entry.kind === "comment").length, 1);
+  assert.equal(
+    w.fake.writes.filter((entry) => entry.kind === "comment").length,
+    1,
+  );
   // The author answers; the next run still lacks what it needs.
-  w.fake.comments.push({ id: 70, number: 5, body: "Not sure.", login: "reporter", at: w.fake.tick() });
+  w.fake.comments.push({
+    id: 70,
+    number: 5,
+    body: "Not sure.",
+    login: "reporter",
+    at: w.fake.tick(),
+  });
   w.fake.edit(5, {});
   await w.tick({ run: { check: check.check } });
   w.answer(5, ask);
   await w.tick({ run: { check: check.check } });
-  assert.equal(w.fake.writes.filter((entry) => entry.kind === "comment").length, 1, "no second question");
-  assert.match(ownerQueue(w.store).find((row) => row.number === 5).triage.owner.reason, /already asked once/);
+  assert.equal(
+    w.fake.writes.filter((entry) => entry.kind === "comment").length,
+    1,
+    "no second question",
+  );
+  assert.match(
+    ownerQueue(w.store).find((row) => row.number === 5).triage.owner.reason,
+    /already asked once/,
+  );
 });
 
 test("a reproduction or fix touching a protected path waits for the owner", async (t) => {
   const w = triageWorkspace(t),
     check = runner();
   w.fake.add(6);
-  await triaged(w, 6, bug({ reproduction: { path: ".github/workflows/ci.yml", text: "x" } }), check);
+  await triaged(
+    w,
+    6,
+    bug({ reproduction: { path: ".github/workflows/ci.yml", text: "x" } }),
+    check,
+  );
   assert.equal(w.store.read().tasks.length, 0);
   assert.deepEqual(check.ran, [], "nothing ran for it");
-  assert.match(ownerQueue(w.store).find((row) => row.number === 6).triage.owner.reason, /protected path/);
+  assert.match(
+    ownerQueue(w.store).find((row) => row.number === 6).triage.owner.reason,
+    /protected path/,
+  );
   // A fix's commit that touches one is held by Verify like any task's.
-  assert.deepEqual(pathVerdict([".github/workflows/ci.yml", "greet.js"], {}).protected, [
-    ".github/workflows/ci.yml",
-  ]);
+  assert.deepEqual(
+    pathVerdict([".github/workflows/ci.yml", "greet.js"], {}).protected,
+    [".github/workflows/ci.yml"],
+  );
 });

@@ -16,13 +16,33 @@ async function pages(t) {
     path.join(w.root, ".avoozl.json"),
     JSON.stringify({
       version: 1,
-      github: { mode: "single-repo", repositories: { [REPO]: { baseBranch: "main" } } },
+      github: {
+        mode: "single-repo",
+        repositories: { [REPO]: { baseBranch: "main" } },
+      },
     }),
   );
-  w.fake.add(1, { title: "Crash on start", body: "The parser drops the last line." });
-  w.fake.add(2, { title: "Docs", labels: [{ name: "question" }], assignees: [{ login: "owner" }] });
-  w.fake.add(3, { pr: true, title: "Fix the parser", head: "h3", checks: ["SUCCESS", "FAILURE"] });
-  w.fake.add(4, { pr: true, title: "Add a spec", head: "h4", user: { login: "owner" } });
+  w.fake.add(1, {
+    title: "Crash on start",
+    body: "The parser drops the last line.",
+  });
+  w.fake.add(2, {
+    title: "Docs",
+    labels: [{ name: "question" }],
+    assignees: [{ login: "owner" }],
+  });
+  w.fake.add(3, {
+    pr: true,
+    title: "Fix the parser",
+    head: "h3",
+    checks: ["SUCCESS", "FAILURE"],
+  });
+  w.fake.add(4, {
+    pr: true,
+    title: "Add a spec",
+    head: "h4",
+    user: { login: "owner" },
+  });
   await w.tick();
   await readChangedItems(w.store, w.github, REPO);
   const ops = new Operations(w.store, {
@@ -31,7 +51,12 @@ async function pages(t) {
     workspaceRoot: w.root,
   });
   const act = (input, context = {}) =>
-    ops.execute("items.act", { repository: REPO, ...input }, undefined, context);
+    ops.execute(
+      "items.act",
+      { repository: REPO, ...input },
+      undefined,
+      context,
+    );
   return { ...w, ops, act };
 }
 
@@ -39,30 +64,54 @@ test("the list sorts, filters and searches, from stored rows only", async (t) =>
   const w = await pages(t);
   w.fake.reset();
   const issues = itemsList(w.store, { kind: "issue" }, { login: "owner" });
-  assert.deepEqual(issues.items.map((row) => row.number), [2, 1]);
   assert.deepEqual(
-    itemsList(w.store, { kind: "issue", sort: "number" }).items.map((row) => row.number),
+    issues.items.map((row) => row.number),
     [2, 1],
   );
   assert.deepEqual(
-    itemsList(w.store, { kind: "issue", q: "parser" }).items.map((row) => row.number),
+    itemsList(w.store, { kind: "issue", sort: "number" }).items.map(
+      (row) => row.number,
+    ),
+    [2, 1],
+  );
+  assert.deepEqual(
+    itemsList(w.store, { kind: "issue", q: "parser" }).items.map(
+      (row) => row.number,
+    ),
     [1],
     "a word in the body finds it",
   );
   assert.deepEqual(
-    itemsList(w.store, { kind: "issue", label: "question" }).items.map((row) => row.number),
+    itemsList(w.store, { kind: "issue", label: "question" }).items.map(
+      (row) => row.number,
+    ),
     [2],
   );
   assert.deepEqual(
-    itemsList(w.store, { kind: "issue", assigned: true }, { login: "owner" }).items.map((row) => row.number),
+    itemsList(
+      w.store,
+      { kind: "issue", assigned: true },
+      { login: "owner" },
+    ).items.map((row) => row.number),
     [2],
   );
   assert.deepEqual(
-    itemsList(w.store, { kind: "pr", mine: true }, { login: "owner" }).items.map((row) => row.number),
+    itemsList(
+      w.store,
+      { kind: "pr", mine: true },
+      { login: "owner" },
+    ).items.map((row) => row.number),
     [4],
   );
-  const pull = itemsList(w.store, { kind: "pr" }).items.find((row) => row.number === 3);
-  assert.deepEqual(pull.counts.checks, { failed: 1, passed: 1, skipped: 0, pending: 0 });
+  const pull = itemsList(w.store, { kind: "pr" }).items.find(
+    (row) => row.number === 3,
+  );
+  assert.deepEqual(pull.counts.checks, {
+    failed: 1,
+    passed: 1,
+    skipped: 0,
+    pending: 0,
+  });
   assert.equal(pull.counts.additions, 10);
   assert.deepEqual(
     w.fake.calls,
@@ -70,10 +119,16 @@ test("the list sorts, filters and searches, from stored rows only", async (t) =>
     "the list makes no GitHub call",
   );
   // The owner queue filter shows only held items.
-  w.answer(1, { class: "feature", reason: "Wants more.", toOwner: { reason: "A feature." } });
+  w.answer(1, {
+    class: "feature",
+    reason: "Wants more.",
+    toOwner: { reason: "A feature." },
+  });
   await w.tick();
   assert.deepEqual(
-    itemsList(w.store, { kind: "issue", owner: true }).items.map((row) => row.number),
+    itemsList(w.store, { kind: "issue", owner: true }).items.map(
+      (row) => row.number,
+    ),
     [1],
   );
 });
@@ -81,7 +136,10 @@ test("the list sorts, filters and searches, from stored rows only", async (t) =>
 test("the detail is one query, cached by updatedAt", async (t) => {
   const w = await pages(t);
   w.fake.reset();
-  const detail = await itemsDetail(w.store, w.github, { repository: REPO, number: 3 });
+  const detail = await itemsDetail(w.store, w.github, {
+    repository: REPO,
+    number: 3,
+  });
   await itemsDetail(w.store, w.github, { repository: REPO, number: 3 });
   assert.equal(w.fake.calls.graphql, 1);
   assert.equal(detail.kind, "pr");
@@ -120,14 +178,22 @@ test("each action makes one write of the right kind and is recorded", async (t) 
 test("Approve, Request changes and Close are refused over MCP and from an agent", async (t) => {
   const w = await pages(t);
   for (const action of ["approve", "requestChanges", "close"])
-    for (const context of [{ mcp: true }, { caller: { sessionKey: "dashboard:chat-1" } }])
+    for (const context of [
+      { mcp: true },
+      { caller: { sessionKey: "dashboard:chat-1" } },
+    ])
       await assert.rejects(
         w.act({ number: 3, action, body: "x" }, context),
         (error) => error.status === 403,
         `${action} with ${JSON.stringify(context)}`,
       );
   await assert.rejects(
-    itemsAct(w.store, w.github, { repository: REPO, number: 3, action: "approve" }, {}),
+    itemsAct(
+      w.store,
+      w.github,
+      { repository: REPO, number: 3, action: "approve" },
+      {},
+    ),
     (error) => error.status === 403,
   );
   assert.equal(w.fake.writes.length, 0);
@@ -140,7 +206,10 @@ test("Fix on an issue starts a fix from it", async (t) => {
   assert.equal(task.fix.v, 2);
   assert.deepEqual(task.fix.source, { issue: { repository: REPO, number: 1 } });
   assert.equal(task.dispatch.ready, true);
-  assert.ok(w.store.get("receipts", `spec-journal:${task.id}`), "its journal is open");
+  assert.ok(
+    w.store.get("receipts", `spec-journal:${task.id}`),
+    "its journal is open",
+  );
 });
 
 test("a spec-only pull request keeps Review as spec", async (t) => {
@@ -150,8 +219,14 @@ test("a spec-only pull request keeps Review as spec", async (t) => {
   w.fake.edit(4, {});
   w.fake.edit(3, {});
   await readChangedItems(w.store, w.github, REPO);
-  const spec = await itemsDetail(w.store, w.github, { repository: REPO, number: 4 }),
-    code = await itemsDetail(w.store, w.github, { repository: REPO, number: 3 });
+  const spec = await itemsDetail(w.store, w.github, {
+      repository: REPO,
+      number: 4,
+    }),
+    code = await itemsDetail(w.store, w.github, {
+      repository: REPO,
+      number: 3,
+    });
   assert.ok(spec.actions.includes("reviewAsSpec"));
   assert.ok(!code.actions.includes("reviewAsSpec"));
 });

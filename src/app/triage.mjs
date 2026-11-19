@@ -315,15 +315,19 @@ export async function triageStep(
   { policy, config = {}, workspaceRoot = null, now = Date.now(), run } = {},
 ) {
   const notify = [],
-    repositories = triageRepositories(policy);
-  if (!github || !repositories.length) return { dispatch: [], notify };
+    repositories = triageRepositories(policy),
+    // The Issues and Pull requests pages show every registered repository;
+    // the agent acts only where it is on.
+    read = Object.keys(policy?.repositories || {});
+  if (!github || !read.length) return { dispatch: [], notify };
   const client = countingClient(github, store),
     budget = triageBudget(client, { othersWaiting: othersWaiting(store) }),
     seen = new Map();
-  for (const repository of repositories) {
+  for (const repository of read) {
     const settings = triageSettings(policy, repository),
+      on = settings.agent === "on",
       started = store.getMeta(STARTED) ?? {};
-    if (!started[repository])
+    if (on && !started[repository])
       store.setMeta(STARTED, { ...started, [repository]: iso(now) });
     const startedAt = started[repository] ?? iso(now);
     if (!budget.read) continue;
@@ -338,9 +342,10 @@ export async function triageStep(
         repository,
         pulls.map((row) => row.number),
       );
-    for (const read of changed) {
+    for (const entry of changed) {
       // The row as the counts left it (a pull request's branch).
-      const row = store.get(ITEMS, read.id) ?? read;
+      const row = store.get(ITEMS, entry.id) ?? entry;
+      if (!on) continue;
       if (isNew(store, row, settings, startedAt)) {
         markPending(store, row, "new", now);
         continue;

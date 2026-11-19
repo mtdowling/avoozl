@@ -129,7 +129,11 @@ export class FakeGitHubApi {
       return json(
         this.comments
           .filter((comment) => comment.number === Number(number))
-          .map((comment) => ({ id: comment.id, body: comment.body, user: { login: comment.login } })),
+          .map((comment) => ({
+            id: comment.id,
+            body: comment.body,
+            user: { login: comment.login },
+          })),
       );
     if (section === "pulls" && sub === "files")
       return json(this.files.get(Number(number)) ?? []);
@@ -242,7 +246,9 @@ export class FakeGitHubApi {
             reviewRequests: { nodes: [] },
             latestReviews: { nodes: [] },
             files: {
-              nodes: (this.files.get(item.number) ?? []).map((file) => ({ path: file.filename })),
+              nodes: (this.files.get(item.number) ?? []).map((file) => ({
+                path: file.filename,
+              })),
             },
             commits: this.checks(item),
           }
