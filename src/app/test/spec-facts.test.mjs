@@ -78,6 +78,28 @@ test("a list fact written again adds to it; $done keeps its commas", () => {
   });
 });
 
+test("$paths reads a Files note's list: backticks, notes and a closing period", () => {
+  const text = lines(
+      "- [ ] 1.1 Read",
+      "  - $paths: `src/bytes/allocator.nupp` (new), `tests/groups.lua`.",
+      "  - $paths: `src/{a,b}.js`, docs/x.md (renamed), ./, src/.",
+      "  - $tags: `a`, b (new)",
+      "  - $done: ok",
+    ),
+    { manifest, problems } = readFacts(text, specItems("config", text));
+  assert.deepEqual(problems, []);
+  assert.deepEqual(manifest.tasks["1.1"].paths, [
+    "src/bytes/allocator.nupp",
+    "tests/groups.lua",
+    "src/{a,b}.js",
+    "docs/x.md",
+    "./",
+    "src/.",
+  ]);
+  // Only paths are cleaned; another list keeps its items as written.
+  assert.deepEqual(manifest.tasks["1.1"].tags, ["`a`", "b (new)"]);
+});
+
 test("a $built fact is skipped and stays outside the revision hash", () => {
   const plain = lines("- [x] 1.1 Read", "  - $done: It reads"),
     built = lines(

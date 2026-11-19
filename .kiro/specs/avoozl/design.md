@@ -4711,7 +4711,10 @@ mis-indent; a `$` on the fact itself marks it without the layer.
 A list is `$key: a, b`, or the same fact written again, each bullet adding
 to the list. `$done` is one result per bullet and is never split on commas,
 so a result may hold one; Avoozl writes one `$done:` bullet per result.
-Nothing nests under a fact.
+Nothing nests under a fact. A comma inside backticks does not split.
+`$paths` reads a Files note as written (changed 2026-11-19, owner request):
+each item's backticks, a note in parentheses after it, such as `(new)`, and
+a sentence's closing period are not part of the path.
 
 Changed 2026-11-18: there is no `checks` fact and no `checks` default.
 Every task runs its repository's checks (§5.2); a `$checks` fact or a
