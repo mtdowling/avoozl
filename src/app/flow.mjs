@@ -231,16 +231,19 @@ function merged(...layers) {
 }
 
 // `.avoozl.json`'s flow settings: the workspace's, each repository's override
-// (`projects.<id>.flow`), and a reader for one repository. A missing key
+// (`repositories.<id>.flow`), and a reader for one repository. A missing key
 // means its default.
 export function flowPolicy(config) {
   const workspace = flowSection(config?.flow, "flow"),
     repositories = {};
-  for (const [id, project] of Object.entries(
-    record(config?.projects) ? config.projects : {},
+  for (const [id, repository] of Object.entries(
+    record(config?.repositories) ? config.repositories : {},
   ))
-    if (record(project) && project.flow !== undefined)
-      repositories[id] = flowSection(project.flow, `projects.${id}.flow`);
+    if (record(repository) && repository.flow !== undefined)
+      repositories[id] = flowSection(
+        repository.flow,
+        `repositories.${id}.flow`,
+      );
   const base = merged(workspace);
   return {
     workspace: base,
@@ -1252,7 +1255,7 @@ export function stopScope(store, data, stop) {
         .filter((t) =>
           stop.scope === "spec"
             ? inPlan(t, { plan: stop.planId, spec: stop.spec })
-            : taskRepository(t) === stop.projectId,
+            : taskRepository(t) === stop.repositoryId,
         )
         .map((t) => t.id),
     );
@@ -1269,7 +1272,7 @@ export function stopScope(store, data, stop) {
   else
     ids = new Set(
       data.tasks
-        .filter((t) => taskRepository(t) === stop.projectId)
+        .filter((t) => taskRepository(t) === stop.repositoryId)
         .map((t) => t.id),
     );
   for (const id of fixes) ids.delete(id);

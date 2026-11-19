@@ -33,7 +33,7 @@ process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
 const REPOSITORY = REPO;
 
 // The triage fixture's workspace (a checkout, a bare origin, a `direct`
-// project), with the agent off and a fix's journal context.
+// repository), with the agent off and a fix's journal context.
 function workspace(t) {
   const w = triageWorkspace(t, { triage: { agent: "off" } }),
     context = { workspaceRoot: w.root, actor: "Operator" };

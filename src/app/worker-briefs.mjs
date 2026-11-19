@@ -26,11 +26,13 @@ export const BATCH_ON_PROCESS =
 const cell = (fields) => Object.freeze(fields);
 const declined = (reason, fallback) => cell({ declined: reason, fallback });
 
-// `ctx` is { task, project, cliReport }.
-const chatSteps = ({ task, project, cliReport }) =>
-  localSteps(task, project, { cliReport });
-const childSteps = ({ task, project }) =>
-  processSteps(task, { allowCommands: project?.sandbox?.allowCommands ?? [] });
+// `ctx` is { task, repository, cliReport }.
+const chatSteps = ({ task, repository, cliReport }) =>
+  localSteps(task, repository, { cliReport });
+const childSteps = ({ task, repository }) =>
+  processSteps(task, {
+    allowCommands: repository?.sandbox?.allowCommands ?? [],
+  });
 
 // A task a worker machine pulled (R90): its worktree and branch, then the
 // executor's own steps, then the driver's text as data.

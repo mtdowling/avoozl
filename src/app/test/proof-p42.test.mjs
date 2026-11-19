@@ -124,7 +124,7 @@ function workspace(t, name, { skill = false, ids }) {
     tasks: ids.map((id) => leaf(id, repository)),
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: repository,
     root: repo,
     baseBranch: "main",
@@ -540,7 +540,7 @@ test("P42: prompt and skill proposals", async (t) => {
   const { leafBrief } = await import("../delivery.mjs");
   const brief = leafBrief(W1.store, W1.store.read(), {
     task: W1.store.read().tasks.find((x) => x.id === W1.ids[60]),
-    project: W1.store.get("projects", "wonerepo"),
+    repository: W1.store.get("repositories", "wonerepo"),
     attempt: 1,
   });
   assert.match(

@@ -12,7 +12,7 @@ export const rules = {
         {
           id: "fake-plugin-set",
           version: "1.0.0",
-          rules: [{ id: "project", pattern: "\\bproject[- ]?x\\b" }],
+          rules: [{ id: "repository", pattern: "\\bproject[- ]?x\\b" }],
         },
       ],
     };

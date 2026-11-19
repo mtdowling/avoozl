@@ -61,22 +61,22 @@ export function afterBatch(
 export const sizeLimit = (record, setting = "auto") =>
   Number.isInteger(setting) ? setting : record.limit;
 
-export function sizeRecord(store, { projectId, base }) {
+export function sizeRecord(store, { repositoryId, base }) {
   return {
     ...emptySize(),
-    ...(store.getMeta(META)?.[projectId]?.[base] ?? {}),
+    ...(store.getMeta(META)?.[repositoryId]?.[base] ?? {}),
   };
 }
 
 // Writes the record after a batch: `landed` and `culprits` are task keys.
 export function recordBatch(
   store,
-  { projectId, base },
+  { repositoryId, base },
   { landed = [], culprits = [], held, waiting, halve, at, seconds },
 ) {
   return store.transaction(() => {
     const all = store.getMeta(META) ?? {},
-      before = sizeRecord(store, { projectId, base }),
+      before = sizeRecord(store, { repositoryId, base }),
       next = afterBatch(before, {
         landed: landed.length,
         culprits: culprits.length,
@@ -107,7 +107,7 @@ export function recordBatch(
       ].slice(-LAST);
     store.setMeta(META, {
       ...all,
-      [projectId]: { ...(all[projectId] ?? {}), [base]: next },
+      [repositoryId]: { ...(all[repositoryId] ?? {}), [base]: next },
     });
     return next;
   });
@@ -116,15 +116,15 @@ export function recordBatch(
 // The merge batch being tested now, for the Landing queue page: {members,
 // step, since}, or null when none runs. Plain data in the store's meta.
 const NOW = "mergeBatchNow";
-export function setTesting(store, { projectId, base }, value) {
+export function setTesting(store, { repositoryId, base }, value) {
   store.transaction(() => {
     const all = store.getMeta(NOW) ?? {},
-      mine = { ...(all[projectId] ?? {}) };
+      mine = { ...(all[repositoryId] ?? {}) };
     if (value) mine[base] = value;
     else delete mine[base];
-    store.setMeta(NOW, { ...all, [projectId]: mine });
+    store.setMeta(NOW, { ...all, [repositoryId]: mine });
   });
 }
 
-export const testingNow = (store, { projectId, base }) =>
-  store.getMeta(NOW)?.[projectId]?.[base] ?? null;
+export const testingNow = (store, { repositoryId, base }) =>
+  store.getMeta(NOW)?.[repositoryId]?.[base] ?? null;

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Store, canonical } from "../store.mjs";
 import { Operations } from "../operations.mjs";
-import { projectConfig, git, integrateRun } from "../git.mjs";
+import { repositoryConfig, git, integrateRun } from "../git.mjs";
 import {
   fixture,
   snapshot,
@@ -155,7 +155,7 @@ test("design amendments preserve status and evidence but flag tasks for reconcil
     /changed/,
   );
 });
-test("outbox projects recoverably without touching a conflicting source document", async (t) => {
+test("outbox repositories recoverably without touching a conflicting source document", async (t) => {
   const { root, store } = fixture(t),
     ops = new Operations(store),
     plan = await ops.execute("plan.create", {
@@ -219,15 +219,15 @@ test("real isolated Git work validates at its head, rebases and integrates witho
   );
   await git(repo, ["add", "."]);
   await git(repo, ["commit", "-m", "Add fixture check"]);
-  const project = await projectConfig({
+  const repository = await repositoryConfig({
     id: "fixture",
     root: repo,
     checks: [[process.execPath, "check.mjs"]],
   });
-  store.put("projects", project);
+  store.put("repositories", repository);
   const run = await recordedRun(store, {
     id: "run-fixture",
-    projectId: "fixture",
+    repositoryId: "fixture",
   });
   assert.notEqual(run.worktree, repo);
   fs.writeFileSync(path.join(run.worktree, "result.txt"), "done");
@@ -255,25 +255,31 @@ test("real isolated Git work validates at its head, rebases and integrates witho
 });
 test("independent validations can overlap while integration excludes validation and new claims", async (t) => {
   const { store } = fixture(t);
-  const { withWorkLock, assertProjectAvailable } = await import("../git.mjs");
+  const { withWorkLock, assertRepositoryAvailable } = await import(
+    "../git.mjs"
+  );
   let release;
   const pending = new Promise((resolve) => {
     release = resolve;
   });
   const first = withWorkLock(
     store,
-    { id: "validation:first", projectId: "fixture", kind: "validation" },
+    { id: "validation:first", repositoryId: "fixture", kind: "validation" },
     () => pending,
   );
   await withWorkLock(
     store,
-    { id: "validation:second", projectId: "fixture", kind: "validation" },
+    { id: "validation:second", repositoryId: "fixture", kind: "validation" },
     async () => {},
   );
   await assert.rejects(
     withWorkLock(
       store,
-      { id: "integration:fixture", projectId: "fixture", kind: "integration" },
+      {
+        id: "integration:fixture",
+        repositoryId: "fixture",
+        kind: "integration",
+      },
       async () => {},
     ),
     /already owns/,
@@ -282,21 +288,25 @@ test("independent validations can overlap while integration excludes validation 
   await first;
   await withWorkLock(
     store,
-    { id: "integration:fixture", projectId: "fixture", kind: "integration" },
+    { id: "integration:fixture", repositoryId: "fixture", kind: "integration" },
     async () => {
       assert.throws(
-        () => assertProjectAvailable(store, "fixture"),
+        () => assertRepositoryAvailable(store, "fixture"),
         /integrating/,
       );
       await assert.rejects(
         withWorkLock(
           store,
-          { id: "validation:first", projectId: "fixture", kind: "validation" },
+          {
+            id: "validation:first",
+            repositoryId: "fixture",
+            kind: "validation",
+          },
           async () => {},
         ),
         /already owns/,
       );
     },
   );
-  assertProjectAvailable(store, "fixture");
+  assertRepositoryAvailable(store, "fixture");
 });

@@ -138,10 +138,10 @@ async function workspace(t) {
     path.join(terms, "fake-terms.txt"),
     "# Fake terms\ncodename: \\bsecretword\\b\n",
   );
-  store.put("projects", {
+  store.put("repositories", {
     id: "sdk",
     root: code,
-    repository: REPO,
+    github: REPO,
     baseBranch: "main",
     worktreeRoot: temporaryDirectory("avoozl-p37-worktrees-"),
     checks: [["npm", "test"]],
@@ -169,7 +169,7 @@ async function workspace(t) {
   });
   await ops.execute("github.configure", {
     repository: REPO,
-    projectId: "sdk",
+    repositoryId: "sdk",
     allowedActors: ["alice"],
   });
   return { root, code, store, github, ops };
@@ -439,7 +439,7 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
     cutover = data.tasks.find((task) => task.id === "cutover-callers"),
     brief = leafBrief(store, data, {
       task: cutover,
-      project: store.get("projects", "sdk"),
+      repository: store.get("repositories", "sdk"),
       attempt: 1,
       delivery: null,
     });

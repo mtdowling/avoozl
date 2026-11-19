@@ -47,7 +47,7 @@ export async function workspace(t, { mode, coder, blockTerm, radar }) {
     workspaceRoot: root,
   });
   for (const id of ["planning", "code"])
-    store.put("projects", {
+    store.put("repositories", {
       id,
       root,
       ...(id === "planning" ? { planning: true } : {}),
@@ -58,7 +58,7 @@ export async function workspace(t, { mode, coder, blockTerm, radar }) {
   for (const id of mode === "plans-repo" ? ["planning", "code"] : ["code"])
     await ops.execute("github.configure", {
       repository: `example/${id}`,
-      projectId: id,
+      repositoryId: id,
       allowedActors: ["maintainer"],
     });
   return { store, github, ops, root };
@@ -74,7 +74,7 @@ export async function approvedSpec(
   const plan = await ops.execute("plan.create", {
     spec: "config",
     prompt: "Load config",
-    context: { projectId: "code" },
+    context: { repositoryId: "code" },
   });
   const approved = await ops.execute("plan.approve", {
     id: plan.id,

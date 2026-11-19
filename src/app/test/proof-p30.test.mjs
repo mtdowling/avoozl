@@ -92,7 +92,7 @@ if (fs.existsSync("breaks-main") && path.basename(process.cwd()).startsWith("avo
     edges: [{ from: "a1", to: "d1", kind: "requires" }],
   });
   store.put("approvals", { id: "approval-p1", planId: "p1", hash: "h1" });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",

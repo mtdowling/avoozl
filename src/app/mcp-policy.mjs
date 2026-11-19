@@ -119,8 +119,8 @@ export const PERSON_ONLY = new Map([
   ["github.setup.cancel", person("Only a person cancels a GitHub setup.")],
   ["github.configure", person("Only a person changes GitHub setup.")],
   [
-    "github.project.connect",
-    person("Only a person connects a GitHub Project."),
+    "github.repository.connect",
+    person("Only a person connects a repository to GitHub."),
   ],
   [
     "github.settings.update",
@@ -246,8 +246,11 @@ export const PERSON_ONLY = new Map([
     person("Only a person adds or changes a repository."),
   ],
   ["repositories.remove", person("Only a person removes a repository.")],
-  ["project.configure", person("Only a person adds or changes a repository.")],
-  ["project.remove", person("Only a person removes a repository.")],
+  [
+    "repository.configure",
+    person("Only a person adds or changes a repository."),
+  ],
+  ["repository.remove", person("Only a person removes a repository.")],
   [
     "workspace.repository.configure",
     person("Only a person sets the workspace repository."),

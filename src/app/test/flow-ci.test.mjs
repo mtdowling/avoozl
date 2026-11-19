@@ -139,7 +139,7 @@ test("54.1 paths take the first class in order, with overrides and partial lists
   // flow.ci.classes replaces one class's list; the repository's wins.
   const policy = flowPolicy({
     flow: { ci: { classes: { docs: ["guide/"] } } },
-    projects: { app: { flow: { ci: { classes: { docs: ["manual/"] } } } } },
+    repositories: { app: { flow: { ci: { classes: { docs: ["manual/"] } } } } },
   });
   assert.deepEqual(
     fileClasses(["guide/x.md"], classGlobs(policy.workspace.ci.classes)),

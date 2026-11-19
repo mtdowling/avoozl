@@ -61,7 +61,7 @@ function setup(t) {
     tasks: [leaf("a"), leaf("b"), leaf("c")],
     edges: [{ from: "a", to: "c", kind: "requires" }],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
@@ -159,7 +159,7 @@ test("a claim is refused with its reason for a task that is not ready, running, 
     id: "stop-1",
     manual: true,
     scope: "all",
-    projectId: "app",
+    repositoryId: "app",
     openedAt: new Date().toISOString(),
     closedAt: null,
     runAnyway: null,

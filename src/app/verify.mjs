@@ -100,10 +100,10 @@ function declaredPaths(store, task) {
 
 // The path verdict for one run, with a person's allowance for this exact
 // commit applied: an allowed commit's protected paths no longer hold it.
-export async function verifyPaths(store, { task, project, commit, flow }) {
+export async function verifyPaths(store, { task, repository, commit, flow }) {
   const { base, paths } = await changedPaths(
-      project.root,
-      project.baseBranch || "main",
+      repository.root,
+      repository.baseBranch || "main",
       commit,
     ),
     verdict = pathVerdict(paths, {
@@ -229,28 +229,30 @@ export const notRunChecks = (checks, why) =>
 // Run each check in `dir`, one at a time, each with its own timeout. A
 // check is {name, argv}, or a bare argv named by its command. Each result
 // carries the check's name, for display its command, and the isolation it
-// ran under. With `project`, its `prepare` runs first and each check runs
-// in the project's isolation (check-isolation.mjs); a failed prepare, or a
+// ran under. With `repository`, its `prepare` runs first and each check runs
+// in the repository's isolation (check-isolation.mjs); a failed prepare, or a
 // container that cannot see `dir`, runs no check.
 export async function runEach(
   dir,
   checks,
-  { timeoutFor, run = commandEvidence, env, project } = {},
+  { timeoutFor, run = commandEvidence, env, repository } = {},
 ) {
   const out = [],
     notRunAll = (why) => notRunChecks(checks, why.slice(0, 300));
-  if (project && checks.length) {
-    const ready = await prepareChecks(project, dir, {
+  if (repository && checks.length) {
+    const ready = await prepareChecks(repository, dir, {
       run: run === commandEvidence ? undefined : run,
     });
     if (ready && ready.exitCode !== 0)
       return notRunAll(
         `prepare failed: ${notRunCause(ready, 0, 1) || "exit " + ready.exitCode}`,
       );
-    const blind = await containerBlindness(project, dir, { run, env });
+    const blind = await containerBlindness(repository, dir, { run, env });
     if (blind) return notRunAll(blind);
   }
-  const isolate = project ? checkOptions(project, dir).isolate : undefined;
+  const isolate = repository
+    ? checkOptions(repository, dir).isolate
+    : undefined;
   for (const check of checks) {
     const argv = Array.isArray(check) ? check : check.argv,
       command = argv.join(" "),

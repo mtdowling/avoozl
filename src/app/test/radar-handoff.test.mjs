@@ -139,7 +139,7 @@ function workspace(
     id: REPO,
     owner: "o",
     repo: "app",
-    projectId: "code",
+    repositoryId: "code",
     private: true,
     activeMachine: machineIdentity(store).id,
   });

@@ -19,7 +19,7 @@ test("repository settings preserve unrelated JSON and expose canonical metadata"
     filename = path.join(root, ".avoozl.json");
   writeJson(filename, {
     version: 1,
-    projects: {
+    repositories: {
       code: {
         root: "../code",
         checks: [["npm", "test"]],
@@ -53,7 +53,7 @@ test("repository settings preserve unrelated JSON and expose canonical metadata"
   );
 
   const saved = JSON.parse(fs.readFileSync(filename, "utf8"));
-  assert.deepEqual(saved.projects, {
+  assert.deepEqual(saved.repositories, {
     code: {
       root: "../code",
       checks: [["npm", "test"]],
@@ -74,8 +74,8 @@ test("repository settings preserve unrelated JSON and expose canonical metadata"
   assert.equal(workspace.configuration.repository.exists, true);
   assert.match(workspace.configuration.repository.hash, /^[a-f0-9]{64}$/);
   assert.equal(workspace.configuration.repository.error, null);
-  assert.deepEqual(workspace.configuration.pending, ["projects"]);
-  assert.deepEqual(workspace.configuration.applyRequired, ["projects"]);
+  assert.deepEqual(workspace.configuration.pending, ["repositories"]);
+  assert.deepEqual(workspace.configuration.applyRequired, ["repositories"]);
   assert.deepEqual(workspace.configuration.restartRequired, []);
   assert.match(
     workspace.configuration.schemaPath,
@@ -120,7 +120,7 @@ test("repository settings ignore .avoozl/config.json", (t) => {
     version: 1,
     dbPath: "local/workspace.sqlite",
     documents: "../plans",
-    projects: {
+    repositories: {
       code: {
         root: "../code",
         worktreeRoot: "../worktrees",
@@ -149,7 +149,7 @@ test("repository settings ignore .avoozl/config.json", (t) => {
   assert.equal(saved.$schema, REPOSITORY_CONFIG_SCHEMA_URL);
   assert.equal(saved.dbPath, undefined);
   assert.equal(saved.documents, undefined);
-  assert.equal(saved.projects, undefined);
+  assert.equal(saved.repositories, undefined);
   assert.equal(saved.ahp, undefined);
   assert.equal(saved.conversations.autoArchiveCompleted, false);
   assert.equal(fs.existsSync(legacy), true);
@@ -283,7 +283,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
 
   writeJson(filename, {
     version: 1,
-    projects: {
+    repositories: {
       privileged: {
         root: "should-not-be-activated",
         checks: [["false"]],
@@ -302,9 +302,9 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
     () => store.getMeta("conversationSettings")?.autoArchiveCompleted === false,
     { label: "direct repository settings reload" },
   );
-  assert.equal(store.get("projects", "privileged"), null);
+  assert.equal(store.get("repositories", "privileged"), null);
   assert.equal(configuration.metadata().repository.error, null);
-  assert.deepEqual(configuration.metadata().applyRequired, ["projects"]);
+  assert.deepEqual(configuration.metadata().applyRequired, ["repositories"]);
   assert.deepEqual(configuration.metadata().restartRequired, []);
 
   writeJson(filename, {
@@ -431,25 +431,25 @@ test("explicit Settings operations persist typed desired state without changing 
       github: new PrivateGitHub(),
     });
 
-  const project = await ops.execute("project.configure", {
+  const configured = await ops.execute("repository.configure", {
     id: "code",
     root: code,
     baseBranch: "main",
     checks: [["npm", "test"]],
   });
-  assert.equal(project.root, fs.realpathSync.native(code));
-  assert.equal(project.configuration, undefined);
-  const updatedProject = await ops.execute("project.configure", {
+  assert.equal(configured.root, fs.realpathSync.native(code));
+  assert.equal(configured.configuration, undefined);
+  const updatedRepository = await ops.execute("repository.configure", {
     id: "code",
     root: code,
     baseBranch: "main",
     checks: [["npm", "run", "test"]],
   });
-  assert.deepEqual(updatedProject.checks, [["npm", "run", "test"]]);
+  assert.deepEqual(updatedRepository.checks, [["npm", "run", "test"]]);
 
   const issue = await ops.execute("github.configure", {
     repository: "Example/Code",
-    projectId: "code",
+    repositoryId: "code",
     label: "ready",
     managedLabel: "projected",
     allowedActors: ["maintainer"],
@@ -469,14 +469,14 @@ test("explicit Settings operations persist typed desired state without changing 
 
   const filename = path.join(root, ".avoozl.json"),
     saved = JSON.parse(fs.readFileSync(filename, "utf8"));
-  assert.equal(saved.projects.code.root, "code");
-  assert.equal(saved.projects.code.worktreeRoot, ".avoozl-worktrees");
-  assert.deepEqual(saved.projects.code.checks, [["npm", "run", "test"]]);
+  assert.equal(saved.repositories.code.root, "code");
+  assert.equal(saved.repositories.code.worktreeRoot, ".avoozl-worktrees");
+  assert.deepEqual(saved.repositories.code.checks, [["npm", "run", "test"]]);
   // github.configure writes a GitHub source, never the old key (R110.3).
   assert.deepEqual(saved.intake.sources["github-example-code"], {
     via: "github",
     repository: "Example/Code",
-    project: "code",
+    executionRepository: "code",
     label: "ready",
     managedLabel: "projected",
     assignee: "operator",
@@ -495,9 +495,9 @@ test("explicit Settings operations persist typed desired state without changing 
     "planningRepository",
   ]);
 
-  const connected = await ops.execute("github.project.connect", {
+  const connected = await ops.execute("github.repository.connect", {
     repository: "Example/Code",
-    projectId: "code",
+    repositoryId: "code",
     assignee: "operator",
   });
   assert.equal(connected.execution.id, "Example/Code");
@@ -507,7 +507,7 @@ test("explicit Settings operations persist typed desired state without changing 
     "github-example-code",
   ]);
   assert.equal(
-    afterConnect.intake.sources["github-example-code"].project,
+    afterConnect.intake.sources["github-example-code"].executionRepository,
     "code",
   );
   assert.equal(afterConnect.github, undefined);
@@ -523,7 +523,7 @@ test("direct privileged edits are validated and reported as inert apply or resta
     code = path.join(root, "code"),
     configuration = new RepositorySettings(store, { workspaceRoot: root });
   repository(code);
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: code,
     baseBranch: "main",
@@ -535,17 +535,17 @@ test("direct privileged edits are validated and reported as inert apply or resta
   });
   const filename = path.join(root, ".avoozl.json"),
     direct = JSON.parse(fs.readFileSync(filename, "utf8"));
-  assert.equal(direct.projects.code.root, "code");
-  direct.projects.code.baseBranch = "next";
+  assert.equal(direct.repositories.code.root, "code");
+  direct.repositories.code.baseBranch = "next";
   direct.port = 9999;
   writeJson(filename, direct);
 
   const metadata = configuration.reload();
 
-  assert.equal(store.get("projects", "code").baseBranch, "main");
-  assert.deepEqual(metadata.applyRequired, ["projects"]);
+  assert.equal(store.get("repositories", "code").baseBranch, "main");
+  assert.deepEqual(metadata.applyRequired, ["repositories"]);
   assert.deepEqual(metadata.restartRequired, ["port"]);
-  assert.deepEqual(metadata.pending, ["projects", "port"]);
+  assert.deepEqual(metadata.pending, ["repositories", "port"]);
   assert.equal(metadata.repository.error, null);
 });
 
@@ -553,7 +553,7 @@ test("creating repository JSON materializes already-applied non-secret settings"
   const { root, store } = fixture(t),
     realRoot = fs.realpathSync.native(root),
     configuration = new RepositorySettings(store, { workspaceRoot: root });
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: path.join(realRoot, "code"),
     baseBranch: "main",
@@ -562,7 +562,7 @@ test("creating repository JSON materializes already-applied non-secret settings"
   });
   store.put("github_repositories", {
     id: "example/code",
-    projectId: "code",
+    repositoryId: "code",
     assignee: "operator",
     label: "ready",
     allowedActors: [],
@@ -580,7 +580,7 @@ test("creating repository JSON materializes already-applied non-secret settings"
   const saved = JSON.parse(
     fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
   );
-  assert.equal(saved.projects.code.root, "code");
+  assert.equal(saved.repositories.code.root, "code");
   assert.equal(
     saved.intake.sources["github-example-code"].assignee,
     "operator",
@@ -592,27 +592,27 @@ test("creating repository JSON materializes already-applied non-secret settings"
   assert.deepEqual(configuration.metadata().pending, []);
 });
 
-test("project removal clears persisted configuration and records the action", async (t) => {
+test("repository removal clears persisted configuration and records the action", async (t) => {
   const { root, store } = fixture(t),
     configuration = new RepositorySettings(store, { workspaceRoot: root }),
     ops = new Operations(store, { configuration }),
-    project = {
+    repository = {
       id: "removable",
       root: path.join(root, "code"),
       baseBranch: "main",
       worktreeRoot: path.join(root, "worktrees"),
       checks: [],
     };
-  store.put("projects", project);
-  configuration.updateExecutionProject(project);
+  store.put("repositories", repository);
+  configuration.updateExecutionRepository(repository);
 
-  const removed = await ops.execute("project.remove", { id: project.id });
+  const removed = await ops.execute("repository.remove", { id: repository.id });
 
   assert.equal(removed.removed, true);
-  assert.equal(store.get("projects", project.id), null);
+  assert.equal(store.get("repositories", repository.id), null);
   assert.equal(
     JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"))
-      .projects,
+      .repositories,
     undefined,
   );
   assert.ok(
@@ -620,17 +620,18 @@ test("project removal clears persisted configuration and records the action", as
       .events({ latest: true })
       .some(
         (event) =>
-          event.kind === "project.removed" && event.projectId === project.id,
+          event.kind === "repository.removed" &&
+          event.repositoryId === repository.id,
       ),
   );
 });
 
-test("project removal refuses locks and GitHub connections", async (t) => {
+test("repository removal refuses locks and GitHub connections", async (t) => {
   const { root, store } = fixture(t),
     configuration = new RepositorySettings(store, { workspaceRoot: root }),
     ops = new Operations(store, { configuration });
   for (const id of ["locked", "authorized"])
-    store.put("projects", {
+    store.put("repositories", {
       id,
       root: path.join(root, id),
       baseBranch: "main",
@@ -642,7 +643,7 @@ test("project removal refuses locks and GitHub connections", async (t) => {
     .run("lock", "locked", "integration", process.pid, "token");
   store.put("github_repositories", {
     id: "owner/authorized",
-    projectId: "authorized",
+    repositoryId: "authorized",
   });
 
   for (const [id, message] of [
@@ -650,12 +651,12 @@ test("project removal refuses locks and GitHub connections", async (t) => {
     ["authorized", /still connected to GitHub/],
   ])
     await assert.rejects(
-      ops.execute("project.remove", { id }),
+      ops.execute("repository.remove", { id }),
       (error) => error.status === 409 && message.test(error.message),
     );
 
   for (const id of ["locked", "authorized"])
-    assert.ok(store.get("projects", id));
+    assert.ok(store.get("repositories", id));
 });
 
 test("a repository's Flow override saves and the settings still load", (t) => {
@@ -663,7 +664,7 @@ test("a repository's Flow override saves and the settings still load", (t) => {
     filename = path.join(root, ".avoozl.json");
   writeJson(filename, {
     version: 1,
-    projects: { code: { root: "../code", checks: [["npm", "test"]] } },
+    repositories: { code: { root: "../code", checks: [["npm", "test"]] } },
   });
   const configuration = new RepositorySettings(store, {
     workspaceRoot: root,

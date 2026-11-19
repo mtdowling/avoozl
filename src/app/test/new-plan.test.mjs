@@ -36,7 +36,7 @@ function workspace(
       fs.writeFileSync(path.join(dir, `${id}.txt`), text);
   }
   for (const id of repositories)
-    store.put("projects", {
+    store.put("repositories", {
       id,
       name: id,
       root: temporaryDirectory(`avoozl-repo-${id}-`),
@@ -54,7 +54,7 @@ const request = (overrides = {}) => ({
   ...overrides,
 });
 
-// Every repository-named leaf, so the folder lints clean for project `app`.
+// Every repository-named leaf, so the folder lints clean for repository `app`.
 function cleanSpec() {
   return {
     "tasks.md": `---\nrepo: app\n---\n${specFiles()["tasks.md"]}`,

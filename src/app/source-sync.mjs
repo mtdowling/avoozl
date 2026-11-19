@@ -60,11 +60,11 @@ export function configuredRepositoryInstructionSources(
 ) {
   const excluded = new Set(exclude.map((filename) => path.resolve(filename))),
     candidates = store
-      .list("projects")
-      .filter((project) => project.root)
-      .map((project) => ({
-        filename: path.join(path.resolve(project.root), ".avoozl.json"),
-        repositoryId: project.id,
+      .list("repositories")
+      .filter((repository) => repository.root)
+      .map((repository) => ({
+        filename: path.join(path.resolve(repository.root), ".avoozl.json"),
+        repositoryId: repository.id,
         primary: false,
       })),
     seen = new Set(),

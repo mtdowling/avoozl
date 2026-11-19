@@ -99,7 +99,7 @@ const DROPPED_TABLES = [
 // columns of their own. A stored GitHub response is never removed.
 const BODY_TABLES = new Set([
   "plans",
-  "projects",
+  "repositories",
   "receipts",
   "batches",
   "github_repositories",
@@ -150,6 +150,85 @@ const REMOVABLE_TABLES = new Set(
   [...BODY_TABLES].filter((table) => table !== "github_responses"),
 );
 
+// Rename a stored record's `projectId` keys, at any depth, to `repositoryId`.
+function renameProjectIds(value) {
+  if (Array.isArray(value)) return value.map(renameProjectIds);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [
+      key === "projectId" ? "repositoryId" : key,
+      renameProjectIds(child),
+    ]),
+  );
+}
+
+// Migration: a registered repository was once called a project. An older
+// database (one with a `projects` table) moves to the current names once, in
+// one transaction: the table becomes `repositories` and its owner/name field
+// `github`, the lock column `repository_id`, every stored `projectId` key
+// `repositoryId`, and `repository.*` events `repository.*`.
+function renameProjects(db) {
+  const tables = new Set(
+    db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+      .all()
+      .map((row) => row.name),
+  );
+  if (!tables.has("projects")) return;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.exec("ALTER TABLE projects RENAME TO repositories");
+    for (const row of db.prepare("SELECT id, body FROM repositories").all()) {
+      const { repository, ...body } = JSON.parse(row.body);
+      if (repository !== undefined) body.github ??= repository;
+      db.prepare("UPDATE repositories SET body=? WHERE id=?").run(
+        JSON.stringify(body),
+        row.id,
+      );
+    }
+    if (
+      db
+        .prepare(
+          "SELECT 1 FROM pragma_table_info('work_locks') WHERE name='project_id'",
+        )
+        .get()
+    )
+      db.exec(
+        "ALTER TABLE work_locks RENAME COLUMN project_id TO repository_id",
+      );
+    // Stored JSON is in each table's `body`, and in meta's `value`.
+    for (const table of [...tables, "repositories"]) {
+      const column = table === "meta" ? "value" : "body";
+      if (
+        !db
+          .prepare("SELECT 1 FROM pragma_table_info(?) WHERE name=?")
+          .get(table, column)
+      )
+        continue;
+      const update = db.prepare(
+        `UPDATE "${table}" SET ${column}=? WHERE rowid=?`,
+      );
+      for (const row of db
+        .prepare(
+          `SELECT rowid AS id, ${column} AS value FROM "${table}" WHERE ${column} LIKE '%"projectId"%'`,
+        )
+        .all())
+        update.run(
+          JSON.stringify(renameProjectIds(JSON.parse(row.value))),
+          row.id,
+        );
+    }
+    if (tables.has("events"))
+      db.exec(
+        "UPDATE events SET kind='repository'||substr(kind,8) WHERE kind LIKE 'project.%'",
+      );
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 export class Store {
   constructor(filename) {
     if (filename !== ":memory:") {
@@ -182,6 +261,7 @@ export class Store {
       this.db.exec(
         "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;",
       );
+      renameProjects(this.db);
       // Defer the write lock so reopening a complete schema can still read
       // alongside a writer. New tables and indexes commit together.
       this.db.exec("BEGIN");
@@ -196,8 +276,8 @@ export class Store {
    CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY,path TEXT NOT NULL,text TEXT NOT NULL,expected_hash TEXT,state TEXT NOT NULL DEFAULT 'pending');
    CREATE TABLE IF NOT EXISTS evidence(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS integration(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,state TEXT NOT NULL,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS work_locks(id TEXT PRIMARY KEY,project_id TEXT NOT NULL,kind TEXT NOT NULL,pid INTEGER NOT NULL,token TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS work_locks(id TEXT PRIMARY KEY,repository_id TEXT NOT NULL,kind TEXT NOT NULL,pid INTEGER NOT NULL,token TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS batches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);

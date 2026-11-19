@@ -18,8 +18,8 @@ export function specDeclarations(plans) {
         ...proposal,
         planId: plan.id,
         spec: plan.spec,
-        ...(proposal.projectId || plan.context?.projectId
-          ? { projectId: proposal.projectId || plan.context.projectId }
+        ...(proposal.repositoryId || plan.context?.repositoryId
+          ? { repositoryId: proposal.repositoryId || plan.context.repositoryId }
           : {}),
       });
     }

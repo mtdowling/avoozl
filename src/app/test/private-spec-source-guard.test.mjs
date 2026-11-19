@@ -54,7 +54,7 @@ async function approve({ store, ops }, name, home) {
   const plan = await ops.execute("plan.create", {
     spec: name,
     prompt: name,
-    context: { projectId: "code" },
+    context: { repositoryId: "code" },
   });
   store.setMeta(`spec-approval:${plan.id}:${plan.hash}`, {
     state: "merged",
@@ -81,7 +81,7 @@ test("github.configure refuses the source when its writes would not reach the mi
   await assert.rejects(
     ops.execute("github.configure", {
       repository: SOURCE,
-      projectId: "code",
+      repositoryId: "code",
       allowedActors: ["maintainer"],
     }),
     (error) =>
@@ -93,7 +93,7 @@ test("github.configure refuses the source when its writes would not reach the mi
   const done = await setup(t, SOURCE);
   await done.ops.execute("github.configure", {
     repository: SOURCE,
-    projectId: "code",
+    repositoryId: "code",
     allowedActors: ["maintainer"],
   });
   assert.ok(done.store.get("github_repositories", SOURCE));

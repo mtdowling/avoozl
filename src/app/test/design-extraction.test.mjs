@@ -45,7 +45,7 @@ function facts() {
 
 // Extracted task facts carry no checks; a leaf takes its repository's.
 function withChecks(store) {
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: "/tmp/app",
     baseBranch: "main",

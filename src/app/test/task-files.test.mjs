@@ -32,7 +32,7 @@ const leaf = (id, extra = {}) => ({
 
 // A checkout with four files on main, and task a's worktree with one file
 // added, one changed, one deleted, one renamed, and one untracked.
-async function setup(t, project = {}) {
+async function setup(t, repository = {}) {
   const root = temporaryDirectory("avoozl-task-files-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
@@ -56,12 +56,12 @@ async function setup(t, project = {}) {
     tasks: [leaf("a"), leaf("b")],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
-    repository: "octo/app",
-    ...project,
+    github: "octo/app",
+    ...repository,
   });
   const ops = new Operations(store, { workspaceRoot: root });
   const { path: worktree } = await ops.execute("worktree.prepare", {
@@ -228,8 +228,8 @@ test("task.files and task.diff pass no argument to Git as an option or pathspec"
   // option-shaped base branch from configuration.
   const { ops, root, store } = await setup(t);
   // Set after the worktree exists: worktree.prepare is not under test here.
-  store.put("projects", {
-    ...store.get("projects", "app"),
+  store.put("repositories", {
+    ...store.get("repositories", "app"),
     baseBranch: "--output=PWNED",
   });
   const marker = path.join(root, "pwned.txt");

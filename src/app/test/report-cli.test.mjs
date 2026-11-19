@@ -70,7 +70,7 @@ async function setup(t, { bind = true, delivery } = {}) {
     tasks: [task("a"), task("b")],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
@@ -92,16 +92,16 @@ async function setup(t, { bind = true, delivery } = {}) {
 
 test("the brief names the worktree and the report command with the token", async (t) => {
   const { store } = await setup(t),
-    project = store.get("projects", "app"),
+    repository = store.get("repositories", "app"),
     token = issueReportToken(store, { taskId: "a", attempt: 1 }),
-    steps = localSteps({ id: "a" }, project, {
-      cliReport: { worktree: worktreePath({ id: "a" }, project), token },
+    steps = localSteps({ id: "a" }, repository, {
+      cliReport: { worktree: worktreePath({ id: "a" }, repository), token },
     }).join("\n");
   assert.match(steps, new RegExp(`runner report a done --token ${token}`));
   assert.match(steps, new RegExp(`runner report a blocked --token ${token}`));
-  assert.ok(steps.includes(worktreePath({ id: "a" }, project)));
+  assert.ok(steps.includes(worktreePath({ id: "a" }, repository)));
   assert.doesNotMatch(
-    localSteps({ id: "a" }, project).join("\n"),
+    localSteps({ id: "a" }, repository).join("\n"),
     /--token/,
     "without a report token the brief is unchanged",
   );
@@ -193,9 +193,9 @@ test("the tick's dispatched brief carries the token and the worktree path", asyn
     ops = new Operations(store, { workspaceRoot: root }),
     { dispatch } = await ops.execute("workspace.tick", { sessions: [] }),
     brief = dispatch.find((d) => d.task === "a").brief,
-    project = store.get("projects", "app"),
+    repository = store.get("repositories", "app"),
     token = issueReportToken(store, { taskId: "a", attempt: 1 });
   assert.ok(token, "an import made the report secret");
   assert.ok(brief.includes(`runner report a done --token ${token}`));
-  assert.ok(brief.includes(worktreePath({ id: "a" }, project)));
+  assert.ok(brief.includes(worktreePath({ id: "a" }, repository)));
 });

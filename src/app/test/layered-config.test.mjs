@@ -86,7 +86,7 @@ test("repository configuration paths are owned by its repository root", () => {
   writeJson(repositoryFile, {
     version: 1,
     dbPath: ".avoozl/local/workspace.sqlite",
-    projects: {
+    repositories: {
       code: {
         root: "code",
         worktreeRoot: ".avoozl/local/worktrees",
@@ -101,9 +101,9 @@ test("repository configuration paths are owned by its repository root", () => {
     config.dbPath,
     path.join(workspaceRoot, ".avoozl", "local", "workspace.sqlite"),
   );
-  assert.equal(config.projects.code.root, path.join(workspaceRoot, "code"));
+  assert.equal(config.repositories.code.root, path.join(workspaceRoot, "code"));
   assert.equal(
-    config.projects.code.worktreeRoot,
+    config.repositories.code.worktreeRoot,
     path.join(workspaceRoot, ".avoozl", "local", "worktrees"),
   );
 });
@@ -154,7 +154,7 @@ test("root repository configuration rejects absolute portable paths", () => {
   const workspaceRoot = temporaryDirectory("avoozl-config-absolute-");
   writeJson(path.join(workspaceRoot, ".avoozl.json"), {
     version: 1,
-    projects: { code: { root: "/machine-specific/checkout" } },
+    repositories: { code: { root: "/machine-specific/checkout" } },
   });
   assert.throws(
     () =>
@@ -162,7 +162,7 @@ test("root repository configuration rejects absolute portable paths", () => {
         workspaceRoot,
         env: { XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-") },
       }),
-    /absolute path projects\.code\.root/,
+    /absolute path repositories\.code\.root/,
   );
 });
 

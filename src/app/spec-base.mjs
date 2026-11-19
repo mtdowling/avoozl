@@ -5,7 +5,7 @@
 // - One resolver picks the branch for both Prepare and the spec's qualified
 //   reference, so the two always agree: the spec's working branch when it
 //   exists in the checkout, else a legacy integration branch (an epic's
-//   RC16 branch, then the project's), else the target base.
+//   RC16 branch, then the repository's), else the target base.
 // - After a portion lands, the new target base comes back into the working
 //   branch as a merge commit with a guarded ref update. The working branch
 //   keeps its first-parent history, so verified but unlanded integrations

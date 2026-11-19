@@ -67,7 +67,7 @@ async function scenario(t) {
       mode: "single-repo",
     }),
     spec = await approvedSpec(context, { overrides: BATCH_SPEC });
-  await context.ops.execute("github.project", { planId: spec.plan.id });
+  await context.ops.execute("github.repository", { planId: spec.plan.id });
   return { ...context, ...spec };
 }
 const issueOf = (github, id) =>

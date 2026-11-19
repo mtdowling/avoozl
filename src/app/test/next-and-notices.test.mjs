@@ -78,7 +78,7 @@ function setup(
   const store = new Store(dbPath);
   t.after(() => store.close());
   store.importSnapshot({ ...snapshot(), tasks, edges });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",

@@ -60,11 +60,13 @@ const ms = (value) => {
   return Number.isFinite(at) ? at : null;
 };
 
-// The GitHub repository a project ID or an owner/name names, or null.
+// The GitHub repository a repository ID or an owner/name names, or null.
 function resolver(store) {
-  const projects = new Map(listOr(store, "projects").map((p) => [p.id, p]));
+  const repositories = new Map(
+    listOr(store, "repositories").map((p) => [p.id, p]),
+  );
   return (value) =>
-    repositoryOf(projects.get(value)?.repository) ?? repositoryOf(value);
+    repositoryOf(repositories.get(value)?.github) ?? repositoryOf(value);
 }
 
 function linker(host) {
@@ -254,7 +256,7 @@ function taskSet(rows, links, task, now) {
     entry = landingOf(rows, task.id),
     repository =
       rows.resolve(worktree?.repository) ??
-      rows.resolve(entry?.projectId) ??
+      rows.resolve(entry?.repositoryId) ??
       rows.resolve(task.repository) ??
       null,
     branchRef = refOf(worktree?.branch),

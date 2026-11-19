@@ -31,7 +31,7 @@ test("Proof 17: a migration from the template, a three-repository proposal and a
   const { root, store } = fixture(t),
     ops = new Operations(store, { workspaceRoot: root });
   for (const id of ["code", ...REPOS])
-    store.put("projects", {
+    store.put("repositories", {
       id,
       root,
       baseBranch: "main",
@@ -40,7 +40,7 @@ test("Proof 17: a migration from the template, a three-repository proposal and a
   const approve = async (spec) => {
     const plan = await ops.execute("plan.create", {
       spec,
-      context: { projectId: "code" },
+      context: { repositoryId: "code" },
     });
     return ops.execute("plan.approve", {
       id: plan.id,

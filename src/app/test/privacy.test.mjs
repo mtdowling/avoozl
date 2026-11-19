@@ -255,9 +255,14 @@ function commit(repo, branch, file, text, message) {
 test("an outgoing range is refused for its ref name, commit message or added lines", (t) => {
   const { root, store } = workspace(t),
     repo = repository(root),
-    project = { id: "code", root: repo, baseBranch: "main" },
+    checkout = { id: "code", root: repo, baseBranch: "main" },
     push = (taskId) =>
-      enforceDiff(store, { project, head: "HEAD", taskId, mode: "refuse" });
+      enforceDiff(store, {
+        repository: checkout,
+        head: "HEAD",
+        taskId,
+        mode: "refuse",
+      });
   for (const [name, branch, text, message] of [
     ["ref name", `task/${PRIVATE_NAME}`, "ok\n", "Add a"],
     ["ref name host", "task/velvetbox-q7", "ok\n", "Add a"],
@@ -290,7 +295,7 @@ test("an outgoing range is refused for its ref name, commit message or added lin
   assert.throws(
     () =>
       enforceDiff(store, {
-        project,
+        repository: checkout,
         head: "HEAD",
         taskId: "named",
         mode: "refuse",

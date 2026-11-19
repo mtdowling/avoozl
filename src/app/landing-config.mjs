@@ -9,20 +9,21 @@ export const landingMode = (mode) => RETIRED_MODES[mode] ?? mode;
 
 // The one landing block of a GitHub repository (design §4.25, R87.1), with
 // the older keys folded in: a key in the block wins, then the older key at
-// the repository, then the workspace's, then the default. `project` is the
-// checkout's project row, for its `landing` and its `delivery` id.
+// the repository, then the workspace's, then the default. `github` is the
+// owner/name, and `repository` the checkout's repository row, for its
+// `landing` and its `delivery` id.
 // {mode, autoMerge, method, mergeBatch, maxAttempts}; `mode` is null when nothing sets it.
-export function landingSettings(config, repository, project = null) {
-  const entry = config?.github?.repositories?.[repository],
+export function landingSettings(config, github, repository = null) {
+  const entry = config?.github?.repositories?.[github],
     block = isRecord(entry?.landing) ? entry.landing : {},
     delivery = isRecord(config?.delivery) ? config.delivery : {},
     ship = (value) => (value === undefined ? undefined : value !== "manual");
   return {
-    mode: landingMode(block.mode ?? project?.landing ?? null),
+    mode: landingMode(block.mode ?? repository?.landing ?? null),
     autoMerge:
       block.autoMerge ??
-      ship(project && delivery.repositories?.[project.id]?.ship) ??
-      ship(repository && delivery.repositories?.[repository]?.ship) ??
+      ship(repository && delivery.repositories?.[repository.id]?.ship) ??
+      ship(github && delivery.repositories?.[github]?.ship) ??
       ship(delivery.ship) ??
       true,
     method: block.method ?? entry?.merge?.method ?? "squash",
@@ -35,18 +36,18 @@ export function landingSettings(config, repository, project = null) {
 }
 
 // The tick and the settings loader copy each repository's `landing.mode`
-// onto the project rows of its checkouts, because the landing code reads the
-// mode from the project (design §4.25). Returns the projects it changed.
+// onto the repository rows of its checkouts, because the landing code reads the
+// mode from the repository (design §4.25). Returns the repositories it changed.
 export function applyLandingModes(store, config) {
   const changed = [];
-  for (const project of store.list("projects")) {
+  for (const repository of store.list("repositories")) {
     const mode = landingMode(
-      project.repository &&
-        config?.github?.repositories?.[project.repository]?.landing?.mode,
+      repository.github &&
+        config?.github?.repositories?.[repository.github]?.landing?.mode,
     );
-    if (!LANDING_MODES.includes(mode) || project.landing === mode) continue;
-    const next = { ...project, landing: mode };
-    store.put("projects", next);
+    if (!LANDING_MODES.includes(mode) || repository.landing === mode) continue;
+    const next = { ...repository, landing: mode };
+    store.put("repositories", next);
     changed.push(next);
   }
   return changed;

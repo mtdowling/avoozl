@@ -60,7 +60,7 @@ test('every role picks a harness: auto, the Kiro Crew chat, or this machine\u201
       'gone-cli',
     ),
     [
-      { value: 'auto', label: 'auto (project default)' },
+      { value: 'auto', label: 'auto (repository default)' },
       { value: 'kirocrew', label: 'Kiro Crew chat' },
       { value: 'claude-code', label: 'claude-code' },
       { value: 'codex', label: 'codex (not approved)' },

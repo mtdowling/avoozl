@@ -314,7 +314,7 @@ async function workspace(t, github, policy = SINGLE_REPO) {
       github: policy,
     }),
   );
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: "/tmp/code",
     baseBranch: "main",
@@ -323,7 +323,7 @@ async function workspace(t, github, policy = SINGLE_REPO) {
   const ops = new Operations(store, { github, workspaceRoot: root });
   await ops.execute("github.configure", {
     repository: "example/code",
-    projectId: "code",
+    repositoryId: "code",
     allowedActors: ["maintainer"],
   });
   return { store, ops, root };
@@ -358,7 +358,7 @@ const leaf = (id, extra = {}) => ({
   title: "Task " + id,
   acceptance: [id + " is observable."],
   checks: ["npm test"],
-  projectId: "code",
+  repositoryId: "code",
   ...extra,
 });
 

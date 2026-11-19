@@ -30,24 +30,27 @@ import { checkKey } from "./repository-checks.mjs";
 
 const SHA = /^[0-9a-f]{40}$/;
 const TABLE = "landing_queue";
-const queueId = (projectId, base) => `${projectId}\0${base}`;
-const entryId = (projectId, base, key) => `${queueId(projectId, base)}\0${key}`;
+const queueId = (repositoryId, base) => `${repositoryId}\0${base}`;
+const entryId = (repositoryId, base, key) =>
+  `${queueId(repositoryId, base)}\0${key}`;
 
-function requireQueue(projectId, base) {
-  if (typeof projectId !== "string" || !projectId)
+function requireQueue(repositoryId, base) {
+  if (typeof repositoryId !== "string" || !repositoryId)
     fail("A landing queue names its repository.", 400);
   if (typeof base !== "string" || !base)
     fail("A landing queue names its base branch.", 400);
 }
 
 // The queued portions for one base, first in line first.
-export function landingQueue(store, { projectId, base }) {
-  requireQueue(projectId, base);
+export function landingQueue(store, { repositoryId, base }) {
+  requireQueue(repositoryId, base);
   return store
     .list(TABLE)
     .filter(
       (e) =>
-        e.projectId === projectId && e.base === base && e.state === "queued",
+        e.repositoryId === repositoryId &&
+        e.base === base &&
+        e.state === "queued",
     )
     .sort((a, b) => a.seq - b.seq);
 }
@@ -58,7 +61,7 @@ export function landingQueue(store, { projectId, base }) {
 export function enqueueLanding(
   store,
   {
-    projectId,
+    repositoryId,
     base,
     key,
     commit,
@@ -70,18 +73,18 @@ export function enqueueLanding(
   },
   { now = Date.now() } = {},
 ) {
-  requireQueue(projectId, base);
+  requireQueue(repositoryId, base);
   if (typeof key !== "string" || !key) fail("A queued portion has a key.", 400);
   if (!SHA.test(commit ?? ""))
     fail("A queued portion names an exact commit.", 400);
   return store.transaction(() => {
-    const id = entryId(projectId, base, key),
+    const id = entryId(repositoryId, base, key),
       existing = store.get(TABLE, id);
     if (existing?.state === "queued") return existing;
     const seq = Math.max(0, ...store.list(TABLE).map((e) => e.seq ?? 0)) + 1;
     return store.put(TABLE, {
       id,
-      projectId,
+      repositoryId,
       base,
       key,
       commit,
@@ -132,7 +135,7 @@ export function pausedBy(store, entry) {
       if (stop.scope === "task") return taskIds(entry).includes(stop.taskId);
       if (stop.scope === "spec")
         return Boolean(entry.spec) && entry.spec === (stop.spec ?? stop.planId);
-      if (stop.projectId) return stop.projectId === entry.projectId;
+      if (stop.repositoryId) return stop.repositoryId === entry.repositoryId;
       return true;
     }) ?? null
   );
@@ -209,8 +212,8 @@ const running = new Map();
 
 // Takes a waiting portion out of its queue, e.g. when its base moved and
 // its commit will be replaced; the key may be queued again later.
-export function withdrawLanding(store, { projectId, base, key }, reason) {
-  const entry = store.get(TABLE, entryId(projectId, base, key));
+export function withdrawLanding(store, { repositoryId, base, key }, reason) {
+  const entry = store.get(TABLE, entryId(repositoryId, base, key));
   if (entry?.state !== "queued") return null;
   return store.transaction(() => finish(store, entry, "withdrawn", { reason }));
 }
@@ -252,17 +255,17 @@ export function withdrawLanding(store, { projectId, base, key }, reason) {
 // landed. Every other state keeps the order.
 export async function landNext(
   store,
-  { projectId, base },
+  { repositoryId, base },
   steps,
   options = {},
 ) {
-  requireQueue(projectId, base);
-  const key = queueId(projectId, base);
+  requireQueue(repositoryId, base);
+  const key = queueId(repositoryId, base);
   // One step per base at a time in this process; across processes the
   // integration lock and the base re-read keep it safe.
   if (running.has(key)) return { state: "running" };
   const step = (async () => {
-    const queue = landingQueue(store, { projectId, base });
+    const queue = landingQueue(store, { repositoryId, base });
     if (!queue.length) return { state: "empty" };
     const seen = await steps.observe?.(queue[0]);
     if (seen?.merged) {
@@ -449,7 +452,7 @@ export async function landNext(
     try {
       outcome = await withWorkLock(
         store,
-        { id: `landing:${key}`, projectId, kind: "integration" },
+        { id: `landing:${key}`, repositoryId, kind: "integration" },
         async () => {
           const now = await steps.readBase();
           if (now !== baseHead) return { state: "base-moved", baseHead: now };

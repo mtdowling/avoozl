@@ -142,7 +142,7 @@ export function validateProposal(item) {
     "summary",
     "nextAction",
     "track",
-    "projectId",
+    "repositoryId",
     "taskId",
     "distinctReason",
     "repository",
@@ -305,7 +305,7 @@ export function proposeWork(store, { id, proposal, fact, expectedHash }) {
         createExtraction(store, {
           planId: id,
           revisionHash: plan.hash,
-          projectId: plan.context?.projectId || null,
+          repositoryId: plan.context?.repositoryId || null,
         }),
       taskFact = {
         ...fact,
@@ -583,7 +583,7 @@ export function approvePlan(
             "track",
             "tags",
             "resources",
-            "projectId",
+            "repositoryId",
             "kind",
             "route",
             "completion",
@@ -693,7 +693,7 @@ export function approvePlan(
           track,
           tags: proposal.tags || [],
           resources: proposal.resources || [],
-          projectId: proposal.projectId || plan.context.projectId,
+          repositoryId: proposal.repositoryId || plan.context.repositoryId,
           ...Object.fromEntries(
             [
               "kind",

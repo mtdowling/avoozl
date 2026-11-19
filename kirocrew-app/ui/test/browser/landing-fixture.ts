@@ -25,7 +25,7 @@ export const landingFixture: LandingQueue = {
   bases: [
     {
       key: 'recipe-box\u0000main',
-      projectId: 'recipe-box',
+      repositoryId: 'recipe-box',
       repository: 'acme/recipe-box',
       base: 'main',
       landing: 'pr',
@@ -77,7 +77,7 @@ export const landingFixture: LandingQueue = {
     },
     {
       key: 'meal-planner\u0000release/2',
-      projectId: 'meal-planner',
+      repositoryId: 'meal-planner',
       repository: 'acme/meal-planner',
       base: 'release/2',
       landing: 'direct',
@@ -88,7 +88,7 @@ export const landingFixture: LandingQueue = {
     },
     {
       key: 'recipe-box\u0000core-dev',
-      projectId: 'recipe-box',
+      repositoryId: 'recipe-box',
       repository: 'acme/recipe-box',
       base: 'core-dev',
       landing: 'direct',

@@ -33,13 +33,13 @@ const KIND = "check-run";
 // The checks a commit runs: the repository's, keeping a check with paths
 // only when `files` (the commit's diff against the base) touches one.
 // Without a file list, every check. Tasks never name checks.
-export const declaredArgv = (_task, project, files = null) =>
-  selectedChecks(project, files);
+export const declaredArgv = (_task, repository, files = null) =>
+  selectedChecks(repository, files);
 
 // Whether this leaf's bar needs a verifier chat's judgment (§5.2): an
 // explicit `verify: "agent"`, or a repository with no checks.
-export const needsJudgment = (task, project) =>
-  task.verify === "agent" || !selectedChecks(project).length;
+export const needsJudgment = (task, repository) =>
+  task.verify === "agent" || !selectedChecks(repository).length;
 
 export const checkRuns = (store) => {
   try {
@@ -55,12 +55,15 @@ export const taskCheckRuns = (store, taskId) =>
     .sort((a, b) => a.attempt - b.attempt);
 
 // Queue one run for the delivery's commit. Returns the record.
-export function queueCheckRun(store, { task, project, commit, attempt, now }) {
+export function queueCheckRun(
+  store,
+  { task, repository, commit, attempt, now },
+) {
   const record = {
     id: `${KIND}:${task.id}:${attempt}`,
     kind: KIND,
     taskId: task.id,
-    projectId: project.id,
+    repositoryId: repository.id,
     commit,
     attempt,
     state: "queued",
@@ -77,7 +80,7 @@ export const queueCheckRuns = (store, runs, now = Date.now()) =>
 // remove it. A worktree that cannot be made at the exact commit runs
 // nothing: every check is not run, the checking's failure, not the writer's.
 export async function runChecksAt(
-  project,
+  repository,
   commit,
   checks,
   { timeoutMs = CHECK_TIMEOUT_MS, timeoutFor, run = commandEvidence } = {},
@@ -87,7 +90,7 @@ export async function runChecksAt(
   let head = null;
   try {
     try {
-      await git(project.root, ["worktree", "add", "--detach", dir, commit]);
+      await git(repository.root, ["worktree", "add", "--detach", dir, commit]);
       head = await git(dir, ["rev-parse", "HEAD"]);
     } catch (error) {
       return {
@@ -107,16 +110,16 @@ export async function runChecksAt(
     const results = await runEach(dir, checks, {
       timeoutFor: timeoutFor || (() => timeoutMs),
       run,
-      env: project.checksEnv,
-      project,
+      env: repository.checksEnv,
+      repository,
     });
     return { head, checks: results };
   } finally {
-    await git(project.root, ["worktree", "remove", "--force", dir]).catch(
+    await git(repository.root, ["worktree", "remove", "--force", dir]).catch(
       () => {},
     );
     fs.rmSync(dir, { recursive: true, force: true });
-    await git(project.root, ["worktree", "prune"]).catch(() => {});
+    await git(repository.root, ["worktree", "prune"]).catch(() => {});
   }
 }
 
@@ -154,14 +157,14 @@ export function drainCheckRuns(store, options = {}) {
   const pass = (async () => {
     try {
       requeueOrphans(store);
-      const projects = new Set(
+      const repositories = new Set(
         checkRuns(store)
           .filter((r) => r.state === "queued")
-          .map((r) => r.projectId),
+          .map((r) => r.repositoryId),
       );
       await Promise.all(
-        [...projects].map((projectId) =>
-          drainProject(store, projectId, options).catch(() => {}),
+        [...repositories].map((repositoryId) =>
+          drainRepository(store, repositoryId, options).catch(() => {}),
         ),
       );
     } catch {
@@ -174,21 +177,23 @@ export function drainCheckRuns(store, options = {}) {
   return pass;
 }
 
-async function drainProject(store, projectId, options) {
-  const project = store.get("projects", projectId);
-  if (!project?.root) return;
+async function drainRepository(store, repositoryId, options) {
+  const repository = store.get("repositories", repositoryId);
+  if (!repository?.root) return;
   try {
     await withWorkLock(
       store,
-      { id: `checks:${projectId}`, projectId, kind: "checks" },
+      { id: `checks:${repositoryId}`, repositoryId, kind: "checks" },
       async () => {
         for (;;) {
           if (openStops(store).some((s) => s.full)) return;
           const next = checkRuns(store)
-            .filter((r) => r.state === "queued" && r.projectId === projectId)
+            .filter(
+              (r) => r.state === "queued" && r.repositoryId === repositoryId,
+            )
             .sort((a, b) => (a.queuedAt < b.queuedAt ? -1 : 1))[0];
           if (!next) return;
-          if ((await runOne(store, project, next, options))?.held) return;
+          if ((await runOne(store, repository, next, options))?.held) return;
         }
       },
     );
@@ -198,7 +203,7 @@ async function drainProject(store, projectId, options) {
   }
 }
 
-async function runOne(store, project, record, options) {
+async function runOne(store, repository, record, options) {
   const task = store.read().tasks.find((t) => t.id === record.taskId),
     startedAt = new Date().toISOString();
   // A run that will make a worktree waits, queued, while its volume is full.
@@ -222,20 +227,20 @@ async function runOne(store, project, record, options) {
     }),
   );
   const flow = readFlowPolicy(contentBinding(store)?.workspaceRoot).for(
-      project.id,
+      repository.id,
     ),
     timeoutFor = (name, command) =>
       checkTimeout(name, flow, options.timeoutMs, command),
     verdict = task
       ? await verifyPaths(store, {
           task,
-          project,
+          repository,
           commit: record.commit,
           flow,
         }).catch(() => null)
       : null,
     { files = null, ...paths } = verdict ?? {},
-    argvs = task ? declaredArgv(task, project, files) : [],
+    argvs = task ? declaredArgv(task, repository, files) : [],
     held = Boolean(paths.outside?.length || paths.protected?.length),
     warm = held
       ? null
@@ -248,11 +253,11 @@ async function runOne(store, project, record, options) {
             checks: await runEach(warm, argvs, {
               timeoutFor,
               run: options.run,
-              env: project.checksEnv,
-              project,
+              env: repository.checksEnv,
+              repository,
             }),
           }
-        : await runChecksAt(project, record.commit, argvs, {
+        : await runChecksAt(repository, record.commit, argvs, {
             timeoutFor,
             run: options.run,
           }),

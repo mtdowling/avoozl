@@ -34,8 +34,8 @@ const example = () => ({
     "{message_file}",
   ],
   permission: { write: "workspace-write", read: "read-only" },
-  writeRoots: ["{worktree}", "{tmp}", "{project_cache_dirs}"],
-  allow: ["{project_allow_commands}"],
+  writeRoots: ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
+  allow: ["{repository_allow_commands}"],
   cost: { from: "output", field: "total_cost_usd" },
 });
 
@@ -284,7 +284,7 @@ test("filling argv keeps one argument per value", () => {
     fillHarnessArgv(definition.writeRoots, {
       worktree: "/w",
       tmp: "/t",
-      project_cache_dirs: ["/c1", "/c2"],
+      repository_cache_dirs: ["/c1", "/c2"],
     }),
     ["/w", "/t", "/c1", "/c2"],
   );

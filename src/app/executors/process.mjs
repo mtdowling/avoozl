@@ -39,11 +39,11 @@ import { sessionServedModel } from "../process-view.mjs";
 import { requireDiskSpace } from "../disk-space.mjs";
 
 const PROCESS_EXECUTOR = "process";
-// The harness a `process` project runs when it names none.
+// The harness a `process` repository runs when it names none.
 export const DEFAULT_HARNESS = "claude-code";
 const CONSUMER = "supervisor";
 
-export { projectExecutor } from "../role-table.mjs";
+export { repositoryExecutor } from "../role-table.mjs";
 
 function withDatabase(stateDirectory, use) {
   const db = openSupervisorDatabase(stateDirectory);
@@ -54,20 +54,20 @@ function withDatabase(stateDirectory, use) {
   }
 }
 
-// `projectFor(task)` names the task's project record, whose `harness` and
+// `repositoryFor(task)` names the task's repository record, whose `harness` and
 // `sandbox` ({writeRoots, allowCommands, network}) shape the child.
 // `harnessFor(task, role)` names the harness a request asked for (R98.3,
-// R98.4), or null for the project's.
+// R98.4), or null for the repository's.
 export function processExecutor({
   stateDirectory,
-  projectFor = () => null,
+  repositoryFor = () => null,
   harnessFor = () => null,
 }) {
   return createExecutor({
     start(role, task, worktree, brief, model, permissionClass) {
       if (!worktree) throw Error("A process session needs the task worktree.");
-      const project = projectFor(task, worktree) ?? {};
-      const sandbox = project.sandbox ?? {};
+      const repository = repositoryFor(task, worktree) ?? {};
+      const sandbox = repository.sandbox ?? {};
       const offline = processRow(role)?.offline === true;
       const sessionId = `process-${randomUUID()}`;
       return withDatabase(stateDirectory, (db) =>
@@ -77,7 +77,8 @@ export function processExecutor({
           role,
           task,
           worktree,
-          harness: harnessFor(task, role) ?? project.harness ?? DEFAULT_HARNESS,
+          harness:
+            harnessFor(task, role) ?? repository.harness ?? DEFAULT_HARNESS,
           permissionClass,
           model,
           brief: processBrief(role, brief, {
@@ -87,11 +88,11 @@ export function processExecutor({
             // The session's own temp folder, outside the shared one's other
             // checkouts and outside the state folder the child cannot reach.
             tmp: path.join(os.tmpdir(), `avoozl-${sessionId}`),
-            project_cache_dirs: sandbox.writeRoots ?? [],
+            repository_cache_dirs: sandbox.writeRoots ?? [],
           },
           allowCommands: sandbox.allowCommands,
           // Home paths the repository lets its checks and sessions read.
-          readable: project.isolation?.readable ?? [],
+          readable: repository.isolation?.readable ?? [],
           // A role that reads only its folder gets no network (NK2.2).
           network: offline ? undefined : sandbox.network,
         }),
@@ -139,7 +140,7 @@ const reportsVerdict = (role) => processRow(role)?.verdict === true;
 
 // The brief a `process` child reads: its role's prompt, the brief, then how
 // it finishes. A worker's brief is passed as it is. `allowCommands` is the
-// project's allow-list, which a verdict child is told.
+// repository's allow-list, which a verdict child is told.
 export function processBrief(role, brief, { allowCommands } = {}) {
   const row = processRow(role);
   if (!row?.prompt) return brief;
@@ -154,23 +155,26 @@ export function processBrief(role, brief, { allowCommands } = {}) {
     .trim();
 }
 
-// The project a process session runs in: its task's repository, else the
-// repository the request names (a retro), else the project whose checkout is
+// The repository a process session runs in: its task's repository, else the
+// repository the request names (a retro), else the repository whose checkout is
 // the session's folder (a planner).
-export function sessionProject(store, { task: taskId, repository, worktree }) {
+export function sessionRepository(
+  store,
+  { task: taskId, repository, worktree },
+) {
   const task = store.read().tasks.find((t) => t.id === taskId);
   const id = taskRepository(task) || repository;
-  if (id) return store.get("projects", id) ?? null;
+  if (id) return store.get("repositories", id) ?? null;
   if (!worktree) return null;
-  // The project whose checkout holds the folder, the nearest one first.
+  // The repository whose checkout holds the folder, the nearest one first.
   const folder = path.resolve(worktree);
-  const holds = (project) => {
-    const root = project.root && path.resolve(project.root);
+  const holds = (repository) => {
+    const root = repository.root && path.resolve(repository.root);
     return root && (folder === root || folder.startsWith(root + path.sep));
   };
   return (
     store
-      .list("projects")
+      .list("repositories")
       .filter(holds)
       .sort((a, b) => b.root.length - a.root.length)[0] ?? null
   );
@@ -180,7 +184,8 @@ export function sessionProject(store, { task: taskId, repository, worktree }) {
 // write the git directory, so Avoozl adds the detached worktree its brief
 // names before it starts, and removes it after the result is read.
 async function prepareDetached(checkout, worktree, commit, store = null) {
-  if (!checkout) throw Error("A verdict session needs the project checkout.");
+  if (!checkout)
+    throw Error("A verdict session needs the repository checkout.");
   if (!fs.existsSync(worktree)) {
     requireDiskSpace(store, path.dirname(worktree), `The worktree ${worktree}`);
     await git(checkout, ["worktree", "add", "--detach", worktree, commit]);
@@ -194,7 +199,7 @@ async function prepareDetached(checkout, worktree, commit, store = null) {
 }
 
 // A read session whose folder is its own detached worktree, not the
-// checkout (the shape planVerifierDispatches gives a `process` project, and
+// checkout (the shape planVerifierDispatches gives a `process` repository, and
 // the responder's at its base branch, and the falsifier's).
 const verdictSession = (session, checkout) =>
   processRow(session.role)?.folder === "detached" &&
@@ -448,11 +453,11 @@ export const NOTHING_COMMITTED =
   "The worker reported done, but nothing was committed: the worktree has no change since its base. Make the change with your file tools, check the files are there, then report done.";
 
 // True when the worktree's HEAD holds nothing new: it is the commit the
-// task's branch started from, or already in the project's base branch.
+// task's branch started from, or already in the repository's base branch.
 async function nothingCommitted(store, taskId, worktree) {
   const base =
     store.get("task_worktrees", taskId)?.base?.commit ??
-    sessionProject(store, { task: taskId })?.baseBranch ??
+    sessionRepository(store, { task: taskId })?.baseBranch ??
     "main";
   try {
     await git(worktree, ["merge-base", "--is-ancestor", "HEAD", base]);
@@ -697,7 +702,7 @@ export async function drainProcessRequests(
   store,
   { stateDirectory, prepareWorktree, ops = null },
 ) {
-  // Sends, status and stop name only a session; no project is needed.
+  // Sends, status and stop name only a session; no repository is needed.
   const executor = processExecutor({ stateDirectory });
   const owner = { executor: PROCESS_EXECUTOR, consumer: CONSUMER };
   const errors = [];
@@ -709,7 +714,7 @@ export async function drainProcessRequests(
     health ??= healthContext(store);
     const harness =
       request.harness ??
-      sessionProject(store, request)?.harness ??
+      sessionRepository(store, request)?.harness ??
       DEFAULT_HARNESS;
     return planQuotaHold(health, { model: request.model, harness });
   };
@@ -739,7 +744,7 @@ export async function drainProcessRequests(
         );
         continue;
       }
-      const project = sessionProject(store, request);
+      const repository = sessionRepository(store, request);
       const row = processRow(request.role);
       // A snapshot role reads a folder Avoozl fills before it starts (NK4.1).
       const snapshot =
@@ -776,9 +781,9 @@ export async function drainProcessRequests(
                 },
               )
             ).path
-          : verdictSession(request, project?.root)
+          : verdictSession(request, repository?.root)
             ? await prepareDetached(
-                project.root,
+                repository.root,
                 request.worktree,
                 request.commit,
                 store,
@@ -803,8 +808,8 @@ export async function drainProcessRequests(
       try {
         sessionId = await processExecutor({
           stateDirectory,
-          projectFor: () => project,
-          // The harness the request names (R98.3, R98.4), else the project's.
+          repositoryFor: () => repository,
+          // The harness the request names (R98.3, R98.4), else the repository's.
           harnessFor: () => request.harness ?? null,
         }).start(
           request.role,
@@ -953,7 +958,7 @@ export async function drainProcessRequests(
           // A responder's task is its response, not a task: its checkout is
           // the one its detached worktree belongs to.
           const checkout =
-            sessionProject(store, { task: binding.taskId })?.root ??
+            sessionRepository(store, { task: binding.taskId })?.root ??
             (binding.worktree && binding.commit
               ? await checkoutOf(binding.worktree)
               : null);

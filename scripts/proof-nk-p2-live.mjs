@@ -197,7 +197,7 @@ function definitionBytes() {
       promptFrom: "stdin",
       model: ["--model", "{model}"],
       permission: { write: "workspace-write", read: "read-only" },
-      writeRoots: ["{worktree}", "{tmp}", "{project_cache_dirs}"],
+      writeRoots: ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
       resultAllow: ["--result-file"],
       servedModel: { from: "output", field: "modelUsage" },
     });
@@ -315,7 +315,7 @@ async function setup() {
   event("setup.harness", { name: HARNESS, hash });
 
   await withStore(async (store) => {
-    store.put("projects", {
+    store.put("repositories", {
       id: "app",
       root: fs.realpathSync.native(P.checkout),
       baseBranch: "main",
@@ -341,7 +341,7 @@ async function setup() {
     if (GITHUB)
       await ops.execute("github.configure", {
         repository: GITHUB,
-        projectId: "app",
+        repositoryId: "app",
         allowedActors: [login],
       });
     // (1) A spec from a goal, as a person asks for one.

@@ -63,7 +63,7 @@ test("a session pin may name a harness, never auto or a bad name", () => {
     );
 });
 
-test("a worker runs on its pin's harness, else the saved one, else its project's", (t) => {
+test("a worker runs on its pin's harness, else the saved one, else its repository's", (t) => {
   const root = temporaryDirectory("avoozl-role-harness-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
@@ -76,7 +76,10 @@ test("a worker runs on its pin's harness, else the saved one, else its project's
     ],
     edges: [],
   });
-  store.put("projects", { id: "r1", root: temporaryDirectory("avoozl-r1-") });
+  store.put("repositories", {
+    id: "r1",
+    root: temporaryDirectory("avoozl-r1-"),
+  });
   const policy = deliveryPolicy({ delivery: { concurrency: 5 } });
   const run = (options) =>
     Object.fromEntries(
@@ -98,7 +101,7 @@ test("a worker runs on its pin's harness, else the saved one, else its project's
       plain: ["process", "claude-code"],
     },
   );
-  // A process worker's brief ends with the result file, as a project on
+  // A process worker's brief ends with the result file, as a repository on
   // process does; a chat's keeps the runner report.
   const briefs = Object.fromEntries(
     planReadyDispatches(store, policy, {
@@ -107,8 +110,8 @@ test("a worker runs on its pin's harness, else the saved one, else its project's
   );
   assert.match(briefs.plain, /result\.json/);
   assert.doesNotMatch(briefs.chat, /result\.json/);
-  // A project on process with nothing named keeps its own harness.
-  store.put("projects", {
+  // A repository on process with nothing named keeps its own harness.
+  store.put("repositories", {
     id: "r1",
     root: temporaryDirectory("avoozl-r1-"),
     executor: "process",
@@ -207,13 +210,13 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   );
 });
 
-test("the planner's saved harness wins over its project's executor", (t) => {
+test("the planner's saved harness wins over its repository's executor", (t) => {
   const root = temporaryDirectory("avoozl-role-harness-planner-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   store.importSnapshot(snapshot());
   const checkout = path.join(root, "app");
-  store.put("projects", { id: "app", root: checkout });
+  store.put("repositories", { id: "app", root: checkout });
   store.setMeta("newPlans", [
     {
       name: "cache",
@@ -231,7 +234,7 @@ test("the planner's saved harness wins over its project's executor", (t) => {
   assert.equal(child.executor, "process");
   assert.equal(child.harness, "codex");
   assert.equal(child.worktree, path.join(checkout, ".kiro", "specs", "cache"));
-  store.put("projects", { id: "app", root: checkout, executor: "process" });
+  store.put("repositories", { id: "app", root: checkout, executor: "process" });
   const [back] = newPlanStarts(store, { harness: "kirocrew" });
   assert.equal(back.executor, "kirocrew");
   assert.equal(back.worktree, checkout);

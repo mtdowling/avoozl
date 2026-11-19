@@ -16,7 +16,7 @@ function planningRoot(root, value = { version: 1, namespace: NAMESPACE }) {
 }
 
 function configure(store, github, manager = null, root = temporaryDirectory()) {
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: "/tmp/code",
     baseBranch: "main",
@@ -32,7 +32,7 @@ function configure(store, github, manager = null, root = temporaryDirectory()) {
   return ops
     .execute("github.configure", {
       repository: "example/code",
-      projectId: "code",
+      repositoryId: "code",
       provider: "openhands",
       autoStart: true,
       allowedActors: ["maintainer"],
@@ -66,7 +66,7 @@ async function twoRepositoryPlan(t, avoozlJson) {
       workspaceRoot: planningRoot(temporaryDirectory(), avoozlJson),
     });
   for (const id of ["planning", "code"])
-    store.put("projects", {
+    store.put("repositories", {
       id,
       root: `/tmp/${id}`,
       baseBranch: "main",
@@ -76,7 +76,7 @@ async function twoRepositoryPlan(t, avoozlJson) {
   for (const id of ["planning", "code"])
     await ops.execute("github.configure", {
       repository: `example/${id}`,
-      projectId: id,
+      repositoryId: id,
     });
   return { store, github, ops };
 }
@@ -84,7 +84,7 @@ async function twoRepositoryPlan(t, avoozlJson) {
 async function approve(ops, store, id, tasks) {
   const plan = await ops.execute("plan.create", {
     id,
-    prompt: "Project " + id,
+    prompt: "Repository " + id,
     text:
       `# ${id}\n\n` +
       tasks
@@ -114,7 +114,7 @@ const leaf = (id, extra = {}) => ({
   title: "Task " + id,
   summary: "Summary " + id,
   acceptance: [id + " passes"],
-  projectId: "code",
+  repositoryId: "code",
   ...extra,
 });
 

@@ -70,7 +70,7 @@ const RETIRED_LANDING =
 
 // One line per base for `landing status`.
 const landingStatusLine = (b) =>
-  `${b.repository ?? b.projectId} ${b.base}: ${b.items.length} waiting` +
+  `${b.repository ?? b.repositoryId} ${b.base}: ${b.items.length} waiting` +
   (b.testing
     ? `, testing ${b.testing.members.length} (${b.testing.step})`
     : "") +
@@ -748,9 +748,9 @@ try {
         await localOrRequest("repository.setup", {
           repository: need(
             positionals[0],
-            "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+            "setup OWNER/REPO --repo ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
           ),
-          project: options.project,
+          repositoryId: options.repo,
           base: options.base,
           checks: list(options.checks),
           methods: list(options.methods),
@@ -1086,7 +1086,7 @@ try {
       operation = "github.configure";
       value = {
         repository: options.repository || positionals[1],
-        projectId: options.project,
+        repositoryId: options.repo,
         assignee: options.assignee,
         label: options.label,
         managedLabel: options["managed-label"],
@@ -1280,13 +1280,13 @@ try {
         2,
       ),
     );
-  } else if (command === "project") {
+  } else if (command === "repository") {
     const action = positionals[0],
       provided = input();
-    if (action !== "configure") throw Error("Choose project configure.");
+    if (action !== "configure") throw Error("Choose repository configure.");
     console.log(
       JSON.stringify(
-        await localOrRequest("project.configure", {
+        await localOrRequest("repository.configure", {
           ...provided,
           id: options.id || positionals[1] || provided.id,
           root: options.root || provided.root,

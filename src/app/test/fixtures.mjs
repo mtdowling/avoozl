@@ -9,7 +9,7 @@ export function snapshot() {
     schemaVersion: 1,
     revision: 1,
     updatedAt: new Date(0).toISOString(),
-    project: {
+    repository: {
       name: "Nupp",
       title: "Fixture",
       integration: {
@@ -149,7 +149,7 @@ export function workspaceFixture(t, shape = "local") {
       ...fixtureRepository,
       nodeId: "fixture-repository",
       private: true,
-      projectId: "fixture",
+      repositoryId: "fixture",
       label: "avoozl:ready",
       managedLabel: "avoozl:managed",
       assignee: "fixture-worker",
@@ -175,20 +175,20 @@ export function workspaceFixture(t, shape = "local") {
 // integration read it.
 export async function recordedRun(
   store,
-  { id, taskId = "sample-task", projectId },
+  { id, taskId = "sample-task", repositoryId },
 ) {
-  const project = store.get("projects", projectId),
-    worktree = await createWorktree(store, project, id);
-  return { id, taskId, projectId, ...worktree };
+  const repository = store.get("repositories", repositoryId),
+    worktree = await createWorktree(store, repository, id);
+  return { id, taskId, repositoryId, ...worktree };
 }
 // Record acceptance checks for a worktree from recordedRun and a ready
-// integration entry, under the project work lock.
+// integration entry, under the repository work lock.
 export function validateRun(store, run) {
   return withWorkLock(
     store,
     {
       id: "validation:" + run.id,
-      projectId: run.projectId,
+      repositoryId: run.repositoryId,
       kind: "validation",
     },
     () => validateUnlocked(store, run.id, { source: run }),

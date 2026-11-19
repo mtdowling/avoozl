@@ -370,9 +370,9 @@ const sources = { "example/code": { url: P.origin } };
       })),
       edges: [],
     });
-    store.put("projects", {
+    store.put("repositories", {
       id: "example/code",
-      repository: "example/code",
+      github: "example/code",
       root: fs.realpathSync.native(P.driver.checkout),
       baseBranch: "main",
       checks: [["node", "check.mjs"]],

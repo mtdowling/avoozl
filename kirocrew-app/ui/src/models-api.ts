@@ -90,12 +90,12 @@ export function toRoles(form: RoleTable): RoleTable {
   return table
 }
 
-// The harness choices: the project's default, the Kiro Crew chat, then this
+// The harness choices: the repository's default, the Kiro Crew chat, then this
 // machine's definitions. A saved name with no file here still shows.
 // A definition that cannot run a read-only role is not offered for one.
 export function harnessOptions(definitions: HarnessDefinition[], current: string, access: 'read' | 'write' = 'write', host?: string) {
   const options = [
-    { value: 'auto', label: 'auto (project default)' },
+    { value: 'auto', label: 'auto (repository default)' },
     { value: KIROCREW_HARNESS, label: host === 'standalone' ? 'Kiro Crew chat (Needs Kiro Crew)' : 'Kiro Crew chat' },
     ...definitions
       .filter((d) => d.name !== KIROCREW_HARNESS && d.name !== 'auto')

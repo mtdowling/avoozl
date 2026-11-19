@@ -69,7 +69,7 @@ const { workerBrief } = await import("../src/app/delivery.mjs");
 const { briefCell, EXECUTORS, KINDS } = await import(
   "../src/app/worker-briefs.mjs"
 );
-const PROJECT = { id: "app", root: "/tmp/app", baseBranch: "main" };
+const REPOSITORY = { id: "app", root: "/tmp/app", baseBranch: "main" };
 const TASK = { id: "a", title: "Task a", acceptance: ["Works."] };
 const DATA = { tasks: [TASK, { ...TASK, id: "b", title: "Task b" }] };
 const LEAF = { task: TASK, batch: { id: "x", tasks: ["a", "b"] } };
@@ -83,11 +83,11 @@ const build = (executor, kind) => {
   if (picked.declined || kind !== picked.kind) return null;
   const cliReport = { worktree: "/tmp/wt", token: "tok", workspace: "/tmp/ws" };
   if (kind === "single" || kind === "investigate")
-    return workerBrief(TASK, PROJECT, {
+    return workerBrief(TASK, REPOSITORY, {
       attempt: 1,
       investigate: kind === "investigate",
       findingsVia: { executor, cliReport },
-      steps: cell.steps({ task: TASK, project: PROJECT, cliReport }),
+      steps: cell.steps({ task: TASK, repository: REPOSITORY, cliReport }),
     });
   if (kind === "batch") return cell.brief(null, DATA, LEAF, "");
   if (kind === "round") return cell.finish;

@@ -28,7 +28,7 @@ function workspace(t) {
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
-  store.put("projects", { id: "app", root: checkout, baseBranch: "main" });
+  store.put("repositories", { id: "app", root: checkout, baseBranch: "main" });
   return store;
 }
 
@@ -71,7 +71,7 @@ function fakeGithub() {
 
 const input = {
   repository: "acme/app",
-  project: "app",
+  repositoryId: "app",
   checks: ["build"],
 };
 
@@ -90,7 +90,7 @@ test("setup previews without writing, applies on yes, then has nothing to change
     { key: "landing", before: null, after: "pr" },
   ]);
   assert.deepEqual(github.writes, []);
-  assert.equal(store.get("projects", "app").landing, undefined);
+  assert.equal(store.get("repositories", "app").landing, undefined);
 
   const landings = [];
   const applied = await repositorySetup(
@@ -98,7 +98,7 @@ test("setup previews without writing, applies on yes, then has nothing to change
     github,
     { ...input, confirm: true },
     {
-      writeProject: (p) => written.push(p),
+      writeRepository: (p) => written.push(p),
       writeLanding: (repository, mode) => landings.push([repository, mode]),
     },
   );
@@ -108,8 +108,8 @@ test("setup previews without writing, applies on yes, then has nothing to change
     "updateRepository",
     "setRepoVariable",
   ]);
-  assert.equal(store.get("projects", "app").landing, "pr");
-  // The mode goes to the repository's landing block, not the project file.
+  assert.equal(store.get("repositories", "app").landing, "pr");
+  // The mode goes to the repository's landing block, not the repository file.
   assert.deepEqual(landings, [[input.repository, "pr"]]);
   assert.equal(written.length, 0);
 
@@ -138,7 +138,7 @@ test("the CLI previews setup and refuses --yes in an agent session", () => {
   const missing = run(["setup"]);
   assert.notEqual(missing.status, 0);
   assert.match(missing.stderr, /setup OWNER\/REPO/);
-  const agent = run(["setup", "acme/app", "--project", "app", "--yes"], {
+  const agent = run(["setup", "acme/app", "--repository", "app", "--yes"], {
     KIRO_SESSION_ID: "s1",
   });
   assert.notEqual(agent.status, 0);
