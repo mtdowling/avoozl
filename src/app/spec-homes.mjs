@@ -6,9 +6,9 @@ import { execFileSync } from "node:child_process";
 import { originRepositorySync } from "./git.mjs";
 
 import { repoFilesOf } from "./repo-files.mjs";
-import { hasFactsBlocks } from "./spec-legacy.mjs";
 import {
   CRITIQUE,
+  hasFactsBlocks,
   MANIFEST,
   SPECS_DIRECTORY,
   specHash,

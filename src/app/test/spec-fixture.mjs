@@ -1,12 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
-import { foldManifest } from "./legacy-facts.mjs";
+import { factsLines, summaryLines, withDefaults } from "../spec-facts.mjs";
+import { specItems } from "../spec-plans.mjs";
+import { repeatsTitle } from "../title-repeat.mjs";
 
+// Fixture shorthand: tests may describe a spec's facts as one object under
+// this key, in the shape `specFacts` returns. `withFacts` writes them into
+// tasks.md as `$key:` bullets, the only layout Avoozl reads, and drops the
+// key. A tasks.md that already has `$` bullets keeps its own.
 const MANIFEST = "avoozl/manifest.json";
 
-// Tests may still describe facts as a manifest object: this folds it into
-// tasks.md as $ fact bullets (Requirement 111), the only layout Avoozl reads.
-// A tasks.md that already has $ fact bullets, or none, keeps no manifest.
 export function withFacts(files) {
   const tasks = files["tasks.md"];
   if (
@@ -18,13 +21,64 @@ export function withFacts(files) {
     const { [MANIFEST]: _gone, ...rest } = files;
     return rest;
   }
-  return foldManifest(files, { exact: false, defaults: false }).files;
+  const facts = JSON.parse(files[MANIFEST]),
+    epic = facts.kind === "epic",
+    entries = {},
+    front = epic ? ["kind: epic"] : [];
+  for (const [id, entry] of Object.entries(facts.tasks ?? {})) {
+    const own = withDefaults({}, entry);
+    // Every task runs its repository's checks.
+    delete own.checks;
+    if (own.manual === true && own.completion === "person")
+      delete own.completion;
+    if (!epic && own.kind === "leaf") delete own.kind;
+    entries[id] = own;
+  }
+  for (const field of [
+    "ship",
+    "integrationBranch",
+    "integrationSync",
+    "forwardTarget",
+    "publicBranch",
+  ])
+    if (facts[field] !== undefined) front.push(`${field}: ${facts[field]}`);
+  for (const [id, phase] of Object.entries(facts.phases ?? {}))
+    front.push(`phase-${id}: ${phase.title}`);
+  for (const [id, group] of Object.entries(facts.batches ?? {})) {
+    front.push(`batch-${id}: ${group.reason}`);
+    for (const task of group.tasks) entries[task].batch = id;
+  }
+  const items = new Map(
+      specItems("x", tasks)
+        .filter((item) => item.key)
+        .map((item) => [item.line, item]),
+    ),
+    out = [];
+  tasks.split("\n").forEach((row, index) => {
+    out.push(row);
+    const item = items.get(index + 1),
+      entry = item && entries[item.key];
+    if (!entry) return;
+    const { summary, ...own } = entry,
+      indent = /^\s*/.exec(row)[0].length + 2;
+    out.push(
+      ...factsLines(own, { indent }),
+      ...(repeatsTitle(summary, item.title)
+        ? []
+        : summaryLines(summary, { indent })),
+    );
+  });
+  const { [MANIFEST]: _gone, ...rest } = files;
+  rest["tasks.md"] =
+    (front.length ? ["---", ...front, "---", ""].join("\n") : "") +
+    out.join("\n");
+  return rest;
 }
 
 // One small feature spec: a package and two dependent leaves.
 export const specFiles = () => withFacts(legacySpecFiles());
 
-// The same spec with its facts still in a manifest object.
+// The same spec with its facts in the fixture shorthand.
 export const legacySpecFiles = () => ({
   "requirements.md":
     "# Load configuration\n\nThe CLI reads and validates config.json.\n",

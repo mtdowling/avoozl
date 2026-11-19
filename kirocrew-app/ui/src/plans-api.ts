@@ -72,8 +72,7 @@ export interface SpecPlan {
   files: Record<string, string>
   quality: { canApprove: boolean; counts: Counts; diagnostics: Diagnostic[] }
   disk: { folder: string; exists: boolean; hash: string | null; changed: boolean; critique: Critique | null }
-  // carriedFrom: the approved hash this revision's same content kept (R111.6).
-  approvals: { id: string; hash: string; at: string; approvedBy: string; carriedFrom?: string }[]
+  approvals: { id: string; hash: string; at: string; approvedBy: string }[]
   // Earlier revisions, oldest first; a spec revision keeps its files.
   history?: { revision: number; hash: string; files?: Record<string, string> }[]
   review?: PlanReviewSummary | null

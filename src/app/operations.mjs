@@ -125,7 +125,6 @@ import {
   listSpecFolders,
   readCritique,
   readSpecFolder,
-  sameSpecContent,
   specFacts,
   specItems,
   specModifiedAt,
@@ -1147,51 +1146,6 @@ export class Operations {
   // Whether a plan's current text is the one last approved.
   // Every check plan.approve makes before it writes, shared with
   // plan.approveMany so a batch keeps each one. Throws on the first failure.
-  // A revision with the same content as the approved one it replaces, such
-  // as a spec moved from avoozl/manifest.json to Facts bullets, keeps that
-  // approval (design §4.40): a new receipt names the hash it was carried
-  // from. No approval pull request opens and no issue changes. Any
-  // difference, or a check that refuses it, leaves a draft to approve as
-  // usual. Returns the approved plan, or null.
-  carryApproval(previous, saved) {
-    if (
-      !previous?.spec ||
-      previous.state !== "approved" ||
-      !saved ||
-      saved.hash === previous.hash ||
-      saved.state !== "draft"
-    )
-      return null;
-    const receipt = this.store.get("approvals", previous.approvalId);
-    if (
-      receipt?.hash !== previous.hash ||
-      !receipt.files ||
-      !sameSpecContent(previous.spec, receipt.files, saved.files || {})
-    )
-      return null;
-    try {
-      const expectedRevision = this.store.read().revision,
-        input = { id: saved.id, expectedHash: saved.hash, expectedRevision },
-        { specQuality, proposals } = this.approvalChecks(input);
-      approvePlan(this.store, {
-        ...input,
-        approvedBy: receipt.approvedBy,
-        operator: this.operator,
-        evidence: `Carried from ${previous.hash}: the same content in another layout.`,
-        carriedFrom: previous.hash,
-        githubPolicy: this.githubPolicy(),
-        ...(specQuality
-          ? {
-              proposals,
-              declaredDependencies: specQuality.declaredDependencies,
-            }
-          : {}),
-      });
-    } catch {
-      return null;
-    }
-    return this.store.get("plans", saved.id);
-  }
   approvalChecks(input) {
     const plan = this.store.get("plans", input.id);
     if (!plan) fail("Plan not found.", 404);
@@ -1515,11 +1469,7 @@ export class Operations {
       }
       const { allowed, ref } = approvers.get(root),
         commits = await approvalCommits(root, { allowed, ref, specs: [name] }),
-        match =
-          commits.find((entry) => entry.hash === plan.hash) ??
-          commits.find((entry) =>
-            sameSpecContent(name, entry.files, plan.files || {}),
-          );
+        match = commits.find((entry) => entry.hash === plan.hash);
       if (match) found.set(name, match);
     }
     // Owners first: a spec whose checked tasks need another spec's waits for
@@ -1542,7 +1492,6 @@ export class Operations {
             evidence: `Approval commit ${match.commit} by ${match.email}.`,
             operator: this.operator,
             githubPolicy: this.githubPolicy(),
-            ...(match.hash !== plan.hash ? { carriedFrom: match.hash } : {}),
             ...(specQuality
               ? {
                   proposals,

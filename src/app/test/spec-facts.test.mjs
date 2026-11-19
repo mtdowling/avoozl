@@ -1,13 +1,12 @@
 // `$key:` fact bullets in tasks.md (Requirement 111, design §4.40): each
-// key, each refusal at its line, defaults, packages, epic folders, and the revision
-// hash a pure conversion keeps.
+// key, each refusal at its line, defaults, packages, epic folders, and what
+// the revision hash reads.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { factsLines, readFacts, withoutFacts } from "../spec-facts.mjs";
 import { parseSpec, specHash, specItems } from "../spec-plans.mjs";
 import { workerBrief } from "../delivery.mjs";
-import { foldManifest, legacyHash } from "./legacy-facts.mjs";
-import { legacySpecFiles } from "./spec-fixture.mjs";
+import { specFiles } from "./spec-fixture.mjs";
 
 const prose = {
   "requirements.md": "# Config\n\nRead config.json.\n",
@@ -415,95 +414,30 @@ test("an epic folder reads its rows from facts", () => {
   );
 });
 
-test("a pure conversion keeps the revision hash; a changed fact changes it", () => {
-  // The old layout as Avoozl's writers left it: version 1, each task's keys
-  // in the usual order.
-  const leaf = (acceptance, extra = {}) => ({
-    kind: "leaf",
-    acceptance: [acceptance],
-    completion: "integrated",
-    ...extra,
-  });
-  const old = {
-      ...legacySpecFiles(),
-      "avoozl/manifest.json":
-        JSON.stringify(
-          {
-            version: 1,
-            tasks: {
-              1: {
-                kind: "package",
-                acceptance: [
-                  "The CLI reads, validates, and reports its config.",
-                ],
-                requires: ["1.1", "1.2"],
-              },
-              1.1: leaf("A missing file yields defaults."),
-              1.2: leaf("An unknown key is reported with its path.", {
-                requires: ["1.1"],
-              }),
-            },
-          },
-          null,
-          2,
-        ) + "\n",
-    },
-    converted = foldManifest(old).files;
-  assert.equal(converted["avoozl/manifest.json"], undefined);
-  assert.equal(specHash(converted), legacyHash(old));
-  // Defaults hoisted to front-matter, or written on each task, hash the same.
-  const spelled = foldManifest(old, { defaults: false }).files;
-  assert.notEqual(spelled["tasks.md"], converted["tasks.md"]);
-  assert.equal(specHash(spelled), specHash(converted));
+test("the revision hash reads facts, not their layout", () => {
+  const spec = specFiles(),
+    text = spec["tasks.md"],
+    variant = (from, to) => {
+      assert(text.includes(from), from);
+      return { ...spec, "tasks.md": text.replace(from, to) };
+    };
   // An inline list and repeated bullets are the same content.
-  const nested = {
-    ...converted,
-    "tasks.md": converted["tasks.md"].replace(
-      "  - $after: 1.1, 1.2",
-      "  - $after: 1.1\n  - $after: 1.2",
-    ),
-  };
-  assert.notEqual(nested["tasks.md"], converted["tasks.md"]);
-  assert.equal(specHash(nested), specHash(converted));
-  // Marks stay outside the hash.
-  const marked = {
-    ...converted,
-    "tasks.md": converted["tasks.md"].replace("- [ ] 1.1", "- [x] 1.1"),
-  };
-  assert.equal(specHash(marked), specHash(converted));
-  // A changed fact is a changed revision.
-  const changed = {
-    ...converted,
-    "tasks.md": converted["tasks.md"].replace(
-      "$done: An unknown key is reported with its path.",
-      "$done: An unknown key is reported with its JSON path.",
-    ),
-  };
-  assert.notEqual(specHash(changed), specHash(converted));
-  // Summary beside the facts is tasks.md text, not a fact: the hash reads it
-  // as the text it is, and the facts text stays the manifest's.
-  const described = {
-      ...old,
-      "tasks.md": old["tasks.md"].replace(
-        "  - [ ] 1.1 Read the config file",
-        "  - [ ] 1.1 Read the config file\n    - Read it from the working directory.",
-      ),
-    },
-    withSummary = foldManifest(described).files;
-  assert.equal(specHash(withSummary), legacyHash(described));
-});
-
-test("an old record's summary folds into the item's summary", () => {
-  const old = legacySpecFiles(),
-    converted = foldManifest(old).files,
-    parsed = parseSpec({ name: "config", exists: true, files: converted });
-  assert.match(
-    converted["tasks.md"],
-    /1\.1 Read the config file\n(?: {4}- \$.*\n)+ {4}- Parse config\.json from the working directory\./,
-  );
-  assert.deepEqual(codes(parsed), []);
   assert.equal(
-    parsed.proposals.find((p) => p.specKey === "1.1").summary,
-    "- Parse config.json from the working directory.",
+    specHash(
+      variant("  - $after: 1.1, 1.2", "  - $after: 1.1\n  - $after: 1.2"),
+    ),
+    specHash(spec),
+  );
+  // Marks stay outside the hash.
+  assert.equal(specHash(variant("- [ ] 1.1", "- [x] 1.1")), specHash(spec));
+  // A changed fact is a changed revision.
+  assert.notEqual(
+    specHash(
+      variant(
+        "$done: An unknown key is reported with its path.",
+        "$done: An unknown key is reported with its JSON path.",
+      ),
+    ),
+    specHash(spec),
   );
 });

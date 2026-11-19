@@ -28,13 +28,20 @@ import {
 import { frontMatter, withoutFrontMatter } from "../front-matter.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { integrationOf } from "./integration-branch.mjs";
-import {
-  currentFiles,
-  foldFactsBlocks,
-  hasFactsBlocks,
-} from "./spec-legacy.mjs";
 import { checkForwardTarget } from "./mirror-policy.mjs";
 import { repeatsTitle } from "./title-repeat.mjs";
+
+// Whether tasks.md has a `Facts:` bullet outside a fence: the layout
+// before `$key:` bullets, which lint refuses and nothing reads.
+export function hasFactsBlocks(text) {
+  if (typeof text !== "string" || !text.includes("Facts:")) return false;
+  let fenced = false;
+  for (const row of text.split("\n")) {
+    if (/^\s*(```|~~~)/.test(row)) fenced = !fenced;
+    else if (!fenced && /^\s*[-*+][ \t]+Facts:\s*$/.test(row)) return true;
+  }
+  return false;
+}
 
 export const SPECS_DIRECTORY = path.join(".kiro", "specs");
 // The old facts file. Nothing reads it; a leftover one is a lint error.
@@ -110,12 +117,8 @@ export function withoutStatus(text) {
 // The hash covers each prose file without its Status line, tasks.md without
 // checkbox marks, Facts bullets and front-matter, and the parsed facts as
 // `factsText` writes them. Layout is outside it, content is inside it
-// (Requirement 111.6): a spec converted from the old manifest keeps its hash.
-export function specHash(given) {
-  // A record stored with `Facts:` blocks hashes as its `$` layout does.
-  const files = hasFactsBlocks(given["tasks.md"])
-    ? { ...given, "tasks.md": foldFactsBlocks(given["tasks.md"]) }
-    : given;
+// (Requirement 111.6).
+export function specHash(files) {
   return digest(
     [
       ...REVISION_FILES.filter((file) => files[file] !== undefined).map(
@@ -405,14 +408,12 @@ export function parseSpec({
   name,
   folder = `.kiro/specs/${name}/`,
   exists,
-  files: given,
+  files,
   leftover = false,
   factsBlocks = false,
 }) {
   const diagnostics = [],
-    proposals = [],
-    // A record stored before Requirement 111 is read in its own layout.
-    files = currentFiles(given);
+    proposals = [];
   if (!exists) {
     diagnostics.push(
       diagnostic(
@@ -472,7 +473,7 @@ export function parseSpec({
         `Delete ${folder}${MANIFEST}. Task facts are $key: bullets in tasks.md now.`,
       ),
     );
-  // So are `Facts:` blocks on disk; a stored record is read in their place.
+  // So are `Facts:` blocks: nothing reads one.
   if (factsBlocks)
     diagnostics.push(
       diagnostic(
@@ -1031,61 +1032,17 @@ export function lintSpec({
   };
 }
 
-// Whether two revisions say the same thing (design §4.40): the same prose
-// without Status lines, the same tasks.md text without marks and Facts, the
-// same spec-wide facts, and the same parsed tasks. `before` may be a record
-// stored in the old layout. Line numbers are left out: Facts bullets add
-// lines. Any difference at all is not the same content.
-// JSON with object keys sorted: key order is layout, not content.
-const canonical = (value) =>
-  JSON.stringify(value, (_, item) =>
-    item && typeof item === "object" && !Array.isArray(item)
-      ? Object.fromEntries(
-          Object.keys(item)
-            .sort()
-            .map((key) => [key, item[key]]),
-        )
-      : item,
-  );
-
-export function sameSpecContent(name, before, after) {
-  const read = (given) => {
-    const files = currentFiles(given),
-      text = files["tasks.md"] ?? "",
-      parsed = parseSpec({ name, exists: true, files }),
-      { tasks: _tasks, ...spec } = specFacts(files),
-      unlined = (rows = []) =>
-        rows.map(
-          ({ line: _line, lineStart: _start, lineEnd: _end, ...rest }) => rest,
-        );
-    return canonical({
-      prose: ["requirements.md", "bugfix.md", "design.md"].map((file) =>
-        files[file] === undefined ? null : withoutStatus(files[file]),
-      ),
-      tasks: withoutStatus(
-        withoutMarks(withoutFacts(text, specItems(name, text))),
-      ),
-      spec,
-      kind: parsed.kind ?? null,
-      proposals: unlined(parsed.proposals),
-      members: unlined(parsed.members),
-      errors: parsed.diagnostics.filter((d) => d.severity === "error").length,
-    });
-  };
-  return read(before) === read(after);
-}
-
 // The facts of a folder's tasks.md, keyed as the manifest was: {tasks,
 // phases, batches, ship, ...}. Diagnostics are lintSpec's.
 export function specFacts(files = {}) {
-  const text = currentFiles(files)["tasks.md"] ?? "";
+  const text = files["tasks.md"] ?? "";
   return readFacts(text, specItems("x", text)).manifest;
 }
 
 // Whether a folder's tasks.md front-matter says `kind: epic` (Requirement
 // 59.1, 111.4).
 export function isEpicFolder(files = {}) {
-  const text = currentFiles(files)["tasks.md"];
+  const text = files["tasks.md"];
   return typeof text === "string" && readFacts(text, []).isEpic;
 }
 

@@ -460,7 +460,7 @@ export const entries = [
           previousHash: plan.hash,
           caller: context.caller,
         });
-        return this.carryApproval(plan, saved) ?? saved;
+        return saved;
       }
       // An old-style plan whose spec folder now exists: link it as a draft.
       if (plan && !plan.spec && input.spec !== undefined) {
