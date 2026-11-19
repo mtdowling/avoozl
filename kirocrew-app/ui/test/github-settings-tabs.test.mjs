@@ -89,13 +89,13 @@ test('tab logic: keys wrap, the address names a tab, a dirty tab is one whose ke
 test('one full-width tab per group, arrow keys move between them', { skip }, async () => {
   await openGitHub(1280)
   let m = await page.evaluate(READ)
-  assert.deepEqual(m.keys, ['issues', 'sync', 'project', 'setup', 'calls'])
-  assert.deepEqual(m.labels, ['New tasks', 'Sync pace', 'Project', 'Set up GitHub', 'GitHub calls'])
+  assert.deepEqual(m.keys, ['issues', 'sync', 'setup', 'calls'])
+  assert.deepEqual(m.labels, ['Epic issues', 'Sync pace', 'Set up GitHub', 'GitHub calls'])
   assert.deepEqual(m.selected, ['issues'])
-  assert.deepEqual(m.tabIndex, [0, -1, -1, -1, -1])
+  assert.deepEqual(m.tabIndex, [0, -1, -1, -1])
   assert.equal(m.panel, 'issues')
   assert.equal(m.labelledBy, 'issues')
-  assert.deepEqual(m.sections, ['New tasks and issues'])
+  assert.deepEqual(m.sections, ['Epic issues'])
   assert.ok(Math.abs(m.barWidth - m.rowWidth) < 1, `bar ${m.barWidth} of ${m.rowWidth}`)
   // Kiro Crew's full-width bar: the tabs fill the row in equal shares, the
   // open one is filled, and no divider line runs under the bar.
@@ -120,24 +120,24 @@ test('one full-width tab per group, arrow keys move between them', { skip }, asy
 test('Back (Alt+Left) returns to the tab before', { skip }, async () => {
   await openGitHub(1280)
   assert.ok(await page.evaluate(click('[role=tab]', 'Sync pace')))
-  assert.ok(await page.evaluate(click('[role=tab]', 'Project')))
-  assert.deepEqual((await page.evaluate(READ)).selected, ['project'])
-  const back = `(document.querySelector('[data-tab="project"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true })), true)`
+  assert.ok(await page.evaluate(click('[role=tab]', 'Set up GitHub')))
+  assert.deepEqual((await page.evaluate(READ)).selected, ['setup'])
+  const back = `(document.querySelector('[data-tab="setup"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true })), true)`
   await page.evaluate(back)
   await wait(50)
   assert.deepEqual((await page.evaluate(READ)).selected, ['sync'])
 })
 
 test('the address opens a tab, and the browser moving the address moves the tab', { skip }, async () => {
-  await openGitHub(1280, { github: 'project' })
+  await openGitHub(1280, { github: 'setup' })
   let m = await page.evaluate(READ)
-  assert.deepEqual(m.selected, ['project'])
-  assert.ok(m.sections.includes('Project fields'))
-  await page.evaluate(`(history.pushState(null, '', location.search.replace(/github=project/, 'github=calls')), dispatchEvent(new PopStateEvent('popstate')), true)`)
+  assert.deepEqual(m.selected, ['setup'])
+  assert.ok(m.sections.includes('Set up GitHub'))
+  await page.evaluate(`(history.pushState(null, '', location.search.replace(/github=setup/, 'github=calls')), dispatchEvent(new PopStateEvent('popstate')), true)`)
   await wait(50)
   assert.deepEqual((await page.evaluate(READ)).selected, ['calls'])
   await page.evaluate(`(history.back(), true)`)
-  await page.until(`document.querySelector('[role=tab][aria-selected=true]')?.dataset.tab === 'project'`)
+  await page.until(`document.querySelector('[role=tab][aria-selected=true]')?.dataset.tab === 'setup'`)
 })
 
 test('a tab with unsaved changes shows a dot until Save or Discard', { skip }, async () => {
@@ -149,7 +149,7 @@ test('a tab with unsaved changes shows a dot until Save or Discard', { skip }, a
   let m = await page.evaluate(READ)
   assert.deepEqual(m.dots, ['sync'])
   // The one Save bar stays on every tab, and so does the dot.
-  assert.ok(await page.evaluate(click('[role=tab]', 'New tasks')))
+  assert.ok(await page.evaluate(click('[role=tab]', 'Epic issues')))
   m = await page.evaluate(READ)
   assert.deepEqual(m.dots, ['sync'])
   assert.ok(await page.evaluate(`Boolean(document.querySelector('[data-save-footer] [data-save]'))`))

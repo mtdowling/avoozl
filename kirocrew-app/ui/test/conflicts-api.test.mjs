@@ -12,9 +12,6 @@ test('every kind gets an action or a plain reason why it has none', () => {
     [item('stale-session', 's', { slot: 'slot-1' }), 'dismiss', null],
     [item('stale-session', 'g', { slot: 'slot-2', authority: 'github' }), 'dismiss', null],
     [item('needs-human', 'g', { reason: 'review', authority: 'github' }), null, /github owns/],
-    [item('github-conflict', 'g', { field: 'state', choices: [] }), null, /issue state/],
-    [item('github-conflict', 'g', { field: 'identity', choices: [] }), null, /duplicate issue/],
-    [item('github-conflict', 'g', { field: 'title', choices: ['desired', 'github'] }), null, null],
     [item('resource', 'x'), null, /share a resource/],
     // A source conflict Avoozl asked about has its own three buttons (RC28.3).
     [item('needs-human', null, { reason: 'conflict-fix', authority: 'github', conflictFix: { repository: 'o/r', pullRequest: 3, actions: ['resolve', 'dismiss'] } }), null, null],

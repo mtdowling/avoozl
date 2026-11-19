@@ -147,14 +147,13 @@ test('the spec view keeps its details in a box on the Overview tab, with Edit an
 
 test('Conflicts: tab counts, a plain why, bulk only for one kind, attach to a live chat', () => {
   const item = (kind, taskId, extra = {}) => ({ kind, taskId, title: taskId, detail: 'd', authority: 'local', issue: null, ...extra })
-  const items = [item('needs-human', 'a', { reason: 'review' }), item('needs-human', 'b', { reason: 'review' }), item('decision', 'c'), item('github-conflict', 'g', { field: 'title', changedBy: 'octo' })]
-  assert.deepEqual(tabCounts(items), { all: 4, 'github-conflict': 1, decision: 1, 'needs-human': 2, other: 0 })
-  assert.match(whyLine(items[3]), /^octo changed title on GitHub/)
+  const items = [item('needs-human', 'a', { reason: 'review' }), item('needs-human', 'b', { reason: 'review' }), item('decision', 'c')]
+  assert.deepEqual(tabCounts(items), { all: 3, decision: 1, 'needs-human': 2, other: 0 })
   assert.match(whyLine(items[0]), /waits for your review/)
   assert.equal(bulkAction(items.slice(0, 2)), 'reviewed')
   assert.equal(bulkAction(items.slice(0, 3)), null)
   assert.equal(bulkAction([items[2]]), null, 'a decision needs its own answer')
-  assert.deepEqual(itemRef(item('github-conflict', 'g', { field: 'title' })), { kind: 'github-conflict', taskId: 'g', field: 'title' })
+  assert.deepEqual(itemRef(item('tracker-conflict', 'g', { field: 'title' })), { kind: 'tracker-conflict', taskId: 'g', field: 'title' })
   const delivery = (id, sessions) => ({ id, sessions })
   const chats = liveChats([
     delivery('a', [

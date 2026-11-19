@@ -10,12 +10,12 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 test('every role is one row, and auto or blank fields leave a row out', () => {
   assert.deepEqual(
     ROLES.map((r) => r.key),
-    ['worker', 'falsifier', 'planner', 'planReviewer', 'retro', 'reviewDraft', 'verifier', 'reviewer', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview', 'assist'],
+    ['worker', 'falsifier', 'planner', 'planReviewer', 'retro', 'reviewDraft', 'verifier', 'reviewer', 'responder', 'taskSummary', 'planAnswer', 'prReview', 'assist'],
   )
   // The roles added for harnesses pick no model.
   assert.deepEqual(
     ROLES.filter((r) => !r.model).map((r) => r.key),
-    ['verifier', 'reviewer', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview', 'assist'],
+    ['verifier', 'reviewer', 'responder', 'taskSummary', 'planAnswer', 'prReview', 'assist'],
   )
   assert.deepEqual(
     ROLES.filter((r) => r.agent).map((r) => r.key),

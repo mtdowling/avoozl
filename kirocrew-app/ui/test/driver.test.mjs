@@ -50,7 +50,7 @@ test('the banner says why, and offers Take over to the assignee and Force take o
 
 test('Force take over needs the typed spec name and the loss acknowledged or an export', () => {
   assert.equal(forceReady(spec(), 's', false, ''), 'Type s1 to confirm.')
-  assert.match(forceReady(spec(), 's1', false, ''), /what a rebuild loses/)
+  assert.match(forceReady(spec(), 's1', false, ''), /without an export loses/)
   assert.equal(forceReady(spec(), 's1', true, ''), null)
   assert.equal(forceReady(spec(), ' s1 ', false, '/tmp/s1.avoozl-driver.json'), null)
   assert.match(forceReady(spec(), 's1', false, 'relative.json'), /full path/)

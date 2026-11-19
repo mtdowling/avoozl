@@ -36,9 +36,6 @@ import { GateList } from '../../src/TrackerGates.tsx'
 import { waitingGates, type GateRow } from '../../src/release-api.ts'
 import ReleaseQueue from '../../src/ReleaseQueue.tsx'
 import GithubFlow from '../../src/GithubFlow.tsx'
-import { ProjectionModal } from '../../src/ProjectionModal.tsx'
-import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
-import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import type { EditTab } from '../../src/repo-edit-tabs.ts'
@@ -105,49 +102,6 @@ answer('graph.view', () => ({
 }))
 
 
-// Project to GitHub and Spec changed: sample replies. Every call is recorded
-// in __harness.calls so a test can see what was written and when.
-const write = (kind: string, taskId: string | null, extra = {}) => ({ kind, repository: 'example/recipe-box', taskId, issue: null, ...extra })
-answer('plan.issues.preview', (body) => {
-  state.calls.push(body)
-  const batched = ((body.input as { batches?: string[][] }).batches ?? []).length > 0
-  const ids = ['S1', 'S2', 'S3', 'S7', 'S8']
-  return {
-    planId: 'search-v2', planHash: 'h', conflicts: [], notes: ['Project fields: Release "search-v2", Wave 1 to 3.'], previewOnly: [], project: { status: 'ok' },
-    simulated: false,
-    // 927 issues, their sub-issue and blocked-by links, at the default pace.
-    pace: { writes: 1813, perMinute: 60, perHour: 400, finishAt: '2026-11-15T14:04:00.000Z', minutes: 244 },
-    suggestedBatches: [['S1', 'S2', 'S3']],
-    writes: [
-      ...ids.filter((id) => !(batched && ['S2', 'S3'].includes(id))).map((id) => write('issue.create', id, { title: `Task ${id}: a title long enough to wrap on a narrow screen` })),
-      write('blocker.add', 'S8', { blockerTaskId: 'S7' }),
-      ...ids.map((id) => write('project.add', id)),
-      write('label.add', 'S1', { labels: ['ready'] }),
-    ],
-  }
-})
-answer('github.project', (body) => {
-  state.calls.push(body)
-  return { projected: ['search-v2'] }
-})
-const changeRow = (taskId: string, title: string, change: string, issueState: string, action: string, text: string, number: number | null) => ({ taskId, title, change, issueState, action, text, number, repository: 'example/recipe-box' })
-answer('spec.changed.preview', (body) => {
-  state.calls.push(body)
-  return {
-    planId: 'search-v2', hash: 'h2', approved: query.get('approved') !== '0', applied: null,
-    rows: [
-      changeRow('S8', 'Ranking: acceptance edited', 'edited', 'unclaimed', 'update', 'Update the issue body and the approval hash.', 54),
-      changeRow('S5', 'Index builder: new step', 'edited', 'claimed', 'comment', 'Do not edit. Comment that the spec changed.', 52),
-      changeRow('S14', 'Telemetry', 'added', 'none', 'create', 'Create the issue.', null),
-      changeRow('S12', 'Docs', 'removed', 'unclaimed', 'close', 'Close as not planned.', 58),
-    ],
-  }
-})
-answer('spec.changed.apply', (body) => {
-  state.calls.push(body)
-  return { planId: 'search-v2', done: [] }
-})
-const projections = projectionClient(useAppApi() as never)
 
 const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', folder: '.kiro/specs/modal-plan', planId: 'modal-plan', type: 'feature', category: null, categoryProblem: null, errors: 0, status: 'approved', tasks: { total: 3, done: 1 }, now: { ready: 1, running: 0, needsYou: 0 }, epics: 1, lastChange: null }
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
@@ -181,7 +135,7 @@ const baseDetail = () => ({
     epic: null, epicTitle: null, phase: { id: 'review', title: 'Review' }, kind: 'leaf', authority: 'github', route: 'github',
     completion: 'person', repository: 'sdk', status: 'planned', state: 'needs-you', ready: false, needsReview: false, decision: null,
     owner: null, issue: { number: 47, url: 'https://github.example.test/o/sdk/issues/47', repository: 'o/sdk' }, wave: 5, context: '',
-    manual: true, manualDone: null, onGitHub: true,
+    manual: true, manualDone: null,
   },
   plan: null, locked: null,
   waitsOn: [{ id: 'protocol-tests', title: 'Protocol tests', kind: 'requires', condition: null, satisfied: true }],
@@ -327,11 +281,9 @@ export const SCENARIOS: Record<string, Scenario> = {
       <TaskFiles workspaceId="w" taskId="a1" active />
     </div>
   )),
-  projection: shown((close) => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onCreated={() => undefined} />),
-  'spec-changed': shown((close) => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onApplied={() => undefined} />),
   'task-drawer': own('Open the dialog', <OpenTask />),
   'review-info': own('Open the dialog', <OpenReview />),
-  'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
+  'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onClose={close} onDone={close} />),
   // The real page shows New spec over the whole page, not inside a card.
   // New spec with nothing picked: categories and epics to choose from.
   'new-spec': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={['Platform', 'Search']} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} onClose={close} /></div>, document.body)),
@@ -562,10 +514,10 @@ if (query.get('page') === 'app') {
   // (R105), the planning repository without a checkout in &roles=plans.
   const roles = query.get('roles')
   const rolesGithub = roles === 'single'
-    ? { mode: 'single-repo', defaultAuthority: 'github', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
+    ? { mode: 'single-repo', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
     : roles === 'local'
       ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
-      : { mode: 'plans-repo', planningRepository: 'acme/plans', defaultAuthority: 'github', epicIssueType: 'Epic', project: { owner: 'acme', number: 7 }, repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code', coder: 'worker', requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'], merge: { method: 'squash' }, rules: [{ id: 'ready', action: 'plan', match: 'label:ready -label:blocked' }], untriaged: { triageLabels: ['needs-triage'] } }, 'acme/recipe-api': { baseBranch: 'main', role: 'code', minimumPermission: 'write' } } }
+      : { mode: 'plans-repo', planningRepository: 'acme/plans', epicIssueType: 'Epic', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code', coder: 'worker', requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'], merge: { method: 'squash' }, rules: [{ id: 'ready', action: 'plan', match: 'label:ready -label:blocked' }], untriaged: { triageLabels: ['needs-triage'] } }, 'acme/recipe-api': { baseBranch: 'main', role: 'code', minimumPermission: 'write' } } }
   if (roles)
     answer('repositories.list', () => ({ items: [
       { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main', landing: 'pr', harness: 'kiro' },
@@ -701,7 +653,6 @@ if (query.get('page') === 'app' && query.get('home') === '1') {
     items: [
       need('n1', 'decision', 's2', 'Rank results by cooking time', 'Pick a ranking rule: total time, or active time only. Dependents wait on this answer.'),
       need('n2', 'needs-human', 'm2', 'Scale servings in the recipe card', 'The crew asks whether servings round up or down when scaling.'),
-      need('n3', 'github-conflict', 'm1', 'Add the shopping list export', 'The title changed on GitHub and in Avoozl. Pick the one to keep.'),
       need('n4', 'branch-landing', null, 'Search v2 integration branch', 'Checks passed on the branch head. Approve it to land on main.'),
     ],
   }))
@@ -850,7 +801,7 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
       return {
         ...base,
         summary: summaryAt('none'),
-        task: { ...base.task, id, title: delivery?.title ?? id, manual: false, completion: 'integrated', authority: 'local', route: 'local', issue: null, onGitHub: false, state: 'running', status: 'running', repository: 'recipe-box', phase: null },
+        task: { ...base.task, id, title: delivery?.title ?? id, manual: false, completion: 'integrated', authority: 'local', route: 'local', issue: null, state: 'running', status: 'running', repository: 'recipe-box', phase: null },
         waitsOn: [],
         blocks: [],
         delivery,
@@ -1365,9 +1316,6 @@ const PAGES: Record<string, () => ReactNode> = {
   'repo-mode': () => <RepoModePage />,
   'github-flow': () => <GithubFlow workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
-  // The two modals, open at once, for the screenshots.
-  projection: () => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onCreated={() => undefined} />,
-  'spec-changed': () => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onApplied={() => undefined} />,
 }
 function SettingsPage({ name }: { name: string }) {
   const render = PAGES[name]
@@ -1807,7 +1755,6 @@ if (page === 'panel') {
       checks: crews && Object.fromEntries(crews.filter((c) => c.pr).map((c, i) => [`${c.repository}#${c.pr}`, i === 0 ? { state: 'passing', total: 3, done: 3, failed: [] } : { state: 'failing', total: 3, done: 3, failed: ['test'] }])),
     }
   })
-  answer('github.conflict.resolve', (body) => (panelWin.__panelCalls.push(body.input), {}))
   // The line, read by the pause button: ?stopped=1 opens a stop; Resume closes it.
   let panelStops = query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : []
   answer('flow.view', () => ({ line: panelStops, stages: [], tasks: [], retros: [] }))

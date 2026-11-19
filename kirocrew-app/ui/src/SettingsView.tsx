@@ -1206,7 +1206,7 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
 // and a tab with unsaved changes shows a dot. Switching a role never
 // deletes a stored setting.
 export const GITHUB_TABS = [
-  { key: 'issues', label: 'New tasks' },
+  { key: 'issues', label: 'Epic issues' },
   { key: 'sync', label: 'Sync pace' },
   { key: 'setup', label: 'Set up GitHub' },
   { key: 'calls', label: 'GitHub calls' },

@@ -124,7 +124,6 @@ test('Waiting on you keeps what a person settles and drops retired worker items'
   const model = panelModel({
     conflicts: [
       conflict('needs-human', { reason: 'crew', link: 'https://github.test/o/r/issues/52', title: 'Tokenizer?' }),
-      conflict('github-conflict', { field: 'title', choices: ['desired', 'github'] }),
       conflict('stale-session'),
       conflict('decision'),
       conflict('investigation'),
@@ -134,12 +133,11 @@ test('Waiting on you keeps what a person settles and drops retired worker items'
       conflict('branch-landing', { repository: 'o/r', branch: 'int/x', head: 'abc123' }),
     ],
   })
-  assert.deepEqual(model.waiting.map((row) => row.kind), ['needs-human', 'github-conflict', 'ready-to-merge', 'branch-landing'])
-  const [handed, edited, , land] = model.waiting
+  assert.deepEqual(model.waiting.map((row) => row.kind), ['needs-human', 'ready-to-merge', 'branch-landing'])
+  const [handed, , land] = model.waiting
   assert.deepEqual(handed.actions.map((a) => [a.kind, a.label]), [['link', 'Open issue']])
-  assert.deepEqual(edited.actions.map((a) => [a.kind, a.label]), [['resolve', "Keep Avoozl's"], ['resolve', "Keep GitHub's"]])
   assert.deepEqual(land.actions.map((a) => a.kind), ['land'])
-  assert.equal(model.waiting[2].actions[0].href, 'https://github.test/o/r/pull/57')
+  assert.equal(model.waiting[1].actions[0].href, 'https://github.test/o/r/pull/57')
 })
 
 test('only http links become link actions; a row with none deep-links into the page', () => {

@@ -114,8 +114,6 @@ const SCENARIOS = {
   'pack-import': ['Open the dialog', 'Import pack-1 version 1.0.0', 'Cancel'],
   'send-to-radar': ['Open the dialog', null, 'Cancel'],
   'mark-done': ['Open the dialog', 'Mark done: Review with team', 'Cancel'],
-  projection: ['Open the dialog', 'Project “Search v2” to GitHub', 'Cancel'],
-  'spec-changed': ['Open the dialog', 'Spec changed: Search v2', 'Cancel'],
   'new-spec': ['Open the dialog', 'New spec', 'Cancel'],
   'review-info': ['Open the dialog', 'Meal planner: sections changed', 'Close'],
 }

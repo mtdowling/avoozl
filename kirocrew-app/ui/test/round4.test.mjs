@@ -63,7 +63,7 @@ test('Graph, Plans and Conflicts use the one boxed filter panel', () => {
   assert.match(panel, /useMedia\('\(max-width: 767px\)'\)/)
   // Conflicts lost its kind tabs; kind is a filter.
   assert.doesNotMatch(source('ConflictsView.tsx'), /SegmentedControl/)
-  for (const label of ['Search', 'Kind', 'Spec', 'Epic', 'Repository', 'Age', 'Changed by'])
+  for (const label of ['Search', 'Kind', 'Spec', 'Epic', 'Repository', 'Age'])
     assert.match(source('ConflictsView.tsx'), new RegExp(`label: '${label}'`), label)
 })
 
@@ -80,29 +80,27 @@ const graph = {
 }
 const now = Date.parse('2026-11-12T12:00:00Z')
 
-test('Conflicts filter: kind with counts, plan, epic, repository, age and who changed it', () => {
+test('Conflicts filter: kind with counts, plan, epic, repository and age', () => {
   const items = [
     item('needs-human', 'a', { reason: 'review', openedAt: '2026-11-12T11:00:00Z' }),
-    item('github-conflict', 'g', { field: 'title', changedBy: 'octo', changedAt: '2026-11-01T00:00:00Z' }),
+    item('tracker-conflict', 'g', { field: 'title', openedAt: '2026-11-01T00:00:00Z' }),
   ]
   const choices = conflictChoices(items, graph)
   assert.deepEqual(
     choices.kinds.map((k) => k.label),
-    ['GitHub edits (1)', 'Decisions (0)', 'Needs you (1)', 'Sessions and resources (0)'],
+    ['Decisions (0)', 'Needs you (1)', 'Sessions and resources (1)'],
   )
-  assert.deepEqual(choices.changedBy, [{ value: 'octo', label: 'octo' }])
   assert.deepEqual(
     choices.repositories.map((r) => r.value),
     ['org/x', '(none)'],
   )
   const keep = (filter) => items.filter((i) => matchesConflict(i, filter, graph.tasks.find((t) => t.id === i.taskId), now)).map((i) => i.taskId)
   assert.deepEqual(keep({}), ['a', 'g'])
-  assert.deepEqual(keep({ kind: 'github-conflict' }), ['g'])
+  assert.deepEqual(keep({ kind: 'other' }), ['g'])
   assert.deepEqual(keep({ plan: 'spec:one' }), ['a'])
   assert.deepEqual(keep({ epic: 'e2' }), ['g'])
   assert.deepEqual(keep({ repository: '(none)' }), ['g'])
   assert.deepEqual(keep({ age: '7d' }), ['g'])
-  assert.deepEqual(keep({ changedBy: 'octo' }), ['g'])
   assert.deepEqual(keep({ q: 'A' }), ['a'])
   assert.equal(conflictFilterActive({}), false)
   assert.equal(conflictFilterActive({ kind: 'decision' }), true)
