@@ -233,7 +233,7 @@ test("a fact breaking the task schema is refused at its Facts line", () => {
     text = [
       "- [ ] 1.1 Read the config file",
       "  - Facts:",
-      "    - checks: npm test",
+      "    - completion: integrated",
       "",
     ].join("\n");
   writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });

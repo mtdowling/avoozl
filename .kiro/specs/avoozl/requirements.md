@@ -195,8 +195,8 @@ Refined statement (**Proposed**):
   release.
 - Use of Issue Radar, Task Runner, Spec Builder, Crew Mode, Workflows, chat,
   sessions, and cron through supported interfaces only.
-- A plugin seam for delivery routes and task trackers, with plugin loading
-  and consent (Requirements 22, 34, 35). The public repository ships only
+- A plugin seam for intake sources, content rules, packs and templates, with
+  plugin loading and consent (Requirements 34, 55). The public repository ships only
   test-only fake plugins; real integrations are separate packages.
 - Moving an existing workspace (Nupp's) as the large proof.
 - An open-source release.
@@ -352,8 +352,10 @@ before dependents start, so that later tasks build on accepted code.
 
 #### Acceptance criteria
 
-1. WHEN a worker reports done THEN Avoozl SHALL run the leaf's declared checks
-   against the exact commit and record the result. Avoozl SHALL run them
+1. WHEN a worker reports done THEN Avoozl SHALL run the repository's checks
+   against the exact commit and record the result. A check that names paths
+   SHALL run only when the commit's diff against the base touches one of
+   them; every other check SHALL run. Avoozl SHALL run them
    itself, with no model call: in a clean detached worktree at that commit,
    each check as an argument list with no shell, each with its own time
    limit, recording the exit code and a short redacted output tail, and
@@ -362,8 +364,10 @@ before dependents start, so that later tasks build on accepted code.
    stopped or while a stopped line holds the commit. A check that is not
    run, cannot start (exit 126 or 127), or times out SHALL fail the
    checking, not the writer's attempt. A verifier session SHALL open only
-   for a bar that needs judgment: a prose acceptance with no declared
-   check, or `verify: agent` on the task.
+   for a bar that needs judgment: a repository with no checks, or
+   `verify: agent` on the task. (Changed 2026-11-18: a task no longer
+   declares checks; every task runs its repository's checks, each named in
+   the repository's settings.)
 2. WHEN checks pass THEN Avoozl SHALL integrate the commit into the configured
    local integration branch and record the integrated commit.
 3. WHEN integration succeeds THEN Avoozl SHALL recompute readiness and dispatch
@@ -661,10 +665,10 @@ so that two stores never disagree.
 1. The design SHALL name exactly one authority for: reviewed design, local task
    graph, local task status, GitHub issue graph, Kiro Crew sessions, worktrees
    and branches, pull requests, test results, completion, activity and
-   evidence, and tracker plugin state (Requirement 35).
+   evidence. (Changed 2026-11-18: tracker plugin state went with
+   Requirement 35.)
 2. Avoozl SQLite SHALL be authoritative for local-only tasks and SHALL be only a
-   cache and receipt store for GitHub-backed tasks and for the records a
-   tracker plugin owns.
+   cache and receipt store for GitHub-backed tasks.
 3. No task SHALL be writable in two stores.
 4. GitHub Project Status SHALL be owned by GitHub's built-in workflows and
    by people; Avoozl SHALL NOT write it. Avoozl SHALL set Release at
@@ -704,42 +708,11 @@ so that I can trust automatic delivery.
 2. Evidence SHALL point to its real source (session, commit, check, pull
    request) rather than copy it.
 
-### Requirement 22: Delivery route plugins
+### Requirement 22: Retired
 
-**User story:** As a future contributor, I want a small seam for other delivery
-systems, so that one can be added later without changing task identity.
-
-#### Acceptance criteria
-
-1. Settings SHALL list delivery routes per workspace or repository. Local and
-   GitHub SHALL be the only routes built into Avoozl; any other route SHALL
-   come from a plugin loaded under Requirement 34 (changed 2026-11-12).
-2. A route contract SHALL cover submit, status, completion, and cancel.
-3. No private delivery integration SHALL be named, documented, or tested in
-   the public repository. Tests SHALL use only fake route plugins in the test
-   tree (Requirement 34.10; changed 2026-11-12).
-4. The seam SHALL NOT be built beyond a schema and interface until every proof
-   in Phases 0–7 of `tasks.md` (P1–P25) passes. It SHALL also wait until a
-   second real route exists. A private code-review route, in its own private
-   package, SHALL count as that second real route; a test fake SHALL NOT
-   (clarified 2026-11-12).
-5. A task's facts MAY name a `route`, which overrides the
-   workspace or repository route for that task only, so one graph can mix
-   local and remote leaves (for example local -> remote -> local).
-6. WHEN a ready leaf's route is not local THEN dispatch SHALL call that
-   route's `submit` and SHALL NOT open a worker session for it.
-7. WHILE a remote leaf is not done THE SYSTEM SHALL read its route's `status`
-   on each tick. A status of waiting on a person SHALL show as "needs you" in
-   `plans_graph` and the app page, with the link the route gives.
-8. A remote leaf SHALL be done only when its route's `completion` says so. A
-   GitHub issue closer SHALL NOT be required, because a remote route writes
-   its own pull request text and cannot be relied on to close the issue.
-9. A route's `completion` SHALL return a result: a pull request link, an
-   answer, or both. Each dependent released by that leaf SHALL get the result
-   in its brief, quoted as untrusted data.
-10. A route plugin SHALL declare the kind `route` in its manifest
-    (Requirement 34.3). Route names `local` and `github` SHALL stay reserved;
-    a plugin route SHALL be named `plugin:<id>`. (Added 2026-11-12.)
+Retired 2026-11-18 (owner decision). Route plugins are gone: worker-paths is
+the one dispatch path. Every task runs in a local worker or on GitHub. The
+number stays so that other requirements keep their references.
 
 ### Requirement 23: Move an existing workspace
 
@@ -1269,8 +1242,8 @@ only what GitHub cannot work out.
 
 Added 2026-11-12 (owner request). Design §4.8.
 
-**User story:** As a maintainer, I want outside packages to add delivery routes
-and task trackers to Avoozl, loaded only with my consent and unable to break
+**User story:** As a maintainer, I want outside packages to add intake
+sources and content rules to Avoozl, loaded only with my consent and unable to break
 the tick, so that private integrations stay out of the public repository.
 
 #### Acceptance criteria
@@ -1286,8 +1259,10 @@ the tick, so that private integrations stay out of the public repository.
    credential; a plugin SHALL read credentials from the environment or Kiro
    Crew's secret store by a name `config` gives.
 3. Each plugin SHALL ship a manifest, `avoozl-plugin.json`, naming its `id`,
-   `version`, `contract` version, `kinds` (`route`, `tracker`, or both), the
-   capabilities it supports for each kind, and its entry module. The ids
+   `version`, `contract` version, `kinds` (`intake`, `rules`, or both), the
+   capabilities it supports for each kind, and its entry module. (Changed
+   2026-11-18: the `route` and `tracker` kinds are retired, with
+   Requirements 22 and 35; a manifest that lists one is refused.) The ids
    `local` and `github` SHALL be refused.
 4. Before a plugin's first load, and again whenever its version or content
    hash changes, Avoozl SHALL show its id, version, kinds, capabilities,
@@ -1302,22 +1277,19 @@ the tick, so that private integrations stay out of the public repository.
    SHALL treat reply text as untrusted data in every brief and view.
 7. WHEN a plugin is missing, unapproved, crashes, times out, returns an
    invalid reply, or expects an unsupported contract version THEN Avoozl
-   SHALL mark that plugin unavailable, SHALL park each of its tasks as "needs
-   you" with the reason, SHALL write nothing for those tasks, and SHALL finish
-   the tick for every other task. The next tick SHALL try again.
+   SHALL mark that plugin unavailable, SHALL show the reason on its intake
+   sources and rule sets, and SHALL finish the tick for everything else. The next tick SHALL try again.
 8. The plugin contract SHALL be versioned by one integer. Avoozl SHALL list
    the contract versions it supports and SHALL refuse to load a plugin whose
    version it does not support. Changes inside one version SHALL be additive.
 9. Settings SHALL list every declared plugin with its kinds, version,
    approval state, and health, and SHALL offer approve, disable, and remove.
-   Removing a plugin SHALL NOT delete its tasks; they park as "needs you".
-10. Private and company-internal integrations, such as a route for an
-    internal code review system or a tracker for an internal tracker, SHALL
-    live outside the public Avoozl repository and plug in only through this
+10. Private and company-internal integrations, such as an intake source for
+    an internal tracker, SHALL live outside the public Avoozl repository and plug in only through this
     seam. Public Avoozl files (code, tests, fixtures, docs, and this spec)
     SHALL NOT name any company-internal tool. The release leak scan
     (Requirement 24.2) SHALL cover plugin docs and test fixtures.
-11. Tests SHALL use only fake route and tracker plugins kept in the test tree.
+11. Tests SHALL use only fake plugins kept in the test tree.
 12. A `plugins` entry MAY name a git source instead of `package` or `path`:
     `git` (a repository URL or local repository path), `ref` (a tag, branch,
     or full commit), and an optional `subdir` (the plugin's folder inside the
@@ -1342,57 +1314,12 @@ the tick, so that private integrations stay out of the public repository.
     guide, which shows the plugin guide in the full-file reader. The chat
     SHALL NOT approve a plugin or import a pack.
 
-### Requirement 35: Tracker plugins
+### Requirement 35: Retired
 
-Added 2026-11-12 (owner request). Design §3.2, §4.8.
-
-**User story:** As a maintainer whose team tracks work outside GitHub, I want a
-plugin to hold Avoozl's task records in that tracker, so that the team sees the
-work where it already looks and Avoozl keeps the graph moving.
-
-#### Acceptance criteria
-
-1. A task MAY have `authority: plugin:<id>`, naming a loaded plugin whose
-   manifest declares the kind `tracker`. One task SHALL have exactly one
-   authority (Requirement 19.3).
-2. A tracker contract SHALL cover the jobs GitHub authority does: `project`
-   (create or update a task's record, idempotent by task ID), `read` (each
-   record's state, managed field values, link, and the actor of its last
-   close or pause), `list` (every record carrying this workspace's namespace,
-   for rebuild), and `close` (close a record with a reason).
-3. Each record SHALL carry the workspace namespace, the task ID, and the last
-   applied managed values, stored by the plugin where its tracker allows (a
-   hidden field or a managed description section). A plugin that cannot store
-   them SHALL be refused for the kind `tracker`.
-4. WHEN the tracker has no native blocked-by links THEN the graph SHALL stay
-   in Avoozl: edges SHALL come from the approved task facts in Git and be cached
-   in SQLite, and the tracker SHALL hold only records. Edge changes SHALL go
-   through a plan change. WHEN the plugin declares the `edges` capability THEN
-   Avoozl SHALL project blocking edges as the tracker's own links, and those
-   links SHALL be managed fields.
-5. Avoozl SQLite SHALL be only a cache for plugin-owned records. Operations
-   SHALL refuse direct edits to a plugin-owned row with 409 and route the
-   change through `project` (as Requirement 19.3 and task 2.2 do for GitHub).
-6. Managed fields SHALL be the title, the managed description section,
-   managed tags, and (with `edges`) blocking links. Conflicts SHALL follow
-   Requirement 15.1–15.3. Avoozl SHALL never edit any other field.
-7. Rebuild SHALL hold for a workspace of plugin tasks: delete SQLite, run
-   `avoozl rebuild`, then `avoozl tick`, and every task, edge, status,
-   completion verdict, and managed-field baseline SHALL match, from `list`,
-   `read`, and the approved task facts alone.
-8. The completion verdict SHALL stay Avoozl's, from the task's route
-   (Requirement 7 for local, Requirement 22.8 for a route plugin). After the
-   verdict, Avoozl SHALL call `close` with reason `completed`.
-9. WHEN a record is closed or paused in the tracker by someone else THEN
-   Avoozl SHALL apply Requirement 33.8–33.10 with the actor from `read`,
-   checked against the plugin entry's `allowedActors` or the tracker's own
-   permission the plugin reports. WHEN the actor cannot be read THEN Avoozl
-   SHALL hold the dependents and open a decision.
-10. A task SHALL move from local to `plugin:<id>` only through an approved
-    projection, and back only through an explicit "take back local" that
-    closes the record as not planned.
-11. The tracker contract SHALL NOT be built beyond a schema until the gate of
-    Requirement 22.4 holds and a real tracker plugin is being written.
+Retired 2026-11-18 (owner decision). Tracker plugins are gone: a task keeps
+one record, local or a GitHub issue. Intake plugins (Requirement 50) still
+bring work in. The number stays so that other requirements keep their
+references.
 
 ### Requirement 36: Review gates on a local delivery
 
@@ -1502,8 +1429,9 @@ between attempts.
    why.
 7. Rules about a domain's own artifacts (for example, what a multi-step
    rewrite flow in another repository must leave in its run folder) SHALL
-   stay in that repository's validation script, run as one of the leaf's
-   declared checks. Avoozl SHALL NOT encode them.
+   stay in that repository's validation script, run as one of the
+   repository's checks. Avoozl SHALL NOT encode them. (Changed 2026-11-18:
+   the script is a repository check, not a leaf's own.)
 
 ### Requirement 38: Checks that cannot run keep the gate shut
 
@@ -1517,21 +1445,23 @@ acceptance, so that a broken tool never reads as a pass.
 1. A check SHALL have one of three results: passed (exit 0), failed (any
    other exit), or not run (the command could not start, timed out, or was
    not reported). Exit codes 126 and 127 SHALL read as not run.
-2. WHEN any declared check is not run THEN the gate SHALL stay shut: the
-   commit SHALL NOT be verified, accepted, or integrated.
+2. WHEN any of the repository's checks the commit runs is not run THEN the
+   gate SHALL stay shut: the commit SHALL NOT be verified, accepted, or
+   integrated.
 3. A not-run check SHALL fail the checking session, not the writer's
    attempt, because the writer did nothing wrong; the check SHALL be retried
    within the retry bound and then open a decision.
 4. A leaf MAY set `acceptFrom: "validation"`. Such a leaf SHALL be accepted
-   only from validation evidence Avoozl recorded itself: every declared check
-   passed at the leaf's integrated commit. `task.accept` SHALL refuse typed
-   evidence and `componentOnly` for it, and `task.update` SHALL refuse a
-   typed `integration` receipt, a complete status, and a change to its
-   `checks` or `acceptFrom`, which change only through plan approval. This
-   closes the path where a caller types evidence instead of running checks.
+   only from validation evidence Avoozl recorded itself: every repository
+   check passed at the leaf's integrated commit. `task.accept` SHALL refuse
+   typed evidence and `componentOnly` for it, and `task.update` SHALL
+   refuse a typed `integration` receipt, a complete status, and a change to
+   its `acceptFrom`, which changes only through plan approval. This closes
+   the path where a caller types evidence instead of running checks.
 5. Validation evidence used for acceptance SHALL be for the task's current
-   commit and SHALL cover every declared check, not the earliest validation
-   on record or a subset of checks.
+   commit and SHALL cover every repository check, not the earliest
+   validation on record or a subset of checks. (Changed 2026-11-18: the
+   checks are the repository's; a task carries none.)
 
 ### Requirement 39: Replacing a task by hand
 
@@ -1712,7 +1642,7 @@ reconstruct it.
 4. WHERE Kiro Crew lets the app read a session's tool calls (design F90,
    F91) THEN Avoozl SHALL split worker time into `coding`, `tests`, and
    `commands` from them: a shell call that runs one of the repository's
-   declared checks SHALL count as `tests`, any other shell call as
+   checks SHALL count as `tests`, any other shell call as
    `commands`, and the rest as `coding`.
 5. WHERE tool calls cannot be read (a Crew Mode worker, a remote session, or
    a Kiro Crew without that read) THEN Avoozl SHALL use the phase markers a
@@ -1748,7 +1678,7 @@ of every later task building on it.
 
 #### Acceptance criteria
 
-1. Avoozl SHALL stop the line WHEN a declared check that passed on a
+1. Avoozl SHALL stop the line WHEN a repository check that passed on a
    repository's landing branch (the integration branch in local delivery,
    the base branch in GitHub modes) fails on a later commit of that branch,
    and it still fails when Avoozl runs it once more on the same commit.
@@ -1807,16 +1737,18 @@ and nobody waits on CI to learn about a failure.
 
 1. The setting `flow.localChecksFirst` SHALL default to `true`.
 2. WHILE it is on THEN every brief for a session that may push SHALL tell
-   the worker to run the repository's declared checks in its worktree
-   before each push, and a `done` report for a pushed commit SHALL list
-   each check's command, exit code, and duration for that commit.
+   the worker to run the repository's checks in its worktree before each
+   push, and a `done` report for a pushed commit SHALL list each check's
+   name, command, exit code, and duration for that commit. The checks are
+   the ones the commit's diff picks, as in Requirement 7.1. (Changed
+   2026-11-18: checks are named and may name paths.)
 3. WHILE it is on THEN Avoozl SHALL refuse a `done` report for a pushed
    commit whose check list is missing, names another commit, or has a
    failed check. A not-run check SHALL keep the gate shut as in
    Requirement 38.
 4. WHILE it is on THEN the pre-push hook Avoozl installs in its worktrees
    (task 10.4) SHALL refuse a push whose commit has no recorded local pass
-   of every declared check. It SHALL NOT run the checks a second time.
+   of every repository check the commit runs. It SHALL NOT run the checks a second time.
 5. WHEN CI fails on a commit that passed locally THEN Avoozl SHALL record a
    "CI only" failure with the check names, so that a difference between the
    two environments shows in the Flow tab.
@@ -1903,7 +1835,7 @@ process improves without my asking and without changing on its own.
 5. A settings proposal SHALL be limited to keys the Settings page can edit.
    Avoozl SHALL refuse proposals to change content rules, plugin trust or
    approvals, trigger actors or minimum permission, crew trust, and tokens.
-   A proposal that removes a review role or a declared check SHALL be marked
+   A proposal that removes a review role or a repository check SHALL be marked
    "removes a check" and SHALL need a second confirmation.
 6. A retrospective SHALL never apply anything. Each proposal SHALL wait for
    the owner's **Approve** or **Reject**. Approving a settings change SHALL
@@ -2081,8 +2013,7 @@ come into Avoozl the same way, so that one set of trigger rules, one
 "who counts" check, and one Untriaged list cover all of it, and an outside
 tool can hand Avoozl an item over MCP.
 
-Today intake and the Untriaged list read GitHub only, and tracker plugins
-only push Avoozl's own tasks out (design F101–F105). This requirement adds
+Today intake and the Untriaged list read GitHub only (design F101–F105). This requirement adds
 one record, one operation, and two ways in, and moves the GitHub intake
 and the Untriaged reader onto the record without changing what they do.
 
@@ -2127,15 +2058,14 @@ and the Untriaged reader onto the record without changing what they do.
    (Changed 2026-11-18, Requirement 110: GitHub repositories are declared
    here too, as `via: "github"`, and `github.issueIntake` and
    `github.queue` are retired into this list.)
-7. A tracker plugin MAY declare the `poll` capability and implement
+7. A plugin MAY provide `intake` and implement
    `poll({cursor, limit})`, returning `{items, cursor, more}`. The tick
    cron SHALL call it at most once per source per tick with the stored
    cursor, and SHALL store the new cursor only after every item of the
    reply is handled. A failed or invalid poll SHALL keep the cursor and
    the stored items, show the error on the source, and leave the rest of
-   the tick running (design §4.8 failure isolation). A plugin with
-   `poll` that no task names as authority SHALL never be asked to
-   `project`, `read`, `list`, or `close`.
+   the tick running (design §4.8 failure isolation). (Changed 2026-11-18:
+   `intake` is its own plugin kind now that tracker plugins are retired.)
 8. `intake.submit` SHALL take `{source, items}` with 1–100 items for a
    source whose `via` is `mcp`, and return a result per item (`created`,
    `updated`, `unchanged`, `stale`, or `refused`, with a reason) and
@@ -2393,7 +2323,7 @@ role names its own `agent` and `model` (design §5.2).
     Crew reports it ran on, when Kiro Crew reports one (design F65).
 11. The Delivery view SHALL show the agent and model of each running
     session.
-12. A leaf on the Issue Radar route or a `plugin:<id>` route SHALL ignore
+12. A leaf on the Issue Radar route SHALL ignore
     `session`, because Avoozl opens no session for it.
 13. With no `session` set anywhere, every session SHALL open as it does
     today. Installing or upgrading Avoozl SHALL NOT change which agent or
@@ -2486,16 +2416,17 @@ config-pack idea of 2026-11-13: a pack is now one part of a plugin, and a
 plugin may also ship a pack alone.
 
 **User story:** As a team lead, I want one shared plugin to carry our
-settings, our content rules, our tracker, and our intake source, so that
+settings, our content rules, and our intake source, so that
 each repository mostly installs one plugin, and nothing in it changes a
 setting or runs until someone on that computer has seen it and approved it.
 
 #### Acceptance criteria
 
-1. A plugin manifest MAY list `provides`: any of `pack`, `rules`,
-   `tracker`, `intake`, and `route`, each once. Each part SHALL run as a
-   code kind (Requirement 34.3): `rules` as `rules`, `tracker` and
-   `intake` as `tracker`, `route` as `route`; `pack` SHALL run as nothing.
+1. A plugin manifest MAY list `provides`: any of `pack`, `rules`, and
+   `intake`, each once. Each part SHALL run as a code kind (Requirement
+   34.3): `rules` as `rules`, `intake` as `intake`; `pack` SHALL run as
+   nothing. (Changed 2026-11-18: the `tracker` and `route` parts are
+   retired.)
    A manifest without `provides` SHALL keep working, each of its `kinds`
    being one part. A manifest with both SHALL have `kinds` equal to the
    kinds its parts need, or be refused naming the mismatch. (Changed
@@ -2543,12 +2474,9 @@ setting or runs until someone on that computer has seen it and approved it.
    preview again; only a person imports it.
 8. The `rules` part SHALL supply rule sets at run time (Requirement 40.9),
    so private terms are never stored in a public repository. The `intake`
-   part SHALL be the tracker kind's `poll` (Requirement 50.7) and SHALL
-   need the `poll` capability. Each polled item SHALL be checked as in
-   Requirement 50.2: a bad item refused naming its field, the others kept.
-   A plugin that provides `intake` but not `tracker` SHALL never be asked
-   to `project`, `read`, `list`, or `close`. Storing items and the
-   pipeline stay with Requirement 50.
+   part SHALL answer `poll` (Requirement 50.7). Each polled item SHALL be
+   checked as in Requirement 50.2: a bad item refused naming its field, the
+   others kept. Storing items and the pipeline stay with Requirement 50.
 9. A plugin **shared with the repo** SHALL put its entry in `.avoozl.json`
    (Requirement 34.1) and SHALL still be approved on each computer.
    Importing the pack of a plugin declared on this computer only SHALL
@@ -3408,7 +3336,7 @@ what and when without reading chats, the tick log or GitHub.
 1. Avoozl SHALL keep an `activity_log` table in the workspace's SQLite.
    Each row SHALL hold its time, source (`local`, `github`, `plugin` or
    `mcp`), actor, kind, a short summary, a target ID and a link. `plugin`
-   covers plugin sync: tracker and intake plugins.
+   covers plugin sync: intake plugins.
 2. Avoozl SHALL record these local actions when they succeed: dispatch
    (Start now and dispatch requests), stop (a task set to Deferred),
    pulling and resuming the Andon cord, merge, plan approval, archive and
@@ -3937,6 +3865,10 @@ on a bigger or safer machine without a shared database or a shared gateway.
 
 ### Requirement 85: Crews on public repositories
 
+Superseded 2026-11-18 (owner decision): public crews are removed except the
+content hook, which becomes a general pre-tool-use command (triage-agent
+TA11.3, task ta-5.2). Until ta-5.2 lands the code below still runs.
+
 Added 2026-11-14 (owner request). Design §6.14. Facts checked in Kiro Crew
 0.12.2.4 and on a scratch repository, written up in `docs/public-crews.md`.
 
@@ -4046,7 +3978,7 @@ second system deciding what to claim, push or merge.
    | Pick    | Avoozl | Ranks ready tasks by how many they unblock; holds a task whose declared paths overlap a running task anywhere in the repository |
    | Prepare | Avoozl | Adds the task worktree with the approved `scripts/worktree` helper or `git worktree add` |
    | Work    | Chat   | Edits in that worktree, then reports; Avoozl commits sandboxed child changes               |
-   | Verify  | Avoozl | Runs checks in the task worktree, checks the diff against declared paths    |
+   | Verify  | Avoozl | Runs the repository's checks in the task worktree, checks the diff against declared paths |
    | Land    | Avoozl | Lands through the per-base-branch queue (Requirement 87)                   |
    | Accept  | Avoozl | Stop the line (Requirement 64) watches every head Avoozl landed             |
 
@@ -4070,11 +4002,17 @@ second system deciding what to claim, push or merge.
    declared paths, and SHALL send a diff that touches a protected path
    (the repository's `protectedPaths`, plus CI workflows and the
    `scripts/worktree` helper by default) to the owner in Needs you before
-   it lands.
-7. Checks SHALL run in the task worktree, warm (the worktree keeps its
-   dependencies and build output between attempts), in their own job off
-   the tick, with a timeout per check. A check that times out SHALL fail
-   with the reason "timed out after N s".
+   it lands. The same diff SHALL pick which of the repository's checks
+   run: a check that names paths runs only when the diff touches one.
+7. The repository's checks SHALL run in the task worktree, warm (the
+   worktree keeps its dependencies and build output between attempts), in
+   their own job off the tick, with a timeout per check, keyed by the
+   check's name in `verify.checkTimeouts`. A check SHALL see only the
+   environment a process needs to start and the names the repository lists
+   in `checksEnv`, and never the push or GitHub credentials, even when
+   listed. A check that times out SHALL fail with the reason "timed out
+   after N s". (Changed 2026-11-18: checks are the repository's, named, and
+   picked by the diff; a task never names them.)
 8. Approval SHALL be the local hash receipt (Requirement 4.8). The approval
    pull request of RC3.6 SHALL be used only for a spec whose home branch is
    protected, so a commit can reach it only by pull request.
@@ -5712,7 +5650,7 @@ owner's words, in short: remove `avoozl/manifest.json`; every per-task fact
 moves into `tasks.md`, one `Facts:` bullet per task.
 
 **User story:** As the owner, I want one file per spec to read and review
-the tasks, so that a task's title, its checks and its acceptance sit
+the tasks, so that a task's title and its acceptance sit
 together and a Kiro chat, Claude Code or Codex writes them in one place.
 
 #### Acceptance criteria
@@ -5729,13 +5667,17 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
    under an item stay free notes.
 3. The known keys SHALL cover everything the manifest held: `kind`, `repo`
    (the repository), `summary`, `done` (the acceptance), `completion`,
-   `checks`, `after`, `sequence`, `supports`, `manual`, `phase`, `batch`,
+   `after`, `sequence`, `supports`, `manual`, `phase`, `batch`,
    and the other task keys `validateProposal` accepts, plus `plan` and
    `step` on an epic's rows. `after` names the tasks that must finish
    first, each with an optional `:<completion>`. A list SHALL be written
-   inline, comma separated, or as nested bullets.
-4. `tasks.md` MAY start with front-matter that holds spec-wide values: `repo`,
-   `checks` and `completion` as defaults for every leaf; `ship`,
+   inline, comma separated, or as nested bullets. A task SHALL NOT name
+   checks: every task runs its repository's checks (Requirement 7.1), and
+   a `checks` fact or front-matter line SHALL be a lint error that says
+   "Every task runs the repository's checks; delete this line." (Changed
+   2026-11-18: the `checks` fact and default are removed.)
+4. `tasks.md` MAY start with front-matter that holds spec-wide values:
+   `repo` and `completion` as defaults for every leaf; `ship`,
    `integrationBranch`, `integrationSync`, `forwardTarget`, `publicBranch`
    and `kind: epic` for the spec; `phase-<id>: <title>` for a named phase;
    and `batch-<id>: <reason>` for a planner batch group, whose members
@@ -5773,3 +5715,102 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
 11. Tests SHALL cover: each key and each refusal in 5, the leftover manifest,
     default and package rules, an epic folder, a batch group, the hash in 6,
     proposed work writing a `Facts:` bullet, and the planner text.
+
+### Requirement 112: A repository's checks run in its isolation
+
+Added 2026-11-18 (owner decision). Design §5.2. Changes Requirements 7.1
+and 86.7: a check no longer runs as the person with nothing between it and
+the machine.
+
+**User story:** As the owner, I want every check Avoozl runs to run in a
+sandbox or a container with the network off by default, so that a worker's
+commit cannot read my credentials or reach the network through its checks.
+
+#### Acceptance criteria
+
+1. A project SHALL have one `isolation` setting, `{run, image, network,
+   readable, writable, prepare}`, kept in its project settings. `run` SHALL
+   be `sandbox` (the default), `container` or `unconfined`; `network` SHALL
+   be `off` (the default) or `on`; `image` SHALL be required with
+   `container`; `readable` and `writable` SHALL be absolute paths; `prepare`
+   SHALL be command arguments. Only a person SHALL set it, with
+   `project.configure` or Settings › Repository setup › Landing.
+2. With `sandbox`, every check (Avoozl's own check runs, integration's and
+   landing's candidate runs) SHALL run in the process sandbox, writing only
+   the check's folder, its own temp folder, a per-repository cache folder
+   outside every secret path, and `writable`; reading no secret path; with
+   the network as set; and with only the checks' environment allowlist
+   (Requirement 7.1).
+3. With `container`, a check SHALL run in `docker` or `podman`, whichever
+   is installed, with the folder mounted at the same path, `--network none`
+   unless the network is on, the same environment allowlist, and no home
+   folder mounted.
+4. `unconfined` SHALL be accepted only with the machine's opt-in. A machine
+   with no sandbox SHALL run a `sandbox` check unconfined. Either way the
+   check's record SHALL say `isolation: "unconfined"`, and the Landing page
+   and the task's timeline SHALL show "not sandboxed".
+5. `prepare` SHALL run once per worktree and commit before its checks,
+   outside isolation, with the environment allowlist. A failed prepare SHALL
+   run no check and SHALL say why.
+6. Every check record SHALL name the isolation it ran under.
+7. Tests SHALL show that, in a sandboxed check, a TCP connection to a public
+   host fails with the network off, a write outside the roots fails, and
+   `GH_TOKEN` is absent; container tests SHALL be skipped, saying so, where
+   no runtime is installed.
+
+### Requirement 113: A tick on the base branch completes the task
+
+Added 2026-11-19 (owner request). Design §4.41. Changes Requirement 30.6 and
+111.7: a tick in `tasks.md` is no longer read only when a revision is
+approved.
+
+**User story:** As the owner, I want Avoozl to notice a commit that ticks off
+a task and know it is complete, so that I do not approve the spec again for a
+box someone checked.
+
+#### Acceptance criteria
+
+1. When Avoozl reads an approved spec's `tasks.md` as the spec's base branch
+   holds it, in single-repository and plans-repository mode, a task whose
+   item is ticked `[x]` and that is not done SHALL become done at once, with
+   no approval and no new revision. Its evidence SHALL name the base branch,
+   the `tasks.md` line and the commit that ticked it, and the task's
+   integration SHALL carry that commit as its landing commit. One Activity
+   line SHALL say so.
+2. Only the base branch SHALL count. A tick on a working or worker branch, or
+   an edit not committed, SHALL do nothing. Only `[x]` SHALL count: `[~]` and
+   `[-]` stay Kiro's queued and running marks.
+3. A tick on a task an Avoozl worker session is running SHALL make the task
+   done and SHALL close that worker's session binding, with one Activity
+   line saying the session was released.
+4. A tick taken out of a done task SHALL NOT reopen it. It SHALL show in
+   Needs you with Reopen and Keep done, and stay done until a person chooses.
+5. A ticked item with no task ID SHALL be a lint error naming `tasks.md` and
+   its line.
+6. A ticked parent SHALL count as done with its open sub-tasks.
+7. A task gated on Avoozl's own recorded validation (Requirement 38.4) SHALL
+   not be completed by a tick.
+8. Ticks on the base branch SHALL be the task state coworkers share: each
+   machine's database is private, and a per-task issue is not kept. When
+   Avoozl lands a task (its own worker, a merge batch, or any direct
+   landing), the landing commit itself SHALL tick that task's `[x]` in its
+   spec's `tasks.md` on the base branch. It SHALL be one commit, not a
+   follow-up. Only the landed task's line SHALL change, by its mark
+   character: the rest of the file stays byte-identical. A `Built:` line is
+   not written, because a commit cannot name itself.
+9. A parent SHALL be ticked only when every child is ticked, and only as a
+   result of a child's tick.
+10. A spec in a plans repository other than the code repository SHALL be
+    ticked there as its own commit on that repository's base branch, after
+    the code lands: fetched, built on the fetched head, pushed without force,
+    and started again from a fresh fetch when the branch moved.
+11. A machine that reads Avoozl's own landing tick SHALL treat it as known:
+    no second Activity line and no worker session released.
+12. Ticks SHALL stay outside the revision hash (Requirement 111.7), so no tick
+    needs a new approval.
+13. Tests SHALL show: landing a task puts `[x]` in `tasks.md` on origin's base
+    in the same commit; a second machine reading origin marks the task done;
+    the plans-repository race retries; a parent ticks only after its last
+    child; a tick on the base branch completes a task with no approval, a tick
+    on another branch does nothing, a tick of an in-flight task releases its
+    worker, an untick lands in Needs you, and the hash does not change.

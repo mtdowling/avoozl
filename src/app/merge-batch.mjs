@@ -28,6 +28,7 @@ import { enqueueLanding } from "./landing-queue.mjs";
 import { privacyScan, verifiedEvidence } from "./working-heads.mjs";
 import { mergeBaseBack } from "./spec-base.mjs";
 import { fail } from "./store.mjs";
+import { checkApplies } from "./repository-checks.mjs";
 
 const DIGEST = /^[0-9a-f]{64}$/;
 const NO_PROMPT = { GIT_TERMINAL_PROMPT: "0" };
@@ -71,7 +72,7 @@ export const trailers = (entry) =>
 // outcome carries no evidence and never completes its tasks (R102.5).
 export function journalChecks(checks = []) {
   return checks.map((check) => {
-    const name = String(check.command ?? check.name ?? "check")
+    const name = String(check.name ?? check.command ?? "check")
       .split(" ")
       .map((part, i) => (i === 0 ? path.basename(part) : part))
       .join(" ")
@@ -129,52 +130,78 @@ export const dropMember = (root, entry) =>
 // worktree. {candidate, heads} or {conflict: files, key}; `heads[i]` is the
 // stack after member i. The worktree is removed before returning; its
 // commits stay in `root`.
-export async function stackMembers(root, entries, baseHead, unionPaths = []) {
+export async function stackMembers(
+  root,
+  entries,
+  baseHead,
+  unionPaths = [],
+  tickOf = null,
+) {
   const union = new Set(unionPaths),
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-landing-"));
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-landing-")),
+    // How many commits the stack has after each member.
+    made = [];
   try {
     await git(root, ["worktree", "add", "--detach", "--quiet", dir, baseHead]);
     for (const entry of entries) {
+      made.push(made.at(-1) ?? 0);
       const message = [`Land ${entry.key}`, "", ...trailers(entry)]
         .join("\n")
         .trim();
+      let conflicted = false;
       try {
         await git(dir, [
           "merge",
           "--no-ff",
+          "--no-commit",
           "--quiet",
-          "-m",
-          message,
           memberRef(entry.key),
         ]);
-        continue;
-      } catch {}
-      const files = (await git(dir, ["diff", "--name-only", "--diff-filter=U"]))
-        .split("\n")
-        .filter(Boolean);
-      if (!files.length || files.some((f) => !union.has(f))) {
-        await git(dir, ["merge", "--abort"]).catch(() => {});
-        if (!files.length)
-          fail(`Merging ${entry.key} failed without a conflict.`, 500);
-        return { conflict: files, key: entry.key };
+      } catch {
+        conflicted = true;
       }
-      for (const file of files) await unionMerge(dir, file);
+      if (conflicted) {
+        const files = (
+          await git(dir, ["diff", "--name-only", "--diff-filter=U"])
+        )
+          .split("\n")
+          .filter(Boolean);
+        if (!files.length || files.some((f) => !union.has(f))) {
+          await git(dir, ["merge", "--abort"]).catch(() => {});
+          if (!files.length)
+            fail(`Merging ${entry.key} failed without a conflict.`, 500);
+          return { conflict: files, key: entry.key };
+        }
+        for (const file of files) await unionMerge(dir, file);
+      }
+      // A merge with nothing to bring leaves no merge in progress.
+      const merging = await git(dir, [
+        "rev-parse",
+        "-q",
+        "--verify",
+        "MERGE_HEAD",
+      ]).catch(() => null);
+      if (!merging) continue;
+      // The landing commit ticks its own task (Requirement 113.8): one commit.
+      await tickOf?.(dir, entry);
       await git(dir, ["commit", "--quiet", "--cleanup=strip", "-m", message]);
+      made[made.length - 1] += 1;
     }
-    // Each member's merge is the first parent of the next one's, so this
+    // Each landing commit is the first parent of the next one's, so this
     // one call names the head after every member.
-    const chain = (
-      await git(dir, [
-        "rev-list",
-        "--first-parent",
-        "-n",
-        String(Math.max(entries.length, 1)),
-        "HEAD",
-      ])
-    ).split("\n");
+    const total = made.at(-1) ?? 0,
+      chain = (
+        await git(dir, [
+          "rev-list",
+          "--first-parent",
+          "-n",
+          String(total + 1),
+          "HEAD",
+        ])
+      ).split("\n");
     return {
       candidate: chain[0],
-      heads: chain.slice(0, entries.length).reverse(),
+      heads: made.map((n) => chain[total - n]),
     };
   } finally {
     await git(root, ["worktree", "remove", "--force", dir]).catch(() => {});
@@ -213,8 +240,11 @@ export async function landWithIntents(intents, push) {
 //   root        the landing checkout, with every portion's commit fetched
 //   url, branch the registered target remote and its base branch
 //   repository  the target repository identity, for the intents' refs
-//   checks      declared check argv lists, run at the candidate
+//   checks      the repository's checks ([{name, argv, paths}]); the ones
+//               the candidate's diff from the base picks run at it
 //   unionPaths  append-only paths merged with union semantics
+//   tickOf(dir, entry)  ticks the entry's tasks in the candidate worktree
+//               before its merge commit, so the commit carries the tick
 //   intent(spec, entries) -> {journal, input, options}: the spec's driver
 //               journal and landIntent input (driver, owner, login,
 //               revision, op?). Candidate, base, tasks and refs are filled.
@@ -226,15 +256,25 @@ export function directSteps({
   repository,
   checks = [],
   unionPaths = [],
+  tickOf = null,
   intent,
   env,
   machine,
   configFile,
   checksEnv,
+  // The repository's id and isolation: each check runs under it.
+  projectId,
+  isolation,
   run = runCheckAt,
   scan = privacyScan,
 }) {
   if (!checks.length) fail("Direct landing needs at least one check.", 400);
+  // A bare argv list is a check named by its command, with no paths.
+  checks = checks.map((check) =>
+    Array.isArray(check)
+      ? { name: check.join(" "), argv: check, paths: null }
+      : check,
+  );
   if (typeof intent !== "function")
     fail("Direct landing writes an intent before every push.", 400);
   const environment = { ...(env ?? process.env), ...NO_PROMPT },
@@ -261,7 +301,13 @@ export function directSteps({
         env: environment,
       });
       for (const entry of entries) await holdMember(root, entry);
-      const result = await stackMembers(root, entries, baseHead, unionPaths);
+      const result = await stackMembers(
+        root,
+        entries,
+        baseHead,
+        unionPaths,
+        tickOf,
+      );
       result.heads?.forEach((head, i) =>
         stacked.set(stackId(baseHead, entries.slice(0, i + 1)), head),
       );
@@ -293,12 +339,30 @@ export function directSteps({
             },
           ],
         };
+      // Every check whose paths a member's change touches, and every check
+      // without paths: the candidate's diff from the base is every member's.
+      let files = null;
+      try {
+        files = (
+          await git(root, ["diff", "--name-only", "-z", baseHead, candidate])
+        )
+          .split("\0")
+          .filter(Boolean);
+      } catch {}
       const out = [];
-      for (const argv of checks) {
-        if (!wanted(argv.join(" "))) continue;
-        const result = await run({ root, checksEnv }, candidate, argv);
+      for (const check of checks) {
+        if (!wanted(check.name) || !checkApplies(check, files)) continue;
+        const result = await run(
+          { id: projectId, root, checksEnv, isolation },
+          candidate,
+          check.argv,
+        );
         out.push({
-          command: argv.join(" "),
+          name: check.name,
+          command: check.argv.join(" "),
+          ...(result.isolation !== undefined
+            ? { isolation: result.isolation }
+            : {}),
           exitCode: result.exitCode,
           ...(result.exitCode !== 0 && result.tail
             ? { tail: result.tail }

@@ -52,7 +52,6 @@ export const APP_OPERATIONS = new Set([
   "specpr.view",
   "radar.crews",
   "review.drafts",
-  "gate.list",
   "radar.flow",
   "radar.retro",
   "radar.retro.apply",
@@ -109,9 +108,6 @@ export const APP_OPERATIONS = new Set([
   "plugin.update",
   "plugin.pack.preview",
   "plugin.pack.import",
-  "route.cancel",
-  "route.resubmit",
-  "tracker.takeBack",
   // Owner actions the Conflicts and Delivery views offer.
   "content.rules",
   "content.allow",
@@ -128,7 +124,6 @@ export const APP_OPERATIONS = new Set([
   "flow.stop",
   "publiccrews.stop",
   "flow.resume",
-  "gate.clear",
   "flow.settings.get",
   "models.settings.get",
   "models.settings.update",
@@ -495,7 +490,13 @@ export async function dispatchCommand({ claim, request, context }) {
     if (needs)
       return { status: 409, body: { error: needs, needsKiroCrew: true } };
     const { ops } = context.operations(context.workspaceFor(workspaceId));
-    const result = await ops.execute(operation, input, expectedRevision);
+    // Only the owner session writes (principalAllows): it is the person.
+    const result = await ops.execute(
+      operation,
+      input,
+      expectedRevision,
+      claim.kind === "owner-session" ? { person: true } : {},
+    );
     return {
       status: 200,
       body: {

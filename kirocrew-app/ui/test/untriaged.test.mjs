@@ -210,10 +210,10 @@ test('Plan this and Deliver this ask first and name the item', () => {
 
 test('an intake source form saves a valid entry and names what to fix', async () => {
   const { emptySourceForm, sourceEntry } = await import('../src/plugins-api.ts')
-  const form = { ...emptySourceForm(), id: 'tickets', via: 'plugin:fake-tracker', repository: 'o/app', labelFields: 'component, queue' }
+  const form = { ...emptySourceForm(), id: 'tickets', via: 'plugin:fake-intake', repository: 'o/app', labelFields: 'component, queue' }
   assert.deepEqual(sourceEntry(form, []), {
     id: 'tickets',
-    entry: { via: 'plugin:fake-tracker', repository: 'o/app', labelFields: ['component', 'queue'] },
+    entry: { via: 'plugin:fake-intake', repository: 'o/app', labelFields: ['component', 'queue'] },
   })
   assert.match(sourceEntry({ ...form, id: 'github' }, []).error, /built in/)
   assert.match(sourceEntry({ ...form, id: 'Bad Name' }, []).error, /lowercase/)

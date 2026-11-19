@@ -213,12 +213,19 @@ Avoozl installs a `pre-push` hook in each task worktree it prepares, so a
 matching line stops the push. It cannot stop a merge on GitHub; a required
 commit status would.
 
-Every comment, review, review line comment and pull request body Avoozl
-posts goes through the same write path, which breaks each `@login` mention
-with a zero-width space after the `@` (code spans, fences and HTML comments
-stay as written) and adds a hidden `<!-- avoozl:posted -->` marker. A post
-notifies nobody, and a comment that carries the marker never starts or
-resumes work: comment steering and pull request feedback skip it.
+Every comment, review, review line comment and pull request body goes
+through the same write path. When an agent or Avoozl's own automation (the
+tick) writes it, the path breaks each `@login` mention with a zero-width
+space after the `@` (code spans, fences and HTML comments stay as written)
+and adds a hidden `<!-- avoozl:posted -->` marker. Such a post notifies
+nobody, and a comment that carries the marker never starts or resumes work:
+comment steering and pull request feedback skip it.
+
+A write you start yourself, from the Avoozl page or with a CLI command
+outside an agent session, goes out as written: its mentions notify, and it
+has no marker. A review draft is yours too, since GitHub publishes it only
+when you submit it, so its review counts as feedback. Content rules check
+every write either way. A write whose caller Avoozl cannot tell is marked.
 
 ## Use GitHub pull-request reviews as the review gate
 
@@ -366,9 +373,9 @@ manual in its facts in `tasks.md`:
 
 A manual task needs `done` and a `repo` (where its issue lives). `manual:
 true` is the one way to say a person does a task: it completes by a person
-and takes no `checks` or `completion` default. Lint refuses `checks`,
-`session`, `batch`, `paths` and `route` on it, by name, and refuses
-`completion: person` anywhere, naming `manual: true` as the fix. No agent
+and takes no `completion` default. Lint refuses `session`, `batch`,
+`paths` and `route` on it, by name, and refuses `completion: person`
+anywhere, naming `manual: true` as the fix. No agent
 ever runs it: it is never ready, batched, checked, reviewed or merged.
 Until its blockers finish it is in **Blocked or waiting**; then it is in
 **Needs you**, tagged **Manual**, with "Waiting for a person: <title>". Its dependents wait on it like on any task.
@@ -413,7 +420,7 @@ This is tested with a fake GitHub (proof P37); it has not run live yet.
 
 ## Bring in work from other trackers and scripts
 
-GitHub is one source of incoming items. A tracker plugin with `poll` is
+GitHub is one source of incoming items. A plugin that provides `intake` is
 another (see the Intake part in `docs/plugins.md`), and so is anything you
 script, through MCP. Every item lands in the **Intake** tab with its
 source; **Untriaged** is that tab's default filter.
@@ -592,18 +599,85 @@ you point Avoozl at a repository you do not trust, public ones included.
 | Code                              | When it runs                                  | What guards it                                                                                                                                      |
 | --------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `scripts/worktree` in the project | Every time Avoozl adds a worktree             | A person approves its SHA-256 hash first. The refusal prints the hash; set `worktreeHelper` on the project to that hash. A changed file asks again. |
-| Declared `checks` in a project    | On worker commits and on commits Avoozl lands | They are in the project settings a person edits. Checks never see the gateway credentials.                                                          |
+| The project's `checks`            | On worker commits and on commits Avoozl lands | They are in the project settings a person edits. Checks never see the gateway, push or GitHub credentials.                                          |
 | A local-folder plugin             | When the tick uses it                         | A person approves its hash. Avoozl hashes it again just before it starts and refuses if it changed.                                                 |
 
-Checks otherwise see your whole environment, including `GH_TOKEN`. To narrow
-that, list the names a project's checks need. Only those, plus the basics a
-process needs to start (`PATH`, `HOME`, temp folders), pass through:
+A repository's checks are the only checks there are. Every task runs them;
+a task never names its own. Each has a name and its command arguments, and
+one with `paths` runs only when a commit's diff touches one of them:
 
 ```json
-{ "projects": { "code": { "checksEnv": ["GH_TOKEN"] } } }
+{
+  "projects": {
+    "code": {
+      "checks": {
+        "test": ["npm", "test"],
+        "diff": ["git", "diff", "--check"],
+        "ui": { "run": ["npm", "run", "test:ui"], "paths": ["src/ui/**"] }
+      }
+    }
+  }
+}
 ```
 
-Without `checksEnv`, nothing changes.
+Merge batches run every check whose paths any member's change touches, plus
+every check without paths. Records, reruns and bisect steps name a check by
+its name, and `verify.checkTimeouts` sets a check's own timeout by its name.
+An older list of commands still loads, each check named by its command.
+
+A check sees only the basics a process needs to start (`PATH`, `HOME`, temp
+folders) plus the names a project lists in `checksEnv`:
+
+```json
+{ "projects": { "code": { "checksEnv": ["NODE_OPTIONS"] } } }
+```
+
+Push and GitHub credentials (`GH_TOKEN`, `GITHUB_TOKEN`, `SSH_AUTH_SOCK`
+and the like) never reach a check, even when listed.
+
+Every check runs in the repository's `isolation`:
+
+```json
+{
+  "projects": {
+    "code": {
+      "isolation": {
+        "run": "sandbox",
+        "network": "off",
+        "writable": ["/var/cache/code-build"],
+        "prepare": ["npm", "ci"]
+      }
+    }
+  }
+}
+```
+
+- `sandbox` (the default): the process sandbox. A check writes only its
+  folder, its own temp folder, a per-repository cache folder and
+  `writable`; it reads no credential or Avoozl state folder, plus
+  `readable` where those would hide a file it needs.
+- `container`: `docker` or `podman` runs `image` with the folder mounted
+  at the same path, `--network none` unless the network is on, the same
+  environment allowlist, and no home folder.
+- `unconfined`: no isolation. Only with this machine's opt-in,
+  `"checks": true` in `harness-unconfined.json` in Avoozl's config
+  folder. A machine with no sandbox runs a `sandbox` check unconfined too.
+
+`network` is `off` unless set `on`. `prepare` runs once per worktree and
+commit before the checks, outside isolation, with the environment
+allowlist; when it fails, no check runs. Each check record names its
+isolation, and the Landing page and the task's timeline show "not
+sandboxed" for one that ran unconfined. Only a person sets `isolation`.
+
+Example only: Nupp's checks drive its Linux and Windows VMs, so it would
+use `{ "run": "sandbox", "network": "on" }`.
+
+Before Avoozl makes any worktree (a task's, a check run's, a landing
+candidate's, a review session's), the volume that will hold it needs 2 GiB
+free. With less, the work waits instead of failing halfway: a check run
+stays queued, the landing queue holds, a session start is tried again, and
+Needs you shows one row naming the folder and its free space. The row
+clears once there is room. The 2 GiB floor is fixed.
 
 ### Person-only is not a wall against code running as you
 
@@ -641,6 +715,12 @@ a person-only act is the sandbox the supervisor wraps it in:
   the Kiro Crew home (`KIROCREW_HOME`, or `~/.kiro/crew`), the `gh` config,
   `~/.git-credentials`, `~/.config/git/credentials`, `~/.netrc`, `~/.ssh`,
   `~/.aws` and, on macOS, the keychain.
+- Under your home folder it reads only its task folder, its temp and cache
+  folders, the repository's git directory, the harness's own config (the
+  definition's `reads`, such as `~/.claude` and `~/.claude.json` for
+  Claude Code), `~/.gitconfig`, `~/.config/git` and the repository's
+  `isolation.readable` paths. Your other projects and documents are not
+  readable. System and toolchain folders outside home stay readable.
 - It writes only to its task folder, its own temp folder and the project's
   cache folders. Read-only roles write nowhere.
 - Its network is off. On macOS a project can name loopback ports instead

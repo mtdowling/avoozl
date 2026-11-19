@@ -1,11 +1,8 @@
 ---
 completion: integrated
-checks: npm test
 ---
 
 # Tasks
-
-Status: Draft
 
 - [ ] migration-tool Build the tool or compatibility layer
   - Facts:

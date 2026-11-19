@@ -29,7 +29,7 @@ export function BrandCard(props: { workspaceId: string | null; boxed?: boolean }
       <Logo size={16} />
       <Box as="span" css-margin-left="auto" css-white-space="nowrap" css-overflow="hidden" css-line-height="16px" flex minW0 items="baseline" gap="1.5">
         <Box as="span" css-font-size="12" minW0 truncate>
-          <InstanceBadge workspaceId={props.workspaceId} className="text-muted" />
+          <InstanceBadge workspaceId={props.workspaceId} plain />
         </Box>
         {AVOOZL_VERSION && (
           <Box data-avoozl-version as="span" css-font-size="11" shrink0 tone="muted">

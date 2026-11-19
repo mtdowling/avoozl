@@ -399,3 +399,47 @@ test("on macOS a restricted network reaches only the named loopback port", {
   assert.equal(await probe(named), "ok");
   assert.notEqual(await probe(other), "ok");
 });
+
+test("a confined child reads under home only its folders, its harness config and git's", {
+  skip: !kind && "this machine has no usable sandbox",
+}, async (t) => {
+  const s = scratch(t),
+    worktree = path.join(s.home, "projects", "app-wt"),
+    file = (name, text = name) => {
+      fs.mkdirSync(path.dirname(name), { recursive: true });
+      fs.writeFileSync(name, text);
+      return name;
+    },
+    reads = {
+      worktree: file(path.join(worktree, "a.txt")),
+      sibling: file(path.join(s.home, "projects", "app-other", "b.txt")),
+      projects: file(path.join(s.home, "projects", "notes.txt")),
+      claude: file(path.join(s.home, ".claude", "settings.json")),
+      claudeJson: file(path.join(s.home, ".claude.json")),
+      gitconfig: file(path.join(s.home, ".gitconfig")),
+      documents: file(path.join(s.home, "Documents", "c.txt")),
+    };
+  const confined = confineChild(
+    [process.execPath, "-e", PROBE, JSON.stringify({ reads, writes: {} })],
+    {
+      definition,
+      configDirectory: s.configDirectory,
+      writeRoots: [worktree, s.tmp],
+      secrets: secretPaths(s),
+      env: s.env,
+      home: s.home,
+      readRoots: [
+        worktree,
+        s.tmp,
+        path.join(s.home, ".claude"),
+        path.join(s.home, ".claude.json"),
+        path.join(s.home, ".gitconfig"),
+      ],
+    },
+  );
+  const out = await run(confined.argv, confined.env);
+  for (const name of ["worktree", "claude", "claudeJson", "gitconfig"])
+    assert.equal(out.read[name], "ok", `${name} was not readable`);
+  for (const name of ["sibling", "projects", "documents"])
+    assert.notEqual(out.read[name], "ok", `${name} was readable`);
+});

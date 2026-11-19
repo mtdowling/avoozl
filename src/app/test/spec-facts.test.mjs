@@ -28,7 +28,7 @@ test("the owner's example reads defaults, own facts and nested lists", () => {
     lines(
       "---",
       "repo: avoozl",
-      "checks: npm test, git diff --check",
+      "completion: integrated",
       "---",
       "- [ ] lt-1.2 Queue table and records",
       "  - Facts:",
@@ -50,11 +50,10 @@ test("the owner's example reads defaults, own facts and nested lists", () => {
   const [parent, child] = parsed.proposals;
   assert.equal(parent.kind, "package");
   assert.equal(parent.repository, undefined, "a package takes no default");
-  assert.equal(parent.checks, undefined);
   assert.deepEqual(parent.requires, ["lt-1.2.1"]);
   assert.equal(child.parent, "lt-1.2");
   assert.equal(child.repository, "nupp", "a task's own fact wins");
-  assert.deepEqual(child.checks, ["npm test", "git diff --check"]);
+  assert.equal(child.checks, undefined, "a task never names checks");
   assert.deepEqual(child.acceptance, [
     "The migration runs twice with no change the second time",
   ]);
@@ -66,7 +65,6 @@ test("every key the reader uses round-trips through Facts bullets", () => {
     repository: "app",
     acceptance: ["It reads, with commas, in one line."],
     completion: "integrated",
-    checks: ["npm test"],
     requires: ["0.1", { task: "0.2", condition: "merged-pr" }],
     sequence: ["0.3"],
     supports: ["0.4"],
@@ -89,7 +87,6 @@ test("every key the reader uses round-trips through Facts bullets", () => {
     labels: ["x"],
     needs: ["gpu"],
     session: { agent: "coder" },
-    tracker: { plugin: "p", ref: "r" },
   };
   const text = lines("- [ ] 1.1 Read", ...factsLines(entry)),
     { manifest, problems } = readFacts(text, specItems("config", text));
@@ -105,7 +102,7 @@ test("each wrong shape is refused at its line in tasks.md", () => {
         "  - Facts:",
         "    - colour: blue",
         "    - done: It reads",
-        "    - checks: npm test",
+        "    - repo: app",
       ),
       ["facts.unknown-key tasks.md:3"],
       /Unknown fact key "colour"/,
@@ -116,7 +113,7 @@ test("each wrong shape is refused at its line in tasks.md", () => {
         "  - Facts:",
         "    - done: It reads",
         "    - done: It reads twice",
-        "    - checks: npm test",
+        "    - repo: app",
       ),
       ["facts.duplicate-key tasks.md:4"],
       /written twice/,
@@ -127,7 +124,7 @@ test("each wrong shape is refused at its line in tasks.md", () => {
         "  - A note first",
         "  - Facts:",
         "    - done: It reads",
-        "    - checks: npm test",
+        "    - repo: app",
       ),
       ["facts.missing tasks.md:1", "facts.misplaced tasks.md:3"],
       /no Facts: bullet/,
@@ -137,7 +134,7 @@ test("each wrong shape is refused at its line in tasks.md", () => {
         "- [ ] 1.1 Read",
         "  - Facts:",
         "    - done: It reads",
-        "    - checks: npm test",
+        "    - repo: app",
         "  - Facts:",
         "    - done: Again",
       ),
@@ -149,7 +146,7 @@ test("each wrong shape is refused at its line in tasks.md", () => {
         "- [ ] 1.1 Read",
         "  - Facts:",
         "    - done: It reads",
-        "    - checks: npm test",
+        "    - repo: app",
         "  - repo: app",
       ),
       ["facts.stray tasks.md:5"],
@@ -173,7 +170,7 @@ test("each wrong shape is refused at its line in tasks.md", () => {
         "- [ ] 1.1 Read",
         "  - Facts:",
         "    - done: It reads",
-        "    - checks: npm test",
+        "    - repo: app",
       ),
       ["facts.unknown-key tasks.md:2"],
       /Unknown front-matter key "colour"/,
@@ -189,11 +186,11 @@ test("each wrong shape is refused at its line in tasks.md", () => {
   }
 });
 
-test("a manual leaf takes no checks or completion default", () => {
+test("a manual leaf takes no completion default", () => {
   const parsed = parse(
     lines(
       "---",
-      "checks: npm test",
+      "repo: app",
       "completion: integrated",
       "---",
       "- [ ] 1.1 Review with the team",
@@ -240,7 +237,7 @@ test("completion person is refused in facts and front-matter, naming manual", ()
 const described = lines(
   "---",
   "repo: app",
-  "checks: npm test",
+  "completion: integrated",
   "---",
   "- [ ] 1 Load configuration",
   "  - Facts:",
@@ -310,6 +307,25 @@ test("a summary that repeats the title is refused and never reaches the brief", 
   );
 });
 
+test("a checks fact or front-matter default is refused: tasks run the repository's", () => {
+  const fact = parse(
+      described.replace(
+        "      - done:",
+        "      - checks: npm test\n      - done:",
+      ),
+    ),
+    front = parse(
+      described.replace("completion: integrated", "checks: npm test"),
+    );
+  assert.deepEqual(codes(fact), ["facts.removed-key tasks.md:12"]);
+  assert.deepEqual(codes(front), ["facts.removed-key tasks.md:3"]);
+  for (const parsed of [fact, front])
+    assert.match(
+      parsed.diagnostics[0].message,
+      /Every task runs the repository's checks; delete this line\./,
+    );
+});
+
 test("a summary fact is refused, naming the line to delete", () => {
   const parsed = parse(
     described.replace(
@@ -368,7 +384,6 @@ test("a pure conversion keeps the revision hash; a changed fact changes it", () 
     kind: "leaf",
     acceptance: [acceptance],
     completion: "integrated",
-    checks: ["npm test"],
     ...extra,
   });
   const old = {

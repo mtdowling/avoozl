@@ -46,6 +46,9 @@ const KEYS = new Set([
   "promptFrom",
   "keepEnv",
   "tmpEnv",
+  // The harness's own config under home that a confined child still reads,
+  // such as Claude Code's ~/.claude and ~/.claude.json.
+  "reads",
   "resultAllow",
   // Where the harness output names the model that served the session
   // (NK5.2): {"from": "output", "field": ...}.
@@ -258,6 +261,22 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
           `${source}: tmpEnv holds ${JSON.stringify(name)}; name only the CLI's own temp-folder variables.`,
         );
     definition.tmpEnv = Object.freeze([...value.tmpEnv]);
+  }
+  if (value.reads !== undefined) {
+    if (
+      !Array.isArray(value.reads) ||
+      value.reads.length > 20 ||
+      value.reads.some(
+        (item) =>
+          typeof item !== "string" ||
+          !/^~\/[^/]/.test(item) ||
+          item.split("/").some((part) => part === ".." || part === "."),
+      )
+    )
+      fail(
+        `${source}: reads must be paths under home written as ~/..., such as ~/.claude.`,
+      );
+    definition.reads = Object.freeze([...value.reads]);
   }
   // What a person runs in the worktree to join the session (R98.1); In
   // flight shows it to copy. Avoozl never runs it.
@@ -607,3 +626,8 @@ export function harnessPermission(
     writeRoots: fillHarnessArgv(definition.writeRoots, values),
   };
 }
+
+// The home paths a confined child of this harness may read (its own
+// config), resolved against `home`.
+export const harnessReads = (definition, home = os.homedir()) =>
+  (definition?.reads ?? []).map((item) => path.join(home, item.slice(2)));

@@ -68,7 +68,7 @@ test('only positive label: terms are triggers', () => {
 test('the list rows and the workspace rows use the shared list item', () => {
   assert.match(source('RepositoriesSettings.tsx'), /<ListItem/)
   assert.match(source('WorkspaceView.tsx'), /<ListItem/)
-  assert.match(source('ListItem.tsx'), /border-t py-2\.5 first:border-t-0/)
+  assert.match(source('ListItem.tsx'), /border="t"\s+py="2\.5"\s+firstBorderT0/)
   assert.doesNotMatch(source('ListItem.tsx'), /rounded-lg|shadow|border-b/)
 })
 

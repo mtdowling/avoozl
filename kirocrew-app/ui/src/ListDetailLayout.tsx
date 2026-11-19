@@ -91,36 +91,49 @@ export function ListDetailLayout(props: {
     )
   if (props.detail === null)
     return (
-      <div
+      <Box
         ref={fillRef}
         data-list-pane={props.id}
         data-list-only
         data-list-fill={fillHeight !== null ? '' : undefined}
-        style={fillHeight !== null ? { height: fillHeight, minHeight: 0, overflowY: 'auto', position: 'relative' } : undefined}
+        css-height={fillHeight ?? undefined}
+        css-min-height={fillHeight !== null ? 0 : undefined}
+        css-overflow-y={fillHeight !== null ? 'auto' : undefined}
+        css-position={fillHeight !== null ? 'relative' : undefined}
       >
         {props.list}
-      </div>
+      </Box>
     )
   // One tree whether the list is folded or not, so the detail stays
   // mounted when the list folds. A folded list is hidden, not unmounted:
   // it fills the nav's filters.
   const folded = props.listFolded
   return (
-    <div
+    <Box
       ref={fillRef}
       data-list-detail={props.id}
       data-list-folded={folded ? '' : undefined}
       data-list-fill={fillHeight !== null ? '' : undefined}
-      style={{ display: 'flex', alignItems: 'stretch', height: fillHeight ?? '100%', minHeight: 0 }}
+      css-display="flex"
+      css-align-items="stretch"
+      css-height={fillHeight ?? '100%'}
+      css-min-height="0"
     >
-      <div
+      <Box
         ref={column}
         data-list-pane={props.id}
         hidden={Boolean(folded)}
-        style={{ flex: `0 0 ${width}px`, width, minWidth: 0, minHeight: 0, overflowY: 'auto', position: 'relative', paddingRight: 4, display: folded ? 'none' : undefined }}
+        css-flex={`0 0 ${width}px`}
+        css-width={width}
+        css-min-width="0"
+        css-min-height="0"
+        css-overflow-y="auto"
+        css-position="relative"
+        css-padding-right="4"
+        css-display={folded ? 'none' : undefined}
       >
         {props.list}
-      </div>
+      </Box>
       {!folded && (
         <ResizeHandle
           label="Resize the list"
@@ -171,6 +184,6 @@ export function ListDetailLayout(props: {
       >
         {props.detail}
       </Box>
-    </div>
+    </Box>
   )
 }

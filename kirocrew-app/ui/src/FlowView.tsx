@@ -50,6 +50,7 @@ import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
 import { Glyph } from './ui/Glyph'
+import { TONE } from './ui/tones.ts'
 
 // A stacked bar by stage, scaled to `scale` ms (the longest bar shown).
 export function StageBar({ stages, scale, label }: { stages: Record<string, number>; scale: number; label: string }) {
@@ -72,7 +73,7 @@ export function StageBar({ stages, scale, label }: { stages: Record<string, numb
             css-background="mix-muted-15%-transparent"
           >
             {parts.map((p) => (
-              <span key={p.stage} style={{ width: `${p.share * 100}%`, background: p.color, display: 'block', height: '100%' }} />
+              <Box key={p.stage} as="span" css-width={`${p.share * 100}%`} css-background={p.color} css-display="block" css-height="100%" />
             ))}
           </Box>
         )}
@@ -86,7 +87,7 @@ export function StageLegend() {
     <Box as="ul" flex flexWrap gapX="3" gapY="1" size="xs" tone="muted" aria-label="Stages">
       {STAGES.map((stage) => (
         <Box key={stage} as="li" inlineFlex items="center" gap="1">
-          <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 2, background: STAGE_COLORS[stage], display: 'inline-block' }} />
+          <Box aria-hidden="true" as="span" css-width="10" css-height="10" css-border-radius="2" css-background={STAGE_COLORS[stage]} css-display="inline-block" />
           {STAGE_LABELS[stage]}
         </Box>
       ))}
@@ -389,7 +390,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
           <MetricCards view={view} />
           {view.bottleneck && (
             <Card flex items="start" gap="2" size="sm">
-              <Gauge size={18} aria-hidden="true" style={{ color: STAGE_COLORS[view.bottleneck.stage], flex: 'none' }} />
+              <Glyph icon={Gauge} size={18} aria-hidden="true" css-color={STAGE_COLORS[view.bottleneck.stage]} css-flex="none" />
               <span>
                 <Box as="span" weight="semibold">
                   Biggest bottleneck: {STAGE_LABELS[view.bottleneck.stage]}
@@ -453,9 +454,14 @@ export function TimingFold({
       <Box as="ul" flex flexCol gap="0.5">
         {timing.spans.map((span) => (
           <Box key={span.id} as="li" flex items="center" gap="2">
-            <span
+            <Box
               aria-hidden="true"
-              style={{ width: 8, height: 8, borderRadius: 2, background: STAGE_COLORS[span.stage as keyof typeof STAGE_COLORS] ?? 'var(--muted)', flex: 'none' }}
+              as="span"
+              css-width="8"
+              css-height="8"
+              css-border-radius="2"
+              css-background={STAGE_COLORS[span.stage as keyof typeof STAGE_COLORS] ?? TONE.muted}
+              css-flex="none"
             />
             <span>{STAGE_LABELS[span.stage as keyof typeof STAGE_LABELS] ?? span.stage}</span>
             {span.detail && (

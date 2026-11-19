@@ -52,6 +52,8 @@ import {
   PROJECT_KEYS,
   SANDBOX_KEYS,
 } from "../repository-settings.mjs";
+import { CHECK_KEYS } from "../repository-checks.mjs";
+import { ISOLATION_KEYS } from "../check-isolation.mjs";
 
 const schema = JSON.parse(fs.readFileSync(avoozlConfigSchemaPath, "utf8"));
 
@@ -109,6 +111,11 @@ const PAIRS = [
   // and flowPolicy in flow.mjs reads it, beside the keys projectInput lists.
   ["#/$defs/project", PROJECT_KEYS],
   ["#/$defs/project/properties/sandbox", SANDBOX_KEYS],
+  ["#/$defs/project/properties/isolation", ISOLATION_KEYS],
+  [
+    "#/$defs/project/properties/checks/oneOf/0/additionalProperties/oneOf/1",
+    CHECK_KEYS,
+  ],
   ["#/$defs/planningRepository", PLANNING_REPOSITORY_KEYS],
   ["#/$defs/github", POLICY_KEYS],
   ["#/$defs/github/properties/subIssues", GITHUB_BLOCK_KEYS.subIssues],

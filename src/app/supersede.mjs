@@ -28,7 +28,6 @@ const COPIED = [
   "summary",
   "nextAction",
   "acceptance",
-  "checks",
   "acceptFrom",
   "verify",
   "completion",
@@ -48,7 +47,6 @@ const SETTABLE = {
   nextAction: "text",
   notes: "text",
   acceptance: "list",
-  checks: "list",
   tags: "list",
 };
 
@@ -146,10 +144,10 @@ export function supersedeTask(data, input = {}, { operator } = {}) {
   const authority = taskAuthority(old);
   if (authority !== "local") {
     const error = Error(
-      `Task ${old.id} is owned by ${authority}; replace it in its plan or its tracker instead.`,
+      `Task ${old.id} is owned by ${authority}; replace it in its plan instead.`,
     );
     error.status = 409;
-    error.code = "authority-" + authority.replace(/:.*/, "");
+    error.code = "authority-" + authority;
     throw error;
   }
   if (old.supersededBy || old.status === SUPERSEDED_STATUS.id)

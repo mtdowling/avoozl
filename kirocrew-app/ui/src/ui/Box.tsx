@@ -56,6 +56,22 @@ export type BoxTag =
   | 'summary'
   | 'fieldset'
   | 'legend'
+  | 'del'
+  | 'mark'
+  | 'kbd'
+  | 'abbr'
+  | 'time'
+  | 'b'
+  | 'i'
+  | 'sup'
+  | 'sub'
+  | 'ins'
+  | 's'
+  | 'u'
+  | 'blockquote'
+  | 'caption'
+  | 'figcaption'
+  | 'hr'
 
 export type BoxProps = Omit<HTMLAttributes<HTMLElement>, 'className' | 'style'> &
   Pick<TdHTMLAttributes<HTMLElement>, 'colSpan' | 'rowSpan' | 'scope'> & { htmlFor?: string; open?: boolean; children?: ReactNode; as?: BoxTag } & { [K in Flags]?: boolean } & {
@@ -66,8 +82,9 @@ const FLAGS = table.flags as Record<string, string>
 const SCALES = table.scales as Record<string, Record<string, string>>
 const STYLES = table.styles as Record<string, Record<string, string | number>>
 // Geometry a view computes from data (a bar's width, a row's indent, a
-// layer's z-index) is passed as the value itself; every other style value is
-// named in the table.
+// layer's z-index), and a color it reads from a tone map in src/ui/, is passed
+// as the value itself; every other style value is named in the table. A view
+// can't write a theme variable itself: raw-style.test.mjs counts them.
 const FREE = new Set<string>(table.free)
 const camel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
 

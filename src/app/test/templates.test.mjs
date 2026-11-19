@@ -131,14 +131,11 @@ test("a starter that does not lint, or phases that do not match it, are refused"
     tasks,
     fs
       .readFileSync(tasks, "utf8")
-      .replace(
-        "    - manual: true",
-        "    - manual: true\n    - checks: npm test",
-      ),
+      .replace("    - manual: true", "    - manual: true\n    - paths: src/**"),
   );
   invalid(
     plugin.folder,
-    /starter\/tasks\.md line \d+: Manual task "(sdk-rewrite\.)?team-review" has "checks"/,
+    /starter\/tasks\.md line \d+: Manual task "(sdk-rewrite\.)?team-review" has "paths"/,
   );
 
   plugin = copy();

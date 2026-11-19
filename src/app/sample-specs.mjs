@@ -15,7 +15,6 @@ const leaf = (done, extra = {}) => ({
   kind: "leaf",
   repository: "app",
   acceptance: [done],
-  checks: ["npm test"],
   completion: "integrated",
   ...extra,
 });

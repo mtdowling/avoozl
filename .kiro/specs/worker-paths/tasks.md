@@ -1,11 +1,8 @@
 ---
 repo: avoozl
 completion: integrated
-checks: npm test, git diff --check
 ---
 # Tasks: one way to run a worker
-
-Status: Approved
 
 Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
@@ -17,14 +14,13 @@ route goes before both executors cover every kind of task.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces and state folders, real git with a bare remote, and fake
-executors; run `npm test` and `git diff --check` before landing, and `npm
-run test:ui` for UI changes; no real workspace data, machine configuration,
-credentials or personal plans in the repository (AGENTS.md). A task that
-deletes a test file first lists, in its pull request, each behavior that
-file covered and the test that covers it afterward (D7). Screen changes need
-phone and desktop, light and dark screenshots for owner approval before
-merge (R92.12). Screenshots are shown to the owner and never committed
-(AGENTS.md).
+executors; Avoozl runs the repository's checks; no real workspace data,
+machine configuration, credentials or personal plans in the repository
+(AGENTS.md). A task that deletes a test file first lists, in its pull
+request, each behavior that file covered and the test that covers it
+afterward (D7). Screen changes need phone and desktop, light and dark
+screenshots for owner approval before merge (R92.12). Screenshots are shown
+to the owner and never committed (AGENTS.md).
 
 Approving this spec, creating issues and starting agents are separate
 acts, and no task here has started. Task IDs start with `wp-` so they never collide with the IDs
@@ -142,7 +138,6 @@ of the other specs.
     - done:
       - Delivery shows what holds a task
       - Delivery shows the lane limit and each provider check that holds a task.
-    - checks: npm test, npm run test:ui, git diff --check
     - after: wp-4.1
   - Delivery shows the lane limit and each provider check that holds a task.
 

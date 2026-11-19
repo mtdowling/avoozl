@@ -4,8 +4,6 @@ category: Planning
 
 # Requirements: a standalone web view
 
-Status: Approved
-
 ## Introduction
 
 This spec lets a person who runs Avoozl with Claude Code, Codex or another
@@ -13,8 +11,8 @@ agent CLI, and no Kiro Crew, use today's Avoozl page in a browser. Avoozl
 serves the page itself with `avoozl serve`, on `127.0.0.1` only, behind a
 one-time owner link.
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts that a person does later.
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts that a person does later.
 
 Changed 2026-11-18 (owner decision): the standalone page must look exactly
 as the page does in Kiro Crew, and must not be a fork. It is built with Kiro

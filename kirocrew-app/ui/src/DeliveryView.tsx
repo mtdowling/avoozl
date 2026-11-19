@@ -46,7 +46,6 @@ import { DEFER_TIP, RESUME_TIP, RETRY_TIP, START_TIP } from './delivery-api.ts'
 import { linkHref } from './views-api.ts'
 import { Picker } from './Picker.tsx'
 import { StopLineButton } from './StopLine.tsx'
-import { NAV_ICON } from './LeftNav.tsx'
 import { NavSlotFor } from './nav-slot.tsx'
 import { RailBlock, RailChips, RailDivider, RailRow, RailStyle } from './NavRail.tsx'
 import { Hint } from './ui/Hint'
@@ -54,7 +53,7 @@ import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 import { LaneStyle } from './ui/PageStyles'
-import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
+import { PlainButton, PlainInput, PlainLink, SvgRoot } from './ui/Plain'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -207,7 +206,7 @@ export function StateIcon({ phase }: { phase: 'running' | 'reviewing' }) {
   const label = phase === 'running' ? 'Running: a worker is coding' : 'Reviewing: a reviewer or checks chat is reading'
   const color = phase === 'running' ? 'var(--tile-purple, var(--accent))' : 'var(--accent)'
   return (
-    <svg width={18} height={18} viewBox="0 0 24 24" role="img" aria-label={label} style={{ flex: 'none', marginTop: 2, color }}>
+    <SvgRoot width={18} height={18} viewBox="0 0 24 24" role="img" aria-label={label} css-flex="none" css-margin-top="2" css-color={color}>
       <title>{label}</title>
       {phase === 'running' ? (
         <g>
@@ -224,7 +223,7 @@ export function StateIcon({ phase }: { phase: 'running' | 'reviewing' }) {
           {!still && <animateTransform attributeName="transform" type="translate" values="-2 0; 2 0; -2 0" dur="2.4s" repeatCount="indefinite" />}
         </g>
       )}
-    </svg>
+    </SvgRoot>
   )
 }
 
@@ -286,11 +285,14 @@ export function DeliveryBoard(props: {
   return (
     <>
       <LaneStyle />
-      <div
+      <Box
         ref={ref}
         data-lane-columns={columns}
         data-lane-compact={compact || undefined}
-        style={{ display: 'grid', gap: LANE_GAP, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, alignItems: 'start' }}
+        css-display="grid"
+        css-gap="16"
+        css-grid-template-columns={`repeat(${columns}, minmax(0, 1fr))`}
+        css-align-items="start"
       >
         {drawn.map((lane) => {
           const cards = drawnLane(lanes, lane.id)
@@ -351,7 +353,7 @@ export function DeliveryBoard(props: {
             </section>
           )
         })}
-      </div>
+      </Box>
     </>
   )
 }
@@ -570,16 +572,26 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
                 </Box>
               )}
               <Tooltip text="Refresh">
-                <button
+                <PlainButton
                   type="button"
                   data-delivery-refresh
                   aria-label="Refresh"
                   onClick={() => void reload()}
                   disabled={busy || acting}
-                  style={{ ...NAV_ICON, color: 'var(--muted)' }}
+                  css-display="inline-flex"
+                  css-align-items="center"
+                  css-justify-content="center"
+                  css-width="28"
+                  css-height="28"
+                  css-padding="0"
+                  css-border-radius="6"
+                  css-border="1px-solid-border"
+                  css-background="transparent"
+                  css-cursor="pointer"
+                  css-color="muted"
                 >
                   <RefreshCw size={14} aria-hidden="true" />
-                </button>
+                </PlainButton>
               </Tooltip>
               <StopLineButton nav workspaceId={workspaceId} />
             </>
