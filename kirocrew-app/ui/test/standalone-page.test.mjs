@@ -32,12 +32,12 @@ before(async () => {
   process.env.APPDATA = path.join(scratch, 'roaming')
   for (const name of Object.keys(process.env)) if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_/.test(name)) delete process.env[name]
   fs.mkdirSync(process.env.HOME, { recursive: true })
-  const { machineAvoozlPaths, WorkspaceRegistry } = await src('host-config.mjs')
-  const { workspaceConfig } = await src('config.mjs')
-  const { initializeWorkspace } = await src('workspace.mjs')
-  const { startServe } = await src('serve-server.mjs')
-  const { Store } = await src('store.mjs')
-  const { approveHarnessDefinition, harnessDefinitionHash } = await src('harness-definitions.mjs')
+  const { machineAvoozlPaths, WorkspaceRegistry } = await src('settings/host-config.mjs')
+  const { workspaceConfig } = await src('settings/config.mjs')
+  const { initializeWorkspace } = await src('workspace/workspace.mjs')
+  const { startServe } = await src('serve/serve-server.mjs')
+  const { Store } = await src('store/store.mjs')
+  const { approveHarnessDefinition, harnessDefinitionHash } = await src('executors/harness-definitions.mjs')
   machine = machineAvoozlPaths()
   root = path.join(scratch, 'ws')
   initializeWorkspace(root)
@@ -103,7 +103,7 @@ test('Settings › Content rules › Design a rule set opens Start a session, an
   assert.equal(fs.realpathSync(row.request.worktree), fs.realpathSync(root))
   // The supervisor's drain starts it, and the dialog then shows its process view.
   const { drainProcessRequests } = await src('executors/process.mjs')
-  const { Operations } = await src('operations.mjs')
+  const { Operations } = await src('api/operations.mjs')
   const ops = new Operations(store, { workspaceRoot: root, configDirectory: machine.configDirectory })
   const drained = await drainProcessRequests(store, { stateDirectory: machine.stateDirectory, ops })
   assert.deepEqual(drained.errors, [])
@@ -139,12 +139,12 @@ test('with no approved harness the dialog says so, links to Settings › Models,
 
 test('a Kiro Crew chat slot says to open it in Kiro Crew (SW7.3)', { skip }, async () => {
   // Open chat for a slot that is not a process session.
-  const { bindSession } = await src('session-bindings.mjs')
+  const { bindSession } = await src('sessions/session-bindings.mjs')
   store.put('receipts', { id: 'assist:x', kind: 'assist-session', title: 'x' })
   bindSession(store, { slot: 'dashboard:chat-1', taskId: 'assist:x', role: 'assist', executor: 'kirocrew' })
   const view = await fetch(`${server.origin}/apps/avoozl/api/command`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
   assert.equal(view.status, 401, 'the check above ran without a session')
-  const { Operations } = await src('operations.mjs')
+  const { Operations } = await src('api/operations.mjs')
   const ops = new Operations(store, { workspaceRoot: root, configDirectory: machine.configDirectory })
   assert.deepEqual(await ops.execute('session.view', { slot: 'dashboard:chat-1' }), { kirocrewChat: true })
 })
@@ -158,11 +158,11 @@ test('a new Needs you item gives one notice, two give two, and a reload gives no
   // Two tasks pinned to Kiro Crew wait with a Needs you item each, in a second
   // workspace built from the test fixtures.
   const { snapshot } = await import('../../../src/app/test/fixtures.mjs')
-  const { enqueueSessionRequests } = await src('session-requests.mjs')
-  const { deliveryPolicy, planReadyDispatches } = await src('delivery.mjs')
-  const { workspaceConfig } = await src('config.mjs')
-  const { Store } = await src('store.mjs')
-  const { WorkspaceRegistry } = await src('host-config.mjs')
+  const { enqueueSessionRequests } = await src('sessions/session-requests.mjs')
+  const { deliveryPolicy, planReadyDispatches } = await src('delivery/delivery.mjs')
+  const { workspaceConfig } = await src('settings/config.mjs')
+  const { Store } = await src('store/store.mjs')
+  const { WorkspaceRegistry } = await src('settings/host-config.mjs')
   const pinned = (id) => ({
     id,
     title: `Pinned ${id}`,
