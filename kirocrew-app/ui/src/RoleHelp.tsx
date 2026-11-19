@@ -6,9 +6,7 @@ import { MODE_CARDS } from './settings-api.ts'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
-
-const OPEN = 'var(--ok)'
-const MERGED = 'var(--tile-purple, var(--accent))'
+import { OPEN, MERGED } from './ui/looks/RoleHelp.ts'
 
 function Pill({ color, children }: { color: string; children: ReactNode }) {
   return (

@@ -167,6 +167,9 @@ export const ROLE_TABLE = Object.freeze({
     access: "write",
     folder: "spec",
     hands: "folder",
+    // The model that wrote a revision must be proven for its plan review
+    // to count (NK5.2), so a planner child's served model is read too.
+    served: true,
     finish: () => [
       "You run without Avoozl's tools. Write the spec folder's files as above, but skip plans_create_plan, plans_save_plan and every other plans_* call: Avoozl stores the folder once it lints clean. Then exit.",
     ],

@@ -31,8 +31,8 @@ import {
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { PlainButton, PlainLink } from './ui/Plain'
+import { DOT } from './ui/looks/LandingQueueView.ts'
 
-const DOT: Record<string, string> = { pass: 'var(--ok)', fail: 'var(--danger)', pending: 'var(--warn, var(--accent))', stale: 'var(--muted)' }
 const DOT_TEXT: Record<string, string> = { pass: 'Checks passed', fail: 'Checks failed', pending: 'Checks running', stale: 'Checks are for an older head' }
 
 function CheckDot(props: { checks: LandingItem['checks'] }) {

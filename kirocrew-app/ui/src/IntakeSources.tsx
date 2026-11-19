@@ -47,8 +47,8 @@ import { Row } from './ui/Row'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { BOX } from './ui/looks/IntakeSources.ts'
 
-const BOX = { borderColor: 'var(--border)' }
 const TONE: Record<SourceTone, BadgeVariant | undefined> = { ok: 'success', off: undefined, error: 'danger', waiting: 'info' }
 const SCOPE = { machine: 'This computer only', repository: 'Shared with the repo' }
 const SCOPE_TIP = {

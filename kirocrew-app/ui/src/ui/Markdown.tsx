@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 import { blocks, headingId, inline, type Inline } from '../markdown.ts'
-import { highlight, tokenStyle, type Token } from '../highlight.ts'
+import { highlight, tokenStyle, type Token } from './highlight.ts'
 import { linkHref } from '../views-api.ts'
 
 // Renders plan Markdown as React elements (see markdown.ts): no HTML is set.

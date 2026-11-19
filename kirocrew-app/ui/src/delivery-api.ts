@@ -5,6 +5,7 @@ import { matches, type TaskFilter } from './filters.ts'
 import type { DeliveryItem, DeliverySession, Graph, GraphTask, RemoteWorker } from './views-api.ts'
 import { summarize } from './dashboard-api.ts'
 import { laneOf as sharedLaneOf } from '../../../src/delivery-lanes.mjs'
+import { TONE, laneBackground } from './ui/tones.ts'
 
 export type LaneId = 'ready' | 'running' | 'reviewing' | 'needs-you' | 'waiting' | 'done'
 
@@ -14,10 +15,10 @@ export type LaneId = 'ready' | 'running' | 'reviewing' | 'needs-you' | 'waiting'
 // warning (yellow) color: that means "needs you".
 export type DrawnLaneId = 'ready' | 'in-progress' | 'needs-you' | 'waiting' | 'done'
 export const LANES: { id: DrawnLaneId; label: string; tint: string }[] = [
-  { id: 'ready', label: 'Ready', tint: 'var(--accent)' },
-  { id: 'in-progress', label: 'In progress', tint: 'var(--tile-purple, var(--accent))' },
-  { id: 'needs-you', label: 'Needs you', tint: 'var(--danger)' },
-  { id: 'waiting', label: 'Blocked or waiting', tint: 'var(--muted)' },
+  { id: 'ready', label: 'Ready', tint: TONE.accent },
+  { id: 'in-progress', label: 'In progress', tint: TONE.purpleOrAccent },
+  { id: 'needs-you', label: 'Needs you', tint: TONE.danger },
+  { id: 'waiting', label: 'Blocked or waiting', tint: TONE.muted },
 ]
 
 // The groups inside the In progress lane, in order, each with its cards.
@@ -48,9 +49,7 @@ export const LANE_LABEL_WIDTH = 160
 // The width each of `columns` lanes gets in a row `width` wide.
 export const laneWidth = (width: number, columns: number, gap = 16) => (width - (columns - 1) * gap) / columns
 
-// A lane's background: a little of its tint over the card color, so text in
-// var(--text) stays readable in light and dark themes.
-export const laneBackground = (tint: string) => `color-mix(in srgb, ${tint} 8%, var(--card, transparent))`
+export { laneBackground }
 
 export interface LaneCard {
   id: string
@@ -252,7 +251,7 @@ export function filterLanes(lanes: Record<LaneId, LaneCard[]>, filter: TaskFilte
 
 // The lanes the board draws for a filter: Done only when the filter asks
 // for done work (the Dashboard's Done count opens it), else the four lanes.
-export const DONE_LANE = { id: 'done' as const, label: 'Done', tint: 'var(--ok)' }
+export const DONE_LANE = { id: 'done' as const, label: 'Done', tint: TONE.ok }
 
 // Lanes per row: 1 on a phone; else every lane in one row, falling back to
 // 2, then 1, only when lanes would go under LANE_MIN_WIDTH, so the row never

@@ -10,13 +10,7 @@ import { checksLine, scmLabel, type ScmChecks, type ScmLink, type TaskScmLinks }
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { PlainLink } from './ui/Plain'
-
-const DOT: Record<ScmChecks['dot'], string> = {
-  pass: 'var(--ok)',
-  fail: 'var(--danger)',
-  pending: 'var(--accent)',
-  stale: 'var(--muted)',
-}
+import { DOT } from './ui/looks/TaskScmLinks.ts'
 
 function Out(props: { to: string | null | undefined; children: ReactNode }) {
   const href = safeHref(props.to ?? null)

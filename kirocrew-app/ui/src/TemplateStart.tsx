@@ -17,12 +17,7 @@ import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { PlainInput } from './ui/Plain'
-
-const fieldStyle = {
-  borderColor: 'var(--border)',
-  color: 'var(--text)',
-  background: 'var(--card, transparent)',
-}
+import { fieldStyle } from './ui/looks/TemplateStart.ts'
 
 export const templateKey = (t: Pick<TemplateSummary, 'plugin' | 'id'>) => `${t.plugin}/${t.id}`
 

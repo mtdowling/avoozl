@@ -1,6 +1,7 @@
 // The Refresh button's countdown: how long until the page reads again.
 // Pure helpers; RefreshButton.tsx holds the timer.
 import type { RateView } from './settings-api.ts'
+import { ageColor } from './ui/tones.ts'
 
 // Used while the cache is off (github.cacheSeconds 0) or not yet read.
 export const FALLBACK_SECONDS = 20
@@ -43,4 +44,4 @@ export function refreshTip(rate: RateView | null | undefined, secondsLeft: numbe
 
 // The side panel's Refresh color for a read `age` from 0 (fresh) to 100 (due or
 // rate limited): the muted text color mixed toward the theme's red.
-export const refreshColor = (age: number): string => (age >= 100 ? 'var(--danger)' : `color-mix(in srgb, var(--danger) ${Math.round(Math.max(0, age) * 0.8)}%, var(--muted))`)
+export const refreshColor = (age: number): string => ageColor(age)
