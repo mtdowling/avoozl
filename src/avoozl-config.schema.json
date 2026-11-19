@@ -1796,13 +1796,6 @@
           "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
           "description": "Planning repository for plans-repo mode; kept but not used in other modes."
         },
-        "defaultAuthority": {
-          "enum": ["github", "local"],
-          "description": "Authority of new tasks. Defaults to github when a mode is set, else local."
-        },
-        "project": {
-          "$ref": "#/$defs/githubProject"
-        },
         "epicIssueType": {
           "type": ["string", "null"],
           "minLength": 1
@@ -1828,29 +1821,6 @@
           "default": 400,
           "description": "The most GitHub writes Avoozl makes in an hour."
         },
-        "subIssues": {
-          "type": ["object", "null"],
-          "additionalProperties": false,
-          "properties": {
-            "maxPerParent": {
-              "type": "integer",
-              "minimum": 1,
-              "default": 100,
-              "description": "How many sub-issues Avoozl links under one parent issue. GitHub's own limit is 100."
-            }
-          }
-        },
-        "issues": {
-          "type": ["object", "null"],
-          "additionalProperties": false,
-          "properties": {
-            "includeDone": {
-              "type": "boolean",
-              "default": false,
-              "description": "Whether a task already done when its spec is approved gets an issue."
-            }
-          }
-        },
         "specReviewers": {
           "type": ["object", "null"],
           "description": "The GitHub logins asked to review each spec's approval pull request, by spec folder name. With none, the repository's own CODEOWNERS and rules decide.",
@@ -1875,76 +1845,6 @@
           "additionalProperties": {
             "$ref": "#/$defs/githubRepositoryPolicy"
           }
-        }
-      },
-      "additionalProperties": false
-    },
-    "githubProject": {
-      "type": "object",
-      "required": ["owner", "number"],
-      "properties": {
-        "owner": {
-          "type": "string",
-          "minLength": 1
-        },
-        "number": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "fields": {
-          "type": "object",
-          "properties": {
-            "status": {
-              "type": ["string", "null"],
-              "minLength": 1
-            },
-            "release": {
-              "type": ["string", "null"],
-              "minLength": 1
-            },
-            "wave": {
-              "type": ["string", "null"],
-              "minLength": 1
-            },
-            "iteration": {
-              "type": ["string", "null"],
-              "minLength": 1
-            },
-            "avoozlState": {
-              "type": ["string", "null"],
-              "minLength": 1,
-              "description": "Single-select field Avoozl fills with its Delivery state. Blank: Avoozl skips it."
-            },
-            "phase": {
-              "type": ["string", "null"],
-              "minLength": 1,
-              "description": "Text field Avoozl fills with each task's phase."
-            }
-          },
-          "additionalProperties": false
-        },
-        "statusValues": {
-          "type": "object",
-          "description": "Project Status option names. Only deferred is read as an order.",
-          "properties": {
-            "todo": {
-              "type": "string",
-              "minLength": 1
-            },
-            "inProgress": {
-              "type": "string",
-              "minLength": 1
-            },
-            "done": {
-              "type": "string",
-              "minLength": 1
-            },
-            "deferred": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          "additionalProperties": false
         }
       },
       "additionalProperties": false
