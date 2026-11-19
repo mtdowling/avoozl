@@ -264,15 +264,19 @@ function Hint({ children }: { children: ReactNode }) {
 export function Section(props: { title: string; blurb?: string; actions?: ReactNode; children?: ReactNode; level?: 'card' | 'sub'; icon?: LucideIcon }) {
   const sub = props.level === 'sub'
   return (
-    <div
-      className="flex flex-col gap-2.5"
+    <Box
+      css-border-top={sub ? '1px-solid-border' : undefined}
+      css-padding-top={sub ? '12' : undefined}
+      css-margin-top={sub ? '4' : undefined}
+      flex
+      flexCol
+      gap="2.5"
       data-section={props.title}
       data-sub-section={sub ? '' : undefined}
-      style={sub ? { borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 } : undefined}
     >
       <SectionHeading level={props.level === 'sub' ? 4 : 3} title={props.title} blurb={props.blurb} actions={props.actions} icon={props.icon} />
       {props.children}
-    </div>
+    </Box>
   )
 }
 
