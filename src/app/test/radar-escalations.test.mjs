@@ -318,8 +318,8 @@ test("the escalation rule is off by default and drafts locally with zero GitHub 
     intake.items[0].escalation.draft,
     needsYou[0].escalation.draft,
   ]) {
-    assert.equal(draft.kind, "bounded-fix");
-    assert.equal(draft.v, 1);
+    assert.ok(draft.source.issue);
+    assert.equal(draft.v, 2);
     assert.match(draft.definition, /^[0-9a-f]{64}$|^sha256:/);
   }
   assert.deepEqual(github.writes, [], "a draft writes nothing to GitHub");

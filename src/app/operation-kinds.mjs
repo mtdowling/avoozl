@@ -236,6 +236,8 @@ const PROTECT = new Set([
   "specpr.reject",
   "specpr.requestChanges",
   "review.chat",
+  "fix.start",
+  "fix.spec",
   "untriaged.plan",
   "intake.deliver",
   "intake.confirm",

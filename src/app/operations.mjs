@@ -1,4 +1,5 @@
 import { allowProtectedPaths } from "./verify.mjs";
+import { fixToSpec, openFixJournal, startFix } from "./fix.mjs";
 import {
   ciSettingsView,
   ciFlowView,
@@ -4538,14 +4539,39 @@ export class Operations {
       return withWorkLock(store, WORKSPACE_LOCK, async () =>
         confirmSnapshot(store, input),
       );
+    // A fix (triage-agent TA9): one change with no spec files. Starting it
+    // is the approval, so only a person starts one or makes it a spec.
+    if (name === "fix.start" || name === "fix.spec") {
+      if (context.caller || context.mcp)
+        fail("Only a person starts a fix or makes it a spec.", 403);
+      return withWorkLock(store, WORKSPACE_LOCK, async () =>
+        name === "fix.start"
+          ? startFix(store, input, {
+              workspaceRoot: this.workspaceRoot,
+              actor: this.operator,
+            })
+          : fixToSpec(store, this.workspaceRoot, input),
+      );
+    }
     if (name === "intake.deliver" || name === "intake.plan") {
       const action = name === "intake.deliver" ? "deliver" : "plan",
         policy = readGitHubPolicyOrNull(this.workspaceRoot);
       // A GitHub item (R102.19): its two writes need the GitHub client.
+      // Deliver this is a fix, which lands through its own journal.
       if (input.source === "github")
-        return withWorkLock(store, WORKSPACE_LOCK, async () =>
-          startGitHubItem(store, this.github, policy, { ...input, action }),
-        );
+        return withWorkLock(store, WORKSPACE_LOCK, async () => {
+          const started = await startGitHubItem(store, this.github, policy, {
+            ...input,
+            action,
+          });
+          if (action === "deliver")
+            await openFixJournal(
+              store,
+              { workspaceRoot: this.workspaceRoot, actor: this.operator },
+              started.taskId,
+            );
+          return started;
+        });
       return withWorkLock(store, WORKSPACE_LOCK, async () =>
         startByPerson(store, sourceMap(this.pluginOptions, store), policy, {
           ...input,

@@ -33,13 +33,14 @@ import { driverIdOf } from "./spec-scheduler.mjs";
 import { specAuthority } from "./spec-takeover.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
 import { fail } from "./store.mjs";
+import { landingSpecOf, specRevision } from "./fix.mjs";
 
 const ERRORS = "directLandingErrors";
 export const isDirectLanding = (project) => project?.landing === "direct";
 
 // Queues one verified task. Returns the delivery with the queued commit.
 export function queueDirect(store, { delivery, project, task, at }) {
-  const planId = task?.planId,
+  const planId = landingSpecOf(task),
     driver = planId ? driverIdOf(store, planId) : null;
   if (!driver)
     fail(
@@ -137,7 +138,7 @@ export async function landDirect(
                 driver: own[0].driver,
                 owner: authority.owner,
                 login: authority.login,
-                revision: store.get("plans", spec).hash,
+                revision: specRevision(store, spec),
               },
             };
           },

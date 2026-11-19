@@ -481,7 +481,7 @@ export function judgeItem(
 // ---------------------------------------------------------------------------
 // Tasks.
 
-function ensureInbox(data) {
+export function ensureInbox(data) {
   if (!data.tracks.some((track) => track.id === "catalog"))
     data.tracks.push({ id: "catalog", label: "General" });
 }

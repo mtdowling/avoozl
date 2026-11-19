@@ -461,6 +461,8 @@ const SAYS = [
   ["plugin", "change plugins"],
   ["content.", "change content rules"],
   ["review.chat", "open a review chat"],
+  ["fix.start", "start this fix as a ready task"],
+  ["fix.spec", "make this fix a draft spec folder"],
   ["untriaged.plan", "plan this issue"],
   ["untriaged.handoff", "hand this item to Issue Radar"],
   ["conflicts.", "settle this conflict"],

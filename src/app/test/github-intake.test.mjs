@@ -3,9 +3,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
+import { fixRecord } from "../fix.mjs";
 import {
   INTAKE_MARKER,
-  boundedFix,
   closingLine,
   initialWrites,
   reusableInput,
@@ -87,15 +87,17 @@ test("Deliver this makes a bounded fix with two writes and no spec", async (t) =
   assert.equal(w.github.created.length, 1, "no spec or other issue is made");
   assert.equal(w.store.list("plans").length, 0);
   const made = task(w.store, result.taskId);
-  assert.equal(made.fix.v, 1);
-  assert.equal(made.fix.kind, "bounded-fix");
+  assert.equal(made.fix.v, 2);
+  assert.deepEqual(made.fix.source, {
+    issue: { repository: REPOSITORY, number: 12 },
+  });
+  assert.equal(made.approvedSource.hash, made.fix.definition);
   assert.deepEqual(made.fix.journal, { repository: REPOSITORY, number: 12 });
   assert.deepEqual(made.acceptance, made.fix.acceptance);
   assert.equal(
     made.fix.definition,
-    boundedFix({
-      repository: REPOSITORY,
-      number: 12,
+    fixRecord({
+      issue: { repository: REPOSITORY, number: 12 },
       title: "Fix 12",
       body: "The parser drops the last line.",
     }).definition,
@@ -122,12 +124,16 @@ test("the status comment names nothing private and carries no Radar claim marker
 });
 
 test("a changed issue text is a changed definition", () => {
-  const base = { repository: REPOSITORY, number: 3, title: "A", body: "x" };
+  const base = {
+    issue: { repository: REPOSITORY, number: 3 },
+    title: "A",
+    body: "x",
+  };
   assert.notEqual(
-    boundedFix(base).definition,
-    boundedFix({ ...base, body: "y" }).definition,
+    fixRecord(base).definition,
+    fixRecord({ ...base, body: "y" }).definition,
   );
-  assert.equal(boundedFix(base).definition, boundedFix(base).definition);
+  assert.equal(fixRecord(base).definition, fixRecord(base).definition);
 });
 
 test("Plan this sends the issue to the planner with the same two writes", async (t) => {

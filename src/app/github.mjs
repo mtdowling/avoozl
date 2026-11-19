@@ -417,7 +417,7 @@ export class GitHubClient {
   async send(
     method,
     pathname,
-    { query, body, accept, headers, etag, responseProjection } = {},
+    { query, body, accept, headers, etag, responseProjection, uncached } = {},
   ) {
     if (!this.token && this.discoverToken) {
       this.token = localToken();
@@ -439,8 +439,10 @@ export class GitHubClient {
       readable =
         method === "GET" ||
         (pathname === "/graphql" && /^\s*(query\b|\{)/.test(body?.query || "")),
+      // `uncached` skips the answer cache: the caller keys its own copy (a
+      // detail kept by the item's updatedAt, github-items.mjs).
       key =
-        readable && !etag && this.cache
+        readable && !etag && !uncached && this.cache
           ? this.cache.key(
               this.token,
               responseProjection
@@ -1174,9 +1176,10 @@ export class GitHubClient {
     return this.updateIssue(value, number, { type });
   }
 
-  async graphql(query, variables, what) {
+  async graphql(query, variables, what, { uncached = false } = {}) {
     const result = await this.request("POST", "/graphql", {
       body: { query, variables },
+      uncached,
     });
     if (result?.errors?.length)
       fail(

@@ -87,6 +87,8 @@ export const APP_OPERATIONS = new Set([
   "specpr.requestChanges",
   "github.crewlabel.backfill",
   "review.chat",
+  "fix.start",
+  "fix.spec",
   "untriaged.plan",
   "github.repository.labels",
   "task.detail",

@@ -229,6 +229,8 @@ export const PERSON_ONLY = new Map([
     person("Only a person adds crew:avoozl to old task issues."),
   ],
   ["review.chat", person("Only a person starts a code review chat.")],
+  ["fix.start", person("Only a person starts a fix; starting it approves it.")],
+  ["fix.spec", person("Only a person makes a fix a spec.")],
   ["untriaged.plan", person("Only a person presses Plan this on an issue.")],
   [
     "intake.deliver",
