@@ -14,11 +14,11 @@
 //
 // Everything Avoozl keeps lives under --root, with its own Avoozl config and
 // state home (XDG_CONFIG_HOME, XDG_STATE_HOME). The only thing outside it is
-// --repo: a scratch GitHub repository the owner made for this, empty, which
+// --github: a scratch GitHub repository the owner made for this, empty, which
 // the run pushes to and opens one pull request and one issue in. Run it from
 // a terminal outside Kiro Crew, on a machine user with no Kiro Crew, as P59:
 //
-//   node scripts/proof-nk-p2-live.mjs --root DIR --repo OWNER/SCRATCH [--agent claude|codex]
+//   node scripts/proof-nk-p2-live.mjs --root DIR --github OWNER/SCRATCH [--agent claude|codex]
 //   node scripts/proof-nk-p2-live.mjs --root DIR --agent fake --offline
 //
 // `--agent fake --offline` checks this script's plumbing for steps 1 to 4
@@ -50,7 +50,7 @@ const which = (name) =>
 const { values } = parseArgs({
   options: {
     root: { type: "string" },
-    repo: { type: "string" },
+    github: { type: "string" },
     agent: { type: "string", default: "claude" },
     offline: { type: "boolean", default: false },
     backend: { type: "boolean", default: false },
@@ -59,16 +59,16 @@ const { values } = parseArgs({
 const AGENT = values.agent;
 if (!values.root || !["claude", "codex", "fake"].includes(AGENT)) {
   console.error(
-    "Usage: node scripts/proof-nk-p2-live.mjs --root DIR --repo OWNER/SCRATCH [--agent claude|codex] | --root DIR --agent fake --offline",
+    "Usage: node scripts/proof-nk-p2-live.mjs --root DIR --github OWNER/SCRATCH [--agent claude|codex] | --root DIR --agent fake --offline",
   );
   process.exit(64);
 }
 const OFFLINE = values.offline;
 if (OFFLINE && AGENT !== "fake")
   throw Error("--offline is for --agent fake only.");
-if (!OFFLINE && !/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(values.repo ?? ""))
-  throw Error("--repo names the scratch repository as OWNER/NAME.");
-const GITHUB = values.repo ?? null;
+if (!OFFLINE && !/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(values.github ?? ""))
+  throw Error("--github names the scratch repository as OWNER/NAME.");
+const GITHUB = values.github ?? null;
 const ROOT = path.resolve(values.root);
 const HARNESS = { claude: "claude-code", codex: "codex", fake: "fake-cli" }[
   AGENT
@@ -551,7 +551,7 @@ async function prove() {
       ROOT,
       "--agent",
       AGENT,
-      ...(GITHUB ? ["--repo", GITHUB] : ["--offline"]),
+      ...(GITHUB ? ["--github", GITHUB] : ["--offline"]),
       "--backend",
     ],
     { stdio: ["ignore", out, out], env: process.env },
