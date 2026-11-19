@@ -716,9 +716,13 @@ async function prove() {
       // Every run failed: nothing more will happen (see each child's log).
       if (settled(state) && state.runs.every((run) => run.state === "failed"))
         break;
-      // The collaborator's fix stopped for a person: it will not land alone.
-      if (settled(state) && fix === "decision") {
-        event("fix.stopped", { number: 2 });
+      // A fix Avoozl stopped (its delivery waits on a person's decision)
+      // will not land by itself: the proof fails now instead of waiting.
+      const stopped = Object.entries(state.fixes)
+        .filter(([, entry]) => entry.delivery === "decision")
+        .map(([number]) => Number(number));
+      if (stopped.length) {
+        event("fix.stopped", { numbers: stopped });
         break;
       }
       if (Date.now() > end) break;
