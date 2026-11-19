@@ -272,7 +272,9 @@ answer.
 #### Acceptance criteria
 
 1. Avoozl SHALL start a session only on its own machine. No setting, pin,
-   command or operation SHALL name another Kiro Crew instance.
+   command or operation SHALL start, send to or stop a session on another
+   Kiro Crew instance. (Changed 2026-11-19 by direct-links D2: a read-only
+   link that opens an existing chat on another Crew may name that Crew.)
 2. The remote steps, the `crew` argument of the `kirocrew` executor and the
    hand-back over SSH SHALL be removed. The crew snapshot stays for the In
    flight view's unreachable-crew flag.
