@@ -6,8 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import { blocks, digest, sectionText } from "../../model.mjs";
 import { syncPlans } from "../../catalog.mjs";
-import { reconcileSource } from "../source-sync.mjs";
-import { Operations } from "../operations.mjs";
+import { reconcileSource } from "../specs/source-sync.mjs";
+import { Operations } from "../api/operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const BEFORE = `# Plan

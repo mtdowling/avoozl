@@ -1,5 +1,5 @@
 // Calls and words for Flow's Builds (R101.4). The backend (`builds.view`,
-// src/app/build-receipt-read.mjs) computes every number; this file words
+// src/app/flow/build-receipt-read.mjs) computes every number; this file words
 // them. No JSX and no runtime imports beyond the types, so node can test it.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'

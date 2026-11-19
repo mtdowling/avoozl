@@ -4,8 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildAgents } from "../executors/kirocrew/build-agents.mjs";
-import { rolePrompt, shippedPrompts } from "../prompts.mjs";
-import { retroPrompt } from "../flow-retro.mjs";
+import { rolePrompt, shippedPrompts } from "../agents/prompts.mjs";
+import { retroPrompt } from "../flow/flow-retro.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url)),
@@ -108,8 +108,8 @@ test("the installed runtime reads portable prompt files without generated agent 
   // No app.json or agents/ is copied: prompts are runtime data in the bundle.
   const load = (file) =>
       import(pathToFileURL(path.join(installed, "src", "app", file))),
-    prompts = await load("prompts.mjs"),
-    retro = await load("flow-retro.mjs");
+    prompts = await load("agents/prompts.mjs"),
+    retro = await load("flow/flow-retro.mjs");
   assert.equal(prompts.rolePrompt("planner"), rolePrompt("planner"));
   assert.equal(prompts.shippedPrompts()["brief.worker"], rolePrompt("worker"));
   assert.equal(prompts.shippedPrompts()["agent.retro"], rolePrompt("retro"));

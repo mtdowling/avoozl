@@ -6,17 +6,20 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import test from "node:test";
-import { machineSinks } from "../headless-tick.mjs";
-import { loadLayeredConfig } from "../layered-config.mjs";
+import { machineSinks } from "../tick/headless-tick.mjs";
+import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import {
   noticeLink,
   sinkPayload,
   sinkPushers,
   validateNotifications,
-} from "../notification-sinks.mjs";
-import { deliverNotifications, queueNotifications } from "../notifications.mjs";
-import { bindContentRules } from "../content-rules.mjs";
-import { Store } from "../store.mjs";
+} from "../tick/notification-sinks.mjs";
+import {
+  deliverNotifications,
+  queueNotifications,
+} from "../tick/notifications.mjs";
+import { bindContentRules } from "../content/content-rules.mjs";
+import { Store } from "../store/store.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

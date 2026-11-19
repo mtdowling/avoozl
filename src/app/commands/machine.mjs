@@ -1,30 +1,30 @@
 // CLI commands of one kind: command, help lines and run.
-import { startAppBackend } from "../app-backend.mjs";
-import { createAppMcp } from "../app-mcp.mjs";
-import { machineAvoozlPaths } from "../host-config.mjs";
-import { machineStatus, serveStatus } from "../machine-status.mjs";
-import { handleMcp } from "../mcp.mjs";
-import { HOLDS_TASKS, readRunnerConfig } from "../remote-runner.mjs";
-import { reportByToken } from "../report-match.mjs";
-import { LinkStore } from "../serve-auth.mjs";
-import { startServe } from "../serve-server.mjs";
-import { Store } from "../store.mjs";
+import { startAppBackend } from "../executors/kirocrew/app-backend.mjs";
+import { createAppMcp } from "../executors/kirocrew/app-mcp.mjs";
+import { machineAvoozlPaths } from "../settings/host-config.mjs";
+import { machineStatus, serveStatus } from "../workspace/machine-status.mjs";
+import { handleMcp } from "../mcp/mcp.mjs";
+import { HOLDS_TASKS, readRunnerConfig } from "../workers/remote-runner.mjs";
+import { reportByToken } from "../workers/report-match.mjs";
+import { LinkStore } from "../serve/serve-auth.mjs";
+import { startServe } from "../serve/serve-server.mjs";
+import { Store } from "../store/store.mjs";
 import {
   supervisorUnit,
   unitKindFor,
   writeSupervisorUnit,
-} from "../supervisor-unit.mjs";
-import { runSupervisor } from "../supervisor.mjs";
-import { standaloneUiDirectory } from "../ui-bundle.mjs";
+} from "../executors/supervisor-unit.mjs";
+import { runSupervisor } from "../executors/supervisor.mjs";
+import { standaloneUiDirectory } from "../serve/ui-bundle.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
-import { help } from "../command-help.mjs";
+import { help } from "../cli/command-help.mjs";
 import {
   approveHarnessByName,
   listHarnessDefinitions,
-} from "../harness-definitions.mjs";
-import { agentSessionNote, cliRefusal } from "../mcp-policy.mjs";
+} from "../executors/harness-definitions.mjs";
+import { agentSessionNote, cliRefusal } from "../mcp/mcp-policy.mjs";
 
 const send = (body) => process.stdout.write(JSON.stringify(body) + "\n");
 

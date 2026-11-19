@@ -11,8 +11,8 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Store } from "../store.mjs";
-import { Operations } from "../operations.mjs";
+import { Store } from "../store/store.mjs";
+import { Operations } from "../api/operations.mjs";
 import { withFacts } from "./spec-fixture.mjs";
 
 // Small, fast, seeded: the same seed gives the same workspace.

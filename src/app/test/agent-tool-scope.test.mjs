@@ -4,10 +4,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { handleMcp } from "../mcp.mjs";
-import { GROUPED_TOOLS } from "../mcp-tools.mjs";
-import { classifyOperation } from "../operation-table.mjs";
-import { Operations } from "../operations.mjs";
+import { handleMcp } from "../mcp/mcp.mjs";
+import { GROUPED_TOOLS } from "../mcp/mcp-tools.mjs";
+import { classifyOperation } from "../api/operation-table.mjs";
+import { Operations } from "../api/operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const agents = JSON.parse(

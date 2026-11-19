@@ -13,12 +13,12 @@ import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { digest } from "../src/model.mjs";
-import { Store } from "../src/app/store.mjs";
-import { integrateVerified } from "../src/app/delivery.mjs";
-import { landingQueue } from "../src/app/landing-queue.mjs";
-import { landDirect } from "../src/app/direct-landing.mjs";
-import { sizeRecord } from "../src/app/merge-batch-size.mjs";
-import { takeOverSpec } from "../src/app/spec-takeover.mjs";
+import { Store } from "../src/app/store/store.mjs";
+import { integrateVerified } from "../src/app/delivery/delivery.mjs";
+import { landingQueue } from "../src/app/landing/landing-queue.mjs";
+import { landDirect } from "../src/app/landing/direct-landing.mjs";
+import { sizeRecord } from "../src/app/landing/merge-batch-size.mjs";
+import { takeOverSpec } from "../src/app/specs/spec-takeover.mjs";
 import { snapshot } from "../src/app/test/fixtures.mjs";
 
 const { values } = parseArgs({

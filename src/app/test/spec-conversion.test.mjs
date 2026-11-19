@@ -15,7 +15,7 @@ import {
   listSpecFolders,
   readSpecFolder,
   withoutMarks,
-} from "../spec-plans.mjs";
+} from "../specs/spec-plans.mjs";
 
 const root = path.resolve(fileURLToPath(import.meta.url), "../../../..");
 const before = JSON.parse(

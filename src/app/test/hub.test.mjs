@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "./fixtures.mjs";
-import { Operations } from "../operations.mjs";
-import { createPlan } from "../plans.mjs";
+import { Operations } from "../api/operations.mjs";
+import { createPlan } from "../specs/plans.mjs";
 test("deleting drafts can restore and refuses approved work", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);

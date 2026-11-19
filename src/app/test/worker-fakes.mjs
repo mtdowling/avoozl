@@ -4,7 +4,7 @@
 // reads it back. Neither runs a model.
 import fs from "node:fs";
 import path from "node:path";
-import { readChildResult, RESULT_FILE } from "../supervisor.mjs";
+import { readChildResult, RESULT_FILE } from "../executors/supervisor.mjs";
 
 // The way a chat finishes, read from its brief: the command-line report with
 // a token, a runner-machine report, a plans_report call, or "report done".

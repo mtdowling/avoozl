@@ -7,9 +7,9 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { checkTermsText, describeSets } from "../content-rules.mjs";
-import { Operations } from "../operations.mjs";
-import { previewPlugin } from "../plugins.mjs";
+import { checkTermsText, describeSets } from "../content/content-rules.mjs";
+import { Operations } from "../api/operations.mjs";
+import { previewPlugin } from "../plugins/plugins.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

@@ -1,5 +1,5 @@
 // The side panel on replies a real backend gave: the sample workspace is built
-// by src/app/demo.mjs and read through its own operations, so a reply whose
+// by src/app/workspace/demo.mjs and read through its own operations, so a reply whose
 // shape drifts from what the panel reads fails here. One page per chat kind:
 // a normal chat, a Spec Builder chat and an Avoozl chat. Set
 // AVOOZL_PANEL_SHOTS=<dir> to write a screenshot of each. Skipped without Chrome.
@@ -8,7 +8,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
-import { demoOperations, installDemo } from '../../../src/app/demo.mjs'
+import { demoOperations, installDemo } from '../../../src/app/workspace/demo.mjs'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 

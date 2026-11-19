@@ -7,8 +7,8 @@ import { createHash, createHmac, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Store } from "../store.mjs";
-import { emptySnapshot } from "../workspace.mjs";
+import { Store } from "../store/store.mjs";
+import { emptySnapshot } from "../workspace/workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));

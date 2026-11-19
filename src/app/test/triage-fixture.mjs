@@ -5,9 +5,9 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { Store } from "../store.mjs";
-import { normalizeGitHubPolicy } from "../github-policy.mjs";
-import { runRows, submitTriage, triageStep } from "../triage.mjs";
+import { Store } from "../store/store.mjs";
+import { normalizeGitHubPolicy } from "../github/github-policy.mjs";
+import { runRows, submitTriage, triageStep } from "../intake/triage.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { FakeGitHubApi } from "./fake-github-api.mjs";
 import { temporaryDirectory } from "./temporary.mjs";

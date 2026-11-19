@@ -2,8 +2,8 @@
 // reader uses (spec-legacy.mjs), for fixtures that still describe facts as
 // a manifest object (Requirement 111.6, 111.10).
 import { digest } from "../../model.mjs";
-import { foldManifest } from "../spec-legacy.mjs";
-import { withoutMarks, withoutStatus } from "../spec-plans.mjs";
+import { foldManifest } from "../specs/spec-legacy.mjs";
+import { withoutMarks, withoutStatus } from "../specs/spec-plans.mjs";
 
 const MANIFEST = "avoozl/manifest.json";
 

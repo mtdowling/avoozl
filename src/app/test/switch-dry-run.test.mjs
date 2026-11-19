@@ -3,13 +3,13 @@
 // and that Switch runs exactly the dry run's set or refuses a changed one.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Store } from "../store.mjs";
+import { Store } from "../store/store.mjs";
 import {
   healthContext,
   listSwitches,
   queueSwitch,
   switchDryRun,
-} from "../provider-health.mjs";
+} from "../flow/provider-health.mjs";
 
 const bind = (slot, taskId, model, extra = {}) => ({
   id: slot,

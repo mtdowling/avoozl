@@ -1,7 +1,7 @@
 // CLI commands of one kind: command, help lines and run.
 import { batchLine } from "./support.mjs";
 import fs from "node:fs";
-import { help } from "../command-help.mjs";
+import { help } from "../cli/command-help.mjs";
 
 export const commands = [
   {

@@ -8,17 +8,17 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { deliveryPolicy, reconcileDeliveries } from "../delivery.mjs";
-import { recordRetroReply, retroStep } from "../flow-retro.mjs";
-import { Operations } from "../operations.mjs";
+import { deliveryPolicy, reconcileDeliveries } from "../delivery/delivery.mjs";
+import { recordRetroReply, retroStep } from "../flow/flow-retro.mjs";
+import { Operations } from "../api/operations.mjs";
 import {
   approvePlugin,
   inspectPlugins,
   writePluginSettings,
-} from "../plugins.mjs";
-import { shippedPrompts } from "../prompts.mjs";
-import { Store } from "../store.mjs";
-import { unifiedDiff } from "../text-diff.mjs";
+} from "../plugins/plugins.mjs";
+import { shippedPrompts } from "../agents/prompts.mjs";
+import { Store } from "../store/store.mjs";
+import { unifiedDiff } from "../agents/text-diff.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -544,7 +544,7 @@ test("P42: prompt and skill proposals", async (t) => {
     drift = view.prompts.find((p) => p.target === "brief.worker").drift[0];
   assert.equal(drift.section, "steps");
   assert.ok(drift.diffs.builtIn && drift.diffs.override && drift.rebased);
-  const { leafBrief } = await import("../delivery.mjs");
+  const { leafBrief } = await import("../delivery/delivery.mjs");
   const brief = leafBrief(W1.store, W1.store.read(), {
     task: W1.store.read().tasks.find((x) => x.id === W1.ids[60]),
     repository: W1.store.get("repositories", "wonerepo"),

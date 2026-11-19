@@ -2,7 +2,7 @@
 // merge.method is refused.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeGitHubPolicy } from "../github-policy.mjs";
+import { normalizeGitHubPolicy } from "../github/github-policy.mjs";
 const REPO = "example/app";
 
 test("landing.method defaults to squash and is refused when unknown", () => {

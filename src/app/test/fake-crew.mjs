@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { checkRuns, drainCheckRuns } from "../check-runs.mjs";
+import { checkRuns, drainCheckRuns } from "../delivery/check-runs.mjs";
 
 export function git(cwd, ...args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();

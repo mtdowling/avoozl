@@ -11,11 +11,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
-import { readGitHubPolicy } from "../github-policy.mjs";
-import { inspectPlugins, pluginHost, validateManifest } from "../plugins.mjs";
-import { validatePack } from "../plugin-pack.mjs";
-import { Store } from "../store.mjs";
+import { Operations } from "../api/operations.mjs";
+import { readGitHubPolicy } from "../github/github-policy.mjs";
+import {
+  inspectPlugins,
+  pluginHost,
+  validateManifest,
+} from "../plugins/plugins.mjs";
+import { validatePack } from "../plugins/plugin-pack.mjs";
+import { Store } from "../store/store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

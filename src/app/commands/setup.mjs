@@ -1,11 +1,11 @@
 // CLI commands of one kind: command, help lines and run.
-import { workspaceConfig } from "../config.mjs";
-import { WorkspaceRegistry } from "../host-config.mjs";
-import { machineStatus } from "../machine-status.mjs";
-import { workflowSkill } from "../skill.mjs";
-import { workspaceStatus } from "../workspace-status.mjs";
-import { initializeWorkspace } from "../workspace.mjs";
-import { help } from "../command-help.mjs";
+import { workspaceConfig } from "../settings/config.mjs";
+import { WorkspaceRegistry } from "../settings/host-config.mjs";
+import { machineStatus } from "../workspace/machine-status.mjs";
+import { workflowSkill } from "../cli/skill.mjs";
+import { workspaceStatus } from "../workspace/workspace-status.mjs";
+import { initializeWorkspace } from "../workspace/workspace.mjs";
+import { help } from "../cli/command-help.mjs";
 
 async function runSpecOffer({ options, positionals, localOrRequest, need }) {
   // The driver offers a task to a worker login and reserves the grants its

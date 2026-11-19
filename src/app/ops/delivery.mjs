@@ -3,22 +3,22 @@ import {
   approveIntegration,
   readyCandidates,
   retryDelivery,
-} from "../delivery.mjs";
-import { integrateRun } from "../git.mjs";
-import { planningIdentity } from "../github-marker.mjs";
-import { readGitHubPolicyOrNull } from "../github-policy.mjs";
+} from "../delivery/delivery.mjs";
+import { integrateRun } from "../git/git.mjs";
+import { planningIdentity } from "../github/github-marker.mjs";
+import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import {
   checkIntegrationBranch,
   requireIntegrationBranch,
-} from "../integration-branch.mjs";
-import { integrationView, landBranch } from "../integration-head.mjs";
-import { landingQueueView } from "../landing-queue-view.mjs";
-import { landingView } from "../landing-view.mjs";
-import { loadLayeredConfig } from "../layered-config.mjs";
-import { manualTake } from "../manual-take.mjs";
-import { deliverNotifications } from "../notifications.mjs";
-import { stampPrompts } from "../operation-support.mjs";
-import { deliveryView } from "../page-views.mjs";
+} from "../epics/integration-branch.mjs";
+import { integrationView, landBranch } from "../epics/integration-head.mjs";
+import { landingQueueView } from "../landing/landing-queue-view.mjs";
+import { landingView } from "../landing/landing-view.mjs";
+import { loadLayeredConfig } from "../settings/layered-config.mjs";
+import { manualTake } from "../workers/manual-take.mjs";
+import { deliverNotifications } from "../tick/notifications.mjs";
+import { stampPrompts } from "../api/operation-support.mjs";
+import { deliveryView } from "../api/page-views.mjs";
 import {
   clearMark,
   providersView,
@@ -26,21 +26,21 @@ import {
   switchDryRun,
   switchPreview,
   updateProviders,
-} from "../provider-health.mjs";
-import { releaseQueue } from "../release-queue.mjs";
+} from "../flow/provider-health.mjs";
+import { releaseQueue } from "../mirror/release-queue.mjs";
 import {
   acceptWork,
   pullWork,
   readRunnerConfig,
   reportDone,
   runnerStatus,
-} from "../remote-runner.mjs";
-import { nextView } from "../runner.mjs";
-import { fail } from "../store.mjs";
-import { readDeliveryPolicy } from "../tick.mjs";
-import { allowProtectedPaths } from "../verify.mjs";
-import { previewWorker } from "../worker-setup.mjs";
-import { person, notOnMcp, routed } from "../operation-policy.mjs";
+} from "../workers/remote-runner.mjs";
+import { nextView } from "../workers/runner.mjs";
+import { fail } from "../store/store.mjs";
+import { readDeliveryPolicy } from "../tick/tick.mjs";
+import { allowProtectedPaths } from "../delivery/verify.mjs";
+import { previewWorker } from "../workers/worker-setup.mjs";
+import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
 export const entries = [
   // Runner mode over SSH (R84): off unless .avoozl.json has `runner`.

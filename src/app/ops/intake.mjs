@@ -1,9 +1,9 @@
 // Operations of one feature: name, class, MCP policy and handler.
-import { openFixJournal } from "../fix.mjs";
-import { withWorkLock } from "../git.mjs";
-import { startGitHubItem } from "../github-intake.mjs";
-import { readGitHubPolicyOrNull } from "../github-policy.mjs";
-import { parseIssueReference } from "../issue-reference.mjs";
+import { openFixJournal } from "../intake/fix.mjs";
+import { withWorkLock } from "../git/git.mjs";
+import { startGitHubItem } from "../github/github-intake.mjs";
+import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
+import { parseIssueReference } from "../tasks/issue-reference.mjs";
 import {
   confirmSnapshot,
   declaredSources,
@@ -15,10 +15,10 @@ import {
   startByPerson,
   submitItems,
   viewItem,
-} from "../intake.mjs";
-import { fail } from "../store.mjs";
-import { WORKSPACE_LOCK } from "../tick.mjs";
-import { person, routed } from "../operation-policy.mjs";
+} from "../intake/intake.mjs";
+import { fail } from "../store/store.mjs";
+import { WORKSPACE_LOCK } from "../tick/tick.mjs";
+import { person, routed } from "../api/operation-policy.mjs";
 
 async function intakeDeliverHandler({ name, input }) {
   const store = this.store;

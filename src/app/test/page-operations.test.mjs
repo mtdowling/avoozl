@@ -9,10 +9,13 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { parseAst } from "rolldown/parseAst";
-import { principalAllows, startAppBackend } from "../app-backend.mjs";
-import { classifyOperation } from "../operation-table.mjs";
-import { workspaceConfig } from "../config.mjs";
-import { initializeWorkspace } from "../workspace.mjs";
+import {
+  principalAllows,
+  startAppBackend,
+} from "../executors/kirocrew/app-backend.mjs";
+import { classifyOperation } from "../api/operation-table.mjs";
+import { workspaceConfig } from "../settings/config.mjs";
+import { initializeWorkspace } from "../workspace/workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 import { createHash, createHmac, randomBytes } from "node:crypto";
 

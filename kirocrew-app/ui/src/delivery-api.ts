@@ -282,7 +282,7 @@ export const START_TIP = 'Starts this task first on the next tick, within the li
 export const RETRY_TIP = 'Starts a new attempt for this task.'
 
 // Settings > Delivery (R53.3, R54.8): the backend's defaults, shown as
-// placeholders (src/app/delivery.mjs DELIVERY_DEFAULTS).
+// placeholders (src/app/delivery/delivery.mjs DELIVERY_DEFAULTS).
 export const DELIVERY_DEFAULTS = {
   investigateMode: 'not-small',
   minConfidence: 'high',

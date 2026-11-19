@@ -3,14 +3,14 @@ import test from "node:test";
 import {
   enqueueSessionRequests,
   takeSessionRequest,
-} from "../session-requests.mjs";
+} from "../sessions/session-requests.mjs";
 import {
   kirocrewRequest,
   kirocrewConfiguration,
   kirocrewDispatches,
   persistKirocrewConfiguration,
 } from "../executors/kirocrew.mjs";
-import { Operations } from "../operations.mjs";
+import { Operations } from "../api/operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const context = (id) => ({ caller: { sessionKey: `cron:${id}` } });

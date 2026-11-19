@@ -1,12 +1,12 @@
 // The Demo mode page's replies, from the real sample: build it in a temp
-// folder (src/app/demo.mjs), run every operation the page names through the
+// folder (src/app/workspace/demo.mjs), run every operation the page names through the
 // demo gate, and keep each read's result and each change's preview. The
 // harness (?page=demo) answers the sample's calls from them.
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { demoOperations, installDemo } from '../../../../src/app/demo.mjs'
+import { demoOperations, installDemo } from '../../../../src/app/workspace/demo.mjs'
 
 const src = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src')
 

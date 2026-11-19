@@ -7,7 +7,7 @@ import {
   listSpecFolders,
   lintSpec,
   readSpecFolder,
-} from "../src/app/spec-plans.mjs";
+} from "../src/app/specs/spec-plans.mjs";
 
 // The repository root, or the folder named as the first argument.
 const root = process.argv[2]

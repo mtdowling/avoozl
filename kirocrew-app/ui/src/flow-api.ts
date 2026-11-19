@@ -1,6 +1,6 @@
 // Calls and pure helpers for the Flow tab, the drawer's Timing fold, the
 // Dashboard's Line stopped banner and Settings > Flow (design §4.11, §8.4).
-// The backend (src/app/flow.mjs) computes every number; this module only
+// The backend (src/app/flow/flow.mjs) computes every number; this module only
 // formats and selects. Keep it free of JSX and runtime imports so node can
 // test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'

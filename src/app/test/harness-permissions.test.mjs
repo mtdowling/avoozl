@@ -13,7 +13,7 @@ import {
   loadHarnessDefinition,
   parseHarnessDefinition,
   sandboxWriteRoots,
-} from "../harness-definitions.mjs";
+} from "../executors/harness-definitions.mjs";
 
 const example = (patch = {}) => ({
   name: "example-cli",

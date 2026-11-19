@@ -8,10 +8,10 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { workspaceConfig } from "../config.mjs";
-import { globalAvoozlConfigPath } from "../layered-config.mjs";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
+import { workspaceConfig } from "../settings/config.mjs";
+import { globalAvoozlConfigPath } from "../settings/layered-config.mjs";
+import { Operations } from "../api/operations.mjs";
+import { Store } from "../store/store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

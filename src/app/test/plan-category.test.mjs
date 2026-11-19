@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
+import { Operations } from "../api/operations.mjs";
 import {
   frontMatter,
   frontMatterCategory,
@@ -16,7 +16,7 @@ import {
   specCategory,
   specHash,
   specTitle,
-} from "../spec-plans.mjs";
+} from "../specs/spec-plans.mjs";
 import { fixture } from "./fixtures.mjs";
 import { specFiles, writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";

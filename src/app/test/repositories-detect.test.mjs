@@ -4,12 +4,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { detectCheckout } from "../git.mjs";
+import { detectCheckout } from "../git/git.mjs";
 import {
   detectRepository,
   folderFacts,
   guessKind,
-} from "../repository-kind.mjs";
+} from "../workspace/repository-kind.mjs";
 
 function checkout(t, name) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-detect-"));

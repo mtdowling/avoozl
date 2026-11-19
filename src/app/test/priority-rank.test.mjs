@@ -1,7 +1,10 @@
 // Task 4.5: priority order from a repository's priority labels.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeGitHubPolicy, priorityRank } from "../github-policy.mjs";
+import {
+  normalizeGitHubPolicy,
+  priorityRank,
+} from "../github/github-policy.mjs";
 
 const REPO = "example/code";
 

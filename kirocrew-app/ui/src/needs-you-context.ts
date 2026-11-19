@@ -1,7 +1,7 @@
 // What a Needs you item says about itself before any button: what is asked,
 // what answering unblocks, and what evidence Avoozl holds. Free of JSX so
 // node can test it. Nothing here calls GitHub; it reads the item and its
-// `context` (src/app/needs-you-context.mjs).
+// `context` (src/app/api/needs-you-context.mjs).
 import type { ConflictItem, ItemContext, TaskText } from './views-api.ts'
 
 // What the person is asked to do, in plain words, by kind.

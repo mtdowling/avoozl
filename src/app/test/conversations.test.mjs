@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "./fixtures.mjs";
-import { Operations } from "../operations.mjs";
+import { Operations } from "../api/operations.mjs";
 
 test("task.sessions lists the task's Kiro Crew sessions and refuses an unknown task", async (t) => {
   const { store } = fixture(t),

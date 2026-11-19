@@ -143,9 +143,9 @@ function fakeGitHub(login) {
 // --- One tick of one machine, in this process. ---
 async function tickOnce(name) {
   const machine = P[name];
-  const { workspaceConfig } = await import("../src/app/config.mjs");
-  const { Store } = await import("../src/app/store.mjs");
-  const { Operations } = await import("../src/app/operations.mjs");
+  const { workspaceConfig } = await import("../src/app/settings/config.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
+  const { Operations } = await import("../src/app/api/operations.mjs");
   const { dbPath } = workspaceConfig({
     workspace: machine.ws,
     env: process.env,
@@ -345,9 +345,9 @@ const sources = { "example/code": { url: P.origin } };
 {
   const env = machineEnv(P.driver);
   Object.assign(process.env, env);
-  const { workspaceConfig } = await import("../src/app/config.mjs");
-  const { Store } = await import("../src/app/store.mjs");
-  const { takeOverSpec } = await import("../src/app/spec-takeover.mjs");
+  const { workspaceConfig } = await import("../src/app/settings/config.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
+  const { takeOverSpec } = await import("../src/app/specs/spec-takeover.mjs");
   const { dbPath } = workspaceConfig({ workspace: P.driver.ws, env });
   const store = new Store(dbPath);
   try {

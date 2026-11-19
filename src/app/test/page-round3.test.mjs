@@ -4,12 +4,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
-import { principalAllows } from "../app-backend.mjs";
-import { classifyOperation } from "../operation-table.mjs";
-import { readyLeaves } from "../delivery.mjs";
-import { specOf } from "../page-views.mjs";
-import { tickLogEntry } from "../tick.mjs";
+import { Operations } from "../api/operations.mjs";
+import { principalAllows } from "../executors/kirocrew/app-backend.mjs";
+import { classifyOperation } from "../api/operation-table.mjs";
+import { readyLeaves } from "../delivery/delivery.mjs";
+import { specOf } from "../api/page-views.mjs";
+import { tickLogEntry } from "../tick/tick.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
 
 const leaf = (id, extra = {}) => ({

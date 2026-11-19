@@ -10,15 +10,15 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
+import { Operations } from "../api/operations.mjs";
+import { Store } from "../store/store.mjs";
 import {
   deliveryPolicy,
   integrateVerified,
   rebaseForIntegration,
-} from "../delivery.mjs";
-import { conflictsView } from "../page-views.mjs";
-import { flowView } from "../flow.mjs";
+} from "../delivery/delivery.mjs";
+import { conflictsView } from "../api/page-views.mjs";
+import { flowView } from "../flow/flow.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -330,7 +330,7 @@ test("P45 mode off dispatches exactly as before, and a manifest override wins", 
     assert.doesNotMatch(d.brief, /Investigate first/);
   }
   const on = deliveryPolicy({ delivery: { investigate: { mode: "off" } } });
-  const { investigates } = await import("../investigate.mjs");
+  const { investigates } = await import("../delivery/investigate.mjs");
   assert.equal(investigates(on, leaf("x", { investigate: true })), true);
   assert.equal(investigates(deliveryPolicy({ delivery: {} }), leaf("y")), true);
   assert.equal(
@@ -428,7 +428,7 @@ test("P45 (7): the fix-work share counts the bugfix spec's task", async (t) => {
   });
   assert.equal(view.series.week.at(-1).fixes, 1);
   // The retro payload carries it (R79.3).
-  const { retroBrief } = await import("../flow-retro.mjs");
+  const { retroBrief } = await import("../flow/flow-retro.mjs");
   const brief = retroBrief(w.store, w.store.read(), {
     id: "retro-x",
     triggers: [],

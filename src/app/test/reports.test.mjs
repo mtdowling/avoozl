@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "./fixtures.mjs";
-import { Operations } from "../operations.mjs";
+import { Operations } from "../api/operations.mjs";
 
 test("saved reports retain named task filters without changing task state", async (t) => {
   const { store } = fixture(t),

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Operations } from "../operations.mjs";
+import { Operations } from "../api/operations.mjs";
 import { queryTasks } from "../../query.mjs";
 import { fixture } from "./fixtures.mjs";
 

@@ -5,7 +5,7 @@
 // caller that still changes the database must have bypassed Operations.
 import fs from "node:fs";
 import { DatabaseSync, StatementSync } from "node:sqlite";
-import { Operations } from "../operations.mjs";
+import { Operations } from "../api/operations.mjs";
 
 const trace = process.env.AVOOZL_WRITE_TRACE;
 Error.stackTraceLimit = Infinity;
@@ -18,7 +18,7 @@ function record(sql) {
     JSON.stringify({
       sql: sql.trim().split(/\s+/).slice(0, 4).join(" "),
       operations: stack.some((line) =>
-        line.includes("/src/app/operations.mjs"),
+        line.includes("/src/app/api/operations.mjs"),
       ),
       stack: stack.slice(0, 8).map((line) => line.trim()),
     }) + "\n",

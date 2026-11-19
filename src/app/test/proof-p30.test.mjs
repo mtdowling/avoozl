@@ -9,8 +9,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { snapshot } from "./fixtures.mjs";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
+import { Operations } from "../api/operations.mjs";
+import { Store } from "../store/store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const MIN = 60_000;

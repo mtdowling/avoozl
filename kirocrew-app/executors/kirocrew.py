@@ -70,7 +70,7 @@ def read_sessions(ctx, strict=False):
     One read per tick through Kiro Crew's ScriptContext.session_status (MC-2),
     closed and lost sessions included. A stock Kiro Crew has no such method;
     the Avoozl app backend then reads each session itself after this tick's
-    receipt lands (src/app/session-observer.mjs), and None tells the tick so.
+    receipt lands (src/app/executors/kirocrew/session-observer.mjs), and None tells the tick so.
     """
     if not callable(getattr(ctx, "session_status", None)):
         return None

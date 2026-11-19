@@ -1,6 +1,6 @@
 // Calls and pure helpers for release (RC4.5): the Release queue on the
 // Dashboard and the release mode in Settings. The backend
-// (src/app/release-queue.mjs) decides every state and reason; this module
+// (src/app/mirror/release-queue.mjs) decides every state and reason; this module
 // only reads and groups. No JSX and no runtime imports, so node can test it.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'

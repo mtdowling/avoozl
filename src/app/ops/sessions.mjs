@@ -1,38 +1,38 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import { resolveTaskId } from "../../task-identity.mjs";
-import { validatePlanReview } from "../chat-models.mjs";
-import { prepareWorktree, reportSession } from "../delivery.mjs";
+import { validatePlanReview } from "../settings/chat-models.mjs";
+import { prepareWorktree, reportSession } from "../delivery/delivery.mjs";
 import {
   completeKirocrewRequest,
   kirocrewConsumer,
   releaseKirocrewRequest,
   takeKirocrewRequest,
 } from "../executors/kirocrew.mjs";
-import { readFlowPolicy } from "../flow.mjs";
-import { readGitHubPolicyOrNull } from "../github-policy.mjs";
-import { machineRoots, postReply } from "../github-respond.mjs";
-import { machineAvoozlPaths } from "../host-config.mjs";
-import { loadLayeredConfig } from "../layered-config.mjs";
-import { markKirocrewSeen } from "../needs-kirocrew.mjs";
-import { stampPrompts } from "../operation-support.mjs";
-import { bindPlanAnswerSession } from "../plan-review-answers.mjs";
-import { bindSpecReviewRound } from "../plan-reviews.mjs";
-import { requestReviewChat, showReviewChat } from "../pr-review.mjs";
-import { isSkillPath, skillHashes } from "../retro-memory.mjs";
+import { readFlowPolicy } from "../flow/flow.mjs";
+import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
+import { machineRoots, postReply } from "../github/github-respond.mjs";
+import { machineAvoozlPaths } from "../settings/host-config.mjs";
+import { loadLayeredConfig } from "../settings/layered-config.mjs";
+import { markKirocrewSeen } from "../tick/needs-kirocrew.mjs";
+import { stampPrompts } from "../api/operation-support.mjs";
+import { bindPlanAnswerSession } from "../reviews/plan-review-answers.mjs";
+import { bindSpecReviewRound } from "../reviews/plan-reviews.mjs";
+import { requestReviewChat, showReviewChat } from "../reviews/pr-review.mjs";
+import { isSkillPath, skillHashes } from "../flow/retro-memory.mjs";
 import {
   bindSession,
   recordSessionStatus,
   rediscoverSessions,
   requestSession,
-} from "../session-bindings.mjs";
-import { openSession, viewOpened } from "../session-open.mjs";
-import { sessionStartHold } from "../session-request-eligibility.mjs";
-import { queueSessionSend } from "../session-send.mjs";
-import { fail } from "../store.mjs";
-import { readDeliveryPolicy } from "../tick.mjs";
-import { workspaceRepositories } from "../workspace-repositories.mjs";
+} from "../sessions/session-bindings.mjs";
+import { openSession, viewOpened } from "../sessions/session-open.mjs";
+import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
+import { queueSessionSend } from "../sessions/session-send.mjs";
+import { fail } from "../store/store.mjs";
+import { readDeliveryPolicy } from "../tick/tick.mjs";
+import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import path from "node:path";
-import { person, notOnMcp, routed } from "../operation-policy.mjs";
+import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
 export const entries = [
   // A run start is a dispatch request, and an extraction opens a record

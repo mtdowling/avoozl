@@ -8,17 +8,24 @@ import {
   takeOver,
   takeoverPreview,
   updateMachineSettings,
-} from "../driver.mjs";
-import { planningIdentity } from "../github-marker.mjs";
-import { actorAllowed, readGitHubPolicyOrNull } from "../github-policy.mjs";
-import { parseRepository } from "../github.mjs";
-import { instanceIdentity } from "../instance.mjs";
-import { loadLayeredConfig } from "../layered-config.mjs";
-import { forwardRecord } from "../mirror-forward-run.mjs";
-import { mirrorEntryKey, mirrorGit, mirrorSetup } from "../mirror-setup.mjs";
-import { queueNotifications } from "../notifications.mjs";
-import { repositorySetup } from "../repository-setup.mjs";
-import { publishSpec } from "../spec-publication.mjs";
+} from "../workers/driver.mjs";
+import { planningIdentity } from "../github/github-marker.mjs";
+import {
+  actorAllowed,
+  readGitHubPolicyOrNull,
+} from "../github/github-policy.mjs";
+import { parseRepository } from "../github/github.mjs";
+import { instanceIdentity } from "../workspace/instance.mjs";
+import { loadLayeredConfig } from "../settings/layered-config.mjs";
+import { forwardRecord } from "../mirror/mirror-forward-run.mjs";
+import {
+  mirrorEntryKey,
+  mirrorGit,
+  mirrorSetup,
+} from "../mirror/mirror-setup.mjs";
+import { queueNotifications } from "../tick/notifications.mjs";
+import { repositorySetup } from "../workspace/repository-setup.mjs";
+import { publishSpec } from "../specs/spec-publication.mjs";
 import {
   adoptPull,
   rejectPull,
@@ -26,22 +33,22 @@ import {
   roleOf,
   specPullOf,
   specPullView,
-} from "../spec-pull-requests.mjs";
-import { reanchorSpec, resumeSpec } from "../spec-reanchor.mjs";
-import { driverIdOf } from "../spec-scheduler.mjs";
-import { specAuthority, takeOverSpec } from "../spec-takeover.mjs";
-import { fail } from "../store.mjs";
-import { taskDefinition } from "../task-outcomes.mjs";
-import { readCache } from "../github-open-read.mjs";
-import { publishOffer, reserveGrants } from "../worker-grants.mjs";
+} from "../specs/spec-pull-requests.mjs";
+import { reanchorSpec, resumeSpec } from "../specs/spec-reanchor.mjs";
+import { driverIdOf } from "../specs/spec-scheduler.mjs";
+import { specAuthority, takeOverSpec } from "../specs/spec-takeover.mjs";
+import { fail } from "../store/store.mjs";
+import { taskDefinition } from "../specs/task-outcomes.mjs";
+import { readCache } from "../github/github-open-read.mjs";
+import { publishOffer, reserveGrants } from "../workers/worker-grants.mjs";
 import {
   grantStaleMs,
   grantStatus,
   reconcileGrants,
   releaseGrant,
-} from "../worker-release.mjs";
-import { publishPlanningPullRequest } from "../workspace-repository.mjs";
-import { person, notOnMcp, routed } from "../operation-policy.mjs";
+} from "../workers/worker-release.mjs";
+import { publishPlanningPullRequest } from "../workspace/workspace-repository.mjs";
+import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
 function driverTakeoverHandler({ name, input }) {
   const store = this.store;

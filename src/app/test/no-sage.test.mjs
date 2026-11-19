@@ -37,8 +37,10 @@ test("no tracked file names the dropped review app outside docs/research and doc
 });
 
 test("a saved key for the dropped review app is refused, naming it", async () => {
-  const { readDeliveryPolicy } = await import("../tick.mjs");
-  const { readGitHubPolicyOrNull } = await import("../github-policy.mjs");
+  const { readDeliveryPolicy } = await import("../tick/tick.mjs");
+  const { readGitHubPolicyOrNull } = await import(
+    "../github/github-policy.mjs"
+  );
   const { temporaryDirectory } = await import("./temporary.mjs");
   const key = `codeReview${WORD}`;
   for (const [saved, name] of [

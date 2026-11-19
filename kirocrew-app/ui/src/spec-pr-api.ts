@@ -1,5 +1,5 @@
 // Spec pull requests (Requirement 107): the facts the backend adopted, and a
-// person's three actions. The backend (src/app/spec-pull-requests.mjs)
+// person's three actions. The backend (src/app/specs/spec-pull-requests.mjs)
 // decides everything; this module only calls it and words the checks.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'

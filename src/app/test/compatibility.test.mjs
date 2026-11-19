@@ -7,8 +7,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { workspaceConfig } from "../config.mjs";
-import { initializeWorkspace } from "../workspace.mjs";
+import { workspaceConfig } from "../settings/config.mjs";
+import { initializeWorkspace } from "../workspace/workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url)),

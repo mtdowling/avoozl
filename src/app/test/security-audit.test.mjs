@@ -6,9 +6,9 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { addedLines, diffBase, revision } from "../content-rules.mjs";
-import { commandEvidence, repositoryEnvironment } from "../git.mjs";
-import { RepositorySettings } from "../repository-settings.mjs";
+import { addedLines, diffBase, revision } from "../content/content-rules.mjs";
+import { commandEvidence, repositoryEnvironment } from "../git/git.mjs";
+import { RepositorySettings } from "../settings/repository-settings.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -103,7 +103,7 @@ test("a repository branch that starts with a dash is refused", (t) => {
 test("a new database and its folders are private; old ones are tightened", {
   skip: process.platform === "win32" && "Node maps no modes on Windows",
 }, async () => {
-  const { Store, privateFile } = await import("../store.mjs");
+  const { Store, privateFile } = await import("../store/store.mjs");
   const mode = (file) => fs.statSync(file).mode & 0o777;
   const root = temporaryDirectory("avoozl-private-"),
     db = path.join(root, ".avoozl", "local", "workspace.sqlite");
@@ -140,7 +140,7 @@ test("backup and export --output write 0600 files", {
   skip: process.platform === "win32" && "Node maps no modes on Windows",
 }, async () => {
   const { spawnSync } = await import("node:child_process");
-  const { initializeWorkspace } = await import("../workspace.mjs");
+  const { initializeWorkspace } = await import("../workspace/workspace.mjs");
   const workspace = temporaryDirectory("avoozl-private-cli-"),
     out = temporaryDirectory("avoozl-private-out-"),
     cli = path.resolve(import.meta.dirname, "../../../cli.mjs");
@@ -169,7 +169,7 @@ test("scripts/worktree runs only after a person approves its hash", {
   skip: process.platform === "win32" && "the helper is a shell script",
 }, async (t) => {
   const { createWorktree, helperHash, repositoryConfig } = await import(
-    "../git.mjs"
+    "../git/git.mjs"
   );
   const { store } = fixture(t),
     root = repository(),
@@ -215,7 +215,7 @@ test("scripts/worktree runs only after a person approves its hash", {
 });
 
 test("a check sees only the basics and checksEnv; credentials never, even when listed", async () => {
-  const { repositoryConfig } = await import("../git.mjs");
+  const { repositoryConfig } = await import("../git/git.mjs");
   const env = {
     PATH: "/bin",
     HOME: "/h",

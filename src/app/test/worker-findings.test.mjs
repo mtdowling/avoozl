@@ -8,20 +8,20 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { workspaceConfig } from "../config.mjs";
-import { deliveryPolicy, planReadyDispatches } from "../delivery.mjs";
-import { drainCheckRuns } from "../check-runs.mjs";
+import { workspaceConfig } from "../settings/config.mjs";
+import { deliveryPolicy, planReadyDispatches } from "../delivery/delivery.mjs";
+import { drainCheckRuns } from "../delivery/check-runs.mjs";
 import { drainProcessRequests } from "../executors/process.mjs";
 import {
   approveHarnessDefinition,
   harnessDefinitionHash,
-} from "../harness-definitions.mjs";
-import { Operations } from "../operations.mjs";
-import { issueReportToken } from "../report-match.mjs";
-import { sandboxKind } from "../sandbox.mjs";
-import { enqueueSessionRequests } from "../session-requests.mjs";
-import { Store } from "../store.mjs";
-import { startSupervisor } from "../supervisor.mjs";
+} from "../executors/harness-definitions.mjs";
+import { Operations } from "../api/operations.mjs";
+import { issueReportToken } from "../workers/report-match.mjs";
+import { sandboxKind } from "../executors/sandbox.mjs";
+import { enqueueSessionRequests } from "../sessions/session-requests.mjs";
+import { Store } from "../store/store.mjs";
+import { startSupervisor } from "../executors/supervisor.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

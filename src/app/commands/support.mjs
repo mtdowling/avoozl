@@ -1,7 +1,7 @@
 // Helpers CLI commands share.
 import { planFiles } from "../../catalog.mjs";
-import { reconcileSource } from "../source-sync.mjs";
-import { Store, fail } from "../store.mjs";
+import { reconcileSource } from "../specs/source-sync.mjs";
+import { Store, fail } from "../store/store.mjs";
 import fs from "node:fs";
 
 // Reindex every plan file and stored document from the plans root.

@@ -1,4 +1,4 @@
-// A spec link set in the shape src/app/scm-links.mjs builds, for the Links
+// A spec link set in the shape src/app/tasks/scm-links.mjs builds, for the Links
 // box tests and shots: an issue, a working branch, three open pull requests
 // (checks passed, running, and for an older commit) and a Radar issue.
 const ago = (minutes) => new Date(Date.now() - minutes * 60000).toISOString()

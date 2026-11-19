@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
+import { Operations } from "../api/operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const task = (id, extra = {}) => ({

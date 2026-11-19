@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
-import { Store } from "../store.mjs";
+import { Store } from "../store/store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 test("old sign-off and audit records and their stops are dropped on open", () => {

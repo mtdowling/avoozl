@@ -134,7 +134,7 @@ const cli = (...args) =>
   });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const withStore = async (use) => {
-  const { Store } = await import("../src/app/store.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
   const store = new Store(DB);
   try {
     return await use(store);
@@ -143,7 +143,7 @@ const withStore = async (use) => {
   }
 };
 const operations = async (store) => {
-  const { Operations } = await import("../src/app/operations.mjs");
+  const { Operations } = await import("../src/app/api/operations.mjs");
   return new Operations(store, {
     workspaceRoot: P.ws,
     configDirectory: MACHINE.configDirectory,
@@ -261,7 +261,7 @@ async function setup() {
   const login = GITHUB ? JSON.parse(gh("api", "user")).login : null;
   const configFile = path.join(P.ws, ".avoozl.json");
   const config = JSON.parse(fs.readFileSync(configFile, "utf8"));
-  const { ROLES } = await import("../src/app/chat-models.mjs");
+  const { ROLES } = await import("../src/app/settings/chat-models.mjs");
   config.delivery = {
     ...(config.delivery || {}),
     retries: 1,
@@ -391,8 +391,10 @@ function agentEnv() {
 // machine's sinks, and the Needs you items for anything that waits on Kiro
 // Crew), every few seconds.
 async function backend() {
-  const { tickCatalog } = await import("../src/app/headless-tick.mjs");
-  const { launchSupervisor } = await import("../src/app/supervisor.mjs");
+  const { tickCatalog } = await import("../src/app/tick/headless-tick.mjs");
+  const { launchSupervisor } = await import(
+    "../src/app/executors/supervisor.mjs"
+  );
   const env = agentEnv();
   const log = (line) =>
     fs.appendFileSync(P.backendLog, `${new Date().toISOString()} ${line}\n`);
@@ -497,7 +499,9 @@ async function until(what, check, minutes) {
 // What each role did on this harness, for the receipt (step 7): ran, or
 // could not, with the supervisor's reason.
 async function rolesOnHarness() {
-  const { openSupervisorDatabase } = await import("../src/app/supervisor.mjs");
+  const { openSupervisorDatabase } = await import(
+    "../src/app/executors/supervisor.mjs"
+  );
   const db = openSupervisorDatabase(MACHINE.stateDirectory);
   try {
     const rows = db
@@ -516,7 +520,7 @@ async function rolesOnHarness() {
 }
 
 async function prove() {
-  const { sandboxKind } = await import("../src/app/sandbox.mjs");
+  const { sandboxKind } = await import("../src/app/executors/sandbox.mjs");
   if (AGENT !== "fake" && !sandboxKind())
     throw Error(
       "No sandbox here (inside another sandbox?). Run nk-p2 from a terminal outside Kiro Crew.",

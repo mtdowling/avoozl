@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
-import { createSpecPlan, readSpecFolder } from "../spec-plans.mjs";
+import { Operations } from "../api/operations.mjs";
+import { createSpecPlan, readSpecFolder } from "../specs/spec-plans.mjs";
 import { fixture } from "./fixtures.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 

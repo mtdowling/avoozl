@@ -3,9 +3,9 @@ import { spawn } from "node:child_process";
 import readline from "node:readline";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { Operations } from "../operations.mjs";
-import { groupedCall } from "../mcp-tools.mjs";
-import { enqueueSessionRequests } from "../session-requests.mjs";
+import { Operations } from "../api/operations.mjs";
+import { groupedCall } from "../mcp/mcp-tools.mjs";
+import { enqueueSessionRequests } from "../sessions/session-requests.mjs";
 import {
   kirocrewRequest,
   persistKirocrewConfiguration,

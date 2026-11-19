@@ -1,0 +1,1760 @@
+// Read models for the app page's Graph, Delivery and Conflicts views (§8).
+// Each one reads the store and writes nothing, so all three classify as
+// `observe`. Old or read-only workspaces may lack newer tables; those read as
+// empty rather than failing the view.
+import { tickFailedItems } from "../tick/tick-activity.mjs";
+import { providerOutItems } from "../flow/provider-health.mjs";
+import { investigationItems } from "../delivery/investigate.mjs";
+import { queryTasks, reviewSettled, statusComplete } from "../../model.mjs";
+import {
+  completionReached,
+  isManual,
+  supersedingTask,
+  taskAuthority,
+  taskCompletion,
+  taskKind,
+  taskRepository,
+  taskRoute,
+} from "../../work-model.mjs";
+import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
+import { draftGraph } from "../specs/graph-drafts.mjs";
+import { FINAL_STATUSES } from "../sessions/session-bindings.mjs";
+import {
+  busyTaskIds,
+  deliveryFindings,
+  dispatchOrder,
+  liveAttempt,
+  startNowIds,
+} from "../delivery/delivery.mjs";
+import { sessionUrl } from "../tick/notifications.mjs";
+import { processSessionDetails } from "../executors/process-view.mjs";
+import { machineAvoozlPaths } from "../settings/host-config.mjs";
+import { taskSourceRefs } from "../../task-identity.mjs";
+import { listSpans, taskFlow } from "../flow/flow.mjs";
+import { taskSteps } from "../tasks/task-steps.mjs";
+import { observationsForTask } from "../flow/build-receipt-read.mjs";
+import { NODE_STATES } from "../../delivery-lanes.mjs";
+import { crossPlanEpics, epicOfPlan, taskEpic } from "../epics/epics.mjs";
+import { fail } from "../store/store.mjs";
+import { linkSets } from "../tasks/scm-links.mjs";
+import { driverDecisions } from "../workers/driver.mjs";
+import { epicRows } from "../epics/epic-rows.mjs";
+import { taskLinks } from "../tasks/scm-links.mjs";
+import { approvals, batchRules } from "../flow/flow-batch.mjs";
+import { ownSummary } from "../tasks/title-repeat.mjs";
+import {
+  checkCommand,
+  repositoryChecks,
+} from "../workspace/repository-checks.mjs";
+
+const BLOCKING = new Set(["requires", "sequence"]);
+const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
+
+// Rows of a table this workspace may not have yet: a database that predates
+// it, or a table another task adds later.
+function optionalList(store, table) {
+  try {
+    return store.list(table);
+  } catch {
+    return [];
+  }
+}
+
+function optionalGet(store, table, id) {
+  try {
+    return store.get(table, id);
+  } catch {
+    return null;
+  }
+}
+
+function claimedLeaves(store) {
+  try {
+    return busyTaskIds(store);
+  } catch {
+    return new Set();
+  }
+}
+
+function list(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const items = (Array.isArray(value) ? value : [value]).map(String);
+  return items.length ? new Set(items) : null;
+}
+
+function issueLink(task) {
+  const github = task.github;
+  if (!github || !(github.number || github.nodeId)) return null;
+  return {
+    number: github.number ?? null,
+    url: typeof github.url === "string" ? github.url : null,
+    repository: github.repository ?? null,
+  };
+}
+
+// Who owns a task, for every view (R28.5): a github task carries its issue
+// link; a local task has none and shows "local".
+export function ownership(task) {
+  if (!task) return {};
+  return {
+    authority: taskAuthority(task),
+    issue: issueLink(task),
+  };
+}
+
+// What a person must do for a task before it moves, with a link.
+// Manual leaves whose blockers hold: each waits in Needs you for a person
+// (R61.11). The same readiness rule as `ready`, asked with `manual`.
+function manualWaitingIds(data, repositories) {
+  return new Set(
+    queryTasks(data, {
+      scope: "all",
+      repositories,
+      manual: true,
+      q: "ready:true",
+    })
+      .filter(isManual)
+      .map((task) => task.id),
+  );
+}
+
+function needsYou(task, manual = null) {
+  if (manual?.has(task.id))
+    return {
+      reason: `Waiting for a person: ${task.title ?? task.id}`,
+      link: null,
+      manual: true,
+    };
+  return null;
+}
+
+// A task waits for review: flagged, and not done, recorded or archived.
+function needsTextReview(data, task) {
+  return Boolean(task.needsReview) && !reviewSettled(data, task);
+}
+
+// Tasks with a live Avoozl session (worker, checks, reviewer, planner):
+// bound, not closed, lost, gone or dismissed, and not past its done or
+// blocked report. A Kiro Crew chat that reported done stays open and its
+// last read status stays "working" (P39 live), so the report ends it here.
+// The Graph's Running state and the Dashboard's In flight list both read
+// this, so they always agree.
+function liveSessions(store) {
+  const ids = new Set();
+  for (const row of optionalList(store, "session_bindings"))
+    if (
+      typeof row?.taskId === "string" &&
+      liveAttempt(row) &&
+      row.status !== "gone" &&
+      !row.dismissedAt
+    )
+      ids.add(row.taskId);
+  return ids;
+}
+
+// Status `review` or `running` with no live session and no delivery under
+// way: set by hand (an old import, an edit) or left behind by a session
+// that ended, so nothing runs and there is nothing to attach to. The
+// runner already counts status review as needing a person; the views say
+// so plainly instead of drawing it as in progress. Returns the status, or
+// null.
+function statusWithoutSession(task, live, claimed) {
+  return ["review", "running"].includes(task.status) &&
+    !live.has(task.id) &&
+    !claimed.has(task.id)
+    ? task.status
+    : null;
+}
+
+// The plain reason for a status with no session behind it.
+const noSessionLine = (status) =>
+  status === "running"
+    ? "Marked running, but no session is running"
+    : "Marked in review, but no review is running";
+
+// The archived plans, and the one a task belongs to (or null). Views mark
+// archived work with it; the page hides it unless Show archived is on.
+function archivedPlanOf(store) {
+  const archived = optionalList(store, "plans").filter(
+    (plan) => plan.archivedAt && !plan.deletedAt,
+  );
+  if (!archived.length) return () => null;
+  return (task) =>
+    task.planArchived ||
+    archived.find((plan) =>
+      inPlan(task, { plan: plan.id, spec: plan.spec || null }),
+    )?.id ||
+    null;
+}
+
+// Tasks waiting for review, one item per plan, spec folder or document, so
+// a plan move that touches 70 tasks is one thing to look at, not 70.
+function reviewGroups(store, data) {
+  const plans = new Map(
+      optionalList(store, "plans").map((plan) => [plan.id, plan]),
+    ),
+    groups = new Map();
+  for (const task of data.tasks) {
+    if (!needsTextReview(data, task)) continue;
+    const spec = specOf(task),
+      document = taskSourceRefs(task)[0]?.document ?? null,
+      [key, name] = task.planId
+        ? [`plan:${task.planId}`, plans.get(task.planId)?.title || task.planId]
+        : spec
+          ? [`spec:${spec}`, spec]
+          : document
+            ? [`doc:${document}`, document]
+            : ["none", "no plan"];
+    if (!groups.has(key)) groups.set(key, { key, name, tasks: [] });
+    groups.get(key).tasks.push({
+      id: task.id,
+      title: task.title ?? task.id,
+      status: task.status ?? null,
+      ...ownership(task),
+    });
+  }
+  return [...groups.values()]
+    .sort(
+      (a, b) => b.tasks.length - a.tasks.length || a.name.localeCompare(b.name),
+    )
+    .map((group) => ({
+      kind: "review",
+      id: `review:${group.key}`,
+      taskId: null,
+      plan: group.name,
+      title: `${group.tasks.length} ${group.tasks.length === 1 ? "task" : "tasks"} in ${group.name} changed: check ${group.tasks.length === 1 ? "it" : "them"}`,
+      detail:
+        "Each is new, or its own text in the plan changed since it was last reviewed. None starts until you mark it reviewed.",
+      tasks: group.tasks,
+    }));
+}
+
+// What a task's Graph state is judged from, read once, and the rule itself.
+function graphStates(store, data) {
+  const registered = workspaceRepositories(store).map((entry) => entry.id),
+    claimed = claimedLeaves(store),
+    ready = new Set(
+      queryTasks(data, {
+        scope: "all",
+        repositories: registered,
+        claimed,
+        q: "ready:true",
+      }).map((task) => task.id),
+    ),
+    complete = (status) => statusComplete(data, status),
+    live = liveSessions(store),
+    manual = manualWaitingIds(data, registered);
+  // One state per node for the Graph drawing. Needs-you comes first among
+  // open tasks so a person sees it even on a running or deferred task.
+  const state = (task) => {
+    if (complete(task.status)) return "done";
+    if (
+      task.decision ||
+      task.status === "blocked" ||
+      statusWithoutSession(task, live, claimed) ||
+      needsYou(task, manual)
+    )
+      return "needs-you";
+    if (task.status === "deferred" || task.planArchived) return "deferred";
+    // Running only while a session is live; a delivery between sessions
+    // (the tick opens the next one) waits.
+    if (live.has(task.id)) return "running";
+    return ready.has(task.id) ? "ready" : "waiting";
+  };
+  return {
+    registered,
+    claimed,
+    ready,
+    complete,
+    live,
+    manual,
+    state,
+  };
+}
+
+const STATE_LABELS = new Map(NODE_STATES);
+
+// A stored task with the state the Graph draws it in and the page's word for
+// it, for `query` and `task.get`. The rule is graph.view's own, so the two
+// never disagree. The stored status stays; the state sits beside it.
+export function withGraphState(store, data) {
+  const { state } = graphStates(store, data);
+  return (task) => {
+    const id = state(task),
+      word = { state: id, stateLabel: STATE_LABELS.get(id) },
+      out = {};
+    for (const [key, value] of Object.entries(task)) {
+      out[key] = value;
+      if (key === "status") Object.assign(out, word);
+    }
+    return "state" in out ? out : { ...out, ...word };
+  };
+}
+
+// Tasks and blocking edges, filtered by epic (across plans), phase (inside
+// a plan), repository and status. Edges are kept only when both ends are
+// shown. `ready` uses the same rule as `queue`. Each task carries its epic,
+// plan and phase, read from records, never from a file path (R59.6).
+//
+// `folders` are the spec folders on disk ([{name, spec}]). Tasks of the ones
+// not approved come back apart, in `drafts`, with state "draft": never
+// ready, never in `tasks`, so no reader of `tasks` counts or releases them.
+export function graphView(store, data, input = {}, folders = []) {
+  const epics = list(input.epic),
+    phases = list(input.phase),
+    repositories = list(input.repository),
+    statuses = list(input.status),
+    { registered, claimed, ready, complete, live, manual, state } = graphStates(
+      store,
+      data,
+    ),
+    byId = new Map(data.tasks.map((task) => [task.id, task])),
+    archivedOf = archivedPlanOf(store),
+    counts = new Map();
+  const epicOf = new Map(
+    data.tasks.map((task) => [task.id, taskEpic(data, task)]),
+  );
+  for (const task of data.tasks) {
+    const epic = epicOf.get(task.id);
+    counts.set(epic, (counts.get(epic) || 0) + 1);
+  }
+  const scope =
+    input.plan || input.spec
+      ? { plan: input.plan || null, spec: input.spec || null }
+      : null;
+  const shown = data.tasks.filter(
+    (task) =>
+      (!scope || inPlan(task, scope)) &&
+      (!epics || epics.has(String(epicOf.get(task.id) ?? NO_EPIC))) &&
+      (!phases || phases.has(String(task.phase?.id ?? NO_PHASE))) &&
+      (!repositories || repositories.has(String(taskRepository(task)))) &&
+      (!statuses || statuses.has(String(task.status))),
+  );
+  const ids = new Set(shown.map((task) => task.id)),
+    // Each task's place in the tick's dispatch order (rank, then graph).
+    order = new Map(
+      [...data.tasks]
+        .sort(dispatchOrder(data, startNowIds(store)))
+        .map((task, i) => [task.id, i]),
+    );
+  // Batch issues: one node, shown with its member tasks.
+  const batches = new Map();
+  for (const task of data.tasks) {
+    const batch = task.github?.batch;
+    if (!batch?.members || !task.github.number) continue;
+    const id = `${task.github.repository}#${task.github.number}`;
+    if (!batches.has(id))
+      batches.set(id, {
+        id,
+        repository: task.github.repository,
+        number: task.github.number,
+        url: task.github.url ?? null,
+        lead: batch.lead,
+        members: batch.members,
+      });
+  }
+  const batchOf = new Map(
+    [...batches.values()].flatMap((batch) =>
+      batch.members.map((id) => [id, batch.id]),
+    ),
+  );
+  // Draft spec tasks, through the same filters (a draft has no epic and the
+  // status "draft"). An edge from an approved task is judged as above.
+  const draft = draftGraph(data, folders, optionalList(store, "plans")),
+    draftShown = draft.tasks.filter(
+      (task) =>
+        (!scope || [scope.plan, scope.spec].includes(task.spec)) &&
+        (!epics || epics.has(NO_EPIC)) &&
+        (!phases || phases.has(String(task.phase?.id ?? NO_PHASE))) &&
+        (!repositories || repositories.has(String(task.repository))) &&
+        (!statuses || statuses.has("draft")),
+    ),
+    draftIds = new Set(draftShown.map((task) => task.id));
+  return {
+    revision: data.revision,
+    batches: [...batches.values()],
+    epics: crossPlanEpics(data).map((epic) => ({
+      id: epic.id,
+      title: epic.title ?? epic.id,
+      count: counts.get(epic.id) || 0,
+      plans: [...(epic.plans || [])],
+    })),
+    plans: graphPlans(store, data),
+    statuses: (data.statuses || []).map((status) => ({
+      id: status.id,
+      label: status.label ?? status.id,
+      complete: Boolean(status.complete),
+    })),
+    repositories: registered,
+    total: data.tasks.length,
+    tasks: shown.map((task) => ({
+      id: task.id,
+      title: task.title ?? task.id,
+      epic: epicOf.get(task.id) ?? null,
+      planId: task.planId ?? null,
+      spec: specOf(task),
+      phase: task.phase ?? null,
+      order: order.get(task.id),
+      kind: taskKind(task),
+      route: taskRoute(task),
+      completion: taskCompletion(task),
+      repository: taskRepository(task),
+      status: task.status ?? null,
+      complete: complete(task.status),
+      batch: batchOf.get(task.id) ?? null,
+      ready: ready.has(task.id),
+      state: state(task),
+      // Waits for review because its own plan text changed; shown as a
+      // badge, and once per plan in Conflicts, not as needs-you.
+      review: needsTextReview(data, task),
+      decision: task.decision ?? null,
+      needsYou: needsYou(task, manual),
+      // A step only a person does (R61.9), and how it was marked done.
+      manual: isManual(task),
+      manualDone: isManual(task) ? (task.manualDone ?? null) : null,
+      // Spend against the cap (§4.17), or null with no usage.
+      // Status review with no session, run or delivery behind it.
+      noSession: statusWithoutSession(task, live, claimed),
+      handSetReview: statusWithoutSession(task, live, claimed) !== null,
+      nextAction: task.nextAction ?? null,
+      // The archived plan this task belongs to; the page hides it by default.
+      planArchived: archivedOf(task),
+      ...ownership(task),
+    })),
+    edges: data.edges
+      .filter((edge) => ids.has(edge.from) && ids.has(edge.to))
+      .map((edge) => ({
+        from: edge.from,
+        to: edge.to,
+        kind: edge.kind,
+        condition: edge.condition ?? null,
+        blocking: BLOCKING.has(edge.kind),
+        satisfied: completionReached(
+          supersedingTask(byId, edge.from),
+          edge.condition,
+          complete,
+        ),
+      })),
+    drafts: {
+      specs: draft.specs,
+      total: draft.tasks.length,
+      tasks: draftShown,
+      edges: draft.edges
+        .filter(
+          (edge) =>
+            draftIds.has(edge.to) &&
+            (draftIds.has(edge.from) || ids.has(edge.from)),
+        )
+        .map((edge) =>
+          byId.has(edge.from)
+            ? {
+                ...edge,
+                satisfied: completionReached(
+                  supersedingTask(byId, edge.from),
+                  edge.condition ?? undefined,
+                  complete,
+                ),
+              }
+            : edge,
+        ),
+    },
+  };
+}
+
+// The epic page and `epic.get` (Requirement 59.4, 59.10): the epic's goal
+// and what done means from its requirements.md, each member plan in the
+// epic's order with its status, computed progress and phase counts, and the
+// open decisions on member tasks. Progress is computed, never stored. `spec`
+// is the epic folder as read from disk, or null; `members` is the folder's
+// list when no approved row exists. Writes nothing.
+export function epicView(store, data, { id, spec = null, members = null }) {
+  const row = crossPlanEpics(data).find((epic) => epic.id === id) || null;
+  if (!row && !spec?.exists) fail(`No epic ${id}.`, 404);
+  const plans = optionalList(store, "plans").filter((plan) => !plan.deletedAt),
+    epicPlan = row ? plans.find((plan) => plan.id === row.planId) : null,
+    files = spec?.exists ? spec.files : (epicPlan?.files ?? {}),
+    prose = withoutFrontMatterText(files["requirements.md"] ?? ""),
+    graph = graphView(store, data, {}),
+    state = new Map(graph.tasks.map((task) => [task.id, task.state])),
+    listed = row ? row.listed : (members ?? []),
+    confirmed = new Set(row ? row.plans : []);
+  const member = (planId) => {
+    const plan =
+        plans.find((entry) => entry.id === planId) ||
+        plans.find((entry) => entry.spec === planId) ||
+        null,
+      tasks = data.tasks.filter(
+        (task) =>
+          plan &&
+          task.planId === plan.id &&
+          taskKind(task) === "leaf" &&
+          task.status !== "superseded",
+      ),
+      finished = (task) =>
+        state.get(task.id) === "done" || Boolean(task.archivedAt),
+      phases = new Map();
+    for (const task of tasks) {
+      const key = task.phase?.id ?? null,
+        entry = phases.get(key) ?? {
+          id: key,
+          title: task.phase?.title ?? null,
+          done: 0,
+          total: 0,
+        };
+      entry.total++;
+      if (finished(task)) entry.done++;
+      phases.set(key, entry);
+    }
+    const done = tasks.filter(finished).length;
+    return {
+      plan: plan?.id ?? planId,
+      title: plan?.title || planId,
+      spec: plan?.spec ?? null,
+      // Both sides agree (the epic lists it, its front-matter names it).
+      confirmed: confirmed.has(plan?.id ?? planId),
+      status: !plan
+        ? "not imported"
+        : plan.state === "approved" && tasks.length && done === tasks.length
+          ? "done"
+          : plan.state || "draft",
+      progress: { done, total: tasks.length },
+      phases: [...phases.values()].sort(
+        (a, b) => (a.id === null) - (b.id === null),
+      ),
+      decisions: tasks
+        .filter((task) => task.decision)
+        .map((task) => ({
+          taskId: task.id,
+          title: task.title ?? task.id,
+          decision: task.decision,
+        })),
+    };
+  };
+  const list = listed.map(member),
+    done = list.reduce((sum, item) => sum + item.progress.done, 0),
+    total = list.reduce((sum, item) => sum + item.progress.total, 0);
+  return {
+    revision: data.revision,
+    id,
+    title: row?.title || (spec?.exists ? specTitleOf(files, id) : id),
+    approved: Boolean(row),
+    planId: row?.planId ?? epicPlan?.id ?? null,
+    goal: section(prose, null),
+    done: section(prose, /\bdone\b/i),
+    requirements: files["requirements.md"] ?? null,
+    design: files["design.md"] ?? null,
+    members: list,
+    // Lifecycle rows, derived from member state (R102.18).
+    rows: epicRows(store, data, files),
+    progress: { done, total },
+    complete: list.length > 0 && list.every((item) => item.status === "done"),
+    decisions: list.flatMap((item) =>
+      item.decisions.map((d) => ({ ...d, plan: item.plan })),
+    ),
+  };
+}
+
+const withoutFrontMatterText = (text) =>
+  text.replace(
+    /^\uFEFF?---[ \t]*\r?\n[\s\S]*?\n(?:---|\.\.\.)[ \t]*\r?(?:\n|$)/,
+    "",
+  );
+const specTitleOf = (files, id) =>
+  withoutFrontMatterText(files["requirements.md"] ?? "")
+    .match(/^# (.+)$/m)?.[1]
+    ?.trim() || id;
+
+// The prose under the first heading that matches `pattern`, or, with no
+// pattern, the prose between the title and the first other heading.
+function section(text, pattern) {
+  const lines = text.split("\n"),
+    out = [];
+  let inside = pattern === null,
+    seenTitle = false;
+  for (const line of lines) {
+    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (heading) {
+      if (pattern === null) {
+        if (heading[1].length === 1 && !seenTitle) {
+          seenTitle = true;
+          continue;
+        }
+        if (out.some((entry) => entry.trim())) break;
+        continue;
+      }
+      if (inside) break;
+      inside = heading[1].length > 1 && pattern.test(heading[2]);
+      continue;
+    }
+    if (inside) out.push(line);
+  }
+  const value = out.join("\n").trim();
+  return value || null;
+}
+
+export const NO_EPIC = "(none)";
+const NO_PHASE = "(none)";
+
+// The plans the Graph drills into: each stored plan with its epic and its
+// phases in tasks.md order, with task counts. Titles come from records.
+function graphPlans(store, data) {
+  const plans = optionalList(store, "plans").filter(
+      (plan) =>
+        !plan.deletedAt && plan.kind !== "conversation" && !plan.epicFolder,
+    ),
+    byPlan = new Map();
+  for (const task of data.tasks) {
+    if (!task.planId) continue;
+    if (!byPlan.has(task.planId)) byPlan.set(task.planId, new Map());
+    const key = task.phase?.id ?? null,
+      phases = byPlan.get(task.planId),
+      entry = phases.get(key) ?? {
+        id: key,
+        title: task.phase?.title ?? null,
+        count: 0,
+        line: task.source?.lineStart ?? Infinity,
+      };
+    entry.count++;
+    entry.line = Math.min(entry.line, task.source?.lineStart ?? Infinity);
+    phases.set(key, entry);
+  }
+  // Members in their epic's order, then every other plan by title.
+  const rank = (plan) => {
+    const epic = epicOfPlan(data, plan.id);
+    return epic ? epic.listed.indexOf(plan.id) : Infinity;
+  };
+  return plans
+    .filter((plan) => byPlan.has(plan.id))
+    .sort(
+      (a, b) =>
+        rank(a) - rank(b) || (a.title || a.id).localeCompare(b.title || b.id),
+    )
+    .map((plan) => ({
+      id: plan.id,
+      title: plan.title || plan.id,
+      spec: plan.spec ?? null,
+      epic: epicOfPlan(data, plan.id)?.id ?? null,
+      phases: [...byPlan.get(plan.id).values()]
+        .sort((a, b) => (a.id === null) - (b.id === null) || a.line - b.line)
+        .map(({ id, title, count }) => ({ id, title, count })),
+    }));
+}
+
+// Leaves that are running or have delivery records: their session bindings,
+// runs, evidence, integration and pull requests. Records from tables added by
+// later tasks (`task_deliveries`, `task_worktrees`) are passed through as-is.
+// One delivery's review rounds (§5.2, R36.12): per subject commit, each
+// role's verdict, model, stale mark, findings with closure state, and a link
+// to its session. A verdict on any commit but the delivery's current one is
+// stale and counts for nothing.
+export function reviewRounds(delivery) {
+  const findings = new Map(
+      deliveryFindings(delivery).map((finding) => [finding.ref, finding]),
+    ),
+    rounds = new Map();
+  for (const entry of delivery?.verifications || []) {
+    const commit = entry.commit ?? null;
+    if (!rounds.has(commit))
+      rounds.set(commit, {
+        commit,
+        current: commit === delivery.commit,
+        verdicts: [],
+      });
+    const role = entry.role || "checks";
+    rounds.get(commit).verdicts.push({
+      role,
+      attempt: entry.attempt,
+      outcome: entry.outcome,
+      verdict:
+        entry.verdict ??
+        (entry.outcome === "accepted"
+          ? "approved"
+          : entry.outcome === "rejected"
+            ? "changes-requested"
+            : null),
+      model: entry.model ?? null,
+      served: entry.served?.model ?? null,
+      commit,
+      stale: commit !== delivery.commit,
+      cause: entry.cause ?? null,
+      at: entry.at ?? null,
+      slot: entry.slot ?? null,
+      link: entry.slot ? sessionUrl(entry.slot) : null,
+      checks: entry.checks ?? [],
+      findings: (entry.findings || []).map((finding) => {
+        const ref = `${entry.attempt}:${role}:${finding.id}`,
+          known = findings.get(ref);
+        return {
+          ref,
+          kind: finding.kind,
+          paths: finding.paths,
+          text: finding.text,
+          state: known?.state ?? "open",
+        };
+      }),
+      closures: entry.closures ?? [],
+    });
+  }
+  return [...rounds.values()];
+}
+
+// `config` is the workspace's saved config, which says the executor a
+// batch would run on (batchRules).
+export function deliveryView(store, data, { config } = {}) {
+  const byTask = (rows) => {
+    const map = new Map();
+    for (const row of rows) {
+      if (!row || typeof row.taskId !== "string") continue;
+      if (!map.has(row.taskId)) map.set(row.taskId, []);
+      map.get(row.taskId).push(row);
+    }
+    return map;
+  };
+  const bindingRows = optionalList(store, "session_bindings");
+  // Live `process` sessions read their status, log tail, cost and attach
+  // command from this machine's supervisor (R98.1); none, no read.
+  const processDetails = processSessionDetails(
+    bindingRows
+      .filter(
+        (b) =>
+          b?.executor === "process" &&
+          !["closed", "lost", "gone"].includes(b.status),
+      )
+      .map((b) => b.slot),
+    machineAvoozlPaths(),
+  );
+  const bindings = byTask(bindingRows),
+    evidence = byTask(optionalList(store, "evidence")),
+    deliveries = byTask(optionalList(store, "task_deliveries")),
+    worktrees = byTask(optionalList(store, "task_worktrees")),
+    live = liveSessions(store),
+    claimed = claimedLeaves(store),
+    archivedOf = archivedPlanOf(store),
+    unreachableCrews = new Set(
+      (store.getMeta("crews.snapshot")?.instances || [])
+        .filter((i) => i.reachable === false)
+        .map((i) => i.id),
+    ),
+    // Branch, pull request, checks and landed commit from stored records
+    // only (R92.1-R92.3); In flight draws its chips from these (R92.6).
+    taskLinkSets = linkSets(store, { data }).tasks;
+  const batchRuns = new Map(
+      optionalList(store, "flow_batches").map((row) => [row.id, row]),
+    ),
+    // A running batch's members have no delivery record of their own yet:
+    // the leader's binding names them.
+    boundRun = new Map(
+      bindingRows
+        .filter((b) => b?.batch?.id && Array.isArray(b.batch.tasks))
+        .flatMap((b) => b.batch.tasks.map((id) => [id, b.batch.id])),
+    ),
+    approved = approvals(store);
+  // A group's other members, even when `data` holds one task (task details).
+  let whole = null;
+  const batchOf = (id, task) => {
+    const runId =
+        (deliveries.get(id) || [])[0]?.batch ?? boundRun.get(id) ?? null,
+      run = runId ? batchRuns.get(runId) : null;
+    if (run)
+      return {
+        batchGroup: {
+          id: run.id,
+          group: task.batch?.id ?? null,
+          tasks: run.tasks,
+          leader: run.tasks[0],
+          reason: run.reason ?? task.batch?.reason ?? null,
+          state: run.state ?? null,
+        },
+        alone:
+          run.state === "split" ? "the batch was split after it failed" : null,
+      };
+    if (!task.batch) return { batchGroup: null, alone: null };
+    whole ??= store.read();
+    const rules = batchRules(store, whole, task, approved, { config });
+    if (!rules) return { batchGroup: null, alone: null };
+    return {
+      batchGroup: {
+        id: null,
+        group: rules.group.id,
+        tasks: rules.group.tasks,
+        leader: rules.members[0]?.id ?? rules.group.tasks[0],
+        reason: rules.group.reason ?? null,
+        state: null,
+      },
+      alone: rules.problem,
+    };
+  };
+  const items = [];
+  for (const task of data.tasks) {
+    if (taskKind(task) !== "leaf") continue;
+    const id = task.id,
+      pullRequests = task.github?.pullRequests || [],
+      links = Array.isArray(task.evidence) ? task.evidence : [];
+    if (
+      !DELIVERY_STATUSES.has(task.status) &&
+      !bindings.has(id) &&
+      !evidence.has(id) &&
+      !deliveries.has(id) &&
+      !worktrees.has(id) &&
+      !task.integration &&
+      !pullRequests.length &&
+      !links.length &&
+      !task.github?.unlinked &&
+      // A planner-grouped task shows its batch or why it runs alone.
+      !task.batch
+    )
+      continue;
+    items.push({
+      id,
+      title: task.title ?? id,
+      // Its plan, epic and phase, from records (Requirement 59.10).
+      planId: task.planId ?? null,
+      epic: taskEpic(data, task),
+      phase: task.phase ?? null,
+      // A sub-issue link GitHub refused or the cap left out (R59.9, R59.15).
+      subIssue: task.github?.unlinked ?? null,
+      status: task.status ?? null,
+      complete: statusComplete(data, task.status),
+      repository: taskRepository(task),
+      supersedes: task.supersedes ?? null,
+      supersededBy: task.supersededBy ?? null,
+      // The batch it ran in (§4.11), if any.
+      batch: (deliveries.get(id) || [])[0]?.batch ?? null,
+      // Its planner batch group (§4.37): the run when it has one, and the
+      // rule it broke when it runs alone (R108.5, R108.9).
+      ...batchOf(id, task),
+      ...ownership(task),
+      sessions: (bindings.get(id) || [])
+        .map((binding) => ({
+          slot: binding.slot,
+          role: binding.role,
+          attempt: binding.attempt,
+          title: binding.title ?? null,
+          status: binding.status ?? null,
+          statusAt: binding.statusAt ?? null,
+          boundAt: binding.boundAt ?? null,
+          model: binding.model ?? null,
+          // The crew, agent, and why (R41.9, R53.10).
+          agent: binding.agent ?? null,
+          crew: binding.crew ?? "local",
+          crewUnreachable: unreachableCrews.has(binding.crew),
+          sessionReason: binding.sessionReason ?? null,
+          // What Kiro Crew said the session ran on; null from a Kiro Crew
+          // that does not report it, whose requested model is trusted.
+          served: binding.served
+            ? {
+                model: binding.served.model ?? null,
+                withheld: binding.served.withheld === true,
+                changed: binding.served.changed === true,
+              }
+            : null,
+          commit: binding.commit ?? null,
+          executor: binding.executor ?? "kirocrew",
+          // A child has no Kiro Crew chat to open; In flight shows its
+          // attach command instead.
+          link:
+            binding.executor === "process" || binding.crew
+              ? null
+              : sessionUrl(binding.slot),
+          ...(processDetails.has(binding.slot)
+            ? { process: processDetails.get(binding.slot) }
+            : {}),
+        }))
+        .sort((a, b) => a.attempt - b.attempt || a.role.localeCompare(b.role)),
+      evidence: [
+        ...links.map((text) => ({ text: String(text) })),
+        ...(evidence.get(id) || []).map((record) => ({
+          id: record.id,
+          kind: record.kind ?? null,
+          commit: record.commit ?? null,
+          text: Array.isArray(record.argv) ? record.argv.join(" ") : null,
+          exitCode: Number.isInteger(record.exitCode) ? record.exitCode : null,
+          at: record.startedAt ?? null,
+        })),
+      ],
+      integration: task.integration
+        ? {
+            commit: task.integration.commit ?? null,
+            branch: task.integration.branch ?? null,
+            at: task.integration.at ?? task.integration.landedAt ?? null,
+          }
+        : null,
+      pullRequests: pullRequests.map((pull) => ({
+        number: pull.number ?? null,
+        url: typeof pull.url === "string" ? pull.url : null,
+        merged: pull.merged === true || Boolean(pull.mergedAt),
+      })),
+      deliveries: deliveries.get(id) || [],
+      rounds: (deliveries.get(id) || []).flatMap(reviewRounds),
+      worktrees: worktrees.get(id) || [],
+      links: taskLinkSets[id] ?? null,
+      needsYou: needsYou(task),
+      // The $spent / $cap chip (§4.17).
+      noSession: statusWithoutSession(task, live, claimed),
+      handSetReview: statusWithoutSession(task, live, claimed) !== null,
+      nextAction: task.nextAction ?? null,
+      planArchived: archivedOf(task),
+    });
+  }
+  // `report` rule sets (§4.9): content that was written and matched.
+  const contentReports = optionalList(store, "content_reports").map((row) => ({
+    id: row.id,
+    set: row.set,
+    rule: row.rule,
+    boundary: row.boundary,
+    target: row.target,
+    line: row.line ?? null,
+    taskId: row.taskId ?? null,
+    version: row.version ?? null,
+    at: row.at ?? null,
+  }));
+  return { revision: data.revision, items, contentReports };
+}
+
+// Open conflicts and decisions: open decisions on tasks, tasks that need a
+// person, sessions that ended under unfinished tasks, and active
+// runs that share a resource.
+// Issue Radar's hold on a GitHub leaf (github-crew.mjs), in plain words for
+// Needs you (R52.10); null for any other decision.
+function crewHoldText(task) {
+  const hold = task.crewHold;
+  if (!hold || !String(task.decision || "").startsWith("crew-")) return null;
+  return hold.kind === "needs-human"
+    ? `An Issue Radar crew added "${hold.label}" to issue #${hold.number}: it needs a person. Answer it on GitHub; dependents wait until the label comes off.`
+    : `Issue #${hold.number} has Issue Radar's in-progress label "${hold.label}" but is no longer ready. Avoozl does not stop the crew; dependents wait until the label comes off or the task is ready again.`;
+}
+
+export function conflictsView(store, data) {
+  const live = liveSessions(store),
+    claimed = claimedLeaves(store),
+    archivedOf = archivedPlanOf(store);
+  const complete = (status) => statusComplete(data, status),
+    byId = new Map(data.tasks.map((task) => [task.id, task])),
+    items = [];
+  for (const task of data.tasks) {
+    if (task.decision)
+      items.push({
+        kind: "decision",
+        taskId: task.id,
+        ...ownership(task),
+        title: task.title ?? task.id,
+        detail: crewHoldText(task) ?? String(task.decision),
+      });
+    // A tick taken out of tasks.md on the base branch, on a done task: it
+    // stays done until a person says (spec-ticks.mjs).
+    if (task.untick && complete(task.status))
+      items.push({
+        kind: "untick",
+        taskId: task.id,
+        ...ownership(task),
+        title: task.title ?? task.id,
+        detail: `Its tick was taken out of tasks.md on ${task.untick.branch}, but the task is done. Reopen it, or keep it done.`,
+        openedAt: task.untick.at,
+      });
+    if (!complete(task.status) && task.status === "blocked")
+      items.push({
+        kind: "needs-human",
+        taskId: task.id,
+        ...ownership(task),
+        title: task.title ?? task.id,
+        reason: "blocked",
+        detail: "Task is blocked.",
+      });
+    // A decision on the task already asks the owner; one item is enough.
+    const orphan = task.decision
+      ? null
+      : statusWithoutSession(task, live, claimed);
+    if (orphan)
+      items.push({
+        kind: "needs-human",
+        taskId: task.id,
+        ...ownership(task),
+        title: task.title ?? task.id,
+        reason: "hand-set-review",
+        status: orphan,
+        detail: `${noSessionLine(orphan)}.${task.nextAction ? ` Next: ${task.nextAction}` : ""}`,
+      });
+  }
+  items.push(...reviewGroups(store, data));
+  for (const binding of optionalList(store, "session_bindings")) {
+    const task = byId.get(binding.taskId);
+    // A landed task's ended session needs no one (P60: every finished
+    // `process` worker closes its binding, and a spec task's own status is
+    // not moved when it lands).
+    const delivery = task && optionalGet(store, "task_deliveries", task.id);
+    if (
+      !task ||
+      complete(task.status) ||
+      delivery?.state === "integrated" ||
+      !(FINAL_STATUSES.has(binding.status) || binding.status === "gone") ||
+      binding.dismissedAt
+    )
+      continue;
+    items.push({
+      kind: "stale-session",
+      taskId: task.id,
+      ...ownership(task),
+      title: task.title ?? task.id,
+      detail: `${binding.role} session ${binding.slot} is ${binding.status}.`,
+      slot: binding.slot,
+      link: sessionUrl(binding.slot),
+      // Retry applies only to a delivery stopped for a decision; any other
+      // ended attempt is retried by the tick on its own.
+      deliveryState: delivery?.state ?? null,
+      batch: delivery?.batch ?? null,
+    });
+  }
+  // Content rules (§4.9): a blocked write or an unavailable rule set. The
+  // item names set, rule, boundary, target and line, never the matched text;
+  // the page reads the line again on demand (content.show).
+  for (const decision of optionalList(store, "content_decisions")) {
+    if (decision.state !== "open") continue;
+    const task = decision.taskId ? byId.get(decision.taskId) : null;
+    items.push({
+      kind:
+        decision.kind === "unavailable"
+          ? "content-unavailable"
+          : "content-match",
+      id: decision.id,
+      taskId: decision.taskId ?? null,
+      ...(task ? ownership(task) : {}),
+      title:
+        decision.kind === "unavailable"
+          ? `Rule set ${decision.set} is unavailable`
+          : `Content rule ${decision.set} blocked ${decision.target}`,
+      detail:
+        decision.kind === "unavailable"
+          ? `Nothing it covers is written: ${decision.reason}.`
+          : `Rule ${decision.rules.join(", ")} at ${decision.file || decision.target}${decision.line ? ` line ${decision.line}` : ""} (${decision.boundary}).`,
+      set: decision.set,
+      rules: decision.rules ?? [],
+      boundary: decision.boundary,
+      target: decision.target ?? null,
+      line: decision.line ?? null,
+      readable: Boolean(decision.source),
+      openedAt: decision.openedAt ?? null,
+    });
+  }
+  // Driver (§6.10): no single assignee on a plan issue, and away tasks
+  // waiting for Start it here or Wait.
+  for (const item of driverDecisions(store)) {
+    const task = item.taskId ? byId.get(item.taskId) : null;
+    items.push({ ...item, ...(task ? ownership(task) : {}) });
+  }
+  // A provider or model that is out (§4.20, R72.16): one item per mark.
+  items.push(...providerOutItems(store));
+  // The tick failed three times in a row.
+  items.push(...tickFailedItems(store));
+  // Ready to merge under manual ship (§4.25, R80.3, R80.4): a local task
+  // waiting for Integrate.
+  for (const delivery of optionalList(store, "task_deliveries")) {
+    const task = byId.get(delivery.taskId);
+    if (
+      !task ||
+      delivery.state !== "verified" ||
+      !delivery.awaitingIntegrate ||
+      delivery.awaitingIntegrate !== delivery.commit ||
+      delivery.integrateApproved?.commit === delivery.commit
+    )
+      continue;
+    items.push({
+      kind: "ready-to-merge",
+      id: "ready-to-merge:" + task.id,
+      taskId: task.id,
+      ...ownership(task),
+      title: `${task.id} is ready to merge`,
+      detail: `Its checks and reviews passed on ${delivery.commit.slice(0, 12)}. Press Integrate to land it.`,
+      commit: delivery.commit,
+      integrate: true,
+      openedAt: delivery.updatedAt ?? null,
+    });
+  }
+  // Findings the gate did not pass (§4.21, R75.4).
+  for (const item of investigationItems(store, data)) {
+    const task = byId.get(item.taskId);
+    items.push({ ...item, ...(task ? ownership(task) : {}) });
+  }
+  for (const item of items) {
+    const task = item.taskId ? byId.get(item.taskId) : null;
+    item.planArchived = task ? archivedOf(task) : null;
+  }
+  return { revision: data.revision, items };
+}
+
+// Everything the page's task drawer shows for one task, from the reads the
+// other views already make: the task row (`detail`, from task.get), its node
+// in graph.view, its delivery.view item, its conflicts.view items, and its
+// plan. Writes nothing. `locked` says why the page must not write the row
+// and drafts a plan change instead: GitHub owns it, or it
+// came from a plan whose current text is approved.
+export function taskDetailView(
+  store,
+  data,
+  detail,
+  { plan = null, approved = false, config } = {},
+) {
+  const id = detail.id,
+    graph = graphView(store, data, {}),
+    node = graph.tasks.find((task) => task.id === id) || null,
+    titles = new Map(
+      data.tasks.map((task) => [task.id, task.title ?? task.id]),
+    ),
+    blocking = data.edges.filter((edge) => BLOCKING.has(edge.kind)),
+    satisfied = new Map(
+      graph.edges.map((edge) => [
+        `${edge.from}\u0000${edge.to}\u0000${edge.kind}`,
+        edge.satisfied,
+      ]),
+    ),
+    edge = (e, other) => ({
+      id: other,
+      title: titles.get(other) ?? other,
+      kind: e.kind,
+      condition: e.condition ?? null,
+      satisfied:
+        satisfied.get(`${e.from}\u0000${e.to}\u0000${e.kind}`) ?? false,
+    }),
+    delivery =
+      deliveryView(
+        store,
+        {
+          ...data,
+          tasks: data.tasks.filter((task) => task.id === id),
+        },
+        { config },
+      ).items[0] || null,
+    conflicts = conflictsView(store, data).items.filter(
+      (item) => item.taskId === id,
+    ),
+    authority = taskAuthority(detail);
+  // Wave: one more than the highest wave this task waits on.
+  const before = new Map();
+  for (const e of blocking) {
+    if (!before.has(e.to)) before.set(e.to, []);
+    before.get(e.to).push(e.from);
+  }
+  const waves = new Map(),
+    visiting = new Set();
+  const wave = (task) => {
+    if (waves.has(task)) return waves.get(task);
+    if (visiting.has(task)) return 0;
+    visiting.add(task);
+    const value = 1 + Math.max(0, ...(before.get(task) || []).map(wave));
+    visiting.delete(task);
+    waves.set(task, value);
+    return value;
+  };
+  const locked =
+    authority === "github"
+      ? {
+          reason: "github",
+          message:
+            detail.github?.origin === "design"
+              ? "GitHub owns this task. Change its plan and approve it; the tick updates the issue."
+              : "GitHub owns this task. Edit the issue on GitHub; the next sync reads it.",
+        }
+      : plan && approved
+        ? {
+            reason: "approved-spec",
+            message: `This task comes from the approved spec ${plan.title || plan.id}. Its title, description and steps are the spec's: change them there.`,
+          }
+        : null;
+  const timeline = taskTimeline(detail, delivery),
+    approval = plan?.approvalId
+      ? store.get("approvals", plan.approvalId)
+      : null,
+    steps = taskSteps({
+      approval,
+      spans: listSpans(store, { taskId: id }),
+      delivery,
+      builds: observationsForTask(store, detail),
+    });
+  return {
+    revision: data.revision,
+    task: {
+      id,
+      title: detail.title ?? id,
+      summary: ownSummary(detail) ?? "",
+      acceptance: detail.acceptance || [],
+      // The repository's checks, which every task runs.
+      checks: repositoryChecks(
+        store.get("repositories", taskRepository(detail) || ""),
+      ).map((check) =>
+        check.name === checkCommand(check)
+          ? check.name
+          : `${check.name}: ${checkCommand(check)}${check.paths ? ` (for ${check.paths.join(", ")})` : ""}`,
+      ),
+      // Its plan's epic and its phase inside the plan (Requirement 59).
+      epic: taskEpic(data, detail),
+      epicTitle: epicOfPlan(data, detail.planId)?.title ?? null,
+      phase: detail.phase ?? null,
+      kind: taskKind(detail),
+      authority,
+      route: taskRoute(detail),
+      completion: taskCompletion(detail),
+      repository: taskRepository(detail),
+      status: detail.status ?? null,
+      state: node?.state ?? null,
+      ready: node?.ready ?? false,
+      needsReview: Boolean(detail.needsReview),
+      decision: detail.decision ?? null,
+      handSetReview: node?.handSetReview ?? false,
+      noSession: node?.noSession ?? null,
+      nextAction: detail.nextAction ?? null,
+      planArchived: node?.planArchived ?? null,
+      owner: detail.owner ?? null,
+      issue: issueLink(detail),
+      wave: wave(id),
+      context: detail.context || "",
+      // A step only a person does (R61.9, R61.12): Mark done, and how it
+      // was marked.
+      manual: node?.manual ?? false,
+      manualDone: node?.manualDone ?? null,
+      // Show on the issue applies only to a task with an issue (R61.23).
+    },
+    origin: taskOrigin(detail, data, plan),
+    plan: plan && {
+      id: plan.id,
+      title: plan.title ?? plan.id,
+      spec: plan.spec ?? null,
+      state: plan.state ?? null,
+      approved,
+    },
+    locked,
+    waitsOn: blocking.filter((e) => e.to === id).map((e) => edge(e, e.from)),
+    blocks: blocking.filter((e) => e.from === id).map((e) => edge(e, e.to)),
+    delivery,
+    conflicts,
+    timeline,
+    // The Timeline box's steps, from stored records only (R106).
+    steps,
+    // The drawer's Timing fold (§8.4): stages, spans and their sources.
+    timing: taskFlow(store, detail),
+    // The Links box (R92.5): branch, PR, checks, landed commit and issue,
+    // from stored records only. No GitHub call.
+    links: taskLinks(store, id),
+  };
+}
+
+// Where a task came from, from the links its row records: a GitHub issue,
+// a spec folder, a stored plan, a checkbox in an imported Markdown file, or
+// a captured prompt. `sources` are the file lines it was made from, each
+// readable with document.get when the workspace still has that file.
+export function taskOrigin(task, data, plan = null) {
+  const sources = taskSourceRefs(task)
+    .filter((ref) => typeof ref.document === "string")
+    .map((ref) => {
+      const doc = data.documents?.[ref.document];
+      return {
+        document: ref.document,
+        title: doc?.title ?? null,
+        lineStart: Number.isInteger(ref.lineStart) ? ref.lineStart : null,
+        lineEnd: Number.isInteger(ref.lineEnd) ? ref.lineEnd : null,
+        checked: typeof ref.checked === "boolean" ? ref.checked : null,
+        readable: Boolean(doc),
+      };
+    });
+  const spec = specOf(task),
+    origin = task.github?.origin ?? null,
+    lines = (s) =>
+      s.lineStart
+        ? s.lineEnd && s.lineEnd !== s.lineStart
+          ? `, lines ${s.lineStart}–${s.lineEnd}`
+          : `, line ${s.lineStart}`
+        : "";
+  const base = {
+    sources,
+    spec,
+    plan: plan ? { id: plan.id, title: plan.title ?? plan.id } : null,
+  };
+  if (origin === "issue")
+    return {
+      ...base,
+      kind: "github-issue",
+      label: "A GitHub issue",
+      text: "Avoozl read this task from an issue someone opened on GitHub. The issue is the record.",
+    };
+  if (spec)
+    return {
+      ...base,
+      kind: "spec",
+      label: `Spec ${spec}`,
+      text: `Approving the spec folder .kiro/specs/${spec}/ made this task${sources[0] ? `, from ${sources[0].document}${lines(sources[0])}` : ""}.`,
+    };
+  if (plan)
+    return {
+      ...base,
+      kind: "plan",
+      label: `Plan ${plan.title ?? plan.id}`,
+      text: `Approving the stored plan ${plan.title ?? plan.id} made this task.`,
+    };
+  if (sources.length) {
+    const first = sources[0],
+      ticked =
+        first.checked === null
+          ? ""
+          : first.checked
+            ? " The box was ticked then, so it was recorded as done."
+            : " The box was not ticked then.";
+    return {
+      ...base,
+      kind: "imported",
+      label: `Imported from ${first.document}`,
+      text: `Avoozl made this task from a checklist item in ${first.document}${lines(first)} when it imported the workspace's Markdown plans.${ticked} Edits in Avoozl are what count now; the file is history.${
+        /^plan-[0-9a-f]{18}$/.test(task.id)
+          ? " Its ID is a hash of the file and the item, so a new import gives it the same ID."
+          : ""
+      }`,
+    };
+  }
+  if (task.capture || task.prompt)
+    return {
+      ...base,
+      kind: "captured",
+      label: "A captured prompt",
+      text: "Someone described this task in a prompt, and Avoozl captured it as a draft.",
+      prompt:
+        typeof task.prompt === "string" ? task.prompt.slice(0, 2000) : null,
+    };
+  return {
+    ...base,
+    kind: "unknown",
+    label: "Not recorded",
+    text: "The task row records no plan, file, issue or prompt it came from. It was likely added by hand.",
+  };
+}
+
+// One task's events, newest first, from the rows' own times: the task row,
+// its sessions, evidence, deliveries and integration. Avoozl keeps no
+// separate task event log, so this is what "history" means on the page.
+const unsandboxed = (check) => check?.isolation === "unconfined";
+
+function taskTimeline(task, delivery) {
+  return [
+    task.updatedAt && { at: task.updatedAt, text: "Task row changed" },
+    ...(delivery?.sessions || []).flatMap((s) => [
+      s.boundAt && {
+        at: s.boundAt,
+        text: `${s.role} attempt ${s.attempt} started`,
+      },
+      s.statusAt && {
+        at: s.statusAt,
+        text: `${s.role} attempt ${s.attempt} is ${s.status}`,
+      },
+    ]),
+    ...(delivery?.evidence || []).map(
+      (e) => e.at && { at: e.at, text: `Evidence: ${e.kind || "record"}` },
+    ),
+    ...(delivery?.deliveries || []).map(
+      (d) =>
+        typeof d.updatedAt === "string" && {
+          at: d.updatedAt,
+          text: `Delivery is ${d.state}`,
+        },
+    ),
+    delivery?.integration?.at && {
+      at: delivery.integration.at,
+      text: `Integrated ${String(delivery.integration.commit || "").slice(0, 12)}`,
+    },
+    // Checks that ran with no isolation say so.
+    ...(delivery?.deliveries || []).flatMap((d) =>
+      (d.verifications || [])
+        .filter((v) => (v.checks || []).some(unsandboxed))
+        .map((v) => ({
+          at: v.at,
+          text: `Checks at ${String(v.commit || d.commit || "").slice(0, 12)} ran not sandboxed`,
+        })),
+    ),
+  ]
+    .filter((entry) => entry && typeof entry.at === "string")
+    .sort((a, b) => b.at.localeCompare(a.at));
+}
+
+// The Dashboard's Recent activity (activity.recent): the newest task events
+// across the workspace, newest first. Writes nothing.
+export function activityView(store, data, { limit = 50 } = {}) {
+  const max = Math.max(1, Math.min(Number(limit) || 50, 200)),
+    delivery = new Map(
+      deliveryView(store, data).items.map((item) => [item.id, item]),
+    ),
+    items = [];
+  for (const task of data.tasks)
+    for (const entry of taskTimeline(task, delivery.get(task.id)))
+      items.push({ ...entry, taskId: task.id, title: task.title ?? task.id });
+  items.sort(
+    (a, b) => b.at.localeCompare(a.at) || a.taskId.localeCompare(b.taskId),
+  );
+  return { revision: data.revision, items: items.slice(0, max) };
+}
+
+// Whether a task belongs to a plan: its stored plan ID, or, for a spec
+// folder, a source reference inside that folder. Both are links a person or
+// an approval recorded; nothing is matched by title.
+export function inPlan(task, { plan = null, spec = null } = {}) {
+  if (plan && task.planId === plan) return true;
+  if (!spec) return false;
+  const folder = `.kiro/specs/${spec}/`;
+  return taskSourceRefs(task).some(
+    (ref) =>
+      typeof ref.document === "string" && ref.document.startsWith(folder),
+  );
+}
+
+// The spec folder a task came from, by the same links inPlan reads: a source
+// reference under .kiro/specs/<name>/ (Requirement 59.6). Null when it has
+// none.
+export function specOf(task) {
+  const folder = (document) =>
+    typeof document === "string"
+      ? (document.match(/^\.kiro\/specs\/([^/]+)\//)?.[1] ?? null)
+      : null;
+  for (const ref of taskSourceRefs(task)) {
+    const name = folder(ref.document);
+    if (name) return name;
+  }
+  return null;
+}
+
+const newest = (...values) =>
+  values
+    .filter((value) => typeof value === "string" && value)
+    .sort()
+    .at(-1) ?? null;
+
+// A Plans row's archive state (plan.archive) and its archive events (`events`, apart from the revision `history`):
+// who archived or unarchived it, and when, newest first.
+const archiveFields = (plan) => ({
+  archived: plan?.archivedAt
+    ? { at: plan.archivedAt, by: plan.archivedBy ?? null }
+    : null,
+  timeline: [...(plan?.events || [])]
+    .filter((entry) => typeof entry?.at === "string")
+    .sort((a, b) => b.at.localeCompare(a.at)),
+});
+
+// The Plans table (§8): one row per plan, a spec folder on disk or a stored
+// plan with no folder, with its category from front-matter only, task
+// counts, what is ready, running or needs a person, and its last change.
+// `specs` is plan.specs's items, each with `modifiedAt` and `category`;
+// `stored` is every live stored plan. Writes nothing.
+export function plansTableView(
+  store,
+  data,
+  { specs = [], stored = [], categoryOf },
+) {
+  const graph = graphView(store, data, {}),
+    state = new Map(graph.tasks.map((task) => [task.id, task.state])),
+    claimed = new Set(
+      specs.flatMap((spec) => (spec.plan ? [spec.plan.id] : [])),
+    );
+  const counts = (scope) => {
+    const tasks = data.tasks.filter(
+        (task) => inPlan(task, scope) && task.status !== "superseded",
+      ),
+      leaves = tasks.filter((task) => taskKind(task) === "leaf"),
+      of = (name) =>
+        leaves.filter((task) => state.get(task.id) === name).length;
+    return {
+      tasks: {
+        total: leaves.length,
+        done: of("done"),
+      },
+      now: {
+        ready: of("ready"),
+        running: of("running"),
+        needsYou: of("needs-you"),
+      },
+      phases: new Set(leaves.map((task) => task.phase?.id).filter(Boolean))
+        .size,
+      // Any of its tasks has a GitHub issue: the spec is on GitHub.
+      onGitHub: tasks.some((task) => Boolean(task.github?.number)),
+      changedAt: newest(...tasks.map((task) => task.updatedAt)),
+    };
+  };
+  // The epic a plan belongs to, both sides agreeing (Requirement 59.2).
+  const epicFields = (planId) => {
+    const epic = epicOfPlan(data, planId);
+    return { epic: epic?.id ?? null, epicTitle: epic?.title ?? null };
+  };
+  const status = ({ plan, approved, changed }, done) =>
+    !plan
+      ? "not imported"
+      : changed
+        ? "changed"
+        : approved && done
+          ? "done"
+          : approved
+            ? "approved"
+            : plan.state || "draft";
+  const rows = [];
+  for (const spec of specs) {
+    const plan = spec.plan
+        ? stored.find((entry) => entry.id === spec.plan.id) || null
+        : null,
+      summary = counts({ plan: spec.plan?.id ?? null, spec: spec.name });
+    rows.push({
+      key: `spec:${spec.root ?? ""}:${spec.name}`,
+      kind: spec.kind === "epic" ? "epic" : "spec",
+      ...(spec.kind === "epic" ? { members: spec.members ?? [] } : {}),
+      ...epicFields(spec.plan?.id ?? null),
+      name: spec.title || spec.name,
+      spec: spec.name,
+      folder: spec.folder,
+      ...(spec.home ? { home: spec.home } : {}),
+      ...(spec.pull
+        ? { pull: { number: spec.pull.number, draft: spec.pull.draft } }
+        : {}),
+      planId: spec.plan?.id ?? null,
+      type: spec.type,
+      category: spec.category ?? null,
+      categoryProblem: spec.categoryProblem ?? null,
+      errors: spec.counts?.error ?? 0,
+      status: status(
+        {
+          plan: spec.plan,
+          approved: spec.plan?.approved,
+          changed: spec.plan?.changed,
+        },
+        summary.tasks.total > 0 && summary.tasks.done === summary.tasks.total,
+      ),
+      ...summary,
+      lastChange: newest(spec.modifiedAt, plan?.updatedAt, summary.changedAt),
+      ...archiveFields(plan),
+    });
+  }
+  for (const plan of stored) {
+    if (claimed.has(plan.id)) continue;
+    const summary = counts({ plan: plan.id });
+    rows.push({
+      key: `plan:${plan.id}`,
+      kind: plan.spec ? "spec" : "old-style",
+      ...epicFields(plan.id),
+      name: plan.title || plan.id,
+      spec: null,
+      folder: null,
+      planId: plan.id,
+      type: null,
+      category: categoryOf(plan),
+      categoryProblem: null,
+      errors: 0,
+      status: status(
+        { plan, approved: plan.state === "approved", changed: false },
+        summary.tasks.total > 0 && summary.tasks.done === summary.tasks.total,
+      ),
+      ...summary,
+      lastChange: newest(plan.updatedAt, summary.changedAt),
+      ...archiveFields(plan),
+    });
+  }
+  for (const row of rows) delete row.changedAt;
+  return { revision: data.revision, items: rows };
+}
+
+// The page's "Ask in a chat" and "Discuss plan" seed (chat.context): one
+// Markdown message with everything the page knows about the named conflict
+// items, tasks or plan, so a new Kiro Crew chat starts with the whole story.
+// Writes nothing. The message asks the chat to explain and recommend and to
+// change nothing until the person says so.
+// shortcut: documents and lists are cut at fixed sizes so the seed stays a
+// reasonable first message; raise them if chats ask for the missing part.
+const CONTEXT_DOC_CHARS = 20000,
+  CONTEXT_TASKS = 300,
+  CONTEXT_ITEMS = 100,
+  CONTEXT_HISTORY = 12;
+
+const clipText = (text, max) =>
+  text.length > max
+    ? `${text.slice(0, max)}\n\n[cut at ${max} characters]`
+    : text;
+
+function sameItem(item, key) {
+  return (
+    item.kind === key.kind &&
+    (item.taskId ?? null) === (key.taskId ?? null) &&
+    (item.field ?? null) === (key.field ?? null) &&
+    (item.slot ?? null) === (key.slot ?? null) &&
+    (item.id ?? null) === (key.id ?? null)
+  );
+}
+
+// Ask for help (design §8.9): a chat seeded with where the person is on the
+// page, what it says, the settings there with their current values, and
+// where the docs are. The page sends it; every field is clipped text.
+const HELP_SETTINGS = 40;
+const helpText = (value, max) =>
+  typeof value === "string"
+    ? value
+        .replace(/[\u0000-\u001f\u007f]+/g, " ")
+        .trim()
+        .slice(0, max)
+    : "";
+
+export function helpMessage(input = {}) {
+  const help =
+    input.help && typeof input.help === "object" && !Array.isArray(input.help)
+      ? input.help
+      : {};
+  const page = helpText(help.page, 100) || "Avoozl",
+    section = helpText(help.section, 200),
+    says = helpText(help.says, 2000),
+    docs = helpText(help.docs, 300) || "README.md in the Avoozl repository",
+    settings = (Array.isArray(help.settings) ? help.settings : [])
+      .slice(0, HELP_SETTINGS)
+      .map((s) => ({
+        key: helpText(s?.key, 120),
+        value: helpText(
+          typeof s?.value === "string"
+            ? s.value
+            : JSON.stringify(s?.value ?? null),
+          300,
+        ),
+      }))
+      .filter((s) => s.key);
+  return [
+    "Context from the Avoozl page.",
+    "Help me with this part of the Avoozl page. Use the avoozl skill and the docs named below. Do not save or change any setting, write any file, or start any session: tell me what to set, and I will save it on the page.",
+    "",
+    "## Where I am",
+    `- Page: ${page}`,
+    ...(section ? [`- Section: ${section}`] : []),
+    ...(says ? [`- It says: ${says}`] : []),
+    "",
+    "## Settings here, as they are now",
+    ...(settings.length
+      ? settings.map((s) => `- ${s.key}: ${s.value}`)
+      : ["- None."]),
+    "",
+    "## Docs",
+    `- ${docs}`,
+  ].join("\n");
+}
+
+export function chatContext(
+  store,
+  data,
+  input = {},
+  { documents = null, planRow = null } = {},
+) {
+  const keys = Array.isArray(input.items)
+      ? input.items.slice(0, CONTEXT_ITEMS)
+      : [],
+    taskIds = Array.isArray(input.tasks)
+      ? input.tasks
+          .filter((id) => typeof id === "string")
+          .slice(0, CONTEXT_ITEMS)
+      : [],
+    byId = new Map(data.tasks.map((task) => [task.id, task])),
+    plans = new Map(store.list("plans").map((plan) => [plan.id, plan])),
+    conflicts = keys.length ? conflictsView(store, data).items : [],
+    delivery = new Map(
+      deliveryView(store, data).items.map((item) => [item.id, item]),
+    ),
+    graph = graphView(store, data, {}),
+    state = new Map(graph.tasks.map((task) => [task.id, task.state])),
+    lines = [];
+  const taskLines = (id) => {
+    const task = byId.get(id);
+    if (!task) return [`- Task ${id}: not found in this workspace.`];
+    const plan = task.planId ? plans.get(task.planId) : null,
+      spec = specOf(task),
+      waits = data.edges
+        .filter((e) => e.to === id && BLOCKING.has(e.kind))
+        .map((e) => e.from),
+      history = taskTimeline(task, delivery.get(id)).slice(0, CONTEXT_HISTORY);
+    return [
+      `- Task: ${task.title ?? id} (${id})`,
+      `- State: ${state.get(id) ?? "unknown"}; status ${task.status ?? "none"}; owner ${taskAuthority(task)}`,
+      `- Plan: ${plan ? `${plan.title || plan.id} (${plan.id}, ${plan.state || "draft"})` : spec ? `spec .kiro/specs/${spec}/` : "none"}`,
+      ...(epicOfPlan(data, task.planId)
+        ? [`- Epic: ${epicOfPlan(data, task.planId).title}`]
+        : []),
+      ...(task.phase ? [`- Phase: ${task.phase.title}`] : []),
+      ...(waits.length ? [`- Waits on: ${waits.join(", ")}`] : []),
+      ...(task.decision ? [`- Open decision: ${task.decision}`] : []),
+      ...(issueLink(task)?.url ? [`- Issue: ${issueLink(task).url}`] : []),
+      ...(history.length
+        ? [
+            "- History, newest first:",
+            ...history.map((entry) => `  - ${entry.at} ${entry.text}`),
+          ]
+        : ["- History: nothing recorded."]),
+    ];
+  };
+  if (keys.length) {
+    lines.push(
+      `## ${keys.length === 1 ? "The item" : `${keys.length} items`} that need me`,
+      "",
+    );
+    keys.forEach((key, n) => {
+      const item = conflicts.find((candidate) => sameItem(candidate, key));
+      lines.push(
+        `### ${n + 1}. ${item ? item.title : `${key.kind} on ${key.taskId ?? "the workspace"}`}`,
+      );
+      if (!item) {
+        lines.push("- This item is no longer open.", "");
+        return;
+      }
+      lines.push(
+        `- Kind: ${item.kind}${item.field ? ` (field ${item.field})` : ""}${item.reason ? ` (${item.reason})` : ""}`,
+        `- Why: ${item.detail}`,
+      );
+      if (item.openedAt) lines.push(`- Opened: ${item.openedAt}`);
+      if (item.taskId) lines.push(...taskLines(item.taskId));
+      if (item.tasks?.length)
+        lines.push(
+          "- Tasks:",
+          ...item.tasks
+            .slice(0, CONTEXT_TASKS)
+            .map(
+              (task) =>
+                `  - ${task.id} ${task.title} (${task.status ?? "no status"})`,
+            ),
+        );
+      lines.push("");
+    });
+  }
+  for (const id of taskIds)
+    lines.push(`## Task ${id}`, "", ...taskLines(id), "");
+  if (planRow) {
+    const members = graph.tasks.filter((task) =>
+      inPlan(byId.get(task.id), { plan: planRow.planId, spec: planRow.spec }),
+    );
+    lines.push(
+      `## Plan ${planRow.name}`,
+      "",
+      `- Status: ${planRow.status}${planRow.planId ? `; stored as ${planRow.planId}` : ""}`,
+      ...(planRow.folder ? [`- Folder: ${planRow.folder}`] : []),
+      `- Tasks: ${planRow.tasks.done} of ${planRow.tasks.total} done; ${planRow.now.ready} ready, ${planRow.now.running} running, ${planRow.now.needsYou} need me`,
+      "",
+      "### Tasks",
+      ...members
+        .slice(0, CONTEXT_TASKS)
+        .map(
+          (task) =>
+            `- ${task.id} ${task.title} (${task.state}${task.decision ? `; decision: ${task.decision}` : ""})`,
+        ),
+      ...(members.length > CONTEXT_TASKS
+        ? [`- and ${members.length - CONTEXT_TASKS} more`]
+        : []),
+      "",
+    );
+    for (const [file, text] of Object.entries(documents?.documents ?? {}))
+      lines.push(
+        `### ${file}`,
+        "",
+        "```markdown",
+        clipText(text, CONTEXT_DOC_CHARS),
+        "```",
+        "",
+      );
+  }
+  const ask =
+    input.purpose === "discuss-plan"
+      ? "Discuss this plan with me. Answer from the documents, tasks and state below. Make no edits to any file, task or plan, and start no sessions."
+      : "Explain why each item below needs me and what each choice would do, then recommend one. Do not change anything, settle anything or start any session until I say which.";
+  return {
+    message: [`Context from the Avoozl page.`, ask, "", ...lines]
+      .join("\n")
+      .trim(),
+  };
+}

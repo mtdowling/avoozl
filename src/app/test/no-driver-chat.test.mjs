@@ -4,8 +4,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { MODEL_ROLES } from "../chat-models.mjs";
-import { classifyOperation } from "../operation-table.mjs";
+import { MODEL_ROLES } from "../settings/chat-models.mjs";
+import { classifyOperation } from "../api/operation-table.mjs";
 
 const read = (file) =>
   fs.readFileSync(new URL(`../../../${file}`, import.meta.url), "utf8");
@@ -23,7 +23,7 @@ test("the avoozl-driver agent and the driver session setting stay removed", () =
   assert.ok(!exists("prompts/driver.md"));
   assert.doesNotMatch(read("kirocrew-app/bin/avoozl.mjs"), /driver hook/);
   assert.doesNotMatch(
-    read("src/app/cli.mjs"),
+    read("src/app/cli/cli.mjs"),
     /driver-session|registerDriverSession/,
   );
   assert.ok(!exists("src/app/driver-session.mjs"));

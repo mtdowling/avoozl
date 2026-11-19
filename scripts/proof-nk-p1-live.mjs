@@ -137,7 +137,7 @@ async function setup() {
   };
   config.lanes = { local: 2 };
   // Every role on this machine's harness (Settings › Models, R98.6).
-  const { ROLES } = await import("../src/app/chat-models.mjs");
+  const { ROLES } = await import("../src/app/settings/chat-models.mjs");
   config.roles = Object.fromEntries(
     ROLES.map((role) => [role, { harness: HARNESS }]),
   );
@@ -146,9 +146,9 @@ async function setup() {
 
   await proofHarness(RUN, MACHINE, FAKE_AGENT);
 
-  const { Store } = await import("../src/app/store.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
   const { digest } = await import("../src/model.mjs");
-  const { takeOverSpec } = await import("../src/app/spec-takeover.mjs");
+  const { takeOverSpec } = await import("../src/app/specs/spec-takeover.mjs");
   const store = new Store(DB);
   try {
     const task = (id, word) => ({
@@ -234,7 +234,7 @@ function holdForPerson(store) {
 }
 
 async function snapshotState() {
-  const { Store } = await import("../src/app/store.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
   const store = new Store(DB);
   try {
     const of = (id) => {
@@ -277,8 +277,8 @@ async function snapshotState() {
 // What a person presses in Needs you: Go ahead on one task; Investigate
 // again once on the other, then Go ahead.
 async function decide(state) {
-  const { Store } = await import("../src/app/store.mjs");
-  const { Operations } = await import("../src/app/operations.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
+  const { Operations } = await import("../src/app/api/operations.mjs");
   const store = new Store(DB);
   try {
     const ops = new Operations(store, { workspaceRoot: P.ws });

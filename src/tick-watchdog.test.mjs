@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { readHealth, tickProblem } from "./app/tick-watchdog.mjs";
+import { readHealth, tickProblem } from "./app/tick/tick-watchdog.mjs";
 import { temporaryDirectory } from "./app/test/temporary.mjs";
 
 const cli = fileURLToPath(new URL("../cli.mjs", import.meta.url));

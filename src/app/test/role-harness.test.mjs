@@ -4,16 +4,16 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { harnessExecutor, roleHarness } from "../chat-models.mjs";
-import { deliveryPolicy, planReadyDispatches } from "../delivery.mjs";
+import { harnessExecutor, roleHarness } from "../settings/chat-models.mjs";
+import { deliveryPolicy, planReadyDispatches } from "../delivery/delivery.mjs";
 import {
   approveHarnessDefinition,
   harnessDefinitionHash,
-} from "../harness-definitions.mjs";
-import { Operations } from "../operations.mjs";
-import { newPlanStarts } from "../new-plan.mjs";
-import { validateSession } from "../session-pins.mjs";
-import { Store } from "../store.mjs";
+} from "../executors/harness-definitions.mjs";
+import { Operations } from "../api/operations.mjs";
+import { newPlanStarts } from "../specs/new-plan.mjs";
+import { validateSession } from "../sessions/session-pins.mjs";
+import { Store } from "../store/store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

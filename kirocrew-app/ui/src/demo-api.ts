@@ -4,7 +4,7 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 
-// The sample's workspace ID (src/app/demo.mjs DEMO_WORKSPACE_ID). No catalog
+// The sample's workspace ID (src/app/workspace/demo.mjs DEMO_WORKSPACE_ID). No catalog
 // workspace can have it: catalog IDs start with a letter.
 export const DEMO_WORKSPACE_ID = '@demo'
 

@@ -8,21 +8,24 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { workspaceConfig } from "../config.mjs";
+import { workspaceConfig } from "../settings/config.mjs";
 import {
   globalAvoozlConfigPath,
   loadLayeredConfig,
-} from "../layered-config.mjs";
+} from "../settings/layered-config.mjs";
 import { fileURLToPath } from "node:url";
 import { snapshot } from "./fixtures.mjs";
-import { Operations } from "../operations.mjs";
-import { bindSession, rediscoverSessions } from "../session-bindings.mjs";
-import { Store } from "../store.mjs";
+import { Operations } from "../api/operations.mjs";
+import {
+  bindSession,
+  rediscoverSessions,
+} from "../sessions/session-bindings.mjs";
+import { Store } from "../store/store.mjs";
 import {
   acceptEnvelope,
   readRunnerConfig,
   validateEnvelope,
-} from "../remote-runner.mjs";
+} from "../workers/remote-runner.mjs";
 import { finishProcessSession } from "../executors/process.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

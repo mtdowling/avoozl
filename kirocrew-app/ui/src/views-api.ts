@@ -200,7 +200,7 @@ export interface ReviewRound {
   verdicts: RoundVerdict[]
 }
 
-// One task's link set from src/app/scm-links.mjs (R92.1-R92.3). URLs are
+// One task's link set from src/app/tasks/scm-links.mjs (R92.1-R92.3). URLs are
 // built by the backend from validated fields; the page still passes each
 // through safeHref.
 export interface TaskLinks {

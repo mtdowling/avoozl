@@ -2,7 +2,7 @@
 // spec plan and the merged approval recorded.
 import fs from "node:fs";
 import path from "node:path";
-import { Operations } from "../operations.mjs";
+import { Operations } from "../api/operations.mjs";
 import { fixture } from "./fixtures.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
 import { writeSpec } from "./spec-fixture.mjs";

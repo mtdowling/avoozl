@@ -24,11 +24,11 @@ import {
   ciTriggers,
   docsOnly,
   repeatRuns,
-} from "../src/app/flow-ci.mjs";
-import { GitHubClient } from "../src/app/github.mjs";
-import { withGitHubReadSnapshots } from "../src/app/github-read-snapshot.mjs";
-import { Store } from "../src/app/store.mjs";
-import { emptySnapshot } from "../src/app/workspace.mjs";
+} from "../src/app/flow/flow-ci.mjs";
+import { GitHubClient } from "../src/app/github/github.mjs";
+import { withGitHubReadSnapshots } from "../src/app/github/github-read-snapshot.mjs";
+import { Store } from "../src/app/store/store.mjs";
+import { emptySnapshot } from "../src/app/workspace/workspace.mjs";
 
 const { values } = parseArgs({
   options: {

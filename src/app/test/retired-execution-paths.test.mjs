@@ -3,12 +3,12 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { workspaceConfig } from "../config.mjs";
+import { workspaceConfig } from "../settings/config.mjs";
 import { kirocrewConfiguration } from "../executors/kirocrew.mjs";
-import { groupedCall, GROUPED_TOOLS } from "../mcp-tools.mjs";
-import { Operations } from "../operations.mjs";
-import { validateSession } from "../session-pins.mjs";
-import { Store } from "../store.mjs";
+import { groupedCall, GROUPED_TOOLS } from "../mcp/mcp-tools.mjs";
+import { Operations } from "../api/operations.mjs";
+import { validateSession } from "../sessions/session-pins.mjs";
+import { Store } from "../store/store.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

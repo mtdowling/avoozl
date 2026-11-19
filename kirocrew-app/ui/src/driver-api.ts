@@ -1,7 +1,7 @@
 // Calls and pure helpers for the spec driver (design §6.10, R66): the
 // header chip, the read-only banner, the Hand off, Take over and Force take
 // over dialogs, and Settings › General › This computer. The backend
-// (src/app/driver.mjs) decides everything; this module only words it. Keep
+// (src/app/workers/driver.mjs) decides everything; this module only words it. Keep
 // it free of JSX and runtime imports so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'

@@ -84,7 +84,7 @@ test("the npm package ships the app launcher's built lib and page", () => {
   for (const file of [
     "kirocrew-app/bin/avoozl.mjs",
     "kirocrew-app/bin/lib/cli.mjs",
-    "kirocrew-app/bin/lib/src/app/app-backend.mjs",
+    "kirocrew-app/bin/lib/src/app/executors/kirocrew/app-backend.mjs",
     "kirocrew-app/ui/dist/index.mjs",
     "kirocrew-app/ui/dist/panel.mjs",
   ])

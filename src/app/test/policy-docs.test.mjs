@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { normalizeGitHubPolicy } from "../github-policy.mjs";
+import { normalizeGitHubPolicy } from "../github/github-policy.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");

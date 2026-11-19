@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
+import { lintSpec, readSpecFolder } from "../specs/spec-plans.mjs";
 
 const root = path.resolve(fileURLToPath(import.meta.url), "../../../..");
 const specs = path.join(root, ".kiro", "specs");

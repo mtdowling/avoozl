@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fixture, markdown } from "./fixtures.mjs";
-import { Operations } from "../operations.mjs";
-import { handleMcp } from "../mcp.mjs";
-import { readSpecFolder, specItems } from "../spec-plans.mjs";
+import { Operations } from "../api/operations.mjs";
+import { handleMcp } from "../mcp/mcp.mjs";
+import { readSpecFolder, specItems } from "../specs/spec-plans.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 
 const approve = (ops, plan, evidence = "Approved") =>

@@ -124,11 +124,11 @@ config.lanes = { local: 3 };
 if ("runner" in config.delivery) throw Error("init set delivery.runner");
 fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + "\n");
 
-const { workspaceConfig } = await import("../src/app/config.mjs");
-const { Store } = await import("../src/app/store.mjs");
-const { Operations } = await import("../src/app/operations.mjs");
-const { drainCheckRuns } = await import("../src/app/check-runs.mjs");
-const { takeOverSpec } = await import("../src/app/spec-takeover.mjs");
+const { workspaceConfig } = await import("../src/app/settings/config.mjs");
+const { Store } = await import("../src/app/store/store.mjs");
+const { Operations } = await import("../src/app/api/operations.mjs");
+const { drainCheckRuns } = await import("../src/app/delivery/check-runs.mjs");
+const { takeOverSpec } = await import("../src/app/specs/spec-takeover.mjs");
 const { dbPath } = workspaceConfig({ workspace: P.ws, env: ENV });
 const store = new Store(dbPath);
 const ops = new Operations(store, { workspaceRoot: P.ws });
@@ -243,7 +243,7 @@ try {
   for (let i = 0; i < 12 && !task("hand").integration?.commit; i++)
     landing.push(...(await tick()));
   result.startedWhileLanding = landing;
-  const { taskCheckRuns } = await import("../src/app/check-runs.mjs");
+  const { taskCheckRuns } = await import("../src/app/delivery/check-runs.mjs");
   const runs = taskCheckRuns(store, "hand").map((r) => ({
     commit: r.commit,
     state: r.state,

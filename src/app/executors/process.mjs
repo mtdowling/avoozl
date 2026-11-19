@@ -6,10 +6,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { createExecutor } from "../executors.mjs";
-import { rolePrompt } from "../prompts.mjs";
+import { createExecutor } from "./executors.mjs";
+import { rolePrompt } from "../agents/prompts.mjs";
 import { execFile } from "node:child_process";
-import { cliReportCaller } from "../report-match.mjs";
+import { cliReportCaller } from "../workers/report-match.mjs";
 import {
   childRecord,
   childResult,
@@ -19,31 +19,34 @@ import {
   requestChild,
   sendChild,
   stopChild,
-} from "../supervisor.mjs";
+} from "./supervisor.mjs";
 import {
   completeSessionRequest,
   pendingSessionRequests,
   releaseSessionRequest,
   takeSessionRequest,
-} from "../session-requests.mjs";
-import { bindSession, recordSessionStatus } from "../session-bindings.mjs";
-import { commitWorkerChanges, git } from "../git.mjs";
-import { sessionStartHold } from "../session-request-eligibility.mjs";
-import { healthContext, providerOf } from "../provider-health.mjs";
+} from "../sessions/session-requests.mjs";
+import {
+  bindSession,
+  recordSessionStatus,
+} from "../sessions/session-bindings.mjs";
+import { commitWorkerChanges, git } from "../git/git.mjs";
+import { sessionStartHold } from "../sessions/session-request-eligibility.mjs";
+import { healthContext, providerOf } from "../flow/provider-health.mjs";
 import { taskRepository } from "../../work-model.mjs";
-import { hasRemoteTask } from "../remote-runner.mjs";
-import { addEvidence } from "../evidence.mjs";
-import { processRow } from "../role-table.mjs";
-import { loadHarnessDefinition } from "../harness-definitions.mjs";
-import { sessionServedModel } from "../process-view.mjs";
-import { requireDiskSpace } from "../disk-space.mjs";
+import { hasRemoteTask } from "../workers/remote-runner.mjs";
+import { addEvidence } from "../tasks/evidence.mjs";
+import { processRow } from "../agents/role-table.mjs";
+import { loadHarnessDefinition } from "./harness-definitions.mjs";
+import { sessionServedModel } from "./process-view.mjs";
+import { requireDiskSpace } from "../workspace/disk-space.mjs";
 
 const PROCESS_EXECUTOR = "process";
 // The harness a `process` repository runs when it names none.
 export const DEFAULT_HARNESS = "claude-code";
 const CONSUMER = "supervisor";
 
-export { repositoryExecutor } from "../role-table.mjs";
+export { repositoryExecutor } from "../agents/role-table.mjs";
 
 function withDatabase(stateDirectory, use) {
   const db = openSupervisorDatabase(stateDirectory);
@@ -371,7 +374,9 @@ async function finishPlanAnswer(ops, binding, result, store) {
         quality &&
         quality.counts.error > ops.lintSpecPlan(plan).counts.error
       ) {
-        const { queueNotifications } = await import("../notifications.mjs");
+        const { queueNotifications } = await import(
+          "../tick/notifications.mjs"
+        );
         queueNotifications(store, [
           {
             channel: "decision",
@@ -442,7 +447,7 @@ export async function finishProcessSession(ops, binding, result, store = null) {
   const hands = processRow(binding.role)?.hands;
   if (hands === "reply") {
     if (!store) return null;
-    const { recordRetroReply } = await import("../flow-retro.mjs");
+    const { recordRetroReply } = await import("../flow/flow-retro.mjs");
     return recordRetroReply(
       store,
       binding.taskId,
@@ -528,7 +533,7 @@ export async function finishProcessSession(ops, binding, result, store = null) {
   if (hands === "triage") {
     if (result.state !== "done") {
       if (store) {
-        const { failTriage } = await import("../triage.mjs");
+        const { failTriage } = await import("../intake/triage.mjs");
         failTriage(
           store,
           binding.taskId,
@@ -830,13 +835,15 @@ export async function drainProcessRequests(
         });
       // A spec review child binds its round, as session.bind does for a chat.
       if (request.role === "plan-review") {
-        const { bindSpecReviewRound } = await import("../plan-reviews.mjs");
+        const { bindSpecReviewRound } = await import(
+          "../reviews/plan-reviews.mjs"
+        );
         bindSpecReviewRound(store, { roundId: request.task, slot: sessionId });
       }
       // A plan answer child binds its round, as session.bind does for a chat.
       if (request.role === "plan-answer") {
         const { bindPlanAnswerSession } = await import(
-          "../plan-review-answers.mjs"
+          "../reviews/plan-review-answers.mjs"
         );
         bindPlanAnswerSession(store, {
           roundId: request.task,

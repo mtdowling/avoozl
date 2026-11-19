@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
+import { Operations } from "../api/operations.mjs";
 import {
   bindSpecReviewRound,
   createSpecReviewRound,
@@ -8,10 +8,10 @@ import {
   listSpecReviewRounds,
   reportedPlanModel,
   settleSpecReviewRounds,
-} from "../plan-reviews.mjs";
-import { writeRevision } from "../plans.mjs";
-import { recordSessionStatus } from "../session-bindings.mjs";
-import { createSpecPlan, specHash } from "../spec-plans.mjs";
+} from "../reviews/plan-reviews.mjs";
+import { writeRevision } from "../specs/plans.mjs";
+import { recordSessionStatus } from "../sessions/session-bindings.mjs";
+import { createSpecPlan, specHash } from "../specs/spec-plans.mjs";
 import { fixture } from "./fixtures.mjs";
 
 function setup(t) {

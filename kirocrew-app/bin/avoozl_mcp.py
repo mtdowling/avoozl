@@ -43,7 +43,7 @@ def main() -> None:
         if home is not None:
             os.environ["KIROCREW_HOME"] = str(home)
     # --kirocrew: each request picks its workspace from the gateway's caller
-    # block, so one process may serve many sessions (src/app/app-mcp.mjs).
+    # block, so one process may serve many sessions (src/app/executors/kirocrew/app-mcp.mjs).
     os.execv(executable, [executable, str(entry), "mcp", "--kirocrew", *sys.argv[1:]])
 
 

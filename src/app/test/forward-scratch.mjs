@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { bindContentRules, contentBinding } from "../content-rules.mjs";
-import { forwardGit } from "../mirror-forward-git.mjs";
+import { bindContentRules, contentBinding } from "../content/content-rules.mjs";
+import { forwardGit } from "../mirror/mirror-forward-git.mjs";
 import { fixture } from "./fixtures.mjs";
 import { gitTemplate } from "./git-template.mjs";
 

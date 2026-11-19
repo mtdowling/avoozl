@@ -1,8 +1,8 @@
 // CLI commands of one kind: command, help lines and run.
-import { contentHook } from "../content-hook.mjs";
+import { contentHook } from "../content/content-hook.mjs";
 import { RETIRED_LANDING, landingStatusLine } from "./support.mjs";
-import { help } from "../command-help.mjs";
-import { watchTick } from "../tick-watchdog.mjs";
+import { help } from "../cli/command-help.mjs";
+import { watchTick } from "../tick/tick-watchdog.mjs";
 
 async function runTaskDone({ options, positionals, localOrRequest, need }) {
   // A manual task (R61.13): a person marks it done or reopens it.

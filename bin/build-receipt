@@ -4,7 +4,7 @@
 // duration, counters) to build-receipt.jsonl. Crews and CI run it around
 // their build and test commands:
 //   bin/build-receipt [--issue N] [--target T] -- npm test
-import { wrap } from "../src/app/build-receipt.mjs";
+import { wrap } from "../src/app/flow/build-receipt.mjs";
 
 try {
   process.exitCode = await wrap(process.argv.slice(2));

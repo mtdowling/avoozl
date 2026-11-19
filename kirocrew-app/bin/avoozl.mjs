@@ -24,14 +24,16 @@ if (!COMMANDS.has(command)) {
 // the one the Workspace view adds or initializes.
 const env = process.env;
 if (!rest.includes("--workspace") && !env.AVOOZL_WORKSPACE) {
-  const { loadHostConfig } = await import("./lib/src/app/host-config.mjs"),
+  const { loadHostConfig } = await import(
+      "./lib/src/app/settings/host-config.mjs"
+    ),
     { config } = loadHostConfig({ env }),
     workspace = config.workspaces[config.defaultWorkspace];
   if (workspace) rest.push("--workspace", workspace.root);
 }
 
 // The backend refuses the page's requests when ui/dist was not built from the
-// ui/src installed beside it (src/app/ui-bundle.mjs).
+// ui/src installed beside it (src/app/serve/ui-bundle.mjs).
 if (command === "app-backend" && !rest.includes("--ui-dir"))
   rest.push("--ui-dir", fileURLToPath(new URL("../ui", import.meta.url)));
 

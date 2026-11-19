@@ -93,7 +93,9 @@ const P = {
   report: path.join(ROOT, "report.json"),
 };
 const DB = path.join(P.ws, ".avoozl", "local", "workspace.sqlite");
-const { machineAvoozlPaths } = await import("../src/app/host-config.mjs");
+const { machineAvoozlPaths } = await import(
+  "../src/app/settings/host-config.mjs"
+);
 const MACHINE = machineAvoozlPaths();
 if (EXECUTOR === "process")
   for (const dir of [MACHINE.configDirectory, MACHINE.stateDirectory])
@@ -200,7 +202,7 @@ async function setup() {
 
   if (EXECUTOR === "process") {
     const { approveHarnessDefinition, harnessDefinitionHash } = await import(
-      "../src/app/harness-definitions.mjs"
+      "../src/app/executors/harness-definitions.mjs"
     );
     const harnesses = path.join(MACHINE.configDirectory, "harnesses");
     fs.mkdirSync(harnesses, { recursive: true });
@@ -215,9 +217,9 @@ async function setup() {
     });
   }
 
-  const { Store } = await import("../src/app/store.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
   const { digest } = await import("../src/model.mjs");
-  const { takeOverSpec } = await import("../src/app/spec-takeover.mjs");
+  const { takeOverSpec } = await import("../src/app/specs/spec-takeover.mjs");
   const store = new Store(DB);
   try {
     const group = {
@@ -288,7 +290,7 @@ async function setup() {
 }
 
 async function snapshot() {
-  const { Store } = await import("../src/app/store.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
   const store = new Store(DB);
   try {
     const deliveries = Object.fromEntries(
@@ -496,8 +498,8 @@ async function watch() {
     const s = await snapshot();
     // 2. Findings that wait for a person: Go ahead, as Needs you would.
     if (!decided && s.investigation?.state === "needs-you") {
-      const { Store } = await import("../src/app/store.mjs");
-      const { Operations } = await import("../src/app/operations.mjs");
+      const { Store } = await import("../src/app/store/store.mjs");
+      const { Operations } = await import("../src/app/api/operations.mjs");
       const store = new Store(DB);
       try {
         await new Operations(store, { workspaceRoot: P.ws }).execute(
@@ -563,14 +565,16 @@ async function proveProcess() {
       "Claude Code is not on this machine's PATH. Run the process half from the owner's terminal.",
     );
   await setup();
-  const { Store } = await import("../src/app/store.mjs");
-  const { Operations } = await import("../src/app/operations.mjs");
-  const { prepareWorktree } = await import("../src/app/delivery.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
+  const { Operations } = await import("../src/app/api/operations.mjs");
+  const { prepareWorktree } = await import("../src/app/delivery/delivery.mjs");
   const { drainProcessRequests } = await import(
     "../src/app/executors/process.mjs"
   );
-  const { drainCheckRuns } = await import("../src/app/check-runs.mjs");
-  const { launchSupervisor } = await import("../src/app/supervisor.mjs");
+  const { drainCheckRuns } = await import("../src/app/delivery/check-runs.mjs");
+  const { launchSupervisor } = await import(
+    "../src/app/executors/supervisor.mjs"
+  );
   const store = new Store(DB),
     ops = new Operations(store, { workspaceRoot: P.ws }),
     end = Date.now() + Number(values.minutes) * 60_000;

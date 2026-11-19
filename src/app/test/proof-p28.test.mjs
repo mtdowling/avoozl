@@ -12,16 +12,16 @@ import path from "node:path";
 import test from "node:test";
 import { snapshot } from "./fixtures.mjs";
 import { pathToFileURL } from "node:url";
-import { handleMcp } from "../mcp.mjs";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
-import { writePluginSettings } from "../plugins.mjs";
+import { handleMcp } from "../mcp/mcp.mjs";
+import { Operations } from "../api/operations.mjs";
+import { Store } from "../store/store.mjs";
+import { writePluginSettings } from "../plugins/plugins.mjs";
 import {
   check,
   describeSets,
   enforce,
   loadRulePlugins,
-} from "../content-rules.mjs";
+} from "../content/content-rules.mjs";
 import { commitIn, fakeCrew, git } from "./fake-crew.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -586,7 +586,7 @@ test("P28 (3), (7): a GitHub issue write and a reply naming a fake term", async 
   // issue is.
   const created = [];
   assert.equal(typeof ops.github, "object");
-  const { guardGitHub } = await import("../content-rules.mjs");
+  const { guardGitHub } = await import("../content/content-rules.mjs");
   const client = guardGitHub(
     {
       createIssue: async (_c, input) => {

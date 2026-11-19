@@ -1,11 +1,11 @@
-import { fail } from "../store.mjs";
+import { fail } from "../store/store.mjs";
 import {
   startRequest,
   takeSessionRequest,
   releaseSessionRequest,
   completeSessionRequest,
-} from "../session-requests.mjs";
-import { gatewayClient } from "../gateway-client.mjs";
+} from "../sessions/session-requests.mjs";
+import { gatewayClient } from "./kirocrew/gateway-client.mjs";
 // Sidebar position and project inheritance belong to this executor alone.
 
 const sidebarPath = (repository) => (repository ? `Avoozl/${repository}` : "");

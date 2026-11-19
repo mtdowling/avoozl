@@ -3,7 +3,7 @@
 // as they do live. Every call is counted by kind (REST, conditional 304,
 // GraphQL, write). Every value is fake; nothing reaches the network.
 import { createHash } from "node:crypto";
-import { GitHubClient } from "../github.mjs";
+import { GitHubClient } from "../github/github.mjs";
 
 const json = (value, status = 200, headers = {}) =>
   new Response(value === null ? "" : JSON.stringify(value), {

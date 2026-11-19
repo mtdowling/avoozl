@@ -7,8 +7,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
+import { Operations } from "../api/operations.mjs";
+import { Store } from "../store/store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

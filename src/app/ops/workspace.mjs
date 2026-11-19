@@ -1,64 +1,71 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import os from "node:os";
 import { auditPlans } from "../../mcp.mjs";
-import { chatModel, roleHarness } from "../chat-models.mjs";
+import { chatModel, roleHarness } from "../settings/chat-models.mjs";
 import {
   CHECKS_UNCONFINED,
   checksUnconfinedAllowed,
   isolationSetting,
-} from "../check-isolation.mjs";
-import { driverStatus } from "../driver.mjs";
-import { listExamples, seedExample } from "../examples.mjs";
-import { repositoryConfig, withWorkLock } from "../git.mjs";
-import { expandHome } from "../folder-browse.mjs";
-import { detectRepository } from "../repository-kind.mjs";
-import { normalizeGitHubPolicy } from "../github-policy.mjs";
-import { machineIdentity, prepareGitHubRepository } from "../github-sync.mjs";
-import { requirePrivateRepository } from "../github.mjs";
-import { HARNESS_UNCONFINED } from "../harness-definitions.mjs";
-import { machineAvoozlPaths } from "../host-config.mjs";
-import { instanceView, renameInstance } from "../instance.mjs";
-import { loadLayeredConfig } from "../layered-config.mjs";
+} from "../workspace/check-isolation.mjs";
+import { driverStatus } from "../workers/driver.mjs";
+import { listExamples, seedExample } from "../workspace/examples.mjs";
+import { repositoryConfig, withWorkLock } from "../git/git.mjs";
+import { expandHome } from "../workspace/folder-browse.mjs";
+import { detectRepository } from "../workspace/repository-kind.mjs";
+import { normalizeGitHubPolicy } from "../github/github-policy.mjs";
+import {
+  machineIdentity,
+  prepareGitHubRepository,
+} from "../github/github-sync.mjs";
+import { requirePrivateRepository } from "../github/github.mjs";
+import { HARNESS_UNCONFINED } from "../executors/harness-definitions.mjs";
+import { machineAvoozlPaths } from "../settings/host-config.mjs";
+import { instanceView, renameInstance } from "../workspace/instance.mjs";
+import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import {
   ensureGlobalLocalIgnore,
   globalLocalIgnoreStatus,
-} from "../local-ignore.mjs";
+} from "../workspace/local-ignore.mjs";
 import {
   requireMirrorsPrivate,
   requirePlansBranches,
-} from "../mirror-policy.mjs";
-import { importNewPlans, newPlanStarts } from "../new-plan.mjs";
-import { queueNotifications } from "../notifications.mjs";
+} from "../mirror/mirror-policy.mjs";
+import { importNewPlans, newPlanStarts } from "../specs/new-plan.mjs";
+import { queueNotifications } from "../tick/notifications.mjs";
 import {
   adoptRepository,
   commitAuthors,
   inspectFolder,
   scanSpecs,
-} from "../onboarding.mjs";
-import { archiveEnded } from "../plan-retire.mjs";
-import { planReviewStep } from "../plan-review-step.mjs";
-import { runnerTick, workerTick } from "../remote-runner.mjs";
-import { cliCommand } from "../report-command.mjs";
-import { listSessionBindings } from "../session-bindings.mjs";
-import { enqueueSessionRequests } from "../session-requests.mjs";
-import { createSpecPlan, lintSpec, saveSpecPlan } from "../spec-plans.mjs";
-import { journalOf } from "../spec-scheduler.mjs";
-import { fail } from "../store.mjs";
-import { WORKSPACE_LOCK, tick, tickHealth, tickLog } from "../tick.mjs";
-import { planPage, recentIntegrations } from "../views.mjs";
-import { checkStaleGrants } from "../worker-release.mjs";
+} from "../workspace/onboarding.mjs";
+import { archiveEnded } from "../specs/plan-retire.mjs";
+import { planReviewStep } from "../reviews/plan-review-step.mjs";
+import { runnerTick, workerTick } from "../workers/remote-runner.mjs";
+import { cliCommand } from "../workers/report-command.mjs";
+import { listSessionBindings } from "../sessions/session-bindings.mjs";
+import { enqueueSessionRequests } from "../sessions/session-requests.mjs";
+import {
+  createSpecPlan,
+  lintSpec,
+  saveSpecPlan,
+} from "../specs/spec-plans.mjs";
+import { journalOf } from "../specs/spec-scheduler.mjs";
+import { fail } from "../store/store.mjs";
+import { WORKSPACE_LOCK, tick, tickHealth, tickLog } from "../tick/tick.mjs";
+import { planPage, recentIntegrations } from "../api/views.mjs";
+import { checkStaleGrants } from "../workers/worker-release.mjs";
 import {
   assertRepositoryRemovable,
   removeWorkspaceRepositoryRecords,
   workspaceRepositories,
-} from "../workspace-repositories.mjs";
+} from "../workspace/workspace-repositories.mjs";
 import {
   configureWorkspaceRepository,
   publishWorkspaceRepository,
   syncWorkspaceRepository,
   workspaceRepositoryStatus,
-} from "../workspace-repository.mjs";
-import { person, notOnMcp, routed } from "../operation-policy.mjs";
+} from "../workspace/workspace-repository.mjs";
+import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
 export const entries = [
   {

@@ -7,11 +7,11 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { handleMcp } from "../mcp.mjs";
-import { Operations } from "../operations.mjs";
-import { quoteHash } from "../review-findings.mjs";
-import { Store } from "../store.mjs";
-import { initializeWorkspace } from "../workspace.mjs";
+import { handleMcp } from "../mcp/mcp.mjs";
+import { Operations } from "../api/operations.mjs";
+import { quoteHash } from "../reviews/review-findings.mjs";
+import { Store } from "../store/store.mjs";
+import { initializeWorkspace } from "../workspace/workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));

@@ -1,5 +1,5 @@
 // Provider health types the Providers view reads (design §4.20, R72). The
-// backend (src/app/provider-health.mjs) judges health. The Switch model
+// backend (src/app/flow/provider-health.mjs) judges health. The Switch model
 // button and dialog are gone: local workers are retired and Radar crews pick
 // their own model, so the page moves no running chat to another model.
 

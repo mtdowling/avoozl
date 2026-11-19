@@ -478,7 +478,7 @@ export function sessionHref(session: Pick<DeliverySession, 'slot' | 'link'>): st
   return `/chat?sid=${encodeURIComponent(key)}`
 }
 
-// One step of a task's Timeline (src/app/task-steps.mjs). `at` is a stored
+// One step of a task's Timeline (src/app/tasks/task-steps.mjs). `at` is a stored
 // record's time; no step comes from GitHub.
 export interface TaskStep {
   key: string

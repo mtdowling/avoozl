@@ -7,16 +7,19 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { deliveryPolicy } from "../delivery.mjs";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
+import { deliveryPolicy } from "../delivery/delivery.mjs";
+import { Operations } from "../api/operations.mjs";
+import { Store } from "../store/store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const APP = fileURLToPath(new URL("..", import.meta.url));
 // The tick's planner (planReadyDispatches) and the worker machine's own tick
 // (runnerTick, a pulled task).
-const PLANNERS = new Set(["delivery.mjs", "remote-runner.mjs"]);
+const PLANNERS = new Set([
+  "delivery/delivery.mjs",
+  "workers/remote-runner.mjs",
+]);
 const REQUEST = /\b(kirocrewRequest|startRequest|enqueueSessionRequests)\(/g;
 
 // The modules whose source asks for a session with role worker: a request
@@ -41,13 +44,11 @@ function workerDispatchers(files) {
 }
 
 const sources = () =>
-  [
-    ...fs.readdirSync(APP).map((name) => [name, path.join(APP, name)]),
-    ...fs
-      .readdirSync(path.join(APP, "executors"))
-      .map((name) => [`executors/${name}`, path.join(APP, "executors", name)]),
-  ]
-    .filter(([name]) => name.endsWith(".mjs"))
+  fs
+    .readdirSync(APP, { recursive: true })
+    .map((name) => name.split(path.sep).join("/"))
+    .filter((name) => name.endsWith(".mjs") && !/(^|\/)test\//.test(name))
+    .map((name) => [name, path.join(APP, name)])
     .map(([name, file]) => [name, fs.readFileSync(file, "utf8")]);
 
 test("only the tick's planner writes a session request with role worker", () => {
@@ -56,7 +57,10 @@ test("only the tick's planner writes a session request with role worker", () => 
     found.filter((name) => !PLANNERS.has(name)),
     [],
   );
-  assert.ok(found.includes("delivery.mjs"), "the check finds the planner");
+  assert.ok(
+    found.includes("delivery/delivery.mjs"),
+    "the check finds the planner",
+  );
 });
 
 test("the check fails on a planted second dispatcher", () => {

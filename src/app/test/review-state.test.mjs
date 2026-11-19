@@ -3,7 +3,7 @@
 // review with a reviewer session stays in progress and keeps its session.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
+import { Operations } from "../api/operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const task = (id, extra = {}) => ({

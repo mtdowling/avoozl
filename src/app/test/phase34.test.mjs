@@ -6,18 +6,18 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
-import { retryDelivery, shipMode } from "../delivery.mjs";
-import { revertCorrections, recordCorrection } from "../corrections.mjs";
+import { Operations } from "../api/operations.mjs";
+import { Store } from "../store/store.mjs";
+import { retryDelivery, shipMode } from "../delivery/delivery.mjs";
+import { revertCorrections, recordCorrection } from "../flow/corrections.mjs";
 import {
   addEvidence,
   exportEvidence,
   importEvidence,
   taskEvidence,
-} from "../evidence.mjs";
-import { isFixWork } from "../flow.mjs";
-import { validateProposal } from "../plans.mjs";
+} from "../tasks/evidence.mjs";
+import { isFixWork } from "../flow/flow.mjs";
+import { validateProposal } from "../specs/plans.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -173,7 +173,7 @@ test("fix work, and the manifest's investigate and ship fields", () => {
 });
 
 test("a spec's ship mode and a bugfix spec's type reach each leaf", async () => {
-  const { parseSpec } = await import("../spec-plans.mjs");
+  const { parseSpec } = await import("../specs/spec-plans.mjs");
   const { legacySpecFiles, withFacts } = await import("./spec-fixture.mjs");
   const files = legacySpecFiles(),
     manifest = JSON.parse(files["avoozl/manifest.json"]);

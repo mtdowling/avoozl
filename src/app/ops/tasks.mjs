@@ -18,38 +18,41 @@ import {
 } from "../../task-identity.mjs";
 import { COMPLETIONS } from "../../work-model.mjs";
 import { isPlanInventory, taskSignals } from "../../workbench-model.mjs";
-import { DEFAULT_RETENTION_DAYS, listActivity } from "../activity-log.mjs";
+import {
+  DEFAULT_RETENTION_DAYS,
+  listActivity,
+} from "../store/activity-log.mjs";
 import {
   matchingAgentInstructions,
   toggleAgentInstruction,
-} from "../agent-instructions.mjs";
-import { describeWorkspace } from "../client.mjs";
-import { settleConflicts } from "../conflict-actions.mjs";
-import { startNow } from "../delivery.mjs";
-import { diskNeedsYou } from "../disk-space.mjs";
-import { taskEvidence } from "../evidence.mjs";
-import { fixToSpec, startFix } from "../fix.mjs";
-import { lineBanner } from "../flow-line.mjs";
-import { flowView } from "../flow.mjs";
-import { forwardAuditRows } from "../forward-audit.mjs";
-import { withWorkLock } from "../git.mjs";
-import { paceNeedsYou } from "../github-pacer.mjs";
-import { readGitHubPolicyOrNull } from "../github-policy.mjs";
-import { rateNeedsYou } from "../github-rate.mjs";
-import { listHarnessDefinitions } from "../harness-definitions.mjs";
-import { highlightLanguages } from "../highlight-languages.mjs";
-import { instanceView } from "../instance.mjs";
-import { landingNeedsYou } from "../integration-head.mjs";
-import { syncNeedsYou } from "../integration-sync.mjs";
-import { decideInvestigation } from "../investigate.mjs";
-import { kirocrewPinNeedsYou } from "../kirocrew-pin.mjs";
-import { landingWaitNeedsYou } from "../landing-queue-view.mjs";
-import { completeManual, reopenManual } from "../manual-tasks.mjs";
-import { publicBranchRows } from "../mirror-forward-batch.mjs";
-import { mirrorForwardRows } from "../mirror-forward.mjs";
-import { mirrorNeedsYou } from "../mirror-sync.mjs";
-import { needsKirocrewItems } from "../needs-kirocrew.mjs";
-import { addItemContext } from "../needs-you-context.mjs";
+} from "../agents/agent-instructions.mjs";
+import { describeWorkspace } from "../api/client.mjs";
+import { settleConflicts } from "../delivery/conflict-actions.mjs";
+import { startNow } from "../delivery/delivery.mjs";
+import { diskNeedsYou } from "../workspace/disk-space.mjs";
+import { taskEvidence } from "../tasks/evidence.mjs";
+import { fixToSpec, startFix } from "../intake/fix.mjs";
+import { lineBanner } from "../flow/flow-line.mjs";
+import { flowView } from "../flow/flow.mjs";
+import { forwardAuditRows } from "../mirror/forward-audit.mjs";
+import { withWorkLock } from "../git/git.mjs";
+import { paceNeedsYou } from "../github/github-pacer.mjs";
+import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
+import { rateNeedsYou } from "../github/github-rate.mjs";
+import { listHarnessDefinitions } from "../executors/harness-definitions.mjs";
+import { highlightLanguages } from "../settings/highlight-languages.mjs";
+import { instanceView } from "../workspace/instance.mjs";
+import { landingNeedsYou } from "../epics/integration-head.mjs";
+import { syncNeedsYou } from "../epics/integration-sync.mjs";
+import { decideInvestigation } from "../delivery/investigate.mjs";
+import { kirocrewPinNeedsYou } from "../tick/kirocrew-pin.mjs";
+import { landingWaitNeedsYou } from "../landing/landing-queue-view.mjs";
+import { completeManual, reopenManual } from "../tasks/manual-tasks.mjs";
+import { publicBranchRows } from "../mirror/mirror-forward-batch.mjs";
+import { mirrorForwardRows } from "../mirror/mirror-forward.mjs";
+import { mirrorNeedsYou } from "../mirror/mirror-sync.mjs";
+import { needsKirocrewItems } from "../tick/needs-kirocrew.mjs";
+import { addItemContext } from "../api/needs-you-context.mjs";
 import {
   claimedOrNone,
   kiroCrewSessions,
@@ -58,7 +61,7 @@ import {
   refuseSpecText,
   reviewRoles,
   validationAt,
-} from "../operation-support.mjs";
+} from "../api/operation-support.mjs";
 import {
   activityView,
   chatContext,
@@ -67,37 +70,37 @@ import {
   helpMessage,
   taskDetailView,
   withGraphState,
-} from "../page-views.mjs";
-import { panelView } from "../panel-view.mjs";
-import { archiveTask } from "../plan-retire.mjs";
-import { planReviewNeedsYou } from "../plan-review-step.mjs";
-import { conversationSettings } from "../repository-settings.mjs";
-import { specPullNeedsYou } from "../spec-pull-requests.mjs";
-import { fail } from "../store.mjs";
-import { supersedeTask } from "../supersede.mjs";
+} from "../api/page-views.mjs";
+import { panelView } from "../api/panel-view.mjs";
+import { archiveTask } from "../specs/plan-retire.mjs";
+import { planReviewNeedsYou } from "../reviews/plan-review-step.mjs";
+import { conversationSettings } from "../settings/repository-settings.mjs";
+import { specPullNeedsYou } from "../specs/spec-pull-requests.mjs";
+import { fail } from "../store/store.mjs";
+import { supersedeTask } from "../tasks/supersede.mjs";
 import {
   duplicateAudit,
   duplicateCandidates,
   mergeTasks,
-} from "../task-dedup.mjs";
-import { taskDiff, taskFiles } from "../task-files.mjs";
+} from "../tasks/task-dedup.mjs";
+import { taskDiff, taskFiles } from "../tasks/task-files.mjs";
 import {
   addNote,
   editNote,
   noteAuthor,
   notesView,
   removeNote,
-} from "../task-notes.mjs";
+} from "../tasks/task-notes.mjs";
 import {
   requestTaskSummary,
   submitTaskSummary,
   summaryFacts,
   taskSummaryView,
-} from "../task-summary.mjs";
-import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick.mjs";
-import { workspaceRepositories } from "../workspace-repositories.mjs";
+} from "../tasks/task-summary.mjs";
+import { WORKSPACE_LOCK, readDeliveryPolicy } from "../tick/tick.mjs";
+import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
 import { randomUUID } from "node:crypto";
-import { person, notOnMcp, routed } from "../operation-policy.mjs";
+import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
 // Manual tasks and task links (§4.16, R61.12–R61.22).
 function taskManualCompleteHandler({ name, input, context }) {

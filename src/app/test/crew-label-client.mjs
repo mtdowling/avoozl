@@ -1,4 +1,4 @@
-import { GitHubClient } from "../github.mjs";
+import { GitHubClient } from "../github/github.mjs";
 
 // Sends a fake GitHub's createIssue through the real client's createIssue
 // over a fake fetch, so a test sees the request GitHub would get (R103.2).

@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import { build } from "vite";
 import { buildAgents } from "../src/app/executors/kirocrew/build-agents.mjs";
-import { writeUiStamp } from "../src/app/ui-bundle.mjs";
+import { writeUiStamp } from "../src/app/serve/ui-bundle.mjs";
 import { buildStandalone } from "./build-standalone.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
@@ -79,7 +79,7 @@ for (const data of [
     .map((name) => path.join("src", name)),
   path.join("src", "app", "skills"),
   // Started as its own process by plugins.mjs, so the bundle never imports it.
-  path.join("src", "app", "plugin-child.mjs"),
+  path.join("src", "app", "plugins", "plugin-child.mjs"),
   "examples",
   "prompts",
 ])

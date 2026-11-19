@@ -23,7 +23,10 @@ test("one pitch: the package, the app, AGENTS.md, the demo and help say the tagl
   );
   assert.ok(flat("../../../AGENTS.md").includes(TAGLINE));
   assert.match(read("../../../kirocrew-app/ui/src/Demo.tsx"), /TAGLINE \+/);
-  assert.match(read("../cli-help.mjs"), /from "\.\.\/work-split\.mjs"/);
+  assert.match(
+    read("../cli/cli-help.mjs"),
+    /from "\.\.\/\.\.\/work-split\.mjs"/,
+  );
 });
 
 test("the README shows the same words", () => {

@@ -14,7 +14,8 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const T = "src/app/test/";
+// Test files and their helpers sit in a test/ folder beside the modules.
+const IN_TEST_DIR = /^src\/app\/(.+\/)?test\//;
 
 // Tests that read repository files outside src/ while they run.
 const READS = {
@@ -64,7 +65,7 @@ export const nodeTestFiles = () =>
       "-co",
       "--exclude-standard",
       "src/*.test.mjs",
-      `${T}*.test.mjs`,
+      "src/app/*test/*.test.mjs",
     ]),
   ].sort();
 export const uiTestFiles = () =>
@@ -116,7 +117,7 @@ const directImports = (file) => {
 };
 const base = (f) => path.posix.basename(f).replace(/\.test\.mjs$/, "");
 const pick = (names, files) =>
-  files.filter((f) => f.startsWith(T) && names.includes(base(f)));
+  files.filter((f) => IN_TEST_DIR.test(f) && names.includes(base(f)));
 
 export function select(
   changed,
@@ -150,7 +151,7 @@ export function select(
       )
     )
       full(`${f}: package, CI or script file`);
-    else if (f.startsWith(T) && !isTest) full(`${f}: test helper`);
+    else if (IN_TEST_DIR.test(f) && !isTest) full(`${f}: test helper`);
     else if (isTest && all.includes(f)) {
       out.node.add(f);
       out.reasons.push(`${f}: changed test`);

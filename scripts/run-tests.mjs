@@ -14,7 +14,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { machineAvoozlPaths } from "../src/app/host-config.mjs";
+import { machineAvoozlPaths } from "../src/app/settings/host-config.mjs";
 import { changedFiles, select } from "./select-tests.mjs";
 import { allTestFiles, planFor, shardOf } from "./test-plan.mjs";
 
@@ -101,7 +101,7 @@ if (shard && !(shard[0] >= 1 && shard[0] <= shard[1]))
 if ((shard || chromeOnly) && !system)
   throw Error("--shard and --chrome-only need --system");
 
-let nodeFiles = ["src/*.test.mjs", "src/app/test/*.test.mjs"],
+let nodeFiles = ["src/*.test.mjs", "src/app/**/test/*.test.mjs"],
   uiFiles = ["kirocrew-app/ui/test/*.test.mjs"];
 if (system && !changed) ({ node: nodeFiles, ui: uiFiles } = allTestFiles());
 if (changed) {

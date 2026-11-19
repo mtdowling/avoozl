@@ -7,10 +7,10 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { createHash, createHmac, randomBytes } from "node:crypto";
-import { startAppBackend } from "../app-backend.mjs";
-import { workspaceConfig } from "../config.mjs";
-import { Store } from "../store.mjs";
-import { initializeWorkspace } from "../workspace.mjs";
+import { startAppBackend } from "../executors/kirocrew/app-backend.mjs";
+import { workspaceConfig } from "../settings/config.mjs";
+import { Store } from "../store/store.mjs";
+import { initializeWorkspace } from "../workspace/workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 // Every read Home's page sends on first load: the shell, the nav, and each

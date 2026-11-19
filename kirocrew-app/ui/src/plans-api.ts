@@ -2,7 +2,7 @@
 // are Kiro spec folders; approval is of one stored revision, named by the hash
 // of the folder's files. Keep this module free of JSX and runtime imports so
 // node can test it directly.
-import { unifiedDiff } from '../../../src/app/text-diff.mjs'
+import { unifiedDiff } from '../../../src/app/agents/text-diff.mjs'
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import { SEVERITIES, STATES } from './review-view.ts'
@@ -81,7 +81,7 @@ export interface SpecPlan {
   links?: SpecLinks | null
 }
 
-// A GitHub link built from validated fields (src/app/scm-links.mjs).
+// A GitHub link built from validated fields (src/app/tasks/scm-links.mjs).
 export interface ScmLink {
   kind: 'issue' | 'pull' | 'branch' | 'commit'
   repository: string

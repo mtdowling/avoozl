@@ -6,9 +6,9 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import test from "node:test";
-import { loadLayeredConfig } from "../layered-config.mjs";
-import { machineStatus } from "../machine-status.mjs";
-import { startSupervisor, supervisorPaths } from "../supervisor.mjs";
+import { loadLayeredConfig } from "../settings/layered-config.mjs";
+import { machineStatus } from "../workspace/machine-status.mjs";
+import { startSupervisor, supervisorPaths } from "../executors/supervisor.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const until = async (check, what, ms = 30000) => {
@@ -164,7 +164,7 @@ test("serve.* in .avoozl.json is refused, naming the key (SW9.1)", () => {
 });
 
 test("the machine file's serve settings are checked (SW9.1)", async () => {
-  const { normalizeHostConfig } = await import("../host-config.mjs");
+  const { normalizeHostConfig } = await import("../settings/host-config.mjs");
   const ok = normalizeHostConfig({
     version: 1,
     serve: { enabled: true, port: 4000 },

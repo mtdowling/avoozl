@@ -12,8 +12,8 @@ import {
   recordRetroReply,
   retroPrompt,
   retroStep,
-} from "../src/app/flow-retro.mjs";
-import { Store } from "../src/app/store.mjs";
+} from "../src/app/flow/flow-retro.mjs";
+import { Store } from "../src/app/store/store.mjs";
 
 const [rootArg, mode, repository = "mtdowling/avoozl"] = process.argv.slice(2);
 if (!rootArg || !["start", "reply"].includes(mode)) {

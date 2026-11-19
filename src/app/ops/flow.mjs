@@ -1,19 +1,19 @@
 // Operations of one feature: name, class, MCP policy and handler.
 import { taskRepository } from "../../work-model.mjs";
-import { runLocalChecks } from "../flow-checks.mjs";
+import { runLocalChecks } from "../flow/flow-checks.mjs";
 import {
   ciFlowView,
   ciRepositoryPickerIds,
   ciSettingsView,
-} from "../flow-ci-view.mjs";
-import { readEffectiveCIConfig } from "../flow-ci.mjs";
+} from "../flow/flow-ci-view.mjs";
+import { readEffectiveCIConfig } from "../flow/flow-ci.mjs";
 import {
   lineBanner,
   pullCord,
   pullFullStop,
   resumeStop,
   runAnyway,
-} from "../flow-line.mjs";
+} from "../flow/flow-line.mjs";
 import {
   applyToConfig,
   decideProposal,
@@ -21,25 +21,25 @@ import {
   retroPrompt,
   runRetroAgain,
   setRetroInstructions,
-} from "../flow-retro.mjs";
-import { usageView } from "../flow-usage.mjs";
-import { flowView, readFlowConfig } from "../flow.mjs";
-import { buildRows, buildView } from "../build-receipt-read.mjs";
-import { peekInstance } from "../instance.mjs";
-import { withWorkLock } from "../git.mjs";
-import { readGitHubPolicyOrNull } from "../github-policy.mjs";
+} from "../flow/flow-retro.mjs";
+import { usageView } from "../flow/flow-usage.mjs";
+import { flowView, readFlowConfig } from "../flow/flow.mjs";
+import { buildRows, buildView } from "../flow/build-receipt-read.mjs";
+import { peekInstance } from "../workspace/instance.mjs";
+import { withWorkLock } from "../git/git.mjs";
+import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import {
   approveHarnessByName,
   listHarnessDefinitions,
-} from "../harness-definitions.mjs";
-import { deliverRetroRule, deliverRetroSkill } from "../intake.mjs";
-import { runOn } from "../needs-kirocrew.mjs";
-import { createPlan } from "../plans.mjs";
-import { withRetroChats } from "../retro-chat.mjs";
-import { fail } from "../store.mjs";
-import { WORKSPACE_LOCK } from "../tick.mjs";
+} from "../executors/harness-definitions.mjs";
+import { deliverRetroRule, deliverRetroSkill } from "../intake/intake.mjs";
+import { runOn } from "../tick/needs-kirocrew.mjs";
+import { createPlan } from "../specs/plans.mjs";
+import { withRetroChats } from "../flow/retro-chat.mjs";
+import { fail } from "../store/store.mjs";
+import { WORKSPACE_LOCK } from "../tick/tick.mjs";
 import path from "node:path";
-import { person, notOnMcp, routed } from "../operation-policy.mjs";
+import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
 export const entries = [
   // Local checks first (R45): run the declared checks in a worktree and

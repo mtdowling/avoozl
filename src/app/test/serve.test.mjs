@@ -6,13 +6,13 @@ import net from "node:net";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { principalAllows } from "../command-dispatch.mjs";
-import { workspaceConfig } from "../config.mjs";
-import { machineAvoozlPaths } from "../host-config.mjs";
-import { sandboxSecretPaths } from "../sandbox.mjs";
-import { ABSOLUTE_MS, IDLE_MS, LINK_TTL_MS } from "../serve-auth.mjs";
-import { contentSecurityPolicy, startServe } from "../serve-server.mjs";
-import { initializeWorkspace } from "../workspace.mjs";
+import { principalAllows } from "../api/command-dispatch.mjs";
+import { workspaceConfig } from "../settings/config.mjs";
+import { machineAvoozlPaths } from "../settings/host-config.mjs";
+import { sandboxSecretPaths } from "../executors/sandbox.mjs";
+import { ABSOLUTE_MS, IDLE_MS, LINK_TTL_MS } from "../serve/serve-auth.mjs";
+import { contentSecurityPolicy, startServe } from "../serve/serve-server.mjs";
+import { initializeWorkspace } from "../workspace/workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));
@@ -204,7 +204,7 @@ test("a link works once, and fails after use and after ten minutes with the same
   const reused = await s.call(`/login?token=${s.token}`);
   assert.equal(reused.status, 403);
   // A link made for the running server by `serve link`, left past its time.
-  const { LinkStore } = await import("../serve-auth.mjs");
+  const { LinkStore } = await import("../serve/serve-auth.mjs");
   const links = new LinkStore(s.stateDirectory);
   const old = links.make(s.clock.now);
   links.close();
@@ -450,7 +450,7 @@ test("a session ends after 12 idle hours, after 7 days, and at logout (SW4.4, SW
     (await s.call("/apps/avoozl", { headers: { Cookie: a.cookie } })).status,
     401,
   );
-  const { LinkStore } = await import("../serve-auth.mjs");
+  const { LinkStore } = await import("../serve/serve-auth.mjs");
   const links = new LinkStore(s.stateDirectory);
   let b = await s.signIn(links.make(s.clock.now));
   for (let day = 0; day < 6; day++) {

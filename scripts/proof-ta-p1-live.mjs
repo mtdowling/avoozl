@@ -371,7 +371,7 @@ async function setup() {
     investigate: { mode: "off" },
   };
   config.lanes = { local: 3 };
-  const { ROLES } = await import("../src/app/chat-models.mjs");
+  const { ROLES } = await import("../src/app/settings/chat-models.mjs");
   config.roles = Object.fromEntries(
     [...new Set([...ROLES, "triage"])].map((role) => [
       role,
@@ -392,7 +392,7 @@ async function setup() {
 
   await proofHarness(RUN, MACHINE, FAKE_AGENT);
 
-  const { Store } = await import("../src/app/store.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
   const store = new Store(DB);
   try {
     store.put(
@@ -465,7 +465,7 @@ function triageWithoutProxy() {
 }
 
 async function snapshotState() {
-  const { Store } = await import("../src/app/store.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
   const store = new Store(DB);
   try {
     const items = Object.fromEntries(
@@ -603,8 +603,8 @@ function expectations(state, fake, page) {
 // (2) What a person does from the pages, through items.act: one action of
 // each kind on the owner queue, each counted against the fake's writes.
 async function act(fake) {
-  const { Store } = await import("../src/app/store.mjs");
-  const { Operations } = await import("../src/app/operations.mjs");
+  const { Store } = await import("../src/app/store/store.mjs");
+  const { Operations } = await import("../src/app/api/operations.mjs");
   const store = new Store(DB);
   const done = [];
   try {

@@ -1,6 +1,6 @@
 // Settings > Models: the one roles table (R98.6), each role's harness,
 // model and, for the worker and falsifier, agent. Saved as `roles` in
-// .avoozl.json (src/app/chat-models.mjs); a save drops the older `models`,
+// .avoozl.json (src/app/settings/chat-models.mjs); a save drops the older `models`,
 // `harnesses` and Delivery agent and model keys. Issue Radar crews pick
 // their own model. Free of JSX so node can test it.
 import type { AppApi } from '@kirocrew/app-sdk'

@@ -5,14 +5,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { applicationRoot } from "../config.mjs";
-import { integrationOf } from "../integration-branch.mjs";
+import { applicationRoot } from "../settings/config.mjs";
+import { integrationOf } from "../epics/integration-branch.mjs";
 import {
   lintSpec,
   parseSpec,
   readSpecFolder,
   specFacts,
-} from "../spec-plans.mjs";
+} from "../specs/spec-plans.mjs";
 import { RULES, scanText } from "../../../scripts/release-scan.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 // The statement in use, from its one source; the templates repeat it.

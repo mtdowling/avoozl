@@ -1,9 +1,9 @@
 // CLI commands of one kind: command, help lines and run.
-import { Store, privateFile } from "../store.mjs";
+import { Store, privateFile } from "../store/store.mjs";
 import { RETIRED_LANDING, generate } from "./support.mjs";
 import fs from "node:fs";
 import path from "node:path";
-import { help } from "../command-help.mjs";
+import { help } from "../cli/command-help.mjs";
 
 function runBackup({
   options,

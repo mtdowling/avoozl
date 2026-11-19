@@ -1,9 +1,9 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { Store } from "../store.mjs";
+import { Store } from "../store/store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
-import { createWorktree, validateUnlocked, withWorkLock } from "../git.mjs";
+import { createWorktree, validateUnlocked, withWorkLock } from "../git/git.mjs";
 export function snapshot() {
   return {
     schemaVersion: 1,

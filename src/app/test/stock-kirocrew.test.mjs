@@ -8,18 +8,18 @@ import { createHash, createHmac, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { startAppBackend } from "../app-backend.mjs";
-import { workspaceConfig } from "../config.mjs";
-import { Operations } from "../operations.mjs";
+import { startAppBackend } from "../executors/kirocrew/app-backend.mjs";
+import { workspaceConfig } from "../settings/config.mjs";
+import { Operations } from "../api/operations.mjs";
 import {
   gatewaySlotReader,
   observeSessions,
   slotStatus,
-} from "../session-observer.mjs";
+} from "../executors/kirocrew/session-observer.mjs";
 import { slotServed } from "../executors/kirocrew.mjs";
-import { GONE_GRACE_MS, servedModel } from "../delivery.mjs";
-import { Store } from "../store.mjs";
-import { tickHealth } from "../tick.mjs";
+import { GONE_GRACE_MS, servedModel } from "../delivery/delivery.mjs";
+import { Store } from "../store/store.mjs";
+import { tickHealth } from "../tick/tick.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 import { gitCheckout } from "./delivery-fixture.mjs";

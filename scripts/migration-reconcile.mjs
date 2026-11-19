@@ -15,14 +15,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { parseArgs } from "node:util";
-import { Store } from "../src/app/store.mjs";
+import { Store } from "../src/app/store/store.mjs";
 import {
   DRAIN_STATES,
   applyProposals,
   broadScope,
   partialEvidence,
   runEvidence,
-} from "../src/app/migration-reconcile.mjs";
+} from "../src/app/store/migration-reconcile.mjs";
 
 const { values: args } = parseArgs({
   options: {

@@ -12,7 +12,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // The machine's Avoozl folders, refused unless both are under `home`.
 export async function isolatedMachine(home) {
-  const { machineAvoozlPaths } = await import("../../src/app/host-config.mjs");
+  const { machineAvoozlPaths } = await import(
+    "../../src/app/settings/host-config.mjs"
+  );
   const machine = machineAvoozlPaths();
   for (const dir of [machine.configDirectory, machine.stateDirectory])
     if (!dir.startsWith(home + path.sep)) throw Error(`Not isolated: ${dir}`);
@@ -28,14 +30,14 @@ export async function installHarness(
   { unconfined = false } = {},
 ) {
   const { approveHarnessDefinition, harnessDefinitionHash } = await import(
-    "../../src/app/harness-definitions.mjs"
+    "../../src/app/executors/harness-definitions.mjs"
   );
   const dir = path.join(configDirectory, "harnesses");
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, `${name}.json`), bytes);
   const hash = harnessDefinitionHash(Buffer.from(bytes));
   approveHarnessDefinition({ configDirectory, name, hash });
-  const { sandboxKind } = await import("../../src/app/sandbox.mjs");
+  const { sandboxKind } = await import("../../src/app/executors/sandbox.mjs");
   if (unconfined && !sandboxKind())
     fs.writeFileSync(
       path.join(configDirectory, "harness-unconfined.json"),
@@ -51,7 +53,9 @@ export async function stopMachine({ root, backend, proxy, stateDirectory }) {
   backend.kill("SIGTERM");
   if (proxy) proxy.kill("SIGTERM");
   try {
-    const { runningSupervisor } = await import("../../src/app/supervisor.mjs");
+    const { runningSupervisor } = await import(
+      "../../src/app/executors/supervisor.mjs"
+    );
     const sup = runningSupervisor(stateDirectory, {});
     if (sup?.pid) process.kill(sup.pid, "SIGTERM");
   } catch {}
@@ -289,14 +293,20 @@ export async function runBackend(
   machine,
   { seconds, env, between = () => {} },
 ) {
-  const { Store } = await import("../../src/app/store.mjs");
-  const { Operations } = await import("../../src/app/operations.mjs");
-  const { prepareWorktree } = await import("../../src/app/delivery.mjs");
+  const { Store } = await import("../../src/app/store/store.mjs");
+  const { Operations } = await import("../../src/app/api/operations.mjs");
+  const { prepareWorktree } = await import(
+    "../../src/app/delivery/delivery.mjs"
+  );
   const { drainProcessRequests } = await import(
     "../../src/app/executors/process.mjs"
   );
-  const { drainCheckRuns } = await import("../../src/app/check-runs.mjs");
-  const { launchSupervisor } = await import("../../src/app/supervisor.mjs");
+  const { drainCheckRuns } = await import(
+    "../../src/app/delivery/check-runs.mjs"
+  );
+  const { launchSupervisor } = await import(
+    "../../src/app/executors/supervisor.mjs"
+  );
   const store = new Store(run.db);
   const ops = new Operations(store, {
     workspaceRoot: run.paths.ws,
@@ -408,12 +418,12 @@ export async function preflightModel(
   machine,
   { role, repository, record = null, env },
 ) {
-  const { Store } = await import("../../src/app/store.mjs");
+  const { Store } = await import("../../src/app/store/store.mjs");
   const { kirocrewRequest } = await import(
     "../../src/app/executors/kirocrew.mjs"
   );
   const { enqueueSessionRequests } = await import(
-    "../../src/app/session-requests.mjs"
+    "../../src/app/sessions/session-requests.mjs"
   );
   const { drainProcessRequests, processExecutor } = await import(
     "../../src/app/executors/process.mjs"
@@ -423,7 +433,7 @@ export async function preflightModel(
     launchSupervisor,
     openSupervisorDatabase,
     runningSupervisor,
-  } = await import("../../src/app/supervisor.mjs");
+  } = await import("../../src/app/executors/supervisor.mjs");
   const folder = path.join(run.root, "preflight");
   fs.mkdirSync(folder, { recursive: true });
   const task = record?.id ?? "preflight";
@@ -519,7 +529,7 @@ export function originFile(run, file) {
 
 // Claude Code needs sandbox-exec, which refuses to nest (inside Kiro Crew).
 export async function needSandbox(run, tag) {
-  const { sandboxKind } = await import("../../src/app/sandbox.mjs");
+  const { sandboxKind } = await import("../../src/app/executors/sandbox.mjs");
   if (run.agent === "claude" && !sandboxKind())
     throw Error(
       `sandbox-exec cannot run here (inside another sandbox?). Run ${tag} from a terminal outside Kiro Crew.`,

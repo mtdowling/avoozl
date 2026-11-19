@@ -3,8 +3,8 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
-import { Store } from "../store.mjs";
-import { investigationStep } from "../investigate.mjs";
+import { Store } from "../store/store.mjs";
+import { investigationStep } from "../delivery/investigate.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 

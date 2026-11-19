@@ -4,44 +4,51 @@ import { digest } from "../../model.mjs";
 import { applyPlanMetadata } from "../../plan-model.mjs";
 import { approvedSpecDependency } from "../../spec-dependencies.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
-import { approvalBatches, approveMany } from "../approval-batches.mjs";
+import { approvalBatches, approveMany } from "../specs/approval-batches.mjs";
 import {
   approvalDelegation,
   delegationEvidence,
   grantDelegate,
   listDelegates,
   revokeDelegate,
-} from "../approval-delegation.mjs";
-import { chatModel, validatePlanReview } from "../chat-models.mjs";
-import { enforce as enforceContent, enforceSpec } from "../content-rules.mjs";
+} from "../specs/approval-delegation.mjs";
+import { chatModel, validatePlanReview } from "../settings/chat-models.mjs";
+import {
+  enforce as enforceContent,
+  enforceSpec,
+} from "../content/content-rules.mjs";
 import {
   disposeFact,
   getExtraction,
   proposalsFromFacts,
   submitExtraction,
-} from "../design-extraction.mjs";
-import { epicsView } from "../epics-view.mjs";
-import { crossPlanEpics, epicOfPlan } from "../epics.mjs";
-import { planningIdentity } from "../github-marker.mjs";
-import { loadLayeredConfig } from "../layered-config.mjs";
-import { requestNewPlan } from "../new-plan.mjs";
-import { epicView, ownership, plansTableView } from "../page-views.mjs";
-import { archivePlan, unarchivePlan } from "../plan-archive.mjs";
-import { lintPlan } from "../plan-quality.mjs";
-import { deletePlan, deletePreview, specFolderState } from "../plan-retire.mjs";
+} from "../specs/design-extraction.mjs";
+import { epicsView } from "../epics/epics-view.mjs";
+import { crossPlanEpics, epicOfPlan } from "../epics/epics.mjs";
+import { planningIdentity } from "../github/github-marker.mjs";
+import { loadLayeredConfig } from "../settings/layered-config.mjs";
+import { requestNewPlan } from "../specs/new-plan.mjs";
+import { epicView, ownership, plansTableView } from "../api/page-views.mjs";
+import { archivePlan, unarchivePlan } from "../specs/plan-archive.mjs";
+import { lintPlan } from "../specs/plan-quality.mjs";
+import {
+  deletePlan,
+  deletePreview,
+  specFolderState,
+} from "../specs/plan-retire.mjs";
 import {
   answerReview,
   assertPlanAnswerWrite,
   reviewFindings,
-} from "../plan-review-answers.mjs";
+} from "../reviews/plan-review-answers.mjs";
 import {
   completePlanReviewWriter,
   recordPlanReviewWriter,
-} from "../plan-review-authorship.mjs";
-import { decidePlanReview } from "../plan-review-step.mjs";
-import { planReviewSummary } from "../plan-review-summary.mjs";
-import { currentPlanReview } from "../plan-review-tools.mjs";
-import { planReviewView } from "../plan-review-view.mjs";
+} from "../reviews/plan-review-authorship.mjs";
+import { decidePlanReview } from "../reviews/plan-review-step.mjs";
+import { planReviewSummary } from "../reviews/plan-review-summary.mjs";
+import { currentPlanReview } from "../reviews/plan-review-tools.mjs";
+import { planReviewView } from "../reviews/plan-review-view.mjs";
 import {
   applyReviewSuggestion,
   createReviewThreads,
@@ -50,7 +57,7 @@ import {
   listReviewThreads,
   listSpecReviewRounds,
   replyToReview,
-} from "../plan-reviews.mjs";
+} from "../reviews/plan-reviews.mjs";
 import {
   approvePlan,
   baselineItems,
@@ -58,23 +65,23 @@ import {
   extractPlan,
   proposeWork,
   savePlan,
-} from "../plans.mjs";
-import { pickTemplate } from "../plugins.mjs";
-import { releaseQueue } from "../release-queue.mjs";
-import { recordFindingDecision } from "../review-findings.mjs";
-import { specLinks } from "../scm-links.mjs";
-import { approvalEvidence } from "../spec-approval.mjs";
+} from "../specs/plans.mjs";
+import { pickTemplate } from "../plugins/plugins.mjs";
+import { releaseQueue } from "../mirror/release-queue.mjs";
+import { recordFindingDecision } from "../reviews/review-findings.mjs";
+import { specLinks } from "../tasks/scm-links.mjs";
+import { approvalEvidence } from "../specs/spec-approval.mjs";
 import {
   linkSpecPlan,
   proposeSpecWork,
   saveSpecPlan,
   specCategory,
   specEpic,
-} from "../spec-plans.mjs";
-import { fail } from "../store.mjs";
-import { planPage } from "../views.mjs";
-import { workspaceRepositories } from "../workspace-repositories.mjs";
-import { person, notOnMcp, routed } from "../operation-policy.mjs";
+} from "../specs/spec-plans.mjs";
+import { fail } from "../store/store.mjs";
+import { planPage } from "../api/views.mjs";
+import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
+import { person, notOnMcp, routed } from "../api/operation-policy.mjs";
 
 // Archive or unarchive a plan (plan-archive.mjs): a session may too
 // (R56.4), and either one undoes the other. Delete below is the one-way path.

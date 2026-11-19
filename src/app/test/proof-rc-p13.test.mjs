@@ -18,7 +18,7 @@ test("Proof 13: the statement shows in the README and Set up", () => {
 });
 
 test("Quick goal is gone: no operation, page or module", async () => {
-  const { OPERATIONS } = await import("../operation-table.mjs");
+  const { OPERATIONS } = await import("../api/operation-table.mjs");
   assert.equal(
     [...OPERATIONS.keys()].some((name) => name.startsWith("quickgoal.")),
     false,

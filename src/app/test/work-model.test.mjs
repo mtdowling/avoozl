@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
-import { lintPlan } from "../plan-quality.mjs";
+import { Operations } from "../api/operations.mjs";
+import { lintPlan } from "../specs/plan-quality.mjs";
 import { queryTasks, validate } from "../../model.mjs";
 import {
   isManual,

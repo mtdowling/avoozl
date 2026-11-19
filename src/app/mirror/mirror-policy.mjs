@@ -1,0 +1,289 @@
+// The per-repository `mirror` setting (RC24.1, RC24.2, design D29.1). Crews
+// work a private mirror of a public repository. Validation here is
+// deterministic; the one check that needs GitHub is `requireMirrorsPrivate`.
+import { fail } from "../store/store.mjs";
+import { parseRepository } from "../github/github.mjs";
+import { DEFAULT_FORWARD_MAX_FILE_BYTES } from "./forward-scan.mjs";
+import { branchNameProblem } from "../epics/integration-branch.mjs";
+
+const FORWARD_MODES = Object.freeze(["off", "nudge", "auto"]);
+export const MIRROR_KEYS = Object.freeze([
+  "source",
+  "mirror",
+  "forwardTo",
+  "forward",
+  "branchPrefix",
+  "squash",
+  "trustedPersons",
+  "plansBranch",
+  "forwardTarget",
+  "publicBranch",
+  "forwardMaxFileBytes",
+  "forwardExclude",
+  "forwardAllow",
+]);
+const FORWARD_TARGETS = Object.freeze(["each", "branch", "batch"]);
+export const MIRROR_DEFAULTS = Object.freeze({
+  forwardTo: "source",
+  forward: "nudge",
+  branchPrefix: "avoozl/",
+  squash: true,
+  plansBranch: "avoozl-plans",
+});
+const DEFAULT_FORWARD_TARGET = "each";
+
+const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const BRANCH_PREFIX = /^[A-Za-z0-9_][A-Za-z0-9._/-]*$/;
+const record = (value) =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+function repositoryName(value, label) {
+  if (typeof value !== "string" || !REPOSITORY.test(value))
+    fail(`${label} must be an owner/repository name.`);
+  return value;
+}
+
+// A plain git branch name: no "..", "//", "@{", trailing "/" or ".lock".
+const plainBranch = (name) =>
+  typeof name === "string" &&
+  BRANCH_PREFIX.test(name) &&
+  !/\.\.|\/\/|@\{|\/$|\.$|\.lock$/.test(name);
+
+// A list of repository paths or globs (`*`, `**`, a trailing `/`), relative
+// and without `..`, for the forward path policy (RC26.5.1).
+function pathPatterns(value, label) {
+  if (value === undefined) return [];
+  if (
+    !Array.isArray(value) ||
+    value.some(
+      (item) =>
+        typeof item !== "string" ||
+        !item.trim() ||
+        item.length > 200 ||
+        item.startsWith("/") ||
+        item.includes("\\") ||
+        item.split("/").includes(".."),
+    )
+  )
+    fail(
+      `${label} must be a list of relative paths or patterns such as docs/private/ or **/*.pem.`,
+    );
+  return [...new Set(value.map((item) => item.trim()))];
+}
+
+// The normalized mirror of one repository entry, or null when it has none.
+// `baseBranch` is the repository's configured default branch, when known.
+export function mirrorInput(value, label, baseBranch) {
+  if (value === undefined || value === null) return null;
+  if (!record(value)) fail(`${label} must contain a JSON object.`);
+  for (const key of Object.keys(value))
+    if (!MIRROR_KEYS.includes(key)) fail(`Unknown setting ${label}.${key}.`);
+  const source = repositoryName(value.source, `${label}.source`),
+    mirror = repositoryName(value.mirror, `${label}.mirror`);
+  if (source.toLowerCase() === mirror.toLowerCase())
+    fail(`${label}.mirror must differ from ${label}.source.`);
+  const forwardTo = value.forwardTo ?? MIRROR_DEFAULTS.forwardTo;
+  if (forwardTo !== "source") {
+    const fork = /^fork:(.+)$/.exec(String(forwardTo))?.[1];
+    if (typeof forwardTo !== "string" || !fork || !REPOSITORY.test(fork))
+      fail(`${label}.forwardTo must be source or fork:<owner/name>.`);
+  }
+  const forward = value.forward ?? MIRROR_DEFAULTS.forward;
+  if (!FORWARD_MODES.includes(forward))
+    fail(`${label}.forward must be off, nudge or auto.`);
+  const branchPrefix = value.branchPrefix ?? MIRROR_DEFAULTS.branchPrefix;
+  if (
+    typeof branchPrefix !== "string" ||
+    !BRANCH_PREFIX.test(branchPrefix) ||
+    branchPrefix.includes("..") ||
+    branchPrefix.includes("//")
+  )
+    fail(`${label}.branchPrefix must be a plain branch name prefix.`);
+  const plansBranch = value.plansBranch ?? MIRROR_DEFAULTS.plansBranch;
+  if (!plainBranch(plansBranch))
+    fail(`${label}.plansBranch must be a plain branch name.`);
+  if (plansBranch === baseBranch)
+    fail(`${label}.plansBranch must differ from the default branch.`);
+  if (plansBranch.startsWith(branchPrefix))
+    fail(
+      `${label}.plansBranch must not start with the branch prefix ${branchPrefix}, which task branches use.`,
+    );
+  const { forwardTarget, publicBranch } = checkForwardTarget(value, label);
+  if (forwardTarget === "branch" && publicBranch === undefined)
+    fail(`${label}.forwardTarget branch needs ${label}.publicBranch.`);
+  const { forwardMaxFileBytes } = value;
+  if (
+    forwardMaxFileBytes !== undefined &&
+    (!Number.isInteger(forwardMaxFileBytes) || forwardMaxFileBytes < 1)
+  )
+    fail(
+      `${label}.forwardMaxFileBytes must be a whole number of bytes, 1 or more.`,
+    );
+  const forwardExclude = pathPatterns(
+      value.forwardExclude,
+      `${label}.forwardExclude`,
+    ),
+    forwardAllow = pathPatterns(value.forwardAllow, `${label}.forwardAllow`);
+  const squash = value.squash ?? MIRROR_DEFAULTS.squash;
+  if (typeof squash !== "boolean")
+    fail(`${label}.squash must be true or false.`);
+  const persons = value.trustedPersons ?? [];
+  if (
+    !Array.isArray(persons) ||
+    persons.some((p) => typeof p !== "string" || !p.trim())
+  )
+    fail(`${label}.trustedPersons must be a list of logins.`);
+  const seen = new Map();
+  for (const login of persons)
+    if (!seen.has(login.trim().toLowerCase()))
+      seen.set(login.trim().toLowerCase(), login.trim());
+  const trustedPersons = [...seen.values()];
+  if (forward === "auto" && !trustedPersons.length)
+    fail(
+      `${label}.forward auto needs at least one person in ${label}.trustedPersons.`,
+    );
+  return {
+    source,
+    mirror,
+    forwardTo,
+    forward,
+    branchPrefix,
+    squash,
+    trustedPersons,
+    plansBranch,
+    ...(forwardTarget ? { forwardTarget } : {}),
+    ...(publicBranch ? { publicBranch } : {}),
+    ...(forwardMaxFileBytes ? { forwardMaxFileBytes } : {}),
+    ...(forwardExclude.length ? { forwardExclude } : {}),
+    ...(forwardAllow.length ? { forwardAllow } : {}),
+  };
+}
+
+// The size limit in force for forwarded files; the default is shown in Settings.
+export const forwardMaxFileBytesOf = (mirror) =>
+  mirror?.forwardMaxFileBytes ?? DEFAULT_FORWARD_MAX_FILE_BYTES;
+
+// forwardTarget and publicBranch of one record (a mirror or an epic manifest).
+// Absent stays absent, so the source of the value in force stays known.
+export function checkForwardTarget(value, label) {
+  const { forwardTarget, publicBranch } = value;
+  if (forwardTarget !== undefined && !FORWARD_TARGETS.includes(forwardTarget))
+    fail(`${label}.forwardTarget must be each, branch or batch.`);
+  if (publicBranch !== undefined) {
+    const problem = branchNameProblem(publicBranch);
+    if (problem) fail(`${label}.publicBranch: ${problem}`);
+  }
+  return { forwardTarget, publicBranch };
+}
+
+// The target in force, and where each value comes from: the epic manifest,
+// then the repository's `mirror`, then the default (RC26.2, D31.1). Throws
+// with a plain sentence on a bad value or a `branch` target with no branch.
+export function forwardTargetOf(mirror, manifest) {
+  checkForwardTarget(manifest || {}, "manifest");
+  const pick = (key, fallback) => {
+    if (manifest?.[key] !== undefined) return [manifest[key], "epic"];
+    if (mirror?.[key] !== undefined) return [mirror[key], "repository"];
+    return [fallback, "default"];
+  };
+  const [forwardTarget, targetFrom] = pick(
+      "forwardTarget",
+      DEFAULT_FORWARD_TARGET,
+    ),
+    [publicBranch, branchFrom] = pick("publicBranch");
+  if (forwardTarget === "branch" && !publicBranch)
+    fail("forwardTarget branch needs a publicBranch.");
+  const where = {
+    epic: "epic's setting",
+    repository: "repository setting",
+    default: "default",
+  };
+  return {
+    forwardTarget,
+    publicBranch,
+    from: { forwardTarget: targetFrom, publicBranch: branchFrom },
+    label: `Use the ${where[targetFrom]} (${forwardTarget}${forwardTarget === "branch" ? ` ${publicBranch}` : ""})`,
+  };
+}
+
+// Refuse a mirror that is not private. A visibility that cannot be read
+// counts as not private (RC24.2, as RC10.1 does for the source).
+export async function requireMirrorsPrivate(policy, github) {
+  for (const entry of Object.values(policy?.repositories || {})) {
+    if (!entry.mirror) continue;
+    const id = entry.mirror.mirror;
+    let remote = null;
+    try {
+      if (github?.available?.())
+        remote = await github.repository(parseRepository(id));
+    } catch {
+      remote = null;
+    }
+    if (!remote)
+      fail(
+        `The mirror ${id} could not be read, so it counts as not private. Check the name and Avoozl's GitHub access.`,
+        409,
+      );
+    if (remote.private !== true)
+      fail(
+        `The mirror ${id} is not private. A mirror must be a private repository.`,
+        403,
+      );
+  }
+}
+
+// The mirror's plans branch is an orphan: no merge base with the default
+// branch (RC25.1, design D30.1). Refuse a name equal to the default branch
+// or sharing its history. With `create`, a missing branch is made once from
+// an empty root commit; without it (validation) nothing is written.
+export async function requirePlansBranches(
+  policy,
+  github,
+  { create = false } = {},
+) {
+  for (const entry of Object.values(policy?.repositories || {})) {
+    if (!entry.mirror) continue;
+    const { mirror, plansBranch } = entry.mirror,
+      repository = parseRepository(mirror);
+    let remote, existing;
+    try {
+      remote = await github.repository(repository);
+      existing = await github.branch(repository, plansBranch).catch((error) => {
+        if (error.status === 404) return null;
+        throw error;
+      });
+    } catch {
+      fail(
+        `The mirror ${mirror} could not be read, so plansBranch ${plansBranch} cannot be checked.`,
+        409,
+      );
+    }
+    const base = remote?.default_branch;
+    if (!base) fail(`The default branch of ${mirror} could not be read.`, 409);
+    if (plansBranch === base)
+      fail(
+        `plansBranch ${plansBranch} is the default branch of ${mirror}. Pick another name.`,
+      );
+    if (!existing) {
+      if (create) await github.createOrphanBranch(repository, plansBranch);
+      continue;
+    }
+    let shared;
+    try {
+      await github.compareCommits(repository, base, plansBranch);
+      shared = true;
+    } catch (error) {
+      if (error.status === 404 && /common ancestor/i.test(error.message || ""))
+        shared = false;
+      else
+        fail(
+          `plansBranch ${plansBranch} could not be compared with ${base}: ${error.message}`,
+          409,
+        );
+    }
+    if (shared)
+      fail(
+        `plansBranch ${plansBranch} shares history with ${base} in ${mirror}. It must be a separate branch with no shared history.`,
+      );
+  }
+}

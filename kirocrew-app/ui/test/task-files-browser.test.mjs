@@ -33,9 +33,9 @@ test('the Files fold shows the tree, a diff, split view, all files and editor li
   const statuses = await page.evaluate(`[...document.querySelectorAll('[data-file]')].map((b) => [b.dataset.file, b.querySelector('[data-status]')?.dataset.status ?? null])`)
   assert.deepEqual(Object.fromEntries(statuses), {
     'src/app/old-name.mjs': 'deleted',
-    'src/app/operations.mjs': 'modified',
+    'src/app/api/operations.mjs': 'modified',
     'src/app/renamed.mjs': 'renamed',
-    'src/app/task-files.mjs': 'added',
+    'src/app/tasks/task-files.mjs': 'added',
     'assets/logo.png': 'modified',
     'README.md': 'modified',
     'notes.md': 'added',

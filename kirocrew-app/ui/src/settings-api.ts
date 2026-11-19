@@ -260,7 +260,7 @@ export const emptyMirror = (): MirrorForm => ({
   forwardAllow: '',
 })
 
-// What a blank mirror field means (src/app/mirror-policy.mjs MIRROR_DEFAULTS).
+// What a blank mirror field means (src/app/mirror/mirror-policy.mjs MIRROR_DEFAULTS).
 export const MIRROR_FORWARD_MODES = ['off', 'nudge', 'auto'] as const
 export const MIRROR_FORWARD_TARGETS = ['each', 'branch', 'batch'] as const
 export const MIRROR_DEFAULT_TEXT = {
@@ -448,7 +448,7 @@ export function toPolicy(form: SettingsForm): Policy {
 }
 
 // Required or optional, and what a blank field means, as the validator
-// (src/app/github-policy.mjs) treats it. `when` names the condition a "required" holds under.
+// (src/app/github/github-policy.mjs) treats it. `when` names the condition a "required" holds under.
 export interface FieldRule {
   required: boolean
   when?: string

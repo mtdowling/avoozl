@@ -6,17 +6,17 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { rebaseForIntegration } from "../delivery.mjs";
-import { normalizeGitHubPolicy } from "../github-policy.mjs";
-import { syncStep } from "../integration-sync.mjs";
+import { rebaseForIntegration } from "../delivery/delivery.mjs";
+import { normalizeGitHubPolicy } from "../github/github-policy.mjs";
+import { syncStep } from "../epics/integration-sync.mjs";
 import {
   applyLandingModes,
   commitSubject,
   landingSettings,
-} from "../landing-config.mjs";
-import { holdMember, stackMembers } from "../merge-batch.mjs";
-import { specItems } from "../spec-plans.mjs";
-import { tickBranch } from "../spec-ticks.mjs";
+} from "../landing/landing-config.mjs";
+import { holdMember, stackMembers } from "../landing/merge-batch.mjs";
+import { specItems } from "../specs/spec-plans.mjs";
+import { tickBranch } from "../specs/spec-ticks.mjs";
 import { fixture } from "./fixtures.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 

@@ -22,7 +22,7 @@ Avoozl reads a report, stores it, shows it in Flow and the retrospective, and
 compares it only with reports that did the same work. Avoozl adds no budget,
 limit or profiler. Keep those in the repository and write their results into
 the report as parts or counters. The parser is `parseBuildReport` in
-`src/app/build-report.mjs`.
+`src/app/flow/build-report.mjs`.
 
 ## Fields
 

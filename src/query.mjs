@@ -1,5 +1,5 @@
 import { hasPendingSpecDependencies } from "./spec-dependencies.mjs";
-import { taskEpic } from "./app/epics.mjs";
+import { taskEpic } from "./app/epics/epics.mjs";
 import { resolveTaskId, taskSourceRefs } from "./task-identity.mjs";
 import { activityState } from "./activity.mjs";
 import { isArchivedTask, isHistoricalTask } from "./browse-model.mjs";

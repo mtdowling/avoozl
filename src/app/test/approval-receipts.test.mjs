@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fixture, markdown, recordedRun, validateRun } from "./fixtures.mjs";
-import { Operations } from "../operations.mjs";
-import { git, integrateRun } from "../git.mjs";
-import { operatorName } from "../config.mjs";
+import { Operations } from "../api/operations.mjs";
+import { git, integrateRun } from "../git/git.mjs";
+import { operatorName } from "../settings/config.mjs";
 
 test("approval needs only the two hashes, and records the operator it ran as", async (t) => {
   const { store } = fixture(t),

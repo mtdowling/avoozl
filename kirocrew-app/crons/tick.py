@@ -100,7 +100,7 @@ def run(ctx):
 
     # Notices reach the person on the app's own notification channels, with a
     # link to the session: the tick queued them, and the app backend pushes
-    # them when this tick's health receipt lands (src/app/notifications.mjs).
+    # them when this tick's health receipt lands (src/app/tick/notifications.mjs).
     notify = intents.get("notify") or []
 
     if not (opened or messages or notify):

@@ -3,7 +3,7 @@
 // tells the chat not to save anything.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { helpMessage } from "../page-views.mjs";
+import { helpMessage } from "../api/page-views.mjs";
 
 test("the help seed names the page, its settings and the docs, and saves nothing", () => {
   const message = helpMessage({

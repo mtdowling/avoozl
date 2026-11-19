@@ -541,8 +541,8 @@ const change = (path: string, status: string, additions: number | null, deletion
 })
 const changed = [
   change('README.md', 'modified', 3, 1),
-  change('src/app/task-files.mjs', 'added', 256, 0),
-  change('src/app/operations.mjs', 'modified', 3, 0),
+  change('src/app/tasks/task-files.mjs', 'added', 256, 0),
+  change('src/app/api/operations.mjs', 'modified', 3, 0),
   change('src/app/old-name.mjs', 'deleted', 0, 40),
   change('src/app/renamed.mjs', 'renamed', 2, 2, { from: 'src/app/before.mjs' }),
   change('assets/logo.png', 'modified', null, null, { binary: true }),
@@ -561,7 +561,7 @@ answer('task.files', (body) => ({
   totals: { files: changed.length, additions: 264, deletions: 43 },
   truncated: false,
   all: (body.input as { all?: boolean })?.all
-    ? { paths: ['README.md', 'package.json', 'src/app/store.mjs', 'src/app/operations.mjs', 'src/app/task-files.mjs', 'src/app/renamed.mjs'], truncated: false }
+    ? { paths: ['README.md', 'package.json', 'src/app/store/store.mjs', 'src/app/api/operations.mjs', 'src/app/tasks/task-files.mjs', 'src/app/renamed.mjs'], truncated: false }
     : null,
 }))
 answer('task.diff', (body) => ({

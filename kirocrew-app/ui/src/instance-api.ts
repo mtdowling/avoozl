@@ -1,4 +1,4 @@
-// The install's display name and fixed ID (src/app/instance.mjs). The name is
+// The install's display name and fixed ID (src/app/workspace/instance.mjs). The name is
 // for people and shows in the header always; it shows in other places only
 // once another instance exists, so one install stays quiet. The ID is never
 // shown. Trace and the other surfaces use these two helpers, so the rule lives

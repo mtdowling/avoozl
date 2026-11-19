@@ -28,7 +28,7 @@ roles are the keys of the `roles` setting, and each file serves these roles:
 - `worker.md` and `review.md` are not a role's prompt. They are the "Steps"
   section of every worker brief and the "Review" section of every review brief.
 
-`src/app/role-table.mjs` is the source for which role reads which file.
+`src/app/agents/role-table.mjs` is the source for which role reads which file.
 
 ## Kiro Crew agents
 

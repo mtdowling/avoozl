@@ -15,7 +15,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-map-")),
   tests = execFileSync(
     "git",
-    ["ls-files", "src/*.test.mjs", "src/app/test/*.test.mjs"],
+    ["ls-files", "src/*.test.mjs", "src/app/*test/*.test.mjs"],
     { cwd: root, encoding: "utf8" },
   )
     .split("\n")
@@ -78,7 +78,7 @@ for (const { test, dir } of results) {
 }
 const files = {};
 for (const f of tracked(/^(src\/.*\.mjs|cli\.mjs)$/).filter(
-  (f) => !/\.test\.mjs$/.test(f) && !f.startsWith("src/app/test/"),
+  (f) => !/\.test\.mjs$/.test(f) && !/^src\/app\/(.+\/)?test\//.test(f),
 ))
   files[f] = [...(exercised.get(f) ?? [])].sort();
 // osNeutral is a reviewed list kept by hand (scripts/test-plan.mjs); a new

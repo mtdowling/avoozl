@@ -3,7 +3,7 @@
 // Settings > GitHub can count what crew chats and Radar spend. The source is
 // AVOOZL_GH_SOURCE (default "crew"). One run counts as one call.
 import { spawnSync } from "node:child_process";
-import { recordWrapperCall } from "../src/app/github-rate.mjs";
+import { recordWrapperCall } from "../src/app/github/github-rate.mjs";
 
 try {
   recordWrapperCall(process.env.AVOOZL_GH_SOURCE || "crew");

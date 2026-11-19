@@ -27,7 +27,7 @@ const tests = spawnSync(
   [
     "--test",
     "src/app/test/one-dispatcher.test.mjs",
-    "src/app/test/worker-briefs.test.mjs",
+    "src/app/workers/test/worker-briefs.test.mjs",
   ],
   { cwd: REPO, encoding: "utf8" },
 );
@@ -65,9 +65,9 @@ const takeBinds = /role:\s*"worker"/.test(
 );
 
 // 3. Every worker brief the pair table builds, searched for the words.
-const { workerBrief } = await import("../src/app/delivery.mjs");
+const { workerBrief } = await import("../src/app/delivery/delivery.mjs");
 const { briefCell, EXECUTORS, KINDS } = await import(
-  "../src/app/worker-briefs.mjs"
+  "../src/app/workers/worker-briefs.mjs"
 );
 const REPOSITORY = { id: "app", root: "/tmp/app", baseBranch: "main" };
 const TASK = { id: "a", title: "Task a", acceptance: ["Works."] };
@@ -124,7 +124,7 @@ for (const executor of EXECUTORS)
 const lines = (rev) =>
   git("ls-tree", "-r", "--name-only", rev, "src/app")
     .split("\n")
-    .filter((file) => !file.startsWith("src/app/test/"))
+    .filter((file) => !/^src\/app\/(.+\/)?test\//.test(file))
     .reduce(
       (sum, file) => sum + git("show", `${rev}:${file}`).split("\n").length,
       0,
@@ -141,7 +141,7 @@ const gone = git(
   "src/app",
 )
   .split("\n")
-  .filter((file) => file && !file.startsWith("src/app/test/"));
+  .filter((file) => file && !/^src\/app\/(.+\/)?test\//.test(file));
 
 const result = {
   head,

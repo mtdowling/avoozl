@@ -1,8 +1,8 @@
 // CLI commands of one kind: command, help lines and run.
 import { validate } from "../../model.mjs";
-import { Store } from "../store.mjs";
+import { Store } from "../store/store.mjs";
 import fs from "node:fs";
-import { help } from "../command-help.mjs";
+import { help } from "../cli/command-help.mjs";
 import { runWorkspace } from "./setup.mjs";
 
 async function runEpics({ positionals, command, localOrRequest }) {

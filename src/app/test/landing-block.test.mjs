@@ -3,9 +3,12 @@
 // their behavior.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { deliveryPolicy, shipMode } from "../delivery.mjs";
-import { normalizeGitHubPolicy } from "../github-policy.mjs";
-import { applyLandingModes, landingSettings } from "../landing-config.mjs";
+import { deliveryPolicy, shipMode } from "../delivery/delivery.mjs";
+import { normalizeGitHubPolicy } from "../github/github-policy.mjs";
+import {
+  applyLandingModes,
+  landingSettings,
+} from "../landing/landing-config.mjs";
 
 // A store with only the repository rows these readers touch.
 function repositoryStore(...repositories) {

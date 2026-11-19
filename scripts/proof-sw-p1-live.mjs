@@ -227,9 +227,9 @@ async function setup(port) {
   );
 
   const { approveHarnessDefinition, harnessDefinitionHash } = await imp(
-    "src/app/harness-definitions.mjs",
+    "src/app/executors/harness-definitions.mjs",
   );
-  const { machineAvoozlPaths } = await imp("src/app/host-config.mjs");
+  const { machineAvoozlPaths } = await imp("src/app/settings/host-config.mjs");
   const machine = machineAvoozlPaths();
   for (const dir of [machine.configDirectory, machine.stateDirectory])
     if (!dir.startsWith(HOME + path.sep)) throw Error(`Not isolated: ${dir}`);
@@ -297,9 +297,9 @@ async function setup(port) {
   fs.writeFileSync(hostFile, JSON.stringify(host, null, 2) + "\n");
 
   // One approved one-task plan, seeded as the other live proofs do.
-  const { Store } = await imp("src/app/store.mjs");
+  const { Store } = await imp("src/app/store/store.mjs");
   const { digest } = await imp("src/model.mjs");
-  const { takeOverSpec } = await imp("src/app/spec-takeover.mjs");
+  const { takeOverSpec } = await imp("src/app/specs/spec-takeover.mjs");
   const store = new Store(
     path.join(P.ws, ".avoozl", "local", "workspace.sqlite"),
   );
@@ -531,7 +531,7 @@ async function step2(page, port, machine) {
   // The task lands on the bare remote, unless its worker ends first: a worker
   // that exits non-zero, or exits and no done report lands the task within two
   // minutes, fails the proof now instead of after the long wait.
-  const { machineStatus } = await imp("src/app/machine-status.mjs");
+  const { machineStatus } = await imp("src/app/workspace/machine-status.mjs");
   let failure = null,
     exitedAt = null;
   const workerFailed = () => {
@@ -705,7 +705,7 @@ async function step3(page, port, machine) {
   ).catch(() => false);
   await sleep(2500);
   await page.screenshot(path.join(P.shots, "assist.png"));
-  const { Store } = await imp("src/app/store.mjs");
+  const { Store } = await imp("src/app/store/store.mjs");
   const store = new Store(
     path.join(P.ws, ".avoozl", "local", "workspace.sqlite"),
   );
@@ -1011,7 +1011,7 @@ async function preflight() {
           ],
           [
             "sandbox-exec works here (a terminal outside Kiro Crew)",
-            Boolean((await imp("src/app/sandbox.mjs")).sandboxKind()),
+            Boolean((await imp("src/app/executors/sandbox.mjs")).sandboxKind()),
           ],
           [
             "the model proxy script",
@@ -1038,7 +1038,7 @@ async function preflight() {
 
 async function prove() {
   if (AGENT === "claude") {
-    if (!(await imp("src/app/sandbox.mjs")).sandboxKind())
+    if (!(await imp("src/app/executors/sandbox.mjs")).sandboxKind())
       throw Error(
         "sandbox-exec cannot run here (inside another sandbox?). Run sw-p1 from a terminal outside Kiro Crew; `preflight` lists what is missing.",
       );

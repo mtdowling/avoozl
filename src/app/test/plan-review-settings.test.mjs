@@ -7,13 +7,13 @@ import {
   validatePlanReview,
   validateRoles,
   withChatModels,
-} from "../chat-models.mjs";
-import { loadLayeredConfig } from "../layered-config.mjs";
-import { Operations } from "../operations.mjs";
-import { RepositorySettings } from "../repository-settings.mjs";
-import { REPOSITORY_CONFIG_SCHEMA_URL } from "../config-schema.mjs";
-import { Store } from "../store.mjs";
-import { readDeliveryPolicy } from "../tick.mjs";
+} from "../settings/chat-models.mjs";
+import { loadLayeredConfig } from "../settings/layered-config.mjs";
+import { Operations } from "../api/operations.mjs";
+import { RepositorySettings } from "../settings/repository-settings.mjs";
+import { REPOSITORY_CONFIG_SCHEMA_URL } from "../settings/config-schema.mjs";
+import { Store } from "../store/store.mjs";
+import { readDeliveryPolicy } from "../tick/tick.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 test("plan reviewers must differ from a named planner; auto is unset", () => {

@@ -3,8 +3,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fixture, recordedRun, validateRun } from "./fixtures.mjs";
-import { Operations } from "../operations.mjs";
-import { git, createWorktree, integrateRun, withWorkLock } from "../git.mjs";
+import { Operations } from "../api/operations.mjs";
+import {
+  git,
+  createWorktree,
+  integrateRun,
+  withWorkLock,
+} from "../git/git.mjs";
 
 // A repository checkout, a validated run on sample-task, and a second run left
 // working, recorded as the removed agent host left them. Validation passes while check.mjs exits 0; rewriting it to exit 1

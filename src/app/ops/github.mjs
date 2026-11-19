@@ -1,25 +1,28 @@
 // Operations of one feature: name, class, MCP policy and handler.
-import { repositoryGitHubRemote } from "../git.mjs";
+import { repositoryGitHubRemote } from "../git/git.mjs";
 import {
   branchReviewRule,
   ruleBranch,
   seenCheckNames,
-} from "../github-branch-rules.mjs";
+} from "../github/github-branch-rules.mjs";
 import {
   normalizeGitHubPolicy,
   policySection,
   readGitHubPolicyOrNull,
   requireDefaultBranches,
-} from "../github-policy.mjs";
-import { cancelSetup, githubSetup } from "../github-setup.mjs";
-import { configureGitHubRepository, machineIdentity } from "../github-sync.mjs";
+} from "../github/github-policy.mjs";
+import { cancelSetup, githubSetup } from "../github/github-setup.mjs";
+import {
+  configureGitHubRepository,
+  machineIdentity,
+} from "../github/github-sync.mjs";
 import {
   requireMirrorsPrivate,
   requirePlansBranches,
-} from "../mirror-policy.mjs";
-import { refuseSourceAsExecution } from "../mirror-sync.mjs";
-import { fail } from "../store.mjs";
-import { person, routed } from "../operation-policy.mjs";
+} from "../mirror/mirror-policy.mjs";
+import { refuseSourceAsExecution } from "../mirror/mirror-sync.mjs";
+import { fail } from "../store/store.mjs";
+import { person, routed } from "../api/operation-policy.mjs";
 
 export const entries = [
   // Settings view (§8): the GitHub policy in `.avoozl.json`. Creates no
