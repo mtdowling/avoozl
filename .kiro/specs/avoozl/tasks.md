@@ -4510,6 +4510,7 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
     - checks: npm test, git diff --check
     - after: 45.4, 45.6
   - `docs/research/` and `docs/evidence/` untouched except new receipts.
+  - `src/app/test/compatibility.test.mjs` checks the names; README, docs/policies.md and docs/plugins.md describe one path: a task lands, and an issue is only linked.
 
 - [x] avoozl-p55 P55 Proof: after removal there is one delivery path, after 45.1, 45.2, 45.3, 45.4, 45.5, 45.6 [R91] (§4.26)
   - Facts:
@@ -4524,6 +4525,7 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
   - Expected: the task lands; no Radar, relay, router or crew agent or module remains; every compatibility name resolves.
   - Failure means: removal broke the loop or a compatibility name.
   - Next decision: restore the removed piece.
+  - Receipt: docs/evidence/p55-one-delivery-path.md (2026-11-19). The task landed; no crew, relay, router or remote coder agent or module remains; compatibility names resolve. Radar intake modules stay (R91.6), and the Radar coder leftovers stay for their own cleanup.
 
 ## Phase 46: Name the executor seam
 
