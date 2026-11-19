@@ -4095,9 +4095,8 @@ export class Operations {
         by: context.local ? "cli" : "dashboard",
       });
     }
-    // Flow from GitHub data (RC8.5): stage times of Radar issues read before
-    // Who codes was removed (R91.6), and every stored build observation.
-    // Nothing is read from GitHub here any more.
+    // Flow from GitHub data: stage times cached earlier and every stored
+    // build observation. Nothing is read from GitHub here.
     if (name === "radar.flow") return radarFlowView(store);
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
     // default branch, head checks, acceptance. Landing is a person's approval

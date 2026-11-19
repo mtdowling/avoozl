@@ -1,6 +1,4 @@
-// Check state of a pull request's head (RC8.2). The Issue Radar issue reads
-// that Trace and Flow used went with Who codes (R91.6); In flight still reads
-// checks this way (panel-view.mjs).
+// Check state of a pull request's head, for In flight (panel-view.mjs).
 
 const FAILED = new Set([
   "failure",
