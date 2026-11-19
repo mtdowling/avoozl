@@ -23,11 +23,11 @@ import { workspaceClient, errorMessage } from './workspace-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { SelectField } from './ui/SelectField'
-import { Box } from './ui/Box'
+import { Box, type LookProps } from './ui/Box'
 
-const FILL = { display: 'inline-flex', alignItems: 'center', gap: 6 }
+const FILL = { 'css-display': 'inline-flex', 'css-align-items': 'center', 'css-gap': 6 } as const satisfies LookProps
 // Stopped: a red frame on a red tint, the text in the theme's own color.
-const STOPPED = { ...FILL, borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 16%, var(--card, var(--bg)))', color: 'var(--text)', borderWidth: 2 }
+const STOPPED = { ...FILL, 'css-border-color': 'danger', 'css-background': 'mix-danger-16%-card-bg', 'css-color': 'text', 'css-border-width': '2' } as const satisfies LookProps
 
 interface Choices {
   repositories: string[]
@@ -138,7 +138,8 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
             aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : undefined}
             onClick={() => setOpen(true)}
             // A pause icon; the words are the tooltip and the button's name.
-            style={{ ...(stopped ? STOPPED : FILL), padding: '4px 6px' }}
+            {...(stopped ? STOPPED : FILL)}
+            css-padding="4px-6px"
           >
             <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
             <Box as="span" srOnly>
@@ -250,7 +251,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       onDismiss={close}
       footer={
         <>
-          <Button type="button" variant="danger" data-stop-confirm onClick={() => void pull()} disabled={busy} style={FILL}>
+          <Button type="button" variant="danger" data-stop-confirm onClick={() => void pull()} disabled={busy} css-display="inline-flex" css-align-items="center" css-gap="6">
             <Pause size={ICON} aria-hidden="true" />
             {form.kind === 'agents' ? 'Stop all agents' : 'Stop the line'}
           </Button>

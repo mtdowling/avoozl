@@ -145,7 +145,7 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
   const offInvestigate = form.investigateMode === 'off' ? 'Off while Which tasks is Off.' : null
   return (
     <Stack gap={3} data-delivery-settings>
-      <Card className="flex flex-col gap-4">
+      <Card flex flexCol gap="4">
         <Section
           title="Investigate first"
           blurb="Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand."

@@ -75,7 +75,7 @@ export function RoleChoice(props: {
             placeholder="owner/name"
             aria-label="Public repository"
             onChange={(event) => props.onChange(role, event.target.value)}
-            style={{ maxWidth: '24rem' }}
+            css-max-width="24rem"
           />
           {problem && (
             <ErrorText role="alert" as="span" size="xs">
@@ -225,9 +225,9 @@ export function EditRepository(props: {
       footer={
         <>
           {error && (
-            <span role="alert" className="mr-auto text-sm text-danger" style={{ order: -1 }}>
+            <Box role="alert" as="span" css-order={-1} mrAuto size="sm" tone="danger">
               {error}
-            </span>
+            </Box>
           )}
           <Btn type="button" primary disabled={busy || !changed || Boolean(problem)} onClick={() => void save()}>
             Save
@@ -284,7 +284,7 @@ export function EditRepository(props: {
                   placeholder="owner/name"
                   aria-label="Public repository"
                   onChange={(event) => setSource(event.target.value)}
-                  style={{ maxWidth: '24rem' }}
+                  css-max-width="24rem"
                 />
                 {problem && (
                   <ErrorText role="alert" as="span" size="xs">

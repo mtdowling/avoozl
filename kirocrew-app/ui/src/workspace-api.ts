@@ -45,7 +45,7 @@ export interface Repository {
   localCheckout: string | null
   github: string | null
   baseBranch: string
-  // How work reaches the branch: direct, pr, train or off; the harness that
+  // How work reaches the branch: direct, pr or off; the harness that
   // codes its tasks, when one is named.
   landing?: string | null
   harness?: string | null

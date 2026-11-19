@@ -10,6 +10,7 @@ import { usePhone } from './list-detail.ts'
 import { ResizeHandle } from './ResizeHandle.tsx'
 import { scrollParent } from './sticky-column.ts'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 // The height left on screen under the node in whatever scrolls the page
 // (in Kiro Crew, the app's content pane), measured again when it resizes;
@@ -132,30 +133,28 @@ export function ListDetailLayout(props: {
         />
       )}
       {folded && (
-        <button
+        <PlainButton
           type="button"
           data-list-unfold={props.id}
           aria-label={folded.label}
           onClick={folded.onUnfold}
-          style={{
-            flex: `0 0 ${LIST_FOLDED_WIDTH}px`,
-            width: LIST_FOLDED_WIDTH,
-            display: 'flex',
-            justifyContent: 'center',
-            padding: '10px 0',
-            background: 'none',
-            border: 0,
-            borderRadius: 6,
-            color: 'var(--muted)',
-            cursor: 'pointer',
-            fontSize: 12.5,
-            fontWeight: 500,
-          }}
+          css-flex={`0 0 ${LIST_FOLDED_WIDTH}px`}
+          css-width={LIST_FOLDED_WIDTH}
+          css-display="flex"
+          css-justify-content="center"
+          css-padding="10px-0"
+          css-background="none"
+          css-border="0"
+          css-border-radius="6"
+          css-color="muted"
+          css-cursor="pointer"
+          css-font-size="12.5"
+          css-font-weight="500"
         >
           <Box as="span" css-writing-mode="vertical-rl" css-transform="rotate-180deg" css-white-space="nowrap">
             {folded.label}
           </Box>
-        </button>
+        </PlainButton>
       )}
       <div
         data-detail-column={props.id}

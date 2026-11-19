@@ -10,29 +10,6 @@ import type { WorkspaceList } from './workspace-api.ts'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
 
-// Radar's switcher, measured: 12px corners, the strong border, a small
-// shadow, 14px semibold name. Kept at Kiro Crew's compact 28px button
-// height, as every nav button is.
-const PILL = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  width: '100%',
-  minWidth: 0,
-  flexShrink: 0,
-  boxSizing: 'border-box',
-  height: NAV_PILL,
-  padding: '0 10px',
-  borderRadius: 12,
-  border: '1px solid var(--border-strong, var(--border))',
-  background: 'var(--bg-elevated)',
-  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-  color: 'var(--text)',
-  cursor: 'pointer',
-  textAlign: 'left',
-  fontSize: 14,
-} as const
-
 export function WorkspacePill(props: { list: WorkspaceList | null; value: string | null; onChange: (id: string) => void; onManage: () => void }) {
   const { list } = props
   const [open, setOpen] = useState<DOMRect | null>(null)
@@ -61,7 +38,7 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
   }
   return (
     <div ref={root} data-workspace-switcher style={{ minWidth: 0, flexShrink: 0 }}>
-      <button
+      <PlainButton
         type="button"
         data-workspace-pill
         data-workspace-id={props.value ?? ''}
@@ -70,7 +47,23 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
         aria-expanded={Boolean(open)}
         disabled={!list}
         onClick={(event) => setOpen(open ? null : event.currentTarget.getBoundingClientRect())}
-        style={PILL}
+        css-display="flex"
+        css-align-items="center"
+        css-gap="8"
+        css-width="100%"
+        css-min-width="0"
+        css-flex-shrink="0"
+        css-box-sizing="border-box"
+        css-height={NAV_PILL}
+        css-padding="0-10px"
+        css-border-radius="12"
+        css-border="1px-solid-border-strong-border"
+        css-background="bg-elevated"
+        css-box-shadow="0-1px-2px-rgba-0-0-0-0.05"
+        css-color="text"
+        css-cursor="pointer"
+        css-text-align="left"
+        css-font-size="14"
       >
         <Folder size={16} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--muted)' }} />
         <Box
@@ -86,32 +79,30 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
           {name}
         </Box>
         <ChevronDown size={15} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--muted)' }} />
-      </button>
+      </PlainButton>
       {open && (
         // Fixed under the pill, so the nav's own scroll box does not cut it.
-        <div
+        <Box
           role="menu"
           aria-label="Workspaces"
           data-workspace-menu
-          style={{
-            position: 'fixed',
-            top: open.bottom + 6,
-            left: open.left,
-            width: Math.max(open.width, 240),
-            maxWidth: 'calc(100vw - 16px)',
-            maxHeight: `calc(100vh - ${Math.round(open.bottom) + 16}px)`,
-            overflowY: 'auto',
-            zIndex: LAYER.popover,
-            boxSizing: 'border-box',
-            padding: 6,
-            borderRadius: 10,
-            border: '1px solid var(--border)',
-            background: 'var(--card, var(--bg-elevated))',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
+          css-position="fixed"
+          css-top={open.bottom + 6}
+          css-left={open.left}
+          css-width={Math.max(open.width, 240)}
+          css-max-width="calc-100vw-16px"
+          css-max-height={`calc(100vh - ${Math.round(open.bottom) + 16}px)`}
+          css-overflow-y="auto"
+          css-z-index={LAYER.popover}
+          css-box-sizing="border-box"
+          css-padding="6"
+          css-border-radius="10"
+          css-border="1px-solid-border"
+          css-background="card-bg-elevated"
+          css-box-shadow="0-8px-24px-rgba-0-0-0-0.18"
+          css-display="flex"
+          css-flex-direction="column"
+          css-gap="2"
         >
           <Box css-padding="4px-8px" css-font-size="12" css-font-weight="600" css-letter-spacing=".04em" css-text-transform="uppercase" css-color="muted">
             Workspaces
@@ -181,7 +172,7 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
               Manage workspaces
             </Box>
           </PlainButton>
-        </div>
+        </Box>
       )}
     </div>
   )

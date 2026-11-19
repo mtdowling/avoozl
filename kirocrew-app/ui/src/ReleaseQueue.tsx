@@ -141,7 +141,7 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
   if (value && !value.repositories.length && !error)
     return (
       <Box data-release-queue data-release-empty hFull>
-        <Card className="flex h-full flex-col gap-2">
+        <Card flex hFull flexCol gap="2">
           <SectionHeading title="Release queue" className="mb-0" />
           <Hint as="p" size="sm">
             Nothing is queued. The queue lists each task of an approved epic in the order Avoozl releases it, with the reason each one waits. It needs a repository and an approved
@@ -160,7 +160,7 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
   if (!value && !error) return null
   return (
     <Box data-release-queue hFull>
-      <Card className="flex h-full flex-col gap-3" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <Card css-display="flex" css-flex-direction="column" css-gap="12" flex hFull flexCol gap="3">
         <SectionHeading title="Release queue" className="mb-0" />
         <Hint as="p" size="xs">
           In the order the tick releases them. Each held task says why.

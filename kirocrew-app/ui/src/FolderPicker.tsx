@@ -71,7 +71,8 @@ export function FolderField(props: {
           placeholder={props.placeholder}
           required={props.required}
           onChange={(event) => props.onChange(event.target.value)}
-          style={{ flex: 1, minWidth: 0 }}
+          css-flex="1"
+          css-min-width="0"
         />
         <Btn
           type="button"
@@ -79,7 +80,10 @@ export function FolderField(props: {
           aria-expanded={open}
           aria-controls={`${props.id}-browser`}
           onClick={toggle}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
+          css-display="inline-flex"
+          css-align-items="center"
+          css-gap="6"
+          css-flex-shrink="0"
         >
           <FolderOpen size={14} aria-hidden="true" /> Browse
         </Btn>
@@ -94,7 +98,9 @@ export function FolderField(props: {
               aria-label="Up one folder"
               disabled={!listing?.parent || loading}
               onClick={() => listing?.parent && pick(listing.parent)}
-              style={{ display: 'inline-flex', alignItems: 'center', padding: '0 6px' }}
+              css-display="inline-flex"
+              css-align-items="center"
+              css-padding="0-6px"
             >
               <ArrowUp size={14} aria-hidden="true" />
             </Btn>

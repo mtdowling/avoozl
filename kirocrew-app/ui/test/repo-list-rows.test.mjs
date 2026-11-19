@@ -37,10 +37,10 @@ const rowFor = (github, extra = {}) => ({
 const shown = (facts) => Object.fromEntries(facts.filter((f) => f.value?.trim() || f.chips?.length).map((f) => [f.label, f.chips ?? f.value]))
 
 test('a row has the folder, landing, labels, merge method and checks', () => {
-  const row = rowFor('o/api', { landing: 'train' })
+  const row = rowFor('o/api', { landing: 'direct' })
   const facts = shown(repositoryFacts(row, form.repositories[row.policy]))
   assert.equal(facts.Folder, '/w/x')
-  assert.equal(facts['Tasks land on'], 'main (train)')
+  assert.equal(facts['Tasks land on'], 'main (direct)')
   // Who codes was removed (R91.6).
   assert.equal(facts['Who codes'], undefined)
   assert.deepEqual(facts['Trigger labels'], ['ready'])

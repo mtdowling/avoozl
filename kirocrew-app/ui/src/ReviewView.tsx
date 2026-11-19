@@ -859,26 +859,24 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                       </Hint>
                     ) : (
                       toc.map((h) => (
-                        <button
+                        <PlainButton
                           key={h.id}
                           type="button"
                           data-toc-item={h.id}
                           aria-current={current === h.id ? 'location' : undefined}
                           onClick={() => goHeading(h.id)}
-                          style={{
-                            textAlign: 'left',
-                            border: 0,
-                            background: 'transparent',
-                            color: 'var(--text)',
-                            cursor: 'pointer',
-                            fontSize: 13,
-                            padding: '4px 8px',
-                            paddingLeft: 8 + (h.level - 1) * 12,
-                            borderRadius: 4,
-                          }}
+                          css-text-align="left"
+                          css-border="0"
+                          css-background="transparent"
+                          css-color="text"
+                          css-cursor="pointer"
+                          css-font-size="13"
+                          css-padding="4px-8px"
+                          css-padding-left={8 + (h.level - 1) * 12}
+                          css-border-radius="4"
                         >
                           {h.text}
-                        </button>
+                        </PlainButton>
                       ))
                     )}
                   </Box>

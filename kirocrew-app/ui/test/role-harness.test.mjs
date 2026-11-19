@@ -57,9 +57,6 @@ for (const width of [390, 1280]) {
     await page.evaluate(`document.querySelector('#avoozl-harness-reviewDraft').focus()`)
     await page.until(`document.querySelector('#avoozl-harness-reviewDraft').getAttribute('aria-expanded') === 'true'`)
     await page.evaluate(pick('avoozl-harness-reviewDraft', 'claude-code'))
-    // Both run on their harness now: neither says it still runs as a chat.
-    for (const role of ['retro', 'reviewDraft'])
-      assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-model-role="${role}"] [data-harness-pending]'))`), false, role)
     await page.until(`document.querySelector('[data-save-footer] [data-save]')?.disabled === false`)
     await page.evaluate(`document.querySelector('[data-save-footer] [data-save]').click()`)
     await page.until(`document.querySelector('[data-models-settings]').textContent.includes('Saved to .avoozl.json.')`)

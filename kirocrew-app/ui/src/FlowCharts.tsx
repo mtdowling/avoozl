@@ -104,10 +104,15 @@ function Bars({ rows }: { rows: UsageRow[] }) {
   return (
     <Box css-height="90" flex items="end" gap="1" role="img" aria-label={rows.map((r) => `${r.key}: ${usageText(r)}`).join(', ')}>
       {rows.map((r) => (
-        <span
+        <Box
           key={r.key}
-          className="rounded-sm"
-          style={{ display: 'block', flex: 'none', height: Math.max(2, Math.round((H * value(r)) / max)), width: 14, background: 'var(--accent)' }}
+          as="span"
+          css-display="block"
+          css-flex="none"
+          css-height={Math.max(2, Math.round((H * value(r)) / max))}
+          css-width="14"
+          css-background="accent"
+          rounded="sm"
         />
       ))}
     </Box>
@@ -156,7 +161,7 @@ export function FlowCharts({ view, unit, onUnit }: { view: FlowViewModel; unit: 
   const points = view.series?.[unit] ?? [],
     none = !points.length
   return (
-    <Card className="flex flex-col gap-3">
+    <Card flex flexCol gap="3">
       <SectionHeading title="Over time" actions={<UnitPicker unit={unit} onUnit={onUnit} />} />
       <Box css-grid-template-columns="repeat-auto-fill-minmax-min-100%-16rem-1fr" grid gap="3" data-flow-charts>
         <Chart title="Lead time (median)" empty={none}>
@@ -214,7 +219,7 @@ export function UsagePanel({ view, unit }: { view: FlowViewModel; unit: Unit }) 
   const message = usageMessage(usage)
   const rows = unit === 'day' ? (usage?.byDay ?? []) : (usage?.byWeek ?? [])
   return (
-    <Card className="flex flex-col gap-3" data-usage-card>
+    <Card flex flexCol gap="3" data-usage-card>
       <SectionHeading title="Tokens and credits" />
       {message || !usage ? (
         <Hint as="p" size="sm">

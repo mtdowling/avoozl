@@ -188,7 +188,9 @@ export function FilterPanel(props: {
         type="button"
         onClick={props.onClear}
         disabled={!props.active}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        css-display="inline-flex"
+        css-align-items="center"
+        css-gap="6"
       >
         <X size={ICON} aria-hidden="true" />
         Clear
@@ -272,7 +274,9 @@ export function NavFilters(props: { id: string; label: string; fields: FilterFie
           type="button"
           onClick={props.onClear}
           disabled={!props.active}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          css-display="inline-flex"
+          css-align-items="center"
+          css-gap="6"
         >
           <X size={ICON} aria-hidden="true" />
           Clear

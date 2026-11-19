@@ -80,7 +80,17 @@ export function NavAccordion(props: {
   // their head. Below it the nav scrolls; above it the open ones stretch.
   const least = props.groups.reduce((sum, group) => sum + (shown(group) ? OPEN_MIN : NAV_PILL + 2), 8 * (props.groups.length - 1))
   return (
-    <div data-nav-card data-nav-accordion role="group" aria-label="Avoozl pages" style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: '1 1 auto', minHeight: least }}>
+    <Box
+      data-nav-card
+      data-nav-accordion
+      role="group"
+      aria-label="Avoozl pages"
+      css-display="flex"
+      css-flex-direction="column"
+      css-gap="8"
+      css-flex="1-1-auto"
+      css-min-height={least}
+    >
       <NavStyle />
       {props.groups.map((group) => {
         const kids = opens(group) ? (group.children ?? []) : null
@@ -159,6 +169,6 @@ export function NavAccordion(props: {
           </div>
         )
       })}
-    </div>
+    </Box>
   )
 }

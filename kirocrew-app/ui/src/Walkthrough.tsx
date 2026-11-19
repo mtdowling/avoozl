@@ -73,7 +73,7 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
         </Stack>
       </Box>
       <Row gap={3}>
-        <Btn type="button" onClick={() => go(at - 1)} disabled={at === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <Btn type="button" onClick={() => go(at - 1)} disabled={at === 0} css-display="inline-flex" css-align-items="center" css-gap="6">
           <ArrowLeft size={ICON} aria-hidden="true" />
           Back
         </Btn>
@@ -93,7 +93,7 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
           ))}
         </Box>
         {at < last ? (
-          <Btn type="button" primary onClick={() => go(at + 1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Btn type="button" primary onClick={() => go(at + 1)} css-display="inline-flex" css-align-items="center" css-gap="6">
             Next
             <ArrowRight size={ICON} aria-hidden="true" />
           </Btn>

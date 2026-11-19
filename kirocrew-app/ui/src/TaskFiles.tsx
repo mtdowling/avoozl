@@ -91,16 +91,23 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
       {props.nodes.map((node) =>
         node.file ? (
           <li key={node.path}>
-            <button
+            <PlainButton
               type="button"
               aria-current={props.selected === node.path ? 'true' : undefined}
               onClick={() => props.onPick(node.path)}
-              className="flex w-full min-w-0 items-center gap-2 rounded px-1 py-0.5 text-left text-sm"
-              style={{
-                paddingLeft: 4 + props.depth * 14,
-                background: props.selected === node.path ? 'var(--bg-elevated)' : undefined,
-                color: node.change ? 'var(--text)' : 'var(--muted)',
-              }}
+              css-padding-left={4 + props.depth * 14}
+              css-background={props.selected === node.path ? 'bg-elevated' : undefined}
+              css-color={node.change ? 'text' : 'muted'}
+              flex
+              wFull
+              minW0
+              items="center"
+              gap="2"
+              rounded="base"
+              px="1"
+              py="0.5"
+              align="left"
+              size="sm"
               data-file={node.path}
             >
               {node.change ? <StatusBadge change={node.change} /> : <Box as="span" css-width="18" aria-hidden="true" />}
@@ -110,16 +117,16 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
                 {node.change?.untracked && <Hint size="xs"> (not committed)</Hint>}
               </Box>
               {node.change && <Counts change={node.change} />}
-            </button>
+            </PlainButton>
           </li>
         ) : (
           <li key={node.path}>
-            <div className="flex items-center gap-1 px-1 py-0.5 text-sm text-muted" style={{ paddingLeft: 4 + props.depth * 14 }}>
+            <Box css-padding-left={4 + props.depth * 14} flex items="center" gap="1" px="1" py="0.5" size="sm" tone="muted">
               <Folder size={14} aria-hidden="true" />
               <Box as="span" truncate>
                 {node.name}
               </Box>
-            </div>
+            </Box>
             <Tree nodes={node.children} depth={props.depth + 1} selected={props.selected} onPick={props.onPick} />
           </li>
         ),

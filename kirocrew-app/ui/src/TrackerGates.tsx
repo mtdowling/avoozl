@@ -119,7 +119,7 @@ export default function TrackerGates(props: { workspaceId: string | null }) {
   }
   return (
     <div data-tracker-gates>
-      <Card className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <Card css-display="flex" css-flex-direction="column" css-gap="8" flex flexCol gap="2">
         <SectionHeading title="Tracker gates" className="mb-0" />
         <Hint as="p" size="xs">
           Tasks that wait on an item outside GitHub. Avoozl reads each one and never clears it. A clear is your order, recorded with your name.

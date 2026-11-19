@@ -418,9 +418,9 @@ function AddSourceDialog(props: {
       footer={
         <>
           {problem && (
-            <p role="alert" className="m-0 mr-auto text-xs text-danger" style={{ order: -1 }}>
+            <Box role="alert" as="p" css-order={-1} m0 mrAuto size="xs" tone="danger">
               {problem.text}
-            </p>
+            </Box>
           )}
           <IconLabel icon={Plus} primary onClick={add} disabled={busy}>
             Add source
@@ -439,7 +439,8 @@ function AddSourceDialog(props: {
                 placeholder="e.g. tickets"
                 aria-describedby={described}
                 aria-invalid={invalid('id')}
-                style={{ width: '20ch', maxWidth: '100%' }}
+                css-width="20ch"
+                css-max-width="100%"
               />
             )}
           </Field>
@@ -483,7 +484,8 @@ function AddSourceDialog(props: {
                 onChange={(event: Change) => set({ labelFields: event.target.value })}
                 placeholder="none"
                 aria-describedby={described}
-                style={{ width: '28ch', maxWidth: '100%' }}
+                css-width="28ch"
+                css-max-width="100%"
               />
             )}
           </Field>
@@ -495,7 +497,8 @@ function AddSourceDialog(props: {
                 onChange={(event: Change) => set({ assigneeField: event.target.value })}
                 placeholder="none"
                 aria-describedby={described}
-                style={{ width: '20ch', maxWidth: '100%' }}
+                css-width="20ch"
+                css-max-width="100%"
               />
             )}
           </Field>
@@ -550,7 +553,8 @@ function AddSourceDialog(props: {
                           placeholder="e.g. sam, riley"
                           aria-describedby={described}
                           aria-invalid={invalid('allowedActors')}
-                          style={{ width: '28ch', maxWidth: '100%' }}
+                          css-width="28ch"
+                          css-max-width="100%"
                         />
                       )}
                     </Field>

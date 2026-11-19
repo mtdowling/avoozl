@@ -268,23 +268,24 @@ check or review. Each repository has a `landing` setting:
 
 - `off` (the default until setup writes another): Avoozl pushes nothing. The
   verified commit waits in Needs you.
-- `direct`: Avoozl merges the verified work with the current base in a
-  landing worktree, checks that exact candidate, and fast-forwards the base
-  on the remote. A moved base means a new candidate and new checks.
+- `direct`: Avoozl lands verified work in merge batches. It stacks up to a
+  size limit of waiting tasks on the current base in a landing worktree,
+  checks that exact candidate, and fast-forwards the base on the remote. When
+  the checks fail it runs them again, finds the one task that broke the
+  batch, lands the tasks before it and sends it back. The limit starts at 1,
+  grows while batches land and halves after a failure; `landing.mergeBatch`
+  can set it from 1 to 16. Waiting tasks are local refs, and only the base
+  branch is pushed. A moved base means a new candidate and new checks. The
+  Landing queue page shows who waits, the batch under test, the last batches
+  and the limit.
 - `pr`: Avoozl pushes the task branch, opens or reuses one pull request,
   waits for its required checks and reviews on that exact head, and merges.
   Without merge permission it waits for an authorized person to merge.
-- `train`: Avoozl pushes each verified task as a batch branch and queues it.
-  One integrator stacks the ready branches on the base, validates the stack
-  once, and lands it. When the stack fails, it bisects at branch boundaries,
-  lands the good branches, and sends the rest back. Use it when one
-  validation run is expensive. See
-  [integrator trains](docs/integrator-trains.md).
 
 When the base moves and a merge conflicts, or the checks fail, the task goes
 back to its worker chat, for at most `landing.conflictRounds` rounds (default
 2); after that it goes to Needs you. Stop the line pauses the queue.
-`avoozl setup OWNER/REPO --project ID --checks NAME --landing pr|direct|train|off`
+`avoozl setup OWNER/REPO --project ID --checks NAME --landing pr|direct|off`
 previews the repository setup and `--yes` applies it.
 
 To let a Crew Mode conductor claim leaves instead, set

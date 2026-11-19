@@ -98,7 +98,7 @@ import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api
 import { COMMAND_PATH, errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
 import type { DeliverySettings as DeliveryRead } from './delivery-api.ts'
 import { Fold } from './ui/controls.tsx'
-import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './ui/controls.tsx'
+import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading } from './ui/controls.tsx'
 import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
@@ -337,8 +337,8 @@ function MatchField(props: {
           aria-describedby={current?.error ? errorId : undefined}
           spellCheck={false}
           autoComplete="off"
-          className="font-mono"
-          style={{ fontFamily: 'var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace)' }}
+          css-font-family="mono-ui-monospace-SFMono-Regular-Menlo-monospace"
+          fontMono
           onChange={(event) => props.onChange(event.target.value)}
         />
         <Box as="span" size="xs" tone="muted">

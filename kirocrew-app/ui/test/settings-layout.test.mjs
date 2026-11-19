@@ -159,7 +159,7 @@ test('Repositories: one compact list with View, Edit and a trash Remove behind A
   assert.match(ws, /<Pencil size=\{14\}/)
   // The add form sits inside its modal, after the list.
   assert.ok(ws.indexOf('Your workspaces') < ws.indexOf('<Modal\n          id="avoozl-ws-add"'))
-  assert.match(source('ui/controls.tsx'), /export const dangerStyle: CSSProperties = \{ color: 'var\(--danger\)', borderColor: 'var\(--danger\)' \}/)
+  assert.match(source('ui/controls.tsx'), /export const DANGER = \{ 'css-color': 'danger', 'css-border-color': 'danger' \}/)
 })
 
 test('markers read (required) or (optional) in plain muted text, never red or bold', () => {

@@ -334,7 +334,7 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
         </form>
       ) : (
         <div>
-          <Btn type="button" onClick={() => setAdding(true)} data-add-link style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Btn type="button" onClick={() => setAdding(true)} data-add-link css-display="inline-flex" css-align-items="center" css-gap="6">
             <Plus size={ICON} aria-hidden="true" />
             Add link
           </Btn>
@@ -428,7 +428,9 @@ export function MarkDoneDialog(props: { workspaceId: string; taskId: string; tit
             disabled={busy || problems.some(Boolean)}
             onClick={() => void submit()}
             data-mark-done-confirm
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            css-display="inline-flex"
+            css-align-items="center"
+            css-gap="6"
           >
             <ClipboardCheck size={ICON} aria-hidden="true" />
             {choice === 'done' ? 'Mark done' : choice === 'skipped' ? 'Mark skipped' : 'Mark refused'}

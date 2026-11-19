@@ -45,7 +45,7 @@ function FieldGrid({ children, group }: { children: React.ReactNode; group?: str
 // One bordered, titled box per sub-section, on the card surface.
 function Box({ children }: { children: React.ReactNode }) {
   return (
-    <Card className="flex flex-col gap-4" data-flow-box>
+    <Card flex flexCol gap="4" data-flow-box>
       {children}
     </Card>
   )

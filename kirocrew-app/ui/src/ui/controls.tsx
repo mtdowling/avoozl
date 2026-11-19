@@ -21,13 +21,15 @@ import { MoreMenu } from '../MoreMenu.tsx'
 import { usePhone } from '../list-detail.ts'
 import { ErrorText } from '../ui/ErrorText'
 import { Hint } from '../ui/Hint'
+import { PlainLink } from './Plain'
+import type { LookProps } from './Box'
 
 export const ICON = 14
 
 // Danger: the theme's danger color, readable in light and dark.
-export const dangerStyle: CSSProperties = { color: 'var(--danger)', borderColor: 'var(--danger)' }
+export const DANGER = { 'css-color': 'danger', 'css-border-color': 'danger' } as const satisfies LookProps
 
-const row: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6 }
+const ROW = { 'css-display': 'inline-flex', 'css-align-items': 'center', 'css-gap': 6 } as const satisfies LookProps
 
 // A button with an icon before its text. `tooltip` says what it does when
 // the word alone doesn't.
@@ -39,7 +41,7 @@ export function IconLabel(props: {
   tooltip?: string
   primary?: boolean
   variant?: ButtonVariant
-  style?: CSSProperties
+  look?: LookProps
   'aria-label'?: string
 }) {
   const Icon = props.icon
@@ -53,7 +55,8 @@ export function IconLabel(props: {
           variant={props.variant ?? (props.primary ? 'primary' : 'default')}
           aria-label={props['aria-label']}
           aria-describedby={describedBy}
-          style={{ ...row, ...props.style }}
+          {...ROW}
+          {...props.look}
         >
           <Icon size={ICON} aria-hidden="true" />
           {props.children}
@@ -67,11 +70,11 @@ export function IconLabel(props: {
 // A separate `tooltip` text is also wired as its description.
 // Kiro Crew's compact button: small type, little vertical padding. For the
 // buttons inside a compact card (Open, Start, Copy values).
-export const COMPACT_BTN: CSSProperties = { ...row, padding: '1px 8px', fontSize: 12.5, lineHeight: '20px', minHeight: 0 }
+export const COMPACT = { ...ROW, 'css-padding': '1px-8px', 'css-font-size': '12.5', 'css-line-height': '20px', 'css-min-height': 0 } as const satisfies LookProps
 
 export function SmallBtn(props: { children: ReactNode; onClick?: () => void; primary?: boolean; disabled?: boolean; attrs?: Record<string, string | boolean | undefined> }) {
   return (
-    <Btn type="button" primary={props.primary} disabled={props.disabled} onClick={props.onClick} style={COMPACT_BTN} {...props.attrs}>
+    <Btn type="button" primary={props.primary} disabled={props.disabled} onClick={props.onClick} {...COMPACT} {...props.attrs}>
       {props.children}
     </Btn>
   )
@@ -83,22 +86,27 @@ export function IconLink(props: { icon: LucideIcon; to: string; label: string; t
   return (
     <Tooltip text={props.tooltip ?? props.label}>
       {(describedBy) => (
-        <a
+        <PlainLink
           href={linkHref(props.to)}
           aria-label={props.label}
           aria-describedby={props.tooltip && props.tooltip !== props.label ? describedBy : undefined}
           {...(props.external ? { target: '_blank', rel: 'noreferrer' } : {})}
-          className="rounded border"
-          style={{ ...row, padding: '3px 4px', lineHeight: 0, borderColor: 'var(--border)', color: 'inherit' }}
+          {...ROW}
+          css-padding="3px-4px"
+          css-line-height="0"
+          css-border-color="border"
+          css-color="inherit"
+          rounded="base"
+          border="all"
         >
           <Icon size={ICON} aria-hidden="true" />
-        </a>
+        </PlainLink>
       )}
     </Tooltip>
   )
 }
 
-export function IconBtn(props: { icon: LucideIcon; label: string; tooltip?: string; onClick?: () => void; disabled?: boolean; style?: CSSProperties }) {
+export function IconBtn(props: { icon: LucideIcon; label: string; tooltip?: string; onClick?: () => void; disabled?: boolean; look?: LookProps }) {
   const Icon = props.icon
   return (
     <Tooltip text={props.tooltip ?? props.label}>
@@ -109,7 +117,11 @@ export function IconBtn(props: { icon: LucideIcon; label: string; tooltip?: stri
           aria-describedby={props.tooltip && props.tooltip !== props.label ? describedBy : undefined}
           onClick={props.onClick}
           disabled={props.disabled}
-          style={{ ...row, padding: '3px 4px', minHeight: 0, lineHeight: 0, ...props.style }}
+          {...ROW}
+          css-padding="3px-4px"
+          css-min-height={0}
+          css-line-height="0"
+          {...props.look}
         >
           <Icon size={ICON} aria-hidden="true" />
         </Btn>
@@ -210,7 +222,7 @@ export function DangerBtn(props: {
           aria-describedby={props.tooltip ? describedBy : undefined}
           disabled={props.disabled}
           onClick={() => void ask(props.confirm).then((yes) => yes && props.onConfirm())}
-          style={row}
+          {...ROW}
         >
           {Icon && <Icon size={ICON} aria-hidden="true" />}
           {props.children}
@@ -267,7 +279,7 @@ export function SectionBox(props: { id: string; title: ReactNode; open?: boolean
   const body = `avoozl-box-${props.id}`
   return (
     <section data-section-box={props.id} data-open={open ? 'true' : 'false'}>
-      <Card className="flex flex-col gap-2">
+      <Card flex flexCol gap="2">
         <h3 className="m-0 text-sm font-semibold">
           <button
             type="button"

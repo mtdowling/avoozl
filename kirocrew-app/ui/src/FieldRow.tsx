@@ -90,9 +90,9 @@ export function FieldRow(props: {
 }) {
   const note = props.note ?? props.rule?.blank
   const control = (
-    <div style={{ display: 'flex', minWidth: 0, maxWidth: props.width ? (FIELD_WIDTH[props.width as FieldWidth] ?? props.width) : undefined, flexDirection: 'column' }}>
+    <Box css-display="flex" css-min-width="0" css-max-width={props.width ? (FIELD_WIDTH[props.width as FieldWidth] ?? props.width) : undefined} css-flex-direction="column">
       {props.children}
-    </div>
+    </Box>
   )
   const label = (
     <Box htmlFor={props.id} as="label" css-column-gap="8" css-row-gap="2" css-align-content="flex-start" css-align-self="start" flex flexWrap items="baseline" data-field-label>
@@ -160,12 +160,16 @@ export function CheckRow(props: { id?: string; label: ReactNode; checked: boolea
 // Fields on a grid: as many columns as fit, each at least `min`.
 export function FieldGrid({ children, min = '13rem', align, group }: { children: ReactNode; min?: string; align?: boolean; group?: string }) {
   return (
-    <div
+    <Box
       data-field-grid
       data-flow-group={group}
-      style={{ display: 'grid', columnGap: 16, rowGap: align ? 4 : 12, gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${min}), 1fr))`, alignItems: 'start' }}
+      css-display="grid"
+      css-column-gap="16"
+      css-row-gap={align ? '4' : '12'}
+      css-grid-template-columns={`repeat(auto-fill, minmax(min(100%, ${min}), 1fr))`}
+      css-align-items="start"
     >
       {children}
-    </div>
+    </Box>
   )
 }

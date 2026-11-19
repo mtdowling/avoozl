@@ -202,7 +202,7 @@ function RetrosList({
   const retros = view?.retros ?? []
   const running = retros.some((r) => r.state === 'running')
   return (
-    <Card className="flex flex-col gap-3" data-retros-list>
+    <Card flex flexCol gap="3" data-retros-list>
       <SectionHeading
         title="All retros"
         actions={

@@ -338,7 +338,11 @@ export default function WorkspaceView(props: { selected?: string | null; onSelec
                 data-remove-workspace
                 onClick={() => setDialog({ remove: current.id })}
                 disabled={busy}
-                style={{ order: -1, marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                css-order={-1}
+                css-margin-right="auto"
+                css-display="inline-flex"
+                css-align-items="center"
+                css-gap="6"
               >
                 <Trash2 size={14} aria-hidden="true" />
                 Remove

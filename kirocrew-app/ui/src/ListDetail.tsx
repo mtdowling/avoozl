@@ -40,7 +40,7 @@ export function ListDetailBack(props: { label: string; onBack: () => void }) {
 // title's `titleRef` (useTitleScrolledOut) and `scrolledOut`.
 export function DetailBar(props: { backLabel: string; onBack: () => void; title: string; scrolledOut: boolean; actions?: ReactNode }) {
   return (
-    <div data-detail-bar style={{ position: 'sticky', top: 0, zIndex: LAYER.sticky, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)' }}>
+    <Box data-detail-bar css-position="sticky" css-top="0" css-z-index={LAYER.sticky} css-display="flex" css-align-items="center" css-gap="8" css-background="bg">
       <ListDetailBack label={props.backLabel} onBack={props.onBack} />
       <Box
         aria-hidden="true"
@@ -59,7 +59,7 @@ export function DetailBar(props: { backLabel: string; onBack: () => void; title:
         {props.title}
       </Box>
       {props.actions}
-    </div>
+    </Box>
   )
 }
 

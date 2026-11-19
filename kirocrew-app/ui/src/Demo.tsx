@@ -150,15 +150,13 @@ export function DemoControls() {
           aria-describedby={describedBy}
           aria-pressed={stopped}
           onClick={() => demo.setStopExample(stopped ? 'running' : 'stopped')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 28,
-            height: 28,
-            padding: 0,
-            color: stopped ? 'var(--ok, inherit)' : 'var(--danger, inherit)',
-          }}
+          css-display="inline-flex"
+          css-align-items="center"
+          css-justify-content="center"
+          css-width="28"
+          css-height="28"
+          css-padding="0"
+          css-color={stopped ? 'ok-inherit' : 'danger-inherit'}
         >
           <Icon size={14} aria-hidden="true" />
         </Btn>

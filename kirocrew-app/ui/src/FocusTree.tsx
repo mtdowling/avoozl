@@ -683,7 +683,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                 const draft = node.state === 'draft'
                 const waits = layout.edges.filter((e) => e.to === node.id)
                 return (
-                  <li key={node.id} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined} style={{ opacity: faded ? 0.5 : draft ? 0.65 : 1 }}>
+                  <Box key={node.id} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined} as="li" css-opacity={faded ? 0.5 : draft ? 0.65 : 1}>
                     <div
                       role="button"
                       tabIndex={node.id === cursor ? 0 : -1}
@@ -746,7 +746,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                         </Box>
                       )}
                     </div>
-                  </li>
+                  </Box>
                 )
               })}
           </Box>
