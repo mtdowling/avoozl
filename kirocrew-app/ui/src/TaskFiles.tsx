@@ -146,16 +146,16 @@ function UnifiedDiff({ lines }: { lines: DiffLine[] }) {
     <Box role="group" aria-label="Unified diff" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px">
       {lines.map((line, i) =>
         !isText(line) ? (
-          <div key={i} className="text-muted" style={{ whiteSpace: 'pre', background: line.kind === 'hunk' ? LINE_BG.hunk : undefined }}>
+          <Box key={i} css-white-space="pre" css-background={line.kind === 'hunk' ? LINE_BG.hunk : undefined} tone="muted">
             {line.text}
-          </div>
+          </Box>
         ) : (
-          <div key={i} data-line={line.kind} style={{ whiteSpace: 'pre', background: line.kind === 'context' ? undefined : LINE_BG[line.kind] }}>
+          <Box key={i} data-line={line.kind} css-white-space="pre" css-background={line.kind === 'context' ? undefined : LINE_BG[line.kind]}>
             {num(line.old)}
             {num(line.new)}
             <span>{line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}</span>
             {line.text}
-          </div>
+          </Box>
         ),
       )}
     </Box>
@@ -165,7 +165,7 @@ function UnifiedDiff({ lines }: { lines: DiffLine[] }) {
 function SplitDiff({ lines }: { lines: DiffLine[] }) {
   const rows = useMemo(() => splitRows(lines), [lines])
   const side = (line: TextLine | null, which: 'left' | 'right') => (
-    <div style={{ whiteSpace: 'pre', overflow: 'hidden', background: line && line.kind !== 'context' ? LINE_BG[line.kind] : undefined }}>
+    <Box css-white-space="pre" css-overflow="hidden" css-background={line && line.kind !== 'context' ? LINE_BG[line.kind] : undefined}>
       {line ? (
         <>
           {num(which === 'left' ? line.old : line.new)}
@@ -174,7 +174,7 @@ function SplitDiff({ lines }: { lines: DiffLine[] }) {
       ) : (
         ' '
       )}
-    </div>
+    </Box>
   )
   return (
     <Box role="group" aria-label="Side-by-side diff" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px">
@@ -185,9 +185,9 @@ function SplitDiff({ lines }: { lines: DiffLine[] }) {
             {side(row.right, 'right')}
           </Box>
         ) : (
-          <div key={i} className="text-muted" style={{ whiteSpace: 'pre', background: row.kind === 'hunk' ? LINE_BG.hunk : undefined }}>
+          <Box key={i} css-white-space="pre" css-background={row.kind === 'hunk' ? LINE_BG.hunk : undefined} tone="muted">
             {row.text}
-          </div>
+          </Box>
         ),
       )}
     </Box>
@@ -198,16 +198,15 @@ function Toggle(props: { label: string; options: { key: string; label: string }[
   return (
     <Box role="group" aria-label={props.label} as="span" css-border-color="border" inlineFlex gap="0.5" rounded="full" border="all" p="0.5">
       {props.options.map((option) => (
-        <button
+        <PlainButton
           key={option.key}
           type="button"
           aria-pressed={props.value === option.key}
           onClick={() => props.onChange(option.key)}
-          className="rounded-full px-2 py-0.5 text-xs"
-          style={props.value === option.key ? { background: 'var(--accent-subtle, var(--bg-hover))', color: 'var(--text)', fontWeight: 600 } : { color: 'var(--muted)' }}
+          css-background={props.value === option.key ? 'accent-subtle-bg-hover' : undefined} css-color={props.value === option.key ? 'text' : 'muted'} css-font-weight={props.value === option.key ? '600' : undefined} rounded="full" px="2" py="0.5" size="xs"
         >
           {option.label}
-        </button>
+        </PlainButton>
       ))}
     </Box>
   )

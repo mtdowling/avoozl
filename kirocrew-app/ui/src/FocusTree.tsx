@@ -51,11 +51,10 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { TreeStyle } from './ui/PageStyles'
-import { PlainButton, PlainInput } from './ui/Plain'
+import { PlainButton, PlainInput, SvgG, SvgPath, SvgRect, SvgRoot, SvgText } from './ui/Plain'
 import { COLOR } from './ui/looks/FocusTree.ts'
 
 const STATE_WORD = Object.fromEntries(STATES.map((s) => [s.id, s.label])) as Record<NodeState, string>
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace'
 const CARD = { w: 204, h: 52 }
 const TREE_SPACING: Spacing = { nodeWidth: CARD.w, nodeHeight: CARD.h, columnGap: 48, rowGap: 16, margin: 16, clusterLabel: 0, clusterGap: 0 }
 const TABS: { key: GraphTab; label: string }[] = [
@@ -255,22 +254,17 @@ export default function GraphPage(props: {
         </Box>
         <Row role="tablist" aria-label="Dependency views" gap={1} wrap={false}>
           {TABS.map((t) => (
-            <button
+            <PlainButton
               key={t.key}
               type="button"
               role="tab"
               aria-selected={place.tab === t.key}
               data-graph-tab={t.key}
               onClick={() => go({ tab: t.key, root: t.key === 'focus' ? (root ?? null) : null })}
-              className="h-6 cursor-pointer whitespace-nowrap rounded-sm border px-3"
-              style={
-                place.tab === t.key
-                  ? { borderColor: 'var(--border-strong, var(--border))', color: 'var(--accent)', background: 'var(--card)', letterSpacing: '.08em' }
-                  : { borderColor: 'transparent', color: 'var(--muted)', background: 'transparent', letterSpacing: '.08em' }
-              }
+              css-border-color={place.tab === t.key ? 'border-strong-border' : 'transparent'} css-color={place.tab === t.key ? 'accent' : 'muted'} css-background={place.tab === t.key ? 'card' : 'transparent'} css-letter-spacing={place.tab === t.key ? '.08em' : '.08em'} h6 cursorPointer whitespace="nowrap" rounded="sm" border="all" px="3"
             >
               {t.label}
-            </button>
+            </PlainButton>
           ))}
         </Row>
         <Box ml="auto" flex items="center" gap="1.5">
@@ -465,13 +459,13 @@ function Chip({ task }: { task: GraphTask }) {
   return (
     <Box as="span" inlineFlex flexNone items="center" gap="1.5" data-state-chip={state}>
       <span aria-hidden="true" className="inline-block h-[7px] w-[7px] rounded-full" style={go ? { background: COLOR[state] } : { border: `1.5px solid ${COLOR[state]}` }} />
-      <span className="text-[9px]" style={{ color: COLOR[state], letterSpacing: '.12em' }}>
+      <Box as="span" css-color={COLOR[state]} css-letter-spacing=".12em" size="9">
         {STATE_CHIP[state]}
         <Box as="span" srOnly>
           {' '}
           ({STATE_WORD[state]})
         </Box>
-      </span>
+      </Box>
     </Box>
   )
 }
@@ -483,7 +477,7 @@ function Refs({ tasks, struck }: { tasks: { task: GraphTask; met?: boolean }[]; 
       {tasks.map(({ task, met }, i) => (
         <span key={task.id}>
           {i > 0 && ' · '}
-          <span style={struck || met ? { textDecoration: 'line-through', color: 'var(--muted-strong, var(--muted))' } : { color: 'var(--text)' }}>{task.id}</span>
+          <Box as="span" css-text-decoration={struck || met ? 'line-through' : undefined} css-color={struck || met ? 'muted-strong-muted' : 'text'}>{task.id}</Box>
         </span>
       ))}
     </>
@@ -692,15 +686,14 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                       }}
                     >
                       <Box as="span" flex items="baseline" gap="2">
-                        <span
-                          className="text-[12px] font-bold"
-                          style={{ color: faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state], textDecoration: faded ? 'line-through' : undefined }}
+                        <Box
+                          as="span" css-color={faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state]} css-text-decoration={faded ? 'line-through' : undefined} size="12" weight="bold"
                         >
                           {node.id}
-                        </span>
-                        <span className="ml-auto text-[9px]" style={{ color: COLOR[node.state], letterSpacing: '.1em' }}>
+                        </Box>
+                        <Box as="span" css-color={COLOR[node.state]} css-letter-spacing=".1em" ml="auto" size="9">
                           {tree.ghosts.has(node.id) ? 'MET' : STATE_CHIP[node.state]}
-                        </span>
+                        </Box>
                         <PlainButton
                           type="button"
                           tabIndex={-1}
@@ -742,25 +735,25 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
               })}
           </Box>
         ) : (
-          <svg
+          <SvgRoot
             role="group"
             aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`}
             aria-describedby={HINT_ID}
             width="100%"
             viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="xMinYMin meet"
-            style={{ display: 'block', fontFamily: MONO, maxWidth: width, minWidth: Math.round(width * 0.85) }}
+            css-display="block" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" css-max-width={width} css-min-width={Math.round(width * 0.85)}
           >
             <defs>
               <marker id="avoozl-tree-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={6} markerHeight={6} orient="auto">
-                <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--muted)' }} />
+                <SvgPath d="M0,0 L10,5 L0,10 z" css-fill="muted" />
               </marker>
             </defs>
             {layout.edges.map((edge) => {
               const target = nodes.find((n) => n.id === edge.to)
               const color = edge.satisfied ? 'var(--muted-strong, var(--muted))' : COLOR[target?.state ?? 'waiting']
               return (
-                <path
+                <SvgPath
                   key={`${edge.from}->${edge.to}`}
                   d={edgePath(edge.points)}
                   fill="none"
@@ -769,7 +762,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                   strokeWidth={1.6}
                   strokeDasharray={edge.kind === 'sequence' ? '3 6' : edge.satisfied ? '2 5' : undefined}
                   markerEnd="url(#avoozl-tree-arrow)"
-                  style={{ stroke: color, opacity: edge.satisfied ? 0.4 : 0.8 }}
+                  css-stroke={color} css-opacity={edge.satisfied ? '0.4' : '0.8'}
                 />
               )
             })}
@@ -799,33 +792,33 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                     style={{ cursor: 'pointer', outline: 'none' }}
                     className="avoozl-tree-node"
                   >
-                    {isRoot && <rect x={-4} y={-4} width={CARD.w + 8} height={CARD.h + 8} rx={6} fill="none" style={{ stroke: 'var(--accent)', opacity: 0.35 }} />}
-                    <rect
+                    {isRoot && <SvgRect x={-4} y={-4} width={CARD.w + 8} height={CARD.h + 8} rx={6} fill="none" css-stroke="accent" css-opacity="0.35" />}
+                    <SvgRect
                       width={CARD.w}
                       height={CARD.h}
                       rx={3}
                       strokeWidth={isRoot ? 2 : 1.2}
                       strokeDasharray={draft ? '5 3' : undefined}
-                      style={{ fill: 'var(--card)', stroke: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))' }}
+                      css-fill="card" css-stroke={isRoot ? 'accent' : 'border-strong-border'}
                     />
-                    <text
+                    <SvgText
                       x={11}
                       y={20}
                       fontSize={13}
                       fontWeight={700}
                       textDecoration={faded ? 'line-through' : undefined}
-                      style={{ fill: faded ? 'var(--muted-strong, var(--muted))' : color }}
+                      css-fill={faded ? 'var(--muted-strong, var(--muted))' : color}
                     >
                       {clip(node.id, 18)}
-                    </text>
-                    <text x={CARD.w - 30} y={20} fontSize={10.5} letterSpacing=".1em" textAnchor="end" style={{ fill: color }}>
+                    </SvgText>
+                    <SvgText x={CARD.w - 30} y={20} fontSize={10.5} letterSpacing=".1em" textAnchor="end" css-fill={color}>
                       {faded && tree.ghosts.has(node.id) ? 'MET' : STATE_CHIP[node.state]}
-                    </text>
-                    <text x={11} y={39} fontSize={11.5} style={{ fill: 'var(--muted)' }}>
+                    </SvgText>
+                    <SvgText x={11} y={39} fontSize={11.5} css-fill="muted">
                       {clip(task.title, 24)}
-                    </text>
+                    </SvgText>
                   </g>
-                  <g
+                  <SvgG
                     role="button"
                     tabIndex={-1}
                     aria-label={`Open ${node.id} details`}
@@ -836,18 +829,18 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                       setCursor(node.id)
                       props.onOpen({ kind: 'task', id: node.id })
                     }}
-                    style={{ cursor: 'pointer' }}
+                    css-cursor="pointer"
                   >
                     <title>Open {node.id} details</title>
-                    <rect width={20} height={20} rx={4} style={{ fill: 'transparent' }} />
-                    <g transform="translate(4,4)" style={{ color: 'var(--muted)' }}>
+                    <SvgRect width={20} height={20} rx={4} css-fill="transparent" />
+                    <SvgG transform="translate(4,4)" css-color="muted">
                       <ExternalLink size={12} aria-hidden="true" />
-                    </g>
-                  </g>
+                    </SvgG>
+                  </SvgG>
                 </g>
               )
             })}
-          </svg>
+          </SvgRoot>
         )}
       </div>
       <TreeStyle />

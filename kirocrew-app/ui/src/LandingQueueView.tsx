@@ -42,12 +42,11 @@ function CheckDot(props: { checks: LandingItem['checks'] }) {
   const text = `${DOT_TEXT[dot] ?? dot}${age}`
   return (
     <Tooltip text={text}>
-      <span
+      <Box
         data-check-dot={dot}
         role="img"
         aria-label={text}
-        className="inline-block shrink-0 rounded-full"
-        style={{ width: 8, height: 8, background: DOT[dot] ?? 'var(--muted)' }}
+        as="span" css-width="8" css-height="8" css-background={DOT[dot] ?? 'var(--muted)'} inlineBlock shrink0 rounded="full"
       />
     </Tooltip>
   )

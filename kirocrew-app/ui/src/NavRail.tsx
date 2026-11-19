@@ -180,14 +180,14 @@ export function RailChips(props: {
           const at = props.items.indexOf(item)
           const picked = props.picked === item.value
           return (
-            <button
+            <PlainButton
               key={item.value}
               type="button"
               data-rail-chip={item.value}
               aria-pressed={picked}
               aria-label={`${item.label}, ${item.count}`}
               onClick={() => props.onPick(picked ? undefined : item.value)}
-              style={{ background: tint(at, picked) }}
+              css-background={tint(at, picked)}
             >
               <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-flex-shrink="0" css-opacity={picked ? '0.9' : '0.6'}>
                 {item.count}
@@ -195,7 +195,7 @@ export function RailChips(props: {
               <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">
                 {item.label}
               </Box>
-            </button>
+            </PlainButton>
           )
         })}
       </Box>

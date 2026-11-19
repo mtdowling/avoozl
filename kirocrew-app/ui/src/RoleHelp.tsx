@@ -7,43 +7,44 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { OPEN, MERGED } from './ui/looks/RoleHelp.ts'
+import { SvgRoot } from './ui/Plain'
 
 function Pill({ color, children }: { color: string; children: ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-full px-1.5 text-[10px] font-semibold leading-4" style={{ background: color, color: 'var(--card)' }}>
+    <Box as="span" css-background={color} css-color="card" inlineFlex items="center" rounded="full" px="1.5" size="10" weight="semibold" leading4>
       {children}
-    </span>
+    </Box>
   )
 }
 
 function Lock() {
   return (
-    <svg width={10} height={10} viewBox="0 0 16 16" aria-label="private" role="img" style={{ flex: 'none' }}>
+    <SvgRoot width={10} height={10} viewBox="0 0 16 16" aria-label="private" role="img" css-flex="none">
       <path
         fill="currentColor"
         d="M4 7V5a4 4 0 1 1 8 0v2h.5A1.5 1.5 0 0 1 14 8.5v5A1.5 1.5 0 0 1 12.5 15h-9A1.5 1.5 0 0 1 2 13.5v-5A1.5 1.5 0 0 1 3.5 7Zm1.5 0h5V5a2.5 2.5 0 0 0-5 0Z"
       />
-    </svg>
+    </SvgRoot>
   )
 }
 
 function IssueIcon({ color }: { color: string }) {
   return (
-    <svg width={11} height={11} viewBox="0 0 16 16" aria-hidden="true" style={{ flex: 'none', color }}>
+    <SvgRoot width={11} height={11} viewBox="0 0 16 16" aria-hidden="true" css-flex="none" css-color={color}>
       <circle cx={8} cy={8} r={6.25} fill="none" stroke="currentColor" strokeWidth={1.5} />
       <circle cx={8} cy={8} r={1.6} fill="currentColor" />
-    </svg>
+    </SvgRoot>
   )
 }
 
 function PullIcon({ color }: { color: string }) {
   return (
-    <svg width={11} height={11} viewBox="0 0 16 16" aria-hidden="true" style={{ flex: 'none', color }}>
+    <SvgRoot width={11} height={11} viewBox="0 0 16 16" aria-hidden="true" css-flex="none" css-color={color}>
       <circle cx={4} cy={3.5} r={1.8} fill="none" stroke="currentColor" strokeWidth={1.4} />
       <circle cx={4} cy={12.5} r={1.8} fill="none" stroke="currentColor" strokeWidth={1.4} />
       <circle cx={12} cy={12.5} r={1.8} fill="none" stroke="currentColor" strokeWidth={1.4} />
       <path d="M4 5.3v5.4M12 10.7V6.5A2 2 0 0 0 10 4.5H7.5" fill="none" stroke="currentColor" strokeWidth={1.4} />
-    </svg>
+    </SvgRoot>
   )
 }
 
@@ -94,10 +95,10 @@ function PlansRepoPicture() {
       </Box>
       {/* The linked branch: merging its pull request closes the planning issue. */}
       <Box css-color="accent" mt="1.5" flex items="center" gap="1.5" size="11">
-        <svg width={64} height={10} viewBox="0 0 64 10" style={{ flex: 'none' }}>
+        <SvgRoot width={64} height={10} viewBox="0 0 64 10" css-flex="none">
           <path d="M62 5H4" fill="none" stroke="currentColor" strokeWidth={1.4} strokeDasharray="3 2" />
           <path d="M6 1 1 5l5 4" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        </SvgRoot>
         <span>linked branch avoozl/1.2 closes #12 on merge</span>
       </Box>
     </div>
