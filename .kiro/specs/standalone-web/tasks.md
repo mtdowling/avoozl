@@ -59,7 +59,7 @@ SW11.2 is a spec edit made when the owner approves it.
     - after: sw-1.3
   - `serve.enabled` and `serve.port` in the machine configuration schema; the supervisor starts, records and restarts `serve-main.mjs`; `avoozl status` shows the origin.
 
-- [ ] sw-p1 Proof: Avoozl runs a task end to end with no Kiro Crew, from its own page, after sw-1.1, sw-1.2, sw-1.3, sw-1.4, sw-1.5 [SW1 to SW10] (§D1, §D5, §D7)
+- [x] sw-p1 Proof: Avoozl runs a task end to end with no Kiro Crew, from its own page, after sw-1.1, sw-1.2, sw-1.3, sw-1.4, sw-1.5 [SW1 to SW10] (§D1, §D5, §D7)
   - Facts:
     - done:
       - Expected: (1) the page loads with no console error and no CSP report, in light and dark, and its buttons, cards, inputs and badges are Kiro Crew's own, with Kiro Crew's fonts and colors; (2) the task lands and the message reaches the child; (3) a read-only `assist` session starts and its view shows its log; (4) every attempt is refused and changes nothing; (5) the server comes back on the same port, the old session is gone and a new link signs in; `lsof` or `ss` shows only `127.0.0.1:<port>` listening for the server.
