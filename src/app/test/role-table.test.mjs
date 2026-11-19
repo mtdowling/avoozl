@@ -52,7 +52,6 @@ test("no module outside the Kiro Crew executor defaults a request to kirocrew", 
   // Readers of stored bindings, and messages to a bound session, from
   // before bindings named an executor. Neither starts a session.
   const reading = new Set([
-    "integrator-trains.mjs",
     "landing-conflicts.mjs",
     "tick.mjs",
     "session-bindings.mjs",

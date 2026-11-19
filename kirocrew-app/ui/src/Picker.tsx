@@ -106,10 +106,9 @@ export function Picker(props: {
         style={selectStyle}
         data-picker
       />
-      <div
+      <Box
         hidden={!expanded}
-        className="rounded border shadow"
-        style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: LAYER.popover, marginTop: 2, background: 'var(--card, var(--bg))', borderColor: 'var(--border)', maxHeight: '16rem', overflow: 'auto' }}
+        css-position="absolute" css-top="100%" css-left="0" css-right="0" css-z-index={LAYER.popover} css-margin-top="2" css-background="card-bg" css-border-color="border" css-max-height="16rem" css-overflow="auto" rounded="base" border="all" shadow
       >
         <ul ref={list} id={listId} role="listbox" aria-label={typeof props.label === 'string' ? props.label : undefined} className="flex flex-col p-1">
           {shown.map((item, i) => (
@@ -146,7 +145,7 @@ export function Picker(props: {
         </ul>
         {total === 0 && <Box as="p" px="2" py="1" size="xs" tone="muted">No match.</Box>}
         {total > shown.length && <Box as="p" px="2" py="1" size="xs" tone="muted">{total - shown.length} more; type to narrow.</Box>}
-      </div>
+      </Box>
     </div>
   )
 }

@@ -17,12 +17,8 @@ import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { PlainInput } from './ui/Plain'
+import { fieldStyle } from './ui/looks/TemplateStart.ts'
 
-const fieldStyle = {
-  borderColor: 'var(--border)',
-  color: 'var(--text)',
-  background: 'var(--card, transparent)',
-}
 
 export const templateKey = (t: Pick<TemplateSummary, 'plugin' | 'id'>) => `${t.plugin}/${t.id}`
 
@@ -116,7 +112,7 @@ function InputField(props: {
             value={String(props.value ?? '')}
             list={input.type === 'epic' ? `${id}-list` : undefined}
             onChange={(event: { target: { value: string } }) => props.onChange(event.target.value)}
-            style={{ maxWidth: '24rem' }}
+            css-max-width="24rem"
             aria-invalid={missing}
           />
           {input.type === 'epic' && (

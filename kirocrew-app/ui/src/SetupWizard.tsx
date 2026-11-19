@@ -26,17 +26,13 @@ import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { BADGE_STYLE } from './ui/looks/SetupWizard.ts'
 
 type Client = ReturnType<typeof settingsClient>
 
 // The values the workspace GitHub settings and the repository roles hold; the wizard never asks again.
 export type SharedSetup = Pick<SetupForm, 'mode' | 'planningRepository' | 'repositories' | 'projectOwner' | 'projectNumber'>
 
-const BADGE_STYLE: Record<string, CSSProperties> = {
-  create: { color: 'var(--ok)', borderColor: 'var(--ok)' },
-  change: { color: 'var(--accent)', borderColor: 'var(--accent)' },
-  keep: { color: 'var(--muted)', borderColor: 'var(--border)' },
-}
 
 const STEP_TEXT = [
   ['What to set up', 'Avoozl reads GitHub first. Pick the extras; the mode, repositories and Project come from this tab.'],

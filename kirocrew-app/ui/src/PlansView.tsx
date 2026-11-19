@@ -14,7 +14,7 @@ import NewPlanDrawer from './NewPlanDrawer.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
 import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
-import { COMPACT_BTN, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './ui/controls.tsx'
+import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, usePages } from './ui/controls.tsx'
 import { Archive, ArchiveRestore, ArrowUpDown, CaseSensitive, Clock, Layers, ListChecks, ListFilter, Tag, X, ClipboardCheck, DetailsIcon, Download, ExternalLink, FileText, FolderOpen, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, type LucideIcon } from './icons.ts'
 import { MoreMenu } from './MoreMenu.tsx'
 import { useReveal } from './RepositoriesSettings.tsx'
@@ -26,7 +26,7 @@ import { NavSlotFor } from './nav-slot.tsx'
 import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts'
 import { rowPlanKey, type TaskFilter } from './filters.ts'
 import { outline } from './markdown.ts'
-import { registerLanguages } from './highlight.ts'
+import { registerLanguages } from './ui/highlight.ts'
 import { linkHref, safeHref, viewsClient, type Graph } from './views-api.ts'
 import { useSteppedState } from './NavHistory.tsx'
 import { usePhone } from './list-detail.ts'
@@ -109,6 +109,7 @@ import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { DetailsStyle, SpecRailStyle } from './ui/PageStyles'
 import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
+import { PILL, cell } from './ui/looks/PlansView.ts'
 
 // Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
@@ -186,12 +187,6 @@ function MenuItem(props: { icon: LucideIcon; label: string; tooltip?: string; on
   return props.tooltip ? <Tooltip text={props.tooltip} display="block">{item}</Tooltip> : item
 }
 
-// The state pill: Draft, Approved, Done and the rest, in theme colors.
-const PILL: Record<string, { color: string; background: string }> = {
-  approved: { color: 'var(--accent)', background: 'var(--accent-subtle, color-mix(in srgb, var(--accent) 12%, transparent))' },
-  done: { color: 'var(--ok)', background: 'color-mix(in srgb, var(--ok) 14%, transparent)' },
-  changed: { color: 'var(--warning, #b7791f)', background: 'color-mix(in srgb, var(--warning, #b7791f) 14%, transparent)' },
-}
 function StatePill(props: { status: string; archived?: boolean }) {
   const look = PILL[props.status] ?? { color: 'var(--muted)', background: 'var(--bg-hover)' }
   return (
@@ -308,13 +303,13 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
         title="GitHub preview"
         actions={
           <Row gap={2} align="start">
-            <TipBtn style={COMPACT_BTN} tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
+            <TipBtn {...COMPACT} tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
               {projection ? 'Preview again' : 'Preview GitHub writes'}
             </TipBtn>
-            <TipBtn primary style={COMPACT_BTN} tooltip="Preview, choose batches and create the issues. Nothing is written until you confirm." onClick={props.onProject} disabled={busy}>
+            <TipBtn primary {...COMPACT} tooltip="Preview, choose batches and create the issues. Nothing is written until you confirm." onClick={props.onProject} disabled={busy}>
               Project to GitHub…
             </TipBtn>
-            <TipBtn style={COMPACT_BTN} tooltip="What an edited spec would do to each issue. Writes nothing until you apply it." onClick={props.onChanged} disabled={busy}>
+            <TipBtn {...COMPACT} tooltip="What an edited spec would do to each issue. Writes nothing until you apply it." onClick={props.onChanged} disabled={busy}>
               Spec changed…
             </TipBtn>
           </Row>
@@ -456,7 +451,7 @@ function SpecDetail(props: {
         title="Summary"
         actions={
           plan && props.onReview ? (
-            <TipBtn style={COMPACT_BTN} tooltip="Read each review finding beside the spec text and decide it." onClick={props.onReview} data-open-review="">
+            <TipBtn {...COMPACT} tooltip="Read each review finding beside the spec text and decide it." onClick={props.onReview} data-open-review="">
               Open review{plan.review?.found ? ` (${plan.review.found})` : ''}
             </TipBtn>
           ) : undefined
@@ -729,7 +724,6 @@ function Now({ now }: { now: PlanRow['now'] }) {
   return parts.length ? <Box as="span" inlineFlex flexWrap gap="1">{parts}</Box> : <Hint size="xs">—</Hint>
 }
 
-const cell: CSSProperties = { padding: '8px 10px', borderTop: '1px solid var(--border)', verticalAlign: 'middle' }
 const head: CSSProperties = { padding: '6px 10px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }
 
 // The Specs list's sort and filters: search, sort, status, what a spec
@@ -838,7 +832,7 @@ export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
 function PlansActions(props: { onNewPlan: () => void; onRefresh: () => void; busy: boolean }) {
   return (
     <>
-      <IconLabel style={COMPACT_BTN} icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
+      <IconLabel look={COMPACT} icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
         New spec
       </IconLabel>
       <IconBtn icon={RefreshCw} label="Refresh specs" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
@@ -877,7 +871,7 @@ function RowButtons(props: {
         <IconBtn icon={ArchiveRestore} label={`Unarchive ${row.name}`} tooltip={UNARCHIVE_TIP} disabled={props.busy} onClick={props.onUnarchive} />
       )}
       {props.onDelete && actions.deletable && (
-        <IconBtn icon={Trash2} label={`Delete ${row.name}`} tooltip="Delete this spec. You confirm first; it stays in history." disabled={props.busy} onClick={props.onDelete} style={dangerStyle} />
+        <IconBtn icon={Trash2} label={`Delete ${row.name}`} tooltip="Delete this spec. You confirm first; it stays in history." disabled={props.busy} onClick={props.onDelete} look={DANGER} />
       )}
     </Box>
   )
@@ -1124,7 +1118,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
                 aria-describedby={describedBy}
                 disabled={props.busy || !primaryButton.onClick}
                 onClick={primaryButton.onClick}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: 0 }}
+                css-display="inline-flex" css-align-items="center" css-gap="4" css-padding="4px-10px" css-font-size="12" css-font-weight="500" css-border-radius="8" css-border="0"
               >
                 <PrimaryIcon size={13} aria-hidden="true" />
                 {primaryButton.label}
@@ -1343,7 +1337,7 @@ function SpecRail(props: {
                         </span>
                       </Box>
                       <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
-                        <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
+                        <Box as="span" css-width={`${percent}%`} css-background="ok" block hFull />
                       </Box>
                     </PlainButton>
                   </Tooltip>
@@ -1478,7 +1472,7 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
       onDismiss={() => props.onDone(null)}
       footer={
         <>
-          <Btn type="button" primary data-archive-confirm style={COMPACT_BTN} disabled={busy} onClick={() => void run()}>
+          <Btn type="button" primary data-archive-confirm {...COMPACT} disabled={busy} onClick={() => void run()}>
             Archive spec
           </Btn>
         </>
@@ -1512,7 +1506,7 @@ function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () =>
           do not start, and it is hidden unless Show archived is on.
         </Hint>
       </Box>
-      <IconLabel style={COMPACT_BTN} icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
+      <IconLabel look={COMPACT} icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
         Unarchive
       </IconLabel>
     </Box>
@@ -1563,7 +1557,7 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
       onDismiss={() => props.onDone(null)}
       footer={
         <>
-          <Button type="button" variant="danger" disabled={!preview || busy || blocked} onClick={() => void run()} style={COMPACT_BTN}>
+          <Button type="button" variant="danger" disabled={!preview || busy || blocked} onClick={() => void run()} {...COMPACT}>
             Delete spec
           </Button>
         </>

@@ -53,21 +53,12 @@ import { Row } from './ui/Row'
 import { Box } from './ui/Box'
 import { PanningStyle } from './ui/PageStyles'
 import { PlainButton } from './ui/Plain'
+import { STATE_COLOR } from './ui/looks/GraphView.ts'
 
 // Graphs larger than this open with every group collapsed to one node.
 const COLLAPSE_ABOVE = 60
 const CANVAS_HEIGHT = 640
 
-// Theme variables only, so the drawing follows light and dark mode.
-const STATE_COLOR: Record<NodeState, string> = {
-  ready: 'var(--accent)',
-  running: 'var(--tile-purple, var(--aim))',
-  waiting: 'var(--border)',
-  'needs-you': 'var(--danger)',
-  done: 'var(--ok)',
-  deferred: 'var(--muted)',
-  draft: 'var(--muted)',
-}
 const STATE_LABEL = Object.fromEntries(STATES.map((s) => [s.id, s.label])) as Record<NodeState, string>
 
 const clip = (text: string, max: number) => (text.length > max ? text.slice(0, max - 1) + '…' : text)

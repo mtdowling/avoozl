@@ -44,12 +44,8 @@ import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { PlainInput } from './ui/Plain'
+import { BADGE } from './ui/looks/Onboard.ts'
 
-const BADGE: Record<string, CSSProperties> = {
-  create: { color: 'var(--ok)', borderColor: 'var(--ok)' },
-  change: { color: 'var(--accent)', borderColor: 'var(--accent)' },
-  keep: { color: 'var(--muted)', borderColor: 'var(--border)' },
-}
 const MODE_ICONS = { local: Laptop, 'plans-repo': Lock, 'single-repo': GitBranch } as const
 type Change = { target: { value: string } }
 

@@ -52,17 +52,8 @@ import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { TreeStyle } from './ui/PageStyles'
 import { PlainButton, PlainInput } from './ui/Plain'
+import { COLOR } from './ui/looks/FocusTree.ts'
 
-// Theme variables only (Radar's rule): go is the accent, a hold is warn.
-const COLOR: Record<NodeState, string> = {
-  ready: 'var(--accent)',
-  running: 'var(--accent)',
-  waiting: 'var(--warn, var(--muted))',
-  'needs-you': 'var(--danger)',
-  done: 'var(--muted-strong, var(--muted))',
-  deferred: 'var(--muted)',
-  draft: 'var(--muted)',
-}
 const STATE_WORD = Object.fromEntries(STATES.map((s) => [s.id, s.label])) as Record<NodeState, string>
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace'
 const CARD = { w: 204, h: 52 }
@@ -576,7 +567,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                 const draft = node.state === 'draft'
                 const waits = layout.edges.filter((e) => e.to === node.id)
                 return (
-                  <li key={node.id} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined} style={{ opacity: faded ? 0.5 : draft ? 0.65 : 1 }}>
+                  <Box key={node.id} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined} as="li" css-opacity={faded ? 0.5 : draft ? 0.65 : 1}>
                     <div
                       role="button"
                       tabIndex={node.id === cursor ? 0 : -1}
@@ -626,7 +617,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                         </Box>
                       )}
                     </div>
-                  </li>
+                  </Box>
                 )
               })}
           </Box>

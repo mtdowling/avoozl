@@ -55,7 +55,6 @@ import {
   syncBase,
 } from "./pr-landing.mjs";
 import { isDirectLanding, queueDirect } from "./direct-landing.mjs";
-import { isTrainLanding, queueVerified } from "./integrator-trains.mjs";
 import { integrationBranchOf } from "./integration-branch.mjs";
 import { specBase } from "./spec-base.mjs";
 import {
@@ -3273,23 +3272,18 @@ export async function integrateVerified(
           worktree.repository || taskRepository(task),
         ),
         viaPullRequest = isPullRequestLanding(project),
-        viaDirect = isDirectLanding(project),
-        viaTrain = isTrainLanding(project);
-      // A train project queues the verified commit once; a newer commit of
-      // the same task is queued again, never rewritten (LT1.5).
-      if (viaTrain && delivery.landing?.commit === delivery.commit) continue;
+        viaDirect = isDirectLanding(project);
       // A `pr` project lands on GitHub (task 42.6) and a `direct` one on its
       // remote (41.9): bring the remote base here first; a queued task
       // waits unless its base moved.
-      if (viaPullRequest || viaDirect || viaTrain) {
+      if (viaPullRequest || viaDirect) {
         if (delivery.batch)
           fail(
-            `A batch does not land ${viaDirect ? "directly" : viaTrain ? "in a train" : "by pull request"} yet.`,
+            `A batch does not land ${viaDirect ? "directly" : "by pull request"} yet.`,
             409,
           );
         await syncBase(project).catch(() => null);
-        if (!viaTrain && (await stillQueued(store, { delivery, project })))
-          continue;
+        if (await stillQueued(store, { delivery, project })) continue;
       }
       const rebased = await rebaseForIntegration(
         project,
@@ -3349,11 +3343,6 @@ export async function integrateVerified(
           at,
           workspaceRoot: contentBinding(store)?.workspaceRoot ?? null,
         });
-        store.transaction(() => store.put("task_deliveries", next));
-        continue;
-      }
-      if (viaTrain) {
-        next = await queueVerified(store, { delivery, project, task, at });
         store.transaction(() => store.put("task_deliveries", next));
         continue;
       }

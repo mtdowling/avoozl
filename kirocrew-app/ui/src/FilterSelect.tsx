@@ -1,10 +1,9 @@
 import { Tooltip } from './ui/Tooltip.tsx'
 import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
+import { selectStyle } from './ui/looks/FilterSelect.ts'
+export { selectStyle }
 
-// One labelled filter dropdown with an "All" choice, shared by the Graph and
-// Delivery filters so both look and behave the same.
-export const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
 // The label column of an inline filter: wide enough for a one-word label.
 export const INLINE_LABEL = '4rem'
@@ -44,10 +43,10 @@ export function FilterSelect(props: {
   )
   if (props.inline)
     return (
-      <label htmlFor={props.id} data-filter-line className="min-w-0 text-sm" style={{ display: 'grid', gridTemplateColumns: `${INLINE_LABEL} minmax(0, 1fr)`, alignItems: 'center', columnGap: 8 }}>
+      <Box htmlFor={props.id} data-filter-line as="label" css-display="grid" css-grid-template-columns={`${INLINE_LABEL} minmax(0, 1fr)`} css-align-items="center" css-column-gap="8" minW0 size="sm">
         <Box data-filter-label as="span" css-overflow-wrap="anywhere">{props.label}</Box>
         {props.hint ? <Tooltip text={props.hint} display="block">{(describedBy) => select(describedBy)}</Tooltip> : select()}
-      </label>
+      </Box>
     )
   return (
     <Box htmlFor={props.id} as="label" css-max-width="13rem" flex minW0 flexCol gap="1" size="sm">
