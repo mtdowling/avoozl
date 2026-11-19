@@ -5,7 +5,23 @@ import { Btn } from './ui/Btn'
 import Badge from './ui/Badge.tsx'
 import { TaskDrawerContext, useTaskDrawer, type TaskDrawerApi } from './drawer-context.ts'
 import { modelLabel, safeHref, viewsClient, canSupersede, type ConflictItem, type DeliveryItem, type Graph } from './views-api.ts'
-import { duration, linkParts, relativeTime, sessionHref, sourceExcerpt, sourceLine, taskClient, visibleTabs, TASK_TAB_KEYS, TASK_TAB_PARAM, type OriginSource, type TaskDetail, type TaskLink, type TaskOrigin, type TaskTab } from './task-api.ts'
+import {
+  duration,
+  linkParts,
+  relativeTime,
+  sessionHref,
+  sourceExcerpt,
+  sourceLine,
+  taskClient,
+  visibleTabs,
+  TASK_TAB_KEYS,
+  TASK_TAB_PARAM,
+  type OriginSource,
+  type TaskDetail,
+  type TaskLink,
+  type TaskOrigin,
+  type TaskTab,
+} from './task-api.ts'
 import { Tabs, TabPanel, useTabParam } from './ui/Tabs.tsx'
 import { TaskSummaryBox } from './TaskSummaryBox.tsx'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, resumeStatus } from './delivery-api.ts'
@@ -16,10 +32,10 @@ import { SnippetBox } from './SnippetBox.tsx'
 import { EdgeList } from './EdgeList.tsx'
 import { HandSetReview, ReviewRuns } from './ReviewState.tsx'
 import { reviewRuns } from './views-api.ts'
-import { Markdown } from './Markdown.tsx'
+import { Markdown } from './ui/Markdown.tsx'
 import TaskForm from './TaskForm.tsx'
 import { Authority } from './Authority.tsx'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { IconLabel, SectionBox, ShowMore, TipBtn, useAskChat, usePages } from './ui/controls.tsx'
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
@@ -37,21 +53,21 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
+import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 // Lines shown either side of a task's own lines.
 const SNIPPET_CONTEXT = 3
 
-type Mode =
-  | { kind: 'task'; id: string; tab?: TaskTab }
-  | { kind: 'add'; prerequisite?: string }
-  | { kind: 'review'; group: ConflictItem; onReviewed?: () => void }
-  | null
+type Mode = { kind: 'task'; id: string; tab?: TaskTab } | { kind: 'add'; prerequisite?: string } | { kind: 'review'; group: ConflictItem; onReviewed?: () => void } | null
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
       <Hint as="dt">{label}</Hint>
-      <dd className="min-w-0 break-words">{children}</dd>
+      <Box as="dd" minW0 breakWords>
+        {children}
+      </Box>
     </>
   )
 }
@@ -65,10 +81,12 @@ function Links({ title, links, open }: { title: string; links: TaskLink[]; open:
   }))
   return (
     <div>
-      <h4 className="text-sm font-semibold">{title}</h4>
-      <div className="mt-1">
+      <Box as="h4" size="sm" weight="semibold">
+        {title}
+      </Box>
+      <Box mt="1">
         <EdgeList label={title} items={items} onOpen={open} />
-      </div>
+      </Box>
     </div>
   )
 }
@@ -110,30 +128,37 @@ function SourceSnippet(props: { source: OriginSource; workspaceId: string; open:
       }
     >
       {read.error ? (
-        <p role="alert" className="border-t p-2 text-danger" style={{ borderColor: 'var(--border)' }}>
+        <Box role="alert" as="p" css-border-color="border" border="t" p="2" tone="danger">
           {read.error}
-        </p>
+        </Box>
       ) : read.text === null ? (
-        <p className="border-t p-2 text-muted" style={{ borderColor: 'var(--border)' }}>
+        <Box as="p" css-border-color="border" border="t" p="2" tone="muted">
           Reading…
-        </p>
+        </Box>
       ) : (
-        <ol className="m-0 list-none overflow-x-auto border-t p-0 font-mono" style={{ borderColor: 'var(--border)' }} aria-label={`Lines from ${source.document}`} data-snippet-lines>
+        <Box as="ol" css-border-color="border" m0 listNone overflow="x-auto" border="t" p="0" fontMono aria-label={`Lines from ${source.document}`} data-snippet-lines>
           {rows.map((row) => (
-            <li
+            <Box
               key={row.number}
               data-snippet-line={row.number}
               data-hit={row.hit ? 'true' : undefined}
-              className="flex gap-3 px-2 py-px"
-              style={row.hit ? { background: 'color-mix(in srgb, var(--accent) 12%, transparent)', boxShadow: 'inset 3px 0 0 var(--accent)' } : undefined}
+              as="li"
+              css-background={row.hit ? 'mix-accent-12%-transparent' : undefined}
+              css-box-shadow={row.hit ? 'inset-3px-0-0-accent' : undefined}
+              flex
+              gap="3"
+              px="2"
+              py="px"
             >
-              <span className="w-8 shrink-0 select-none text-right text-muted">{row.number}</span>
-              <span className="whitespace-pre-wrap" style={{ overflowWrap: 'anywhere' }}>
+              <Box as="span" w8 shrink0 selectNone align="right" tone="muted">
+                {row.number}
+              </Box>
+              <Box as="span" css-overflow-wrap="anywhere" whitespace="pre-wrap">
                 {row.text || ' '}
-              </span>
-            </li>
+              </Box>
+            </Box>
           ))}
-        </ol>
+        </Box>
       )}
     </SnippetBox>
   )
@@ -150,31 +175,33 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
   const first = origin.sources[0]
   const firstReadable = origin.sources.find((s) => s.readable) ?? null
   return (
-    <div className="flex flex-col gap-1.5" data-origin={origin.kind}>
-      <span className="font-medium">{origin.label}</span>
+    <Box flex flexCol gap="1.5" data-origin={origin.kind}>
+      <Box as="span" weight="medium">
+        {origin.label}
+      </Box>
       <Hint size="xs">
         {first?.readable
           ? linkParts(origin.text, first.document).map((part, i) =>
               part.link ? (
-                <button key={i} type="button" className="underline" style={{ color: 'var(--accent)', overflowWrap: 'anywhere' }} onClick={() => setFull(first)} data-origin-path>
+                <PlainButton key={i} type="button" css-color="accent" css-overflow-wrap="anywhere" underline onClick={() => setFull(first)} data-origin-path>
                   {part.text}
-                </button>
+                </PlainButton>
               ) : (
                 part.text
               ),
             )
           : origin.text}
       </Hint>
-      <div className="flex flex-wrap items-center gap-2">
+      <Box flex flexWrap items="center" gap="2">
         {origin.kind === 'github-issue' && props.issue && (
-          <a href={linkHref(props.issue)} target="_blank" rel="noopener noreferrer" className="text-xs underline">
+          <PlainLink href={linkHref(props.issue)} target="_blank" rel="noopener noreferrer" size="xs" underline>
             Open the issue on GitHub
-          </a>
+          </PlainLink>
         )}
         {origin.spec && props.onOpenSpec && (
-          <button type="button" className="text-xs underline" onClick={() => props.onOpenSpec!(origin.spec!)}>
+          <PlainButton type="button" size="xs" underline onClick={() => props.onOpenSpec!(origin.spec!)}>
             Open spec {origin.spec} in Specs
-          </button>
+          </PlainButton>
         )}
         {origin.sources
           .filter((source) => !source.readable)
@@ -183,15 +210,19 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
               {sourceLine(source)} (no longer in this workspace)
             </Hint>
           ))}
-      </div>
-      {origin.prompt && <blockquote className="border-l-2 pl-2 text-xs text-muted" style={{ borderColor: 'var(--border)' }}>{origin.prompt}</blockquote>}
+      </Box>
+      {origin.prompt && (
+        <Box as="blockquote" css-border-color="border" borderL2 pl="2" size="xs" tone="muted">
+          {origin.prompt}
+        </Box>
+      )}
       {origin.sources
         .filter((source) => source.readable)
         .map((source) => (
           <SourceSnippet key={source.document + source.lineStart} source={source} workspaceId={props.workspaceId} open={source === firstReadable} onFull={() => setFull(source)} />
         ))}
       {full && <DocumentReader workspaceId={props.workspaceId} target={full} onClose={closeFull} />}
-    </div>
+    </Box>
   )
 }
 
@@ -204,22 +235,40 @@ function BatchBox(props: { batch: NonNullable<DeliveryItem['batchGroup']>; alone
   const { batch } = props
   return (
     <SectionBox id="batch" title="Batch">
-      <div className="flex flex-col gap-1 text-sm" data-task-batch={batch.id ?? batch.group ?? ''}>
-        <p className="m-0">
+      <Box flex flexCol gap="1" size="sm" data-task-batch={batch.id ?? batch.group ?? ''}>
+        <Box as="p" m0>
           {batch.id ? 'Ran in batch ' : 'Planned batch '}
-          {batch.leader === props.self ? <span className="font-medium">{batch.group ?? batch.id}</span> : <button type="button" className="underline" onClick={() => drawer.openTask(batch.leader)} data-batch-link={batch.leader}>{batch.group ?? batch.id}</button>}
+          {batch.leader === props.self ? (
+            <Box as="span" weight="medium">
+              {batch.group ?? batch.id}
+            </Box>
+          ) : (
+            <PlainButton type="button" underline onClick={() => drawer.openTask(batch.leader)} data-batch-link={batch.leader}>
+              {batch.group ?? batch.id}
+            </PlainButton>
+          )}
           {batch.reason ? <Hint> · {batch.reason}</Hint> : null}
-        </p>
-        <ul className="m-0 flex flex-col gap-0.5 pl-4 text-xs">
+        </Box>
+        <Box as="ul" m0 flex flexCol gap="0.5" pl="4" size="xs">
           {batch.tasks.map((id) => (
             <li key={id}>
-              {id === props.self ? <span>{id} (this task)</span> : <button type="button" className="underline" onClick={() => drawer.openTask(id)}>{id}</button>}
+              {id === props.self ? (
+                <span>{id} (this task)</span>
+              ) : (
+                <PlainButton type="button" underline onClick={() => drawer.openTask(id)}>
+                  {id}
+                </PlainButton>
+              )}
               {id === batch.leader ? <Hint> · leads</Hint> : null}
             </li>
           ))}
-        </ul>
-        {props.alone && <Hint as="p" size="xs" flush data-runs-alone>Runs alone: {props.alone}</Hint>}
-      </div>
+        </Box>
+        {props.alone && (
+          <Hint as="p" size="xs" flush data-runs-alone>
+            Runs alone: {props.alone}
+          </Hint>
+        )}
+      </Box>
     </SectionBox>
   )
 }
@@ -298,10 +347,18 @@ function TaskPanel(props: {
         {error}
       </ErrorText>
     )
-  if (!detail) return <Hint as="p" size="sm">Loading…</Hint>
+  if (!detail)
+    return (
+      <Hint as="p" size="sm">
+        Loading…
+      </Hint>
+    )
   const { task, delivery } = detail
   const local = task.authority === 'local'
-  const deliveryState = (delivery?.deliveries ?? []).map((d) => d.state).filter((s): s is string => typeof s === 'string').at(-1)
+  const deliveryState = (delivery?.deliveries ?? [])
+    .map((d) => d.state)
+    .filter((s): s is string => typeof s === 'string')
+    .at(-1)
   const deferred = task.status === 'deferred'
   const resume = resumeStatus(props.graph)
   const done = delivery?.complete ?? task.state === 'done'
@@ -314,14 +371,14 @@ function TaskPanel(props: {
   return (
     <Stack gap={3}>
       <div>
-        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+        <Box flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
           <Authority owner={task} />
           {task.state && <Badge variant={task.state === 'needs-you' ? 'warning' : undefined}>{task.state}</Badge>}
           {detail.locked && <Badge>locked</Badge>}
           {task.planArchived && <Badge>Archived</Badge>}
-        </div>
+        </Box>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <Box flex flexWrap gap="2">
         {props.onFocus && (
           <IconLabel
             icon={Network}
@@ -386,20 +443,20 @@ function TaskPanel(props: {
           Edit
         </IconLabel>
         {!done && !local && issue && (
-          <a href={linkHref(issue)} target="_blank" rel="noopener noreferrer" className="self-center text-xs underline">
+          <PlainLink href={linkHref(issue)} target="_blank" rel="noopener noreferrer" self="center" size="xs" underline>
             Defer on the board
-          </a>
+          </PlainLink>
         )}
-      </div>
+      </Box>
       {chat.error && (
         <ErrorText role="alert" size="sm">
           {chat.error}
         </ErrorText>
       )}
       {message && (
-        <p role={message.ok ? 'status' : 'alert'} className={`text-sm ${message.ok ? 'text-muted' : 'text-danger'}`}>
+        <Box role={message.ok ? 'status' : 'alert'} as="p" size="sm" tone={message.ok ? 'muted' : 'danger'}>
           {message.text}
-        </p>
+        </Box>
       )}
       {task.manual && (
         <ManualTask
@@ -412,7 +469,7 @@ function TaskPanel(props: {
         />
       )}
       {editing && (
-        <div className="rounded border p-3" style={{ borderColor: 'var(--border)' }}>
+        <Box css-border-color="border" rounded="base" border="all" p="3">
           <TaskForm
             workspaceId={workspaceId}
             graph={props.graph}
@@ -424,7 +481,7 @@ function TaskPanel(props: {
             }}
             onCancel={() => setEditing(false)}
           />
-        </div>
+        </Box>
       )}
       <Tabs id="task-tabs" label="Task details" tabs={shown} current={tab} onPick={pick} />
       <TabPanel id="task-tabs" current={tab}>
@@ -432,7 +489,7 @@ function TaskPanel(props: {
           <>
             <TaskSummaryBox workspaceId={workspaceId} id={task.id} summary={detail.summary} />
             <SectionBox id="summary" title="Status">
-              <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+              <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1.5" size="sm">
                 <Row label="State">{task.state ?? 'unknown'}</Row>
                 {detail.plan && (
                   <Row label="Spec">
@@ -457,7 +514,7 @@ function TaskPanel(props: {
                     )}
                   </Row>
                 ))}
-              </dl>
+              </Box>
             </SectionBox>
             {(detail.waitsOn.length > 0 || detail.blocks.length > 0) && (
               <SectionBox id="links" title="Edges">
@@ -471,8 +528,10 @@ function TaskPanel(props: {
               <SectionBox id="conflicts" title={`Conflicts (${detail.conflicts.length})`}>
                 <Stack as="ul" gap={3}>
                   {detail.conflicts.map((item, i) => (
-                    <li key={i} className="flex flex-col gap-2 rounded border p-2" style={{ borderColor: 'var(--border)' }}>
-                      <div className="text-sm font-medium">{whyLine(item)}</div>
+                    <Box key={i} as="li" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="2">
+                      <Box size="sm" weight="medium">
+                        {whyLine(item)}
+                      </Box>
                       {item.changedAt && (
                         <Hint as="div" size="xs">
                           Changed {relativeTime(item.changedAt)}
@@ -485,7 +544,7 @@ function TaskPanel(props: {
                         </IconLabel>
                       </span>
                       <ConflictActions item={item} workspaceId={workspaceId} revision={detail.revision} busy={busy} run={run} onSettled={() => undefined} />
-                    </li>
+                    </Box>
                   ))}
                 </Stack>
               </SectionBox>
@@ -498,17 +557,23 @@ function TaskPanel(props: {
               {detail.steps?.length ? <TaskSteps steps={detail.steps} /> : null}
               {detail.timeline.length ? (
                 <>
-                  {detail.steps?.length ? <h4 className="mt-2 text-sm font-semibold">All records</h4> : null}
-                  <ol className="flex flex-col gap-1 text-sm">
+                  {detail.steps?.length ? (
+                    <Box as="h4" mt="2" size="sm" weight="semibold">
+                      All records
+                    </Box>
+                  ) : null}
+                  <Box as="ol" flex flexCol gap="1" size="sm">
                     {pages.take('timeline', detail.timeline).map((entry, i) => (
-                      <li key={i} className="flex gap-2">
+                      <Box key={i} as="li" flex gap="2">
                         <Tooltip text={entry.at}>
-                          <span className="w-28 shrink-0 text-xs text-muted">{relativeTime(entry.at)}</span>
+                          <Box as="span" w28 shrink0 size="xs" tone="muted">
+                            {relativeTime(entry.at)}
+                          </Box>
                         </Tooltip>
                         <span>{entry.text}</span>
-                      </li>
+                      </Box>
                     ))}
-                  </ol>
+                  </Box>
                   <ShowMore {...pages.more('timeline', detail.timeline.length)} />
                 </>
               ) : null}
@@ -525,10 +590,12 @@ function TaskPanel(props: {
             <SectionBox id="task-links" title="Links">
               <Stack gap={3}>
                 <TaskScmLinks links={detail.links} />
-                <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }} data-added-links>
-                  <h4 className="text-sm font-semibold">Added links</h4>
+                <Box css-border-color="border" flex flexCol gap="2" border="t" pt="3" data-added-links>
+                  <Box as="h4" size="sm" weight="semibold">
+                    Added links
+                  </Box>
                   <TaskLinks workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
-                </div>
+                </Box>
               </Stack>
             </SectionBox>
             <TaskFiles workspaceId={workspaceId} taskId={task.id} active box={{ id: 'files', title: 'Files' }} />
@@ -540,7 +607,7 @@ function TaskPanel(props: {
             <SectionBox id="delivery" title="Delivery">
               <Stack gap={2}>
                 {delivery.sessions.length > 0 && (
-                  <ul className="flex flex-col gap-1 text-sm">
+                  <Box as="ul" flex flexCol gap="1" size="sm">
                     {delivery.sessions.map((session) => (
                       <li key={session.slot}>
                         <TextLink href={linkHref(sessionHref(session))}>
@@ -552,7 +619,7 @@ function TaskPanel(props: {
                         </Hint>
                       </li>
                     ))}
-                  </ul>
+                  </Box>
                 )}
                 {deliveryState === 'decision' && (
                   <RetryForm
@@ -584,7 +651,11 @@ function TaskPanel(props: {
                 }}
               />
             )}
-            {delivery.sessions.length ? <Hint as="p" size="xs">Running for {duration(delivery.sessions.at(-1)!.boundAt)} in its latest attempt.</Hint> : null}
+            {delivery.sessions.length ? (
+              <Hint as="p" size="xs">
+                Running for {duration(delivery.sessions.at(-1)!.boundAt)} in its latest attempt.
+              </Hint>
+            ) : null}
           </>
         )}
         {tab === 'review' && (
@@ -611,7 +682,7 @@ function TaskPanel(props: {
         {tab === 'details' && (
           <>
             <SectionBox id="fields" title="Fields">
-              <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+              <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1.5" size="sm">
                 {task.epicTitle && <Row label="Epic">{task.epicTitle}</Row>}
                 {detail.origin && (
                   <Row label="Came from">
@@ -625,7 +696,7 @@ function TaskPanel(props: {
                 {task.status && <Row label="Status">{task.status}</Row>}
                 {task.repository && <Row label="Repository">{task.repository}</Row>}
                 {task.owner && <Row label="Assignee">{task.owner}</Row>}
-              </dl>
+              </Box>
             </SectionBox>
             {(task.summary || task.acceptance.length > 0 || task.checks.length > 0 || task.context) && (
               <SectionBox id="description" title="Description">
@@ -633,29 +704,35 @@ function TaskPanel(props: {
                   {task.summary && <Markdown text={task.summary} />}
                   {task.acceptance.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-semibold">Acceptance</h4>
-                      <ul className="mt-1 list-disc pl-5 text-sm">
+                      <Box as="h4" size="sm" weight="semibold">
+                        Acceptance
+                      </Box>
+                      <Box as="ul" mt="1" listDisc pl="5" size="sm">
                         {task.acceptance.map((line, i) => (
                           <li key={i}>{line}</li>
                         ))}
-                      </ul>
+                      </Box>
                     </div>
                   )}
                   {task.checks.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-semibold">Checks</h4>
-                      <ul className="mt-1 flex flex-col gap-1 text-sm">
+                      <Box as="h4" size="sm" weight="semibold">
+                        Repository checks
+                      </Box>
+                      <Box as="ul" mt="1" flex flexCol gap="1" size="sm">
                         {task.checks.map((line, i) => (
                           <li key={i}>
                             <code>{line}</code>
                           </li>
                         ))}
-                      </ul>
+                      </Box>
                     </div>
                   )}
                   {task.context && (
                     <div>
-                      <h4 className="text-sm font-semibold">From its spec</h4>
+                      <Box as="h4" size="sm" weight="semibold">
+                        From its spec
+                      </Box>
                       <Markdown text={task.context} />
                     </div>
                   )}
@@ -705,8 +782,8 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
   return (
     <Stack gap={3}>
       <Hint as="p" size="sm">
-        Avoozl re-reads a spec when its file changes. A task waits here when its own section changed, or when it is new. Moving a
-        spec or fixing its links does not count. Read each task, then mark them reviewed so they may start.
+        Avoozl re-reads a spec when its file changes. A task waits here when its own section changed, or when it is new. Moving a spec or fixing its links does not count. Read each
+        task, then mark them reviewed so they may start.
       </Hint>
       {message && (
         <ErrorText role="alert" size="sm">
@@ -714,14 +791,16 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
         </ErrorText>
       )}
       {page && !group ? (
-        <Hint as="p" size="sm">Nothing here needs review now.</Hint>
+        <Hint as="p" size="sm">
+          Nothing here needs review now.
+        </Hint>
       ) : (
         <>
-          <ul className="m-0 flex list-none flex-col p-0" data-review-tasks>
+          <Box as="ul" m0 flex listNone flexCol p="0" data-review-tasks>
             {(group?.tasks ?? []).map((task) => (
               <ReviewTaskContext key={task.id} task={task} />
             ))}
-          </ul>
+          </Box>
           <div>{group && <ReviewButton item={group} busy={busy || !page} onConfirm={() => void markReviewed()} />}</div>
         </>
       )}
@@ -798,7 +877,10 @@ export function TaskDrawerProvider({
   const title =
     mode?.kind === 'task' ? (
       <>
-        {titled ?? 'Loading…'} <small className="font-normal text-muted" data-modal-title-id>{mode.id}</small>
+        {titled ?? 'Loading…'}{' '}
+        <Box as="small" weight="normal" tone="muted" data-modal-title-id>
+          {mode.id}
+        </Box>
       </>
     ) : mode?.kind === 'review' ? (
       mode.group.title
@@ -831,7 +913,7 @@ export function TaskDrawerProvider({
                   Back
                 </TipBtn>
               )}
-              <span className="grow" />
+              <Box as="span" grow />
               {mode.kind === 'task' && (
                 <IconLabel icon={Plus} tooltip="Add a draft task that waits on this one" onClick={() => api_.addTask({ prerequisite: mode.id })}>
                   Add task after this
@@ -841,7 +923,17 @@ export function TaskDrawerProvider({
           }
         >
           {mode.kind === 'task' ? (
-            <TaskPanel key={mode.id} workspaceId={workspaceId} id={mode.id} tab={mode.tab} graph={graph} open={api_.openTask} onClose={close} onFocus={onFocus} onTitle={showTitle} />
+            <TaskPanel
+              key={mode.id}
+              workspaceId={workspaceId}
+              id={mode.id}
+              tab={mode.tab}
+              graph={graph}
+              open={api_.openTask}
+              onClose={close}
+              onFocus={onFocus}
+              onTitle={showTitle}
+            />
           ) : mode.kind === 'review' ? (
             <ReviewPanel
               workspaceId={workspaceId}
@@ -853,13 +945,7 @@ export function TaskDrawerProvider({
               }}
             />
           ) : (
-            <TaskForm
-              workspaceId={workspaceId}
-              graph={graph}
-              detail={null}
-              prerequisite={mode.prerequisite}
-              onSaved={(id) => setMode({ kind: 'task', id })}
-            />
+            <TaskForm workspaceId={workspaceId} graph={graph} detail={null} prerequisite={mode.prerequisite} onSaved={(id) => setMode({ kind: 'task', id })} />
           )}
         </Modal>
       )}

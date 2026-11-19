@@ -106,13 +106,7 @@ export function useRemembered<T>(key: string, initial: T, keep = true): [T, Disp
 // `step` records the change; `set` changes it without a step (a reset).
 // With `keep`, the value and its steps outlive the view, so Back can reopen
 // it as it was; without, they go when the view does (a dialog's sub-tabs).
-export function useSteppedState<T>(
-  key: string,
-  kind: StepKind,
-  label: (previous: T) => string,
-  initial: T,
-  keep = true,
-): [T, (next: T) => void, (next: T) => void] {
+export function useSteppedState<T>(key: string, kind: StepKind, label: (previous: T) => string, initial: T, keep = true): [T, (next: T) => void, (next: T) => void] {
   const nav = useNav()
   const [value, set] = useRemembered(key, initial, keep)
   const current = useRef(value)

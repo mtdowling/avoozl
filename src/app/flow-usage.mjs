@@ -16,7 +16,7 @@ const COLUMNS = "id,slot,task_id,attempt,role,ts,model,input,output,credits";
 const num = (v) =>
   typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0;
 
-export function ensureUsageTable(store) {
+function ensureUsageTable(store) {
   store.db.exec(
     `CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL)`,
   );
@@ -71,7 +71,7 @@ export function listUsage(store) {
 
 // The stage a turn ran in: the span of its task, attempt and role whose time
 // holds the turn's; a turn outside every span counts to the role's stage.
-export function turnStage(spans, turn) {
+function turnStage(spans, turn) {
   const own = spans.filter(
     (s) =>
       s.taskId === turn.task_id && (s.role === turn.role || s.role === null),

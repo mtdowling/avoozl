@@ -9,10 +9,14 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { workspaceConfig } from "../config.mjs";
-import { globalAvoozlConfigPath } from "../layered-config.mjs";
+import {
+  globalAvoozlConfigPath,
+  loadLayeredConfig,
+} from "../layered-config.mjs";
+import { fileURLToPath } from "node:url";
 import { snapshot } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
-import { bindSession } from "../session-bindings.mjs";
+import { bindSession, rediscoverSessions } from "../session-bindings.mjs";
 import { Store } from "../store.mjs";
 import {
   acceptEnvelope,
@@ -117,12 +121,14 @@ test("a worker envelope has IDs only and the brief is built locally", () => {
     { ...good, run: "x" },
   ])
     assert.throws(() => validateEnvelope(bad, config));
-  // A runner never takes a spec, so its envelopes keep their old shape.
-  assert.throws(
-    () =>
-      validateEnvelope({ ...good, brief: "x" }, { ...config, role: "runner" }),
-    /spec is unknown/,
-  );
+  for (const bad of [
+    { ...good, repo: "../../etc" },
+    { ...good, checks: ["pass; echo x"] },
+    { ...good, agent: "other" },
+    { ...good, baseCommit: "main" },
+    { ...good, version: 2 },
+  ])
+    assert.throws(() => validateEnvelope(bad, config));
 });
 
 test("a worker refuses an SSH envelope, then runs a pulled one to a checkpoint push", async (t) => {
@@ -136,13 +142,20 @@ test("a worker refuses an SSH envelope, then runs a pulled one to a checkpoint p
       checks: ["pass"],
       spec: "demo",
     };
+  // The SSH operation is gone and takes nothing.
   await assert.rejects(
     ws.ops.execute(
       "remote.accept",
       { envelope: JSON.stringify(envelope) },
       local,
     ),
-    /not an envelope pushed over SSH/,
+    /Unknown operation|refused/,
+  );
+  assert.equal(ws.store.getMeta("runner.tasks") ?? null, null);
+  // An envelope is taken only from an acknowledged claim.
+  assert.throws(
+    () => acceptEnvelope(ws.store, ws.root, JSON.stringify(envelope)),
+    /acknowledged/,
   );
   assert.equal(
     acceptEnvelope(ws.store, ws.root, JSON.stringify(envelope), {
@@ -284,4 +297,110 @@ test("the runner executor must be kirocrew or process", () => {
     JSON.stringify({ version: 1, runner: { role: "worker", executor: "x" } }),
   );
   assert.throws(() => readRunnerConfig(root), /kirocrew" or "process/);
+});
+
+// Moved from remote-runner.test.mjs (runner mode over SSH was removed): what
+// it covered for the worker role.
+test("a workspace with no worker settings refuses worker operations", async (t) => {
+  const ws = setup(t, "/nowhere");
+  fs.writeFileSync(
+    path.join(ws.root, ".avoozl.json"),
+    JSON.stringify({ version: 1 }),
+  );
+  await assert.rejects(
+    ws.ops.execute("remote.status", {}, local),
+    /not a runner/,
+  );
+});
+
+test("a file with runner.role runner or driver is refused, naming the key and worker pull", (t) => {
+  for (const role of ["runner", "driver"]) {
+    const ws = setup(t, "/nowhere");
+    fs.writeFileSync(
+      path.join(ws.root, ".avoozl.json"),
+      JSON.stringify({ version: 1, runner: { role } }),
+    );
+    assert.throws(
+      () => loadLayeredConfig({ workspaceRoot: ws.root }),
+      new RegExp(`runner\\.role "${role}" was removed.*worker pull`),
+    );
+  }
+});
+
+const pulledEnvelope = (code) =>
+  JSON.stringify({
+    version: 1,
+    taskId: "T1",
+    repo: "app",
+    baseCommit: code.base,
+    checks: ["pass"],
+    spec: "demo",
+  });
+
+test("a restarted worker claims nothing twice and never replaces a worker whose chat ended", async (t) => {
+  const code = checkout(),
+    ws = setup(t, code.repo),
+    envelope = pulledEnvelope(code);
+  acceptEnvelope(ws.store, ws.root, envelope, { pulled: true });
+  assert.equal(
+    acceptEnvelope(ws.store, ws.root, envelope, { pulled: true }).duplicate,
+    true,
+  );
+  const { dispatch } = await tick(ws);
+  bindSession(ws.store, {
+    taskId: "T1",
+    slot: "dashboard:chat-2",
+    title: dispatch[0].title,
+    role: "worker",
+    source: "tick",
+  });
+  await tick(ws, [{ target: "dashboard:chat-2", status: "running" }]);
+  // A restart: a new process opens the same database.
+  const { dbPath } = workspaceConfig({ workspace: ws.root, env: {} });
+  const store = new Store(dbPath);
+  t.after(() => store.close());
+  const ops = new Operations(store, { workspaceRoot: ws.root });
+  const closed = [{ target: "dashboard:chat-2", status: "closed" }];
+  const after = await tick({ ops }, closed);
+  assert.deepEqual(after.dispatch, []);
+  assert.equal(after.notify.length, 1);
+  assert.match(after.notify[0].text, /was not replaced/);
+  assert.deepEqual((await tick({ ops }, closed)).dispatch, []);
+  assert.equal(
+    (await ops.execute("remote.status", {}, local)).tasks[0].state,
+    "working",
+  );
+});
+
+test("worker mode is off unless the config names it, and a lost binding is found by title", async (t) => {
+  const code = checkout(),
+    ws = setup(t, code.repo);
+  acceptEnvelope(ws.store, ws.root, pulledEnvelope(code), { pulled: true });
+  const [d] = (await tick(ws)).dispatch;
+  assert.equal(d.mode, undefined);
+  const found = rediscoverSessions(ws.store, {
+    sessions: [{ slot: "dashboard:chat-7", title: d.title }],
+  });
+  assert.equal(found.bound.length, 1);
+  assert.deepEqual((await tick(ws)).dispatch, []);
+  fs.writeFileSync(
+    path.join(ws.root, ".avoozl.json"),
+    JSON.stringify({
+      version: 1,
+      runner: { role: "worker", workerMode: "trust" },
+    }),
+  );
+  assert.equal(readRunnerConfig(ws.root).workerMode, "trust");
+});
+
+test("no module outside the plugin and mirror code runs ssh", () => {
+  const dir = fileURLToPath(new URL("..", import.meta.url)),
+    offenders = fs
+      .readdirSync(dir)
+      .filter((name) => name.endsWith(".mjs"))
+      .filter((name) => !/^(plugin|mirror)/.test(name))
+      .filter((name) =>
+        /["'`]ssh["'`]/.test(fs.readFileSync(path.join(dir, name), "utf8")),
+      );
+  assert.deepEqual(offenders, []);
 });

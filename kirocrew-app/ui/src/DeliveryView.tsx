@@ -52,6 +52,9 @@ import { RailBlock, RailChips, RailDivider, RailRow, RailStyle } from './NavRail
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
+import { Box } from './ui/Box'
+import { LaneStyle } from './ui/PageStyles'
+import { PlainButton, PlainInput, PlainLink, SvgRoot } from './ui/Plain'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -80,122 +83,117 @@ function LaneCardView(props: {
   const done = card.item?.complete ?? false
   return (
     <li data-lane-card>
-      <div style={{ overflowWrap: 'break-word' }}>
-          {/* In a narrow lane the title wraps below its icon rather than split words. */}
-          <div className={`flex items-start gap-2 ${props.compact ? 'flex-wrap' : ''}`}>
-            {props.phase && <StateIcon phase={props.phase} />}
-            <TaskTitleLink id={card.id} title={card.title} className={`${props.compact ? 'text-sm' : 'text-base'} font-semibold leading-tight`} />
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-            <span>{card.id}</span>
-            {card.epic && <Badge>{card.epic}</Badge>}
-            {card.plan && <span>{card.plan}{card.phase ? ` · ${card.phase.title}` : ''}</span>}
-            <Authority owner={{ authority: card.authority, issue: card.issue }} />
-            {props.phase && (
-              <span data-machine-badge>
-                <Badge>{props.machines.join(', ')}</Badge>
-              </span>
-            )}
-            {card.attempt !== null && <Badge>attempt {card.attempt}</Badge>}
-            {card.reviewRounds > 0 && <Badge>{card.reviewRounds} review rounds</Badge>}
-            {card.deliveryState && <Badge variant={card.deliveryState === 'decision' ? 'warning' : undefined}>{card.deliveryState}</Badge>}
-            {card.manual && <Badge variant="warning">Manual</Badge>}
-            {card.deferred && <Badge>deferred</Badge>}
-            {card.review && <Badge>review</Badge>}
-            {card.planArchived && <Badge>Archived</Badge>}
-          </div>
-          {card.subIssue && (
-            <p className="mt-1 text-xs" style={{ color: 'var(--warning, var(--muted))' }} data-sub-issue>
-              {card.subIssue.reason}
-            </p>
+      <Box css-overflow-wrap="break-word">
+        {/* In a narrow lane the title wraps below its icon rather than split words. */}
+        <Box flex items="start" gap="2" flexWrap={props.compact}>
+          {props.phase && <StateIcon phase={props.phase} />}
+          <TaskTitleLink id={card.id} title={card.title} size={props.compact ? 'sm' : 'base'} weight="semibold" tight />
+        </Box>
+        <Box mt="1" flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
+          <span>{card.id}</span>
+          {card.epic && <Badge>{card.epic}</Badge>}
+          {card.plan && (
+            <span>
+              {card.plan}
+              {card.phase ? ` · ${card.phase.title}` : ''}
+            </span>
           )}
-          {card.batch && (
-            <div className="mt-1.5 text-xs" data-batch-card={card.batch.id}>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Badge>Batch of {card.batch.members.length}</Badge>
-                {card.batch.reason && <Hint>{card.batch.reason}</Hint>}
-              </div>
-              <ul className="mt-1 flex flex-col gap-0.5" aria-label="Tasks in this batch">
-                {card.batch.members.map((member) => (
-                  <li key={member.id} data-batch-member={member.id}>
-                    <TaskTitleLink id={member.id} title={`${member.id} ${member.title}`} className="text-xs" />
-                  </li>
-                ))}
-              </ul>
-            </div>
+          <Authority owner={{ authority: card.authority, issue: card.issue }} />
+          {props.phase && (
+            <span data-machine-badge>
+              <Badge>{props.machines.join(', ')}</Badge>
+            </span>
           )}
-          {card.alone && (
-            <p className="mt-1 text-xs text-muted" data-runs-alone>
-              Runs alone: {card.alone}
-            </p>
-          )}
-          {card.item && (
-            <div className="mt-1.5">
-              <ReviewRuns item={card.item} compact onInfo={() => drawer.openTask(card.id)} />
-            </div>
-          )}
-          {card.handSetReview && (
-            <div className="mt-1.5">
-              <HandSetReview
-                compact
-                workspaceId={workspaceId}
-                task={{ id: card.id, title: card.title, authority: card.authority, nextAction: card.nextAction, noSession: card.noSession }}
-                graph={props.graph}
-                revision={props.revision}
-                onChanged={() => act(() => Promise.resolve())}
-              />
-            </div>
-          )}
-          {card.sessions.length > 0 && (
-            <ul className="mt-1.5 flex flex-col gap-1 text-xs">
-              {card.sessions.map((session) => (
-                <li key={session.slot}>
-                  {session.link ? (
-                    <TextLink href={linkHref(session.link)}>
-                      {sessionLabel(session)}
-                    </TextLink>
-                  ) : (
-                    sessionLabel(session)
-                  )}
+          {card.attempt !== null && <Badge>attempt {card.attempt}</Badge>}
+          {card.reviewRounds > 0 && <Badge>{card.reviewRounds} review rounds</Badge>}
+          {card.deliveryState && <Badge variant={card.deliveryState === 'decision' ? 'warning' : undefined}>{card.deliveryState}</Badge>}
+          {card.manual && <Badge variant="warning">Manual</Badge>}
+          {card.deferred && <Badge>deferred</Badge>}
+          {card.review && <Badge>review</Badge>}
+          {card.planArchived && <Badge>Archived</Badge>}
+        </Box>
+        {card.subIssue && (
+          <Box as="p" css-color="warning-muted" mt="1" size="xs" data-sub-issue>
+            {card.subIssue.reason}
+          </Box>
+        )}
+        {card.batch && (
+          <Box mt="1.5" size="xs" data-batch-card={card.batch.id}>
+            <Box flex flexWrap items="center" gap="1.5">
+              <Badge>Batch of {card.batch.members.length}</Badge>
+              {card.batch.reason && <Hint>{card.batch.reason}</Hint>}
+            </Box>
+            <Box as="ul" mt="1" flex flexCol gap="0.5" aria-label="Tasks in this batch">
+              {card.batch.members.map((member) => (
+                <li key={member.id} data-batch-member={member.id}>
+                  <TaskTitleLink id={member.id} title={`${member.id} ${member.title}`} size="xs" />
                 </li>
               ))}
-            </ul>
+            </Box>
+          </Box>
+        )}
+        {card.alone && (
+          <Box as="p" mt="1" size="xs" tone="muted" data-runs-alone>
+            Runs alone: {card.alone}
+          </Box>
+        )}
+        {card.item && (
+          <Box mt="1.5">
+            <ReviewRuns item={card.item} compact onInfo={() => drawer.openTask(card.id)} />
+          </Box>
+        )}
+        {card.handSetReview && (
+          <Box mt="1.5">
+            <HandSetReview
+              compact
+              workspaceId={workspaceId}
+              task={{ id: card.id, title: card.title, authority: card.authority, nextAction: card.nextAction, noSession: card.noSession }}
+              graph={props.graph}
+              revision={props.revision}
+              onChanged={() => act(() => Promise.resolve())}
+            />
+          </Box>
+        )}
+        {card.sessions.length > 0 && (
+          <Box as="ul" mt="1.5" flex flexCol gap="1" size="xs">
+            {card.sessions.map((session) => (
+              <li key={session.slot}>{session.link ? <TextLink href={linkHref(session.link)}>{sessionLabel(session)}</TextLink> : sessionLabel(session)}</li>
+            ))}
+          </Box>
+        )}
+        <Box mt="1.5" flex flexWrap gap="2">
+          {props.ready && canStartNow(card) && <IconLabel icon={Play} disabled={busy} tooltip={START_TIP} onClick={() => props.onStart(card.id)} {...label('Start now')} />}
+          {card.deliveryState === 'decision' && (
+            <IconLabel icon={RotateCcw} disabled={busy} tooltip={RETRY_TIP} onClick={() => act(() => client.retry(workspaceId, card.id))} {...label('Retry')} />
           )}
-          <div className="mt-1.5 flex flex-wrap gap-2">
-            {props.ready && canStartNow(card) && (
-              <IconLabel icon={Play} disabled={busy} tooltip={START_TIP} onClick={() => props.onStart(card.id)} {...label('Start now')} />
-            )}
-            {card.deliveryState === 'decision' && (
-              <IconLabel icon={RotateCcw} disabled={busy} tooltip={RETRY_TIP} onClick={() => act(() => client.retry(workspaceId, card.id))} {...label('Retry')} />
-            )}
-            {!done && local && props.canDefer && !card.deferred && (
-              <IconLabel
-                icon={Pause}
-                disabled={busy}
-                tooltip={DEFER_TIP}
-                onClick={() => act(() => client.updateTask(workspaceId, card.id, { status: 'deferred' }, props.revision))}
-                {...label('Defer')}
-              />
-            )}
-            {!done && local && card.deferred && props.resume && (
-              <IconLabel
-                icon={Play}
-                disabled={busy}
-                tooltip={RESUME_TIP}
-                onClick={() => act(() => client.updateTask(workspaceId, card.id, { status: props.resume }, props.revision))}
-                {...label('Resume')}
-              />
-            )}
-            {!done && !local && issue && (
-              <Tooltip text="Open the issue; move its Project card to Deferred to pause it">
-                <a href={linkHref(issue)} target="_blank" rel="noreferrer" className="self-center text-xs underline">
-                  Defer on the board
-                </a>
-              </Tooltip>
-            )}
-            <IconLabel icon={DetailsIcon} tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(card.id)} {...label('Details')} />
-          </div>
-      </div>
+          {!done && local && props.canDefer && !card.deferred && (
+            <IconLabel
+              icon={Pause}
+              disabled={busy}
+              tooltip={DEFER_TIP}
+              onClick={() => act(() => client.updateTask(workspaceId, card.id, { status: 'deferred' }, props.revision))}
+              {...label('Defer')}
+            />
+          )}
+          {!done && local && card.deferred && props.resume && (
+            <IconLabel
+              icon={Play}
+              disabled={busy}
+              tooltip={RESUME_TIP}
+              onClick={() => act(() => client.updateTask(workspaceId, card.id, { status: props.resume }, props.revision))}
+              {...label('Resume')}
+            />
+          )}
+          {!done && !local && issue && (
+            <Tooltip text="Open the issue; move its Project card to Deferred to pause it">
+              <PlainLink href={linkHref(issue)} target="_blank" rel="noreferrer" self="center" size="xs" underline>
+                Defer on the board
+              </PlainLink>
+            </Tooltip>
+          )}
+          <IconLabel icon={DetailsIcon} tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(card.id)} {...label('Details')} />
+        </Box>
+      </Box>
     </li>
   )
 }
@@ -209,7 +207,7 @@ export function StateIcon({ phase }: { phase: 'running' | 'reviewing' }) {
   const label = phase === 'running' ? 'Running: a worker is coding' : 'Reviewing: a reviewer or checks chat is reading'
   const color = phase === 'running' ? 'var(--tile-purple, var(--accent))' : 'var(--accent)'
   return (
-    <svg width={18} height={18} viewBox="0 0 24 24" role="img" aria-label={label} style={{ flex: 'none', marginTop: 2, color }}>
+    <SvgRoot width={18} height={18} viewBox="0 0 24 24" role="img" aria-label={label} css-flex="none" css-margin-top="2" css-color={color}>
       <title>{label}</title>
       {phase === 'running' ? (
         <g>
@@ -217,37 +215,20 @@ export function StateIcon({ phase }: { phase: 'running' | 'reviewing' }) {
             fill="currentColor"
             d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.9 2.4-2-.3a7 7 0 0 0-.8-1.9l1.2-1.6-1.6-1.6-1.6 1.2a7 7 0 0 0-1.9-.8l-.3-2h-2.2l-.3 2a7 7 0 0 0-1.9.8L7.9 5.5 6.3 7.1l1.2 1.6a7 7 0 0 0-.8 1.9l-2 .3v2.2l2 .3c.2.7.4 1.3.8 1.9l-1.2 1.6 1.6 1.6 1.6-1.2c.6.4 1.2.6 1.9.8l.3 2h2.2l.3-2c.7-.2 1.3-.4 1.9-.8l1.6 1.2 1.6-1.6-1.2-1.6c.4-.6.6-1.2.8-1.9l2-.3v-2.2Z"
           />
-          {!still && (
-            <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="3s" repeatCount="indefinite" />
-          )}
+          {!still && <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="3s" repeatCount="indefinite" />}
         </g>
       ) : (
         <g>
           <circle cx={10.5} cy={10.5} r={5.5} fill="none" stroke="currentColor" strokeWidth={2} />
           <path d="M14.6 14.6 20 20" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" />
-          {!still && (
-            <animateTransform
-              attributeName="transform"
-              type="translate"
-              values="-2 0; 2 0; -2 0"
-              dur="2.4s"
-              repeatCount="indefinite"
-            />
-          )}
+          {!still && <animateTransform attributeName="transform" type="translate" values="-2 0; 2 0; -2 0" dur="2.4s" repeatCount="indefinite" />}
         </g>
       )}
-    </svg>
+    </SvgRoot>
   )
 }
 
 const LANE_GAP = 16
-
-// The shared lane entry: no box, only a top rule in the lane's own color
-// (--lane-line, set on the lane), flush to the lane's edges.
-const LANE_CSS = `
-[data-lane-card]{list-style:none;margin:0;padding:6px 0;border:0;border-top:1px solid var(--lane-line);line-height:1.3}
-[data-lane-card] :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-`
 
 // The width a box has, kept current as it resizes.
 function useWidth<T extends HTMLElement>() {
@@ -296,73 +277,84 @@ export function DeliveryBoard(props: {
     <Stack as="ul">
       {pages.take(id, cards).map((card) => props.card(card, phase, compact))}
       {pages.more(id, cards.length).left > 0 && (
-        <li className={compact ? 'px-2' : 'px-3'}>
+        <Box as="li" px={compact ? '2' : '3'}>
           <ShowMore {...pages.more(id, cards.length)} />
-        </li>
+        </Box>
       )}
     </Stack>
   )
   return (
     <>
-      <style>{LANE_CSS}</style>
-    <div
-      ref={ref}
-      data-lane-columns={columns}
-      data-lane-compact={compact || undefined}
-      style={{ display: 'grid', gap: LANE_GAP, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, alignItems: 'start' }}
-    >
-      {drawn.map((lane) => {
-        const cards = drawnLane(lanes, lane.id)
-        const shut = (single || narrow) && folded.has(lane.id)
-        return (
-          <section
-            key={lane.id}
-            aria-label={`${lane.label}: ${cards.length}`}
-            className={`flex min-w-0 flex-col gap-2 rounded-lg border ${compact ? 'py-2' : 'py-3'}`}
-            style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', ['--lane-line' as string]: laneBackground(lane.tint) }}
-          >
-            <button
-              type="button"
-              className={`flex items-center gap-2 text-left text-sm font-semibold ${compact ? 'px-2' : 'px-3'}`}
-              aria-expanded={!shut}
-              onClick={() => {
-                const next = new Set(folded)
-                if (next.has(lane.id)) next.delete(lane.id)
-                else next.add(lane.id)
-                setFolded(next)
-              }}
-              disabled={!(single || narrow)}
+      <LaneStyle />
+      <Box
+        ref={ref}
+        data-lane-columns={columns}
+        data-lane-compact={compact || undefined}
+        css-display="grid"
+        css-gap="16"
+        css-grid-template-columns={`repeat(${columns}, minmax(0, 1fr))`}
+        css-align-items="start"
+      >
+        {drawn.map((lane) => {
+          const cards = drawnLane(lanes, lane.id)
+          const shut = (single || narrow) && folded.has(lane.id)
+          return (
+            <section
+              key={lane.id}
+              aria-label={`${lane.label}: ${cards.length}`}
+              className={`flex min-w-0 flex-col gap-2 rounded-lg border ${compact ? 'py-2' : 'py-3'}`}
+              style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', ['--lane-line' as string]: laneBackground(lane.tint) }}
             >
-              {(single || narrow) && <span aria-hidden="true">{shut ? '▸' : '▾'}</span>}
-              {lane.label}
-              <Badge variant={lane.id === 'needs-you' && cards.length ? 'warning' : undefined}>{cards.length}</Badge>
-            </button>
-            {!shut &&
-              (cards.length === 0 ? (
-                <p className={`text-xs text-muted ${compact ? 'px-2' : 'px-3'}`}>None</p>
-              ) : lane.id === 'in-progress' ? (
-                <>
-                  {props.machines?.length ? (
-                    <p className={`text-xs text-muted ${compact ? 'px-2' : 'px-3'}`} data-machine-counts>
-                      {props.machines.map(loadLabel).join(' · ')}
-                    </p>
-                  ) : null}
-                  {progressGroups(lanes).map((group) => (
-                    <Stack key={group.id} gap={2} role="group" aria-label={`${group.label}: ${group.cards.length}`}>
-                      <h4 className={`flex items-center gap-1.5 ${compact ? 'px-2' : 'px-3'} text-xs font-semibold uppercase tracking-wide text-muted`}>
-                        {group.label} <Badge>{group.cards.length}</Badge>
-                      </h4>
-                      {list(`${lane.id}:${group.id}`, group.cards, group.id)}
-                    </Stack>
-                  ))}
-                </>
-              ) : (
-                list(lane.id, cards)
-              ))}
-          </section>
-        )
-      })}
-    </div>
+              <PlainButton
+                type="button"
+                flex
+                items="center"
+                gap="2"
+                align="left"
+                size="sm"
+                weight="semibold"
+                px={compact ? '2' : '3'}
+                aria-expanded={!shut}
+                onClick={() => {
+                  const next = new Set(folded)
+                  if (next.has(lane.id)) next.delete(lane.id)
+                  else next.add(lane.id)
+                  setFolded(next)
+                }}
+                disabled={!(single || narrow)}
+              >
+                {(single || narrow) && <span aria-hidden="true">{shut ? '▸' : '▾'}</span>}
+                {lane.label}
+                <Badge variant={lane.id === 'needs-you' && cards.length ? 'warning' : undefined}>{cards.length}</Badge>
+              </PlainButton>
+              {!shut &&
+                (cards.length === 0 ? (
+                  <Box as="p" size="xs" tone="muted" px={compact ? '2' : '3'}>
+                    None
+                  </Box>
+                ) : lane.id === 'in-progress' ? (
+                  <>
+                    {props.machines?.length ? (
+                      <Box as="p" size="xs" tone="muted" px={compact ? '2' : '3'} data-machine-counts>
+                        {props.machines.map(loadLabel).join(' · ')}
+                      </Box>
+                    ) : null}
+                    {progressGroups(lanes).map((group) => (
+                      <Stack key={group.id} gap={2} role="group" aria-label={`${group.label}: ${group.cards.length}`}>
+                        <Box as="h4" flex items="center" gap="1.5" px={compact ? '2' : '3'} size="xs" weight="semibold" uppercase trackingWide tone="muted">
+                          {group.label} <Badge>{group.cards.length}</Badge>
+                        </Box>
+                        {list(`${lane.id}:${group.id}`, group.cards, group.id)}
+                      </Stack>
+                    ))}
+                  </>
+                ) : (
+                  list(lane.id, cards)
+                ))}
+            </section>
+          )
+        })}
+      </Box>
     </>
   )
 }
@@ -405,20 +397,28 @@ function DeliveryFilters(props: {
           title="Filters"
           action={
             active && (
-              <button type="button" data-rail-icon onClick={() => props.onChange({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+              <PlainButton type="button" data-rail-icon onClick={() => props.onChange({})} css-gap="2" css-align-items="center" css-font-size="12">
                 <X size={11} aria-hidden="true" /> Clear
-              </button>
+              </PlainButton>
             )
           }
         >
           {/* The search sits under the Filters header, above All states. */}
-          <input
+          <PlainInput
             type="search"
             aria-label="Search tasks"
             placeholder="Task name or ID"
             value={filter.q ?? ''}
             onChange={(event) => set({ q: event.target.value || undefined })}
-            style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8, fontSize: 13, padding: '6px 12px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            css-width="100%"
+            css-box-sizing="border-box"
+            css-margin-bottom="8"
+            css-font-size="13"
+            css-padding="6px-12px"
+            css-border-radius="6"
+            css-background="bg"
+            css-color="text"
+            css-border="1px-solid-border"
           />
           <RailRow label="All states" active={!filter.state} onClick={() => set({ state: undefined })} attrs={{ 'data-rail-state': '' }} />
           {STATES.filter((state) => states.has(state.id) || filter.state === state.id).map((state) => (
@@ -428,17 +428,47 @@ function DeliveryFilters(props: {
               active={filter.state === state.id}
               onClick={() => set({ state: filter.state === state.id ? undefined : state.id })}
               attrs={{ 'data-rail-state': state.id }}
-              trail={<span style={{ fontSize: 12, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{states.get(state.id) ?? 0}</span>}
+              trail={
+                <Box as="span" css-font-size="12" css-color="muted" css-font-variant-numeric="tabular-nums">
+                  {states.get(state.id) ?? 0}
+                </Box>
+              }
             />
           ))}
           <RailDivider />
           <RailRow label="Needs me" active={Boolean(filter.needsYou)} onClick={() => set({ needsYou: !filter.needsYou })} />
           <RailRow label="Show archived" active={Boolean(filter.archived)} onClick={() => set({ archived: !filter.archived })} />
-          {props.superseded > 0 && <RailRow label={`Show superseded (${props.superseded})`} active={props.showSuperseded} onClick={() => props.onSuperseded(!props.showSuperseded)} />}
+          {props.superseded > 0 && (
+            <RailRow label={`Show superseded (${props.superseded})`} active={props.showSuperseded} onClick={() => props.onSuperseded(!props.showSuperseded)} />
+          )}
         </RailBlock>
-        <RailChips id="epics" icon={Layers} title="Epics" noun="epic" items={chipCounts(choices.epics, cards, (card) => card.epicId ?? NO_GROUP)} picked={filter.epic} onPick={(epic) => set({ epic })} />
-        <RailChips id="specs" icon={FileText} title="Specs" noun="spec" items={chipCounts(choices.plans, cards, planKey)} picked={filter.plan} onPick={(plan) => set({ plan, phase: undefined })} />
-        <RailChips id="repositories" icon={Folder} title="Repositories" noun="repository" items={chipCounts(choices.repositories, cards, (card) => card.repository ?? NO_REPOSITORY)} picked={filter.repository} onPick={(repository) => set({ repository })} />
+        <RailChips
+          id="epics"
+          icon={Layers}
+          title="Epics"
+          noun="epic"
+          items={chipCounts(choices.epics, cards, (card) => card.epicId ?? NO_GROUP)}
+          picked={filter.epic}
+          onPick={(epic) => set({ epic })}
+        />
+        <RailChips
+          id="specs"
+          icon={FileText}
+          title="Specs"
+          noun="spec"
+          items={chipCounts(choices.plans, cards, planKey)}
+          picked={filter.plan}
+          onPick={(plan) => set({ plan, phase: undefined })}
+        />
+        <RailChips
+          id="repositories"
+          icon={Folder}
+          title="Repositories"
+          noun="repository"
+          items={chipCounts(choices.repositories, cards, (card) => card.repository ?? NO_REPOSITORY)}
+          picked={filter.repository}
+          onPick={(repository) => set({ repository })}
+        />
       </div>
     </NavSlotFor>
   )
@@ -453,7 +483,10 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
       const [page, graph, workers] = await Promise.all([
         client.deliveryPage(id),
         client.graph(id).catch(() => null),
-        client.remote(id).then((r) => r.workers, () => []),
+        client.remote(id).then(
+          (r) => r.workers,
+          () => [],
+        ),
       ])
       return { items: page.items, graph, reports: page.contentReports ?? [], workers, laneLimit: page.laneLimit ?? null }
     },
@@ -503,12 +536,15 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
   const lanes = all ? filterLanes(all, filter) : null
   const choices = useMemo(() => filterChoices(value?.graph ?? null, {}, filter.plan), [value, filter.plan])
   // Start now (§8.9): any ready task Avoozl codes itself, by search.
-  const startable = useMemo(
-    () => (all?.ready ?? []).filter(canStartNow).map((card) => ({ id: card.id, title: card.title, spec: card.spec, state: card.state })),
-    [all],
-  )
+  const startable = useMemo(() => (all?.ready ?? []).filter(canStartNow).map((card) => ({ id: card.id, title: card.title, spec: card.spec, state: card.state })), [all])
   const machines = useMemo(() => (value ? machineLoads(value.items, value.workers, value.laneLimit) : null), [value])
-  const members = lanes ? new Set(Object.values(lanes).flat().map((card) => card.id)) : null
+  const members = lanes
+    ? new Set(
+        Object.values(lanes)
+          .flat()
+          .map((card) => card.id),
+      )
+    : null
   const totalCount = all ? Object.values(all).flat().length : 0
   const shownCount = members?.size ?? 0
   const reports = (value?.reports ?? []).filter((r) => !members || !r.taskId || members.has(r.taskId))
@@ -518,7 +554,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
   const revision = value?.graph?.revision ?? 0
 
   return (
-    <section aria-labelledby="avoozl-delivery-title" className="flex flex-col gap-3.5">
+    <Box aria-labelledby="avoozl-delivery-title" as="section" flex flexCol gap="3.5">
       <ViewHeading
         id="avoozl-delivery-title"
         view="delivery"
@@ -532,12 +568,19 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
             <>
               {/* One row: Start now and its box, Refresh, then Stop the line. */}
               {startable.length > 0 && (
-                <div data-start-now-picker style={{ minWidth: '14rem' }}>
+                <Box data-start-now-picker css-min-width="14rem">
                   <Picker inline label="Start now" items={startable} value="" keep={false} onPick={start} placeholder="Find a ready task" maxWidth="24rem" />
-                </div>
+                </Box>
               )}
               <Tooltip text="Refresh">
-                <button type="button" data-delivery-refresh aria-label="Refresh" onClick={() => void reload()} disabled={busy || acting} style={{ ...NAV_ICON, color: 'var(--muted)' }}>
+                <button
+                  type="button"
+                  data-delivery-refresh
+                  aria-label="Refresh"
+                  onClick={() => void reload()}
+                  disabled={busy || acting}
+                  style={{ ...NAV_ICON, color: 'var(--muted)' }}
+                >
                   <RefreshCw size={14} aria-hidden="true" />
                 </button>
               </Tooltip>
@@ -549,14 +592,18 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
         Delivery
       </ViewHeading>
       {(error || message) && (
-        <p role={error || !message?.ok ? 'alert' : 'status'} className={`text-sm ${error || !message?.ok ? 'text-danger' : 'text-muted'}`}>
+        <Box role={error || !message?.ok ? 'alert' : 'status'} as="p" size="sm" tone={error || !message?.ok ? 'danger' : 'muted'}>
           {error ?? message?.text}
-        </p>
+        </Box>
       )}
       {!workspaceId ? (
-        <Hint as="p" size="sm">Choose a workspace in the header.</Hint>
+        <Hint as="p" size="sm">
+          Choose a workspace in the header.
+        </Hint>
       ) : !lanes ? (
-        <Hint as="p" size="sm">{busy ? 'Loading…' : 'Not loaded'}</Hint>
+        <Hint as="p" size="sm">
+          {busy ? 'Loading…' : 'Not loaded'}
+        </Hint>
       ) : (
         <>
           <DeliveryFilters
@@ -604,7 +651,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
               {superseded.map((item) => (
                 <li key={item.id}>
                   <Card>
-                    <SectionHeading title={item.title} meta={<Hint size="sm">{item.id}</Hint>} className="mb-2" />
+                    <SectionHeading title={item.title} meta={<Hint size="sm">{item.id}</Hint>} mb="2" />
                     <ItemDetails item={item} onSupersede={onSupersede} />
                   </Card>
                 </li>
@@ -613,7 +660,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
           )}
         </>
       )}
-    </section>
+    </Box>
   )
 }
 
@@ -622,14 +669,13 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
 function ContentReports({ reports }: { reports: ContentReport[] }) {
   return (
     <Card>
-      <SectionHeading title="Content rule reports" className="mb-2" />
-      <p className="mt-1 text-xs text-muted">
-        A rule set whose action is report lets the content through and records the match here. Change the set to block once
-        its rules are right.
-      </p>
-      <ul className="mt-2 flex flex-col gap-1 text-sm">
+      <SectionHeading title="Content rule reports" mb="2" />
+      <Box as="p" mt="1" size="xs" tone="muted">
+        A rule set whose action is report lets the content through and records the match here. Change the set to block once its rules are right.
+      </Box>
+      <Box as="ul" mt="2" flex flexCol gap="1" size="sm">
         {reports.map((report) => (
-          <li key={report.id} className="flex flex-wrap items-center gap-1.5">
+          <Box key={report.id} as="li" flex flexWrap items="center" gap="1.5">
             <Badge>{report.set}</Badge>
             <span>
               Rule {report.rule} at {report.target}
@@ -637,9 +683,9 @@ function ContentReports({ reports }: { reports: ContentReport[] }) {
             </span>
             {report.taskId && <Hint size="xs">{report.taskId}</Hint>}
             {report.at && <Hint size="xs">{report.at.slice(0, 16).replace('T', ' ')}</Hint>}
-          </li>
+          </Box>
         ))}
-      </ul>
+      </Box>
     </Card>
   )
 }

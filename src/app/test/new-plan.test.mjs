@@ -359,7 +359,6 @@ test("a changed steering file is never overwritten, and a declined one puts the 
 const builderTasks = [
   "---",
   "repo: app",
-  "checks: npm test",
   "---",
   "# Tasks",
   "",
@@ -368,7 +367,6 @@ const builderTasks = [
   "- [ ] 1. Load and validate configuration",
   "  - Facts:",
   "    - kind: package",
-  "    - summary: Load and validate configuration",
   "    - after: 1.1, 1.2",
   "  - [ ] 1.1 Read the config file",
   "    - Facts:",
@@ -416,8 +414,8 @@ test("the tick imports Spec Builder's folder as a draft and writes no manifest",
     ]),
     [
       ["1", null, null],
-      ["1.1", "app", ["npm test"]],
-      ["1.2", "app", ["npm test"]],
+      ["1.1", "app", null],
+      ["1.2", "app", null],
     ],
   );
 });

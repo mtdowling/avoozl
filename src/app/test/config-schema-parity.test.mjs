@@ -1,3 +1,8 @@
+import {
+  COMMAND_SINK_KEYS,
+  NOTIFICATIONS_KEYS,
+  WEBHOOK_SINK_KEYS,
+} from "../notification-sinks.mjs";
 // src/avoozl-config.schema.json is what an editor checks a `.avoozl.json`
 // against, so a key the loader accepts and the schema lacks is flagged in a
 // valid file (simplification audit §2.3, F19). These tests hold the schema to
@@ -12,10 +17,7 @@ import { CONTENT_RULES_KEYS, RULE_SET_KEYS } from "../content-rules.mjs";
 import {
   AGENT_ROLE_FIELDS,
   HARNESS_ROLE_FIELDS,
-  HARNESS_ROLES,
-  MODEL_ROLES,
   PLAN_REVIEW_KEYS,
-  RETIRED_ROLES,
   ROLE_FIELDS,
   ROLES,
 } from "../chat-models.mjs";
@@ -30,36 +32,28 @@ import {
   CREW_LABEL_KEYS,
   FIELD_KEYS,
   GITHUB_BLOCK_KEYS,
-  LEGACY_KEYS,
   MANAGED_LABEL_KEYS,
   POLICY_KEYS,
   RADAR_KEYS,
   STATUS_VALUE_KEYS,
 } from "../github-policy.mjs";
 import { SOURCE_KEYS } from "../intake.mjs";
+import { SERVE_KEYS } from "../serve-config.mjs";
 import { GITHUB_SOURCE_KEYS } from "../github-sources.mjs";
 import { INVESTIGATE_KEYS } from "../investigate.mjs";
-import {
-  LEASE_KEYS,
-  MACHINE_FILE_KEYS,
-  MACHINE_PLATFORM_KEYS,
-  MECHANICAL_KEYS,
-  PLATFORM_COMMAND_KEYS,
-  TARGET_KEYS,
-  TRAIN_KEYS,
-} from "../landing-config.mjs";
+import { MACHINE_FILE_KEYS } from "../landing-config.mjs";
 import { DEFAULT_LANES } from "../lanes.mjs";
 import { avoozlConfigSchemaPath } from "../layered-config.mjs";
 import { MIRROR_KEYS } from "../mirror-policy.mjs";
 import { ENTRY_KEYS } from "../plugins.mjs";
 import {
   CONVERSATION_KEYS,
-  ISSUE_INTAKE_KEYS,
   PLANNING_REPOSITORY_KEYS,
   PROJECT_KEYS,
-  QUEUE_KEYS,
   SANDBOX_KEYS,
 } from "../repository-settings.mjs";
+import { CHECK_KEYS } from "../repository-checks.mjs";
+import { ISOLATION_KEYS } from "../check-isolation.mjs";
 
 const schema = JSON.parse(fs.readFileSync(avoozlConfigSchemaPath, "utf8"));
 
@@ -71,21 +65,6 @@ const at = (pointer) =>
     .reduce((node, part) => node?.[part], schema);
 
 const REPOSITORY = "#/$defs/githubRepositoryPolicy/properties";
-const TRAINS = "#/properties/landing/properties/trains";
-const TARGET = `${TRAINS}/properties/targets/additionalProperties`;
-
-// One train block: its own keys, then each group of settings inside it.
-const trainPairs = (base, shape) => [
-  [base, Object.keys(shape)],
-  ...Object.entries(shape)
-    .filter(([, spec]) => spec.leaf !== true)
-    .map(([group, spec]) => [`${base}/properties/${group}`, Object.keys(spec)]),
-  [
-    `${base}/properties/validation/properties/full/additionalProperties`,
-    PLATFORM_COMMAND_KEYS,
-  ],
-  [`${base}/properties/conflicts/properties/mechanical/items`, MECHANICAL_KEYS],
-];
 
 // The settings below one `flow` group, from the dotted paths.
 const flowGroup = (group) =>
@@ -95,22 +74,16 @@ const flowGroup = (group) =>
 
 // Each closed schema object and the keys its validator accepts.
 const PAIRS = [
-  ["#/properties/models", [...MODEL_ROLES, ...RETIRED_ROLES]],
-  ["#/properties/harnesses", HARNESS_ROLES],
   ["#/properties/roles", ROLES],
   ["#/$defs/chatRole", ROLE_FIELDS],
   ["#/$defs/agentRole", AGENT_ROLE_FIELDS],
   ["#/$defs/harnessRole", HARNESS_ROLE_FIELDS],
   ["#/properties/planReview", PLAN_REVIEW_KEYS],
   ["#/properties/lanes", Object.keys(DEFAULT_LANES)],
-  ["#/properties/lease", Object.keys(LEASE_KEYS)],
-  [
-    "#/properties/machine/properties/platforms/additionalProperties",
-    MACHINE_PLATFORM_KEYS,
-  ],
-  // `targets` is read beside the shared train keys.
-  ...trainPairs(TRAINS, { ...TRAIN_KEYS, targets: { leaf: true } }),
-  ...trainPairs(TARGET, { ...TRAIN_KEYS, ...TARGET_KEYS }),
+  ["#/properties/notifications", NOTIFICATIONS_KEYS],
+  ["#/$defs/commandSink", COMMAND_SINK_KEYS],
+  ["#/$defs/webhookSink", WEBHOOK_SINK_KEYS],
+  ["#/properties/serve", SERVE_KEYS],
   ["#/properties/plugins/items", ENTRY_KEYS],
   ["#/properties/contentRules", CONTENT_RULES_KEYS],
   ["#/properties/contentRules/properties/sets/items", RULE_SET_KEYS],
@@ -138,16 +111,19 @@ const PAIRS = [
   // and flowPolicy in flow.mjs reads it, beside the keys projectInput lists.
   ["#/$defs/project", PROJECT_KEYS],
   ["#/$defs/project/properties/sandbox", SANDBOX_KEYS],
+  ["#/$defs/project/properties/isolation", ISOLATION_KEYS],
+  [
+    "#/$defs/project/properties/checks/oneOf/0/additionalProperties/oneOf/1",
+    CHECK_KEYS,
+  ],
   ["#/$defs/planningRepository", PLANNING_REPOSITORY_KEYS],
-  ["#/$defs/github", [...LEGACY_KEYS, ...POLICY_KEYS]],
+  ["#/$defs/github", POLICY_KEYS],
   ["#/$defs/github/properties/subIssues", GITHUB_BLOCK_KEYS.subIssues],
   ["#/$defs/github/properties/issues", GITHUB_BLOCK_KEYS.issues],
   ["#/$defs/githubProject", GITHUB_BLOCK_KEYS.project],
   ["#/$defs/githubProject/properties/fields", FIELD_KEYS],
   ["#/$defs/githubProject/properties/statusValues", STATUS_VALUE_KEYS],
   ["#/$defs/githubRule", GITHUB_BLOCK_KEYS.rule],
-  ["#/$defs/githubIssueIntake", ISSUE_INTAKE_KEYS],
-  ["#/$defs/githubQueueRepository", QUEUE_KEYS],
   ["#/$defs/githubLabelBehaviors", BEHAVIOR_NAMES],
   ["#/$defs/githubMirror", MIRROR_KEYS],
   ["#/$defs/githubRepositoryPolicy", GITHUB_BLOCK_KEYS.repository],
@@ -208,8 +184,6 @@ const OPEN = new Map([
       "projects",
       "receipts",
       "github",
-      "models",
-      "harnesses",
       "roles",
       "planReview",
       "lanes",
@@ -225,18 +199,11 @@ const OPEN = new Map([
       "packs",
       "machine",
       "lease",
-      // Still parsed by layered-config.mjs so old files load (audit D8).
-      "ahp",
-      "ahpPort",
-      "ahpHost",
-      "ahpProjection",
-      "ahpTokens",
-      "ahpManifest",
-      "canvasOrigins",
-      "agentManifest",
+      "notifications",
+      "serve",
     ],
   ],
-  // conflictRounds and validateTrains in landing-config.mjs.
+  // conflictRounds and validateLandingConfig in landing-config.mjs.
   ["#/properties/landing", ["conflictRounds", "trains", "unionPaths"]],
   ["#/properties/machine", MACHINE_FILE_KEYS],
   // plugin-pack.mjs writes each entry.
@@ -257,7 +224,6 @@ const OPEN = new Map([
       "checkTimeoutSeconds",
       "checks",
       "repos",
-      "hosts",
       "pools",
       "sources",
       "lanes",
@@ -265,38 +231,23 @@ const OPEN = new Map([
   ],
   ["#/$defs/runner/properties/checks/additionalProperties", ["argv"]],
   [
-    "#/$defs/runner/properties/hosts/additionalProperties",
-    ["via", "argv", "ssh", "command", "dashboardUrl"],
-  ],
-  [
     "#/$defs/runner/properties/pools/items",
     ["spec", "repository", "target", "claims", "issue", "base", "visibility"],
   ],
   ["#/$defs/runner/properties/sources/additionalProperties", ["url", "parent"]],
-  ["#/$defs/ahp", ["port", "host", "projection", "tokens", "manifest"]],
 ]);
 
 // Keys a validator accepts only so an old file loads, and never reads.
-const AHP = "It configured the removed VS Code extension's agent host.";
 const IGNORED = new Map([
   ...[
-    "ahp",
-    "ahpPort",
-    "ahpHost",
-    "ahpProjection",
-    "ahpTokens",
-    "ahpManifest",
-    "canvasOrigins",
-    "agentManifest",
-  ].map((key) => [`#/properties/${key}`, AHP]),
-  ...[...RETIRED_ROLES].map((role) => [
-    `#/properties/models/properties/${role}`,
-    "chat-models.mjs drops retired roles",
+    "#/properties/landing/properties/trains",
+    "#/properties/machine/properties/platforms",
+    "#/properties/machine/properties/slots",
+    "#/properties/lease",
+  ].map((pointer) => [
+    pointer,
+    "Retired by merge batches (landing-config.mjs)",
   ]),
-  [`${REPOSITORY}/coder`, "Who codes was removed (R91.6)"],
-  [`${REPOSITORY}/concurrency`, "github-policy.mjs releaseInput"],
-  ["#/$defs/flow/properties/lessons", "flowSection drops it"],
-  ["#/$defs/flow/properties/batch", "flowSection drops it"],
   [
     "#/properties/delivery/properties/runner",
     "deliveryPolicy: tick is ignored, crew-mode holds (worker-paths WP1)",

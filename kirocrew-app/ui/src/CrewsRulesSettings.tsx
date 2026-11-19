@@ -10,21 +10,42 @@ import { FieldBox } from './FieldBox.tsx'
 import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { SHIP_CHOICES } from './delivery-api.ts'
-import { AVOOZL_LABELS, CONFLICT_ACTIONS, CONFLICT_ACTION_TEXT, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
+import {
+  AVOOZL_LABELS,
+  CONFLICT_ACTIONS,
+  CONFLICT_ACTION_TEXT,
+  CONFLICT_DEFAULTS,
+  MERGE_METHODS,
+  MERGE_METHOD_TEXT,
+  OLD_LABEL_NOTE,
+  RADAR_DEFAULTS_SHOWN,
+  rulesMode,
+  valueSource,
+  type RepositoryForm,
+} from './settings-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
+import { PlainTextarea } from './ui/Plain'
 
 function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string; help?: string }) {
   const note = valueSource(props.value, props.fallback, props.unit)
   return (
     <FieldRow id={props.id} label={props.label} raw={props.raw} help={props.help} note={<span data-source>{note}</span>}>
-      <Input id={props.id} type={props.type} value={props.value} placeholder={props.fallback} aria-describedby={fieldDescribedBy(props.id, { help: props.help, note })} onChange={(event) => props.onChange(event.target.value)} />
+      <Input
+        id={props.id}
+        type={props.type}
+        value={props.value}
+        placeholder={props.fallback}
+        aria-describedby={fieldDescribedBy(props.id, { help: props.help, note })}
+        onChange={(event) => props.onChange(event.target.value)}
+      />
     </FieldRow>
   )
 }
 
-// The value and setter for one of the seven labels: ready lives in
+// The value and setter for one of the six labels: ready lives in
 // managedLabels, the rest in radar.
 function labelValue(repository: RepositoryForm, key: (typeof AVOOZL_LABELS)[number]['key']): string {
   return key === 'ready' ? (repository.managedLabels.ready ?? '') : repository[key]
@@ -41,16 +62,18 @@ export const CREW_PART_TEXT = {
   rules: { title: 'Review rules', blurb: 'Text Set up adds to AGENTS.md in a pull request, so crews read it for every issue.' },
   conflicts: {
     title: 'Conflicts',
-    blurb: "How Avoozl handles a merge conflict, and how many tries it makes before it asks you. A landing conflict goes back to the task's worker chat; a crew pull request gets one resolver chat that merges the base in.",
+    blurb:
+      "How Avoozl handles a merge conflict, and how many tries it makes before it asks you. A landing conflict goes back to the task's worker chat; a crew pull request gets one resolver chat that merges the base in.",
   },
   merge: {
     title: 'Who merges',
-    blurb: 'How verified work lands here, who merges its pull request, and the merge method. A conflict fix still merges the base into the branch; with squash that merge commit never reaches the base.',
+    blurb:
+      'How verified work lands here, who merges its pull request, and the merge method. A conflict fix still merges the base into the branch; with squash that merge commit never reaches the base.',
   },
 } as const
 
 // The landing block's mode values (landing.mode).
-export const LANDING_MODES = ['direct', 'pr', 'train', 'off'] as const
+export const LANDING_MODES = ['direct', 'pr', 'off'] as const
 
 // Who merges (landing.autoMerge): one radio fold-out, the writer, Avoozl
 // and the person for each. Blank follows `inherited`, the older workspace
@@ -71,22 +94,26 @@ export function AutoMergeFields({ id, repository, set, inherited = null }: Part 
           title: `${choice.title} (landing.autoMerge: ${choice.key === 'manual' ? 'false' : 'true'})`,
           line: `${choice.line}${!repository.autoMerge && choice.key === value ? ' Not set on this repository; this is the default.' : ''}`,
           description: (
-            <table className="text-sm">
+            <Box as="table" size="sm">
               <tbody>
                 {['Writer', 'Avoozl', 'You'].map((who, i) => (
                   <tr key={who}>
-                    <th scope="row" className="pr-3 text-left font-medium">
+                    <Box scope="row" as="th" pr="3" align="left" weight="medium">
                       {who}
-                    </th>
+                    </Box>
                     <td>{choice.who[i]}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Box>
           ),
         }))}
       />
-      {value === 'manual' && <Hint as="p" size="xs">Briefs tell writers not to turn on auto-merge.</Hint>}
+      {value === 'manual' && (
+        <Hint as="p" size="xs">
+          Briefs tell writers not to turn on auto-merge.
+        </Hint>
+      )}
       {unknown && (
         <ErrorText role="alert" size="xs" data-ship-unknown>
           .avoozl.json has landing.autoMerge "{unknown}", which Avoozl does not accept. Pick one above and save.
@@ -104,19 +131,37 @@ export function ReviewRulesFields({ id, repository, set }: Part) {
       value={rulesMode(repository)}
       onChange={(mode) => set({ reviewRules: mode === 'default' ? '' : 'Say what you skipped or did not check.' })}
       sections={[
-        { key: 'default', title: "Use Avoozl's rules", line: "Not set on this repository. Using Avoozl's built-in review rules. Set up shows the exact text before it opens the pull request." },
+        {
+          key: 'default',
+          title: "Use Avoozl's rules",
+          line: "Not set on this repository. Using Avoozl's built-in review rules. Set up shows the exact text before it opens the pull request.",
+        },
         {
           key: 'custom',
           title: 'Write your own',
           line: 'Your text replaces the built-in rules. The one-line crew prompt is always added.',
           fields: (
-            <div className="flex min-w-0 flex-col gap-1">
-              <label htmlFor={`${id}-rules`} className="text-sm font-medium">
+            <Box flex minW0 flexCol gap="1">
+              <Box htmlFor={`${id}-rules`} as="label" size="sm" weight="medium">
                 Review rules <Hint size="xs">radar.reviewRules</Hint>
-              </label>
-              <textarea id={`${id}-rules`} rows={6} value={repository.reviewRules} onChange={(event) => set({ reviewRules: event.target.value })} className="min-w-0 rounded border px-2 py-1 text-sm" style={{ borderColor: 'var(--border)', background: 'transparent', color: 'inherit' }} />
+              </Box>
+              <PlainTextarea
+                id={`${id}-rules`}
+                rows={6}
+                value={repository.reviewRules}
+                onChange={(event) => set({ reviewRules: event.target.value })}
+                css-border-color="border"
+                css-background="transparent"
+                css-color="inherit"
+                minW0
+                rounded="base"
+                border="all"
+                px="2"
+                py="1"
+                size="sm"
+              />
               <Hint size="xs">{valueSource(repository.reviewRules ? 'your text' : '', "Avoozl's built-in rules")}</Hint>
-            </div>
+            </Box>
           ),
         },
       ]}
@@ -140,7 +185,16 @@ export function ConflictFields({ id, repository, set }: Part) {
           }))}
         />
       </div>
-      <Line id={`${id}-max-attempts`} label="Attempts per conflict" raw="conflicts.maxAttempts" type="number" help="After this many, the conflict waits for you. 0 asks you at once." value={repository.maxAttempts} fallback={CONFLICT_DEFAULTS.maxAttempts} onChange={(value) => set({ maxAttempts: value })} />
+      <Line
+        id={`${id}-max-attempts`}
+        label="Attempts per conflict"
+        raw="conflicts.maxAttempts"
+        type="number"
+        help="After this many, the conflict waits for you. 0 asks you at once."
+        value={repository.maxAttempts}
+        fallback={CONFLICT_DEFAULTS.maxAttempts}
+        onChange={(value) => set({ maxAttempts: value })}
+      />
     </Stack>
   )
 }

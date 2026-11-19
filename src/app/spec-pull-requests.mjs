@@ -9,7 +9,7 @@
 // non-owner author's permission once a day, and for a person's action.
 // Every state lives in one `spec-pr:<repository>#<number>` receipt.
 import { unifiedDiff } from "./text-diff.mjs";
-import { allowedToClear } from "./gate-clear.mjs";
+import { actorAllowed } from "./github-policy.mjs";
 import { headGuardedMerge } from "./driver-generations.mjs";
 import { decidePlanReview } from "./plan-review-step.mjs";
 import { planReviewSummary } from "./plan-review-summary.mjs";
@@ -25,12 +25,31 @@ import {
 import { workingBranch } from "./working-heads.mjs";
 import { fail } from "./store.mjs";
 
-export const SPEC_PULL_KIND = "spec-pr";
-export const SPEC_ROOT = ".kiro/specs/";
+const SPEC_PULL_KIND = "spec-pr";
+const SPEC_ROOT = ".kiro/specs/";
+// The same allowed-actor or minimum-permission check the trigger labels use.
+async function allowedActor(github, policy, repository, login) {
+  if (!login) return { allowed: false, reason: "The actor could not be read." };
+  const rules = policy?.repositories?.[repository];
+  if (!rules)
+    return { allowed: false, reason: `No policy names ${repository}.` };
+  try {
+    const permission = rules.minimumPermission
+      ? ((await github.permission(repository, login))?.permission ?? "none")
+      : null;
+    return actorAllowed(rules, login, permission);
+  } catch (error) {
+    return {
+      allowed: false,
+      reason: `Permission not readable: ${error.message}`,
+    };
+  }
+}
+
 // How long an author's permission answer is kept.
-export const AUTHOR_TTL_MS = 24 * 60 * 60 * 1000;
+const AUTHOR_TTL_MS = 24 * 60 * 60 * 1000;
 // A merge GitHub refused is tried again after this long, or on a new head.
-export const MERGE_RETRY_MS = 10 * 60 * 1000;
+const MERGE_RETRY_MS = 10 * 60 * 1000;
 const NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const lower = (value) => String(value ?? "").toLocaleLowerCase();
 const MAX_DIFF = 20000;
@@ -130,7 +149,7 @@ export async function linkOf(
     kept = store.getMeta(key);
   let answer = kept && now - kept.at < AUTHOR_TTL_MS ? kept : null;
   if (!answer) {
-    const checked = await allowedToClear(
+    const checked = await allowedActor(
       github,
       policy,
       repository,

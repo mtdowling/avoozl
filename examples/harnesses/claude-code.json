@@ -26,8 +26,16 @@
   "permission": { "write": "acceptEdits", "read": "dontAsk" },
   "writeRoots": ["{worktree}", "{tmp}", "{project_cache_dirs}"],
   "allow": ["--allowedTools", "Bash({project_allow_commands}:*)"],
-  "resultAllow": ["--allowedTools", "Edit(.avoozl/result.json)"],
+  "resultAllow": [
+    "--allowedTools",
+    "Edit(.avoozl/result.json)",
+    "--allowedTools",
+    "Edit(.avoozl/output/*)"
+  ],
+  "servedModel": { "from": "output", "field": "modelUsage" },
   "cost": { "from": "output", "field": "total_cost_usd", "per": "session" },
   "keepEnv": ["ANTHROPIC_API_KEY"],
-  "tmpEnv": ["CLAUDE_CODE_TMPDIR"]
+  "reads": ["~/.claude", "~/.claude.json"],
+  "tmpEnv": ["CLAUDE_CODE_TMPDIR"],
+  "proved": ["read", "write"]
 }

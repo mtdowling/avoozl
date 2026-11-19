@@ -13,7 +13,24 @@ import Badge from './ui/Badge.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { ICON, IconBtn, IconLabel, ShowMore, ViewHeading, useConfirm, usePages } from './ui/controls.tsx'
-import { Check, CircleDot, CirclePlus, ClipboardCheck, FileText, GitPullRequest, GitPullRequestDraft, Inbox, MessageSquare, Play, Radar, RefreshCw, ScanSearch, Users, X, type LucideIcon } from './icons.ts'
+import {
+  Check,
+  CircleDot,
+  CirclePlus,
+  ClipboardCheck,
+  FileText,
+  GitPullRequest,
+  GitPullRequestDraft,
+  Inbox,
+  MessageSquare,
+  Play,
+  Radar,
+  RefreshCw,
+  ScanSearch,
+  Users,
+  X,
+  type LucideIcon,
+} from './icons.ts'
 import { PublicCrews } from './PublicCrews.tsx'
 import { SendToRadar } from './SendToRadar.tsx'
 import { useMedia } from './use-media.ts'
@@ -52,10 +69,10 @@ import { linkHref } from './views-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
-const HEAD: CSSProperties = { textAlign: 'left', fontWeight: 500, fontSize: 12, color: 'var(--muted)', padding: '4px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
-const CELL: CSSProperties = { padding: '6px 8px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }
 const ROW: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }
 const LINK_BUTTON: CSSProperties = {
   ...ROW,
@@ -94,9 +111,9 @@ function KindIcon({ item }: { item: UntriagedItem }) {
   const name = item.kind === 'issue' ? 'Issue' : item.kind === 'ticket' ? 'Ticket' : item.kind === 'review' ? 'Review request' : item.draft ? 'Draft pull request' : 'Pull request'
   return (
     <Tooltip text={name}>
-      <span role="img" aria-label={name} style={{ display: 'inline-flex', color: item.kind === 'issue' || item.kind === 'ticket' ? 'var(--ok)' : 'var(--accent)' }}>
+      <Box role="img" aria-label={name} as="span" css-display="inline-flex" css-color={item.kind === 'issue' || item.kind === 'ticket' ? 'ok' : 'accent'}>
         <Icon size={16} aria-hidden="true" />
-      </span>
+      </Box>
     </Tooltip>
   )
 }
@@ -107,15 +124,15 @@ function PullState({ item }: { item: UntriagedItem }) {
   if (item.kind !== 'pr') return null
   const checks = item.checks
   return (
-    <span className="inline-flex flex-wrap items-center gap-1.5 text-xs">
+    <Box as="span" inlineFlex flexWrap items="center" gap="1.5" size="xs">
       {item.draft && <Badge>draft</Badge>}
       {checks && (
-        <span className="inline-flex items-center gap-1" style={{ color: checks === 'passing' ? 'var(--ok)' : checks === 'failing' ? 'var(--danger)' : 'var(--muted)' }}>
+        <Box as="span" css-color={checks === 'passing' ? 'var(--ok)' : checks === 'failing' ? 'var(--danger)' : 'var(--muted)'} inlineFlex items="center" gap="1">
           {checks === 'passing' ? <Check size={12} aria-hidden="true" /> : checks === 'failing' ? <X size={12} aria-hidden="true" /> : null}
           {CHECK_TEXT[checks]}
-        </span>
+        </Box>
       )}
-    </span>
+    </Box>
   )
 }
 
@@ -127,10 +144,10 @@ function EscalationMark({ item }: { item: UntriagedItem }) {
   const tip = `An Issue Radar crew added "${escalation.label}"${escalation.scope ? ` (${escalation.scope})` : ''} and handed it to a person.${escalation.claimed ? ' A crew claim is on it too.' : ''}${escalation.draft ? ' The escalation rule drafted a bounded fix; you still start it.' : ''}`
   return (
     <Tooltip text={tip}>
-      <span className="inline-flex flex-wrap items-center gap-1 text-xs" data-escalation>
+      <Box as="span" inlineFlex flexWrap items="center" gap="1" size="xs" data-escalation>
         <Badge variant="warning">Radar asked</Badge>
         {escalation.draft && <Badge variant="info">Drafted</Badge>}
-      </span>
+      </Box>
     </Tooltip>
   )
 }
@@ -138,78 +155,118 @@ function EscalationMark({ item }: { item: UntriagedItem }) {
 function Labels({ labels }: { labels: string[] }) {
   if (!labels.length) return null
   return (
-    <span className="inline-flex flex-wrap gap-1">
+    <Box as="span" inlineFlex flexWrap gap="1">
       {labels.map((label) => (
         <Badge key={label}>{label}</Badge>
       ))}
-    </span>
+    </Box>
   )
 }
 
 type Start = (item: UntriagedItem, action: 'deliver' | 'plan') => void
 
-function Actions({ item, onSend, onReview, onStart, onSpec }: { item: UntriagedItem; onSend?: (item: UntriagedItem) => void; onReview?: (item: UntriagedItem) => void; onStart?: Start; onSpec?: (item: UntriagedItem) => void }) {
+function Actions({
+  item,
+  onSend,
+  onReview,
+  onStart,
+  onSpec,
+}: {
+  item: UntriagedItem
+  onSend?: (item: UntriagedItem) => void
+  onReview?: (item: UntriagedItem) => void
+  onStart?: Start
+  onSpec?: (item: UntriagedItem) => void
+}) {
   const name = itemName(item)
   // A pull request that only changes a spec (R107.2): none of the other
   // buttons fit it. Review as spec adopts it into that spec.
   if (item.specPull && onSpec)
     return (
-      <span className="inline-flex gap-1.5">
-        <IconBtn icon={ClipboardCheck} label={`Review as spec: ${name}`} tooltip={`Review as spec: reads this pull request as a proposed change to the spec ${item.specPull.spec}. Nothing is approved or merged.`} onClick={() => onSpec(item)} />
-      </span>
+      <Box as="span" inlineFlex gap="1.5">
+        <IconBtn
+          icon={ClipboardCheck}
+          label={`Review as spec: ${name}`}
+          tooltip={`Review as spec: reads this pull request as a proposed change to the spec ${item.specPull.spec}. Nothing is approved or merged.`}
+          onClick={() => onSpec(item)}
+        />
+      </Box>
     )
   // An item from another source: a person's Plan this and Deliver this.
   // Issue Radar works GitHub only.
   if (sourceOf(item) !== 'github')
     return (
-      <span className="inline-flex gap-1.5">
+      <Box as="span" inlineFlex gap="1.5">
         {onStart && item.start?.plan && (
           <IconBtn icon={FileText} label={`Plan this: ${name}`} tooltip="Plan this: a planner turns it into a task in the Inbox." onClick={() => onStart(item, 'plan')} />
         )}
         {onStart && item.start?.deliver && (
           <IconBtn icon={Play} label={`Deliver this: ${name}`} tooltip="Deliver this: one task in its repository, pinned to this text." onClick={() => onStart(item, 'deliver')} />
         )}
-      </span>
+      </Box>
     )
   return (
-    <span className="inline-flex gap-1.5">
+    <Box as="span" inlineFlex gap="1.5">
       {onStart && item.start?.plan && (
         <IconBtn
           icon={FileText}
           label={`Plan this: ${name}`}
-          tooltip={item.escalation ? 'Plan this: a planner drafts a fix spec from this issue. Avoozl adds crew:avoozl so crews skip it.' : 'Plan this: opens a planner chat that drafts a spec from this issue. Nothing is approved or started.'}
+          tooltip={
+            item.escalation
+              ? 'Plan this: a planner drafts a fix spec from this issue. Avoozl adds crew:avoozl so crews skip it.'
+              : 'Plan this: opens a planner chat that drafts a spec from this issue. Nothing is approved or started.'
+          }
           onClick={() => onStart(item, 'plan')}
         />
       )}
       {onStart && item.start?.deliver && (
-        <IconBtn icon={Play} label={`Deliver this: ${name}`} tooltip="Deliver this: one bounded-fix task pinned to this text. Avoozl adds crew:avoozl so crews skip it." onClick={() => onStart(item, 'deliver')} />
+        <IconBtn
+          icon={Play}
+          label={`Deliver this: ${name}`}
+          tooltip="Deliver this: one bounded-fix task pinned to this text. Avoozl adds crew:avoozl so crews skip it."
+          onClick={() => onStart(item, 'deliver')}
+        />
       )}
       {onSend &&
         (item.kind === 'issue' ? (
-          <IconBtn icon={Users} label={`Send ${name} to an Issue Radar crew`} tooltip="Send to an Issue Radar crew: pick a crew, check the label, then Avoozl adds it." onClick={() => onSend(item)} />
+          <IconBtn
+            icon={Users}
+            label={`Send ${name} to an Issue Radar crew`}
+            tooltip="Send to an Issue Radar crew: pick a crew, check the label, then Avoozl adds it."
+            onClick={() => onSend(item)}
+          />
         ) : (
           // Crews work issues only; the gap keeps the columns lined up.
-          <span aria-hidden="true" style={{ display: 'inline-block', width: 28 }} />
+          <Box aria-hidden="true" as="span" css-display="inline-block" css-width="28" />
         ))}
       {item.links.issueRadar && <IconLink icon={Radar} label={`Open ${name} in Issue Radar`} tooltip={item.links.issueRadar.tooltip} href={linkHref(item.links.issueRadar.url)} />}
-      {item.links.review && onReview && (
-        <IconBtn icon={ScanSearch} label={`Code review for ${name}`} tooltip={item.links.review.tooltip} onClick={() => onReview(item)} />
-      )}
+      {item.links.review && onReview && <IconBtn icon={ScanSearch} label={`Code review for ${name}`} tooltip={item.links.review.tooltip} onClick={() => onReview(item)} />}
       {item.reviewChat?.link ? (
         <Tooltip text="Open this pull request's code review chat">
-          <a href={linkHref(item.reviewChat.link)} target="_top" className="self-center text-sm underline" aria-label={`Session: the code review chat for ${name}`} data-review-attach style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <PlainLink
+            href={linkHref(item.reviewChat.link)}
+            target="_top"
+            css-display="inline-flex"
+            css-align-items="center"
+            css-gap="4"
+            self="center"
+            size="sm"
+            underline
+            aria-label={`Session: the code review chat for ${name}`}
+            data-review-attach
+          >
             <CirclePlus size={14} aria-hidden="true" />
             Session
-          </a>
+          </PlainLink>
         </Tooltip>
       ) : item.reviewChat?.state === 'queued' ? (
         <Tooltip text="The next tick opens the chat, within a minute.">
-          <span className="self-center text-xs text-muted" data-review-queued>
+          <Box as="span" self="center" size="xs" tone="muted" data-review-queued>
             Starting…
-          </span>
+          </Box>
         </Tooltip>
       ) : null}
-    </span>
+    </Box>
   )
 }
 
@@ -236,64 +293,180 @@ function AuthorLink({ item, fallback = '' }: { item: UntriagedItem; fallback?: s
 function Title({ item }: { item: UntriagedItem }) {
   const github = sourceOf(item) === 'github'
   return (
-    <a href={linkHref(item.links.github ?? item.links.item ?? item.url)} target="_blank" rel="noopener noreferrer" className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
-      <span className="text-muted tabular-nums">{github ? `#${item.number}` : item.id}</span> <span className="underline">{item.title}</span>
-    </a>
+    <PlainLink href={linkHref(item.links.github ?? item.links.item ?? item.url)} target="_blank" rel="noopener noreferrer" css-overflow-wrap="anywhere" minW0>
+      <Box as="span" tone="muted" tabularNums>
+        {github ? `#${item.number}` : item.id}
+      </Box>{' '}
+      <Box as="span" underline>
+        {item.title}
+      </Box>
+    </PlainLink>
   )
 }
 
 function Select(props: { item: UntriagedItem; checked: boolean; onChange: (on: boolean) => void }) {
-  return (
-    <Checkbox
-      checked={props.checked}
-      aria-label={`Select ${itemName(props.item)}`}
-      onChange={(event) => props.onChange(event.target.checked)}
-    />
-  )
+  return <Switch label={`Select ${itemName(props.item)}`} checked={props.checked} onChange={props.onChange} />
 }
 
-function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void; onStart: Start; onSpec: (item: UntriagedItem) => void }) {
+function Table(props: {
+  items: UntriagedItem[]
+  selected: Set<string>
+  now: number
+  onSelect: (keys: string[], on: boolean) => void
+  onSend: (item: UntriagedItem) => void
+  onReview: (item: UntriagedItem) => void
+  onStart: Start
+  onSpec: (item: UntriagedItem) => void
+}) {
   const keys = props.items.map(itemKey)
   const all = keys.length > 0 && keys.every((key) => props.selected.has(key))
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }} data-untriaged-table>
+    <Box css-overflow-x="auto">
+      <Box as="table" css-border-collapse="collapse" wFull size="sm" data-untriaged-table>
         <thead>
           <tr>
-            <th style={{ ...HEAD, width: 28 }}>
-              <Checkbox checked={all} aria-label="Select every row shown" onChange={(event) => props.onSelect(keys, event.target.checked)} />
-            </th>
-            <th style={{ ...HEAD, width: 28 }}>
-              <span className="sr-only">Kind</span>
-            </th>
-            <th style={HEAD}>Item</th>
-            <th style={HEAD}>Source</th>
-            <th style={HEAD}>Repository</th>
-            <th style={HEAD}>Author</th>
-            <th style={HEAD}>Age</th>
-            <th style={HEAD}>Labels</th>
-            <th style={{ ...HEAD, textAlign: 'right' }}>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+              css-width="28"
+            >
+              <Switch label="Select every row shown" checked={all} onChange={(on) => props.onSelect(keys, on)} />
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+              css-width="28"
+            >
+              <Box as="span" srOnly>
+                Kind
+              </Box>
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Item
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Source
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Repository
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Author
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Age
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Labels
+            </Box>
+            <Box
+              as="th"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+              css-text-align="right"
+            >
               <Tooltip text="Comments">
-                <span role="img" aria-label="Comments" style={{ display: 'inline-flex' }}>
+                <Box role="img" aria-label="Comments" as="span" css-display="inline-flex">
                   <MessageSquare size={12} aria-hidden="true" />
-                </span>
+                </Box>
               </Tooltip>
-            </th>
-            <th style={HEAD}>
-              <span className="sr-only">Open in</span>
-            </th>
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              <Box as="span" srOnly>
+                Open in
+              </Box>
+            </Box>
           </tr>
         </thead>
         <tbody>
           {props.items.map((item) => (
             <tr key={itemKey(item)} data-untriaged-row={itemKey(item)}>
-              <td style={CELL}>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top">
                 <Select item={item} checked={props.selected.has(itemKey(item))} onChange={(on) => props.onSelect([itemKey(item)], on)} />
-              </td>
-              <td style={CELL}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top">
                 <KindIcon item={item} />
-              </td>
-              <td style={{ ...CELL, minWidth: '16rem' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-min-width="16rem">
                 <Title item={item} />
                 <Hint as="p" size="xs" flush data-triage-reason>
                   {triageReason(item)}
@@ -302,47 +475,58 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
                   <EscalationMark item={item} />
                   <PullState item={item} />
                 </div>
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }} data-intake-source>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap" data-intake-source>
                 {sourceOf(item)}
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <RepoLink item={item} />
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <AuthorLink item={item} />
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <Tooltip text={item.createdAt ? `Opened ${item.createdAt.slice(0, 10)}` : null}>
-                  <span className="tabular-nums">{age(item.createdAt, props.now)}</span>
+                  <Box as="span" tabularNums>
+                    {age(item.createdAt, props.now)}
+                  </Box>
                 </Tooltip>
-              </td>
-              <td style={CELL}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top">
                 <Labels labels={item.labels} />
-              </td>
-              <td style={{ ...CELL, textAlign: 'right' }} className="tabular-nums">
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-text-align="right" tabularNums>
                 {sourceOf(item) === 'github' ? item.comments : ''}
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <Actions item={item} onSend={props.onSend} onReview={props.onReview} onStart={props.onStart} onSpec={props.onSpec} />
-              </td>
+              </Box>
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
 // Narrow screens: one stacked row per item, same parts.
-function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void; onStart: Start; onSpec: (item: UntriagedItem) => void }) {
+function Stack(props: {
+  items: UntriagedItem[]
+  selected: Set<string>
+  now: number
+  onSelect: (keys: string[], on: boolean) => void
+  onSend: (item: UntriagedItem) => void
+  onReview: (item: UntriagedItem) => void
+  onStart: Start
+  onSpec: (item: UntriagedItem) => void
+}) {
   return (
-    <ul className="flex flex-col" data-untriaged-stack>
+    <Box as="ul" flex flexCol data-untriaged-stack>
       {props.items.map((item) => (
-        <li key={itemKey(item)} className="flex items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-untriaged-row={itemKey(item)}>
+        <Box key={itemKey(item)} as="li" css-border-color="border" flex items="start" gap="2" border="t" py="2" firstBorderT0 data-untriaged-row={itemKey(item)}>
           <Select item={item} checked={props.selected.has(itemKey(item))} onChange={(on) => props.onSelect([itemKey(item)], on)} />
           <KindIcon item={item} />
-          <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
+          <Box flex minW0 flex1 flexCol gap="1" size="sm">
             <Title item={item} />
             <Hint size="xs" data-triage-reason>
               {triageReason(item)}
@@ -354,11 +538,11 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
             <EscalationMark item={item} />
             <PullState item={item} />
             <Labels labels={item.labels} />
-          </div>
+          </Box>
           <Actions item={item} onSend={props.onSend} onReview={props.onReview} onStart={props.onStart} onSpec={props.onSpec} />
-        </li>
+        </Box>
       ))}
-    </ul>
+    </Box>
   )
 }
 
@@ -367,9 +551,9 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
 function SourcesLink({ onOpen }: { onOpen?: () => void }) {
   if (!onOpen) return <>Settings › Plugins</>
   return (
-    <button type="button" className="underline" onClick={onOpen} data-open-intake-sources>
+    <PlainButton type="button" underline onClick={onOpen} data-open-intake-sources>
       Settings › Plugins › Intake sources
-    </button>
+    </PlainButton>
   )
 }
 
@@ -378,12 +562,13 @@ function SourcesLink({ onOpen }: { onOpen?: () => void }) {
 function Checked({ list, now, onOpenSources }: { list: UntriagedList; now: number; onOpenSources?: () => void }) {
   const notes = list.repositories.filter((row) => row.error || row.truncated)
   const sources = (list.sources ?? []).filter((row) => row.id !== 'github')
-  const times = list.repositories.map((row) => row.checkedAt).filter((at): at is string => Boolean(at)).sort()
+  const times = list.repositories
+    .map((row) => row.checkedAt)
+    .filter((at): at is string => Boolean(at))
+    .sort()
   return (
-    <div className="flex flex-col gap-0.5 text-xs text-muted" data-untriaged-checked>
-      {list.repositories.length > 0 && (
-        <span>{times.length ? `Checked ${relativeTime(times[0], now)}` : 'Not checked yet'} · GitHub is read at most every 10 minutes.</span>
-      )}
+    <Box flex flexCol gap="0.5" size="xs" tone="muted" data-untriaged-checked>
+      {list.repositories.length > 0 && <span>{times.length ? `Checked ${relativeTime(times[0], now)}` : 'Not checked yet'} · GitHub is read at most every 10 minutes.</span>}
       {sources
         .filter((row) => row.error)
         .map((row) => (
@@ -397,11 +582,11 @@ function Checked({ list, now, onOpenSources }: { list: UntriagedList; now: numbe
         </span>
       )}
       {notes.map((row) => (
-        <span key={row.repository} className={row.error ? 'text-danger' : undefined}>
+        <Box key={row.repository} as="span" tone={row.error ? 'danger' : undefined}>
           {row.repository}: {row.error ?? `GitHub search returns ${row.read} of the ${row.searched ?? 'more'} items it found. Narrow its Untriaged filter to see the rest.`}
-        </span>
+        </Box>
       ))}
-    </div>
+    </Box>
   )
 }
 
@@ -418,11 +603,11 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
   }
   if (narrow)
     return (
-      <ul className="flex flex-col" data-radar-list>
+      <Box as="ul" flex flexCol data-radar-list>
         {items.map((item) => (
-          <li key={itemKey(item)} className="flex items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-radar-row={itemKey(item)}>
+          <Box key={itemKey(item)} as="li" css-border-color="border" flex items="start" gap="2" border="t" py="2" firstBorderT0 data-radar-row={itemKey(item)}>
             <KindIcon item={item} />
-            <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
+            <Box flex minW0 flex1 flexCol gap="1" size="sm">
               <Title item={item} />
               <Hint size="xs">
                 <RepoLink item={item} /> · {sentLine(item)}
@@ -430,59 +615,136 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
               <span>
                 <State item={item} />
               </span>
-            </div>
+            </Box>
             <Actions item={item} />
-          </li>
+          </Box>
         ))}
-      </ul>
+      </Box>
     )
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }} data-radar-list>
+    <Box css-overflow-x="auto">
+      <Box as="table" css-border-collapse="collapse" wFull size="sm" data-radar-list>
         <thead>
           <tr>
-            <th style={{ ...HEAD, width: 28 }}>
-              <span className="sr-only">Kind</span>
-            </th>
-            <th style={HEAD}>Item</th>
-            <th style={HEAD}>Repository</th>
-            <th style={HEAD}>State</th>
-            <th style={HEAD}>How it got there</th>
-            <th style={HEAD}>
-              <span className="sr-only">Open in</span>
-            </th>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+              css-width="28"
+            >
+              <Box as="span" srOnly>
+                Kind
+              </Box>
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Item
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Repository
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              State
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              How it got there
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              <Box as="span" srOnly>
+                Open in
+              </Box>
+            </Box>
           </tr>
         </thead>
         <tbody>
           {items.map((item) => (
             <tr key={itemKey(item)} data-radar-row={itemKey(item)}>
-              <td style={CELL}>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top">
                 <KindIcon item={item} />
-              </td>
-              <td style={{ ...CELL, minWidth: '16rem' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-min-width="16rem">
                 <Title item={item} />
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <RepoLink item={item} />
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <State item={item} />
-              </td>
-              <td style={CELL} className="text-muted">
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" tone="muted">
                 {sentLine(item)}
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <Actions item={item} />
-              </td>
+              </Box>
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
-export default function UntriagedView({ workspaceId, onOpenSources, embedded, show: chosenShow = 'untriaged' }: { workspaceId: string | null; onOpenSources?: () => void; embedded?: boolean; show?: 'untriaged' | 'radar' }) {
+export default function UntriagedView({
+  workspaceId,
+  onOpenSources,
+  embedded,
+  show: chosenShow = 'untriaged',
+}: {
+  workspaceId: string | null
+  onOpenSources?: () => void
+  embedded?: boolean
+  show?: 'untriaged' | 'radar'
+}) {
   const api = useAppApi()
   const ask = useConfirm()
   const client = useMemo(() => untriagedClient(api), [api])
@@ -565,7 +827,14 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
     }
     // A GitHub issue of a Radar-coded repository: a planner chat drafts the spec.
     if (sourceOf(item) === 'github') {
-      if (!(await ask({ title: `Plan ${name}?`, body: `A planner chat drafts a spec from "${item.title}". Nothing is approved or started until you approve the spec.`, action: 'Plan this' }))) return
+      if (
+        !(await ask({
+          title: `Plan ${name}?`,
+          body: `A planner chat drafts a spec from "${item.title}". Nothing is approved or started until you approve the spec.`,
+          action: 'Plan this',
+        }))
+      )
+        return
       setCheckError(null)
       try {
         const chat = await client.planIssue(workspaceId, item)
@@ -578,7 +847,11 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
     }
     const yes = await ask(
       action === 'deliver'
-        ? { title: `Deliver ${name}?`, body: `Avoozl makes one task in ${item.repository} from "${item.title}", pinned to its text now, and a worker starts it. Avoozl writes nothing back to ${item.source}.`, action: 'Deliver this' }
+        ? {
+            title: `Deliver ${name}?`,
+            body: `Avoozl makes one task in ${item.repository} from "${item.title}", pinned to its text now, and a worker starts it. Avoozl writes nothing back to ${item.source}.`,
+            action: 'Deliver this',
+          }
         : { title: `Plan ${name}?`, body: `Avoozl adds "${item.title}" to the Inbox for a planner. Nothing starts until a spec is approved.`, action: 'Plan this' },
     )
     if (!yes) return
@@ -607,23 +880,31 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
   }
 
   return (
-    <section aria-labelledby="avoozl-untriaged-title" className="flex flex-col gap-3.5">
+    <Box aria-labelledby="avoozl-untriaged-title" as="section" flex flexCol gap="3.5">
       <ViewHeading
         id="avoozl-untriaged-title"
         view="untriaged"
         level={embedded ? 3 : 2}
         phoneMenu
         actions={
-          <IconLabel icon={RefreshCw} onClick={() => void checkNow()} disabled={busy || checking || !list?.enabled} tooltip="Read GitHub and poll each plugin source now instead of waiting for the next check">
+          <IconLabel
+            icon={RefreshCw}
+            onClick={() => void checkNow()}
+            disabled={busy || checking || !list?.enabled}
+            tooltip="Read GitHub and poll each plugin source now instead of waiting for the next check"
+          >
             {checking ? 'Checking…' : 'Check now'}
           </IconLabel>
         }
       >
         {show === 'radar' ? 'Issue Radar' : 'Triage'}
       </ViewHeading>
-      {!embedded && <Hint as="p" size="sm">
-        Work that comes in from GitHub and your intake sources. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
-      </Hint>}
+      {!embedded && (
+        <Hint as="p" size="sm">
+          Work that comes in from GitHub and your intake sources. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue
+          Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
+        </Hint>
+      )}
       {list?.publicCrews?.length && workspaceId ? <PublicCrews rows={list.publicCrews} workspaceId={workspaceId} onChange={() => void reload()} /> : null}
       {note && (
         <Hint role="status" as="p" size="sm" data-radar-note>
@@ -636,23 +917,26 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
         </ErrorText>
       )}
       {!list ? (
-        <Hint as="p" size="sm">{busy ? 'Loading…' : 'Not loaded'}</Hint>
+        <Hint as="p" size="sm">
+          {busy ? 'Loading…' : 'Not loaded'}
+        </Hint>
       ) : !list.enabled ? (
         <Hint as="p" size="sm" data-untriaged-off>
-          Untriaged items need a GitHub mode or an intake source. Give a repository a GitHub role in Settings › Repository setup, or add a source in <SourcesLink onOpen={onOpenSources} />.
+          Untriaged items need a GitHub mode or an intake source. Give a repository a GitHub role in Settings › Repository setup, or add a source in{' '}
+          <SourcesLink onOpen={onOpenSources} />.
         </Hint>
       ) : show === 'radar' ? (
-        <div className="flex flex-col gap-2" data-radar-view>
+        <Box flex flexCol gap="2" data-radar-view>
           <Hint as="p" size="xs">
-            Issues a crew holds, or that you sent to one. Crews act with your GitHub login, so Avoozl tells their work apart by label: a close on an issue a crew claimed counts only once its pull request merges, a crew’s
-            labels never start Avoozl rules, and a crew’s escalation label shows under Needs you.
+            Issues a crew holds, or that you sent to one. Crews act with your GitHub login, so Avoozl tells their work apart by label: a close on an issue a crew claimed counts
+            only once its pull request merges, a crew’s labels never start Avoozl rules, and a crew’s escalation label shows under Needs you.
           </Hint>
           {radarItems.length === 0 ? (
             <EmptyState icon={<Radar size={36} aria-hidden="true" />} title="Nothing with Issue Radar" subtitle="Select issues under Triage and press Send to Issue Radar." />
           ) : (
             <RadarList items={radarItems} now={now} narrow={narrow} />
           )}
-        </div>
+        </Box>
       ) : list.items.length === 0 ? (
         <>
           <Checked list={list} now={now} onOpenSources={onOpenSources} />
@@ -666,51 +950,109 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
             active={filterActive(filter)}
             onClear={() => setFilter({})}
             fields={[
-              { kind: 'select', key: 'source', label: 'Source', value: filter.source ?? '', options: options.sources, onChange: (source) => setField({ source: source || undefined }) },
-              { kind: 'select', key: 'repository', label: 'Repository', value: filter.repository ?? '', options: options.repositories, onChange: (repository) => setField({ repository: repository || undefined }) },
-              { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: KIND_OPTIONS, onChange: (kind) => setField({ kind: (kind || undefined) as UntriagedFilter['kind'] }) },
+              {
+                kind: 'select',
+                key: 'source',
+                label: 'Source',
+                value: filter.source ?? '',
+                options: options.sources,
+                onChange: (source) => setField({ source: source || undefined }),
+              },
+              {
+                kind: 'select',
+                key: 'repository',
+                label: 'Repository',
+                value: filter.repository ?? '',
+                options: options.repositories,
+                onChange: (repository) => setField({ repository: repository || undefined }),
+              },
+              {
+                kind: 'select',
+                key: 'kind',
+                label: 'Kind',
+                value: filter.kind ?? '',
+                options: KIND_OPTIONS,
+                onChange: (kind) => setField({ kind: (kind || undefined) as UntriagedFilter['kind'] }),
+              },
               { kind: 'select', key: 'age', label: 'Age', value: filter.age ?? '', options: AGE_OPTIONS, onChange: (value) => setField({ age: value || undefined }) },
-              { kind: 'select', key: 'author', label: 'Author', value: filter.author ?? '', options: options.authors, onChange: (author) => setField({ author: author || undefined }) },
+              {
+                kind: 'select',
+                key: 'author',
+                label: 'Author',
+                value: filter.author ?? '',
+                options: options.authors,
+                onChange: (author) => setField({ author: author || undefined }),
+              },
               { kind: 'select', key: 'label', label: 'Label', value: filter.label ?? '', options: options.labels, onChange: (label) => setField({ label: label || undefined }) },
             ]}
           >
-            <div className="flex flex-wrap items-start gap-3">
-              <div className="flex min-w-0 flex-1 flex-col gap-1" style={{ minWidth: '16rem' }}>
+            <Box flex flexWrap items="start" gap="3">
+              <Box css-min-width="16rem" flex minW0 flex1 flexCol gap="1">
                 <Hint role="status" as="p" size="xs">
                   {shown.length === list.items.length ? `${list.items.length} untriaged` : `${shown.length} of ${list.items.length} untriaged`}
                   {chosen.length ? ` · ${chosen.length} selected` : ''}
                 </Hint>
                 <Checked list={list} now={now} onOpenSources={onOpenSources} />
-              </div>
+              </Box>
               <Tooltip text={bulk.tooltip}>
                 {(describedBy) => (
-                  <a
+                  <PlainLink
                     href={linkHref(chosen.length ? bulk.url : undefined)}
                     target="_top"
                     role="button"
                     aria-disabled={!chosen.length || undefined}
                     aria-describedby={describedBy}
                     tabIndex={0}
-                    style={{ ...LINK_BUTTON, opacity: chosen.length ? 1 : 0.5, cursor: chosen.length ? 'pointer' : 'default' }}
-                    className="text-sm"
+                    css-display="inline-flex"
+                    css-align-items="center"
+                    css-justify-content="center"
+                    css-gap="6"
+                    css-padding="4px-6px"
+                    css-border="1px-solid-border"
+                    css-border-radius="6"
+                    css-color="text"
+                    css-background="card-transparent"
+                    css-opacity={chosen.length ? '1' : '0.5'}
+                    css-cursor={chosen.length ? 'pointer' : 'default'}
+                    size="sm"
                     data-bulk-open
                   >
                     <Radar size={ICON} aria-hidden="true" />
                     Open selected in Issue Radar
-                  </a>
+                  </PlainLink>
                 )}
               </Tooltip>
               <IconLabel icon={Users} onClick={() => setSending(chosen)} disabled={!bulkSend.ok} tooltip={bulkSend.reason}>
                 Send selected to Issue Radar
               </IconLabel>
-            </div>
+            </Box>
           </FilterPanel>
           {shown.length === 0 ? (
-            <Hint as="p" size="sm">No untriaged item matches these filters. Clear them to see all {list.items.length}.</Hint>
+            <Hint as="p" size="sm">
+              No untriaged item matches these filters. Clear them to see all {list.items.length}.
+            </Hint>
           ) : narrow ? (
-            <Stack items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} onStart={(item, action) => void start(item, action)} onSpec={(item) => void adoptSpec(item)} />
+            <Stack
+              items={pages.take('untriaged', shown)}
+              selected={selected}
+              now={now}
+              onSelect={onSelect}
+              onSend={(item) => setSending([item])}
+              onReview={(item) => void review(item)}
+              onStart={(item, action) => void start(item, action)}
+              onSpec={(item) => void adoptSpec(item)}
+            />
           ) : (
-            <Table items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} onStart={(item, action) => void start(item, action)} onSpec={(item) => void adoptSpec(item)} />
+            <Table
+              items={pages.take('untriaged', shown)}
+              selected={selected}
+              now={now}
+              onSelect={onSelect}
+              onSend={(item) => setSending([item])}
+              onReview={(item) => void review(item)}
+              onStart={(item, action) => void start(item, action)}
+              onSpec={(item) => void adoptSpec(item)}
+            />
           )}
           <ShowMore {...pages.more('untriaged', shown.length)} />
         </>
@@ -728,6 +1070,6 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
           }}
         />
       )}
-    </section>
+    </Box>
   )
 }

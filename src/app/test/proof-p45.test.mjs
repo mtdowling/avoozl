@@ -16,6 +16,7 @@ import {
   asksForcePush,
   deliveryPolicy,
   plansRepoSteps,
+  integrateVerified,
   rebaseForIntegration,
 } from "../delivery.mjs";
 import { feedbackStep } from "../github-feedback.mjs";
@@ -420,12 +421,10 @@ test("P45 (4): a screenshot lands in the drawer and the comment; a 30 MB file is
   const github = {
     listIssueComments: async () => [],
     createIssueComment: async (...args) => (
-      calls.push(["create", ...args]),
-      { id: 501 }
+      calls.push(["create", ...args]), { id: 501 }
     ),
     updateIssueComment: async (...args) => (
-      calls.push(["update", ...args]),
-      {}
+      calls.push(["update", ...args]), {}
     ),
   };
   await evidenceCommentStep(w.store, github);
@@ -547,7 +546,6 @@ function single(t, delivery = {}) {
         repositories: {
           "o/lib": {
             baseBranch: "main",
-            coder: "worker",
             allowedActors: ["alice"],
           },
         },
@@ -676,6 +674,10 @@ test("P45 (5) local: a task branch behind the integration branch is merged forwa
   fs.writeFileSync(path.join(w.checkout, "other.txt"), "main moved\n");
   git(w.checkout, "add", ".");
   git(w.checkout, "commit", "-m", "Main moves");
+  // A `process` child's result folder is Avoozl's own, not a change that
+  // holds the merge forward (nk-p1 preflight).
+  fs.mkdirSync(path.join(tree.path, ".avoozl"), { recursive: true });
+  fs.writeFileSync(path.join(tree.path, ".avoozl", "result.json"), "{}");
   const moved = await rebaseForIntegration(
     w.store.get("projects", "app"),
     w.store.get("task_worktrees", "a1"),
@@ -692,6 +694,38 @@ test("P45 (5) local: a task branch behind the integration branch is merged forwa
   ).split(" ");
   assert.equal(parents.length, 3, "a merge commit");
   assert.ok(parents.includes(commit), "the reviewed commit is kept as it was");
+});
+
+// Found by worker-paths wp-p1: a base that moved and conflicts at
+// integration went straight to a person; it goes back to the worker chat.
+test("P45 (5) local: a conflict when merging the base forward goes back to the worker chat", async (t) => {
+  const w = local(t, { investigate: { mode: "off" } });
+  await w.bind("a1", "w-a1", { attempt: 1 });
+  const tree = await w.ops.execute("worktree.prepare", { taskId: "a1" });
+  fs.writeFileSync(path.join(tree.path, "same.txt"), "from the task\n");
+  git(tree.path, "add", ".");
+  git(tree.path, "commit", "-m", "a1");
+  const commit = git(tree.path, "rev-parse", "HEAD");
+  fs.writeFileSync(path.join(w.checkout, "same.txt"), "from main\n");
+  git(w.checkout, "add", ".");
+  git(w.checkout, "commit", "-m", "Main moves");
+  w.store.put("task_deliveries", {
+    id: "a1",
+    taskId: "a1",
+    state: "verified",
+    commit,
+    attempts: [{ attempt: 1, slot: "w-a1", outcome: "done", commit }],
+    verifications: [],
+  });
+  const { messages, notify } = await integrateVerified(w.store, {});
+  assert.deepEqual(notify, []);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].slot, "w-a1");
+  assert.match(messages[0].text, /same\.txt/);
+  const delivery = w.store.get("task_deliveries", "a1");
+  assert.equal(delivery.state, "running");
+  assert.equal(delivery.landingConflicts.length, 1);
+  assert.equal(git(tree.path, "rev-parse", "HEAD"), commit, "nothing merged");
 });
 
 test("P45 (6): the same correction on two tasks becomes one rule proposal and one steering leaf", async (t) => {
@@ -918,7 +952,6 @@ test("P45 (8) local: manual ship waits for a person's Integrate", async (t) => {
     attempts: [],
     verifications: [],
   });
-  const { integrateVerified } = await import("../delivery.mjs");
   const policy = deliveryPolicy(
     JSON.parse(fs.readFileSync(path.join(w.root, ".avoozl.json"), "utf8")),
   );

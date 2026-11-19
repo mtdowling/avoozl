@@ -3,16 +3,18 @@
 // example (examples.mjs) installs them as draft spec folders.
 import { factsLines } from "./spec-facts.mjs";
 
-// A task item and its Facts bullet (Requirement 111).
-const item = (id, title, entry) =>
-  [`- [ ] ${id} ${title}`, ...factsLines(entry)].join("\n");
+// A task item, its Facts bullet (Requirement 111) and its summary bullets.
+const item = (id, title, { summary = [], ...entry }) =>
+  [
+    `- [ ] ${id} ${title}`,
+    ...factsLines(entry),
+    ...summary.map((line) => `  - ${line}`),
+  ].join("\n");
 
-const leaf = (summary, extra = {}) => ({
+const leaf = (done, extra = {}) => ({
   kind: "leaf",
   repository: "app",
-  summary,
-  acceptance: [summary],
-  checks: ["npm test"],
+  acceptance: [done],
   completion: "integrated",
   ...extra,
 });
@@ -51,7 +53,7 @@ export function sampleSpecs({ word = "demo" } = {}) {
         2.2: {
           kind: "leaf",
           repository: "app",
-          summary: "A person imports three recipes on a phone.",
+          summary: ["A person imports three recipes on a phone."],
           acceptance: ["Three imports work on a phone."],
           completion: "answered",
           requires: ["2.1"],
@@ -121,13 +123,7 @@ export function sampleSpecs({ word = "demo" } = {}) {
     "requirements.md": `# Recipe Box\n\nMade-up ${word} epic: a small app to import recipes, plan meals and shop.\n\n## What done means\n\nEvery member spec is done.\n`,
     "design.md": "# Design\n\nImport first, then the planner, then the list.\n",
     "tasks.md": `---\nkind: epic\n---\n# Plans\n\n${members
-      .map(
-        (m, i) =>
-          item(i + 1, specs[m].title, {
-            plan: m,
-            summary: specs[m].title + ".",
-          }) + "\n",
-      )
+      .map((m, i) => item(i + 1, specs[m].title, { plan: m }) + "\n")
       .join("")}`,
   };
   // A draft spec the demo never approves.

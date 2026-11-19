@@ -20,31 +20,6 @@ export const DISPATCH_ROLE = Object.freeze({
 });
 const MODEL = /^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$/;
 const record = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
-// The removed driver chat's role. Files saved before its removal may still
-// name it; it is accepted and dropped so they keep loading.
-export const RETIRED_ROLES = new Set(["driver"]);
-
-// Check a `models` value; throws naming the key.
-export function validateModels(value, where = "models") {
-  if (value === undefined) return {};
-  if (!record(value)) fail(`${where} must be an object.`);
-  for (const [key, model] of Object.entries(value)) {
-    if (RETIRED_ROLES.has(key)) continue;
-    if (!MODEL_ROLES.includes(key))
-      fail(`${where}.${key} is not a role; use ${MODEL_ROLES.join(", ")}.`);
-    if (typeof model !== "string" || !MODEL.test(model))
-      fail(`${where}.${key} must be a model name or "auto".`);
-  }
-  if (
-    value.planner &&
-    value.planner !== "auto" &&
-    value.planReviewer === value.planner
-  )
-    fail(`${where}.planReviewer must differ from the named planner model.`);
-  const checked = structuredClone(value);
-  for (const key of RETIRED_ROLES) delete checked[key];
-  return checked;
-}
 
 export const PLAN_REVIEW_KEYS = Object.freeze(["mode", "rounds"]);
 
@@ -84,21 +59,6 @@ const HARNESS = /^[a-z][a-z0-9-]{0,60}$/;
 export const isHarnessName = (value) =>
   typeof value === "string" && HARNESS.test(value);
 
-// Check a `harnesses` value; throws naming the key.
-export function validateHarnesses(value, where = "harnesses") {
-  if (value === undefined) return {};
-  if (!record(value)) fail(`${where} must be an object.`);
-  for (const [key, harness] of Object.entries(value)) {
-    if (!HARNESS_ROLES.includes(key))
-      fail(`${where}.${key} is not a role; use ${HARNESS_ROLES.join(", ")}.`);
-    if (!isHarnessName(harness))
-      fail(
-        `${where}.${key} must be ${KIROCREW_HARNESS}, a harness name or "auto".`,
-      );
-  }
-  return structuredClone(value);
-}
-
 // The harness a role's saved setting names, or null for its project's.
 export function roleHarness(config, role) {
   const harness = resolveRoles(config)[role]?.harness;
@@ -115,13 +75,13 @@ export function harnessExecutor(harness) {
 
 // One `roles` table (R98.6): each role's harness, model and, for the
 // worker and the falsifier, agent. Settings › Models edits it. The older
-// keys still load into it with no warning (R98.8): `models`, `harnesses`,
+// keys still load into it with no warning (R98.8):
 // `delivery.agent/model`, `delivery.investigate.agent/model` and
 // `flow.retro.model`. A `roles` field wins over an older key.
 // The roles after the chat roles pick only a harness: each runs on its
 // agent's own model (without-kirocrew NK1.3). One entry per row of the role
 // table (role-table.mjs); a test keeps them equal.
-export const HARNESS_ONLY_ROLES = Object.freeze([
+const HARNESS_ONLY_ROLES = Object.freeze([
   "verifier",
   "reviewer",
   "responder",
@@ -129,6 +89,8 @@ export const HARNESS_ONLY_ROLES = Object.freeze([
   "issuePlanner",
   "planAnswer",
   "prReview",
+  // The assistant the page's Open chat buttons start without Kiro Crew.
+  "assist",
 ]);
 export const ROLES = Object.freeze([
   "worker",
@@ -159,11 +121,6 @@ export function resolveRoles(config) {
   put("worker", "model", delivery.model);
   put("falsifier", "agent", investigate.agent);
   put("falsifier", "model", investigate.model);
-  if (record(config?.models))
-    for (const role of MODEL_ROLES) put(role, "model", config.models[role]);
-  if (record(config?.harnesses))
-    for (const role of HARNESS_ROLES)
-      put(role, "harness", config.harnesses[role]);
   if (record(config?.roles))
     for (const role of ROLES)
       if (record(config.roles[role]))
@@ -184,8 +141,6 @@ export function mergeRoles(...tables) {
 // Remove the older keys the table replaces (R98.9). `delivery` itself
 // stays, even empty, because its presence turns delivery on.
 export function dropOlderRoleKeys(value) {
-  delete value.models;
-  delete value.harnesses;
   if (record(value.delivery)) {
     delete value.delivery.agent;
     delete value.delivery.model;

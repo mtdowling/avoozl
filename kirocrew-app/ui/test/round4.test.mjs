@@ -4,14 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import test from 'node:test'
 import { PAGE, moreLabel, visibleCount } from '../src/paging.ts'
 import { TOOLTIP_DELAY, TOOLTIP_MARGIN, placeTooltip, tooltipController } from '../src/tooltip.ts'
-import {
-  ACTION_TIPS,
-  conflictChoices,
-  conflictFilterActive,
-  matchesConflict,
-  readConflictFilter,
-  writeConflictFilter,
-} from '../src/conflicts-api.ts'
+import { ACTION_TIPS, conflictChoices, conflictFilterActive, matchesConflict, readConflictFilter, writeConflictFilter } from '../src/conflicts-api.ts'
 
 const src = new URL('../src/', import.meta.url)
 const source = (name) => readFileSync(new URL(name, src), 'utf8')
@@ -63,8 +56,7 @@ test('Graph, Plans and Conflicts use the one boxed filter panel', () => {
   assert.match(panel, /useMedia\('\(max-width: 767px\)'\)/)
   // Conflicts lost its kind tabs; kind is a filter.
   assert.doesNotMatch(source('ConflictsView.tsx'), /SegmentedControl/)
-  for (const label of ['Search', 'Kind', 'Spec', 'Epic', 'Repository', 'Age', 'Changed by'])
-    assert.match(source('ConflictsView.tsx'), new RegExp(`label: '${label}'`), label)
+  for (const label of ['Search', 'Kind', 'Spec', 'Epic', 'Repository', 'Age', 'Changed by']) assert.match(source('ConflictsView.tsx'), new RegExp(`label: '${label}'`), label)
 })
 
 const item = (kind, taskId, extra = {}) => ({ kind, taskId, title: taskId, detail: 'd', authority: 'local', issue: null, ...extra })
@@ -88,14 +80,24 @@ test('Conflicts filter: kind with counts, plan, epic, repository, age and who ch
   const choices = conflictChoices(items, graph)
   assert.deepEqual(
     choices.kinds.map((k) => k.label),
-    ['GitHub edits (1)', 'Decisions (0)', 'Needs you (1)', 'Sessions and resources (0)'],
+    ['GitHub edits (1)', 'Decisions (0)', 'Needs you (1)', 'Sessions (0)'],
   )
   assert.deepEqual(choices.changedBy, [{ value: 'octo', label: 'octo' }])
   assert.deepEqual(
     choices.repositories.map((r) => r.value),
     ['org/x', '(none)'],
   )
-  const keep = (filter) => items.filter((i) => matchesConflict(i, filter, graph.tasks.find((t) => t.id === i.taskId), now)).map((i) => i.taskId)
+  const keep = (filter) =>
+    items
+      .filter((i) =>
+        matchesConflict(
+          i,
+          filter,
+          graph.tasks.find((t) => t.id === i.taskId),
+          now,
+        ),
+      )
+      .map((i) => i.taskId)
   assert.deepEqual(keep({}), ['a', 'g'])
   assert.deepEqual(keep({ kind: 'github-conflict' }), ['g'])
   assert.deepEqual(keep({ plan: 'spec:one' }), ['a'])
@@ -237,13 +239,12 @@ test('each view heading and its nav tab show the same icon, hidden from readers'
   ])
     assert.match(source(file), new RegExp(`<ViewHeading\\s+id="avoozl-${view}-title"\\s+view="${view}"[\\s>]`), file)
   assert.match(source('App.tsx'), /<NavLabel view=\{t\.key\} text=\{t\.label\}/)
-  assert.match(source('App.tsx'), /const Icon = VIEW_ICONS\[props\.view\][\s\S]*?<Icon size=\{ICON\} aria-hidden="true"/)
+  assert.match(source('App.tsx'), /const Icon = VIEW_ICONS\[props\.view\][\s\S]*?<Glyph icon=\{Icon\} size=\{ICON\} aria-hidden="true"/)
   const controls = source('ui/controls.tsx')
   assert.match(controls, /<Icon size=\{level === 2 \? 18 : 16\} aria-hidden="true"/)
   assert.match(controls, /<Icon size=\{ICON\} aria-hidden="true"/)
   assert.doesNotMatch(controls.slice(controls.indexOf('export function ViewHeading')), /warn|yellow/)
 })
-
 
 test('repository rows join checkouts with their GitHub settings, and GitHub-only entries follow', async () => {
   const { repositoryRows, githubHref } = await import('../src/repository-rows.ts')
@@ -252,7 +253,10 @@ test('repository rows join checkouts with their GitHub settings, and GitHub-only
       { id: 'nupp', name: 'nupp', localCheckout: '/x/nupp', github: 'nupp-lang/nupp', baseBranch: 'main' },
       { id: 'local', name: 'local', localCheckout: '/x/local', github: null, baseBranch: 'trunk' },
     ],
-    [{ name: 'example/plans', baseBranch: 'main' }, { name: 'nupp-lang/nupp', baseBranch: 'core-dev' }],
+    [
+      { name: 'example/plans', baseBranch: 'main' },
+      { name: 'nupp-lang/nupp', baseBranch: 'core-dev' },
+    ],
   )
   assert.deepEqual(
     rows.map((r) => [r.key, r.policy, r.github, r.branch, r.folder]),
@@ -271,8 +275,7 @@ test('workspace states read as plain words; yellow only where the owner must act
   assert.equal(workspaceState('closed').label, 'On')
   assert.equal(workspaceState('stopped').label, 'Turned off')
   assert.equal(workspaceState('draining').label, 'Finishing work')
-  for (const [state, entry] of Object.entries(WORKSPACE_STATES))
-    assert.equal(entry.variant === 'warning', ['degraded', 'quarantined'].includes(state), state)
+  for (const [state, entry] of Object.entries(WORKSPACE_STATES)) assert.equal(entry.variant === 'warning', ['degraded', 'quarantined'].includes(state), state)
   assert.match(source('WorkspaceView.tsx'), /Add a workspace/)
   assert.match(source('WorkspaceView.tsx'), /A workspace is a folder with your specs\. Pick one that already has them, or start a new one\./)
   assert.doesNotMatch(source('WorkspaceView.tsx'), /Add or initialize/)

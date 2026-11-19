@@ -32,7 +32,7 @@ test('the repository, workspace and plugin dialogs group fields with FormSection
   assert.match(workspace, /<FormSection title="Workspace">[\s\S]*<FormSection title="Running">/)
   assert.match(slice(source('AddPlugin.tsx'), 'data-plugin-review'), /<FormSection title="Settings pack"/)
   // One shared part, with the border in the theme's color.
-  const part = source('FormSection.tsx')
+  const part = source('FormSection.tsx') + source('ui/PageStyles.tsx')
   assert.match(part, /\[data-form-section\] ~ \[data-form-section\] \{ border-top: 1px solid var\(--border\); padding-top: 16px; \}/)
 })
 
@@ -73,9 +73,13 @@ const LAYOUT = (dialog) => `(() => {
 test('the repository Edit modal is FormSections with no bordered boxes inside', { skip }, async () => {
   await page.open(harness.url({ page: 'app', radar: '1', theme: 'light', roles: 'plans' }), { width: 1280, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
-  await page.evaluate(`(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return true })()`)
+  await page.evaluate(
+    `(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return true })()`,
+  )
   await settle()
-  await page.evaluate(`(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-item]')].find((x) => x.textContent.trim() === 'Repository setup'); b?.click(); return true })()`)
+  await page.evaluate(
+    `(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-item]')].find((x) => x.textContent.trim() === 'Repository setup'); b?.click(); return true })()`,
+  )
   await page.until(`Boolean(document.querySelector('[data-repository-list]'))`)
   assert.equal(await press('[data-repository-list] button:not([disabled])', 'Edit '), true, 'a row has Edit')
   await page.until(`Boolean(document.querySelector('[data-repository-edit] [data-form-section]'))`)

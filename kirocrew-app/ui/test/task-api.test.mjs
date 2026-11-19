@@ -1,18 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
-import {
-  duration,
-  emptyForm,
-  findCycle,
-  formFrom,
-  newTaskId,
-  relativeTime,
-  saveError,
-  sessionHref,
-  taskClient,
-  taskInput,
-} from '../src/task-api.ts'
+import { duration, emptyForm, findCycle, formFrom, newTaskId, relativeTime, saveError, sessionHref, taskClient, taskInput } from '../src/task-api.ts'
 
 const edge = (from, to, kind = 'requires') => ({ from, to, kind })
 
@@ -42,7 +31,6 @@ test('a new task is created as a draft with its prerequisites and kinds', () => 
       title: ' New task ',
       summary: 'Do it.',
       acceptance: 'One\n\n Two ',
-      checks: 'npm test',
       prerequisites: [
         { id: 'a', kind: 'requires', condition: '' },
         { id: 'b', kind: 'requires', condition: 'integrated' },
@@ -56,7 +44,6 @@ test('a new task is created as a draft with its prerequisites and kinds', () => 
     title: 'New task',
     summary: 'Do it.',
     acceptance: ['One', 'Two'],
-    checks: ['npm test'],
     requires: ['a', { task: 'b', condition: 'integrated' }],
     sequence: ['c'],
     create: true,

@@ -19,12 +19,21 @@ const SECRET = "report.secret";
 // store, so a brief built twice carries the same token, and a new attempt
 // gets a new one. The store keeps the secret, never a token. It reads only:
 // null means no secret exists yet, and the brief keeps the MCP report.
-export function issueReportToken(store, { taskId, attempt = 1 }) {
+// A role other than the worker (a falsifier) gets its own token, so one
+// role's token never reports for another.
+export function issueReportToken(
+  store,
+  { taskId, attempt = 1, role = "worker" },
+) {
   const secret = store.getMeta(SECRET);
   if (!secret) return null;
   return crypto
     .createHmac("sha256", secret)
-    .update(`${taskId}\n${attempt}`)
+    .update(
+      role === "worker"
+        ? `${taskId}\n${attempt}`
+        : `${taskId}\n${role}\n${attempt}`,
+    )
     .digest("hex")
     .slice(0, 48);
 }
@@ -48,7 +57,7 @@ function inside(worktree, cwd) {
 
 // The session binding a command-line report speaks for. Every refusal is a 403
 // with one fixed message per cause, and none echoes the token.
-export function matchCliReport(store, { taskId, token, cwd }) {
+export function matchCliReport(store, { taskId, token, cwd, role = "worker" }) {
   if (typeof taskId !== "string" || !taskId) fail("Name the task.");
   if (typeof token !== "string" || !/^[0-9a-f]{48}$/.test(token))
     fail("The report token is missing or malformed.", 403);
@@ -57,7 +66,7 @@ export function matchCliReport(store, { taskId, token, cwd }) {
   const binding = listSessionBindings(store)
     .filter(
       (b) =>
-        b.role === "worker" &&
+        b.role === role &&
         (b.taskId === taskId || b.batch?.tasks?.includes(taskId)),
     )
     .sort((x, y) => (y.attempt || 0) - (x.attempt || 0))[0];
@@ -67,11 +76,15 @@ export function matchCliReport(store, { taskId, token, cwd }) {
       issueReportToken(store, {
         taskId: binding.taskId,
         attempt: binding.attempt,
+        role,
       }),
     ),
     got = Buffer.from(token);
   if (want.length !== got.length || !crypto.timingSafeEqual(want, got))
     fail("The report token does not match this task.", 403);
+  // A falsifier reads a checkout and owns no worktree; its token is its
+  // own role's, so it is matched by the token alone.
+  if (role !== "worker") return binding;
   const worktree = store.get("task_worktrees", binding.taskId)?.path;
   if (!worktree || !inside(worktree, cwd))
     fail("Run the report from this task's worktree.", 403);
@@ -104,7 +117,7 @@ export const cliReportCaller = (binding) => ({
 // A findings file (`runner report TASK findings --file PATH`): a regular file
 // of at most the result file's size (R96.1), read as JSON data. Avoozl's
 // findings validator (findingsInput) judges its fields when it is reported.
-export function readFindingsFile(file) {
+function readFindingsFile(file) {
   if (typeof file !== "string" || !file)
     fail("Name the findings file: --file PATH.");
   let stat;
@@ -130,10 +143,31 @@ export function readFindingsFile(file) {
 export async function reportByToken(
   store,
   ops,
-  { taskId, state, token, cwd, text, file },
+  { taskId, state, token, cwd, text, file, role = "worker" },
 ) {
   if (!["done", "blocked", "findings"].includes(state))
     fail("State is done, blocked or findings.");
+  // A falsifier's verdict (R75.2), from its own file and token. shortcut:
+  // the falsifier is the only read role with a command-line report; give the
+  // verifier and review roles one when a proof needs them without MCP.
+  if (role !== "worker") {
+    if (role !== "falsifier")
+      fail("Only a worker or a falsifier reports here.");
+    if (token === undefined) fail("A falsifier reports with its --token.", 403);
+    const binding = matchCliReport(store, { taskId, token, cwd, role });
+    return ops.execute(
+      "session.report",
+      state === "done"
+        ? { taskId, kind: "done", falsifier: readFindingsFile(file) }
+        : {
+            taskId,
+            kind: "blocked",
+            text: text || "The falsifier reported blocked.",
+          },
+      undefined,
+      { caller: cliReportCaller(binding) },
+    );
+  }
   const binding =
       token === undefined
         ? matchClaimReport(store, { taskId, cwd })

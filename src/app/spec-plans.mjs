@@ -20,6 +20,8 @@ import {
   factName,
   factsLines,
   factsText,
+  itemBullets,
+  summaryLines,
   readFacts,
   withoutFacts,
 } from "./spec-facts.mjs";
@@ -28,6 +30,7 @@ import { resolveTaskId } from "../task-identity.mjs";
 import { integrationOf } from "./integration-branch.mjs";
 import { currentFiles } from "./spec-legacy.mjs";
 import { checkForwardTarget } from "./mirror-policy.mjs";
+import { repeatsTitle } from "./title-repeat.mjs";
 
 export const SPECS_DIRECTORY = path.join(".kiro", "specs");
 // The old facts file. Nothing reads it; a leftover one is a lint error.
@@ -52,9 +55,9 @@ const LETTERED = /^[A-Z]\d+[a-z]?$/;
 const CHECKBOX = /^\s*[-*+] \[([ xX~-])\]\*?[ \t]+(.*)$/;
 // A "Built:" line under a checked item names the work that already landed.
 const BUILT = /^\s+(?:[-*+]\s+)?Built:\s*(.+?)\s*$/;
-export const TITLE_LIMIT = 240;
+const TITLE_LIMIT = 240;
 // An epic row's lifecycle step (Requirement 59.1, design §4.32.6).
-export const EPIC_STEPS = ["design", "review", "implement"];
+const EPIC_STEPS = ["design", "review", "implement"];
 const FENCE = /^\s*(```|~~~)/;
 
 export function specName(value) {
@@ -373,31 +376,9 @@ export function checkedItems(name, text) {
   return checked;
 }
 
-// An item longer than the title limit keeps its first clause as the title,
-// ending at the first ". ", "; ", ": ", ", " or " — " outside backticks; the
-// whole line becomes the summary (spec-plans parseSpec).
-export function shortTitle(text) {
-  if (text.length <= TITLE_LIMIT) return text;
-  let code = false;
-  for (let at = 0; at < text.length - 1; at++) {
-    const char = text[at];
-    if (char === "`") code = !code;
-    if (code || at === 0) continue;
-    if (
-      ((".;:,".includes(char) && text[at + 1] === " ") ||
-        (char === " " && "—–".includes(text[at + 1]))) &&
-      at <= TITLE_LIMIT
-    )
-      return text.slice(0, at).trim();
-  }
-  const cut = text.slice(0, TITLE_LIMIT - 1),
-    space = cut.lastIndexOf(" ");
-  return (space > 0 ? cut.slice(0, space) : cut).trimEnd() + "…";
-}
-
 // The clauses under bugfix.md's "Unchanged Behavior" heading, Kiro's
 // regression-prevention list, without their numbering or list markers.
-export function unchangedClauses(text) {
+function unchangedClauses(text) {
   const clauses = [];
   let inside = false,
     fenced = false;
@@ -533,6 +514,7 @@ export function parseSpec({
   }
 
   const facts = readFacts(files["tasks.md"] || "", items),
+    bullets = itemBullets(files["tasks.md"] || "", items),
     manifest = facts.manifest,
     entries = manifest.tasks,
     problem = (code, line, message, extra) =>
@@ -608,7 +590,7 @@ export function parseSpec({
       }
       const line = facts.lineOf(item.key),
         extra = Object.keys(entry).filter(
-          (key) => !["plan", "summary", "step"].includes(key),
+          (key) => !["plan", "step"].includes(key),
         );
       if (extra.length)
         diagnostics.push(
@@ -616,7 +598,7 @@ export function parseSpec({
             "spec.epic-task-fields",
             "tasks.md",
             line,
-            `Epic entry "${item.key}" holds ${extra.map((key) => `"${factName(key)}"`).join(", ")}. An epic entry holds only "plan", "summary" and "step".`,
+            `Epic entry "${item.key}" holds ${extra.map((key) => `"${factName(key)}"`).join(", ")}. An epic entry holds only "plan" and "step".`,
             { entry: item.key },
           ),
         );
@@ -664,7 +646,9 @@ export function parseSpec({
         key: item.key,
         plan: entry.plan,
         step,
-        summary: typeof entry.summary === "string" ? entry.summary : "",
+        summary: (bullets.get(item.line) ?? [])
+          .map((bullet) => bullet.text)
+          .join("\n"),
         title: item.title,
         line,
       });
@@ -750,12 +734,31 @@ export function parseSpec({
     }
     const local = (reference) => byKey.get(reference)?.id ?? reference;
     try {
-      const title = shortTitle(item.title),
+      // The item's whole line is its title. One over the limit is refused;
+      // its cut form only keeps the other checks from failing on it.
+      // The item's description bullets are its summary. One that repeats
+      // the title is refused and left out.
+      const own = (bullets.get(item.line) ?? []).filter((bullet) => {
+          if (!repeatsTitle(bullet.text, item.title)) return true;
+          diagnostics.push(
+            diagnostic(
+              "task.summary-repeats-title",
+              "tasks.md",
+              bullet.line,
+              "This repeats the title; say what the title does not, or delete it.",
+              { taskId: item.id },
+            ),
+          );
+          return false;
+        }),
+        summary = own.map((bullet) => bullet.text).join("\n");
+      const title = item.title.slice(0, TITLE_LIMIT),
         // The batch fact only names a group; the group is stamped below.
         { phase: phaseValue, batch: _batch, ...rest } = structuredClone(entry),
         fields = {
           ...rest,
           title,
+          ...(summary ? { summary } : {}),
           // The spec's ship mode and a bugfix spec's type reach each leaf
           // (§4.25, §4.11).
           ...(specShip && entry.kind !== "package" ? { specShip } : {}),
@@ -763,10 +766,16 @@ export function parseSpec({
             ? { specType: "bugfix" }
             : {}),
         };
-      if (title !== item.title)
-        fields.summary = [item.title, entry.summary]
-          .filter((text) => typeof text === "string" && text.trim())
-          .join("\n\n");
+      if (item.title.length > TITLE_LIMIT)
+        diagnostics.push(
+          diagnostic(
+            "task.title-length",
+            "tasks.md",
+            item.line,
+            `Task "${item.key}" has a title of ${item.title.length} characters; the limit is ${TITLE_LIMIT}. Shorten it and move the rest into a bullet under the item.`,
+            { taskId: item.id },
+          ),
+        );
       const proposal = validateProposal(fields);
       for (const field of ["requires", "sequence", "supports"])
         if (proposal[field]) proposal[field] = proposal[field].map(local);
@@ -859,11 +868,10 @@ function planBatchGroups(
     if (
       !Array.isArray(tasks) ||
       tasks.length < 2 ||
-      tasks.length > 5 ||
       tasks.some((key) => typeof key !== "string") ||
       new Set(tasks).size !== tasks.length
     ) {
-      problem(line, `Batch "${id}" lists 2 to 5 different task IDs.`);
+      problem(line, `Batch "${id}" lists 2 or more different task IDs.`);
       continue;
     }
     if (
@@ -1405,7 +1413,9 @@ function writeAtomically(target, text) {
 export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
   if (!proposal || typeof proposal !== "object" || Array.isArray(proposal))
     fail("Describe one proposed task as a JSON object.");
-  const { id: given, title, ...entry } = proposal;
+  // Its summary goes under the item as bullets.
+  // A task never names checks; an older caller's list is ignored.
+  const { id: given, title, summary, checks: _checks, ...entry } = proposal;
   if (
     typeof given !== "string" ||
     !(NAMED.test(given) || NUMBERED.test(given) || LETTERED.test(given))
@@ -1416,7 +1426,7 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
   const key = given.replace(/\.$/, "");
   if (typeof title !== "string" || /[\r\n]/.test(title))
     fail("Each task needs a title of 1–240 characters on one line.");
-  validateProposal({ ...structuredClone(entry), title });
+  validateProposal({ ...structuredClone(entry), title, summary });
   return store.transaction(() => {
     const plan = store.get("plans", id);
     if (!plan || plan.deletedAt) fail("Plan not found.", 404);
@@ -1437,7 +1447,7 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
       eol = tasks.includes("\r\n") ? "\r\n" : "\n";
     let facts;
     try {
-      facts = factsLines(entry);
+      facts = [...factsLines(entry), ...summaryLines(summary)];
     } catch (error) {
       fail(error.message);
     }

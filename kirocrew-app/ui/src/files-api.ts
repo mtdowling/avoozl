@@ -100,8 +100,7 @@ export function fileTree(paths: string[], changes: FileChange[] = []): TreeNode[
   const tidy = (node: TreeNode): TreeNode => {
     let children = node.children.map(tidy)
     children.sort((a, b) => Number(a.file) - Number(b.file) || a.name.localeCompare(b.name))
-    if (!node.file && node.path && children.length === 1 && !children[0].file)
-      return { ...children[0], name: `${node.name}/${children[0].name}` }
+    if (!node.file && node.path && children.length === 1 && !children[0].file) return { ...children[0], name: `${node.name}/${children[0].name}` }
     return { ...node, children }
   }
   return tidy(root).children

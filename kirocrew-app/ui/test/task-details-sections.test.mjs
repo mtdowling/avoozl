@@ -24,7 +24,7 @@ test('every drawer section is a SectionBox, open at first, inside the shared tab
   const controls = source('ui/controls.tsx')
   const box = controls.slice(controls.indexOf('export function SectionBox'), controls.indexOf('// A row of picture-less radio cards'))
   assert.match(box, /useState\(props\.open \?\? true\)/)
-  assert.match(box, /<Card className=/)
+  assert.match(box, /<Card flex flexCol/)
   assert.match(box, /<button\s+type="button"\s+aria-expanded=\{open\}\s+aria-controls=\{body\}/)
   assert.match(box, /hidden=\{!open\}/)
   assert.doesNotMatch(box, /warning|yellow|#[0-9a-f]{3,6}/i)
@@ -68,7 +68,11 @@ test('page: every tab shows its sections, each header folds by click and by keyb
     await page.until(`document.querySelector('[data-tab-panel]').dataset.tabPanel === '${tab}'`)
     await page.until(`${JSON.stringify(ids)}.every((id) => document.querySelector('[data-section-box="' + id + '"]'))`)
     const boxes = await page.evaluate(BOXES)
-    assert.deepEqual(boxes.map((b) => b.id), ids, tab)
+    assert.deepEqual(
+      boxes.map((b) => b.id),
+      ids,
+      tab,
+    )
     for (const box of boxes) {
       assert.ok(box.title, `${box.id} has a header`)
       assert.equal(box.expanded, 'true', `${box.id} starts open`)
@@ -80,7 +84,10 @@ test('page: every tab shows its sections, each header folds by click and by keyb
       await page.until(`document.querySelector(${sel}).getAttribute('aria-expanded') === 'false'`)
       const now = await page.evaluate(BOXES)
       assert.equal(now.find((b) => b.id === id).hidden, true, `${id} body hides`)
-      assert.ok(now.filter((b) => b.id !== id).every((b) => b.expanded === 'true'), `${id} closed another box`)
+      assert.ok(
+        now.filter((b) => b.id !== id).every((b) => b.expanded === 'true'),
+        `${id} closed another box`,
+      )
       await page.evaluate(`document.querySelector(${sel}).focus()`)
       await page.key(' ', 'Space', 32)
       await page.until(`document.querySelector(${sel}).getAttribute('aria-expanded') === 'true'`)
@@ -112,7 +119,10 @@ test('page: Add link shows one set of fields and closes after adding', { skip },
   // The same check as before: a bad link is refused in place.
   await page.evaluate(`${box}.querySelector('[data-add-link-submit]').click()`)
   await page.until(`${box}.textContent.includes('Give a link.')`)
-  for (const [i, value] of [[0, 'https://docs.example.test/plan'], [1, 'Plan doc']])
+  for (const [i, value] of [
+    [0, 'https://docs.example.test/plan'],
+    [1, 'Plan doc'],
+  ])
     await page.evaluate(`(() => {
       const input = ${box}.querySelectorAll('[data-add-link-form] input')[${i}]
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)})

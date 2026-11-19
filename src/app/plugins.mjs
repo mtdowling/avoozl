@@ -31,45 +31,31 @@ import { pluginSession } from "./plugin-session.mjs";
 import { fail } from "./store.mjs";
 import { readTemplates } from "./templates.mjs";
 
-export const PLUGIN_MANIFEST = "avoozl-plugin.json";
-export const RESERVED_IDS = new Set(["local", "github"]);
-export const KINDS = ["route", "tracker", "rules", "gate"];
+const PLUGIN_MANIFEST = "avoozl-plugin.json";
+const RESERVED_IDS = new Set(["local", "github"]);
+export const KINDS = ["intake", "rules"];
 export const CAPABILITIES = {
-  route: [],
-  // `poll` brings outside work in (R50.7): the intake part.
-  tracker: ["edges", "subtasks", "actor", "pause", "poll"],
+  // The intake part's one call is `poll`, which brings outside work in
+  // (R50.7). `actor` says it reports who closed an item.
+  intake: ["actor"],
   rules: [],
-  // One read-only call, `status` (RC23.6).
-  gate: [],
 };
 // The parts one plugin may bundle (R55.1), and the code kind each runs as.
-// A pack is settings only and runs as nothing; intake is a tracker's `poll`.
-// `template` is a workflow template (design §4.16): folders under
-// templates/, data only too.
-export const PARTS = [
-  "pack",
-  "rules",
-  "tracker",
-  "intake",
-  "route",
-  "gate",
-  "template",
-];
+// A pack is settings only and runs as nothing. `template` is a workflow
+// template (design §4.16): folders under templates/, data only too.
+export const PARTS = ["pack", "rules", "intake", "template"];
 // Parts Avoozl no longer reads. A plugin may still list them, so its other
 // parts keep working; they do nothing. Lessons packs went with the lessons
 // store (RC30.4).
 const REMOVED_PARTS = ["lessons"];
 const PART_KIND = {
   rules: "rules",
-  tracker: "tracker",
-  intake: "tracker",
-  route: "route",
-  gate: "gate",
+  intake: "intake",
 };
 
 // A manifest's parts and the code kinds they need. A manifest written
 // before `provides` names its kinds, and each kind is its own part.
-export function pluginParts(manifest) {
+function pluginParts(manifest) {
   const provides = Array.isArray(manifest?.provides)
     ? manifest.provides
     : Array.isArray(manifest?.kinds)
@@ -89,9 +75,9 @@ const CHILD = fileURLToPath(new URL("./plugin-child.mjs", import.meta.url));
 const MAX_FILES = 10000;
 const MAX_BYTES = 100 * 1024 * 1024;
 const MAX_LINE = 1024 * 1024;
-export const CALL_TIMEOUT_MS = 20_000;
+const CALL_TIMEOUT_MS = 20_000;
 // Plugin calls stop at a safe point inside the tick's own budget (§4.5).
-export const TICK_BUDGET_MS = 45_000;
+const TICK_BUDGET_MS = 45_000;
 
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -191,8 +177,7 @@ export function validateEntry(entry, where = "plugins entry") {
       fail(`${where}.${key} is not a plugin setting.`);
   if (typeof entry.id !== "string" || !ID.test(entry.id))
     fail(`${where}.id must be a lowercase plugin id.`);
-  if (RESERVED_IDS.has(entry.id))
-    fail(`${where}.id ${entry.id} is reserved for a built-in route.`);
+  if (RESERVED_IDS.has(entry.id)) fail(`${where}.id ${entry.id} is reserved.`);
   if (
     ["package", "path", "git"].filter((key) => entry[key] !== undefined)
       .length !== 1
@@ -289,7 +274,7 @@ const gitRoot = (settingsFile, id) =>
 
 // A git entry's pin on this machine, or null when there is none or it was
 // made for a different git, ref or subdir.
-export function gitPin(entry, settings) {
+function gitPin(entry, settings) {
   const pin = settings.pins?.[entry.id];
   if (
     !record(pin) ||
@@ -306,7 +291,7 @@ export function gitPin(entry, settings) {
 // Where an entry's files are: a path relative to `.avoozl.json` (repository)
 // or to the settings file (machine), a package installed into the plugin
 // folder beside the machine settings, or a git entry's pinned commit there.
-export function pluginLocation({ entry, source }, options, pin = null) {
+function pluginLocation({ entry, source }, options, pin = null) {
   const { settingsFile } = options;
   if (entry.path !== undefined)
     return path.resolve(sourceBase(source, options), entry.path);
@@ -356,7 +341,7 @@ export function validateManifest(manifest, entry) {
     manifest.kinds.some((kind) => !KINDS.includes(kind))
   )
     fail(
-      `${PLUGIN_MANIFEST} kinds must list route, tracker, rules, or gate, or provides must list its parts.`,
+      `${PLUGIN_MANIFEST} kinds must list intake or rules, or provides must list its parts.`,
     );
   const { provides, kinds } = pluginParts(manifest);
   if (
@@ -382,10 +367,6 @@ export function validateManifest(manifest, entry) {
         `${PLUGIN_MANIFEST} capabilities.${kind} may list only ${CAPABILITIES[kind].join(", ") || "nothing"}.`,
       );
   }
-  if (provides.includes("intake") && !capabilities.tracker?.includes("poll"))
-    fail(
-      `${PLUGIN_MANIFEST} provides intake, so capabilities.tracker must list poll.`,
-    );
   if (provides.includes("pack")) {
     const file = manifest.pack ?? PACK_FILE;
     if (

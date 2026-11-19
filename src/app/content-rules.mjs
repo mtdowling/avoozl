@@ -26,6 +26,7 @@ import { globalAvoozlConfigPath } from "./layered-config.mjs";
 import { queueNotifications } from "./notifications.mjs";
 import { PRIVACY_SET, privacyHits, privacyRules } from "./privacy.mjs";
 import { fail } from "./store.mjs";
+import { personPosting, postedText } from "./github-posted.mjs";
 
 // `intake` screens incoming items (design §4.12) and runs only for a set
 // that names it, so GitHub intake is unchanged unless the owner asks.
@@ -293,7 +294,7 @@ export function matchInWorker(rules, lines, options) {
 // {hits: [{index, set, rule}], allowed: [{set, rule, count}]}: a rule with
 // `allow` sources drops a match when one of them matches the same line, and
 // only the count is kept (R40.15).
-export function matchLinesInWorker(
+function matchLinesInWorker(
   rules,
   lines,
   { timeoutMs = CHECK_TIMEOUT_MS } = {},
@@ -472,7 +473,7 @@ const expand = (file, base) =>
     ? path.join(os.homedir(), file.slice(2))
     : path.resolve(base, file);
 
-export function termsFileFor(id, { workspaceRoot, configFile }) {
+function termsFileFor(id, { workspaceRoot, configFile }) {
   const named = machineTerms(configFile)[id];
   if (typeof named === "string" && named.trim())
     return {
@@ -1819,7 +1820,7 @@ export function addedLines(root, base, head) {
 
 // [{target: "commit:<sha>", line, text}] for each line of each commit
 // message `head` adds over `base` (only `head` itself without a base).
-export function commitMessageLines(root, base, head) {
+function commitMessageLines(root, base, head) {
   revision(head);
   if (base) revision(base);
   const out = gitSync(root, [
@@ -2109,13 +2110,44 @@ const GITHUB_WRITES = {
   }),
 };
 
+// The writes whose text is a post: each gets broken mentions and the
+// posted marker (github-posted.mjs) before content rules read it, unless a
+// person's own operation writes it.
+const POSTS = {
+  createIssueComment: (args) => [args[0], args[1], postedText(args[2])],
+  updateIssueComment: (args) => [args[0], args[1], postedText(args[2])],
+  createCommitComment: (args) => [args[0], args[1], postedText(args[2])],
+  updateCommitComment: (args) => [args[0], args[1], postedText(args[2])],
+  addDiscussionComment: (args) => [args[0], postedText(args[1])],
+  createPullRequest: (args) => [
+    args[0],
+    { ...args[1], body: postedText(args[1]?.body) },
+  ],
+  createPendingReview: (args) => [
+    args[0],
+    args[1],
+    {
+      ...args[2],
+      body: postedText(args[2]?.body),
+      ...(Array.isArray(args[2]?.comments)
+        ? {
+            comments: args[2].comments.map((comment) => ({
+              ...comment,
+              body: postedText(comment?.body),
+            })),
+          }
+        : {}),
+    },
+  ],
+};
+
 const repositoryOf = (value) =>
   typeof value === "string"
     ? value
     : value?.id ||
       (value?.owner && value?.repo ? `${value.owner}/${value.repo}` : null);
 
-export function githubTarget(method, args) {
+function githubTarget(method, args) {
   const shape = GITHUB_WRITES[method](args),
     repository = repositoryOf(args[0]),
     body = String(shape.text.at(-1) ?? ""),
@@ -2137,8 +2169,10 @@ export function guardGitHub(github, store) {
     get(target, name, receiver) {
       const value = Reflect.get(target, name, receiver);
       if (typeof value !== "function" || !GITHUB_WRITES[name]) return value;
-      return function guarded(...args) {
-        const shape = GITHUB_WRITES[name](args),
+      return function guarded(...given) {
+        const head = (!personPosting() && POSTS[name]?.(given)) || [],
+          args = [...head, ...given.slice(head.length)],
+          shape = GITHUB_WRITES[name](args),
           text = [...shape.text, ...(shape.extra || [])]
             .filter((t) => typeof t === "string")
             .join("\n"),

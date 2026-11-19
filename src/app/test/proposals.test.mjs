@@ -69,13 +69,12 @@ test("a discovery on a spec plan adds a tasks.md item with its Facts", async (t)
       [
         "- [ ] cache-invalidation Invalidate the stale cache entry",
         "  - Facts:",
-        "    - summary: Found while implementing the delivery task.",
         "    - done:",
         "      - A changed record invalidates its cache entry.",
-        "    - checks: npm test",
         "    - completion: integrated",
         "    - after: 1.2",
         "    - tags: discovered",
+        "  - Found while implementing the delivery task.",
         "",
       ].join("\n"),
     ),
@@ -242,12 +241,15 @@ test("the agent-facing surfaces route discoveries away from capture", async (t) 
   const tools = (
     await handleMcp({ jsonrpc: "2.0", id: 1, method: "tools/list" }, ops)
   ).body.result.tools;
-  const capture = tools.find((x) => x.name === "plans_capture"),
-    propose = tools.find((x) => x.name === "plans_propose_work");
+  const intake = tools.find((x) => x.name === "plans_intake"),
+    plan = tools.find((x) => x.name === "plans_plan");
   assert.match(
-    capture.description,
-    /Not a channel for work an agent discovered/,
+    intake.description,
+    /capture \(record a person's own request as untriaged\. Not a channel for work an agent discovered/,
   );
-  assert.match(propose.description, /not executable/);
-  assert.equal(propose.annotations.readOnlyHint, false);
+  assert.match(
+    plan.description,
+    /propose \(propose adjacent work as a draft, not executable/,
+  );
+  assert.equal(plan.annotations.readOnlyHint, false);
 });

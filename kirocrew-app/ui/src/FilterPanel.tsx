@@ -16,7 +16,8 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 export type FilterField = (
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
@@ -50,7 +51,7 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
   const fieldId = `${id}-${field.key}`
   if (field.kind === 'search')
     return (
-      <label htmlFor={fieldId} className="flex flex-col gap-1 text-sm">
+      <Box htmlFor={fieldId} as="label" flex flexCol gap="1" size="sm">
         <span>{field.label}</span>
         <input
           id={fieldId}
@@ -61,22 +62,33 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
           className="rounded border px-2 py-1 text-sm"
           style={selectStyle}
         />
-      </label>
+      </Box>
     )
   if (field.kind === 'select')
-    return <FilterSelect id={fieldId} label={field.label} value={field.value} options={field.options} onChange={field.onChange} disabled={field.disabled} hint={field.hint} inline={inline} />
-  if (field.kind === 'pick')
-    return <Picker id={fieldId} label={field.label} items={field.items} value={field.value} onPick={field.onChange} emptyLabel="All" maxWidth="16rem" />
+    return (
+      <FilterSelect
+        id={fieldId}
+        label={field.label}
+        value={field.value}
+        options={field.options}
+        onChange={field.onChange}
+        disabled={field.disabled}
+        hint={field.hint}
+        inline={inline}
+      />
+    )
+  if (field.kind === 'pick') return <Picker id={fieldId} label={field.label} items={field.items} value={field.value} onPick={field.onChange} emptyLabel="All" maxWidth="16rem" />
   if (field.kind === 'check')
     return (
-      <label className="flex items-center gap-1.5 pb-1 text-sm">
-        <Checkbox checked={field.checked} onChange={(event) => field.onChange(event.target.checked)} />
+      <Switch label={field.label} size="sm" gap={1.5} checked={field.checked} onChange={field.onChange}>
         {field.label}
-      </label>
+      </Switch>
     )
   return (
-    <fieldset className="flex flex-col gap-1 text-sm">
-      <legend className="mb-1">{field.label}</legend>
+    <Box as="fieldset" flex flexCol gap="1" size="sm">
+      <Box as="legend" mb="1">
+        {field.label}
+      </Box>
       <Row as="span" gap={1} wrap={false}>
         <input
           aria-label={`${field.label} from`}
@@ -102,7 +114,7 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
           style={numberStyle}
         />
       </Row>
-    </fieldset>
+    </Box>
   )
 }
 
@@ -112,10 +124,31 @@ const INLINE = { ...selectStyle, height: 24, boxSizing: 'border-box' as const, p
 function InlineField({ id, field }: { id: string; field: FilterField }) {
   const fieldId = `${id}-${field.key}`
   if (field.kind === 'search')
-    return <input id={fieldId} type="search" aria-label={field.label} value={field.value} placeholder={field.placeholder} onChange={(event) => field.onChange(event.target.value)} className="border" style={{ ...INLINE, flex: '1 1 8rem', width: '8rem', maxWidth: '16rem' }} />
+    return (
+      <input
+        id={fieldId}
+        type="search"
+        aria-label={field.label}
+        value={field.value}
+        placeholder={field.placeholder}
+        onChange={(event) => field.onChange(event.target.value)}
+        className="border"
+        style={{ ...INLINE, flex: '1 1 8rem', width: '8rem', maxWidth: '16rem' }}
+      />
+    )
   if (field.kind === 'select')
     return (
-      <SelectField id={fieldId} aria-label={field.label} value={field.value} disabled={field.disabled} onChange={(event) => field.onChange(event.target.value)} look="compact" flex="0 1 7rem" width="7rem" maxWidth="9rem">
+      <SelectField
+        id={fieldId}
+        aria-label={field.label}
+        value={field.value}
+        disabled={field.disabled}
+        onChange={(event) => field.onChange(event.target.value)}
+        look="compact"
+        flex="0 1 7rem"
+        width="7rem"
+        maxWidth="9rem"
+      >
         <option value="">{field.label}: all</option>
         {field.options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -133,7 +166,16 @@ function InlineField({ id, field }: { id: string; field: FilterField }) {
 // (under them on a narrow page): a setting that belongs with the filters.
 // `folded`: the fields fold behind Filters at any width (a list column), and
 // the tab's own line (counts, Refresh) sits on the Filters row: one line.
-export function FilterPanel(props: { id: string; label: string; fields: FilterField[]; active: boolean; onClear: () => void; children?: ReactNode; aside?: ReactNode; folded?: boolean }) {
+export function FilterPanel(props: {
+  id: string
+  label: string
+  fields: FilterField[]
+  active: boolean
+  onClear: () => void
+  children?: ReactNode
+  aside?: ReactNode
+  folded?: boolean
+}) {
   const narrow = useMedia('(max-width: 767px)') || Boolean(props.folded)
   const [open, setOpen] = useState(false)
   const fields = (
@@ -141,7 +183,15 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
       {props.fields.map((field) => (
         <Field key={field.key} id={props.id} field={field} />
       ))}
-      <TipBtn tooltip="Clear every filter on this tab" type="button" onClick={props.onClear} disabled={!props.active} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <TipBtn
+        tooltip="Clear every filter on this tab"
+        type="button"
+        onClick={props.onClear}
+        disabled={!props.active}
+        css-display="inline-flex"
+        css-align-items="center"
+        css-gap="6"
+      >
         <X size={ICON} aria-hidden="true" />
         Clear
       </TipBtn>
@@ -155,7 +205,7 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
     // One line at every width: the main fields, a filter icon with the rest,
     // Clear while a filter is set, then the status text at the right end.
     return (
-      <div role="search" aria-label={props.label} data-filter-panel={props.id} data-filter-row className="flex min-w-0 items-center gap-1.5" style={{ flexWrap: 'nowrap' }}>
+      <Box role="search" aria-label={props.label} data-filter-panel={props.id} data-filter-row css-flex-wrap="nowrap" flex minW0 items="center" gap="1.5">
         {onRow.map((field) => (
           <InlineField key={field.key} id={props.id} field={field} />
         ))}
@@ -170,11 +220,11 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
         )}
         {props.active && <IconBtn icon={X} label="Clear every filter" tooltip="Clear every filter on this tab" onClick={props.onClear} />}
         {props.children && (
-          <div className="ml-auto flex items-center gap-1.5" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} data-filter-status>
+          <Box css-flex-shrink="0" css-white-space="nowrap" ml="auto" flex items="center" gap="1.5" data-filter-status>
             {props.children}
-          </div>
+          </Box>
         )}
-      </div>
+      </Box>
     )
   }
   return (
@@ -188,18 +238,22 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
             {open && fields}
           </Stack>
         ) : props.aside ? (
-          <div className="flex flex-wrap items-end justify-between gap-3">
+          <Box flex flexWrap items="end" justify="between" gap="3">
             {fields}
-            <div className="ml-auto" data-filter-aside>
+            <Box ml="auto" data-filter-aside>
               {props.aside}
-            </div>
-          </div>
+            </Box>
+          </Box>
         ) : (
           fields
         )}
-        {narrow && props.aside && <div className="mt-2" data-filter-aside>{props.aside}</div>}
+        {narrow && props.aside && (
+          <Box mt="2" data-filter-aside>
+            {props.aside}
+          </Box>
+        )}
       </div>
-      {props.children && <div className="mt-3">{props.children}</div>}
+      {props.children && <Box mt="3">{props.children}</Box>}
     </Card>
   )
 }
@@ -215,7 +269,15 @@ export function NavFilters(props: { id: string; label: string; fields: FilterFie
         <Field key={field.key} id={props.id} field={field} inline={props.inline} />
       ))}
       <span>
-        <TipBtn tooltip="Clear every filter on this page" type="button" onClick={props.onClear} disabled={!props.active} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <TipBtn
+          tooltip="Clear every filter on this page"
+          type="button"
+          onClick={props.onClear}
+          disabled={!props.active}
+          css-display="inline-flex"
+          css-align-items="center"
+          css-gap="6"
+        >
           <X size={ICON} aria-hidden="true" />
           Clear
         </TipBtn>

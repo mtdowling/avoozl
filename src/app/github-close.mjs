@@ -45,7 +45,6 @@ import {
   linkedBranchName,
   pullRequestLeak,
 } from "./github-plans-repo.mjs";
-import { gateClearNotes } from "./gate-clear.mjs";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 
 const MARKER_BLOCK = /<!--\s*avoozl-task\s*\n[\s\S]*?\n-->/;
@@ -77,8 +76,6 @@ export function blockerNotes(data, task) {
     const blocker = data.tasks.find((candidate) => candidate.id === edge.from),
       order =
         (blocker?.githubVerdict?.state === "order" && blocker.githubVerdict) ||
-        (blocker?.trackerVerdict?.state === "order" &&
-          blocker.trackerVerdict) ||
         (blocker?.intakeVerdict?.state === "order" && blocker.intakeVerdict);
     if (!order) continue;
     const name = order.issue
@@ -88,7 +85,7 @@ export function blockerNotes(data, task) {
       `Blocker ${name} closed without merged code: ${order.order.actor} closed it as ${order.order.reason.toLowerCase()} at ${order.order.closedAt}. Check whether its code exists before relying on it.`,
     );
   }
-  return [...notes, ...gateClearNotes(data, task)];
+  return notes;
 }
 
 const login = (event) => event?.actor?.login || "";
@@ -99,7 +96,7 @@ const login = (event) => event?.actor?.login || "";
 // change is read from the REST events and timeline as
 // `project_v2_item_status_changed` (Inferred until proof P11); both lists are
 // one page of 100.
-export async function readCloser(github, repository, issue) {
+async function readCloser(github, repository, issue) {
   const [events, timeline] = await Promise.all([
       github.issueEvents(repository, issue.number),
       github.issueTimeline

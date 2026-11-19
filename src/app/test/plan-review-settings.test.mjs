@@ -4,8 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import {
   chatModel,
-  validateModels,
   validatePlanReview,
+  validateRoles,
   withChatModels,
 } from "../chat-models.mjs";
 import { loadLayeredConfig } from "../layered-config.mjs";
@@ -17,26 +17,32 @@ import { readDeliveryPolicy } from "../tick.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 test("plan reviewers must differ from a named planner; auto is unset", () => {
+  const roles = (planner, planReviewer) => ({
+    ...(planner ? { planner: { model: planner } } : {}),
+    ...(planReviewer ? { planReviewer: { model: planReviewer } } : {}),
+  });
   assert.throws(
-    () =>
-      validateModels({ planner: "fake-writer", planReviewer: "fake-writer" }),
-    /planReviewer must differ/,
+    () => validateRoles({ roles: roles("fake-writer", "fake-writer") }),
+    /planReviewer.model must differ/,
   );
-  for (const models of [
-    { planner: "auto", planReviewer: "auto" },
-    { planner: "fake-writer", planReviewer: "auto" },
-    { planner: "auto", planReviewer: "fake-reviewer" },
-    { planReviewer: "fake-reviewer" },
-    { planner: "fake-writer", planReviewer: "fake-reviewer" },
+  for (const [planner, planReviewer] of [
+    ["auto", "auto"],
+    ["fake-writer", "auto"],
+    ["auto", "fake-reviewer"],
+    [null, "fake-reviewer"],
+    ["fake-writer", "fake-reviewer"],
   ])
-    assert.deepEqual(validateModels(models), models);
+    assert.deepEqual(
+      validateRoles({ roles: roles(planner, planReviewer) }),
+      roles(planner, planReviewer),
+    );
   assert.equal(
-    chatModel({ models: { planReviewer: "auto" } }, "planReviewer"),
+    chatModel({ roles: { planReviewer: { model: "auto" } } }, "planReviewer"),
     null,
   );
   assert.deepEqual(
     withChatModels([{ role: "plan-review", task: "draft" }], {
-      models: { planReviewer: "fake-reviewer" },
+      roles: { planReviewer: { model: "fake-reviewer" } },
     }),
     [{ role: "plan-review", task: "draft", model: "fake-reviewer" }],
   );
@@ -72,7 +78,6 @@ test("Settings saves the reviewer, preserves review settings and refuses equal m
   const configuration = new RepositorySettings(store, { workspaceRoot: root }),
     ops = new Operations(store, { workspaceRoot: root, configuration }),
     before = await ops.execute("models.settings.get"),
-    models = { planner: "fake-writer", planReviewer: "fake-reviewer" },
     roles = {
       planner: { model: "fake-writer" },
       planReviewer: { model: "fake-reviewer" },
@@ -105,7 +110,7 @@ test("Settings saves the reviewer, preserves review settings and refuses equal m
     await assert.rejects(
       ops.execute("configuration.update", {
         scope: "repository",
-        text: JSON.stringify({ version: 1, models, planReview }),
+        text: JSON.stringify({ version: 1, roles, planReview }),
         expectedHash: saved.hash,
       }),
       /planReview\.(mode|rounds)/,
@@ -131,7 +136,7 @@ test("file-loaded review settings and effective models are validated across conf
     path.join(globalDirectory, "config.json"),
     JSON.stringify({
       version: 1,
-      models: { planner: "fake-writer" },
+      roles: { planner: { model: "fake-writer" } },
     }),
   );
   fs.writeFileSync(
@@ -142,20 +147,23 @@ test("file-loaded review settings and effective models are validated across conf
   assert.equal(readDeliveryPolicy(root).status, "invalid");
   fs.writeFileSync(
     filename,
-    JSON.stringify({ version: 1, models: { planReviewer: "fake-writer" } }),
+    JSON.stringify({
+      version: 1,
+      roles: { planReviewer: { model: "fake-writer" } },
+    }),
   );
-  assert.throws(load, /planReviewer must differ/);
+  assert.throws(load, /planReviewer.model must differ/);
   fs.writeFileSync(
     filename,
     JSON.stringify({
       version: 1,
-      models: { planReviewer: "fake-reviewer" },
+      roles: { planReviewer: { model: "fake-reviewer" } },
       planReview: { mode: "off" },
     }),
   );
-  assert.deepEqual(load().config.models, {
-    planner: "fake-writer",
-    planReviewer: "fake-reviewer",
+  assert.deepEqual(load().config.roles, {
+    planner: { model: "fake-writer" },
+    planReviewer: { model: "fake-reviewer" },
   });
 });
 
@@ -167,7 +175,7 @@ test("saving repository models refuses a collision with an inherited planner bef
   fs.writeFileSync(filename, JSON.stringify({ version: 1 }));
   const configuration = new RepositorySettings(store, {
       workspaceRoot: root,
-      baseConfig: { models: { planner: "fake-writer" } },
+      baseConfig: { roles: { planner: { model: "fake-writer" } } },
     }),
     before = configuration.readModelSettings(),
     text = fs.readFileSync(filename, "utf8");

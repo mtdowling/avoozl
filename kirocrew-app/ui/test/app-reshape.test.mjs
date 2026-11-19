@@ -39,8 +39,7 @@ test('an empty Home says what to set up, with a button for each, instead of hidi
   await open({ radar: '1' })
   await page.until(`Boolean(document.querySelector('[data-release-empty]'))`)
   const body = await page.evaluate(text)
-  for (const line of ['No epics', 'Start one with New spec on Specs.', 'Release queue', 'Open Repository setup'])
-    assert.ok(body.includes(line), line)
+  for (const line of ['No epics', 'Start one with New spec on Specs.', 'Release queue', 'Open Repository setup']) assert.ok(body.includes(line), line)
   // No epics has no button of its own, and Radar's crew cell, its wording and
   // its graph link are gone.
   assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-setup-card="epics"] button')].length`), 0, 'no button on No epics')
@@ -86,7 +85,11 @@ test('Needs you holds Decisions, Triage and Issue Radar as three nav pages, one 
   await click(tab('Needs you'))
   await page.until(`Boolean(document.querySelector('[data-waiting-view]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-waiting-section][data-open="true"]').dataset.waitingSection`), 'decisions')
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-nav-children="waiting"] [data-nav-item]')].map((el) => el.dataset.navItem)`), ['waiting/decisions', 'waiting/triage', 'waiting/radar'])
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-nav-children="waiting"] [data-nav-item]')].map((el) => el.dataset.navItem)`), [
+    'waiting/decisions',
+    'waiting/triage',
+    'waiting/radar',
+  ])
   for (const key of ['triage', 'radar']) {
     await click(`document.querySelector('[data-nav-item="waiting/${key}"]')`)
     await page.until(`document.querySelector('[data-waiting-section="${key}"]')?.dataset.open === 'true'`)

@@ -20,10 +20,7 @@ const root = fileURLToPath(new URL("../../../", import.meta.url)),
 function isolatedEnv(dir) {
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
   for (const name of Object.keys(env))
-    if (
-      /^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_|^NUPP_WORKSPACE$|^PORT$/.test(name)
-    )
-      delete env[name];
+    if (/^AVOOZL_|^PORT$/.test(name)) delete env[name];
   return env;
 }
 
@@ -51,13 +48,16 @@ async function workspace(dir, name, task, slots) {
   return workspaceRoot;
 }
 
+// name is a tool, or "tool.action" for a grouped tool.
 const call = (id, name, input, sessionKey) => ({
   jsonrpc: "2.0",
   id,
   method: "tools/call",
   params: {
-    name,
-    arguments: { input },
+    name: name.split(".")[0],
+    arguments: name.includes(".")
+      ? { action: name.split(".")[1], input }
+      : { input },
     ...(sessionKey
       ? {
           _meta: {
@@ -124,9 +124,9 @@ test("one pooled MCP process serves two workspaces without mixing them", async (
     call(6, "plans_report", progress("task-a", "Anon.")),
     call(7, "plans_report", progress("task-c", "Cwd."), "dashboard:slot-c"),
     call(8, "plans_report", progress("task-a-1", "Both."), "dashboard:slot-x"),
-    call(9, "plans_task_sessions", { id: "task-b" }, "dashboard:slot-b"),
-    call(10, "plans_task_sessions", { id: "task-b" }, "dashboard:slot-a"),
-    call(11, "plans_task_sessions", { id: "task-a" }, "cron:job-1"),
+    call(9, "plans_task.sessions", { id: "task-b" }, "dashboard:slot-b"),
+    call(10, "plans_task.sessions", { id: "task-b" }, "dashboard:slot-a"),
+    call(11, "plans_task.sessions", { id: "task-a" }, "cron:job-1"),
   ]);
 
   assert.deepEqual(
@@ -181,7 +181,7 @@ test("without a launch workspace, an unbound caller is refused, not served from 
   const dir = temporaryDirectory("avoozl-pooled-"),
     cwd = await workspace(dir, "cwd", "task-c", []);
   const replies = serve(dir, cwd, [
-    call(1, "plans_task_sessions", { id: "task-c" }, "dashboard:slot-z"),
+    call(1, "plans_task.sessions", { id: "task-c" }, "dashboard:slot-z"),
   ]);
   assert.equal(replies.get(1).result.isError, true);
   assert.match(text(replies.get(1)), /no workspace for this session/);

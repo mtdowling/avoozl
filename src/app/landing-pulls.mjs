@@ -4,7 +4,7 @@
 //
 // - A portion is one pull request for an exact verified commit. Its head may
 //   be a branch of an authorized fork; nothing is copied upstream. Each
-//   portion lands alone: protected review never makes a train.
+//   portion lands alone: protected review never makes a merge batch.
 // - Only the queue head is touched. If the pull request's head is not the
 //   exact commit, Avoozl fast-forwards the source branch, and only when its
 //   own login may write there (`landingRights`). A fork's maintainer-only
@@ -12,8 +12,11 @@
 // - The head must pass every required check and meet the repository's review
 //   rule on that exact head. Pending checks or reviews keep the portion
 //   queued ("waiting", with reason "checks" or "review"); a failed check
-//   fails it. Stale approvals after an
-//   update count for nothing (`reviewVerdict`).
+//   fails it. An approval counts while GitHub still shows it: GitHub
+//   dismisses stale ones itself when the rule says so, and keeps them
+//   across a base merge or when the rule does not (`reviewVerdict`
+//   `standing`). A rule that requires the last push to be approved needs
+//   an approval on the exact head.
 // - Source push rights are not merge rights. With merge rights the merge is
 //   guarded by the head (`headGuardedMerge`). Without them Avoozl keeps the
 //   portion queued and observes an authorized maintainer's merge.
@@ -25,7 +28,7 @@
 import { branchReviewRule } from "./github-branch-rules.mjs";
 import { reviewVerdict } from "./github-reviews.mjs";
 import { headGuardedMerge } from "./driver-generations.mjs";
-import { journalChecks, landWithIntents } from "./landing-trains.mjs";
+import { journalChecks, landWithIntents } from "./merge-batch.mjs";
 import {
   landingRights,
   pushHead,
@@ -34,6 +37,7 @@ import {
 } from "./working-heads.mjs";
 import { postVerified } from "./setup-landing.mjs";
 import { fail } from "./store.mjs";
+import { firstErrorLine } from "./verify.mjs";
 
 const lower = (value) => String(value).toLowerCase();
 const PASS = new Set(["success", "neutral", "skipped"]);
@@ -175,12 +179,20 @@ export function pullSteps({
             command: name,
             conclusion: run.conclusion ?? "pending",
             pending: run.status !== "completed",
+            // A line naming the error beats the title, which is often
+            // only a count ("1 error"), so the title is read last.
+            firstError: firstErrorLine(
+              run.output?.summary,
+              run.output?.text,
+              run.output?.title,
+            ),
           };
         if (state)
           return {
             command: name,
             conclusion: state.state,
             pending: state.state === "pending",
+            firstError: firstErrorLine(state.description),
           };
         return { command: name, conclusion: "missing", pending: true };
       }),
@@ -302,11 +314,18 @@ export function pullSteps({
           ok: false,
           checks: [{ command: "no required check", exitCode: 1 }],
         };
-      const shown = results.map(({ command, conclusion }) => ({
-          command,
-          conclusion,
-          exitCode: PASS.has(conclusion) || conclusion === "success" ? 0 : 1,
-        })),
+      const shown = results.map(
+          ({ command, conclusion, pending, firstError }) => {
+            const ok = PASS.has(conclusion) || conclusion === "success";
+            return {
+              command,
+              conclusion,
+              exitCode: ok ? 0 : 1,
+              // The failing check's own first error line, kept for Needs you.
+              ...(!ok && !pending && firstError ? { firstError } : {}),
+            };
+          },
+        ),
         failed = results.some(
           (r) =>
             !r.pending && !PASS.has(r.conclusion) && r.conclusion !== "success",
@@ -332,6 +351,7 @@ export function pullSteps({
             { number: pull.number, url: pull.html_url, headRefOid: candidate },
             reviews,
             async (who) => (await github.permission(target, who))?.permission,
+            { standing: !rule.lastPushApproval },
           );
         if (verdict.state !== "approved")
           return { wait: true, reason: "review", checks: shown };

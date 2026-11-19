@@ -6,11 +6,12 @@
 // off the tick; delivery judges the record they leave.
 import { PUBLISH_RULES, secretReason } from "./content-rules.mjs";
 import { commandEvidence, git } from "./git.mjs";
+import { checkOptions, prepareChecks } from "./check-isolation.mjs";
 import { fail } from "./store.mjs";
 
 // Protected by default in every repository (R86.6): CI workflows and the
 // worktree helper a person approved by hash (R83.4).
-export const DEFAULT_PROTECTED_PATHS = Object.freeze([
+const DEFAULT_PROTECTED_PATHS = Object.freeze([
   ".github/workflows/**",
   "scripts/worktree",
 ]);
@@ -80,6 +81,19 @@ export function pathVerdict(changed, { declared = [], protectedPaths = [] }) {
   };
 }
 
+// The paths a run's head may touch: the task's own, or, for the head of a
+// batch, every member's (found by worker-paths wp-p1: a batch head touches
+// each member's file and was held as outside its leader's paths). A member
+// that declares none lifts the rule, as a task with none does.
+function declaredPaths(store, task) {
+  const batch = store.get("task_deliveries", task.id)?.batch,
+    members = batch ? store.get("flow_batches", batch)?.tasks : null;
+  if (!members?.length) return task.paths || [];
+  const tasks = store.read().tasks.filter((t) => members.includes(t.id));
+  if (tasks.some((t) => !t.paths?.length)) return [];
+  return [...new Set(tasks.flatMap((t) => t.paths))];
+}
+
 // The path verdict for one run, with a person's allowance for this exact
 // commit applied: an allowed commit's protected paths no longer hold it.
 export async function verifyPaths(store, { task, project, commit, flow }) {
@@ -89,7 +103,7 @@ export async function verifyPaths(store, { task, project, commit, flow }) {
       commit,
     ),
     verdict = pathVerdict(paths, {
-      declared: task.paths || [],
+      declared: declaredPaths(store, task),
       protectedPaths: flow?.verify?.protectedPaths || [],
     }),
     allowed = protectedAllowance(store, task.id, commit);
@@ -99,6 +113,9 @@ export async function verifyPaths(store, { task, project, commit, flow }) {
     ...(allowed && verdict.protected.length
       ? { protected: [], allowed: verdict.protected }
       : {}),
+    // Every changed path, which picks the checks a change runs; a record
+    // keeps the verdict without it.
+    files: paths,
   };
 }
 
@@ -120,10 +137,12 @@ export function pathOutcome(run) {
   return null;
 }
 
-// A check's own timeout in ms: `verify.checkTimeouts[command]`, else the
-// caller's, else `verify.checkTimeoutSeconds`.
-export function checkTimeout(command, flow, fallbackMs) {
-  const own = flow?.verify?.checkTimeouts?.[command];
+// A check's own timeout in ms: `verify.checkTimeouts` by the check's name
+// (a key written as its command text still matches), else the caller's,
+// else `verify.checkTimeoutSeconds`.
+export function checkTimeout(name, flow, fallbackMs, command = name) {
+  const timeouts = flow?.verify?.checkTimeouts,
+    own = timeouts?.[name] ?? timeouts?.[command];
   if (Number.isInteger(own)) return own * 1000;
   if (Number.isInteger(fallbackMs)) return fallbackMs;
   return (flow?.verify?.checkTimeoutSeconds ?? 1200) * 1000;
@@ -153,8 +172,23 @@ export function outputTail(text, dir = "\u0000") {
   return tail.length > TAIL_CHARS ? tail.slice(-TAIL_CHARS) : tail;
 }
 
+// The first line of a failed check's own text that names an error or a
+// failure, else its first line, redacted and cut to 200 characters; null
+// when the check carries no text. Reads only what the check already holds
+// (a GitHub check run's output, a status description, a local run's tail).
+export function firstErrorLine(...texts) {
+  const lines = texts
+    .flatMap((text) => String(text ?? "").split(/\r?\n/))
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const line =
+    lines.find((l) => /\b(error|fail(ed|ure|ing)?|exception)\b|✖/i.test(l)) ??
+    lines[0];
+  return line ? redactLine(line, "\u0000").slice(0, 200) : null;
+}
+
 // The last `lines` lines of output, redacted like a check's tail, for a log
-// excerpt sent back to a worker (landing-trains LT10.5).
+// excerpt sent back to a worker.
 export function outputExcerpt(text, dir = "\u0000", lines = 200) {
   return String(text || "")
     .split(/\r?\n/)
@@ -176,25 +210,56 @@ export function notRunCause(result, elapsed, timeoutMs) {
   );
 }
 
-// Run each check in `dir`, one at a time, each with its own timeout.
+// Run each check in `dir`, one at a time, each with its own timeout. A
+// check is {name, argv}, or a bare argv named by its command. Each result
+// carries the check's name, for display its command, and the isolation it
+// ran under. With `project`, its `prepare` runs first and each check runs
+// in the project's isolation (check-isolation.mjs); a failed prepare runs
+// no check.
 export async function runEach(
   dir,
-  argvs,
-  { timeoutFor, run = commandEvidence, env } = {},
+  checks,
+  { timeoutFor, run = commandEvidence, env, project } = {},
 ) {
-  const checks = [];
-  for (const argv of argvs) {
-    const command = argv.join(" "),
-      timeoutMs = timeoutFor(command),
+  const out = [];
+  if (project && checks.length) {
+    const ready = await prepareChecks(project, dir, {
+      run: run === commandEvidence ? undefined : run,
+    });
+    if (ready && ready.exitCode !== 0)
+      return checks.map((check) => {
+        const argv = Array.isArray(check) ? check : check.argv;
+        return {
+          name: Array.isArray(check) ? argv.join(" ") : check.name,
+          command: argv.join(" "),
+          exitCode: null,
+          notRun:
+            `prepare failed: ${notRunCause(ready, 0, 1) || "exit " + ready.exitCode}`.slice(
+              0,
+              300,
+            ),
+        };
+      });
+  }
+  const isolate = project ? checkOptions(project, dir).isolate : undefined;
+  for (const check of checks) {
+    const argv = Array.isArray(check) ? check : check.argv,
+      command = argv.join(" "),
+      name = Array.isArray(check) ? command : check.name,
+      timeoutMs = timeoutFor(name, command),
       started = Date.now(),
-      result = await run(dir, argv, { timeoutMs, env }),
+      result = await run(dir, argv, { timeoutMs, env, isolate }),
       elapsed = Date.now() - started,
       tail = outputTail(
         (result.stdout || "") + "\n" + (result.stderr || ""),
         dir,
       );
-    checks.push({
+    out.push({
+      name,
       command,
+      ...(result.isolation !== undefined
+        ? { isolation: result.isolation }
+        : {}),
       exitCode: Number.isInteger(result.exitCode) ? result.exitCode : null,
       ...(Number.isInteger(result.exitCode)
         ? {}
@@ -203,7 +268,7 @@ export async function runEach(
       ...(tail ? { tail } : {}),
     });
   }
-  return checks;
+  return out;
 }
 
 // The task worktree, when checks may run warm in it: it is at `commit` and
@@ -224,7 +289,7 @@ export async function warmWorktree(store, taskId, commit) {
   }
 }
 
-export function protectedAllowance(store, taskId, commit) {
+function protectedAllowance(store, taskId, commit) {
   try {
     return store.get("flow_records", `${ALLOW}:${taskId}:${commit}`) || null;
   } catch {

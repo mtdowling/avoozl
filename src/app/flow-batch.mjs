@@ -14,7 +14,6 @@ import { cliCommand } from "./report-command.mjs";
 import { issueReportToken } from "./report-match.mjs";
 import { contentBinding } from "./content-rules.mjs";
 import {
-  isGate,
   isManual,
   taskAuthority,
   taskCompletion,
@@ -23,15 +22,9 @@ import {
   taskRoute,
 } from "../work-model.mjs";
 import { statusComplete } from "../query.mjs";
+import { summaryLine } from "./title-repeat.mjs";
 
-// The most tasks one handoff takes, whatever the manifest says.
-export const MAX_BATCH = 5;
 const BLOCKING = new Set(["requires", "sequence"]);
-
-export const batchFinal = (binding) =>
-  binding.batch?.tasks.every((id) =>
-    ["done", "blocked"].includes(binding.reports?.[id]?.kind),
-  );
 
 // Why the group `task` belongs to may not run as one handoff, or null when
 // it may. `members` are the group's tasks still open. Pure over the store's
@@ -53,7 +46,6 @@ function groupProblem(store, data, task, members, approved, config) {
     return "the group is not from the approved spec revision";
   if (all.some((t) => taskRepository(t) !== taskRepository(task)))
     return "its tasks are in different repositories";
-  if (group.tasks.length > MAX_BATCH) return `more than ${MAX_BATCH} tasks`;
   const inside = new Set(group.tasks);
   const edge = data.edges.find(
     (e) => BLOCKING.has(e.kind) && inside.has(e.from) && inside.has(e.to),
@@ -63,8 +55,7 @@ function groupProblem(store, data, task, members, approved, config) {
     (t) =>
       taskKind(t) !== "leaf" ||
       isManual(t) ||
-      isGate(t) ||
-      ["person", "tracker"].includes(taskCompletion(t)) ||
+      taskCompletion(t) === "person" ||
       taskRoute(t) !== "local" ||
       taskAuthority(t) !== "local",
   );
@@ -237,11 +228,10 @@ export function batchBrief(store, data, leaf, brief) {
       "",
       ...tasks.flatMap((task, i) => [
         `${i + 1}. Task ${task.id}: ${task.title || task.id}`,
+        summaryLine(task)?.replace(/^/gm, "   ") ?? null,
         task.acceptance?.length
           ? `   Acceptance: ${[].concat(task.acceptance).join("; ")}`
           : null,
-        task.checks?.length ? `   Checks: ${task.checks.join("; ")}` : null,
-        task.summary ? `   Summary: ${task.summary}` : null,
       ]),
       "",
       ...run,

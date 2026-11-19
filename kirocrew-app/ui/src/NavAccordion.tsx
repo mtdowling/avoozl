@@ -10,6 +10,8 @@ import { useNavSlotHost } from './nav-slot.tsx'
 import { ChevronDown } from './icons.ts'
 import { NAV_PILL } from './nav-style.ts'
 import Badge from './ui/Badge.tsx'
+import { Box } from './ui/Box'
+import { NavStyle } from './ui/PageStyles'
 
 export interface NavChild {
   key: string
@@ -31,40 +33,21 @@ export interface NavGroup {
   slot?: boolean
 }
 
-const CARD = { position: 'relative', overflow: 'hidden', border: '1px solid var(--border)', borderRadius: 16, background: 'var(--bg-elevated)', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)', flexShrink: 0 } as const
+const CARD = {
+  position: 'relative',
+  overflow: 'hidden',
+  border: '1px solid var(--border)',
+  borderRadius: 16,
+  background: 'var(--bg-elevated)',
+  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+  flexShrink: 0,
+} as const
 // Open sections share the height the closed ones leave, so the nav always
 // ends at the bottom, as in Radar's rail. A short one shows its background
 // to the bottom edge; a tall one scrolls its body. Closed sections keep
 // their own height.
 const OPEN_MIN = 96
 const OPEN_CARD = { ...CARD, flex: '1 1 0%', minHeight: OPEN_MIN, display: 'flex', flexDirection: 'column' } as const
-// Sub-pages and slot content line up with the header: 12px in from the
-// card, like the header's own icon; a row's text is 8px further in.
-const BODY = { display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 12px 8px', minHeight: 0, flex: '1 1 auto', overflowY: 'auto' } as const
-
-// Hover and keyboard focus use Kiro Crew's theme variables, as in Radar's
-// sidebar. The selected item keeps its tint; a hover on it only deepens it.
-export const NAV_CSS = `[data-nav-head]{display:flex;align-items:center;gap:6px;width:100%;min-width:0;flex-shrink:0;box-sizing:border-box;height:${NAV_PILL}px;padding:0 12px;border:0;background:none;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
-[data-nav-head]:hover{color:var(--text)}
-[data-nav-head][data-open],[data-nav-head][data-selected]{color:var(--text)}
-[data-nav-head][data-selected]{background:var(--accent-subtle,var(--bg-hover,var(--bg-elevated)))}
-[data-nav-head][data-selected]:hover{background:color-mix(in srgb,var(--accent) 18%,var(--bg-elevated))}
-[data-nav-item]:not([data-nav-head]){display:flex;align-items:center;gap:8px;width:100%;min-width:0;flex-shrink:0;box-sizing:border-box;height:${NAV_PILL}px;padding:0 8px;border:0;border-radius:8px;background:none;color:var(--muted);font-size:13px;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
-[data-nav-text]{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-[data-nav-item]:not([data-nav-head]):hover{background:var(--bg-hover);color:var(--text)}
-[data-nav-item]:not([data-nav-head])[data-selected]{background:var(--accent-subtle,var(--bg-hover,var(--bg-elevated)));color:var(--text);font-weight:500}
-[data-nav-item]:not([data-nav-head])[data-selected]:hover{background:color-mix(in srgb,var(--accent) 18%,var(--bg-elevated))}
-[data-nav-head]:focus-visible,[data-nav-item]:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-[data-nav-filters]>label{max-width:none!important;width:100%}
-[data-nav-filters] label{font-size:12px}
-[data-nav-filters] label>span:first-child,[data-nav-filters] legend{color:var(--muted)}
-[data-nav-filters]>label select,[data-nav-filters] input[type=search],[data-nav-filters] input[type=text]{width:100%;min-width:0;box-sizing:border-box;font-size:12.5px}
-[data-nav-chevron]{display:inline-flex;flex-shrink:0;transition:transform .15s}
-@media (prefers-reduced-motion:reduce){[data-nav-head],[data-nav-item],[data-nav-filters]>label{max-width:none!important;width:100%}
-[data-nav-filters] label{font-size:12px}
-[data-nav-filters] label>span:first-child,[data-nav-filters] legend{color:var(--muted)}
-[data-nav-filters]>label select,[data-nav-filters] input[type=search],[data-nav-filters] input[type=text]{width:100%;min-width:0;box-sizing:border-box;font-size:12.5px}
-[data-nav-chevron]{transition:none}}`
 
 export function NavAccordion(props: {
   groups: NavGroup[]
@@ -97,8 +80,18 @@ export function NavAccordion(props: {
   // their head. Below it the nav scrolls; above it the open ones stretch.
   const least = props.groups.reduce((sum, group) => sum + (shown(group) ? OPEN_MIN : NAV_PILL + 2), 8 * (props.groups.length - 1))
   return (
-    <div data-nav-card data-nav-accordion role="group" aria-label="Avoozl pages" style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: '1 1 auto', minHeight: least }}>
-      <style>{NAV_CSS}</style>
+    <Box
+      data-nav-card
+      data-nav-accordion
+      role="group"
+      aria-label="Avoozl pages"
+      css-display="flex"
+      css-flex-direction="column"
+      css-gap="8"
+      css-flex="1-1-auto"
+      css-min-height={least}
+    >
+      <NavStyle />
       {props.groups.map((group) => {
         const kids = opens(group) ? (group.children ?? []) : null
         const here = props.value === group.key
@@ -125,15 +118,26 @@ export function NavAccordion(props: {
                 }
               }}
             >
-              <span data-nav-label style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>{group.label}</span>
+              <Box data-nav-label as="span" css-flex="1" css-min-width="0" css-display="flex" css-align-items="center" css-overflow="hidden">
+                {group.label}
+              </Box>
               {kids && (
-                <span aria-hidden="true" data-nav-chevron style={{ transform: expanded ? 'none' : 'rotate(-90deg)' }}>
+                <Box aria-hidden="true" data-nav-chevron as="span" css-transform={expanded ? 'none' : 'rotate-90deg'}>
                   <ChevronDown size={14} />
-                </span>
+                </Box>
               )}
             </button>
             {expanded && kids && (
-              <div data-nav-children={group.key} style={BODY}>
+              <Box
+                data-nav-children={group.key}
+                css-display="flex"
+                css-flex-direction="column"
+                css-gap="2"
+                css-padding="2px-12px-8px"
+                css-min-height="0"
+                css-flex="1-1-auto"
+                css-overflow-y="auto"
+              >
                 {kids.map((item) => {
                   const selected = here && props.child === item.key
                   return (
@@ -149,16 +153,22 @@ export function NavAccordion(props: {
                       }}
                     >
                       <span data-nav-text>{item.label}</span>
-                      {item.count ? <span data-nav-count style={{ flexShrink: 0, display: 'inline-flex' }}><Badge variant="warning">{item.count}</Badge></span> : null}
+                      {item.count ? (
+                        <Box data-nav-count as="span" css-flex-shrink="0" css-display="inline-flex">
+                          <Badge variant="warning">{item.count}</Badge>
+                        </Box>
+                      ) : null}
                     </button>
                   )
                 })}
-                {group.slot && <div data-nav-slot={group.key} ref={slotRef(group.key)} style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: kids.length ? 6 : 2 }} />}
-              </div>
+                {group.slot && (
+                  <div data-nav-slot={group.key} ref={slotRef(group.key)} style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: kids.length ? 6 : 2 }} />
+                )}
+              </Box>
             )}
           </div>
         )
       })}
-    </div>
+    </Box>
   )
 }

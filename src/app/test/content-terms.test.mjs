@@ -228,10 +228,10 @@ test("plugin.preview reads a folder's manifest without declaring it", async (t) 
   fs.writeFileSync(
     path.join(folder, "avoozl-plugin.json"),
     JSON.stringify({
-      id: "made-up-tracker",
+      id: "made-up-intake",
       version: "1.2.0",
       contract: 1,
-      kinds: ["tracker"],
+      kinds: ["intake"],
       entry: "index.mjs",
     }),
   );
@@ -242,7 +242,7 @@ test("plugin.preview reads a folder's manifest without declaring it", async (t) 
   const found = await previewPlugin(options, { path: folder });
   assert.deepEqual(
     [found.id, found.version, found.contract, found.supported],
-    ["made-up-tracker", "1.2.0", 1, true],
+    ["made-up-intake", "1.2.0", 1, true],
   );
   assert.ok(!fs.existsSync(options.settingsFile), "nothing was declared");
   const missing = await previewPlugin(options, {

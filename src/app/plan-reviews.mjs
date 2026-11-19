@@ -17,7 +17,7 @@ import {
 const severities = new Set(["blocking", "important", "suggestion", "question"]);
 // A spec finding takes the Requirement 104 values; the older ones still map.
 const specSeverities = new Set([...FINDING_SEVERITIES, ...severities]);
-export const SPEC_FINDING_KINDS = Object.freeze([
+const SPEC_FINDING_KINDS = Object.freeze([
   "gap",
   "untestable",
   "wrong-reference",
@@ -34,7 +34,7 @@ const namedModel = (value) =>
 
 // Only recorded observations count. A requested model is never evidence of
 // the model that wrote or reviewed a revision.
-export function reportedPlanModel(store, { runId, slot, receiptId } = {}) {
+export function reportedPlanModel(store, { slot, receiptId } = {}) {
   if (receiptId) {
     const receipt = store.get("receipts", receiptId);
     return receipt?.kind === "plan-review-writer"
@@ -45,7 +45,7 @@ export function reportedPlanModel(store, { runId, slot, receiptId } = {}) {
     const reading = servedModel(store.get("session_bindings", slot));
     return reading.reported ? namedModel(reading.model) : null;
   }
-  return runId ? namedModel(store.get("runs", runId)?.actualModel) : null;
+  return null;
 }
 
 function specRevision(store, planId, revisionHash) {
@@ -197,17 +197,15 @@ export function createSpecReviewRound(
 
 // The dispatcher calls this after recording the session. The review binding
 // is server-owned; submitting a different roundId cannot retarget a chat.
-export function bindSpecReviewRound(store, { roundId, runId, slot }) {
+export function bindSpecReviewRound(store, { roundId, slot }) {
   return store.transaction(() => {
     const round = store.get("review_rounds", roundId);
     if (!round?.spec || round.state !== "running")
       fail("An active spec review round is required.", 409);
-    if (Boolean(runId) === Boolean(slot))
-      fail("Bind one review run or session slot.");
-    const table = slot ? "session_bindings" : "runs",
-      record = store.get(table, slot || runId);
+    if (!slot) fail("Bind a review session slot.");
+    const record = store.get("session_bindings", slot);
     if (!record) fail("Review session not found.", 404);
-    if (slot && (record.role !== "plan-review" || record.taskId !== round.id))
+    if (record.role !== "plan-review" || record.taskId !== round.id)
       fail("This session is not assigned to that review round.", 403);
     if (
       record.review &&
@@ -218,18 +216,12 @@ export function bindSpecReviewRound(store, { roundId, runId, slot }) {
       fail("This session is already bound to another review.", 409);
     if (round.slot && round.slot !== slot)
       fail("The review round is already bound to another session.", 409);
-    if (
-      store
-        .list("runs")
-        .some((run) => run.review?.roundId === round.id && run.id !== runId)
-    )
-      fail("The review round is already bound to another run.", 409);
     const review = {
       planId: round.planId,
       revisionHash: round.revisionHash,
       roundId,
     };
-    store.put(table, { ...record, review });
+    store.put("session_bindings", { ...record, review });
     if (slot) {
       round.slot = slot;
       store.put("review_rounds", round);
@@ -272,8 +264,7 @@ export function createSpecReviewFindings(
 ) {
   const slot = callerSlot(caller),
     binding = slot ? store.get("session_bindings", slot) : null,
-    run = !slot && input.runId ? store.get("runs", input.runId) : null,
-    bound = binding?.review || run?.review,
+    bound = binding?.review,
     roundId = input.roundId || bound?.roundId,
     round = roundId && store.get("review_rounds", roundId);
   if (
@@ -294,7 +285,7 @@ export function createSpecReviewFindings(
   const model =
     round.state === "done"
       ? round.reviewerModel
-      : reportedPlanModel(store, slot ? { slot } : { runId: run.id });
+      : reportedPlanModel(store, { slot });
   if (!round.writerModel && !round.unproven)
     skipSpecReviewRound(
       store,
@@ -383,7 +374,6 @@ export function createSpecReviewFindings(
     });
   return finishSpecReviewRound(store, round, checked, model, {
     slot,
-    run,
     summary,
   });
 }
@@ -400,7 +390,8 @@ function reviewSummaryText(value) {
 
 // A running or queued turn has not reported its model yet; a chat whose
 // status was never read is treated the same.
-const turnOpen = (binding) => !["idle", "gone"].includes(binding?.status);
+const turnOpen = (binding) =>
+  !["idle", "gone", "closed", "lost"].includes(binding?.status);
 
 // Findings that waited for the reviewer's model: record them once the chat
 // is idle and Kiro Crew names a model that differs from the writer's.
@@ -426,7 +417,6 @@ export function settleSpecReviewRounds(store) {
         );
       finishSpecReviewRound(store, round, round.pendingFindings, model, {
         slot: round.slot,
-        run: null,
         summary: round.pendingSummary ?? null,
       });
     } catch {
@@ -440,7 +430,7 @@ function finishSpecReviewRound(
   round,
   submitted,
   model,
-  { slot, run, summary = null },
+  { slot, summary = null },
 ) {
   return store.transaction(() => {
     const current = store.get("review_rounds", round.id);
@@ -503,7 +493,6 @@ function finishSpecReviewRound(
         revisionHash: round.revisionHash,
         state: "open",
         model,
-        runId: run?.id || null,
         slot,
         author: "Plan reviewer",
         replies: [],
@@ -534,7 +523,6 @@ function finishSpecReviewRound(
       revisionHash: round.revisionHash,
       roundId: round.id,
       threadIds: threads.map((thread) => thread.id),
-      runId: run?.id || null,
     });
     return {
       planId: round.planId,
@@ -730,21 +718,4 @@ export function applyReviewSuggestion(store, { id, expectedHash, author }) {
     author,
   });
   return { plan: saved, thread: store.get("review_threads", id) };
-}
-
-export function reviewPrompt({ plan, pipeline, step, existing }) {
-  return `Review this exact design revision as a senior software designer.
-
-Revision: ${plan.hash}
-Round: ${step.index + 1} of ${pipeline.sequence.length}
-
-Find only material gaps: incorrect authority boundaries, unsafe failure behavior, missing product requirements, contradictions, or acceptance criteria that cannot prove the outcome. Do not nitpick wording, style, optional polish, or repeat an existing point. If the design is already sound, submit no new comments and say so.
-
-Existing feedback to avoid repeating:
-${JSON.stringify(existing.map((thread) => ({ quote: thread.quote, comment: thread.comment, state: thread.state })))}
-
-Use plans_submit_review once with:
-{"input":{"planId":"${plan.id}","revisionHash":"${plan.hash}","comments":[{"quote":"exact unique passage","severity":"blocking|important|suggestion|question","comment":"why this materially matters","suggestion":"optional exact replacement"}]}}
-
-The quote must occur exactly once in the supplied design. Do not edit or approve the plan.`;
 }

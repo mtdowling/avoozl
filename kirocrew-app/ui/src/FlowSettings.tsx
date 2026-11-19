@@ -18,11 +18,9 @@ import { FLOW_DEFAULTS, flowClient, toFlowForm, toFlowSection, type FlowForm, ty
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 const OPTIONAL = { required: false } as const
-// A label and its "(optional)" marker, spaced inline so no stylesheet can
-// run them together.
-const LABEL_ROW = { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 } as const
 
 // One field in a FieldGrid: the shared FieldRow, lined up with the fields
 // beside it (align), every Flow value optional.
@@ -43,9 +41,9 @@ function FieldGrid({ children, group }: { children: React.ReactNode; group?: str
 }
 
 // One bordered, titled box per sub-section, on the card surface.
-function Box({ children }: { children: React.ReactNode }) {
+function FlowBox({ children }: { children: React.ReactNode }) {
   return (
-    <Card className="flex flex-col gap-4" data-flow-box>
+    <Card flex flexCol gap="4" data-flow-box>
       {children}
     </Card>
   )
@@ -116,68 +114,129 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
         {error}
       </ErrorText>
     )
-  if (!value) return <Hint as="p" size="sm">Loading…</Hint>
+  if (!value)
+    return (
+      <Hint as="p" size="sm">
+        Loading…
+      </Hint>
+    )
   const scope = form.scope || FLOW_DEFAULTS.scope
   const local = form.localChecksFirst ? form.localChecksFirst === 'on' : FLOW_DEFAULTS.localChecksFirst
   const ciDefaults = value.ciEffective ?? FLOW_DEFAULTS
   return (
     <Stack gap={3} data-flow-settings>
-      <Box>
+      <FlowBox>
         <Section title="Timing" blurb="Always on. Avoozl records where each task's time goes; nothing to set." />
-      </Box>
-      <Box>
+      </FlowBox>
+      <FlowBox>
         <Section title="Pause on a broken check" blurb="When a change breaks a check that passed, pause new work until it's fixed." icon={Pause}>
-          <div className="flex flex-col gap-1 text-sm">
-            <span style={LABEL_ROW}>
-              <span className="font-medium">What to pause</span>
+          <Box flex flexCol gap="1" size="sm">
+            <Box as="span" css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-column-gap="8">
+              <Box as="span" weight="medium">
+                What to pause
+              </Box>
               <Marker rule={OPTIONAL} />
-            </span>
+            </Box>
             <ChoiceCards id="avoozl-flow-scope" label="What to pause" value={scope} onChange={(key) => set({ scope: key })} cards={FLOW_SCOPE_CARDS.map((c) => ({ ...c }))} />
             <RawKey name="flow.stopTheLine.scope" />
-          </div>
+          </Box>
         </Section>
-      </Box>
-      <Box>
+      </FlowBox>
+      <FlowBox>
         <Section title="Local checks first" blurb="Run the checks here before any push, so CI only confirms. It matters only when sessions push.">
           <CheckRow label="Require a local pass before push" raw="flow.localChecksFirst" checked={local} onChange={(on) => set({ localChecksFirst: on ? 'on' : 'off' })} />
         </Section>
-      </Box>
-      <Box>
+      </FlowBox>
+      <FlowBox>
         <Section title="CI" blurb="Review steady CI costs across every pull request. These limits trigger a retrospective proposal; you decide what changes.">
           <Stack data-ci-settings gap={4}>
             <FieldGrid group="ci">
               <Labeled id="avoozl-flow-ci-window" label="Window (days)" raw="flow.ci.windowDays" note="Whole number 1–90.">
-                <Input id="avoozl-flow-ci-window" inputMode="numeric" value={form.windowDays} placeholder={String(ciDefaults.windowDays)} onChange={(event) => set({ windowDays: event.target.value })} />
+                <Input
+                  id="avoozl-flow-ci-window"
+                  inputMode="numeric"
+                  value={form.windowDays}
+                  placeholder={String(ciDefaults.windowDays)}
+                  onChange={(event) => set({ windowDays: event.target.value })}
+                />
               </Labeled>
               <Labeled id="avoozl-flow-ci-docs" label="Docs-only CI limit (minutes)" raw="flow.ci.docsOnlyMinutes" note="Whole number 1–100,000. Includes spec-only changes.">
-                <Input id="avoozl-flow-ci-docs" inputMode="numeric" value={form.docsOnlyMinutes} placeholder={String(ciDefaults.docsOnlyMinutes)} onChange={(event) => set({ docsOnlyMinutes: event.target.value })} />
+                <Input
+                  id="avoozl-flow-ci-docs"
+                  inputMode="numeric"
+                  value={form.docsOnlyMinutes}
+                  placeholder={String(ciDefaults.docsOnlyMinutes)}
+                  onChange={(event) => set({ docsOnlyMinutes: event.target.value })}
+                />
               </Labeled>
               <Labeled id="avoozl-flow-ci-wait" label="CI wait share limit" raw="flow.ci.waitShare" note="0.05–1 of lead time. 0.4 means 40%.">
-                <Input id="avoozl-flow-ci-wait" inputMode="decimal" value={form.waitShare} placeholder={String(ciDefaults.waitShare)} onChange={(event) => set({ waitShare: event.target.value })} />
+                <Input
+                  id="avoozl-flow-ci-wait"
+                  inputMode="decimal"
+                  value={form.waitShare}
+                  placeholder={String(ciDefaults.waitShare)}
+                  onChange={(event) => set({ waitShare: event.target.value })}
+                />
               </Labeled>
               <Labeled id="avoozl-flow-ci-min" label="Closed pull requests before wait check" raw="flow.ci.minPullRequests" note="Whole number 1–1,000.">
-                <Input id="avoozl-flow-ci-min" inputMode="numeric" value={form.minPullRequests} placeholder={String(ciDefaults.minPullRequests)} onChange={(event) => set({ minPullRequests: event.target.value })} />
+                <Input
+                  id="avoozl-flow-ci-min"
+                  inputMode="numeric"
+                  value={form.minPullRequests}
+                  placeholder={String(ciDefaults.minPullRequests)}
+                  onChange={(event) => set({ minPullRequests: event.target.value })}
+                />
               </Labeled>
             </FieldGrid>
             <Stack gap={2} data-ci-globs>
-              <h4 className="m-0 text-sm font-semibold">File classes (read-only)</h4>
-              <Hint as="p" size="xs" flush>First matching class wins in the order below. A repository can override these lists in its configuration.</Hint>
-              {Object.entries(value.ciClassGlobs ?? {}).map(([name, globs]) => <div key={name} className="flex min-w-0 flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}><span className="text-sm font-medium">{name}</span><code className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{globs.join(', ') || 'No matching paths'}</code></div>)}
-              <div className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}><span className="text-sm font-medium">code</span><Hint size="xs">Anything that does not match a class above.</Hint></div>
+              <Box as="h4" m0 size="sm" weight="semibold">
+                File classes (read-only)
+              </Box>
+              <Hint as="p" size="xs" flush>
+                First matching class wins in the order below. A repository can override these lists in its configuration.
+              </Hint>
+              {Object.entries(value.ciClassGlobs ?? {}).map(([name, globs]) => (
+                <Box key={name} css-border-color="border" flex minW0 flexCol gap="1" border="t" pt="2">
+                  <Box as="span" size="sm" weight="medium">
+                    {name}
+                  </Box>
+                  <Box as="code" css-overflow-wrap="anywhere" size="xs" tone="muted">
+                    {globs.join(', ') || 'No matching paths'}
+                  </Box>
+                </Box>
+              ))}
+              <Box css-border-color="border" flex flexCol gap="1" border="t" pt="2">
+                <Box as="span" size="sm" weight="medium">
+                  code
+                </Box>
+                <Hint size="xs">Anything that does not match a class above.</Hint>
+              </Box>
               <RawKey name="flow.ci.classes" />
             </Stack>
           </Stack>
         </Section>
-      </Box>
-      <Box>
+      </FlowBox>
+      <FlowBox>
         <Section title="Retro" blurb="A review that finds the biggest slowdown and proposes one change. You approve or reject each proposal.">
           <SectionHeading level={4} title="When it runs" />
           <FieldGrid group="when">
             <Labeled id="avoozl-flow-every" label="After this many tasks" raw="flow.retro.everyTasks">
-              <Input id="avoozl-flow-every" inputMode="numeric" value={form.everyTasks} placeholder={String(FLOW_DEFAULTS.everyTasks)} onChange={(event) => set({ everyTasks: event.target.value })} />
+              <Input
+                id="avoozl-flow-every"
+                inputMode="numeric"
+                value={form.everyTasks}
+                placeholder={String(FLOW_DEFAULTS.everyTasks)}
+                onChange={(event) => set({ everyTasks: event.target.value })}
+              />
             </Labeled>
             <Labeled id="avoozl-flow-slow" label="Slow when over (× usual)" raw="flow.retro.slowFactor">
-              <Input id="avoozl-flow-slow" inputMode="decimal" value={form.slowFactor} placeholder={String(FLOW_DEFAULTS.slowFactor)} onChange={(event) => set({ slowFactor: event.target.value })} />
+              <Input
+                id="avoozl-flow-slow"
+                inputMode="decimal"
+                value={form.slowFactor}
+                placeholder={String(FLOW_DEFAULTS.slowFactor)}
+                onChange={(event) => set({ slowFactor: event.target.value })}
+              />
             </Labeled>
           </FieldGrid>
           {/* The retro's model is under Settings › Models. */}
@@ -193,12 +252,12 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
             note="Saved on this machine only."
           />
           {drifted > 0 && (
-            <p role="status" className="text-sm" style={{ color: 'var(--warning, var(--text))' }} data-override-warning>
+            <Box role="status" as="p" css-color="warning-text" size="sm" data-override-warning>
               {drifted === 1 ? 'A prompt override is' : `${drifted} prompt overrides are`} based on an older built-in text. Review the rebase in Retros › Proposals.
-            </p>
+            </Box>
           )}
         </Section>
-      </Box>
+      </FlowBox>
       <SaveFooter
         dirty={dirty}
         saving={saving}

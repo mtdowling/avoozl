@@ -23,6 +23,7 @@ import {
 } from "./demo.mjs";
 
 export const NEEDS_KIROCREW = "Needs Kiro Crew";
+import { requiredReader } from "./needs-kirocrew.mjs";
 
 // The page also runs the tick, reads its health, reads the Graph,
 // Delivery and Conflicts views, edits the GitHub settings, and runs Set up GitHub. The cron and agents reach `workspace.tick`
@@ -51,7 +52,6 @@ export const APP_OPERATIONS = new Set([
   "specpr.view",
   "radar.crews",
   "review.drafts",
-  "gate.list",
   "radar.flow",
   "radar.retro",
   "radar.retro.apply",
@@ -108,9 +108,6 @@ export const APP_OPERATIONS = new Set([
   "plugin.update",
   "plugin.pack.preview",
   "plugin.pack.import",
-  "route.cancel",
-  "route.resubmit",
-  "tracker.takeBack",
   // Owner actions the Conflicts and Delivery views offer.
   "content.rules",
   "content.allow",
@@ -127,7 +124,6 @@ export const APP_OPERATIONS = new Set([
   "flow.stop",
   "publiccrews.stop",
   "flow.resume",
-  "gate.clear",
   "flow.settings.get",
   "models.settings.get",
   "models.settings.update",
@@ -141,7 +137,6 @@ export const APP_OPERATIONS = new Set([
   "driver.takeover",
   "driver.forceTakeover",
   "driver.away.decide",
-  "relay.forget",
   "providers.view",
   "provider.switch.preview",
   "provider.switch.dryRun",
@@ -186,6 +181,8 @@ export const APP_OPERATIONS = new Set([
   "plan.unarchive",
   // Send message on a `process` session (R98.2).
   "session.send",
+  "session.open",
+  "session.view",
   // Manual tasks, task links, and workflow templates (§4.16).
   "task.manual.complete",
   "task.manual.reopen",
@@ -238,7 +235,7 @@ export function principalAllows(claim, operation) {
 export const offered = (operation) =>
   MACHINE_OPERATIONS.has(operation) || APP_OPERATIONS.has(operation);
 
-export function badRequest(message, status = 400) {
+function badRequest(message, status = 400) {
   const error = Error(message);
   error.status = status;
   return error;
@@ -306,20 +303,19 @@ function machineOperation(registry, config, operation, input, home) {
   }
 }
 
-// Operations that cannot run without one Kiro Crew reader, by the context
-// key that holds it. `untriaged.crews` and `radar.crews` already answer an
-// absent reader with an unavailable view (radar-handoff.mjs).
-const NEEDS_READER = new Map([
-  ["untriaged.handoff", ["crewReader", "Send to Issue Radar"]],
-  ["flow.stop", ["sessionStopper", "Stop all agents for Kiro Crew chats"]],
-]);
-
+// Operations that cannot run without one Kiro Crew reader, from the one
+// table of what needs Kiro Crew (needs-kirocrew.mjs). `untriaged.crews` and
+// `radar.crews` answer an absent reader with an unavailable view instead.
 function missingReader(context, operation, input) {
-  const [key, what] = NEEDS_READER.get(operation) || [];
+  const needed = requiredReader(operation);
   // Only a full stop reaches Kiro Crew chats; a plain stop is Avoozl's own.
-  if (!key || context[key] || (operation === "flow.stop" && !input.full))
+  if (
+    !needed ||
+    context[needed.reader] ||
+    (operation === "flow.stop" && !input.full)
+  )
     return null;
-  return `${NEEDS_KIROCREW}: ${what} works only inside Kiro Crew.`;
+  return `${NEEDS_KIROCREW}: ${needed.what} works only inside Kiro Crew.`;
 }
 
 // Everything a dispatch needs, built once per server. `readers` holds the
@@ -405,6 +401,7 @@ export function commandContext({
           crewReader: readers.crewReader ?? null,
           sessionsReader: readers.sessionsReader ?? null,
           sessionStopper: readers.sessionStopper ?? null,
+          kirocrewAbsent: host === "standalone",
           driver: { settingsFile: driverSettingsPath() },
           // No page request waits on GitHub or Kiro Crew.
           backgroundReads: true,
@@ -494,7 +491,13 @@ export async function dispatchCommand({ claim, request, context }) {
     if (needs)
       return { status: 409, body: { error: needs, needsKiroCrew: true } };
     const { ops } = context.operations(context.workspaceFor(workspaceId));
-    const result = await ops.execute(operation, input, expectedRevision);
+    // Only the owner session writes (principalAllows): it is the person.
+    const result = await ops.execute(
+      operation,
+      input,
+      expectedRevision,
+      claim.kind === "owner-session" ? { person: true } : {},
+    );
     return {
       status: 200,
       body: {

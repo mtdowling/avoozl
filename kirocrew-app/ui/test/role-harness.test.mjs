@@ -34,27 +34,29 @@ for (const width of [390, 1280]) {
       assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-agent-${role}'))`), role === 'worker' || role === 'falsifier', role)
     }
     assert.equal(await page.evaluate(`document.querySelector('#avoozl-agent-worker').placeholder`), 'kirocrew-worker')
-    await page.evaluate(`(() => { const el = document.querySelector('#avoozl-agent-worker'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, 'alt-worker'); el.dispatchEvent(new Event('input', { bubbles: true })) })()`)
+    await page.evaluate(
+      `(() => { const el = document.querySelector('#avoozl-agent-worker'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, 'alt-worker'); el.dispatchEvent(new Event('input', { bubbles: true })) })()`,
+    )
     await page.evaluate(`document.querySelector('#avoozl-model-worker').focus()`)
     await page.until(`document.querySelector('#avoozl-model-worker').getAttribute('aria-expanded') === 'true'`)
     await page.evaluate(pick('avoozl-model-worker', 'fake-reviewer'))
     assert.equal(await page.evaluate(`document.querySelector('#avoozl-harness-worker').value`), 'auto (project default)')
     await page.evaluate(`document.querySelector('#avoozl-harness-worker').focus()`)
     await page.until(`document.querySelector('#avoozl-harness-worker').getAttribute('aria-expanded') === 'true'`)
-    assert.deepEqual(
-      await page.evaluate(`[...document.querySelectorAll('#avoozl-harness-worker-list [role="option"]')].map((o) => o.textContent.trim())`),
-      ['auto (project default)', 'Kiro Crew chat', 'claude-code', 'codex (not approved)'],
-    )
+    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('#avoozl-harness-worker-list [role="option"]')].map((o) => o.textContent.trim())`), [
+      'auto (project default)',
+      'Kiro Crew chat',
+      'claude-code',
+      'codex (not approved)',
+    ])
     await page.evaluate(pick('avoozl-harness-worker', 'claude-code'))
-    // The retro follows its harness; review drafts say they still run as a chat.
+    // The retro and review drafts follow their harness.
     await page.evaluate(`document.querySelector('#avoozl-harness-retro').focus()`)
     await page.until(`document.querySelector('#avoozl-harness-retro').getAttribute('aria-expanded') === 'true'`)
     await page.evaluate(pick('avoozl-harness-retro', 'claude-code'))
     await page.evaluate(`document.querySelector('#avoozl-harness-reviewDraft').focus()`)
     await page.until(`document.querySelector('#avoozl-harness-reviewDraft').getAttribute('aria-expanded') === 'true'`)
     await page.evaluate(pick('avoozl-harness-reviewDraft', 'claude-code'))
-    await page.until(`Boolean(document.querySelector('[data-model-role="reviewDraft"] [data-harness-pending]'))`)
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-model-role="retro"] [data-harness-pending]'))`), false)
     await page.until(`document.querySelector('[data-save-footer] [data-save]')?.disabled === false`)
     await page.evaluate(`document.querySelector('[data-save-footer] [data-save]').click()`)
     await page.until(`document.querySelector('[data-models-settings]').textContent.includes('Saved to .avoozl.json.')`)

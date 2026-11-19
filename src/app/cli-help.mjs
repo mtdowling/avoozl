@@ -66,8 +66,8 @@ export const HELP_GROUPS = Object.freeze([
         "Dry run of the mirror setup; add --confirm --preview-hash HASH to apply",
       ),
       entry(
-        "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]\n[--methods merge,squash,rebase] [--landing pr|direct|train|off] [--yes]",
-        "Preview repository setup for landing; --yes applies it",
+        "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+        "Preview repository setup for landing; --checks names the required GitHub checks, not the repository's own checks; --yes applies it",
       ),
       entry(
         "workspace-repo configure PATH [--branch avoozl-workspace] [--directory .avoozl]",
@@ -269,10 +269,6 @@ export const HELP_GROUPS = Object.freeze([
         "Stop public crews: pull the cord on every public repository and list the crews to pause",
       ),
       entry(
-        "gate clear TASK --reason TEXT",
-        "Clear a tracker gate as an order (the GitHub login of this machine must be allowed)",
-      ),
-      entry(
         "content allow DECISION_ID --reason TEXT",
         "Allow one blocked write once (a person only)",
       ),
@@ -282,30 +278,18 @@ export const HELP_GROUPS = Object.freeze([
       ),
       entry(
         "rebuild [--repository OWNER/REPO]",
-        "Rebuild GitHub tasks from their issues and tracker plugin tasks from their records",
+        "Rebuild GitHub tasks from their issues",
       ),
     ],
   },
   {
     id: "land",
     title: "Land",
-    summary: "Merge verified work through the integrator and its trains",
+    summary: "Merge verified work in merge batches",
     entries: [
       entry(
-        "integrator run",
-        "Run this workspace's integrator for landing: train (the supervisor starts it)",
-      ),
-      entry(
-        "integrator status [--json]",
-        "Per train target: lease holder, running train and its step",
-      ),
-      entry(
         "landing status [--json]",
-        "Queue depth, time in queue and the running train, from stored records",
-      ),
-      entry(
-        "landing submit TASK --branch NAME",
-        "Queue a pushed batch branch for the integrator (landing: train)",
+        "Per base: who waits, the batch being tested, the last batches and the size limit, from stored records",
       ),
     ],
   },
@@ -348,10 +332,6 @@ export const HELP_GROUPS = Object.freeze([
       ),
       entry("github status", "Show repository and machine registration"),
       entry(
-        "gate list [--json]",
-        "Tracker gates: state, last and next check, and what each holds",
-      ),
-      entry(
         "review drafts [--repository OWNER/REPO] [--state STATE] [--json]",
         "Review drafts made from the review label, and the GitHub search for them",
       ),
@@ -371,14 +351,6 @@ export const HELP_GROUPS = Object.freeze([
     title: "Agent hooks",
     summary: "What an agent session or a git hook runs for itself",
     entries: [
-      entry(
-        "register-session [--task TASK_ID] [--lease LEASE_ID] [--provider claude] [--session SESSION_ID] [--agent AGENT_ID]",
-        "Link this agent session's transcript to its task; AVOOZL_TASK and AVOOZL_LEASE can name the task and lease",
-      ),
-      entry(
-        "session-hook [--task TASK_ID] [--lease LEASE_ID]",
-        "The same as a session-start hook: reads the hook's JSON on stdin and never fails the session",
-      ),
       entry(
         "worktree prepare TASK_ID",
         "Create or return the task's worktree and print it",
@@ -414,6 +386,11 @@ export const HELP_GROUPS = Object.freeze([
         "Kiro Crew app backend on 127.0.0.1 ($PORT)",
       ),
       entry(
+        "serve [--workspace PATH] [--port N]",
+        "The standalone page on 127.0.0.1 only; prints a one-time owner link",
+      ),
+      entry("serve link", "A new owner link for the running standalone page"),
+      entry(
         "supervisor [--tick-seconds N]",
         "This machine's owner of process children (one per machine); --tick-seconds runs the tick too (headless)",
       ),
@@ -422,18 +399,9 @@ export const HELP_GROUPS = Object.freeze([
         "Print or write the unit that runs the supervisor and tick at login",
       ),
       entry(
-        "runner accept FILE|-",
-        "Runner mode: take one task envelope (a runner's ssh calls this)",
-      ),
-      entry(
         "runner status --json",
         "This runner's tasks and workers; elsewhere the supervisor and its children",
       ),
-      entry(
-        "runner handoff ENVELOPE.json --host H",
-        "Runner mode: hand a task to host H over ssh",
-      ),
-      entry("runner pull --host H", "Runner mode: read host H's status"),
       entry(
         "worker pull",
         "Worker mode: read this worker's offers from spec journals",

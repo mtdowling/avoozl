@@ -19,8 +19,10 @@
     "test:ci": "node scripts/run-tests.mjs --ui",
     "test:changed": "node scripts/run-tests.mjs --changed",
     "test:ui": "node --test --test-timeout=60000 kirocrew-app/ui/test/*.test.mjs",
-    "format": "prettier --write cli.mjs src examples scripts README.md AGENTS.md package.json .github",
-    "format:check": "prettier --check cli.mjs src examples scripts README.md AGENTS.md package.json .github"
+    "dup": "node scripts/dup.mjs",
+    "dup:changed": "node scripts/dup.mjs --changed",
+    "format": "biome format --write",
+    "format:check": "biome format"
   },
   "dependencies": {
     "react": "^19.3.1"
@@ -29,8 +31,7 @@
   "description": "Approve a spec; Avoozl runs it with coding agents, checks each commit itself, and lands it.",
   "license": "MIT",
   "bin": {
-    "avoozl": "./cli.mjs",
-    "aicommander": "./cli.mjs"
+    "avoozl": "./cli.mjs"
   },
   "files": [
     "cli.mjs",
@@ -49,6 +50,7 @@
     "!kirocrew-app/ui/test/"
   ],
   "devDependencies": {
+    "@biomejs/biome": "2.6.8",
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/query-core": "5.96.0",
     "@tanstack/react-query": "5.96.0",
@@ -58,10 +60,10 @@
     "framer-motion": "12.40.0",
     "html-parse-stringify": "4.0.1",
     "i18next": "26.4.4",
+    "jscpd": "4.3.0",
     "lucide-react": "1.7.0",
     "motion-dom": "12.40.0",
     "motion-utils": "12.39.0",
-    "prettier": "3.6.2",
     "prismjs": "1.30.0",
     "react-dom": "19.3.1",
     "react-dom18": "npm:react-dom@18.3.1",

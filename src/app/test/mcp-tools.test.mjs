@@ -4,11 +4,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { handleMcp, OLD_TOOLS } from "../mcp.mjs";
+import { handleMcp, NARROW_TOOLS } from "../mcp.mjs";
 import { createAppMcp } from "../app-mcp.mjs";
 import { NOT_ON_MCP, PERSON_ONLY } from "../mcp-policy.mjs";
 import { GROUPED_TOOLS, groupedCall } from "../mcp-tools.mjs";
-import { MOVED_OPERATIONS } from "../moved-operations.mjs";
 import { classifyOperation } from "../operation-kinds.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
@@ -19,7 +18,7 @@ import { temporaryDirectory } from "./temporary.mjs";
 function allOperations() {
   const read = (file) =>
     fs.readFileSync(new URL("../" + file, import.meta.url), "utf8");
-  const names = new Set(MOVED_OPERATIONS.keys());
+  const names = new Set();
   for (const [, name] of read("operations.mjs").matchAll(
     /name === "([a-zA-Z.]+)"/g,
   ))
@@ -44,7 +43,7 @@ for (const [tool, { actions }] of Object.entries(GROUPED_TOOLS))
       `${tool}.${action}`,
     ]);
   }
-for (const [name, [operation]] of Object.entries(OLD_TOOLS))
+for (const [name, [operation]] of Object.entries(NARROW_TOOLS))
   routes.set(operation, [...(routes.get(operation) || []), name]);
 
 const call = (ops, name, args) =>
@@ -107,12 +106,13 @@ test("each grouped tool lists its actions as an enum", async (t) => {
       tool.inputSchema.properties.action.enum,
       Object.keys(GROUPED_TOOLS[tool.name].actions),
     );
-  // Old names stay listed (R24.5) and point at their replacement.
-  const old = tools.find((tool) => tool.name === "plans_update_task");
-  assert.match(
-    old.description,
-    /^Deprecated: use plans_task \{action: "update"\}\./,
+  // The deprecated one-tool-per-operation names are gone (R56.3).
+  assert.deepEqual(
+    tools.filter((tool) => /^Deprecated/.test(tool.description)),
+    [],
   );
+  for (const name of ["plans_update_task", "plans_tick", "plans_relay"])
+    assert.ok(!tools.some((tool) => tool.name === name), name);
   assert.match(
     tools.find((tool) => tool.name === "plans_approve_plan").description,
     /^Person only: refused over MCP/,
@@ -153,7 +153,7 @@ test("no MCP name reaches a person-only operation, and nearby inputs fail closed
     ops = new Operations(store),
     before = store.read().revision;
   // Every old name whose operation is person-only.
-  const old = Object.entries(OLD_TOOLS).filter(([, [operation]]) =>
+  const old = Object.entries(NARROW_TOOLS).filter(([, [operation]]) =>
     PERSON_ONLY.has(operation),
   );
   assert.ok(old.some(([name]) => name === "plans_approve_plan"));
@@ -214,7 +214,7 @@ test("no MCP name reaches a person-only operation, and nearby inputs fail closed
   assert.equal(store.read().revision, before, "nothing was written");
 });
 
-test("grouped calls run their operation, and plans_workspace keeps its old shape", async (t) => {
+test("grouped calls run their operation, and an action is required", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
   const task = await call(ops, "plans_task", {
@@ -226,14 +226,11 @@ test("grouped calls run their operation, and plans_workspace keeps its old shape
     task.structuredContent.id ?? task.structuredContent.task?.id,
     "sample-task",
   );
-  // The old plans_workspace call sent only {input}.
-  const old = await call(ops, "plans_workspace", { input: {} });
-  assert.equal(old.isError, undefined);
+  const missing = await call(ops, "plans_workspace", { input: {} });
+  assert.equal(missing.isError, true);
+  assert.match(missing.content[0].text, /Name an action for plans_workspace/);
   const current = await call(ops, "plans_workspace", { action: "get" });
-  assert.deepEqual(
-    Object.keys(old.structuredContent),
-    Object.keys(current.structuredContent),
-  );
+  assert.equal(current.isError, undefined);
   assert.equal(classifyOperation("workspace"), "observe");
 });
 
@@ -248,7 +245,7 @@ test("every MCP name answers an empty input with a clear message", async (t) => 
   for (const [tool, { actions }] of Object.entries(GROUPED_TOOLS))
     for (const [action, [operation]] of Object.entries(actions))
       if (!skip.has(operation)) calls.push([tool, { action, input: {} }]);
-  for (const [name, [operation]] of Object.entries(OLD_TOOLS))
+  for (const [name, [operation]] of Object.entries(NARROW_TOOLS))
     if (!skip.has(operation)) calls.push([name, { input: {} }]);
   const unclear = [];
   for (const [name, args] of calls) {
@@ -269,12 +266,12 @@ test("every MCP name answers an empty input with a clear message", async (t) => 
   assert.equal(settings.structuredContent.scope, "repository");
 });
 
-test("an old plans_* name refuses an input that is not an object", async (t) => {
+test("a single-operation tool refuses an input that is not an object", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store),
     before = store.read().revision;
   for (const input of ["x", [1], 0])
-    for (const name of ["plans_update_task", "plans_capture"]) {
+    for (const name of ["plans_answer_review", "plans_plan_review"]) {
       const result = await call(ops, name, { input });
       assert.equal(result.isError, true, `${name} ${JSON.stringify(input)}`);
       assert.equal(result.content[0].text, "input must be an object.");
@@ -295,16 +292,14 @@ test("the cron's tick with no workspace is a skip, not an error", async () => {
       params: { name, arguments: args },
     });
   try {
-    for (const [name, args] of [
-      ["plans_tick", { input: { cron: true } }],
-      ["plans_maintain", { action: "tick", input: { cron: true } }],
-    ]) {
-      const result = (await call(name, args)).result;
-      assert.equal(result.isError, undefined, name);
-      assert.equal(JSON.parse(result.content[0].text).skipped, true, name);
-    }
+    const result = (
+      await call("plans_maintain", { action: "tick", input: { cron: true } })
+    ).result;
+    assert.equal(result.isError, undefined);
+    assert.equal(JSON.parse(result.content[0].text).skipped, true);
     // Anyone else still hears why nothing ran.
-    const plain = (await call("plans_tick", { input: {} })).result;
+    const plain = (await call("plans_maintain", { action: "tick", input: {} }))
+      .result;
     assert.equal(plain.isError, true);
     assert.match(plain.content[0].text, /has no workspace/);
   } finally {

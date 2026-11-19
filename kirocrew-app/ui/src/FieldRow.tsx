@@ -9,7 +9,9 @@ import type { ReactNode } from 'react'
 import { Tooltip } from './ui/Tooltip.tsx'
 import type { FieldRule } from './settings-api.ts'
 import { Hint } from './ui/Hint'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export const FIELD_WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 export type FieldWidth = keyof typeof FIELD_WIDTH
@@ -35,7 +37,7 @@ export function RawKey({ name }: { name: string }) {
   const parts = name.split('.')
   return (
     <Tooltip text=".avoozl.json key">
-      <code className="text-[11px] text-muted" data-raw-key style={{ overflowWrap: 'break-word', opacity: 0.8 }}>
+      <Box as="code" css-overflow-wrap="break-word" css-opacity="0.8" size="11" tone="muted" data-raw-key>
         {parts.map((part, at) => (
           <span key={at}>
             {at > 0 && (
@@ -46,7 +48,7 @@ export function RawKey({ name }: { name: string }) {
             {part}
           </span>
         ))}
-      </code>
+      </Box>
     </Tooltip>
   )
 }
@@ -87,37 +89,45 @@ export function FieldRow(props: {
   children: ReactNode
 }) {
   const note = props.note ?? props.rule?.blank
-  const control = <div style={{ display: 'flex', minWidth: 0, maxWidth: props.width ? (FIELD_WIDTH[props.width as FieldWidth] ?? props.width) : undefined, flexDirection: 'column' }}>{props.children}</div>
+  const control = (
+    <Box css-display="flex" css-min-width="0" css-max-width={props.width ? (FIELD_WIDTH[props.width as FieldWidth] ?? props.width) : undefined} css-flex-direction="column">
+      {props.children}
+    </Box>
+  )
   const label = (
-    <label htmlFor={props.id} className="flex flex-wrap items-baseline" style={{ columnGap: 8, rowGap: 2, alignContent: 'flex-start', alignSelf: 'start' }} data-field-label>
-      <span className="font-medium">{props.label}</span>
+    <Box htmlFor={props.id} as="label" css-column-gap="8" css-row-gap="2" css-align-content="flex-start" css-align-self="start" flex flexWrap items="baseline" data-field-label>
+      <Box as="span" weight="medium">
+        {props.label}
+      </Box>
       <Marker rule={props.rule} />
-    </label>
+    </Box>
   )
   const lines = (
-    <span className="flex flex-col" style={{ gap: 2 }}>
+    <Box as="span" css-gap="2" flex flexCol>
       {props.help && <FieldHelp id={`${props.id}-help`}>{props.help}</FieldHelp>}
       {note && (
         <FieldHelp id={`${props.id}-default`} kind="default">
           {note}
         </FieldHelp>
       )}
-    </span>
+    </Box>
   )
   return (
     <div
       className="min-w-0 text-sm"
       data-field-row={props.id}
       {...props.attrs}
-      style={props.align ? { display: 'grid', gridRow: 'span 4', gridTemplateRows: 'subgrid', rowGap: 4, alignContent: 'start' } : { display: 'flex', flexDirection: 'column', gap: 4 }}
+      style={
+        props.align ? { display: 'grid', gridRow: 'span 4', gridTemplateRows: 'subgrid', rowGap: 4, alignContent: 'start' } : { display: 'flex', flexDirection: 'column', gap: 4 }
+      }
     >
       {label}
       {control}
       {lines}
       {props.onReset && (
-        <button type="button" className="self-start text-xs underline" style={{ color: 'var(--accent)' }} onClick={props.onReset} data-field-reset={props.id}>
+        <PlainButton type="button" css-color="accent" self="start" size="xs" underline onClick={props.onReset} data-field-reset={props.id}>
           Reset to default{props.defaultText ? ` (${props.defaultText})` : ''}
-        </button>
+        </PlainButton>
       )}
       {props.raw ? <RawKey name={props.raw} /> : props.align ? <span /> : null}
     </div>
@@ -128,22 +138,38 @@ export function FieldRow(props: {
 // under the label, in the same order and style as a FieldRow.
 export function CheckRow(props: { id?: string; label: ReactNode; checked: boolean; onChange: (checked: boolean) => void; raw?: string; help?: ReactNode; disabled?: boolean }) {
   return (
-    <label className="flex items-start gap-2 text-sm" style={{ opacity: props.disabled ? 0.6 : 1 }} data-check-row={props.raw ?? ''}>
-      <Checkbox id={props.id} drop={4} checked={props.checked} disabled={props.disabled} onChange={(event) => props.onChange(event.target.checked)} />
-      <span className="flex min-w-0 flex-col" style={{ gap: 2 }}>
+    <Switch
+      id={props.id}
+      label={typeof props.label === 'string' ? props.label : 'Option'}
+      align="start"
+      size="sm"
+      checked={props.checked}
+      disabled={props.disabled}
+      onChange={props.onChange}
+      data-check-row={props.raw ?? ''}
+    >
+      <Box as="span" css-gap="2" flex minW0 flexCol>
         <span>{props.label}</span>
         {props.help && <FieldHelp>{props.help}</FieldHelp>}
         {props.raw && <RawKey name={props.raw} />}
-      </span>
-    </label>
+      </Box>
+    </Switch>
   )
 }
 
 // Fields on a grid: as many columns as fit, each at least `min`.
 export function FieldGrid({ children, min = '13rem', align, group }: { children: ReactNode; min?: string; align?: boolean; group?: string }) {
   return (
-    <div data-field-grid data-flow-group={group} style={{ display: 'grid', columnGap: 16, rowGap: align ? 4 : 12, gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${min}), 1fr))`, alignItems: 'start' }}>
+    <Box
+      data-field-grid
+      data-flow-group={group}
+      css-display="grid"
+      css-column-gap="16"
+      css-row-gap={align ? '4' : '12'}
+      css-grid-template-columns={`repeat(auto-fill, minmax(min(100%, ${min}), 1fr))`}
+      css-align-items="start"
+    >
       {children}
-    </div>
+    </Box>
   )
 }

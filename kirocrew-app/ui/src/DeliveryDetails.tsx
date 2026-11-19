@@ -22,7 +22,8 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { TextLink } from './ui/TextLink'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 // A delivery's record, shared by the Delivery cards and the task drawer:
 // runs, integration, pull requests, reviews, evidence, Project notes, and
@@ -34,16 +35,20 @@ function Link({ text }: { text: string }) {
       {text}
     </TextLink>
   ) : (
-    <code className="break-all">{text}</code>
+    <Box as="code" breakAll>
+      {text}
+    </Box>
   )
 }
 
 function Records({ label, records }: { label: string; records: Record<string, unknown>[] }) {
   if (!records.length) return null
   return (
-    <div className="mt-2 text-xs">
-      <span className="font-medium">{label}</span>
-      <ul className="mt-1 flex flex-col gap-1">
+    <Box mt="2" size="xs">
+      <Box as="span" weight="medium">
+        {label}
+      </Box>
+      <Box as="ul" mt="1" flex flexCol gap="1">
         {records.map((record, i) => (
           <Hint key={i} as="li">
             {scalarFields(record)
@@ -51,8 +56,8 @@ function Records({ label, records }: { label: string; records: Record<string, un
               .join(' · ')}
           </Hint>
         ))}
-      </ul>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -60,42 +65,37 @@ function Records({ label, records }: { label: string; records: Record<string, un
 function Rounds({ rounds }: { rounds: ReviewRound[] }) {
   if (!rounds.length) return null
   return (
-    <div className="mt-2 text-xs">
-      <span className="font-medium">Review rounds</span>
-      <ul className="mt-1 flex flex-col gap-2">
+    <Box mt="2" size="xs">
+      <Box as="span" weight="medium">
+        Review rounds
+      </Box>
+      <Box as="ul" mt="1" flex flexCol gap="2">
         {rounds.map((round, i) => (
           <li key={`${round.commit}-${i}`}>
             <code>{round.commit?.slice(0, 12) ?? 'unknown commit'}</code>
             {round.current ? ' (current)' : ' (stale)'}
-            <ul className="ml-3 mt-1 flex flex-col gap-1">
+            <Box as="ul" ml="3" mt="1" flex flexCol gap="1">
               {round.verdicts.map((verdict) => (
                 <li key={`${verdict.role}-${verdict.attempt}`}>
-                  {verdict.link ? (
-                    <TextLink href={linkHref(verdict.link)}>
-                      {verdictLabel(verdict)}
-                    </TextLink>
-                  ) : (
-                    verdictLabel(verdict)
-                  )}
+                  {verdict.link ? <TextLink href={linkHref(verdict.link)}>{verdictLabel(verdict)}</TextLink> : verdictLabel(verdict)}
                   {verdict.cause && <Hint> · {verdict.cause}</Hint>}
                   {verdict.findings.length > 0 && (
-                    <ul className="ml-3 mt-1 flex flex-col gap-1">
+                    <Box as="ul" ml="3" mt="1" flex flexCol gap="1">
                       {verdict.findings.map((finding) => (
                         <li key={finding.ref}>
-                          <Badge variant={finding.state === 'open' ? 'danger' : 'success'}>{finding.state}</Badge>{' '}
-                          <code>{finding.ref}</code> {finding.kind} · {finding.paths.join(', ')}:{' '}
-                          <Hint>{finding.text}</Hint>
+                          <Badge variant={finding.state === 'open' ? 'danger' : 'success'}>{finding.state}</Badge> <code>{finding.ref}</code> {finding.kind} ·{' '}
+                          {finding.paths.join(', ')}: <Hint>{finding.text}</Hint>
                         </li>
                       ))}
-                    </ul>
+                    </Box>
                   )}
                 </li>
               ))}
-            </ul>
+            </Box>
           </li>
         ))}
-      </ul>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -105,12 +105,12 @@ function GitHubReviewsBlock({ reviews }: { reviews: GitHubReviews }) {
   const href = safeHref(reviews.pullRequest)
   const name = `PR ${reviews.pullRequestNumber ? `#${reviews.pullRequestNumber}` : ''}`
   return (
-    <div className="mt-2 text-xs">
-      <span className="font-medium">GitHub reviews</span>{' '}
-      <Badge variant={reviews.state === 'approved' ? 'success' : reviews.state === 'pending' ? 'info' : 'danger'}>
-        {reviews.state}
-      </Badge>{' '}
-      {reviews.approvals} of {reviews.needed} approvals on <code>{reviews.headSha?.slice(0, 12) ?? 'unknown head'}</code>
+    <Box mt="2" size="xs">
+      <Box as="span" weight="medium">
+        GitHub reviews
+      </Box>{' '}
+      <Badge variant={reviews.state === 'approved' ? 'success' : reviews.state === 'pending' ? 'info' : 'danger'}>{reviews.state}</Badge> {reviews.approvals} of {reviews.needed}{' '}
+      approvals on <code>{reviews.headSha?.slice(0, 12) ?? 'unknown head'}</code>
       {' · '}
       {href ? (
         <TextLink href={linkHref(href)} target="_blank" rel="noreferrer">
@@ -121,15 +121,15 @@ function GitHubReviewsBlock({ reviews }: { reviews: GitHubReviews }) {
       )}
       {reviews.held && <ErrorText as="span"> · holding dependents</ErrorText>}
       {reviews.reviews.length > 0 && (
-        <ul className="ml-3 mt-1 flex flex-col gap-1">
+        <Box as="ul" ml="3" mt="1" flex flexCol gap="1">
           {reviews.reviews.map((review) => (
-            <li key={review.reviewer} className={review.allowed && !review.stale ? '' : 'text-muted'}>
+            <Box key={review.reviewer} as="li" tone={review.allowed && !review.stale ? undefined : 'muted'}>
               {githubReviewLabel(review)}
-            </li>
+            </Box>
           ))}
-        </ul>
+        </Box>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -138,8 +138,11 @@ function GitHubReviewsBlock({ reviews }: { reviews: GitHubReviews }) {
 function PrFeedbackBlock({ feedback }: { feedback: PrFeedback }) {
   const href = safeHref(feedback.pullRequest)
   return (
-    <div className="mt-2 text-xs">
-      <span className="font-medium">PR feedback</span> {prFeedbackLine(feedback)}
+    <Box mt="2" size="xs">
+      <Box as="span" weight="medium">
+        PR feedback
+      </Box>{' '}
+      {prFeedbackLine(feedback)}
       {feedback.session && <Hint> · {feedback.session}</Hint>}
       {href && (
         <>
@@ -170,7 +173,7 @@ function PrFeedbackBlock({ feedback }: { feedback: PrFeedback }) {
           })}
         </Hint>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -185,9 +188,11 @@ export function SupersedeForm({ item, onSupersede }: { item: DeliveryItem; onSup
   const [error, setError] = useState<string | null>(null)
   if (!open)
     return (
-      <div className="mt-2">
-        <TipBtn tooltip="Replace this task with a new one. Cannot be undone here." onClick={() => setOpen(true)}>Supersede</TipBtn>
-      </div>
+      <Box mt="2">
+        <TipBtn tooltip="Replace this task with a new one. Cannot be undone here." onClick={() => setOpen(true)}>
+          Supersede
+        </TipBtn>
+      </Box>
     )
   const submit = async () => {
     setBusy(true)
@@ -202,32 +207,19 @@ export function SupersedeForm({ item, onSupersede }: { item: DeliveryItem; onSup
     }
   }
   return (
-    <div className="mt-2 flex flex-col gap-1.5 text-sm">
-      <label htmlFor={`supersede-id-${item.id}`} className="flex flex-col gap-1">
+    <Box mt="2" flex flexCol gap="1.5" size="sm">
+      <Box htmlFor={`supersede-id-${item.id}`} as="label" flex flexCol gap="1">
         <span>New task ID (blank picks one)</span>
-        <Input
-          id={`supersede-id-${item.id}`}
-          value={form.id}
-          onChange={(event) => setForm({ ...form, id: event.target.value })}
-        />
-      </label>
-      <label htmlFor={`supersede-title-${item.id}`} className="flex flex-col gap-1">
+        <Input id={`supersede-id-${item.id}`} value={form.id} onChange={(event) => setForm({ ...form, id: event.target.value })} />
+      </Box>
+      <Box htmlFor={`supersede-title-${item.id}`} as="label" flex flexCol gap="1">
         <span>New task title</span>
-        <Input
-          id={`supersede-title-${item.id}`}
-          value={form.title}
-          onChange={(event) => setForm({ ...form, title: event.target.value })}
-        />
-      </label>
+        <Input id={`supersede-title-${item.id}`} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+      </Box>
       <Hint as="p" size="xs">
-        {item.id} becomes superseded. Tasks that wait on it wait on the new task. Its history stays, and a running
-        session is left alone.
+        {item.id} becomes superseded. Tasks that wait on it wait on the new task. Its history stays, and a running session is left alone.
       </Hint>
-      {error && (
-        <ErrorText role="alert">
-          {error}
-        </ErrorText>
-      )}
+      {error && <ErrorText role="alert">{error}</ErrorText>}
       <Row gap={2} wrap={false} align="start">
         <DangerBtn
           disabled={busy}
@@ -244,15 +236,13 @@ export function SupersedeForm({ item, onSupersede }: { item: DeliveryItem; onSup
           Cancel
         </Btn>
       </Row>
-    </div>
+    </Box>
   )
 }
 
 // Open review findings a person may dismiss with a reason, then retry.
 function openFindings(item: DeliveryItem) {
-  return (item.rounds ?? [])
-    .filter((round) => round.current)
-    .flatMap((round) => round.verdicts.flatMap((verdict) => verdict.findings.filter((f) => f.state === 'open')))
+  return (item.rounds ?? []).filter((round) => round.current).flatMap((round) => round.verdicts.flatMap((verdict) => verdict.findings.filter((f) => f.state === 'open')))
 }
 
 export type Act = (call: () => Promise<unknown>) => void
@@ -263,28 +253,33 @@ export function RetryForm({ item, busy, onRetry }: { item: DeliveryItem; busy: b
   const [reason, setReason] = useState('')
   if (!findings.length) return null
   return (
-    <div className="mt-2 flex flex-col gap-1.5 text-xs">
-      <span className="font-medium">Dismiss findings, then retry</span>
+    <Box mt="2" flex flexCol gap="1.5" size="xs">
+      <Box as="span" weight="medium">
+        Dismiss findings, then retry
+      </Box>
       {findings.map((finding) => (
-        <label key={finding.ref} className="flex items-start gap-1.5">
-          <Checkbox
-            checked={picked.has(finding.ref)}
-            onChange={(event) => {
-              const next = new Set(picked)
-              if (event.target.checked) next.add(finding.ref)
-              else next.delete(finding.ref)
-              setPicked(next)
-            }}
-          />
+        <Switch
+          key={finding.ref}
+          label={`Dismiss ${finding.ref}`}
+          align="start"
+          gap={1.5}
+          checked={picked.has(finding.ref)}
+          onChange={(on) => {
+            const next = new Set(picked)
+            if (on) next.add(finding.ref)
+            else next.delete(finding.ref)
+            setPicked(next)
+          }}
+        >
           <span>
             <code>{finding.ref}</code> {finding.kind}: <Hint>{finding.text}</Hint>
           </span>
-        </label>
+        </Switch>
       ))}
-      <label htmlFor={`dismiss-${item.id}`} className="flex flex-col gap-1">
+      <Box htmlFor={`dismiss-${item.id}`} as="label" flex flexCol gap="1">
         <span>Why they do not apply</span>
         <Input id={`dismiss-${item.id}`} value={reason} onChange={(event) => setReason(event.target.value)} />
-      </label>
+      </Box>
       <div>
         <DangerBtn
           disabled={busy || !picked.size || !reason.trim()}
@@ -298,34 +293,31 @@ export function RetryForm({ item, busy, onRetry }: { item: DeliveryItem; busy: b
           Dismiss {picked.size || ''} and retry
         </DangerBtn>
       </div>
-    </div>
+    </Box>
   )
 }
 
 export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSupersede: Supersede }) {
   return (
-    <div className="mt-2 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
-      <div className="flex flex-wrap gap-1.5">
+    <Box css-border-color="border" mt="2" border="t" pt="2">
+      <Box flex flexWrap gap="1.5">
         <Badge variant={item.complete ? 'success' : 'info'}>{item.status ?? 'no status'}</Badge>
         {item.repository && <Badge>{item.repository}</Badge>}
-      </div>
+      </Box>
       {(item.supersedes || item.supersededBy) && (
-        <p className="mt-1 text-xs text-muted">
+        <Box as="p" mt="1" size="xs" tone="muted">
           {item.supersedes && `Replaces ${item.supersedes}. `}
           {item.supersededBy && `Superseded by ${item.supersededBy}.`}
-        </p>
-      )}
-      {item.runs.length > 0 && (
-        <p className="mt-2 text-xs text-muted">Runs: {item.runs.map((run) => `${run.id} (${run.state})`).join(', ')}</p>
+        </Box>
       )}
       {item.integration && (
-        <p className="mt-2 text-xs">
+        <Box as="p" mt="2" size="xs">
           Integrated <code>{item.integration.commit?.slice(0, 12) ?? 'unknown commit'}</code>
           {item.integration.branch ? ` on ${item.integration.branch}` : ''}
-        </p>
+        </Box>
       )}
       {item.pullRequests.length > 0 && (
-        <ul className="mt-2 flex flex-col gap-1 text-xs">
+        <Box as="ul" mt="2" flex flexCol gap="1" size="xs">
           {item.pullRequests.map((pull, i) => {
             const href = safeHref(pull.url)
             const label = `PR ${pull.number ? `#${pull.number}` : ''}${pull.merged ? ' (merged)' : ''}`
@@ -341,29 +333,31 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
               </li>
             )
           })}
-        </ul>
+        </Box>
       )}
       {item.githubReviews && <GitHubReviewsBlock reviews={item.githubReviews} />}
       {item.prFeedback && <PrFeedbackBlock feedback={item.prFeedback} />}
       {item.evidence.length > 0 && (
-        <div className="mt-2 text-xs">
-          <span className="font-medium">Evidence</span>
-          <ul className="mt-1 flex flex-col gap-1">
+        <Box mt="2" size="xs">
+          <Box as="span" weight="medium">
+            Evidence
+          </Box>
+          <Box as="ul" mt="1" flex flexCol gap="1">
             {item.evidence.map((entry, i) => (
               <li key={entry.id ?? i}>
                 {entry.text ? <Link text={entry.text} /> : (entry.kind ?? 'record')}
-                {entry.exitCode !== undefined && entry.exitCode !== null && (
-                  <Hint> · exit {entry.exitCode}</Hint>
-                )}
+                {entry.exitCode !== undefined && entry.exitCode !== null && <Hint> · exit {entry.exitCode}</Hint>}
                 {entry.commit && <Hint> · {entry.commit.slice(0, 12)}</Hint>}
               </li>
             ))}
-          </ul>
-        </div>
+          </Box>
+        </Box>
       )}
       {item.project && (
-        <div className="mt-2 text-xs">
-          <span className="font-medium">Project</span>
+        <Box mt="2" size="xs">
+          <Box as="span" weight="medium">
+            Project
+          </Box>
           <Hint as="p">
             {[
               item.project.status && `Status ${item.project.status}`,
@@ -376,12 +370,12 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
           {item.project.notes.map((note, i) => (
             <p key={i}>{note}</p>
           ))}
-        </div>
+        </Box>
       )}
       <Rounds rounds={item.rounds ?? []} />
       <Records label="Deliveries" records={item.deliveries} />
       <Records label="Worktrees" records={item.worktrees} />
       {canSupersede(item) && <SupersedeForm item={item} onSupersede={onSupersede} />}
-    </div>
+    </Box>
   )
 }

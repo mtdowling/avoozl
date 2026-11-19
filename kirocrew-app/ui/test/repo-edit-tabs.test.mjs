@@ -15,7 +15,10 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 test('each edited field belongs to exactly one tab', () => {
   const all = Object.values(EDIT_TAB_FIELDS).flat()
   assert.equal(new Set(all).size, all.length)
-  assert.deepEqual(EDIT_TABS.map((t) => t.key), ['general', 'landing', 'github', 'mirror', 'map'])
+  assert.deepEqual(
+    EDIT_TABS.map((t) => t.key),
+    ['general', 'landing', 'github', 'mirror', 'map'],
+  )
 })
 
 test('a tab shows a dot for its own unsaved changes and errors', () => {
@@ -69,14 +72,20 @@ const type = (selector, value) =>
     return true
   })()`)
 const tabs = () =>
-  page.evaluate(`[...document.querySelectorAll('[data-repository-edit] [role=tab]')].map((t) => ({ key: t.dataset.tab, dirty: t.dataset.dirty === 'true', error: t.dataset.error === 'true' }))`)
+  page.evaluate(
+    `[...document.querySelectorAll('[data-repository-edit] [role=tab]')].map((t) => ({ key: t.dataset.tab, dirty: t.dataset.dirty === 'true', error: t.dataset.error === 'true' }))`,
+  )
 
 async function openEdit(name) {
   await page.open(harness.url({ page: 'app', radar: '1', theme: 'light', roles: 'plans' }), { width: 1280, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
-  await page.evaluate(`(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return true })()`)
+  await page.evaluate(
+    `(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return true })()`,
+  )
   await settle()
-  await page.evaluate(`(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-item]')].find((x) => x.textContent.trim() === 'Repository setup'); b?.click(); return true })()`)
+  await page.evaluate(
+    `(() => { const b = [...document.querySelectorAll('[data-left-nav] [data-nav-item]')].find((x) => x.textContent.trim() === 'Repository setup'); b?.click(); return true })()`,
+  )
   await page.until(`Boolean(document.querySelector('[data-repository-list]'))`)
   assert.equal(await press('[data-repository-list] button', `Edit ${name}`), true)
   await page.until(`Boolean(document.querySelector('[data-repository-edit] [role=tabpanel]'))`)
@@ -85,7 +94,10 @@ async function openEdit(name) {
 
 test('no setting renders outside a tab, on any tab', { skip }, async () => {
   await openEdit('recipe-box')
-  assert.deepEqual((await tabs()).map((t) => t.key), ['general', 'landing', 'github', 'mirror', 'map'])
+  assert.deepEqual(
+    (await tabs()).map((t) => t.key),
+    ['general', 'landing', 'github', 'mirror', 'map'],
+  )
   for (const key of ['general', 'landing', 'github', 'mirror', 'map']) {
     await tab(key)
     const got = await page.evaluate(`(() => {

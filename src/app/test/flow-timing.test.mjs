@@ -82,12 +82,10 @@ test("flow settings: defaults, per-repository overrides, and refused keys", () =
     3,
     "a missing key is its default",
   );
-  // Batching has no setting (R108.8): an old `batch` is ignored, even a
-  // value that was refused before.
-  assert.equal(
-    "batch" in
-      flowPolicy({ flow: { batch: { by: "epic", max: 0 } } }).workspace,
-    false,
+  // Batching has no setting (R108.8).
+  assert.throws(
+    () => flowPolicy({ flow: { batch: { by: "epic", max: 0 } } }),
+    /flow\.batch is not a flow setting/,
   );
   assert.equal(policy.workspace.stopTheLine.scope, "dependents");
   assert.equal(policy.for("app").stopTheLine.scope, "repo");

@@ -10,33 +10,30 @@ import UntriagedView from './UntriagedView.tsx'
 import { ViewHeading } from './ui/controls.tsx'
 import { WAITING_SECTIONS, type WaitingSection } from './nav-api.ts'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 export type { WaitingSection }
 export const SECTIONS = WAITING_SECTIONS
 
 // The section is picked in the left nav; this page shows only that one.
-export default function WaitingView(props: {
-  workspaceId: string | null
-  section: WaitingSection
-  onOpenSources?: () => void
-}) {
+export default function WaitingView(props: { workspaceId: string | null; section: WaitingSection; onOpenSources?: () => void }) {
   const open = props.section
   const section = SECTIONS.find((s) => s.key === open) ?? SECTIONS[0]
   return (
-    <section aria-labelledby="avoozl-waiting-title" className="flex h-full min-h-0 flex-col gap-2" data-waiting-view>
+    <Box aria-labelledby="avoozl-waiting-title" as="section" flex hFull minH0 flexCol gap="2" data-waiting-view>
       <ViewHeading id="avoozl-waiting-title" view="waiting">
         Needs you
       </ViewHeading>
       <Hint as="p" size="sm" data-waiting-line>
         {section.line}
       </Hint>
-      <div className="min-h-0 flex-1" data-waiting-section={section.key} data-open="true">
+      <Box minH0 flex1 data-waiting-section={section.key} data-open="true">
         {open === 'decisions' ? (
           <ConflictsView workspaceId={props.workspaceId} embedded />
         ) : (
           <UntriagedView workspaceId={props.workspaceId} onOpenSources={props.onOpenSources} show={open === 'radar' ? 'radar' : 'untriaged'} embedded />
         )}
-      </div>
-    </section>
+      </Box>
+    </Box>
   )
 }

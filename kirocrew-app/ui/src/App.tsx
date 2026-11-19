@@ -45,14 +45,9 @@ import { APP_ATTR, NavHistoryProvider, useNav } from './NavHistory.tsx'
 import { changePage } from './nav-history.ts'
 import { DemoBar, DemoProvider, StartDemoButton, useDemo } from './Demo.tsx'
 import { DEMO_CATALOG, DEMO_WORKSPACE_ID } from './demo-api.ts'
-import {
-  errorMessage,
-  pickDefault,
-  readPageState,
-  workspaceClient,
-  writePageState,
-  type WorkspaceList,
-} from './workspace-api'
+import { errorMessage, pickDefault, readPageState, workspaceClient, writePageState, type WorkspaceList } from './workspace-api'
+import { Box } from './ui/Box'
+import { Glyph } from './ui/Glyph'
 
 function storage(): Storage | null {
   try {
@@ -67,15 +62,17 @@ function storage(): Storage | null {
 function NavLabel(props: { view: keyof typeof VIEW_ICONS; text: string; count?: number }) {
   const Icon = VIEW_ICONS[props.view]
   return (
-    <span data-nav-label-row style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '100%' }}>
-      <Icon size={ICON} aria-hidden="true" style={{ flexShrink: 0 }} />
-      <span data-nav-text style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{props.text}</span>
+    <Box data-nav-label-row as="span" css-display="flex" css-align-items="center" css-gap="6" css-min-width="0" css-max-width="100%">
+      <Glyph icon={Icon} size={ICON} aria-hidden="true" css-flex-shrink="0" />
+      <Box data-nav-text as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">
+        {props.text}
+      </Box>
       {props.count ? (
-        <span data-nav-count style={{ flexShrink: 0, display: 'inline-flex' }}>
+        <Box data-nav-count as="span" css-flex-shrink="0" css-display="inline-flex">
           <Badge variant="warning">{props.count}</Badge>
-        </span>
+        </Box>
       ) : null}
-    </span>
+    </Box>
   )
 }
 
@@ -154,14 +151,7 @@ function AvoozlPage() {
   }
   // `open` deep-links into the new place's inner views (changePage).
   const go = (next: Partial<typeof here>, open?: Record<string, unknown>) =>
-    changePage(
-      nav,
-      here,
-      next,
-      apply,
-      (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous section'),
-      open,
-    )
+    changePage(nav, here, next, apply, (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous section'), open)
   const openWorkspaces = () => go({ settingsTab: 'workspaces', tab: 'settings' })
   // A saved workspace counts only once the catalog confirms it still exists.
   // The demo reads its own sample; the saved choice waits for Exit demo.
@@ -201,7 +191,12 @@ function AvoozlPage() {
     go({
       focus: null,
       drill: null,
-      settingsTab: settingsTabOnEnter(tab, key, settingsTab, SETTINGS_TABS.map((t) => t.key)),
+      settingsTab: settingsTabOnEnter(
+        tab,
+        key,
+        settingsTab,
+        SETTINGS_TABS.map((t) => t.key),
+      ),
       tab: key,
     })
 
@@ -212,7 +207,32 @@ function AvoozlPage() {
     // ?view=review&plan=P and ?plan=P&tab=T open the Specs page on that spec's tab.
     else if (parseReviewLink(window.location.search) || parseSpecTab(window.location.search)) go({ tab: 'plans', focus: null, drill: null })
     // ?github=<tab> opens Settings › GitHub, which opens that tab.
-    else if (readTab(window.location.search, 'github', GITHUB_TABS.map((t) => t.key))) go({ tab: 'settings', settingsTab: 'github', focus: null, drill: null })
+    else if (
+      readTab(
+        window.location.search,
+        'github',
+        GITHUB_TABS.map((t) => t.key),
+      )
+    )
+      go({ tab: 'settings', settingsTab: 'github', focus: null, drill: null })
+    // ?settings=<tab> opens Settings on that tab, so a message can link to it.
+    else if (
+      readTab(
+        window.location.search,
+        'settings',
+        SETTINGS_TABS.map((t) => t.key),
+      )
+    )
+      go({
+        tab: 'settings',
+        settingsTab: readTab(
+          window.location.search,
+          'settings',
+          SETTINGS_TABS.map((t) => t.key),
+        ) as SettingsTab,
+        focus: null,
+        drill: null,
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -307,157 +327,138 @@ function AvoozlPage() {
   )
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
-    <ConfirmProvider>
-    <SpecLinkContext.Provider value={openSpec}>
-    <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
-    <div className="flex h-full min-h-0 flex-col">
-      {phone && (
-        // A phone keeps one thin row: the menu button. The brand card and the
-        // line controls are at the bottom of the menu it opens.
-        <header className="flex min-w-0 items-center gap-2 px-2 py-1" data-phone-header>
-          <RailButton groups={groups} value={navTab(tab)} child={child} open={railOpen} onOpenChange={setRailOpen} />
-        </header>
-      )}
-      {showRail && (
-        <RailList
-          groups={groups}
-          value={navTab(tab)}
-          child={child}
-          onPick={pickNav}
-          onOpenChange={setRailOpen}
-          top={pill}
-          footer={
-            <>
-              {lineControls}
-              <BrandCard boxed workspaceId={active} />
-            </>
-          }
-        />
-      )}
-      {/* Desktop: the left nav, then the page. A phone has the hamburger. */}
-      <div className={`flex min-h-0 flex-1 ${phone ? 'flex-col' : 'px-6'}`} style={showRail ? { display: 'none' } : undefined} data-shell>
-      {!phone && (
-        <LeftNav
-          groups={groups}
-          value={navTab(tab)}
-          child={child}
-          onPick={pickNav}
-          top={pill}
-          brand={<BrandCard workspaceId={active} />}
-        />
-      )}
-      <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${phone ? '' : 'pb-2'}`} data-shell-main>
-      <div className={`flex flex-wrap items-center gap-3 pb-2 ${phone ? 'px-4' : 'px-2'}`} data-main-top>
-        {/* The workspace is the pill at the top of the nav (Radar's switcher). */}
-        <span className="flex-1" />
-        {/* On a desktop, Refresh as a small icon. A phone keeps it in its menu. */}
-        <span className="flex items-stretch gap-1.5" data-main-actions>
-          {!phone && <PageRefreshIcon />}
-        </span>
-      </div>
-      <DemoBar />
-      {!ownBanner && !needsWorkspace && stops.length > 0 && (
-        <div className={`pb-2 ${phone ? 'px-4' : 'px-2'}`} data-shell-line-banner>
-          <LineBanner stops={stops} workspaceId={active} />
-        </div>
-      )}
-      {error && (
-        <p role="alert" className={`pb-2 text-sm text-danger ${phone ? 'px-4' : 'px-2'}`}>
-          {error}
-        </p>
-      )}
-      <div
-        ref={(element) => {
-          nav.scroller.current = element
-        }}
-        data-avoozl-pane
-        className={`flex-1 min-h-0 overflow-y-auto pb-8 ${phone ? 'px-4' : 'px-2'}`}
-      >
-        {needsWorkspace ? (
-          <EmptyState
-            icon={<Logo size={40} />}
-            title={!list ? 'Loading workspaces…' : list.items.length === 0 ? 'No workspace yet' : 'Pick a workspace'}
-            subtitle={
-              list?.items.length === 0
-                ? 'Add or initialize a workspace in Settings. Every tab reads from it.'
-                : 'Choose one with the workspace button at the top of the nav. Every tab reads from it.'
-            }
-            action={
-              list?.items.length === 0 ? (
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <Btn type="button" onClick={openWorkspaces}>
-                    Open Settings › Workspaces
-                  </Btn>
-                  <StartDemoButton />
-                </div>
-              ) : (
-                <StartDemoButton />
-              )
-            }
-          />
-        ) : tab === 'dashboard' ? (
-          <DashboardView workspaceId={active} onNavigate={navigate} onDrill={openDrill} onOpenSettings={openSettings} onPlanEpic={planEpic} />
-        ) : tab === 'plans' ? (
-          <PlansView
-            workspaceId={active}
-            onScope={scopeTo}
-            onDrill={openDrill}
-            newPlanRequest={planGoal}
-            onOpenSettings={openSettings}
-          />
-        ) : tab === 'graph' ? (
-          <GraphPage
-            workspaceId={active}
-            workspaceName={(demo.active ? DEMO_CATALOG : list)?.items.find((w) => w.id === active)?.name ?? null}
-            focus={focus}
-            drill={drill}
-            onDrill={setDrill}
-            onOpenSpecs={() => chooseTab('plans')}
-          />
-        ) : tab === 'flow' ? (
-          <FlowView workspaceId={active} />
-        ) : tab === 'retros' ? (
-          <RetrosView
-            workspaceId={active}
-            page={retrosPage}
-            target={retroTarget}
-            onOpen={(target) => {
-              setRetroTarget(target)
-              if (target) go({ tab: 'retros', retrosPage: target.page, focus: null, drill: null })
-            }}
-          />
-        ) : tab === 'waiting' ? (
-          <WaitingView
-            workspaceId={active}
-            section={waitingSection}
-            onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })}
-          />
-        ) : tab === 'delivery' ? (
-          <DeliveryView workspaceId={active} />
-        ) : tab === 'landing' ? (
-          <LandingQueueView workspaceId={active} />
-        ) : tab === 'activity' ? (
-          <ActivityView workspaceId={active} />
-        ) : (
-          <SettingsView
-            workspaceId={active}
-            workspaceName={list?.items.find((w) => w.id === active)?.name}
-            tab={settingsTab}
-            onTab={(next) => go({ settingsTab: next })}
-            // The demo's catalog is the sample alone; it never replaces the
-            // person's own choice.
-            onSelectWorkspace={(id) => !demo.active && id && setWorkspaceId(id)}
-            onListChange={(next) => !demo.active && takeList(next)}
-            onOpenPlans={() => chooseTab('plans')}
-          />
-        )}
-      </div>
-      </div>
-      </div>
-    </div>
-    </TaskDrawerProvider>
-    </SpecLinkContext.Provider>
-    </ConfirmProvider>
+      <ConfirmProvider>
+        <SpecLinkContext.Provider value={openSpec}>
+          <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
+            <Box flex hFull minH0 flexCol>
+              {phone && (
+                // A phone keeps one thin row: the menu button. The brand card and the
+                // line controls are at the bottom of the menu it opens.
+                <Box as="header" flex minW0 items="center" gap="2" px="2" py="1" data-phone-header>
+                  <RailButton groups={groups} value={navTab(tab)} child={child} open={railOpen} onOpenChange={setRailOpen} />
+                </Box>
+              )}
+              {showRail && (
+                <RailList
+                  groups={groups}
+                  value={navTab(tab)}
+                  child={child}
+                  onPick={pickNav}
+                  onOpenChange={setRailOpen}
+                  top={pill}
+                  footer={
+                    <>
+                      {lineControls}
+                      <BrandCard boxed workspaceId={active} />
+                    </>
+                  }
+                />
+              )}
+              {/* Desktop: the left nav, then the page. A phone has the hamburger. */}
+              <Box css-display={showRail ? 'none' : undefined} flex minH0 flex1 flexCol={phone} px={phone ? undefined : '6'} data-shell>
+                {!phone && <LeftNav groups={groups} value={navTab(tab)} child={child} onPick={pickNav} top={pill} brand={<BrandCard workspaceId={active} />} />}
+                <Box flex minH0 minW0 flex1 flexCol pb={phone ? undefined : '2'} data-shell-main>
+                  <Box flex flexWrap items="center" gap="3" pb="2" px={phone ? '4' : '2'} data-main-top>
+                    {/* The workspace is the pill at the top of the nav (Radar's switcher). */}
+                    <Box as="span" flex1 />
+                    {/* On a desktop, Refresh as a small icon. A phone keeps it in its menu. */}
+                    <Box as="span" flex items="stretch" gap="1.5" data-main-actions>
+                      {!phone && <PageRefreshIcon />}
+                    </Box>
+                  </Box>
+                  <DemoBar />
+                  {!ownBanner && !needsWorkspace && stops.length > 0 && (
+                    <Box pb="2" px={phone ? '4' : '2'} data-shell-line-banner>
+                      <LineBanner stops={stops} workspaceId={active} />
+                    </Box>
+                  )}
+                  {error && (
+                    <Box role="alert" as="p" pb="2" size="sm" tone="danger" px={phone ? '4' : '2'}>
+                      {error}
+                    </Box>
+                  )}
+                  <div
+                    ref={(element) => {
+                      nav.scroller.current = element
+                    }}
+                    data-avoozl-pane
+                    className={`flex-1 min-h-0 overflow-y-auto pb-8 ${phone ? 'px-4' : 'px-2'}`}
+                  >
+                    {needsWorkspace ? (
+                      <EmptyState
+                        icon={<Logo size={40} />}
+                        title={!list ? 'Loading workspaces…' : list.items.length === 0 ? 'No workspace yet' : 'Pick a workspace'}
+                        subtitle={
+                          list?.items.length === 0
+                            ? 'Add or initialize a workspace in Settings. Every tab reads from it.'
+                            : 'Choose one with the workspace button at the top of the nav. Every tab reads from it.'
+                        }
+                        action={
+                          list?.items.length === 0 ? (
+                            <Box flex flexWrap items="center" justify="center" gap="2">
+                              <Btn type="button" onClick={openWorkspaces}>
+                                Open Settings › Workspaces
+                              </Btn>
+                              <StartDemoButton />
+                            </Box>
+                          ) : (
+                            <StartDemoButton />
+                          )
+                        }
+                      />
+                    ) : tab === 'dashboard' ? (
+                      <DashboardView workspaceId={active} onNavigate={navigate} onDrill={openDrill} onOpenSettings={openSettings} onPlanEpic={planEpic} />
+                    ) : tab === 'plans' ? (
+                      <PlansView workspaceId={active} onScope={scopeTo} onDrill={openDrill} newPlanRequest={planGoal} onOpenSettings={openSettings} />
+                    ) : tab === 'graph' ? (
+                      <GraphPage
+                        workspaceId={active}
+                        workspaceName={(demo.active ? DEMO_CATALOG : list)?.items.find((w) => w.id === active)?.name ?? null}
+                        focus={focus}
+                        drill={drill}
+                        onDrill={setDrill}
+                        onOpenSpecs={() => chooseTab('plans')}
+                      />
+                    ) : tab === 'flow' ? (
+                      <FlowView workspaceId={active} />
+                    ) : tab === 'retros' ? (
+                      <RetrosView
+                        workspaceId={active}
+                        page={retrosPage}
+                        target={retroTarget}
+                        onOpen={(target) => {
+                          setRetroTarget(target)
+                          if (target) go({ tab: 'retros', retrosPage: target.page, focus: null, drill: null })
+                        }}
+                      />
+                    ) : tab === 'waiting' ? (
+                      <WaitingView workspaceId={active} section={waitingSection} onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })} />
+                    ) : tab === 'delivery' ? (
+                      <DeliveryView workspaceId={active} />
+                    ) : tab === 'landing' ? (
+                      <LandingQueueView workspaceId={active} />
+                    ) : tab === 'activity' ? (
+                      <ActivityView workspaceId={active} />
+                    ) : (
+                      <SettingsView
+                        workspaceId={active}
+                        workspaceName={list?.items.find((w) => w.id === active)?.name}
+                        tab={settingsTab}
+                        onTab={(next) => go({ settingsTab: next })}
+                        // The demo's catalog is the sample alone; it never replaces the
+                        // person's own choice.
+                        onSelectWorkspace={(id) => !demo.active && id && setWorkspaceId(id)}
+                        onListChange={(next) => !demo.active && takeList(next)}
+                        onOpenPlans={() => chooseTab('plans')}
+                      />
+                    )}
+                  </div>
+                </Box>
+              </Box>
+            </Box>
+          </TaskDrawerProvider>
+        </SpecLinkContext.Provider>
+      </ConfirmProvider>
     </div>
   )
 }

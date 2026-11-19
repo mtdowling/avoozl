@@ -101,7 +101,8 @@ after(async () => {
   harness?.remove()
 })
 
-const button = (text, role) => `[...document.querySelectorAll('button${role === 'tab' ? '[data-nav-head]' : role ? `[role="${role}"]` : ''}')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+const button = (text, role) =>
+  `[...document.querySelectorAll('button${role === 'tab' ? '[data-nav-head]' : role ? `[role="${role}"]` : ''}')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 // A count badge may follow the label, so compare the start.
 const selectedTab = `document.querySelector('[data-nav-head][data-selected], [data-nav-head][data-open]')?.textContent.trim()`
@@ -144,7 +145,9 @@ test('Start demo opens the made-up workspace with its bar, and Exit demo returns
   assert.match(await page.evaluate(`document.querySelector('[data-stop-dialog] [role="alert"]')?.textContent ?? ''`), /^Demo mode: in your own workspace this would stop the line/)
   await click(`[...document.querySelectorAll('[data-stop-dialog] button')].find((b) => b.textContent.trim() === 'Cancel')`)
   // Cancel asks first once a reason was typed.
-  await page.until(`Boolean([...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Discard')) || !document.querySelector('[data-stop-reason]')`)
+  await page.until(
+    `Boolean([...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Discard')) || !document.querySelector('[data-stop-reason]')`,
+  )
   await page.evaluate(`(() => { [...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Discard')?.click(); return true })()`)
   await page.until(`!document.querySelector('[data-stop-reason]')`)
 

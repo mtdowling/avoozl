@@ -12,12 +12,15 @@ import { initializeWorkspace } from "./workspace.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
 import { handleMcp } from "./mcp.mjs";
-import { agentSessionNote, cliRefusal } from "./mcp-policy.mjs";
+import { agentSession, agentSessionNote, cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
+import { startServe } from "./serve-server.mjs";
+import { LinkStore } from "./serve-auth.mjs";
+import { standaloneUiDirectory } from "./ui-bundle.mjs";
 import { contentHook } from "./public-crews.mjs";
 import { runSupervisor } from "./supervisor.mjs";
-import { machineStatus } from "./machine-status.mjs";
+import { machineStatus, serveStatus } from "./machine-status.mjs";
 import { workspaceStatus } from "./workspace-status.mjs";
 import { PROGRAM, helpCommands, helpPointer, helpText } from "./cli-help.mjs";
 import {
@@ -27,7 +30,6 @@ import {
 } from "./supervisor-unit.mjs";
 import { reportByToken } from "./report-match.mjs";
 import { HOLDS_TASKS, readRunnerConfig } from "./remote-runner.mjs";
-import { movedCommand } from "./moved-operations.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
 import { reconcileSource } from "./source-sync.mjs";
@@ -59,6 +61,20 @@ function generate(config) {
     store.close();
   }
 }
+
+// `avoozl integrator ...` and `avoozl landing submit` were retired by the
+// merge batches spec; they print this line and change nothing.
+const RETIRED_COMMANDS = new Set(["integrator"]);
+const RETIRED_LANDING =
+  "This command is retired. Verified work lands in merge batches with landing mode direct; see landing status.";
+
+// One line per base for `landing status`.
+const landingStatusLine = (b) =>
+  `${b.repository ?? b.projectId} ${b.base}: ${b.items.length} waiting` +
+  (b.testing
+    ? `, testing ${b.testing.members.length} (${b.testing.step})`
+    : "") +
+  (b.size ? `, size limit ${b.size.limit}` : "");
 
 const args = process.argv.slice(2),
   options = {},
@@ -100,9 +116,6 @@ try {
           "off",
           "release",
           "discard",
-          // Removed 2026-11-18; still parsed so an old command keeps its
-          // other arguments, and ignored.
-          "as-person",
           "writes",
           "retire",
           "delete-spec-folder",
@@ -115,7 +128,7 @@ try {
         options[key] = true;
       else if (
         key === "json" &&
-        ["runner", "review", "gate", "plan"].includes(args[0]) &&
+        ["runner", "review", "plan"].includes(args[0]) &&
         (args[i + 1] === undefined || args[i + 1].startsWith("--"))
       )
         options.json = true;
@@ -140,25 +153,14 @@ try {
     positionals.unshift(...(hasCommand ? [command] : []));
     command = "help";
   }
-  // A removed command form answers with one line naming its replacement
-  // and changes nothing (moved-operations.mjs, worker-paths WP7).
-  const moved = movedCommand(command, options);
-  if (moved) {
-    console.log(moved);
-    process.exit(1);
-  }
   const env = options.env || process.env;
-  const requestedWorkspace =
-    options.workspace ||
-    env.AVOOZL_WORKSPACE ||
-    env.AICOMMANDER_WORKSPACE ||
-    env.NUPP_WORKSPACE;
+  const requestedWorkspace = options.workspace || env.AVOOZL_WORKSPACE;
   // Where the workspace was named, for `status` to say so.
   const requestedFrom = options.workspace
     ? "--workspace"
-    : ["AVOOZL_WORKSPACE", "AICOMMANDER_WORKSPACE", "NUPP_WORKSPACE"].find(
-        (name) => env[name],
-      );
+    : env.AVOOZL_WORKSPACE
+      ? "AVOOZL_WORKSPACE"
+      : undefined;
   let registeredWorkspaceId = null,
     configOptions = options;
   if (
@@ -200,6 +202,12 @@ try {
         `No Avoozl server answered at ${endpoint}. Drop --url and AVOOZL_URL to act on the workspace database directly.`,
       );
     }
+    // `avoozl serve` answers /api/command only to a signed-in browser's
+    // session cookie, so a CLI pointed at it is refused (spec standalone-web SW5.4).
+    if (response.status === 401)
+      throw Error(
+        `${endpoint} refused the request: avoozl serve accepts /api/command only with a valid browser session cookie, never from the CLI. Drop --url and AVOOZL_URL: the CLI works on the workspace database directly.`,
+      );
     const result = await response.json();
     if (!response.ok) throw Error(result.error);
     return result.result;
@@ -213,13 +221,7 @@ try {
   // A server is used only when one is named. Otherwise commands and the
   // stdio MCP server act in process on the workspace database, a registered
   // workspace ID naming its root.
-  const useServer = () =>
-    Boolean(
-      options.url ||
-        process.env.AVOOZL_URL ||
-        process.env.AICOMMANDER_URL ||
-        process.env.NUPP_WORKSPACE_URL,
-    );
+  const useServer = () => Boolean(options.url || process.env.AVOOZL_URL);
   const localOperations = (store) =>
     new Operations(store, {
       operator: config.operator,
@@ -254,7 +256,12 @@ try {
         operation,
         input,
         expectedRevision,
-        { local: true },
+        // A command a person types; never one an agent or a supervisor
+        // child runs.
+        {
+          local: true,
+          person: !process.env.AVOOZL_CHILD && !agentSession(process.env),
+        },
       );
     } finally {
       store.close();
@@ -278,7 +285,7 @@ try {
         initializeWorkspace(positionals[0], {
           name: options.name,
           port: options.port,
-          documents: options.documents || options["plans-root"],
+          documents: options.documents,
           db: options.db,
         }),
         null,
@@ -502,6 +509,62 @@ try {
       configDirectory: options["config-directory"],
       tickSeconds,
     });
+  } else if (command === "serve") {
+    // The standalone page, on 127.0.0.1 only (spec standalone-web, SW3).
+    if (process.env.AVOOZL_CHILD)
+      throw Error(
+        "A supervisor child may not run avoozl serve. Do it at this machine's command line.",
+      );
+    for (const name of ["host", "bind"])
+      if (options[name] !== undefined)
+        throw Error(
+          `avoozl serve has no --${name} option: it listens on 127.0.0.1 only.`,
+        );
+    if (process.env.AVOOZL_HOST !== undefined)
+      throw Error(
+        "avoozl serve does not read AVOOZL_HOST: it listens on 127.0.0.1 only.",
+      );
+    const machine = machineAvoozlPaths();
+    if (positionals[0] === "link") {
+      // A new owner link for the server already running on this machine.
+      const running = serveStatus(machine.stateDirectory);
+      if (!running.running || !running.origin)
+        throw Error(
+          "No avoozl serve is running on this machine. Start it with: avoozl serve",
+        );
+      const origin = running.origin;
+      const links = new LinkStore(machine.stateDirectory);
+      try {
+        console.log(`${origin}/login?token=${links.make()}`);
+      } finally {
+        links.close();
+      }
+    } else {
+      if (positionals.length)
+        throw Error(
+          "Usage: avoozl serve [--workspace PATH] [--port N] | avoozl serve link",
+        );
+      const port = options.port === undefined ? 0 : Number(options.port);
+      let server = null;
+      try {
+        server = await startServe({
+          config,
+          port,
+          uiDir: standaloneUiDirectory(),
+        });
+      } catch (error) {
+        console.error(error.message);
+        process.exitCode = 1;
+      }
+      if (server) {
+        console.log(`Avoozl is at ${server.origin}`);
+        console.log(
+          `Open this link once, within 10 minutes: ${server.ownerLink}`,
+        );
+        for (const signal of ["SIGINT", "SIGTERM"])
+          process.once(signal, () => server.close(() => process.exit(0)));
+      }
+    }
   } else if (command === "app-backend") {
     const server = startAppBackend({
       config,
@@ -688,7 +751,7 @@ try {
         await localOrRequest("repository.setup", {
           repository: need(
             positionals[0],
-            "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|train|off] [--yes]",
+            "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
           ),
           project: options.project,
           base: options.base,
@@ -718,28 +781,7 @@ try {
         2,
       ),
     );
-  else if (command === "gate" && positionals[0] === "list") {
-    // Tracker gates (RC23.11): the rows the page shows.
-    const { gates } = await localOrRequest("gate.list", {});
-    if (options.json) console.log(JSON.stringify({ gates }, null, 2));
-    else if (!gates.length) console.log("No tracker gates.");
-    else
-      for (const gate of gates)
-        console.log(
-          `${gate.state.padEnd(8)} ${gate.taskId}  ${gate.tracker} ${gate.item}  last ${gate.lastCheck ?? "never"}  next ${gate.nextCheck ?? "-"}${gate.held.length ? `  holds ${gate.held.join(", ")}` : ""}`,
-        );
-  } else if (command === "gate" && positionals[0] === "clear") {
-    // A person's order (RC23.10): the gate counts as done, recorded as cleared.
-    const result = await localOrRequest("gate.clear", {
-      taskId: need(positionals[1], "gate clear TASK --reason TEXT"),
-      reason: need(options.reason, "gate clear TASK --reason TEXT"),
-    });
-    console.log(
-      result.cleared
-        ? `Cleared ${positionals[1]} as an order by ${result.actor}.`
-        : `${positionals[1]} was already ${result.state}.`,
-    );
-  } else if (command === "review" && positionals[0] === "drafts") {
+  else if (command === "review" && positionals[0] === "drafts") {
     // Review drafts made from the review label (RC20.6): what waits on
     // people, and the GitHub search that finds them.
     const view = await localOrRequest("review.drafts", {
@@ -851,18 +893,10 @@ try {
       ),
     );
   else if (command === "runner") {
-    // Runner mode over SSH (R84). `accept` and `status` run on the runner,
-    // started by the driver's ssh; `handoff` and `pull` run on the driver.
+    // `status` and `report` run on a worker machine (and `status` on any one).
     const action = positionals[0];
     let result;
-    if (action === "accept")
-      result = await localOrRequest("remote.accept", {
-        envelope: fs.readFileSync(
-          positionals[1] === "-" || !positionals[1] ? 0 : positionals[1],
-          "utf8",
-        ),
-      });
-    else if (action === "status")
+    if (action === "status")
       // A runner reports its remote tasks; any other machine reports the
       // supervisor and its children (R98.5).
       result = HOLDS_TASKS(readRunnerConfig(config.workspaceRoot))
@@ -888,6 +922,7 @@ try {
             cwd: process.cwd(),
             text: typeof options.text === "string" ? options.text : undefined,
             file: typeof options.file === "string" ? options.file : undefined,
+            role: typeof options.role === "string" ? options.role : undefined,
           });
         } finally {
           store.close();
@@ -897,18 +932,6 @@ try {
           taskId: positionals[1],
           state,
         });
-    } else if (action === "handoff") {
-      need(
-        positionals[1] && options.host,
-        "runner handoff ENVELOPE.json --host NAME",
-      );
-      result = await localOrRequest("remote.handoff", {
-        host: options.host,
-        envelope: JSON.parse(fs.readFileSync(positionals[1], "utf8")),
-      });
-    } else if (action === "pull") {
-      need(options.host, "runner pull --host NAME");
-      result = await localOrRequest("remote.pull", { host: options.host });
     } else throw Error("Use runner accept|status|report|handoff|pull.");
     console.log(JSON.stringify(result, null, 2));
   } else if (command === "worker") {
@@ -1107,15 +1130,6 @@ try {
         ),
         repository: options.repository,
       };
-    } else if (action === "start") {
-      operation = "github.start";
-      value = {
-        taskId: options.task || positionals[1],
-        provider: options.provider,
-        model: options.model,
-        projectId: options.project,
-        approvalMode: options.approvals,
-      };
     } else if (action === "setup") {
       // Preview first; rerun with --confirm --preview-hash HASH to write.
       const list = (value) =>
@@ -1292,31 +1306,8 @@ try {
         2,
       ),
     );
-  } else if (command === "integrator") {
-    const action = positionals[0];
-    if (action === "status") {
-      const status = await localOrRequest("integrator.status");
-      console.log(
-        options.json
-          ? JSON.stringify(status, null, 2)
-          : status.targets.length
-            ? status.targets
-                .map(
-                  (t) =>
-                    `${t.repository} ${t.target}: ${t.policy ?? "no policy"}, lease ${t.lease.state}${t.lease.holder ? ` (pid ${t.lease.holder.pid})` : ""}, train ${t.train ?? "none"}`,
-                )
-                .join("\n")
-            : "No repository lands in trains.",
-      );
-    } else if (action === "run") {
-      // The supervisor starts this; it is the only process that pushes a
-      // train trunk, never a chat shell (LT2.2).
-      if (process.env.AVOOZL_CHILD)
-        throw Error(
-          "A supervisor child may not run the integrator. Start it at this machine's command line or let the supervisor do it.",
-        );
-      await import("./integrator-main.mjs");
-    } else throw Error("Choose integrator run or status.");
+  } else if (RETIRED_COMMANDS.has(command)) {
+    console.log(RETIRED_LANDING);
   } else if (command === "landing") {
     const action = positionals[0];
     if (action === "status") {
@@ -1325,26 +1316,12 @@ try {
       console.log(
         options.json
           ? JSON.stringify(view, null, 2)
-          : view.bases
-              .map(
-                (b) =>
-                  `${b.repository ?? b.projectId} ${b.base}: ${b.items.length} waiting${b.queue?.train ? `, ${b.queue.train.id} at ${b.queue.train.step}` : ""}`,
-              )
-              .join("\n") || "Nothing waits to land.",
+          : view.bases.map(landingStatusLine).join("\n") ||
+              "Nothing waits to land.",
       );
-    } else if (action !== "submit")
-      throw Error("Choose landing submit or status.");
-    else
-      console.log(
-        JSON.stringify(
-          await localOrRequest("landing.submit", {
-            taskId: need(positionals[1], "landing submit TASK --branch NAME"),
-            branch: need(options.branch, "landing submit TASK --branch NAME"),
-          }),
-          null,
-          2,
-        ),
-      );
+    } else if (action === "submit" || action === "review")
+      console.log(RETIRED_LANDING);
+    else throw Error("Choose landing status.");
   } else if (command === "mirror") {
     // Preview first; rerun with --confirm --preview-hash HASH to apply.
     const action = positionals[0];
@@ -1822,17 +1799,21 @@ try {
     } finally {
       store.close();
     }
-  } else if (command === "show")
-    console.log(
-      JSON.stringify(
-        await localOrRequest("task.get", {
-          id: need(positionals[0], "show TASK_ID"),
-        }),
-        null,
-        2,
-      ),
-    );
-  else if (command === "query")
+  } else if (command === "show") {
+    const id = need(positionals[0], "show TASK_ID");
+    // A pull request review a `process` child wrote (NK4.4).
+    if (/^pr-review:/.test(id)) {
+      const shown = await localOrRequest("review.chat.show", { id });
+      console.log(
+        shown.review
+          ? `${shown.repository}#${shown.number} at ${shown.review.head ?? "unknown head"}\n\n${shown.review.text}`
+          : JSON.stringify(shown, null, 2),
+      );
+    } else
+      console.log(
+        JSON.stringify(await localOrRequest("task.get", { id }), null, 2),
+      );
+  } else if (command === "query")
     console.log(
       JSON.stringify(
         await localOrRequest("query", {
@@ -1974,34 +1955,7 @@ try {
         2,
       ),
     );
-  else if (command === "register-session" || command === "session-hook") {
-    let hook = {};
-    if (command === "session-hook") {
-      let text = "";
-      for await (const chunk of process.stdin) {
-        text += chunk;
-        if (text.length > 1000000) throw Error("Hook input is too large.");
-      }
-      hook = JSON.parse(text || "{}");
-    }
-    const result = await localOrRequest("session.register", {
-      taskId:
-        options.task ||
-        process.env.AVOOZL_TASK ||
-        process.env.AICOMMANDER_TASK ||
-        process.env.NUPP_WORKSPACE_TASK,
-      leaseId:
-        options.lease ||
-        process.env.AVOOZL_LEASE ||
-        process.env.AICOMMANDER_LEASE ||
-        process.env.NUPP_WORKSPACE_LEASE,
-      provider: options.provider || "claude",
-      providerSessionId: options.session || hook.session_id,
-      agentId: options.agent || hook.agent_id,
-    });
-    if (command !== "session-hook")
-      console.log(JSON.stringify(result, null, 2));
-  } else if (command === "help") {
+  else if (command === "help") {
     // `avoozl help`, `avoozl help GROUP`, `avoozl help COMMAND` and
     // `avoozl help all`, all rendered from the one table in cli-help.mjs.
     // `avoozl OPERATION --help` has no page of its own and gets the overview.
@@ -2051,7 +2005,7 @@ try {
     helpCommands().includes(command)
   )
     console.error(helpPointer(command));
-  process.exitCode = command === "session-hook" ? 0 : 1;
+  process.exitCode = 1;
 }
 
 // One spec in `plan batches` and the approve preview.

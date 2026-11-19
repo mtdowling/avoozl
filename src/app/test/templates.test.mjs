@@ -131,14 +131,11 @@ test("a starter that does not lint, or phases that do not match it, are refused"
     tasks,
     fs
       .readFileSync(tasks, "utf8")
-      .replace(
-        "    - manual: true",
-        "    - manual: true\n    - checks: npm test",
-      ),
+      .replace("    - manual: true", "    - manual: true\n    - paths: src/**"),
   );
   invalid(
     plugin.folder,
-    /starter\/tasks\.md line \d+: Manual task "(sdk-rewrite\.)?team-review" has "checks"/,
+    /starter\/tasks\.md line \d+: Manual task "(sdk-rewrite\.)?team-review" has "paths"/,
   );
 
   plugin = copy();
@@ -151,9 +148,9 @@ test("a starter that does not lint, or phases that do not match it, are refused"
 
 test("pack and flow pass their own validators", () => {
   let plugin = copy();
-  // Batching has no setting (R108.8): an old `flow.batch` is ignored.
+  // Batching has no setting (R108.8).
   plugin.edit((t) => (t.flow = { batch: { by: "epic" } }));
-  assert.doesNotThrow(() => readTemplates(plugin.folder));
+  invalid(plugin.folder, /flow\.batch is not a template flow default/);
 
   plugin = copy();
   plugin.edit((t) => (t.flow = { stopTheLine: { scope: "nowhere" } }));

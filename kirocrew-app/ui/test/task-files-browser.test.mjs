@@ -46,7 +46,10 @@ test('the Files fold shows the tree, a diff, split view, all files and editor li
   await click('[data-file="README.md"]')
   await page.until(`Boolean(document.querySelector('[data-diff] [data-line]'))`)
   const kinds = await page.evaluate(`[...document.querySelectorAll('[data-diff] [data-line]')].map((r) => r.dataset.line)`)
-  assert.deepEqual(kinds.filter((k) => k !== 'context'), ['del', 'add', 'add', 'add'])
+  assert.deepEqual(
+    kinds.filter((k) => k !== 'context'),
+    ['del', 'add', 'add', 'add'],
+  )
   assert.equal(await page.evaluate(`document.querySelector('[data-open-file]').getAttribute('href')`), 'kiro://file/srv/worktrees/a1/README.md:3')
 
   await page.evaluate(`(() => { ${button('Split')}.click(); return true })()`)
@@ -57,7 +60,7 @@ test('the Files fold shows the tree, a diff, split view, all files and editor li
   await page.evaluate(`(() => { ${button('VS Code')}.click(); return true })()`)
   await page.until(`document.querySelector('[data-open-file]').getAttribute('href').startsWith('vscode://')`)
 
-  await page.evaluate(`(() => { [...document.querySelectorAll('label')].find((l) => l.textContent.includes('Show all files')).querySelector('input').click(); return true })()`)
+  await page.evaluate(`(() => { [...document.querySelectorAll('[role="switch"]')].find((l) => l.getAttribute('aria-label') === 'Show all files').click(); return true })()`)
   await page.until(`Boolean(document.querySelector('[data-file="package.json"]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-file="package.json"] [data-status]')`), null)
 })

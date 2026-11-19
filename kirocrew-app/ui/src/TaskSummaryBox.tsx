@@ -10,8 +10,8 @@ import { ReviewWorking, REVIEW_POLL_MS } from './PlanReviewSummary.tsx'
 import { taskClient, type TaskSummary } from './task-api.ts'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
-
-const PROSE_MEASURE = '80ch'
+import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export function TaskSummaryBox(props: { workspaceId: string; id: string; summary: TaskSummary | undefined }) {
   const api = useAppApi()
@@ -48,15 +48,26 @@ export function TaskSummaryBox(props: { workspaceId: string; id: string; summary
       {working || (now !== 'error' && now?.state === 'none') ? (
         <ReviewWorking model={null} title="AI working" label="Writing a short summary of this task…" />
       ) : now && now !== 'error' && now.state === 'ready' ? (
-        <p className="m-0 text-sm" data-task-summary-text style={{ maxWidth: PROSE_MEASURE }}>
+        <Box as="p" css-max-width="80ch" m0 size="sm" data-task-summary-text>
           {now.text}
-        </p>
+        </Box>
       ) : failed ? (
         <Hint as="p" size="sm" flush data-task-summary-fallback>
           Summary unavailable{' '}
-          <button type="button" className="underline underline-offset-2" style={{ background: 'none', border: 0, padding: 0, color: 'var(--accent)', cursor: 'pointer' }} data-task-summary-retry onClick={() => ask(true)}>
+          <PlainButton
+            type="button"
+            css-background="none"
+            css-border="0"
+            css-padding="0"
+            css-color="accent"
+            css-cursor="pointer"
+            underline
+            underlineOffset2
+            data-task-summary-retry
+            onClick={() => ask(true)}
+          >
             Retry
-          </button>
+          </PlainButton>
         </Hint>
       ) : null}
     </Stack>

@@ -303,103 +303,143 @@ test("the macOS profile denies secrets after the write roots and keeps the keych
   );
 });
 
-test(
-  "from a sandboxed child every secret path is unreadable and unwritable and the network is off",
-  { skip: !kind && "this machine has no usable sandbox" },
-  async (t) => {
-    const s = scratch(t);
+test("from a sandboxed child every secret path is unreadable and unwritable and the network is off", {
+  skip: !kind && "this machine has no usable sandbox",
+}, async (t) => {
+  const s = scratch(t);
+  const server = net.createServer((socket) => socket.end());
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => server.close());
+  const brief = path.join(
+    s.stateDirectory,
+    "supervisor",
+    "children",
+    "brief.md",
+  );
+  fs.mkdirSync(path.dirname(brief), { recursive: true });
+  fs.writeFileSync(brief, "the brief");
+  const plan = {
+    reads: { ...s.secrets, brief, worktreeFile: path.join(s.worktree, "a") },
+    writes: {
+      ...s.secrets,
+      newInSecret: path.join(s.home, ".ssh", "new"),
+      worktree: path.join(s.worktree, "a"),
+      tmp: path.join(s.tmp, "b"),
+      outside: path.join(s.root, "outside"),
+    },
+    port: server.address().port,
+  };
+  fs.writeFileSync(path.join(s.worktree, "a"), "mine");
+  const confined = confineChild(
+    [process.execPath, "-e", PROBE, JSON.stringify(plan)],
+    {
+      definition,
+      configDirectory: s.configDirectory,
+      writeRoots: [s.worktree, s.tmp],
+      secrets: secretPaths(s),
+      readable: [brief],
+      env: { ...s.env, GH_TOKEN: "t" },
+    },
+  );
+  assert.equal(confined.sandbox, kind);
+  assert.equal(confined.env.GH_TOKEN, undefined);
+  const out = await run(confined.argv, confined.env);
+  for (const name of Object.keys(s.secrets)) {
+    assert.notEqual(out.read[name], "ok", `${name} was readable`);
+    assert.notEqual(out.write[name], "ok", `${name} was writable`);
+    assert.equal(
+      fs.readFileSync(s.secrets[name], "utf8").includes("changed"),
+      false,
+    );
+  }
+  assert.notEqual(out.write.newInSecret, "ok");
+  assert.equal(fs.existsSync(plan.writes.newInSecret), false);
+  assert.equal(out.read.brief, "ok");
+  assert.equal(out.read.worktreeFile, "ok");
+  assert.equal(out.write.worktree, "ok");
+  assert.equal(out.write.tmp, "ok");
+  assert.notEqual(out.write.outside, "ok");
+  assert.equal(fs.existsSync(plan.writes.outside), false);
+  assert.notEqual(out.net, "ok", "the network was reachable");
+});
+
+test("on macOS a restricted network reaches only the named loopback port", {
+  skip: kind !== "sandbox-exec" && "needs sandbox-exec",
+}, async (t) => {
+  const s = scratch(t);
+  const listen = async () => {
     const server = net.createServer((socket) => socket.end());
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
     t.after(() => server.close());
-    const brief = path.join(
-      s.stateDirectory,
-      "supervisor",
-      "children",
-      "brief.md",
-    );
-    fs.mkdirSync(path.dirname(brief), { recursive: true });
-    fs.writeFileSync(brief, "the brief");
-    const plan = {
-      reads: { ...s.secrets, brief, worktreeFile: path.join(s.worktree, "a") },
-      writes: {
-        ...s.secrets,
-        newInSecret: path.join(s.home, ".ssh", "new"),
-        worktree: path.join(s.worktree, "a"),
-        tmp: path.join(s.tmp, "b"),
-        outside: path.join(s.root, "outside"),
-      },
-      port: server.address().port,
-    };
-    fs.writeFileSync(path.join(s.worktree, "a"), "mine");
-    const confined = confineChild(
-      [process.execPath, "-e", PROBE, JSON.stringify(plan)],
-      {
-        definition,
-        configDirectory: s.configDirectory,
-        writeRoots: [s.worktree, s.tmp],
-        secrets: secretPaths(s),
-        readable: [brief],
-        env: { ...s.env, GH_TOKEN: "t" },
-      },
-    );
-    assert.equal(confined.sandbox, kind);
-    assert.equal(confined.env.GH_TOKEN, undefined);
-    const out = await run(confined.argv, confined.env);
-    for (const name of Object.keys(s.secrets)) {
-      assert.notEqual(out.read[name], "ok", `${name} was readable`);
-      assert.notEqual(out.write[name], "ok", `${name} was writable`);
-      assert.equal(
-        fs.readFileSync(s.secrets[name], "utf8").includes("changed"),
-        false,
-      );
-    }
-    assert.notEqual(out.write.newInSecret, "ok");
-    assert.equal(fs.existsSync(plan.writes.newInSecret), false);
-    assert.equal(out.read.brief, "ok");
-    assert.equal(out.read.worktreeFile, "ok");
-    assert.equal(out.write.worktree, "ok");
-    assert.equal(out.write.tmp, "ok");
-    assert.notEqual(out.write.outside, "ok");
-    assert.equal(fs.existsSync(plan.writes.outside), false);
-    assert.notEqual(out.net, "ok", "the network was reachable");
-  },
-);
+    return server.address().port;
+  };
+  const named = await listen();
+  const other = await listen();
+  const probe = async (port) =>
+    (
+      await run(
+        confineChild(
+          [
+            process.execPath,
+            "-e",
+            PROBE,
+            JSON.stringify({ reads: {}, writes: {}, port }),
+          ],
+          {
+            definition,
+            writeRoots: [s.worktree],
+            secrets: secretPaths(s),
+            network: sandboxNetwork([`localhost:${named}`]),
+            env: s.env,
+          },
+        ).argv,
+        s.env,
+      )
+    ).net;
+  assert.equal(await probe(named), "ok");
+  assert.notEqual(await probe(other), "ok");
+});
 
-test(
-  "on macOS a restricted network reaches only the named loopback port",
-  { skip: kind !== "sandbox-exec" && "needs sandbox-exec" },
-  async (t) => {
-    const s = scratch(t);
-    const listen = async () => {
-      const server = net.createServer((socket) => socket.end());
-      await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-      t.after(() => server.close());
-      return server.address().port;
+test("a confined child reads under home only its folders, its harness config and git's", {
+  skip: !kind && "this machine has no usable sandbox",
+}, async (t) => {
+  const s = scratch(t),
+    worktree = path.join(s.home, "projects", "app-wt"),
+    file = (name, text = name) => {
+      fs.mkdirSync(path.dirname(name), { recursive: true });
+      fs.writeFileSync(name, text);
+      return name;
+    },
+    reads = {
+      worktree: file(path.join(worktree, "a.txt")),
+      sibling: file(path.join(s.home, "projects", "app-other", "b.txt")),
+      projects: file(path.join(s.home, "projects", "notes.txt")),
+      claude: file(path.join(s.home, ".claude", "settings.json")),
+      claudeJson: file(path.join(s.home, ".claude.json")),
+      gitconfig: file(path.join(s.home, ".gitconfig")),
+      documents: file(path.join(s.home, "Documents", "c.txt")),
     };
-    const named = await listen();
-    const other = await listen();
-    const probe = async (port) =>
-      (
-        await run(
-          confineChild(
-            [
-              process.execPath,
-              "-e",
-              PROBE,
-              JSON.stringify({ reads: {}, writes: {}, port }),
-            ],
-            {
-              definition,
-              writeRoots: [s.worktree],
-              secrets: secretPaths(s),
-              network: sandboxNetwork([`localhost:${named}`]),
-              env: s.env,
-            },
-          ).argv,
-          s.env,
-        )
-      ).net;
-    assert.equal(await probe(named), "ok");
-    assert.notEqual(await probe(other), "ok");
-  },
-);
+  const confined = confineChild(
+    [process.execPath, "-e", PROBE, JSON.stringify({ reads, writes: {} })],
+    {
+      definition,
+      configDirectory: s.configDirectory,
+      writeRoots: [worktree, s.tmp],
+      secrets: secretPaths(s),
+      env: s.env,
+      home: s.home,
+      readRoots: [
+        worktree,
+        s.tmp,
+        path.join(s.home, ".claude"),
+        path.join(s.home, ".claude.json"),
+        path.join(s.home, ".gitconfig"),
+      ],
+    },
+  );
+  const out = await run(confined.argv, confined.env);
+  for (const name of ["worktree", "claude", "claudeJson", "gitconfig"])
+    assert.equal(out.read[name], "ok", `${name} was not readable`);
+  for (const name of ["sibling", "projects", "documents"])
+    assert.notEqual(out.read[name], "ok", `${name} was readable`);
+});

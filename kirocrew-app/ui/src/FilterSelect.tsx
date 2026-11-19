@@ -1,9 +1,8 @@
 import { Tooltip } from './ui/Tooltip.tsx'
 import { SelectField } from './ui/SelectField'
-
-// One labelled filter dropdown with an "All" choice, shared by the Graph and
-// Delivery filters so both look and behave the same.
-export const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
+import { Box } from './ui/Box'
+import { selectStyle } from './ui/looks/FilterSelect.ts'
+export { selectStyle }
 
 // The label column of an inline filter: wide enough for a one-word label.
 export const INLINE_LABEL = '4rem'
@@ -28,7 +27,10 @@ export function FilterSelect(props: {
       value={props.value}
       disabled={props.disabled}
       aria-describedby={describedBy}
-      onChange={(event) => props.onChange(event.target.value)} look="field" fill={props.inline} dim={props.disabled}
+      onChange={(event) => props.onChange(event.target.value)}
+      look="field"
+      fill={props.inline}
+      dim={props.disabled}
       // A disabled control takes no pointer events, so the tooltip's anchor
       // around it still hears the hover.
       {...(props.inline ? { 'data-filter-select': '' } : {})}
@@ -43,15 +45,39 @@ export function FilterSelect(props: {
   )
   if (props.inline)
     return (
-      <label htmlFor={props.id} data-filter-line className="min-w-0 text-sm" style={{ display: 'grid', gridTemplateColumns: `${INLINE_LABEL} minmax(0, 1fr)`, alignItems: 'center', columnGap: 8 }}>
-        <span data-filter-label style={{ overflowWrap: 'anywhere' }}>{props.label}</span>
-        {props.hint ? <Tooltip text={props.hint} display="block">{(describedBy) => select(describedBy)}</Tooltip> : select()}
-      </label>
+      <Box
+        htmlFor={props.id}
+        data-filter-line
+        as="label"
+        css-display="grid"
+        css-grid-template-columns={`${INLINE_LABEL} minmax(0, 1fr)`}
+        css-align-items="center"
+        css-column-gap="8"
+        minW0
+        size="sm"
+      >
+        <Box data-filter-label as="span" css-overflow-wrap="anywhere">
+          {props.label}
+        </Box>
+        {props.hint ? (
+          <Tooltip text={props.hint} display="block">
+            {(describedBy) => select(describedBy)}
+          </Tooltip>
+        ) : (
+          select()
+        )}
+      </Box>
     )
   return (
-    <label htmlFor={props.id} className="flex min-w-0 flex-col gap-1 text-sm" style={{ maxWidth: '13rem' }}>
+    <Box htmlFor={props.id} as="label" css-max-width="13rem" flex minW0 flexCol gap="1" size="sm">
       <span>{props.label}</span>
-      {props.hint ? <Tooltip text={props.hint} display="block">{(describedBy) => select(describedBy)}</Tooltip> : select()}
-    </label>
+      {props.hint ? (
+        <Tooltip text={props.hint} display="block">
+          {(describedBy) => select(describedBy)}
+        </Tooltip>
+      ) : (
+        select()
+      )}
+    </Box>
   )
 }

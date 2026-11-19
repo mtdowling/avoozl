@@ -18,7 +18,7 @@ export const NOTE_LIMITS = Object.freeze({
   entries: 200,
 });
 // What a brief carries (R61.20).
-export const BRIEF_NOTES = Object.freeze({ entries: 20, chars: 8000 });
+const BRIEF_NOTES = Object.freeze({ entries: 20, chars: 8000 });
 const TABLE = "task_notes";
 
 const slotKey = (slot) =>
@@ -396,7 +396,7 @@ export function parseIssueNotes(lines, taskId) {
 // Plans whose issues must be written again because a shown entry changed;
 // the tick projects them and clears them (tick.mjs githubStep).
 const REPROJECT = "notes.reproject";
-export function markReproject(store, task) {
+function markReproject(store, task) {
   if (!task.planId) return;
   const current = store.getMeta(REPROJECT) || [];
   if (!current.includes(task.planId))

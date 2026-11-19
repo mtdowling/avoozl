@@ -12,7 +12,7 @@ import { secretReason } from "./workspace-repository.mjs";
 const BASE32 = "abcdefghijklmnopqrstuvwxyz234567";
 // The issues above tasks: one per cross-plan epic and one per plan. Their
 // marker taskId is `epic.<id>` or `plan.<id>`.
-export const PARENT_KINDS = Object.freeze(["epic", "plan"]);
+const PARENT_KINDS = Object.freeze(["epic", "plan"]);
 // shortcut: a marker of kind "epic" whose taskId does not start with
 // "epic." is an issue projected for a task before Requirement 59, which now
 // reads as a package. A spec folder named "epic" would be misread; rename it.
@@ -173,12 +173,11 @@ export function validateMarker(marker, { planningRepository } = {}) {
     "instance",
   );
   check(marker.parent === undefined || TASK_ID.test(marker.parent), "parent");
-  // A batch issue (radar-coder D4.2): two to five task IDs, the lead first.
+  // A batch issue (radar-coder D4.2): two or more task IDs, the lead first.
   check(
     marker.members === undefined ||
       (Array.isArray(marker.members) &&
         marker.members.length >= 2 &&
-        marker.members.length <= 5 &&
         new Set(marker.members).size === marker.members.length &&
         marker.members[0] === marker.taskId &&
         marker.members.every((id) => TASK_ID.test(id))),

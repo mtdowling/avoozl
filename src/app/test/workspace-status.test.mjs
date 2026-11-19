@@ -20,8 +20,7 @@ function machine() {
   const root = temporaryDirectory("avoozl-workspace-status-"),
     env = { ...process.env };
   for (const key of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE|KIROCREW)(_|$)/.test(key))
-      delete env[key];
+    if (/^(AVOOZL|KIROCREW)(_|$)/.test(key)) delete env[key];
   Object.assign(env, {
     HOME: path.join(root, "home"),
     XDG_CONFIG_HOME: path.join(root, "config"),
@@ -81,7 +80,6 @@ test("status reports a named workspace that this machine has not registered", ()
     tasksByStatus: { planned: 1 },
     documents: 0,
     plans: 0,
-    runsByState: {},
   });
   // The machine view is still there, beside the workspace.
   assert.deepEqual(status.workspaces, []);
@@ -102,7 +100,6 @@ test("status says a named workspace is registered, by path, by ID and from the e
     [["--workspace", directory], {}, "--workspace", directory],
     [["--workspace", "status-fixture"], {}, "--workspace", "status-fixture"],
     [[], { AVOOZL_WORKSPACE: directory }, "AVOOZL_WORKSPACE", directory],
-    [[], { NUPP_WORKSPACE: directory }, "NUPP_WORKSPACE", directory],
   ]) {
     const status = cli({ ...env, ...extra }, "status", ...args);
     assert.equal(status.workspace.named, named);

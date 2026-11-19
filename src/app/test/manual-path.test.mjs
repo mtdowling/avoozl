@@ -32,8 +32,7 @@ process.env.XDG_CONFIG_HOME = config;
 function plainEnv() {
   const env = { ...process.env, XDG_CONFIG_HOME: config };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE|KIROCREW)(_|$)|^PORT$/.test(name))
-      delete env[name];
+    if (/^(AVOOZL|KIROCREW)(_|$)|^PORT$/.test(name)) delete env[name];
   return env;
 }
 
@@ -183,47 +182,4 @@ test("avoozl runner report finishes a person's claim from its worktree with no t
   assert.equal(done.status, 0, done.stderr);
   assert.equal(JSON.parse(done.stdout).report.commit, head);
   assert.equal(store.get("session_bindings", "manual-a-1").report.kind, "done");
-});
-
-test("avoozl runner report finishes a runner task from a plain shell", async (t) => {
-  const repo = repository(
-      path.join(temporaryDirectory("avoozl-manual-repo-"), "app"),
-    ),
-    { root, store, ops } = workspace(
-      t,
-      { runner: { role: "runner", crewId: "crew-a" } },
-      { runner: { repos: { app: { path: repo } } } },
-    );
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
-  const envelope = path.join(root, "envelope.json");
-  fs.writeFileSync(
-    envelope,
-    JSON.stringify({
-      version: 1,
-      taskId: "T1",
-      repo: "app",
-      baseCommit: git(repo, "rev-parse", "HEAD"),
-      brief: "Add a.txt.",
-      checks: [],
-      agent: "kirocrew-worker",
-    }),
-  );
-  assert.equal(avoozl(root, "runner", "accept", envelope).state, "accepted");
-  // The runner's own tick makes the worktree and names the report command.
-  const { dispatch } = await ops.execute(
-    "workspace.tick",
-    { cron: true },
-    undefined,
-    { local: true },
-  );
-  assert.match(dispatch[0].brief, /runner report T1 --state done/);
-  const worktree = dispatch[0].brief.match(/worktree: (\S+)/)[1];
-  const head = commit(worktree, "a.txt");
-  const report = avoozl(root, "runner", "report", "T1", "--state", "done");
-  assert.deepEqual(report, { taskId: "T1", state: "reported", commit: head });
-  const status = avoozl(root, "runner", "status", "--json");
-  assert.deepEqual(
-    status.tasks.map((row) => [row.taskId, row.state, row.commit]),
-    [["T1", "reported", head]],
-  );
 });

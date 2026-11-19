@@ -1,9 +1,7 @@
 import {
-  validateHarnesses,
   dropOlderRoleKeys,
   mergeRoles,
   resolveRoles,
-  validateModels,
   validateRoles,
   validatePlanReview,
 } from "./chat-models.mjs";
@@ -27,6 +25,7 @@ import {
 import {
   assertPortableRepositoryConfig,
   assertSafeConfig,
+  assertKnownKeys,
   avoozlConfigSchemaPath,
 } from "./layered-config.mjs";
 import { validateContentRules } from "./content-rules.mjs";
@@ -36,6 +35,8 @@ import {
   validateActivitySettings,
 } from "./activity-log.mjs";
 import { fail } from "./store.mjs";
+import { checksSetting } from "./repository-checks.mjs";
+import { isolationSetting } from "./check-isolation.mjs";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.mjs";
 import { deriveGitHubKeys, rolesNote, withRoles } from "./repository-roles.mjs";
 
@@ -103,8 +104,10 @@ function helperHash(value, id) {
 }
 
 function landingOf(value, id) {
-  if (!["direct", "pr", "train", "off"].includes(value))
-    fail(`Project ${id} landing must be direct, pr, train or off.`);
+  // `train` is retired and loads as `direct`.
+  if (value === "train") return "direct";
+  if (!["direct", "pr", "off"].includes(value))
+    fail(`Project ${id} landing must be direct, pr or off.`);
   return value;
 }
 
@@ -126,6 +129,8 @@ export const PROJECT_KEYS = Object.freeze([
   "executor",
   "harness",
   "sandbox",
+  // The isolation the repository's checks run under (check-isolation.mjs).
+  "isolation",
   // Settings > Flow writes a repository's override here; flow.mjs reads and
   // validates it (flowSection), so this list only has to let it through.
   "flow",
@@ -135,41 +140,19 @@ export const SANDBOX_KEYS = Object.freeze([
   "allowCommands",
   "network",
 ]);
-// Old `github.issueIntake` keys, read by github-sources.mjs (§4.39).
-export { ISSUE_INTAKE_KEYS } from "./github-sources.mjs";
 export const PLANNING_REPOSITORY_KEYS = Object.freeze([
   "root",
   "remote",
   "branch",
   "directory",
 ]);
-// Old `github.queue` keys: accepted and ignored (§4.39).
-export const QUEUE_KEYS = Object.freeze([
-  "projectId",
-  "workspaceRepositoryId",
-  "enabled",
-  "includeIssues",
-  "includePullRequests",
-  "visibility",
-  "labelBehaviors",
-]);
-
 function projectInput(value, id, base) {
   if (!record(value)) fail(`Project ${id} must contain a JSON object.`);
   for (const key of Object.keys(value))
     if (!PROJECT_KEYS.includes(key))
       fail(`Unknown project setting projects.${id}.${key}.`);
-  const checks = value.checks ?? [];
-  if (
-    !Array.isArray(checks) ||
-    checks.some(
-      (command) =>
-        !Array.isArray(command) ||
-        !command.length ||
-        command.some((part) => typeof part !== "string"),
-    )
-  )
-    fail(`Project ${id} checks must be arrays of command arguments.`);
+  // The repository's named checks; the older list of argv arrays loads too.
+  const checks = checksSetting(value.checks, `Project ${id} checks`);
   const resolve = (candidate) =>
     path.isAbsolute(candidate) ? candidate : path.resolve(base, candidate);
   // Branches reach git as positional arguments; a leading dash is an option.
@@ -246,6 +229,11 @@ function executorInput(value, id) {
     sandboxNetwork(network);
     out.sandbox = structuredClone(value.sandbox);
   }
+  if (value.isolation !== undefined)
+    out.isolation = isolationSetting(
+      value.isolation,
+      `projects.${id}.isolation`,
+    );
   return out;
 }
 
@@ -254,6 +242,9 @@ const executorSettings = (project) => ({
   ...(project.executor ? { executor: project.executor } : {}),
   ...(project.harness ? { harness: project.harness } : {}),
   ...(project.sandbox ? { sandbox: structuredClone(project.sandbox) } : {}),
+  ...(project.isolation
+    ? { isolation: structuredClone(project.isolation) }
+    : {}),
 });
 
 function projectsInput(value, base) {
@@ -269,8 +260,7 @@ function projectsInput(value, base) {
 }
 
 // The `github` block's policy, checked, and the GitHub sources of the
-// whole file (`intake.sources` plus old `github.issueIntake`, §4.39) by
-// repository. `github.queue` is ignored.
+// whole file (`intake.sources`) by repository.
 function githubInput(github, whole = { github }) {
   if (github !== undefined) {
     if (!record(github))
@@ -429,8 +419,11 @@ function parse(text, filename, { portable = false } = {}) {
     fail("Workspace Avoozl configuration must contain a JSON object.");
   if (value.version !== 1)
     fail("Unsupported workspace Avoozl configuration version.");
-  validateModels(value.models);
-  validateHarnesses(value.harnesses);
+  try {
+    assertKnownKeys(value, `workspace Avoozl configuration at ${filename}`);
+  } catch (error) {
+    fail(error.message);
+  }
   validateRoles(value);
   validatePlanReview(value.planReview);
   assertSafeConfig(value, `workspace Avoozl configuration at ${filename}`);
@@ -501,8 +494,6 @@ export class RepositorySettings {
       repository: this.filename,
     };
     this.sources = sources;
-    validateModels(baseConfig.models);
-    validateHarnesses(baseConfig.harnesses);
     validateRoles(baseConfig);
     this.baseRoles = resolveRoles(baseConfig);
     this.baseConversationConfigured = baseConfig.conversations !== undefined;
@@ -736,19 +727,11 @@ export class RepositorySettings {
       value,
       `workspace Avoozl configuration at ${this.filename}`,
     );
-    // Old GitHub intake keys move into `intake.sources` on this write (§4.39).
-    if (
-      record(value.github) &&
-      (Object.hasOwn(value.github, "issueIntake") ||
-        Object.hasOwn(value.github, "queue"))
-    )
-      value = writeGitHubSources(structuredClone(value));
     assertPortableRepositoryConfig(
       value,
       `repository Avoozl configuration at ${this.filename}`,
     );
     validateContentRules(value.contentRules);
-    validateModels(value.models);
     validateRoles(value);
     validateRoles({ roles: mergeRoles(this.baseRoles, resolveRoles(value)) });
     validatePlanReview(value.planReview);

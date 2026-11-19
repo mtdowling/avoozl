@@ -1,4 +1,6 @@
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 // A task's Waits on or Blocks list: a bulleted list, one task per item, each
 // task a link that opens it. The one list part for task details, the Graph's
 // side panel and the Graph's item modal. An empty list draws nothing.
@@ -15,20 +17,27 @@ export interface EdgeItem {
 export function EdgeList(props: { label: string; items: EdgeItem[]; onOpen: (id: string) => void }) {
   if (props.items.length === 0) return null
   return (
-    <ul className="m-0 flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }} aria-label={props.label} data-edge-list={props.label}>
+    <Box as="ul" css-list-style="disc" m0 flex flexCol gap="1" pl="5" size="sm" aria-label={props.label} data-edge-list={props.label}>
       {props.items.map((item) => (
         <li key={item.id} data-edge-item={item.id}>
-          <button
+          <PlainButton
             type="button"
-            className="cursor-pointer text-left underline"
-            style={{ background: 'transparent', border: 0, padding: 0, color: 'inherit', font: 'inherit', ...(item.met ? { textDecoration: 'line-through', color: 'var(--muted)' } : {}) }}
+            css-background="transparent"
+            css-border="0"
+            css-padding="0"
+            css-font="inherit"
+            css-text-decoration={item.met ? 'line-through' : undefined}
+            css-color={item.met ? 'muted' : 'inherit'}
+            cursorPointer
+            align="left"
+            underline
             onClick={() => props.onOpen(item.id)}
           >
             {item.text}
-          </button>
+          </PlainButton>
           {item.note && <Hint size="xs"> {item.note}</Hint>}
         </li>
       ))}
-    </ul>
+    </Box>
   )
 }

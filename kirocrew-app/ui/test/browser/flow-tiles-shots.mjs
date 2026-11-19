@@ -16,14 +16,18 @@ const browser = await launch(findChrome())
 const wait = (page, ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
 try {
   const page = await browser.page()
-  for (const [width, height] of [[1280, 500], [375, 800]])
+  for (const [width, height] of [
+    [1280, 500],
+    [375, 800],
+  ])
     for (const theme of ['light', 'dark']) {
       await page.open(harness.url({ page: 'app', radar: '1', flow: '1', theme }), { width, height, dark: theme === 'dark' })
       await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
       if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
       await wait(page, 200)
       await page.evaluate(`document.querySelector('[data-nav-group="flow"], [data-nav-item="flow"]').click()`)
-      if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+      if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
       await page.until(`Boolean(document.querySelector('[data-flow-cards]'))`)
       await page.evaluate(`document.querySelector('[data-flow-cards]').scrollIntoView({ block: 'start' })`)
       await wait(page, 300)

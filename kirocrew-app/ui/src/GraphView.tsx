@@ -50,21 +50,15 @@ import { linkHref } from './views-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
+import { Box } from './ui/Box'
+import { PanningStyle } from './ui/PageStyles'
+import { PlainButton, SvgG, SvgPath, SvgRect, SvgRoot, SvgText } from './ui/Plain'
+import { STATE_COLOR } from './ui/looks/GraphView.ts'
 
 // Graphs larger than this open with every group collapsed to one node.
 const COLLAPSE_ABOVE = 60
 const CANVAS_HEIGHT = 640
 
-// Theme variables only, so the drawing follows light and dark mode.
-const STATE_COLOR: Record<NodeState, string> = {
-  ready: 'var(--accent)',
-  running: 'var(--tile-purple, var(--aim))',
-  waiting: 'var(--border)',
-  'needs-you': 'var(--danger)',
-  done: 'var(--ok)',
-  deferred: 'var(--muted)',
-  draft: 'var(--muted)',
-}
 const STATE_LABEL = Object.fromEntries(STATES.map((s) => [s.id, s.label])) as Record<NodeState, string>
 
 const clip = (text: string, max: number) => (text.length > max ? text.slice(0, max - 1) + '…' : text)
@@ -81,16 +75,16 @@ const pressed = (event: KeyboardEvent, action: () => void) => {
 function NodeOwner({ task, x, y }: { task: GraphTask; x: number; y: number }) {
   if (task.authority !== 'github')
     return (
-      <text x={x} y={y} textAnchor="end" fontSize={10} style={{ fill: 'var(--muted)' }}>
+      <SvgText x={x} y={y} textAnchor="end" fontSize={10} css-fill="muted">
         {task.authority ?? 'local'}
-      </text>
+      </SvgText>
     )
   const href = task.issue ? safeHref(task.issue.url) : null
   const label = !task.issue ? 'pending' : task.issue.number ? `#${task.issue.number}` : 'GitHub'
   const text = (
-    <text x={x} y={y} textAnchor="end" fontSize={10} style={{ fill: href ? 'var(--accent)' : 'var(--muted)' }}>
+    <SvgText x={x} y={y} textAnchor="end" fontSize={10} css-fill={href ? 'accent' : 'muted'}>
       {label}
-    </text>
+    </SvgText>
   )
   return href ? (
     <a href={linkHref(href)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} aria-label={`Issue ${label}`}>
@@ -101,27 +95,18 @@ function NodeOwner({ task, x, y }: { task: GraphTask; x: number; y: number }) {
   )
 }
 
-function Node(props: {
-  node: LaidNode
-  selected: boolean
-  dim: boolean
-  onSelect: (node: LaidNode) => void
-  onHover: (id: string | null) => void
-  onOpen?: (id: string) => void
-}) {
+function Node(props: { node: LaidNode; selected: boolean; dim: boolean; onSelect: (node: LaidNode) => void; onHover: (id: string | null) => void; onOpen?: (id: string) => void }) {
   const { node, selected } = props
   const color = STATE_COLOR[node.state]
   // A task of a spec not approved yet: faded, dashed, marked Draft.
   const draft = node.state === 'draft'
   const badge = node.task?.review || draft
-  const sub = node.members
-    ? `${node.members.done} of ${node.members.total} done`
-    : `${node.id} · ${STATE_LABEL[node.state]}`
+  const sub = node.members ? `${node.members.done} of ${node.members.total} done` : `${node.id} · ${STATE_LABEL[node.state]}`
   const label = node.members
     ? `${node.title}, collapsed, ${sub}. Press to open it.`
     : `${node.title}, ${node.id}, ${STATE_LABEL[node.state]}${node.task?.review ? ', waits for review' : ''}${node.task?.planArchived ? ', archived plan' : ''}${node.task?.handSetReview ? ', review set by hand, none running' : ''}${props.onOpen ? '. Enter shows its tree; O opens its details' : ''}`
   return (
-    <g
+    <SvgG
       transform={`translate(${node.x},${node.y})`}
       role="button"
       tabIndex={0}
@@ -141,34 +126,36 @@ function Node(props: {
       onBlur={() => props.onHover(null)}
       opacity={props.dim ? 0.3 : draft ? 0.6 : 1}
       data-draft={draft || undefined}
-      style={{ cursor: 'pointer', outline: 'none' }}
+      css-cursor="pointer"
+      css-outline="none"
     >
       <title>{draft ? `${node.title} (draft spec)` : node.title}</title>
-      <rect
+      <SvgRect
         width={NODE_WIDTH}
         height={NODE_HEIGHT}
         rx={6}
         strokeWidth={selected ? 2.5 : 1}
         strokeDasharray={node.members || draft ? '5 3' : undefined}
-        style={{ fill: 'var(--card)', stroke: selected ? 'var(--accent)' : color }}
+        css-fill="card"
+        css-stroke={selected ? 'var(--accent)' : color}
       />
-      <rect width={5} height={NODE_HEIGHT} rx={3} style={{ fill: color }} />
-      <text x={12} y={15} fontSize={11} fontWeight={600} style={{ fill: 'var(--text)' }}>
+      <SvgRect width={5} height={NODE_HEIGHT} rx={3} css-fill={color} />
+      <SvgText x={12} y={15} fontSize={11} fontWeight={600} css-fill="text">
         {clip(node.title, draft ? 17 : badge ? 19 : props.onOpen && node.task ? 22 : 25)}
-      </text>
+      </SvgText>
       {draft && node.task && (
-        <text x={NODE_WIDTH - (props.onOpen ? 22 : 6)} y={14} textAnchor="end" fontSize={9} fontWeight={600} data-draft-badge style={{ fill: 'var(--muted)' }}>
+        <SvgText x={NODE_WIDTH - (props.onOpen ? 22 : 6)} y={14} textAnchor="end" fontSize={9} fontWeight={600} data-draft-badge css-fill="muted">
           Draft
-        </text>
+        </SvgText>
       )}
       {node.task?.review && !draft && (
-        <text x={NODE_WIDTH - (props.onOpen ? 22 : 6)} y={14} textAnchor="end" fontSize={9} data-review-badge style={{ fill: 'var(--muted)' }}>
+        <SvgText x={NODE_WIDTH - (props.onOpen ? 22 : 6)} y={14} textAnchor="end" fontSize={9} data-review-badge css-fill="muted">
           review
-        </text>
+        </SvgText>
       )}
-      <text x={12} y={29} fontSize={10} style={{ fill: 'var(--muted)' }}>
+      <SvgText x={12} y={29} fontSize={10} css-fill="muted">
         {clip(sub, node.task ? 20 : 28)}
-      </text>
+      </SvgText>
       {node.task && <NodeOwner task={node.task} x={NODE_WIDTH - 6} y={29} />}
       {node.task && props.onOpen && (
         <g
@@ -183,38 +170,33 @@ function Node(props: {
           }}
         >
           <title>{`Open ${node.id} details`}</title>
-          <rect width={16} height={16} rx={3} style={{ fill: 'var(--card)' }} />
-          <g transform="translate(3,3)" style={{ color: 'var(--muted)' }}>
+          <SvgRect width={16} height={16} rx={3} css-fill="card" />
+          <SvgG transform="translate(3,3)" css-color="muted">
             <ExternalLink size={10} aria-hidden="true" />
-          </g>
+          </SvgG>
         </g>
       )}
-    </g>
+    </SvgG>
   )
 }
 
 function Legend() {
   return (
-    <ul aria-label="Node colors" className="flex flex-wrap gap-3 text-xs text-muted">
+    <Box aria-label="Node colors" as="ul" flex flexWrap gap="3" size="xs" tone="muted">
       {STATES.map((state) => (
-        <li key={state.id} className="flex items-center gap-1">
+        <Box key={state.id} as="li" flex items="center" gap="1">
           <svg width={10} height={10} aria-hidden="true">
-            <rect width={10} height={10} rx={2} style={{ fill: STATE_COLOR[state.id] }} />
+            <SvgRect width={10} height={10} rx={2} css-fill={STATE_COLOR[state.id]} />
           </svg>
           {state.label}
-        </li>
+        </Box>
       ))}
       <li>Solid arrow: waiting · faded arrow: met · dashed arrow: sequence</li>
-    </ul>
+    </Box>
   )
 }
 
-function Details(props: {
-  task: GraphTask
-  batch: GraphBatch | null
-  neighbors: ReturnType<typeof neighbors>
-  onSelect: (id: string) => void
-}) {
+function Details(props: { task: GraphTask; batch: GraphBatch | null; neighbors: ReturnType<typeof neighbors>; onSelect: (id: string) => void }) {
   const { task, batch } = props
   const drawer = useTaskDrawer()
   const { waitsOn, blocks } = props.neighbors
@@ -226,29 +208,31 @@ function Details(props: {
           title={task.title}
           actions={
             <>
-              <TipBtn tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(task.id)}>All details</TipBtn>
-              <TipBtn tooltip="Add a draft task that waits on this one" onClick={() => drawer.addTask({ prerequisite: task.id })}>Add a task after this</TipBtn>
+              <TipBtn tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(task.id)}>
+                All details
+              </TipBtn>
+              <TipBtn tooltip="Add a draft task that waits on this one" onClick={() => drawer.addTask({ prerequisite: task.id })}>
+                Add a task after this
+              </TipBtn>
             </>
           }
         />
-        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
+        <Box mt="1" flex flexWrap items="center" gap="1.5" size="sm">
           <Hint size="xs">{task.id}</Hint>
           <Badge>{task.kind}</Badge>
           <Authority owner={task} />
           <Badge variant={task.complete ? 'success' : undefined}>{task.status ?? 'no status'}</Badge>
-          <Badge variant={state === 'needs-you' ? 'warning' : state === 'ready' ? 'info' : undefined}>
-            {STATE_LABEL[state]}
-          </Badge>
+          <Badge variant={state === 'needs-you' ? 'warning' : state === 'ready' ? 'info' : undefined}>{STATE_LABEL[state]}</Badge>
           {task.review && <Badge>review</Badge>}
           {task.planArchived && <Badge>Archived</Badge>}
           {task.handSetReview && <Badge variant="warning">set by hand</Badge>}
-        </div>
+        </Box>
         {task.handSetReview && (
-          <p className="mt-1 text-sm" data-hand-set-review>
+          <Box as="p" mt="1" size="sm" data-hand-set-review>
             {noSessionLabel(task.noSession)}.{task.nextAction ? ` Next: ${task.nextAction}` : ''} All details has Discuss, Mark done and Back to planned.
-          </p>
+          </Box>
         )}
-        <dl className="mt-2 grid gap-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr', columnGap: 12 }}>
+        <Box as="dl" css-grid-template-columns="max-content-1fr" css-column-gap="12" mt="2" grid gap="1" size="sm">
           {task.repository && (
             <>
               <Hint as="dt">Repository</Hint>
@@ -276,9 +260,9 @@ function Details(props: {
                     {id === task.id ? (
                       id
                     ) : (
-                      <button type="button" className="underline" onClick={() => props.onSelect(id)}>
+                      <PlainButton type="button" underline onClick={() => props.onSelect(id)}>
                         {id}
-                      </button>
+                      </PlainButton>
                     )}
                   </span>
                 ))}
@@ -301,7 +285,7 @@ function Details(props: {
               </dd>
             </>
           )}
-        </dl>
+        </Box>
       </div>
     </Card>
   )
@@ -338,10 +322,7 @@ export default function GraphView({
   const { value: full, error, busy, reload } = source ?? own
   // The shared filter, then the drill-in, decide what is drawn; the level
   // decides the groups: epics, an epic's plans, or a plan's phases.
-  const graph = useMemo(
-    () => (full ? groupGraph(drillGraph(filterGraph(full, filter), drill), drill) : null),
-    [full, filter, drill],
-  )
+  const graph = useMemo(() => (full ? groupGraph(drillGraph(filterGraph(full, filter), drill), drill) : null), [full, filter, drill])
   const choices = useMemo(() => filterChoices(full, {}, filter.plan), [full, filter.plan])
   // null until the reader chooses: big graphs then start collapsed.
   const [collapsed, setCollapsed] = useState<Set<string> | null>(null)
@@ -358,18 +339,11 @@ export default function GraphView({
   const moved = useRef(false)
   const [panning, setPanning] = useState(false)
 
-  const groupKeys = useMemo(
-    () => [...new Set((graph?.tasks ?? []).map((t) => groupKey(t.group ?? null)))],
-    [graph],
-  )
+  const groupKeys = useMemo(() => [...new Set((graph?.tasks ?? []).map((t) => groupKey(t.group ?? null)))], [graph])
   // All and an epic's level open folded when big, so a large epic shows its
   // plans before their tasks.
   const shut = useMemo(
-    () =>
-      collapsed ??
-      new Set(
-        (!drill || drill.kind === 'epic') && (graph?.tasks.length ?? 0) > COLLAPSE_ABOVE ? groupKeys : [],
-      ),
+    () => collapsed ?? new Set((!drill || drill.kind === 'epic') && (graph?.tasks.length ?? 0) > COLLAPSE_ABOVE ? groupKeys : []),
     [collapsed, graph, groupKeys, drill],
   )
   // The canvas width, for the gaps; a resize recomputes them.
@@ -381,8 +355,7 @@ export default function GraphView({
   const byId = useMemo(() => new Map(layout?.nodes.map((n) => [n.id, n]) ?? []), [layout])
   const task = graph?.tasks.find((t) => t.id === selected) ?? null
   const summary = graph ? graphSummary(graph) : null
-  const groupTitle = (group: string | null) =>
-    graph?.groups?.find((g) => g.id === group)?.title ?? group ?? 'None'
+  const groupTitle = (group: string | null) => graph?.groups?.find((g) => g.id === group)?.title ?? group ?? 'None'
   // The drill stack: every level left, with its zoom, pan and selection.
   // The app runs inside the Kiro Crew page (no iframe of its own), so
   // history.pushState would move the host page too. Each level is one step
@@ -555,16 +528,10 @@ export default function GraphView({
     return { up: new Set([...up, active]), down: new Set([...down, active]) }
   }, [layout, active, byId])
   const nodeLit = (id: string) => !lit || lit.up.has(id) || lit.down.has(id)
-  const edgeLit = (from: string, to: string) =>
-    !lit || (lit.up.has(from) && lit.up.has(to)) || (lit.down.has(from) && lit.down.has(to))
+  const edgeLit = (from: string, to: string) => !lit || (lit.up.has(from) && lit.up.has(to)) || (lit.down.has(from) && lit.down.has(to))
 
   return (
-    <section
-      aria-labelledby={bare ? undefined : 'avoozl-graph-title'}
-      aria-label={bare ? 'All tasks' : undefined}
-      className="flex flex-col gap-3.5"
-      data-graph-view
-    >
+    <Box aria-labelledby={bare ? undefined : 'avoozl-graph-title'} aria-label={bare ? 'All tasks' : undefined} as="section" flex flexCol gap="3.5" data-graph-view>
       {!bare && (
         <ViewHeading id="avoozl-graph-title" view="graph">
           Graph
@@ -576,7 +543,9 @@ export default function GraphView({
         </ErrorText>
       )}
       {!workspaceId ? (
-        <Hint as="p" size="sm">Choose a workspace in the header.</Hint>
+        <Hint as="p" size="sm">
+          Choose a workspace in the header.
+        </Hint>
       ) : (
         <FilterBar id="avoozl-graph" filter={filter} choices={choices} onChange={changeFilter}>
           {!bare && (
@@ -584,20 +553,20 @@ export default function GraphView({
               <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy} />
             </Row>
           )}
-          <p role="status" className="mt-2 text-sm text-muted">
+          <Box role="status" as="p" mt="2" size="sm" tone="muted">
             {busy
               ? 'Loading…'
               : summary
                 ? `${summary.tasks} of ${full!.total} tasks · ${summary.blocking} blocking edges · ${summary.ready} ready · ${layout?.waves ?? 0} waves`
                 : ''}
-          </p>
+          </Box>
         </FilterBar>
       )}
-      {workspaceId && drill?.kind === 'epic' && drill.id && (
-        <EpicPanel workspaceId={workspaceId} id={drill.id} client={client} onDrill={(next) => onDrill?.(next)} />
-      )}
+      {workspaceId && drill?.kind === 'epic' && drill.id && <EpicPanel workspaceId={workspaceId} id={drill.id} client={client} onDrill={(next) => onDrill?.(next)} />}
       {graph && graph.total === 0 && (
-        <Hint as="p" size="sm">No tasks yet. Store and approve a spec in the Specs tab to fill the graph.</Hint>
+        <Hint as="p" size="sm">
+          No tasks yet. Store and approve a spec in the Specs tab to fill the graph.
+        </Hint>
       )}
       {layout && layout.nodes.length > 0 && (
         <Card>
@@ -607,26 +576,28 @@ export default function GraphView({
                 <IconLabel icon={ArrowLeft} tooltip={backLabel(stack) ?? undefined} onClick={() => back()} aria-label={backLabel(stack) ?? 'Back'}>
                   Back
                 </IconLabel>
-                <nav aria-label="Graph drill-in" className="flex flex-wrap items-center gap-1 text-sm" data-graph-crumbs>
+                <Box aria-label="Graph drill-in" as="nav" flex flexWrap items="center" gap="1" size="sm" data-graph-crumbs>
                   {drillCrumbs(stack, drill).map(({ at, label }) => (
-                    <span key={at} className="inline-flex items-center gap-1">
-                      <button type="button" className="truncate underline" style={{ maxWidth: '14rem' }} onClick={() => back(at)}>
+                    <Box key={at} as="span" inlineFlex items="center" gap="1">
+                      <PlainButton type="button" css-max-width="14rem" truncate underline onClick={() => back(at)}>
                         {label}
-                      </button>
-                      <Hint aria-hidden="true">
-                        ›
-                      </Hint>
-                    </span>
+                      </PlainButton>
+                      <Hint aria-hidden="true">›</Hint>
+                    </Box>
                   ))}
-                  <span className="truncate font-medium" aria-current="page" style={{ maxWidth: 'min(28rem, 60vw)' }}>
+                  <Box as="span" css-max-width="min-28rem-60vw" truncate weight="medium" aria-current="page">
                     {drillLabel(drill)}
-                  </span>
-                </nav>
+                  </Box>
+                </Box>
               </>
             )}
-            <TipBtn tooltip="Fold each group into one box" onClick={() => setCollapsed(new Set(groupKeys))}>Collapse all</TipBtn>
-            <TipBtn tooltip="Show every task inside each group" onClick={() => setCollapsed(new Set())}>Expand all</TipBtn>
-            <span className="grow" />
+            <TipBtn tooltip="Fold each group into one box" onClick={() => setCollapsed(new Set(groupKeys))}>
+              Collapse all
+            </TipBtn>
+            <TipBtn tooltip="Show every task inside each group" onClick={() => setCollapsed(new Set())}>
+              Expand all
+            </TipBtn>
+            <Box as="span" grow />
             <TipBtn tooltip="Zoom out" onClick={() => zoom(1 / 1.25)} aria-label="Zoom out">
               −
             </TipBtn>
@@ -636,17 +607,15 @@ export default function GraphView({
             <TipBtn tooltip="Zoom in" onClick={() => zoom(1.25)} aria-label="Zoom in">
               +
             </TipBtn>
-            <TipBtn tooltip="Fit the whole graph in view" onClick={fit}>Fit</TipBtn>
+            <TipBtn tooltip="Fit the whole graph in view" onClick={fit}>
+              Fit
+            </TipBtn>
           </Row>
-          <div className="mt-2">
+          <Box mt="2">
             <Legend />
-          </div>
-          <div
-            ref={canvas}
-            className="mt-2 overflow-hidden rounded border"
-            style={{ borderColor: 'var(--border)', height: CANVAS_HEIGHT, touchAction: 'none' }}
-          >
-            <svg
+          </Box>
+          <Box ref={canvas} css-border-color="border" css-height="640" css-touch-action="none" mt="2" overflow="hidden" rounded="base" border="all">
+            <SvgRoot
               role="group"
               aria-label="Task graph. Drag to pan; pinch or hold Ctrl or Cmd and scroll to zoom."
               width="100%"
@@ -658,15 +627,16 @@ export default function GraphView({
               onMouseDown={(e) => e.button === 1 && e.preventDefault()}
               onAuxClickCapture={noLinkAfterDrag}
               data-panning={panning || undefined}
-              style={{ cursor: panning ? 'grabbing' : 'grab', userSelect: 'none' }}
+              css-cursor={panning ? 'grabbing' : 'grab'}
+              css-user-select="none"
             >
-              {panning && <style>{'[data-graph-view] svg[data-panning] *{cursor:grabbing!important}'}</style>}
+              {panning && <PanningStyle />}
               <defs>
                 <marker id="avoozl-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={7} markerHeight={7} orient="auto">
-                  <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--muted)' }} />
+                  <SvgPath d="M0,0 L10,5 L0,10 z" css-fill="muted" />
                 </marker>
                 <marker id="avoozl-arrow-on" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={7} markerHeight={7} orient="auto">
-                  <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--accent)' }} />
+                  <SvgPath d="M0,0 L10,5 L0,10 z" css-fill="accent" />
                 </marker>
               </defs>
               <g transform={`translate(${view.x},${view.y}) scale(${view.scale})`}>
@@ -674,16 +644,9 @@ export default function GraphView({
                   const key = groupKey(cluster.group)
                   return (
                     <g key={`${key}:${i}`} opacity={lit ? 0.5 : 1}>
-                      <rect
-                        x={cluster.x}
-                        y={cluster.y}
-                        width={cluster.width}
-                        height={cluster.height}
-                        rx={8}
-                        style={{ fill: 'var(--bg-elevated)', stroke: 'var(--border)', opacity: 0.7 }}
-                      />
+                      <SvgRect x={cluster.x} y={cluster.y} width={cluster.width} height={cluster.height} rx={8} css-fill="bg-elevated" css-stroke="border" css-opacity="0.7" />
                       {cluster.label && (
-                        <text
+                        <SvgText
                           x={cluster.x + 6}
                           y={cluster.y + 9}
                           fontSize={10}
@@ -693,10 +656,11 @@ export default function GraphView({
                           aria-label={`${cluster.title}, ${cluster.count} tasks. Press to open it.`}
                           onClick={() => !moved.current && drillGroup(cluster.group)}
                           onKeyDown={(e) => pressed(e, () => drillGroup(cluster.group))}
-                          style={{ fill: 'var(--muted)', cursor: 'pointer' }}
+                          css-fill="muted"
+                          css-cursor="pointer"
                         >
                           {clip(cluster.title, 30)} ›
-                        </text>
+                        </SvgText>
                       )}
                     </g>
                   )
@@ -704,7 +668,7 @@ export default function GraphView({
                 {layout.loose.map((group) => {
                   const key = groupKey(group.group)
                   return (
-                    <text
+                    <SvgText
                       key={`loose:${key}`}
                       x={group.x}
                       y={group.y + 11}
@@ -714,10 +678,11 @@ export default function GraphView({
                       aria-label={`${group.title}: ${group.count} with no dependencies. Press to open it.`}
                       onClick={() => !moved.current && drillGroup(group.group)}
                       onKeyDown={(e) => pressed(e, () => drillGroup(group.group))}
-                      style={{ fill: 'var(--muted)', cursor: 'pointer' }}
+                      css-fill="muted"
+                      css-cursor="pointer"
                     >
                       {clip(`${group.title} · ${group.count} with no dependencies`, group.chars)}
-                    </text>
+                    </SvgText>
                   )
                 })}
                 {layout.edges.map((edge) => {
@@ -725,7 +690,7 @@ export default function GraphView({
                   const dim = lit !== null && !on
                   const touches = highlighted(edge.from, edge.to)
                   return (
-                    <path
+                    <SvgPath
                       key={`${edge.from}->${edge.to}`}
                       d={edgePath(edge.points)}
                       fill="none"
@@ -734,37 +699,20 @@ export default function GraphView({
                       strokeLinejoin="round"
                       strokeDasharray={edge.kind === 'sequence' ? '6 4' : undefined}
                       markerEnd={on ? 'url(#avoozl-arrow-on)' : 'url(#avoozl-arrow)'}
-                      style={{
-                        stroke: on ? 'var(--accent)' : 'var(--muted)',
-                        opacity: dim ? 0.12 : on ? 1 : edge.satisfied ? 0.35 : 0.8,
-                      }}
+                      css-stroke={on ? 'accent' : 'muted'}
+                      css-opacity={dim ? 0.12 : on ? 1 : edge.satisfied ? 0.35 : 0.8}
                     />
                   )
                 })}
                 {layout.nodes.map((node) => (
-                  <Node
-                    key={node.id}
-                    node={node}
-                    selected={node.id === selected}
-                    dim={!nodeLit(node.id)}
-                    onSelect={select}
-                    onHover={setHovered}
-                    onOpen={onOpenItem}
-                  />
+                  <Node key={node.id} node={node} selected={node.id === selected} dim={!nodeLit(node.id)} onSelect={select} onHover={setHovered} onOpen={onOpenItem} />
                 ))}
               </g>
-            </svg>
-          </div>
+            </SvgRoot>
+          </Box>
         </Card>
       )}
-      {graph && task && (
-        <Details
-          task={task}
-          batch={graph.batches?.find((entry) => entry.id === task.batch) ?? null}
-          neighbors={neighbors(graph, task.id)}
-          onSelect={selectId}
-        />
-      )}
-    </section>
+      {graph && task && <Details task={task} batch={graph.batches?.find((entry) => entry.id === task.batch) ?? null} neighbors={neighbors(graph, task.id)} onSelect={selectId} />}
+    </Box>
   )
 }

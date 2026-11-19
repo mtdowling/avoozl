@@ -22,7 +22,7 @@ import {
 import { SectionHeading } from './ui/controls.tsx'
 import { Button } from './ui/Button.tsx'
 import { FormSection } from './FormSection.tsx'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { Pencil, Plus, Trash2 } from './icons.ts'
 import { FolderField } from './FolderPicker.tsx'
 import ListItem from './ListItem.tsx'
@@ -30,67 +30,62 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
-function Field(props: {
-  id: string
-  label: string
-  value: string
-  onChange: (value: string) => void
-  placeholder?: string
-  required?: boolean
-}) {
+function Field(props: { id: string; label: string; value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean }) {
   return (
-    <label htmlFor={props.id} className="flex flex-col gap-1 text-sm">
+    <Box htmlFor={props.id} as="label" flex flexCol gap="1" size="sm">
       <span>{props.label}</span>
-      <Input
-        id={props.id}
-        value={props.value}
-        placeholder={props.placeholder}
-        required={props.required}
-        onChange={(event) => props.onChange(event.target.value)}
-      />
-    </label>
+      <Input id={props.id} value={props.value} placeholder={props.placeholder} required={props.required} onChange={(event) => props.onChange(event.target.value)} />
+    </Box>
   )
 }
 
-function WorkspaceRow(props: {
-  workspace: CatalogWorkspace
-  selected: boolean
-  onSelect: () => void
-  onEdit: () => void
-}) {
+function WorkspaceRow(props: { workspace: CatalogWorkspace; selected: boolean; onSelect: () => void; onEdit: () => void }) {
   const { workspace, selected } = props
   return (
     <ListItem
       className={selected ? 'bg-accent/10' : ''}
       title={
-        <button type="button" aria-pressed={selected} onClick={props.onSelect} className="flex min-w-0 flex-wrap items-center gap-x-2 text-left">
-          <span className="font-medium">{workspace.name}</span>
+        <PlainButton type="button" aria-pressed={selected} onClick={props.onSelect} flex minW0 flexWrap items="center" gapX="2" align="left">
+          <Box as="span" weight="medium">
+            {workspace.name}
+          </Box>
           <Hint size="xs">{workspace.id}</Hint>
-          <span className="inline-flex gap-1">
+          <Box as="span" inlineFlex gap="1">
             {workspace.served && <Badge variant="info">This backend</Badge>}
             <Tooltip text={workspaceState(workspace.state).tip}>
               <span data-workspace-state={workspace.state}>
                 <Badge variant={workspaceState(workspace.state).variant}>{workspaceState(workspace.state).label}</Badge>
               </span>
             </Tooltip>
-          </span>
-        </button>
+          </Box>
+        </PlainButton>
       }
       facts={[{ label: 'Folder', value: workspace.root, mono: true, truncate: true }]}
       actions={
         <Tooltip text={`Edit ${workspace.name}`}>
-          <button
+          <PlainButton
             type="button"
             data-edit-workspace={workspace.id}
             aria-label={`Edit ${workspace.name}`}
             onClick={props.onEdit}
-            className="rounded border"
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: 'transparent', borderColor: 'var(--border)', color: 'var(--text)', cursor: 'pointer' }}
+            css-display="inline-flex"
+            css-align-items="center"
+            css-justify-content="center"
+            css-width="28"
+            css-height="28"
+            css-background="transparent"
+            css-border-color="border"
+            css-color="text"
+            css-cursor="pointer"
+            rounded="base"
+            border="all"
           >
             <Pencil size={14} aria-hidden="true" />
-          </button>
+          </PlainButton>
         </Tooltip>
       }
     />
@@ -99,13 +94,7 @@ function WorkspaceRow(props: {
 
 // `selected` is the page's workspace; `onSelect` tells the page which one the
 // other views read. `onListChange` hands the page each fresh catalog.
-export default function WorkspaceView(
-  props: {
-    selected?: string | null
-    onSelect?: (id: string | null) => void
-    onListChange?: (list: WorkspaceList) => void
-  } = {},
-) {
+export default function WorkspaceView(props: { selected?: string | null; onSelect?: (id: string | null) => void; onListChange?: (list: WorkspaceList) => void } = {}) {
   const { onSelect, onListChange } = props
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
@@ -209,34 +198,40 @@ export default function WorkspaceView(
     })
 
   return (
-    <section aria-labelledby="avoozl-workspace-title" className="flex flex-col gap-3.5">
-      <h2 id="avoozl-workspace-title" className="text-lg font-semibold">
+    <Box aria-labelledby="avoozl-workspace-title" as="section" flex flexCol gap="3.5">
+      <Box id="avoozl-workspace-title" as="h2" size="lg" weight="semibold">
         Workspace
-      </h2>
+      </Box>
       {error && (
         <ErrorText role="alert" size="sm">
           {error}
         </ErrorText>
       )}
-      <p role="status" className="sr-only">
+      <Box role="status" as="p" srOnly>
         {busy ? 'Working…' : ''}
-      </p>
+      </Box>
 
       <Card>
         <Row gap={2}>
-          <SectionHeading title={`Your workspaces (${list?.items.length ?? 0})`} className="mb-0" />
-          <span className="flex-1" />
+          <SectionHeading title={`Your workspaces (${list?.items.length ?? 0})`} mb="0" />
+          <Box as="span" flex1 />
           <Btn type="button" primary data-add-workspace onClick={() => setDialog('add')}>
             <Plus size={14} aria-hidden="true" /> Add a workspace
           </Btn>
         </Row>
-        <p className="mt-1 text-sm text-muted">The workspaces on this computer. The one you pick is the one the other tabs show.</p>
+        <Box as="p" mt="1" size="sm" tone="muted">
+          The workspaces on this computer. The one you pick is the one the other tabs show.
+        </Box>
         {list === null ? (
-          <p className="mt-2 text-sm text-muted">Loading…</p>
+          <Box as="p" mt="2" size="sm" tone="muted">
+            Loading…
+          </Box>
         ) : list.items.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">No workspaces yet. Add one.</p>
+          <Box as="p" mt="2" size="sm" tone="muted">
+            No workspaces yet. Add one.
+          </Box>
         ) : (
-          <ul className="mt-2 flex flex-col">
+          <Box as="ul" mt="2" flex flexCol>
             {list.items.map((workspace) => (
               <WorkspaceRow
                 key={workspace.id}
@@ -246,13 +241,13 @@ export default function WorkspaceView(
                 onEdit={() => openEdit(workspace)}
               />
             ))}
-          </ul>
+          </Box>
         )}
-        <div className="mt-3">
+        <Box mt="3">
           <Btn onClick={() => void loadList()} disabled={busy}>
             Refresh
           </Btn>
-        </div>
+        </Box>
       </Card>
 
       {dialog === 'add' && (
@@ -287,43 +282,37 @@ export default function WorkspaceView(
           )}
           <Stack
             id="avoozl-ws-form"
-            as="form" gap={2}
+            as="form"
+            gap={2}
             onSubmit={(event) => {
               event.preventDefault()
               void submitWorkspace('add')
             }}
           >
-            <FolderField
-              id="avoozl-ws-root"
-              label="Folder"
-              value={draft.root}
-              placeholder="~/plans"
-              required
-              client={client}
-              onChange={(root) => setDraft({ ...draft, root })}
-            />
-            <Field
-              id="avoozl-ws-id"
-              label="Short ID"
-              value={draft.id}
-              placeholder="my-plans"
-              required
-              onChange={(id) => setDraft({ ...draft, id })}
-            />
+            <FolderField id="avoozl-ws-root" label="Folder" value={draft.root} placeholder="~/plans" required client={client} onChange={(root) => setDraft({ ...draft, root })} />
+            <Field id="avoozl-ws-id" label="Short ID" value={draft.id} placeholder="my-plans" required onChange={(id) => setDraft({ ...draft, id })} />
             <Field id="avoozl-ws-name" label="Name (optional)" value={draft.name} onChange={(name) => setDraft({ ...draft, name })} />
-            <h4 className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted" data-add-how>
+            <Box as="h4" mt="2" size="xs" weight="semibold" uppercase trackingWide tone="muted" data-add-how>
               How to add:
-            </h4>
-            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 15rem), 1fr))' }}>
-              <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="add">
-                <span className="text-sm font-medium">Add existing</span>
-                <Hint as="p" size="xs">The folder already has Avoozl specs (an .avoozl.json and its database). Avoozl lists it; nothing in it changes.</Hint>
-              </div>
-              <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="init">
-                <span className="text-sm font-medium">Start new</span>
-                <Hint as="p" size="xs">Creates an empty workspace in the folder: an .avoozl.json and a new database. Refused if one is already there.</Hint>
-              </div>
-            </div>
+            </Box>
+            <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-15rem-1fr" grid gap="2">
+              <Box css-border-color="border" flex flexCol gap="1.5" rounded="base" border="all" p="3" data-choice="add">
+                <Box as="span" size="sm" weight="medium">
+                  Add existing
+                </Box>
+                <Hint as="p" size="xs">
+                  The folder already has Avoozl specs (an .avoozl.json and its database). Avoozl lists it; nothing in it changes.
+                </Hint>
+              </Box>
+              <Box css-border-color="border" flex flexCol gap="1.5" rounded="base" border="all" p="3" data-choice="init">
+                <Box as="span" size="sm" weight="medium">
+                  Start new
+                </Box>
+                <Hint as="p" size="xs">
+                  Creates an empty workspace in the folder: an .avoozl.json and a new database. Refused if one is already there.
+                </Hint>
+              </Box>
+            </Box>
           </Stack>
         </Modal>
       )}
@@ -343,7 +332,18 @@ export default function WorkspaceView(
           footer={
             <>
               {/* Remove sits at the footer's left, red; it asks first. */}
-              <Button type="button" variant="danger" data-remove-workspace onClick={() => setDialog({ remove: current.id })} disabled={busy} style={{ order: -1, marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Button
+                type="button"
+                variant="danger"
+                data-remove-workspace
+                onClick={() => setDialog({ remove: current.id })}
+                disabled={busy}
+                css-order={-1}
+                css-margin-right="auto"
+                css-display="inline-flex"
+                css-align-items="center"
+                css-gap="6"
+              >
                 <Trash2 size={14} aria-hidden="true" />
                 Remove
               </Button>
@@ -359,7 +359,8 @@ export default function WorkspaceView(
           <Stack
             id="avoozl-ws-edit-form"
             data-edit-form
-            as="form" gap={3}
+            as="form"
+            gap={3}
             onSubmit={(event) => {
               event.preventDefault()
               saveEdit()
@@ -368,17 +369,17 @@ export default function WorkspaceView(
             <FormSection title="Workspace">
               <Field id="avoozl-ws-edit-name" label="Name" value={edit.name} required onChange={(name) => setEdit({ ...edit, name })} />
               <FolderField id="avoozl-ws-edit-root" label="Folder" value={edit.root} required client={client} onChange={(root) => setEdit({ ...edit, root })} />
-              <Hint as="p" size="xs">Change it after you move the folder. The new folder must hold this workspace.</Hint>
+              <Hint as="p" size="xs">
+                Change it after you move the folder. The new folder must hold this workspace.
+              </Hint>
             </FormSection>
             <FormSection title="Running">
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox data-edit-enabled checked={edit.enabled} onChange={(event) => setEdit({ ...edit, enabled: event.target.checked })} />
+              <Switch data-edit-enabled label="On" size="sm" checked={edit.enabled} onChange={(on) => setEdit({ ...edit, enabled: on })}>
                 On (ticks run and pages read it)
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox data-edit-default checked={edit.default} disabled={isDefault} onChange={(event) => setEdit({ ...edit, default: event.target.checked })} />
+              </Switch>
+              <Switch data-edit-default label="Default workspace" size="sm" checked={edit.default} disabled={isDefault} onChange={(on) => setEdit({ ...edit, default: on })}>
                 {isDefault ? 'The default workspace' : 'Make it the default workspace'}
-              </label>
+              </Switch>
             </FormSection>
             {editCheck.error && (
               <ErrorText size="sm" data-edit-error>
@@ -422,13 +423,13 @@ export default function WorkspaceView(
             </>
           }
         >
-          <ul id="avoozl-ws-remove-lines" className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }} data-remove-lines>
+          <Box id="avoozl-ws-remove-lines" as="ul" css-list-style="disc" flex flexCol gap="1" pl="5" size="sm" data-remove-lines>
             {removeLines(removing).map((line) => (
-              <li key={line} style={{ overflowWrap: 'anywhere' }}>
+              <Box key={line} as="li" css-overflow-wrap="anywhere">
                 {line}
-              </li>
+              </Box>
             ))}
-          </ul>
+          </Box>
           {error && (
             <ErrorText role="alert" size="sm">
               {error}
@@ -436,6 +437,6 @@ export default function WorkspaceView(
           )}
         </Modal>
       )}
-    </section>
+    </Box>
   )
 }

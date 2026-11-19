@@ -27,6 +27,9 @@ import { bindContentRules } from "../content-rules.mjs";
 import { planReviewSummary } from "../plan-review-summary.mjs";
 import { listSpecReviewRounds } from "../plan-reviews.mjs";
 import { recordFindingDecision } from "../review-findings.mjs";
+import { finishProcessSession } from "../executors/process.mjs";
+import { parseHarnessDefinition } from "../harness-definitions.mjs";
+import { sessionServedModel } from "../process-view.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -87,7 +90,10 @@ function setup(t, { writer = true, rounds = 1, mode = "auto" } = {}) {
   recordPlanReviewWriter(store, plan, writer ? as("writer") : {});
   const counts = { prepared: 0, removed: 0 },
     config = {
-      models: { planReviewer: "fake-reviewer", planner: "fake-writer" },
+      roles: {
+        planReviewer: { model: "fake-reviewer" },
+        planner: { model: "fake-writer" },
+      },
       planReview: { mode, rounds },
     };
   const options = {
@@ -174,7 +180,7 @@ test("a settled stored revision gets one read-only request and keeps its exact w
 
 test("a harness saved for the plan reviewer is the one its request names", async (t) => {
   const env = setup(t);
-  env.options.config.roles = { planReviewer: { harness: "codex" } };
+  env.options.config.roles.planReviewer.harness = "codex";
   await env.step();
   const [request] = (await env.step()).requests;
   assert.equal(request.role, "plan-review");
@@ -197,7 +203,7 @@ test("off changes no plan or review state; unknown writers and same-model pairs 
   );
   assert.equal(unknown.counts.prepared, 0);
   const same = setup(t);
-  same.options.config.models = { planReviewer: "fake-writer" };
+  same.options.config.roles.planReviewer.model = "fake-writer";
   await same.step();
   await same.step();
   assert.match(same.store.list("review_rounds")[0].note, /same as/);
@@ -858,4 +864,236 @@ test("a person's Accept starts one planner turn outside the rounds cap; Review a
   );
   assert.match(again.round.note, /Dropped 1 finding/);
   assert.equal(env.store.list("approvals").length, 0);
+});
+
+// nk-3.1 (NK3.3, NK5.1, NK5.2): plan review as a `process` child. Its
+// findings come from its output file, are recorded as this session through
+// plans_submit_review's own checks, and count only with a served model the
+// harness output names.
+async function childReview(t, served, findings = [finding()]) {
+  const env = setup(t);
+  await env.step();
+  const [request] = (await env.step()).requests;
+  const slot = "process-review-" + Math.random().toString(36).slice(2);
+  await env.ops.execute("session.bind", {
+    slot,
+    taskId: request.task,
+    role: request.role,
+    attempt: request.attempt,
+    context: request.context,
+  });
+  const folder = temporaryDirectory("avoozl-review-child-");
+  fs.mkdirSync(path.join(folder, ".avoozl", "output"), { recursive: true });
+  fs.writeFileSync(
+    path.join(folder, ".avoozl", "output", "review.json"),
+    JSON.stringify({ findings, summary: "The plan reads a file." }),
+  );
+  const binding = env.store.get("session_bindings", slot),
+    result = {
+      state: "done",
+      text: "",
+      output: "review.json",
+      worktree: folder,
+      ...(served ? { served } : {}),
+    };
+  const run = () => finishProcessSession(env.ops, binding, result, env.store);
+  return {
+    env,
+    request,
+    run,
+    round: () => env.store.get("review_rounds", request.task),
+  };
+}
+
+test("a child's review with a served model records the round as a chat's does", async (t) => {
+  const { run, round, env } = await childReview(t, "fake-reviewer");
+  await run();
+  assert.equal(round().state, "done");
+  assert.equal(round().reviewerModel, "fake-reviewer");
+  const threads = env.store
+    .list("review_threads")
+    .filter((thread) => thread.roundId === round().id);
+  assert.equal(threads.length, 1);
+  assert.equal(threads[0].claim, "The named helper is absent.");
+});
+
+test("with no served model the round is skipped with today's reason", async (t) => {
+  const { run, round } = await childReview(t, null);
+  await assert.rejects(run(), /no proven reported model/);
+  assert.equal(round().state, "skipped");
+  assert.match(
+    round().note ?? round().reason ?? JSON.stringify(round()),
+    /no proven reported model/,
+  );
+});
+
+test("a child review by the model that wrote the plan is refused", async (t) => {
+  const { run, round } = await childReview(t, "fake-writer");
+  await assert.rejects(run(), /model that wrote this revision/);
+  assert.equal(round().state, "skipped");
+});
+
+test("findings over the tool's limit are refused", async (t) => {
+  const many = Array.from({ length: 51 }, () => finding());
+  const { run, round } = await childReview(t, "fake-reviewer", many);
+  await assert.rejects(run(), /at most 50/);
+  assert.equal(round().state, "running");
+});
+
+test("servedModel reads a model name, or one model key, from the harness output", (t) => {
+  const definition = parseHarnessDefinition({
+    name: "x",
+    start: ["x"],
+    resume: ["x"],
+    promptFrom: "stdin",
+    permission: { write: "w", read: "r" },
+    servedModel: { from: "output", field: "modelUsage" },
+  });
+  const log = path.join(temporaryDirectory("avoozl-served-"), "log");
+  const read = (lines) => {
+    fs.writeFileSync(log, lines.join("\n") + "\n");
+    return sessionServedModel({ log_file: log }, definition);
+  };
+  assert.equal(
+    read(['{"modelUsage": {"model-a": {"inputTokens": 1}}}']),
+    "model-a",
+  );
+  assert.equal(read(['{"modelUsage": {"model-a": {}, "model-b": {}}}']), null);
+  assert.equal(read(["no json here"]), null);
+  assert.equal(sessionServedModel({ log_file: log }, { name: "y" }), null);
+  assert.throws(
+    () =>
+      parseHarnessDefinition({
+        name: "x",
+        start: ["x"],
+        resume: ["x"],
+        promptFrom: "stdin",
+        permission: { write: "w", read: "r" },
+        servedModel: { from: "file", path: "/x" },
+      }),
+    /servedModel must be/,
+  );
+});
+// nk-3.2 (NK5.1, NK5.3): the plan answer as a `process` child. It edits only
+// its spec folder; on exit Avoozl stores the revision as this session's and
+// records each answer from its report.
+async function childAnswer(t) {
+  const env = setup(t);
+  env.options.config.roles.planAnswer = { harness: "fake-cli" };
+  await env.step();
+  const [review] = (await env.step()).requests;
+  await env.bind(review, "reviewer", "fake-reviewer");
+  const submitted = await env.ops.execute(
+    "plan.review.submit",
+    {
+      planId: env.plan.id,
+      revisionHash: env.plan.hash,
+      findings: [finding()],
+    },
+    undefined,
+    as("reviewer"),
+  );
+  const [answer] = (await env.step()).requests;
+  assert.equal(answer.role, "plan-answer");
+  assert.equal(answer.executor, "process");
+  assert.equal(answer.permissionClass, "write");
+  // Its folder, and so its one write root, is the spec folder alone.
+  assert.equal(
+    answer.worktree,
+    path.join(env.root, ".kiro", "specs", "reader"),
+  );
+  const slot = "process-answer-" + Math.random().toString(36).slice(2);
+  await env.ops.execute("session.bind", {
+    slot,
+    taskId: answer.task,
+    role: answer.role,
+    attempt: answer.attempt,
+    permissionClass: answer.permissionClass,
+    worktree: answer.worktree,
+  });
+  const binding = env.store.get("session_bindings", slot);
+  const finish = (answers) =>
+    finishProcessSession(
+      env.ops,
+      binding,
+      { state: "done", text: "", report: { answers } },
+      env.store,
+    );
+  return { env, review, answer, thread: submitted.threads[0], finish, binding };
+}
+
+test("a child's fixed answer is recorded against the revision it wrote", async (t) => {
+  const { env, thread, finish } = await childAnswer(t);
+  const before = env.store.get("plans", env.plan.id).hash;
+  env.edit("# Design\n\nUse a real file.\n");
+  await finish([
+    { id: thread.id, action: "fixed", text: "Named a real file." },
+  ]);
+  const plan = env.store.get("plans", env.plan.id),
+    answered = env.store.get("review_threads", thread.id).answer;
+  assert.notEqual(plan.hash, before);
+  assert.equal(answered.action, "fixed");
+  assert.equal(answered.revisionHash, plan.hash);
+});
+
+test("a child that changed nothing may answer with reasons only", async (t) => {
+  const { env, thread, finish } = await childAnswer(t);
+  await assert.rejects(
+    finish([{ id: thread.id, action: "fixed", text: "Fixed it." }]),
+    /stored revision this planner wrote/,
+  );
+  await finish([
+    {
+      id: thread.id,
+      action: "answered",
+      text: "The file is created by task 1.1.",
+    },
+  ]);
+  assert.equal(
+    env.store.get("review_threads", thread.id).answer.action,
+    "answered",
+  );
+});
+
+test("an answer for a spec approved meanwhile changes no file", async (t) => {
+  const { env, thread, finish, binding } = await childAnswer(t);
+  const stored = env.store.get("plans", env.plan.id);
+  fs.mkdirSync(binding.worktree, { recursive: true });
+  fs.writeFileSync(
+    path.join(binding.worktree, "design.md"),
+    "# Design\n\nChanged.\n",
+  );
+  env.store.put("plans", { ...stored, state: "approved" });
+  await finish([
+    { id: thread.id, action: "answered", text: "Left for the person." },
+  ]);
+  assert.equal(
+    fs.readFileSync(path.join(binding.worktree, "design.md"), "utf8"),
+    stored.files["design.md"],
+  );
+  assert.equal(env.store.get("plans", env.plan.id).hash, stored.hash);
+});
+
+test("a child's folder with new lint errors stores nothing and opens one decision", async (t) => {
+  const { env, thread, finish } = await childAnswer(t);
+  const before = env.store.get("plans", env.plan.id).hash,
+    good = env.getFolder(),
+    files = {
+      ...good.files,
+      "tasks.md":
+        "# Tasks\n\n- [ ] 1.1 Read the file\n- [ ] 1.1 Read it again\n",
+    };
+  env.ops.readSpec = () => ({ ...good, files, hash: specHash(files) });
+  await assert.rejects(
+    finish([{ id: thread.id, action: "fixed", text: "Split the task." }]),
+    /lint error/,
+  );
+  assert.equal(env.store.get("plans", env.plan.id).hash, before);
+  assert.equal(env.store.get("review_threads", thread.id).answer, undefined);
+  const decisions = env.store
+    .list("app_notifications")
+    .filter(
+      (row) => row.payload.title === "The answer for reader left lint errors",
+    );
+  assert.equal(decisions.length, 1);
 });

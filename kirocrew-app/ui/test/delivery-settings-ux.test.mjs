@@ -23,9 +23,12 @@ after(async () => {
 })
 
 const wait = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (selector, text) => `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].filter((x) => x.textContent.trim() === ${JSON.stringify(text)}).at(-1); if (b) b.click(); return Boolean(b) })()`
+const click = (selector, text) =>
+  `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].filter((x) => x.textContent.trim() === ${JSON.stringify(text)}).at(-1); if (b) b.click(); return Boolean(b) })()`
 const set = (selector, value) =>
-  page.evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true })); return true })()`)
+  page.evaluate(
+    `(() => { const el = document.querySelector(${JSON.stringify(selector)}); const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true })); return true })()`,
+  )
 const text = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)})?.textContent ?? null`)
 
 async function openDelivery(width) {
@@ -34,7 +37,9 @@ async function openDelivery(width) {
   const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   await wait(200)
-  await page.evaluate(`(() => { const b = [...document.querySelectorAll('${scope} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return true })()`)
+  await page.evaluate(
+    `(() => { const b = [...document.querySelectorAll('${scope} [data-nav-head]')].find((x) => x.textContent.includes('Settings')); if (b && !b.hasAttribute('data-open')) b.click(); return true })()`,
+  )
   await wait(200)
   if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   assert.ok(await page.evaluate(click(`${scope} [data-nav-item]`, 'Delivery')), 'Delivery nav item')
@@ -45,14 +50,13 @@ for (const width of [1280, 390]) {
   test(`Delivery fields name their default, reset and disable with a reason at ${width} px`, { skip }, async () => {
     await openDelivery(width)
     // Every field row says what a blank value uses.
-    for (const id of ['investigate', 'confidence', 'rounds'])
-      assert.match((await text(`[data-field-row="avoozl-delivery-${id}"] [data-field-default]`)) ?? '', /^Default: /, id)
+    for (const id of ['investigate', 'confidence', 'rounds']) assert.match((await text(`[data-field-row="avoozl-delivery-${id}"] [data-field-default]`)) ?? '', /^Default: /, id)
     // The fixture saves 3 rounds: an override, so Reset shows and clears it.
     assert.equal(await text('[data-field-reset="avoozl-delivery-rounds"]'), 'Reset to default (5)')
     await page.evaluate(`document.querySelector('[data-field-reset="avoozl-delivery-rounds"]').click()`)
     await page.until(`document.getElementById('avoozl-delivery-rounds').value === '' && !document.querySelector('[data-field-reset="avoozl-delivery-rounds"]')`)
     // Feedback off disables the rounds box and says why.
-    await page.evaluate(`document.querySelector('[data-check-row="delivery.prFeedback"] input').click()`)
+    await page.evaluate(`document.querySelector('[data-check-row="delivery.prFeedback"] [role="switch"]').click()`)
     await page.until(`document.getElementById('avoozl-delivery-rounds').disabled`)
     assert.match((await text('[data-field-row="avoozl-delivery-rounds"] [data-field-help]')) ?? '', /Off while pull request feedback is off/)
     // Investigate Off disables Sure enough at and says why.

@@ -86,8 +86,7 @@ export function ago(at: string | null | undefined, now = Date.now()): string {
 export function chipText(spec: DriverSpec | null | undefined, now = Date.now()): string {
   if (!spec) return 'Driver: unknown'
   if (spec.you) return 'Driver: you'
-  if (spec.mode === 'local')
-    return `Driver: ${spec.driver?.label || spec.driver?.machine || 'another machine'} · this file`
+  if (spec.mode === 'local') return `Driver: ${spec.driver?.label || spec.driver?.machine || 'another machine'} · this file`
   const who = spec.driver
   if (!who || ['no-assignee', 'several'].includes(spec.reason)) return 'Driver: nobody'
   const name = [who.login, who.label].filter(Boolean).join(' · ')
@@ -175,8 +174,7 @@ export function driverClient(api: AppApi) {
     api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId }).then((reply) => reply.result)
   return {
     status: (workspaceId: string, planId?: string) => run<DriverStatus>(workspaceId, 'driver.status', planId ? { planId } : {}),
-    preview: (workspaceId: string, planId: string, rebuild: boolean) =>
-      run<TakeoverPreview>(workspaceId, 'driver.takeover.preview', { planId, rebuild }),
+    preview: (workspaceId: string, planId: string, rebuild: boolean) => run<TakeoverPreview>(workspaceId, 'driver.takeover.preview', { planId, rebuild }),
     handoff: (workspaceId: string, planId: string, action: 'start' | 'export' | 'cancel', extra: { folder?: string; unfinished?: boolean } = {}) =>
       run<DriverStatus & { file?: string }>(workspaceId, 'driver.handoff', { planId, action, ...extra }),
     takeover: (workspaceId: string, planId: string, how: { file?: string; rebuild?: boolean }) =>
@@ -192,7 +190,6 @@ export function driverClient(api: AppApi) {
         ...(file ? { file } : { acknowledgeLoss: true }),
       }),
     decideAway: (workspaceId: string, taskId: string, choice: 'start' | 'wait') => run(workspaceId, 'driver.away.decide', { taskId, choice }),
-    saveMachine: (workspaceId: string, input: { label: string | null; heartbeatMinutes: number | null }) =>
-      run<DriverStatus>(workspaceId, 'driver.settings.update', input),
+    saveMachine: (workspaceId: string, input: { label: string | null; heartbeatMinutes: number | null }) => run<DriverStatus>(workspaceId, 'driver.settings.update', input),
   }
 }

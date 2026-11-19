@@ -233,7 +233,7 @@ test("a fact breaking the task schema is refused at its Facts line", () => {
     text = [
       "- [ ] 1.1 Read the config file",
       "  - Facts:",
-      "    - checks: npm test",
+      "    - completion: integrated",
       "",
     ].join("\n");
   writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
@@ -490,8 +490,8 @@ test("re-approval marks only the changed entry for review", async (t) => {
     fs
       .readFileSync(tasksFile, "utf8")
       .replace(
-        "summary: Report unknown keys.",
-        "summary: Report unknown keys and bad types.",
+        "    - Report unknown keys.",
+        "    - Report unknown keys and bad types.",
       ),
   );
   await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
@@ -511,7 +511,7 @@ test("re-approval marks only the changed entry for review", async (t) => {
   // Needs you can show what changed: the task text as last reviewed is kept.
   const tasks = ops.read().tasks;
   const prior = tasks.find((task) => task.id === "config.1.2").reviewPrior;
-  assert.notEqual(prior.summary, "Report unknown keys and bad types.");
+  assert.equal(prior.summary, "- Report unknown keys.");
   assert.ok(prior.title);
   assert.equal(
     tasks.find((task) => task.id === "config.1.1").reviewPrior,
@@ -588,8 +588,8 @@ test("nesting under a leaf, or a parent fact, is refused at its line", () => {
   ]);
   const named = temporaryDirectory(),
     parented = specFiles()["tasks.md"].replace(
-      "      - summary: Parse",
-      "      - parent: 1\n      - summary: Parse",
+      "    - Facts:\n      - done:\n        - A missing",
+      "    - Facts:\n      - parent: 1\n      - done:\n        - A missing",
     );
   writeSpec(named, "config", { "tasks.md": parented });
   const result = lint(named);
@@ -794,7 +794,7 @@ const legacySpec = (ids = ["config-load", "config-check"]) => ({
         id,
         {
           kind: "leaf",
-          summary: `Do ${id}.`,
+          summary: `Handle the ${id} step of the loader.`,
           acceptance: [`${id} passes.`],
           checks: ["npm test"],
           ...(index ? { requires: [ids[0]] } : {}),
@@ -1145,7 +1145,7 @@ test("lettered IDs such as P1 and P2b are namespaced like numbers", async (t) =>
   );
 });
 
-test("an item over the title limit keeps its first clause as the title", () => {
+test("an item's whole line is its title, and one over the limit is refused", () => {
   const root = temporaryDirectory(),
     files = specFiles(),
     long =
@@ -1156,20 +1156,22 @@ test("an item over the title limit keeps its first clause as the title", () => {
   writeSpec(root, "config", {
     "tasks.md": files["tasks.md"].replace("1.2 Validate loaded config", item),
   });
-  const result = lint(root),
-    proposal = result.proposals.find((p) => p.id === "config.1.2");
-  assert.deepEqual(codes(result), []);
-  assert.equal(proposal.title, "Add the `a, b` reader");
-  assert.equal(proposal.summary, `${long.trim()}\n\nReport unknown keys.`);
-  // No clause break inside the limit: cut at a word, marked as cut.
-  writeSpec(root, "plain", {
+  assert.deepEqual(codes(lint(root)), [
+    `task.title-length tasks.md:${lineOf(files["tasks.md"], "1.2 Validate")}`,
+  ]);
+  const fits =
+    "Add the `a, b` reader: it reads every file and reports each problem.";
+  writeSpec(root, "fits", {
     "tasks.md": files["tasks.md"].replace(
       "1.2 Validate loaded config",
-      "1.2 " + "word ".repeat(80).trim(),
+      `1.2 ${fits}`,
     ),
   });
-  const plain = lint(root, "plain").proposals.find((p) => p.id === "plain.1.2");
-  assert.ok(plain.title.length <= 240 && plain.title.endsWith("word…"));
+  const proposal = lint(root, "fits").proposals.find(
+    (p) => p.id === "fits.1.2",
+  );
+  assert.equal(proposal.title, fits);
+  assert.equal(proposal.summary, "- Report unknown keys.");
 });
 
 // The planner's batch groups (R108.1–R108.3, §4.37): members name the group
@@ -1211,10 +1213,10 @@ test("a malformed batch group is an error in tasks.md", () => {
       { 1.1: "bad id", 1.2: "bad id" },
       /needs an ID|front-matter/,
     ],
-    ["batch-g: x", { 1.1: "g" }, /lists 2 to 5 different/],
+    ["batch-g: x", { 1.1: "g" }, /lists 2 or more different/],
     ["batch-g: x", { 1: "g", 1.1: "g" }, /names "1", which is not a leaf/],
     [null, { 1.1: "g", 1.2: "g" }, /Batch "g" has no reason/],
-    ["batch-g: x", {}, /lists 2 to 5 different/],
+    ["batch-g: x", {}, /lists 2 or more different/],
   ];
   for (const [front, members, message] of cases) {
     const root = temporaryDirectory();

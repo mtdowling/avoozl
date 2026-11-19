@@ -1,3 +1,4 @@
+import path from "node:path";
 import { roleRun } from "./role-table.mjs";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
@@ -119,13 +120,7 @@ export function decidePlanReview(
   return entry;
 }
 
-export function planReviewBrief(
-  store,
-  plan,
-  round,
-  resources,
-  otherSpecs = [],
-) {
+function planReviewBrief(store, plan, round, resources, otherSpecs = []) {
   const earlier = listSpecReviewRounds(store, { planId: plan.id })
     .items.filter(
       (entry) => entry.pass === round.pass && entry.round < round.round,
@@ -176,7 +171,7 @@ export function planReviewBrief(
 }
 
 // The person's decisions on a pass's findings, as data for the next turn.
-export function personDecisions(store, planId, pass) {
+function personDecisions(store, planId, pass) {
   const rounds = new Set(
       listSpecReviewRounds(store, { planId })
         .items.filter((entry) => entry.pass === pass)
@@ -218,7 +213,7 @@ export function personDecisions(store, planId, pass) {
   return out;
 }
 
-export function planAnswerBrief(
+function planAnswerBrief(
   store,
   plan,
   round,
@@ -325,12 +320,7 @@ async function cleanFinished(store, remove, notify) {
 function stopUnclaimedReviews(store) {
   store.transaction(() => {
     for (const round of listSpecReviewRounds(store).items) {
-      if (
-        round.state !== "running" ||
-        round.slot ||
-        store.list("runs").some((run) => run.review?.roundId === round.id)
-      )
-        continue;
+      if (round.state !== "running" || round.slot) continue;
       const requests = store
         .list("session_requests")
         .filter(
@@ -599,15 +589,20 @@ export async function planReviewStep(
             }
           : {}),
       });
+    // A `process` child gets one write root, the spec folder it answers
+    // for, never the planning checkout with its git directory (NK5.3).
+    const run = roleRun("planAnswer", { config });
     out.requests.push(
       requestFor(
         round,
         "plan-answer",
-        planningRoot,
+        run.executor === "process"
+          ? path.join(planningRoot, ".kiro", "specs", plan.spec)
+          : planningRoot,
         brief,
         chatModel(config, "planner"),
         permissionClass,
-        roleRun("planAnswer", { config }),
+        run,
         plan.hash,
         round.round + turn,
       ),

@@ -4,6 +4,8 @@
 // a page folds, so none has its own arrow or header.
 import { useId, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight } from './icons.ts'
+import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export function SnippetBox(props: {
   title: ReactNode
@@ -24,21 +26,38 @@ export function SnippetBox(props: {
   }
   return (
     <div className="rounded border text-xs" style={{ borderColor: 'var(--border)' }} data-snippet data-open={open ? 'true' : 'false'} {...(props.attr ? { [props.attr]: '' } : {})}>
-      <div className="flex flex-wrap items-center gap-2 px-2 py-1">
-        <button
+      <Box flex flexWrap items="center" gap="2" px="2" py="1">
+        <PlainButton
           type="button"
           aria-expanded={open}
           aria-controls={body}
           onClick={toggle}
           data-snippet-toggle
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
-          style={{ background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer', overflowWrap: 'anywhere' }}
+          css-background="none"
+          css-border="0"
+          css-padding="0"
+          css-color="inherit"
+          css-font="inherit"
+          css-cursor="pointer"
+          css-overflow-wrap="anywhere"
+          flex
+          minW0
+          flex1
+          items="center"
+          gap="1.5"
+          align="left"
         >
           <Chevron size={13} aria-hidden="true" className="shrink-0" />
-          <span className="min-w-0">{props.title}</span>
-        </button>
-        {props.action && <span className="ml-auto flex-none">{props.action}</span>}
-      </div>
+          <Box as="span" minW0>
+            {props.title}
+          </Box>
+        </PlainButton>
+        {props.action && (
+          <Box as="span" ml="auto" flexNone>
+            {props.action}
+          </Box>
+        )}
+      </Box>
       <div id={body} hidden={!open}>
         {open && props.children}
       </div>

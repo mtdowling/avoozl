@@ -165,11 +165,10 @@ export interface PanelInput {
 // Items a person settles. Local worker items (a stale session, a delivery
 // decision, findings, a hand-set review, Integrate) are not here: local
 // workers are retired.
-const WAITING_KINDS = new Set(['needs-human', 'github-conflict', 'tracker-conflict', 'review', 'ready-to-merge', 'branch-landing', 'content-match', 'content-unavailable'])
+const WAITING_KINDS = new Set(['needs-human', 'github-conflict', 'review', 'ready-to-merge', 'branch-landing', 'content-match', 'content-unavailable'])
 const LABELS: Record<string, string> = {
   'needs-human': 'Needs you',
   'github-conflict': 'GitHub edit',
-  'tracker-conflict': 'Tracker edit',
   review: 'Review',
   'ready-to-merge': 'Ready to merge',
   'branch-landing': 'Ready to land',
@@ -269,7 +268,10 @@ export function panelModel(input: PanelInput): PanelModel {
   if (input.queue) {
     const rows = input.queue.repositories.flatMap((repo) => repo.rows.map((row) => ({ repo, row })))
     queue = {
-      head: rows.filter((entry) => entry.row.state === 'next').slice(0, 3).map(({ repo, row }) => ({ taskId: row.taskId, title: row.title, repository: repo.repository, reason: row.reason })),
+      head: rows
+        .filter((entry) => entry.row.state === 'next')
+        .slice(0, 3)
+        .map(({ repo, row }) => ({ taskId: row.taskId, title: row.title, repository: repo.repository, reason: row.reason })),
       next: rows.filter((entry) => entry.row.state === 'next').length,
       claimed: rows.filter((entry) => entry.row.state === 'claimed').length,
       held: rows.filter((entry) => entry.row.state === 'held').length,
@@ -300,7 +302,7 @@ export function shortAgo(at: string | null | undefined, now = Date.now()): strin
 // A pull request's check state as a row shows it: a word for the tooltip and
 // a tone for the chip.
 export function checkLabel(check: PanelChecks | null | undefined): { text: string; tone: 'ok' | 'danger' | 'warn' | 'muted'; tip: string } {
-  if (!check) return { text: '?', tone: 'muted', tip: 'Avoozl could not read this pull request\'s checks.' }
+  if (!check) return { text: '?', tone: 'muted', tip: "Avoozl could not read this pull request's checks." }
   if (check.state === 'failing') return { text: `✗ ${check.failed.length}`, tone: 'danger', tip: `Failing: ${check.failed.join(', ')}.` }
   if (check.state === 'pending') return { text: `… ${check.done}/${check.total}`, tone: 'warn', tip: `${check.done} of ${check.total} checks done.` }
   if (check.state === 'passing') return { text: `✓ ${check.total}`, tone: 'ok', tip: `All ${check.total} checks passed.` }
@@ -328,12 +330,7 @@ export type PanelPick = { id: string | null; why: 'folder' | 'last' | 'default' 
 // the chat's project folder (the longest matching root wins); the page's
 // last workspace; the catalog's default. Only a workspace still in the
 // catalog counts.
-export function pickPanelWorkspace(input: {
-  project: string | null
-  workspaces: (PanelWorkspace & { root: string })[]
-  last: string | null
-  fallback: string | null
-}): PanelPick {
+export function pickPanelWorkspace(input: { project: string | null; workspaces: (PanelWorkspace & { root: string })[]; last: string | null; fallback: string | null }): PanelPick {
   const known = (id: string | null) => Boolean(id && input.workspaces.some((w) => w.id === id))
   if (input.project) {
     let best: { id: string; length: number } | null = null

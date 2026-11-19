@@ -23,7 +23,8 @@ after(async () => {
 })
 
 const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 60))')
-const center = (selector) => page.evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
+const center = (selector) =>
+  page.evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
 const tip = () => page.evaluate(`[...(document.querySelector('[data-tooltip]')?.childNodes ?? [])].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('') || null`)
 const open = async (dark = false) => {
   await page.open(harness.url({ page: 'tip', theme: dark ? 'dark' : 'light' }), { width: 390, height: 700, dark })
@@ -53,7 +54,9 @@ for (const dark of [false, true])
     // The tip is inside the screen.
     await tap('[data-info-tip]')
     assert.equal(await tip(), 'Details that do not fit on the page')
-    const box = await page.evaluate(`(() => { const r = document.querySelector('[data-tooltip]').getBoundingClientRect(); return { left: r.left, right: r.right, width: innerWidth } })()`)
+    const box = await page.evaluate(
+      `(() => { const r = document.querySelector('[data-tooltip]').getBoundingClientRect(); return { left: r.left, right: r.right, width: innerWidth } })()`,
+    )
     assert.ok(box.left >= 0 && box.right <= box.width, 'inside the viewport')
   })
 

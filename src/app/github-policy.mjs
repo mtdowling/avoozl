@@ -1,5 +1,5 @@
 import { kirocrewSessionSettings } from "./executors/kirocrew.mjs";
-import { LANDING_MODES } from "./landing-config.mjs";
+import { LANDING_MODES, landingMode } from "./landing-config.mjs";
 // Repository policy in `.avoozl.json` (design §4.4): GitHub mode, task
 // authority, the Project, and per-repository rules that map labels to fixed
 // actions. No label name is built in. Validation is deterministic; the one
@@ -50,7 +50,7 @@ export const FIELD_KEYS = Object.freeze([
 ]);
 // GitHub links at most 100 sub-issues under one parent, closed ones
 // included (design §6.9 Limits).
-export const SUB_ISSUE_CAP = 100;
+const SUB_ISSUE_CAP = 100;
 export const PERMISSIONS = Object.freeze([
   "read",
   "triage",
@@ -64,7 +64,7 @@ export const MODES = Object.freeze(["plans-repo", "single-repo"]);
 // the workspace database. It normalizes to a null mode, and the GitHub
 // settings stored beside it are kept but not used, so switching back
 // restores them (owner decision 2026-11-12).
-export const LOCAL_MODE = "local";
+const LOCAL_MODE = "local";
 export const MODE_CHOICES = Object.freeze([LOCAL_MODE, ...MODES]);
 // Issue Radar's own labels, which Avoozl reads and never writes (§6.4). The
 // defaults are Issue Radar's: its fixed claim label and the default of its
@@ -86,7 +86,6 @@ export const RADAR_KEYS = Object.freeze([
   "approvalLabel",
   "reviewLabel",
   "draftedLabel",
-  "trackerLabel",
   "clearPlanLabel",
   "showPlansRepo",
   "reviewRules",
@@ -99,12 +98,10 @@ export const RADAR_DEFAULTS = Object.freeze({
   approvalLabel: "avoozl:plan-approved",
   reviewLabel: "avoozl:review",
   draftedLabel: "avoozl:drafted",
-  trackerLabel: "avoozl:waiting-on-tracker",
   clearPlanLabel: false,
 });
 export const READY_LABEL_DEFAULT = "avoozl:ready";
-export const LEGACY_KEYS = Object.freeze(["issueIntake", "queue"]);
-// The `github` keys the Settings view edits; the legacy keys stay as written.
+// The `github` keys the Settings view edits.
 export const POLICY_KEYS = Object.freeze([
   "mode",
   "planningRepository",
@@ -147,13 +144,10 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "folder",
     "baseBranch",
     "role",
-    // Who codes was removed (R91.6): an old file's `coder` is ignored.
-    "coder",
     "allowedActors",
     "minimumPermission",
     "requiredChecks",
     "pullRequestReviews",
-    "concurrency",
     "release",
     "dependencyText",
     "priority",
@@ -180,7 +174,7 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
   approval: ["decisionRecord"],
   conflicts: ["onSourceConflict", "maxAttempts"],
   merge: ["method"],
-  landing: ["mode", "autoMerge", "method"],
+  landing: ["mode", "autoMerge", "method", "mergeBatch"],
   untriaged: ["filter", "triageLabels", "ignoreOlderThanDays", "notify"],
 });
 // Who may give Avoozl orders when a repository names nobody.
@@ -401,8 +395,7 @@ export const RELEASE_MODES = Object.freeze(["automatic", "step", "hold"]);
 
 // Release capacity (RC4.2): `release.capacity` is N, the most ready issues at
 // once; `release.scopes` gives a label its own N. It defaults to 1; 0
-// releases nothing. The older `concurrency` key only set Avoozl's retired local
-// workers; it is still accepted and ignored, so an old file reads without error.
+// releases nothing.
 function releaseInput(value, label) {
   const input = value.release ?? {};
   if (!record(input)) fail(`${label}.release must be an object.`);
@@ -456,7 +449,7 @@ function releaseInput(value, label) {
 }
 
 // How long GitHub answers stay fresh, in seconds; 0 turns the cache off.
-export const CACHE_SECONDS_MAX = 3600;
+const CACHE_SECONDS_MAX = 3600;
 function cacheSecondsInput(value, label) {
   if (value === undefined || value === null) return null;
   if (!Number.isSafeInteger(value) || value < 0 || value > CACHE_SECONDS_MAX)
@@ -566,7 +559,6 @@ function repositoryInput(value, id, mode) {
     "approvalLabel",
     "reviewLabel",
     "draftedLabel",
-    "trackerLabel",
   ])
     if (Object.hasOwn(radarInput, key))
       radar[key] = name(radarInput[key], `${label}.radar.${key}`);
@@ -656,7 +648,6 @@ function repositoryInput(value, id, mode) {
     ["approval", radar.approvalLabel],
     ["review", radar.reviewLabel],
     ["drafted", radar.draftedLabel],
-    ["waiting-on-tracker", radar.trackerLabel],
   ]) {
     const earlier = seen.get(lower(entry));
     if (earlier)
@@ -691,7 +682,6 @@ function repositoryInput(value, id, mode) {
     "approvalLabel",
     "reviewLabel",
     "draftedLabel",
-    "trackerLabel",
   ])
     if (managedNames.has(lower(radar[key])))
       fail(`${label}.radar.${key} cannot use managed label ${radar[key]}.`);
@@ -786,7 +776,7 @@ function repositoryInput(value, id, mode) {
 // (RC28.5): Avoozl merges the base into it with one resolver chat, or only
 // asks a person.
 export const CONFLICT_ACTIONS = Object.freeze(["fix", "ask"]);
-export const MAX_ATTEMPTS = 10;
+const MAX_ATTEMPTS = 10;
 // One count for crew pull requests and landing (R87.6, RC28.4). A
 // repository that sets none reads `landing.conflictRounds`, then this.
 export const CONFLICT_DEFAULTS = Object.freeze({
@@ -818,8 +808,8 @@ export const MERGE_METHOD_SETTING = Object.freeze({
   squash: { key: "allow_squash_merge", name: "Allow squash merging" },
   merge: { key: "allow_merge_commit", name: "Allow merge commits" },
 });
-// `landing` {mode, autoMerge, method} and the older `merge` {method}:
-// {landing: {mode, autoMerge}, merge: {method}}, unset values null. Null
+// `landing` {mode, autoMerge, method, mergeBatch} and the older `merge` {method}:
+// {landing: {mode, autoMerge, mergeBatch}, merge: {method}}, unset values null. Null
 // reads as unset, so a normalized policy normalizes to itself.
 function landingInput(value, merge, label) {
   const block = onlyKeys(
@@ -828,10 +818,20 @@ function landingInput(value, merge, label) {
       `${label}.landing`,
     ),
     old = onlyKeys(merge ?? {}, GITHUB_BLOCK_KEYS.merge, `${label}.merge`);
-  if (block.mode != null && !LANDING_MODES.includes(block.mode))
-    fail(`${label}.landing.mode must be direct, pr, train or off.`);
+  if (block.mode != null && !LANDING_MODES.includes(landingMode(block.mode)))
+    fail(`${label}.landing.mode must be direct, pr or off.`);
   if (block.autoMerge != null && typeof block.autoMerge !== "boolean")
     fail(`${label}.landing.autoMerge must be true or false.`);
+  if (
+    block.mergeBatch != null &&
+    block.mergeBatch !== "auto" &&
+    !(
+      Number.isInteger(block.mergeBatch) &&
+      block.mergeBatch >= 1 &&
+      block.mergeBatch <= 16
+    )
+  )
+    fail(`${label}.landing.mergeBatch must be "auto" or a whole number 1-16.`);
   for (const [at, method] of [
     ["landing.method", block.method],
     ["merge.method", old.method],
@@ -839,7 +839,11 @@ function landingInput(value, merge, label) {
     if (method != null && !MERGE_METHODS.includes(method))
       fail(`${label}.${at} must be squash or merge.`);
   return {
-    landing: { mode: block.mode ?? null, autoMerge: block.autoMerge ?? null },
+    landing: {
+      mode: landingMode(block.mode) ?? null,
+      autoMerge: block.autoMerge ?? null,
+      mergeBatch: block.mergeBatch ?? null,
+    },
     merge: { method: block.method ?? old.method ?? MERGE_METHOD_DEFAULT },
   };
 }
@@ -850,7 +854,7 @@ export const mergeMethodOf = (settings) =>
     : "SQUASH";
 
 // The Untriaged list's settings (design §8.5, R49.3-R49.5), each optional.
-export const UNTRIAGED_MAX_DAYS = 3650;
+const UNTRIAGED_MAX_DAYS = 3650;
 function untriagedInput(value, label, managedNames) {
   const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.untriaged, label);
   let filter = null;
@@ -899,12 +903,10 @@ export function priorityRank(priority, labels) {
   return index < 0 ? list.length : index;
 }
 
-// The `github` block of `.avoozl.json`. `issueIntake` and `queue` are the
-// older settings: github-sources.mjs reads `issueIntake` as intake sources
-// and ignores `queue` (§4.39).
+// The `github` block of `.avoozl.json`.
 export function normalizeGitHubPolicy(value) {
   if (value === undefined || value === null) value = {};
-  onlyKeys(value, [...LEGACY_KEYS, ...POLICY_KEYS], "github");
+  onlyKeys(value, POLICY_KEYS, "github");
   // Roles decide the mode (R105.2); a block with none is read as written.
   try {
     resolveRoles(value);
@@ -1002,8 +1004,6 @@ export function readGitHubPolicyOrNull(workspaceRoot) {
 // Authority for a task a plan approval creates (§3.2, R28.2–R28.3).
 export function newTaskAuthority(policy, requested) {
   if (requested === "local") return "local";
-  if (typeof requested === "string" && requested.startsWith("plugin:"))
-    return requested;
   return policy?.mode && policy.defaultAuthority !== "local"
     ? "github"
     : "local";

@@ -26,25 +26,12 @@ declare module '@kirocrew/app-sdk' {
   export function useChatLauncher(): {
     // slotKey opens an existing chat instead of a new one (host: UG() in the
     // dashboard bundle, window.__mc_chat_launch.slotKey).
-    openChat(input: {
-      message?: string
-      autoSend?: boolean
-      agent?: string
-      slotKey?: string
-    }): void
+    openChat(input: { message?: string; autoSend?: boolean; agent?: string; slotKey?: string }): void
   }
 }
 
 declare module '@kirocrew/app-sdk/ui' {
-  import type {
-    ButtonHTMLAttributes,
-    ComponentType,
-    CSSProperties,
-    ForwardRefExoticComponent,
-    InputHTMLAttributes,
-    ReactNode,
-    RefAttributes,
-  } from 'react'
+  import type { ButtonHTMLAttributes, ComponentType, CSSProperties, ForwardRefExoticComponent, InputHTMLAttributes, ReactNode, RefAttributes } from 'react'
 
   export const PageHeader: ComponentType<{
     title: ReactNode
@@ -78,6 +65,16 @@ declare module '@kirocrew/app-sdk/ui' {
     collapse?: boolean
     wrap?: boolean | 'hug'
   }): ReactNode
+  // A switch: a div with role "switch". `label` is its accessible name,
+  // `describedBy` an element id; it draws no text of its own.
+  export const Toggle: ComponentType<{
+    checked: boolean
+    onChange(checked: boolean): void
+    disabled?: boolean
+    label?: string
+    describedBy?: string
+    tone?: 'accent' | 'muted'
+  }>
   export const Card: ComponentType<{ children?: ReactNode; className?: string; style?: CSSProperties }>
   export const CardTitle: ComponentType<{ children?: ReactNode; className?: string }>
   export const Btn: ForwardRefExoticComponent<
@@ -86,9 +83,7 @@ declare module '@kirocrew/app-sdk/ui' {
       primary?: boolean
     } & RefAttributes<HTMLButtonElement>
   >
-  export const Input: ForwardRefExoticComponent<
-    InputHTMLAttributes<HTMLInputElement> & RefAttributes<HTMLInputElement>
-  >
+  export const Input: ForwardRefExoticComponent<InputHTMLAttributes<HTMLInputElement> & RefAttributes<HTMLInputElement>>
   // Host rule: any other variant renders as `warn` (yellow). Use ./Badge.tsx.
   export const Badge: ComponentType<{
     children?: ReactNode

@@ -136,15 +136,18 @@ plan, so those names stay.
   tasks.md
 ```
 
-Each checkbox in `tasks.md` has a task ID, and a `Facts:` bullet as its first
-child gives the task its kind, summary, acceptance (`done`), dependencies
-(`after`), checks and completion level. Front-matter at the top of `tasks.md`
-holds defaults for every task, such as `repo` and `checks`:
+Each checkbox in `tasks.md` has a task ID and a title, and a `Facts:` bullet
+as its first child gives the task its kind, acceptance (`done`), dependencies
+(`after`) and completion level. A task never names checks: every task runs
+its repository's checks. The item's other bullets are its
+summary: what it delivers and how, which its worker reads after the title.
+Write one only when it adds to the title; lint refuses one that repeats it.
+Front-matter at the top of `tasks.md`
+holds defaults for every task, such as `repo`:
 
 ```markdown
 ---
 repo: app
-checks: npm test
 ---
 
 - [ ] 1.2 Validate config
@@ -152,6 +155,7 @@ checks: npm test
     - after: 1.1
     - done:
       - An unknown key is reported with its path
+  - Report each key the schema does not name, with its JSON path.
 ```
 
 Avoozl refuses a folder that is missing a file, a `tasks.md` with a missing
@@ -208,12 +212,41 @@ workspace database, not in Git, and an agent cannot grant or revoke over MCP.
 ## Deliver locally
 
 Register the Git checkout the work changes, with its base branch, a worktree
-directory, and the check commands:
+directory, and its named checks:
 
 ```sh
 node cli.mjs project configure code --workspace ~/plans \
-  --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":[["npm","test"]]}'
+  --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":{"test":["npm","test"],"diff":["git","diff","--check"],"ui":{"run":["npm","run","test:ui"],"paths":["src/ui/**"]}}}'
 ```
+
+Each check is a name (lowercase letters, digits and dashes) and its command
+arguments, run with no shell. A check with `paths` runs only when a commit's
+diff touches one of them; the others run for every commit. These are the
+only checks there are: every task runs them, and setting them is a
+person's, never an agent's. A check sees only the environment a process
+needs to start plus the names in `checksEnv`, and never a push or GitHub
+token. An older list of commands, `[["npm","test"]]`, still loads, each
+check named by its command.
+
+Checks run in the repository's isolation. By default each runs in the
+process sandbox (sandbox-exec on macOS, bubblewrap on Linux): it writes only
+its folder, its own temp folder, a cache folder and the paths you list, and
+the network is off. Set it in Settings › Repository setup › Landing, or with
+`project configure`:
+
+```sh
+node cli.mjs project configure code --workspace ~/plans \
+  --json '{"isolation":{"run":"sandbox","network":"on","prepare":["npm","ci"]}}'
+```
+
+`run` is `sandbox`, `container` (with `image`, run by docker or podman
+with no network unless it is on and no home folder) or `unconfined`, which
+needs this machine's opt-in; a machine with no sandbox runs checks
+unconfined, and the Landing page and the task's timeline then say "not
+sandboxed". `prepare` runs once per worktree and commit, before the
+checks and outside isolation. As an example, a repository whose checks
+drive Linux and Windows VMs, such as Nupp's, would use the sandbox with the
+network on.
 
 Checkout paths are per machine, so they are kept out of `.avoozl.json`. Then
 turn on Autopilot, Avoozl's name for delivery, with the `delivery` block in
@@ -256,7 +289,7 @@ in its own worktree. Every session runs on this machine unless a worker
 machine pulls the work (`avoozl worker setup`). When a session reports done, Avoozl runs the checks itself on
 the exact commit in a clean worktree, with no model call, then integrates
 it and releases the leaf's dependents. A verifier session opens only when a
-task's bar needs judgment: prose acceptance with no checks, or
+task's bar needs judgment: a repository with no checks, or
 `verify: "agent"`. Implementation, integration, and acceptance stay
 separate steps, each with its own record.
 
@@ -268,24 +301,27 @@ check or review. Each repository has a `landing` setting:
 
 - `off` (the default until setup writes another): Avoozl pushes nothing. The
   verified commit waits in Needs you.
-- `direct`: Avoozl merges the verified work with the current base in a
-  landing worktree, checks that exact candidate, and fast-forwards the base
-  on the remote. A moved base means a new candidate and new checks.
+- `direct`: Avoozl lands verified work in merge batches. It stacks up to a
+  size limit of waiting tasks on the current base in a landing worktree,
+  checks that exact candidate, and fast-forwards the base on the remote. When
+  the checks fail it runs them again, finds the one task that broke the
+  batch, lands the tasks before it and sends it back. The limit starts at 1,
+  grows while batches land and halves after a failure; `landing.mergeBatch`
+  can set it from 1 to 16. Waiting tasks are local refs, and only the base
+  branch is pushed. A moved base means a new candidate and new checks. The
+  Landing queue page shows who waits, the batch under test, the last batches
+  and the limit.
 - `pr`: Avoozl pushes the task branch, opens or reuses one pull request,
   waits for its required checks and reviews on that exact head, and merges.
   Without merge permission it waits for an authorized person to merge.
-- `train`: Avoozl pushes each verified task as a batch branch and queues it.
-  One integrator stacks the ready branches on the base, validates the stack
-  once, and lands it. When the stack fails, it bisects at branch boundaries,
-  lands the good branches, and sends the rest back. Use it when one
-  validation run is expensive. See
-  [integrator trains](docs/integrator-trains.md).
 
 When the base moves and a merge conflicts, or the checks fail, the task goes
 back to its worker chat, for at most `landing.conflictRounds` rounds (default
 2); after that it goes to Needs you. Stop the line pauses the queue.
-`avoozl setup OWNER/REPO --project ID --checks NAME --landing pr|direct|train|off`
-previews the repository setup and `--yes` applies it.
+`avoozl setup OWNER/REPO --project ID --checks NAME --landing pr|direct|off`
+previews the repository setup and `--yes` applies it. Its `--checks` names
+the required GitHub checks a pull request needs, not the repository's
+own checks above.
 
 To take one task by hand while the tick runs the rest, run
 `avoozl claim TASK`. It prints the task's worktree and the report command;
@@ -317,9 +353,8 @@ syntax (for example `label:agent:go -label:hold`), and is checked against
 With nobody named, that is anyone with `write` permission. See
 [trigger rules and example policies](docs/policies.md).
 
-Other delivery routes, task trackers, intake sources, content rules, and
-settings packs plug in as separate packages that you approve on each
-machine. See [writing a plugin](docs/plugins.md).
+Intake sources, content rules, settings packs and workflow templates plug
+in as separate packages that you approve on each machine. See [writing a plugin](docs/plugins.md).
 
 ## One driver per spec
 
@@ -369,7 +404,7 @@ Proposals are pages of the **Retros** entry in the nav.
   first. Running sessions keep going. It resumes when the check passes, or
   when a person presses **Run anyway**.
 - **Local checks first** (`localChecksFirst`, default `true`): a session that
-  pushes runs the declared checks in its worktree before each push.
+  pushes runs the repository's checks in its worktree before each push.
 - **Batching** has no setting. The planner groups small related leaves in
   `tasks.md`: each member's facts say `batch: <group>`, and the front-matter
   gives the group's one-line reason as `batch-<group>: <reason>`. A group runs in one
@@ -482,12 +517,12 @@ MCP has one tool per thing, each with an `action` field that names one
 operation: `plans_workspace` (read only), `plans_maintain`, `plans_view`,
 `plans_plan`, `plans_review`, `plans_task`, `plans_session`,
 `plans_conflicts`, `plans_intake`, `plans_document`, `plans_github`,
-`plans_repos` (read only), `plans_plugins` (read only), `plans_content`, and
-`plans_run`. Each tool's description lists its actions. A call looks like
+`plans_repos` (read only), `plans_plugins` (read only), and `plans_content`.
+Each tool's description lists its actions. A call looks like
 `{"action": "get", "input": {"id": "TASK_ID"}}`.
 
-Some actions belong to a person and are refused over MCP under any tool name,
-old or new: approving or starting a spec, deletes, plugin changes, Allow
+Some actions belong to a person and are refused over MCP under any tool
+name: approving or starting a spec, deletes, plugin changes, Allow
 once and content-rule terms, choosing a conflict winner, GitHub setup writes
 and settings (including Who counts), adding or removing repositories or
 intake sources, workspace, flow, and delivery settings,
@@ -530,16 +565,11 @@ rather than copying the database file: SQLite also keeps a WAL file.
 
 ## Compatibility
 
-Avoozl was first released as AICommander. These names keep working:
+Only `AVOOZL_*` variables and the `avoozl` command work. A configuration
+file with an unknown top-level key fails to load, naming the file and the key.
+Two older inputs still read:
 
-- MCP tool names that start with `plans_`, including the older
-  one-tool-per-operation names. Each of those says `Deprecated:` and names
-  its replacement.
-- `AVOOZL_*` variables, and the older `AICOMMANDER_*` and `NUPP_WORKSPACE_*`
-  names, including `NUPP_WORKSPACE` for the workspace.
-- The `aicommander` command, the same CLI as `avoozl`.
-- Older fenced-`task` plan files, which stay readable so their work can move
-  to spec folders.
+- Older fenced-`task` plan files, so their work can move to spec folders.
 - An `.avoozl.json` with no `role` keys, which gets its roles from its
   stored `github.mode`.
 
@@ -558,7 +588,19 @@ release: v0.12.2 (`kirocrew-app/ui/kirocrew-pin.json`), the same release as the
 Kiro Crew version this app asks for. The build fetches that source into a cache
 outside git, checks its digest, and edits none of it. The standalone page and the
 page inside Kiro Crew match when the installed Kiro Crew is the pinned release.
-Nothing serves the standalone page yet.
+`avoozl serve [--workspace PATH] [--port N]` serves it on `127.0.0.1` only (no host
+or bind option; `--host`, `--bind` and `AVOOZL_HOST` refuse to start) and prints a
+one-time owner link that signs one browser in; `avoozl serve link` prints another
+for the running server. The page works with the Kiro Crew parts it was built on;
+Without Kiro Crew, a button that opens a chat opens a Start a session dialog instead: Start runs the
+message as a read-only `assist` session on a harness approved on this machine, and the dialog then shows
+its log, cost, a Send message box and an attach command. Features that need Kiro Crew say "Needs Kiro Crew".
+Settings › Workspaces has a Notifications box (browser notices for new Needs you items, off until you turn
+them on).
+On a headless machine, set `serve.enabled` (and optionally a fixed `serve.port`) in the
+machine file `config.json`: the supervisor then runs the server as a child, restarts it
+on the same port, and prints no link (run `avoozl serve link` at that machine's shell).
+`avoozl status` shows the server's origin. A repository's `.avoozl.json` may not set `serve`.
 
 ## License
 

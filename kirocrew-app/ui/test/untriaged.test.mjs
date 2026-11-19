@@ -2,16 +2,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import {
-  age,
-  emptyText,
-  filterActive,
-  filterOptions,
-  matchesFilter,
-  selectionHandOff,
-  toggleSelected,
-  triageRows,
-} from '../src/untriaged-api.ts'
+import { age, emptyText, filterActive, filterOptions, matchesFilter, selectionHandOff, toggleSelected, triageRows } from '../src/untriaged-api.ts'
 import { emptyRepository, toForm, toPolicy, untriagedDefault } from '../src/settings-api.ts'
 
 const src = new URL('../src/', import.meta.url)
@@ -45,8 +36,14 @@ test('filters by repository, kind, age, author and label', () => {
   assert.equal(filterActive({}), false)
   assert.equal(filterActive({ label: 'deps' }), true)
   const options = filterOptions({ enabled: true, mode: 'single-repo', total: 2, repositories: [{ repository: 'o/app' }], items: [one, pr] })
-  assert.deepEqual(options.authors.map((o) => o.value), ['alice', 'bob'])
-  assert.deepEqual(options.labels.map((o) => o.value), ['deps'])
+  assert.deepEqual(
+    options.authors.map((o) => o.value),
+    ['alice', 'bob'],
+  )
+  assert.deepEqual(
+    options.labels.map((o) => o.value),
+    ['deps'],
+  )
 })
 
 test('age is short and selection toggles rows', () => {
@@ -162,8 +159,7 @@ test('rows link the repository and the author to GitHub, in a new tab', async ()
   const enterprise = { ...item, links: { github: 'https://git.example.com/octo/app/pull/9' } }
   assert.equal(repositoryHref(enterprise), 'https://git.example.com/octo/app')
   const view = (await import('node:fs')).readFileSync(new URL('../src/UntriagedView.tsx', import.meta.url), 'utf8')
-  for (const part of ['RepoLink', 'AuthorLink'])
-    assert.match(view, new RegExp(`function ${part}[\\s\\S]{0,340}target="_blank" rel="noopener noreferrer"`))
+  for (const part of ['RepoLink', 'AuthorLink']) assert.match(view, new RegExp(`function ${part}[\\s\\S]{0,340}target="_blank" rel="noopener noreferrer"`))
   assert.doesNotMatch(view, />\{item\.repository\}<\/td>|>\{item\.author \?\? ''\}<\/td>/)
 })
 
@@ -176,7 +172,7 @@ test('Intake: the tab is renamed, lists every source, and filters by source', as
   const view = source('UntriagedView.tsx')
   assert.match(view, /<ViewHeading\s+id="avoozl-untriaged-title"\s+view="untriaged"[\s\S]*?>\s*\{show === 'radar' \? 'Issue Radar' : 'Triage'\}\s*<\/ViewHeading>/)
   assert.doesNotMatch(view, /Idea/)
-  assert.match(view, /<th style=\{HEAD\}>Source<\/th>/)
+  assert.match(view, /<Box\s+as="th"[^>]*>\s*Source\s*<\/Box>/)
   const ticket = item(null, {
     source: 'tickets',
     id: 'T-1',
@@ -193,7 +189,10 @@ test('Intake: the tab is renamed, lists every source, and filters by source', as
   assert.equal(matchesFilter(ticket, { source: 'tickets' }, NOW), true)
   assert.equal(matchesFilter(one, { source: 'tickets' }, NOW), false)
   const options = filterOptions({ enabled: true, mode: null, total: 2, repositories: [], sources: [{ id: 'tickets' }], items: [one, ticket] })
-  assert.deepEqual(options.sources.map((o) => o.value), ['github', 'tickets'])
+  assert.deepEqual(
+    options.sources.map((o) => o.value),
+    ['github', 'tickets'],
+  )
   // Issue Radar takes GitHub rows only.
   assert.match(selectionHandOff([ticket]).tooltip, /Select GitHub rows/)
   const { sendable } = await import('../src/untriaged-api.ts')
@@ -211,10 +210,10 @@ test('Plan this and Deliver this ask first and name the item', () => {
 
 test('an intake source form saves a valid entry and names what to fix', async () => {
   const { emptySourceForm, sourceEntry } = await import('../src/plugins-api.ts')
-  const form = { ...emptySourceForm(), id: 'tickets', via: 'plugin:fake-tracker', repository: 'o/app', labelFields: 'component, queue' }
+  const form = { ...emptySourceForm(), id: 'tickets', via: 'plugin:fake-intake', repository: 'o/app', labelFields: 'component, queue' }
   assert.deepEqual(sourceEntry(form, []), {
     id: 'tickets',
-    entry: { via: 'plugin:fake-tracker', repository: 'o/app', labelFields: ['component', 'queue'] },
+    entry: { via: 'plugin:fake-intake', repository: 'o/app', labelFields: ['component', 'queue'] },
   })
   assert.match(sourceEntry({ ...form, id: 'github' }, []).error, /built in/)
   assert.match(sourceEntry({ ...form, id: 'Bad Name' }, []).error, /lowercase/)

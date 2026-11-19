@@ -71,13 +71,48 @@ export const useChatLauncher = () => ({
 
 export function Icon(props: { size?: number | string; style?: object }) {
   const size = props.size ?? 16
-  return <svg data-stub-icon width={size} height={size} viewBox="0 0 16 16" aria-hidden="true" style={props.style}><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" /></svg>
+  return (
+    <svg data-stub-icon width={size} height={size} viewBox="0 0 16 16" aria-hidden="true" style={props.style}>
+      <circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" />
+    </svg>
+  )
 }
 
 export function Card(props: { children?: ReactNode; className?: string; style?: object }) {
   return (
-    <div data-stub-card className={`rounded-lg border p-4 ${props.className ?? ''}`} style={{ transform: 'translateZ(0)', background: 'var(--card, var(--bg))', borderColor: 'var(--border)', ...props.style }}>
+    <div
+      data-stub-card
+      className={`rounded-lg border p-4 ${props.className ?? ''}`}
+      style={{ transform: 'translateZ(0)', background: 'var(--card, var(--bg))', borderColor: 'var(--border)', ...props.style }}
+    >
       {props.children}
+    </div>
+  )
+}
+// A switch as the host draws one: a div with role "switch", named by `label`,
+// toggled by a click or Space or Enter, out of the tab order when disabled.
+export function Toggle(props: { checked: boolean; onChange(checked: boolean): void; disabled?: boolean; label?: string; describedBy?: string; tone?: 'accent' | 'muted' }) {
+  const flip = () => {
+    if (!props.disabled) props.onChange(!props.checked)
+  }
+  return (
+    <div
+      role="switch"
+      aria-checked={props.checked}
+      aria-disabled={props.disabled || undefined}
+      aria-label={props.label}
+      aria-describedby={props.describedBy}
+      tabIndex={props.disabled ? -1 : 0}
+      onClick={flip}
+      onKeyDown={(event) => {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault()
+          flip()
+        }
+      }}
+      className={`w-9 h-5 rounded-full relative shrink-0 cursor-pointer ${props.disabled ? 'opacity-40' : ''} ${props.checked ? 'bg-accent' : 'bg-border'}`}
+    >
+      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white ${props.checked ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
     </div>
   )
 }
@@ -100,7 +135,11 @@ const BADGE_TONES: Record<string, string> = { ok: '#16a34a', err: 'var(--danger)
 export const Badge = (props: { children?: ReactNode; variant?: string; className?: string }) => {
   const tone = BADGE_TONES[props.variant ?? 'warn'] ?? BADGE_TONES.warn
   return (
-    <span className="rounded border px-1 text-xs" data-badge-variant={props.variant ?? 'warn'} style={{ color: tone, borderColor: tone, background: `color-mix(in srgb, ${tone} 12%, transparent)` }}>
+    <span
+      className="rounded border px-1 text-xs"
+      data-badge-variant={props.variant ?? 'warn'}
+      style={{ color: tone, borderColor: tone, background: `color-mix(in srgb, ${tone} 12%, transparent)` }}
+    >
       {props.children}
     </span>
   )
@@ -112,7 +151,14 @@ const BTN = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text
 const BTN_PRIMARY = 'bg-accent text-accent-fg border-accent hover:bg-accent-hover disabled:bg-bg-hover disabled:text-muted disabled:border-transparent disabled:opacity-60'
 const BTN_SECONDARY = 'border-border bg-transparent text-text hover:border-border-strong hover:bg-bg-hover disabled:opacity-30'
 export const Btn = forwardRef<HTMLButtonElement, Record<string, unknown>>(function Btn({ primary, variant, danger, ...rest }, ref) {
-  return <button ref={ref} {...rest} data-primary={primary ? '' : undefined} className={`${BTN} ${primary ? BTN_PRIMARY : danger ? 'border-border bg-transparent text-danger' : BTN_SECONDARY} ${(rest.className as string) ?? ''}`} />
+  return (
+    <button
+      ref={ref}
+      {...rest}
+      data-primary={primary ? '' : undefined}
+      className={`${BTN} ${primary ? BTN_PRIMARY : danger ? 'border-border bg-transparent text-danger' : BTN_SECONDARY} ${(rest.className as string) ?? ''}`}
+    />
+  )
 })
 export const Input = forwardRef<HTMLInputElement, Record<string, unknown>>(function Input(props, ref) {
   return <input ref={ref} {...props} className="bg-bg-elevated border border-border rounded-md px-3 py-2 text-text text-sm font-body flex-1 min-w-0" />
@@ -122,7 +168,16 @@ export const Input = forwardRef<HTMLInputElement, Record<string, unknown>>(funct
 // a single dropdown button. `collapse={false}`
 // (the host prop) keeps the full row. Colors follow the host: inactive text
 // is the theme's muted color, the selected one its accent, on the elevated bg.
-export function SegmentedControl(props: { segments: { key: string; label: ReactNode }[]; value: string; onChange(key: string): void; ariaLabel?: string; wrap?: boolean | 'hug'; collapse?: boolean; compact?: boolean; layoutId?: string }) {
+export function SegmentedControl(props: {
+  segments: { key: string; label: ReactNode }[]
+  value: string
+  onChange(key: string): void
+  ariaLabel?: string
+  wrap?: boolean | 'hug'
+  collapse?: boolean
+  compact?: boolean
+  layoutId?: string
+}) {
   const root = useRef<HTMLDivElement>(null)
   const [mode, setMode] = useState<'full' | 'compact' | 'dropdown'>(props.compact ? 'compact' : 'full')
   const n = props.segments.length
@@ -152,7 +207,15 @@ export function SegmentedControl(props: { segments: { key: string; label: ReactN
       {props.segments.map((s) => {
         const selected = s.key === props.value
         return (
-          <button key={s.key} type="button" role="tab" aria-selected={selected} onClick={() => props.onChange(s.key)} className="rounded border px-2 py-1 text-sm" style={{ color: selected ? 'var(--accent)' : 'var(--muted)', background: 'var(--bg-elevated)' }}>
+          <button
+            key={s.key}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => props.onChange(s.key)}
+            className="rounded border px-2 py-1 text-sm"
+            style={{ color: selected ? 'var(--accent)' : 'var(--muted)', background: 'var(--bg-elevated)' }}
+          >
             {mode === 'full' || selected ? s.label : null}
           </button>
         )

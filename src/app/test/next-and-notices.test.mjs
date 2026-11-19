@@ -218,25 +218,22 @@ test("every claim and next goes through Operations.execute, and MCP may not clai
   );
 });
 
-test("the removed Crew Mode command forms answer with the manual path and change nothing", async (t) => {
+test("the removed Crew Mode report command is refused as unknown and changes nothing", async (t) => {
+  // worker-paths WP7.1 (owner decision 2026-11-18): removed commands are
+  // deleted, not answered.
   const { root, store } = setup(t);
-  for (const args of [
-    ["report", "a", "--slot", "s", "--kind", "done"],
-    ["claim", "a", "--slot", "s"],
-    ["next", "--hook"],
-  ]) {
-    let out;
-    try {
-      execFileSync(process.execPath, [cli, ...args, "--workspace", root], {
-        encoding: "utf8",
-        env: isolatedEnv(root),
-      });
-    } catch (error) {
-      out = error;
-    }
-    assert.equal(out?.status, 1, args.join(" "));
-    assert.match(out.stdout, /avoozl claim TASK.*avoozl runner report/);
+  let out;
+  try {
+    execFileSync(
+      process.execPath,
+      [cli, "report", "a", "--slot", "s", "--kind", "done", "--workspace", root],
+      { encoding: "utf8", env: isolatedEnv(root) },
+    );
+  } catch (error) {
+    out = error;
   }
+  assert.equal(out?.status, 1);
+  assert.match(out.stderr, /Unknown command or operation report/);
   assert.deepEqual(store.list("session_bindings"), []);
 });
 
@@ -267,7 +264,7 @@ test("decisions and failures queue once on the app's channels with a link to the
   assert.deepEqual(rows[0].payload, {
     channel: "failure",
     title: "Avoozl stopped on a",
-    body: "a failed 1 times. Last cause: session closed without a done report.\n\nOpen the last session to see why. Fix the cause, then ask Avoozl to retry a (plans_retry_delivery).",
+    body: "a failed 1 times. Last cause: session closed without a done report.\n\nOpen the last session to see why. Fix the cause, then ask Avoozl to retry a (plans_task (action: retry)).",
     url: "/chat?sid=w-1",
     group_key: "avoozl:a",
   });

@@ -40,6 +40,8 @@ test("Claude Code's read class is dontAsk and may write only its result file", (
   assert.deepEqual(fillHarnessArgv(definition.resultAllow, {}), [
     "--allowedTools",
     "Edit(.avoozl/result.json)",
+    "--allowedTools",
+    "Edit(.avoozl/output/*)",
   ]);
   const worktree = path.join(os.tmpdir(), "avoozl-read-worktree");
   const tmp = path.join(os.tmpdir(), "avoozl-read-tmp");
@@ -100,7 +102,11 @@ test("a role child's brief holds its prompt, the brief, and how it finishes", ()
   );
   assert.match(processBrief("retro", "x"), /"report": <the reply object>/);
   assert.match(processBrief("planner", "x"), /skip plans_create_plan/);
-  assert.equal(processBrief("pr-review", "x"), "x", "no prompt for it here");
+  assert.equal(
+    processBrief("conflict-fix", "x"),
+    "x",
+    "no prompt for a role outside the table",
+  );
 });
 
 // A fake CLI for read roles: it prints its brief and writes only its result
@@ -140,6 +146,8 @@ function machine(t) {
     promptFrom: "stdin",
     permission: { write: "workspace-write", read: "read-only" },
     writeRoots: ["{worktree}", "{tmp}"],
+    // How a read-only child writes its result (NK6.1); the fake ignores it.
+    resultAllow: ["--result-file"],
   });
   fs.writeFileSync(
     path.join(configDirectory, "harnesses", "fake-cli.json"),

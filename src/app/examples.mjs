@@ -7,7 +7,7 @@ import { sampleSpecs } from "./sample-specs.mjs";
 import { SPECS_DIRECTORY } from "./spec-plans.mjs";
 
 // The pack `seed` installs when none is named.
-export const DEFAULT_EXAMPLE = "recipe-box";
+const DEFAULT_EXAMPLE = "recipe-box";
 const packs = [
   {
     id: "recipe-box",

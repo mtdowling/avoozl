@@ -111,7 +111,7 @@ const MARKER = /<!--|\bavoozl[:-][\w-]+/i;
 const MIRROR_LINK = /\/(?:issues|pull)\/\d+|(?:^|[\s(])#\d+\b/;
 
 // The last paragraph of a commit message when every line is a trailer.
-export function hasTrailer(message) {
+function hasTrailer(message) {
   const paragraphs = String(message ?? "")
     .trim()
     .split(/\n\s*\n/);

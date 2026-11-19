@@ -150,8 +150,7 @@ test('the drawer has Links and Mark done, and no notes; New spec has Blank or Fr
   assert.doesNotMatch(drawer, /Links and notes|id="notes"/)
   assert.match(drawer, /task\.manual && \(\s*<ManualTask/)
   const notes = source('TaskNotes.tsx')
-  for (const words of ['Add link', 'Show on the issue', 'Allow once', 'Mark done', "title: 'Done'", "title: 'Skipped'", 'Reopen'])
-    assert.ok(notes.includes(words), words)
+  for (const words of ['Add link', 'Show on the issue', 'Allow once', 'Mark done', "title: 'Done'", "title: 'Skipped'", 'Reopen']) assert.ok(notes.includes(words), words)
   // Tasks keep no notes: no note field, in the drawer or in Mark done.
   for (const gone of ['Add note', 'Outcome note', 'textarea', "kind === 'note'"]) assert.ok(!notes.includes(gone), gone)
   assert.doesNotMatch(notes, /<Markdown/)

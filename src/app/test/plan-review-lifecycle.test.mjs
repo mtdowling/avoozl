@@ -37,7 +37,10 @@ function setup(t) {
     },
     config = {
       version: 1,
-      models: { planner: "fake-writer", planReviewer: "fake-reviewer" },
+      roles: {
+        planner: { model: "fake-writer" },
+        planReviewer: { model: "fake-reviewer" },
+      },
       planReview: { mode: "auto" },
     },
     plan = createSpecPlan(store, { id: "audit" }, folder),
@@ -72,13 +75,14 @@ function setup(t) {
   const write = () =>
     fs.writeFileSync(path.join(root, ".avoozl.json"), JSON.stringify(config));
   write();
-  store.put("runs", {
+  store.put("session_bindings", {
     id: "draft",
+    slot: "draft",
     taskId: "plan:audit",
-    state: "done",
-    actualModel: "fake-writer",
+    status: "done",
+    served: { model: "fake-writer" },
   });
-  recordPlanReviewWriter(store, plan, { runId: "draft" });
+  recordPlanReviewWriter(store, plan, { slot: "draft" });
   const ops = new Operations(store, { workspaceRoot: root, plugins: null }),
     step = () => planReviewStep(store, options),
     job = () =>
@@ -214,26 +218,6 @@ test("turning off preserves a claimed review and its later binding without dupli
   assert.equal((await env.step()).requests.length, 0);
   assert.equal(env.counts.prepared, 1);
   assert.equal(fs.existsSync(owned), true);
-});
-
-test("turning off also preserves a bound legacy review run", async (t) => {
-  const env = setup(t);
-  await env.step();
-  const [request] = (await env.step()).requests;
-  env.store.put("runs", {
-    id: "legacy-review",
-    taskId: "plan:audit",
-    state: "running",
-    actualModel: "fake-reviewer",
-  });
-  bindSpecReviewRound(env.store, {
-    roundId: request.task,
-    runId: "legacy-review",
-  });
-  env.config.planReview.mode = "off";
-  await env.step();
-  assert.equal(env.store.get("review_rounds", request.task).state, "running");
-  assert.equal(env.counts.removed, 0);
 });
 
 for (const failure of ["other-spec read", "brief construction"])

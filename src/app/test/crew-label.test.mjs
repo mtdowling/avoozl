@@ -160,7 +160,7 @@ const settings = (extra = {}) =>
   normalizeGitHubPolicy({
     mode: "single-repo",
     repositories: {
-      "o/r": { baseBranch: "main", coder: "issue-radar", ...extra },
+      "o/r": { baseBranch: "main", ...extra },
     },
   }).repositories["o/r"];
 

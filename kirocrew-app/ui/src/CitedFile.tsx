@@ -4,16 +4,13 @@
 // blocks. It scrolls the cited blocks into view, with no animation under
 // prefers-reduced-motion.
 import { useEffect, useRef } from 'react'
-import { Markdown } from './Markdown.tsx'
+import { Markdown } from './ui/Markdown.tsx'
 import { useMedia } from './use-media.ts'
 import { citedNodes } from './task-api.ts'
+import { CitedStyle } from './ui/PageStyles'
+import { Box } from './ui/Box'
 
 export const CITED_CLASS = 'avoozl-cited'
-
-// The mark's look: theme variables only, so it reads in light and dark.
-export const CITED_STYLE = `
-[data-cited="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 0 var(--accent); border-radius: 4px; padding-left: 10px; }
-`
 
 // A rendered block's tag for citedNodes: Markdown draws headings as
 // role="heading" with aria-level, so they read as h1 to h6.
@@ -57,9 +54,9 @@ export function CitedFile(props: { text: string; lineStart: number | null; lineE
     return () => cancelAnimationFrame(frame)
   }, [text, lineStart, lineEnd, still])
   return (
-    <div ref={box} data-cited-file aria-label={props.label} className="px-3 py-2" style={{ maxHeight: props.maxHeight ?? 420, overflowY: 'auto', overscrollBehavior: 'contain' }}>
-      <style>{CITED_STYLE}</style>
+    <Box ref={box} data-cited-file aria-label={props.label} css-max-height={props.maxHeight ?? 420} css-overflow-y="auto" css-overscroll-behavior="contain" px="3" py="2">
+      <CitedStyle />
       <Markdown text={text} idPrefix={props.idPrefix} />
-    </div>
+    </Box>
   )
 }

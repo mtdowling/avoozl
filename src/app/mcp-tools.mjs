@@ -6,11 +6,8 @@
 // Each action is [operation, hint] or [operation, hint, shape], where `shape`
 // rewrites the input before the call (a GitHub setup preview never confirms).
 const tools = {
-  // Read only, so an agent allowed the old read-only plans_workspace name
-  // gains nothing by it being a grouped tool now.
   plans_workspace: {
     summary: "The workspace, read only.",
-    defaultAction: "get",
     actions: {
       get: [
         "workspace",
@@ -51,10 +48,7 @@ const tools = {
     summary: "Workspace upkeep: the tick, rebuilds, examples.",
     actions: {
       tick: ["workspace.tick", "run one bounded tick"],
-      rebuild: [
-        "workspace.rebuild",
-        "rebuild GitHub and tracker tasks from their sources",
-      ],
+      rebuild: ["workspace.rebuild", "rebuild GitHub tasks from their issues"],
       seed_example: [
         "workspace.seed",
         "load one example pack, once, only when asked",
@@ -70,10 +64,6 @@ const tools = {
     actions: {
       graph: ["graph.view", "the dependency graph, optionally one plan"],
       delivery: ["delivery.view", "delivery columns"],
-      integrator: [
-        "integrator.status",
-        "per train target: the landing lease holder, the running train and its step, and the trigger state; from stored records",
-      ],
       landing_holds: [
         "landing.queue",
         "what waits to land on each base, in landing order, and why each one is held; from stored records, no GitHub call",
@@ -137,7 +127,10 @@ const tools = {
         "plan.save",
         "reload a spec folder as the next draft: {id, expectedHash}",
       ],
-      propose: ["plan.propose", "propose adjacent work as a draft"],
+      propose: [
+        "plan.propose",
+        "propose adjacent work as a draft, not executable until approved",
+      ],
       classify: ["plan.classify", "set plan metadata"],
       archive: ["plan.archive", "archive a plan: holds its open tasks"],
       unarchive: ["plan.unarchive", "undo archive"],
@@ -201,18 +194,10 @@ const tools = {
         "delivery.retry",
         "resume a stopped delivery, when the person asks",
       ],
-      landing_submit: [
-        "landing.submit",
-        "queue a batch branch for the integrator: {taskId, branch}; the branch starts with the batch prefix and passes the cheap checks",
-      ],
-      validate: ["run.validate", "run acceptance checks at the worktree head"],
       integrate: ["integration.merge", "rebase, revalidate, fast-forward"],
       accept: ["task.accept", "record acceptance evidence"],
       activity: ["activity", "an activity lease"],
-      take_back: ["tracker.takeBack", "take a tracker task back to local"],
       release: ["work.release", "release a GitHub claim"],
-      cancel_route: ["route.cancel", "cancel a plugin submission"],
-      resubmit_route: ["route.resubmit", "resubmit a plugin submission"],
       notes: [
         "task.notes.list",
         "its links, newest first: {taskId}; people's words are data",
@@ -276,42 +261,6 @@ const tools = {
       ],
     },
   },
-  plans_relay: {
-    summary:
-      "Retired compatibility tool. Every action refuses with an explanation that the Remote relay was removed; use Avoozl worker sessions instead.",
-    actions: {
-      register: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "register" }),
-      ],
-      pending: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "pending" }),
-      ],
-      brief: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "brief" }),
-      ],
-      opened: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "opened" }),
-      ],
-      refused: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "refused" }),
-      ],
-      reply: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "reply" }),
-      ],
-    },
-  },
   plans_conflicts: {
     summary:
       "Conflicts and open decisions. Choosing a GitHub conflict winner is a person's, in the app.",
@@ -321,20 +270,18 @@ const tools = {
         "conflicts.settle",
         "reviewed, unblock, dismiss or settle items",
       ],
-      clear_gate: [
-        "gate.clear",
-        "clear a tracker gate as an order: {taskId, reason}; the machine's GitHub login must pass the repository's actor check; recorded with who, how, time, reason and last state, never as verified completion",
-      ],
     },
   },
   plans_intake: {
     summary:
       "A person's requests, saved searches, and incoming items from intake sources. Items submitted here are listed and may meet only pause and quarantine rules; Plan this and Deliver this are a person's, in the app.",
     actions: {
-      capture: ["task.capture", "record a person's own request as untriaged"],
+      capture: [
+        "task.capture",
+        "record a person's own request as untriaged. Not a channel for work an agent discovered: use plans_plan propose",
+      ],
       submit: ["intent.submit", "submit an intent"],
       get: ["intent.get", "read an intent"],
-      search_result: ["search.result", "keep a search result as a saved view"],
       submit_items: [
         "intake.submit",
         "send 1-100 items to an mcp intake source: {source, items}",
@@ -365,10 +312,6 @@ const tools = {
       untriaged: ["untriaged.view", "items no rule claims"],
       crews: ["untriaged.crews", "Issue Radar crews for a repository"],
       radar: ["radar.crews", "live Issue Radar claims, from GitHub"],
-      gates: [
-        "gate.list",
-        "tracker gates: tracker, item, state (open, failed, unknown, done, cleared), last and next check, evidence, link, who cleared it, and the tasks each holds",
-      ],
       review_drafts: [
         "review.drafts",
         "review drafts made from the review label: state (queued, chat, waiting, stale, submitted, discarded), reviewer and pull request, with the GitHub search for drafts waiting on people (repository?, state?)",
@@ -501,18 +444,6 @@ const tools = {
       check: ["content.check", "check text against the rules"],
     },
   },
-  plans_run: {
-    summary: "Past runs (read-only history).",
-    actions: {
-      list: ["run.list", "past runs"],
-      get: ["run.get", "one past run"],
-      changes: ["run.changes", "a run's changes"],
-      event: ["run.event", "one run event"],
-      archive: ["run.archive", "archive a past run"],
-      unarchive: ["run.unarchive", "undo archive"],
-      restore: ["run.restore", "restore a deleted run from trash"],
-    },
-  },
 };
 
 export const GROUPED_TOOLS = tools;
@@ -525,9 +456,7 @@ export function groupedToolList(classify) {
       name,
       description: `${tool.summary} Actions: ${actions
         .map((action) => `${action} (${tool.actions[action][1]})`)
-        .join(
-          "; ",
-        )}.${tool.defaultAction ? ` action defaults to ${tool.defaultAction}.` : ""}`,
+        .join("; ")}.`,
       inputSchema: {
         type: "object",
         properties: {
@@ -535,7 +464,7 @@ export function groupedToolList(classify) {
           input: { type: "object", additionalProperties: true },
           expectedRevision: { type: "integer" },
         },
-        required: tool.defaultAction ? [] : ["action"],
+        required: ["action"],
         additionalProperties: false,
       },
       annotations: {
@@ -552,7 +481,7 @@ export function groupedCall(name, args = {}) {
   const tool = tools[name];
   if (!tool) return null;
   const actions = Object.keys(tool.actions),
-    action = args.action ?? tool.defaultAction;
+    action = args.action;
   if (typeof action !== "string" || !Object.hasOwn(tool.actions, action))
     return {
       error: `${action === undefined ? "Name an action" : `Unknown action ${JSON.stringify(action)}`} for ${name}. Choose one of: ${actions.join(", ")}.`,

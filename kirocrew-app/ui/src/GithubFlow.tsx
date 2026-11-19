@@ -13,6 +13,7 @@ import { buildMedian, buildsLine, costliestLine, flowRows, githubFlowClient, spa
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 export default function GithubFlow({ workspaceId }: { workspaceId: string | null }) {
   const api = useAppApi()
@@ -29,70 +30,106 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
   const rows = flowRows(view),
     widest = Math.max(1, ...(view.median ?? [0]))
   return (
-    <Card className="flex flex-col gap-2">
+    <Card flex flexCol gap="2">
       <Stack data-github-flow gap={2}>
         <SectionHeading title="From GitHub" />
-        {issues && <Hint as="p" size="sm">{summaryLine(view)}. Times are GitHub's.</Hint>}
-        <ul className="m-0 flex list-none flex-col gap-1.5 p-0" hidden={!issues}>
+        {issues && (
+          <Hint as="p" size="sm">
+            {summaryLine(view)}. Times are GitHub's.
+          </Hint>
+        )}
+        <Box as="ul" m0 flex listNone flexCol gap="1.5" p="0" hidden={!issues}>
           {rows.map((row, index) => (
-            <li key={row.name} data-flow-stage={row.name} className="flex flex-wrap items-center gap-2 text-sm">
-              <span style={{ flex: '0 0 9rem' }}>{row.name}</span>
-              <span
-                aria-hidden="true"
-                style={{
-                  flex: '1 1 6rem',
-                  height: 8,
-                  borderRadius: 4,
-                  background: 'color-mix(in srgb, var(--muted) 15%, transparent)',
-                }}
-              >
-                <span
-                  style={{
-                    display: 'block',
-                    height: '100%',
-                    borderRadius: 4,
-                    width: `${(100 * (view.median?.[index] ?? 0)) / widest}%`,
-                    background: row.slowest ? 'var(--accent)' : 'var(--muted)',
-                  }}
+            <Box key={row.name} data-flow-stage={row.name} as="li" flex flexWrap items="center" gap="2" size="sm">
+              <Box as="span" css-flex="0-0-9rem">
+                {row.name}
+              </Box>
+              <Box aria-hidden="true" as="span" css-flex="1-1-6rem" css-height="8" css-border-radius="4" css-background="mix-muted-15%-transparent">
+                <Box
+                  as="span"
+                  css-display="block"
+                  css-height="100%"
+                  css-border-radius="4"
+                  css-width={`${(100 * (view.median?.[index] ?? 0)) / widest}%`}
+                  css-background={row.slowest ? 'accent' : 'muted'}
                 />
-              </span>
-              <span className="tabular-nums">{row.median}</span>
+              </Box>
+              <Box as="span" tabularNums>
+                {row.median}
+              </Box>
               {row.slowest && <Badge variant="warning">Slowest</Badge>}
-            </li>
+            </Box>
           ))}
-        </ul>
+        </Box>
         {view.builds && view.builds.count > 0 && (
           <Stack data-flow-builds gap={1}>
-            <h3 className="m-0 text-sm font-semibold">Builds</h3>
-            <Hint as="p" size="xs">{buildsLine(view.builds)}. From every build record of each merged pull request.</Hint>
-            <ul className="m-0 flex list-none flex-col gap-1 p-0" data-flow-build-prs style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            <Box as="h3" m0 size="sm" weight="semibold">
+              Builds
+            </Box>
+            <Hint as="p" size="xs">
+              {buildsLine(view.builds)}. From every build record of each merged pull request.
+            </Hint>
+            <Box as="ul" css-margin="0" css-padding="0" css-list-style="none" m0 flex listNone flexCol gap="1" p="0" data-flow-build-prs>
               {view.builds.recent.map((row) => (
-                <li key={`${row.repository}-${row.pr}`} data-flow-build-pr={row.pr} className="flex flex-wrap items-center gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
-                  <span>{row.repository ? `${row.repository} ` : ''}#{row.pr}</span>
-                  <span className="tabular-nums">{buildMedian(row.totalMs)}</span>
-                  <Hint data-flow-costliest>
-                    costliest {costliestLine(row)}
-                  </Hint>
+                <Box
+                  key={`${row.repository}-${row.pr}`}
+                  data-flow-build-pr={row.pr}
+                  as="li"
+                  css-display="flex"
+                  css-flex-wrap="wrap"
+                  css-gap="0-12px"
+                  css-overflow-wrap="anywhere"
+                  flex
+                  flexWrap
+                  items="center"
+                  gapX="3"
+                  size="sm"
+                >
+                  <span>
+                    {row.repository ? `${row.repository} ` : ''}#{row.pr}
+                  </span>
+                  <Box as="span" tabularNums>
+                    {buildMedian(row.totalMs)}
+                  </Box>
+                  <Hint data-flow-costliest>costliest {costliestLine(row)}</Hint>
                   {row.failedMs > 0 && <Badge variant="danger">{buildMedian(row.failedMs)} failed</Badge>}
-                </li>
+                </Box>
               ))}
-            </ul>
-            <Hint as="p" size="xs" flush>Median per phase, target and start, without failed attempts.</Hint>
-            <ul className="m-0 flex list-none flex-col gap-1 p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            </Box>
+            <Hint as="p" size="xs" flush>
+              Median per phase, target and start, without failed attempts.
+            </Hint>
+            <Box as="ul" css-margin="0" css-padding="0" css-list-style="none" m0 flex listNone flexCol gap="1" p="0">
               {view.builds.byPhase.map((row) => (
-                <li key={`${row.phase}-${row.target}-${row.start}`} data-flow-build={row.phase} className="flex flex-wrap gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
+                <Box
+                  key={`${row.phase}-${row.target}-${row.start}`}
+                  data-flow-build={row.phase}
+                  as="li"
+                  css-display="flex"
+                  css-flex-wrap="wrap"
+                  css-gap="0-12px"
+                  css-overflow-wrap="anywhere"
+                  flex
+                  flexWrap
+                  gapX="3"
+                  size="sm"
+                >
                   <span>{row.phase}</span>
                   <span>{row.target}</span>
                   <Hint>{row.start}</Hint>
-                  <span className="tabular-nums">{buildMedian(row.medianMs)}</span>
-                  <Hint>{row.count} {row.count === 1 ? 'build' : 'builds'}</Hint>
-                </li>
+                  <Box as="span" tabularNums>
+                    {buildMedian(row.medianMs)}
+                  </Box>
+                  <Hint>
+                    {row.count} {row.count === 1 ? 'build' : 'builds'}
+                  </Hint>
+                </Box>
               ))}
-            </ul>
+            </Box>
             {view.builds.byInstance.length > 1 && (
-              <ul className="m-0 flex list-none flex-col gap-1 p-0" data-flow-instances style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+              <Box as="ul" css-margin="0" css-padding="0" css-list-style="none" m0 flex listNone flexCol gap="1" p="0" data-flow-instances>
                 {view.builds.byInstance.map((row) => (
-                  <li key={row.instance ?? 'none'} className="flex flex-wrap gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
+                  <Box key={row.instance ?? 'none'} as="li" css-display="flex" css-flex-wrap="wrap" css-gap="0-12px" css-overflow-wrap="anywhere" flex flexWrap gapX="3" size="sm">
                     {row.instance ? (
                       <Tooltip text={row.instance}>
                         <span>{row.name ?? 'Unnamed machine'}</span>
@@ -100,26 +137,34 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
                     ) : (
                       <span>No instance</span>
                     )}
-                    <span className="tabular-nums">{buildMedian(row.medianMs)}</span>
-                    <Hint>{row.count} {row.count === 1 ? 'pull request' : 'pull requests'}, {span(row.totalMs)} in all</Hint>
-                  </li>
+                    <Box as="span" tabularNums>
+                      {buildMedian(row.medianMs)}
+                    </Box>
+                    <Hint>
+                      {row.count} {row.count === 1 ? 'pull request' : 'pull requests'}, {span(row.totalMs)} in all
+                    </Hint>
+                  </Box>
                 ))}
-              </ul>
+              </Box>
             )}
           </Stack>
         )}
-        {view.skipped.length > 0 && <Hint as="p" size="xs">Left out for a missing or unordered time: {view.skipped.map((s) => `#${s.number}`).join(', ')}.</Hint>}
+        {view.skipped.length > 0 && (
+          <Hint as="p" size="xs">
+            Left out for a missing or unordered time: {view.skipped.map((s) => `#${s.number}`).join(', ')}.
+          </Hint>
+        )}
         {[...view.errors.map((e) => `${e.repository}: ${e.error}`), ...(error ? [error] : [])].map((text) => (
           <ErrorText key={text} role="alert" size="xs">
             {text}
           </ErrorText>
         ))}
-        <p className="flex items-center gap-2 text-xs text-muted">
+        <Box as="p" flex items="center" gap="2" size="xs" tone="muted">
           {view.readAt ? `Read ${span(Date.now() - Date.parse(view.readAt))} ago.` : ''}
           <Btn type="button" disabled={busy} onClick={() => setPresses((n) => n + 1)}>
             {busy ? 'Reading…' : 'Read again'}
           </Btn>
-        </p>
+        </Box>
       </Stack>
     </Card>
   )

@@ -11,6 +11,8 @@ export interface InstanceView {
   name: string
   others: string[]
   shared: boolean
+  // The server that answered: Kiro Crew's app backend or `avoozl serve`.
+  host?: 'kirocrew' | 'standalone'
 }
 
 export const NAME_RULE = 'A name is 1 to 24 letters, digits, spaces or hyphens.'

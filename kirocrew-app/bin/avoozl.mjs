@@ -23,12 +23,7 @@ if (!COMMANDS.has(command)) {
 // Without a named workspace, serve the machine catalog's default workspace,
 // the one the Workspace view adds or initializes.
 const env = process.env;
-if (
-  !rest.includes("--workspace") &&
-  !env.AVOOZL_WORKSPACE &&
-  !env.AICOMMANDER_WORKSPACE &&
-  !env.NUPP_WORKSPACE
-) {
+if (!rest.includes("--workspace") && !env.AVOOZL_WORKSPACE) {
   const { loadHostConfig } = await import("./lib/src/app/host-config.mjs"),
     { config } = loadHostConfig({ env }),
     workspace = config.workspaces[config.defaultWorkspace];

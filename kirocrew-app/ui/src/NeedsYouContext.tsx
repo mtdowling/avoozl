@@ -13,18 +13,29 @@ import { linkHref, safeHref, type ConflictItem, type ItemContext, type ReviewTas
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
-
-const BOX = { borderColor: 'var(--border)' }
-const linkButton = { background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer', textAlign: 'left' as const }
+import { Box } from './ui/Box'
+import { NeedsContextStyle } from './ui/PageStyles'
+import { PlainButton } from './ui/Plain'
 
 // The spec's title; it opens Specs on that spec when a stored plan exists.
 export function SpecLink({ spec }: { spec: NonNullable<ItemContext['spec']> }) {
   const open = useOpenSpec()
   if (!spec.planId || !open) return <span data-spec-name>{spec.title}</span>
   return (
-    <button type="button" className="underline" style={linkButton} data-spec-link={spec.planId} onClick={() => open(spec.planId!)}>
+    <PlainButton
+      type="button"
+      css-background="none"
+      css-border="0"
+      css-padding="0"
+      css-color="inherit"
+      css-cursor="pointer"
+      css-text-align="left"
+      underline
+      data-spec-link={spec.planId}
+      onClick={() => open(spec.planId!)}
+    >
       {spec.title}
-    </button>
+    </PlainButton>
   )
 }
 
@@ -32,9 +43,20 @@ export function SpecLink({ spec }: { spec: NonNullable<ItemContext['spec']> }) {
 export function TaskLink({ task }: { task: { id: string; title: string } }) {
   const drawer = useTaskDrawer()
   return (
-    <button type="button" className="underline" style={linkButton} data-task-link={task.id} onClick={() => drawer.openTask(task.id)}>
+    <PlainButton
+      type="button"
+      css-background="none"
+      css-border="0"
+      css-padding="0"
+      css-color="inherit"
+      css-cursor="pointer"
+      css-text-align="left"
+      underline
+      data-task-link={task.id}
+      onClick={() => drawer.openTask(task.id)}
+    >
       {task.id}: {task.title}
-    </button>
+    </PlainButton>
   )
 }
 
@@ -45,24 +67,46 @@ const DIFF_MARK: Record<DiffLine['kind'], string> = { same: ' ', add: '+', remov
 export function TaskText(props: { title: string; context: ItemContext | undefined; note?: boolean }) {
   const evidence = reviewEvidence(props.title, props.context)
   const source = props.context?.source
-  if (!evidence) return <Hint as="p" size="xs" flush>Avoozl holds no text for this task.</Hint>
+  if (!evidence)
+    return (
+      <Hint as="p" size="xs" flush>
+        Avoozl holds no text for this task.
+      </Hint>
+    )
   return (
     <Stack data-task-text gap={1}>
       {source && (
-        <code className="text-xs text-muted" data-snippet-head>
+        <Box as="code" size="xs" tone="muted" data-snippet-head>
           {sourceLine(source)}
-        </code>
+        </Box>
       )}
-      <pre className="m-0 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded border p-2 text-xs" style={BOX} data-task-text-body={evidence.kind}>
+      <Box
+        as="pre"
+        css-border-color="border"
+        m0
+        maxH56
+        overflow="auto"
+        whitespace="pre-wrap"
+        breakWords
+        rounded="base"
+        border="all"
+        p="2"
+        size="xs"
+        data-task-text-body={evidence.kind}
+      >
         {evidence.kind === 'diff'
           ? evidence.lines.map((line, i) => (
-              <span key={i} data-diff={line.kind} style={{ display: 'block', color: DIFF_INK[line.kind] }}>
+              <Box key={i} data-diff={line.kind} as="span" css-display="block" css-color={DIFF_INK[line.kind]}>
                 {DIFF_MARK[line.kind]} {line.text}
-              </span>
+              </Box>
             ))
           : evidence.lines.join('\n')}
-      </pre>
-      {evidence.kind === 'text' && props.note && <Hint as="p" size="xs" flush>{evidence.note}</Hint>}
+      </Box>
+      {evidence.kind === 'text' && props.note && (
+        <Hint as="p" size="xs" flush>
+          {evidence.note}
+        </Hint>
+      )}
     </Stack>
   )
 }
@@ -71,26 +115,40 @@ export function TaskText(props: { title: string; context: ItemContext | undefine
 export function ReviewTaskContext({ task }: { task: ReviewTask }) {
   const drawer = useTaskDrawer()
   return (
-    <li className="flex flex-col gap-1 border-t py-2 first:border-t-0" style={BOX} data-review-task={task.id}>
-      <span className="flex flex-wrap items-baseline gap-2 text-sm">
-        <button type="button" className="font-medium underline" style={linkButton} data-task-link={task.id} onClick={() => drawer.openTask(task.id)}>
+    <Box as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" firstBorderT0 data-review-task={task.id}>
+      <Box as="span" flex flexWrap items="baseline" gap="2" size="sm">
+        <PlainButton
+          type="button"
+          css-background="none"
+          css-border="0"
+          css-padding="0"
+          css-color="inherit"
+          css-cursor="pointer"
+          css-text-align="left"
+          weight="medium"
+          underline
+          data-task-link={task.id}
+          onClick={() => drawer.openTask(task.id)}
+        >
           {task.id}: {task.title}
-        </button>
+        </PlainButton>
         {task.context?.spec && (
           <Hint size="xs">
             Spec: <SpecLink spec={task.context.spec} />
           </Hint>
         )}
-      </span>
+      </Box>
       <TaskText title={task.title} context={task.context} note />
-    </li>
+    </Box>
   )
 }
 
 function Section(props: { name: string; title: string; children: ReactNode }) {
   return (
     <Stack as="section" gap={1} data-context-section={props.name}>
-      <h4 className="m-0 text-xs font-semibold uppercase text-muted">{props.title}</h4>
+      <Box as="h4" m0 size="xs" weight="semibold" uppercase tone="muted">
+        {props.title}
+      </Box>
       {props.children}
     </Stack>
   )
@@ -102,18 +160,20 @@ const shownValue = (value: string | string[] | null | undefined) => (Array.isArr
 export function Values({ item }: { item: ConflictItem }) {
   if (item.expected === undefined && item.actual === undefined) return null
   const block = (label: string, value: ConflictItem['expected']) => (
-    <div className="min-w-0">
-      <Hint as="div" size="xs">{label}</Hint>
-      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded border p-2 text-xs" style={BOX}>
+    <Box minW0>
+      <Hint as="div" size="xs">
+        {label}
+      </Hint>
+      <Box as="pre" css-border-color="border" mt="1" maxH40 overflow="auto" whitespace="pre-wrap" breakWords rounded="base" border="all" p="2" size="xs">
         {shownValue(value)}
-      </pre>
-    </div>
+      </Box>
+    </Box>
   )
   return (
-    <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 16rem), 1fr))' }}>
+    <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-16rem-1fr" grid gap="2">
       {block('Avoozl expected', item.expected)}
       {block(item.changedBy ? `GitHub has (changed by ${item.changedBy})` : 'GitHub has', item.actual)}
-    </div>
+    </Box>
   )
 }
 
@@ -123,29 +183,35 @@ const CONFIDENCE = { low: 'Low', medium: 'Medium', high: 'High' } as const
 export function InvestigationEvidence({ item }: { item: ConflictItem }) {
   const f = item.findings
   const row = (label: string, value: string) => (
-    <div className="min-w-0">
-      <Hint as="dt" size="xs">{label}</Hint>
-      <dd className="m-0 whitespace-pre-wrap break-words text-sm">{value}</dd>
-    </div>
+    <Box minW0>
+      <Hint as="dt" size="xs">
+        {label}
+      </Hint>
+      <Box as="dd" m0 whitespace="pre-wrap" breakWords size="sm">
+        {value}
+      </Box>
+    </Box>
   )
   return (
     <Stack gap={2}>
       {f && (
-        <dl className="m-0 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 16rem), 1fr))' }}>
+        <Box as="dl" css-grid-template-columns="repeat-auto-fit-minmax-min-100%-16rem-1fr" m0 grid gap="2">
           {row('Read', f.read)}
           {row('Cause or approach', f.cause)}
           {row('Planned change', f.plan)}
           {row('How it is checked', f.check)}
           {row('Worker is sure', CONFIDENCE[f.confidence])}
-        </dl>
+        </Box>
       )}
       {item.reply && (
-        <div className="rounded border p-2 text-sm" style={BOX}>
+        <Box css-border-color="border" rounded="base" border="all" p="2" size="sm">
           <Hint as="div" size="xs">
             Falsifier: {item.reply.verdict === 'refuted' ? 'refuted' : 'stands'}, {CONFIDENCE[item.reply.confidence].toLowerCase()} confidence
           </Hint>
-          <p className="mt-1 whitespace-pre-wrap break-words">{item.reply.evidence}</p>
-        </div>
+          <Box as="p" mt="1" whitespace="pre-wrap" breakWords>
+            {item.reply.evidence}
+          </Box>
+        </Box>
       )}
     </Stack>
   )
@@ -160,31 +226,33 @@ function Evidence({ item }: { item: ConflictItem }) {
       {kinds.includes('values') && <Values item={item} />}
       {kinds.includes('investigation') && <InvestigationEvidence item={item} />}
       {kinds.includes('review') && (
-        <ul className="m-0 flex list-none flex-col p-0" data-review-tasks>
+        <Box as="ul" m0 flex listNone flexCol p="0" data-review-tasks>
           {(item.tasks ?? []).map((task) => (
             <ReviewTaskContext key={task.id} task={task} />
           ))}
-        </ul>
+        </Box>
       )}
       {kinds.includes('summary') && context?.review && (
-        <div className="flex flex-col gap-1 text-sm" data-review-summary>
+        <Box flex flexCol gap="1" size="sm" data-review-summary>
           {context.review.summary ? (
-            <p className="m-0" data-ai-summary>
+            <Box as="p" m0 data-ai-summary>
               {context.review.summary.text}
               {!context.review.summary.current && <Hint size="xs"> (written for an older revision)</Hint>}
-            </p>
+            </Box>
           ) : (
-            <Hint as="p" flush>No AI summary is stored for this draft yet.</Hint>
+            <Hint as="p" flush>
+              No AI summary is stored for this draft yet.
+            </Hint>
           )}
-          <span className="flex flex-wrap items-center gap-2 text-xs text-muted">
+          <Box as="span" flex flexWrap items="center" gap="2" size="xs" tone="muted">
             {context.review.state === 'not-reviewed' ? 'Not reviewed yet' : `${context.review.found} found, ${context.review.fixed} fixed`}
             <SeverityBadges counts={context.review.openBySeverity} label="Open review findings" />
-          </span>
-        </div>
+          </Box>
+        </Box>
       )}
       {kinds.includes('text') && context?.text && <TaskText title={context.task?.title ?? item.title} context={context} />}
       {kinds.includes('links') && context?.links && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" data-context-links>
+        <Box flex flexWrap items="center" gapX="3" gapY="1" size="sm" data-context-links>
           {context.links.pr && (
             <TextLink href={linkHref(context.links.pr.url)} target="_blank" rel="noopener noreferrer" data-pr-chip>
               Pull request #{context.links.pr.number}
@@ -197,29 +265,44 @@ function Evidence({ item }: { item: ConflictItem }) {
             </TextLink>
           )}
           {context.links.checks && <Hint>{checkDot(context.links.checks).label}</Hint>}
-        </div>
+        </Box>
+      )}
+      {kinds.includes('checks') && context?.failedChecks && (
+        <Stack gap={1} data-failed-checks>
+          {context.failedChecks.checks.map((check) => (
+            <Stack key={check.name}>
+              <span>
+                Failed check <strong>{check.name}</strong>
+                {check.conclusion ? ` (${check.conclusion})` : ''}
+                {context.failedChecks!.commit ? ` on ${context.failedChecks!.commit.slice(0, 7)}` : ''}
+              </span>
+              {check.firstError ? <code data-first-error>{check.firstError}</code> : <Hint size="xs">The check gave no error line.</Hint>}
+            </Stack>
+          ))}
+        </Stack>
       )}
       {kinds.includes('content') && (
-        <p className="m-0 text-sm" data-content-evidence>
+        <Box as="p" m0 size="sm" data-content-evidence>
           Rule set {item.set ?? 'unknown'}
           {item.rules?.length ? `, rule ${item.rules.join(', ')}` : ''}
           {item.target ? `, ${item.target}` : ''}
           {item.line ? `, line ${item.line}` : ''}
           {item.boundary ? ` (${item.boundary})` : ''}. The matched text is not stored here.
-        </p>
+        </Box>
       )}
-      {kinds.includes('resource') && <p className="m-0 text-sm">Runs: {item.runs!.join(', ')}</p>}
       {kinds.includes('escalation') && item.escalation && (
-        <div className="flex flex-col gap-1 text-sm" data-escalation-evidence>
-          <p className="m-0">An Issue Radar crew added “{item.escalation.label}”{item.escalation.scope ? ` (${item.escalation.scope})` : ''}.</p>
+        <Box flex flexCol gap="1" size="sm" data-escalation-evidence>
+          <Box as="p" m0>
+            An Issue Radar crew added “{item.escalation.label}”{item.escalation.scope ? ` (${item.escalation.scope})` : ''}.
+          </Box>
           {item.escalation.draft && (
-            <ul className="m-0 pl-5" style={{ listStyle: 'disc' }}>
+            <Box as="ul" css-list-style="disc" m0 pl="5">
               {item.escalation.draft.acceptance.map((line) => (
                 <li key={line}>{line}</li>
               ))}
-            </ul>
+            </Box>
           )}
-        </div>
+        </Box>
       )}
       {kinds.length === 0 && (
         <Hint as="p" size="sm" flush data-no-evidence>
@@ -250,46 +333,58 @@ export function ItemContextBlock({ item, plan }: { item: ConflictItem; plan?: st
   const spec = specOfItem(item) ?? (plan ? { planId: null, name: plan, title: plan } : null)
   const unblock = unblockLine(item)
   return (
-    <div className="flex flex-col gap-3 rounded border p-3" style={BOX} data-needs-context={item.kind}>
-      <style>{'[data-needs-context] :is(dl,dd,h4,p,ul){margin:0}[data-needs-context] dd{margin-left:0}'}</style>
-      <dl className="m-0 grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'auto 1fr' }} data-context-where>
-        <Hint as="dt" size="xs">Spec</Hint>
-        <dd className="m-0 min-w-0" style={{ overflowWrap: 'anywhere' }}>
+    <Box css-border-color="border" flex flexCol gap="3" rounded="base" border="all" p="3" data-needs-context={item.kind}>
+      <NeedsContextStyle />
+      <Box as="dl" css-grid-template-columns="auto-1fr" m0 grid gapX="3" gapY="1" size="sm" data-context-where>
+        <Hint as="dt" size="xs">
+          Spec
+        </Hint>
+        <Box as="dd" css-overflow-wrap="anywhere" m0 minW0>
           {spec ? <SpecLink spec={spec} /> : <Hint>Not part of a spec</Hint>}
-        </dd>
+        </Box>
         {task && (
           <>
-            <Hint as="dt" size="xs">Task</Hint>
-            <dd className="m-0 min-w-0" style={{ overflowWrap: 'anywhere' }}>
+            <Hint as="dt" size="xs">
+              Task
+            </Hint>
+            <Box as="dd" css-overflow-wrap="anywhere" m0 minW0>
               <TaskLink task={task} />
-            </dd>
+            </Box>
           </>
         )}
         {context?.source && item.kind !== 'review' && (
           <>
-            <Hint as="dt" size="xs">Source</Hint>
-            <dd className="m-0 min-w-0">
+            <Hint as="dt" size="xs">
+              Source
+            </Hint>
+            <Box as="dd" m0 minW0>
               <Tooltip text="Where the task is written in the spec">
-                <code className="text-xs">{sourceLine(context.source)}</code>
+                <Box as="code" size="xs">
+                  {sourceLine(context.source)}
+                </Box>
               </Tooltip>
-            </dd>
+            </Box>
           </>
         )}
-      </dl>
+      </Box>
       <Section name="asked" title="What is asked, and why">
-        <p className="m-0 text-sm font-medium">{askLine(item)}</p>
+        <Box as="p" m0 size="sm" weight="medium">
+          {askLine(item)}
+        </Box>
         <Hint as="p" size="sm" flush data-context-why>
           {whyLine(item)}
         </Hint>
       </Section>
       {unblock && (
         <Section name="unblocks" title="What it unblocks">
-          <p className="m-0 text-sm">{unblock}</p>
+          <Box as="p" m0 size="sm">
+            {unblock}
+          </Box>
         </Section>
       )}
       <Section name="evidence" title="Evidence">
         <Evidence item={item} />
       </Section>
-    </div>
+    </Box>
   )
 }

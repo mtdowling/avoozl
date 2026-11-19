@@ -11,7 +11,7 @@ import { Btn } from './ui/Btn'
 import { Input } from './ui/Input'
 import Badge from './ui/Badge.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { DangerBtn, ICON, IconLabel } from './ui/controls.tsx'
 import { Ban, Check, ClipboardCheck, ExternalLink, Pencil, Plus, RotateCcw, Trash2, X } from './icons.ts'
@@ -23,7 +23,9 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
+import { PlainLink } from './ui/Plain'
 
 // A save a content rule blocked: the decisions to allow, and the save to
 // run again once allowed.
@@ -40,14 +42,14 @@ function AllowOnce(props: { workspaceId: string; blocked: Blocked; onDone: (text
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   return (
-    <div role="alert" className="flex flex-col gap-2 rounded border p-2 text-sm" style={{ borderColor: 'var(--danger)' }} data-notes-blocked>
+    <Box role="alert" css-border-color="danger" flex flexCol gap="2" rounded="base" border="all" p="2" size="sm" data-notes-blocked>
       <ErrorText>{props.blocked.message}</ErrorText>
       {props.blocked.decisions.length > 0 && (
         <Row gap={2} align="end">
-          <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '12rem' }}>
+          <Box as="label" css-min-width="12rem" flex flex1 flexCol gap="1" size="xs">
             <span>Why this exact text may be saved once (required)</span>
             <Input value={reason} onChange={(event: { target: { value: string } }) => setReason(event.target.value)} />
-          </label>
+          </Box>
           <DangerBtn
             icon={Check}
             disabled={busy || !reason.trim()}
@@ -76,7 +78,7 @@ function AllowOnce(props: { workspaceId: string; blocked: Blocked; onDone: (text
           </DangerBtn>
         </Row>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -95,8 +97,8 @@ function EntryView(props: {
   const problem = editing ? linkProblem(url, label) : null
   const href = safeHref(entry.url)
   return (
-    <li className="flex flex-col gap-1 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-link-entry>
-      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+    <Box as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" firstBorderT0 data-link-entry>
+      <Box flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
         <span>{authorLabel(entry)}</span>
         <Tooltip text={entry.at}>
           <span>{relativeTime(entry.at)}</span>
@@ -104,18 +106,22 @@ function EntryView(props: {
         {entry.editedAt && <span>· edited</span>}
         {entry.outcome && <Badge>Outcome</Badge>}
         {entry.onIssue && <Badge>On the issue</Badge>}
-      </div>
+      </Box>
       {editing ? (
         <Stack gap={2}>
-          <label className="flex flex-col gap-1 text-xs">
+          <Box as="label" flex flexCol gap="1" size="xs">
             URL
             <Input value={url} onChange={(event: { target: { value: string } }) => setUrl(event.target.value)} />
-          </label>
-          <label className="flex flex-col gap-1 text-xs">
+          </Box>
+          <Box as="label" flex flexCol gap="1" size="xs">
             Label
             <Input value={label} onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
-          </label>
-          {problem && <ErrorText as="span" size="xs">{problem}</ErrorText>}
+          </Box>
+          {problem && (
+            <ErrorText as="span" size="xs">
+              {problem}
+            </ErrorText>
+          )}
           <Row gap={2} align="start">
             <Btn
               type="button"
@@ -131,18 +137,14 @@ function EntryView(props: {
           </Row>
         </Stack>
       ) : href ? (
-        <a
-          href={linkHref(href)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm underline"
-          style={{ overflowWrap: 'anywhere' }}
-        >
+        <PlainLink href={linkHref(href)} target="_blank" rel="noopener noreferrer" css-overflow-wrap="anywhere" inlineFlex items="center" gap="1" size="sm" underline>
           <ExternalLink size={ICON} aria-hidden="true" />
           {entry.label}
-        </a>
+        </PlainLink>
       ) : (
-        <span className="text-sm">{entry.label}</span>
+        <Box as="span" size="sm">
+          {entry.label}
+        </Box>
       )}
       {!editing && (
         <Row gap={2}>
@@ -165,16 +167,24 @@ function EntryView(props: {
           {props.onGitHub && (
             <Tooltip text="List it in the issue's managed section on GitHub. Off by default: a link may point at things not meant for the repository.">
               {(describedBy) => (
-                <label className="inline-flex items-center gap-1.5 text-xs" aria-describedby={describedBy}>
-                  <Checkbox checked={entry.onIssue} disabled={props.busy} onChange={(event) => props.onShow(entry, event.target.checked)} />
+                <Switch
+                  label="Show on the issue"
+                  inline
+                  size="xs"
+                  gap={1.5}
+                  describedBy={describedBy}
+                  checked={entry.onIssue}
+                  disabled={props.busy}
+                  onChange={(on) => props.onShow(entry, on)}
+                >
                   Show on the issue
-                </label>
+                </Switch>
               )}
             </Tooltip>
           )}
         </Row>
       )}
-    </li>
+    </Box>
   )
 }
 
@@ -262,7 +272,9 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
         </Hint>
       )}
       {entries === null ? (
-        <Hint as="p" size="sm">Loading…</Hint>
+        <Hint as="p" size="sm">
+          Loading…
+        </Hint>
       ) : entries.length === 0 ? null : (
         <Stack as="ul" aria-label="Links, newest first">
           {entries.map((entry) => (
@@ -297,16 +309,20 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
           }}
         >
           <Row gap={2} align="start">
-            <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '12rem' }}>
+            <Box as="label" css-min-width="12rem" flex flex1 flexCol gap="1" size="xs">
               URL
               <Input autoFocus value={url} placeholder="https://" onChange={(event: { target: { value: string } }) => setUrl(event.target.value)} />
-            </label>
-            <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '10rem' }}>
+            </Box>
+            <Box as="label" css-min-width="10rem" flex flex1 flexCol gap="1" size="xs">
               Label
               <Input value={label} placeholder="Review doc" onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
-            </label>
+            </Box>
           </Row>
-          {linkIssue && <ErrorText as="span" size="xs">{linkIssue}</ErrorText>}
+          {linkIssue && (
+            <ErrorText as="span" size="xs">
+              {linkIssue}
+            </ErrorText>
+          )}
           <Row gap={2} align="start">
             <Btn type="submit" primary disabled={busy} data-add-link-submit>
               Add
@@ -318,7 +334,7 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
         </form>
       ) : (
         <div>
-          <Btn type="button" onClick={() => setAdding(true)} data-add-link style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Btn type="button" onClick={() => setAdding(true)} data-add-link css-display="inline-flex" css-align-items="center" css-gap="6">
             <Plus size={ICON} aria-hidden="true" />
             Add link
           </Btn>
@@ -339,14 +355,7 @@ const MARKED: Record<Choice, string> = {
 // Mark done (R61.12): optional outcome links, then Done,
 // Skipped or Refused. Done and Skipped release the tasks that wait on it;
 // Refused is a no-go and keeps them held.
-export function MarkDoneDialog(props: {
-  workspaceId: string
-  taskId: string
-  title: string
-  onIssue: boolean
-  onClose: () => void
-  onDone: (text: string) => void
-}) {
+export function MarkDoneDialog(props: { workspaceId: string; taskId: string; title: string; onIssue: boolean; onClose: () => void; onDone: (text: string) => void }) {
   const client = notesClient(useAppApi())
   const [choice, setChoice] = useState<Choice>('done')
   const [links, setLinks] = useState<{ url: string; label: string }[]>([])
@@ -406,9 +415,9 @@ export function MarkDoneDialog(props: {
         }
       }
       title={
-        <span className="inline-flex items-center gap-1.5">
+        <Box as="span" inlineFlex items="center" gap="1.5">
           <ClipboardCheck size={ICON} aria-hidden="true" /> Mark done: {props.title}
-        </span>
+        </Box>
       }
       onDismiss={props.onClose}
       footer={
@@ -419,7 +428,9 @@ export function MarkDoneDialog(props: {
             disabled={busy || problems.some(Boolean)}
             onClick={() => void submit()}
             data-mark-done-confirm
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            css-display="inline-flex"
+            css-align-items="center"
+            css-gap="6"
           >
             <ClipboardCheck size={ICON} aria-hidden="true" />
             {choice === 'done' ? 'Mark done' : choice === 'skipped' ? 'Mark skipped' : 'Mark refused'}
@@ -458,24 +469,28 @@ export function MarkDoneDialog(props: {
           },
         ]}
       />
-      <fieldset className="flex flex-col gap-2 text-sm">
+      <Box as="fieldset" flex flexCol gap="2" size="sm">
         <legend>
           Links <Hint size="xs">(optional)</Hint>
         </legend>
         {links.map((link, i) => (
           <Row key={i} gap={2} align="end">
-            <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '10rem' }}>
+            <Box as="label" css-min-width="10rem" flex flex1 flexCol gap="1" size="xs">
               URL
               <Input value={link.url} placeholder="https://" onChange={(event: { target: { value: string } }) => setLink(i, { url: event.target.value })} />
-            </label>
-            <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '8rem' }}>
+            </Box>
+            <Box as="label" css-min-width="8rem" flex flex1 flexCol gap="1" size="xs">
               Label
               <Input value={link.label} onChange={(event: { target: { value: string } }) => setLink(i, { label: event.target.value })} />
-            </label>
+            </Box>
             <IconLabel icon={X} aria-label={`Drop link ${i + 1} from this form`} onClick={() => setLinks(links.filter((_, j) => j !== i))}>
               Drop
             </IconLabel>
-            {problems[i] && link.url && <span className="w-full text-xs text-danger">{problems[i]}</span>}
+            {problems[i] && link.url && (
+              <Box as="span" wFull size="xs" tone="danger">
+                {problems[i]}
+              </Box>
+            )}
           </Row>
         ))}
         <div>
@@ -483,7 +498,7 @@ export function MarkDoneDialog(props: {
             Add a link
           </IconLabel>
         </div>
-      </fieldset>
+      </Box>
       {blocked && <AllowOnce workspaceId={props.workspaceId} blocked={blocked} onDone={() => setBlocked(null)} onError={(failed) => setError(failed)} />}
       {error && (
         <ErrorText role="alert" size="sm">
@@ -512,21 +527,25 @@ export function ManualTask(props: {
   const [error, setError] = useState<string | null>(null)
   const done = props.task.manualDone
   return (
-    <section aria-label="Manual task" className="flex flex-col gap-2 rounded border p-3" style={{ borderColor: 'var(--accent)' }} data-manual-task>
+    <Box aria-label="Manual task" as="section" css-border-color="accent" flex flexCol gap="2" rounded="base" border="all" p="3" data-manual-task>
       <Row gap={2}>
         <Badge variant="warning">Manual</Badge>
-        <span className="text-sm">A person does this step. No agent works on it.</span>
+        <Box as="span" size="sm">
+          A person does this step. No agent works on it.
+        </Box>
       </Row>
       <div>
-        <h4 className="text-sm font-semibold">What you check</h4>
-        <ul className="mt-1 list-disc pl-5 text-sm">
+        <Box as="h4" size="sm" weight="semibold">
+          What you check
+        </Box>
+        <Box as="ul" mt="1" listDisc pl="5" size="sm">
           {props.task.acceptance.map((line, i) => (
             <li key={i}>{line}</li>
           ))}
-        </ul>
+        </Box>
       </div>
       {done ? (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Box flex flexWrap items="center" gap="2" size="sm">
           {done.choice === 'refused' ? <Badge variant="danger">Refused</Badge> : <Badge>{done.choice === 'skipped' ? 'Skipped' : 'Done'}</Badge>}
           <Hint size="xs">
             by {done.login ?? done.by} {relativeTime(done.at)}
@@ -549,7 +568,7 @@ export function ManualTask(props: {
           >
             Reopen
           </DangerBtn>
-        </div>
+        </Box>
       ) : (
         <div>
           <IconLabel icon={ClipboardCheck} primary tooltip="Record that the step happened" onClick={() => setOpen(true)}>
@@ -575,6 +594,6 @@ export function ManualTask(props: {
           }}
         />
       )}
-    </section>
+    </Box>
   )
 }

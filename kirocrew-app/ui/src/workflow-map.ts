@@ -2,15 +2,16 @@
 // repository, as lanes of step cards built from its settings. Pure: the page
 // draws what this returns, and no card holds text the settings do not give.
 import { isGitHubMode, modeKey, type RepositoryForm } from './settings-api.ts'
+import { TONE } from './ui/tones.ts'
 
 export type Who = 'you' | 'radar' | 'avoozl' | 'github'
 export const WHO_TEXT: Record<Who, string> = { you: 'You', radar: 'Radar crew', avoozl: 'Avoozl', github: 'GitHub' }
 // Theme variables only, each with another existing variable as fallback.
 export const WHO_COLOR: Record<Who, string> = {
-  you: 'var(--accent)',
-  radar: 'var(--tile-purple, var(--aim))',
-  avoozl: 'var(--ok)',
-  github: 'var(--tile-orange, var(--warning))',
+  you: TONE.accent,
+  radar: TONE.purpleOrAim,
+  avoozl: TONE.ok,
+  github: TONE.orangeOrWarning,
 }
 
 // The one place a step's build state is written. A step missing here has no
@@ -32,18 +33,7 @@ export const WORKFLOW_STATUS: Record<string, StepTag> = {
 
 // Where a value is set. `tab` is a repository dialog sub-tab; `field` names the
 // input the page focuses.
-export type JumpField =
-  | 'plan'
-  | 'conflict'
-  | 'onSourceConflict'
-  | 'mergeMethod'
-  | 'autoMerge'
-  | 'approval'
-  | 'ready'
-  | 'claim'
-  | 'needsHuman'
-  | 'actors'
-  | 'permission'
+export type JumpField = 'plan' | 'conflict' | 'onSourceConflict' | 'mergeMethod' | 'autoMerge' | 'approval' | 'ready' | 'claim' | 'needsHuman' | 'actors' | 'permission'
 // `radar` is Settings › Issue Radar, a page of its own; the others are
 // tabs of the repository's Edit dialog (repo-edit-tabs.ts).
 export interface Jump {
@@ -142,9 +132,7 @@ const radarRest = (repository: RepositoryForm) => {
 // value an older file holds under `radar` is read as is; otherwise a placeholder.
 const placeholderLabel = (repository: RepositoryForm, key: 'reviewLabel' | 'draftedLabel', fallback: string, label: string): Value => {
   const held = radarRest(repository)[key]
-  return typeof held === 'string' && held.trim()
-    ? { label, text: held.trim(), source: 'set' }
-    : { label, text: fallback, source: 'placeholder' }
+  return typeof held === 'string' && held.trim() ? { label, text: held.trim(), source: 'set' } : { label, text: fallback, source: 'placeholder' }
 }
 
 const tag = (key: string): { tag?: StepTag } => (WORKFLOW_STATUS[key] ? { tag: WORKFLOW_STATUS[key] } : {})
@@ -229,13 +217,25 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     muted: 'Issue Radar crews keep maintenance of issues Avoozl did not create. Avoozl hands them no work.',
     cards: [
       { key: 'maint-issue', who: 'github', title: 'An issue comes in', text: 'Someone opens an issue. Avoozl is not involved.', values: [] },
-      { key: 'maint-label', who: 'you', title: 'You add the crew label', text: "The label in the crew's scope (set in Issue Radar). Avoozl's ready label is the same name.", values: [ready] },
+      {
+        key: 'maint-label',
+        who: 'you',
+        title: 'You add the crew label',
+        text: "The label in the crew's scope (set in Issue Radar). Avoozl's ready label is the same name.",
+        values: [ready],
+      },
       { key: 'maint-crew', who: 'radar', title: 'The crew claims, fixes, opens a PR', text: 'It runs CI on the pull request.', values: [], ...tag('maint-crew') },
       { ...closer, key: 'maint-close' },
     ],
   }
 
-  const buildCard: Card = { key: 'epic-build-worker', who: 'avoozl', title: 'Worker chats build', text: 'Each worker chat codes one task on its own branch and opens a pull request.', values: [] }
+  const buildCard: Card = {
+    key: 'epic-build-worker',
+    who: 'avoozl',
+    title: 'Worker chats build',
+    text: 'Each worker chat codes one task on its own branch and opens a pull request.',
+    values: [],
+  }
   const releaseCard: Card = {
     key: 'epic-start',
     who: 'avoozl',
@@ -258,10 +258,24 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     cards: [
       { key: 'epic-request', who: 'you', title: 'A feature request comes in', text: 'An issue that is too big for one crew.', values: [] },
       { key: 'epic-punt', who: 'radar', title: 'The crew punts', text: 'It adds its escalation label and stops.', values: [needsHuman], ...tag('epic-punt') },
-      { key: 'epic-plan-label', who: 'you', title: 'You add the planning label', text: 'Only people the repository allows count.', values: [plan, actors], ...tag('epic-plan-label') },
+      {
+        key: 'epic-plan-label',
+        who: 'you',
+        title: 'You add the planning label',
+        text: 'Only people the repository allows count.',
+        values: [plan, actors],
+        ...tag('epic-plan-label'),
+      },
       { key: 'epic-draft', who: 'avoozl', title: 'Avoozl drafts the spec', text: 'A spec with tasks and their order.', values: [], ...tag('epic-draft') },
       { key: 'epic-approve', who: 'you', title: 'You approve', text: 'Add the approval label, or approve in Avoozl or a chat.', values: [approval], ...tag('epic-approve') },
-      { key: 'epic-claim', who: 'avoozl', title: 'Avoozl claims the parent and writes the sub-issues', text: 'It adds blocked-by links, so the order lives on GitHub.', values: [claim], ...tag('epic-claim') },
+      {
+        key: 'epic-claim',
+        who: 'avoozl',
+        title: 'Avoozl claims the parent and writes the sub-issues',
+        text: 'It adds blocked-by links, so the order lives on GitHub.',
+        values: [claim],
+        ...tag('epic-claim'),
+      },
       releaseCard,
       buildCard,
       mergeCard,
@@ -275,8 +289,22 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     cards: [
       { key: 'review-pr', who: 'github', title: 'A pull request comes in', text: 'Yours to review.', values: [] },
       { key: 'review-label', who: 'you', title: 'You add the review label', text: 'Only people the repository allows count, and it must be your login.', values: [review, actors] },
-      { key: 'review-chat', who: 'avoozl', title: 'A review chat reads the pull request', text: 'Read only. It posts one pending review under your login and swaps the label.', values: [drafted], ...tag('review-chat') },
-      { key: 'review-find', who: 'you', title: 'You find the draft', text: 'In Needs you here, or on GitHub with a search for the drafted label.', values: [drafted], ...tag('review-find') },
+      {
+        key: 'review-chat',
+        who: 'avoozl',
+        title: 'A review chat reads the pull request',
+        text: 'Read only. It posts one pending review under your login and swaps the label.',
+        values: [drafted],
+        ...tag('review-chat'),
+      },
+      {
+        key: 'review-find',
+        who: 'you',
+        title: 'You find the draft',
+        text: 'In Needs you here, or on GitHub with a search for the drafted label.',
+        values: [drafted],
+        ...tag('review-find'),
+      },
       { key: 'review-submit', who: 'you', title: 'You edit and submit it', text: 'Avoozl never submits a review.', values: [] },
       { key: 'review-answer', who: 'radar', title: 'The crew answers on its pull request', text: 'Only when a crew opened it.', values: [], ...tag('review-answer') },
     ],

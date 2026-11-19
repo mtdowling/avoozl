@@ -5,6 +5,7 @@ import { matches, type TaskFilter } from './filters.ts'
 import type { DeliveryItem, DeliverySession, Graph, GraphTask, RemoteWorker } from './views-api.ts'
 import { summarize } from './dashboard-api.ts'
 import { laneOf as sharedLaneOf } from '../../../src/delivery-lanes.mjs'
+import { TONE, laneBackground } from './ui/tones.ts'
 
 export type LaneId = 'ready' | 'running' | 'reviewing' | 'needs-you' | 'waiting' | 'done'
 
@@ -14,10 +15,10 @@ export type LaneId = 'ready' | 'running' | 'reviewing' | 'needs-you' | 'waiting'
 // warning (yellow) color: that means "needs you".
 export type DrawnLaneId = 'ready' | 'in-progress' | 'needs-you' | 'waiting' | 'done'
 export const LANES: { id: DrawnLaneId; label: string; tint: string }[] = [
-  { id: 'ready', label: 'Ready', tint: 'var(--accent)' },
-  { id: 'in-progress', label: 'In progress', tint: 'var(--tile-purple, var(--accent))' },
-  { id: 'needs-you', label: 'Needs you', tint: 'var(--danger)' },
-  { id: 'waiting', label: 'Blocked or waiting', tint: 'var(--muted)' },
+  { id: 'ready', label: 'Ready', tint: TONE.accent },
+  { id: 'in-progress', label: 'In progress', tint: TONE.purpleOrAccent },
+  { id: 'needs-you', label: 'Needs you', tint: TONE.danger },
+  { id: 'waiting', label: 'Blocked or waiting', tint: TONE.muted },
 ]
 
 // The groups inside the In progress lane, in order, each with its cards.
@@ -48,9 +49,7 @@ export const LANE_LABEL_WIDTH = 160
 // The width each of `columns` lanes gets in a row `width` wide.
 export const laneWidth = (width: number, columns: number, gap = 16) => (width - (columns - 1) * gap) / columns
 
-// A lane's background: a little of its tint over the card color, so text in
-// var(--text) stays readable in light and dark themes.
-export const laneBackground = (tint: string) => `color-mix(in srgb, ${tint} 8%, var(--card, transparent))`
+export { laneBackground }
 
 export interface LaneCard {
   id: string
@@ -182,8 +181,7 @@ export function deliveryLanes(graph: Graph | null, items: DeliveryItem[]): Recor
   for (const item of items) if (item.status !== 'superseded') add(tasks.get(item.id) ?? null, item)
   // Leaves with no delivery record yet still belong in their lane, so each
   // lane holds every task the Dashboard's state counts name.
-  for (const task of graph?.tasks ?? [])
-    if (!seen.has(task.id) && task.kind === 'leaf' && task.status !== 'superseded') add(task, null)
+  for (const task of graph?.tasks ?? []) if (!seen.has(task.id) && task.kind === 'leaf' && task.status !== 'superseded') add(task, null)
   lanes.done.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
   lanes.running.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
   const names = new Map<string, string>([...tasks.values()].map((t) => [t.id, t.title]))
@@ -246,19 +244,14 @@ export function filterLanes(lanes: Record<LaneId, LaneCard[]>, filter: TaskFilte
   return Object.fromEntries(
     (Object.keys(lanes) as LaneId[]).map((lane) => [
       lane,
-      lanes[lane].filter((card) =>
-        matches(
-          { ...card, epic: card.epicId, decision: card.decision ?? (card.deliveryState === 'decision' ? 'delivery stopped' : null) },
-          filter,
-        ),
-      ),
+      lanes[lane].filter((card) => matches({ ...card, epic: card.epicId, decision: card.decision ?? (card.deliveryState === 'decision' ? 'delivery stopped' : null) }, filter)),
     ]),
   ) as Record<LaneId, LaneCard[]>
 }
 
 // The lanes the board draws for a filter: Done only when the filter asks
 // for done work (the Dashboard's Done count opens it), else the four lanes.
-export const DONE_LANE = { id: 'done' as const, label: 'Done', tint: 'var(--ok)' }
+export const DONE_LANE = { id: 'done' as const, label: 'Done', tint: TONE.ok }
 
 // Lanes per row: 1 on a phone; else every lane in one row, falling back to
 // 2, then 1, only when lanes would go under LANE_MIN_WIDTH, so the row never
@@ -376,7 +369,11 @@ export const SHIP_CHOICES: { key: ShipMode; title: string; line: string; who: [s
 ]
 
 // One chip per value with its card count, in the order `options` gives.
-export function chipCounts(options: { value: string; label: string }[], cards: LaneCard[], valueOf: (card: LaneCard) => string | null): { value: string; label: string; count: number }[] {
+export function chipCounts(
+  options: { value: string; label: string }[],
+  cards: LaneCard[],
+  valueOf: (card: LaneCard) => string | null,
+): { value: string; label: string; count: number }[] {
   const counts = new Map<string, number>()
   for (const card of cards) {
     const value = valueOf(card)

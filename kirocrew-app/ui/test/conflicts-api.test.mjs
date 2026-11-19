@@ -15,7 +15,6 @@ test('every kind gets an action or a plain reason why it has none', () => {
     [item('github-conflict', 'g', { field: 'state', choices: [] }), null, /issue state/],
     [item('github-conflict', 'g', { field: 'identity', choices: [] }), null, /duplicate issue/],
     [item('github-conflict', 'g', { field: 'title', choices: ['desired', 'github'] }), null, null],
-    [item('resource', 'x'), null, /share a resource/],
     // A source conflict Avoozl asked about has its own three buttons (RC28.3).
     [item('needs-human', null, { reason: 'conflict-fix', authority: 'github', conflictFix: { repository: 'o/r', pullRequest: 3, actions: ['resolve', 'dismiss'] } }), null, null],
     [item('needs-human', null, { reason: 'merge-method', authority: 'github' }), null, /merge method on the Landing tab/],
@@ -36,17 +35,9 @@ test('settled items leave the list at once; refused ones stay and say why', () =
     item('stale-session', 'a', { slot: 's2' }),
   ]
   const reviewed = { revision: 5, settled: [{ taskId: 'a' }], refused: [{ taskId: 'b', reason: 'GitHub owns this task.' }] }
-  assert.deepEqual(withoutSettled(items, 'reviewed', reviewed).map(itemKey), [
-    'needs-human:b::',
-    'stale-session:a::s1',
-    'stale-session:a::s2',
-  ])
+  assert.deepEqual(withoutSettled(items, 'reviewed', reviewed).map(itemKey), ['needs-human:b::', 'stale-session:a::s1', 'stale-session:a::s2'])
   const dismissed = { revision: 6, settled: [{ taskId: 'a', slot: 's2' }], refused: [] }
-  assert.deepEqual(withoutSettled(items, 'dismiss', dismissed).map(itemKey), [
-    'needs-human:a::',
-    'needs-human:b::',
-    'stale-session:a::s1',
-  ])
+  assert.deepEqual(withoutSettled(items, 'dismiss', dismissed).map(itemKey), ['needs-human:a::', 'needs-human:b::', 'stale-session:a::s1'])
   assert.deepEqual(resultMessage('reviewed', reviewed), {
     ok: false,
     text: 'Mark reviewed: 1 done. Refused 1: b (GitHub owns this task.)',
@@ -73,7 +64,10 @@ test('a review group is one item that settles all its local tasks and shrinks as
   assert.deepEqual(settleTargets(group), [{ taskId: 'a' }, { taskId: 'b' }])
   assert.equal(settleCount([group]), 2)
   const left = withoutSettled([group], 'reviewed', { revision: 2, settled: [{ taskId: 'a' }], refused: [] })
-  assert.deepEqual(left.map((g) => [g.title, g.tasks.map((t) => t.id)]), [['Review 2 tasks in p: their design text changed', ['b', 'g']]])
+  assert.deepEqual(
+    left.map((g) => [g.title, g.tasks.map((t) => t.id)]),
+    [['Review 2 tasks in p: their design text changed', ['b', 'g']]],
+  )
   assert.deepEqual(withoutSettled(left, 'reviewed', { revision: 3, settled: [{ taskId: 'b' }, { taskId: 'g' }], refused: [] }), [])
   const remote = { ...group, tasks: [group.tasks[2]] }
   assert.equal(settleActionOf(remote), null)
@@ -88,7 +82,10 @@ test('the source-conflict choices call conflictfix.decide', async () => {
   for (const action of ['resolve', 'dismiss']) await client.decideConflictFix('w1', 'o/r', 3, action)
   assert.deepEqual(
     calls.map((call) => [call.operation, call.input.action, call.input.pullRequest]),
-    [['conflictfix.decide', 'resolve', 3], ['conflictfix.decide', 'dismiss', 3]],
+    [
+      ['conflictfix.decide', 'resolve', 3],
+      ['conflictfix.decide', 'dismiss', 3],
+    ],
   )
 })
 

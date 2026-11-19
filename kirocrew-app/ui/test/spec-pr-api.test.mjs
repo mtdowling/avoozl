@@ -21,6 +21,10 @@ test('the client calls the three spec pull request operations', async () => {
   await client.requestChanges('w', 'id')
   assert.deepEqual(
     calls.map((call) => [call.path, call.body.operation]),
-    [[COMMAND_PATH, 'specpr.view'], [COMMAND_PATH, 'specpr.reject'], [COMMAND_PATH, 'specpr.requestChanges']],
+    [
+      [COMMAND_PATH, 'specpr.view'],
+      [COMMAND_PATH, 'specpr.reject'],
+      [COMMAND_PATH, 'specpr.requestChanges'],
+    ],
   )
 })

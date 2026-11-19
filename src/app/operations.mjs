@@ -43,6 +43,7 @@ import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { applicationRoot } from "./config.mjs";
 import { mcpRefusal } from "./mcp-policy.mjs";
+import { asActor, currentActor } from "./github-posted.mjs";
 import { taskDiff, taskFiles } from "./task-files.mjs";
 import {
   bindDriver,
@@ -62,7 +63,6 @@ import {
 } from "../task-identity.mjs";
 import {
   COMPLETIONS,
-  pluginId,
   taskAuthority,
   taskKind,
   taskRepository,
@@ -90,14 +90,7 @@ import { applyActivity } from "../activity.mjs";
 import { applyPlanMetadata, planSummaries } from "../plan-model.mjs";
 import { auditPlans, dispatchMcp } from "../mcp.mjs";
 import { fail, canonical } from "./store.mjs";
-import {
-  runPage,
-  taskSessions,
-  planPage,
-  pendingRequests,
-  compactEvent,
-  recentIntegrations,
-} from "./views.mjs";
+import { planPage, recentIntegrations } from "./views.mjs";
 import {
   createPlan,
   savePlan,
@@ -110,11 +103,8 @@ import {
   projectConfig,
   originRepositorySync,
   projectGitHubRepository,
-  validateRun,
   integrateRun,
-  runChanges,
   withWorkLock,
-  WORKING_STATES,
   detectCheckout,
   git,
 } from "./git.mjs";
@@ -170,9 +160,10 @@ import {
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import { landingView } from "./landing-view.mjs";
 import { epicsView } from "./epics-view.mjs";
-import { integratorNeedsYou } from "./landing-lease.mjs";
-import { landingQueueView } from "./landing-queue-view.mjs";
-import { integratorStatus, submitBranch } from "./integrator-trains.mjs";
+import {
+  landingQueueView,
+  landingWaitNeedsYou,
+} from "./landing-queue-view.mjs";
 import {
   checkIntegrationBranch,
   requireIntegrationBranch,
@@ -191,6 +182,7 @@ import {
   withSource,
 } from "./github-rate.mjs";
 import { syncNeedsYou } from "./integration-sync.mjs";
+import { diskNeedsYou } from "./disk-space.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
   CREW_LABEL_KEYS,
@@ -256,7 +248,6 @@ import {
   resolveProjectionConflict,
 } from "./github-projection.mjs";
 import { rebuildFromGitHub } from "./github-rebuild.mjs";
-import { cancelSubmission, resubmit } from "./routes.mjs";
 import {
   addGitPlugin,
   addPlugin,
@@ -276,7 +267,15 @@ import {
 } from "./plugins.mjs";
 import { pluginHealth } from "./plugin-session.mjs";
 import { queueSessionSend } from "./session-send.mjs";
-import { rebuiltRows } from "./trackers.mjs";
+import { openSession, viewOpened } from "./session-open.mjs";
+import { kirocrewPinNeedsYou } from "./kirocrew-pin.mjs";
+import { machineAvoozlPaths } from "./host-config.mjs";
+import {
+  CHECKS_UNCONFINED,
+  checksUnconfinedAllowed,
+  isolationSetting,
+} from "./check-isolation.mjs";
+import { HARNESS_UNCONFINED } from "./harness-definitions.mjs";
 import { SUPPORTED_CONTRACTS } from "./plugin-contract.mjs";
 import {
   allowOnce,
@@ -306,14 +305,16 @@ import {
   refreshUntriaged,
   untriagedView,
 } from "./untriaged.mjs";
-import { requestReviewChat, reviewChats } from "./pr-review.mjs";
+import {
+  requestReviewChat,
+  reviewChats,
+  showReviewChat,
+} from "./pr-review.mjs";
 import {
   postReviewDraft,
   reviewDraftNeedsYou,
   reviewDraftsView,
 } from "./review-draft.mjs";
-import { clearGate, gateNeedsYou } from "./gate-clear.mjs";
-import { gateRows } from "./gate-view.mjs";
 import { handOff, readCrews } from "./radar-handoff.mjs";
 import {
   adoptPull,
@@ -348,7 +349,13 @@ import {
   resumeStop,
   runAnyway,
 } from "./flow-line.mjs";
-import { localCheckList, localPass, runLocalChecks } from "./flow-checks.mjs";
+import {
+  commitChecks,
+  localCheckList,
+  localPass,
+  runLocalChecks,
+} from "./flow-checks.mjs";
+import { checkCommand, checksSetting } from "./repository-checks.mjs";
 import { queueNotifications } from "./notifications.mjs";
 
 import {
@@ -488,13 +495,8 @@ import {
 import { nextView } from "./runner.mjs";
 import { manualClaim } from "./manual-claim.mjs";
 import {
-  acceptEnvelope,
-  driverTick,
-  handoff,
-  pullStatus,
   claimWork,
   pullWork,
-  remoteView,
   readRunnerConfig,
   reportDone,
   runnerStatus,
@@ -514,6 +516,11 @@ function claimedOrNone(store) {
   }
 }
 import { deliverNotifications } from "./notifications.mjs";
+import {
+  markKirocrewSeen,
+  needsKirocrewItems,
+  runOn,
+} from "./needs-kirocrew.mjs";
 import { flushOutbox } from "./outbox.mjs";
 import {
   configureWorkspaceRepository,
@@ -594,6 +601,7 @@ import { publishSpec } from "./spec-publication.mjs";
 import { specLinks } from "./scm-links.mjs";
 import { specAuthority, takeOverSpec } from "./spec-takeover.mjs";
 import { publishOffer, reserveClaims } from "./worker-claims.mjs";
+import { workerResultsStep } from "./worker-result-step.mjs";
 import {
   checkStaleClaims,
   claimStaleMs,
@@ -625,11 +633,7 @@ import {
   matchingAgentInstructions,
   toggleAgentInstruction,
 } from "./agent-instructions.mjs";
-import {
-  MOVED_OPERATIONS,
-  kiroCrewSessions,
-  movedOperation,
-} from "./moved-operations.mjs";
+import { sessionUrl } from "./notifications.mjs";
 import { completeManual, reopenManual } from "./manual-tasks.mjs";
 import {
   checkInputs,
@@ -648,7 +652,7 @@ import {
 
 // Avoozl-recorded validation at a task's current commit (§5.2, R38.5): its
 // integrated commit, else its delivery's, else the newest validated commit.
-// Results come from validateRun records and checks-role verdicts at that
+// Results come from validation records and checks-role verdicts at that
 // commit; the newest result per check counts. Returns null unless every
 // declared check passed there. With no declared checks, every check that ran
 // at the commit must have passed.
@@ -700,7 +704,7 @@ function validationAt(store, data, task) {
   const declared = declaredChecks(
       task,
       store.get("projects", taskRepository(task) || ""),
-    ),
+    ).map(checkCommand),
     checks = declared.length ? declared : [...latest.keys()];
   if (!checks.length || checks.some((c) => latest.get(c)?.exitCode !== 0))
     return null;
@@ -733,15 +737,6 @@ function refuseGitHubAuthority(data, name, input) {
       : [input.id];
   for (const id of ids) {
     const task = data.tasks.find((t) => t.id === resolveTaskId(data, id));
-    if (task && taskAuthority(task).startsWith("plugin:")) {
-      const error = Error(
-        `Task ${task.id} is owned by its record in ${taskAuthority(task)}${task.tracker?.link ? ` (${task.tracker.link})` : ""}. Change it through its plan: amend and approve the plan, and the tick projects it.`,
-      );
-      error.status = 409;
-      error.code = "authority-plugin";
-      error.route = "projection";
-      throw error;
-    }
     if (!task || taskAuthority(task) !== "github") continue;
     const issue = task.github?.number
       ? ` issue ${task.github.repository}#${task.github.number}`
@@ -830,14 +825,6 @@ function refuseGateBypass(data, task, input, hasReviewers) {
         `Task ${task.id} completes only through Avoozl's validation and integration; a typed integration or complete status is refused.`,
         409,
       );
-    if (
-      Object.hasOwn(input, "checks") &&
-      JSON.stringify(input.checks) !== JSON.stringify(task.checks)
-    )
-      fail(
-        `Task ${task.id} takes its checks from its approved plan; change them there.`,
-        409,
-      );
   }
   const leaf =
       taskKind(Object.hasOwn(input, "kind") ? { kind: input.kind } : task) ===
@@ -877,27 +864,19 @@ function repositoryBase(store, task, projectId) {
     : "";
 }
 
-function taskLocalChanges(store, task, runs, projectId, repositoryUrl) {
-  const worktreeRuns = runs.filter((run) => run.worktree && !run.readOnly),
-    diffRun =
-      worktreeRuns.find((run) => WORKING_STATES.includes(run.state)) ||
-      worktreeRuns.at(-1),
-    diffAvailable = Boolean(diffRun && fs.existsSync(diffRun.worktree)),
-    project = store.get("projects", projectId);
-  if (!project && !diffAvailable) return null;
+function taskLocalChanges(store, task, projectId, repositoryUrl) {
+  const project = store.get("projects", projectId);
+  if (!project) return null;
   return {
     projectId,
-    root: project?.root || "",
-    branch: diffRun?.branch || task.integration?.branch || "",
-    worktree: diffRun?.worktree || "",
-    diffRunId: diffAvailable ? diffRun.id : "",
+    root: project.root || "",
+    branch: task.integration?.branch || "",
     repositoryUrl,
   };
 }
 
-function taskCodeChanges(store, data, task, runs, evidenceRecords) {
-  const projectId =
-      task.projectId || runs.map((run) => run.projectId).find(Boolean) || "",
+function taskCodeChanges(store, data, task, evidenceRecords) {
+  const projectId = task.projectId || "",
     base = repositoryBase(store, task, projectId),
     commits = new Map(),
     pulls = new Map();
@@ -931,12 +910,6 @@ function taskCodeChanges(store, data, task, runs, evidenceRecords) {
       evidence.commit,
       evidence.kind === "command" ? "Validated" : "Evidence",
     );
-  for (const run of runs) {
-    addCommit(run.expectedCommit, "Run output");
-    addCommit(run.integratedCommit, "Integrated");
-    addPull(run.pullRequest);
-    for (const pull of run.pullRequests || []) addPull(pull);
-  }
   for (const pull of task.github?.pullRequests || []) addPull(pull);
   for (const pull of task.pullRequests || []) addPull(pull);
   for (const receipt of store.list("receipts")) {
@@ -961,7 +934,7 @@ function taskCodeChanges(store, data, task, runs, evidenceRecords) {
     issue,
     commits: [...commits.values()],
     pullRequests: [...pulls.values()],
-    local: taskLocalChanges(store, task, runs, projectId, base),
+    local: taskLocalChanges(store, task, projectId, base),
   };
 }
 
@@ -975,18 +948,6 @@ function retitledInput(value) {
   )
     fail("retitled is a list of task IDs.");
   return value;
-}
-
-// Old completed runs of an accepted task leave the conversation list, as
-// before; nothing new is started or stopped.
-function archiveCompletedRun(store, run, at) {
-  if (run.driver || store.getMeta("runArchive:" + run.id)) return;
-  store.setMeta("runArchive:" + run.id, at);
-  store.event(run.id, "run.auto-archived", {
-    id: run.id,
-    archivedAt: at,
-    reason: "completed-task",
-  });
 }
 
 // Review roles for the Settings page: the writer's model and each role, for
@@ -1012,6 +973,19 @@ function reviewSettings({ delivery, error = null } = {}) {
   };
 }
 
+// Who an operation's GitHub posts are for (github-posted.mjs), or null when
+// the context does not say and an enclosing operation's actor holds. An
+// agent, a plugin and the tick are marked; so is a caller nobody named. A
+// review draft is the person's: it is a pending review under their login
+// that GitHub publishes only when they submit it.
+const AUTOMATION = new Set(["workspace.tick"]);
+export function postingActor(name, context) {
+  if (name === "reviewdraft.post") return "person";
+  if (context.caller || context.mcp || context.plugin) return "agent";
+  if (AUTOMATION.has(name)) return "avoozl";
+  return context.person === true ? "person" : null;
+}
+
 export class Operations {
   constructor(
     store,
@@ -1028,6 +1002,8 @@ export class Operations {
       // Stops one Kiro Crew session by slot (session-observer.mjs
       // gatewaySessionStopper); only the app backend has one.
       sessionStopper = null,
+      // True on the standalone page: no Kiro Crew runs beside this server.
+      kirocrewAbsent = false,
       // {now} for the code review chat (pr-review.mjs); tests fix the clock.
       reviewOptions = {},
       // Tests can delay isolated review-view preparation without opening chats.
@@ -1070,6 +1046,7 @@ export class Operations {
     this.crewReader = crewReader;
     this.sessionsReader = sessionsReader;
     this.sessionStopper = sessionStopper;
+    this.kirocrewAbsent = kirocrewAbsent;
     this.reviewOptions = reviewOptions;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
@@ -1162,163 +1139,6 @@ export class Operations {
           : [],
     };
   }
-  // Tracker plugin tasks rebuilt from each approved tracker's `list` and the
-  // approved spec folders the records pin (§3.3, R35.7). A plan row is
-  // recreated only from a folder whose revision equals the pinned hash, the
-  // revision that was approved before. A second run writes nothing.
-  async rebuildTrackers() {
-    if (!this.plugins) return [];
-    const trackers = this.plugins
-      .inspect()
-      // An intake-only plugin is never asked to list (R50.7).
-      .filter((p) => p.state === "approved" && p.provides?.includes("tracker"));
-    if (!trackers.length) return [];
-    const namespace = requireNamespace(planningIdentity(this.workspaceRoot)),
-      session = this.plugins.open(),
-      results = [];
-    try {
-      for (const plugin of trackers) {
-        const notes = [];
-        let records;
-        try {
-          ({ records } = await session.call(plugin.id, "tracker", "list", {
-            namespace,
-          }));
-        } catch (error) {
-          results.push({
-            plugin: plugin.id,
-            error: error.reason || error.message,
-          });
-          continue;
-        }
-        const rows = rebuiltRows(plugin.id, records, namespace),
-          plans = new Map();
-        for (const row of rows)
-          plans.set(row.planId, [...(plans.get(row.planId) || []), row]);
-        for (const [planId, list] of plans) {
-          if (!planId) continue;
-          if (this.store.get("plans", planId)?.state === "approved") continue;
-          const hashes = new Set(list.map((row) => row.hash));
-          if (hashes.size !== 1) {
-            notes.push(
-              `Plan ${planId} is not rebuilt: its records pin more than one revision.`,
-            );
-            continue;
-          }
-          try {
-            await this.perform("plan.create", {
-              id: planId,
-              spec: list[0].spec,
-            });
-            const preview = await this.perform("plan.preview", { id: planId });
-            if (preview.reviewedHash !== list[0].hash) {
-              notes.push(
-                `Plan ${planId} is not rebuilt: its folder is at ${String(preview.reviewedHash).slice(0, 12)}, but its records pin ${String(list[0].hash).slice(0, 12)}. Reload and approve the folder.`,
-              );
-              continue;
-            }
-            await this.perform("plan.approve", {
-              id: planId,
-              expectedHash: preview.reviewedHash,
-              expectedRevision: preview.expectedRevision,
-              evidence: `Rebuilt from plugin:${plugin.id}: ${list.length} records pin this revision.`,
-            });
-          } catch (error) {
-            notes.push(`Plan ${planId} is not rebuilt: ${error.message}`);
-          }
-        }
-        const data = this.read(),
-          changes = [];
-        for (const row of rows) {
-          const task = data.tasks.find((t) => t.id === row.taskId);
-          if (!task) {
-            notes.push(
-              `Record ${row.tracker.id} names task ${row.taskId}, which no approved plan has.`,
-            );
-            continue;
-          }
-          if (taskAuthority(task) !== `plugin:${plugin.id}`) {
-            notes.push(
-              `Task ${row.taskId} is not owned by plugin:${plugin.id}; skipped.`,
-            );
-            continue;
-          }
-          // Conflicts are the tick's judgment; rebuild keeps them.
-          const next = {
-            ...task,
-            tracker: {
-              ...row.tracker,
-              conflicts: task.tracker?.conflicts ?? [],
-            },
-          };
-          if (row.verdict) {
-            next.trackerVerdict = row.verdict;
-            if (row.verdict.status) next.status = row.verdict.status;
-          }
-          if (canonical(next) !== canonical(task)) changes.push(next);
-        }
-        if (changes.length)
-          this.store.mutate(
-            `Rebuild ${changes.length} tasks from plugin:${plugin.id}`,
-            (draft) => {
-              for (const next of changes)
-                draft.tasks[draft.tasks.findIndex((t) => t.id === next.id)] =
-                  next;
-            },
-          );
-        results.push({
-          plugin: plugin.id,
-          tasks: rows.map((row) => row.taskId),
-          written: changes.length > 0,
-          notes,
-        });
-      }
-    } finally {
-      await session.close();
-    }
-    return results;
-  }
-  // "Take back local" (§3.2, R35.10): close the record as not planned and
-  // make SQLite the task's authority again. shortcut: the plan still names
-  // the plugin authority, so its next approval projects the task again;
-  // drop the authority from the manifest before re-approving.
-  async takeBackLocal(input) {
-    if (!input.taskId) fail("Choose a task ID.");
-    const data = this.read(),
-      task = data.tasks.find((t) => t.id === resolveTaskId(data, input.taskId));
-    if (!task) fail(`Task ${input.taskId} was not found.`, 404);
-    const id = pluginId(taskAuthority(task));
-    if (!id) fail(`Task ${task.id} is not owned by a tracker plugin.`, 409);
-    if (!this.plugins) fail("No plugin can run in this process.", 409);
-    if (task.tracker?.id && task.tracker.state === "open") {
-      const session = this.plugins.open();
-      try {
-        await session.call(id, "tracker", "close", {
-          id: task.tracker.id,
-          reason: "not_planned",
-        });
-      } finally {
-        await session.close();
-      }
-    }
-    this.store.mutate(
-      `Take ${task.id} back local from plugin:${id}`,
-      (draft) => {
-        const row = draft.tasks.find((t) => t.id === task.id);
-        row.authority = "local";
-        row.takenBack = {
-          from: `plugin:${id}`,
-          record: task.tracker ?? null,
-          at: new Date().toISOString(),
-        };
-        delete row.tracker;
-        delete row.trackerVerdict;
-        delete row.trackerHold;
-        delete row.trackerPaused;
-      },
-    );
-    return this.read().tasks.find((t) => t.id === task.id);
-  }
   // Settings' plugin list and actions (§4.8, R34.9). Approval is a person's
   // act in Settings or the CLI: an agent session cannot approve a plugin,
   // and no MCP tool offers it.
@@ -1371,14 +1191,6 @@ export class Operations {
         }));
       return {
         supportedContracts: SUPPORTED_CONTRACTS,
-        // Local and GitHub are built in; every other route is a plugin's.
-        routes: [
-          "local",
-          "github",
-          ...plugins
-            .filter((p) => p.kinds?.includes("route"))
-            .map((p) => `plugin:${p.id}`),
-        ],
         plugins,
       };
     }
@@ -1630,7 +1442,6 @@ export class Operations {
     const data = {
         ...this.read(),
         projects: store.list("projects"),
-        pluginIds: () => this.gatePluginIds(),
       },
       plans = store
         .list("plans")
@@ -2212,7 +2023,6 @@ export class Operations {
           data: {
             ...this.read(),
             projects: this.store.list("projects"),
-            pluginIds: () => this.gatePluginIds(),
           },
           ...(extraction ? { proposals } : {}),
         });
@@ -2235,6 +2045,24 @@ export class Operations {
       review: planReviewSummary(this.store, plan.id),
     };
   }
+  // The driver's step for worker machines' pushed results (WP5.3).
+  async workerResults(store, driving, journalFor) {
+    const config = loadLayeredConfig({
+        workspaceRoot: this.workspaceRoot,
+      }).config,
+      result = await workerResultsStep(store, {
+        driving,
+        journalFor,
+        github: this.github,
+        sources: config.runner?.sources ?? {},
+        protectedPaths:
+          readFlowPolicy(this.workspaceRoot).workspace.verify?.protectedPaths ??
+          [],
+      });
+    queueNotifications(store, result.notify);
+    return result;
+  }
+
   // This workspace's saved config, which names each role's executor
   // (Settings › Models); none when there is no file or it does not load.
   savedConfig() {
@@ -2278,7 +2106,7 @@ export class Operations {
     const authority = taskAuthority(task),
       plan = task.planId ? this.store.get("plans", task.planId) : null,
       change = {};
-    for (const key of ["title", "summary", "acceptance", "checks", "requires"])
+    for (const key of ["title", "summary", "acceptance", "requires"])
       if (Object.hasOwn(input, key)) change[key] = input[key];
     if (typeof change.title === "string" && /[\r\n]/.test(change.title))
       fail("A title is one line.");
@@ -2357,19 +2185,6 @@ export class Operations {
     }
     return this.specNamespace();
   }
-  // Plugins a gate may name (RC23.1): declared, readable, and providing the
-  // `gate` part. Read only when a plan holds a gate.
-  gatePluginIds() {
-    return inspectPlugins(this.pluginOptions)
-      .filter(
-        (p) =>
-          p.id &&
-          p.state !== "invalid" &&
-          p.state !== "missing" &&
-          p.provides?.includes("gate"),
-      )
-      .map((p) => p.id);
-  }
   lintSpecPlan(plan, retitled = [], { content = true } = {}) {
     const spec = { name: plan.spec, exists: true, files: plan.files || {} },
       declarations = specDeclarations(this.store.list("plans")),
@@ -2379,7 +2194,6 @@ export class Operations {
         data: {
           ...this.read(),
           projects: this.store.list("projects"),
-          pluginIds: () => this.gatePluginIds(),
         },
         approved: this.approvedSpec(plan),
         retitled,
@@ -2439,7 +2253,7 @@ export class Operations {
         const pass = await localPass(
           project.root,
           sha,
-          localCheckList(project),
+          await commitChecks(project, sha),
         );
         if (!pass.ok)
           fail(
@@ -2485,14 +2299,9 @@ export class Operations {
     const task = data.tasks.find((t) => t.id === id);
     if (!task) fail("Task not found.", 404);
     const doc = data.documents[task.source?.document],
-      runs = this.store
-        .list("runs")
-        .filter((r) => resolveTaskId(data, r.taskId) === id),
       evidenceRecords = this.store
         .list("evidence")
-        .filter((e) => resolveTaskId(data, e.taskId) === id),
-      activeRun =
-        runs.find((run) => WORKING_STATES.includes(run.state)) || runs.at(-1);
+        .filter((e) => resolveTaskId(data, e.taskId) === id);
     return {
       ...task,
       // Its plan's epic; a task never stores one (Requirement 59.2).
@@ -2510,34 +2319,12 @@ export class Operations {
       documents: (task.contextDocuments || [])
         .map((id) => data.documents[id])
         .filter(Boolean),
-      runs,
       evidenceRecords,
       executionLocation: {
-        branch:
-          task.activity?.branch ||
-          activeRun?.branch ||
-          task.integration?.branch ||
-          null,
-        worktree: task.activity?.worktree || activeRun?.worktree || null,
+        branch: task.activity?.branch || task.integration?.branch || null,
+        worktree: task.activity?.worktree || null,
       },
-      codeChanges: taskCodeChanges(
-        this.store,
-        data,
-        task,
-        runs,
-        evidenceRecords,
-      ),
-      team: {
-        jobs: this.store
-          .list("execution_jobs")
-          .filter((job) => job.taskId === task.id),
-        checkpoints: this.store
-          .list("team_checkpoints")
-          .filter((checkpoint) => checkpoint.taskId === task.id),
-        reviews: this.store
-          .list("review_requests")
-          .filter((review) => review.taskId === task.id),
-      },
+      codeChanges: taskCodeChanges(this.store, data, task, evidenceRecords),
     };
   }
   startExtractionPipeline(input) {
@@ -2689,7 +2476,6 @@ export class Operations {
             data: {
               ...this.read(),
               projects: store.list("projects"),
-              pluginIds: () => this.gatePluginIds(),
             },
           }),
           spec,
@@ -2828,26 +2614,17 @@ export class Operations {
     return { items: result };
   }
   intentResult(receipt) {
-    const run = receipt.runId ? this.store.get("runs", receipt.runId) : null,
-      plan = receipt.planId ? this.store.get("plans", receipt.planId) : null,
+    const plan = receipt.planId
+        ? this.store.get("plans", receipt.planId)
+        : null,
       task = receipt.taskId
         ? this.read().tasks.find(
             (t) => t.id === resolveTaskId(this.read(), receipt.taskId),
           )
-        : null,
-      // Only an old ask or run receipt named a run; a draft starts none.
-      needsRun = ["ask", "run"].includes(receipt.input.action);
+        : null;
     return {
-      ...(run ? { run } : {}),
       ...(plan ? { plan } : {}),
       ...(task ? { task } : {}),
-      ...(needsRun && !run
-        ? {
-            pending: true,
-            submissionId: receipt.submissionId,
-            runId: receipt.runId,
-          }
-        : {}),
     };
   }
   async submitIntent(input, expectedRevision) {
@@ -2879,16 +2656,9 @@ export class Operations {
         "This submission belongs to a different message. Start a new message.",
         409,
       );
-    if (receipt) {
-      const result = this.intentResult(receipt);
-      if (!result.pending) return result;
-    }
-    // Asking or running an agent is a Kiro Crew session now.
+    if (receipt) return this.intentResult(receipt);
     if (action === "ask" || action === "run")
-      return {
-        ...movedOperation(this.store, "run.start", input),
-        operation: "intent.submit",
-      };
+      fail("Ask or run an agent in a Kiro Crew session.", 400);
     if (this.pendingIntents.has(id)) return this.pendingIntents.get(id);
     const execute = async () => {
       if (!receipt) {
@@ -2897,22 +2667,11 @@ export class Operations {
           submissionId,
           requestHash,
           input: structuredClone({ ...input, submissionId }),
-          runId: input.runId || "run-" + digest(submissionId).slice(0, 24),
           createdAt: new Date().toISOString(),
         };
         this.store.put("receipts", receipt);
       }
       const saved = receipt.input;
-      const legacy = this.store.get("runs", receipt.runId);
-      if (legacy) {
-        if (
-          legacy.prompt !== saved.prompt ||
-          legacy.provider !== saved.provider ||
-          legacy.projectId !== saved.projectId
-        )
-          fail("Run ID already belongs to another request.", 409);
-        return this.intentResult(receipt);
-      }
       if (action === "task") {
         const { task } = await this.execute(
           "task.capture",
@@ -2948,9 +2707,14 @@ export class Operations {
   // only to open it, read it, or close it.
   // `context.caller` is the gateway-attested Kiro Crew session calling through
   // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
+  // `context.person` is a person's own call: the page's owner session or a
+  // CLI command outside any agent. Their GitHub posts go out as written.
   async execute(name, input = {}, expectedRevision, context = {}) {
-    const result = await withSource(sourceOfOperation(name), () =>
-      this.perform(name, input, expectedRevision, context),
+    const actor = postingActor(name, context) ?? currentActor() ?? "unknown";
+    const result = await asActor(actor, () =>
+      withSource(sourceOfOperation(name), () =>
+        this.perform(name, input, expectedRevision, context),
+      ),
     );
     // One activity row for a listed local action (§4.19); never fails it.
     recordOperation(this.store, name, input, result, {
@@ -2991,16 +2755,15 @@ export class Operations {
     // boundary in this process never checks with sets it has not loaded.
     if (this.workspaceRoot && rulePluginsStale(store))
       await loadRulePlugins(store, this.plugins);
-    // Run-era operations keep their names and answer with where the work
-    // went (moved-operations.mjs). A run start that names a task, repository,
-    // and agent is a dispatch request, and an extraction without provider
-    // rounds still opens a record for a planner session to fill.
-    if (
-      name === "run.start" &&
-      input.taskId &&
-      input.repository &&
-      (input.agent || input.executor)
-    )
+    // A run start is a dispatch request, and an extraction opens a record
+    // for a planner session to fill.
+    if (name === "run.start") {
+      if (
+        !input.taskId ||
+        !input.repository ||
+        !(input.agent || input.executor)
+      )
+        fail("run.start needs taskId, repository and agent.", 400);
       return requestSession(
         store,
         {
@@ -3014,13 +2777,18 @@ export class Operations {
         },
         workspaceRepositories(store),
       );
-    if (
-      name === "plan.extract" &&
-      !input.provider &&
-      !(Array.isArray(input.sequence) && input.sequence.length)
-    )
+    }
+    if (name === "plan.extract") {
+      if (
+        input.provider ||
+        (Array.isArray(input.sequence) && input.sequence.length)
+      )
+        fail(
+          "plan.extract takes no provider; a planner session fills it.",
+          400,
+        );
       return this.startExtractionPipeline(input);
-    if (MOVED_OPERATIONS.has(name)) return movedOperation(store, name, input);
+    }
     if (name === "client.describe") return describeWorkspace(store);
     if (name === "workspace.examples") return listExamples();
     if (name === "workspace.seed")
@@ -3065,14 +2833,6 @@ export class Operations {
       if (receipt?.kind !== "task-merge") fail("Merge receipt not found.", 404);
       return receipt;
     }
-    if (["run.validate", "integration.merge"].includes(name)) {
-      const id = input.id;
-      if (id && store.get("runs", id)?.external)
-        fail(
-          "This is a read-only external transcript. Continue or steer it in its original Claude session; no duplicate agent will be launched.",
-          409,
-        );
-    }
     if (name === "session.bind")
       return store.transaction(() => {
         const result = bindSession(store, input, {
@@ -3094,6 +2854,7 @@ export class Operations {
         }
         return stampPrompts(store, result);
       });
+    if (name === "executor.kirocrew.take") markKirocrewSeen(store);
     if (name === "executor.kirocrew.take")
       return takeKirocrewRequest(store, input, context, (request, queued) =>
         sessionStartHold(store, request, queued, {
@@ -3126,6 +2887,22 @@ export class Operations {
         );
       return queueSessionSend(store, input);
     }
+    // Open chat on the standalone page (SW7): a person starts a read-only
+    // `process` session from a message; `session.view` reads it back.
+    if (name === "session.open") {
+      if (context.caller || context.mcp)
+        fail("Only a person opens a session, in the Avoozl page.", 403);
+      return openSession(store, input, {
+        config: loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config,
+        configDirectory: this.configDirectory,
+        workspaceRoot: this.workspaceRoot,
+      });
+    }
+    if (name === "session.view")
+      return viewOpened(store, input, {
+        ...machineAvoozlPaths(),
+        configDirectory: this.configDirectory,
+      });
     if (name === "reply.post")
       return postReply(store, this.github, input, context.caller, {
         roots: machineRoots(store, this.workspaceRoot),
@@ -3140,24 +2917,6 @@ export class Operations {
         input,
         context.caller,
         { roots: machineRoots(store, this.workspaceRoot) },
-      );
-    if (name === "gate.list") return { gates: gateRows(store) };
-    if (name === "gate.clear")
-      return clearGate(
-        store,
-        this.github,
-        readGitHubPolicyOrNull(this.workspaceRoot),
-        {
-          taskId: input?.taskId,
-          reason: input?.reason,
-          how:
-            context.caller || context.mcp
-              ? "mcp"
-              : context.local
-                ? "command"
-                : "control",
-          local: context.local ? "cli" : "dashboard",
-        },
       );
     if (name === "review.drafts")
       return reviewDraftsView(
@@ -3212,24 +2971,19 @@ export class Operations {
       return runLocalChecks({
         cwd: input.cwd,
         root: project.root,
+        project,
         env: project.checksEnv,
-        checks:
-          taskRoute(task) === "github"
-            ? localCheckList(project)
-            : declaredChecks(task, project),
       });
     }
     // Runner mode over SSH (R84): off unless .avoozl.json has `runner`.
-    if (name === "remote.accept")
-      return acceptEnvelope(store, this.workspaceRoot, input.envelope);
+    // shortcut: no machine reports remote workers to a driver now, so the
+    // list is always empty. The page's In flight and Delivery still read it;
+    // remove it with their remote rows, which need new screenshots.
+    if (name === "remote.view") return { workers: [] };
     if (name === "remote.status")
       return runnerStatus(store, this.workspaceRoot);
     if (name === "remote.report")
       return reportDone(store, this.workspaceRoot, input);
-    if (name === "remote.handoff")
-      return handoff(store, this.workspaceRoot, input);
-    if (name === "remote.pull")
-      return pullStatus(store, this.workspaceRoot, input);
     if (name === "worker.claim")
       return claimWork(store, this.workspaceRoot, this.github);
     if (name === "worker.setup") {
@@ -3240,7 +2994,6 @@ export class Operations {
     }
     if (name === "worker.pull")
       return pullWork(store, this.workspaceRoot, this.github);
-    if (name === "remote.view") return remoteView(store, this.workspaceRoot);
     if (name === "instance.view") return instanceView(store);
     if (name === "instance.rename") {
       renameInstance(store, input.name);
@@ -3279,12 +3032,6 @@ export class Operations {
       this.configuration?.reload();
       return { released: true };
     }
-    // Retired tool names remain resolvable for existing clients.
-    if (name === "relay.call" || name === "relay.forget")
-      fail(
-        "The Remote relay was removed. Use Avoozl worker sessions and runner report instead.",
-        410,
-      );
     // Provider health and model switches (§4.20, R72). The writes are a
     // person's: mcp-policy.mjs refuses them for MCP, the backend for tokens.
     if (name === "providers.view")
@@ -3370,9 +3117,6 @@ export class Operations {
         mcp: context.mcp === true,
         local: context.local === true,
       });
-    // Queue a branch Avoozl did not start (landing-trains, LT1.4).
-    if (name === "landing.submit")
-      return submitBranch(store, this.workspaceRoot, input);
     if (name === "delivery.retry")
       return retryDelivery(store, input, {
         caller: context.caller,
@@ -3393,13 +3137,9 @@ export class Operations {
       });
       if (remote) return remote;
       await this.refreshPrivateSpecs();
-      if (input.cron === true) await driverTick(store, this.workspaceRoot);
-      // Stale worker claims reach Needs you; nothing releases them (R90.6).
-      if (input.cron === true)
-        await checkStaleClaims(store, {
-          workspaceRoot: this.workspaceRoot,
-          driving: Object.keys(store.getMeta("specDrivers") ?? {}),
-          journalFor: async (planId) => {
+      if (input.cron === true) {
+        const driving = Object.keys(store.getMeta("specDrivers") ?? {}),
+          journalFor = async (planId) => {
             const journal = journalOf(
               store,
               { github: this.github, workspaceRoot: this.workspaceRoot },
@@ -3415,8 +3155,20 @@ export class Operations {
                   },
                 }
               : null;
-          },
+          };
+        // Stale worker claims reach Needs you; nothing releases them (R90.6).
+        await checkStaleClaims(store, {
+          workspaceRoot: this.workspaceRoot,
+          driving,
+          journalFor,
         }).catch(() => 0);
+        // What worker machines pushed is fetched, checked and landed here
+        // (R90.2, worker-paths WP5.3); a result that fails is a failed attempt.
+        if (driving.length)
+          await this.workerResults(store, driving, journalFor).catch(
+            () => null,
+          );
+      }
       const result = await tick(store, {
         workspaceRoot: this.workspaceRoot,
         memory: this.tickPolicy,
@@ -3458,7 +3210,6 @@ export class Operations {
                   data: {
                     ...this.read(),
                     projects: store.list("projects"),
-                    pluginIds: () => this.gatePluginIds(),
                   },
                 }),
                 spec,
@@ -3516,11 +3267,6 @@ export class Operations {
       }
       return result;
     }
-    if (name === "route.cancel") {
-      if (!this.plugins) fail("No plugin can run in this process.", 409);
-      return cancelSubmission(store, this.plugins.open(), input);
-    }
-    if (name === "route.resubmit") return resubmit(store, input);
     // Proposals and prompt overrides (design §4.18).
     if (RETRO_READS.has(name) || RETRO_WRITES.has(name))
       return retroOperation(store, name, input, context, {
@@ -3537,11 +3283,6 @@ export class Operations {
         contentBinding(store)?.plugins.clear();
       return result;
     }
-    // The integrator's leases and running trains, from the store (LT2.5).
-    if (name === "integrator.status")
-      return integratorStatus(store, {
-        config: loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config,
-      });
     if (name === "workspace.tick.health") return tickHealth(store);
     if (name === "workspace.tick.log") return tickLog(store, input);
     if (name === "highlight.languages")
@@ -3678,7 +3419,12 @@ export class Operations {
       };
     // Dashboards › Landing queue: per base, in order, with hold reasons;
     // from the store only, so Refresh never calls GitHub (44.5).
-    if (name === "landing.queue") return landingQueueView(store, this.read());
+    if (name === "landing.queue")
+      return landingQueueView(store, this.read(), {
+        config: this.workspaceRoot
+          ? loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config
+          : null,
+      });
     if (name === "conflicts.view") {
       const data = this.read(),
         view = conflictsView(store, data),
@@ -3703,10 +3449,11 @@ export class Operations {
       view.items.push(...reviewDraftNeedsYou(store));
       view.items.push(...planReviewNeedsYou(store));
       view.items.push(...specPullNeedsYou(store));
-      view.items.push(...gateNeedsYou(store));
+      if (this.kirocrewAbsent) view.items.push(...kirocrewPinNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
-      view.items.push(...integratorNeedsYou(store));
+      view.items.push(...landingWaitNeedsYou(store, this.read()));
       view.items.push(...syncNeedsYou(store));
+      view.items.push(...diskNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));
@@ -3714,6 +3461,16 @@ export class Operations {
       view.items.push(...forwardAuditRows(store));
       view.items.push(...publicCrewAuditRows(store));
       view.items.push(...publicBranchRows(store));
+      // A role waiting on Kiro Crew on a machine with none, with this
+      // machine's approved harnesses for Run on (NK8.2).
+      view.items.push(
+        ...needsKirocrewItems(
+          store,
+          listHarnessDefinitions(this.configDirectory)
+            .filter((d) => d.approved)
+            .map((d) => d.name),
+        ),
+      );
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
@@ -3784,6 +3541,21 @@ export class Operations {
         // This machine's harness definitions a role may pick (R98.3).
         harnessDefinitions: listHarnessDefinitions(this.configDirectory),
       };
+    // Run on (NK8.2): a person moves a role that waits on Kiro Crew to one
+    // of this machine's approved harnesses.
+    if (name === "needskirocrew.runon") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person chooses where a role runs, in the Avoozl app.",
+          403,
+        );
+      return runOn(store, input, {
+        settings: this.settingsFile(),
+        approved: listHarnessDefinitions(this.configDirectory)
+          .filter((d) => d.approved)
+          .map((d) => d.name),
+      });
+    }
     if (name === "models.settings.update") {
       if (context.caller || context.mcp)
         fail("Only a person changes chat models, in Settings.", 403);
@@ -4604,6 +4376,7 @@ export class Operations {
     }
     // Code review (§8.5): queue one review chat for a pull request; the
     // tick cron opens it. Person-only, like Send to Issue Radar.
+    if (name === "review.chat.show") return showReviewChat(store, input.id);
     if (name === "review.chat") {
       if (context.caller || context.mcp)
         fail(
@@ -4778,7 +4551,6 @@ export class Operations {
             store.setMeta("conversationSettings", settings);
             return settings;
           });
-    if (name === "publication.retry") return { retryRequested: true };
     if (name === "query") {
       // Each row says the state the page shows for it, beside its status.
       const data = this.read();
@@ -4787,84 +4559,6 @@ export class Operations {
         ...input,
         claimed: claimedOrNone(store),
       }).map(withGraphState(store, data));
-    }
-    if (name === "search.result") {
-      const run = store.get("runs", input.id);
-      if (!run || !run.prompt?.startsWith("NUPP_PROMPT_SEARCH"))
-        fail("Prompt search not found.", 404);
-      if (
-        ["starting", "running", "waiting-input", "waiting-approval"].includes(
-          run.state,
-        )
-      )
-        return { pending: true, id: run.id };
-      if (run.state !== "completed")
-        fail(run.error || "Search stopped. Inspect its session in Workspace.");
-      const row = store.db
-        .prepare(
-          "SELECT body FROM events WHERE run_id=? AND kind='message' ORDER BY seq DESC LIMIT 1",
-        )
-        .get(run.id);
-      const text = row ? JSON.parse(row.body).text : "";
-      let parsed;
-      try {
-        parsed = JSON.parse(
-          text.replace(/^\s*```(?:json)?\s*/, "").replace(/\s*```\s*$/, ""),
-        );
-      } catch {
-        fail(
-          "The agent did not return a valid search. Its response is retained in Agent sessions.",
-        );
-      }
-      if (
-        typeof parsed.query !== "string" ||
-        parsed.query.length > 4000 ||
-        !["all", "runtime"].includes(parsed.scope)
-      )
-        fail("The agent returned an unsupported query.");
-      const ids = parsed.ids;
-      if (
-        ids !== undefined &&
-        (!Array.isArray(ids) ||
-          ids.length > 500 ||
-          ids.some((id) => !this.read().tasks.some((t) => t.id === id)))
-      )
-        fail("The search contains unknown or excessive task IDs.");
-      const id = "search-" + run.id,
-        existing = this.read().presentation?.views?.find((v) => v.id === id);
-      if (existing) return { view: existing, explanation: existing.caption };
-      const query = ids?.length === 0 ? "id:__no_matches__" : parsed.query,
-        view = {
-          id,
-          title: "Search: " + (run.searchPrompt || "Tasks").slice(0, 100),
-          caption: String(
-            parsed.explanation || "Agent-interpreted search",
-          ).slice(0, 2000),
-          view: [
-            "tasks",
-            "activity",
-            "graph",
-            "epics",
-            "strip",
-            "report",
-            "documents",
-          ].includes(run.searchContext?.view)
-            ? run.searchContext.view
-            : "tasks",
-          filters: { scope: parsed.scope, q: query },
-          taskIds: ids || [],
-          selected: "",
-          group: run.searchContext?.group || "epic",
-          detail: "all",
-          createdAt: new Date().toISOString(),
-          searchRunId: run.id,
-        };
-      store.mutate("Save prompt search", (data) => {
-        data.presentation ??= { views: [] };
-        data.presentation.views ??= [];
-        data.presentation.views.push(view);
-      });
-      return { view, explanation: view.caption };
     }
     if (name === "task.get")
       return withGraphState(store, this.read())(this.detail(input.id));
@@ -5027,20 +4721,6 @@ export class Operations {
         },
         expectedRevision,
       );
-    if (["run.archive", "run.unarchive"].includes(name))
-      return store.transaction(() => {
-        const run = store.get("runs", input.id);
-        if (!run || run.deletedAt) fail("Conversation not found.", 404);
-        const key = "runArchive:" + run.id,
-          old = store.getMeta(key),
-          archivedAt =
-            name === "run.archive" ? old || new Date().toISOString() : null;
-        if (old !== archivedAt) {
-          store.setMeta(key, archivedAt);
-          store.event(run.id, name, { id: run.id, archivedAt });
-        }
-        return { id: run.id, archivedAt };
-      });
     // Archive or unarchive a plan (plan-archive.mjs): a session may too
     // (R56.4), and either one undoes the other. Delete below is the one-way path.
     if (name === "plan.archive" || name === "plan.unarchive") {
@@ -5100,31 +4780,19 @@ export class Operations {
         folder,
       });
     }
-    if (["run.delete", "run.restore", "plan.restore"].includes(name))
+    if (name === "plan.restore")
       return store.transaction(() => {
-        const kind = name.startsWith("run.") ? "runs" : "plans",
-          row = store.get(kind, input.id);
+        const row = store.get("plans", input.id);
         if (!row) fail("Record not found.", 404);
-        if (
-          kind === "runs" &&
-          ["starting", "running", "waiting-input", "waiting-approval"].includes(
-            row.state,
-          )
-        )
-          fail("Stop this session before deleting it.", 409);
-        if (
-          kind === "plans" &&
-          (row.state === "approved" || Object.keys(row.mapping || {}).length)
-        )
+        if (row.state === "approved" || Object.keys(row.mapping || {}).length)
           fail(
             "Approved plans keep their task and approval history. Abandon the linked work instead.",
             409,
           );
-        if (name.endsWith(".restore")) delete row.deletedAt;
-        else row.deletedAt = new Date().toISOString();
-        store.put(kind, row);
-        store.event(kind === "runs" ? row.id : null, name, { id: row.id });
-        return { id: row.id, deletedAt: row.deletedAt || null };
+        delete row.deletedAt;
+        store.put("plans", row);
+        store.event(null, name, { id: row.id });
+        return { id: row.id, deletedAt: null };
       });
     // Saved views and presentations are display configuration. Deleting one
     // removes that configuration only: tasks, plans and evidence are untouched.
@@ -5170,70 +4838,23 @@ export class Operations {
     }
     if (name === "trash")
       return {
-        runs: store
-          .list("runs")
-          .filter((r) => r.deletedAt)
-          .slice(-100)
-          .map((r) => ({
-            id: r.id,
-            title: r.title || r.prompt?.slice(0, 160) || r.id,
-          })),
         plans: store
           .list("plans")
           .filter((p) => p.deletedAt)
           .slice(-100)
           .map((p) => ({ id: p.id, title: p.title })),
       };
-    if (name === "run.list") return runPage(store, input);
-    if (name === "driver.list") {
-      const projects = store.list("projects"),
-        runs = store.list("runs");
-      return {
-        projects: projects.map((project) => ({
-          projectId: project.id,
-          title: project.name || project.title || project.id,
-          root: project.root,
-          run:
-            runs
-              .filter(
-                (run) =>
-                  run.driver === true &&
-                  run.projectId === project.id &&
-                  run.driverActive !== false &&
-                  !run.deletedAt,
-              )
-              .sort(
-                (left, right) =>
-                  (right.driverGeneration || 1) -
-                    (left.driverGeneration || 1) ||
-                  String(right.createdAt || "").localeCompare(
-                    String(left.createdAt || ""),
-                  ),
-              )[0] || null,
-        })),
-        defaultProjectId: projects.length === 1 ? projects[0].id : null,
-      };
-    }
     if (name === "task.sessions") {
       const task = this.read().tasks.find((t) => t.id === input.id);
       if (!task) fail("Task not found.", 404);
-      // Past runs first, then the task's Kiro Crew sessions, which own the
-      // work now.
-      return [
-        ...taskSessions(store, {
-          taskId: task.id,
-          sessionId:
-            task.activity?.connection?.runId || task.activity?.sessionId,
-        }),
-        ...kiroCrewSessions(store, task.id).map((session) => ({
-          id: session.slot,
-          taskId: task.id,
-          title: `${session.role} attempt ${session.attempt}`,
-          state: session.status,
-          provider: "kiro-crew",
-          url: session.url,
-        })),
-      ];
+      return kiroCrewSessions(store, task.id).map((session) => ({
+        id: session.slot,
+        taskId: task.id,
+        title: `${session.role} attempt ${session.attempt}`,
+        state: session.status,
+        provider: "kiro-crew",
+        url: session.url,
+      }));
     }
     if (name === "plan.list") return planPage(store, input);
     if (name === "plan.specs") return this.specList();
@@ -5318,8 +4939,7 @@ export class Operations {
       return doc;
     }
     if (name === "workspace") {
-      const runs = runPage(store, { archived: "all" }),
-        plans = planPage(store);
+      const plans = planPage(store);
       return {
         mode: store.getMeta("mode"),
         import: store.getMeta("import"),
@@ -5334,9 +4954,6 @@ export class Operations {
         },
         plans: plans.items,
         planTotal: plans.total,
-        runs: runs.items,
-        runTotal: runs.total,
-        requests: pendingRequests(store),
         batches: store.list("batches").slice(0, 40),
         integrations: store
           .list("integration")
@@ -5351,10 +4968,6 @@ export class Operations {
           repositories: store.list("github_repositories"),
           issues: store.list("github_issues").slice(0, 100),
           lastSync: store.getMeta("githubSync"),
-          queue: {
-            repositories: store.list("github_queue_repositories"),
-            lastSync: store.getMeta("githubQueueSync"),
-          },
         },
         workspaceRepository: workspaceRepositoryStatus(store),
         // Which machine drives each spec (§6.10), from SQLite only.
@@ -5581,7 +5194,6 @@ export class Operations {
             "route",
             "completion",
             "repository",
-            "checks",
             "parent",
           ])
             if (Object.hasOwn(input, key)) task[key] = input[key];
@@ -5633,13 +5245,7 @@ export class Operations {
           ])
             if (task[key] !== undefined && typeof task[key] !== "string")
               fail(key + " must be text.");
-          for (const key of [
-            "tags",
-            "acceptance",
-            "evidence",
-            "resources",
-            "checks",
-          ])
+          for (const key of ["tags", "acceptance", "evidence", "resources"])
             if (
               task[key] !== undefined &&
               (!Array.isArray(task[key]) ||
@@ -5900,7 +5506,6 @@ export class Operations {
               data: {
                 ...this.read(),
                 projects: store.list("projects"),
-                pluginIds: () => this.gatePluginIds(),
               },
             }),
         ...(plan.spec ? { disk: this.specOnDisk(plan) } : {}),
@@ -5932,7 +5537,6 @@ export class Operations {
         data: {
           ...this.read(),
           projects: store.list("projects"),
-          pluginIds: () => this.gatePluginIds(),
         },
       });
     }
@@ -5976,7 +5580,6 @@ export class Operations {
           data: {
             ...data,
             projects: store.list("projects"),
-            pluginIds: () => this.gatePluginIds(),
           },
           ...(extraction ? { proposals } : {}),
         });
@@ -6146,21 +5749,7 @@ export class Operations {
     if (name === "plan.extract.get")
       return getExtraction(store, input.id || input.extractionId);
     if (name === "plan.extraction.submit") {
-      const run = input.runId ? store.get("runs", input.runId) : null;
-      if (
-        run &&
-        (run.extraction?.extractionId !== input.extractionId ||
-          run.extraction?.revisionHash !== input.revisionHash)
-      )
-        fail(
-          "This run is not authorized to submit that extraction revision.",
-          403,
-        );
-      return submitExtraction(store, {
-        ...input,
-        provider: input.provider || run?.provider,
-        model: input.model || run?.actualModel || run?.model,
-      });
+      return submitExtraction(store, input);
     }
     if (name === "plan.extraction.dispose") return disposeFact(store, input);
     if (name === "plan.review.get") return currentPlanReview(store, input);
@@ -6221,18 +5810,9 @@ export class Operations {
           caller: context.caller,
           mcp: context.mcp,
         });
-      const run = input.runId ? store.get("runs", input.runId) : null;
-      if (
-        run &&
-        (run.review?.planId !== input.planId ||
-          run.review?.revisionHash !== input.revisionHash)
-      )
-        fail("This run is not authorized to review that plan revision.", 403);
       return createReviewThreads(store, {
         ...input,
-        author: input.author || run?.provider || this.operator,
-        provider: input.provider || run?.provider,
-        model: input.model || run?.actualModel || run?.model,
+        author: input.author || this.operator,
       });
     }
     if (name === "plan.review.reply")
@@ -6328,7 +5908,7 @@ export class Operations {
           root: localCheckout,
           baseBranch: String(input.baseBranch || "main").trim() || "main",
           worktreeRoot: input.worktreeRoot || undefined,
-          checks: Array.isArray(input.checks) ? input.checks : [],
+          checks: input.checks ?? [],
         });
         project = {
           ...project,
@@ -6378,29 +5958,11 @@ export class Operations {
         store.transaction(() => {
           if (existing?.github && existing.github !== githubRepository) {
             store.db
-              .prepare(
-                "DELETE FROM github_queue_items WHERE json_extract(body,'$.repository')=?",
-              )
-              .run(existing.github);
-            store.db
-              .prepare("DELETE FROM github_queue_repositories WHERE id=?")
-              .run(existing.github);
-            store.db
               .prepare("DELETE FROM github_repositories WHERE id=?")
               .run(existing.github);
           }
           if (project) store.put("projects", project);
           else store.db.prepare("DELETE FROM projects WHERE id=?").run(id);
-          if (existing?.github) {
-            store.db
-              .prepare(
-                "DELETE FROM github_queue_items WHERE json_extract(body,'$.repository')=?",
-              )
-              .run(existing.github);
-            store.db
-              .prepare("DELETE FROM github_queue_repositories WHERE id=?")
-              .run(existing.github);
-          }
           if (issueIntake) store.put("github_repositories", issueIntake);
           else if (existing?.github)
             store.db
@@ -6533,18 +6095,6 @@ export class Operations {
       if (!task) fail("Task not found.", 404);
       if (!claim?.repository || !claim.number || !claim.login)
         fail("This task is not owned through a GitHub claim.", 409);
-      if (
-        store
-          .list("execution_jobs")
-          .some(
-            (job) =>
-              job.taskId === task.id &&
-              ["pending", "dispatched", "active", "stopping"].includes(
-                job.state,
-              ),
-          )
-      )
-        fail("Stop active execution jobs before releasing this work.", 409);
       await this.github.removeAssignees(
         parseRepository(claim.repository),
         claim.number,
@@ -6607,14 +6157,13 @@ export class Operations {
     if (name === "github.conflict.resolve")
       return resolveProjectionConflict(store, input);
     // `avoozl rebuild`: GitHub tasks from their issues when repositories are
-    // registered, and tracker plugin tasks from their records (§3.3).
+    // registered (§3.3).
     if (name === "workspace.rebuild") {
       const github = store.list("github_repositories").length
         ? await this.perform("github.rebuild", input, undefined, context)
         : null;
-      return { ...(github || {}), trackers: await this.rebuildTrackers() };
+      return github || {};
     }
-    if (name === "tracker.takeBack") return this.takeBackLocal(input);
     if (name === "github.rebuild")
       return rebuildFromGitHub(store, this.github, {
         repository: input.repository,
@@ -6763,8 +6312,6 @@ export class Operations {
         store,
         this.github,
         {
-          branchPrefix: loadLayeredConfig({ workspaceRoot: this.workspaceRoot })
-            .config.landing?.trains?.branchPrefix,
           ...input,
         },
         {
@@ -7064,7 +6611,37 @@ export class Operations {
     if (name === "planning.reconcile")
       return this.reconcilePlanningPullRequests();
     if (name === "project.configure") {
+      // Unconfined checks need this machine's opt-in.
+      const allowIsolation = (isolation) => {
+        if (
+          isolation?.run === "unconfined" &&
+          !checksUnconfinedAllowed(machineAvoozlPaths().configDirectory)
+        )
+          fail(
+            `Unconfined checks need this machine's opt-in: "${CHECKS_UNCONFINED}": true in ${HARNESS_UNCONFINED}.`,
+            409,
+          );
+        return isolation;
+      };
+      // {id, isolation} alone changes only how a registered repository's
+      // checks run (Settings > Repository setup > Landing).
+      const keys = Object.keys(input).filter((key) => input[key] !== undefined);
+      if (
+        keys.includes("isolation") &&
+        keys.every((key) => ["id", "isolation"].includes(key))
+      ) {
+        const existing = store.get("projects", String(input.id || ""));
+        if (!existing) fail("Project not found.", 404);
+        const isolation = allowIsolation(
+          isolationSetting(input.isolation, "isolation"),
+        );
+        this.configuration?.assertWritable();
+        const configured = store.put("projects", { ...existing, isolation });
+        this.configuration?.updateExecutionProject(configured);
+        return configured;
+      }
       const project = await projectConfig(input);
+      allowIsolation(project.isolation);
       this.configuration?.assertWritable();
       const configured = store.put("projects", project);
       this.configuration?.updateExecutionProject(configured);
@@ -7074,23 +6651,6 @@ export class Operations {
       const id = String(input.id || "").trim(),
         project = id ? store.get("projects", id) : null;
       if (!project) fail("Project not found.", 404);
-      const activeRun = store
-        .list("runs")
-        .find(
-          (run) =>
-            run.projectId === id &&
-            [
-              "starting",
-              "running",
-              "waiting-input",
-              "waiting-approval",
-            ].includes(run.state),
-        );
-      if (activeRun)
-        fail(
-          `Project ${id} still has an active conversation. Stop it before removing the project.`,
-          409,
-        );
       const locked = store.db
         .prepare("SELECT id FROM work_locks WHERE project_id=? LIMIT 1")
         .get(id);
@@ -7100,14 +6660,11 @@ export class Operations {
           409,
         );
       const authorization = store
-          .list("github_repositories")
-          .find((entry) => entry.projectId === id),
-        monitoring = store
-          .list("github_queue_repositories")
-          .find((entry) => entry.projectId === id);
-      if (authorization || monitoring)
+        .list("github_repositories")
+        .find((entry) => entry.projectId === id);
+      if (authorization)
         fail(
-          `Project ${id} is still connected to GitHub. Remove or reassign its monitored and label-authorized repositories first.`,
+          `Project ${id} is still connected to GitHub. Remove or reassign its label-authorized repositories first.`,
           409,
         );
       this.configuration?.assertWritable();
@@ -7117,56 +6674,6 @@ export class Operations {
       store.event(null, "project.removed", { projectId: id });
       return { ...project, removed: true };
     }
-    if (name === "run.event") {
-      const row = store.db
-        .prepare("SELECT * FROM events WHERE seq=? AND run_id=?")
-        .get(input.seq ?? null, input.id ?? null);
-      if (!row) fail("Event not found.", 404);
-      return {
-        seq: row.seq,
-        kind: row.kind,
-        at: row.at,
-        ...JSON.parse(row.body),
-      };
-    }
-    if (name === "run.get") {
-      const run = store.get("runs", input.id);
-      if (!run) fail("Run not found.", 404);
-      run.archivedAt = store.getMeta("runArchive:" + run.id);
-      const events = store.events({
-          runId: run.id,
-          after: input.after || 0,
-          before: input.before,
-          latest: input.after === undefined,
-          limit: input.limit || 200,
-        }),
-        first = events[0]?.seq || 0;
-      return {
-        ...run,
-        events: input.compact ? events.map(compactEvent) : events,
-        hasEarlier: Boolean(
-          first &&
-            store.db
-              .prepare("SELECT 1 FROM events WHERE run_id=? AND seq<? LIMIT 1")
-              .get(run.id, first),
-        ),
-        deliveries: store.db
-          .prepare(
-            "SELECT body FROM deliveries WHERE run_id=? ORDER BY rowid DESC LIMIT 100",
-          )
-          .all(run.id)
-          .map((r) => JSON.parse(r.body))
-          .reverse(),
-        requests: store.db
-          .prepare(
-            "SELECT body FROM requests WHERE json_extract(body,'$.runId')=? AND json_extract(body,'$.state')='pending' ORDER BY rowid LIMIT 100",
-          )
-          .all(run.id)
-          .map((r) => JSON.parse(r.body)),
-      };
-    }
-    if (name === "run.changes") return runChanges(store, input);
-    if (name === "run.validate") return validateRun(store, input.id);
     if (name === "integration.merge") {
       return integrateRun(store, input);
     }
@@ -7220,32 +6727,9 @@ export class Operations {
           },
           expectedRevision,
         );
-      if (autoArchive && !input.componentOnly)
-        for (const run of store
-          .list("runs")
-          .filter(
-            (run) =>
-              resolveTaskId(this.read(), run.taskId) === task.id &&
-              run.state === "completed",
-          ))
-          archiveCompletedRun(store, run, task.acceptanceEvidence.at);
       return task;
     }
     if (name === "handoff") {
-      const run = store.get("runs", input.id);
-      if (run)
-        return {
-          run,
-          task: this.read().tasks.find((t) => t.id === run.taskId) || null,
-          plan: run.planId ? store.get("plans", run.planId) : null,
-          requests: store.list("requests").filter((r) => r.runId === run.id),
-          deliveries: store
-            .list("deliveries")
-            .filter((d) => d.runId === run.id),
-          evidence: store.list("evidence").filter((e) => e.runId === run.id),
-          reconnect:
-            "Inspect durable state and uncertain delivery receipts before resuming. Keep the same provider session ID; never start duplicate work because a check-in is stale.",
-        };
       const task = this.detail(input.id);
       return {
         task,
@@ -7253,7 +6737,6 @@ export class Operations {
         prerequisites: task.relationships
           .filter((e) => e.to === task.id)
           .map((e) => this.read().tasks.find((t) => t.id === e.from)),
-        runs: task.runs,
         evidence: task.evidenceRecords,
         nextAction: task.nextAction,
         agentInstructions: matchingAgentInstructions(
@@ -7267,16 +6750,6 @@ export class Operations {
     }
     if (name === "queue") {
       const data = this.read(),
-        active = store
-          .list("runs")
-          .filter((r) =>
-            [
-              "starting",
-              "running",
-              "waiting-input",
-              "waiting-approval",
-            ].includes(r.state),
-          ),
         ready = queryTasks(data, {
           scope: "all",
           ...input,
@@ -7296,15 +6769,6 @@ export class Operations {
                 data.tasks.find((x) => x.id === e.to)?.status,
               ),
           ).length,
-          conflicts: active
-            .filter(
-              (r) =>
-                resolveTaskId(data, r.taskId) === t.id ||
-                (r.resources || []).some((x) =>
-                  (t.resources || []).includes(x),
-                ),
-            )
-            .map((r) => r.id),
         }))
         .sort((a, b) => b.unblocks - a.unblocks);
       const visible = data.tasks.filter((t) => !isPlanInventory(data, t)),
@@ -7320,7 +6784,6 @@ export class Operations {
         summary: {
           ready: ranked.length,
           blocked: blocked.length,
-          active: active.length,
         },
         blocked: blocked.slice(0, 40).map(({ task, signals }) => ({
           id: task.id,
@@ -7338,23 +6801,13 @@ export class Operations {
           Math.max(1, Math.min(100, Number(input.limit) || 40)),
         ),
         readyTotal: ranked.length,
-        active,
         integrations: store
           .list("integration")
           .filter((i) => i.state === "ready"),
       };
     }
     if (name === "legacy.mcp")
-      return dispatchMcp(
-        input.message,
-        {
-          read: () => this.read(),
-          commit: (next, summary) =>
-            store.transaction(() => store.commit(next, summary, next.revision)),
-          base: input.base,
-        },
-        { versionHeader: input.versionHeader },
-      );
+      return dispatchMcp(input.message, { versionHeader: input.versionHeader });
     fail("Unknown operation " + name, 404);
   }
 }
@@ -7369,4 +6822,17 @@ function stampPrompts(store, result) {
     next = { ...binding, prompts: { [target]: version } };
   store.put("session_bindings", next);
   return { ...result, binding: next };
+}
+
+// The Kiro Crew sessions bound to one task, with a link to each.
+function kiroCrewSessions(store, taskId) {
+  return listSessionBindings(store)
+    .filter((binding) => binding.taskId === taskId)
+    .map((binding) => ({
+      slot: binding.slot,
+      role: binding.role,
+      attempt: binding.attempt,
+      status: binding.status || null,
+      url: sessionUrl(binding.slot),
+    }));
 }

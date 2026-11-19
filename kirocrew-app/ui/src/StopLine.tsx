@@ -14,7 +14,7 @@ import type { PickItem } from './picker.ts'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { NAV_ICON, SQUARE } from './LeftNav.tsx'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { Button } from './ui/Button.tsx'
 import { FULL_STOP_WARNING, LINE_EVENT, MAX_REASON, PULL_KINDS, PULL_SCOPES, emptyPull, flowClient, lineChanged, toPull, type LineStop, type PullForm } from './flow-api.ts'
 import { plansClient } from './plans-api.ts'
@@ -23,10 +23,12 @@ import { workspaceClient, errorMessage } from './workspace-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { SelectField } from './ui/SelectField'
+import { Box, type LookProps } from './ui/Box'
+import { Glyph } from './ui/Glyph'
 
-const FILL = { display: 'inline-flex', alignItems: 'center', gap: 6 }
+const FILL = { 'css-display': 'inline-flex', 'css-align-items': 'center', 'css-gap': 6 } as const satisfies LookProps
 // Stopped: a red frame on a red tint, the text in the theme's own color.
-const STOPPED = { ...FILL, borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 16%, var(--card, var(--bg)))', color: 'var(--text)', borderWidth: 2 }
+const STOPPED = { ...FILL, 'css-border-color': 'danger', 'css-background': 'mix-danger-16%-card-bg', 'css-color': 'text', 'css-border-width': '2' } as const satisfies LookProps
 
 interface Choices {
   repositories: string[]
@@ -102,7 +104,15 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
     return (
       <>
         <Tooltip text={label}>
-          <button type="button" {...(props.nav || props.square ? {} : { 'data-pp-icon': '', 'data-bare': '' })} data-stop-line data-stopped={stopped ? '' : undefined} aria-label={label} onClick={() => (stopped ? void resumeAll() : setOpen(true))} style={{ ...(props.square ? SQUARE : props.nav ? NAV_ICON : {}), color: stopped ? 'var(--ok)' : 'var(--danger)', borderColor: 'var(--border)' }}>
+          <button
+            type="button"
+            {...(props.nav || props.square ? {} : { 'data-pp-icon': '', 'data-bare': '' })}
+            data-stop-line
+            data-stopped={stopped ? '' : undefined}
+            aria-label={label}
+            onClick={() => (stopped ? void resumeAll() : setOpen(true))}
+            style={{ ...(props.square ? SQUARE : props.nav ? NAV_ICON : {}), color: stopped ? 'var(--ok)' : 'var(--danger)', borderColor: 'var(--border)' }}
+          >
             <Icon size={props.bare ? 13 : 14} aria-hidden="true" />
           </button>
         </Tooltip>
@@ -112,7 +122,13 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
   }
   return (
     <>
-      <Tooltip text={stopped ? `The line is stopped: ${why}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : 'Stop new work in a scope, or stop all agents, with a reason'}>
+      <Tooltip
+        text={
+          stopped
+            ? `The line is stopped: ${why}. Resume it from the banner on the Dashboard or Flow. Press to stop more.`
+            : 'Stop new work in a scope, or stop all agents, with a reason'
+        }
+      >
         {(describedBy) => (
           <Button
             type="button"
@@ -123,10 +139,13 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
             aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : undefined}
             onClick={() => setOpen(true)}
             // A pause icon; the words are the tooltip and the button's name.
-            style={{ ...(stopped ? STOPPED : FILL), padding: '4px 6px' }}
+            {...(stopped ? STOPPED : FILL)}
+            css-padding="4px-6px"
           >
-            <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
-            <span className="sr-only">{stopped ? 'Line stopped' : 'Stop the line'}</span>
+            <Glyph icon={Pause} size={ICON} aria-hidden="true" css-color={stopped ? 'danger' : undefined} />
+            <Box as="span" srOnly>
+              {stopped ? 'Line stopped' : 'Stop the line'}
+            </Box>
           </Button>
         )}
       </Tooltip>
@@ -179,7 +198,11 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       setBusy(false)
     }
   }
-  const empty = (text: string) => <Hint as="p" size="sm">{choices ? text : 'Reading…'}</Hint>
+  const empty = (text: string) => (
+    <Hint as="p" size="sm">
+      {choices ? text : 'Reading…'}
+    </Hint>
+  )
   const required = (label: string) => (
     <span>
       {label} <Hint size="xs">(required)</Hint>
@@ -190,7 +213,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
   const fields = {
     all: null,
     repo: choices?.repositories.length ? (
-      <label className="flex min-w-0 flex-col gap-1 text-sm">
+      <Box as="label" flex minW0 flexCol gap="1" size="sm">
         {required('Repository')}
         <SelectField value={form.repository} onChange={(e) => set({ repository: e.target.value })} look="field" maxWidth="100%" data-stop-target>
           <option value="">Choose…</option>
@@ -200,7 +223,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
             </option>
           ))}
         </SelectField>
-      </label>
+      </Box>
     ) : (
       empty('No repository is registered.')
     ),
@@ -218,16 +241,18 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       describedBy="avoozl-stop-line"
       boxRef={box}
       attrs={{ 'data-stop-dialog': true }}
-      unsaved={JSON.stringify(form) !== JSON.stringify(emptyPull()) && { title: 'Discard this stop?', body: 'The line keeps running. What you entered is lost.', action: 'Discard' }}
+      unsaved={
+        JSON.stringify(form) !== JSON.stringify(emptyPull()) && { title: 'Discard this stop?', body: 'The line keeps running. What you entered is lost.', action: 'Discard' }
+      }
       title={
-        <span className="inline-flex items-center gap-1.5">
-          <Pause size={ICON} aria-hidden="true" style={{ color: 'var(--danger)' }} /> Stop the line
-        </span>
+        <Box as="span" inlineFlex items="center" gap="1.5">
+          <Glyph icon={Pause} size={ICON} aria-hidden="true" css-color="danger" /> Stop the line
+        </Box>
       }
       onDismiss={close}
       footer={
         <>
-          <Button type="button" variant="danger" data-stop-confirm onClick={() => void pull()} disabled={busy} style={FILL}>
+          <Button type="button" variant="danger" data-stop-confirm onClick={() => void pull()} disabled={busy} css-display="inline-flex" css-align-items="center" css-gap="6">
             <Pause size={ICON} aria-hidden="true" />
             {form.kind === 'agents' ? 'Stop all agents' : 'Stop the line'}
           </Button>
@@ -249,7 +274,13 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
           title: k.label,
           line: k.line,
           ...(k.value === 'agents'
-            ? { description: <Hint as="p" size="sm" data-full-warning>{FULL_STOP_WARNING}</Hint> }
+            ? {
+                description: (
+                  <Hint as="p" size="sm" data-full-warning>
+                    {FULL_STOP_WARNING}
+                  </Hint>
+                ),
+              }
             : {
                 fields: (
                   <RadioFold
@@ -263,7 +294,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
               }),
         }))}
       />
-      <label className="flex flex-col gap-1 text-sm">
+      <Box as="label" flex flexCol gap="1" size="sm">
         <span>
           Reason <Hint size="xs">(required)</Hint>
         </span>
@@ -275,7 +306,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
           data-stop-reason
         />
         <Hint size="xs">One line. It shows on the banner and in Flow.</Hint>
-      </label>
+      </Box>
       {error && (
         <ErrorText role="alert" size="sm">
           {error}

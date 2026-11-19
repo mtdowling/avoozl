@@ -7,6 +7,7 @@ import { ArrowLeft } from './icons.ts'
 import { LAYER } from './layers.ts'
 import { usePhone } from './list-detail.ts'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
+import { Box } from './ui/Box'
 
 export function ListDetailBack(props: { label: string; onBack: () => void }) {
   return (
@@ -14,7 +15,20 @@ export function ListDetailBack(props: { label: string; onBack: () => void }) {
       type="button"
       data-list-detail-back
       onClick={props.onBack}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, padding: '2px 8px', marginLeft: -4, background: 'none', border: 0, borderRadius: 6, color: 'var(--muted)', cursor: 'pointer', fontSize: 14 }}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        flexShrink: 0,
+        padding: '2px 8px',
+        marginLeft: -4,
+        background: 'none',
+        border: 0,
+        borderRadius: 6,
+        color: 'var(--muted)',
+        cursor: 'pointer',
+        fontSize: 14,
+      }}
     >
       <ArrowLeft size={14} aria-hidden="true" />
       {props.label}
@@ -26,17 +40,26 @@ export function ListDetailBack(props: { label: string; onBack: () => void }) {
 // title's `titleRef` (useTitleScrolledOut) and `scrolledOut`.
 export function DetailBar(props: { backLabel: string; onBack: () => void; title: string; scrolledOut: boolean; actions?: ReactNode }) {
   return (
-    <div data-detail-bar style={{ position: 'sticky', top: 0, zIndex: LAYER.sticky, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)' }}>
+    <Box data-detail-bar css-position="sticky" css-top="0" css-z-index={LAYER.sticky} css-display="flex" css-align-items="center" css-gap="8" css-background="bg">
       <ListDetailBack label={props.backLabel} onBack={props.onBack} />
-      <span
+      <Box
         aria-hidden="true"
         data-detail-echo
-        style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14, fontWeight: 600, opacity: props.scrolledOut ? 1 : 0, transition: 'opacity 150ms' }}
+        as="span"
+        css-min-width="0"
+        css-flex="1"
+        css-overflow="hidden"
+        css-text-overflow="ellipsis"
+        css-white-space="nowrap"
+        css-font-size="14"
+        css-font-weight="600"
+        css-opacity={props.scrolledOut ? '1' : '0'}
+        css-transition="opacity-150ms"
       >
         {props.title}
-      </span>
+      </Box>
       {props.actions}
-    </div>
+    </Box>
   )
 }
 
@@ -53,9 +76,9 @@ export function DetailPane(props: { backLabel: string; onBack: () => void; title
     <div data-detail-pane>
       <DetailBar backLabel={props.backLabel} onBack={props.onBack} title={props.title} scrolledOut={scrolledOut} actions={props.actions} />
       {!props.ownTitle && (
-        <h2 ref={titleRef} data-detail-title style={{ margin: '4px 0 12px', fontSize: 20, fontWeight: 600, overflowWrap: 'anywhere' }}>
+        <Box ref={titleRef} data-detail-title as="h2" css-margin="4px-0-12px" css-font-size="20" css-font-weight="600" css-overflow-wrap="anywhere">
           {props.title}
-        </h2>
+        </Box>
       )}
       <TitleRef.Provider value={props.ownTitle ? titleRef : null}>{props.children}</TitleRef.Provider>
     </div>

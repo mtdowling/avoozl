@@ -25,9 +25,12 @@ after(async () => {
 })
 
 const wait = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-const click = (selector, text) => `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
+const click = (selector, text) =>
+  `(() => { const b = [...document.querySelectorAll(${JSON.stringify(selector)})].find((x) => x.textContent.trim().startsWith(${JSON.stringify(text)})); if (b) b.click(); return Boolean(b) })()`
 const set = (selector, value) =>
-  page.evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true })); return true })()`)
+  page.evaluate(
+    `(() => { const el = document.querySelector(${JSON.stringify(selector)}); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true })); return true })()`,
+  )
 const footer = () => page.evaluate(`Boolean(document.querySelector('[data-save-footer]'))`)
 const writes = () => page.evaluate(`window.__writes.map((w) => ({ operation: w.operation, input: w.input, workspaceId: w.workspaceId }))`)
 const press = (label) => page.evaluate(click('[data-save-footer] button', label))
@@ -96,7 +99,12 @@ for (const width of [1280, 390]) {
     await openPage('Content rules', width)
     await page.until(`Boolean(document.querySelector('[data-rule-details="codenames"]'))`)
     assert.equal(await footer(), false)
-    assert.ok(await page.evaluate(`(() => { const l = [...document.querySelectorAll('[data-rule-details] label')].find((x) => x.textContent.includes('Incoming items')); if (l) l.querySelector('input').click(); return Boolean(l) })()`), 'Incoming items checkbox')
+    assert.ok(
+      await page.evaluate(
+        `(() => { const l = [...document.querySelectorAll('[data-rule-details] [data-check-row]')].find((x) => x.textContent.includes('Incoming items')); if (l) l.querySelector('[role="switch"]').click(); return Boolean(l) })()`,
+      ),
+      'Incoming items checkbox',
+    )
     await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)
     assert.ok(await page.evaluate(click('[data-terms-editor] button, [data-terms-editor] [role="tab"]', 'File view')), 'File view')
     await page.until(`Boolean(document.querySelector('[data-terms-editor] textarea'))`)
@@ -118,7 +126,9 @@ for (const width of [1280, 390]) {
     await openPage('Repository setup', width)
     await page.until(`Boolean(document.querySelector('[data-repository-list]'))`)
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-repository-list] input, [data-repository-list] select').length`), 0, 'no fields in the list')
-    assert.ok(await page.evaluate(`(() => { const b = document.querySelector('[data-repository-list] button[aria-label="Edit recipe-box"]'); if (b) b.click(); return Boolean(b) })()`))
+    assert.ok(
+      await page.evaluate(`(() => { const b = document.querySelector('[data-repository-list] button[aria-label="Edit recipe-box"]'); if (b) b.click(); return Boolean(b) })()`),
+    )
     // The default branch is on the dialog's Landing tab.
     await page.until(`Boolean(document.querySelector('dialog[data-repository-edit] [role=tab][data-tab="landing"]'))`)
     await page.evaluate(`document.querySelector('dialog[data-repository-edit] [role=tab][data-tab="landing"]').click()`)

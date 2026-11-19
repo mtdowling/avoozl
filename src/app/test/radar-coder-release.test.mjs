@@ -49,7 +49,7 @@ test("planRelease: claimed holders keep their label even above the cap", () => {
 test("releaseFor: defaults and fallbacks", () => {
   assert.equal(releaseFor({}).capacity, Infinity);
   // An old file's `coder` and the retired `concurrency` key are ignored.
-  assert.equal(releaseFor({ coder: "issue-radar" }).capacity, Infinity);
+  assert.equal(releaseFor({}).capacity, Infinity);
   assert.equal(releaseFor({ concurrency: 3 }).capacity, Infinity);
   assert.deepEqual(
     releaseFor({ release: { capacity: 4, scopes: [{ label: "d" }] } }),

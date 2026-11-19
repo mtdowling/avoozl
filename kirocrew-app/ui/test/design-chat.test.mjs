@@ -4,14 +4,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
-import {
-  DESIGN_PLUGIN_TIP,
-  DESIGN_RULES_TIP,
-  PLUGIN_GUIDE,
-  PLUGIN_GUIDE_TIP,
-  pluginDesignMessage,
-  rulesDesignMessage,
-} from '../src/design-chat.ts'
+import { DESIGN_PLUGIN_TIP, DESIGN_RULES_TIP, PLUGIN_GUIDE, PLUGIN_GUIDE_TIP, pluginDesignMessage, rulesDesignMessage } from '../src/design-chat.ts'
 
 const src = new URL('../src/', import.meta.url)
 const source = (name) => readFileSync(new URL(name, src), 'utf8')
@@ -19,7 +12,7 @@ const repo = new URL('../../../', import.meta.url)
 const app = JSON.parse(readFileSync(new URL('kirocrew-app/app.json', repo), 'utf8'))
 
 test('each design chat names a skill the app ships', () => {
-  const plugin = pluginDesignMessage({ supported: [1], installed: ['fake-route'] })
+  const plugin = pluginDesignMessage({ supported: [1], installed: ['fake-intake'] })
   const rules = rulesDesignMessage({ sets: ['team-terms'] })
   for (const [message, name] of [
     [plugin, 'avoozl-plugin'],
@@ -29,7 +22,7 @@ test('each design chat names a skill the app ships', () => {
     assert.ok(app.skills.includes(`skills/${name}`), name)
   }
   assert.match(plugin, /contract version 1\./)
-  assert.match(plugin, /declared here: fake-route\./)
+  assert.match(plugin, /declared here: fake-intake\./)
   assert.match(plugin, /Do not approve the plugin or import its pack/)
   assert.match(pluginDesignMessage({ supported: [], installed: [] }), /declared here: none\./)
   assert.match(rules, /Do not write the terms file or save terms/)

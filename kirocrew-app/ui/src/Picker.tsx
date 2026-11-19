@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type R
 import { selectStyle } from './FilterSelect.tsx'
 import { pickIndex, pickKey, pickLabel, pickMatches, type PickItem } from './picker.ts'
 import { LAYER } from './layers.ts'
+import { Box } from './ui/Box'
 
 export function Picker(props: {
   id?: string
@@ -68,10 +69,14 @@ export function Picker(props: {
   }
   const expanded = open && (shown.length > 0 || editing)
   return (
-    <div className={`flex min-w-0 text-sm ${props.inline ? 'flex-row items-center gap-2' : 'flex-col gap-1'}`} data-picker-inline={props.inline ? '' : undefined} style={{ maxWidth: props.maxWidth ?? '100%', position: 'relative' }}>
-      <label htmlFor={id} className={props.inline ? 'whitespace-nowrap' : undefined}>
+    <div
+      className={`flex min-w-0 text-sm ${props.inline ? 'flex-row items-center gap-2' : 'flex-col gap-1'}`}
+      data-picker-inline={props.inline ? '' : undefined}
+      style={{ maxWidth: props.maxWidth ?? '100%', position: 'relative' }}
+    >
+      <Box htmlFor={id} as="label" whitespace={props.inline ? 'nowrap' : undefined}>
         {props.label}
-      </label>
+      </Box>
       <input
         id={id}
         type="text"
@@ -105,14 +110,25 @@ export function Picker(props: {
         style={selectStyle}
         data-picker
       />
-      <div
+      <Box
         hidden={!expanded}
-        className="rounded border shadow"
-        style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: LAYER.popover, marginTop: 2, background: 'var(--card, var(--bg))', borderColor: 'var(--border)', maxHeight: '16rem', overflow: 'auto' }}
+        css-position="absolute"
+        css-top="100%"
+        css-left="0"
+        css-right="0"
+        css-z-index={LAYER.popover}
+        css-margin-top="2"
+        css-background="card-bg"
+        css-border-color="border"
+        css-max-height="16rem"
+        css-overflow="auto"
+        rounded="base"
+        border="all"
+        shadow
       >
-        <ul ref={list} id={listId} role="listbox" aria-label={typeof props.label === 'string' ? props.label : undefined} className="flex flex-col p-1">
+        <Box ref={list} id={listId} role="listbox" aria-label={typeof props.label === 'string' ? props.label : undefined} as="ul" flex flexCol p="1">
           {shown.map((item, i) => (
-            <li
+            <Box
               key={item.id}
               id={`${id}-opt-${i}`}
               role="option"
@@ -123,33 +139,59 @@ export function Picker(props: {
                 choose(item)
               }}
               onMouseEnter={() => setActive(i)}
-              className="flex cursor-pointer items-baseline gap-2 rounded px-1.5 py-0.5"
-              style={i === active ? { background: 'color-mix(in srgb, var(--text) 10%, transparent)' } : undefined}
+              as="li"
+              css-background={i === active ? 'mix-text-10%-transparent' : undefined}
+              flex
+              cursorPointer
+              items="baseline"
+              gap="2"
+              rounded="base"
+              px="1.5"
+              py="0.5"
             >
               {props.plain ? (
-                <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                <Box as="span" minW0 flex1 truncate>
+                  {item.title}
+                </Box>
               ) : (
                 <>
-                  <span className="shrink-0 text-xs text-muted">{item.id}</span>
-                  <span className="min-w-0 flex-1 truncate">{item.title !== item.id ? item.title : ''}</span>
+                  <Box as="span" shrink0 size="xs" tone="muted">
+                    {item.id}
+                  </Box>
+                  <Box as="span" minW0 flex1 truncate>
+                    {item.title !== item.id ? item.title : ''}
+                  </Box>
                 </>
               )}
-              {item.spec && <span className="shrink-0 text-xs text-muted">{item.spec}</span>}
-              {item.state && (
-                <span className="shrink-0 rounded border px-1 text-xs" style={{ borderColor: 'var(--border)' }}>
-                  {item.state}
-                </span>
+              {item.spec && (
+                <Box as="span" shrink0 size="xs" tone="muted">
+                  {item.spec}
+                </Box>
               )}
-            </li>
+              {item.state && (
+                <Box as="span" css-border-color="border" shrink0 rounded="base" border="all" px="1" size="xs">
+                  {item.state}
+                </Box>
+              )}
+            </Box>
           ))}
-        </ul>
-        {total === 0 && <p className="px-2 py-1 text-xs text-muted">No match.</p>}
-        {total > shown.length && <p className="px-2 py-1 text-xs text-muted">{total - shown.length} more; type to narrow.</p>}
-      </div>
+        </Box>
+        {total === 0 && (
+          <Box as="p" px="2" py="1" size="xs" tone="muted">
+            No match.
+          </Box>
+        )}
+        {total > shown.length && (
+          <Box as="p" px="2" py="1" size="xs" tone="muted">
+            {total - shown.length} more; type to narrow.
+          </Box>
+        )}
+      </Box>
     </div>
   )
 }
 
 // A graph's tasks (epics left out) and stored specs as picker items.
-export const taskItems = (tasks: { id: string; title: string; kind?: string; spec?: string | null; planId?: string | null; state?: string | null; status?: string | null }[]): PickItem[] =>
-  tasks.filter((t) => t.kind !== 'package').map((t) => ({ id: t.id, title: t.title || t.id, spec: t.spec ?? t.planId ?? null, state: t.state ?? t.status ?? null }))
+export const taskItems = (
+  tasks: { id: string; title: string; kind?: string; spec?: string | null; planId?: string | null; state?: string | null; status?: string | null }[],
+): PickItem[] => tasks.filter((t) => t.kind !== 'package').map((t) => ({ id: t.id, title: t.title || t.id, spec: t.spec ?? t.planId ?? null, state: t.state ?? t.status ?? null }))

@@ -185,7 +185,6 @@ test("examples preserve user state and edits on retries and keep proposal tasks 
   assert.equal(store.list("plans").length, 1);
   assert.equal(store.list("plans")[0].state, "draft");
   assert.equal(store.list("approvals").length, 0);
-  assert.equal(store.list("runs").length, 0);
   assert.equal(store.list("projects").length, 0);
   const taskId = result.taskIds[0];
   await ops.execute("task.update", {
@@ -274,7 +273,6 @@ test("the default example is draft spec folders, installed once, edits kept", as
     result.specs.map((spec) => [spec, spec, "draft"]).sort(),
   );
   assert.equal(store.list("approvals").length, 0);
-  assert.equal(store.list("runs").length, 0);
   assert.equal(store.list("projects").length, 0);
   assert.deepEqual(store.read().tasks, []);
   assert.deepEqual(store.read().epics, []);
@@ -566,49 +564,4 @@ test("source changes preserve portable document IDs across filesystem separators
   assert.equal(doc.id, "design/plan.md");
   assert.deepEqual(doc.links, ["design/next.md"]);
   assert.equal(store.read().documents["design\\plan.md"], undefined);
-});
-
-test("the earlier environment names still select a workspace after the rename", async (t) => {
-  const root = temporaryDirectory("avoozl-env-");
-  const workspace = path.join(root, "workspace");
-  initializeWorkspace(workspace, { name: "Renamed workspace" });
-  const saved = { ...process.env };
-  t.after(() => {
-    for (const key of Object.keys(process.env))
-      if (!(key in saved)) delete process.env[key];
-    Object.assign(process.env, saved);
-  });
-  for (const key of [
-    "AVOOZL_WORKSPACE",
-    "AICOMMANDER_WORKSPACE",
-    "AVOOZL_URL",
-    "AICOMMANDER_URL",
-    "NUPP_WORKSPACE_URL",
-  ])
-    delete process.env[key];
-
-  // The previous product name remains a working interface, not a casualty of
-  // the rename.
-  process.env.AICOMMANDER_WORKSPACE = workspace;
-  assert.equal(workspaceConfig({}).workspaceRoot, workspace);
-  process.env.AICOMMANDER_URL = "http://127.0.0.1:1234";
-  assert.equal(workspaceConfig({}).endpoint, "http://127.0.0.1:1234");
-
-  // The current name wins when both are set.
-  process.env.AVOOZL_URL = "http://127.0.0.1:4321";
-  assert.equal(workspaceConfig({}).endpoint, "http://127.0.0.1:4321");
-  // An explicit option still outranks both.
-  assert.equal(
-    workspaceConfig({ url: "http://127.0.0.1:9999" }).endpoint,
-    "http://127.0.0.1:9999",
-  );
-
-  // Who is working here is resolved rather than typed.
-  const operator = workspaceConfig({}).operator;
-  assert.equal(typeof operator, "string");
-  assert.ok(operator.length);
-  assert.equal(
-    workspaceConfig({ operator: "Someone else" }).operator,
-    "Someone else",
-  );
 });

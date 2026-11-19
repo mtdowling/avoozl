@@ -3,16 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import {
-  bannerText,
-  barSegments,
-  duration,
-  metricCards,
-  pdcaText,
-  proposalText,
-  toFlowForm,
-  toFlowSection,
-} from '../src/flow-api.ts'
+import { bannerText, barSegments, duration, metricCards, pdcaText, proposalText, toFlowForm, toFlowSection } from '../src/flow-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const empty = { tasks: 0, leadTimeMs: null, flowEfficiency: null, firstPassRate: null, changeFailureRate: null, integrationsPerDay: null, timeToFixMs: null }
@@ -21,33 +12,72 @@ test('durations and metric cards read like the sketch, with empty text that says
   assert.equal(duration(190 * 60_000), '3 h 10 m')
   assert.equal(duration(42 * 60_000), '42 m')
   assert.equal(duration(null), '–')
-  const cards = metricCards({ metrics: { ...empty, tasks: 2, leadTimeMs: 190 * 60_000, flowEfficiency: 0.34, firstPassRate: 0.7 }, previous: { ...empty, tasks: 2, leadTimeMs: 245 * 60_000, flowEfficiency: 0.28, firstPassRate: 0.6 } })
-  assert.deepEqual(cards.map((c) => [c.title, c.value, c.was]), [
-    ['Lead time', '3 h 10 m', '4 h 5 m'],
-    ['Flow efficiency', '34%', '28%'],
-    ['First-pass rate', '70%', '60%'],
-    ['Time to fix', '–', null],
-    ['Fix work', '–', '–'],
-    ['Corrections', '–', null],
-  ])
+  const cards = metricCards({
+    metrics: { ...empty, tasks: 2, leadTimeMs: 190 * 60_000, flowEfficiency: 0.34, firstPassRate: 0.7 },
+    previous: { ...empty, tasks: 2, leadTimeMs: 245 * 60_000, flowEfficiency: 0.28, firstPassRate: 0.6 },
+  })
+  assert.deepEqual(
+    cards.map((c) => [c.title, c.value, c.was]),
+    [
+      ['Lead time', '3 h 10 m', '4 h 5 m'],
+      ['Flow efficiency', '34%', '28%'],
+      ['First-pass rate', '70%', '60%'],
+      ['Time to fix', '–', null],
+      ['Fix work', '–', '–'],
+      ['Corrections', '–', null],
+    ],
+  )
   assert.equal(cards[3].empty, 'No line stop yet.')
   assert.equal(metricCards({ metrics: empty, previous: empty })[0].empty, 'Finish a task to see lead time.')
 })
 
 test('a stacked bar keeps stage order and shares', () => {
   const parts = barSegments({ queued: 10, coding: 30, tests: 0, review: 20 })
-  assert.deepEqual(parts.map((p) => [p.stage, p.share]), [['queued', 1 / 6], ['coding', 0.5], ['review', 1 / 3]])
+  assert.deepEqual(
+    parts.map((p) => [p.stage, p.share]),
+    [
+      ['queued', 1 / 6],
+      ['coding', 0.5],
+      ['review', 1 / 3],
+    ],
+  )
   assert.deepEqual(barSegments({}), [])
 })
 
 test('the banner names the check, branch, culprit, fix task and paused count', () => {
-  const stop = { id: 's', projectId: 'app', check: 'npm test', branch: 'main', culprit: '3.2', commit: 'abc1234def', range: { from: null, to: 'abc' }, openedAt: '', closedAt: null, fixTaskId: '3.2.fix-1', fixState: 'running', paused: 4, runAnyway: null }
+  const stop = {
+    id: 's',
+    projectId: 'app',
+    check: 'npm test',
+    branch: 'main',
+    culprit: '3.2',
+    commit: 'abc1234def',
+    range: { from: null, to: 'abc' },
+    openedAt: '',
+    closedAt: null,
+    fixTaskId: '3.2.fix-1',
+    fixState: 'running',
+    paused: 4,
+    runAnyway: null,
+  }
   assert.equal(bannerText(stop), 'Line stopped: `npm test` fails on main since abc1234 (task 3.2). Fix: 3.2.fix-1, running. 4 tasks paused.')
   assert.match(bannerText({ ...stop, runAnyway: { by: 'dashboard', at: '' } }), /Dispatch resumed by Run anyway\./)
 })
 
 test('proposals and PDCA results read as one line each', () => {
-  const p = { id: 'p1', type: 'settings', file: 'workspace', key: 'flow.retro.slowFactor', from: 3, to: 5, metric: 'lead time', direction: 'down', evidence: 'e', status: 'approved', pdca: { before: 60 * 60_000, after: 61 * 60_000, result: 'no change', window: 10 } }
+  const p = {
+    id: 'p1',
+    type: 'settings',
+    file: 'workspace',
+    key: 'flow.retro.slowFactor',
+    from: 3,
+    to: 5,
+    metric: 'lead time',
+    direction: 'down',
+    evidence: 'e',
+    status: 'approved',
+    pdca: { before: 60 * 60_000, after: 61 * 60_000, result: 'no change', window: 10 },
+  }
   assert.equal(proposalText(p), 'flow.retro.slowFactor 3 → 5')
   assert.equal(pdcaText(p), 'PDCA: lead time 1 h → 1 h 1 m, did not help.')
   assert.equal(pdcaText({ ...p, status: 'open' }), null)
@@ -105,7 +135,10 @@ test('model pickers offer the models Kiro Crew lists, plus auto', async () => {
   ])
   assert.deepEqual(parseModels({ models: [{ id: 'x' }] }), [{ value: 'x', label: 'x' }])
   assert.deepEqual(parseModels(null), [])
-  assert.deepEqual(modelOptions([], 'gone-model').map((o) => o.value), ['auto', 'gone-model'])
+  assert.deepEqual(
+    modelOptions([], 'gone-model').map((o) => o.value),
+    ['auto', 'gone-model'],
+  )
   // The retro's model moved to Settings › Models (ModelsSettings.tsx).
   assert.doesNotMatch(source('FlowSettings.tsx'), /avoozl-flow-model/)
 })
@@ -128,7 +161,8 @@ test('charts and usage use theme colors and no yellow', async () => {
   for (const [stage, color] of Object.entries(STAGE_COLORS)) assert.ok(!yellowish(color), stage)
   const charts = source('FlowCharts.tsx')
   assert.doesNotMatch(charts, /#[0-9a-f]{6}/i, 'chart lines use theme variables')
-  assert.match(charts, /minmax\(min\(100%, 16rem\), 1fr\)/, 'one column at 320px')
+  assert.match(charts, /css-grid-template-columns="repeat-auto-fill-minmax-min-100%-16rem-1fr"/, 'one column at 320px')
+  assert.match(source('ui/box.json'), /"repeat-auto-fill-minmax-min-100%-16rem-1fr": "repeat\(auto-fill, minmax\(min\(100%, 16rem\), 1fr\)\)"/)
   assert.equal(usageText({ input: 12000, output: 800, credits: 0, turns: 3 }), '12k in · 800 out')
   assert.equal(usageText({ input: 0, output: 0, credits: 1.5, turns: 1 }), '1.50 credits')
   assert.match(source('flow-api.ts'), /Not available:/)

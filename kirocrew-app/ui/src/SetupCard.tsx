@@ -5,22 +5,29 @@
 import type { ReactNode } from 'react'
 import { Card } from './ui/Card'
 import { Tooltip } from './ui/Tooltip.tsx'
+import { Box } from './ui/Box'
 
 export default function SetupCard(props: { id: string; title: string; line: string; action?: ReactNode; children?: ReactNode }) {
   return (
-    <div data-setup-card={props.id} data-compact-card className="min-w-0">
-      <Card className="flex h-full min-w-0 flex-col gap-1" style={{ padding: '8px 12px' }}>
-        <h3 className="m-0 truncate text-sm font-semibold">{props.title}</h3>
+    <Box data-setup-card={props.id} data-compact-card minW0>
+      <Card css-padding="8px-12px" flex hFull minW0 flexCol gap="1">
+        <Box as="h3" m0 truncate size="sm" weight="semibold">
+          {props.title}
+        </Box>
         <Tooltip text={props.line} display="block">
           {(describedBy) => (
-            <p tabIndex={0} aria-describedby={describedBy} className="m-0 truncate text-xs text-muted" data-card-line>
+            <Box tabIndex={0} aria-describedby={describedBy} as="p" m0 truncate size="xs" tone="muted" data-card-line>
               {props.line}
-            </p>
+            </Box>
           )}
         </Tooltip>
         {props.children}
-        {props.action && <div className="flex min-w-0 flex-wrap items-center gap-1.5">{props.action}</div>}
+        {props.action && (
+          <Box flex minW0 flexWrap items="center" gap="1.5">
+            {props.action}
+          </Box>
+        )}
       </Card>
-    </div>
+    </Box>
   )
 }

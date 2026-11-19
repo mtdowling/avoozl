@@ -4,14 +4,14 @@ import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { fail } from "./store.mjs";
+import { checksSetting, repositoryChecks } from "./repository-checks.mjs";
+import { requireDiskSpace } from "./disk-space.mjs";
+import {
+  checkOptions,
+  isolationSetting,
+  prepareChecks,
+} from "./check-isolation.mjs";
 const exec = promisify(execFile);
-const DIFF_TEXT_LIMIT = 2 * 1024 * 1024;
-export const WORKING_STATES = [
-  "starting",
-  "running",
-  "waiting-input",
-  "waiting-approval",
-];
 function liveLocks(store, projectId) {
   const rows = store.db
     .prepare("SELECT * FROM work_locks WHERE project_id=?")
@@ -78,7 +78,7 @@ export async function git(cwd, args, { env } = {}) {
 // refuses a worker commit that holds one.
 const AVOOZL_FILES = ":(glob)**/.avoozl/**";
 const EXCLUDE_AVOOZL = ":(exclude,glob)**/.avoozl/**";
-export const isAvoozlPath = (file) =>
+const isAvoozlPath = (file) =>
   /(^|\/)\.avoozl(\/|$)/.test(file.replaceAll("\\", "/"));
 // Changes in the worktree, Avoozl's own files left out.
 export const worktreeChanges = (worktree) =>
@@ -137,15 +137,6 @@ export async function checkoutRoot(root, label) {
   }
   if (prefix) fail(`The ${label} must be the Git checkout root.`);
   return real;
-}
-async function gitFile(cwd, args) {
-  return (
-    await exec("git", args, {
-      cwd,
-      maxBuffer: 8 * 1024 * 1024,
-      encoding: "buffer",
-    })
-  ).stdout;
 }
 export function githubRepositoryFromRemote(value) {
   const match = String(value || "")
@@ -226,7 +217,8 @@ async function configureWorktreeIdentity(root, worktree) {
 // How a project lands verified work (R87.1). Unset keeps the local
 // fast-forward. shortcut: R87.1's default `off` until setup writes another
 // is not applied, so existing workspaces keep landing; upgrade with 42.7.
-export const LANDINGS = Object.freeze(["direct", "pr", "train", "off"]);
+// `train` is retired and loads as `direct` (merge batches spec).
+export const LANDINGS = Object.freeze(["direct", "pr", "off"]);
 export async function projectConfig({
   id,
   root,
@@ -237,11 +229,13 @@ export async function projectConfig({
   checksEnv,
   worktreeHelper,
   landing,
+  isolation,
 }) {
   if (!/^[a-z][a-z0-9-]{1,60}$/.test(id || ""))
     fail("Choose a stable project ID.");
+  if (landing === "train") landing = "direct";
   if (landing !== undefined && !LANDINGS.includes(landing))
-    fail("landing must be direct, pr, train or off.");
+    fail("landing must be direct, pr or off.");
   root = await checkoutRoot(root, "project root");
   // A leading dash would reach git as an option.
   if (typeof baseBranch !== "string" || baseBranch.startsWith("-"))
@@ -253,14 +247,10 @@ export async function projectConfig({
       `Branch ${baseBranch} has no commit in ${root}. Pass --branch BRANCH.`,
     );
   }
-  if (
-    !Array.isArray(checks) ||
-    checks.some(
-      (c) =>
-        !Array.isArray(c) || !c.length || c.some((v) => typeof v !== "string"),
-    )
-  )
-    fail("Checks must be arrays of command arguments.");
+  // The repository's named checks; the older list of argv arrays loads too.
+  checks = checksSetting(checks, "checks");
+  // The isolation its checks run under; a person sets it here.
+  isolation = isolationSetting(isolation, "isolation");
   // An opt-in allowlist of environment variable names for check processes
   // (R83.5) and the hash of the scripts/worktree helper a person approved
   // (R83.4).
@@ -305,6 +295,7 @@ export async function projectConfig({
     ...(checksEnv === undefined ? {} : { checksEnv: [...checksEnv] }),
     ...(worktreeHelper === undefined ? {} : { worktreeHelper }),
     ...(landing === undefined ? {} : { landing }),
+    ...(isolation === undefined ? {} : { isolation }),
     repository: await remoteRepository(root),
     createdAt: new Date().toISOString(),
   };
@@ -324,6 +315,8 @@ export async function createWorktree(store, project, runId, task = {}) {
         worktree = task.worktree || path.join(project.worktreeRoot, runId);
       fs.mkdirSync(path.dirname(worktree), { recursive: true });
       if (fs.existsSync(worktree)) fail("Run worktree already exists.", 409);
+      // Room first: a full volume holds the work instead of a half-made add.
+      requireDiskSpace(store, path.dirname(worktree), `The worktree ${runId}`);
       const helper = path.join(project.root, "scripts/worktree");
       if (task.existing)
         await git(project.root, ["worktree", "add", worktree, branch]);
@@ -505,7 +498,6 @@ const PUSH_CREDENTIALS = [
   /^GH_ENTERPRISE_TOKEN$/i,
   /^GITHUB_ENTERPRISE_TOKEN$/i,
   /^AVOOZL_GITHUB_TOKEN$/i,
-  /^AICOMMANDER_GITHUB_TOKEN$/i,
   /^GIT_ASKPASS$/i,
   /^SSH_ASKPASS$/i,
   /^SSH_AUTH_SOCK$/i,
@@ -538,13 +530,28 @@ const BASE_ENV = [
   "PATHEXT",
 ];
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+// The environment a repository check runs with: only what a process needs
+// to start (BASE_ENV) and the names the repository lists in `checksEnv`,
+// whether or not it lists any. The gateway secrets and the push and GitHub
+// credentials never reach a check, even when listed.
+export function checkEnvironment(env = process.env, allow = []) {
+  const kept = repositoryEnvironment(env, allow);
+  for (const name of Object.keys(kept))
+    if (PUSH_CREDENTIALS.some((pattern) => pattern.test(name)))
+      delete kept[name];
+  return kept;
+}
 export const helperHash = (file) =>
   createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 
+// `isolate(argv, env)` (check-isolation.mjs) wraps a repository check in its
+// repository's isolation: {argv, env, isolation, cleanup?}, or {refused}.
+// The record names the isolation it ran under.
 export async function commandEvidence(
   cwd,
   argv,
-  { timeoutMs = 120000, onStart, env: allow } = {},
+  { timeoutMs = 120000, onStart, env: allow, isolate } = {},
 ) {
   if (
     !Array.isArray(argv) ||
@@ -552,12 +559,26 @@ export async function commandEvidence(
     argv.some((x) => typeof x !== "string")
   )
     fail("Use a command argument array.");
-  const startedAt = new Date().toISOString();
+  const startedAt = new Date().toISOString(),
+    environment = checkEnvironment(process.env, allow),
+    wrapped = isolate ? isolate(argv, environment) : null;
+  if (wrapped?.refused)
+    return {
+      argv,
+      startedAt,
+      endedAt: startedAt,
+      exitCode: null,
+      stdout: "",
+      stderr: wrapped.refused,
+      isolation: null,
+    };
+  const run = wrapped?.argv ?? argv,
+    shown = wrapped ? { isolation: wrapped.isolation } : {};
   onStart?.();
   try {
-    const { stdout, stderr } = await exec(argv[0], argv.slice(1), {
+    const { stdout, stderr } = await exec(run[0], run.slice(1), {
       cwd,
-      env: repositoryEnvironment(process.env, allow),
+      env: wrapped?.env ?? environment,
       timeout: timeoutMs,
       maxBuffer: 8 * 1024 * 1024,
     });
@@ -568,141 +589,38 @@ export async function commandEvidence(
       exitCode: 0,
       stdout,
       stderr,
+      ...shown,
     };
   } catch (error) {
+    // A sandbox that could not start the command says so on its first line
+    // and exits; that is a check that did not start, not one that failed.
+    const unstarted =
+      wrapped &&
+      /^(?:sandbox-exec: execvp\(\)|bwrap: execvp)/.test(
+        String(error.stderr || ""),
+      );
     return {
       argv,
       startedAt,
       endedAt: new Date().toISOString(),
-      exitCode: Number.isInteger(error.code) ? error.code : null,
+      exitCode: Number.isInteger(error.code) && !unstarted ? error.code : null,
       signal: error.signal || null,
       stdout: error.stdout || "",
       stderr: error.stderr || error.message,
+      ...shown,
     };
+  } finally {
+    wrapped?.cleanup?.();
   }
 }
-function diffText(contents) {
-  if (contents.length > DIFF_TEXT_LIMIT)
-    return { text: "", truncated: true, binary: false };
-  if (contents.includes(0)) return { text: "", truncated: false, binary: true };
-  return { text: contents.toString("utf8"), truncated: false, binary: false };
-}
-function worktreeFile(worktree, file) {
-  const root = fs.realpathSync.native(worktree),
-    candidate = path.resolve(root, file);
-  if (candidate !== root && !candidate.startsWith(root + path.sep))
-    fail("Use a repository-relative path.");
-  if (!fs.existsSync(candidate)) return Buffer.alloc(0);
-  const full = fs.realpathSync.native(candidate);
-  if (!full.startsWith(root + path.sep) || !fs.statSync(full).isFile())
-    fail("Use a repository-relative path.");
-  return fs.readFileSync(full);
-}
-// The changes a run has made in its own worktree, bounded so a large branch
-// cannot produce an unbounded response. Read-only: it never checks out,
-// rebases, or stages anything.
-export async function runChanges(store, { id, path: file, limit = 400 }) {
-  const run = store.get("runs", id);
-  if (!run) fail("Run not found.", 404);
-  if (!run.worktree || run.readOnly)
-    fail("This conversation has no worktree of its own.", 409);
-  if (!fs.existsSync(run.worktree))
-    fail("This conversation's worktree has been removed.", 409);
-  const base = run.baseCommit || run.branch + "^";
-  const head = await git(run.worktree, ["rev-parse", "HEAD"]);
-  if (file) {
-    // One file's previous contents, so a client can show a real diff against
-    // the revision the run started from.
-    if (file.includes("..") || path.isAbsolute(file))
-      fail("Use a repository-relative path.");
-    let previous = Buffer.alloc(0);
-    try {
-      previous = await gitFile(run.worktree, ["show", base + ":" + file]);
-    } catch {
-      previous = Buffer.alloc(0);
-    }
-    const before = diffText(previous),
-      after = diffText(worktreeFile(run.worktree, file));
-    return {
-      id,
-      path: file,
-      base,
-      head,
-      before: before.text,
-      after: after.text,
-      binary: before.binary || after.binary,
-      truncated: before.truncated || after.truncated,
-    };
-  }
-  const committed = await git(run.worktree, [
-    "diff",
-    "--numstat",
-    "--find-renames",
-    base,
-    "HEAD",
-  ]);
-  const uncommitted = (
-    await gitFile(run.worktree, ["status", "--porcelain"])
-  ).toString("utf8");
-  const files = committed
-    .split("\n")
-    .filter(Boolean)
-    .slice(0, limit)
-    .map((line) => {
-      const [additions, deletions, name] = line.split("\t");
-      return {
-        path: name,
-        additions: additions === "-" ? null : Number(additions),
-        deletions: deletions === "-" ? null : Number(deletions),
-        state: "committed",
-      };
-    });
-  const pending = uncommitted
-    .split("\n")
-    .filter(Boolean)
-    .slice(0, limit)
-    .map((line) => ({
-      path: line.slice(3).trim(),
-      status: line.slice(0, 2).trim(),
-      state: "uncommitted",
-    }));
-  return {
-    id,
-    branch: run.branch,
-    worktree: run.worktree,
-    base,
-    head,
-    files,
-    uncommitted: pending,
-    truncated:
-      committed.split("\n").filter(Boolean).length > limit ||
-      uncommitted.split("\n").filter(Boolean).length > limit,
-  };
-}
-export async function validateRun(store, runId) {
-  const run = store.get("runs", runId);
-  if (!run) fail("Run not found.", 404);
-  return withWorkLock(
-    store,
-    { id: "validation:" + runId, projectId: run.projectId, kind: "validation" },
-    () => validateUnlocked(store, runId),
-  );
-}
-// `source` stands in for the run when the work is not a run: a Kiro Crew
-// delivery's integration entry (delivery.mjs).
-async function validateUnlocked(
+// `source` is the integration entry of a Kiro Crew delivery (delivery.mjs).
+export async function validateUnlocked(
   store,
   runId,
   { phase = "validation", source } = {},
 ) {
-  const run = source || store.get("runs", runId);
+  const run = source;
   if (!run?.worktree) fail("Run has no worktree.");
-  if (
-    ["running", "starting", "waiting-approval", "waiting-input"].includes(
-      run.state,
-    )
-  )
-    fail("Finish or interrupt the agent before validation.", 409);
   const project = store.get("projects", run.projectId);
   if (!project) fail("Project configuration is missing.");
   const head = await git(run.worktree, ["rev-parse", "HEAD"]),
@@ -712,19 +630,30 @@ async function validateUnlocked(
       "Commit the worktree changes before recording acceptance checks.",
       409,
     );
-  if (!project.checks.length)
-    fail("Configure the project acceptance commands before validation.");
+  const checks = repositoryChecks(project);
+  if (!checks.length)
+    fail("Configure the repository's checks before validation.");
   const results = [];
-  for (const argv of project.checks) {
-    store.event(runId, "validation.started", { argv, phase });
-    const record = await commandEvidence(run.worktree, argv, {
-      env: project.checksEnv,
-    });
+  const ready = await prepareChecks(project, run.worktree);
+  if (ready && ready.exitCode !== 0)
+    fail(
+      `The repository's prepare step failed: ${String(ready.stderr || "")
+        .split("\n")[0]
+        .slice(0, 200)}`,
+    );
+  for (const { name, argv } of checks) {
+    store.event(runId, "validation.started", { argv, name, phase });
+    const record = await commandEvidence(
+      run.worktree,
+      argv,
+      checkOptions(project, run.worktree),
+    );
     // Each record names the commit and the phase it ran in, so the checks that
     // ran on the rebased base are distinguishable from the earlier ones rather
     // than reading as duplicates of the same work.
     const evidence = {
       ...record,
+      name,
       id: crypto.randomUUID(),
       taskId: run.taskId,
       runId,
@@ -742,7 +671,7 @@ async function validateUnlocked(
     !(await worktreeChanges(run.worktree));
   const passed =
     unchanged &&
-    results.length === project.checks.length &&
+    results.length === checks.length &&
     results.every((r) => r.exitCode === 0);
   store.mutate("Record validation for " + run.taskId, (data) => {
     const task = data.tasks.find((t) => t.id === run.taskId);
@@ -896,7 +825,7 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   await refuseAvoozlPaths(entry.worktree, target, "HEAD");
   const revalidated = await validateUnlocked(store, id, {
     phase: "integration",
-    source: entry.runId ? undefined : { ...entry, state: "integrating" },
+    source: { ...entry, state: "integrating" },
   });
   if (!revalidated.passed)
     fail("Rebased work did not pass acceptance checks.", 409);
@@ -937,24 +866,10 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
       };
   });
   store.event(id, "integration.completed", { entry });
-  // The base moved: worktrees of runs still working are now behind it. A
-  // steering signal for those runs and the UI, not a correctness step.
   store.event(null, "project.base.moved", {
     projectId: project.id,
     baseBranch: target,
     commit: head,
-    behind: store
-      .list("runs")
-      .filter(
-        (r) =>
-          r.projectId === project.id &&
-          r.id !== entry.runId &&
-          !r.readOnly &&
-          ["running", "starting", "waiting-approval", "waiting-input"].includes(
-            r.state,
-          ),
-      )
-      .map((r) => r.id),
   });
   // Remove only the exact worktree created for this run, after its branch landed.
   if (

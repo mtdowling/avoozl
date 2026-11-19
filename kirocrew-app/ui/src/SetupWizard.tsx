@@ -16,7 +16,7 @@ import { CircleCheck, RefreshCw, Workflow, X } from './icons.ts'
 import { groupWrites, setupForm, setupInput, setupState, writeBadge, type GitHubSettings, type SetupForm, type SetupResult, settingsClient } from './settings-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { relativeTime } from './task-api.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { linkHref } from './views-api.ts'
 import { SCOPE_RULE, SCOPE_STATEMENT } from '../../../src/work-split.mjs'
 import { ErrorText } from './ui/ErrorText'
@@ -24,18 +24,15 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
+import { BADGE_STYLE } from './ui/looks/SetupWizard.ts'
+import { Glyph } from './ui/Glyph'
 
 type Client = ReturnType<typeof settingsClient>
 
 // The values the workspace GitHub settings and the repository roles hold; the wizard never asks again.
 export type SharedSetup = Pick<SetupForm, 'mode' | 'planningRepository' | 'repositories' | 'projectOwner' | 'projectNumber'>
-
-const BADGE_STYLE: Record<string, CSSProperties> = {
-  create: { color: 'var(--ok)', borderColor: 'var(--ok)' },
-  change: { color: 'var(--accent)', borderColor: 'var(--accent)' },
-  keep: { color: 'var(--muted)', borderColor: 'var(--border)' },
-}
 
 const STEP_TEXT = [
   ['What to set up', 'Avoozl reads GitHub first. Pick the extras; the mode, repositories and Project come from this tab.'],
@@ -150,35 +147,40 @@ export function SetupDialog(props: {
         </>
       }
     >
-      <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
+      <Box as="ol" flex flexWrap gap="2" size="xs" aria-label="Steps">
         {STEP_TEXT.map(([title], i) => (
-          <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
+          <Box key={title} aria-current={i === step ? 'step' : undefined} as="li" weight={i === step ? 'semibold' : undefined} tone={i === step ? undefined : 'muted'}>
             {i + 1}. {title}
-          </li>
+          </Box>
         ))}
-      </ol>
+      </Box>
       <div>
         <Hint id="avoozl-setup-line" as="p" size="sm">
           {STEP_TEXT[step][1]}
         </Hint>
       </div>
       {step === 0 && (
-        <div className="flex flex-col gap-2 text-sm">
+        <Box flex flexCol gap="2" size="sm">
           <Hint as="p" size="xs" data-setup-shared>
             Mode {form.mode}
             {form.mode === 'plans-repo' ? `, planning repository ${form.planningRepository || 'not set'}` : ''}, repositories {form.repositories || 'none yet'}, Project{' '}
             {form.projectOwner ? `${form.projectOwner}/${form.projectNumber || 'new'}` : 'not set'}.
           </Hint>
           {!/^\d+$/.test(form.projectNumber.trim()) && (
-            <label className="flex flex-col gap-1">
+            <Box as="label" flex flexCol gap="1">
               New Project title <Hint size="xs">(optional)</Hint>
-              <Input id="avoozl-setup-title-field" value={form.projectTitle} placeholder="Avoozl" onChange={(e: { target: { value: string } }) => props.set({ projectTitle: e.target.value })} />
-            </label>
+              <Input
+                id="avoozl-setup-title-field"
+                value={form.projectTitle}
+                placeholder="Avoozl"
+                onChange={(e: { target: { value: string } }) => props.set({ projectTitle: e.target.value })}
+              />
+            </Box>
           )}
-          <label className="flex flex-col gap-1">
+          <Box as="label" flex flexCol gap="1">
             Releases, if no spec names one <Hint size="xs">(optional)</Hint>
             <Input id="avoozl-setup-releases" value={form.releases} placeholder="v1, v2" onChange={(e: { target: { value: string } }) => props.set({ releases: e.target.value })} />
-          </label>
+          </Box>
           <Row gap={3} align="start">
             {(
               [
@@ -187,23 +189,24 @@ export function SetupDialog(props: {
                 ['epic', 'Epic issue type'],
               ] as const
             ).map(([key, label]) => (
-              <label key={key} className="flex items-center gap-1.5">
-                <Checkbox checked={form[key]} onChange={(e) => props.set({ [key]: e.target.checked })} />
+              <Switch key={key} label={label} gap={1.5} checked={form[key]} onChange={(on) => props.set({ [key]: on })}>
                 {label}
-              </label>
+              </Switch>
             ))}
           </Row>
-        </div>
+        </Box>
       )}
       {step === 1 && result && (
-        <div className="flex flex-col gap-3 text-sm">
+        <Box flex flexCol gap="3" size="sm">
           {groups.length === 0 && <p>Nothing to change on GitHub.</p>}
           {groups.map((group) => (
             <section key={group.key} data-setup-group={group.key}>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">{group.title}</h4>
-              <ul className="mt-1 flex flex-col gap-1">
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+                {group.title}
+              </Box>
+              <Box as="ul" mt="1" flex flexCol gap="1">
                 {group.writes.map((write, i) => (
-                  <li key={i} className="flex flex-wrap items-baseline gap-2">
+                  <Box key={i} as="li" flex flexWrap items="baseline" gap="2">
                     <span className="rounded-full border px-1.5 text-[10px] font-semibold" style={BADGE_STYLE[writeBadge(write)]}>
                       {writeBadge(write)}
                     </span>
@@ -211,16 +214,20 @@ export function SetupDialog(props: {
                       {write.object} <code>{write.name}</code>
                       {write.visibility ? ` (${write.visibility})` : ''} in {write.owner}
                     </span>
-                    <span className="w-full pl-12 text-xs text-muted">{write.detail}</span>
-                  </li>
+                    <Box as="span" wFull pl="12" size="xs" tone="muted">
+                      {write.detail}
+                    </Box>
+                  </Box>
                 ))}
-              </ul>
+              </Box>
             </section>
           ))}
           {result.checklist.length > 0 && (
             <section>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Left for you on GitHub</h4>
-              <ul className="mt-1 list-disc pl-5 text-xs">
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">
+                Left for you on GitHub
+              </Box>
+              <Box as="ul" mt="1" listDisc pl="5" size="xs">
                 {result.checklist.map((item) => (
                   <li key={item.id}>
                     {item.link ? (
@@ -232,51 +239,53 @@ export function SetupDialog(props: {
                     )}
                   </li>
                 ))}
-              </ul>
+              </Box>
             </section>
           )}
-        </div>
+        </Box>
       )}
-      {step === 2 && <p className="text-sm" role="status">Making {count} changes on GitHub…</p>}
+      {step === 2 && (
+        <Box as="p" size="sm" role="status">
+          Making {count} changes on GitHub…
+        </Box>
+      )}
       {step === 3 && result && (
-        <div className="flex flex-col gap-2 text-sm">
+        <Box flex flexCol gap="2" size="sm">
           <p role="status">
             Made {(result.results ?? []).filter((r) => r.status === 'done').length} of {count} changes.
           </p>
           {failed.length > 0 && (
-            <ul role="alert" className="text-xs text-danger">
+            <Box role="alert" as="ul" size="xs" tone="danger">
               {failed.map((entry, i) => (
                 <li key={i}>
                   {entry.status}: {entry.action} {entry.name}
                   {entry.reason ? ` (${entry.reason})` : ''}
                 </li>
               ))}
-            </ul>
+            </Box>
           )}
           {result.settings.changed ? (
             <>
               {result.settings.error && <ErrorText role="alert">{result.settings.error}</ErrorText>}
-              <pre className="overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+              <Box as="pre" css-border-color="border" overflow="auto" rounded="base" border="all" p="2" size="xs">
                 {result.settings.diff}
-              </pre>
+              </Box>
             </>
           ) : (
             <Hint as="p">.avoozl.json already matches.</Hint>
           )}
-        </div>
+        </Box>
       )}
-      {error && <ErrorText role="alert" size="sm">{error}</ErrorText>}
+      {error && (
+        <ErrorText role="alert" size="sm">
+          {error}
+        </ErrorText>
+      )}
     </Modal>
   )
 }
 
-export default function SetupWizard(props: {
-  workspaceId: string
-  client: Client
-  settings: GitHubSettings
-  shared: SharedSetup
-  onSaved: () => Promise<unknown>
-}) {
+export default function SetupWizard(props: { workspaceId: string; client: Client; settings: GitHubSettings; shared: SharedSetup; onSaved: () => Promise<unknown> }) {
   const { workspaceId, client, settings, shared } = props
   const [own, setForm] = useState<SetupForm>(() => setupForm(settings.github))
   const form: SetupForm = { ...own, ...shared, mode: shared.mode || own.mode }
@@ -306,19 +315,23 @@ export default function SetupWizard(props: {
       <Hint as="p" size="xs" data-scope-statement="">
         {SCOPE_STATEMENT} {SCOPE_RULE}
       </Hint>
-      {state.kind === 'checking' && <Hint as="p" size="sm">Checking GitHub…</Hint>}
+      {state.kind === 'checking' && (
+        <Hint as="p" size="sm">
+          Checking GitHub…
+        </Hint>
+      )}
       {state.kind === 'set-up' && (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <CircleCheck size={ICON + 2} aria-hidden="true" style={{ color: 'var(--ok)' }} />
+        <Box flex flexWrap items="center" gap="2" size="sm">
+          <Glyph icon={CircleCheck} size={ICON + 2} aria-hidden="true" css-color="ok" />
           <span>GitHub is set up.</span>
           <Tooltip text={new Date(state.at).toLocaleString()}>
             <Hint size="xs">Checked {relativeTime(state.at, Date.now())}</Hint>
           </Tooltip>
           <IconBtn icon={RefreshCw} label="Recheck" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
-        </div>
+        </Box>
       )}
       {state.kind === 'changes' && (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Box flex flexWrap items="center" gap="2" size="sm">
           <span>
             Setup found {state.count} thing{state.count === 1 ? '' : 's'} to create or change.
           </span>
@@ -326,25 +339,29 @@ export default function SetupWizard(props: {
             Set up GitHub
           </IconLabel>
           <IconBtn icon={RefreshCw} label="Recheck" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
-        </div>
+        </Box>
       )}
       {state.kind === 'error' && (
-        <div className="flex flex-col gap-1 text-sm" role="alert">
-          <span className="inline-flex items-center gap-1.5">
-            <X size={ICON} aria-hidden="true" style={{ color: 'var(--danger)' }} />
+        <Box flex flexCol gap="1" size="sm" role="alert">
+          <Box as="span" inlineFlex items="center" gap="1.5">
+            <Glyph icon={X} size={ICON} aria-hidden="true" css-color="danger" />
             Avoozl can't check GitHub: {state.reason}
-          </span>
+          </Box>
           {state.fix && (
-            <span className="text-xs">
+            <Box as="span" size="xs">
               Fix: <code>{state.fix}</code>
-            </span>
+            </Box>
           )}
           <span>
             <IconBtn icon={RefreshCw} label="Recheck" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
           </span>
-        </div>
+        </Box>
       )}
-      {note && <Hint as="p" size="xs" role="status">{note}</Hint>}
+      {note && (
+        <Hint as="p" size="xs" role="status">
+          {note}
+        </Hint>
+      )}
       {open && (
         <SetupDialog
           workspaceId={workspaceId}

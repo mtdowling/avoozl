@@ -95,7 +95,7 @@ test("epic rows take a step, default implement, once per plan and step", (t) => 
   writeSpec(root, "launch", {
     "avoozl/manifest.json": JSON.stringify({
       kind: "epic",
-      tasks: { 1: { plan: "alpha", step: "design", checks: ["npm test"] } },
+      tasks: { 1: { plan: "alpha", step: "design", repository: "app" } },
     }),
     "tasks.md": "# Plans\n\n- [ ] 1 Row\n",
   });

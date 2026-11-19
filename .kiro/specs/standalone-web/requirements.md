@@ -4,8 +4,6 @@ category: Planning
 
 # Requirements: a standalone web view
 
-Status: Approved
-
 ## Introduction
 
 This spec lets a person who runs Avoozl with Claude Code, Codex or another
@@ -13,8 +11,8 @@ agent CLI, and no Kiro Crew, use today's Avoozl page in a browser. Avoozl
 serves the page itself with `avoozl serve`, on `127.0.0.1` only, behind a
 one-time owner link.
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts that a person does later.
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts that a person does later.
 
 Changed 2026-11-18 (owner decision): the standalone page must look exactly
 as the page does in Kiro Crew, and must not be a fork. It is built with Kiro
@@ -260,8 +258,8 @@ I visit cannot drive Avoozl.
    `'unsafe-inline'` SHALL NOT appear.
 9. `POST /logout` with a valid CSRF header SHALL end the session and clear
    the cookie.
-10. No token, cookie value or CSRF token SHALL appear in a log, an error
-    message, `serve.json`, the workspace database, or any GitHub write.
+10. No token, cookie value or CSRF token SHALL appear in a log, an
+    error message, `serve.json`, the workspace database, or any GitHub write.
 11. A request body over the app backend's limit SHALL get 413, as the app
     backend does today.
 
@@ -282,10 +280,13 @@ the Kiro Crew page lets me do, and no more, and agents to stay off it.
 3. Demo mode (`demo.*`, design §6.11) SHALL work on the standalone page as on
    the Kiro Crew page.
 4. The standalone server SHALL offer no `app-token` or `agent-tool`
-   principal and SHALL accept no bearer token or API key. Agents keep the
-   MCP server and the CLI. A test SHALL send a request with each of the
-   app backend's principal headers and a bearer header, and no session
-   cookie, and require 401.
+   principal and SHALL accept no bearer token or other credential header. Agents keep the
+   MCP server and the CLI, and the CLI works on the workspace database
+   directly: pointed at `avoozl serve` with `--url`, it is refused with an
+   error that says only a browser's session cookie opens `/api/command`. A
+   test SHALL send a request with each of the app backend's principal
+   headers, a bearer header and a made-up credential header, and no
+   session cookie, and require 401.
 5. The supervisor's sandbox (Requirement 95.6) SHALL keep the machine state
    folder, which holds `serve.json` and the link records, outside every
    `process` child's read and write roots. A sandbox test SHALL check it.

@@ -15,18 +15,19 @@ import { linkHref } from './views-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
+import { Box } from './ui/Box'
+import { PlainLink } from './ui/Plain'
 
-const model = (requested: string | null, served: string | null) =>
-  `asked ${requested ?? 'agent default'}${served ? `, ran ${served}` : ''}`
+const model = (requested: string | null, served: string | null) => `asked ${requested ?? 'agent default'}${served ? `, ran ${served}` : ''}`
 
 // Each review chat or verdict: role, round, models, verdict, Session, Info.
 export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => void; compact?: boolean }) {
   const runs = reviewRuns(props.item)
   if (!runs.length) return null
   return (
-    <ul className={`flex flex-col gap-1 ${props.compact ? 'text-xs' : 'text-sm'}`} data-review-runs>
+    <Box as="ul" flex flexCol gap="1" size={props.compact ? 'xs' : 'sm'} data-review-runs>
       {runs.map((run) => (
-        <li key={run.key} className="flex flex-wrap items-center gap-1.5">
+        <Box key={run.key} as="li" flex flexWrap items="center" gap="1.5">
           <Badge variant={run.live ? 'info' : undefined}>{run.role}</Badge>
           <span>round {run.round}</span>
           <Hint>· {model(run.requested, run.served)}</Hint>
@@ -35,22 +36,18 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
           ) : (
             <Hint>· {run.live ? 'reviewing' : (run.status ?? 'no verdict')}</Hint>
           )}
-          <span className="ml-auto flex flex-wrap items-center gap-1.5">
+          <Box as="span" ml="auto" flex flexWrap items="center" gap="1.5">
             {run.link && (
-              <a
-                href={linkHref(run.link)}
-                className="inline-flex items-center gap-1 underline"
-                aria-label={`Session: the ${run.role} chat, round ${run.round}`}
-              >
+              <PlainLink href={linkHref(run.link)} inlineFlex items="center" gap="1" underline aria-label={`Session: the ${run.role} chat, round ${run.round}`}>
                 <CirclePlus size={12} aria-hidden="true" />
                 Session
-              </a>
+              </PlainLink>
             )}
             {props.onInfo && <IconBtn icon={DetailsIcon} label={`Details of ${run.role} round ${run.round}`} tooltip="Open the task's details" onClick={props.onInfo} />}
-          </span>
-        </li>
+          </Box>
+        </Box>
       ))}
-    </ul>
+    </Box>
   )
 }
 
@@ -92,12 +89,10 @@ export function HandSetReview(props: {
     }
   }
   return (
-    <div
-      data-hand-set-review
-      className={`flex flex-col gap-2 rounded border p-2 ${props.compact ? 'text-xs' : 'text-sm'}`}
-      style={{ borderColor: 'color-mix(in srgb, var(--warn, var(--muted)) 55%, var(--border))' }}
-    >
-      <span className="font-medium">{noSessionLabel(task.noSession)}</span>
+    <Box data-hand-set-review css-border-color="mix-warn-muted-55%-border" flex flexCol gap="2" rounded="base" border="all" p="2" size={props.compact ? 'xs' : 'sm'}>
+      <Box as="span" weight="medium">
+        {noSessionLabel(task.noSession)}
+      </Box>
       {task.nextAction ? (
         <span>
           <Hint>Next: </Hint>
@@ -106,12 +101,17 @@ export function HandSetReview(props: {
       ) : (
         <Hint>No next action recorded.</Hint>
       )}
-      <div className="flex flex-wrap gap-1.5">
+      <Box flex flexWrap gap="1.5">
         <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat about this task. It changes nothing." onClick={() => void chat.ask({ tasks: [task.id] })}>
           Discuss
         </IconLabel>
         {local && done && !confirming && (
-          <IconLabel icon={Check} disabled={busy || props.revision === null} tooltip="Mark it done. Tasks that wait on it may start. You confirm first." onClick={() => setConfirming(true)}>
+          <IconLabel
+            icon={Check}
+            disabled={busy || props.revision === null}
+            tooltip="Mark it done. Tasks that wait on it may start. You confirm first."
+            onClick={() => setConfirming(true)}
+          >
             Mark done
           </IconLabel>
         )}
@@ -130,10 +130,12 @@ export function HandSetReview(props: {
             Info
           </IconLabel>
         )}
-      </div>
+      </Box>
       {confirming && done && (
         <Row role="group" aria-label="Confirm mark done" gap={2} data-confirm-done>
-          <span>Mark {task.title} {done}? Tasks that wait on it may start. Edit can set it back.</span>
+          <span>
+            Mark {task.title} {done}? Tasks that wait on it may start. Edit can set it back.
+          </span>
           <Btn type="button" onClick={() => setConfirming(false)}>
             Cancel
           </Btn>
@@ -148,6 +150,6 @@ export function HandSetReview(props: {
           {error ?? chat.error}
         </ErrorText>
       )}
-    </div>
+    </Box>
   )
 }

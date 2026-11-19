@@ -3,6 +3,7 @@
 // forwards `/apps/avoozl/api/<path>` to the backend's `/api/<path>`.
 // Keep this module free of JSX and runtime imports so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
+import type { Isolation } from './isolation-form.ts'
 
 export const COMMAND_PATH = '/apps/avoozl/api/command'
 
@@ -45,12 +46,15 @@ export interface Repository {
   localCheckout: string | null
   github: string | null
   baseBranch: string
-  // How work reaches the branch: direct, pr, train or off; the harness that
+  // How work reaches the branch: direct, pr or off; the harness that
   // codes its tasks, when one is named.
   landing?: string | null
   harness?: string | null
   // The planning repository (plans-repo mode), which holds specs.
   planning?: boolean
+  // How its checks run (Settings > Repository setup > Landing); older
+  // backends omit it.
+  isolation?: Partial<Isolation> | null
 }
 
 export interface DetectedCheckout {
@@ -84,11 +88,7 @@ export function errorMessage(error: unknown): string {
 }
 
 export function workspaceClient(api: AppApi) {
-  const run = async <T>(
-    operation: string,
-    input: Record<string, unknown> = {},
-    workspaceId?: string,
-  ): Promise<T> => {
+  const run = async <T>(operation: string, input: Record<string, unknown> = {}, workspaceId?: string): Promise<T> => {
     const reply = await api.post<{ result: T }>(COMMAND_PATH, {
       operation,
       input,
@@ -107,18 +107,13 @@ export function workspaceClient(api: AppApi) {
     update: (input: WorkspaceEdit) => run<CatalogWorkspace>('workspaces.update', { ...input }),
     // Folders under home; `path` may start with ~.
     browse: (path?: string) => run<FolderListing>('workspaces.browse', path ? { path } : {}),
-    repositories: (workspaceId: string) =>
-      run<{ items: Repository[] }>('repositories.list', {}, workspaceId).then((r) => r.items),
+    repositories: (workspaceId: string) => run<{ items: Repository[] }>('repositories.list', {}, workspaceId).then((r) => r.items),
     // Read only: what adding this folder would register.
-    detectRepository: (workspaceId: string, folder: string) =>
-      run<DetectedCheckout>('repositories.detect', { folder }, workspaceId),
+    detectRepository: (workspaceId: string, folder: string) => run<DetectedCheckout>('repositories.detect', { folder }, workspaceId),
     // Stops Avoozl using a checkout. Refused while a run or lock uses it.
-    removeRepository: (workspaceId: string, id: string) =>
-      run<Repository & { removed: boolean }>('repositories.remove', { id }, workspaceId),
-    registerRepository: (
-      workspaceId: string,
-      input: { id: string; localCheckout: string; baseBranch?: string },
-    ) => run<Repository>('repositories.configure', { ...input }, workspaceId),
+    removeRepository: (workspaceId: string, id: string) => run<Repository & { removed: boolean }>('repositories.remove', { id }, workspaceId),
+    registerRepository: (workspaceId: string, input: { id: string; localCheckout: string; baseBranch?: string }) =>
+      run<Repository>('repositories.configure', { ...input }, workspaceId),
   }
 }
 

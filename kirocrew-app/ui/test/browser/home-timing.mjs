@@ -49,12 +49,13 @@ const HOME = [
   ['untriaged.view', {}],
   ['radar.releasequeue', {}],
   ['radar.armed', {}],
-  ['gate.list', {}],
   ['integration.view', {}],
   ['review.drafts', {}],
   ['remote.view', {}],
 ]
-const replay = { 'workspaces.list': { result: { defaultWorkspace: 'w', items: [{ id: 'w', name: config.name, root: '/w', enabled: true, state: 'ready', served: true }] }, ms: HOP } }
+const replay = {
+  'workspaces.list': { result: { defaultWorkspace: 'w', items: [{ id: 'w', name: config.name, root: '/w', enabled: true, state: 'ready', served: true }] }, ms: HOP },
+}
 const github = {}
 for (const [name, input] of HOME) {
   const before = fetches,

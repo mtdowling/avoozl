@@ -13,7 +13,7 @@
 // unbound session cannot pick a workspace of its own. A request without a caller
 // block (a script cron spawns its own copy of this server) still runs. It takes
 // the cron's key from KIROCREW_SESSION_KEY (withCronCaller); with neither, it
-// has no caller, so tools that need an identity, such as plans_report, refuse it.
+// has no caller, so tools that need an identity, such as plans_session report, refuse it.
 import fs from "node:fs";
 import { workspaceConfig } from "./config.mjs";
 import { loadHostConfig, machineAvoozlPaths } from "./host-config.mjs";
@@ -25,7 +25,7 @@ import { callerSlot } from "./delivery.mjs";
 import { dispatchMcp } from "../mcp.mjs";
 
 // kiro_crew/mcp_caller.py CALLER_CAPABILITY_KEY and caller_identity_capability().
-export const CALLER_CAPABILITY = "kirocrew.caller-identity";
+const CALLER_CAPABILITY = "kirocrew.caller-identity";
 // Methods answered without a workspace.
 const STATIC = new Set([
   "initialize",
@@ -41,15 +41,13 @@ const rpcError = (id, message, code = -32603) => ({
   error: { code, message },
 });
 
-// The avoozl-tick cron's call: plans_tick (or plans_maintain tick) marked cron.
+// The avoozl-tick cron's call: plans_maintain tick marked cron.
 function cronTick(message) {
   if (message.method !== "tools/call") return false;
   const { name, arguments: args } = message.params || {};
   const input = args?.input;
   return (
-    input?.cron === true &&
-    (name === "plans_tick" ||
-      (name === "plans_maintain" && args.action === "tick"))
+    input?.cron === true && name === "plans_maintain" && args.action === "tick"
   );
 }
 
@@ -187,7 +185,7 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
     ) {
       if (message.method === "tools/list")
         return (await handleMcp(message, null)).body;
-      const reply = dispatchMcp(message, {}).body;
+      const reply = dispatchMcp(message).body;
       // Pooled operation: the gateway injects the caller block only into a
       // backend that advertises this (kiro_crew/mcp_gateway/backend_handshake.py
       // _parse_initialize_response).

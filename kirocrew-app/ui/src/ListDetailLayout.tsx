@@ -9,6 +9,8 @@ import { DetailPane } from './ListDetail.tsx'
 import { usePhone } from './list-detail.ts'
 import { ResizeHandle } from './ResizeHandle.tsx'
 import { scrollParent } from './sticky-column.ts'
+import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 // The height left on screen under the node in whatever scrolls the page
 // (in Kiro Crew, the app's content pane), measured again when it resizes;
@@ -89,7 +91,13 @@ export function ListDetailLayout(props: {
     )
   if (props.detail === null)
     return (
-      <div ref={fillRef} data-list-pane={props.id} data-list-only data-list-fill={fillHeight !== null ? '' : undefined} style={fillHeight !== null ? { height: fillHeight, minHeight: 0, overflowY: 'auto', position: 'relative' } : undefined}>
+      <div
+        ref={fillRef}
+        data-list-pane={props.id}
+        data-list-only
+        data-list-fill={fillHeight !== null ? '' : undefined}
+        style={fillHeight !== null ? { height: fillHeight, minHeight: 0, overflowY: 'auto', position: 'relative' } : undefined}
+      >
         {props.list}
       </div>
     )
@@ -98,10 +106,31 @@ export function ListDetailLayout(props: {
   // it fills the nav's filters.
   const folded = props.listFolded
   return (
-    <div ref={fillRef} data-list-detail={props.id} data-list-folded={folded ? '' : undefined} data-list-fill={fillHeight !== null ? '' : undefined} style={{ display: 'flex', alignItems: 'stretch', height: fillHeight ?? '100%', minHeight: 0 }}>
-      <div ref={column} data-list-pane={props.id} hidden={Boolean(folded)} style={{ flex: `0 0 ${width}px`, width, minWidth: 0, minHeight: 0, overflowY: 'auto', position: 'relative', paddingRight: 4, display: folded ? 'none' : undefined }}>
+    <Box
+      ref={fillRef}
+      data-list-detail={props.id}
+      data-list-folded={folded ? '' : undefined}
+      data-list-fill={fillHeight !== null ? '' : undefined}
+      css-display="flex"
+      css-align-items="stretch"
+      css-height={fillHeight ?? '100%'}
+      css-min-height="0"
+    >
+      <Box
+        ref={column}
+        data-list-pane={props.id}
+        hidden={Boolean(folded)}
+        css-flex={`0 0 ${width}px`}
+        css-width={width}
+        css-min-width="0"
+        css-min-height="0"
+        css-overflow-y="auto"
+        css-position="relative"
+        css-padding-right="4"
+        css-display={folded ? 'none' : undefined}
+      >
         {props.list}
-      </div>
+      </Box>
       {!folded && (
         <ResizeHandle
           label="Resize the list"
@@ -114,22 +143,44 @@ export function ListDetailLayout(props: {
         />
       )}
       {folded && (
-        <button
+        <PlainButton
           type="button"
           data-list-unfold={props.id}
           aria-label={folded.label}
           onClick={folded.onUnfold}
-          style={{ flex: `0 0 ${LIST_FOLDED_WIDTH}px`, width: LIST_FOLDED_WIDTH, display: 'flex', justifyContent: 'center', padding: '10px 0', background: 'none', border: 0, borderRadius: 6, color: 'var(--muted)', cursor: 'pointer', fontSize: 12.5, fontWeight: 500 }}
+          css-flex={`0 0 ${LIST_FOLDED_WIDTH}px`}
+          css-width={LIST_FOLDED_WIDTH}
+          css-display="flex"
+          css-justify-content="center"
+          css-padding="10px-0"
+          css-background="none"
+          css-border="0"
+          css-border-radius="6"
+          css-color="muted"
+          css-cursor="pointer"
+          css-font-size="12.5"
+          css-font-weight="500"
         >
-          <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', whiteSpace: 'nowrap' }}>{folded.label}</span>
-        </button>
+          <Box as="span" css-writing-mode="vertical-rl" css-transform="rotate-180deg" css-white-space="nowrap">
+            {folded.label}
+          </Box>
+        </PlainButton>
       )}
-      <div
+      <Box
         data-detail-column={props.id}
-        style={{ flex: '1 1 0%', minWidth: 0, minHeight: 0, paddingLeft: 12, borderLeft: '1px solid var(--border)', ...(fillHeight !== null ? { display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' } : { overflowY: 'auto' }) }}
+        css-flex="1-1-0%"
+        css-min-width="0"
+        css-min-height="0"
+        css-padding-left="12"
+        css-border-left="1px-solid-border"
+        css-display={fillHeight !== null ? 'flex' : undefined}
+        css-flex-direction={fillHeight !== null ? 'column' : undefined}
+        css-overflow={fillHeight !== null ? 'hidden' : undefined}
+        css-position={fillHeight !== null ? 'relative' : undefined}
+        css-overflow-y={fillHeight !== null ? undefined : 'auto'}
       >
         {props.detail}
-      </div>
-    </div>
+      </Box>
+    </Box>
   )
 }

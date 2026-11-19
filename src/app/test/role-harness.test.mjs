@@ -4,11 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import {
-  harnessExecutor,
-  roleHarness,
-  validateHarnesses,
-} from "../chat-models.mjs";
+import { harnessExecutor, roleHarness } from "../chat-models.mjs";
 import { deliveryPolicy, planReadyDispatches } from "../delivery.mjs";
 import {
   approveHarnessDefinition,
@@ -35,22 +31,14 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-test("harnesses names roles, each kirocrew, a harness name or auto", () => {
-  assert.deepEqual(
-    validateHarnesses({ worker: "claude-code", planner: "kirocrew" }),
-    { worker: "claude-code", planner: "kirocrew" },
+test("a role's harness is kirocrew, a harness name or auto", () => {
+  assert.equal(
+    roleHarness({ roles: { worker: { harness: "auto" } } }, "worker"),
+    null,
   );
-  assert.deepEqual(validateHarnesses(undefined), {});
-  assert.throws(() => validateHarnesses({ falsifier: "x" }), /not a role/);
-  assert.throws(
-    () => validateHarnesses({ worker: "Bad Name" }),
-    /kirocrew, a harness name or "auto"/,
-  );
-  assert.throws(() => validateHarnesses([]), /must be an object/);
-  assert.equal(roleHarness({ harnesses: { worker: "auto" } }, "worker"), null);
   assert.equal(roleHarness({}, "worker"), null);
   assert.equal(
-    roleHarness({ harnesses: { worker: "codex" } }, "worker"),
+    roleHarness({ roles: { worker: { harness: "codex" } } }, "worker"),
     "codex",
   );
   assert.deepEqual(harnessExecutor("kirocrew"), { executor: "kirocrew" });
@@ -102,20 +90,13 @@ test("a worker runs on its pin's harness, else the saved one, else its project's
     chat: ["kirocrew", null],
     plain: ["kirocrew", null],
   });
-  assert.deepEqual(run({ config: { harnesses: { worker: "claude-code" } } }), {
-    pinned: ["process", "codex"],
-    chat: ["kirocrew", null],
-    plain: ["process", "claude-code"],
-  });
-  // The roles table wins over the older key (R98.8).
   assert.deepEqual(
-    run({
-      config: {
-        harnesses: { worker: "codex" },
-        roles: { worker: { harness: "claude-code" } },
-      },
-    }).plain,
-    ["process", "claude-code"],
+    run({ config: { roles: { worker: { harness: "claude-code" } } } }),
+    {
+      pinned: ["process", "codex"],
+      chat: ["kirocrew", null],
+      plain: ["process", "claude-code"],
+    },
   );
   // A process worker's brief ends with the result file, as a project on
   // process does; a chat's keeps the runner report.
@@ -142,7 +123,7 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   t.after(() => store.close());
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
-    JSON.stringify({ version: 1, models: { retro: "m1" } }) + "\n",
+    JSON.stringify({ version: 1, roles: { retro: { model: "m1" } } }) + "\n",
   );
   const harnesses = path.join(configDirectory, "harnesses");
   fs.mkdirSync(harnesses);
@@ -159,11 +140,24 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   });
   const ops = new Operations(store, { workspaceRoot: root, configDirectory });
   const before = await ops.execute("models.settings.get", {});
-  // The older `models` key reads into the table (R98.8).
   assert.deepEqual(before.roles, { retro: { model: "m1" } });
   assert.deepEqual(before.harnessDefinitions, [
-    { name: "fake-cli", approved: true, model: true },
-    { name: "other-cli", approved: false, model: false },
+    {
+      name: "fake-cli",
+      approved: true,
+      model: true,
+      readRoles:
+        "fake-cli names no resultAllow, so a read-only session cannot write its result file.",
+      proved: [],
+    },
+    {
+      name: "other-cli",
+      approved: false,
+      model: false,
+      readRoles:
+        "other-cli names no resultAllow, so a read-only session cannot write its result file.",
+      proved: [],
+    },
   ]);
   await assert.rejects(
     ops.execute(

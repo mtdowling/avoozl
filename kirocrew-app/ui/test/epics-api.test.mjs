@@ -41,7 +41,5 @@ test('the pages read through epics.view only', async () => {
     post: async (path, body) => (seen.push([path, body.operation, body.workspaceId]), { result: {} }),
   }
   await epicsClient(api).read('w')
-  assert.deepEqual(seen, [
-    [COMMAND_PATH, 'epics.view', 'w'],
-  ])
+  assert.deepEqual(seen, [[COMMAND_PATH, 'epics.view', 'w']])
 })

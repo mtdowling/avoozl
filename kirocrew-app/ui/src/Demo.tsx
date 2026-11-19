@@ -13,6 +13,8 @@ import { Pause, Play } from './icons.ts'
 import { fixturesClient, type DemoFixtures } from './demo-fixtures.ts'
 import { errorMessage } from './workspace-api.ts'
 import { TAGLINE } from '../../../src/work-split.mjs'
+import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 interface Demo {
   active: boolean
@@ -65,7 +67,11 @@ export function DemoProvider(props: { children: ReactNode }) {
     try {
       await client.start()
       // The fixtures are for the new screens; a failed read leaves them off.
-      setFixtures(await fixturesClient(api).read().catch(() => null))
+      setFixtures(
+        await fixturesClient(api)
+          .read()
+          .catch(() => null),
+      )
       setActive(true)
     } catch (caught) {
       setError(errorMessage(caught))
@@ -144,7 +150,13 @@ export function DemoControls() {
           aria-describedby={describedBy}
           aria-pressed={stopped}
           onClick={() => demo.setStopExample(stopped ? 'running' : 'stopped')}
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, padding: 0, color: stopped ? 'var(--ok, inherit)' : 'var(--danger, inherit)' }}
+          css-display="inline-flex"
+          css-align-items="center"
+          css-justify-content="center"
+          css-width="28"
+          css-height="28"
+          css-padding="0"
+          css-color={stopped ? 'ok-inherit' : 'danger-inherit'}
         >
           <Icon size={14} aria-hidden="true" />
         </Btn>
@@ -154,61 +166,94 @@ export function DemoControls() {
 }
 
 // What Avoozl is, and what the demo is. This is the one place the page says it.
-const DEMO_INTRO =
-  TAGLINE + ' This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.'
+const DEMO_INTRO = TAGLINE + ' This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.'
 
 export function DemoBar() {
   const demo = useDemo()
   const phone = usePhone()
   if (!demo.active)
     return demo.error ? (
-      <p role="alert" className="px-6 pb-2 text-sm text-danger">
+      <Box role="alert" as="p" px="6" pb="2" size="sm" tone="danger">
         {demo.error}
-      </p>
+      </Box>
     ) : null
   const notice = (
-    <p role="status" aria-live="polite" className={phone ? 'sr-only' : 'w-full text-sm'} data-demo-notice>
+    <Box role="status" aria-live="polite" as="p" srOnly={phone} wFull={!phone} size={phone ? undefined : 'sm'} data-demo-notice>
       {demo.notice ?? ''}
-    </p>
+    </Box>
   )
   // A phone gets a compact box: the badge, the intro, the controls and Exit.
   if (phone)
     return (
-      <div
+      <Box
         data-demo-bar
         role="region"
         aria-label="Demo mode"
-        className="mx-4 mb-2 flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5 text-xs"
-        style={{ minHeight: 32, borderColor: 'var(--warning, #c90)', background: 'var(--card, transparent)' }}
+        css-min-height="32"
+        css-border-color="warning-c90"
+        css-background="card-transparent"
+        mx="4"
+        mb="2"
+        flex
+        flexWrap
+        items="center"
+        gap="2"
+        rounded="md"
+        border="all"
+        px="2"
+        py="1.5"
+        size="xs"
       >
         <DemoBadge />
-        <span className="min-w-0 flex-1 text-muted" data-demo-intro style={{ minWidth: 160 }}>
+        <Box as="span" css-min-width="160" minW0 flex1 tone="muted" data-demo-intro>
           {DEMO_INTRO}
-        </span>
+        </Box>
         <DemoControls />
-        <button type="button" data-demo-exit onClick={() => void demo.exit()} className="text-xs font-semibold" style={{ background: 'none', border: 0, color: 'var(--accent)', cursor: 'pointer', padding: '2px 4px' }}>
+        <PlainButton
+          type="button"
+          data-demo-exit
+          onClick={() => void demo.exit()}
+          css-background="none"
+          css-border="0"
+          css-color="accent"
+          css-cursor="pointer"
+          css-padding="2px-4px"
+          size="xs"
+          weight="semibold"
+        >
           Exit demo
-        </button>
+        </PlainButton>
         {notice}
-      </div>
+      </Box>
     )
   return (
-    <div
+    <Box
       data-demo-bar
       role="region"
       aria-label="Demo mode"
-      className="mx-2 mb-3 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm"
-      style={{ borderColor: 'var(--warning, #c90)', background: 'var(--card, transparent)' }}
+      css-border-color="warning-c90"
+      css-background="card-transparent"
+      mx="2"
+      mb="3"
+      flex
+      flexWrap
+      items="center"
+      gap="3"
+      rounded="lg"
+      border="all"
+      px="3"
+      py="2"
+      size="sm"
     >
       <DemoBadge />
-      <span className="flex-1" style={{ minWidth: 200 }} data-demo-intro>
+      <Box as="span" css-min-width="200" flex1 data-demo-intro>
         {DEMO_INTRO}
-      </span>
+      </Box>
       <DemoControls />
       <Btn type="button" primary data-demo-exit onClick={() => void demo.exit()}>
         Exit demo
       </Btn>
       {notice}
-    </div>
+    </Box>
   )
 }

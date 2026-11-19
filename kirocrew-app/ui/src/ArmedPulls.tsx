@@ -7,6 +7,7 @@ import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { releaseClient } from './release-api.ts'
+import { Box } from './ui/Box'
 
 export default function ArmedPulls(props: { workspaceId: string | null; stopped: boolean }) {
   const api = useAppApi()
@@ -26,23 +27,25 @@ export default function ArmedPulls(props: { workspaceId: string | null; stopped:
     }
   }
   return (
-    <div data-armed-pulls className="flex flex-col gap-1 text-sm" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span className="font-medium">Armed to merge by themselves while the line is stopped:</span>
+    <Box data-armed-pulls css-display="flex" css-flex-direction="column" css-gap="4" flex flexCol gap="1" size="sm">
+      <Box as="span" weight="medium">
+        Armed to merge by themselves while the line is stopped:
+      </Box>
       {pulls.map((pull) => (
-        <span key={`${pull.repository}#${pull.number}`} className="flex flex-wrap items-center gap-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-          <span style={{ overflowWrap: 'anywhere' }}>
+        <Box key={`${pull.repository}#${pull.number}`} as="span" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" flex flexWrap items="center" gap="2">
+          <Box as="span" css-overflow-wrap="anywhere">
             {pull.repository} #{pull.number}
-          </span>
+          </Box>
           <Btn type="button" onClick={() => void disarm(pull.repository, pull.number)}>
             Disarm
           </Btn>
-        </span>
+        </Box>
       ))}
       {failure && (
-        <p role="alert" style={{ color: 'var(--danger)' }}>
+        <Box role="alert" as="p" css-color="danger">
           {failure}
-        </p>
+        </Box>
       )}
-    </div>
+    </Box>
   )
 }

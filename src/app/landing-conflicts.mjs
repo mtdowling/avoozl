@@ -62,7 +62,7 @@ export function conflictMessage(
     `Avoozl task ${taskId}: landing on ${base} conflicts with the current base (round ${round} of ${rounds}).`,
     ...(against
       ? [
-          `It conflicts with commit ${against.commit.slice(0, 12)}${against.key ? ` (task ${against.key})` : ""}, which landed ahead of yours in the same train.`,
+          `It conflicts with commit ${against.commit.slice(0, 12)}${against.key ? ` (task ${against.key})` : ""}, which landed ahead of yours in the same merge batch.`,
         ]
       : []),
     `Merge the base into your branch in your worktree, resolve these files keeping both sides' intent, and run the checks. ${finish}`,
@@ -141,7 +141,7 @@ export function sendConflictBack(
         task: taskId,
         title: `${taskId}: landing conflicts`,
         text: `${cause}. Conflicted files: ${files.slice(0, 10).join(", ") || "none listed"}. The work stays on its branch.`,
-        resume: `Resolve the conflict in the worktree, then ask Avoozl to retry ${taskId} (plans_retry_delivery).`,
+        resume: `Resolve the conflict in the worktree, then ask Avoozl to retry ${taskId} (plans_task (action: retry)).`,
       });
     }
   });

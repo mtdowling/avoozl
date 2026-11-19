@@ -32,7 +32,7 @@ export const STAGES = Object.freeze([
   "waiting",
 ]);
 // Active time in flow efficiency; the rest is waiting on someone else.
-export const ACTIVE = new Set([
+const ACTIVE = new Set([
   "investigate",
   "coding",
   "tests",
@@ -128,14 +128,11 @@ function verifyProblem(inner, value) {
 }
 const VERIFY_LISTS = new Set(["protectedPaths", "checkTimeouts"]);
 // Every `flow` setting by dotted path: the checked values above, the lists
-// checked on their own, and the two retired groups an old file may still
-// carry. A test holds src/avoozl-config.schema.json to this list.
+// checked on their own. A test holds src/avoozl-config.schema.json to this list.
 export const FLOW_PATHS = Object.freeze([
   ...Object.keys(FLOW_KEYS),
   "ci.classes",
   ...[...VERIFY_LISTS].map((key) => `verify.${key}`),
-  "lessons",
-  "batch",
 ]);
 
 // `ci.classes`: a class name to at most 50 globs (§4.30).
@@ -161,13 +158,6 @@ export function flowSection(value, where = "flow") {
   if (value === undefined) return {};
   if (!record(value)) throw Error(`${where} must be an object.`);
   const groups = { stopTheLine: 1, retro: 1, ci: 1, verify: 1 };
-  // The lessons store was removed (RC30.4), and batching has no setting:
-  // the planner decides batches (§4.37, R108.8). An old `flow.lessons` or
-  // `flow.batch` is read as nothing, so a saved file keeps working.
-  if ("lessons" in value || "batch" in value) {
-    const { lessons: _lessons, batch: _batch, ...rest } = value;
-    value = rest;
-  }
   for (const key of Object.keys(value)) {
     if (key === "localChecksFirst") continue;
     if (!(key in groups)) throw Error(`${where}.${key} is not a flow setting.`);
@@ -335,7 +325,7 @@ const deleteSpan = (store, id) =>
 
 // A check or command name, kept only when it passes the content rules at the
 // `brief` boundary (R43.6); a match or an unavailable set drops it.
-export function spanDetail(store, text, repository = null) {
+function spanDetail(store, text, repository = null) {
   if (typeof text !== "string" || !text.trim()) return null;
   const value = text.trim().slice(0, 120);
   if (!contentBinding(store)?.workspaceRoot) return value;
@@ -393,7 +383,7 @@ const isRunner = (b) =>
 // One binding per task: a batch binding stands for each task in it, with
 // that task's own report. A later task in a batch starts when the one
 // before it reported (its commit is made after that one).
-export function perTask(binding) {
+function perTask(binding) {
   if (!binding.batch) return [binding];
   return binding.batch.tasks.map((id, i) => {
     const before = binding.batch.tasks
@@ -999,7 +989,7 @@ export const listOr = (store, table) => {
   }
 };
 
-// flow.view: the Flow tab, `avoozl flow`, and plans_flow. Computed on read,
+// flow.view: the Flow tab, `avoozl flow`, and plans_view (action: flow). Computed on read,
 // never stored as truth (§4.11). Filters: repository, epic (across plans),
 // plan and phase (inside the plan), window (last N finished tasks, default
 // 20), stage (bars only).
@@ -1131,7 +1121,7 @@ export function bucketOf(iso, unit) {
   return d.toISOString().slice(0, 10);
 }
 
-export function flowSeries(timings, stops, unit = "day", corrections = []) {
+function flowSeries(timings, stops, unit = "day", corrections = []) {
   const buckets = new Map(),
     get = (key) => {
       if (!buckets.has(key))

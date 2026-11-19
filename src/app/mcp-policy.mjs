@@ -1,5 +1,5 @@
 // Which operations MCP may not reach, and why (R56). Every operation either
-// has an MCP route (a grouped tool's action or an old plans_* name, mcp.mjs)
+// has an MCP route (a tool action, or a single-operation tool in mcp.mjs)
 // or a reason here; src/app/test/mcp-tools.test.mjs enforces that.
 //
 // PERSON_ONLY operations are refused whenever a call comes through MCP, under
@@ -67,6 +67,10 @@ export const PERSON_ONLY = new Map([
   [
     "session.send",
     person("Only a person sends a message to a process session."),
+  ],
+  [
+    "session.open",
+    person("Only a person opens a session, in the Avoozl page."),
   ],
   ["task.summary.request", person("Only a person asks for a task summary.")],
   ["task.manual.reopen", person("Only a person reopens a manual task.")],
@@ -144,16 +148,6 @@ export const PERSON_ONLY = new Map([
     "github.settings.update",
     person("Only a person changes GitHub settings, including Who counts."),
   ],
-  ["github.queue.configure", person("Only a person changes GitHub setup.")],
-  ["github.queue.remove", person("Only a person changes GitHub setup.")],
-  [
-    "github.intake.capability.create",
-    person("Only a person changes GitHub setup."),
-  ],
-  [
-    "github.intake.capability.revoke",
-    person("Only a person changes GitHub setup."),
-  ],
   ["configuration.update", person("Only a person changes workspace settings.")],
   [
     "conversations.settings.update",
@@ -166,10 +160,13 @@ export const PERSON_ONLY = new Map([
   ["flow.settings.update", person("Only a person changes flow settings.")],
   ["models.settings.update", person("Only a person changes chat models.")],
   [
+    "needskirocrew.runon",
+    person("Only a person chooses the harness a waiting role runs on."),
+  ],
+  [
     "activity.settings.update",
     person("Only a person changes how long activity is kept."),
   ],
-  ["relay.forget", person("Only a person forgets the relay chat.")],
   ["provider.switch", person("Only a person switches models.")],
   [
     "provider.switch.dryRun",
@@ -271,27 +268,26 @@ export const PERSON_ONLY = new Map([
     "workspace.repository.sync",
     person("Only a person syncs the workspace repository."),
   ],
-  ["run.delete", person("Only a person deletes a past run.")],
   ["report.delete", person("Only a person deletes a report.")],
   ["visualization.delete", person("Only a person deletes a visualization.")],
 ]);
 
 // Operations no MCP tool routes to, for a reason other than a person's
 // authority. Nothing refuses these by name; no route reaches them.
-const moved = "Moved to Kiro Crew with no old plans_* name; nothing to offer.";
+const moved = "Moved to Kiro Crew; no MCP tool offers it.";
 const proposalsPage =
   "The Flow tab's Proposals view; proposals are a person's to decide.";
-const removed = "Removed; the operation has no handler.";
 const page = "App page rendering only.";
 const remote =
-  "Runner mode (R84) runs over ssh and the CLI; no MCP tool hands off, accepts or reports a remote task.";
+  "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.";
 export const NOT_ON_MCP = new Map([
+  [
+    "review.chat.show",
+    "A person reads a stored pull request review with avoozl show.",
+  ],
   ...[
-    "remote.accept",
     "remote.status",
     "remote.report",
-    "remote.handoff",
-    "remote.pull",
     "remote.view",
     "worker.pull",
     "worker.claim",
@@ -302,6 +298,10 @@ export const NOT_ON_MCP = new Map([
     "The app page shows and renames this install's display name; a chat has no use for it.",
   ]),
   [
+    "session.view",
+    "The standalone page's process view of a session it opened; agents have the worker tools.",
+  ],
+  [
     "panel.view",
     "The chat side panel's one read; its parts are each on MCP already.",
   ],
@@ -310,13 +310,15 @@ export const NOT_ON_MCP = new Map([
     "models.settings.get",
     "Settings › Models reads the chat models; a chat has no use for them.",
   ],
-  ["legacy.mcp", "The MCP server's own fallback for the legacy plans_* tools."],
+  [
+    "legacy.mcp",
+    "The MCP server's own protocol methods (initialize, ping, view resources) in src/mcp.mjs.",
+  ],
   [
     "state",
     "Whole-database read; plans_view and plans_task read what a session needs.",
   ],
   ["notifications.deliver", "The tick delivers notifications itself."],
-  ["publication.retry", "A no-op kept for old pages."],
   ["highlight.languages", page],
   ["chat.context", page],
   ["agent.instructions.source", page],
@@ -330,56 +332,6 @@ export const NOT_ON_MCP = new Map([
   ["spec.changed.preview", page],
   // The spec page's Proposed change box; plans_view shows the same spec.
   ["specpr.view", page],
-  ...[
-    "run.model",
-    "run.unsend",
-    "run.queue",
-    "driver.open",
-    "driver.context",
-    "driver.list",
-    "concurrency.status",
-    "openhands.profiles",
-    "openhands.models",
-    "server.restart.status",
-    "server.restart.request",
-    "server.restart.clear",
-    "targets.pair",
-    "targets.unpair",
-    "jobs.dispatch",
-    "jobs.redispatch",
-    "jobs.stop",
-    "jobs.heartbeat",
-    "review.request",
-    "primary.handover",
-    "primary.adopt",
-    "primary.rebuild",
-    "github.start",
-    "plan.review.pipeline",
-    "safety.interrupt.retry",
-    "safety.remediation.grant",
-    "safety.remediation.revoke",
-    "safety.resolve",
-    "safety.resume",
-    "safety.coordinator.ack",
-  ].map((name) => [name, moved]),
-  ...[
-    "queue.items",
-    "queue.comments",
-    "queue.diff",
-    "queue.sync",
-    "queue.claim",
-    "queue.createTask",
-    "queue.confirmLink",
-    "github.intake.capabilities",
-    "openhands.automations.capabilities",
-    "openhands.automations.recommendations",
-    "openhands.automations.coverage",
-    "openhands.automations.intake.preflight",
-    "openhands.automations.intake.prepare",
-    "openhands.automations.intake.state",
-    "openhands.automations.setup",
-    "work.take",
-  ].map((name) => [name, removed]),
 ]);
 
 // The refusal for an operation reached through MCP, or null.

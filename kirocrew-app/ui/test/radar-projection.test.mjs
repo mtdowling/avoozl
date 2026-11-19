@@ -22,17 +22,23 @@ test('the client sends each call to its own operation, and only create writes', 
   await client.changed('w', 'p')
   assert.deepEqual(
     calls.map(([path, body]) => [path, body.operation]),
-    [[COMMAND_PATH, 'plan.issues.preview'], [COMMAND_PATH, 'spec.changed.preview']],
+    [
+      [COMMAND_PATH, 'plan.issues.preview'],
+      [COMMAND_PATH, 'spec.changed.preview'],
+    ],
   )
   assert.deepEqual(calls[0][1].input, { planId: 'p', batches: [['a', 'b']] })
   await client.create('w', 'p', [], false)
   await client.create('w', 'p', [['a', 'b']], true)
   await client.apply('w', 'p')
-  assert.deepEqual(calls.slice(2).map(([, body]) => [body.operation, body.input.release ?? false]), [
-    ['github.project', false],
-    ['github.project', true],
-    ['spec.changed.apply', false],
-  ])
+  assert.deepEqual(
+    calls.slice(2).map(([, body]) => [body.operation, body.input.release ?? false]),
+    [
+      ['github.project', false],
+      ['github.project', true],
+      ['spec.changed.apply', false],
+    ],
+  )
 })
 
 test('the confirm lists every kind of write that will happen, and no zero counts', () => {
@@ -88,7 +94,7 @@ test('nothing is written before the confirm; each create button writes once', { 
   await page.until(enabled('Create issues (held)…'))
   assert.deepEqual(await calls(), ['plan.issues.preview'])
   // Choosing a batch previews again with it; still no write.
-  await page.evaluate(`document.querySelector('[data-batches] input').click()`)
+  await page.evaluate(`document.querySelector('[data-batches] [role="switch"]').click()`)
   await page.until(`window.__harness.calls.length === 2 && ${enabled('Create issues (held)…')}`)
   assert.deepEqual(await page.evaluate('window.__harness.calls[1].input.batches'), [['S1', 'S2', 'S3']])
   assert.match(await page.evaluate(`document.querySelector('[data-projection-dialog]').textContent`), /3 tasks batched into 1 issue/)
@@ -172,6 +178,9 @@ for (const name of ['projection', 'spec-changed'])
 test('the confirm says how long a long run takes at the write limits, and says nothing for a short one', () => {
   const data = preview([write('issue.create')])
   const pace = (minutes) => ({ writes: 1813, perMinute: 60, perHour: 400, finishAt: '', minutes })
-  assert.equal(confirmLines({ ...data, pace: pace(244) }, 'example/app', false).at(-1), 'pace the 1813 writes at 60 a minute and 400 an hour: about 4 h 4 min, and it carries on by itself')
+  assert.equal(
+    confirmLines({ ...data, pace: pace(244) }, 'example/app', false).at(-1),
+    'pace the 1813 writes at 60 a minute and 400 an hour: about 4 h 4 min, and it carries on by itself',
+  )
   assert.equal(confirmLines({ ...data, pace: pace(2) }, 'example/app', false).length, 1)
 })

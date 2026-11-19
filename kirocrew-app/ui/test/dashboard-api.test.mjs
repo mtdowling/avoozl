@@ -29,7 +29,6 @@ const delivery = (id, extra = {}) => ({
   complete: false,
   repository: null,
   sessions: [],
-  runs: [],
   evidence: [],
   integration: null,
   pullRequests: [],
@@ -45,13 +44,7 @@ test('the dashboard puts what needs the owner first and orders ready work by wav
     statuses: [],
     repositories: [],
     total: 5,
-    tasks: [
-      task('a', 'done'),
-      task('b', 'ready'),
-      task('c', 'ready'),
-      task('d', 'needs-you'),
-      task('epic', 'waiting', { kind: 'epic' }),
-    ],
+    tasks: [task('a', 'done'), task('b', 'ready'), task('c', 'ready'), task('d', 'needs-you'), task('epic', 'waiting', { kind: 'epic' })],
     edges: [edge('a', 'c'), edge('c', 'b')],
   }
   const summary = summarize({
@@ -66,7 +59,13 @@ test('the dashboard puts what needs the owner first and orders ready work by wav
       { kind: 'needs-human', taskId: 'z', title: 'Z', detail: 'Task needs review.' },
       { kind: 'decision', taskId: 'd', title: 'D', detail: 'held' },
     ],
-    plans: { total: 2, items: [{ id: 'p', state: 'approved' }, { id: 'q', state: 'draft' }] },
+    plans: {
+      total: 2,
+      items: [
+        { id: 'p', state: 'approved' },
+        { id: 'q', state: 'draft' },
+      ],
+    },
   })
   assert.deepEqual(
     summary.attention.map((a) => [a.kind, a.taskId, a.tab]),
@@ -78,8 +77,17 @@ test('the dashboard puts what needs the owner first and orders ready work by wav
   )
   // Epics are not counted; only leaves are.
   assert.deepEqual(summary.counts, { ready: 2, running: 0, waiting: 0, 'needs-you': 1, done: 1, deferred: 0, draft: 0 })
-  assert.deepEqual(summary.running.map((r) => r.id), ['r'])
-  assert.deepEqual(summary.readyNext.map((t) => [t.id, t.wave]), [['c', 2], ['b', 3]])
+  assert.deepEqual(
+    summary.running.map((r) => r.id),
+    ['r'],
+  )
+  assert.deepEqual(
+    summary.readyNext.map((t) => [t.id, t.wave]),
+    [
+      ['c', 2],
+      ['b', 3],
+    ],
+  )
   assert.deepEqual(summary.progress, [{ epic: 'e1', title: 'Epic one', done: 1, total: 4, running: 0 }])
   assert.deepEqual(summary.plans, { approved: 1, draft: 1, total: 2 })
 })
@@ -144,7 +152,23 @@ test('In flight has one row per live agent chat, by role, newest activity first'
 })
 
 test('Up next follows the tick dispatch order, and epics count their running chats', () => {
-  const leaf = (id, extra) => ({ id, title: id, epic: 'e1', kind: 'leaf', authority: 'local', route: 'local', completion: 'merged', repository: null, status: null, complete: false, ready: true, state: 'ready', decision: null, issue: null, ...extra })
+  const leaf = (id, extra) => ({
+    id,
+    title: id,
+    epic: 'e1',
+    kind: 'leaf',
+    authority: 'local',
+    route: 'local',
+    completion: 'merged',
+    repository: null,
+    status: null,
+    complete: false,
+    ready: true,
+    state: 'ready',
+    decision: null,
+    issue: null,
+    ...extra,
+  })
   const graph = {
     revision: 1,
     epics: [{ id: 'e1', title: 'Epic one', count: 3 }],
@@ -155,9 +179,24 @@ test('Up next follows the tick dispatch order, and epics count their running cha
     edges: [],
   }
   const session = (slot, role) => ({ slot, role, attempt: 1, title: null, status: 'working', statusAt: null, boundAt: null })
-  const item = (id, sessions) => ({ id, title: id, status: null, complete: false, repository: null, sessions, runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [] })
+  const item = (id, sessions) => ({
+    id,
+    title: id,
+    status: null,
+    complete: false,
+    repository: null,
+    sessions,
+    evidence: [],
+    integration: null,
+    pullRequests: [],
+    deliveries: [],
+    worktrees: [],
+  })
   const summary = summarize({ graph, delivery: [item('z', [session('a', 'worker'), session('b', 'checks')])], conflicts: [], plans: null })
-  assert.deepEqual(summary.readyNext.map((t) => t.id), ['y', 'x'])
+  assert.deepEqual(
+    summary.readyNext.map((t) => t.id),
+    ['y', 'x'],
+  )
   assert.equal(summary.progress[0].running, 2)
 })
 

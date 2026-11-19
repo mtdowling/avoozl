@@ -68,7 +68,7 @@ test("an unreadable target, no push right or no login is a problem", async () =>
     github: { available: () => false },
     gateway: () => ({}),
   });
-  assert.equal(none.transport, "ssh-envelope");
+  assert.match(none.problems.join(" "), /needs GitHub/);
   assert.equal(none.ok, false);
 });
 

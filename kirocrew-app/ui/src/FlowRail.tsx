@@ -5,6 +5,7 @@ import { NavSlotFor } from './nav-slot.tsx'
 import { RailBlock, RailChips, RailRow, RailSortList, RailStyle, type RailSort } from './NavRail.tsx'
 import { ArrowUpDown, CaseSensitive, Clock, Gauge, Layers, ListFilter, Tag, Workflow, X } from './icons.ts'
 import { FLOW_SORT_FIRST, WINDOW_OPTIONS, filterActive, flowChoices, type FlowFilter, type FlowOrder, type FlowSort } from './flow-api.ts'
+import { PlainButton } from './ui/Plain'
 
 const SORTS: RailSort<FlowSort>[] = [
   { key: 'recent', label: 'Newest', icon: Clock },
@@ -31,7 +32,12 @@ export function FlowRail(props: {
       <div role="search" aria-label="Filter flow timing" data-nav-filters="avoozl-flow" data-filter-panel="avoozl-flow" data-rail>
         <RailStyle />
         <RailBlock first id="sort" icon={ArrowUpDown} title="Sort">
-          <RailSortList fields={SORTS} sort={order.sort} dir={order.dir} onSort={(sort) => props.onOrder(sort === order.sort ? { sort, dir: order.dir === 'asc' ? 'desc' : 'asc' } : { sort, dir: FLOW_SORT_FIRST[sort] })} />
+          <RailSortList
+            fields={SORTS}
+            sort={order.sort}
+            dir={order.dir}
+            onSort={(sort) => props.onOrder(sort === order.sort ? { sort, dir: order.dir === 'asc' ? 'desc' : 'asc' } : { sort, dir: FLOW_SORT_FIRST[sort] })}
+          />
         </RailBlock>
         <RailBlock
           id="filters"
@@ -39,17 +45,31 @@ export function FlowRail(props: {
           title="Filters"
           action={
             filterActive(filter) && (
-              <button type="button" data-rail-icon onClick={() => props.onFilter({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+              <PlainButton type="button" data-rail-icon onClick={() => props.onFilter({})} css-gap="2" css-align-items="center" css-font-size="12">
                 <X size={11} aria-hidden="true" /> Clear
-              </button>
+              </PlainButton>
             )
           }
         >
           {WINDOW_OPTIONS.map((option) => (
-            <RailRow key={option.value} label={option.label} active={size === option.value} onClick={() => set({ window: option.value === '20' ? undefined : option.value })} attrs={{ 'data-rail-window': option.value }} />
+            <RailRow
+              key={option.value}
+              label={option.label}
+              active={size === option.value}
+              onClick={() => set({ window: option.value === '20' ? undefined : option.value })}
+              attrs={{ 'data-rail-window': option.value }}
+            />
           ))}
         </RailBlock>
-        <RailChips id="repositories" icon={Workflow} title="Repositories" noun="repository" items={choices.repositories} picked={filter.repository} onPick={(repository) => set({ repository })} />
+        <RailChips
+          id="repositories"
+          icon={Workflow}
+          title="Repositories"
+          noun="repository"
+          items={choices.repositories}
+          picked={filter.repository}
+          onPick={(repository) => set({ repository })}
+        />
         <RailChips id="plans" icon={Tag} title="Specs" noun="spec" items={choices.plans} picked={filter.plan} onPick={(plan) => set({ plan, phase: undefined })} />
         {filter.plan && <RailChips id="phases" icon={Layers} title="Phases" noun="phase" items={choices.phases} picked={filter.phase} onPick={(phase) => set({ phase })} />}
         <RailChips id="stages" icon={Gauge} title="Stages" noun="stage" items={choices.stages} picked={filter.stage} onPick={(stage) => set({ stage })} />

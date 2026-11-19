@@ -19,7 +19,7 @@ const SECRET = "test-proxy-secret";
 function isolatedEnv(root, extra = {}) {
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "config") };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_/.test(name)) delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   delete env.KIROCREW_PROXY_SECRET;
   return { ...env, ...extra };
 }
@@ -122,12 +122,18 @@ export function seeded(context) {
   return template.file;
 }
 
+// name is "tool.action" for a grouped tool.
 export const mcpLine = (id, name, input) =>
   JSON.stringify({
     jsonrpc: "2.0",
     id,
     method: "tools/call",
-    params: { name, arguments: { input } },
+    params: {
+      name: name.split(".")[0],
+      arguments: name.includes(".")
+        ? { action: name.split(".")[1], input }
+        : { input },
+    },
   });
 
 function sign(body) {

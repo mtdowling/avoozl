@@ -1,5 +1,5 @@
 // Incoming items (design §4.12, Requirement 50): work that comes in from
-// GitHub, a tracker plugin's `poll`, or an MCP caller, kept as one record in
+// GitHub, an intake plugin's `poll`, or an MCP caller, kept as one record in
 // SQLite and run through one pipeline: check, dedup, content rules (the
 // `intake` boundary), trigger match, then the matched action or the Intake
 // list. GitHub keeps its own intake (github-sync.mjs) and Untriaged read
@@ -29,19 +29,14 @@ import { PluginUnavailable } from "./plugin-session.mjs";
 import { declaredPlugins, readPluginSettings } from "./plugins.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { canonical, fail } from "./store.mjs";
-import {
-  GITHUB_VIA,
-  githubSources,
-  validateGitHubSource,
-  writeGitHubSources,
-} from "./github-sources.mjs";
+import { GITHUB_VIA, validateGitHubSource } from "./github-sources.mjs";
 
 // `retro` holds the skill changes a person approved from a retrospective
 // (design §4.18).
-export const RESERVED_SOURCES = Object.freeze(["github", "local", "retro"]);
-export const POLL_LIMIT = 500;
-export const SUBMIT_LIMIT = 100;
-export const KEEP_CLOSED_MS = 30 * 24 * 60 * 60 * 1000;
+const RESERVED_SOURCES = Object.freeze(["github", "local", "retro"]);
+const POLL_LIMIT = 500;
+const SUBMIT_LIMIT = 100;
+const KEEP_CLOSED_MS = 30 * 24 * 60 * 60 * 1000;
 export const WAITING_REASON = "Waiting on the author";
 const SOURCE_ID = /^[a-z][a-z0-9-]{0,60}$/;
 const PLUGIN_ID = /^[a-z][a-z0-9-]{0,60}$/;
@@ -240,20 +235,6 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
     if (workspaceRoot) {
       const file = readJson(path.join(workspaceRoot, ".avoozl.json"));
       add(file.intake, "repository");
-      // Old `github.issueIntake` entries, read as the sources they describe.
-      try {
-        for (const source of githubSources(file))
-          if (source.legacy)
-            found.push({
-              id: source.id,
-              scope: "repository",
-              entry: source.entry,
-              source: validateSource(source.id, source.entry),
-              error: null,
-            });
-      } catch {
-        // The settings loader reports an invalid GitHub block.
-      }
     }
   } catch (error) {
     found.push({
@@ -362,7 +343,6 @@ export function editSource(
     fail(`Intake source ${id} is not declared there.`, 404);
   const edit = (value) => {
     // Old GitHub intake keys move into `intake.sources` on this write.
-    if (scope === "repository") writeGitHubSources(value);
     const intake = record(value.intake) ? value.intake : {},
       sources = { ...(record(intake.sources) ? intake.sources : {}) };
     if (remove) delete sources[id];
@@ -409,7 +389,7 @@ export function sourceRow(store, id) {
   }
 }
 
-export function saveSourceRow(store, row) {
+function saveSourceRow(store, row) {
   return putIfChanged(store, "intake_sources", row);
 }
 
@@ -534,7 +514,7 @@ function leafFor(row, source, how) {
   return {
     id: intakeTaskId(item.source, item.id),
     title: item.title,
-    summary: item.body || item.title,
+    summary: item.body || "",
     acceptance: [`The request in ${item.link} is done.`],
     checks: [],
     status: "planned",
@@ -980,20 +960,16 @@ export async function pollSources(
       saveSourceRow(store, { ...before, error, failedAt: now });
       report.push({ source: source.id, error });
     };
-    const status = await session.use(source.plugin, "tracker");
+    const status = await session.use(source.plugin, "intake");
     if (!status.ok) {
       fail(`Plugin ${source.plugin} is unavailable: ${status.reason}`);
       continue;
     }
     const capabilities =
-      session.describe(source.plugin, "tracker")?.capabilities || [];
-    if (!capabilities.includes("poll")) {
-      fail(`Plugin ${source.plugin} does not declare the poll capability.`);
-      continue;
-    }
+      session.describe(source.plugin, "intake")?.capabilities || [];
     let reply;
     try {
-      reply = await session.call(source.plugin, "tracker", "poll", {
+      reply = await session.call(source.plugin, "intake", "poll", {
         cursor: before.cursor,
         limit: POLL_LIMIT,
       });
@@ -1131,8 +1107,7 @@ export function viewItem(store, input = {}) {
 }
 
 // The text a person confirms: the item's title and body as they read them.
-export const snapshotDigest = (item) =>
-  digest(`${item.title}\n\n${item.body || ""}`);
+const snapshotDigest = (item) => digest(`${item.title}\n\n${item.body || ""}`);
 
 // intake.confirm (R50.17): a person confirms the changed title and body of
 // an item whose task is held for it, naming the snapshotHash intake.view

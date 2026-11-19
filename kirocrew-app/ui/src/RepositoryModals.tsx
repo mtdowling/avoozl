@@ -9,7 +9,7 @@ import { Tabs, TabPanel } from './ui/Tabs.tsx'
 import { EDIT_TABS, dirtyTabs, errorTabs, type EditTab } from './repo-edit-tabs.ts'
 import { Btn } from './ui/Btn'
 import { Input } from './ui/Input'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { FormSection } from './FormSection.tsx'
 import MirrorSetup from './MirrorSetup.tsx'
 import { MIRROR_ROLE, MIRROR_ROLE_LABEL, MIRROR_ROLE_LINE, ROLE_OPTIONS, mirrorSourceProblem, type RepositoryEdit, type RepositoryForm } from './settings-api.ts'
@@ -19,6 +19,8 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
 import { SelectField } from './ui/SelectField'
+import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 // The role select, with the public repository's field under it for a mirror.
 export function RoleChoice(props: {
@@ -39,15 +41,19 @@ export function RoleChoice(props: {
   const line = role === MIRROR_ROLE ? MIRROR_ROLE_LINE : ROLE_OPTIONS.find((option) => option.value === role)?.line
   const problem = role === MIRROR_ROLE && source.trim() ? mirrorSourceProblem(source, props.github) : null
   return (
-    <div className="flex flex-col gap-1.5" data-role-choice>
-      <label htmlFor={`${props.id}-role`} className="flex flex-col gap-1 text-sm">
-        <span className={props.titled ? 'sr-only' : 'font-medium'}>Role</span>
+    <Box flex flexCol gap="1.5" data-role-choice>
+      <Box htmlFor={`${props.id}-role`} as="label" flex flexCol gap="1" size="sm">
+        <Box as="span" srOnly={props.titled} weight={props.titled ? undefined : 'medium'}>
+          Role
+        </Box>
         <SelectField
           id={`${props.id}-role`}
           value={role}
           disabled={Boolean(props.fixed)}
           onChange={(event) => props.onChange(event.target.value, source)}
-          aria-label={`Role of ${props.name}`} look="field" maxWidth="24rem"
+          aria-label={`Role of ${props.name}`}
+          look="field"
+          maxWidth="24rem"
         >
           {ROLE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -58,45 +64,74 @@ export function RoleChoice(props: {
             {MIRROR_ROLE_LABEL}
           </option>
         </SelectField>
-      </label>
+      </Box>
       {(props.fixed || line) && <Hint size="xs">{props.fixed || line}</Hint>}
       {role === MIRROR_ROLE && props.withSource !== false && (
-        <label htmlFor={`${props.id}-source`} className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Public repository</span>
-          <Input id={`${props.id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => props.onChange(role, event.target.value)} style={{ maxWidth: '24rem' }} />
+        <Box htmlFor={`${props.id}-source`} as="label" flex flexCol gap="1" size="sm">
+          <Box as="span" weight="medium">
+            Public repository
+          </Box>
+          <Input
+            id={`${props.id}-source`}
+            value={source}
+            placeholder="owner/name"
+            aria-label="Public repository"
+            onChange={(event) => props.onChange(role, event.target.value)}
+            css-max-width="24rem"
+          />
           {problem && (
             <ErrorText role="alert" as="span" size="xs">
               {problem}
             </ErrorText>
           )}
-        </label>
+        </Box>
       )}
-    </div>
+    </Box>
   )
 }
 
 function Facts({ facts }: { facts: [string, ReactNode][] }) {
   return (
-    <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+    <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1.5" size="sm">
       {facts.map(([label, value]) => (
-        <div key={label} style={{ display: 'contents' }}>
+        <Box key={label} css-display="contents">
           <Hint as="dt">{label}</Hint>
-          <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+          <Box as="dd" css-overflow-wrap="anywhere" minW0>
             {value}
-          </dd>
-        </div>
+          </Box>
+        </Box>
       ))}
-    </dl>
+    </Box>
   )
 }
 
-export function ViewRepository(props: { row: RepositoryRow; roleText: string; entry: RepositoryForm | null; onClose: () => void; onReveal: (folder: string) => void; githubUrl: string | null }) {
+export function ViewRepository(props: {
+  row: RepositoryRow
+  roleText: string
+  entry: RepositoryForm | null
+  onClose: () => void
+  onReveal: (folder: string) => void
+  githubUrl: string | null
+}) {
   const { row, entry } = props
   const where: [string, ReactNode][] = [
     ['Role', props.roleText],
     ['Folder', row.folder ?? 'No folder on this computer'],
     ['Tasks land on', <code key="b">{row.branch}</code>],
-    ['GitHub', row.github ? (props.githubUrl ? <TextLink href={linkHref(props.githubUrl)} target="_blank" rel="noopener noreferrer">{row.github}</TextLink> : row.github) : 'No GitHub remote'],
+    [
+      'GitHub',
+      row.github ? (
+        props.githubUrl ? (
+          <TextLink href={linkHref(props.githubUrl)} target="_blank" rel="noopener noreferrer">
+            {row.github}
+          </TextLink>
+        ) : (
+          row.github
+        )
+      ) : (
+        'No GitHub remote'
+      ),
+    ],
   ]
   const facts: [string, ReactNode][] = []
   if (entry) {
@@ -109,13 +144,7 @@ export function ViewRepository(props: { row: RepositoryRow; roleText: string; en
     if (entry.mirror.source && entry.mirror.mirror) facts.push(['Private mirror', `${entry.mirror.mirror} of ${entry.mirror.source}`])
   }
   return (
-    <Modal
-      id="avoozl-repo-view"
-      title={row.name}
-      onDismiss={props.onClose}
-      attrs={{ 'data-repository-view': row.key }}
-      focusClose
-    >
+    <Modal id="avoozl-repo-view" title={row.name} onDismiss={props.onClose} attrs={{ 'data-repository-view': row.key }} focusClose>
       <FormSection title="Repository">
         <Facts facts={where} />
         {row.folder && (
@@ -198,9 +227,9 @@ export function EditRepository(props: {
       footer={
         <>
           {error && (
-            <span role="alert" className="mr-auto text-sm text-danger" style={{ order: -1 }}>
+            <Box role="alert" as="span" css-order={-1} mrAuto size="sm" tone="danger">
               {error}
-            </span>
+            </Box>
           )}
           <Btn type="button" primary disabled={busy || !changed || Boolean(problem)} onClick={() => void save()}>
             Save
@@ -218,34 +247,53 @@ export function EditRepository(props: {
       <TabPanel id={`${id}-tabs`} current={tab}>
         {tab === 'general' && (
           <FormSection title="Role">
-            <RoleChoice id={id} name={row.name} github={row.github} role={role} source={source} fixed={fixed} titled withSource={false} onChange={(nextRole) => setRole(nextRole)} />
+            <RoleChoice
+              id={id}
+              name={row.name}
+              github={row.github}
+              role={role}
+              source={source}
+              fixed={fixed}
+              titled
+              withSource={false}
+              onChange={(nextRole) => setRole(nextRole)}
+            />
             {mirror && (
-              <p className="text-xs">
-                <button type="button" className="underline" onClick={() => setTab('mirror')}>
+              <Box as="p" size="xs">
+                <PlainButton type="button" underline onClick={() => setTab('mirror')}>
                   Name its public repository on the Mirror tab
-                </button>
-              </p>
+                </PlainButton>
+              </Box>
             )}
-            <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }} data-repository-folder>
+            <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1" size="sm" data-repository-folder>
               <Hint as="dt">Folder</Hint>
-              <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+              <Box as="dd" css-overflow-wrap="anywhere" minW0>
                 {row.folder ? <code>{row.folder}</code> : 'No folder on this computer'}
-              </dd>
-            </dl>
+              </Box>
+            </Box>
           </FormSection>
         )}
         {tab === 'mirror' &&
           (mirror ? (
             <FormSection title="Public repository" blurb="This repository is a private copy of a public one. Crews work here, in private.">
-              <label htmlFor={`${id}-source`} className="flex flex-col gap-1 text-sm">
-                <span className="sr-only">Public repository</span>
-                <Input id={`${id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => setSource(event.target.value)} style={{ maxWidth: '24rem' }} />
+              <Box htmlFor={`${id}-source`} as="label" flex flexCol gap="1" size="sm">
+                <Box as="span" srOnly>
+                  Public repository
+                </Box>
+                <Input
+                  id={`${id}-source`}
+                  value={source}
+                  placeholder="owner/name"
+                  aria-label="Public repository"
+                  onChange={(event) => setSource(event.target.value)}
+                  css-max-width="24rem"
+                />
                 {problem && (
                   <ErrorText role="alert" as="span" size="xs">
                     {problem}
                   </ErrorText>
                 )}
-              </label>
+              </Box>
               {row.github && !problem && <MirrorSetup workspaceId={props.workspaceId} repository={row.github} source={source} onApplied={props.onApplied} />}
             </FormSection>
           ) : (

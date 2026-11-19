@@ -25,14 +25,17 @@ function reviewWorkspace(t, planReviewOptions = {}) {
   fs.mkdirSync(path.dirname(globalFile), { recursive: true });
   fs.writeFileSync(
     globalFile,
-    JSON.stringify({ version: 1, models: { planReviewer: "fake-reviewer" } }),
+    JSON.stringify({
+      version: 1,
+      roles: { planReviewer: { model: "fake-reviewer" } },
+    }),
   );
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
       version: 1,
       github: { mode: "local" },
-      models: { planner: "fake-writer" },
+      roles: { planner: { model: "fake-writer" } },
     }),
   );
   store.mutate("Empty the synthetic execution queue", (data) => {
@@ -54,13 +57,14 @@ function reviewWorkspace(t, planReviewOptions = {}) {
       plugins: null,
       planReviewOptions,
     });
-  store.put("runs", {
+  store.put("session_bindings", {
     id: "fake-drafting-run",
+    slot: "fake-drafting-run",
     taskId: "plan:reader",
-    state: "done",
-    actualModel: "fake-writer",
+    status: "done",
+    served: { model: "fake-writer" },
   });
-  recordPlanReviewWriter(store, plan, { runId: "fake-drafting-run" });
+  recordPlanReviewWriter(store, plan, { slot: "fake-drafting-run" });
   return { root, store, plan, ops };
 }
 

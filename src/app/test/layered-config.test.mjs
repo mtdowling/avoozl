@@ -21,30 +21,21 @@ test("configuration layers merge deterministically and resolve their own paths",
     xdg = temporaryDirectory("avoozl-config-xdg-"),
     env = {
       XDG_CONFIG_HOME: xdg,
-      AVOOZL_DB: "environment/state.sqlite",
       AVOOZL_HOST: "environment.example",
     },
     globalFile = globalAvoozlConfigPath({ env, home: "/unused" }),
-    legacyFile = path.join(workspaceRoot, "workspace.json"),
     repositoryFile = path.join(workspaceRoot, ".avoozl.json");
   writeJson(globalFile, {
     version: 1,
     name: "Global",
-    agentManifest: "state/global-agent.json",
-    behavior: { global: true, winner: "global" },
-  });
-  writeJson(legacyFile, {
-    version: 1,
-    name: "Legacy",
-    documents: "legacy-plans",
-    ahpProjection: "legacy/ahp.sqlite",
-    behavior: { legacy: true, winner: "legacy" },
+    dbPath: "state/global.sqlite",
+    packs: { global: true, winner: "global" },
   });
   writeJson(repositoryFile, {
     version: 1,
     name: "Repository",
     documents: "repository-plans",
-    behavior: { repository: true, winner: "repository" },
+    packs: { repository: true, winner: "repository" },
   });
 
   const loaded = loadLayeredConfig({
@@ -62,36 +53,25 @@ test("configuration layers merge deterministically and resolve their own paths",
   assert.equal(loaded.config.port, 9555);
   assert.equal(
     loaded.config.dbPath,
-    path.join(workspaceRoot, "environment", "state.sqlite"),
+    path.join(xdg, "avoozl", "state", "global.sqlite"),
   );
   assert.equal(
     loaded.config.documents,
     path.join(workspaceRoot, "command-plans"),
   );
-  assert.equal(
-    loaded.config.agentManifest,
-    path.join(xdg, "avoozl", "state", "global-agent.json"),
-  );
-  assert.equal(
-    loaded.config.ahp.projection,
-    path.join(workspaceRoot, "legacy", "ahp.sqlite"),
-  );
-  assert.deepEqual(loaded.config.behavior, {
+  assert.deepEqual(loaded.config.packs, {
     global: true,
-    legacy: true,
     repository: true,
     winner: "repository",
   });
-  assert.deepEqual(loaded.configWithoutRepository.behavior, {
+  assert.deepEqual(loaded.configWithoutRepository.packs, {
     global: true,
-    legacy: true,
-    winner: "legacy",
+    winner: "global",
   });
   assert.deepEqual(
     loaded.sources.map(({ label }) => label),
     [
       "global Avoozl configuration",
-      "legacy workspace configuration",
       "repository Avoozl configuration",
       "environment configuration",
       "command-line configuration",
@@ -128,24 +108,18 @@ test("repository configuration paths are owned by its repository root", () => {
   );
 });
 
-test("workspaceConfig preserves legacy workspace.json compatibility", () => {
+test("workspace.json is not read", () => {
   const workspaceRoot = temporaryDirectory("avoozl-config-legacy-");
   writeJson(path.join(workspaceRoot, "workspace.json"), {
     version: 1,
     name: "Legacy workspace",
-    dbPath: "state/legacy.sqlite",
-    documents: "designs",
-    ahpPort: 9765,
-    ahpTokens: "state/ahp-tokens.json",
   });
   const config = workspaceConfig({
     workspace: workspaceRoot,
     env: { XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-") },
   });
-  assert.equal(config.configured, true);
-  assert.equal(config.name, "Legacy workspace");
-  assert.equal(config.dbPath, path.join(workspaceRoot, "state/legacy.sqlite"));
-  assert.equal(config.plansRoot, path.join(workspaceRoot, "designs"));
+  assert.equal(config.configured, false);
+  assert.equal(config.name, "My workspace");
 });
 
 test(".avoozl/config.json is ignored", () => {
@@ -197,7 +171,7 @@ test("secret-like keys are rejected recursively", () => {
     repositoryFile = path.join(workspaceRoot, ".avoozl.json");
   writeJson(repositoryFile, {
     version: 1,
-    integrations: {
+    packs: {
       github: {
         apiKey: "must-not-be-here",
       },
@@ -211,7 +185,7 @@ test("secret-like keys are rejected recursively", () => {
           XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-"),
         },
       }),
-    /secret-like key integrations\.github\.apiKey/,
+    /secret-like key packs\.github\.apiKey/,
   );
 });
 
@@ -235,21 +209,31 @@ test("the shipped JSON Schema describes versioned non-secret config", () => {
   assert(schema.$defs.safeValue);
 });
 
-test("a file that still sets removed or ignored settings loads", () => {
-  const workspaceRoot = temporaryDirectory("avoozl-config-dead-keys-");
-  writeJson(path.join(workspaceRoot, ".avoozl.json"), {
-    version: 1,
-    name: "Old file",
-    review: { defaultClass: "normal" },
-    safety: { coordinator: { mode: "optional" } },
-    repository: { id: "code", roles: ["code"] },
-    planning: { documents: ["plans"] },
-    conversations: { driver: { model: "x" } },
-    models: { driver: "auto" },
-  });
-  const loaded = loadLayeredConfig({
-    workspaceRoot,
-    env: { XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-") },
-  });
-  assert.equal(loaded.config.name, "Old file");
+test("a file that sets a removed or unknown key fails to load, naming both", () => {
+  for (const key of [
+    "review",
+    "safety",
+    "repository",
+    "planning",
+    "models",
+    "harnesses",
+    "ahp",
+    "ahpPort",
+    "canvasOrigins",
+    "agentManifest",
+  ]) {
+    const workspaceRoot = temporaryDirectory("avoozl-config-dead-keys-"),
+      file = path.join(workspaceRoot, ".avoozl.json");
+    writeJson(file, { version: 1, [key]: {} });
+    assert.throws(
+      () =>
+        loadLayeredConfig({
+          workspaceRoot,
+          env: { XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-") },
+        }),
+      (error) =>
+        error.message.includes(`"${key}"`) && error.message.includes(file),
+      key,
+    );
+  }
 });

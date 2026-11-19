@@ -5,11 +5,11 @@ import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-export const RECEIPT_VERSION = 1;
+const RECEIPT_VERSION = 1;
 // What the parser sees of the output, so a long build cannot fill memory.
-export const OUTPUT_KEEP = 256 * 1024;
-export const PARSER_TIMEOUT_MS = 10_000;
-export const RECEIPT_FILE = "build-receipt.jsonl";
+const OUTPUT_KEEP = 256 * 1024;
+const PARSER_TIMEOUT_MS = 10_000;
+const RECEIPT_FILE = "build-receipt.jsonl";
 
 // `[--issue N] [--target T] [--task ID] [--attempt N] [--phase P] [--file F] -- command args...`
 export function parseArguments(argv) {
@@ -32,7 +32,7 @@ export function parseArguments(argv) {
 }
 
 // The repository's `receipts` setting from `.avoozl.json` in `cwd`, or {}.
-export function receiptSettings(cwd) {
+function receiptSettings(cwd) {
   try {
     const value = JSON.parse(
       fs.readFileSync(path.join(cwd, ".avoozl.json"), "utf8"),
@@ -48,7 +48,7 @@ const shell = (text, options = {}) =>
 
 // `warm` when the repository's check command exits 0, `cold` when it exits
 // non-zero, `unknown` with no check or one that cannot run.
-export function startOf(check, cwd, run = shell) {
+function startOf(check, cwd, run = shell) {
   if (!check) return "unknown";
   const result = run(check, { cwd, stdio: "ignore" });
   if (result.error || result.status === null) return "unknown";
@@ -57,7 +57,7 @@ export function startOf(check, cwd, run = shell) {
 
 // The parser reads the output on standard input and prints a JSON object of
 // numbers. Anything else, or any failure, gives {}.
-export function countersOf(parser, output, cwd, run = shell) {
+function countersOf(parser, output, cwd, run = shell) {
   if (!parser) return {};
   try {
     const result = run(parser, {
@@ -94,7 +94,7 @@ const attemptOf = (value) => {
 const phaseOf = (value, command) => String(value || command).slice(0, 80);
 
 // One receipt as the object it is written from.
-export function buildReceipt({
+function buildReceipt({
   issue,
   task,
   attempt,

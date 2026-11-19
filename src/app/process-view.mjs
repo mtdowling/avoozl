@@ -63,7 +63,7 @@ export function logTail(file) {
 // over the session's runs, or with `per: "session"` the last one, since that
 // CLI reports the session's running total. `file`: the named file holds a
 // JSON number.
-export function sessionCost(row, definition) {
+function sessionCost(row, definition) {
   const cost = definition?.cost;
   if (!cost) return null;
   if (cost.from === "file") {
@@ -92,6 +92,39 @@ export function sessionCost(row, definition) {
       total = cost.per === "session" ? value : (total ?? 0) + value;
   }
   return total;
+}
+
+// The model that served the session, from its definition's `servedModel`
+// (NK5.2), or null. The last JSON line of the log that holds the field: a
+// model name, or an object with exactly one model as its key (Claude Code's
+// `modelUsage`). Two models, or none, prove nothing.
+export function sessionServedModel(row, definition) {
+  const field = definition?.servedModel?.field;
+  const text =
+    field && row.log_file ? readTail(row.log_file, COST_BYTES) : null;
+  if (!text) return null;
+  let model = null;
+  for (const line of text.split("\n")) {
+    const start = line.indexOf("{");
+    if (start < 0 || !line.includes(field)) continue;
+    let value;
+    try {
+      value = JSON.parse(line.slice(start))?.[field];
+    } catch {
+      continue;
+    }
+    const keys =
+      value && typeof value === "object" && !Array.isArray(value)
+        ? Object.keys(value)
+        : null;
+    const named =
+      typeof value === "string" ? value : keys?.length === 1 ? keys[0] : null;
+    model =
+      named && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(named)
+        ? named
+        : null;
+  }
+  return model;
 }
 
 const placeholderValues = (row) => ({

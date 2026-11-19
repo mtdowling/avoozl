@@ -4,7 +4,7 @@ export const planningRole = (role) =>
   ["plan-review", "plan-answer"].includes(role);
 const num = (value) =>
   typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
-export function ensurePlanningTables(store) {
+function ensurePlanningTables(store) {
   store.db.exec(
     "CREATE TABLE IF NOT EXISTS planning_spans(id TEXT PRIMARY KEY,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,slot TEXT NOT NULL,role TEXT NOT NULL,model TEXT,started_at TEXT NOT NULL,ended_at TEXT); CREATE TABLE IF NOT EXISTS planning_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,role TEXT NOT NULL,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL)",
   );

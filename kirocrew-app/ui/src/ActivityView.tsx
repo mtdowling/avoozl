@@ -38,14 +38,15 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { TextLink } from './ui/TextLink'
-
-const HEAD: CSSProperties = { textAlign: 'left', fontWeight: 500, fontSize: 12, color: 'var(--muted)', padding: '4px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
-const CELL: CSSProperties = { padding: '6px 8px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }
+import { Box } from './ui/Box'
+import { PlainButton, PlainInput } from './ui/Plain'
 
 function When({ at, now }: { at: string; now: number }) {
   return (
     <Tooltip text={at.replace('T', ' ').slice(0, 19)}>
-      <span className="tabular-nums">{relativeTime(at, now)}</span>
+      <Box as="span" tabularNums>
+        {relativeTime(at, now)}
+      </Box>
     </Tooltip>
   )
 }
@@ -53,23 +54,27 @@ function When({ at, now }: { at: string; now: number }) {
 function Summary({ row }: { row: ActivityRow }) {
   if (row.redacted)
     return (
-      <span className="inline-flex flex-wrap items-center gap-1.5" data-activity-redacted>
+      <Box as="span" inlineFlex flexWrap items="center" gap="1.5" data-activity-redacted>
         <Badge variant="warning">Redacted</Badge>
         <Hint>{row.summary}</Hint>
-      </span>
+      </Box>
     )
   const item = githubItem(row)
   if (item)
     return (
-      <span style={{ overflowWrap: 'anywhere' }}>
+      <Box as="span" css-overflow-wrap="anywhere">
         {item.before}
         <TextLink href={linkHref(item.href)} target="_blank" rel="noopener noreferrer" data-activity-item>
           {item.text}
         </TextLink>
         {item.after}
-      </span>
+      </Box>
     )
-  return <span style={{ overflowWrap: 'anywhere' }}>{row.summary}</span>
+  return (
+    <Box as="span" css-overflow-wrap="anywhere">
+      {row.summary}
+    </Box>
+  )
 }
 
 // The target: a button that opens the task drawer, or a link that opens
@@ -80,9 +85,9 @@ function Target({ row }: { row: ActivityRow }) {
   if (!target) return <Hint>{row.targetId ?? ''}</Hint>
   if (target.kind === 'task')
     return (
-      <button type="button" className="underline" onClick={() => drawer.openTask(target.id)} aria-label={`View task ${target.id}`} data-activity-task>
+      <PlainButton type="button" underline onClick={() => drawer.openTask(target.id)} aria-label={`View task ${target.id}`} data-activity-task>
         {target.id}
-      </button>
+      </PlainButton>
     )
   return (
     <TextLink href={linkHref(target.href)} target="_blank" rel="noopener noreferrer" data-activity-link>
@@ -93,57 +98,118 @@ function Target({ row }: { row: ActivityRow }) {
 
 function Table({ rows, now }: { rows: ActivityRow[]; now: number }) {
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }} data-activity-table>
+    <Box css-overflow-x="auto">
+      <Box as="table" css-border-collapse="collapse" wFull size="sm" data-activity-table>
         <thead>
           <tr>
-            <th style={HEAD}>When</th>
-            <th style={HEAD}>Source</th>
-            <th style={HEAD}>Who</th>
-            <th style={HEAD}>What</th>
-            <th style={HEAD}>Target</th>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              When
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Source
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Who
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              What
+            </Box>
+            <Box
+              as="th"
+              css-text-align="left"
+              css-font-weight="500"
+              css-font-size="12"
+              css-color="muted"
+              css-padding="4px-8px"
+              css-border-bottom="1px-solid-border"
+              css-white-space="nowrap"
+            >
+              Target
+            </Box>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.seq} data-activity-row={row.seq}>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <When at={row.at} now={now} />
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{SOURCE_LABELS[row.source] ?? row.source}</td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{row.actor ?? ''}</td>
-              <td style={{ ...CELL, minWidth: '16rem' }}>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
+                {SOURCE_LABELS[row.source] ?? row.source}
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
+                {row.actor ?? ''}
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-min-width="16rem">
                 <Summary row={row} />
-                <Hint as="div" size="xs">{row.kind}</Hint>
-              </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+                <Hint as="div" size="xs">
+                  {row.kind}
+                </Hint>
+              </Box>
+              <Box as="td" css-padding="6px-8px" css-border-top="1px-solid-border" css-vertical-align="top" css-white-space="nowrap">
                 <Target row={row} />
-              </td>
+              </Box>
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
 // Narrow screens: one stacked row per entry, same parts.
 function Stack({ rows, now }: { rows: ActivityRow[]; now: number }) {
   return (
-    <ul className="flex flex-col" data-activity-stack>
+    <Box as="ul" flex flexCol data-activity-stack>
       {rows.map((row) => (
-        <li key={row.seq} className="flex flex-col gap-1 border-t py-2 text-sm first:border-t-0" style={{ borderColor: 'var(--border)' }} data-activity-row={row.seq}>
+        <Box key={row.seq} as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" size="sm" firstBorderT0 data-activity-row={row.seq}>
           <Summary row={row} />
           <Hint size="xs">
             <When at={row.at} now={now} /> · {SOURCE_LABELS[row.source] ?? row.source}
             {row.actor ? ` · ${row.actor}` : ''} · {row.kind}
           </Hint>
-          <span className="text-xs">
+          <Box as="span" size="xs">
             <Target row={row} />
-          </span>
-        </li>
+          </Box>
+        </Box>
       ))}
-    </ul>
+    </Box>
   )
 }
 
@@ -208,13 +274,13 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
   return (
     // One row under the Keep activity header, lined up with the rail's
     // search box: the days, the word, and a quiet status; errors under it.
-    <div data-activity-keep data-section="Keep activity" className="flex flex-col gap-1">
+    <Box data-activity-keep data-section="Keep activity" flex flexCol gap="1">
       <Row gap={2} wrap={false}>
-        <label htmlFor="avoozl-activity-keep" className="sr-only">
+        <Box htmlFor="avoozl-activity-keep" as="label" srOnly>
           Keep activity (days)
-        </label>
+        </Box>
         <Tooltip text="Saved to .avoozl.json. Each tick deletes rows older than this. Blank uses the default.">
-          <input
+          <PlainInput
             id="avoozl-activity-keep"
             type="number"
             min={1}
@@ -233,14 +299,23 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
             }}
             aria-invalid={parsed.error ? true : undefined}
             aria-describedby={parsed.error ? 'avoozl-activity-keep-error' : undefined}
-            style={{ width: '4.5rem', boxSizing: 'border-box', fontSize: 13, padding: '4px 8px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            css-width="4.5rem"
+            css-box-sizing="border-box"
+            css-font-size="13"
+            css-padding="4px-8px"
+            css-border-radius="6"
+            css-background="bg"
+            css-color="text"
+            css-border="1px-solid-border"
           />
         </Tooltip>
-        <span style={{ fontSize: 13, color: 'var(--muted)' }}>days</span>
+        <Box as="span" css-font-size="13" css-color="muted">
+          days
+        </Box>
         {note && !parsed.error && (
-          <span role={note.ok ? 'status' : 'alert'} className={`ml-auto text-xs ${note.ok ? 'text-muted' : 'text-danger'}`}>
+          <Box role={note.ok ? 'status' : 'alert'} as="span" ml="auto" size="xs" tone={note.ok ? 'muted' : 'danger'}>
             {note.text}
-          </span>
+          </Box>
         )}
       </Row>
       {parsed.error && (
@@ -248,7 +323,7 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
           {parsed.error}
         </ErrorText>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -298,7 +373,7 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
   const rows = page?.items ?? []
 
   return (
-    <section aria-labelledby="avoozl-activity-title" className="flex flex-col gap-3.5">
+    <Box aria-labelledby="avoozl-activity-title" as="section" flex flexCol gap="3.5">
       {/* Refresh, with its countdown, sits on the top line beside the pause
           icon, as on Home (page-refresh.tsx). */}
       <ViewHeading id="avoozl-activity-title" view="activity">
@@ -325,9 +400,9 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
             title="Source"
             action={
               filterActive(filter) && (
-                <button type="button" data-rail-icon onClick={() => setFilter({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+                <PlainButton type="button" data-rail-icon onClick={() => setFilter({})} css-gap="2" css-align-items="center" css-font-size="12">
                   <X size={11} aria-hidden="true" /> Clear
-                </button>
+                </PlainButton>
               )
             }
           >
@@ -339,7 +414,11 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
                 active={filter.source === item.value}
                 onClick={() => setField({ source: filter.source === item.value ? undefined : item.value })}
                 attrs={{ 'data-rail-source': item.value }}
-                trail={<span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', opacity: 0.7 }}>{item.count}</span>}
+                trail={
+                  <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-opacity="0.7">
+                    {item.count}
+                  </Box>
+                }
               />
             ))}
           </RailBlock>
@@ -353,31 +432,39 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
         </div>
       </NavSlotFor>
       <Hint role="status" as="p" size="xs" data-filter-status>
-        {page ? `${page.total} ${page.total === 1 ? 'entry' : 'entries'}${filterActive(filter) ? ' match' : ''} · kept ${page.retentionDays} days` : busy ? 'Loading…' : 'Not loaded'}
+        {page
+          ? `${page.total} ${page.total === 1 ? 'entry' : 'entries'}${filterActive(filter) ? ' match' : ''} · kept ${page.retentionDays} days`
+          : busy
+            ? 'Loading…'
+            : 'Not loaded'}
         {filterActive(filter) && (
           <>
             {' · '}
-            <button type="button" className="underline" onClick={() => setFilter({})} data-filter-clear-inline>
+            <PlainButton type="button" underline onClick={() => setFilter({})} data-filter-clear-inline>
               Clear filters
-            </button>
+            </PlainButton>
           </>
         )}
       </Hint>
       {page && rows.length === 0 ? (
         // In a box with a background, so the empty page reads as one block.
-        <div data-activity-empty className="rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated, var(--card))' }}>
+        <Box data-activity-empty css-border-color="border" css-background="bg-elevated-card" rounded="lg" border="all">
           <EmptyState
             icon={<History size={36} aria-hidden="true" />}
             title={filterActive(filter) ? 'No activity matches these filters' : 'No activity yet'}
-            subtitle={filterActive(filter) ? 'Clear the filters to see every entry.' : 'Starting work, stopping the line, approving and saving settings show here, and so do the closes, board moves and labels the tick reads.'}
+            subtitle={
+              filterActive(filter)
+                ? 'Clear the filters to see every entry.'
+                : 'Starting work, stopping the line, approving and saving settings show here, and so do the closes, board moves and labels the tick reads.'
+            }
           />
-        </div>
+        </Box>
       ) : narrow ? (
         <Stack rows={rows} now={now} />
       ) : (
         <Table rows={rows} now={now} />
       )}
       {page && <ShowMore left={page.total - rows.length} onMore={() => void more()} />}
-    </section>
+    </Box>
   )
 }

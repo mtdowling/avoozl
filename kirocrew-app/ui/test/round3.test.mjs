@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import test from 'node:test'
-import { MAX_HIGHLIGHT, highlight, registerLanguages, toGrammar, tokenStyle } from '../src/highlight.ts'
+import { MAX_HIGHLIGHT, highlight, registerLanguages, toGrammar, tokenStyle } from '../src/ui/highlight.ts'
 import { outline } from '../src/markdown.ts'
 import { bulkAction, confirmSettle, liveChats, tabCounts, whyLine } from '../src/conflicts-api.ts'
 import { itemRef } from '../src/chat-api.ts'
@@ -39,8 +39,20 @@ test('every destructive button asks first through a red confirm', () => {
   // SaveFooter's Discard puts the form back to what is saved; nothing is written.
   // Workspaces' Remove opens its own confirm, whose red Remove from list is
   // the confirm itself (it names the folder and says nothing is deleted).
-  const forms = new Set(['DeliveryDetails.tsx: Supersede', 'TaskForm.tsx: Remove', 'PlansView.tsx: )}', 'PlansView.tsx: ', 'PlansView.tsx: Delete spec', 'QuickGoalModal.tsx: Discard', 'WorkspaceView.tsx: Remove from list', 'SaveFooter.tsx: Discard'])
-  assert.deepEqual(plain.filter((entry) => !forms.has(entry)), [])
+  const forms = new Set([
+    'DeliveryDetails.tsx: Supersede',
+    'TaskForm.tsx: Remove',
+    'PlansView.tsx: )}',
+    'PlansView.tsx: ',
+    'PlansView.tsx: Delete spec',
+    'QuickGoalModal.tsx: Discard',
+    'WorkspaceView.tsx: Remove from list',
+    'SaveFooter.tsx: Discard',
+  ])
+  assert.deepEqual(
+    plain.filter((entry) => !forms.has(entry)),
+    [],
+  )
   // The ones the owner named, each a DangerBtn with its own copy.
   const settings = source('SettingsView.tsx')
   assert.match(source('RepositoriesSettings.tsx'), /title: 'Are you sure\?'/)
@@ -110,7 +122,7 @@ test('a fence in a custom language highlights from its JSON grammar; an unknown 
   // Colors are theme variables and never the warning yellow.
   assert.match(tokenStyle(['keyword']).color, /^var\(--tile-purple/)
   assert.equal(tokenStyle(['comment']).fontStyle, 'italic')
-  assert.doesNotMatch(source('highlight.ts'), /--warn/)
+  assert.doesNotMatch(source('ui/highlight.ts'), /--warn/)
   // The global Prism the grammars need is put back afterwards.
   assert.equal(globalThis.Prism, undefined)
 })
@@ -128,7 +140,7 @@ test('headings get anchors for the plan outline, and prose has a readable measur
   )
   assert.match(heads[1].id, /^avoozl-doc-design-one-\d+$/)
   assert.match(source('PlansView.tsx'), /export const PROSE_MEASURE = '80ch'/)
-  assert.match(source('Markdown.tsx'), /id=\{idPrefix \? headingId\(idPrefix, block\.text, i\) : undefined\}/)
+  assert.match(source('ui/Markdown.tsx'), /id=\{idPrefix \? headingId\(idPrefix, block\.text, i\) : undefined\}/)
 })
 
 test('the spec view keeps its details in a box on the Overview tab, with Edit and Discuss', () => {
@@ -141,13 +153,23 @@ test('the spec view keeps its details in a box on the Overview tab, with Edit an
   // The plan view has no Add task; the list and the Graph keep theirs.
   const detail = plans.slice(plans.indexOf('{row && ('))
   assert.doesNotMatch(detail.slice(0, detail.indexOf('</div>')), /addTask/)
-  for (const label of ["Open this spec's documents and tasks", "Show this spec's tasks in the Graph", 'Open this spec to check and approve it', 'Start a planner chat to change this spec'])
+  for (const label of [
+    "Open this spec's documents and tasks",
+    "Show this spec's tasks in the Graph",
+    'Open this spec to check and approve it',
+    'Start a planner chat to change this spec',
+  ])
     assert.ok(plans.includes(`tooltip="${label}"`), label)
 })
 
 test('Conflicts: tab counts, a plain why, bulk only for one kind, attach to a live chat', () => {
   const item = (kind, taskId, extra = {}) => ({ kind, taskId, title: taskId, detail: 'd', authority: 'local', issue: null, ...extra })
-  const items = [item('needs-human', 'a', { reason: 'review' }), item('needs-human', 'b', { reason: 'review' }), item('decision', 'c'), item('github-conflict', 'g', { field: 'title', changedBy: 'octo' })]
+  const items = [
+    item('needs-human', 'a', { reason: 'review' }),
+    item('needs-human', 'b', { reason: 'review' }),
+    item('decision', 'c'),
+    item('github-conflict', 'g', { field: 'title', changedBy: 'octo' }),
+  ]
   assert.deepEqual(tabCounts(items), { all: 4, 'github-conflict': 1, decision: 1, 'needs-human': 2, other: 0 })
   assert.match(whyLine(items[3]), /^octo changed title on GitHub/)
   assert.match(whyLine(items[0]), /waits for your review/)
@@ -186,8 +208,14 @@ test('drill-in shows one epic, or one task with everything up and down its chain
       { from: 'c', to: 'd', blocking: true },
     ],
   }
-  assert.deepEqual(drillGraph(graph, { kind: 'epic', id: 'e1', title: 'E1' }).tasks.map((t) => t.id), ['a', 'b'])
-  assert.deepEqual(drillGraph(graph, { kind: 'focus', id: 'b', title: 'b' }).tasks.map((t) => t.id), ['a', 'b', 'c', 'd'])
+  assert.deepEqual(
+    drillGraph(graph, { kind: 'epic', id: 'e1', title: 'E1' }).tasks.map((t) => t.id),
+    ['a', 'b'],
+  )
+  assert.deepEqual(
+    drillGraph(graph, { kind: 'focus', id: 'b', title: 'b' }).tasks.map((t) => t.id),
+    ['a', 'b', 'c', 'd'],
+  )
   assert.equal(drillGraph(graph, null), graph)
   assert.equal(nodeClick({ members: { total: 2, done: 0 } }, false), 'drill')
 })
@@ -201,6 +229,9 @@ test('icons sit on buttons, and every icon is one the host module has', () => {
   const host = process.env.KIROCREW_LUCIDE_NAMES
   if (host) {
     const known = new Set(JSON.parse(readFileSync(host, 'utf8')))
-    assert.deepEqual(names.filter((n) => n.length > 1 && !known.has(n)), [])
+    assert.deepEqual(
+      names.filter((n) => n.length > 1 && !known.has(n)),
+      [],
+    )
   }
 })

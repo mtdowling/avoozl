@@ -14,13 +14,10 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
-import { Checkbox } from './ui/Checkbox'
-
-const fieldStyle = {
-  borderColor: 'var(--border)',
-  color: 'var(--text)',
-  background: 'var(--card, transparent)',
-}
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
+import { PlainInput } from './ui/Plain'
+import { fieldStyle } from './ui/looks/TemplateStart.ts'
 
 export const templateKey = (t: Pick<TemplateSummary, 'plugin' | 'id'>) => `${t.plugin}/${t.id}`
 
@@ -41,38 +38,42 @@ function InputField(props: {
   const empty = Array.isArray(props.value) ? !props.value.length : !String(props.value ?? '').trim()
   const missing = props.tried && input.required && empty
   const label = (
-    <span className="font-medium">
-      {input.label} <span className="font-normal text-muted">({input.required ? 'required' : 'optional'})</span>
-    </span>
+    <Box as="span" weight="medium">
+      {input.label}{' '}
+      <Box as="span" weight="normal" tone="muted">
+        ({input.required ? 'required' : 'optional'})
+      </Box>
+    </Box>
   )
   if (input.type === 'repositories')
     return (
-      <fieldset className="flex flex-col gap-1 text-sm" data-template-input={input.id}>
+      <Box as="fieldset" flex flexCol gap="1" size="sm" data-template-input={input.id}>
         <legend>{label}</legend>
         {props.repositories.map((repo) => {
           const chosen = Array.isArray(props.value) ? props.value : []
           return (
-            <label key={repo.id} className="flex items-center gap-2">
-              <Checkbox
-                checked={chosen.includes(repo.id)}
-                onChange={(event) => props.onChange(event.target.checked ? [...chosen, repo.id] : chosen.filter((v) => v !== repo.id))}
-              />
+            <Switch
+              key={repo.id}
+              label={repo.name || repo.id}
+              checked={chosen.includes(repo.id)}
+              onChange={(on) => props.onChange(on ? [...chosen, repo.id] : chosen.filter((v) => v !== repo.id))}
+            >
               <span>{repo.name || repo.id}</span>
-            </label>
+            </Switch>
           )
         })}
-        {missing && <ErrorText as="span" size="xs">Pick at least one repository.</ErrorText>}
-      </fieldset>
+        {missing && (
+          <ErrorText as="span" size="xs">
+            Pick at least one repository.
+          </ErrorText>
+        )}
+      </Box>
     )
   return (
-    <div className="flex flex-col gap-1 text-sm" data-template-input={input.id}>
+    <Box flex flexCol gap="1" size="sm" data-template-input={input.id}>
       <label htmlFor={id}>{label}</label>
       {input.type === 'choice' ? (
-        <SelectField
-          id={id}
-          value={String(props.value ?? '')}
-          onChange={(event) => props.onChange(event.target.value)} look="field" maxWidth="24rem"
-        >
+        <SelectField id={id} value={String(props.value ?? '')} onChange={(event) => props.onChange(event.target.value)} look="field" maxWidth="24rem">
           <option value="">Choose…</option>
           {(input.options ?? []).map((option) => (
             <option key={option} value={option}>
@@ -82,7 +83,7 @@ function InputField(props: {
         </SelectField>
       ) : input.type === 'file' ? (
         <>
-          <input
+          <PlainInput
             id={id}
             type="file"
             accept=".md,.txt,.json,.csv,text/*"
@@ -102,14 +103,16 @@ function InputField(props: {
                 },
               )
             }}
-            className="text-sm"
+            size="sm"
           />
           <Hint size="xs">
-            {file
-              ? `${file.name}, ${Math.ceil(file.size / 1024)} KB, read here and sent as text.`
-              : 'Read here as text, at most 200 KB. Avoozl never opens a path you type.'}
+            {file ? `${file.name}, ${Math.ceil(file.size / 1024)} KB, read here and sent as text.` : 'Read here as text, at most 200 KB. Avoozl never opens a path you type.'}
           </Hint>
-          {problem && <ErrorText as="span" size="xs">{problem}</ErrorText>}
+          {problem && (
+            <ErrorText as="span" size="xs">
+              {problem}
+            </ErrorText>
+          )}
         </>
       ) : (
         <>
@@ -118,7 +121,7 @@ function InputField(props: {
             value={String(props.value ?? '')}
             list={input.type === 'epic' ? `${id}-list` : undefined}
             onChange={(event: { target: { value: string } }) => props.onChange(event.target.value)}
-            style={{ maxWidth: '24rem' }}
+            css-max-width="24rem"
             aria-invalid={missing}
           />
           {input.type === 'epic' && (
@@ -132,8 +135,12 @@ function InputField(props: {
           )}
         </>
       )}
-      {missing && <ErrorText as="span" size="xs">Fill in {input.label}.</ErrorText>}
-    </div>
+      {missing && (
+        <ErrorText as="span" size="xs">
+          Fill in {input.label}.
+        </ErrorText>
+      )}
+    </Box>
   )
 }
 
@@ -176,37 +183,52 @@ export function TemplateStart(props: {
     }
   }, [plugins, props.workspaceId, template?.plugin, template?.id, template?.settings, onPreview])
 
-  if (props.templates === null) return <Hint as="p" size="sm">Reading templates…</Hint>
+  if (props.templates === null)
+    return (
+      <Hint as="p" size="sm">
+        Reading templates…
+      </Hint>
+    )
   if (!props.templates.length)
-    return <Hint as="p" size="sm">No templates yet. A template comes in a plugin: add and approve one in Settings › Plugins.</Hint>
+    return (
+      <Hint as="p" size="sm">
+        No templates yet. A template comes in a plugin: add and approve one in Settings › Plugins.
+      </Hint>
+    )
   return (
     <Stack gap={3} data-template-start>
-      <fieldset className="flex flex-col gap-1 text-sm">
-        <legend className="font-medium">Template</legend>
+      <Box as="fieldset" flex flexCol gap="1" size="sm">
+        <Box as="legend" weight="medium">
+          Template
+        </Box>
         {props.templates.map((t) => (
-          <label
+          <Box
             key={templateKey(t)}
-            className="flex items-start gap-2 rounded border p-2"
-            style={{
-              borderColor: props.picked === templateKey(t) ? 'var(--accent)' : 'var(--border)',
-            }}
+            as="label"
+            css-border-color={props.picked === templateKey(t) ? 'accent' : 'border'}
+            flex
+            items="start"
+            gap="2"
+            rounded="base"
+            border="all"
+            p="2"
           >
-            <input
-              type="radio"
-              name="avoozl-template"
-              className="mt-1"
-              checked={props.picked === templateKey(t)}
-              onChange={() => props.onPick(templateKey(t))}
-            />
+            <PlainInput type="radio" name="avoozl-template" mt="1" checked={props.picked === templateKey(t)} onChange={() => props.onPick(templateKey(t))} />
             <Stack as="span">
-              <span className="font-medium">{t.title}</span>
+              <Box as="span" weight="medium">
+                {t.title}
+              </Box>
               <Hint size="xs">{t.description}</Hint>
               {t.phases.length > 0 && <Hint size="xs">Phases: {t.phases.map((p) => p.title).join(', ')}</Hint>}
             </Stack>
-          </label>
+          </Box>
         ))}
-        {props.tried && !template && <ErrorText as="span" size="xs">Pick a template.</ErrorText>}
-      </fieldset>
+        {props.tried && !template && (
+          <ErrorText as="span" size="xs">
+            Pick a template.
+          </ErrorText>
+        )}
+      </Box>
       {template &&
         template.inputs.map((input) => (
           <InputField
@@ -220,31 +242,26 @@ export function TemplateStart(props: {
           />
         ))}
       {template?.settings && (
-        <section
-          className="flex flex-col gap-2 rounded border p-3 text-sm"
-          style={{ borderColor: 'var(--border)' }}
-          aria-label="Template settings"
-          data-template-settings
-        >
-          <h4 className="font-medium">Settings this template suggests</h4>
-          <Hint as="p" size="xs">Picking a template changes no setting. Tick the box to copy these into .avoozl.json when you submit.</Hint>
+        <Box as="section" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="3" size="sm" aria-label="Template settings" data-template-settings>
+          <Box as="h4" weight="medium">
+            Settings this template suggests
+          </Box>
+          <Hint as="p" size="xs">
+            Picking a template changes no setting. Tick the box to copy these into .avoozl.json when you submit.
+          </Hint>
           {preview ? (
             <PackChanges preview={preview} />
           ) : previewError ? (
             <ErrorText size="xs">{previewError}</ErrorText>
           ) : (
-            <Hint as="p" size="xs">Reading…</Hint>
+            <Hint as="p" size="xs">
+              Reading…
+            </Hint>
           )}
-          <label className="flex items-start gap-2">
-            <Checkbox drop={4}
-              checked={props.importSettings}
-              disabled={!preview}
-              onChange={(event) => props.onImportSettings(event.target.checked)}
-              data-import-settings
-            />
+          <Switch label="Import these settings" align="start" checked={props.importSettings} disabled={!preview} onChange={props.onImportSettings} data-import-settings>
             <span>Import these settings</span>
-          </label>
-        </section>
+          </Switch>
+        </Box>
       )}
     </Stack>
   )

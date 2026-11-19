@@ -13,13 +13,7 @@ const OLD_SEVERITY = {
   suggestion: "info",
   question: "info",
 };
-export const FINDING_ACTIONS = [
-  "accept",
-  "reject",
-  "defer",
-  "resolve",
-  "reopen",
-];
+const FINDING_ACTIONS = ["accept", "reject", "defer", "resolve", "reopen"];
 const CLOSING = { reject: "rejected", defer: "deferred", resolve: "resolved" };
 // plan.review.dispose wrote these before decisions existed.
 const DISPOSED = {

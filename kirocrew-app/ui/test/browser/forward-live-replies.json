@@ -7,9 +7,7 @@
     "branch": "avoozl/p25d",
     "target": "mtdowling/avoozl-scratch-f1:main",
     "person": "mtdowling",
-    "paths": [
-      "src/d.mjs"
-    ],
+    "paths": ["src/d.mjs"],
     "hash": "803bb7cbea54befa3a0542f3e58bb76e640d33292623ce46ce557678a88524be"
   },
   "blockedReason": "The leak scan blocked this forward (instance in file 1). Nothing was pushed.",

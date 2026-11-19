@@ -4,11 +4,12 @@
 import { useEffect, useState } from 'react'
 import { Btn } from './ui/Btn'
 import { useAppApi } from './host.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { forwardClient, forwardOutcome, type ForwardAnswer, type ForwardReview } from './forward-api.ts'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 export function ForwardScreen(props: { workspaceId: string; forwardId: string; title: string; onClose: (forwarded: boolean) => void }) {
   const { workspaceId, forwardId } = props
@@ -73,31 +74,56 @@ export function ForwardScreen(props: { workspaceId: string; forwardId: string; t
     >
       <Stack gap={3}>
         {note && (
-          <p className="text-sm" role="status" data-forward-note>
+          <Box as="p" size="sm" role="status" data-forward-note>
             {note}
-          </p>
+          </Box>
         )}
-        {busy && !review && <Hint as="p" size="sm">Preparing the public change…</Hint>}
+        {busy && !review && (
+          <Hint as="p" size="sm">
+            Preparing the public change…
+          </Hint>
+        )}
         {review && (
           <>
             <Hint as="p" size="sm">
-              This is exactly what is pushed to {review.target.split(':')[0]} as {review.person}, on branch {review.branch}. Nothing is pushed until you press Forward, and only if it still matches.
+              This is exactly what is pushed to {review.target.split(':')[0]} as {review.person}, on branch {review.branch}. Nothing is pushed until you press Forward, and only if
+              it still matches.
             </Hint>
             <section>
-              <h3 className="text-sm font-medium">Title</h3>
-              <p className="whitespace-pre-wrap break-words text-sm" data-forward-title>{review.title}</p>
+              <Box as="h3" size="sm" weight="medium">
+                Title
+              </Box>
+              <Box as="p" whitespace="pre-wrap" breakWords size="sm" data-forward-title>
+                {review.title}
+              </Box>
             </section>
             <section>
-              <h3 className="text-sm font-medium">Body</h3>
-              <pre className="whitespace-pre-wrap break-words text-sm" data-forward-body>{review.body}</pre>
+              <Box as="h3" size="sm" weight="medium">
+                Body
+              </Box>
+              <Box as="pre" whitespace="pre-wrap" breakWords size="sm" data-forward-body>
+                {review.body}
+              </Box>
             </section>
             <section>
-              <h3 className="text-sm font-medium">Files ({review.paths.length})</h3>
-              <ul className="text-sm">{review.paths.map((path) => <li key={path}><code>{path}</code></li>)}</ul>
+              <Box as="h3" size="sm" weight="medium">
+                Files ({review.paths.length})
+              </Box>
+              <Box as="ul" size="sm">
+                {review.paths.map((path) => (
+                  <li key={path}>
+                    <code>{path}</code>
+                  </li>
+                ))}
+              </Box>
             </section>
             <section>
-              <h3 className="text-sm font-medium">Diff</h3>
-              <pre className="max-h-96 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }} data-forward-diff>{review.diff}</pre>
+              <Box as="h3" size="sm" weight="medium">
+                Diff
+              </Box>
+              <Box as="pre" css-border-color="border" maxH96 overflow="auto" rounded="base" border="all" p="2" size="xs" data-forward-diff>
+                {review.diff}
+              </Box>
             </section>
           </>
         )}

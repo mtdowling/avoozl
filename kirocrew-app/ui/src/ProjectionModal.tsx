@@ -5,12 +5,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Btn } from './ui/Btn'
 import Badge from './ui/Badge.tsx'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { describeWrite, writesByRepository } from './plans-api.ts'
 import { UNDO, confirmLines, headline, preflightFailures, projectionClient, toggleBatch, type ProjectionDetail } from './projection-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Hint } from './ui/Hint'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 type Client = ReturnType<typeof projectionClient>
 
@@ -93,11 +94,11 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
         )
       }
     >
-      <div className="flex flex-col gap-3 text-sm">
+      <Box flex flexCol gap="3" size="sm">
         {error && (
-          <p role="alert" style={{ color: 'var(--danger)' }}>
+          <Box role="alert" as="p" css-color="danger">
             {error}
-          </p>
+          </Box>
         )}
         {!preview && !error && <Hint as="p">Reading what the projection would write…</Hint>}
         {preview && !confirm && (
@@ -109,49 +110,58 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
               </p>
             ))}
             {preview.preflight && (
-              <fieldset className="flex flex-col gap-1 border-0 p-0" data-preflight>
-                <legend className="font-medium">Preflight for Create and release</legend>
+              <Box as="fieldset" flex flexCol gap="1" border="0" p="0" data-preflight>
+                <Box as="legend" weight="medium">
+                  Preflight for Create and release
+                </Box>
                 {preview.preflight.items.map((item) => (
                   <p key={item.id} data-preflight-item={item.status}>
-                    <Badge variant={item.status === 'ok' ? 'success' : item.status === 'fail' ? 'danger' : 'info'}>{item.status === 'unverified' ? 'cannot verify' : item.status}</Badge> {item.label}. <Hint>{item.detail}</Hint>
+                    <Badge variant={item.status === 'ok' ? 'success' : item.status === 'fail' ? 'danger' : 'info'}>
+                      {item.status === 'unverified' ? 'cannot verify' : item.status}
+                    </Badge>{' '}
+                    {item.label}. <Hint>{item.detail}</Hint>
                   </p>
                 ))}
-              </fieldset>
+              </Box>
             )}
             {preview.simulated && <Hint as="p">This spec is not approved yet. The list shows what approval would write.</Hint>}
             {(preview.suggestedBatches?.length ?? 0) > 0 && (
-              <fieldset className="flex flex-col gap-1 border-0 p-0" data-batches>
-                <legend className="font-medium">Batches</legend>
+              <Box as="fieldset" flex flexCol gap="1" border="0" p="0" data-batches>
+                <Box as="legend" weight="medium">
+                  Batches
+                </Box>
                 <Hint as="p">Small tasks in one wave can share one issue. Each task keeps its own ID.</Hint>
                 {preview.suggestedBatches!.map((group) => (
-                  <label key={group.join()} className="flex items-start gap-2">
-                    <Checkbox
-                      checked={batches.some((entry) => entry.join() === group.join())}
-                      disabled={busy}
-                      onChange={() => void load(toggleBatch(batches, group))}
-                    />
+                  <Switch
+                    key={group.join()}
+                    label={`${group.join(', ')} as one issue`}
+                    align="start"
+                    checked={batches.some((entry) => entry.join() === group.join())}
+                    disabled={busy}
+                    onChange={() => void load(toggleBatch(batches, group))}
+                  >
                     <span>
                       <code>{group.join(', ')}</code> as one issue
                     </span>
-                  </label>
+                  </Switch>
                 ))}
-              </fieldset>
+              </Box>
             )}
             {writes === 0 ? (
               <Hint as="p">GitHub already matches this revision.</Hint>
             ) : (
               writesByRepository(preview.writes).map(([name, list]) => (
                 <div key={name}>
-                  <p className="font-medium">
+                  <Box as="p" weight="medium">
                     {name} · {list.length} writes
-                  </p>
-                  <ul className="mt-1 flex flex-col gap-0.5">
+                  </Box>
+                  <Box as="ul" mt="1" flex flexCol gap="0.5">
                     {list.map((write, index) => (
-                      <li key={index} className="break-words">
+                      <Box key={index} as="li" breakWords>
                         {describeWrite(write)}
-                      </li>
+                      </Box>
                     ))}
-                  </ul>
+                  </Box>
                 </div>
               ))
             )}
@@ -172,16 +182,18 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
             <p>
               Avoozl will write to <code>{repository ?? 'the repository'}</code> with your GitHub login:
             </p>
-            <ul className="mt-1 flex list-disc flex-col gap-0.5 pl-5">
+            <Box as="ul" mt="1" flex listDisc flexCol gap="0.5" pl="5">
               {confirmLines(preview, repository, confirm === 'release').map((line) => (
                 <li key={line}>{line}</li>
               ))}
-            </ul>
-            <p className="mt-2 text-muted">{confirm === 'held' ? 'Crews are not released. Your release mode in Settings decides when.' : UNDO}</p>
+            </Box>
+            <Box as="p" mt="2" tone="muted">
+              {confirm === 'held' ? 'Crews are not released. Your release mode in Settings decides when.' : UNDO}
+            </Box>
             {confirm === 'held' && <Hint as="p">{UNDO}</Hint>}
           </div>
         )}
-      </div>
+      </Box>
     </Modal>
   )
 }

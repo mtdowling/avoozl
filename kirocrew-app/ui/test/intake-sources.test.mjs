@@ -10,8 +10,8 @@ import { findChrome, launch } from './browser/chrome.mjs'
 
 const NOW = Date.parse('2026-11-13T12:00:00Z')
 const at = (minutes) => new Date(NOW - minutes * 60_000).toISOString()
-const plugin = (id, state, tracker) => ({ id, source: 'machine', state, reason: null, health: null, capabilities: { tracker } })
-const PLUGINS = [plugin('tracker', 'approved', ['poll', 'actor']), plugin('quiet', 'disabled', ['poll']), plugin('mute', 'approved', ['poll'])]
+const plugin = (id, state, tracker) => ({ id, source: 'machine', state, reason: null, health: null, provides: ['intake'], capabilities: { intake: tracker } })
+const PLUGINS = [plugin('tracker', 'approved', ['actor']), plugin('quiet', 'disabled', []), plugin('mute', 'approved', [])]
 const row = (via, extra = {}) => ({ id: 's', scope: 'machine', entry: { via, repository: 'o/app' }, error: null, state: null, ...extra })
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
@@ -116,7 +116,12 @@ for (const width of [375, 768, 1280])
     for (const part of ['GitHub (issues in this repository)', 'avoozl:ready', 'example-bot', 'plan me', 'Open Repository setup']) assert.ok(text.includes(part), part)
     assert.doesNotMatch(text, /Remove/)
     // Each box is titled for screen readers, and nothing runs off the page.
-    assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-intake-source-row]')].every((el) => document.getElementById(el.getAttribute('aria-labelledby'))?.tagName === 'H4')`), true)
+    assert.equal(
+      await page.evaluate(
+        `[...document.querySelectorAll('[data-intake-source-row]')].every((el) => document.getElementById(el.getAttribute('aria-labelledby'))?.tagName === 'H4')`,
+      ),
+      true,
+    )
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
     await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Add a source').click()`)
     await page.until(`Boolean(document.querySelector('[data-modal="avoozl-intake-add"]'))`)

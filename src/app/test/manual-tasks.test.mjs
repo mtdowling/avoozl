@@ -79,7 +79,6 @@ test("lint refuses each agent field on a manual leaf, by name, and person on any
   await ops.execute("plan.create", { spec: "sdk" });
   assert.deepEqual(await errors(ops), []);
   for (const [key, value] of [
-    ["checks", ["npm test"]],
     ["session", { agent: "coder" }],
     ["paths", ["src/**"]],
     ["route", "local"],
@@ -115,7 +114,10 @@ test("lint refuses each agent field on a manual leaf, by name, and person on any
   });
   await person.execute("plan.create", { spec: "sdk" });
   assert.ok(
-    (await errors(person)).some(([code]) => code === "spec.person-completion"),
+    (await errors(person)).some(
+      ([code, message]) =>
+        code === "facts.person-completion" && /manual: true/.test(message),
+    ),
   );
 });
 

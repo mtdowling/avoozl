@@ -125,12 +125,7 @@ export function keyAction(
 // Put a scroll position back once the restored view is tall enough; the
 // view may still be loading, so try for a few frames. Instant, so it needs
 // nothing for reduced motion.
-export function settleScroll(
-  element: { scrollTop: number } | null,
-  top: number,
-  frame: (step: () => void) => unknown,
-  tries = 60,
-): void {
+export function settleScroll(element: { scrollTop: number } | null, top: number, frame: (step: () => void) => unknown, tries = 60): void {
   if (!element) return
   const step = (left: number) => {
     element.scrollTop = top

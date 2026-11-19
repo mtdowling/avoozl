@@ -9,6 +9,8 @@ import { useTaskDrawer } from './drawer-context.ts'
 import { linkHref, type Graph } from './views-api.ts'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
+import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 type Mode = 'frontier' | 'tree'
 
@@ -35,26 +37,36 @@ export function SpecGraph(props: { graph: Graph | null; planId: string; only?: M
     setMode('tree')
   }
   const tab = (key: Mode, label: string) => (
-    <button
+    <PlainButton
       type="button"
       role="tab"
       aria-selected={mode === key}
       data-spec-graph-tab={key}
       onClick={() => (key === 'tree' ? drill({ kind: 'spec', id: planId }) : setMode('frontier'))}
-      className="h-6 cursor-pointer whitespace-nowrap rounded-sm border px-3 text-[11px]"
-      style={mode === key ? { borderColor: 'var(--border-strong, var(--border))', color: 'var(--accent)', background: 'var(--card)' } : { borderColor: 'transparent', color: 'var(--muted)', background: 'transparent' }}
+      css-border-color={mode === key ? 'border-strong-border' : 'transparent'}
+      css-color={mode === key ? 'accent' : 'muted'}
+      css-background={mode === key ? 'card' : 'transparent'}
+      h6
+      cursorPointer
+      whitespace="nowrap"
+      rounded="sm"
+      border="all"
+      px="3"
+      size="11"
     >
       {label}
-    </button>
+    </PlainButton>
   )
   return (
-    <div className="flex min-w-0 flex-col gap-2" data-spec-graph>
+    <Box flex minW0 flexCol gap="2" data-spec-graph>
       {!graph ? (
         <Hint as="p" size="sm" role="status">
           Loading…
         </Hint>
       ) : graph.tasks.length === 0 ? (
-        <Hint as="p" size="sm">No task yet.</Hint>
+        <Hint as="p" size="sm">
+          No task yet.
+        </Hint>
       ) : (
         <>
           <Row gap={2}>
@@ -65,21 +77,21 @@ export function SpecGraph(props: { graph: Graph | null; planId: string; only?: M
               </Row>
             )}
             {href && (
-              <a href={linkHref(href)} className="ml-auto text-xs underline underline-offset-2" style={{ color: 'var(--accent)' }} data-spec-graph-open>
+              <PlainLink href={linkHref(href)} css-color="accent" ml="auto" size="xs" underline underlineOffset2 data-spec-graph-open>
                 Open in Graph →
-              </a>
+              </PlainLink>
             )}
           </Row>
-          <div className="min-w-0 overflow-x-auto" data-spec-graph-body>
+          <Box minW0 overflow="x-auto" data-spec-graph-body>
             {mode === 'frontier' ? (
               <Frontier ready={lists!.ready} waiting={lists!.waiting} onOpenTree={(id) => drill({ kind: 'task', id })} onOpen={(id) => openItem({ kind: 'task', id })} />
             ) : (
               <FocusTreeView graph={graph} root={root} onReRoot={drill} onOpen={openItem} />
             )}
-          </div>
+          </Box>
         </>
       )}
       {modal && graph && <ItemModal graph={graph} item={modal} onClose={() => setModal(null)} onTree={(next) => (setModal(null), drill(next))} />}
-    </div>
+    </Box>
   )
 }

@@ -17,7 +17,7 @@ import { parseRepository } from "./github.mjs";
 
 const REFS = "forwardAuditRefs",
   FOUND = "forwardAudit";
-export const REFS_EVERY_MS = 10 * 60 * 1000;
+const REFS_EVERY_MS = 10 * 60 * 1000;
 
 // The differences between the receipt and the compared head.
 function differences(receipt, mirror, compared) {

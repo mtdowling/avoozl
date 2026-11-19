@@ -51,7 +51,7 @@ Use `avoozl help` to inspect the installed CLI surface before choosing commands.
   `plans_plugins` action `templates`. Starting a spec from one is the
   user's, in **New spec**, **From template**; its planner chat starts from
   the template's starter folder. Keep its phases, task IDs and manual tasks.
-- A manual task (`"manual": true`, completion `person`) is a step only a
+- A manual task (`"manual": true`) is a step only a
   person does, such as a team review. Never start, claim or mark one done:
   `plans_next` lists it under `needsYou` with reason `manual`. Tell the user
   to open it in the task drawer and press **Mark done**.
@@ -69,13 +69,13 @@ Steps 1 to 4 of local delivery. The chat you are in runs these steps. Two
 ### 1. Capture the goal
 
 - Find the workspace with `plans_workspace`, and its spec folders with
-  `plans_specs`. Its `root` is the planning repository: spec folders live in
+  `plans_plan {action: "specs"}`. Its `root` is the planning repository: spec folders live in
   `<root>/.kiro/specs/<name>/`.
 - Ask only for what you cannot read: the outcome, and which repositories are in
   scope when more than one could be. Do not ask for task breakdowns.
 - Search for overlapping work with `plans_query` and `plans_duplicates`.
 - Choose a spec name: lowercase letters, digits, and hyphens, at most 80
-  characters, not already in `plans_specs`. The name is also the plan ID and
+  characters, not already in `plans_plan {action: "specs"}`. The name is also the plan ID and
   the prefix of the spec's numbered task IDs.
 - Epics and phases are two things. An epic is a goal across plans: its own
   spec folder whose `tasks.md` front-matter says `kind: epic` and lists member
@@ -123,7 +123,7 @@ rounds and show the user what remains.
 
 ### 4. Validate
 
-- Run `plans_lint_plan` with the plan ID. Each diagnostic names a file and a
+- Run `plans_plan {action: "lint"}` with the plan ID. Each diagnostic names a file and a
   line. Fix every error by a new draft round, not by hand-editing around the
   planner, then store the revision again.
 - When validation fails twice, stop and show the user the diagnostics.
@@ -172,9 +172,9 @@ The tick starts every ready task. A person may take one by hand with
 
 - Decisions and failures arrive as Avoozl notifications with a link to the
   session. When the user decides to resume a stopped leaf, call
-  `plans_retry_delivery`. Never retry on your own.
+  `plans_task {action: "retry"}`. Never retry on your own.
 - When the user wants a wrong local task replaced by a new one, call
-  `plans_supersede_task` (or `avoozl task supersede`). Dependents then wait on
+  `plans_task {action: "supersede"}` (or `avoozl task supersede`). Dependents then wait on
   the new task, and the old one keeps its history. Use it only when the user
   asks, and never for review rework.
 
@@ -197,7 +197,7 @@ When a deliver rule matched an issue and the user wants it delivered:
    critique session, as in Plan a goal. The spec's one top-level package item
    is the issue itself; nest every child under it. Then call
    `plans_draft_children` `{repository, number, spec}`.
-3. The next GitHub sync (or `plans_advance_breakdowns`) posts one preview
+3. The next GitHub sync (or `plans_github {action: "advance"}`) posts one preview
    comment on the issue. Nothing else is written. An allowed actor approves
    by removing and adding the trigger label; then Avoozl creates the
    sub-issues and blocked-by edges. A rule with `autoPublishChildren` skips

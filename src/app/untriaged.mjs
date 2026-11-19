@@ -23,10 +23,10 @@ import {
 } from "./github-policy.mjs";
 
 export const UNTRIAGED_INTERVAL_MS = 10 * 60 * 1000;
-export const UNTRIAGED_PAGE_SIZE = 100;
+const UNTRIAGED_PAGE_SIZE = 100;
 // GitHub search returns at most 1,000 results, so 10 pages read every item
 // it will give; past that `truncated` says to narrow the filter.
-export const UNTRIAGED_PAGES = 10;
+const UNTRIAGED_PAGES = 10;
 export const UNTRIAGED_NOTICE_GAP_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EMPTY = { version: 1, repositories: {}, notice: null };
@@ -41,7 +41,7 @@ export function defaultFilter(triageLabels = []) {
 }
 
 // The parsed terms the filter and the triage labels stand for together.
-export function filterTerms(settings = {}) {
+function filterTerms(settings = {}) {
   const parsed = settings.filter
     ? parseMatch(settings.filter, "untriaged.filter", { needLabel: false })
     : {
@@ -395,7 +395,7 @@ export function handoffReceipts(store) {
 }
 
 // Which of Issue Radar's labels an item carries now.
-export function crewState(entry, settings = {}) {
+function crewState(entry, settings = {}) {
   const labels = new Set((entry.labels || []).map(lower)),
     crew = settings.crewLabels || CREW_LABEL_DEFAULTS;
   return {

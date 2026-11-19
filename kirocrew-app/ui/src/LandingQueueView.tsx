@@ -1,6 +1,6 @@
 // Dashboards › Landing queue (Requirement 92.7, design §4.27, task 44.5):
-// one card per target base, its items in landing order, and why each one is
-// held. Reads landing.queue, which comes from Avoozl's store only, so
+// one card per target base: who waits and why, the merge batch under test,
+// the last merge batches and the size limit (Requirement MB7). Reads landing.queue, which comes from Avoozl's store only, so
 // Refresh redraws without a GitHub call. Rows take the full width at 390 px.
 import { useCallback, useMemo } from 'react'
 import { Card } from './ui/Card'
@@ -13,10 +13,26 @@ import { RefreshButton } from './RefreshButton.tsx'
 import Badge from './ui/Badge.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { safeHref } from './views-api.ts'
-import { baseTitle, holdVariant, holdWord, itemCount, itemLinks, landingNote, landingQueueClient, queueLine, type LandingItem } from './landing-queue-api.ts'
+import {
+  baseTitle,
+  batchTime,
+  holdVariant,
+  holdWord,
+  itemCount,
+  itemLinks,
+  landingNote,
+  landingQueueClient,
+  sizeLine,
+  testingLine,
+  type FinishedBatch,
+  type LandingBase,
+  type LandingItem,
+} from './landing-queue-api.ts'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
+import { DOT } from './ui/looks/LandingQueueView.ts'
 
-const DOT: Record<string, string> = { pass: 'var(--ok)', fail: 'var(--danger)', pending: 'var(--warn, var(--accent))', stale: 'var(--muted)' }
 const DOT_TEXT: Record<string, string> = { pass: 'Checks passed', fail: 'Checks failed', pending: 'Checks running', stale: 'Checks are for an older head' }
 
 function CheckDot(props: { checks: LandingItem['checks'] }) {
@@ -26,7 +42,18 @@ function CheckDot(props: { checks: LandingItem['checks'] }) {
   const text = `${DOT_TEXT[dot] ?? dot}${age}`
   return (
     <Tooltip text={text}>
-      <span data-check-dot={dot} role="img" aria-label={text} className="inline-block shrink-0 rounded-full" style={{ width: 8, height: 8, background: DOT[dot] ?? 'var(--muted)' }} />
+      <Box
+        data-check-dot={dot}
+        role="img"
+        aria-label={text}
+        as="span"
+        css-width="8"
+        css-height="8"
+        css-background={DOT[dot] ?? 'var(--muted)'}
+        inlineBlock
+        shrink0
+        rounded="full"
+      />
     </Tooltip>
   )
 }
@@ -37,39 +64,112 @@ function Row(props: { item: LandingItem; now: number }) {
   const links = itemLinks(item)
   const first = item.tasks[0]
   return (
-    <li data-landing-row={item.key} data-hold={item.hold.kind} className="flex w-full min-w-0 flex-col gap-1 border-t py-2 text-sm first:border-t-0" style={{ borderColor: 'var(--border)' }}>
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="w-6 shrink-0 text-xs tabular-nums text-muted" data-landing-position>
+    <Box data-landing-row={item.key} data-hold={item.hold.kind} as="li" css-border-color="border" flex wFull minW0 flexCol gap="1" border="t" py="2" size="sm" firstBorderT0>
+      <Box flex minW0 items="center" gap="2">
+        <Box as="span" w6 shrink0 size="xs" tabularNums tone="muted" data-landing-position>
           {item.position ?? '—'}
-        </span>
+        </Box>
         {first ? (
-          <button type="button" className="min-w-0 flex-1 truncate text-left underline" onClick={() => drawer.openTask(first.id)} aria-label={item.tasks.map((t) => t.title).join(', ')}>
+          <PlainButton type="button" minW0 flex1 truncate align="left" underline onClick={() => drawer.openTask(first.id)} aria-label={item.tasks.map((t) => t.title).join(', ')}>
             {first.title}
             {item.tasks.length > 1 ? ` +${item.tasks.length - 1}` : ''}
-          </button>
+          </PlainButton>
         ) : (
-          <span className="min-w-0 flex-1 truncate">{item.key}</span>
+          <Box as="span" minW0 flex1 truncate>
+            {item.key}
+          </Box>
         )}
-        <span className="shrink-0">
+        <Box as="span" shrink0>
           <Badge variant={holdVariant(item.hold.kind)}>{holdWord(item.hold.kind)}</Badge>
-        </span>
-      </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 pl-8 text-xs text-muted">
-        <span className="min-w-0" data-landing-hold>
+        </Box>
+      </Box>
+      <Box flex minW0 flexWrap items="center" gapX="3" gapY="1" pl="8" size="xs" tone="muted">
+        <Box as="span" minW0 data-landing-hold>
           {item.hold.text}
-        </span>
+        </Box>
         {links.map((link) => (
-          <a key={link.key} href={safeHref(link.href) ?? undefined} target="_blank" rel="noopener noreferrer" className="inline-flex min-w-0 items-center gap-1 underline" data-landing-link={link.key}>
+          <PlainLink
+            key={link.key}
+            href={safeHref(link.href) ?? undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            inlineFlex
+            minW0
+            items="center"
+            gap="1"
+            underline
+            data-landing-link={link.key}
+          >
             {link.key === 'pr' && <CheckDot checks={item.checks} />}
-            <span className="truncate" style={{ maxWidth: '16rem' }}>
+            <Box as="span" css-max-width="16rem" truncate>
               {link.label}
-            </span>
-          </a>
+            </Box>
+          </PlainLink>
         ))}
         {!item.pr && item.checks && <CheckDot checks={item.checks} />}
-        {item.since && <span className="tabular-nums">{duration(item.since, props.now)}</span>}
-      </div>
-    </li>
+        {item.unsandboxed && (
+          <Box as="span" tone="danger" data-landing-unsandboxed>
+            not sandboxed
+          </Box>
+        )}
+        {item.since && (
+          <Box as="span" tabularNums>
+            waiting {duration(item.since, props.now)}
+          </Box>
+        )}
+      </Box>
+    </Box>
+  )
+}
+
+const OUTCOME_VARIANT = { landed: 'success', 'partly landed': 'warning', 'culprit sent back': 'danger' } as const
+
+function LastBatch(props: { batch: FinishedBatch; now: number }) {
+  const { batch } = props
+  return (
+    <Box as="li" flex minW0 flexWrap items="center" gapX="3" gapY="1" size="xs" tone="muted" data-landing-last={batch.outcome}>
+      <Box as="span" shrink0>
+        <Badge variant={OUTCOME_VARIANT[batch.outcome]}>{batch.outcome}</Badge>
+      </Box>
+      <Box as="span" tabularNums>
+        {batch.size} {batch.size === 1 ? 'member' : 'members'}
+      </Box>
+      {batch.seconds != null && (
+        <Box as="span" tabularNums>
+          {batchTime(batch.seconds)}
+        </Box>
+      )}
+      <Box as="span" tabularNums>
+        {duration(batch.at, props.now)} ago
+      </Box>
+    </Box>
+  )
+}
+
+// What a base that lands directly adds to its waiting list: the batch being
+// tested, the last batches and the size limit.
+function MergeBatches(props: { base: LandingBase; now: number }) {
+  const { base } = props
+  if (!base.size) return null
+  return (
+    <Box flex flexCol gap="2" mb="2" data-landing-batches>
+      <Hint as="p" size="xs" data-landing-size>
+        {sizeLine(base.size)}
+      </Hint>
+      <Box as="p" size="xs" tone="muted" data-landing-testing>
+        {base.testing ? `Testing: ${testingLine(base.testing)}.` : 'Testing: no merge batch right now.'}
+      </Box>
+      {base.last && base.last.length > 0 && (
+        <Box flex flexCol gap="1">
+          <SectionHeading level={4} title="Last merge batches" />
+          <Box as="ul" flex flexCol gap="1">
+            {base.last.map((batch) => (
+              <LastBatch key={batch.at} batch={batch} now={props.now} />
+            ))}
+          </Box>
+        </Box>
+      )}
+    </Box>
   )
 }
 
@@ -80,7 +180,7 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
   const { value, error, busy, reload } = useRead(props.workspaceId, load)
   const now = Date.now()
   return (
-    <section aria-labelledby="avoozl-landing-title" className="flex flex-col gap-3.5" data-landing-queue>
+    <Box aria-labelledby="avoozl-landing-title" as="section" flex flexCol gap="3.5" data-landing-queue>
       <ViewHeading
         id="avoozl-landing-title"
         view="landing"
@@ -89,14 +189,19 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
       >
         Landing queue
       </ViewHeading>
-      <Hint as="p" size="xs">What waits to land on each base, in landing order, and why. Read from Avoozl's own records; Refresh does not call GitHub.</Hint>
+      <Hint as="p" size="xs">
+        What waits to land on each base, in landing order, and why; the merge batch being tested; the last merge batches; and the size limit. Read from Avoozl's own records;
+        Refresh does not call GitHub.
+      </Hint>
       {error && (
-        <p role="alert" className="text-sm" style={{ color: 'var(--danger)' }}>
+        <Box role="alert" as="p" css-color="danger" size="sm">
           {error}
-        </p>
+        </Box>
       )}
       {!value ? (
-        <Hint as="p" size="sm">Loading…</Hint>
+        <Hint as="p" size="sm">
+          Loading…
+        </Hint>
       ) : value.bases.length === 0 ? (
         <Card>
           <Hint as="p" size="sm" data-landing-empty>
@@ -107,21 +212,18 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
         value.bases.map((base) => (
           <Card key={base.key}>
             <div data-landing-base={base.key}>
-              <SectionHeading level={3} title={`${baseTitle(base)} (${base.items.length})`} meta={landingNote(base)} className="mb-1" />
-              {queueLine(base) && (
-                <p className="mb-1 text-xs text-muted" data-landing-queue-line>
-                  {queueLine(base)}
-                </p>
-              )}
-              <ul className="flex w-full flex-col">
+              <SectionHeading level={3} title={`${baseTitle(base)} (${base.items.length})`} meta={landingNote(base)} mb="1" />
+              <MergeBatches base={base} now={now} />
+              {base.size && <SectionHeading level={4} title={`Waiting (${base.items.length})`} />}
+              <Box as="ul" flex wFull flexCol>
                 {base.items.map((item) => (
                   <Row key={item.key} item={item} now={now} />
                 ))}
-              </ul>
+              </Box>
             </div>
           </Card>
         ))
       )}
-    </section>
+    </Box>
   )
 }

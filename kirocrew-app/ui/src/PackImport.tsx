@@ -5,21 +5,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Btn } from './ui/Btn'
 import Badge, { type BadgeVariant } from './ui/Badge.tsx'
-import {
-  importBlocked,
-  importInput,
-  packCounts,
-  pluginsClient,
-  shortValue,
-  type PackChange,
-  type PackPreview,
-  type PluginRow,
-} from './plugins-api.ts'
+import { importBlocked, importInput, packCounts, pluginsClient, shortValue, type PackChange, type PackPreview, type PluginRow } from './plugins-api.ts'
 import { errorMessage } from './workspace-api.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -35,8 +27,12 @@ const ACTION: Record<PackChange['action'], { label: string; variant?: BadgeVaria
 export function PackChanges({ preview }: { preview: PackPreview }) {
   const counts = packCounts(preview.changes)
   return (
-    <div className="flex flex-col gap-2 text-sm" data-pack-preview>
-      {preview.description && <Hint as="p" size="xs">{preview.description}</Hint>}
+    <Box flex flexCol gap="2" size="sm" data-pack-preview>
+      {preview.description && (
+        <Hint as="p" size="xs">
+          {preview.description}
+        </Hint>
+      )}
       <Hint as="p" size="xs">
         {counts.create} to create, {counts.change} to change, {counts.keep} already the same
         {counts.skip ? `, ${counts.skip} skipped` : ''}
@@ -47,25 +43,31 @@ export function PackChanges({ preview }: { preview: PackPreview }) {
           {warning}
         </ErrorText>
       ))}
-      <div style={{ overflowX: 'auto' }}>
-        <table className="w-full text-xs">
+      <Box css-overflow-x="auto">
+        <Box as="table" wFull size="xs">
           <thead>
-            <tr className="text-left text-muted">
-              <th className="py-1 pr-2 font-normal">Setting</th>
-              <th className="py-1 pr-2 font-normal">Action</th>
-              <th className="py-1 font-normal">Value</th>
-            </tr>
+            <Box as="tr" align="left" tone="muted">
+              <Box as="th" py="1" pr="2" weight="normal">
+                Setting
+              </Box>
+              <Box as="th" py="1" pr="2" weight="normal">
+                Action
+              </Box>
+              <Box as="th" py="1" weight="normal">
+                Value
+              </Box>
+            </Box>
           </thead>
           <tbody>
             {preview.changes.map((change) => (
-              <tr key={change.setting} className="align-top" style={{ borderTop: '1px solid var(--border)' }}>
-                <td className="py-1 pr-2 break-all">
+              <Box key={change.setting} as="tr" css-border-top="1px-solid-border" alignTop>
+                <Box as="td" py="1" pr="2" breakAll>
                   <code>{change.setting}</code>
-                </td>
-                <td className="py-1 pr-2">
+                </Box>
+                <Box as="td" py="1" pr="2">
                   <Badge variant={change.warning ? 'warning' : ACTION[change.action].variant}>{ACTION[change.action].label}</Badge>
-                </td>
-                <td className="py-1 break-all">
+                </Box>
+                <Box as="td" py="1" breakAll>
                   {change.action === 'skip' ? (
                     <Hint>{change.reason}</Hint>
                   ) : (
@@ -76,16 +78,20 @@ export function PackChanges({ preview }: { preview: PackPreview }) {
                         </Hint>
                       )}
                       <code>{shortValue(change.to)}</code>
-                      {change.warning && <span className="block text-danger">Lowers who counts, as said above.</span>}
+                      {change.warning && (
+                        <Box as="span" block tone="danger">
+                          Lowers who counts, as said above.
+                        </Box>
+                      )}
                     </>
                   )}
-                </td>
-              </tr>
+                </Box>
+              </Box>
             ))}
           </tbody>
-        </table>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   )
 }
 
@@ -147,25 +153,39 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
       }
     >
       <div>
-        <Hint as="p" size="sm">Copies these settings into .avoozl.json once. Later versions offer their changes here again.</Hint>
+        <Hint as="p" size="sm">
+          Copies these settings into .avoozl.json once. Later versions offer their changes here again.
+        </Hint>
       </div>
-      {preview ? <PackChanges preview={preview} /> : !error && <Hint as="p" size="sm">Reading the pack...</Hint>}
+      {preview ? (
+        <PackChanges preview={preview} />
+      ) : (
+        !error && (
+          <Hint as="p" size="sm">
+            Reading the pack...
+          </Hint>
+        )
+      )}
       {preview && preview.warnings.length > 0 && (
-        <label className="flex items-start gap-2 text-sm">
-          <Checkbox drop={4} checked={acceptLowered} onChange={(e) => setAcceptLowered(e.target.checked)} />
+        <Switch label="Import the who-counts change above" align="start" size="sm" checked={acceptLowered} onChange={setAcceptLowered}>
           <span>Import the who-counts change above</span>
-        </label>
+        </Switch>
       )}
       {row.source === 'machine' && (
-        <label className="flex items-start gap-2 text-sm">
-          <Checkbox drop={4} checked={confirmPublic} onChange={(e) => setConfirmPublic(e.target.checked)} />
+        <Switch label="Write the plugin id into .avoozl.json" align="start" size="sm" checked={confirmPublic} onChange={setConfirmPublic}>
           <span>
             Write the plugin id into .avoozl.json
-            <Hint size="xs" block>This plugin is declared on this computer only. Anyone who can read the repository sees its id and these settings.</Hint>
+            <Hint size="xs" block>
+              This plugin is declared on this computer only. Anyone who can read the repository sees its id and these settings.
+            </Hint>
           </span>
-        </label>
+        </Switch>
       )}
-      {blocked && preview && !(preview.warnings.length && !acceptLowered) && <Hint as="p" size="xs">{blocked}</Hint>}
+      {blocked && preview && !(preview.warnings.length && !acceptLowered) && (
+        <Hint as="p" size="xs">
+          {blocked}
+        </Hint>
+      )}
       {error && (
         <ErrorText role="alert" size="sm">
           {error}

@@ -12,7 +12,7 @@ import { viewsClient, withDrafts, type Graph, type GraphTask } from './views-api
 import { useRead } from './useRead.ts'
 import { useNav, useRemembered } from './NavHistory.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { SmallBtn, ViewHeading } from './ui/controls.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
@@ -49,19 +49,12 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
+import { TreeStyle } from './ui/PageStyles'
+import { PlainButton, PlainInput, SvgG, SvgPath, SvgRect, SvgRoot, SvgText } from './ui/Plain'
+import { COLOR } from './ui/looks/FocusTree.ts'
 
-// Theme variables only (Radar's rule): go is the accent, a hold is warn.
-const COLOR: Record<NodeState, string> = {
-  ready: 'var(--accent)',
-  running: 'var(--accent)',
-  waiting: 'var(--warn, var(--muted))',
-  'needs-you': 'var(--danger)',
-  done: 'var(--muted-strong, var(--muted))',
-  deferred: 'var(--muted)',
-  draft: 'var(--muted)',
-}
 const STATE_WORD = Object.fromEntries(STATES.map((s) => [s.id, s.label])) as Record<NodeState, string>
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace'
 const CARD = { w: 204, h: 52 }
 const TREE_SPACING: Spacing = { nodeWidth: CARD.w, nodeHeight: CARD.h, columnGap: 48, rowGap: 16, margin: 16, clusterLabel: 0, clusterGap: 0 }
 const TABS: { key: GraphTab; label: string }[] = [
@@ -224,7 +217,13 @@ export default function GraphPage(props: {
               active={showDrafts}
               onClick={() => setShowDrafts(!showDrafts)}
               attrs={{ 'data-rail-drafts': '' }}
-              trail={draftCount > 0 ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', opacity: 0.7 }}>{draftCount}</span> : undefined}
+              trail={
+                draftCount > 0 ? (
+                  <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-opacity="0.7">
+                    {draftCount}
+                  </Box>
+                ) : undefined
+              }
             />
           </RailBlock>
         </div>
@@ -232,35 +231,52 @@ export default function GraphPage(props: {
       <ViewHeading id="avoozl-graph-title" view="graph">
         Graph
       </ViewHeading>
-      <div
-        className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b pb-2 text-[11px] text-muted"
-        style={{ borderColor: 'var(--border)', fontFamily: MONO, letterSpacing: '.08em' }}
+      <Box
+        css-border-color="border"
+        css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
+        css-letter-spacing=".08em"
+        flex
+        flexWrap
+        items="center"
+        gapX="3"
+        gapY="2"
+        border="b"
+        pb="2"
+        size="11"
+        tone="muted"
         data-graph-header
       >
-        <span className="whitespace-nowrap">
-          DEPENDENCIES · <span className="font-semibold" style={{ color: 'var(--text-strong, var(--text))' }}>{props.workspaceName ?? workspaceId ?? ''}</span>
-        </span>
+        <Box as="span" whitespace="nowrap">
+          DEPENDENCIES ·{' '}
+          <Box as="span" css-color="text-strong-text" weight="semibold">
+            {props.workspaceName ?? workspaceId ?? ''}
+          </Box>
+        </Box>
         <Row role="tablist" aria-label="Dependency views" gap={1} wrap={false}>
           {TABS.map((t) => (
-            <button
+            <PlainButton
               key={t.key}
               type="button"
               role="tab"
               aria-selected={place.tab === t.key}
               data-graph-tab={t.key}
               onClick={() => go({ tab: t.key, root: t.key === 'focus' ? (root ?? null) : null })}
-              className="h-6 cursor-pointer whitespace-nowrap rounded-sm border px-3"
-              style={
-                place.tab === t.key
-                  ? { borderColor: 'var(--border-strong, var(--border))', color: 'var(--accent)', background: 'var(--card)', letterSpacing: '.08em' }
-                  : { borderColor: 'transparent', color: 'var(--muted)', background: 'transparent', letterSpacing: '.08em' }
-              }
+              css-border-color={place.tab === t.key ? 'border-strong-border' : 'transparent'}
+              css-color={place.tab === t.key ? 'accent' : 'muted'}
+              css-background={place.tab === t.key ? 'card' : 'transparent'}
+              css-letter-spacing={place.tab === t.key ? '.08em' : '.08em'}
+              h6
+              cursorPointer
+              whitespace="nowrap"
+              rounded="sm"
+              border="all"
+              px="3"
             >
               {t.label}
-            </button>
+            </PlainButton>
           ))}
         </Row>
-        <div className="ml-auto flex items-center gap-1.5">
+        <Box ml="auto" flex items="center" gap="1.5">
           <NavArrow label="Back" icon="back" disabled={trail.at <= 0} onClick={back} />
           <NavArrow label="Forward" icon="forward" disabled={trail.at >= trail.list.length - 1} onClick={forward} />
           <form
@@ -270,7 +286,7 @@ export default function GraphPage(props: {
               onJump()
             }}
           >
-            <input
+            <PlainInput
               list="avoozl-graph-jump-list"
               value={jump}
               onChange={(e) => {
@@ -282,8 +298,17 @@ export default function GraphPage(props: {
               aria-invalid={jumpError ? true : undefined}
               aria-describedby={jumpError ? 'avoozl-graph-jump-error' : undefined}
               data-graph-jump
-              className="w-40 rounded-sm border px-2.5 py-1 text-[11px] md:w-52"
-              style={{ background: 'var(--card)', borderColor: 'var(--border-strong, var(--border))', color: 'var(--text)', fontFamily: MONO }}
+              css-background="card"
+              css-border-color="border-strong-border"
+              css-color="text"
+              css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
+              w40
+              rounded="sm"
+              border="all"
+              px="2.5"
+              py="1"
+              size="11"
+              mdW52
             />
           </form>
           <datalist id="avoozl-graph-jump-list">
@@ -294,8 +319,8 @@ export default function GraphPage(props: {
             ))}
           </datalist>
           {workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void source.reload()} busy={source.busy} />}
-        </div>
-      </div>
+        </Box>
+      </Box>
       {jumpError && (
         <ErrorText id="avoozl-graph-jump-error" role="alert" size="xs" flush>
           {jumpError}
@@ -307,13 +332,17 @@ export default function GraphPage(props: {
         </ErrorText>
       )}
       {!workspaceId ? (
-        <Hint as="p" size="sm">Choose a workspace in the header.</Hint>
+        <Hint as="p" size="sm">
+          Choose a workspace in the header.
+        </Hint>
       ) : !graph ? (
         <Hint as="p" size="sm" role="status">
           {source.busy ? 'Loading…' : ''}
         </Hint>
       ) : graph.total === 0 ? (
-        <Hint as="p" size="sm">No tasks yet. Store and approve a spec in the Specs tab to fill the graph.</Hint>
+        <Hint as="p" size="sm">
+          No tasks yet. Store and approve a spec in the Specs tab to fill the graph.
+        </Hint>
       ) : place.tab === 'frontier' ? (
         <Frontier ready={lists!.ready} waiting={lists!.waiting} onOpenTree={(id) => openTree({ kind: 'task', id })} onOpen={(id) => openItem({ kind: 'task', id })} />
       ) : place.tab === 'focus' ? (
@@ -330,14 +359,31 @@ export default function GraphPage(props: {
         />
       )}
       {place.tab !== 'all' && graph && graph.total > 0 && (
-        <div id={HINT_ID} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t pt-2 text-[11px] text-muted" style={{ borderColor: 'var(--border)', fontFamily: MONO }} data-graph-hint>
-          <span className="min-w-0 flex-1">
+        <Box
+          id={HINT_ID}
+          css-border-color="border"
+          css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
+          flex
+          flexWrap
+          items="baseline"
+          justify="between"
+          gapX="4"
+          gapY="1"
+          border="t"
+          pt="2"
+          size="11"
+          tone="muted"
+          data-graph-hint
+        >
+          <Box as="span" minW0 flex1>
             {place.tab === 'frontier'
               ? 'Newly unlocked tasks have every blocker on record done. Open a row to see why, or open its tree.'
               : 'The live dependency tree of the selected task or spec. Click a card or press Enter to drill into its tree; O, Space or ↗ opens its details. Arrow keys move between cards. Dashed = sequence only, struck = done.'}
-          </span>
-          <span className="flex-none tabular-nums">{lists?.ready.length ?? 0} newly unlocked</span>
-        </div>
+          </Box>
+          <Box as="span" flexNone tabularNums>
+            {lists?.ready.length ?? 0} newly unlocked
+          </Box>
+        </Box>
       )}
       {modal && graph && (
         <ItemModal
@@ -357,18 +403,28 @@ function NavArrow(props: { label: string; icon: 'back' | 'forward'; disabled: bo
   return (
     <Tooltip text={props.disabled ? `${props.label}: nothing there` : `${props.label} in the Graph`}>
       {(describedBy) => (
-        <button
+        <PlainButton
           type="button"
           aria-label={props.label}
           aria-describedby={describedBy}
           aria-disabled={props.disabled || undefined}
           data-graph-nav={props.icon}
           onClick={() => !props.disabled && props.onClick()}
-          className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border"
-          style={{ borderColor: 'var(--border)', color: props.disabled ? 'var(--muted)' : 'var(--text)', opacity: props.disabled ? 0.4 : 1, background: 'transparent' }}
+          css-border-color="border"
+          css-color={props.disabled ? 'muted' : 'text'}
+          css-opacity={props.disabled ? '0.4' : '1'}
+          css-background="transparent"
+          inlineFlex
+          h7
+          w7
+          cursorPointer
+          items="center"
+          justify="center"
+          rounded="md"
+          border="all"
         >
           <Icon size={13} aria-hidden="true" />
-        </button>
+        </PlainButton>
       )}
     </Tooltip>
   )
@@ -379,26 +435,30 @@ function NavArrow(props: { label: string; icon: 'back' | 'forward'; disabled: bo
 export function Frontier(props: { ready: FrontierItem[]; waiting: FrontierItem[]; onOpenTree: (id: string) => void; onOpen: (id: string) => void }) {
   const { ready, waiting } = props
   return (
-    <div className="flex flex-col" style={{ fontFamily: MONO }} data-frontier>
-      <h3 className="m-0 text-[11px] font-semibold" style={{ letterSpacing: '.26em', color: 'var(--text-strong, var(--text))' }}>
+    <Box css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" flex flexCol data-frontier>
+      <Box as="h3" css-letter-spacing=".26em" css-color="text-strong-text" m0 size="11" weight="semibold">
         FRONTIER
-      </h3>
-      <p className="mb-3.5 mt-0.5 text-[10px]" style={{ color: 'var(--muted-strong, var(--muted))' }} data-frontier-sub>
+      </Box>
+      <Box as="p" css-color="muted-strong-muted" mb="3.5" mt="0.5" size="10" data-frontier-sub>
         {ready.length} newly unlocked · {waiting.length} still waiting
-      </p>
-      {ready.length === 0 && waiting.length === 0 && <p className="text-[11px] text-muted">No task has a blocker on record.</p>}
+      </Box>
+      {ready.length === 0 && waiting.length === 0 && (
+        <Box as="p" size="11" tone="muted">
+          No task has a blocker on record.
+        </Box>
+      )}
       {ready.map((item) => (
         <FrontierRow key={item.task.id} item={item} unlocked {...props} />
       ))}
       {waiting.length > 0 && (
-        <div className="mb-2.5 mt-5 border-t pt-2.5 text-[9px]" style={{ maxWidth: 820, borderColor: 'var(--border)', letterSpacing: '.24em', color: 'var(--muted-strong, var(--muted))' }}>
+        <Box css-max-width="820" css-border-color="border" css-letter-spacing=".24em" css-color="muted-strong-muted" mb="2.5" mt="5" border="t" pt="2.5" size="9">
           WAITING ({waiting.length})
-        </div>
+        </Box>
       )}
       {waiting.map((item) => (
         <FrontierRow key={item.task.id} item={item} unlocked={false} {...props} />
       ))}
-    </div>
+    </Box>
   )
 }
 
@@ -406,17 +466,16 @@ function Chip({ task }: { task: GraphTask }) {
   const state = nodeState(task)
   const go = state === 'ready' || state === 'running'
   return (
-    <span className="inline-flex flex-none items-center gap-1.5" data-state-chip={state}>
-      <span
-        aria-hidden="true"
-        className="inline-block h-[7px] w-[7px] rounded-full"
-        style={go ? { background: COLOR[state] } : { border: `1.5px solid ${COLOR[state]}` }}
-      />
-      <span className="text-[9px]" style={{ color: COLOR[state], letterSpacing: '.12em' }}>
+    <Box as="span" inlineFlex flexNone items="center" gap="1.5" data-state-chip={state}>
+      <span aria-hidden="true" className="inline-block h-[7px] w-[7px] rounded-full" style={go ? { background: COLOR[state] } : { border: `1.5px solid ${COLOR[state]}` }} />
+      <Box as="span" css-color={COLOR[state]} css-letter-spacing=".12em" size="9">
         {STATE_CHIP[state]}
-        <span className="sr-only"> ({STATE_WORD[state]})</span>
-      </span>
-    </span>
+        <Box as="span" srOnly>
+          {' '}
+          ({STATE_WORD[state]})
+        </Box>
+      </Box>
+    </Box>
   )
 }
 
@@ -427,7 +486,9 @@ function Refs({ tasks, struck }: { tasks: { task: GraphTask; met?: boolean }[]; 
       {tasks.map(({ task, met }, i) => (
         <span key={task.id}>
           {i > 0 && ' · '}
-          <span style={struck || met ? { textDecoration: 'line-through', color: 'var(--muted-strong, var(--muted))' } : { color: 'var(--text)' }}>{task.id}</span>
+          <Box as="span" css-text-decoration={struck || met ? 'line-through' : undefined} css-color={struck || met ? 'muted-strong-muted' : 'text'}>
+            {task.id}
+          </Box>
         </span>
       ))}
     </>
@@ -440,25 +501,32 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
   const met = blockers.filter((b) => b.met)
   const why = `avoozl-frontier-why-${task.id}`
   return (
-    <div className="mb-2 rounded-[3px] border" style={{ maxWidth: 820, borderColor: 'var(--border)', background: 'var(--card)' }} data-frontier-row={task.id}>
-      <button
+    <Box css-max-width="820" css-border-color="border" css-background="card" mb="2" rounded="[3px]" border="all" data-frontier-row={task.id}>
+      <PlainButton
         type="button"
         aria-expanded={open}
         aria-controls={why}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full cursor-pointer items-baseline gap-2.5 px-3.5 py-2.5 text-left"
-        style={{ background: 'transparent' }}
+        css-background="transparent"
+        flex
+        wFull
+        cursorPointer
+        items="baseline"
+        gap="2.5"
+        px="3.5"
+        py="2.5"
+        align="left"
       >
-        <span className="flex-none text-[12px] font-bold" style={{ color: props.unlocked ? 'var(--accent)' : 'var(--warn, var(--muted))' }}>
+        <Box as="span" css-color={props.unlocked ? 'accent' : 'warn-muted'} flexNone size="12" weight="bold">
           {task.id}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[12px]" style={{ color: 'var(--text)' }}>
+        </Box>
+        <Box as="span" css-color="text" minW0 flex1 truncate size="12">
           {task.title}
-        </span>
+        </Box>
         <Chip task={task} />
-      </button>
+      </PlainButton>
       {open && (
-        <div id={why} className="px-3.5 pb-3 text-[10.5px] text-muted" style={{ paddingLeft: 30, lineHeight: 1.6 }} data-frontier-why>
+        <Box id={why} css-padding-left="30" css-line-height="1.6" px="3.5" pb="3" text105px tone="muted" data-frontier-why>
           {props.unlocked ? (
             <>
               All blockers satisfied: <Refs tasks={met} struck />
@@ -475,16 +543,16 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
             </>
           )}
           {' · '}
-          <button type="button" className="cursor-pointer underline underline-offset-2" style={{ color: 'var(--accent)', background: 'transparent' }} onClick={() => props.onOpenTree(task.id)}>
+          <PlainButton type="button" css-color="accent" css-background="transparent" cursorPointer underline underlineOffset2 onClick={() => props.onOpenTree(task.id)}>
             open tree →
-          </button>
+          </PlainButton>
           {' · '}
-          <button type="button" className="cursor-pointer underline underline-offset-2" style={{ color: 'var(--accent)', background: 'transparent' }} onClick={() => props.onOpen(task.id)}>
+          <PlainButton type="button" css-color="accent" css-background="transparent" cursorPointer underline underlineOffset2 onClick={() => props.onOpen(task.id)}>
             details
-          </button>
-        </div>
+          </PlainButton>
+        </Box>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -513,7 +581,12 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
     })
   }, [first, root.kind, root.id])
 
-  if (!tree || !layout) return <Hint as="p" size="sm">Nothing named {root.id} is in this workspace’s graph.</Hint>
+  if (!tree || !layout)
+    return (
+      <Hint as="p" size="sm">
+        Nothing named {root.id} is in this workspace’s graph.
+      </Hint>
+    )
   const label = root.kind === 'spec' ? `spec ${root.id}` : root.id
   const nodes = layout.nodes
   const focusNode = (id: string | null) => {
@@ -532,7 +605,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
       // A phone's one column goes by list order; the drawing by position.
       const order = [...nodes].sort((a, b) => a.x - b.x || a.y - b.y).map((n) => n.id)
       const at = order.indexOf(id)
-      const next = phone ? order[at + (event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1)] ?? null : nextNode(nodes, id, event.key)
+      const next = phone ? (order[at + (event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1)] ?? null) : nextNode(nodes, id, event.key)
       if (next) {
         event.preventDefault()
         focusNode(next)
@@ -543,31 +616,60 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
   const height = layout.height + 8
   return (
     <Stack gap={2} data-focus-tree={`${root.kind}:${root.id}`}>
-      <div className="flex flex-wrap items-baseline gap-x-3 text-[11px]" style={{ fontFamily: MONO, letterSpacing: '.1em', color: 'var(--muted-strong, var(--muted))' }}>
+      <Box css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" css-letter-spacing=".1em" css-color="muted-strong-muted" flex flexWrap items="baseline" gapX="3" size="11">
         <span data-tree-stat>
           tree of {label}: {tree.graph.tasks.length} {tree.graph.tasks.length === 1 ? 'node' : 'nodes'} · {tree.live} live {tree.live === 1 ? 'edge' : 'edges'}
         </span>
-        <span className="truncate" style={{ letterSpacing: 0, color: 'var(--text)' }}>
+        <Box as="span" css-letter-spacing="0" css-color="text" truncate>
           {rootTitle(graph, root)}
-        </span>
+        </Box>
         {root.kind === 'task' && (
-          <button type="button" className="cursor-pointer underline underline-offset-2" style={{ color: 'var(--accent)', background: 'transparent', letterSpacing: 0 }} onClick={() => props.onOpen(root)}>
+          <PlainButton
+            type="button"
+            css-color="accent"
+            css-background="transparent"
+            css-letter-spacing="0"
+            cursorPointer
+            underline
+            underlineOffset2
+            onClick={() => props.onOpen(root)}
+          >
             details
-          </button>
+          </PlainButton>
         )}
-      </div>
+      </Box>
       <div
         ref={box}
         className="overflow-auto rounded border"
         // overflow inline too: panning needs a real scroll box, host CSS or not.
-        style={{ borderColor: 'var(--border)', background: 'var(--bg)', overflow: 'auto', maxHeight: phone ? undefined : '70vh', cursor: pan.panning ? 'grabbing' : 'grab', userSelect: pan.panning ? 'none' : undefined }}
+        style={{
+          borderColor: 'var(--border)',
+          background: 'var(--bg)',
+          overflow: 'auto',
+          maxHeight: phone ? undefined : '70vh',
+          cursor: pan.panning ? 'grabbing' : 'grab',
+          userSelect: pan.panning ? 'none' : undefined,
+        }}
         data-tree-scroll
         data-panning={pan.panning || undefined}
         {...pan.handlers}
       >
         {phone ? (
           // A phone: one column of cards, upstream first, the page scrolls.
-          <ol role="group" aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`} aria-describedby={HINT_ID} className="m-0 flex flex-col gap-2 p-2" style={{ listStyle: 'none', fontFamily: MONO }} data-tree-list>
+          <Box
+            role="group"
+            aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`}
+            aria-describedby={HINT_ID}
+            as="ol"
+            css-list-style="none"
+            css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
+            m0
+            flex
+            flexCol
+            gap="2"
+            p="2"
+            data-tree-list
+          >
             {[...nodes]
               .sort((a, b) => a.x - b.x || a.y - b.y)
               .map((node) => {
@@ -577,8 +679,8 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                 const draft = node.state === 'draft'
                 const waits = layout.edges.filter((e) => e.to === node.id)
                 return (
-                  <li key={node.id} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined} style={{ opacity: faded ? 0.5 : draft ? 0.65 : 1 }}>
-                    <div
+                  <Box key={node.id} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined} as="li" css-opacity={faded ? 0.5 : draft ? 0.65 : 1}>
+                    <Box
                       role="button"
                       tabIndex={node.id === cursor ? 0 : -1}
                       aria-label={`${node.id}, ${STATE_WORD[node.state]}${faded ? ', satisfied' : ''}${isRoot ? ', root' : ''}: ${task.title}`}
@@ -586,23 +688,44 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                       onClick={() => props.onReRoot({ kind: 'task', id: node.id })}
                       onKeyDown={(e) => onKey(e, node.id)}
                       onFocus={() => setCursor(node.id)}
-                      className="avoozl-tree-row flex cursor-pointer flex-col gap-0.5 rounded-[3px] border px-3 py-2"
-                      style={{ background: 'var(--card)', borderColor: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))', borderWidth: isRoot ? 2 : 1, borderStyle: draft ? 'dashed' : 'solid' }}
+                      data-tree-row
+                      css-background="card"
+                      css-border-color={isRoot ? 'accent' : 'border-strong-border'}
+                      css-border-width={isRoot ? '2' : '1'}
+                      css-border-style={draft ? 'dashed' : 'solid'}
+                      flex
+                      cursorPointer
+                      flexCol
+                      gap="0.5"
+                      rounded="[3px]"
+                      border="all"
+                      px="3"
+                      py="2"
                     >
-                      <span className="flex items-baseline gap-2">
-                        <span className="text-[12px] font-bold" style={{ color: faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state], textDecoration: faded ? 'line-through' : undefined }}>
+                      <Box as="span" flex items="baseline" gap="2">
+                        <Box
+                          as="span"
+                          css-color={faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state]}
+                          css-text-decoration={faded ? 'line-through' : undefined}
+                          size="12"
+                          weight="bold"
+                        >
                           {node.id}
-                        </span>
-                        <span className="ml-auto text-[9px]" style={{ color: COLOR[node.state], letterSpacing: '.1em' }}>
+                        </Box>
+                        <Box as="span" css-color={COLOR[node.state]} css-letter-spacing=".1em" ml="auto" size="9">
                           {tree.ghosts.has(node.id) ? 'MET' : STATE_CHIP[node.state]}
-                        </span>
-                        <button
+                        </Box>
+                        <PlainButton
                           type="button"
                           tabIndex={-1}
                           aria-label={`Open ${node.id} details`}
                           data-tree-open={node.id}
-                          className="inline-flex cursor-pointer items-center p-0.5"
-                          style={{ color: 'var(--muted)', background: 'transparent' }}
+                          css-color="muted"
+                          css-background="transparent"
+                          inlineFlex
+                          cursorPointer
+                          items="center"
+                          p="0.5"
                           onClick={(e) => {
                             e.stopPropagation()
                             setCursor(node.id)
@@ -610,124 +733,143 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                           }}
                         >
                           <ExternalLink size={13} aria-hidden="true" />
-                        </button>
-                      </span>
-                      <span className="text-[11px]" style={{ color: 'var(--text)' }}>
+                        </PlainButton>
+                      </Box>
+                      <Box as="span" css-color="text" size="11">
                         {task.title}
-                      </span>
+                      </Box>
                       {waits.length > 0 && (
-                        <span className="text-[10px] text-muted">
+                        <Box as="span" size="10" tone="muted">
                           waits on{' '}
                           {waits.map((e, i) => (
-                            <span key={e.from} style={e.satisfied ? { textDecoration: 'line-through' } : undefined}>
+                            <Box key={e.from} as="span" css-text-decoration={e.satisfied ? 'line-through' : undefined}>
                               {i > 0 && ' · '}
                               {e.from}
                               {e.kind === 'sequence' ? ' (sequence)' : ''}
-                            </span>
+                            </Box>
                           ))}
-                        </span>
+                        </Box>
                       )}
-                    </div>
-                  </li>
+                    </Box>
+                  </Box>
                 )
               })}
-          </ol>
+          </Box>
         ) : (
-        <svg
-          role="group"
-          aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`}
-          aria-describedby={HINT_ID}
-          width="100%"
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="xMinYMin meet"
-          style={{ display: 'block', fontFamily: MONO, maxWidth: width, minWidth: Math.round(width * 0.85) }}
-        >
-          <defs>
-            <marker id="avoozl-tree-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={6} markerHeight={6} orient="auto">
-              <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--muted)' }} />
-            </marker>
-          </defs>
-          {layout.edges.map((edge) => {
-            const target = nodes.find((n) => n.id === edge.to)
-            const color = edge.satisfied ? 'var(--muted-strong, var(--muted))' : COLOR[target?.state ?? 'waiting']
-            return (
-              <path
-                key={`${edge.from}->${edge.to}`}
-                d={edgePath(edge.points)}
-                fill="none"
-                data-tree-edge={`${edge.from}->${edge.to}`}
-                data-met={edge.satisfied || undefined}
-                strokeWidth={1.6}
-                strokeDasharray={edge.kind === 'sequence' ? '3 6' : edge.satisfied ? '2 5' : undefined}
-                markerEnd="url(#avoozl-tree-arrow)"
-                style={{ stroke: color, opacity: edge.satisfied ? 0.4 : 0.8 }}
-              />
-            )
-          })}
-          {nodes.map((node) => {
-            const task = node.task!
-            const isRoot = tree.roots.has(node.id)
-            const faded = tree.ghosts.has(node.id) || node.state === 'done'
-            const draft = node.state === 'draft'
-            const color = COLOR[node.state]
-            return (
-              <g key={node.id} transform={`translate(${node.x},${node.y})`} opacity={faded ? 0.5 : draft ? 0.65 : 1} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined}>
+          <SvgRoot
+            role="group"
+            aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`}
+            aria-describedby={HINT_ID}
+            width="100%"
+            viewBox={`0 0 ${width} ${height}`}
+            preserveAspectRatio="xMinYMin meet"
+            css-display="block"
+            css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
+            css-max-width={width}
+            css-min-width={Math.round(width * 0.85)}
+          >
+            <defs>
+              <marker id="avoozl-tree-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={6} markerHeight={6} orient="auto">
+                <SvgPath d="M0,0 L10,5 L0,10 z" css-fill="muted" />
+              </marker>
+            </defs>
+            {layout.edges.map((edge) => {
+              const target = nodes.find((n) => n.id === edge.to)
+              const color = edge.satisfied ? 'var(--muted-strong, var(--muted))' : COLOR[target?.state ?? 'waiting']
+              return (
+                <SvgPath
+                  key={`${edge.from}->${edge.to}`}
+                  d={edgePath(edge.points)}
+                  fill="none"
+                  data-tree-edge={`${edge.from}->${edge.to}`}
+                  data-met={edge.satisfied || undefined}
+                  strokeWidth={1.6}
+                  strokeDasharray={edge.kind === 'sequence' ? '3 6' : edge.satisfied ? '2 5' : undefined}
+                  markerEnd="url(#avoozl-tree-arrow)"
+                  css-stroke={color}
+                  css-opacity={edge.satisfied ? '0.4' : '0.8'}
+                />
+              )
+            })}
+            {nodes.map((node) => {
+              const task = node.task!
+              const isRoot = tree.roots.has(node.id)
+              const faded = tree.ghosts.has(node.id) || node.state === 'done'
+              const draft = node.state === 'draft'
+              const color = COLOR[node.state]
+              return (
                 <g
-                  role="button"
-                  tabIndex={node.id === cursor ? 0 : -1}
-                  aria-label={`${node.id}, ${STATE_WORD[node.state]}${faded ? ', satisfied' : ''}${isRoot ? ', root' : ''}: ${task.title}`}
-                  data-tree-node={node.id}
-                  onClick={() => props.onReRoot({ kind: 'task', id: node.id })}
-                  onKeyDown={(e) => onKey(e, node.id)}
-                  onFocus={() => setCursor(node.id)}
-                  style={{ cursor: 'pointer', outline: 'none' }}
-                  className="avoozl-tree-node"
+                  key={node.id}
+                  transform={`translate(${node.x},${node.y})`}
+                  opacity={faded ? 0.5 : draft ? 0.65 : 1}
+                  data-tree-card={node.id}
+                  data-root={isRoot || undefined}
+                  data-draft={draft || undefined}
                 >
-                  {isRoot && <rect x={-4} y={-4} width={CARD.w + 8} height={CARD.h + 8} rx={6} fill="none" style={{ stroke: 'var(--accent)', opacity: 0.35 }} />}
-                  <rect
-                    width={CARD.w}
-                    height={CARD.h}
-                    rx={3}
-                    strokeWidth={isRoot ? 2 : 1.2}
-                    strokeDasharray={draft ? '5 3' : undefined}
-                    style={{ fill: 'var(--card)', stroke: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))' }}
-                  />
-                  <text x={11} y={20} fontSize={13} fontWeight={700} textDecoration={faded ? 'line-through' : undefined} style={{ fill: faded ? 'var(--muted-strong, var(--muted))' : color }}>
-                    {clip(node.id, 18)}
-                  </text>
-                  <text x={CARD.w - 30} y={20} fontSize={10.5} letterSpacing=".1em" textAnchor="end" style={{ fill: color }}>
-                    {faded && tree.ghosts.has(node.id) ? 'MET' : STATE_CHIP[node.state]}
-                  </text>
-                  <text x={11} y={39} fontSize={11.5} style={{ fill: 'var(--muted)' }}>
-                    {clip(task.title, 24)}
-                  </text>
+                  <SvgG
+                    role="button"
+                    tabIndex={node.id === cursor ? 0 : -1}
+                    aria-label={`${node.id}, ${STATE_WORD[node.state]}${faded ? ', satisfied' : ''}${isRoot ? ', root' : ''}: ${task.title}`}
+                    data-tree-node={node.id}
+                    onClick={() => props.onReRoot({ kind: 'task', id: node.id })}
+                    onKeyDown={(e) => onKey(e, node.id)}
+                    onFocus={() => setCursor(node.id)}
+                    css-cursor="pointer"
+                    css-outline="none"
+                  >
+                    {isRoot && <SvgRect x={-4} y={-4} width={CARD.w + 8} height={CARD.h + 8} rx={6} fill="none" css-stroke="accent" css-opacity="0.35" />}
+                    <SvgRect
+                      width={CARD.w}
+                      height={CARD.h}
+                      rx={3}
+                      strokeWidth={isRoot ? 2 : 1.2}
+                      strokeDasharray={draft ? '5 3' : undefined}
+                      css-fill="card"
+                      css-stroke={isRoot ? 'accent' : 'border-strong-border'}
+                    />
+                    <SvgText
+                      x={11}
+                      y={20}
+                      fontSize={13}
+                      fontWeight={700}
+                      textDecoration={faded ? 'line-through' : undefined}
+                      css-fill={faded ? 'var(--muted-strong, var(--muted))' : color}
+                    >
+                      {clip(node.id, 18)}
+                    </SvgText>
+                    <SvgText x={CARD.w - 30} y={20} fontSize={10.5} letterSpacing=".1em" textAnchor="end" css-fill={color}>
+                      {faded && tree.ghosts.has(node.id) ? 'MET' : STATE_CHIP[node.state]}
+                    </SvgText>
+                    <SvgText x={11} y={39} fontSize={11.5} css-fill="muted">
+                      {clip(task.title, 24)}
+                    </SvgText>
+                  </SvgG>
+                  <SvgG
+                    role="button"
+                    tabIndex={-1}
+                    aria-label={`Open ${node.id} details`}
+                    data-tree-open={node.id}
+                    transform={`translate(${CARD.w - 24},4)`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setCursor(node.id)
+                      props.onOpen({ kind: 'task', id: node.id })
+                    }}
+                    css-cursor="pointer"
+                  >
+                    <title>Open {node.id} details</title>
+                    <SvgRect width={20} height={20} rx={4} css-fill="transparent" />
+                    <SvgG transform="translate(4,4)" css-color="muted">
+                      <ExternalLink size={12} aria-hidden="true" />
+                    </SvgG>
+                  </SvgG>
                 </g>
-                <g
-                  role="button"
-                  tabIndex={-1}
-                  aria-label={`Open ${node.id} details`}
-                  data-tree-open={node.id}
-                  transform={`translate(${CARD.w - 24},4)`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setCursor(node.id)
-                    props.onOpen({ kind: 'task', id: node.id })
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <title>Open {node.id} details</title>
-                  <rect width={20} height={20} rx={4} style={{ fill: 'transparent' }} />
-                  <g transform="translate(4,4)" style={{ color: 'var(--muted)' }}>
-                    <ExternalLink size={12} aria-hidden="true" />
-                  </g>
-                </g>
-              </g>
-            )
-          })}
-        </svg>
+              )
+            })}
+          </SvgRoot>
         )}
       </div>
-      <style>{`.avoozl-tree-node:focus-visible > rect:last-of-type{stroke:var(--accent);stroke-width:2.5}.avoozl-tree-row:focus-visible{outline:2px solid var(--accent);outline-offset:1px}[data-tree-scroll][data-panning] *{cursor:grabbing!important}`}</style>
+      <TreeStyle />
     </Stack>
   )
 }
@@ -757,14 +899,16 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
   const row = (label: string, value: ReactNode) => (
     <>
       <Hint as="dt">{label}</Hint>
-      <dd className="m-0">{value}</dd>
+      <Box as="dd" m0>
+        {value}
+      </Box>
     </>
   )
   const openTree = (id: string) => props.onTree({ kind: 'task', id })
   const link = (id: string) => (
-    <button type="button" className="cursor-pointer underline" style={{ background: 'transparent', color: 'var(--text)' }} onClick={() => props.onTree({ kind: 'task', id })}>
+    <PlainButton type="button" css-background="transparent" css-color="text" cursorPointer underline onClick={() => props.onTree({ kind: 'task', id })}>
       {id}
-    </button>
+    </PlainButton>
   )
   return (
     <Modal
@@ -786,12 +930,12 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
       }
     >
       {draftSpec && (
-        <p className="m-0 mb-2 rounded border border-dashed px-3 py-2 text-sm" style={{ borderColor: 'var(--border-strong, var(--border))' }} data-draft-note>
+        <Box as="p" css-border-color="border-strong-border" m0 mb="2" rounded="base" border="all" borderDashed px="3" py="2" size="sm" data-draft-note>
           Spec <code>{draftSpec.name}</code> is a draft ({draftSpec.status}). {task ? 'This task' : 'Its tasks'} cannot start until the spec is approved in Specs.
-        </p>
+        </Box>
       )}
       {task ? (
-        <dl className="m-0 grid gap-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr', columnGap: 12 }}>
+        <Box as="dl" css-grid-template-columns="max-content-1fr" css-column-gap="12" m0 grid gap="1" size="sm">
           {row('Task', <code>{task.id}</code>)}
           {row('State', <Chip task={task} />)}
           {plan ? row('Spec', plan.title) : task.draft && row('Spec', draftSpec?.title ?? task.draft.spec)}
@@ -802,24 +946,28 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
           {task.decision && row('Decision', task.decision)}
           {waitsOn.length > 0 && row('Waits on', <EdgeList label="Waits on" items={waitsOn.map((e) => ({ id: e.from, text: e.from, met: e.satisfied }))} onOpen={openTree} />)}
           {blocks.length > 0 && row('Blocks', <EdgeList label="Blocks" items={blocks.map((e) => ({ id: e.to, text: e.to }))} onOpen={openTree} />)}
-        </dl>
+        </Box>
       ) : item.kind === 'spec' ? (
-        <div className="flex flex-col gap-2 text-sm">
+        <Box flex flexCol gap="2" size="sm">
           <Hint as="p" flush>
             Spec <code>{item.id}</code> · {members.length} tasks · {members.filter((t) => nodeState(t) === 'done').length} done
           </Hint>
-          <ul className="m-0 flex flex-col gap-1 p-0" style={{ listStyle: 'none' }}>
+          <Box as="ul" css-list-style="none" m0 flex flexCol gap="1" p="0">
             {members.map((t) => (
-              <li key={t.id} className="flex items-baseline gap-2">
+              <Box key={t.id} as="li" flex items="baseline" gap="2">
                 {link(t.id)}
-                <span className="min-w-0 flex-1 truncate">{t.title}</span>
+                <Box as="span" minW0 flex1 truncate>
+                  {t.title}
+                </Box>
                 <Chip task={t} />
-              </li>
+              </Box>
             ))}
-          </ul>
-        </div>
+          </Box>
+        </Box>
       ) : (
-        <Hint as="p" size="sm" flush>{item.id} is not in this workspace’s graph.</Hint>
+        <Hint as="p" size="sm" flush>
+          {item.id} is not in this workspace’s graph.
+        </Hint>
       )}
     </Modal>
   )

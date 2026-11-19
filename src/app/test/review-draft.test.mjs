@@ -19,6 +19,11 @@ import {
   reviewDraftsView,
 } from "../review-draft.mjs";
 import { fixture } from "./fixtures.mjs";
+import { Operations } from "../operations.mjs";
+import { isPosted } from "../github-posted.mjs";
+import os from "node:os";
+import { ROLE_TABLE } from "../role-table.mjs";
+import { finishProcessSession, writeSnapshot } from "../executors/process.mjs";
 
 const REPO = "example/code",
   HEAD = "a".repeat(40),
@@ -32,7 +37,7 @@ const policy = (extra = {}) =>
   normalizeGitHubPolicy({
     mode: "single-repo",
     repositories: {
-      [REPO]: { baseBranch: "main", coder: "issue-radar", ...extra },
+      [REPO]: { baseBranch: "main", ...extra },
     },
   });
 
@@ -514,4 +519,155 @@ test("the review draft agent reads and has one way to GitHub", () => {
     "gh pr comment 5 --repo example/code --body hi",
   ])
     assert.ok(!allowed(command), command);
+});
+
+// nk-4.2 (NK4.3): review drafts as a `process` child. It reads the pull
+// request snapshot and hands back its draft; Avoozl posts one pending review
+// for the recorded head only, and never submits it.
+const PATCH =
+  "@@ -1,3 +1,4 @@\n line one\n-line two\n+line 2\n+line 3\n line four\n";
+async function childDraft(t, { moved = false, comments } = {}) {
+  const { store } = fixture(t),
+    github = fake();
+  github.listPullRequestFiles = async () => ({
+    files: [{ filename: "src/greet.mjs", status: "modified", patch: PATCH }],
+    truncated: false,
+  });
+  github.pullRequestFeedback = async (_repository, [number]) => ({
+    [number]: {
+      number,
+      head: moved ? NEXT : HEAD,
+      base: "main",
+      checks: [],
+      reviews: [],
+      threads: [],
+      comments: [],
+    },
+  });
+  github.label();
+  await step(store, github);
+  const config = { roles: { reviewDraft: { harness: "fake-cli" } } };
+  const [chat] = reviewDraftDispatches(store),
+    [child] = reviewDraftDispatches(store, { config });
+  assert.equal(chat.executor, "kirocrew");
+  assert.equal(child.executor, "process");
+  assert.equal(child.brief, chat.brief);
+  assert.equal(
+    child.worktree,
+    null,
+    "its folder is the snapshot the drain fills",
+  );
+  // What the drain does before the child starts.
+  const snap = await ROLE_TABLE.reviewDraft.snapshot(store, child, { github });
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-draft-"));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  writeSnapshot(folder, snap.files);
+  bindSession(store, {
+    taskId: child.task,
+    slot: "process-d",
+    role: "review-draft",
+    attempt: 1,
+    source: "tick",
+  });
+  store.put("session_bindings", {
+    ...store.get("session_bindings", "process-d"),
+    snapshotHead: snap.head,
+  });
+  if (moved) github.pull.head.sha = NEXT;
+  fs.mkdirSync(path.join(folder, ".avoozl", "output"), { recursive: true });
+  fs.writeFileSync(
+    path.join(folder, ".avoozl", "output", "draft.json"),
+    JSON.stringify({
+      body: DRAFT.body,
+      comments: comments ?? [
+        { path: "src/greet.mjs", line: 2, body: "Say why it is 2." },
+        { path: "src/greet.mjs", line: 3, start_line: 2, body: "Add a test." },
+      ],
+    }),
+  );
+  const ops = {
+    github,
+    execute: (name, input, _revision, context) => {
+      assert.equal(name, "reviewdraft.post");
+      return postReviewDraft(store, github, policy(), input, context.caller);
+    },
+  };
+  const finish = () =>
+    finishProcessSession(
+      ops,
+      store.get("session_bindings", "process-d"),
+      { state: "done", text: "", output: "draft.json", worktree: folder },
+      store,
+    );
+  return { store, github, child, finish };
+}
+
+test("a child's draft is posted as one pending review and never submitted", async (t) => {
+  const { store, github, child, finish } = await childDraft(t);
+  const result = await finish();
+  assert.equal(result.pending, true);
+  const created = github.calls.filter(([kind]) => kind === "create");
+  assert.equal(created.length, 1);
+  assert.equal(created[0][2].body, DRAFT.body);
+  assert.equal(created[0][2].commit_id, HEAD);
+  assert.deepEqual(
+    created[0][2].comments.map((c) => [c.line, c.body]),
+    [
+      [2, "Say why it is 2."],
+      [3, "Add a test."],
+    ],
+  );
+  assert.equal(created[0][2].event, undefined, "never submitted");
+  assert.equal(store.get("receipts", child.task).state, "waiting");
+});
+
+test("a draft for a head that moved is kept and marked, and posts nothing", async (t) => {
+  const { store, github, child, finish } = await childDraft(t, { moved: true });
+  const result = await finish();
+  assert.equal(result.stale, true);
+  assert.deepEqual(
+    writes(github).filter(([kind]) => kind === "create"),
+    [],
+  );
+  const receipt = store.get("receipts", child.task);
+  assert.equal(receipt.state, "stale");
+  assert.equal(receipt.heldDraft.body, DRAFT.body);
+});
+
+test("a child's line comment outside the diff is dropped", async (t) => {
+  const { store, github, child, finish } = await childDraft(t, {
+    comments: [
+      { path: "src/greet.mjs", line: 3, body: "In the diff." },
+      { path: "src/greet.mjs", line: 40, body: "Outside it." },
+      { path: "src/other.mjs", line: 1, body: "Not in the pull request." },
+    ],
+  });
+  await finish();
+  const [created] = github.calls.filter(([kind]) => kind === "create");
+  assert.deepEqual(
+    created[2].comments.map((c) => c.body),
+    ["In the diff."],
+  );
+  assert.equal(store.get("receipts", child.task).droppedComments, 2);
+});
+
+test("a draft posted through the operation goes out as the person's text", async (t) => {
+  // The person submits the pending review under their login, so it carries
+  // no posted marker and pull request feedback reads it.
+  const { store, github } = await bound(t),
+    ops = new Operations(store, { github });
+  const result = await ops.execute(
+    "reviewdraft.post",
+    {
+      body: "Looks close, @bob.",
+      comments: [{ path: "src/greet.mjs", line: 4, body: "Ask @carol." }],
+    },
+    undefined,
+    { caller: { sessionKey: "dashboard:slot-d" }, mcp: true },
+  );
+  assert.equal(result.posted, true);
+  const [, , review] = github.calls.find(([kind]) => kind === "create");
+  assert.equal(review.body, "Looks close, @bob.");
+  assert.equal(review.comments[0].body, "Ask @carol.");
+  assert.equal(isPosted(review.body), false);
 });

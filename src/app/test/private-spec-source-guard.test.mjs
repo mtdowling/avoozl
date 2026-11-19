@@ -40,7 +40,6 @@ const files = (title) =>
 async function setup(t, key) {
   const context = await workspace(t, {
       mode: "single-repo",
-      coder: "issue-radar",
     }),
     file = path.join(context.root, ".avoozl.json"),
     policy = JSON.parse(fs.readFileSync(file, "utf8")),

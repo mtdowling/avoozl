@@ -3,19 +3,34 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ROLES, harnessOptions, harnessTakesModel, roleIsSet, roleProblem, toRoles } from '../src/models-api.ts'
+import { ROLES, harnessOptions, harnessTakesModel, provedLine, roleIsSet, roleProblem, toRoles } from '../src/models-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
 test('every role is one row, and auto or blank fields leave a row out', () => {
   assert.deepEqual(
     ROLES.map((r) => r.key),
-    ['worker', 'falsifier', 'planner', 'planReviewer', 'retro', 'reviewDraft', 'verifier', 'reviewer', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview'],
+    [
+      'worker',
+      'falsifier',
+      'planner',
+      'planReviewer',
+      'retro',
+      'reviewDraft',
+      'verifier',
+      'reviewer',
+      'responder',
+      'taskSummary',
+      'issuePlanner',
+      'planAnswer',
+      'prReview',
+      'assist',
+    ],
   )
   // The roles added for harnesses pick no model.
   assert.deepEqual(
     ROLES.filter((r) => !r.model).map((r) => r.key),
-    ['verifier', 'reviewer', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview'],
+    ['verifier', 'reviewer', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview', 'assist'],
   )
   assert.deepEqual(
     ROLES.filter((r) => r.agent).map((r) => r.key),
@@ -46,8 +61,7 @@ test('Settings > Models says person-only refusal in a Kiro Crew chat is only a s
 
 test('Switch model, its dialog and the bulk switch calls are gone from the page', () => {
   assert.equal(existsSync(new URL('../src/SwitchModel.tsx', import.meta.url)), false)
-  for (const name of ['App.tsx', 'providers-api.ts'])
-    assert.doesNotMatch(source(name), /SwitchModel|provider\.switch/, name)
+  for (const name of ['App.tsx', 'providers-api.ts']) assert.doesNotMatch(source(name), /SwitchModel|provider\.switch/, name)
 })
 
 // R98.3: a harness per role: auto, the Kiro Crew chat, or this machine's files.
@@ -68,6 +82,27 @@ test('every role picks a harness: auto, the Kiro Crew chat, or this machine\u201
       { value: 'gone-cli', label: 'gone-cli (not on this machine)' },
     ],
   )
+})
+
+// NK6: a definition that cannot write its result is not offered for a
+// read-only role, says why, and is still offered for a write role.
+test('a definition with no way to write its result is offered only for write roles', () => {
+  const defs = [
+    { name: 'claude-code', approved: true, readRoles: null, proved: ['read', 'write'] },
+    { name: 'codex', approved: true, readRoles: 'codex names no resultAllow, so a read-only session cannot write its result file.', proved: ['write'] },
+  ]
+  assert.deepEqual(
+    harnessOptions(defs, '', 'read').map((o) => o.value),
+    ['auto', 'kirocrew', 'claude-code'],
+  )
+  assert.deepEqual(
+    harnessOptions(defs, '', 'write').map((o) => o.value),
+    ['auto', 'kirocrew', 'claude-code', 'codex'],
+  )
+  assert.match(roleProblem('verifier', { verifier: { harness: 'codex' } }, defs), /codex names no resultAllow/)
+  assert.equal(roleProblem('worker', { worker: { harness: 'codex' } }, defs), null)
+  assert.equal(provedLine(defs[0]), 'read: proved, write: proved')
+  assert.equal(provedLine(defs[1]), 'read: not proved, write: proved')
 })
 
 test('a role is default until a harness, agent or model is set, and an unusable combo is a problem', () => {

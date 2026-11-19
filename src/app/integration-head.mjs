@@ -23,7 +23,7 @@ const read = (store) => store.getMeta(META) ?? { entries: {}, landing: {} };
 
 // Check state of one head: red when a finished check failed, green when every
 // check passed and each required one ran, else pending.
-export function headState(checks, required) {
+function headState(checks, required) {
   if (checks.some((check) => check.done && !check.ok)) return "red";
   return green(checks, required) ? "green" : "pending";
 }

@@ -19,7 +19,6 @@ import { isArchivedTask } from "../browse-model.mjs";
 import { statusComplete } from "../query.mjs";
 import {
   completionReached,
-  isGate,
   isManual,
   isRefused,
   supersedingTask,
@@ -175,16 +174,6 @@ export function nextView(store, { policy, github = null }) {
         ...item,
         reason: "manual",
         detail: `Waiting for a person: ${title(task)}`,
-      });
-      continue;
-    }
-    // A gate is read by its plugin, never started (RC23.3): it waits.
-    if (isGate(task)) {
-      const blockedBy = blockersOf(task);
-      result.waiting.push({
-        ...item,
-        blockedBy,
-        ...(blockedBy.length ? {} : { reason: "tracker gate" }),
       });
       continue;
     }

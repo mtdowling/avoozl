@@ -4,15 +4,7 @@
 // can use (its exports are Badge, Btn, Card, CardTitle, Clickable,
 // EmptyState, Input, Modal, SegmentedControl and a few more, with untyped
 // props), so these use native elements and inline styles.
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from 'react'
+import { createContext, useCallback, useContext, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useAppApi, useChatLauncher } from '../host.ts'
 import { Btn } from './Btn'
 import { Card } from './Card'
@@ -22,20 +14,22 @@ import { useTaskDrawer } from '../drawer-context.ts'
 import { errorMessage } from '../workspace-api.ts'
 import { moreLabel, visibleCount } from '../paging.ts'
 import { Tooltip } from './Tooltip.tsx'
-import { Modal } from '../Modal.tsx'
+import { Modal } from './Modal.tsx'
 import { Button, type ButtonVariant } from './Button.tsx'
 import { linkHref } from '../views-api.ts'
 import { MoreMenu } from '../MoreMenu.tsx'
 import { usePhone } from '../list-detail.ts'
 import { ErrorText } from '../ui/ErrorText'
 import { Hint } from '../ui/Hint'
+import { PlainLink } from './Plain'
+import { Box, type LookProps } from './Box'
 
 export const ICON = 14
 
 // Danger: the theme's danger color, readable in light and dark.
-export const dangerStyle: CSSProperties = { color: 'var(--danger)', borderColor: 'var(--danger)' }
+export const DANGER = { 'css-color': 'danger', 'css-border-color': 'danger' } as const satisfies LookProps
 
-const row: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6 }
+const ROW = { 'css-display': 'inline-flex', 'css-align-items': 'center', 'css-gap': 6 } as const satisfies LookProps
 
 // A button with an icon before its text. `tooltip` says what it does when
 // the word alone doesn't.
@@ -47,7 +41,7 @@ export function IconLabel(props: {
   tooltip?: string
   primary?: boolean
   variant?: ButtonVariant
-  style?: CSSProperties
+  look?: LookProps
   'aria-label'?: string
 }) {
   const Icon = props.icon
@@ -61,7 +55,8 @@ export function IconLabel(props: {
           variant={props.variant ?? (props.primary ? 'primary' : 'default')}
           aria-label={props['aria-label']}
           aria-describedby={describedBy}
-          style={{ ...row, ...props.style }}
+          {...ROW}
+          {...props.look}
         >
           <Icon size={ICON} aria-hidden="true" />
           {props.children}
@@ -75,11 +70,11 @@ export function IconLabel(props: {
 // A separate `tooltip` text is also wired as its description.
 // Kiro Crew's compact button: small type, little vertical padding. For the
 // buttons inside a compact card (Open, Start, Copy values).
-export const COMPACT_BTN: CSSProperties = { ...row, padding: '1px 8px', fontSize: 12.5, lineHeight: '20px', minHeight: 0 }
+export const COMPACT = { ...ROW, 'css-padding': '1px-8px', 'css-font-size': '12.5', 'css-line-height': '20px', 'css-min-height': 0 } as const satisfies LookProps
 
 export function SmallBtn(props: { children: ReactNode; onClick?: () => void; primary?: boolean; disabled?: boolean; attrs?: Record<string, string | boolean | undefined> }) {
   return (
-    <Btn type="button" primary={props.primary} disabled={props.disabled} onClick={props.onClick} style={COMPACT_BTN} {...props.attrs}>
+    <Btn type="button" primary={props.primary} disabled={props.disabled} onClick={props.onClick} {...COMPACT} {...props.attrs}>
       {props.children}
     </Btn>
   )
@@ -91,29 +86,27 @@ export function IconLink(props: { icon: LucideIcon; to: string; label: string; t
   return (
     <Tooltip text={props.tooltip ?? props.label}>
       {(describedBy) => (
-        <a
+        <PlainLink
           href={linkHref(props.to)}
           aria-label={props.label}
           aria-describedby={props.tooltip && props.tooltip !== props.label ? describedBy : undefined}
           {...(props.external ? { target: '_blank', rel: 'noreferrer' } : {})}
-          className="rounded border"
-          style={{ ...row, padding: '3px 4px', lineHeight: 0, borderColor: 'var(--border)', color: 'inherit' }}
+          {...ROW}
+          css-padding="3px-4px"
+          css-line-height="0"
+          css-border-color="border"
+          css-color="inherit"
+          rounded="base"
+          border="all"
         >
           <Icon size={ICON} aria-hidden="true" />
-        </a>
+        </PlainLink>
       )}
     </Tooltip>
   )
 }
 
-export function IconBtn(props: {
-  icon: LucideIcon
-  label: string
-  tooltip?: string
-  onClick?: () => void
-  disabled?: boolean
-  style?: CSSProperties
-}) {
+export function IconBtn(props: { icon: LucideIcon; label: string; tooltip?: string; onClick?: () => void; disabled?: boolean; look?: LookProps }) {
   const Icon = props.icon
   return (
     <Tooltip text={props.tooltip ?? props.label}>
@@ -124,7 +117,11 @@ export function IconBtn(props: {
           aria-describedby={props.tooltip && props.tooltip !== props.label ? describedBy : undefined}
           onClick={props.onClick}
           disabled={props.disabled}
-          style={{ ...row, padding: '3px 4px', minHeight: 0, lineHeight: 0, ...props.style }}
+          {...ROW}
+          css-padding="3px-4px"
+          css-min-height={0}
+          css-line-height="0"
+          {...props.look}
         >
           <Icon size={ICON} aria-hidden="true" />
         </Btn>
@@ -225,7 +222,7 @@ export function DangerBtn(props: {
           aria-describedby={props.tooltip ? describedBy : undefined}
           disabled={props.disabled}
           onClick={() => void ask(props.confirm).then((yes) => yes && props.onConfirm())}
-          style={row}
+          {...ROW}
         >
           {Icon && <Icon size={ICON} aria-hidden="true" />}
           {props.children}
@@ -282,27 +279,27 @@ export function SectionBox(props: { id: string; title: ReactNode; open?: boolean
   const body = `avoozl-box-${props.id}`
   return (
     <section data-section-box={props.id} data-open={open ? 'true' : 'false'}>
-    <Card className="flex flex-col gap-2">
-      <h3 className="m-0 text-sm font-semibold">
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={body}
-          onClick={() => setOpen(!open)}
-          className="flex w-full items-center gap-2 text-left"
-          style={{ background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer' }}
-          data-section-toggle={props.id}
-        >
-          <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' }}>
-            <ChevronRight size={ICON} />
-          </span>
-          {props.title}
-        </button>
-      </h3>
-      <div id={body} hidden={!open}>
-        {props.children}
-      </div>
-    </Card>
+      <Card flex flexCol gap="2">
+        <h3 className="m-0 text-sm font-semibold">
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={body}
+            onClick={() => setOpen(!open)}
+            className="flex w-full items-center gap-2 text-left"
+            style={{ background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer' }}
+            data-section-toggle={props.id}
+          >
+            <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' }}>
+              <ChevronRight size={ICON} />
+            </span>
+            {props.title}
+          </button>
+        </h3>
+        <div id={body} hidden={!open}>
+          {props.children}
+        </div>
+      </Card>
     </section>
   )
 }
@@ -429,10 +426,17 @@ export function AskForHelp(props: { workspaceId: string | null; help: HelpSeed; 
 // A task's title as a link that opens its drawer (a Back step), in every
 // list of running or in-flight tasks. The page's link style: underlined
 // text on a native button, so it takes the browser's focus ring.
-export function TaskTitleLink(props: { id: string; title: string; className?: string }) {
+export function TaskTitleLink(props: { id: string; title: string; size?: 'xs' | 'sm' | 'base'; weight?: 'medium' | 'semibold'; tight?: boolean }) {
   const drawer = useTaskDrawer()
   return (
-    <button type="button" className={`min-w-0 text-left underline ${props.className ?? ''}`} onClick={() => drawer.openTask(props.id)} data-task-title={props.id}>
+    <button
+      type="button"
+      className={['min-w-0 text-left underline', props.size && `text-${props.size}`, props.weight && `font-${props.weight}`, props.tight && 'leading-tight']
+        .filter(Boolean)
+        .join(' ')}
+      onClick={() => drawer.openTask(props.id)}
+      data-task-title={props.id}
+    >
       {props.title}
     </button>
   )
@@ -494,7 +498,8 @@ export function SectionHeading(props: {
   // On a phone, the actions go into a More menu so the heading stays one row.
   phoneMenu?: boolean
   blurb?: ReactNode
-  className?: string
+  // Space under the heading, from the scale (`mb="2"`).
+  mb?: '0' | '1' | '2' | '3'
 }) {
   const level = props.level ?? 3
   const phone = usePhone()
@@ -502,7 +507,7 @@ export function SectionHeading(props: {
   const H = `h${level}` as 'h2' | 'h3' | 'h4'
   const Icon = props.view ? VIEW_ICONS[props.view] : props.icon
   return (
-    <div className={props.className} data-section-heading={level}>
+    <Box mb={props.mb} data-section-heading={level}>
       <div className={`flex items-center gap-x-3 gap-y-2 ${menu ? 'flex-nowrap' : 'flex-wrap'}`}>
         <div className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 ${menu ? 'flex-1' : ''}`} data-heading-title>
           <H id={props.id} className={`m-0 flex min-w-0 items-center gap-2 font-semibold leading-snug ${HEADING_SIZE[level]}`} style={{ overflowWrap: 'anywhere' }}>
@@ -517,10 +522,12 @@ export function SectionHeading(props: {
               {props.actions}
             </div>
           </MoreMenu>
-        ) : props.actions && (
-          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2" style={props.wideActions ? { width: '100%' } : undefined} data-heading-actions>
-            {props.actions}
-          </div>
+        ) : (
+          props.actions && (
+            <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2" style={props.wideActions ? { width: '100%' } : undefined} data-heading-actions>
+              {props.actions}
+            </div>
+          )
         )}
       </div>
       {props.blurb && (
@@ -528,14 +535,34 @@ export function SectionHeading(props: {
           {props.blurb}
         </p>
       )}
-    </div>
+    </Box>
   )
 }
 
 // A top-level view's page heading: its icon, then its word. The icon is the
 // same one its nav tab shows, sized to the text and hidden from readers.
-export function ViewHeading(props: { id: string; view: keyof typeof VIEW_ICONS; children: ReactNode; actions?: ReactNode; meta?: ReactNode; wideActions?: boolean; phoneMenu?: boolean; level?: 2 | 3 }) {
-  return <SectionHeading level={props.level ?? 2} id={props.id} view={props.view} title={props.children} meta={props.meta} actions={props.actions} wideActions={props.wideActions} phoneMenu={props.phoneMenu} />
+export function ViewHeading(props: {
+  id: string
+  view: keyof typeof VIEW_ICONS
+  children: ReactNode
+  actions?: ReactNode
+  meta?: ReactNode
+  wideActions?: boolean
+  phoneMenu?: boolean
+  level?: 2 | 3
+}) {
+  return (
+    <SectionHeading
+      level={props.level ?? 2}
+      id={props.id}
+      view={props.view}
+      title={props.children}
+      meta={props.meta}
+      actions={props.actions}
+      wideActions={props.wideActions}
+      phoneMenu={props.phoneMenu}
+    />
+  )
 }
 
 // The nav tab label: the view's icon, then its word.

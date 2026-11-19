@@ -16,10 +16,7 @@ const root = fileURLToPath(new URL("../../../", import.meta.url)),
 function isolatedEnv(dir) {
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
   for (const name of Object.keys(env))
-    if (
-      /^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_|^NUPP_WORKSPACE$|^PORT$/.test(name)
-    )
-      delete env[name];
+    if (/^AVOOZL_|^PORT$/.test(name)) delete env[name];
   return env;
 }
 
@@ -184,13 +181,7 @@ test("the packaged MCP server lists the plans tools and ships no runner hook", (
   const names = JSON.parse(listed.trim().split("\n")[0]).result.tools.map(
     (tool) => tool.name,
   );
-  for (const name of [
-    "plans_next",
-    "plans_claim_task",
-    "plans_retry_delivery",
-    "plans_supersede_task",
-    "plans_post_reply",
-  ])
+  for (const name of ["plans_view", "plans_session", "plans_task"])
     assert.ok(names.includes(name), name);
   assert.equal(
     fs.existsSync(path.join(app, "hooks", "avoozl-runner.json")),
@@ -224,7 +215,7 @@ test("the MCP launcher names its crew home when the launch env has none", () => 
   assert.equal(run({ KIROCREW_HOME: "/elsewhere" }), "/elsewhere");
 });
 
-test("every plans_* tool a brief, agent, cron or skill names is listed", () => {
+test("every plans_* tool a brief, prompt, agent, cron or skill names is listed", () => {
   const dir = temporaryDirectory();
   const listed = execFileSync(
     "python3",
@@ -240,7 +231,8 @@ test("every plans_* tool a brief, agent, cron or skill names is listed", () => {
   const names = new Set(
     JSON.parse(listed.trim().split("\n")[0]).result.tools.map((t) => t.name),
   );
-  // Briefs and nudges are written in src/app; agents mount tools by name.
+  // Briefs, nudges, skills and agent metadata are in src/app, role prompts in
+  // prompts/; agents mount tools by name.
   const files = (dir, test) =>
     fs
       .readdirSync(dir, { recursive: true })
@@ -251,6 +243,12 @@ test("every plans_* tool a brief, agent, cron or skill names is listed", () => {
       path.join(root, "src", "app"),
       (f) => /\.mjs$/.test(f) && !f.includes(`${path.sep}test${path.sep}`),
     ),
+    ...files(
+      path.join(root, "src", "app"),
+      (f) =>
+        /\.(md|json)$/.test(f) && !f.includes(`${path.sep}test${path.sep}`),
+    ),
+    ...files(path.join(root, "prompts"), (f) => f.endsWith(".md")),
     ...files(path.join(app, "agents"), (f) => f.endsWith(".json")),
     ...files(path.join(app, "crons"), (f) => f.endsWith(".py")),
     ...files(path.join(app, "skills"), (f) => f.endsWith(".md")),
@@ -265,7 +263,7 @@ test("every plans_* tool a brief, agent, cron or skill names is listed", () => {
   assert.deepEqual([...missing], []);
 });
 
-test("packaged MCP server answers plans_tick from any working directory", () => {
+test("packaged MCP server answers the tick from any working directory", () => {
   const dir = temporaryDirectory(),
     workspace = path.join(dir, "workspace");
   initializeWorkspace(workspace);
@@ -284,7 +282,10 @@ test("packaged MCP server answers plans_tick from any working directory", () => 
       jsonrpc: "2.0",
       id: 2,
       method: "tools/call",
-      params: { name: "plans_tick", arguments: { input: {} } },
+      params: {
+        name: "plans_maintain",
+        arguments: { action: "tick", input: {} },
+      },
     },
   ];
   const output = execFileSync(
@@ -325,7 +326,10 @@ test("packaged MCP server serves the catalog's default workspace when none is na
           jsonrpc: "2.0",
           id: 1,
           method: "tools/call",
-          params: { name: "plans_tick", arguments: { input: {} } },
+          params: {
+            name: "plans_maintain",
+            arguments: { action: "tick", input: {} },
+          },
         }) + "\n",
     },
   );
@@ -377,7 +381,7 @@ calls, folders = [], list(results.pop("folders", []))
 class Ctx:
     def call_tool(self, server, tool, args):
         calls.append(["call_tool", server, tool, args])
-        if tool == "plans_tick": return json.dumps(intents)
+        if tool == "plans_maintain": return json.dumps(intents)
         return json.dumps(results.get(tool, {"ok": True}))
     def list_session_folders(self):
         calls.append(["list_session_folders"]); return list(folders)
@@ -434,8 +438,8 @@ const tickCalls = (folders = {}) => [
   [
     "call_tool",
     "avoozl:avoozl",
-    "plans_tick",
-    { input: { cron: true, sessions: [], folders } },
+    "plans_maintain",
+    { action: "tick", input: { cron: true, sessions: [], folders } },
   ],
 ];
 const TICK = tickCalls();
@@ -465,8 +469,8 @@ test("tick cron hands every session status to the tick before it plans", () => {
     [
       "call_tool",
       "avoozl:avoozl",
-      "plans_tick",
-      { input: { cron: true, sessions, folders: {} } },
+      "plans_maintain",
+      { action: "tick", input: { cron: true, sessions, folders: {} } },
     ],
   ]);
   // An unreadable roster is not an empty one: the tick is told it saw nothing.
@@ -481,8 +485,8 @@ test("tick cron hands every session status to the tick before it plans", () => {
       [
         "call_tool",
         "avoozl:avoozl",
-        "plans_tick",
-        { input: { cron: true, folders: {} } },
+        "plans_maintain",
+        { action: "tick", input: { cron: true, folders: {} } },
       ],
     ],
   );
@@ -498,8 +502,8 @@ test("tick cron hands every session status to the tick before it plans", () => {
       [
         "call_tool",
         "avoozl:avoozl",
-        "plans_tick",
-        { input: { cron: true, folders: {} } },
+        "plans_maintain",
+        { action: "tick", input: { cron: true, folders: {} } },
       ],
     ],
   );
@@ -599,8 +603,9 @@ test("tick cron binds each session before its brief, then messages; notices stay
     [
       "call_tool",
       "avoozl:avoozl",
-      "plans_bind_session",
+      "plans_session",
       {
+        action: "bind",
         input: {
           taskId: "w1.loader",
           slot: "slot-new",
@@ -655,8 +660,9 @@ test("tick cron opens a review session on its named model and binds the model an
     [
       "call_tool",
       "avoozl:avoozl",
-      "plans_bind_session",
+      "plans_session",
       {
+        action: "bind",
         input: {
           taskId: "w1.loader",
           slot: "slot-new",

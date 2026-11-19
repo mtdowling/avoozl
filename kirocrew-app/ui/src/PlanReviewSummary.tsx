@@ -7,6 +7,10 @@ import { linkHref } from './views-api.ts'
 import { reviewCounts, shortHash, type PlanReviewSummary as Summary, type RevisionChange } from './plans-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
+import { WorkingStyle } from './ui/PageStyles'
+import { PlainButton, PlainLink } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 export function reviewStateLabel(review?: Summary | null): string {
   if (!review || review.state === 'not-reviewed') return 'Not reviewed'
@@ -15,18 +19,6 @@ export function reviewStateLabel(review?: Summary | null): string {
   return review.current ? 'Reviewed' : 'Reviewed at an older revision'
 }
 
-// Kiro Crew's own "AI is working" box (the Projects page's plan banner): a
-// rounded box tinted 10% with a 50% border, and a band of the same tint
-// sweeping across it for 2 s, ease-in-out. The hue is the theme's --aim, the
-// purple Kiro Crew keeps for AI work in every theme. Reduced motion keeps the
-// box and stops the sweep.
-const WORKING = `
-@keyframes avoozl-review-sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
-[data-review-working] { position: relative; overflow: hidden; border: 1px solid color-mix(in srgb, var(--aim, #7c3aed) 50%, transparent); background: color-mix(in srgb, var(--aim, #7c3aed) 10%, transparent); }
-[data-review-working]::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--aim, #7c3aed) 10%, transparent), transparent); animation: avoozl-review-sweep 2s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { [data-review-working]::before { animation: none; display: none; } }
-`
-
 // The in-progress review, announced once politely and drawn as Kiro Crew's
 // working box.
 // The spec Summary reuses it with its own title and label while the reviewer
@@ -34,29 +26,39 @@ const WORKING = `
 export function ReviewWorking(props: { model: string | null; title?: string; label?: string }) {
   const label = props.label ?? `Reviewing with ${props.model ?? 'the reviewer model'}…`
   return (
-    <div data-review-working role="status" aria-live="polite" aria-label={label} className="rounded-lg px-4 py-3">
-      <style>{WORKING}</style>
-      <div className="relative flex items-center gap-3">
-        <Hourglass size={18} aria-hidden className="shrink-0" style={{ color: 'var(--aim, #7c3aed)' }} />
-        <div className="min-w-0 flex-1">
-          <p className="m-0 font-semibold" style={{ color: 'var(--aim, #7c3aed)' }} data-plan-review-state>{props.title ?? 'Review running'}</p>
-          <Hint as="p" size="xs" flush>{label}</Hint>
-        </div>
-      </div>
-    </div>
+    <Box data-review-working role="status" aria-live="polite" aria-label={label} rounded="lg" px="4" py="3">
+      <WorkingStyle />
+      <Box relative flex items="center" gap="3">
+        <Glyph icon={Hourglass} size={18} aria-hidden css-color="aim-7c3aed" shrink0 />
+        <Box minW0 flex1>
+          <Box as="p" css-color="aim-7c3aed" m0 weight="semibold" data-plan-review-state>
+            {props.title ?? 'Review running'}
+          </Box>
+          <Hint as="p" size="xs" flush>
+            {label}
+          </Hint>
+        </Box>
+      </Box>
+    </Box>
   )
 }
 
-// The dialog's boxes: a bordered section, the reviewer facts as a two-column
-// table, and a tinted note for each caveat.
-const BOX = { borderColor: 'var(--border)' }
-const ROW_TH = { textAlign: 'left' as const, fontWeight: 600, padding: '2px 12px 2px 0', color: 'var(--text-muted, var(--muted))', whiteSpace: 'nowrap' as const, verticalAlign: 'top' as const }
-const ROW_TD = { padding: '2px 0' }
 function Note(props: { children: ReactNode }) {
   return (
-    <p role="note" data-review-note className="m-0 rounded border px-3 py-2" style={{ borderColor: 'color-mix(in srgb, var(--info, var(--accent)) 40%, transparent)', background: 'color-mix(in srgb, var(--info, var(--accent)) 8%, transparent)' }}>
+    <Box
+      role="note"
+      data-review-note
+      as="p"
+      css-border-color="mix-info-accent-40%-transparent"
+      css-background="mix-info-accent-8%-transparent"
+      m0
+      rounded="base"
+      border="all"
+      px="3"
+      py="2"
+    >
       {props.children}
-    </p>
+    </Box>
   )
 }
 
@@ -75,47 +77,150 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
   const start = async () => {
     setStarting(true)
     setError(null)
-    try { await props.onStart?.(); setQueued(true) }
-    catch (caught) { setError(errorMessage(caught)) }
-    finally { setStarting(false) }
+    try {
+      await props.onStart?.()
+      setQueued(true)
+    } catch (caught) {
+      setError(errorMessage(caught))
+    } finally {
+      setStarting(false)
+    }
   }
   return (
-    <div data-plan-review className="flex min-w-0 flex-col gap-2 text-sm" style={{ overflowWrap: 'anywhere' }}>
+    <Box data-plan-review css-overflow-wrap="anywhere" flex minW0 flexCol gap="2" size="sm">
       {(review?.revisionHash || review?.note || review?.unproven || (review?.canReviewAnyway && props.onStart)) && (
-        <section data-review-reviewer className="flex flex-col gap-2 rounded border p-3" style={BOX}>
+        <Box data-review-reviewer as="section" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="3">
           {review?.revisionHash && (
-            <table className="text-sm" style={{ borderCollapse: 'collapse' }}>
+            <Box as="table" css-border-collapse="collapse" size="sm">
               <tbody>
-                <tr><th scope="row" style={ROW_TH}>Reviewer</th><td style={ROW_TD}>{review.reviewerModel ?? 'not set'}</td></tr>
-                <tr><th scope="row" style={ROW_TH}>Revision</th><td style={ROW_TD}><Tooltip text={review.revisionHash}><code>{shortHash(review.revisionHash)}</code></Tooltip>{!review.current && <Hint> · older revision</Hint>}</td></tr>
-                <tr><th scope="row" style={ROW_TH}>Writer</th><td style={ROW_TD}>{review.writerModel ?? 'unknown'}</td></tr>
+                <tr>
+                  <Box
+                    scope="row"
+                    as="th"
+                    css-text-align="left"
+                    css-font-weight="600"
+                    css-padding="2px-12px-2px-0"
+                    css-color="text-muted-muted"
+                    css-white-space="nowrap"
+                    css-vertical-align="top"
+                  >
+                    Reviewer
+                  </Box>
+                  <Box as="td" css-padding="2px-0">
+                    {review.reviewerModel ?? 'not set'}
+                  </Box>
+                </tr>
+                <tr>
+                  <Box
+                    scope="row"
+                    as="th"
+                    css-text-align="left"
+                    css-font-weight="600"
+                    css-padding="2px-12px-2px-0"
+                    css-color="text-muted-muted"
+                    css-white-space="nowrap"
+                    css-vertical-align="top"
+                  >
+                    Revision
+                  </Box>
+                  <Box as="td" css-padding="2px-0">
+                    <Tooltip text={review.revisionHash}>
+                      <code>{shortHash(review.revisionHash)}</code>
+                    </Tooltip>
+                    {!review.current && <Hint> · older revision</Hint>}
+                  </Box>
+                </tr>
+                <tr>
+                  <Box
+                    scope="row"
+                    as="th"
+                    css-text-align="left"
+                    css-font-weight="600"
+                    css-padding="2px-12px-2px-0"
+                    css-color="text-muted-muted"
+                    css-white-space="nowrap"
+                    css-vertical-align="top"
+                  >
+                    Writer
+                  </Box>
+                  <Box as="td" css-padding="2px-0">
+                    {review.writerModel ?? 'unknown'}
+                  </Box>
+                </tr>
               </tbody>
-            </table>
+            </Box>
           )}
           {review?.unproven && <Note>The reviewer and writer were not proven to use different models.</Note>}
           {review?.note && <Note>{review.note}</Note>}
           {review?.canReviewAnyway && props.onStart && (
             <Note>
-              <span className="flex flex-col items-start gap-1">
-                {review.capped ? 'The round limit is reached for this revision. Review anyway runs one more round.' : 'Reviewing anyway records that the models were not proven different.'}
-                <SmallBtn disabled={starting || queued} onClick={() => void start()} attrs={{ 'data-review-anyway': true }}>Review anyway</SmallBtn>
-              </span>
+              <Box as="span" flex flexCol items="start" gap="1">
+                {review.capped
+                  ? 'The round limit is reached for this revision. Review anyway runs one more round.'
+                  : 'Reviewing anyway records that the models were not proven different.'}
+                <SmallBtn disabled={starting || queued} onClick={() => void start()} attrs={{ 'data-review-anyway': true }}>
+                  Review anyway
+                </SmallBtn>
+              </Box>
             </Note>
           )}
-        </section>
+        </Box>
       )}
-      <section data-review-status className="flex flex-col gap-2 rounded border p-3" style={BOX}>
-        {review?.state === 'running' ? <ReviewWorking model={review.reviewerModel} /> : <p className="m-0 font-medium" data-plan-review-state>{reviewStateLabel(review)}</p>}
-        {queued && <p role="status" className="m-0">Review queued for this revision.</p>}
-        <p className="m-0" data-review-counts>{reviewCounts(review)}</p>
-        {review?.revisionHash && (href || props.onOpenReview) && (
-          href
-            ? <a href={linkHref(href)} className="self-start underline" data-open-review onClick={(event) => { if (!props.onOpenReview) return; event.preventDefault(); props.onOpenReview() }}>Open review</a>
-            : <button type="button" className="self-start underline" style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }} data-open-review onClick={props.onOpenReview}>Open review</button>
+      <Box data-review-status as="section" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="3">
+        {review?.state === 'running' ? (
+          <ReviewWorking model={review.reviewerModel} />
+        ) : (
+          <Box as="p" m0 weight="medium" data-plan-review-state>
+            {reviewStateLabel(review)}
+          </Box>
         )}
-      </section>
-      {error && <ErrorText role="alert" flush>{error}</ErrorText>}
-    </div>
+        {queued && (
+          <Box role="status" as="p" m0>
+            Review queued for this revision.
+          </Box>
+        )}
+        <Box as="p" m0 data-review-counts>
+          {reviewCounts(review)}
+        </Box>
+        {review?.revisionHash &&
+          (href || props.onOpenReview) &&
+          (href ? (
+            <PlainLink
+              href={linkHref(href)}
+              self="start"
+              underline
+              data-open-review
+              onClick={(event) => {
+                if (!props.onOpenReview) return
+                event.preventDefault()
+                props.onOpenReview()
+              }}
+            >
+              Open review
+            </PlainLink>
+          ) : (
+            <PlainButton
+              type="button"
+              css-background="none"
+              css-border="0"
+              css-padding="0"
+              css-color="inherit"
+              css-cursor="pointer"
+              self="start"
+              underline
+              data-open-review
+              onClick={props.onOpenReview}
+            >
+              Open review
+            </PlainButton>
+          ))}
+      </Box>
+      {error && (
+        <ErrorText role="alert" flush>
+          {error}
+        </ErrorText>
+      )}
+    </Box>
   )
 }
 
@@ -124,16 +229,59 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
 export function RevisionChanged(props: { change: RevisionChange }) {
   const { change } = props
   return (
-    <section role="status" data-revision-moved className="flex flex-col gap-1 rounded border p-3 text-sm" style={{ borderColor: 'color-mix(in srgb, var(--info, var(--accent)) 40%, transparent)', background: 'color-mix(in srgb, var(--info, var(--accent)) 8%, transparent)', overflowWrap: 'anywhere' }}>
-      <p className="m-0 font-medium">Changed while open: <Tooltip text={change.from}><code>{shortHash(change.from)}</code></Tooltip> → <Tooltip text={change.to}><code>{shortHash(change.to)}</code></Tooltip></p>
+    <Box
+      role="status"
+      data-revision-moved
+      as="section"
+      css-border-color="mix-info-accent-40%-transparent"
+      css-background="mix-info-accent-8%-transparent"
+      css-overflow-wrap="anywhere"
+      flex
+      flexCol
+      gap="1"
+      rounded="base"
+      border="all"
+      p="3"
+      size="sm"
+    >
+      <Box as="p" m0 weight="medium">
+        Changed while open:{' '}
+        <Tooltip text={change.from}>
+          <code>{shortHash(change.from)}</code>
+        </Tooltip>{' '}
+        →{' '}
+        <Tooltip text={change.to}>
+          <code>{shortHash(change.to)}</code>
+        </Tooltip>
+      </Box>
       {change.files.length > 0 && (
-        <ul className="m-0 flex flex-col pl-5" style={{ listStyle: 'disc' }} data-revision-moved-files>
-          {change.files.map((file) => <li key={file.file}><code>{file.file}</code> <span style={file.added ? { color: 'var(--success, var(--text))' } : undefined}>+{file.added}</span> <span style={file.removed ? { color: 'var(--danger)' } : undefined}>−{file.removed}</span></li>)}
-        </ul>
+        <Box as="ul" css-list-style="disc" m0 flex flexCol pl="5" data-revision-moved-files>
+          {change.files.map((file) => (
+            <li key={file.file}>
+              <code>{file.file}</code>{' '}
+              <Box as="span" css-color={file.added ? 'success-text' : undefined}>
+                +{file.added}
+              </Box>{' '}
+              <Box as="span" css-color={file.removed ? 'danger' : undefined}>
+                −{file.removed}
+              </Box>
+            </li>
+          ))}
+        </Box>
       )}
-      {change.fixed.length > 0 && <p className="m-0" data-revision-moved-fixed>Now fixed: {change.fixed.map((finding) => finding.claim).join(' · ')}</p>}
-      {change.moved.length > 0 && <p className="m-0" data-revision-moved-anchors>Moved or removed: {change.moved.map((finding) => finding.claim).join(' · ')}</p>}
-      <Hint as="p" flush>Approve now applies to <code>{shortHash(change.to)}</code>. Press it again to approve this revision.</Hint>
-    </section>
+      {change.fixed.length > 0 && (
+        <Box as="p" m0 data-revision-moved-fixed>
+          Now fixed: {change.fixed.map((finding) => finding.claim).join(' · ')}
+        </Box>
+      )}
+      {change.moved.length > 0 && (
+        <Box as="p" m0 data-revision-moved-anchors>
+          Moved or removed: {change.moved.map((finding) => finding.claim).join(' · ')}
+        </Box>
+      )}
+      <Hint as="p" flush>
+        Approve now applies to <code>{shortHash(change.to)}</code>. Press it again to approve this revision.
+      </Hint>
+    </Box>
   )
 }

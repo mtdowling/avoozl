@@ -157,9 +157,13 @@ export async function launch(chrome) {
     await call('Page.enable')
     await call('Runtime.enable')
     const errors = []
+    // console.error and console.warn calls, for a page that must log none.
+    const consoleErrors = []
     listeners.add((message) => {
       if (message.sessionId !== sessionId) return
       if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text)
+      if (message.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(message.params.type))
+        consoleErrors.push(message.params.args.map((arg) => arg.value ?? arg.description ?? '').join(' '))
     })
     const evaluate = async (expression) => {
       const reply = await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true })
@@ -168,9 +172,18 @@ export async function launch(chrome) {
     }
     return {
       errors,
+      consoleErrors,
+      // Runs `source` in every document before its own scripts, from the next
+      // navigation on (a listener that must see the page's first events).
+      onNewDocument: (source) => call('Page.addScriptToEvaluateOnNewDocument', { source }),
       async open(url, { width, height, dark }) {
         await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false })
-        await call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }, { name: 'prefers-reduced-motion', value: 'reduce' }] })
+        await call('Emulation.setEmulatedMedia', {
+          features: [
+            { name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' },
+            { name: 'prefers-reduced-motion', value: 'reduce' },
+          ],
+        })
         const loaded = once('Page.loadEventFired', sessionId)
         await call('Page.navigate', { url })
         await loaded
@@ -213,15 +226,15 @@ export async function launch(chrome) {
         const buttons = { left: 1, right: 2, middle: 4 }[button]
         await call('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
         await call('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button, buttons, clickCount: 1 })
-        for (let i = 1; i <= steps; i++) await call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x + ((toX - x) * i) / steps, y: y + ((toY - y) * i) / steps, button, buttons })
+        for (let i = 1; i <= steps; i++)
+          await call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x + ((toX - x) * i) / steps, y: y + ((toY - y) * i) / steps, button, buttons })
         if (release) await call('Input.dispatchMouseEvent', { type: 'mouseReleased', x: toX, y: toY, button, buttons: 0, clickCount: 1 })
       },
       async release(x, y, button = 'left') {
         await call('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button, buttons: 0, clickCount: 1 })
       },
       async doubleClick(x, y) {
-        for (const clickCount of [1, 2])
-          for (const type of ['mousePressed', 'mouseReleased']) await call('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount })
+        for (const clickCount of [1, 2]) for (const type of ['mousePressed', 'mouseReleased']) await call('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount })
       },
       // A finger tap: pointer events with pointerType touch.
       async tap(x, y) {
@@ -235,7 +248,9 @@ export async function launch(chrome) {
       async screenshot(file, { selector } = {}) {
         assertShotOutsideGit(file)
         const box = selector
-          ? await evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect(); return r && { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height } })()`)
+          ? await evaluate(
+              `(() => { const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect(); return r && { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height } })()`,
+            )
           : null
         if (selector && !box) throw Error(`No ${selector} to capture`)
         const { data } = await call('Page.captureScreenshot', { format: 'png', ...(box ? { clip: { ...box, scale: 1 }, captureBeyondViewport: true } : {}) })

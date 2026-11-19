@@ -12,6 +12,8 @@ import { EVIDENCE_LABELS, evidenceClient, mediaUrl, sizeText, type EvidenceEntry
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskId: string; entry: EvidenceEntry }) {
   const api = useAppApi()
@@ -36,19 +38,19 @@ function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskI
       <img src={url} alt={entry.text} className="mt-1 max-w-full rounded border" style={{ borderColor: 'var(--border)' }} />
     )
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+    <Box mt="1" flex flexWrap items="center" gap="2" size="xs" tone="muted">
       <span>
         {file.type}, {sizeText(file.size)}
       </span>
-      <button type="button" className="underline" onClick={() => void show()}>
+      <PlainButton type="button" underline onClick={() => void show()}>
         Show {file.type.startsWith('video/') ? 'video' : 'image'}
-      </button>
+      </PlainButton>
       {error && (
         <ErrorText role="alert" as="span">
           {error}
         </ErrorText>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -66,23 +68,41 @@ export function EvidenceFold({ workspaceId, taskId, box }: { workspaceId: string
       </ErrorText>
     )
   if (box && !value?.length) return null
-  if (!value) return <Hint as="p" size="sm">Loading…</Hint>
-  if (!value.length) return <Hint as="p" size="sm">No evidence yet.</Hint>
+  if (!value)
+    return (
+      <Hint as="p" size="sm">
+        Loading…
+      </Hint>
+    )
+  if (!value.length)
+    return (
+      <Hint as="p" size="sm">
+        No evidence yet.
+      </Hint>
+    )
   const list = (
     <Stack as="ol" gap={2} data-evidence={taskId}>
       {value.map((entry) => (
-        <li key={entry.id} className="rounded border p-2" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+        <Box key={entry.id} as="li" css-border-color="border" rounded="base" border="all" p="2">
+          <Box flex flexWrap items="center" gap="2" size="xs" tone="muted">
             <Badge>{EVIDENCE_LABELS[entry.kind] ?? entry.kind}</Badge>
             <span>{entry.source}</span>
             <time dateTime={entry.at}>{relativeTime(entry.at)}</time>
             {entry.redacted && <span>Redacted by content rules</span>}
-          </div>
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm">{entry.text}</p>
+          </Box>
+          <Box as="p" mt="1" whitespace="pre-wrap" breakWords size="sm">
+            {entry.text}
+          </Box>
           {entry.file && <Attachment workspaceId={workspaceId} taskId={taskId} entry={entry} />}
-        </li>
+        </Box>
       ))}
     </Stack>
   )
-  return box ? <SectionBox id={box.id} title={box.title}>{list}</SectionBox> : list
+  return box ? (
+    <SectionBox id={box.id} title={box.title}>
+      {list}
+    </SectionBox>
+  ) : (
+    list
+  )
 }

@@ -9,7 +9,6 @@ import { queryTasks, reviewSettled, statusComplete } from "../model.mjs";
 import {
   completionReached,
   isManual,
-  pluginId,
   supersedingTask,
   taskAuthority,
   taskCompletion,
@@ -31,8 +30,6 @@ import { processSessionDetails } from "./process-view.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
 import { projectItemRecords } from "./github-project.mjs";
 import { FEEDBACK, feedbackSummary } from "./github-feedback.mjs";
-import { remoteLeaf, routeNeedsYou } from "./routes.mjs";
-import { pluginHealth } from "./plugin-session.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
 import { listSpans, taskFlow } from "./flow.mjs";
 import { taskSteps } from "./task-steps.mjs";
@@ -45,14 +42,10 @@ import { driverDecisions } from "./driver.mjs";
 import { epicRows } from "./epic-rows.mjs";
 import { taskLinks } from "./scm-links.mjs";
 import { approvals, batchRules } from "./flow-batch.mjs";
+import { ownSummary } from "./title-repeat.mjs";
+import { checkCommand, repositoryChecks } from "./repository-checks.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
-const ACTIVE_RUNS = new Set([
-  "starting",
-  "running",
-  "waiting-input",
-  "waiting-approval",
-]);
 const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
 // Managed fields a person's choice can settle (github.conflict.resolve).
 const RESOLVABLE_FIELDS = new Set(["title", "body", "labels", "blockers"]);
@@ -114,15 +107,13 @@ export function ownership(task) {
   return {
     authority: taskAuthority(task),
     issue: issueLink(task),
-    ...(task.tracker?.link ? { record: task.tracker.link } : {}),
   };
 }
 
-// What a person must do for a task before it moves, with a link: a remote
-// leaf waiting on its route, or a task whose plugin is parked (R22.7, R34.7).
+// What a person must do for a task before it moves, with a link.
 // Manual leaves whose blockers hold: each waits in Needs you for a person
 // (R61.11). The same readiness rule as `ready`, asked with `manual`.
-export function manualWaitingIds(data, repositories) {
+function manualWaitingIds(data, repositories) {
   return new Set(
     queryTasks(data, {
       scope: "all",
@@ -135,25 +126,14 @@ export function manualWaitingIds(data, repositories) {
   );
 }
 
-function needsYou(task, submissions, health, manual = null) {
+function needsYou(task, manual = null) {
   if (manual?.has(task.id))
     return {
       reason: `Waiting for a person: ${task.title ?? task.id}`,
       link: null,
       manual: true,
     };
-  const tracker = pluginId(taskAuthority(task)),
-    trackerHealth = tracker ? health.get(tracker) : null;
-  if (trackerHealth?.state === "unavailable")
-    return {
-      reason: `Plugin unavailable: ${trackerHealth.reason}`,
-      link: task.tracker?.link ?? null,
-    };
-  if (!remoteLeaf(task)) return null;
-  return routeNeedsYou(
-    submissions.get(task.id),
-    health.get(pluginId(task.route)),
-  );
+  return null;
 }
 
 // A task waits for review: flagged, and not done, recorded or archived.
@@ -193,14 +173,14 @@ function statusWithoutSession(task, live, claimed) {
 }
 
 // The plain reason for a status with no session behind it.
-export const noSessionLine = (status) =>
+const noSessionLine = (status) =>
   status === "running"
     ? "Marked running, but no session is running"
     : "Marked in review, but no review is running";
 
 // The archived plans, and the one a task belongs to (or null). Views mark
 // archived work with it; the page hides it unless Show archived is on.
-export function archivedPlanOf(store) {
+function archivedPlanOf(store) {
   const archived = optionalList(store, "plans").filter(
     (plan) => plan.archivedAt && !plan.deletedAt,
   );
@@ -215,7 +195,7 @@ export function archivedPlanOf(store) {
 
 // Tasks waiting for review, one item per plan, spec folder or document, so
 // a plan move that touches 70 tasks is one thing to look at, not 70.
-export function reviewGroups(store, data) {
+function reviewGroups(store, data) {
   const plans = new Map(
       optionalList(store, "plans").map((plan) => [plan.id, plan]),
     ),
@@ -269,10 +249,6 @@ function graphStates(store, data) {
     ),
     complete = (status) => statusComplete(data, status),
     board = projectBoard(store),
-    submissions = new Map(
-      optionalList(store, "route_submissions").map((row) => [row.taskId, row]),
-    ),
-    health = pluginHealth(store),
     live = liveSessions(store),
     manual = manualWaitingIds(data, registered);
   // One state per node for the Graph drawing. Needs-you comes first among
@@ -283,7 +259,7 @@ function graphStates(store, data) {
       task.decision ||
       task.status === "blocked" ||
       statusWithoutSession(task, live, claimed) ||
-      needsYou(task, submissions, health, manual)
+      needsYou(task, manual)
     )
       return "needs-you";
     if (
@@ -302,8 +278,6 @@ function graphStates(store, data) {
     claimed,
     ready,
     complete,
-    submissions,
-    health,
     live,
     manual,
     state,
@@ -342,17 +316,10 @@ export function graphView(store, data, input = {}, folders = []) {
     phases = list(input.phase),
     repositories = list(input.repository),
     statuses = list(input.status),
-    {
-      registered,
-      claimed,
-      ready,
-      complete,
-      submissions,
-      health,
-      live,
-      manual,
-      state,
-    } = graphStates(store, data),
+    { registered, claimed, ready, complete, live, manual, state } = graphStates(
+      store,
+      data,
+    ),
     byId = new Map(data.tasks.map((task) => [task.id, task])),
     archivedOf = archivedPlanOf(store),
     counts = new Map();
@@ -453,7 +420,7 @@ export function graphView(store, data, input = {}, folders = []) {
       // badge, and once per plan in Conflicts, not as needs-you.
       review: needsTextReview(data, task),
       decision: task.decision ?? null,
-      needsYou: needsYou(task, submissions, health, manual),
+      needsYou: needsYou(task, manual),
       // A step only a person does (R61.9), and how it was marked done.
       manual: isManual(task),
       manualDone: isManual(task) ? (task.manualDone ?? null) : null,
@@ -638,7 +605,7 @@ function section(text, pattern) {
 }
 
 export const NO_EPIC = "(none)";
-export const NO_PHASE = "(none)";
+const NO_PHASE = "(none)";
 
 // The plans the Graph drills into: each stored plan with its epic and its
 // phases in tasks.md order, with task counts. Titles come from records.
@@ -802,22 +769,6 @@ function githubReviews(verdict) {
   };
 }
 
-// A remote leaf's submission as the tick last read it. The plugin's link,
-// reason and result are its own text: the page escapes them.
-function routeDelivery(row) {
-  if (!row) return null;
-  return {
-    route: row.route,
-    remoteId: row.remoteId,
-    state: row.state,
-    link: row.link ?? null,
-    reason: row.reason ?? null,
-    result: row.result ?? null,
-    submittedAt: row.submittedAt ?? null,
-    doneAt: row.doneAt ?? null,
-  };
-}
-
 // `config` is the workspace's saved config, which says the executor a
 // batch would run on (batchRules).
 export function deliveryView(store, data, { config } = {}) {
@@ -830,10 +781,6 @@ export function deliveryView(store, data, { config } = {}) {
     }
     return map;
   };
-  const submissions = new Map(
-      optionalList(store, "route_submissions").map((row) => [row.taskId, row]),
-    ),
-    health = pluginHealth(store);
   const bindingRows = optionalList(store, "session_bindings");
   // Live `process` sessions read their status, log tail, cost and attach
   // command from this machine's supervisor (R98.1); none, no read.
@@ -848,7 +795,6 @@ export function deliveryView(store, data, { config } = {}) {
     machineAvoozlPaths(),
   );
   const bindings = byTask(bindingRows),
-    runs = byTask(optionalList(store, "runs")),
     evidence = byTask(optionalList(store, "evidence")),
     deliveries = byTask(optionalList(store, "task_deliveries")),
     worktrees = byTask(optionalList(store, "task_worktrees")),
@@ -924,7 +870,6 @@ export function deliveryView(store, data, { config } = {}) {
     if (
       !DELIVERY_STATUSES.has(task.status) &&
       !bindings.has(id) &&
-      !runs.has(id) &&
       !evidence.has(id) &&
       !deliveries.has(id) &&
       !worktrees.has(id) &&
@@ -934,7 +879,6 @@ export function deliveryView(store, data, { config } = {}) {
       !links.length &&
       !task.githubVerdict?.reviews &&
       !prFeedback &&
-      !submissions.has(id) &&
       !task.github?.unlinked &&
       // A planner-grouped task shows its batch or why it runs alone.
       !task.batch
@@ -997,14 +941,6 @@ export function deliveryView(store, data, { config } = {}) {
             : {}),
         }))
         .sort((a, b) => a.attempt - b.attempt || a.role.localeCompare(b.role)),
-      runs: (runs.get(id) || [])
-        .filter((run) => !run.deletedAt)
-        .map((run) => ({
-          id: run.id,
-          state: run.state,
-          provider: run.provider ?? null,
-          createdAt: run.createdAt ?? null,
-        })),
       evidence: [
         ...links.map((text) => ({ text: String(text) })),
         ...(evidence.get(id) || []).map((record) => ({
@@ -1037,8 +973,7 @@ export function deliveryView(store, data, { config } = {}) {
       worktrees: worktrees.get(id) || [],
       links: taskLinkSets[id] ?? null,
       project: projectNotes(board.get(id)),
-      route: routeDelivery(submissions.get(id)),
-      needsYou: needsYou(task, submissions, health),
+      needsYou: needsYou(task),
       // The $spent / $cap chip (§4.17).
       noSession: statusWithoutSession(task, live, claimed),
       handSetReview: statusWithoutSession(task, live, claimed) !== null,
@@ -1078,8 +1013,7 @@ export function avoozlStates(store, data) {
 
 // Open conflicts and decisions: open decisions on tasks, GitHub projection
 // conflicts (managed fields, duplicate task IDs, closed issues), tasks
-// that need a person, sessions that ended under unfinished tasks, and active
-// runs that share a resource.
+// that need a person, and sessions that ended under unfinished tasks.
 // Issue Radar's hold on a GitHub leaf (github-crew.mjs), in plain words for
 // Needs you (R52.10); null for any other decision.
 function crewHoldText(task) {
@@ -1113,18 +1047,6 @@ export function conflictsView(store, data) {
         ...ownership(task),
         title: task.title ?? task.id,
         detail: crewHoldText(task) ?? String(task.decision),
-      });
-    // A tracker record's managed field a person changed (R35.6): Avoozl
-    // leaves it alone until the plan or the record agree again.
-    for (const conflict of task.tracker?.conflicts || [])
-      items.push({
-        kind: "tracker-conflict",
-        taskId: task.id,
-        ...ownership(task),
-        title: task.title ?? task.id,
-        detail: `${conflict.field} was changed in ${taskAuthority(task)}; Avoozl left it alone.`,
-        link: task.tracker.link ?? null,
-        field: conflict.field,
       });
     for (const conflict of task.projectionConflicts || []) {
       const resolvable = RESOLVABLE_FIELDS.has(conflict.field),
@@ -1306,23 +1228,6 @@ export function conflictsView(store, data) {
     const task = byId.get(item.taskId);
     items.push({ ...item, ...(task ? ownership(task) : {}) });
   }
-  const holders = new Map();
-  for (const run of optionalList(store, "runs"))
-    if (ACTIVE_RUNS.has(run.state) && !run.deletedAt)
-      for (const resource of run.resources || []) {
-        if (!holders.has(resource)) holders.set(resource, []);
-        holders.get(resource).push(run);
-      }
-  for (const [resource, runs] of holders)
-    if (runs.length > 1)
-      items.push({
-        kind: "resource",
-        taskId: runs[0].taskId,
-        ...ownership(byId.get(runs[0].taskId)),
-        title: `Shared resource ${resource}`,
-        detail: `Active runs ${runs.map((run) => run.id).join(", ")} share ${resource}.`,
-        runs: runs.map((run) => run.id),
-      });
   for (const item of items) {
     const task = item.taskId ? byId.get(item.taskId) : null;
     item.planArchived = task ? archivedOf(task) : null;
@@ -1334,7 +1239,7 @@ export function conflictsView(store, data) {
 // other views already make: the task row (`detail`, from task.get), its node
 // in graph.view, its delivery.view item, its conflicts.view items, and its
 // plan. Writes nothing. `locked` says why the page must not write the row
-// and drafts a plan change instead: GitHub or a tracker plugin owns it, or it
+// and drafts a plan change instead: GitHub owns it, or it
 // came from a plan whose current text is approved.
 export function taskDetailView(
   store,
@@ -1402,17 +1307,12 @@ export function taskDetailView(
               ? "GitHub owns this task. Change its plan and approve it; the tick updates the issue."
               : "GitHub owns this task. Edit the issue on GitHub; the next sync reads it.",
         }
-      : authority.startsWith("plugin:")
+      : plan && approved
         ? {
-            reason: "plugin",
-            message: `${authority} owns this task. Change its plan and approve it; the tick updates the record.`,
+            reason: "approved-spec",
+            message: `This task comes from the approved plan ${plan.title || plan.id}. Changes become a draft plan change for you to approve.`,
           }
-        : plan && approved
-          ? {
-              reason: "approved-spec",
-              message: `This task comes from the approved plan ${plan.title || plan.id}. Changes become a draft plan change for you to approve.`,
-            }
-          : null;
+        : null;
   const timeline = taskTimeline(detail, delivery),
     approval = plan?.approvalId
       ? store.get("approvals", plan.approvalId)
@@ -1428,9 +1328,16 @@ export function taskDetailView(
     task: {
       id,
       title: detail.title ?? id,
-      summary: detail.summary ?? "",
+      summary: ownSummary(detail) ?? "",
       acceptance: detail.acceptance || [],
-      checks: detail.checks || [],
+      // The repository's checks, which every task runs.
+      checks: repositoryChecks(
+        store.get("projects", taskRepository(detail) || ""),
+      ).map((check) =>
+        check.name === checkCommand(check)
+          ? check.name
+          : `${check.name}: ${checkCommand(check)}${check.paths ? ` (for ${check.paths.join(", ")})` : ""}`,
+      ),
       // Its plan's epic and its phase inside the plan (Requirement 59).
       epic: taskEpic(data, detail),
       epicTitle: epicOfPlan(data, detail.planId)?.title ?? null,
@@ -1573,9 +1480,11 @@ export function taskOrigin(task, data, plan = null) {
 }
 
 // One task's events, newest first, from the rows' own times: the task row,
-// its sessions, evidence, deliveries, integration and runs. Avoozl keeps no
+// its sessions, evidence, deliveries and integration. Avoozl keeps no
 // separate task event log, so this is what "history" means on the page.
-export function taskTimeline(task, delivery) {
+const unsandboxed = (check) => check?.isolation === "unconfined";
+
+function taskTimeline(task, delivery) {
   return [
     task.updatedAt && { at: task.updatedAt, text: "Task row changed" },
     ...(delivery?.sessions || []).flatMap((s) => [
@@ -1602,12 +1511,14 @@ export function taskTimeline(task, delivery) {
       at: delivery.integration.at,
       text: `Integrated ${String(delivery.integration.commit || "").slice(0, 12)}`,
     },
-    ...(task.runs || delivery?.runs || []).map(
-      (run) =>
-        run.createdAt && {
-          at: run.createdAt,
-          text: `Run ${run.id} (${run.state})`,
-        },
+    // Checks that ran with no isolation say so.
+    ...(delivery?.deliveries || []).flatMap((d) =>
+      (d.verifications || [])
+        .filter((v) => (v.checks || []).some(unsandboxed))
+        .map((v) => ({
+          at: v.at,
+          text: `Checks at ${String(v.commit || d.commit || "").slice(0, 12)} ran not sandboxed`,
+        })),
     ),
   ]
     .filter((entry) => entry && typeof entry.at === "string")
@@ -1818,7 +1729,7 @@ const shown = (value) =>
       ? String(value)
       : "empty";
 
-export function sameItem(item, key) {
+function sameItem(item, key) {
   return (
     item.kind === key.kind &&
     (item.taskId ?? null) === (key.taskId ?? null) &&

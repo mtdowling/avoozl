@@ -10,14 +10,14 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-export const UI_STAMP = "build.json";
+const UI_STAMP = "build.json";
 export const UPDATE_COMMAND = "npm run build && kirocrew app update avoozl";
 
 // One hash of every file under ui/src, by its forward-slash relative path.
 // Skips dot files and the folders Kiro Crew's install does not copy, so a
 // Finder .DS_Store in the checkout does not read as a stale page.
 const UNCOPIED = new Set(["node_modules", "__pycache__"]);
-export function uiSourceHash(uiDir) {
+function uiSourceHash(uiDir) {
   const source = path.join(uiDir, "src"),
     hash = crypto.createHash("sha256");
   const files = fs
@@ -63,4 +63,20 @@ export function uiBundleProblem(uiDir) {
   if (stamp.source !== uiSourceHash(uiDir))
     return `This Avoozl page is out of date: kirocrew-app/ui/dist was built from other source than kirocrew-app/ui/src. In the Avoozl checkout, run: ${UPDATE_COMMAND}`;
   return null;
+}
+
+// The ui folder that holds the built standalone page: beside the checkout's
+// src/app, or beside the installed app's bin/lib copy of it.
+export function standaloneUiDirectory(here = import.meta.dirname) {
+  const candidates = [
+    path.join(here, "..", "..", "kirocrew-app", "ui"),
+    path.join(here, "..", "..", "..", "..", "ui"),
+    path.join(here, "..", "..", "..", "..", "..", "ui"),
+  ];
+  const found = candidates.find((dir) =>
+    fs.existsSync(path.join(dir, "dist", "standalone", "index.html")),
+  );
+  if (!found)
+    throw Error("The standalone page is not built. Run npm run build.");
+  return found;
 }

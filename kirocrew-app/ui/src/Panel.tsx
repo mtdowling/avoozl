@@ -42,6 +42,7 @@ import { relativeTime } from './task-api.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref, viewsClient } from './views-api.ts'
 import { errorMessage, readPageState, workspaceClient, type WorkspaceList } from './workspace-api.ts'
+import { Box } from './ui/Box'
 
 const AVOOZL_PAGE = '/apps/avoozl'
 
@@ -114,7 +115,12 @@ function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
     <PanelList>
       {rows.map((row) => {
         const check = row.pr ? checkLabel(row.check) : null
-        const meta = [row.instance ?? (row.source === 'radar' ? 'No Avoozl' : null), row.crew ?? row.who, row.source === 'radar' ? row.ref : row.who, !row.phase ? 'claim label, no claim comment' : null].filter(Boolean)
+        const meta = [
+          row.instance ?? (row.source === 'radar' ? 'No Avoozl' : null),
+          row.crew ?? row.who,
+          row.source === 'radar' ? row.ref : row.who,
+          !row.phase ? 'claim label, no claim comment' : null,
+        ].filter(Boolean)
         return (
           <PanelRow
             key={row.key}
@@ -136,11 +142,25 @@ function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
               </>
             }
             age={shortAgo(row.claimedAt ?? row.updated, now)}
-            ageTip={[row.claimedAt && `Claimed ${relativeTime(row.claimedAt, now)}`, row.updated && `updated ${relativeTime(row.updated, now)}`].filter(Boolean).join(', ') || undefined}
+            ageTip={
+              [row.claimedAt && `Claimed ${relativeTime(row.claimedAt, now)}`, row.updated && `updated ${relativeTime(row.updated, now)}`].filter(Boolean).join(', ') || undefined
+            }
             meta={[...new Set(meta)].join(' · ')}
             actions={
               row.attach ? (
-                <PanelAct label="Session" name="Session" narrowIcon icon={CirclePlus} href={linkHref(row.attach)} tip={row.source === 'radar' ? 'Session. Opens the crew chat, if this crew runs on this machine. Type there to steer it.' : 'Session. Opens the worker chat on its crew. Type there to steer it.'} data-flight-session />
+                <PanelAct
+                  label="Session"
+                  name="Session"
+                  narrowIcon
+                  icon={CirclePlus}
+                  href={linkHref(row.attach)}
+                  tip={
+                    row.source === 'radar'
+                      ? 'Session. Opens the crew chat, if this crew runs on this machine. Type there to steer it.'
+                      : 'Session. Opens the worker chat on its crew. Type there to steer it.'
+                  }
+                  data-flight-session
+                />
               ) : row.noAttach ? (
                 <Tooltip text={row.noAttach}>
                   <span data-pp-chip data-tone="muted">
@@ -182,7 +202,13 @@ export default function AvoozlPanel() {
   const views = useMemo(() => viewsClient(api), [api])
   const releases = useMemo(() => releaseClient(api), [api])
   useEffect(() => {
-    if (workspaceId) workspaceClient(api).list().then((list) => setWorkspaceName(list.items.find((item) => item.id === workspaceId)?.name ?? null), () => undefined)
+    if (workspaceId)
+      workspaceClient(api)
+        .list()
+        .then(
+          (list) => setWorkspaceName(list.items.find((item) => item.id === workspaceId)?.name ?? null),
+          () => undefined,
+        )
   }, [api, workspaceId])
   const idRef = useRef(workspaceId)
   const readsRef = useRef(reads)
@@ -227,7 +253,13 @@ export default function AvoozlPanel() {
             list.items.map((item) =>
               workspaceClient(api)
                 .repositories(item.id)
-                .then((repos) => void roots.set(item.id, repos.map((repo) => repo.localCheckout).filter((root): root is string => Boolean(root))))
+                .then(
+                  (repos) =>
+                    void roots.set(
+                      item.id,
+                      repos.map((repo) => repo.localCheckout).filter((root): root is string => Boolean(root)),
+                    ),
+                )
                 .catch(() => undefined),
             ),
           )
@@ -380,7 +412,15 @@ export default function AvoozlPanel() {
       {unreadOr('queue', model.queue?.held ? `Nothing is next. ${model.queue.held} held.` : 'Nothing is next in the queue.', model.queue?.head.length ?? 0, () => (
         <PanelList>
           {model.queue!.head.map((entry) => (
-            <PanelRow key={entry.taskId} data-queue-head icon={Inbox} title={entry.title} chips={<PanelChip tone="info">Next</PanelChip>} age={entry.taskId} meta={`${entry.repository} · ${entry.reason}`} />
+            <PanelRow
+              key={entry.taskId}
+              data-queue-head
+              icon={Inbox}
+              title={entry.title}
+              chips={<PanelChip tone="info">Next</PanelChip>}
+              age={entry.taskId}
+              meta={`${entry.repository} · ${entry.reason}`}
+            />
           ))}
         </PanelList>
       ))}
@@ -391,7 +431,15 @@ export default function AvoozlPanel() {
       {unreadOr('recent', 'Nothing finished lately.', model.recent.length, () => (
         <PanelList>
           {model.recent.map((entry) => (
-            <PanelRow key={entry.taskId} data-recent-row icon={Check} title={entry.title} age={shortAgo(entry.at, now)} ageTip={relativeTime(entry.at, now)} meta={[entry.repository, entry.taskId].filter(Boolean).join(' · ')} />
+            <PanelRow
+              key={entry.taskId}
+              data-recent-row
+              icon={Check}
+              title={entry.title}
+              age={shortAgo(entry.at, now)}
+              ageTip={relativeTime(entry.at, now)}
+              meta={[entry.repository, entry.taskId].filter(Boolean).join(' · ')}
+            />
           ))}
         </PanelList>
       ))}
@@ -407,14 +455,16 @@ export default function AvoozlPanel() {
       nameTip="Open Avoozl"
       instance={headerName}
       workspace={workspaceName}
-      tip={[headerName ? `Avoozl · ${headerName}` : 'Avoozl', workspaceName ? `Workspace: ${workspaceName}${pickedBy ? ` (${PICKED_BY[pickedBy]})` : ''}` : ''].filter(Boolean).join('. ')}
+      tip={[headerName ? `Avoozl · ${headerName}` : 'Avoozl', workspaceName ? `Workspace: ${workspaceName}${pickedBy ? ` (${PICKED_BY[pickedBy]})` : ''}` : '']
+        .filter(Boolean)
+        .join('. ')}
       tools={<RefreshButton bare workspaceId={workspaceId} onRefresh={() => void load()} />}
       end={
-        <span data-panel-line data-stopped={stopped ? '' : undefined} style={{ display: 'inline-flex' }}>
+        <Box data-panel-line data-stopped={stopped ? '' : undefined} as="span" css-display="inline-flex">
           <ConfirmProvider>
             <StopLineButton bare workspaceId={workspaceId} />
           </ConfirmProvider>
-        </span>
+        </Box>
       }
     />
   )
@@ -494,7 +544,11 @@ export default function AvoozlPanel() {
                     <PanelRow
                       icon={spec.counts.error > 0 ? CircleAlert : Check}
                       title={`Problems: ${spec.counts.error} errors, ${spec.counts.warning} warnings`}
-                      chips={<PanelChip tone={spec.counts.error > 0 ? 'danger' : spec.counts.warning > 0 ? 'warn' : 'ok'}>{spec.counts.error > 0 ? 'Fix first' : spec.counts.warning > 0 ? 'Warnings' : 'Clean'}</PanelChip>}
+                      chips={
+                        <PanelChip tone={spec.counts.error > 0 ? 'danger' : spec.counts.warning > 0 ? 'warn' : 'ok'}>
+                          {spec.counts.error > 0 ? 'Fix first' : spec.counts.warning > 0 ? 'Warnings' : 'Clean'}
+                        </PanelChip>
+                      }
                     />
                     <PanelRow
                       icon={spec.plan?.approved ? Check : CircleDot}
@@ -526,7 +580,14 @@ export default function AvoozlPanel() {
               ) : (
                 <PanelList>
                   {specQueue.slice(0, 6).map((row) => (
-                    <PanelRow key={row.taskId} data-spec-queue-row={row.state} icon={Inbox} title={row.title} chips={<PanelChip tone="info">{row.state}</PanelChip>} meta={row.reason} />
+                    <PanelRow
+                      key={row.taskId}
+                      data-spec-queue-row={row.state}
+                      icon={Inbox}
+                      title={row.title}
+                      chips={<PanelChip tone="info">{row.state}</PanelChip>}
+                      meta={row.reason}
+                    />
                   ))}
                 </PanelList>
               )}
@@ -558,15 +619,37 @@ export default function AvoozlPanel() {
                     }
                     multi
                   />
-                  <li data-pp-row style={{ gridTemplateColumns: 'minmax(0,1fr)' }}>
-                    <Tooltip text={railFor(crewRow).map((step) => `${step.label}: ${step.state}`).join(', ')}>
-                      <span data-rail role="img" aria-label={railFor(crewRow).map((step) => `${step.label} ${step.state}`).join(', ')} style={{ display: 'inline-flex', gap: 3 }}>
+                  <Box data-pp-row as="li" css-grid-template-columns="minmax-0-1fr">
+                    <Tooltip
+                      text={railFor(crewRow)
+                        .map((step) => `${step.label}: ${step.state}`)
+                        .join(', ')}
+                    >
+                      <Box
+                        data-rail
+                        role="img"
+                        aria-label={railFor(crewRow)
+                          .map((step) => `${step.label} ${step.state}`)
+                          .join(', ')}
+                        as="span"
+                        css-display="inline-flex"
+                        css-gap="3"
+                      >
                         {railFor(crewRow).map((step) => (
-                          <i key={step.label} data-rail-step={step.state} style={{ display: 'block', width: 16, height: 8, borderRadius: 3, background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)' }} />
+                          <Box
+                            key={step.label}
+                            data-rail-step={step.state}
+                            as="i"
+                            css-display="block"
+                            css-width="16"
+                            css-height="8"
+                            css-border-radius="3"
+                            css-background={step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)'}
+                          />
                         ))}
-                      </span>
+                      </Box>
                     </Tooltip>
-                  </li>
+                  </Box>
                 </PanelList>
               )}
               <PanelEmpty>Avoozl cannot message this chat. It shows what the claim on GitHub says.</PanelEmpty>

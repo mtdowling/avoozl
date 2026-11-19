@@ -13,14 +13,20 @@ before(async () => {
   browser = await launch(chrome)
   page = await browser.page()
 })
-after(async () => { await browser?.close(); harness?.remove() })
+after(async () => {
+  await browser?.close()
+  harness?.remove()
+})
 const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
 async function open(mode, state = 'done', width = 1280, dark = false) {
   await page.open(harness.url({ mode, state, theme: dark ? 'dark' : 'light' }), { width, height: 900, dark })
   await page.until(`Boolean(document.querySelector('[data-plan-review-state]'))`)
 }
 
-for (const [width, dark] of [[1280, false], [390, true]])
+for (const [width, dark] of [
+  [1280, false],
+  [390, true],
+])
   test(`single and batch approval show model, revision, counts, evidence and planner answers at ${width}`, { skip }, async () => {
     for (const mode of ['single', 'batch']) {
       await open(mode, 'done', width, dark)
@@ -61,7 +67,10 @@ test('Open review opens the Review view at the shown revision, apart from approv
 })
 
 test('a revision written while the dialog is open updates it in place and resets Approve', { skip }, async () => {
-  for (const [width, dark] of [[1280, false], [390, true]]) {
+  for (const [width, dark] of [
+    [1280, false],
+    [390, true],
+  ]) {
     await open('single', 'done', width, dark)
     await page.evaluate(`window.__moveRevision('done')`)
     await page.until(`Boolean(document.querySelector('[data-revision-moved]'))`, 10000)
@@ -75,10 +84,17 @@ test('a revision written while the dialog is open updates it in place and resets
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[role="alert"]'))`), false)
     assert.equal(await page.evaluate(`document.querySelector('[data-approve-spec-go]').disabled`), false)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
-    assert.equal((await page.evaluate('window.__reviewCalls')).some((call) => call.operation === 'plan.approve'), false, 'nothing approved without a click')
+    assert.equal(
+      (await page.evaluate('window.__reviewCalls')).some((call) => call.operation === 'plan.approve'),
+      false,
+      'nothing approved without a click',
+    )
     await click('[data-approve-spec-go]')
     await page.until(`Boolean(document.querySelector('[data-dialog-closed]'))`)
-    assert.deepEqual((await page.evaluate('window.__reviewCalls')).find((call) => call.operation === 'plan.approve'), { operation: 'plan.approve', id: 'done', expectedHash: 'c'.repeat(64) })
+    assert.deepEqual(
+      (await page.evaluate('window.__reviewCalls')).find((call) => call.operation === 'plan.approve'),
+      { operation: 'plan.approve', id: 'done', expectedHash: 'c'.repeat(64) },
+    )
     assert.deepEqual(page.errors, [])
   }
 })
@@ -91,10 +107,16 @@ test('an approve sent for the old hash shows the update instead of a changed err
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[role="alert"]'))`), false)
   assert.doesNotMatch(await page.evaluate('document.body.textContent'), /Reload it before approving/)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-dialog-closed]'))`), false, 'the stale click approved nothing')
-  assert.equal((await page.evaluate('window.__reviewCalls')).some((call) => call.operation === 'plan.approve'), false)
+  assert.equal(
+    (await page.evaluate('window.__reviewCalls')).some((call) => call.operation === 'plan.approve'),
+    false,
+  )
   await click('[data-approve-spec-go]')
   await page.until(`Boolean(document.querySelector('[data-dialog-closed]'))`)
-  assert.deepEqual((await page.evaluate('window.__reviewCalls')).find((call) => call.operation === 'plan.approve'), { operation: 'plan.approve', id: 'done', expectedHash: 'c'.repeat(64) })
+  assert.deepEqual(
+    (await page.evaluate('window.__reviewCalls')).find((call) => call.operation === 'plan.approve'),
+    { operation: 'plan.approve', id: 'done', expectedHash: 'c'.repeat(64) },
+  )
 })
 
 test('the batch dialog updates only the spec that moved and sends each shown revision', { skip }, async () => {
@@ -106,7 +128,10 @@ test('the batch dialog updates only the spec that moved and sends each shown rev
   assert.match(await page.evaluate(`document.querySelector('[data-approve-review="done"] [data-revision-moved]').textContent`), /aaaaaaaaaaaa → cccccccccccc/)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[role="alert"]'))`), false)
   assert.equal(await page.evaluate(`document.querySelector('[data-approve-row="done"]').textContent.includes('cccccccc')`), true, 'the table shows the new revision')
-  assert.equal((await page.evaluate('window.__reviewCalls')).some((call) => call.operation === 'plan.approveMany'), false)
+  assert.equal(
+    (await page.evaluate('window.__reviewCalls')).some((call) => call.operation === 'plan.approveMany'),
+    false,
+  )
   await click('[data-approve-specs-go]')
   await page.until(`Boolean(document.querySelector('[data-dialog-closed]'))`)
   const sent = (await page.evaluate('window.__reviewCalls')).find((call) => call.operation === 'plan.approveMany').items
@@ -147,44 +172,46 @@ test('switching workspaces dismisses the opened approval even when IDs and hashe
   assert.deepEqual(page.errors, [])
 })
 
-
 test('unknown-writer Review anyway queues a person choice without blocking approval', { skip }, async () => {
   await open('single', 'skipped', 390)
   await click('[data-review-anyway]')
   await page.until(`document.querySelector('[data-review-anyway]').disabled`)
   const calls = await page.evaluate('window.__reviewCalls')
-  assert.deepEqual(calls[0], {operation:'plan.review.decide',workspaceId:'w',planId:'skipped',revisionHash:'a'.repeat(64),action:'review',unproven:true})
+  assert.deepEqual(calls[0], { operation: 'plan.review.decide', workspaceId: 'w', planId: 'skipped', revisionHash: 'a'.repeat(64), action: 'review', unproven: true })
   assert.equal(await page.evaluate(`document.querySelector('[data-approve-spec-go]').disabled`), false)
   assert.match(await page.evaluate('document.body.textContent'), /Review queued for this revision/)
 })
 test('Planning groups show spec, role, model, time and usage on a phone', { skip }, async () => {
-  await page.open(harness.url({mode:'planning'}),{width:390,height:900})
+  await page.open(harness.url({ mode: 'planning' }), { width: 390, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-planning-flow]'))`)
   const text = await page.evaluate('document.body.textContent')
-  for (const value of ['Planning','synthetic-spec','Reviewer','Planner answer','fake-reviewer','fake-writer','10 input / 5 output tokens','2 credits']) assert.ok(text.includes(value),value)
-  assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'),true)
-  assert.deepEqual(page.errors,[])
+  for (const value of ['Planning', 'synthetic-spec', 'Reviewer', 'Planner answer', 'fake-reviewer', 'fake-writer', '10 input / 5 output tokens', '2 credits'])
+    assert.ok(text.includes(value), value)
+  assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'), true)
+  assert.deepEqual(page.errors, [])
 })
 
-
-test('batch Review anyway stays pinned to its opening workspace with identical IDs and hashes', {skip}, async () => {
-  await page.open(harness.url({mode:'workspace-batch'}),{width:1280,height:900})
-  await page.until(`Boolean(document.querySelector('[data-plans-list] input[type="checkbox"]'))`)
-  await click('[data-plans-list] input[type="checkbox"]')
+test('batch Review anyway stays pinned to its opening workspace with identical IDs and hashes', { skip }, async () => {
+  await page.open(harness.url({ mode: 'workspace-batch' }), { width: 1280, height: 900 })
+  await page.until(`Boolean(document.querySelector('[data-plans-list] [data-spec-check] [role="switch"]'))`)
+  await click('[data-plans-list] [data-spec-check] [role="switch"]')
   await page.until(`!document.querySelector('[data-approve-specs-open]').disabled`)
   await click('[data-approve-specs-open]')
   await page.until(`Boolean(document.querySelector('[data-review-anyway]'))`)
   await page.evaluate(`window.__setReviewWorkspace('second')`)
   await page.until(`!document.querySelector('[data-approve-specs]')`)
-  assert.deepEqual(await page.evaluate('window.__reviewCalls'),[])
+  assert.deepEqual(await page.evaluate('window.__reviewCalls'), [])
   await page.evaluate(`window.__setReviewWorkspace('first')`)
   await page.until(`Boolean(document.querySelector('[data-plans-list]'))`)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-approve-specs]'))`),false)
-  assert.deepEqual(await page.evaluate('window.__reviewCalls'),[])
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-approve-specs]'))`), false)
+  assert.deepEqual(await page.evaluate('window.__reviewCalls'), [])
 })
 
 test('a running review shows the purple working box, announced politely and still under reduced motion', { skip }, async () => {
-  for (const [width, dark] of [[1280, false], [390, true]]) {
+  for (const [width, dark] of [
+    [1280, false],
+    [390, true],
+  ]) {
     await open('single', 'running', width, dark)
     const box = await page.evaluate(`(() => {
       const el = document.querySelector('[data-review-working]')
@@ -201,7 +228,9 @@ test('a running review shows the purple working box, announced politely and stil
     assert.equal(await page.evaluate(`document.querySelector('[data-approve-spec-go]').disabled`), false)
     assert.deepEqual(page.errors, [])
   }
-  const source = await import('node:fs').then((fs) => fs.readFileSync(new URL('../src/PlanReviewSummary.tsx', import.meta.url), 'utf8'))
+  const source = await import('node:fs').then(
+    (fs) => fs.readFileSync(new URL('../src/PlanReviewSummary.tsx', import.meta.url), 'utf8') + fs.readFileSync(new URL('../src/ui/PageStyles.tsx', import.meta.url), 'utf8'),
+  )
   assert.match(source, /animation: avoozl-review-sweep 2s ease-in-out infinite/, 'motion matches Kiro Crew when motion is allowed')
 })
 
@@ -213,7 +242,7 @@ test('an open dialog re-reads the stored review and swaps the working box for fi
     await page.until(`!document.querySelector('[data-review-working]')`, 10000)
     const text = await page.evaluate(`document.querySelector('[data-approve-spec], [data-approve-specs]').textContent`)
     assert.match(text, /1 warn · 1 info · 2 for you/)
-    assert.ok((await page.evaluate('window.__summaryReads')).includes('running'), 'reads Avoozl\'s stored summary')
+    assert.ok((await page.evaluate('window.__summaryReads')).includes('running'), "reads Avoozl's stored summary")
     assert.deepEqual(page.errors, [])
   }
 })
@@ -227,11 +256,17 @@ test('when the plan moves during the review, the dialog says so and Approve targ
   await click('[data-approve-spec-go]')
   await page.until(`Boolean(document.querySelector('[data-dialog-closed]'))`)
   const calls = await page.evaluate('window.__reviewCalls')
-  assert.deepEqual(calls.find((call) => call.operation === 'plan.approve'), { operation: 'plan.approve', id: 'running', expectedHash: 'c'.repeat(64) })
+  assert.deepEqual(
+    calls.find((call) => call.operation === 'plan.approve'),
+    { operation: 'plan.approve', id: 'running', expectedHash: 'c'.repeat(64) },
+  )
 })
 
 test('the revision opens its diff since the approved revision', { skip }, async () => {
-  for (const [width, dark] of [[1280, false], [390, true]]) {
+  for (const [width, dark] of [
+    [1280, false],
+    [390, true],
+  ]) {
     await open('single', 'done', width, dark)
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-revision-diff]'))`), false)
     await click('[data-revision-diff-toggle]')
@@ -254,7 +289,14 @@ test('the reviewer is a bordered table and the status and counts sit in their ow
     const rows = [...reviewer.querySelectorAll('tr')].map((row) => [row.querySelector('th').textContent, row.querySelector('td').textContent])
     return { rows, notes: [...reviewer.querySelectorAll('[data-review-note]')].map((note) => note.textContent), separate: !reviewer.contains(status) && !status.contains(reviewer), counts: Boolean(status.querySelector('[data-review-counts]')), border: getComputedStyle(reviewer).borderTopStyle + getComputedStyle(status).borderTopStyle }
   })()`)
-  assert.deepEqual(layout.rows.map(([name, value]) => [name, value.slice(0, 12)]), [['Reviewer', 'fake-reviewe'], ['Revision', 'aaaaaaaaaaaa'], ['Writer', 'unknown']])
+  assert.deepEqual(
+    layout.rows.map(([name, value]) => [name, value.slice(0, 12)]),
+    [
+      ['Reviewer', 'fake-reviewe'],
+      ['Revision', 'aaaaaaaaaaaa'],
+      ['Writer', 'unknown'],
+    ],
+  )
   assert.deepEqual(layout.notes.length, 2)
   assert.match(layout.notes[0], /The writer model is unknown/)
   assert.match(layout.notes[1], /Reviewing anyway records/)

@@ -1,7 +1,5 @@
 # Design: a standalone web view
 
-Status: Approved
-
 Requirements are in `requirements.md` (SW1 to SW12). Section numbers here
 (D1 to D11) are this file's; `§` numbers refer to
 `.kiro/specs/avoozl/design.md`.
@@ -148,6 +146,7 @@ cookie -> live session? ──no──> 401 (page: how to get a link; API: JSON)
 POST?    ──yes─> Origin, Sec-Fetch-Site, Content-Type, X-Avoozl-CSRF ──bad─> 403
 dispatch (D4) or static file (fixed list)
 ```
+
 
 **Link records.** A link is 32 bytes from `crypto.randomBytes`, base64url.
 Its SHA-256, creation time and used time go in a `serve_links` table in a

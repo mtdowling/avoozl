@@ -47,7 +47,7 @@ export function mirrorConfig(config, repositories) {
 }
 
 // The mirror whose public source `id` is, or null.
-export function mirrorWithSource(repositories, id) {
+function mirrorWithSource(repositories, id) {
   const want = String(id || "").toLowerCase();
   return (
     Object.values(repositories || {})

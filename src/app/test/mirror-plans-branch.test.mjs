@@ -48,8 +48,7 @@ test("the branch is created once from an orphan root", async () => {
     created = [];
   const make = github.createOrphanBranch.bind(github);
   github.createOrphanBranch = (...args) => (
-    created.push(args[1]),
-    make(...args)
+    created.push(args[1]), make(...args)
   );
   await requirePlansBranches(policy(base), github, { create: true });
   await requirePlansBranches(policy(base), github, { create: true });

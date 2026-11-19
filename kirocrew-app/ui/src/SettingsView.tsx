@@ -28,7 +28,8 @@ import {
   toggleCheck,
   untriagedDefault,
   MIRROR_DEFAULT_TEXT,
-  MIRROR_FORWARD_MODES, MIRROR_FORWARD_TARGETS,
+  MIRROR_FORWARD_MODES,
+  MIRROR_FORWARD_TARGETS,
   type MirrorForm,
   type UntriagedForm,
   type FieldRule,
@@ -67,7 +68,16 @@ import {
   settingsTitle,
 } from './settings-api.ts'
 import SetupWizard from './SetupWizard.tsx'
-import { AVOOZL_LABELS_LINE, AutoMergeFields, AvoozlLabelFields, CREW_PART_TEXT, ConflictFields, LANDING_MODES, MergeMethodFields, ReviewRulesFields } from './CrewsRulesSettings.tsx'
+import {
+  AVOOZL_LABELS_LINE,
+  AutoMergeFields,
+  AvoozlLabelFields,
+  CREW_PART_TEXT,
+  ConflictFields,
+  LANDING_MODES,
+  MergeMethodFields,
+  ReviewRulesFields,
+} from './CrewsRulesSettings.tsx'
 import WorkflowMap, { focusField } from './WorkflowMap.tsx'
 import { type Jump, type JumpField } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
@@ -76,6 +86,7 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryList, repositoryRows, useRe
 import { EditRepository, ViewRepository, type EditSettings } from './RepositoryModals.tsx'
 import type { EditTab } from './repo-edit-tabs.ts'
 import { FormSection } from './FormSection.tsx'
+import IsolationPanel from './IsolationPanel.tsx'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
@@ -88,24 +99,28 @@ import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api
 import { COMMAND_PATH, errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
 import type { DeliverySettings as DeliveryRead } from './delivery-api.ts'
 import { Fold } from './ui/controls.tsx'
-import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './ui/controls.tsx'
+import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading } from './ui/controls.tsx'
 import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
+import { NoticesSettings } from './NoticesSettings.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { SelectField } from './ui/SelectField'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
+import { Box, type LookProps } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 // Fields share a row and wrap; each keeps a readable width.
-const grid = (min = 220): CSSProperties => ({
-  display: 'grid',
-  gap: 12,
-  gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${min}px), 1fr))`,
-  alignItems: 'start',
-})
+const grid = (min = 220) =>
+  ({
+    'css-display': 'grid',
+    'css-gap': 12,
+    'css-grid-template-columns': `repeat(auto-fill, minmax(min(100%, ${min}px), 1fr))`,
+    'css-align-items': 'start',
+  }) as const satisfies LookProps
 
 // Release N (release.capacity): how many issues get the ready label at once.
 export const RELEASE_N_HELP = 'How many ready tasks are released at once.'
@@ -130,20 +145,15 @@ export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 // you would change it. Each is checked against what the code does.
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   workspaces: 'The Avoozl workspaces on this machine, each a folder with its own task database, and the settings that stay on this computer.',
-  github:
-    'The GitHub settings of the selected workspace, for every repository in it. Each tab is one group; one Save writes them all to .avoozl.json.',
-  radar:
-    'The labels Avoozl reads from Issue Radar crews and the handoff they use to pass issues to Avoozl, one repository at a time. Save only writes .avoozl.json.',
+  github: 'The GitHub settings of the selected workspace, for every repository in it. Each tab is one group; one Save writes them all to .avoozl.json.',
+  radar: 'The labels Avoozl reads from Issue Radar crews and the handoff they use to pass issues to Avoozl, one repository at a time. Save only writes .avoozl.json.',
   repositories:
     "Each repository's role says where its tasks live. Its labels, Workflow map, checks and reviews are tabs under its name. Issue Radar settings have their own page. Save only writes .avoozl.json.",
-  plugins:
-    'A plugin can bring a team’s settings pack, content rules, a tracker, an intake source or a delivery route. Each one runs or imports only after you approve it on this machine.',
-  content:
-    'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
+  plugins: 'A plugin can bring a team’s settings pack, content rules, an intake source or workflow templates. Each one runs or imports only after you approve it on this machine.',
+  content: 'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   models: "Each role's harness, agent and model, in one place. Issue Radar crews pick their own.",
-  delivery:
-    'Investigate-first and pull request feedback for Avoozl worker chats. Agents and models are in Models.',
+  delivery: 'Investigate-first and pull request feedback for Avoozl worker chats. Agents and models are in Models.',
 }
 
 // Section blurbs of a repository's Edit dialog (repo-edit-tabs.ts has its tabs).
@@ -152,10 +162,8 @@ export const REPOSITORY_BLURBS = {
   general: 'Which GitHub repository this is, and who writes the code.',
   landing: 'The branch pull requests merge into, and how many tasks are ready at once.',
   github: "A rule starts its action when an allowed person's label makes an issue match its line. No label name is built in.",
-  checks:
-    "Names of GitHub checks (CI jobs) that must pass on a task's PR before Avoozl counts it as done.",
-  reviews:
-    "Avoozl follows this branch's review rule on GitHub. To change it, change the rule on GitHub.",
+  checks: "Names of GitHub checks (CI jobs) that must pass on a task's PR before Avoozl counts it as done.",
+  reviews: "Avoozl follows this branch's review rule on GitHub. To change it, change the rule on GitHub.",
 } as const
 
 const FIELD_LABELS: Record<string, string> = {
@@ -232,12 +240,7 @@ function Choice(props: {
 }) {
   return (
     <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width}>
-      <SelectField
-        id={props.id}
-        value={props.value}
-        aria-describedby={fieldDescribedBy(props.id, props)}
-        onChange={(event) => props.onChange(event.target.value)} look="field"
-      >
+      <SelectField id={props.id} value={props.value} aria-describedby={fieldDescribedBy(props.id, props)} onChange={(event) => props.onChange(event.target.value)} look="field">
         <option value="">{props.none}</option>
         {props.options.map((option) => (
           <option key={option} value={option}>
@@ -250,7 +253,11 @@ function Choice(props: {
 }
 
 function Hint({ children }: { children: ReactNode }) {
-  return <p className="mt-1 text-xs text-muted">{children}</p>
+  return (
+    <Box as="p" mt="1" size="xs" tone="muted">
+      {children}
+    </Box>
+  )
 }
 
 // A heading with its one-line blurb, then the fields. A `sub` section is a
@@ -259,10 +266,19 @@ function Hint({ children }: { children: ReactNode }) {
 export function Section(props: { title: string; blurb?: string; actions?: ReactNode; children?: ReactNode; level?: 'card' | 'sub'; icon?: LucideIcon }) {
   const sub = props.level === 'sub'
   return (
-    <div className="flex flex-col gap-2.5" data-section={props.title} data-sub-section={sub ? '' : undefined} style={sub ? { borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 } : undefined}>
+    <Box
+      css-border-top={sub ? '1px-solid-border' : undefined}
+      css-padding-top={sub ? '12' : undefined}
+      css-margin-top={sub ? '4' : undefined}
+      flex
+      flexCol
+      gap="2.5"
+      data-section={props.title}
+      data-sub-section={sub ? '' : undefined}
+    >
       <SectionHeading level={props.level === 'sub' ? 4 : 3} title={props.title} blurb={props.blurb} actions={props.actions} icon={props.icon} />
       {props.children}
-    </div>
+    </Box>
   )
 }
 
@@ -309,7 +325,7 @@ function MatchField(props: {
   const current = shown && shown.match === line ? shown : null
   const errorId = `${props.id}-error`
   return (
-    <div className="flex min-w-0 flex-col gap-1 text-sm">
+    <Box flex minW0 flexCol gap="1" size="sm">
       <Field
         id={props.id}
         label={untriaged ? 'Untriaged filter' : 'Matches issues'}
@@ -326,30 +342,38 @@ function MatchField(props: {
           aria-describedby={current?.error ? errorId : undefined}
           spellCheck={false}
           autoComplete="off"
-          className="font-mono"
-          style={{ fontFamily: 'var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace)' }}
+          css-font-family="mono-ui-monospace-SFMono-Regular-Menlo-monospace"
+          fontMono
           onChange={(event) => props.onChange(event.target.value)}
         />
-        <span className="text-xs text-muted">{MATCH_HELP}</span>
+        <Box as="span" size="xs" tone="muted">
+          {MATCH_HELP}
+        </Box>
       </Field>
       {!line && (
-        <span className="text-xs text-muted">
+        <Box as="span" size="xs" tone="muted">
           {untriaged
             ? 'Blank with no triage labels: every open issue and pull request counts, less rule matches and tasks.'
             : 'Type a line such as label:agent:go to see what it matches.'}
-        </span>
+        </Box>
       )}
-      {failed && <ErrorText as="span" size="xs">The line could not be checked: {failed}</ErrorText>}
+      {failed && (
+        <ErrorText as="span" size="xs">
+          The line could not be checked: {failed}
+        </ErrorText>
+      )}
       {current?.error && (
         <ErrorText id={errorId} role="alert" as="span" size="xs">
           {current.error.replace(/ Same syntax as GitHub's issue search\..*$/, '').replace(/^match cannot use /, "Can't use ")}
         </ErrorText>
       )}
       {current?.parsed && (
-        <div className="flex flex-wrap items-center gap-1.5" data-match-chips>
+        <Box flex flexWrap items="center" gap="1.5" data-match-chips>
           {matchChips(current.parsed).map((group) => (
             <Row key={group.kind} as="span" gap={1}>
-              <span className="text-xs text-muted">{CHIP_TEXT[group.kind]}</span>
+              <Box as="span" size="xs" tone="muted">
+                {CHIP_TEXT[group.kind]}
+              </Box>
               {group.values.map((value) => (
                 <Badge key={value} variant={group.kind === 'none' ? undefined : 'info'}>
                   {value}
@@ -357,41 +381,56 @@ function MatchField(props: {
               ))}
             </Row>
           ))}
-        </div>
+        </Box>
       )}
       {current?.parsed && <MatchIssues preview={current} untriaged={untriaged} />}
-    </div>
+    </Box>
   )
 }
 
 function MatchIssues({ preview, untriaged = false }: { preview: MatchPreview; untriaged?: boolean }) {
   const noun = untriaged ? ['item', 'items'] : ['issue', 'issues']
-  if (!preview.repository) return <span className="text-xs text-muted">Name the repository to see which open {noun[1]} match.</span>
-  if (preview.searchError) return <span className="text-xs text-muted">{preview.searchError}</span>
+  if (!preview.repository)
+    return (
+      <Box as="span" size="xs" tone="muted">
+        Name the repository to see which open {noun[1]} match.
+      </Box>
+    )
+  if (preview.searchError)
+    return (
+      <Box as="span" size="xs" tone="muted">
+        {preview.searchError}
+      </Box>
+    )
   if (preview.total === null) return null
   const count =
     preview.total === 0
       ? `No open ${noun[0]} matches now.`
       : `${preview.total} open ${preview.total === 1 ? `${noun[0]} matches` : `${noun[1]} match`} now${untriaged ? ', before rules and tasks are left out' : ''}`
-  if (!preview.issues.length) return <span className="text-xs text-muted" data-match-issues>{count}</span>
+  if (!preview.issues.length)
+    return (
+      <Box as="span" size="xs" tone="muted" data-match-issues>
+        {count}
+      </Box>
+    )
   // Closed by default, so a page of rules stays short.
   return (
-    <details className="text-xs" data-match-issues>
-      <summary className="cursor-pointer text-muted">
+    <Box as="details" size="xs" data-match-issues>
+      <Box as="summary" cursorPointer tone="muted">
         {count}
         {preview.total > preview.issues.length ? ` (newest ${preview.issues.length})` : ''}
-      </summary>
-      <ul className="mt-1 flex flex-col gap-0.5">
+      </Box>
+      <Box as="ul" mt="1" flex flexCol gap="0.5">
         {preview.issues.map((issue) => (
-          <li key={issue.number} className="min-w-0 truncate">
+          <Box key={issue.number} as="li" minW0 truncate>
             <TextLink href={linkHref(issue.url)} target="_blank" rel="noopener noreferrer">
               #{issue.number}
             </TextLink>{' '}
             <span>{issue.title}</span>
-          </li>
+          </Box>
         ))}
-      </ul>
-    </details>
+      </Box>
+    </Box>
   )
 }
 
@@ -420,11 +459,7 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
   const toggle = (name: string, on: boolean) =>
     set({ triageLabels: on ? [...value.triageLabels, name] : value.triageLabels.filter((label) => label.toLocaleLowerCase() !== name.toLocaleLowerCase()) })
   return (
-    <FormSection
-      level={4}
-      title="Untriaged"
-      blurb="What Needs you › Triage lists for this repository: open issues and pull requests no rule, triage label or task covers."
-    >
+    <FormSection level={4} title="Untriaged" blurb="What Needs you › Triage lists for this repository: open issues and pull requests no rule, triage label or task covers.">
       <MatchField
         id={`${id}-untriaged-filter`}
         value={value.filter}
@@ -433,35 +468,52 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
         onChange={(filter) => set({ filter })}
         untriaged={{ placeholder: untriagedDefault(value.triageLabels) }}
       />
-      <fieldset className="flex flex-col gap-1 text-sm" data-triage-labels>
-        <legend className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-medium">Triage labels</span>
+      <Box as="fieldset" flex flexCol gap="1" size="sm" data-triage-labels>
+        <Box as="legend" flex flexWrap items="baseline" gapX="2">
+          <Box as="span" weight="medium">
+            Triage labels
+          </Box>
           <Marker rule={{ required: false }} />
-        </legend>
-        <span className="text-xs text-muted">An item with any of these counts as triaged and leaves the list.</span>
+        </Box>
+        <Box as="span" size="xs" tone="muted">
+          An item with any of these counts as triaged and leaves the list.
+        </Box>
         {!named ? (
-          <span className="text-xs text-muted">Name the repository as owner/name under Mode, and its labels show here.</span>
+          <Box as="span" size="xs" tone="muted">
+            Name the repository as owner/name under Mode, and its labels show here.
+          </Box>
         ) : !labels ? (
-          <span className="text-xs text-muted">Reading {repository}&apos;s labels…</span>
+          <Box as="span" size="xs" tone="muted">
+            Reading {repository}&apos;s labels…
+          </Box>
         ) : labels.error ? (
-          <span className="text-xs text-muted">{labels.error}</span>
+          <Box as="span" size="xs" tone="muted">
+            {labels.error}
+          </Box>
         ) : null}
         {rows.length > 0 && (
-          <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Triage labels">
+          <Box as="ul" flex flexWrap gapX="4" gapY="1" aria-label="Triage labels">
             {rows.map((row) => (
               <li key={row.name}>
-                <label className="flex items-center gap-1.5">
-                  <Checkbox checked={row.checked} onChange={(event) => toggle(row.name, event.target.checked)} />
+                <Switch label={row.name} gap={1.5} checked={row.checked} onChange={(on) => toggle(row.name, on)}>
                   <code>{row.name}</code>
-                  {row.missing && <span className="text-xs text-muted">(not on GitHub)</span>}
-                </label>
+                  {row.missing && (
+                    <Box as="span" size="xs" tone="muted">
+                      (not on GitHub)
+                    </Box>
+                  )}
+                </Switch>
               </li>
             ))}
-          </ul>
+          </Box>
         )}
-        {labels?.labels && rows.length === 0 && <span className="text-xs text-muted">{repository} has no labels yet.</span>}
+        {labels?.labels && rows.length === 0 && (
+          <Box as="span" size="xs" tone="muted">
+            {repository} has no labels yet.
+          </Box>
+        )}
         <RawKey name="untriaged.triageLabels" />
-      </fieldset>
+      </Box>
       <Row gap={3} align="end">
         <Text
           id={`${id}-untriaged-days`}
@@ -486,28 +538,34 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
   )
 }
 
-function RuleEditor(props: {
-  id: string
-  rule: RuleForm
-  actions: string[]
-  repository: string
-  workspaceId: string
-  onChange: (rule: RuleForm) => void
-  onRemove: () => void
-}) {
+function RuleEditor(props: { id: string; rule: RuleForm; actions: string[]; repository: string; workspaceId: string; onChange: (rule: RuleForm) => void; onRemove: () => void }) {
   const { rule, id } = props
   const set = (change: Partial<RuleForm>) => props.onChange({ ...rule, ...change })
   return (
-    <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
-      <div style={grid(180)}>
+    <Box css-border-color="border" flex flexCol gap="2" border="t" pt="3">
+      <Box {...grid(180)}>
         <Text id={`${id}-id`} label="Rule name" raw="id" rule={{ required: true }} placeholder="deliver-ready" value={rule.id} onChange={(value) => set({ id: value })} />
-        <Choice id={`${id}-action`} label="Action" raw="action" rule={{ required: true }} value={rule.action} options={props.actions} none="Choose" onChange={(value) => set({ action: value })} />
+        <Choice
+          id={`${id}-action`}
+          label="Action"
+          raw="action"
+          rule={{ required: true }}
+          value={rule.action}
+          options={props.actions}
+          none="Choose"
+          onChange={(value) => set({ action: value })}
+        />
         <Text id={`${id}-author`} label="Opened by" raw="author" placeholder="anyone" value={rule.author} onChange={(value) => set({ author: value })} />
-      </div>
+      </Box>
       <MatchField id={`${id}-match`} value={rule.match} repository={props.repository} workspaceId={props.workspaceId} onChange={(value) => set({ match: value })} />
       <Row gap={3}>
-        <CheckRow label="Publish a clean breakdown's sub-issues without a re-label" raw="autoPublishChildren" checked={rule.autoPublishChildren} onChange={(autoPublishChildren) => set({ autoPublishChildren })} />
-        <span className="ml-auto">
+        <CheckRow
+          label="Publish a clean breakdown's sub-issues without a re-label"
+          raw="autoPublishChildren"
+          checked={rule.autoPublishChildren}
+          onChange={(autoPublishChildren) => set({ autoPublishChildren })}
+        />
+        <Box as="span" ml="auto">
           <DangerBtn
             icon={Trash2}
             confirm={{
@@ -519,25 +577,29 @@ function RuleEditor(props: {
           >
             Remove rule
           </DangerBtn>
-        </span>
+        </Box>
       </Row>
-    </div>
+    </Box>
   )
 }
 
 function Roles({ roles }: { roles: ReviewRole[] }) {
   return (
-    <ul className="mt-1 flex flex-col gap-1 text-sm">
+    <Box as="ul" mt="1" flex flexCol gap="1" size="sm">
       {roles.map((role) => (
         <li key={role.id}>
-          <span className="font-medium">{role.id}</span>{' '}
-          <span className="text-muted">
+          <Box as="span" weight="medium">
+            {role.id}
+          </Box>{' '}
+          <Box as="span" tone="muted">
             {role.agent} · {role.model ?? 'agent default'} · distinct by {role.distinctFrom}
-          </span>
-          <span className="block text-xs text-muted">{role.focus}</span>
+          </Box>
+          <Box as="span" block size="xs" tone="muted">
+            {role.focus}
+          </Box>
         </li>
       ))}
-    </ul>
+    </Box>
   )
 }
 
@@ -556,7 +618,9 @@ function ReviewRoles({ review, repository }: { review: ReviewSettings | undefine
       {review.error ? (
         <ErrorText size="sm">The delivery block is invalid: {review.error}</ErrorText>
       ) : roles.length === 0 ? (
-        <p className="text-sm text-muted">No reviewer roles. Checks alone verify a delivery.</p>
+        <Box as="p" size="sm" tone="muted">
+          No reviewer roles. Checks alone verify a delivery.
+        </Box>
       ) : (
         <>
           <Hint>
@@ -572,13 +636,7 @@ function ReviewRoles({ review, repository }: { review: ReviewSettings | undefine
 // The check names GitHub shows for this repository, one checkbox each;
 // saved names it no longer shows are kept and marked. Without GitHub, a
 // text box.
-function ChecksEditor(props: {
-  id: string
-  value: string
-  inspect: RepositoryInspect | null
-  repository: string
-  onChange: (value: string) => void
-}) {
+function ChecksEditor(props: { id: string; value: string; inspect: RepositoryInspect | null; repository: string; onChange: (value: string) => void }) {
   const [extra, setExtra] = useState('')
   const checks = props.inspect?.checks ?? null
   const rows = checkRows(props.value, checks)
@@ -593,50 +651,63 @@ function ChecksEditor(props: {
   if (!named || (props.inspect && !checks))
     return (
       <Stack gap={2} data-checks="typed">
-        <p className="text-xs text-muted" data-checks-why>
+        <Box as="p" size="xs" tone="muted" data-checks-why>
           {!named
             ? 'Name the repository as owner/name under Mode, and Avoozl lists the checks GitHub runs there.'
             : `${props.inspect?.checksError ?? props.inspect?.error ?? 'GitHub could not be read.'} Type the names instead.`}{' '}
           Names are exact and case-sensitive, separated by commas.
-        </p>
-        <Text id={`${props.id}-checks`} label="Required checks" raw="requiredChecks" rule={{ required: false, blank: 'blank: no check is required' }} placeholder="build, lint" width="lg" value={props.value} onChange={props.onChange} />
+        </Box>
+        <Text
+          id={`${props.id}-checks`}
+          label="Required checks"
+          raw="requiredChecks"
+          rule={{ required: false, blank: 'blank: no check is required' }}
+          placeholder="build, lint"
+          width="lg"
+          value={props.value}
+          onChange={props.onChange}
+        />
       </Stack>
     )
   if (!props.inspect)
     return (
       <Stack gap={2} data-checks="reading">
-        <p className="text-xs text-muted">Reading the checks GitHub runs on {props.repository}…</p>
+        <Box as="p" size="xs" tone="muted">
+          Reading the checks GitHub runs on {props.repository}…
+        </Box>
       </Stack>
     )
   const url = checks?.url ?? `https://github.com/${props.repository}/settings/rules`
   return (
     <Stack gap={3} data-checks="listed">
-      <p className="text-xs text-muted">
-        Seen on {checks!.branch}&apos;s recent commits and open pull requests. Checks the branch rule requires stay on; Avoozl&apos;s list adds to
-        them.{' '}
+      <Box as="p" size="xs" tone="muted">
+        Seen on {checks!.branch}&apos;s recent commits and open pull requests. Checks the branch rule requires stay on; Avoozl&apos;s list adds to them.{' '}
         <TextLink href={linkHref(url)} target="_blank" rel="noopener noreferrer">
           Change the branch rule on GitHub
         </TextLink>
-      </p>
+      </Box>
       {rows.length === 0 ? (
-        <p className="text-sm text-muted">GitHub shows no checks on {checks!.branch} or its open pull requests yet. Add a name below.</p>
+        <Box as="p" size="sm" tone="muted">
+          GitHub shows no checks on {checks!.branch} or its open pull requests yet. Add a name below.
+        </Box>
       ) : (
         <Stack as="ul" gap={2} aria-label="Checks">
           {rows.map((row) => (
-            <li key={row.name} className="flex flex-col text-sm" data-check-row={row.name}>
-              <label className="flex items-center gap-1.5">
-                <Checkbox
-                  checked={row.checked}
-                  disabled={row.branchRule}
-                  aria-describedby={`${props.id}-check-${row.name}`}
-                  onChange={(event) => props.onChange(toggleCheck(props.value, row.name, event.target.checked))}
-                />
+            <Box key={row.name} as="li" flex flexCol size="sm" data-check-row={row.name}>
+              <Switch
+                label={row.name}
+                gap={1.5}
+                checked={row.checked}
+                disabled={row.branchRule}
+                describedBy={`${props.id}-check-${row.name}`}
+                onChange={(on) => props.onChange(toggleCheck(props.value, row.name, on))}
+              >
                 <code>{row.name}</code>
-              </label>
-              <span id={`${props.id}-check-${row.name}`} className="pl-5 text-xs text-muted">
+              </Switch>
+              <Box id={`${props.id}-check-${row.name}`} as="span" pl="5" size="xs" tone="muted">
                 {row.where}
-              </span>
-            </li>
+              </Box>
+            </Box>
           ))}
         </Stack>
       )}
@@ -654,22 +725,21 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
   const rule = props.inspect?.reviewRule
   const link = rule?.url ?? (props.repository ? `https://github.com/${props.repository}/settings/rules` : null)
   return (
-    <div className="flex flex-col gap-2 text-sm">
+    <Box flex flexCol gap="2" size="sm">
       <p>{reviewRuleText(props.inspect)}</p>
       {link && (
-        <a href={linkHref(link)} target="_blank" rel="noreferrer" className="self-start text-xs underline">
+        <PlainLink href={linkHref(link)} target="_blank" rel="noreferrer" self="start" size="xs" underline>
           Change it on GitHub
-        </a>
+        </PlainLink>
       )}
       {props.deprecated && (
-        <div className="flex flex-wrap items-center gap-2 rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+        <Box css-border-color="border" flex flexWrap items="center" gap="2" rounded="base" border="all" p="2" size="xs">
           <Badge>deprecated</Badge>
-          <span className="text-muted">
+          <Box as="span" tone="muted">
             .avoozl.json still sets <code>pullRequestReviews</code>
-            {props.approvals ? ` (${props.approvals} approvals)` : ''}. It counts only when GitHub&apos;s rule can&apos;t be read
-            or names no count.
-          </span>
-          <span className="ml-auto">
+            {props.approvals ? ` (${props.approvals} approvals)` : ''}. It counts only when GitHub&apos;s rule can&apos;t be read or names no count.
+          </Box>
+          <Box as="span" ml="auto">
             <DangerBtn
               confirm={{
                 title: 'Remove pullRequestReviews from .avoozl.json?',
@@ -680,10 +750,10 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
             >
               Remove the old setting
             </DangerBtn>
-          </span>
-        </div>
+          </Box>
+        </Box>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -693,24 +763,101 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
   const set = (change: Partial<MirrorForm>) => props.onChange({ ...mirror, ...change })
   return (
     <FormSection title="Private mirror" blurb="Crews work in a private copy. The mirror must be private. Leave both names blank for none.">
-      <div style={grid()}>
+      <Box {...grid()}>
         <Text id={`${id}-source`} label="Public repository" raw="mirror.source" placeholder="owner/name" value={mirror.source} onChange={(value) => set({ source: value })} />
         <Text id={`${id}-mirror`} label="Private mirror" raw="mirror.mirror" placeholder="owner/name-private" value={mirror.mirror} onChange={(value) => set({ mirror: value })} />
-        <Choice id={`${id}-forward`} label="Forward mode" raw="mirror.forward" rule={{ required: false, blank: MIRROR_DEFAULT_TEXT.forward }} value={mirror.forward} options={[...MIRROR_FORWARD_MODES]} none="Default (nudge)" onChange={(value) => set({ forward: value })} />
-        <Choice id={`${id}-target`} label="Forward target" raw="mirror.forwardTarget" rule={{ required: false, blank: MIRROR_DEFAULT_TEXT.forwardTarget }} value={mirror.forwardTarget} options={[...MIRROR_FORWARD_TARGETS]} none="Default (each)" onChange={(value) => set({ forwardTarget: value })} />
-        <Text id={`${id}-public-branch`} label="Public branch" raw="mirror.publicBranch" placeholder="needed for the branch target" value={mirror.publicBranch} onChange={(value) => set({ publicBranch: value })} />
-      </div>
-      <p className="text-xs text-muted">each: one public pull request per merged change. branch: the same, into the public branch. batch: one public pull request when the epic is done. An epic's tasks.md front-matter can set its own forwardTarget and publicBranch.</p>
+        <Choice
+          id={`${id}-forward`}
+          label="Forward mode"
+          raw="mirror.forward"
+          rule={{ required: false, blank: MIRROR_DEFAULT_TEXT.forward }}
+          value={mirror.forward}
+          options={[...MIRROR_FORWARD_MODES]}
+          none="Default (nudge)"
+          onChange={(value) => set({ forward: value })}
+        />
+        <Choice
+          id={`${id}-target`}
+          label="Forward target"
+          raw="mirror.forwardTarget"
+          rule={{ required: false, blank: MIRROR_DEFAULT_TEXT.forwardTarget }}
+          value={mirror.forwardTarget}
+          options={[...MIRROR_FORWARD_TARGETS]}
+          none="Default (each)"
+          onChange={(value) => set({ forwardTarget: value })}
+        />
+        <Text
+          id={`${id}-public-branch`}
+          label="Public branch"
+          raw="mirror.publicBranch"
+          placeholder="needed for the branch target"
+          value={mirror.publicBranch}
+          onChange={(value) => set({ publicBranch: value })}
+        />
+      </Box>
+      <Box as="p" size="xs" tone="muted">
+        each: one public pull request per merged change. branch: the same, into the public branch. batch: one public pull request when the epic is done. An epic's tasks.md
+        front-matter can set its own forwardTarget and publicBranch.
+      </Box>
       <Fold id={`${id}-more`} title="Advanced: mirror">
-        <div style={grid()}>
-          <Text id={`${id}-forward-to`} label="Forward to" raw="mirror.forwardTo" placeholder="source or fork:owner/name" value={mirror.forwardTo} onChange={(value) => set({ forwardTo: value })} />
-          <Text id={`${id}-prefix`} label="Branch prefix" raw="mirror.branchPrefix" placeholder="avoozl/" value={mirror.branchPrefix} onChange={(value) => set({ branchPrefix: value })} />
-          <Text id={`${id}-plans-branch`} label="Private specs branch" raw="mirror.plansBranch" placeholder="avoozl-plans" value={mirror.plansBranch} onChange={(value) => set({ plansBranch: value })} />
-          <Text id={`${id}-max-bytes`} label="Largest forwarded file (bytes)" raw="mirror.forwardMaxFileBytes" placeholder={MIRROR_DEFAULT_TEXT.forwardMaxFileBytes} value={mirror.forwardMaxFileBytes} onChange={(value) => set({ forwardMaxFileBytes: value })} />
-          <Text id={`${id}-exclude`} label="Never forward these paths" raw="mirror.forwardExclude" placeholder={MIRROR_DEFAULT_TEXT.forwardExclude} value={mirror.forwardExclude} onChange={(value) => set({ forwardExclude: value })} />
-          <Text id={`${id}-allow`} label="Forward these paths anyway" raw="mirror.forwardAllow" placeholder={MIRROR_DEFAULT_TEXT.forwardAllow} value={mirror.forwardAllow} onChange={(value) => set({ forwardAllow: value })} />
-          <Text id={`${id}-trusted`} label="Trusted persons" raw="mirror.trustedPersons" placeholder="login, login" value={mirror.trustedPersons} onChange={(value) => set({ trustedPersons: value })} />
-        </div>
+        <Box {...grid()}>
+          <Text
+            id={`${id}-forward-to`}
+            label="Forward to"
+            raw="mirror.forwardTo"
+            placeholder="source or fork:owner/name"
+            value={mirror.forwardTo}
+            onChange={(value) => set({ forwardTo: value })}
+          />
+          <Text
+            id={`${id}-prefix`}
+            label="Branch prefix"
+            raw="mirror.branchPrefix"
+            placeholder="avoozl/"
+            value={mirror.branchPrefix}
+            onChange={(value) => set({ branchPrefix: value })}
+          />
+          <Text
+            id={`${id}-plans-branch`}
+            label="Private specs branch"
+            raw="mirror.plansBranch"
+            placeholder="avoozl-plans"
+            value={mirror.plansBranch}
+            onChange={(value) => set({ plansBranch: value })}
+          />
+          <Text
+            id={`${id}-max-bytes`}
+            label="Largest forwarded file (bytes)"
+            raw="mirror.forwardMaxFileBytes"
+            placeholder={MIRROR_DEFAULT_TEXT.forwardMaxFileBytes}
+            value={mirror.forwardMaxFileBytes}
+            onChange={(value) => set({ forwardMaxFileBytes: value })}
+          />
+          <Text
+            id={`${id}-exclude`}
+            label="Never forward these paths"
+            raw="mirror.forwardExclude"
+            placeholder={MIRROR_DEFAULT_TEXT.forwardExclude}
+            value={mirror.forwardExclude}
+            onChange={(value) => set({ forwardExclude: value })}
+          />
+          <Text
+            id={`${id}-allow`}
+            label="Forward these paths anyway"
+            raw="mirror.forwardAllow"
+            placeholder={MIRROR_DEFAULT_TEXT.forwardAllow}
+            value={mirror.forwardAllow}
+            onChange={(value) => set({ forwardAllow: value })}
+          />
+          <Text
+            id={`${id}-trusted`}
+            label="Trusted persons"
+            raw="mirror.trustedPersons"
+            placeholder="login, login"
+            value={mirror.trustedPersons}
+            onChange={(value) => set({ trustedPersons: value })}
+          />
+        </Box>
         <CheckRow label="Squash into one commit" help="On by default." raw="mirror.squash" checked={mirror.squash} onChange={(squash) => set({ squash })} />
       </Fold>
     </FormSection>
@@ -746,8 +893,7 @@ export function RepositoryEditor(props: {
     focusField(id, pending)
   }, [pending, tab, id])
   const set = (change: Partial<RepositoryForm>) => props.onChange({ ...repository, ...change })
-  const setRule = (at: number, rule: RuleForm) =>
-    set({ rules: repository.rules.map((item, index) => (index === at ? rule : item)) })
+  const setRule = (at: number, rule: RuleForm) => set({ rules: repository.rules.map((item, index) => (index === at ? rule : item)) })
   const name = repository.name.trim()
   // The older workspace delivery.ship, which a repository that sets no
   // landing.autoMerge follows (§4.25); read only on the Landing tab.
@@ -755,12 +901,10 @@ export function RepositoryEditor(props: {
   useEffect(() => {
     if (tab !== 'landing') return
     let live = true
-    api
-      .post<{ result: DeliveryRead }>(COMMAND_PATH, { operation: 'delivery.settings.get', input: {}, workspaceId: props.workspaceId })
-      .then(
-        (reply) => live && setInheritedShip(reply.result?.delivery?.ship ?? null),
-        () => live && setInheritedShip(null),
-      )
+    api.post<{ result: DeliveryRead }>(COMMAND_PATH, { operation: 'delivery.settings.get', input: {}, workspaceId: props.workspaceId }).then(
+      (reply) => live && setInheritedShip(reply.result?.delivery?.ship ?? null),
+      () => live && setInheritedShip(null),
+    )
     return () => {
       live = false
     }
@@ -772,8 +916,7 @@ export function RepositoryEditor(props: {
     let live = true
     inspectRepository(props.workspaceId, name, repository.baseBranch).then(
       (value) => live && setInspect(value),
-      (caught: unknown) =>
-        live && setInspect({ repository: name, branch: null, reviewRule: null, checks: null, error: errorMessage(caught) }),
+      (caught: unknown) => live && setInspect({ repository: name, branch: null, reviewRule: null, checks: null, error: errorMessage(caught) }),
     )
     return () => {
       live = false
@@ -785,24 +928,56 @@ export function RepositoryEditor(props: {
     <>
       {tab === 'general' && (
         <FormSection title="GitHub repository" blurb={REPOSITORY_BLURBS.general}>
-          <p className="text-xs text-muted">
-            Workspace mode: <span className="font-medium" style={{ color: 'var(--text)' }}>{MODE_TITLES[modeKey(props.mode)]}</span>. It follows from each repository&apos;s role in Repository setup.
-          </p>
-          <div style={grid()}>
-            <Text id={`${id}-name`} label="Repository" raw="key" rule={REPOSITORY_FIELD_RULES.name} placeholder="owner/name" value={repository.name} onChange={(value) => set({ name: value })} />
-          </div>
+          <Box as="p" size="xs" tone="muted">
+            Workspace mode:{' '}
+            <Box as="span" css-color="text" weight="medium">
+              {MODE_TITLES[modeKey(props.mode)]}
+            </Box>
+            . It follows from each repository&apos;s role in Repository setup.
+          </Box>
+          <Box {...grid()}>
+            <Text
+              id={`${id}-name`}
+              label="Repository"
+              raw="key"
+              rule={REPOSITORY_FIELD_RULES.name}
+              placeholder="owner/name"
+              value={repository.name}
+              onChange={(value) => set({ name: value })}
+            />
+          </Box>
         </FormSection>
       )}
       {tab === 'landing' && (
         <>
           <FormSection title="Where tasks land" blurb={REPOSITORY_BLURBS.landing}>
-            <div style={grid()}>
-              <Text id={`${id}-base`} label="Default branch" raw="baseBranch" rule={REPOSITORY_FIELD_RULES.baseBranch} placeholder="main" width="md" value={repository.baseBranch} onChange={(value) => set({ baseBranch: value })} />
-              <Text id={`${id}-release-capacity`} label="Release N" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} help={RELEASE_N_HELP} placeholder="no limit" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
-            </div>
+            <Box {...grid()}>
+              <Text
+                id={`${id}-base`}
+                label="Default branch"
+                raw="baseBranch"
+                rule={REPOSITORY_FIELD_RULES.baseBranch}
+                placeholder="main"
+                width="md"
+                value={repository.baseBranch}
+                onChange={(value) => set({ baseBranch: value })}
+              />
+              <Text
+                id={`${id}-release-capacity`}
+                label="Release N"
+                raw="release.capacity"
+                rule={REPOSITORY_FIELD_RULES.releaseCapacity}
+                help={RELEASE_N_HELP}
+                placeholder="no limit"
+                type="number"
+                width="sm"
+                value={repository.releaseCapacity}
+                onChange={(value) => set({ releaseCapacity: value })}
+              />
+            </Box>
           </FormSection>
           <FormSection title={CREW_PART_TEXT.merge.title} blurb={CREW_PART_TEXT.merge.blurb}>
-            <div style={grid()}>
+            <Box {...grid()}>
               <Choice
                 id={`${id}-landing-mode`}
                 label="Landing mode"
@@ -814,7 +989,7 @@ export function RepositoryEditor(props: {
                 width="md"
                 onChange={(value) => set({ landingMode: value })}
               />
-            </div>
+            </Box>
             <AutoMergeFields id={id} repository={repository} set={set} inherited={inheritedShip} />
           </FormSection>
           <FormSection title="Merge method" blurb="How a pull request merges when auto-merge is armed.">
@@ -841,13 +1016,23 @@ export function RepositoryEditor(props: {
       {tab === 'github' && (
         <>
           <FormSection title="Sync" blurb="How long Avoozl keeps GitHub's answers about this repository before it asks again.">
-            <div style={grid()}>
-              <Text id={`${id}-cache`} label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={REPOSITORY_FIELD_RULES.cacheSeconds} placeholder="workspace value" type="number" width="sm" value={repository.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
-            </div>
+            <Box {...grid()}>
+              <Text
+                id={`${id}-cache`}
+                label="Keep GitHub answers (seconds)"
+                raw="cacheSeconds"
+                rule={REPOSITORY_FIELD_RULES.cacheSeconds}
+                placeholder="workspace value"
+                type="number"
+                width="sm"
+                value={repository.cacheSeconds}
+                onChange={(value) => set({ cacheSeconds: value })}
+              />
+            </Box>
           </FormSection>
           <FormSection title="Label rules" blurb={REPOSITORY_BLURBS.github}>
             {repository.rules.length === 0 && (
-              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+              <Box as="p" flex flexWrap items="center" gapX="3" gapY="1" size="sm" tone="muted">
                 <span>No rules yet, so labels start nothing. Add one to let a label start work.</span>
                 <AskForHelp
                   workspaceId={props.workspaceId}
@@ -862,7 +1047,7 @@ export function RepositoryEditor(props: {
                     docs: 'README.md, section Deliver through GitHub',
                   }}
                 />
-              </p>
+              </Box>
             )}
             {repository.rules.map((rule, index) => (
               <RuleEditor
@@ -884,28 +1069,24 @@ export function RepositoryEditor(props: {
             title="Managed labels"
             blurb="Labels Avoozl itself adds and removes on issues to show their state. Don't edit them by hand: a hand edit shows as a conflict."
           >
-            <div style={grid(200)}>
+            <Box {...grid(200)}>
               {/* Ready is edited with Avoozl's other labels in Crews and rules. */}
-              {choices.managedLabels.filter((key) => key !== 'ready').map((key) => (
-                <Text
-                  key={key}
-                  id={`${id}-label-${key}`}
-                  label={MANAGED_LABEL_TEXT[key] ?? key}
-                  raw={`managedLabels.${key}`}
-                  rule={REPOSITORY_FIELD_RULES[key]}
-                  value={repository.managedLabels[key] ?? ''}
-                  onChange={(value) => set({ managedLabels: { ...repository.managedLabels, [key]: value } })}
-                />
-              ))}
-            </div>
+              {choices.managedLabels
+                .filter((key) => key !== 'ready')
+                .map((key) => (
+                  <Text
+                    key={key}
+                    id={`${id}-label-${key}`}
+                    label={MANAGED_LABEL_TEXT[key] ?? key}
+                    raw={`managedLabels.${key}`}
+                    rule={REPOSITORY_FIELD_RULES[key]}
+                    value={repository.managedLabels[key] ?? ''}
+                    onChange={(value) => set({ managedLabels: { ...repository.managedLabels, [key]: value } })}
+                  />
+                ))}
+            </Box>
           </FormSection>
-          <UntriagedSettings
-            id={id}
-            value={repository.untriaged}
-            repository={name}
-            workspaceId={props.workspaceId}
-            onChange={(untriaged) => set({ untriaged })}
-          />
+          <UntriagedSettings id={id} value={repository.untriaged} repository={name} workspaceId={props.workspaceId} onChange={(untriaged) => set({ untriaged })} />
           <FormSection
             title="Who counts"
             blurb="GitHub still decides who has access. This sets how much GitHub permission a person needs for a label, a board drag or a close to count."
@@ -935,7 +1116,16 @@ export function RepositoryEditor(props: {
             </Row>
           </FormSection>
           <FormSection title="Priority" blurb="Ready tasks carrying a higher label here start first.">
-            <Text id={`${id}-priority`} label="Priority labels, highest first" raw="priority" rule={{ required: false, blank: 'blank: graph order only' }} placeholder="p0, p1, p2" width="lg" value={repository.priority} onChange={(value) => set({ priority: value })} />
+            <Text
+              id={`${id}-priority`}
+              label="Priority labels, highest first"
+              raw="priority"
+              rule={{ required: false, blank: 'blank: graph order only' }}
+              placeholder="p0, p1, p2"
+              width="lg"
+              value={repository.priority}
+              onChange={(value) => set({ priority: value })}
+            />
           </FormSection>
         </>
       )}
@@ -1026,14 +1216,36 @@ function RepositoriesTab(props: {
     await Promise.all([reload(), props.onRegistryChanged()])
     setOffer(role.folder)
     if (role.changed && role.github) {
-      const failure = await props.onCommit((current) => withRepositoryEdit(current, { github: role.github, branch: role.branch, policy: -1 }, { entry: null, role: role.role, source: role.source }))
+      const failure = await props.onCommit((current) =>
+        withRepositoryEdit(current, { github: role.github, branch: role.branch, policy: -1 }, { entry: null, role: role.role, source: role.source }),
+      )
       if (failure) return setMessage({ ok: false, text: `Added ${id}, but its role was not saved. ${failure}` })
     }
     setMessage({ ok: true, text: `Added ${id}.` })
   }
-  // The repository's own settings, inside its Edit dialog, on its open tab:
-  // the editor, or what a local or settings-less repository has instead.
-  const settingsFor = (row: RepositoryRow, view: { entry: RepositoryForm | null; setEntry: (entry: RepositoryForm) => void; tab: EditTab; setTab: (tab: EditTab) => void }): EditSettings => {
+  // The repository's own settings, inside its Edit dialog, on its open tab,
+  // with the Isolation panel under Landing for a registered checkout.
+  const settingsFor = (
+    row: RepositoryRow,
+    view: { entry: RepositoryForm | null; setEntry: (entry: RepositoryForm) => void; tab: EditTab; setTab: (tab: EditTab) => void },
+  ): EditSettings => {
+    const own = repositorySettings(row, view)
+    if (view.tab !== 'landing' || !row.checkout) return own
+    return {
+      ...own,
+      body: (
+        <>
+          {own.body}
+          <IsolationPanel key={row.checkout.id} workspaceId={props.workspaceId} projectId={row.checkout.id} value={row.checkout.isolation} />
+        </>
+      ),
+    }
+  }
+  // The editor, or what a local or settings-less repository has instead.
+  const repositorySettings = (
+    row: RepositoryRow,
+    view: { entry: RepositoryForm | null; setEntry: (entry: RepositoryForm) => void; tab: EditTab; setTab: (tab: EditTab) => void },
+  ): EditSettings => {
     const { entry, setEntry, tab } = view
     if (!isGitHubMode(form.mode))
       return { tabs: LOCAL_TABS, body: <LocalRepository row={row} review={props.review} kept={row.policy >= 0} workspaceId={props.workspaceId} tab={tab} /> }
@@ -1061,7 +1273,11 @@ function RepositoriesTab(props: {
         tabs: [],
         body: tab === 'general' && (
           <FormSection title="Settings" blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
-            <IconLabel icon={Plus} tooltip="Add an entry you can change; written when you press Save" onClick={() => setEntry({ ...emptyRepository(row.github!), baseBranch: row.branch })}>
+            <IconLabel
+              icon={Plus}
+              tooltip="Add an entry you can change; written when you press Save"
+              onClick={() => setEntry({ ...emptyRepository(row.github!), baseBranch: row.branch })}
+            >
               Add GitHub settings for {row.github}
             </IconLabel>
           </FormSection>
@@ -1071,20 +1287,22 @@ function RepositoriesTab(props: {
       tabs: ['landing'],
       body: tab === 'landing' && (
         <FormSection title="Checks" blurb="A local-only repository: no GitHub remote, so the GitHub settings do not apply.">
-          <p className="text-sm" data-local-checks>
-            Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from its facts in tasks.md, or this
-            repository&apos;s checks when a task names none.
-          </p>
+          <Box as="p" size="sm" data-local-checks>
+            Required checks apply only to GitHub pull requests. Here Avoozl runs this repository&apos;s checks for every task; a check with paths runs only when a change touches
+            them.
+          </Box>
         </FormSection>
       ),
     }
   }
   return (
-    <div className="flex flex-col gap-3.5">
+    <Box flex flexCol gap="3.5">
       <Card>
         <Section title={`Added repositories (${rows.length})`} blurb={REPOSITORIES_LINE}>
           {checkouts === null ? (
-            <p className="text-sm text-muted">Loading…</p>
+            <Box as="p" size="sm" tone="muted">
+              Loading…
+            </Box>
           ) : (
             <RepositoryList
               rows={rows}
@@ -1101,30 +1319,36 @@ function RepositoriesTab(props: {
             />
           )}
           {message && (
-            <p role={message.ok ? 'status' : 'alert'} className={`mt-2 text-sm ${message.ok ? 'text-muted' : 'text-danger'}`}>
+            <Box role={message.ok ? 'status' : 'alert'} as="p" mt="2" size="sm" tone={message.ok ? 'muted' : 'danger'}>
               {message.text}
-            </p>
+            </Box>
           )}
           {offer && message?.ok && (
-            <div className="mt-2" data-setup-offer>
-              <IconLabel icon={Workflow} primary disabled={Boolean(setupBlocked)} tooltip={setupBlocked ?? 'Choose its mode, set up GitHub and import its specs. Nothing is written before Set up.'} onClick={() => setSetupFolder(offer)}>
+            <Box mt="2" data-setup-offer>
+              <IconLabel
+                icon={Workflow}
+                primary
+                disabled={Boolean(setupBlocked)}
+                tooltip={setupBlocked ?? 'Choose its mode, set up GitHub and import its specs. Nothing is written before Set up.'}
+                onClick={() => setSetupFolder(offer)}
+              >
                 Set up GitHub and import specs
               </IconLabel>
-            </div>
+            </Box>
           )}
           {rows.length > 0 && (
-            <p className="mt-2 text-sm" data-tasks-live>
+            <Box as="p" mt="2" size="sm" data-tasks-live>
               {tasksLiveLine(form.mode, form.planningRepository)}
-            </p>
+            </Box>
           )}
           {rolesNote && (
-            <p className="mt-1 text-xs text-muted" data-roles-note>
+            <Box as="p" mt="1" size="xs" tone="muted" data-roles-note>
               {rolesNote}
-            </p>
+            </Box>
           )}
-          <div className="mt-2">
+          <Box mt="2">
             <RoleHelp />
-          </div>
+          </Box>
         </Section>
       </Card>
       {open?.kind === 'view' && openRow && (
@@ -1174,7 +1398,7 @@ function RepositoriesTab(props: {
           />
         </div>
       </Card>
-    </div>
+    </Box>
   )
 }
 
@@ -1187,22 +1411,28 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
   if (tab === 'general')
     return (
       <FormSection title="Local only" blurb="Avoozl codes, checks and merges here on this Mac.">
-        {props.kept && <p className="text-xs text-muted">Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.</p>}
+        {props.kept && (
+          <Box as="p" size="xs" tone="muted">
+            Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.
+          </Box>
+        )}
       </FormSection>
     )
   if (tab === 'landing')
     return (
       <>
         <FormSection title="Where tasks land">
-          <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
-            <dt className="text-muted">Landing branch</dt>
+          <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1" size="sm">
+            <Box as="dt" tone="muted">
+              Landing branch
+            </Box>
             <dd>
               <code>{row.branch}</code>
             </dd>
-          </dl>
-          <p className="text-sm" data-local-checks>
-            Avoozl runs each task&apos;s own checks from its facts in tasks.md, or this repository&apos;s checks when a task names none.
-          </p>
+          </Box>
+          <Box as="p" size="sm" data-local-checks>
+            Avoozl runs this repository&apos;s checks for every task; a check with paths runs only when a change touches them.
+          </Box>
         </FormSection>
         <ReviewRoles review={props.review} repository={row.github ?? row.name} />
       </>
@@ -1256,13 +1486,17 @@ function WorkspaceGitHub(props: {
       <>
         <Card>
           <Section title="GitHub settings" blurb="They apply once a repository has a GitHub role in Repository setup.">
-            <div className="flex flex-col gap-1.5 text-sm" data-local-note>
+            <Box flex flexCol gap="1.5" size="sm" data-local-note>
               <p>{LOCAL_HIDDEN_LINE}</p>
-              <p className="text-xs text-muted">
+              <Box as="p" size="xs" tone="muted">
                 Folders, landing branches and checks are under Repository setup. Worker and reviewer chats come from delivery in .avoozl.json.
-              </p>
-              {kept.length > 0 && <p className="text-xs text-muted" data-kept>Kept, not used: {kept.join(', ')}. Give a repository a GitHub role to use them again.</p>}
-            </div>
+              </Box>
+              {kept.length > 0 && (
+                <Box as="p" size="xs" tone="muted" data-kept>
+                  Kept, not used: {kept.join(', ')}. Give a repository a GitHub role to use them again.
+                </Box>
+              )}
+            </Box>
           </Section>
         </Card>
         <RateBlock rate={props.rate} />
@@ -1270,13 +1504,13 @@ function WorkspaceGitHub(props: {
     )
   const dirty = dirtyTabs(form, props.saved, GITHUB_TAB_FIELDS)
   return (
-    <div className="flex min-w-0 flex-col gap-3.5" data-github-tabs>
+    <Box flex minW0 flexCol gap="3.5" data-github-tabs>
       <Tabs id="avoozl-github-tab" label="GitHub settings" tabs={GITHUB_TABS.map((item) => ({ ...item, dirty: dirty.has(item.key) }))} current={tab} onPick={pick} />
       <TabPanel id="avoozl-github-tab" current={tab}>
         {tab === 'issues' && (
           <Card>
             <Section title="New tasks and issues" blurb="Who owns a new task, and how its GitHub issue is made. For every repository in this workspace.">
-              <div style={grid()}>
+              <Box {...grid()}>
                 <Choice
                   id="avoozl-settings-authority"
                   label="New tasks belong to"
@@ -1288,23 +1522,78 @@ function WorkspaceGitHub(props: {
                   width="md"
                   onChange={(value) => set({ defaultAuthority: value })}
                 />
-                <Text id="avoozl-settings-epic" label="Epic issue type" raw="epicIssueType" rule={{ required: false, blank: 'blank: epics get no issue type' }} placeholder="Epic" width="md" value={form.epicIssueType} onChange={(value) => set({ epicIssueType: value })} />
+                <Text
+                  id="avoozl-settings-epic"
+                  label="Epic issue type"
+                  raw="epicIssueType"
+                  rule={{ required: false, blank: 'blank: epics get no issue type' }}
+                  placeholder="Epic"
+                  width="md"
+                  value={form.epicIssueType}
+                  onChange={(value) => set({ epicIssueType: value })}
+                />
                 {shown.has('subIssueCap') && (
-                  <Text id="avoozl-settings-sub-issues" label="Sub-issues per parent" raw="subIssues.maxPerParent" rule={{ required: false, blank: SUB_ISSUE_LINE }} placeholder="100" type="number" width="sm" value={form.maxPerParent} onChange={(value) => set({ maxPerParent: value })} />
+                  <Text
+                    id="avoozl-settings-sub-issues"
+                    label="Sub-issues per parent"
+                    raw="subIssues.maxPerParent"
+                    rule={{ required: false, blank: SUB_ISSUE_LINE }}
+                    placeholder="100"
+                    type="number"
+                    width="sm"
+                    value={form.maxPerParent}
+                    onChange={(value) => set({ maxPerParent: value })}
+                  />
                 )}
-              </div>
-              <CheckRow label="Make issues for tasks already done when a spec is approved" help="Off: only open tasks get issues." raw="issues.includeDone" checked={form.includeDone} onChange={(includeDone) => set({ includeDone })} />
+              </Box>
+              <CheckRow
+                label="Make issues for tasks already done when a spec is approved"
+                help="Off: only open tasks get issues."
+                raw="issues.includeDone"
+                checked={form.includeDone}
+                onChange={(includeDone) => set({ includeDone })}
+              />
             </Section>
           </Card>
         )}
         {tab === 'sync' && (
           <Card>
             <Section title="Sync pace" blurb="How long Avoozl keeps GitHub's answers, and how fast it writes. Every write from the app, CLI and tick shares these limits.">
-              <div style={grid()}>
-                <Text id="avoozl-settings-cache" label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={{ required: false, blank: 'blank: 60. 0 turns the cache off' }} placeholder="60" type="number" width="sm" value={form.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
-                <Text id="avoozl-settings-writes-minute" label="GitHub writes a minute" raw="writesPerMinute" rule={{ required: false, blank: 'blank: 60. At most 80' }} placeholder="60" type="number" width="sm" value={form.writesPerMinute} onChange={(value) => set({ writesPerMinute: value })} />
-                <Text id="avoozl-settings-writes-hour" label="GitHub writes an hour" raw="writesPerHour" rule={{ required: false, blank: 'blank: 400. At most 500' }} placeholder="400" type="number" width="sm" value={form.writesPerHour} onChange={(value) => set({ writesPerHour: value })} />
-              </div>
+              <Box {...grid()}>
+                <Text
+                  id="avoozl-settings-cache"
+                  label="Keep GitHub answers (seconds)"
+                  raw="cacheSeconds"
+                  rule={{ required: false, blank: 'blank: 60. 0 turns the cache off' }}
+                  placeholder="60"
+                  type="number"
+                  width="sm"
+                  value={form.cacheSeconds}
+                  onChange={(value) => set({ cacheSeconds: value })}
+                />
+                <Text
+                  id="avoozl-settings-writes-minute"
+                  label="GitHub writes a minute"
+                  raw="writesPerMinute"
+                  rule={{ required: false, blank: 'blank: 60. At most 80' }}
+                  placeholder="60"
+                  type="number"
+                  width="sm"
+                  value={form.writesPerMinute}
+                  onChange={(value) => set({ writesPerMinute: value })}
+                />
+                <Text
+                  id="avoozl-settings-writes-hour"
+                  label="GitHub writes an hour"
+                  raw="writesPerHour"
+                  rule={{ required: false, blank: 'blank: 400. At most 500' }}
+                  placeholder="400"
+                  type="number"
+                  width="sm"
+                  value={form.writesPerHour}
+                  onChange={(value) => set({ writesPerHour: value })}
+                />
+              </Box>
             </Section>
           </Card>
         )}
@@ -1326,14 +1615,14 @@ function WorkspaceGitHub(props: {
           ) : (
             <Card>
               <Section title="GitHub calls" blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source.">
-                <p className="text-sm text-muted" data-empty="github-calls">
+                <Box as="p" size="sm" tone="muted" data-empty="github-calls">
                   No GitHub calls recorded yet. They show here after the next sync.
-                </p>
+                </Box>
               </Section>
             </Card>
           ))}
       </TabPanel>
-    </div>
+    </Box>
   )
 }
 
@@ -1367,7 +1656,10 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
   if (!isGitHubMode(form.mode) || !repository)
     return (
       <Card>
-        <Section title="Issue Radar" blurb="Issue Radar crews work GitHub issues and can hand one to Avoozl. These settings apply once a repository has a GitHub role in Repository setup.">
+        <Section
+          title="Issue Radar"
+          blurb="Issue Radar crews work GitHub issues and can hand one to Avoozl. These settings apply once a repository has a GitHub role in Repository setup."
+        >
           {null}
         </Section>
       </Card>
@@ -1375,11 +1667,11 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
   const setRepository = (change: Partial<RepositoryForm>) => set({ repositories: form.repositories.map((entry, at) => (at === index ? { ...entry, ...change } : entry)) })
   const part = { id, repository, set: setRepository }
   return (
-    <div className="flex flex-col gap-3.5" data-radar-settings>
+    <Box flex flexCol gap="3.5" data-radar-settings>
       {names.length > 1 && (
         <Card>
           <Section title="Repository" blurb="Each repository has its own Issue Radar settings. Pick the one to edit.">
-            <label className="flex flex-wrap items-center gap-2 text-sm" htmlFor="avoozl-radar-repository">
+            <Box as="label" flex flexWrap items="center" gap="2" size="sm" htmlFor="avoozl-radar-repository">
               Repository
               <SelectField id="avoozl-radar-repository" value={names[index]} onChange={(event) => setPicked(event.target.value)} look="plain">
                 {names.map((name, at) => (
@@ -1388,7 +1680,7 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
                   </option>
                 ))}
               </SelectField>
-            </label>
+            </Box>
           </Section>
         </Card>
       )}
@@ -1399,7 +1691,7 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
       </Card>
       <Card>
         <Section title="Labels Radar uses" blurb={RADAR_LABELS_BLURB}>
-          <div style={grid(200)}>
+          <Box {...grid(200)}>
             {settings.choices.crewLabels.map((key) => (
               <Text
                 key={key}
@@ -1411,7 +1703,7 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
                 onChange={(value) => setRepository({ crewLabels: { ...repository.crewLabels, [key]: value } })}
               />
             ))}
-          </div>
+          </Box>
         </Section>
       </Card>
       <Card>
@@ -1419,7 +1711,7 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
           <ReviewRulesFields {...part} />
         </Section>
       </Card>
-    </div>
+    </Box>
   )
 }
 
@@ -1432,45 +1724,64 @@ export function ProjectFields({ form, choices, set }: { form: SettingsForm; choi
         title="Project fields"
         blurb="The GitHub Project board Avoozl adds managed issues to and fills with Release, Wave and Avoozl state. People move Status; Avoozl never writes it. Leave every field blank to turn Project sync off."
       >
-        <div style={grid(180)}>
-          <Text id="avoozl-settings-project-owner" label="Owner" raw="project.owner" rule={PROJECT_FIELD_RULES.owner} placeholder="org or user" width="md" value={form.projectOwner} onChange={(value) => set({ projectOwner: value })} />
-          <Text id="avoozl-settings-project-number" label="Number" raw="project.number" rule={PROJECT_FIELD_RULES.number} placeholder="2" type="number" width="md" value={form.projectNumber} onChange={(value) => set({ projectNumber: value })} />
-        </div>
+        <Box {...grid(180)}>
+          <Text
+            id="avoozl-settings-project-owner"
+            label="Owner"
+            raw="project.owner"
+            rule={PROJECT_FIELD_RULES.owner}
+            placeholder="org or user"
+            width="md"
+            value={form.projectOwner}
+            onChange={(value) => set({ projectOwner: value })}
+          />
+          <Text
+            id="avoozl-settings-project-number"
+            label="Number"
+            raw="project.number"
+            rule={PROJECT_FIELD_RULES.number}
+            placeholder="2"
+            type="number"
+            width="md"
+            value={form.projectNumber}
+            onChange={(value) => set({ projectNumber: value })}
+          />
+        </Box>
         {choices.fields.length > 0 && (
-        <Section level="sub" title="Field names" blurb="The names of the Project's fields Avoozl fills. Blank uses the name shown.">
-        <div style={grid(180)}>
-          {choices.fields.map((key) => (
-            <Text
-              key={key}
-              id={`avoozl-settings-field-${key}`}
-              label={FIELD_LABELS[key] ?? key}
-              raw={`project.fields.${key}`}
-              rule={PROJECT_FIELD_RULES[key]}
-              placeholder={PROJECT_DEFAULTS[key] || 'none'}
-              value={form.fields[key] ?? ''}
-              onChange={(value) => set({ fields: { ...form.fields, [key]: value } })}
-            />
-          ))}
-        </div>
-        </Section>
+          <Section level="sub" title="Field names" blurb="The names of the Project's fields Avoozl fills. Blank uses the name shown.">
+            <Box {...grid(180)}>
+              {choices.fields.map((key) => (
+                <Text
+                  key={key}
+                  id={`avoozl-settings-field-${key}`}
+                  label={FIELD_LABELS[key] ?? key}
+                  raw={`project.fields.${key}`}
+                  rule={PROJECT_FIELD_RULES[key]}
+                  placeholder={PROJECT_DEFAULTS[key] || 'none'}
+                  value={form.fields[key] ?? ''}
+                  onChange={(value) => set({ fields: { ...form.fields, [key]: value } })}
+                />
+              ))}
+            </Box>
+          </Section>
         )}
         {choices.statusValues.length > 0 && (
-        <Section level="sub" title="Status options" blurb="The Status options Avoozl reads. Blank uses the name shown.">
-        <div style={grid(180)}>
-          {choices.statusValues.map((key) => (
-            <Text
-              key={key}
-              id={`avoozl-settings-status-${key}`}
-              label={STATUS_LABELS[key] ?? key}
-              raw={`project.statusValues.${key}`}
-              rule={PROJECT_FIELD_RULES[key]}
-              placeholder={PROJECT_DEFAULTS[key]}
-              value={form.statusValues[key] ?? ''}
-              onChange={(value) => set({ statusValues: { ...form.statusValues, [key]: value } })}
-            />
-          ))}
-        </div>
-        </Section>
+          <Section level="sub" title="Status options" blurb="The Status options Avoozl reads. Blank uses the name shown.">
+            <Box {...grid(180)}>
+              {choices.statusValues.map((key) => (
+                <Text
+                  key={key}
+                  id={`avoozl-settings-status-${key}`}
+                  label={STATUS_LABELS[key] ?? key}
+                  raw={`project.statusValues.${key}`}
+                  rule={PROJECT_FIELD_RULES[key]}
+                  placeholder={PROJECT_DEFAULTS[key]}
+                  value={form.statusValues[key] ?? ''}
+                  onChange={(value) => set({ statusValues: { ...form.statusValues, [key]: value } })}
+                />
+              ))}
+            </Box>
+          </Section>
         )}
       </Section>
     </div>
@@ -1483,7 +1794,10 @@ function sharedSetup(form: SettingsForm) {
   return {
     mode: form.mode,
     planningRepository: form.planningRepository,
-    repositories: form.repositories.map((r) => r.name.trim()).filter(Boolean).join(', '),
+    repositories: form.repositories
+      .map((r) => r.name.trim())
+      .filter(Boolean)
+      .join(', '),
     projectOwner: form.projectOwner,
     projectNumber: form.projectNumber,
   }
@@ -1550,11 +1864,16 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
         {error}
       </ErrorText>
     )
-  if (!settings || !form || !choices) return <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
+  if (!settings || !form || !choices)
+    return (
+      <Box as="p" size="sm" tone="muted">
+        {busy ? 'Loading…' : 'Not loaded'}
+      </Box>
+    )
   const dirty = JSON.stringify(toPolicy(form)) !== JSON.stringify(toPolicy(toForm(settings.github)))
   const missing = missingRequired(form)
   return (
-    <div className="flex flex-col gap-3.5">
+    <Box flex flexCol gap="3.5">
       {settings.error && (
         <ErrorText role="alert" size="sm">
           The saved settings are invalid: {settings.error}
@@ -1598,7 +1917,7 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
         onSave={() => void save()}
         onDiscard={() => void reload()}
       />
-    </div>
+    </Box>
   )
 }
 
@@ -1618,14 +1937,20 @@ class TabBoundary extends Component<{ label: string; children: ReactNode }, { er
   }
 }
 
-function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onTab: (tab: SettingsTab) => void } & Pick<Parameters<typeof SettingsView>[0], 'onSelectWorkspace' | 'onListChange' | 'onOpenPlans'>) {
+function SettingsBody(
+  props: { tab: SettingsTab; workspaceId: string | null; onTab: (tab: SettingsTab) => void } & Pick<
+    Parameters<typeof SettingsView>[0],
+    'onSelectWorkspace' | 'onListChange' | 'onOpenPlans'
+  >,
+) {
   const { tab, workspaceId } = props
   if (tab === 'workspaces')
     return (
-      <div className="flex flex-col gap-3.5">
+      <Box flex flexCol gap="3.5">
         <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
         <ThisComputer workspaceId={workspaceId} />
-      </div>
+        <NoticesSettings workspaceId={workspaceId} />
+      </Box>
     )
   if (!workspaceId)
     return (
@@ -1641,9 +1966,9 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   if (tab === 'models') return <ModelsSettings workspaceId={workspaceId} />
   if (tab === 'delivery') return <DeliverySettings workspaceId={workspaceId} />
   return (
-    <div className="flex flex-col gap-3.5">
+    <Box flex flexCol gap="3.5">
       <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} onTab={props.onTab} />
-    </div>
+    </Box>
   )
 }
 
@@ -1655,17 +1980,22 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
   if (!lines.length && !rows.length) return null
   return (
     <Card>
-      <Section title="GitHub calls" blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source. Calls count against the limit; 304s and cached answers do not.">
+      <Section
+        title="GitHub calls"
+        blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source. Calls count against the limit; 304s and cached answers do not."
+      >
         {lines.length > 0 && (
-          <div className="flex flex-col gap-1 text-xs text-muted" data-github-rate>
+          <Box flex flexCol gap="1" size="xs" tone="muted" data-github-rate>
             {lines.map((line) => (
               <p key={line}>{line}</p>
             ))}
-          </div>
+          </Box>
         )}
         {rows.length > 0 && (
           <>
-            <p className="text-xs text-muted">{rate?.hourCalls ?? 0} calls in the last hour. Click a heading to sort.</p>
+            <Box as="p" size="xs" tone="muted">
+              {rate?.hourCalls ?? 0} calls in the last hour. Click a heading to sort.
+            </Box>
             <UsageTable rows={rows} />
           </>
         )}
@@ -1674,8 +2004,6 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
   )
 }
 
-const CELL: CSSProperties = { padding: '4px 8px' }
-const NUM: CSSProperties = { ...CELL, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 const USAGE_COLUMNS: { key: UsageKey; label: string }[] = [
   { key: 'source', label: 'Source' },
   { key: 'calls', label: 'Calls' },
@@ -1689,20 +2017,44 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
   const [sort, setSort] = useState<UsageSort>(USAGE_SORT)
   const sorted = sortUsage(rows, sort)
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table data-github-usage style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+    <Box css-overflow-x="auto">
+      <Box data-github-usage as="table" css-width="100%" css-border-collapse="collapse" css-font-size="14">
         <thead>
           <tr>
             {USAGE_COLUMNS.map((col) => {
               const on = sort.key === col.key
               const right = col.key !== 'source'
               return (
-                <th key={col.key} scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ textAlign: right ? 'right' : 'left', padding: '4px 8px', fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
-                  <button type="button" data-sort={col.key} className="inline-flex items-center gap-1 font-medium" style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', padding: 0 }} onClick={() => setSort(nextUsageSort(sort, col.key))}>
+                <Box
+                  key={col.key}
+                  scope="col"
+                  aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  as="th"
+                  css-text-align={right ? 'right' : 'left'}
+                  css-padding="4px-8px"
+                  css-font-weight="500"
+                  css-border-bottom="1px-solid-border"
+                >
+                  <PlainButton
+                    type="button"
+                    data-sort={col.key}
+                    css-background="none"
+                    css-border="0"
+                    css-color="inherit"
+                    css-cursor="pointer"
+                    css-padding="0"
+                    inlineFlex
+                    items="center"
+                    gap="1"
+                    weight="medium"
+                    onClick={() => setSort(nextUsageSort(sort, col.key))}
+                  >
                     {col.label}
-                    <span aria-hidden="true" className="text-xs text-muted">{on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</span>
-                  </button>
-                </th>
+                    <Box aria-hidden="true" as="span" size="xs" tone="muted">
+                      {on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+                    </Box>
+                  </PlainButton>
+                </Box>
               )
             })}
           </tr>
@@ -1710,15 +2062,23 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
         <tbody>
           {sorted.map((row) => (
             <tr key={row.source} data-usage-source={row.source}>
-              <td style={CELL}>{row.source}</td>
-              <td style={NUM}>{row.calls}</td>
-              <td style={NUM}>{row.notModified}</td>
-              <td style={NUM}>{row.cached}</td>
+              <Box as="td" css-padding="4px-8px">
+                {row.source}
+              </Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">
+                {row.calls}
+              </Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">
+                {row.notModified}
+              </Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">
+                {row.cached}
+              </Box>
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -1741,28 +2101,35 @@ export default function SettingsView(props: {
   const choose = (next: SettingsTab) => (props.onTab ? props.onTab(next) : setOwn(next))
   const pick = (next: SettingsTab) => choose(next)
   const renderBody = (section: (typeof SETTINGS_TABS)[number]) => (
-    <div className="flex flex-col gap-3 pb-4" data-settings-body={section.key}>
-      <p className="text-sm text-muted" data-blurb={section.key}>
+    <Box flex flexCol gap="3" pb="4" data-settings-body={section.key}>
+      <Box as="p" size="sm" tone="muted" data-blurb={section.key}>
         {SETTINGS_BLURBS[section.key]}
-      </p>
+      </Box>
       <TabBoundary key={section.key} label={section.label}>
-        <SettingsBody tab={section.key} workspaceId={workspaceId} onTab={pick} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
+        <SettingsBody
+          tab={section.key}
+          workspaceId={workspaceId}
+          onTab={pick}
+          onSelectWorkspace={props.onSelectWorkspace}
+          onListChange={props.onListChange}
+          onOpenPlans={props.onOpenPlans}
+        />
       </TabBoundary>
-    </div>
+    </Box>
   )
   const current = SETTINGS_TABS.find((t) => t.key === tab) ?? SETTINGS_TABS[0]
   // The nav lists the sections; the page shows only the picked one.
   return (
-    <section aria-labelledby="avoozl-settings-title" className="flex flex-col gap-3.5">
+    <Box aria-labelledby="avoozl-settings-title" as="section" flex flexCol gap="3.5">
       <ViewHeading id="avoozl-settings-title" view="settings">
         Settings
       </ViewHeading>
       <Stack data-settings-section={current.key} data-open="true" as="section" gap={2}>
-        <h3 className="text-base font-semibold break-words" data-settings-title>
+        <Box as="h3" size="base" weight="semibold" breakWords data-settings-title>
           {settingsTitle(current.key, current.label, props.workspaceName)}
-        </h3>
+        </Box>
         {renderBody(current)}
       </Stack>
-    </section>
+    </Box>
   )
 }

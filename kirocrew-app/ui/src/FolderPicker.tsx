@@ -10,6 +10,9 @@ import { ArrowUp, Folder, FolderOpen } from './icons.ts'
 import Badge from './ui/Badge.tsx'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
+import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 export function FolderField(props: {
   id: string
@@ -60,7 +63,7 @@ export function FolderField(props: {
     void show(path)
   }
   return (
-    <div className="flex flex-col gap-1 text-sm" data-folder-field={props.id}>
+    <Box flex flexCol gap="1" size="sm" data-folder-field={props.id}>
       <label htmlFor={props.id}>{props.label}</label>
       <Row gap={2} wrap={false}>
         <Input
@@ -69,55 +72,95 @@ export function FolderField(props: {
           placeholder={props.placeholder}
           required={props.required}
           onChange={(event) => props.onChange(event.target.value)}
-          style={{ flex: 1, minWidth: 0 }}
+          css-flex="1"
+          css-min-width="0"
         />
-        <Btn type="button" data-folder-browse aria-expanded={open} aria-controls={`${props.id}-browser`} onClick={toggle} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <Btn
+          type="button"
+          data-folder-browse
+          aria-expanded={open}
+          aria-controls={`${props.id}-browser`}
+          onClick={toggle}
+          css-display="inline-flex"
+          css-align-items="center"
+          css-gap="6"
+          css-flex-shrink="0"
+        >
           <FolderOpen size={14} aria-hidden="true" /> Browse
         </Btn>
       </Row>
       <Hint size="xs">A full path. ~/ means your home folder.</Hint>
       {open && (
-        <div id={`${props.id}-browser`} data-folder-browser className="flex flex-col rounded border" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-center gap-2 border-b px-2 py-1" style={{ borderColor: 'var(--border)' }}>
-            <Btn type="button" data-folder-up aria-label="Up one folder" disabled={!listing?.parent || loading} onClick={() => listing?.parent && pick(listing.parent)} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 6px' }}>
+        <Box id={`${props.id}-browser`} data-folder-browser css-border-color="border" flex flexCol rounded="base" border="all">
+          <Box css-border-color="border" flex items="center" gap="2" border="b" px="2" py="1">
+            <Btn
+              type="button"
+              data-folder-up
+              aria-label="Up one folder"
+              disabled={!listing?.parent || loading}
+              onClick={() => listing?.parent && pick(listing.parent)}
+              css-display="inline-flex"
+              css-align-items="center"
+              css-padding="0-6px"
+            >
               <ArrowUp size={14} aria-hidden="true" />
             </Btn>
-            <span className="min-w-0 flex-1 text-xs text-muted" data-folder-at style={{ overflowWrap: "anywhere" }}>
+            <Box as="span" css-overflow-wrap="anywhere" minW0 flex1 size="xs" tone="muted" data-folder-at>
               {listing ? listing.path : 'Loading…'}
-            </span>
+            </Box>
             {listing?.workspace && <Badge variant="info">Workspace</Badge>}
-          </div>
+          </Box>
           {error && (
-            <p role="alert" className="px-2 py-1 text-xs text-danger">
+            <Box role="alert" as="p" px="2" py="1" size="xs" tone="danger">
               {error}
-            </p>
+            </Box>
           )}
-          <ul className="flex flex-col overflow-y-auto py-1" style={{ maxHeight: 200, listStyle: 'none', margin: 0, paddingLeft: 0 }} aria-label="Folders" data-folder-list>
-            {listing && listing.folders.length === 0 && <li className="px-2 py-1 text-xs text-muted">No folders here.</li>}
+          <Box as="ul" css-max-height="200" css-list-style="none" css-margin="0" css-padding-left="0" flex flexCol overflow="y-auto" py="1" aria-label="Folders" data-folder-list>
+            {listing && listing.folders.length === 0 && (
+              <Box as="li" px="2" py="1" size="xs" tone="muted">
+                No folders here.
+              </Box>
+            )}
             {listing?.folders.map((folder) => (
               <li key={folder.path}>
-                <button
+                <PlainButton
                   type="button"
                   data-folder={folder.name}
                   onClick={() => pick(folder.path)}
-                  className="flex w-full items-center gap-2 px-2 py-1 text-left text-sm"
-                  style={{ background: 'none', border: 0, color: 'var(--text)', cursor: 'pointer' }}
+                  css-background="none"
+                  css-border="0"
+                  css-color="text"
+                  css-cursor="pointer"
+                  flex
+                  wFull
+                  items="center"
+                  gap="2"
+                  px="2"
+                  py="1"
+                  align="left"
+                  size="sm"
                 >
-                  <Folder size={14} aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }} />
-                  <span className="min-w-0 flex-1 truncate">{folder.name}</span>
+                  <Glyph icon={Folder} size={14} aria-hidden="true" css-color="muted" css-flex-shrink="0" />
+                  <Box as="span" minW0 flex1 truncate>
+                    {folder.name}
+                  </Box>
                   {folder.workspace && <Badge variant="info">Workspace</Badge>}
-                </button>
+                </PlainButton>
               </li>
             ))}
-            {listing?.truncated && <li className="px-2 py-1 text-xs text-muted">Only the first 500 folders show. Type the rest of the path.</li>}
-          </ul>
-          <div className="flex justify-end border-t px-2 py-1" style={{ borderColor: 'var(--border)' }}>
+            {listing?.truncated && (
+              <Box as="li" px="2" py="1" size="xs" tone="muted">
+                Only the first 500 folders show. Type the rest of the path.
+              </Box>
+            )}
+          </Box>
+          <Box css-border-color="border" flex justify="end" border="t" px="2" py="1">
             <Btn type="button" data-folder-done onClick={() => setOpen(false)}>
               Use this folder
             </Btn>
-          </div>
-        </div>
+          </Box>
+        </Box>
       )}
-    </div>
+    </Box>
   )
 }

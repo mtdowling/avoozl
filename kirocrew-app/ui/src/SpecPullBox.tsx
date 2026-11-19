@@ -13,16 +13,17 @@ import { CHECKS_TEXT, approveWhy, specPullClient, type SpecPull } from './spec-p
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
-
-const DOT: Record<string, string> = { passing: 'var(--ok, #1a7f37)', failing: 'var(--danger)', pending: 'var(--muted)' }
+import { Box } from './ui/Box'
+import { PlainInput } from './ui/Plain'
+import { DOT } from './ui/looks/SpecPullBox.ts'
 
 export function ChecksDot({ checks }: { checks: SpecPull['checks'] }) {
   if (!checks) return <Hint size="xs">No checks yet</Hint>
   return (
-    <span className="inline-flex items-center text-xs" style={{ gap: 6 }} data-pull-checks={checks}>
-      <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 999, background: DOT[checks] }} />
+    <Box as="span" css-gap="6" inlineFlex items="center" size="xs" data-pull-checks={checks}>
+      <Box aria-hidden="true" as="span" css-width="8" css-height="8" css-border-radius="999" css-background={DOT[checks]} />
       {CHECKS_TEXT[checks]}
-    </span>
+    </Box>
   )
 }
 
@@ -51,8 +52,8 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
     }
   }
   return (
-    <div className="flex min-w-0 flex-col text-sm" style={{ gap: 12 }} data-spec-pull={pull.id}>
-      <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
+    <Box css-gap="12" flex minW0 flexCol size="sm" data-spec-pull={pull.id}>
+      <Box css-gap="8" flex flexWrap items="center">
         {safeHref(pull.url) ? (
           <TextLink href={safeHref(pull.url) ?? undefined} target="_blank" rel="noopener noreferrer" data-spec-pull-link>
             {pull.repository} #{pull.number}
@@ -65,33 +66,39 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
         <Hint>by {pull.author ?? 'unknown'}</Hint>
         <Badge variant={pull.draft ? undefined : 'success'}>{pull.draft ? 'Draft' : 'Ready'}</Badge>
         <ChecksDot checks={pull.checks} />
-      </div>
-      <div data-spec-pull-changes className="flex flex-col" style={{ gap: 4 }}>
-        <p className="m-0 text-xs font-medium">{pull.newSpec ? 'New spec: every file is added.' : 'Changes since the approved revision'}</p>
+      </Box>
+      <Box data-spec-pull-changes css-gap="4" flex flexCol>
+        <Box as="p" m0 size="xs" weight="medium">
+          {pull.newSpec ? 'New spec: every file is added.' : 'Changes since the approved revision'}
+        </Box>
         {pull.files.length ? (
-          <ul className="m-0 flex list-none flex-col p-0" style={{ gap: 4 }}>
+          <Box as="ul" css-gap="4" m0 flex listNone flexCol p="0">
             {pull.files.map((file) => (
               <li key={file.file}>
                 <details>
-                  <summary className="cursor-pointer text-xs">
+                  <Box as="summary" cursorPointer size="xs">
                     <code>{file.file}</code> · {file.status} · +{file.added} −{file.removed}
-                  </summary>
+                  </Box>
                   <DiffBlock diff={file.diff} label={`Changes to ${file.file}`} />
                 </details>
               </li>
             ))}
-          </ul>
+          </Box>
         ) : (
-          <Hint as="p" size="xs" flush>No spec document differs.</Hint>
+          <Hint as="p" size="xs" flush>
+            No spec document differs.
+          </Hint>
         )}
         {pull.tasks.length > 0 && (
           <Hint as="p" size="xs" flush data-spec-pull-tasks>
             Tasks: {pull.tasks.map((task) => `${task.taskId} ${task.change}`).join(', ')}
           </Hint>
         )}
-      </div>
-      <div className="flex flex-wrap items-center" style={{ gap: 8 }} data-spec-pull-findings>
-        <span className="text-xs font-medium">Review</span>
+      </Box>
+      <Box css-gap="8" flex flexWrap items="center" data-spec-pull-findings>
+        <Box as="span" size="xs" weight="medium">
+          Review
+        </Box>
         {pull.review.state === 'not-reviewed' ? (
           <Hint size="xs">Not reviewed yet</Hint>
         ) : openCount ? (
@@ -100,10 +107,20 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
           <Hint size="xs">{pull.review.found ? 'No open findings' : 'No findings'}</Hint>
         )}
         {!pull.review.current && pull.review.state !== 'not-reviewed' && <Hint size="xs">(an earlier revision)</Hint>}
-      </div>
-      {pull.review.summary && <Hint as="p" size="xs" flush>{pull.review.summary}</Hint>}
-      <div className="flex flex-wrap items-center" style={{ gap: 8 }} data-spec-pull-actions>
-        <TipBtn variant="primary" tooltip={why ?? `Approve exactly this head (${pull.head.slice(0, 7)}). Avoozl merges the pull request when its checks pass.`} disabled={busy || why !== null} onClick={props.onApprove} data-spec-pull-approve>
+      </Box>
+      {pull.review.summary && (
+        <Hint as="p" size="xs" flush>
+          {pull.review.summary}
+        </Hint>
+      )}
+      <Box css-gap="8" flex flexWrap items="center" data-spec-pull-actions>
+        <TipBtn
+          variant="primary"
+          tooltip={why ?? `Approve exactly this head (${pull.head.slice(0, 7)}). Avoozl merges the pull request when its checks pass.`}
+          disabled={busy || why !== null}
+          onClick={props.onApprove}
+          data-spec-pull-approve
+        >
           Approve
         </TipBtn>
         <TipBtn
@@ -117,22 +134,40 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
         <TipBtn tooltip="Close the pull request with a comment that names your reason." disabled={busy} onClick={() => setRejecting(!rejecting)} data-spec-pull-reject>
           Reject
         </TipBtn>
-      </div>
+      </Box>
       {rejecting && (
-        <div className="flex flex-wrap items-center" style={{ gap: 8 }} data-spec-pull-reject-row>
-          <label className="text-xs" htmlFor={`reject-${pull.id}`}>
+        <Box css-gap="8" flex flexWrap items="center" data-spec-pull-reject-row>
+          <Box as="label" size="xs" htmlFor={`reject-${pull.id}`}>
             Reason
-          </label>
-          <input id={`reject-${pull.id}`} value={reason} onChange={(event) => setReason(event.target.value)} className="min-w-0 flex-1 rounded border px-2 py-1 text-sm" style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'inherit' }} />
+          </Box>
+          <PlainInput
+            id={`reject-${pull.id}`}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            css-border-color="border"
+            css-background="bg"
+            css-color="inherit"
+            minW0
+            flex1
+            rounded="base"
+            border="all"
+            px="2"
+            py="1"
+            size="sm"
+          />
           <DangerBtn
             label={`Reject ${pull.repository} #${pull.number}`}
             disabled={busy || !reason.trim()}
-            confirm={{ title: `Reject #${pull.number}?`, body: `Avoozl comments "${reason.trim()}" and closes the pull request. The draft revision stays.`, action: 'Reject pull request' }}
+            confirm={{
+              title: `Reject #${pull.number}?`,
+              body: `Avoozl comments "${reason.trim()}" and closes the pull request. The draft revision stays.`,
+              action: 'Reject pull request',
+            }}
             onConfirm={() => void act(async () => (await client.reject(workspaceId, pull.id, reason.trim()), `Closed #${pull.number}.`))}
           >
             Reject pull request
           </DangerBtn>
-        </div>
+        </Box>
       )}
       {error && (
         <ErrorText role="alert" flush>
@@ -144,6 +179,6 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
           {note}
         </Hint>
       )}
-    </div>
+    </Box>
   )
 }

@@ -12,12 +12,14 @@ import {
   harnessDefinitionHash,
   harnessPermission,
   parseHarnessDefinition,
+  readRoleProblem,
 } from "../harness-definitions.mjs";
 import { harnessAllow } from "../harness-allow.mjs";
 import {
   childRecord,
   childResult,
   openSupervisorDatabase,
+  readChildOutput,
   readChildResult,
   RESULT_FILE,
   startSupervisor,
@@ -33,6 +35,9 @@ import {
   planQuotaHold,
   processExecutor,
   projectExecutor,
+  withChildOutput,
+  NOTHING_COMMITTED,
+  writeSnapshot,
 } from "../executors/process.mjs";
 import { enqueueSessionRequests } from "../session-requests.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -177,6 +182,17 @@ const result = /RESULT:(.+)/.exec(text);
 if (result) {
   fs.mkdirSync(".avoozl", { recursive: true });
   fs.writeFileSync(".avoozl/result.json", result[1]);
+}
+// SERVED prints the model this run was started on as Claude Code's
+// modelUsage does.
+if (/SERVED/.test(text)) {
+  const at = process.argv.indexOf("--model");
+  console.log(JSON.stringify({ modelUsage: { [process.argv[at + 1]]: {} } }));
+}
+// OUTPUT:<name>=<text> writes .avoozl/output/<name>.
+for (const [, name, body] of text.matchAll(/OUTPUT:([^=\\s]+)=(.*)/g)) {
+  fs.mkdirSync(".avoozl/output", { recursive: true });
+  fs.writeFileSync(".avoozl/output/" + name, body);
 }
 // ENV:<name> writes that variable and TMPDIR to env.txt.
 const env = /ENV:(\\S+)/.exec(text);
@@ -745,6 +761,83 @@ test("a process worker's brief ends with the result file", () => {
   assert.match(steps.join("\n"), /Do not commit/);
 });
 
+// nk-p1: a worker whose only shell call was refused wrote done and changed
+// nothing. Its brief names the file tools and the allowed commands.
+test("a process worker's brief names its file tools and allowed commands", () => {
+  const steps = processSteps(
+    { id: "7.1" },
+    { allowCommands: [["node", "check.mjs"]] },
+  ).join("\n");
+  assert.match(steps, /Change files with your file tools/);
+  assert.match(
+    steps,
+    /runs only these commands, one per call.*`node check\.mjs`/,
+  );
+  assert.match(steps, /read back each file you changed/);
+  assert.match(
+    processSteps({ id: "7.1" }, { allowCommands: [] }).join("\n"),
+    /Your shell runs no command here/,
+  );
+  assert.doesNotMatch(processSteps({ id: "7.1" }).join("\n"), /Your shell/);
+});
+
+// Like a runner's report (remote-runner.mjs reportDone): a write worker's
+// done with no commit since its base is refused, recorded blocked with why,
+// so the task takes the retry path with that feedback.
+test("a write worker's done with nothing committed is refused", async (t) => {
+  const { root, checkout, worktree, defer } = machine(t);
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  defer(() => store.close());
+  const data = snapshot();
+  data.tasks[0].repository = "app";
+  store.importSnapshot(data);
+  store.put("projects", { id: "app", root: checkout, baseBranch: "main" });
+  const reports = [];
+  const ops = { execute: async (name, input) => reports.push(input) };
+  const binding = {
+    slot: "process-x",
+    taskId: "sample-task",
+    role: "worker",
+    permissionClass: "write",
+  };
+  const done = { state: "done", text: "Created it.", worktree };
+  await finishProcessSession(ops, binding, done, store);
+  assert.deepEqual(reports.at(-1), {
+    taskId: "sample-task",
+    kind: "blocked",
+    text: NOTHING_COMMITTED,
+  });
+  // The branch's start commit counts as its base too.
+  store.put("task_worktrees", {
+    id: "sample-task",
+    taskId: "sample-task",
+    base: { branch: "main", commit: gitIn(worktree, "rev-parse", "HEAD") },
+  });
+  fs.writeFileSync(path.join(checkout, "later.txt"), "x\n");
+  gitIn(checkout, "add", "later.txt");
+  gitIn(checkout, "commit", "-q", "-m", "Main moves on");
+  await finishProcessSession(ops, binding, done, store);
+  assert.equal(reports.at(-1).kind, "blocked");
+  // With a commit of its own, done goes through with that commit.
+  fs.writeFileSync(path.join(worktree, "feature.txt"), "done\n");
+  gitIn(worktree, "add", "feature.txt");
+  gitIn(worktree, "commit", "-q", "-m", "Work");
+  await finishProcessSession(ops, binding, done, store);
+  assert.deepEqual(reports.at(-1), {
+    taskId: "sample-task",
+    kind: "done",
+    commit: gitIn(worktree, "rev-parse", "HEAD"),
+  });
+  // A verifier's done names the commit it checked: never refused.
+  await finishProcessSession(
+    ops,
+    { ...binding, role: "verifier", permissionClass: "read" },
+    { ...done, worktree: checkout },
+    store,
+  );
+  assert.equal(reports.at(-1).kind, "done");
+});
+
 // R98.3, R98.4: a request that names a harness runs on it, not on its
 // project's.
 test("a start's own harness wins over its project's", async (t) => {
@@ -785,4 +878,323 @@ test("a start's own harness wins over its project's", async (t) => {
   } finally {
     db.close();
   }
+});
+
+// nk-1.2 (NK3.1, NK3.2, NK3.4, NK5.5): one output file beside the result,
+// read once on exit with the role's limit and validator; a snapshot the
+// child cannot write; no write root over a git directory.
+const json = (text) => {
+  const value = JSON.parse(text);
+  if (!Array.isArray(value.findings)) throw Error("findings must be a list");
+  return value;
+};
+const ROW = { output: { limit: 64, validate: json } };
+
+test("a fake child's output file is read once with the role's limit and validator", async (t) => {
+  const { stateDirectory, worktree, supervisor } = machine(t);
+  const executor = processExecutor({
+    stateDirectory,
+    projectFor: () => ({ harness: "fake-cli" }),
+  });
+  const run = async (brief) => {
+    // The fake CLI writes beside its result, so it runs in the write class;
+    // the output rules are the same for either.
+    const id = await executor.start(
+      "worker",
+      "1.1",
+      worktree,
+      brief,
+      null,
+      "write",
+    );
+    await until(async () => {
+      supervisor.pass();
+      return (await executor.status(id)) !== "working";
+    });
+    const db = openSupervisorDatabase(stateDirectory);
+    try {
+      return withChildOutput(ROW, childResult(db, id));
+    } finally {
+      db.close();
+    }
+  };
+  const done = 'RESULT:{"state": "done", "output": "review.json"}';
+  const good = await run(`OUTPUT:review.json={"findings": []}\n${done}`);
+  assert.equal(good.state, "done", String(good.text ?? good.problem));
+  assert.deepEqual(good.outputValue, { findings: [] });
+  // An earlier run's output never counts for the next one.
+  const none = await run(done);
+  assert.equal(none.state, "blocked");
+  assert.match(none.text, /no output file/);
+  const two = await run(
+    `OUTPUT:review.json={"findings": []}\nOUTPUT:extra.json={}\n${done}`,
+  );
+  assert.match(two.text, /more than one output file/);
+  const large = await run(
+    `OUTPUT:review.json={"findings": ["${"x".repeat(80)}"]}\n${done}`,
+  );
+  assert.match(large.text, /over 64 bytes/);
+  const invalid = await run(`OUTPUT:review.json={"findings": 1}\n${done}`);
+  assert.match(invalid.text, /not valid: findings must be a list/);
+  // A path outside .avoozl/output/ is refused by the result file itself.
+  const outside = await run('RESULT:{"state": "done", "output": "../x.json"}');
+  assert.equal(outside.state, null);
+  assert.match(outside.problem, /must be/);
+});
+
+test("output names and files outside the rules are refused with the reason", (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-output-"));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const out = path.join(folder, ".avoozl", "output");
+  fs.mkdirSync(out, { recursive: true });
+  fs.writeFileSync(path.join(out, "a.json"), '{"findings": [1]}');
+  assert.deepEqual(readChildOutput(folder, "a.json", ROW.output).value, {
+    findings: [1],
+  });
+  for (const name of ["../a.json", "sub/a.json", ".hidden", ""])
+    assert.match(
+      readChildOutput(folder, name, ROW.output).problem,
+      /plain file name/,
+    );
+  assert.match(
+    readChildOutput(folder, "b.json", ROW.output).problem,
+    /not in the output folder/,
+  );
+  // A role with no output file refuses a result that names one.
+  assert.match(
+    withChildOutput(null, { state: "done", output: "a.json", worktree: folder })
+      .text,
+    /writes no output file/,
+  );
+  // The result file's own limit stays 8,192 bytes.
+  fs.writeFileSync(
+    path.join(folder, RESULT_FILE),
+    JSON.stringify({ state: "done", output: "a.json", text: "x".repeat(9000) }),
+  );
+  assert.match(readChildResult(folder).problem, /over 8192 bytes/);
+});
+
+test("a child cannot write into its snapshot, and no write root holds a git directory", (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-snapshot-"));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  writeSnapshot(folder, {
+    "pull-request/README.md": "Data from other people.\n",
+  });
+  const file = path.join(folder, "pull-request", "README.md");
+  if (process.platform !== "win32" && process.getuid?.() !== 0)
+    assert.throws(() => fs.writeFileSync(file, "changed"), /EACCES|EPERM/);
+  assert.throws(() => writeSnapshot(folder, { "../out.md": "x" }), /outside/);
+  assert.throws(
+    () => writeSnapshot(folder, { ".avoozl/result.json": "x" }),
+    /outside/,
+  );
+  const definition = parseHarnessDefinition({
+    name: "fake-cli",
+    start: ["node"],
+    resume: ["node"],
+    promptFrom: "stdin",
+    permission: { write: "w", read: "r" },
+    writeRoots: ["{worktree}", "{tmp}"],
+  });
+  // A read child's only root in its folder is .avoozl/.
+  const read = harnessPermission(definition, {
+    permissionClass: "read",
+    worktree: folder,
+    tmp: path.join(os.tmpdir(), "avoozl-snapshot-tmp"),
+  });
+  assert.deepEqual(
+    read.writeRoots.filter((root) => root.startsWith(folder)),
+    [path.join(folder, ".avoozl")],
+  );
+  // A write root over a checkout is refused before start.
+  const checkout = path.join(folder, "checkout");
+  fs.mkdirSync(checkout);
+  gitIn(checkout, "init", "-q");
+  assert.throws(
+    () =>
+      harnessPermission(definition, {
+        permissionClass: "write",
+        worktree: checkout,
+        tmp: path.join(folder, "tmp"),
+      }),
+    /holds a git directory/,
+  );
+});
+
+// nk-5.1 (NK6): a definition with no way to write its result runs no
+// read-only role, says why, and still runs a write role.
+test("a definition with no resultAllow is refused for a read role and runs a write role", async (t) => {
+  const { stateDirectory, worktree, supervisor } = machine(t);
+  const executor = processExecutor({
+    stateDirectory,
+    projectFor: () => ({ harness: "fake-cli" }),
+  });
+  const run = async (role, permissionClass) => {
+    const id = await executor.start(
+      role,
+      "1.1",
+      worktree,
+      'RESULT:{"state": "done", "text": "ok"}',
+      null,
+      permissionClass,
+    );
+    await until(async () => {
+      supervisor.pass();
+      return (await executor.status(id)) !== "working";
+    });
+    const db = openSupervisorDatabase(stateDirectory);
+    try {
+      return childRecord(db, id);
+    } finally {
+      db.close();
+    }
+  };
+  const read = await run("verifier", "read");
+  assert.equal(read.exit_code, -1);
+  assert.match(read.error, /fake-cli names no resultAllow/);
+  const write = await run("worker", "write");
+  assert.equal(write.exit_code, 0);
+  assert.equal(write.error, null);
+});
+
+test("each shipped definition says which role classes a proof ran it in", () => {
+  for (const [name, proved, readRoles] of [
+    ["claude-code", ["read", "write"], null],
+    ["codex", ["write"], /codex names no resultAllow/],
+  ]) {
+    const definition = parseHarnessDefinition(
+      JSON.parse(
+        fs.readFileSync(
+          new URL(`../../../examples/harnesses/${name}.json`, import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    assert.deepEqual(definition.proved, proved, name);
+    if (readRoles) assert.match(readRoleProblem(definition), readRoles);
+    else assert.equal(readRoleProblem(definition), null, name);
+  }
+  assert.throws(
+    () =>
+      parseHarnessDefinition({
+        name: "x",
+        start: ["x"],
+        resume: ["x"],
+        promptFrom: "stdin",
+        permission: { write: "w", read: "r" },
+        proved: ["read", "read"],
+      }),
+    /proved lists role classes/,
+  );
+});
+
+// nk-5.1 (NK6): a definition with no way to write its result runs no
+// read-only role, says why, and still runs a write role.
+test("a definition with no resultAllow is refused for a read role and runs a write role", async (t) => {
+  const { stateDirectory, worktree, supervisor } = machine(t);
+  const executor = processExecutor({
+    stateDirectory,
+    projectFor: () => ({ harness: "fake-cli" }),
+  });
+  const run = async (role, permissionClass) => {
+    const id = await executor.start(
+      role,
+      "1.1",
+      worktree,
+      'RESULT:{"state": "done", "text": "ok"}',
+      null,
+      permissionClass,
+    );
+    await until(async () => {
+      supervisor.pass();
+      return (await executor.status(id)) !== "working";
+    });
+    const db = openSupervisorDatabase(stateDirectory);
+    try {
+      return childRecord(db, id);
+    } finally {
+      db.close();
+    }
+  };
+  const read = await run("verifier", "read");
+  assert.equal(read.exit_code, -1);
+  assert.match(read.error, /fake-cli names no resultAllow/);
+  const write = await run("worker", "write");
+  assert.equal(write.exit_code, 0);
+  assert.equal(write.error, null);
+});
+
+test("each shipped definition says which role classes a proof ran it in", () => {
+  for (const [name, proved, readRoles] of [
+    ["claude-code", ["read", "write"], null],
+    ["codex", ["write"], /codex names no resultAllow/],
+  ]) {
+    const definition = parseHarnessDefinition(
+      JSON.parse(
+        fs.readFileSync(
+          new URL(`../../../examples/harnesses/${name}.json`, import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    assert.deepEqual(definition.proved, proved, name);
+    if (readRoles) assert.match(readRoleProblem(definition), readRoles);
+    else assert.equal(readRoleProblem(definition), null, name);
+  }
+  assert.throws(
+    () =>
+      parseHarnessDefinition({
+        name: "x",
+        start: ["x"],
+        resume: ["x"],
+        promptFrom: "stdin",
+        permission: { write: "w", read: "r" },
+        proved: ["read", "read"],
+      }),
+    /proved lists role classes/,
+  );
+});
+
+// The planner that writes a revision needs a proven model for that
+// revision's plan review to count (NK5.2): a planner child's served model is
+// read from its harness output and kept on its session, with no result file.
+test("a planner child's served model is kept on its session", async (t) => {
+  const { root, stateDirectory, worktree, supervisor, defer } = machine(t, {
+    servedModel: { from: "output", field: "modelUsage" },
+  });
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  defer(() => store.close());
+  store.importSnapshot(snapshot());
+  // The New plan request is pending, so its key names a task.
+  store.setMeta("newPlans", [{ name: "new-one" }]);
+  const folder = worktree;
+  enqueueSessionRequests(store, {
+    starts: [
+      {
+        executor: "process",
+        harness: "fake-cli",
+        role: "planner",
+        task: "new-plan:new-one",
+        title: "avoozl:new-plan:new-one planner",
+        brief: "Write the spec.\nSERVED",
+        worktree: folder,
+        model: "fake-writer",
+        permissionClass: "write",
+      },
+    ],
+  });
+  const ops = {
+    configDirectory: path.join(root, "config"),
+    execute: async () => null,
+  };
+  await drainProcessRequests(store, { stateDirectory, ops });
+  const [binding] = store.list("session_bindings");
+  await until(async () => {
+    supervisor.pass();
+    await drainProcessRequests(store, { stateDirectory, ops });
+    return store.get("session_bindings", binding.slot).status === "closed";
+  });
+  const served = store.get("session_bindings", binding.slot).served;
+  assert.equal(served?.model, "fake-writer");
+  assert.equal(served.withheld, false);
 });

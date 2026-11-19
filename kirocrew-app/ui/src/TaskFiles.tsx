@@ -36,7 +36,9 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 // A diff longer than this many lines shows its start, then a button.
 export const DIFF_LINES = 1500
@@ -49,7 +51,6 @@ function pageStorage(): Storage | null {
   }
 }
 
-const mono: CSSProperties = { fontFamily: 'var(--mono, ui-monospace, monospace)', fontSize: 12, lineHeight: '18px' }
 const LINE_BG = {
   add: 'color-mix(in srgb, var(--ok) 16%, transparent)',
   del: 'color-mix(in srgb, var(--danger) 16%, transparent)',
@@ -62,7 +63,9 @@ function StatusBadge({ change }: { change: FileChange }) {
       <span aria-hidden="true">
         <Badge variant={STATUS_VARIANT[change.status]}>{STATUS_LETTER[change.status]}</Badge>
       </span>
-      <span className="sr-only">{change.status}</span>
+      <Box as="span" srOnly>
+        {change.status}
+      </Box>
     </span>
   )
 }
@@ -71,9 +74,14 @@ function Counts({ change }: { change: FileChange }) {
   if (change.binary) return <Hint size="xs">binary</Hint>
   if (change.additions === null) return null
   return (
-    <span className="shrink-0 text-xs" style={mono}>
-      <span style={{ color: 'var(--ok)' }}>+{change.additions}</span> <span style={{ color: 'var(--danger)' }}>−{change.deletions}</span>
-    </span>
+    <Box as="span" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px" shrink0 size="xs">
+      <Box as="span" css-color="ok">
+        +{change.additions}
+      </Box>{' '}
+      <Box as="span" css-color="danger">
+        −{change.deletions}
+      </Box>
+    </Box>
   )
 }
 
@@ -83,29 +91,42 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
       {props.nodes.map((node) =>
         node.file ? (
           <li key={node.path}>
-            <button
+            <PlainButton
               type="button"
               aria-current={props.selected === node.path ? 'true' : undefined}
               onClick={() => props.onPick(node.path)}
-              className="flex w-full min-w-0 items-center gap-2 rounded px-1 py-0.5 text-left text-sm"
-              style={{ paddingLeft: 4 + props.depth * 14, background: props.selected === node.path ? 'var(--bg-elevated)' : undefined, color: node.change ? 'var(--text)' : 'var(--muted)' }}
+              css-padding-left={4 + props.depth * 14}
+              css-background={props.selected === node.path ? 'bg-elevated' : undefined}
+              css-color={node.change ? 'text' : 'muted'}
+              flex
+              wFull
+              minW0
+              items="center"
+              gap="2"
+              rounded="base"
+              px="1"
+              py="0.5"
+              align="left"
+              size="sm"
               data-file={node.path}
             >
-              {node.change ? <StatusBadge change={node.change} /> : <span style={{ width: 18 }} aria-hidden="true" />}
-              <span className="min-w-0 flex-1 truncate">
+              {node.change ? <StatusBadge change={node.change} /> : <Box as="span" css-width="18" aria-hidden="true" />}
+              <Box as="span" minW0 flex1 truncate>
                 {node.name}
                 {node.change?.from && <Hint size="xs"> ← {node.change.from}</Hint>}
                 {node.change?.untracked && <Hint size="xs"> (not committed)</Hint>}
-              </span>
+              </Box>
               {node.change && <Counts change={node.change} />}
-            </button>
+            </PlainButton>
           </li>
         ) : (
           <li key={node.path}>
-            <div className="flex items-center gap-1 px-1 py-0.5 text-sm text-muted" style={{ paddingLeft: 4 + props.depth * 14 }}>
+            <Box css-padding-left={4 + props.depth * 14} flex items="center" gap="1" px="1" py="0.5" size="sm" tone="muted">
               <Folder size={14} aria-hidden="true" />
-              <span className="truncate">{node.name}</span>
-            </div>
+              <Box as="span" truncate>
+                {node.name}
+              </Box>
+            </Box>
             <Tree nodes={node.children} depth={props.depth + 1} selected={props.selected} onPick={props.onPick} />
           </li>
         ),
@@ -115,36 +136,36 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
 }
 
 const num = (n: number | null) => (
-  <span className="select-none pr-2 text-right text-muted" style={{ display: 'inline-block', minWidth: 36 }}>
+  <Box as="span" css-display="inline-block" css-min-width="36" selectNone pr="2" align="right" tone="muted">
     {n ?? ''}
-  </span>
+  </Box>
 )
 
 function UnifiedDiff({ lines }: { lines: DiffLine[] }) {
   return (
-    <div role="group" aria-label="Unified diff" style={mono}>
+    <Box role="group" aria-label="Unified diff" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px">
       {lines.map((line, i) =>
         !isText(line) ? (
-          <div key={i} className="text-muted" style={{ whiteSpace: 'pre', background: line.kind === 'hunk' ? LINE_BG.hunk : undefined }}>
+          <Box key={i} css-white-space="pre" css-background={line.kind === 'hunk' ? LINE_BG.hunk : undefined} tone="muted">
             {line.text}
-          </div>
+          </Box>
         ) : (
-          <div key={i} data-line={line.kind} style={{ whiteSpace: 'pre', background: line.kind === 'context' ? undefined : LINE_BG[line.kind] }}>
+          <Box key={i} data-line={line.kind} css-white-space="pre" css-background={line.kind === 'context' ? undefined : LINE_BG[line.kind]}>
             {num(line.old)}
             {num(line.new)}
             <span>{line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}</span>
             {line.text}
-          </div>
+          </Box>
         ),
       )}
-    </div>
+    </Box>
   )
 }
 
 function SplitDiff({ lines }: { lines: DiffLine[] }) {
   const rows = useMemo(() => splitRows(lines), [lines])
   const side = (line: TextLine | null, which: 'left' | 'right') => (
-    <div style={{ whiteSpace: 'pre', overflow: 'hidden', background: line && line.kind !== 'context' ? LINE_BG[line.kind] : undefined }}>
+    <Box css-white-space="pre" css-overflow="hidden" css-background={line && line.kind !== 'context' ? LINE_BG[line.kind] : undefined}>
       {line ? (
         <>
           {num(which === 'left' ? line.old : line.new)}
@@ -153,42 +174,47 @@ function SplitDiff({ lines }: { lines: DiffLine[] }) {
       ) : (
         ' '
       )}
-    </div>
+    </Box>
   )
   return (
-    <div role="group" aria-label="Side-by-side diff" style={mono}>
+    <Box role="group" aria-label="Side-by-side diff" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px">
       {rows.map((row, i) =>
         row.kind === 'pair' ? (
-          <div key={i} data-split-row style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 1 }}>
+          <Box key={i} data-split-row css-display="grid" css-grid-template-columns="minmax-0-1fr-minmax-0-1fr" css-gap="1">
             {side(row.left, 'left')}
             {side(row.right, 'right')}
-          </div>
+          </Box>
         ) : (
-          <div key={i} className="text-muted" style={{ whiteSpace: 'pre', background: row.kind === 'hunk' ? LINE_BG.hunk : undefined }}>
+          <Box key={i} css-white-space="pre" css-background={row.kind === 'hunk' ? LINE_BG.hunk : undefined} tone="muted">
             {row.text}
-          </div>
+          </Box>
         ),
       )}
-    </div>
+    </Box>
   )
 }
 
 function Toggle(props: { label: string; options: { key: string; label: string }[]; value: string; onChange: (key: string) => void }) {
   return (
-    <span role="group" aria-label={props.label} className="inline-flex gap-0.5 rounded-full border p-0.5" style={{ borderColor: 'var(--border)' }}>
+    <Box role="group" aria-label={props.label} as="span" css-border-color="border" inlineFlex gap="0.5" rounded="full" border="all" p="0.5">
       {props.options.map((option) => (
-        <button
+        <PlainButton
           key={option.key}
           type="button"
           aria-pressed={props.value === option.key}
           onClick={() => props.onChange(option.key)}
-          className="rounded-full px-2 py-0.5 text-xs"
-          style={props.value === option.key ? { background: 'var(--accent-subtle, var(--bg-hover))', color: 'var(--text)', fontWeight: 600 } : { color: 'var(--muted)' }}
+          css-background={props.value === option.key ? 'accent-subtle-bg-hover' : undefined}
+          css-color={props.value === option.key ? 'text' : 'muted'}
+          css-font-weight={props.value === option.key ? '600' : undefined}
+          rounded="full"
+          px="2"
+          py="0.5"
+          size="xs"
         >
           {option.label}
-        </button>
+        </PlainButton>
       ))}
-    </span>
+    </Box>
   )
 }
 
@@ -205,13 +231,13 @@ function Diff(props: { diff: DiffView; layout: 'unified' | 'split' }) {
   const shown = full ? lines : lines.slice(0, DIFF_LINES)
   return (
     <Stack data-diff gap={1}>
-      <div className="overflow-x-auto rounded border" style={{ borderColor: 'var(--border)', background: 'var(--card, var(--bg))' }}>
+      <Box css-border-color="border" css-background="card-bg" overflow="x-auto" rounded="base" border="all">
         {props.layout === 'split' ? <SplitDiff lines={shown} /> : <UnifiedDiff lines={shown} />}
-      </div>
+      </Box>
       {shown.length < lines.length && (
-        <button type="button" className="self-start text-xs underline" onClick={() => setFull(true)}>
+        <PlainButton type="button" self="start" size="xs" underline onClick={() => setFull(true)}>
           Show the other {lines.length - shown.length} lines
-        </button>
+        </PlainButton>
       )}
     </Stack>
   )
@@ -269,24 +295,29 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
         {error}
       </ErrorText>
     )
-  if (!view) return props.box ? null : <Hint as="p" size="sm">Reading the task&apos;s branch…</Hint>
+  if (!view)
+    return props.box ? null : (
+      <Hint as="p" size="sm">
+        Reading the task&apos;s branch…
+      </Hint>
+    )
   if (props.box && view.mode === 'none') return null
 
   const github = safeHref(view.github) && view.github
   // Open in editor needs the files on this machine: the task's own worktree.
   const local = view.mode === 'worktree' && !view.remote && view.worktree
   const branchLink = github && (
-    <a href={safeHref(github)!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm underline" data-github-branch>
+    <PlainLink href={safeHref(github)!} target="_blank" rel="noreferrer" inlineFlex items="center" gap="1" size="sm" underline data-github-branch>
       <GitBranch size={14} aria-hidden="true" />
       {view.branch} on GitHub
-    </a>
+    </PlainLink>
   )
   if (view.mode === 'none')
     return (
-      <div className="flex flex-col gap-2 text-sm">
+      <Box flex flexCol gap="2" size="sm">
         <Hint as="p">{view.remote ? 'This task runs on another machine. Its files are not here.' : 'No worktree or branch for this task on this machine yet.'}</Hint>
         {branchLink}
-      </div>
+      </Box>
     )
   const pickedChange = view.files.find((f) => f.path === picked) ?? null
   const diffLines = diff?.view ? parseDiff(diff.view.diff) : []
@@ -295,7 +326,7 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
   const fileHref = fileTarget && editorHref(editor, fileTarget.path, fileTarget.line)
   const body = (
     <Stack gap={3} data-task-files>
-      <div className="flex flex-wrap items-center gap-2 text-sm">
+      <Box flex flexWrap items="center" gap="2" size="sm">
         <span data-files-totals>
           {view.totals ? (
             <>
@@ -303,7 +334,13 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
               {view.totals.files > 0 && (
                 <>
                   {' '}
-                  · <span style={{ color: 'var(--ok)' }}>+{view.totals.additions}</span> <span style={{ color: 'var(--danger)' }}>−{view.totals.deletions}</span>
+                  ·{' '}
+                  <Box as="span" css-color="ok">
+                    +{view.totals.additions}
+                  </Box>{' '}
+                  <Box as="span" css-color="danger">
+                    −{view.totals.deletions}
+                  </Box>
                 </>
               )}
             </>
@@ -312,21 +349,21 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
           )}
         </span>
         {view.files.length > 0 && <Hint size="xs">{statusCounts(view.files)}</Hint>}
-        <span className="flex-1" />
+        <Box as="span" flex1 />
         <IconBtn icon={RefreshCw} label="Read the files again" onClick={() => setReload((n) => n + 1)} />
-      </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
+      </Box>
+      <Box flex flexWrap items="center" gap="2" size="xs">
         <Hint>{view.mode === 'worktree' ? 'Its worktree' : `Its branch ${view.branch}`} against where it left its base.</Hint>
         {local ? (
-          <a href={editorHref(editor, view.worktree!)!} className="inline-flex items-center gap-1 underline" data-open-worktree>
+          <PlainLink href={editorHref(editor, view.worktree!)!} inlineFlex items="center" gap="1" underline data-open-worktree>
             <ExternalLink size={14} aria-hidden="true" />
             Open worktree in {EDITORS.find((e) => e.key === editor)!.label}
-          </a>
+          </PlainLink>
         ) : (
           branchLink
         )}
         {local && (
-          <span className="inline-flex items-center gap-1" data-editor-pick>
+          <Box as="span" inlineFlex items="center" gap="1" data-editor-pick>
             Editor
             <Toggle
               label="Editor"
@@ -338,27 +375,42 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
                 writeEditor(pageStorage(), next)
               }}
             />
-          </span>
+          </Box>
         )}
-        <label className="inline-flex items-center gap-1">
-          <Checkbox checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
+        <Switch label="Show all files" inline gap={1} checked={showAll} onChange={setShowAll}>
           Show all files
-        </label>
-      </div>
+        </Switch>
+      </Box>
       {tree.length === 0 ? (
-        <Hint as="p" size="sm">This task has not changed any files yet.</Hint>
+        <Hint as="p" size="sm">
+          This task has not changed any files yet.
+        </Hint>
       ) : (
-        <div className="max-h-80 overflow-auto rounded border p-1" style={{ borderColor: 'var(--border)' }}>
+        <Box css-border-color="border" maxH80 overflow="auto" rounded="base" border="all" p="1">
           <Tree nodes={tree} depth={0} selected={picked} onPick={pick} />
-        </div>
+        </Box>
       )}
-      {(view.truncated || view.all?.truncated) && <Hint as="p" size="xs">Only the first files are listed.</Hint>}
+      {(view.truncated || view.all?.truncated) && (
+        <Hint as="p" size="xs">
+          Only the first files are listed.
+        </Hint>
+      )}
       {diff && (
         <Stack aria-label={`Diff of ${diff.path}`} as="section" gap={2}>
           <Row gap={2}>
-            <h4 className="min-w-0 flex-1 text-sm font-semibold" style={{ ...mono, overflowWrap: 'anywhere' }}>
+            <Box
+              as="h4"
+              css-font-family="mono-ui-monospace-monospace"
+              css-font-size="12"
+              css-line-height="18px"
+              css-overflow-wrap="anywhere"
+              minW0
+              flex1
+              size="sm"
+              weight="semibold"
+            >
               {diff.path}
-            </h4>
+            </Box>
             <Toggle
               label="Diff layout"
               options={[
@@ -369,10 +421,10 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
               onChange={(key) => setLayout(key as 'unified' | 'split')}
             />
             {fileHref && (
-              <a href={editorHref(editor, fileTarget!.path, fileTarget!.line)!} className="inline-flex items-center gap-1 text-xs underline" data-open-file>
+              <PlainLink href={editorHref(editor, fileTarget!.path, fileTarget!.line)!} inlineFlex items="center" gap="1" size="xs" underline data-open-file>
                 <ExternalLink size={14} aria-hidden="true" />
                 Open in {EDITORS.find((e) => e.key === editor)!.label}
-              </a>
+              </PlainLink>
             )}
           </Row>
           {diff.error ? (
@@ -382,11 +434,19 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
           ) : diff.view ? (
             <Diff diff={diff.view} layout={layout} />
           ) : (
-            <Hint as="p" size="sm">Reading the diff…</Hint>
+            <Hint as="p" size="sm">
+              Reading the diff…
+            </Hint>
           )}
         </Stack>
       )}
     </Stack>
   )
-  return props.box ? <SectionBox id={props.box.id} title={props.box.title}>{body}</SectionBox> : body
+  return props.box ? (
+    <SectionBox id={props.box.id} title={props.box.title}>
+      {body}
+    </SectionBox>
+  ) : (
+    body
+  )
 }
