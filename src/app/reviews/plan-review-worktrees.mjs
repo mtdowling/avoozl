@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { digest } from "../../model.mjs";
 import { git, withWorkLock } from "../git/git.mjs";
-import { REVISION_FILES, specFacts, specName } from "../specs/spec-plans.mjs";
+import { revisionFiles, specFacts, specName } from "../specs/spec-plans.mjs";
+import { specsPath } from "../specs/specs-path.mjs";
 import { fail } from "../store/store.mjs";
 
 const SHA = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
@@ -38,7 +39,7 @@ export async function preparePlanReviewWorktrees(
       round.id,
     ),
     snapshot = path.join(ownedRoot, "spec"),
-    folder = path.join(snapshot, ".kiro", "specs", plan.spec),
+    folder = path.join(snapshot, specsPath(planningRoot), plan.spec),
     views = [],
     commits = {};
   const resources = {
@@ -50,7 +51,7 @@ export async function preparePlanReviewWorktrees(
   };
   try {
     fs.mkdirSync(folder, { recursive: true });
-    for (const file of REVISION_FILES)
+    for (const file of revisionFiles(plan.files))
       if (typeof plan.files[file] === "string") {
         const target = path.join(folder, file);
         fs.mkdirSync(path.dirname(target), { recursive: true });

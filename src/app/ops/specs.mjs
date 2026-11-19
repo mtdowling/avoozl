@@ -32,6 +32,7 @@ import {
   requestChanges,
   roleOf,
   specPullOf,
+  specRoot,
   specPullView,
 } from "../specs/spec-pull-requests.mjs";
 import { reanchorSpec, resumeSpec } from "../specs/spec-reanchor.mjs";
@@ -151,7 +152,13 @@ async function specprAdoptHandler({ name, input, context }) {
       entry = (readCache(store).repositories?.[repository]?.items || []).find(
         (item) => item.number === input.number,
       ),
-      found = entry && specPullOf(entry, roleOf(policy, repository));
+      found =
+        entry &&
+        specPullOf(
+          entry,
+          roleOf(policy, repository),
+          specRoot(store, repository),
+        );
     if (!found) fail("That pull request is not a spec-only pull request.", 404);
     const receipt = await adoptPull(store, this.github, {
       repository,

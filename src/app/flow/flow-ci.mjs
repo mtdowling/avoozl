@@ -9,6 +9,7 @@
 // repository per check. Writes: `pr_ci` and `ci_runs` rows.
 import { CI_CLASSES, flowPolicy, listOr } from "./flow.mjs";
 import { globToRegex } from "../mirror/forward-guard.mjs";
+import { DEFAULT_SPECS_PATH, specsPathOf } from "../specs/specs-path.mjs";
 import { loadLayeredConfig } from "../settings/layered-config.mjs";
 import {
   migrateReceiptMeta,
@@ -30,7 +31,7 @@ const MATCH_ORDER = ["ci", "spec", "tests", "docs", "other"];
 const GROUP_ORDER = ["code", "tests", "ci", "other", "spec", "docs"];
 export const CLASS_GLOBS = Object.freeze({
   ci: [".github/", ".gitlab-ci.yml", ".circleci/"],
-  spec: [".kiro/specs/"],
+  spec: [`${DEFAULT_SPECS_PATH}/`],
   tests: [
     "test/",
     "tests/",
@@ -233,7 +234,11 @@ export async function ciStep(
     before = JSON.stringify(reported);
   for (const repository of repositories) {
     const settings = ciSettings(store, config, repository),
-      globs = classGlobs(settings.classes),
+      // The spec class follows the repository's specs.path.
+      globs = classGlobs({
+        spec: [`${specsPathOf(store, repository)}/`],
+        ...settings.classes,
+      }),
       since = new Date(
         windowStart(now, settings.windowDays) - settings.windowDays * DAY_MS,
       )

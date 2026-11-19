@@ -9,6 +9,7 @@ import { promptVersions, roleTarget } from "../flow/retro-memory.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { fail } from "../store/store.mjs";
 import path from "node:path";
+import { specFolderPath } from "../specs/specs-path.mjs";
 
 // Claimed leaves for a readiness query. A read-only database from before the
 // session tables reads as having no claims.
@@ -229,7 +230,7 @@ export function refuseSpecText(store, task, input) {
   const name = plan.title ?? plan.id,
     error = Error(
       plan.spec
-        ? `Task ${task.id} comes from spec ${plan.spec}, whose Markdown owns its ${changed.join(", ")}. Edit .kiro/specs/${plan.spec}/tasks.md and approve the spec.`
+        ? `Task ${task.id} comes from spec ${plan.spec}, whose Markdown owns its ${changed.join(", ")}. Edit ${specFolderPath(store.getMeta?.("workspaceRepository")?.root ?? null, plan.spec)}tasks.md and approve the spec.`
         : `Task ${task.id} comes from plan ${name}, whose text owns its ${changed.join(", ")}. Edit the plan and approve it.`,
     );
   error.status = 409;

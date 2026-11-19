@@ -152,6 +152,17 @@ export function resolveRefs(item, files) {
     problems = [];
   for (const [kind, { entries, file, ids }] of Object.entries(kinds))
     for (const entry of entries) {
+      // Only tasks.md is required: a ref is checked against its file when
+      // the spec has one, and names the missing file when it does not.
+      if (files[file] === undefined) {
+        problems.push({
+          code: "task.ref-file-missing",
+          ref: entry,
+          message: `Task "${item.key}" names ${kind} ref "${entry}", but this spec has no ${kind === "requirement" ? "requirements.md or bugfix.md" : "design.md"}. Add the file or remove the ref.`,
+        });
+        refs.push({ kind, ref: entry, file, line: null });
+        continue;
+      }
       const ends = ENDS(entry);
       if (!ends || ends.some((end) => !FORM[kind].test(end))) {
         problems.push({

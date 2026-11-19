@@ -36,7 +36,7 @@ export const NARROW_TOOLS = {
   ],
   plans_create_plan: [
     "plan.create",
-    "Narrow tool for the planner. Store one Kiro spec folder as a draft plan: {spec: <name>, prompt?, id?}. Avoozl reads .kiro/specs/<name>/ in the planning repository; the plan ID defaults to the name and its hash is the folder revision. {prompt, text} stores a free-form design for extraction instead. Does not publish execution tasks.",
+    "Narrow tool for the planner. Store one Kiro spec folder as a draft plan: {spec: <name>, prompt?, id?}. Avoozl reads <specs.path>/<name>/ (default .kiro/specs) in the planning repository; the plan ID defaults to the name and its hash is the folder revision. {prompt, text} stores a free-form design for extraction instead. Does not publish execution tasks.",
   ],
   plans_save_plan: [
     "plan.save",

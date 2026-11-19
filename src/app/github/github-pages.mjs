@@ -18,6 +18,7 @@ import {
 } from "../intake/triage.mjs";
 import { startGitHubItem } from "./github-intake.mjs";
 import { openFixJournal } from "../intake/fix.mjs";
+import { DEFAULT_SPECS_PATH, specsPathOf } from "../specs/specs-path.mjs";
 
 const lower = (value) => String(value ?? "").toLowerCase();
 const KINDS = new Set(["issue", "pr", "all"]);
@@ -125,7 +126,8 @@ export function itemsList(
 }
 
 // The actions a detail offers, by kind (TA8.4, TA8.5, TA8.6).
-export function itemActions(row, detail, triage) {
+// `specs` is the repository's specs path.
+export function itemActions(row, detail, triage, specs = DEFAULT_SPECS_PATH) {
   if (row.kind === "issue")
     return [
       "fix",
@@ -141,7 +143,7 @@ export function itemActions(row, detail, triage) {
     (detail?.files || row.diff?.files?.map((file) => file.path) || []).length >
       0 &&
     (detail?.files || row.diff.files.map((file) => file.path)).every((file) =>
-      String(file).startsWith(".kiro/specs/"),
+      String(file).startsWith(`${specs}/`),
     );
   return [
     "review",
@@ -171,7 +173,12 @@ export async function itemsDetail(store, github, input = {}) {
     ...detail,
     repository: row.repository,
     triage,
-    actions: itemActions(row, detail, triage),
+    actions: itemActions(
+      row,
+      detail,
+      triage,
+      specsPathOf(store, row.repository),
+    ),
     history: row.actions || [],
   };
 }

@@ -9,6 +9,7 @@ import {
   githubRepositoryFromRemote,
 } from "../git/git.mjs";
 import { listSpecFolders } from "../specs/spec-plans.mjs";
+import { specsPath } from "../specs/specs-path.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 
 export const KIND_LABELS = Object.freeze({
@@ -67,11 +68,17 @@ export async function folderFacts(root, github) {
       break;
     }
   }
-  const listed = await quiet(["ls-files", "-z"]);
+  const listed = await quiet(["ls-files", "-z"]),
+    // Files in the specs folder are specs, wherever specs.path puts it.
+    specsRoot = `${specsPath(root)}/`;
   return {
     upstream,
     code: codeEvidence(
-      listed === null ? null : listed.split("\0").filter(Boolean),
+      listed === null
+        ? null
+        : listed
+            .split("\0")
+            .filter((file) => file && !file.startsWith(specsRoot)),
     ),
     specs: listSpecFolders(root).length,
   };
@@ -179,7 +186,7 @@ export function guessKind({
   const has = code
     ? `It has code (${code}).`
     : specs
-      ? `It has spec folders in .kiro/specs and no code.`
+      ? `It has spec folders and no code.`
       : "It has no code or spec folders yet.";
   const plansOnly = !code && (specs > 0 || PLANNING_NAME.test(name));
   const others = workspace.others;

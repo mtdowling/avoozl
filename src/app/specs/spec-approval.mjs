@@ -14,18 +14,29 @@
 import { branchNameProblem } from "../epics/integration-branch.mjs";
 import { COMMIT, LOGIN } from "../github/github-marker.mjs";
 import { fail } from "../store/store.mjs";
-import { REVISION_FILES, specHash, specName } from "./spec-plans.mjs";
+import {
+  KIRO_FILES,
+  isSpecFile,
+  revisionFiles,
+  specHash,
+  specName,
+} from "./spec-plans.mjs";
+import { DEFAULT_SPECS_PATH, specsPathOf } from "./specs-path.mjs";
 
 const key = (planId, hash) => `spec-approval:${planId}:${hash}`;
 
 // What the approval pull request's commit writes: the spec's own files,
-// unchanged. path -> text.
-export function approvalChanges({ spec, files }) {
+// unchanged, under `folder` (the repository's specs path). path -> text.
+export function approvalChanges({
+  spec,
+  files,
+  folder = `${DEFAULT_SPECS_PATH}/${spec}/`,
+}) {
   specName(spec);
   return Object.fromEntries(
-    REVISION_FILES.filter((name) => typeof files[name] === "string").map(
-      (name) => [`.kiro/specs/${spec}/${name}`, files[name]],
-    ),
+    revisionFiles(files)
+      .filter((name) => typeof files[name] === "string")
+      .map((name) => [`${folder}${name}`, files[name]]),
   );
 }
 
@@ -52,7 +63,16 @@ async function freshBranch(github, repository, spec, attempt, oid) {
 // a new one makes.
 function approvalPart(
   store,
-  { planId, hash, spec, files, diagnostics = [], approvedBy, ref },
+  {
+    planId,
+    hash,
+    spec,
+    files,
+    diagnostics = [],
+    approvedBy,
+    ref,
+    repository = null,
+  },
 ) {
   const error = diagnostics.find((d) => d.severity === "error");
   if (error)
@@ -76,12 +96,13 @@ function approvalPart(
     );
   if (previous && (previous.state === "open" || previous.state === "merged"))
     return { previous };
-  const changes = approvalChanges({ spec, files });
+  const folder = `${specsPathOf(store, repository)}/${spec}/`,
+    changes = approvalChanges({ spec, files, folder });
   if (
     ref !== undefined &&
     Object.keys(changes).some(
       (file) =>
-        !file.startsWith(`.kiro/specs/${spec}/`) ||
+        !file.startsWith(folder) ||
         file.split("/").some((part) => part === ".." || part === "."),
     )
   )
@@ -150,6 +171,7 @@ export async function openApproval(
     diagnostics,
     approvedBy,
     ref,
+    repository,
   });
   if (!part.changes) return part.previous;
   const { previous, changes } = part,
@@ -255,6 +277,7 @@ export async function openBatchApproval(
         ...entry,
         approvedBy,
         ref,
+        repository,
       }),
     })),
     fresh = parts.filter((part) => part.changes),
@@ -420,14 +443,21 @@ export async function reconcileApproval(
     // The spec as it landed: a commit pushed to the approval branch before
     // the merge changes what was approved, and approves nothing.
     const spec = state.spec ?? store.get?.("plans", planId)?.spec,
-      folder = `.kiro/specs/${specName(spec)}/`,
+      folder = `${specsPathOf(store, repository)}/${specName(spec)}/`,
+      // Kiro's files and the ones this revision holds.
+      names = [
+        ...new Set([
+          ...KIRO_FILES,
+          ...Object.keys(store.get?.("plans", planId)?.files ?? {}),
+        ]),
+      ].filter(isSpecFile),
       texts = await github.blobTexts(
         repository,
         pull.merge_commit_sha,
-        REVISION_FILES.map((file) => folder + file),
+        names.map((file) => folder + file),
       ),
       landed = {};
-    for (const file of REVISION_FILES) {
+    for (const file of names) {
       const text = texts.get(folder + file);
       if (typeof text === "string") landed[file] = text;
     }

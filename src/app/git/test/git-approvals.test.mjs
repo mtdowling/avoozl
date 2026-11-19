@@ -8,7 +8,11 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { approvalCommits, approverCheck } from "../git-approvals.mjs";
+import {
+  approvalCommits,
+  approverCheck,
+  commitApproval,
+} from "../git-approvals.mjs";
 import {
   landingMessage,
   landingMetrics,
@@ -55,6 +59,36 @@ function commitSpec({ root, run }, name, { author, committer, files }) {
   });
   return run(["rev-parse", "HEAD"]);
 }
+
+test("approvals read and write every spec file under specs.path", async () => {
+  const r = repo(),
+    folder = "docs/specs/lean";
+  fs.writeFileSync(
+    path.join(r.root, ".avoozl.json"),
+    JSON.stringify({ version: 1, specs: { path: "docs/specs" } }),
+  );
+  fs.mkdirSync(path.join(r.root, folder), { recursive: true });
+  const tasks = "- [ ] `a-1` Do it\n  - $done: Done\n";
+  fs.writeFileSync(path.join(r.root, folder, "tasks.md"), tasks);
+  fs.writeFileSync(path.join(r.root, folder, "old.md"), "Old\n");
+  r.run(["add", "-A"]);
+  r.run(["commit", "-q", "-m", "Start"]);
+  const allowed = async (email) => email === OWNER;
+  let [first] = await approvalCommits(r.root, { allowed });
+  assert.equal(first.spec, "lean");
+  assert.deepEqual(Object.keys(first.files).sort(), ["old.md", "tasks.md"]);
+  // Approve drops old.md and adds notes.md; the commit removes what the
+  // reviewed revision left out.
+  await commitApproval(r.root, {
+    lean: { "tasks.md": tasks, "notes.md": "Notes\n" },
+  });
+  assert.deepEqual(
+    r.run(["ls-tree", "--name-only", "HEAD", `${folder}/`]).split("\n"),
+    [`${folder}/notes.md`, `${folder}/tasks.md`],
+  );
+  [first] = await approvalCommits(r.root, { allowed });
+  assert.deepEqual(first.files, { "notes.md": "Notes\n", "tasks.md": tasks });
+});
 
 test("the author decides an approval; the committer neither grants nor blocks it", async () => {
   const r = repo(),

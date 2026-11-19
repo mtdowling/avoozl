@@ -343,7 +343,7 @@ export function proposeWork(store, { id, proposal, fact, expectedHash }) {
   const plan = store.get("plans", id);
   if (!plan || plan.deletedAt) fail("Plan not found.", 404);
   fail(
-    "This plan is not a Kiro spec folder, and Avoozl no longer writes fenced task blocks. Propose a cited fact, or move the plan to .kiro/specs/<name>/.",
+    "This plan is not a Kiro spec folder, and Avoozl no longer writes fenced task blocks. Propose a cited fact, or move the plan to a spec folder.",
     409,
   );
 }

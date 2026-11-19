@@ -131,7 +131,7 @@ export function readRunnerConfig(workspaceRoot, env = process.env) {
 }
 
 const workerTaskBrief = ({ spec, taskId }) =>
-  `Task ${taskId} of spec ${spec}. Read the spec's requirements, design and tasks files in this worktree and do only that task.`;
+  `Task ${taskId} of spec ${spec}. Read every Markdown file in the spec's folder in this worktree (tasks.md and any other spec text) and do only that task.`;
 
 // Check an envelope field by field. Unknown keys are refused so a newer
 // driver cannot slip a field an older runner would ignore.

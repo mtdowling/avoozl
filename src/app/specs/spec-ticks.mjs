@@ -18,9 +18,11 @@ import { checkedItems, specItems } from "./spec-plans.mjs";
 import { statusComplete } from "../../query.mjs";
 import { readGitHubPolicyOrNull } from "../github/github-policy.mjs";
 import { mirrorOf } from "./spec-homes.mjs";
+import { specsPath } from "./specs-path.mjs";
 
 const exec = promisify(execFile);
-export const tasksPath = (name) => `.kiro/specs/${name}/tasks.md`;
+// tasks.md of a spec, as a path in the checkout at `root`.
+export const tasksPath = (root, name) => `${specsPath(root)}/${name}/tasks.md`;
 const short = (commit) => String(commit ?? "").slice(0, 12);
 
 // Task ID -> {key, line} for every item ticked [x], plus each of its
@@ -106,7 +108,7 @@ const inCandidate = (repository, candidate, spec) =>
   git(repository.root, [
     "cat-file",
     "-e",
-    `${candidate}:${tasksPath(spec)}`,
+    `${candidate}:${tasksPath(repository.root, spec)}`,
   ]).then(
     () => true,
     () => false,
@@ -117,7 +119,7 @@ const inCandidate = (repository, candidate, spec) =>
 // not in this repository is left to `tickPlansRepo`.
 export async function tickEntry(store, dir, entry) {
   const plan = store.get("plans", entry.spec),
-    file = plan?.spec && path.join(dir, tasksPath(plan.spec));
+    file = plan?.spec && path.join(dir, tasksPath(dir, plan.spec));
   if (!file || !fs.existsSync(file)) return;
   const { text, ticked } = tickedText(
     plan.spec,
@@ -126,7 +128,7 @@ export async function tickEntry(store, dir, entry) {
   );
   if (!ticked.length) return;
   fs.writeFileSync(file, text);
-  await git(dir, ["add", tasksPath(plan.spec)]);
+  await git(dir, ["add", tasksPath(dir, plan.spec)]);
 }
 
 // A spec that lives in a plans repository other than the code repository:
@@ -187,12 +189,12 @@ export async function tickBranch(
       await git(root, ["worktree", "add", "--detach", "--quiet", dir, base]);
       const ticked = [];
       for (const { spec, ids } of files) {
-        const file = path.join(dir, tasksPath(spec));
+        const file = path.join(dir, tasksPath(dir, spec));
         if (!fs.existsSync(file)) continue;
         const tick = tickedText(spec, fs.readFileSync(file, "utf8"), ids);
         if (!tick.ticked.length) continue;
         fs.writeFileSync(file, tick.text);
-        await git(dir, ["add", tasksPath(spec)]);
+        await git(dir, ["add", tasksPath(dir, spec)]);
         ticked.push(...tick.ticked);
       }
       if (!ticked.length) return { ticked };
@@ -253,7 +255,7 @@ export async function baseTasks(root, branch, name, { fetched } = {}) {
     // Not `git()`: its trim would shift the line numbers.
     const { stdout } = await exec(
       "git",
-      ["show", `${head}:${tasksPath(name)}`],
+      ["show", `${head}:${tasksPath(root, name)}`],
       { cwd: root, maxBuffer: 8 * 1024 * 1024 },
     );
     return { head, ref, text: stdout };
@@ -270,7 +272,14 @@ export async function tickCommits(root, ref, name) {
   try {
     const { stdout } = await exec(
         "git",
-        ["blame", "--first-parent", "--porcelain", ref, "--", tasksPath(name)],
+        [
+          "blame",
+          "--first-parent",
+          "--porcelain",
+          ref,
+          "--",
+          tasksPath(root, name),
+        ],
         { cwd: root, maxBuffer: 32 * 1024 * 1024 },
       ),
       times = new Map(),

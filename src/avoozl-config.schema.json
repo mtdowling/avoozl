@@ -208,6 +208,21 @@
     "planningRepository": {
       "$ref": "#/$defs/planningRepository"
     },
+    "specs": {
+      "type": "object",
+      "description": "Where this repository's spec folders live.",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^(?!(.*/)?\\.\\.?(/|$))[A-Za-z0-9._-]+(/(?!\\.\\.?(/|$))[A-Za-z0-9._-]+)*/?$",
+          "default": ".kiro/specs",
+          "description": "The folder, relative to the repository root, that holds one folder per spec. Unset means .kiro/specs. It may not leave the repository, name . or .., or be a symlink out of the checkout."
+        }
+      }
+    },
     "plugins": {
       "description": "Plugins this repository declares (design §4.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
       "type": "array",

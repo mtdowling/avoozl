@@ -4,7 +4,7 @@ import { applicationRoot } from "../settings/config.mjs";
 import { digest } from "../../model.mjs";
 import { fail } from "../store/store.mjs";
 import { sampleSpecs } from "./sample-specs.mjs";
-import { SPECS_DIRECTORY } from "../specs/spec-plans.mjs";
+import { specsDirectory } from "../specs/specs-path.mjs";
 
 // The pack `seed` installs when none is named.
 const DEFAULT_EXAMPLE = "recipe-box";
@@ -14,7 +14,7 @@ const packs = [
     version: 1,
     title: "Recipe Box",
     description:
-      "Four draft Kiro spec folders in .kiro/specs/: the Recipe Box epic and its three specs (recipe import, meal planner, shopping list), ten tasks in all. Nothing is approved, so the graph gets no task until you approve a spec.",
+      "Four draft Kiro spec folders in the workspace's specs folder: the Recipe Box epic and its three specs (recipe import, meal planner, shopping list), ten tasks in all. Nothing is approved, so the graph gets no task until you approve a spec.",
   },
   {
     id: "product-launch",
@@ -29,7 +29,7 @@ export function listExamples() {
 }
 
 // Install the Recipe Box specs as draft spec folders. `specRoot` gives the
-// folder that holds `.kiro/specs`, and `createDraft` stores one folder as a
+// folder that holds the specs folder (`specs.path`), and `createDraft` stores one folder as a
 // draft plan, as `plan.create` does. A failure removes the folders this call
 // wrote and rolls back its rows; a retry after success changes nothing, so
 // edits to the folders and the drafts stay.
@@ -53,7 +53,8 @@ function seedSpecFolders(
     { files, members } = sampleSpecs({ word: "example" }),
     // Members first: the epic folder names them.
     specs = [...members, "recipe-box"],
-    directory = (name) => path.join(root, SPECS_DIRECTORY, name),
+    folders = specsDirectory(root),
+    directory = (name) => path.join(folders, name),
     taken = (name) =>
       fail(
         `Example spec ${name} already exists. Existing data was preserved.`,
@@ -63,7 +64,7 @@ function seedSpecFolders(
     if (fs.existsSync(directory(name)) || store.get("plans", name)) taken(name);
   const written = [];
   try {
-    fs.mkdirSync(path.join(root, SPECS_DIRECTORY), { recursive: true });
+    fs.mkdirSync(folders, { recursive: true });
     for (const name of specs) {
       try {
         // Not recursive: a folder that appeared since the check is refused.

@@ -237,6 +237,10 @@ export function kirocrewRequest(store, legacy) {
 // The planner agents may write only `.kiro/specs/**` under the chat's own
 // project directory, so a planner that writes a workspace's spec folder opens
 // in a folder whose project directory is that workspace.
+// shortcut: the agent's write scope is fixed at build time to the default
+// specs path; a workspace with another specs.path drafts with a process
+// planner, or widen allowedPaths in agent-metadata.json if Kiro Crew chats
+// must write there.
 // shortcut: one folder for every workspace on this Kiro Crew; name it per
 // workspace once a gateway serves two planning workspaces.
 const SPECS_FOLDER = "Avoozl/Specs";

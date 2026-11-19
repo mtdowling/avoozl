@@ -16,6 +16,7 @@ import { classifyOperation } from "../api/operation-table.mjs";
 import { recordActivity } from "../store/activity-log.mjs";
 import { emptySnapshot } from "./workspace.mjs";
 import { sampleSpecs } from "./sample-specs.mjs";
+import { specsDirectory } from "../specs/specs-path.mjs";
 
 // The page's workspace ID for the sample. A catalog ID must start with a
 // letter (host-config.mjs), so no real workspace can have this one.
@@ -568,7 +569,7 @@ export async function buildDemo(
   const { files, members } = sampleSpecs();
   for (const [name, folder] of Object.entries(files))
     for (const [file, text] of Object.entries(folder)) {
-      const target = path.join(checkout, ".kiro", "specs", name, file);
+      const target = path.join(specsDirectory(checkout), name, file);
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.writeFileSync(target, text);
     }

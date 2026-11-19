@@ -6,6 +6,7 @@ import { chatModel, validatePlanReview } from "../settings/chat-models.mjs";
 import { allowWrite } from "../content/content-rules.mjs";
 import { readOnlyPlanIds } from "../workers/driver-scope.mjs";
 import { saveSpecPlan, specHash } from "../specs/spec-plans.mjs";
+import { specFolderPath, specsDirectory } from "../specs/specs-path.mjs";
 import {
   createSpecReviewRound,
   listSpecReviewRounds,
@@ -237,7 +238,7 @@ function planAnswerBrief(
       roundId: round.id,
       revisionHash: round.revisionHash,
       expectedHash: plan.hash,
-      specFolder: `${planningRoot}/.kiro/specs/${plan.spec}/`,
+      specFolder: `${planningRoot}/${specFolderPath(planningRoot, plan.spec)}`,
       findings: reviewFindings(store, { planId: plan.id, roundId: round.id })
         .findings,
       personAccepted: decided.accepted,
@@ -597,7 +598,7 @@ export async function planReviewStep(
         round,
         "plan-answer",
         run.executor === "process"
-          ? path.join(planningRoot, ".kiro", "specs", plan.spec)
+          ? path.join(specsDirectory(planningRoot), plan.spec)
           : planningRoot,
         brief,
         chatModel(config, "planner"),

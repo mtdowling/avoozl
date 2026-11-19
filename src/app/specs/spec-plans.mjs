@@ -1,9 +1,11 @@
 // Kiro spec folders as Avoozl plans (Requirement 30, design §6.8).
 //
-//   <planning root>/.kiro/specs/<name>/
-//     requirements.md or bugfix.md, design.md, tasks.md
-//                            each task's facts are `$key:` bullets in
-//                            tasks.md (spec-facts.mjs, Requirement 111)
+//   <planning root>/<specs.path>/<name>/   (specs-path.mjs, .kiro/specs)
+//     tasks.md               the one required file; each task's facts are
+//                            `$key:` bullets (spec-facts.mjs, Requirement 111)
+//     requirements.md or bugfix.md, design.md
+//                            optional Kiro prose that refs point into
+//     <other>.md             optional spec text
 //     avoozl/critique.md     planner critique, outside the revision hash
 //
 // The reader turns tasks.md and its fact bullets into the proposals lintPlan and
@@ -16,6 +18,7 @@ import { digest } from "../../model.mjs";
 import { fail } from "../store/store.mjs";
 import { validateProposal, writeRevision } from "./plans.mjs";
 import { lintPlan } from "./plan-quality.mjs";
+import { specFolderPath, specsDirectory } from "./specs-path.mjs";
 import {
   factName,
   factsLines,
@@ -53,18 +56,34 @@ export function hasFactsBlocks(text) {
   return false;
 }
 
-export const SPECS_DIRECTORY = path.join(".kiro", "specs");
 // The old facts file. Nothing reads it; a leftover one is a lint error.
 export const MANIFEST = "avoozl/manifest.json";
 export const CRITIQUE = "avoozl/critique.md";
-// The files a revision hash covers. The critique is about a revision, so it
-// is read beside it and never changes it.
-export const REVISION_FILES = [
+// Kiro's files, in the order a revision hash reads them. Only tasks.md is
+// required. Every other Markdown file directly in the folder is spec text:
+// hashed after these, sorted by name, and read by workers. The critique is
+// about a revision, so it is read beside it and never changes it.
+export const KIRO_FILES = [
   "requirements.md",
   "bugfix.md",
   "design.md",
   "tasks.md",
 ];
+const SPEC_TEXT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}\.md$/;
+// At most this many spec files in one folder.
+export const MAX_SPEC_FILES = 50;
+
+// Whether a file name directly in a spec folder is part of the spec.
+export const isSpecFile = (file) =>
+  typeof file === "string" && SPEC_TEXT.test(file);
+
+// The spec files of `files`, in hash order: Kiro's, then the rest by name.
+export function revisionFiles(files = {}) {
+  const others = Object.keys(files)
+    .filter((file) => isSpecFile(file) && !KIRO_FILES.includes(file))
+    .sort();
+  return [...KIRO_FILES.filter((file) => files[file] !== undefined), ...others];
+}
 const NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const MAX_FILE_BYTES = 1000000;
 const CHECKBOX = /^\s*[-*+] \[([ xX~-])\]\*?[ \t]+(.*)$/;
@@ -125,17 +144,15 @@ export function withoutStatus(text) {
 export function specHash(files) {
   return digest(
     [
-      ...REVISION_FILES.filter((file) => files[file] !== undefined).map(
-        (file) => {
-          const raw = files[file],
-            text = withoutStatus(
-              file === "tasks.md"
-                ? withoutMarks(withoutFacts(raw, specItems("x", raw)))
-                : raw,
-            );
-          return `${file}\0${text}\0`;
-        },
-      ),
+      ...revisionFiles(files).map((file) => {
+        const raw = files[file],
+          text = withoutStatus(
+            file === "tasks.md"
+              ? withoutMarks(withoutFacts(raw, specItems("x", raw)))
+              : raw,
+          );
+        return `${file}\0${text}\0`;
+      }),
       ...(files["tasks.md"] === undefined
         ? []
         : [
@@ -180,7 +197,7 @@ export function findSpecFolder(roots, name) {
     .filter((spec) => spec.exists);
   if (found.length > 1)
     fail(
-      `Spec folder .kiro/specs/${name}/ exists in more than one repository: ${found.map((spec) => spec.root).join(", ")}. Rename one.`,
+      `Spec folder ${found[0].folder} exists in more than one repository: ${found.map((spec) => spec.root).join(", ")}. Rename one.`,
       409,
     );
   return found[0] || { ...readSpecFolder(roots[0], name), root: roots[0] };
@@ -198,8 +215,8 @@ function inside(root, target) {
 // read: a symlink out of it reads as a missing file.
 export function readSpecFolder(root, name) {
   specName(name);
-  const directory = path.join(root, SPECS_DIRECTORY, name),
-    folder = `.kiro/specs/${name}/`;
+  const directory = path.join(specsDirectory(root), name),
+    folder = specFolderPath(root, name);
   let real;
   try {
     real = fs.realpathSync.native(directory);
@@ -223,8 +240,14 @@ export function readSpecFolder(root, name) {
     if (stat.size > MAX_FILE_BYTES) fail(`${folder}${file} is too large.`, 413);
     return fs.readFileSync(target, "utf8");
   };
-  const files = {};
-  for (const file of REVISION_FILES) {
+  const files = {},
+    names = fs.readdirSync(real).filter(isSpecFile).sort();
+  if (names.length > MAX_SPEC_FILES)
+    fail(
+      `${folder} holds ${names.length} Markdown files; a spec holds at most ${MAX_SPEC_FILES}.`,
+      413,
+    );
+  for (const file of names) {
     const text = read(file);
     if (text !== undefined) files[file] = text;
   }
@@ -249,7 +272,7 @@ export function specModifiedAt(root, name, files) {
     try {
       latest = Math.max(
         latest,
-        fs.statSync(path.join(root, SPECS_DIRECTORY, specName(name), file))
+        fs.statSync(path.join(specsDirectory(root), specName(name), file))
           .mtimeMs,
       );
     } catch {
@@ -259,9 +282,10 @@ export function specModifiedAt(root, name, files) {
 }
 
 export function listSpecFolders(root) {
+  const directory = specsDirectory(root);
   let entries;
   try {
-    entries = fs.readdirSync(path.join(root, SPECS_DIRECTORY), {
+    entries = fs.readdirSync(directory, {
       withFileTypes: true,
     });
   } catch {
@@ -417,7 +441,7 @@ function unchangedClauses(text) {
 // proposals built from items that have valid facts.
 export function parseSpec({
   name,
-  folder = `.kiro/specs/${name}/`,
+  folder = specFolderPath(null, name),
   exists,
   files,
   leftover = false,
@@ -447,15 +471,6 @@ export function parseSpec({
         "A spec has requirements.md or bugfix.md, not both. Remove one.",
       ),
     );
-  else if (!feature && !bugfix)
-    diagnostics.push(
-      diagnostic(
-        "spec.missing-file",
-        "requirements.md",
-        1,
-        "Add requirements.md for a feature spec or bugfix.md for a bugfix spec.",
-      ),
-    );
   // The plan's category lives in YAML front-matter at the top of its prose
   // (Requirement 30.9). A block a person must fix is a warning: it changes
   // only how the plan is grouped, never what is delivered.
@@ -468,11 +483,11 @@ export function parseSpec({
         }),
       );
   }
-  for (const file of ["design.md", "tasks.md"])
-    if (files[file] === undefined)
-      diagnostics.push(
-        diagnostic("spec.missing-file", file, 1, `Add ${folder}${file}.`),
-      );
+  // tasks.md is the one required file; the prose files are optional.
+  if (files["tasks.md"] === undefined)
+    diagnostics.push(
+      diagnostic("spec.missing-file", "tasks.md", 1, `Add ${folder}tasks.md.`),
+    );
   // The manifest is gone (Requirement 111.1): a leftover file is an error
   // and nothing reads it.
   if (leftover)
@@ -595,8 +610,8 @@ export function parseSpec({
       error.message,
     );
   }
-  const type =
-    bugfix && !feature ? "bugfix" : feature && !bugfix ? "feature" : null;
+  // A spec with no bugfix.md is a feature spec.
+  const type = bugfix && !feature ? "bugfix" : bugfix ? null : "feature";
   // An epic folder lists member plans, not tasks (Requirement 59.1).
   if (facts.isEpic) {
     if (bugfix)
@@ -1115,7 +1130,7 @@ function epicDiagnostics(spec, parsed, namespace) {
             "spec.epic-member-missing",
             "tasks.md",
             member.line,
-            `Epic entry "${member.key}" names plan ${member.plan}, which has no spec folder .kiro/specs/${member.plan}/. Create it or remove the entry.`,
+            `Epic entry "${member.key}" names plan ${member.plan}, which has no spec folder ${(spec.folder ?? specFolderPath(null, spec.name)).replace(/[^/]+\/$/, "")}${member.plan}/. Create it or remove the entry.`,
             { entry: member.key },
           ),
         );
@@ -1216,7 +1231,11 @@ export function specCategory(files = {}) {
 }
 
 export function specTitle(spec) {
-  const prose = spec.files["requirements.md"] ?? spec.files["bugfix.md"] ?? "";
+  const prose =
+    spec.files["requirements.md"] ??
+    spec.files["bugfix.md"] ??
+    spec.files["tasks.md"] ??
+    "";
   return (
     withoutFrontMatter(prose)
       .match(/^# (.+)$/m)?.[1]
@@ -1360,7 +1379,9 @@ export function linkSpecPlan(store, { id, expectedHash }, spec) {
       fail(`Spec ${spec.name} already belongs to another plan.`, 409);
     if (
       spec.name !== plan.id &&
-      !plan.documentId?.startsWith(`.kiro/specs/${spec.name}/`)
+      !plan.documentId?.startsWith(
+        spec.folder ?? specFolderPath(null, spec.name),
+      )
     )
       fail(
         `Spec ${spec.name} is not this plan's folder: the plan ID or its document must name it.`,
@@ -1436,7 +1457,7 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
     if (tasks === undefined) fail("Add tasks.md before proposing work.", 409);
     if (specItems(plan.spec, tasks).some((item) => item.key === key))
       fail("Repeated local task ID " + key);
-    const directory = path.join(spec.root, SPECS_DIRECTORY, plan.spec),
+    const directory = path.join(specsDirectory(spec.root), plan.spec),
       eol = tasks.includes("\r\n") ? "\r\n" : "\n";
     let facts;
     try {

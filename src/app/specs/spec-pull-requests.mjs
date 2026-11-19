@@ -17,16 +17,20 @@ import { resolveRoles } from "../workspace/repository-roles.mjs";
 import { approvedBefore, diffSpec } from "./spec-changed.mjs";
 import {
   CRITIQUE,
-  REVISION_FILES,
+  KIRO_FILES,
   createSpecPlan,
+  isSpecFile,
   saveSpecPlan,
   specHash,
 } from "./spec-plans.mjs";
 import { workingBranch } from "../workers/working-heads.mjs";
 import { fail } from "../store/store.mjs";
+import { DEFAULT_SPECS_PATH, specsPathOf } from "./specs-path.mjs";
 
 const SPEC_PULL_KIND = "spec-pr";
-const SPEC_ROOT = ".kiro/specs/";
+// The specs folder of a repository read over GitHub, with a trailing slash.
+export const specRoot = (store, repository) =>
+  `${specsPathOf(store, repository)}/`;
 // The repository's allowed-actor or minimum-permission check.
 async function allowedActor(github, policy, repository, login) {
   if (!login) return { allowed: false, reason: "The actor could not be read." };
@@ -74,7 +78,7 @@ export function roleOf(policy, repository) {
 // The spec a cached pull request item proposes, or null (R107.1): open, in a
 // planning or both repository, a complete file list, every file under one
 // spec folder of the spec root.
-export function specPullOf(entry, role) {
+export function specPullOf(entry, role, root = `${DEFAULT_SPECS_PATH}/`) {
   if (entry?.kind !== "pr" || !["planning", "both"].includes(role)) return null;
   const files = entry.files;
   if (
@@ -86,8 +90,8 @@ export function specPullOf(entry, role) {
     return null;
   const names = new Set();
   for (const path of files.paths) {
-    if (typeof path !== "string" || !path.startsWith(SPEC_ROOT)) return null;
-    const [name, ...rest] = path.slice(SPEC_ROOT.length).split("/");
+    if (typeof path !== "string" || !path.startsWith(root)) return null;
+    const [name, ...rest] = path.slice(root.length).split("/");
     if (!NAME.test(name) || !rest.length || rest.includes("..")) return null;
     names.add(name);
   }
@@ -108,7 +112,7 @@ export const pullFor = (store, spec) =>
 export function pullSpecs(store, root = null) {
   return openPulls(store).map((entry) => ({
     name: entry.spec,
-    folder: `${SPEC_ROOT}${entry.spec}/`,
+    folder: `${specRoot(store, entry.repository)}${entry.spec}/`,
     exists: true,
     files: entry.files,
     hash: entry.hash,
@@ -165,14 +169,14 @@ export async function linkOf(
   return answer.allowed ? "allowed" : "person";
 }
 
-function readFiles(texts, spec) {
+function readFiles(texts, folder, names) {
   const files = {};
   let critique = null;
-  for (const file of REVISION_FILES) {
-    const text = texts.get(`${SPEC_ROOT}${spec}/${file}`);
+  for (const file of names) {
+    const text = texts.get(`${folder}${file}`);
     if (typeof text === "string") files[file] = text;
   }
-  const note = texts.get(`${SPEC_ROOT}${spec}/${CRITIQUE}`);
+  const note = texts.get(`${folder}${CRITIQUE}`);
   if (typeof note === "string") critique = note;
   return { files, critique };
 }
@@ -205,17 +209,31 @@ export async function adoptPull(
   }
   if (!/^[0-9a-f]{40}$/.test(entry.headSha ?? ""))
     fail("The pull request has no head commit to read.", 409);
-  const paths = [...REVISION_FILES, CRITIQUE].map(
-      (file) => `${SPEC_ROOT}${spec}/${file}`,
-    ),
+  // The spec files at the head: Kiro's, the ones the pull request changes,
+  // and the ones the stored plan already holds.
+  const base = `${specRoot(store, repository)}${spec}/`,
+    names = [
+      ...new Set([
+        ...KIRO_FILES,
+        ...(entry.files?.paths ?? [])
+          .filter((file) => String(file).startsWith(base))
+          .map((file) => file.slice(base.length)),
+        ...Object.keys(store.get("plans", spec)?.files ?? {}),
+      ]),
+    ].filter(isSpecFile),
     { files, critique } = readFiles(
-      await github.blobTexts(repository, entry.headSha, paths),
-      spec,
+      await github.blobTexts(
+        repository,
+        entry.headSha,
+        [...names, CRITIQUE].map((file) => base + file),
+      ),
+      base,
+      names,
     );
   if (!Object.keys(files).length) return null;
   const folder = {
     name: spec,
-    folder: `${SPEC_ROOT}${spec}/`,
+    folder: base,
     exists: true,
     files,
     hash: specHash(files),
@@ -289,7 +307,7 @@ export async function syncSpecPulls(
   for (const [repository, read] of Object.entries(cache.repositories || {})) {
     const role = roleOf(policy, repository);
     for (const entry of read.items || []) {
-      const found = specPullOf(entry, role);
+      const found = specPullOf(entry, role, specRoot(store, repository));
       if (!found) continue;
       const id = receiptId(repository, entry.number),
         current = store.get("receipts", id);

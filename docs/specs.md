@@ -6,10 +6,34 @@ have landed.
 
 ```text
 .kiro/specs/<name>/
-  requirements.md (or bugfix.md)
-  design.md
-  tasks.md
+  tasks.md                         required
+  requirements.md (or bugfix.md)   optional
+  design.md                        optional
+  <anything>.md                    optional
 ```
+
+Only `tasks.md` is required. Kiro's layout of `requirements.md` (or
+`bugfix.md`), `design.md` and `tasks.md` works as it always has. Every other
+Markdown file directly in the folder is spec text: it is part of the
+revision, so editing it needs a new approval, and workers and reviewers read
+it beside `tasks.md`. Files in subfolders such as `avoozl/`, files that are
+not Markdown, and symlinks are not part of the spec. A spec file may be at
+most 1 MB, and a folder may hold at most 50 of them.
+
+### Where specs live
+
+Spec folders live in `.kiro/specs/` unless the `.avoozl.json` at the root of
+the repository that holds them says otherwise:
+
+```json
+{ "version": 1, "specs": { "path": "docs/specs" } }
+```
+
+`specs.path` is relative to that repository's root. Avoozl refuses one that
+is absolute, names a `.` or `..` folder, or is a symlink that leads out of
+the checkout. Kiro's Spec Builder and Kiro Crew planner chats still write in
+`.kiro/specs/`; with another path, draft with a planner that runs as a
+process, or move the folder there after Kiro writes it.
 
 Inside Avoozl's interfaces a spec is stored as a plan, so the `plan.*`
 operations, the `plans_*` MCP tools, and the `plan` CLI commands keep that
@@ -51,6 +75,10 @@ exist in the same spec:
 - A design ref is `§` and the number a `design.md` heading starts with, such
   as `§2.1` for `### 2.1 Loader` or `§D1` for `## D1. Shape`.
 - Either list may name a fact row such as `| F13 |` in its own file.
+
+A ref is checked against its file only when the spec has that file. A spec
+with no `requirements.md` or `bugfix.md` can name no requirement, and one
+with no `design.md` no design section: lint names the missing file.
 
 The page shows a task's refs as chips beside it, and a chip opens that
 requirement or section in the spec.
@@ -190,9 +218,10 @@ single tasks, and Avoozl says why. A batch whose checks fail splits.
 
 Avoozl refuses a folder that:
 
-- is missing one of its files
+- has no `tasks.md`, or has both `requirements.md` and `bugfix.md`
 - has a `tasks.md` with a missing or repeated ID
-- has a requirement or design ref that names nothing in the spec
+- has a requirement or design ref that names nothing in the spec, or whose
+  file the spec does not have
 - uses a fact Avoozl does not know
 - still has a `Facts:` bullet, the old layout; write its facts as `$` bullets
 - still holds an `avoozl/manifest.json`

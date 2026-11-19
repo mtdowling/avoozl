@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { digest } from "../../model.mjs";
 import { savePlan } from "../specs/plans.mjs";
 import { callerSlot, servedModel } from "../delivery/delivery.mjs";
-import { REVISION_FILES, specHash } from "../specs/spec-plans.mjs";
+import { revisionFiles, specHash } from "../specs/spec-plans.mjs";
 import { validatePlanReview } from "../settings/chat-models.mjs";
 import { fail } from "../store/store.mjs";
 import {
@@ -320,7 +320,7 @@ export function createSpecReviewFindings(
     if (!specSeverities.has(finding.severity))
       fail("Choose info, warn or blocker severity.");
     if (
-      !REVISION_FILES.includes(finding.file) ||
+      !revisionFiles(files).includes(finding.file) ||
       typeof files[finding.file] !== "string"
     )
       fail("A finding must name a file in the reviewed revision.");

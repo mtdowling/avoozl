@@ -17,12 +17,8 @@ import { canonical, fail } from "../store/store.mjs";
 import { ensureInbox, patchTask } from "./intake.mjs";
 import { takeOverSpec } from "../specs/spec-takeover.mjs";
 import { workspaceRepositories } from "../workspace/workspace-repositories.mjs";
-import {
-  SPECS_DIRECTORY,
-  lintSpec,
-  readSpecFolder,
-  taskToken,
-} from "../specs/spec-plans.mjs";
+import { lintSpec, readSpecFolder, taskToken } from "../specs/spec-plans.mjs";
+import { specsDirectory, specsPath } from "../specs/specs-path.mjs";
 
 export const FIX_VERSION = 2;
 export const FIX_ACCEPTANCE = Object.freeze([
@@ -221,7 +217,7 @@ function specFiles(task, name) {
   };
 }
 
-// `fix.spec` (Make this a spec): write `.kiro/specs/fix-<n>/` with the text
+// `fix.spec` (Make this a spec): write `<specs.path>/fix-<n>/` with the text
 // as requirements.md and one task, check it lints clean, and archive the
 // fix with a link to the folder. The spec is a draft; approving it is a
 // person's separate act.
@@ -231,7 +227,7 @@ export function fixToSpec(store, workspaceRoot, input = {}) {
   if (!task || !loadFix(task.fix)) fail(`No fix ${input.taskId}.`, 404);
   if (task.archivedAt) fail(`${task.id} is already archived.`, 409);
   const name = task.id,
-    folder = path.join(workspaceRoot, SPECS_DIRECTORY, name);
+    folder = path.join(specsDirectory(workspaceRoot), name);
   if (fs.existsSync(folder)) fail(`Spec folder ${name} already exists.`, 409);
   fs.mkdirSync(folder, { recursive: true });
   for (const [file, text] of Object.entries(specFiles(task, name)))
@@ -252,7 +248,7 @@ export function fixToSpec(store, workspaceRoot, input = {}) {
     );
   }
   const at = new Date().toISOString(),
-    link = path.join(SPECS_DIRECTORY, name);
+    link = path.join(specsPath(workspaceRoot), name);
   patchTask(store, task.id, `Make ${task.id} a spec`, (next) => {
     next.archivedAt = at;
     next.archivedReason = `Made into spec ${name}`;

@@ -133,6 +133,7 @@ import {
   listSpecFolders,
   readCritique,
   readSpecFolder,
+  revisionFiles,
   saveSpecPlan,
   specFacts,
   specItems,
@@ -776,7 +777,7 @@ export class Operations {
       path.resolve(roots[0]) !== path.resolve(this.workspaceRoot)
     )
       fail(
-        "This example installs spec folders in the workspace's own .kiro/specs/, and this workspace reads its specs from a repository. Nothing was installed.",
+        "This example installs spec folders in the workspace's own specs folder, and this workspace reads its specs from a repository. Nothing was installed.",
         409,
       );
     return roots[0];
@@ -1132,8 +1133,7 @@ export class Operations {
       text = issue?.body ?? "";
     } else fail("Name the gap report as a path or an issue.", 422);
     const parent = this.readSpec(input.parent);
-    if (!parent.exists)
-      fail(`No spec folder .kiro/specs/${input.parent}/.`, 404);
+    if (!parent.exists) fail(`No spec folder ${parent.folder}.`, 404);
     const members = epicMembers(parent.files).map((name) => {
       const folder = this.readSpec(name);
       let repositories = [];
@@ -1684,14 +1684,9 @@ export class Operations {
   // reads as missing, and specName refuses a name with a path in it.
   readSpecDocuments({ name } = {}) {
     const spec = this.readSpec(name);
-    if (!spec.exists) fail(`No spec folder .kiro/specs/${name}/.`, 404);
+    if (!spec.exists) fail(`No spec folder ${spec.folder}.`, 404);
     const documents = {};
-    for (const file of [
-      "requirements.md",
-      "bugfix.md",
-      "design.md",
-      "tasks.md",
-    ])
+    for (const file of revisionFiles(spec.files))
       if (typeof spec.files[file] === "string")
         documents[file] = spec.files[file];
     return { name: spec.name, folder: spec.folder, hash: spec.hash, documents };

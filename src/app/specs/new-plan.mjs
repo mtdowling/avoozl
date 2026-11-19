@@ -8,12 +8,8 @@
 import path from "node:path";
 import { fail } from "../store/store.mjs";
 import { contentBinding, enforce } from "../content/content-rules.mjs";
-import {
-  createSpecPlan,
-  isEpicFolder,
-  SPECS_DIRECTORY,
-  specName,
-} from "./spec-plans.mjs";
+import { createSpecPlan, isEpicFolder, specName } from "./spec-plans.mjs";
+import { specFolderPath, specsDirectory } from "./specs-path.mjs";
 import { sessionRepository } from "../executors/process.mjs";
 import { roleRun } from "../agents/role-table.mjs";
 import { recordPlanReviewWriter } from "../reviews/plan-review-authorship.mjs";
@@ -245,11 +241,11 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
     fail(`A spec named ${name} already exists. Pick another name.`, 409);
   if (deps.readSpec(name).exists)
     fail(
-      `A spec folder .kiro/specs/${name}/ already exists. Pick another name, or import that folder from the Specs table.`,
+      `A spec folder ${specFolderPath(deps.specRoot, name)} already exists. Pick another name, or import that folder from the Specs table.`,
       409,
     );
 
-  const folder = path.join(deps.specRoot, ".kiro", "specs", name),
+  const folder = path.join(specsDirectory(deps.specRoot), name),
     rules = steeringOptions(store);
   if (input.preview === true)
     return {
@@ -402,7 +398,7 @@ export function newPlanStarts(
         // the whole checkout would hold its git directory (R94.4a).
         worktree:
           chosen === "process"
-            ? path.join(entry.root, SPECS_DIRECTORY, entry.name)
+            ? path.join(specsDirectory(entry.root), entry.name)
             : entry.root,
         brief: entry.brief,
         model,

@@ -1,4 +1,5 @@
 import { sessionUrl } from "../tick/notifications.mjs";
+import { revisionFiles } from "../specs/spec-plans.mjs";
 import { fail } from "../store/store.mjs";
 import {
   FINDING_SEVERITIES,
@@ -7,9 +8,6 @@ import {
   findingContext,
   findingFields,
 } from "./review-findings.mjs";
-
-// The spec files a Review view shows as tabs, in this order (R104.9).
-const TABS = ["requirements.md", "bugfix.md", "design.md", "tasks.md"];
 
 // A link to a chat that exists, `closed` when its session is gone, or null
 // when no chat was opened. It never starts a chat (R104.11).
@@ -75,10 +73,8 @@ export function planReviewView(store, { planId, revisionHash } = {}) {
     revisionHash: at,
     current: at === plan.hash,
     files: Object.fromEntries(
-      TABS.filter((file) => typeof stored[file] === "string").map((file) => [
-        file,
-        stored[file],
-      ]),
+      // Its spec files as tabs, Kiro's first (R104.9).
+      revisionFiles(stored).map((file) => [file, stored[file]]),
     ),
     rounds: latest.map((round) => ({
       id: round.id,

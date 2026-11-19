@@ -89,14 +89,19 @@ test("a missing folder is refused", () => {
   ]);
 });
 
-test("each missing file is named", () => {
+test("only tasks.md is required", () => {
   const root = temporaryDirectory();
   writeSpec(root, "config", { "design.md": null });
-  assert.deepEqual(codes(lint(root)), ["spec.missing-file design.md:1"]);
+  assert.deepEqual(codes(lint(root)), []);
+  writeSpec(root, "bare", { "design.md": null, "requirements.md": null });
+  const bare = lint(root, "bare");
+  assert.deepEqual(codes(bare), []);
+  assert.equal(bare.type, "feature");
+  assert.ok(bare.taskCount > 0);
   writeSpec(root, "tasks", { "tasks.md": null });
-  assert.ok(
-    codes(lint(root, "tasks")).includes("spec.missing-file tasks.md:1"),
-  );
+  assert.deepEqual(codes(lint(root, "tasks")), [
+    "spec.missing-file tasks.md:1",
+  ]);
 });
 
 test("a leftover avoozl/manifest.json is an error that says to delete it", () => {
@@ -115,12 +120,10 @@ test("a leftover avoozl/manifest.json is an error that says to delete it", () =>
   assert.equal(readSpecFolder(root, "config").hash, before.hash);
 });
 
-test("a spec has exactly one of requirements.md and bugfix.md", () => {
+test("a spec has at most one of requirements.md and bugfix.md", () => {
   const root = temporaryDirectory();
   writeSpec(root, "neither", { "requirements.md": null });
-  assert.deepEqual(codes(lint(root, "neither")), [
-    "spec.missing-file requirements.md:1",
-  ]);
+  assert.deepEqual(codes(lint(root, "neither")), []);
   writeSpec(root, "both", { "bugfix.md": "# Bug\n" });
   assert.deepEqual(codes(lint(root, "both")), ["spec.kind bugfix.md:1"]);
 });
@@ -183,7 +186,7 @@ test("a bugfix spec's unchanged behavior is acceptance on its fix leaves", () =>
 
 test("a missing file names its folder", () => {
   const root = temporaryDirectory();
-  writeSpec(root, "config", { "design.md": null });
+  writeSpec(root, "config", { "tasks.md": null });
   const result = lintSpec({
     spec: {
       name: "config",
@@ -192,8 +195,8 @@ test("a missing file names its folder", () => {
     },
   });
   assert.equal(
-    result.diagnostics.find((d) => d.file === "design.md").message,
-    "Add .kiro/specs/config/design.md.",
+    result.diagnostics.find((d) => d.file === "tasks.md").message,
+    "Add .kiro/specs/config/tasks.md.",
   );
 });
 
@@ -411,7 +414,7 @@ test("approval is refused while the spec has an error", async (t) => {
 test("plan.specs lists folders with their diagnostics, critique, and plan", async (t) => {
   const { root, ops } = workspace(t);
   writeSpec(root, "config");
-  writeSpec(root, "broken", { "design.md": null });
+  writeSpec(root, "broken", { "tasks.md": null });
   fs.mkdirSync(path.join(root, ".kiro", "specs", "Not_A_Spec"));
   await ops.execute("plan.create", { spec: "config" });
   const { items } = await ops.execute("plan.specs");

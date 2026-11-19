@@ -6,7 +6,7 @@ import { Operations } from "../api/operations.mjs";
 import { generateNamespace } from "../github/github-marker.mjs";
 import { SUPERSEDED_STATUS } from "../tasks/supersede.mjs";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "../settings/config-schema.mjs";
-import { SPECS_DIRECTORY } from "../specs/spec-plans.mjs";
+import { specsDirectory } from "../specs/specs-path.mjs";
 
 const portable = (relative) => relative.split(path.sep).join("/");
 
@@ -113,7 +113,7 @@ export function initializeWorkspace(
   }
   // Specs are Kiro spec folders here. The Markdown documents root is made
   // when a document is first published to it (outbox.mjs), not before.
-  fs.mkdirSync(path.join(config.workspaceRoot, SPECS_DIRECTORY), {
+  fs.mkdirSync(specsDirectory(config.workspaceRoot), {
     recursive: true,
   });
   return {

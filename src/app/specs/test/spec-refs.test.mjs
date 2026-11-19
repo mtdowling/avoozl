@@ -174,6 +174,51 @@ test("every ref must exist in the spec, and lint names the ref, file and line", 
   ]);
 });
 
+test("a ref is checked only when its file exists, and names a missing file", () => {
+  const tasks = [
+      "- [ ] `ok-1` Fine [R1] (§D1)",
+      "  - $done: Fine",
+      "- [ ] `bad-1` Broken [R9] (§9)",
+      "  - $done: Broken",
+    ].join("\n"),
+    full = spec(tasks),
+    only = (drop) => ({
+      ...full,
+      files: Object.fromEntries(
+        Object.entries(full.files).filter(([file]) => !drop.includes(file)),
+      ),
+    });
+  // With both files, refs resolve against them.
+  assert.deepEqual(
+    problems(parseSpec(full)).map((line) => line.split(" ")[0]),
+    ["task.ref-unknown", "task.ref-unknown"],
+  );
+  // With no requirements file, every requirement ref names the missing file.
+  assert.deepEqual(problems(parseSpec(only(["requirements.md"]))), [
+    'task.ref-file-missing tasks.md:6 Task "ok-1" names requirement ref "R1", but this spec has no requirements.md or bugfix.md. Add the file or remove the ref.',
+    'task.ref-file-missing tasks.md:8 Task "bad-1" names requirement ref "R9", but this spec has no requirements.md or bugfix.md. Add the file or remove the ref.',
+    'task.ref-unknown tasks.md:8 Task "bad-1" names design §9, which design.md does not define.',
+  ]);
+  assert.deepEqual(problems(parseSpec(only(["design.md"]))), [
+    'task.ref-file-missing tasks.md:6 Task "ok-1" names design ref "§D1", but this spec has no design.md. Add the file or remove the ref.',
+    'task.ref-unknown tasks.md:8 Task "bad-1" names requirement R9, which requirements.md does not define.',
+    'task.ref-file-missing tasks.md:8 Task "bad-1" names design ref "§9", but this spec has no design.md. Add the file or remove the ref.',
+  ]);
+  // A tasks.md-only spec with no refs lints clean.
+  assert.deepEqual(
+    problems(
+      parseSpec({
+        ...only(["requirements.md", "design.md"]),
+        files: {
+          "tasks.md":
+            "---\nrepo: app\n---\n- [ ] `a-1` Do it\n  - $done: Done\n",
+        },
+      }),
+    ),
+    [],
+  );
+});
+
 test("refs and the ID's form are part of the revision hash", () => {
   const files = (line) => spec(`${line}\n  - $done: Fine\n`).files;
   const base = specHash(files("- [ ] `ok-1` Fine [R1] (§D1)"));

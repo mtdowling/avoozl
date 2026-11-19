@@ -39,7 +39,7 @@ import {
   WORKSPACE_INVESTIGATE_KEYS,
 } from "../../delivery/investigate.mjs";
 import { DEFAULT_LANES } from "../../tick/lanes.mjs";
-import { avoozlConfigSchemaPath } from "../layered-config.mjs";
+import { avoozlConfigSchemaPath, SPECS_KEYS } from "../layered-config.mjs";
 import { MIRROR_KEYS } from "../../mirror/mirror-policy.mjs";
 import { ENTRY_KEYS } from "../../plugins/plugins.mjs";
 import {
@@ -76,6 +76,7 @@ const PAIRS = [
   ["#/$defs/harnessRole", HARNESS_ROLE_FIELDS],
   ["#/properties/planReview", PLAN_REVIEW_KEYS],
   ["#/properties/lanes", Object.keys(DEFAULT_LANES)],
+  ["#/properties/specs", SPECS_KEYS],
   ["#/properties/notifications", NOTIFICATIONS_KEYS],
   ["#/$defs/commandSink", COMMAND_SINK_KEYS],
   ["#/$defs/webhookSink", WEBHOOK_SINK_KEYS],
@@ -182,6 +183,7 @@ const OPEN = new Map([
       "machine",
       "notifications",
       "serve",
+      "specs",
     ],
   ],
   // plugin-pack.mjs writes each entry.

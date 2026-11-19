@@ -7,7 +7,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { flowSection } from "../flow/flow.mjs";
 import { validatePack } from "../plugins/plugin-pack.mjs";
-import { lintSpec } from "./spec-plans.mjs";
+import {
+  isSpecFile,
+  lintSpec,
+  MAX_SPEC_FILES,
+  revisionFiles,
+} from "./spec-plans.mjs";
 import { fail } from "../store/store.mjs";
 
 const TEMPLATE_FILE = "avoozl-template.json";
@@ -21,11 +26,6 @@ const INPUT_TYPES = Object.freeze([
 ]);
 // A file input is read in the page; at most this much text reaches the seed.
 export const FILE_INPUT_BYTES = 200 * 1024;
-const STARTER_FILES = Object.freeze([
-  "requirements.md",
-  "design.md",
-  "tasks.md",
-]);
 const KEYS = [
   "id",
   "title",
@@ -210,9 +210,20 @@ function readTemplate(folder, name = path.basename(folder)) {
   );
   if (typeof value.starter !== "string")
     fail(`${where} starter must name a folder.`);
+  // A starter is a spec folder: tasks.md, and any other spec files.
   const starterDir = inside(folder, value.starter, `${where} starter`),
     starter = {};
-  for (const file of STARTER_FILES)
+  let names;
+  try {
+    names = fs.readdirSync(starterDir).filter(isSpecFile);
+  } catch {
+    fail(`${name}/${value.starter} is missing.`);
+  }
+  if (!names.includes("tasks.md"))
+    fail(`${name}/${value.starter}/tasks.md is missing.`);
+  if (names.length > MAX_SPEC_FILES)
+    fail(`${name}/${value.starter} holds more than ${MAX_SPEC_FILES} files.`);
+  for (const file of names)
     starter[file] = readText(
       path.join(starterDir, file),
       `${name}/${value.starter}/${file}`,
@@ -415,7 +426,7 @@ export function templateSeed(template, text) {
     "",
     "## Starter folder",
     "",
-    ...STARTER_FILES.flatMap((file) => [
+    ...revisionFiles(template.starterFiles).flatMap((file) => [
       `### ${file}`,
       "",
       block(

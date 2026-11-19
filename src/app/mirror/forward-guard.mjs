@@ -8,6 +8,7 @@
 // shortcut: the steering rule matches any path segment named `steering`;
 // a differently named steering folder needs `forwardExclude`.
 import { scanForward } from "./forward-scan.mjs";
+import { DEFAULT_SPECS_PATH } from "../specs/specs-path.mjs";
 import { forwardMaxFileBytesOf } from "./mirror-policy.mjs";
 
 // `*` is any run inside one folder, `**` any run across folders, a trailing
@@ -68,7 +69,9 @@ export function plansBlocks(change, mirror, plans = {}) {
     blocks = [],
     block = (rule, place) => blocks.push({ rule, place });
   if (!name) return blocks;
-  const folders = (plans.specNames ?? []).map((spec) => `.kiro/specs/${spec}`),
+  const folders = (plans.specNames ?? []).map(
+      (spec) => `${DEFAULT_SPECS_PATH}/${spec}`,
+    ),
     commits = (plans.commits ?? []).map((id) => id.toLowerCase()),
     words = [
       ...(plans.specNames ?? []),

@@ -396,7 +396,7 @@ async function finishPlanAnswer(ops, binding, result, store) {
             task: scope.planId,
             title: `The answer for ${plan.spec} left lint errors`,
             text: `The planner's edited folder has ${quality.counts.error} lint error(s), so Avoozl stored no revision and recorded no answer.`,
-            resume: `Fix .kiro/specs/${plan.spec}/ and save it, or ask the planner again.`,
+            resume: `Fix the ${plan.spec} spec folder and save it, or ask the planner again.`,
           },
         ]);
         throw Error(

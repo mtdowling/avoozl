@@ -15,11 +15,17 @@ import os from "node:os";
 import path from "node:path";
 import { git } from "./git.mjs";
 import { actorAllowed } from "../github/github-policy.mjs";
-import { REVISION_FILES, specHash, specName } from "../specs/spec-plans.mjs";
+import {
+  isSpecFile,
+  revisionFiles,
+  specHash,
+  specName,
+} from "../specs/spec-plans.mjs";
+import { specsPath } from "../specs/specs-path.mjs";
 import { fail } from "../store/store.mjs";
 
 const lower = (value) => String(value ?? "").toLowerCase();
-const specPath = (spec) => `.kiro/specs/${specName(spec)}`;
+const specPath = (root, spec) => `${specsPath(root)}/${specName(spec)}`;
 
 // The checkout's top folder, or null when `dir` is not in a git work tree.
 export async function gitTop(dir) {
@@ -151,7 +157,15 @@ export async function approvalBase(root) {
 // removes it), parented on the branch head, then pushed (never forced) and
 // the local branch moved. `env` sets who authors it. Returns {commit,
 // branch}, or null when the tree would not change.
-export async function commitOnMain(root, files, { message, env = {} }) {
+//
+// `replace` names folders whose spec files the commit replaces: one of them
+// the new files leave out is removed.
+export async function commitOnMain(
+  root,
+  files,
+  { message, env = {}, replace = [] },
+) {
+  files = { ...files };
   const base = await approvalBase(root),
     index = path.join(
       fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-main-")),
@@ -164,6 +178,18 @@ export async function commitOnMain(root, files, { message, env = {} }) {
       base.head ? ["read-tree", base.head] : ["read-tree", "--empty"],
       { env: indexEnv },
     );
+    for (const folder of replace) {
+      const listed = await git(root, ["ls-files", "-z", "--", `${folder}/`], {
+        env: indexEnv,
+      });
+      for (const target of listed.split("\0"))
+        if (
+          target &&
+          !(target in files) &&
+          isSpecFile(target.slice(folder.length + 1))
+        )
+          files[target] = null;
+    }
     for (const [target, text] of Object.entries(files)) {
       if (typeof text !== "string") {
         await git(root, ["update-index", "--force-remove", "--", target], {
@@ -213,10 +239,11 @@ export async function commitApproval(root, files, { message } = {}) {
     author = await gitAuthor(root);
   const paths = {};
   for (const spec of specs)
-    for (const file of REVISION_FILES)
-      paths[`${specPath(spec)}/${file}`] =
-        typeof files[spec][file] === "string" ? files[spec][file] : null;
+    for (const file of revisionFiles(files[spec]))
+      if (typeof files[spec][file] === "string")
+        paths[`${specPath(root, spec)}/${file}`] = files[spec][file];
   const made = await commitOnMain(root, paths, {
+    replace: specs.map((spec) => specPath(root, spec)),
     message:
       message ??
       (specs.length === 1
@@ -311,34 +338,51 @@ export async function approvalCommits(
       "--name-only",
       ref,
       "--",
-      ...(specs ? specs.map(specPath) : [".kiro/specs"]),
+      ...(specs
+        ? specs.map((spec) => specPath(root, spec))
+        : [specsPath(root)]),
     ]);
   } catch {
     return [];
   }
-  const found = [];
+  const found = [],
+    prefix = `${specsPath(root)}/`,
+    // Every spec file name each spec's history touched. A file in a commit's
+    // tree was added by a commit in this log, so these are all the names a
+    // spec folder ever held.
+    // shortcut: a file that reached the folder only through a merge commit
+    // (whose --name-only lists nothing) is missed; list the tree per commit
+    // if specs ever arrive that way.
+    names = new Map();
   for (const block of log.split("\x1e").filter((b) => b.trim())) {
     const [head, ...files] = block.split("\n"),
       [commit, email, name, at] = head.split("\x1f"),
       touched = new Set();
     for (const file of files) {
-      const match = /^\.kiro\/specs\/([a-z0-9][a-z0-9-]{0,79})\//.exec(file);
-      if (match && (!specs || specs.includes(match[1]))) touched.add(match[1]);
+      if (!file.startsWith(prefix)) continue;
+      const [spec, ...rest] = file.slice(prefix.length).split("/");
+      if (!/^[a-z0-9][a-z0-9-]{0,79}$/.test(spec)) continue;
+      if (specs && !specs.includes(spec)) continue;
+      touched.add(spec);
+      if (rest.length === 1 && isSpecFile(rest[0])) {
+        if (!names.has(spec)) names.set(spec, new Set());
+        names.get(spec).add(rest[0]);
+      }
     }
     if (!touched.size || !(await allowed(email, commit))) continue;
     for (const spec of touched) found.push({ spec, commit, email, name, at });
   }
-  const objects = found.flatMap(({ spec, commit }) =>
-      REVISION_FILES.map((file) => `${commit}:${specPath(spec)}/${file}`),
+  const object = (commit, spec, file) =>
+      `${commit}:${specPath(root, spec)}/${file}`,
+    objects = found.flatMap(({ spec, commit }) =>
+      [...(names.get(spec) ?? [])].map((file) => object(commit, spec, file)),
     ),
     texts = objects.length ? await catFiles(root, objects) : new Map();
   return found
     .map((entry) => {
       const files = {};
-      for (const file of REVISION_FILES) {
-        const text = texts.get(
-          `${entry.commit}:${specPath(entry.spec)}/${file}`,
-        );
+      for (const file of names.get(entry.spec) ?? []) {
+        const text = texts.get(object(entry.commit, entry.spec, file));
         if (text !== undefined) files[file] = text;
       }
       return Object.keys(files).length

@@ -11,6 +11,7 @@ import {
   validateLandingConfig,
 } from "../landing/landing-config.mjs";
 import { deriveGitHubKeys } from "../workspace/repository-roles.mjs";
+import { specsPathProblem } from "../specs/specs-path.mjs";
 
 export const avoozlConfigSchemaPath = fileURLToPath(
   new URL("../../avoozl-config.schema.json", import.meta.url),
@@ -139,6 +140,9 @@ export function assertSafeConfig(value, source = "configuration", trail = []) {
 function pathField(trail) {
   const field = trail.join(".");
   if (EXPLICIT_PATH_KEYS.has(field)) return true;
+  // Relative to the spec repository's root wherever it is read, so it is
+  // kept as written (specs-path.mjs checks it).
+  if (field === "specs.path") return false;
   const key = trail.at(-1) || "";
   return (
     ["path", "root", "directory", "file", "manifest", "projection"].includes(
@@ -334,6 +338,23 @@ function validateRunnerRole(runner) {
     );
 }
 
+// `specs`, where spec folders live: `path` (specs-path.mjs). The symlink
+// check needs the checkout, so specsPath makes it when it reads.
+export const SPECS_KEYS = ["path"];
+function validateSpecs(value) {
+  if (value === undefined) return;
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw Error("specs must be an object.");
+  for (const key of Object.keys(value))
+    if (!SPECS_KEYS.includes(key))
+      throw Error(
+        `specs.${key} is not a setting; use ${SPECS_KEYS.join(", ")}.`,
+      );
+  if (value.path === undefined) return;
+  const problem = specsPathProblem(value.path);
+  if (problem) throw Error(problem);
+}
+
 export function loadLayeredConfig({
   workspaceRoot,
   options = {},
@@ -377,6 +398,7 @@ export function loadLayeredConfig({
   validateRunnerRole(config.runner);
   validatePlanReview(config.planReview);
   validateLanes(config.lanes);
+  validateSpecs(config.specs);
   validateNotifications(config.notifications);
   for (const layer of fileLayers)
     if (layer.filename === files.repository)

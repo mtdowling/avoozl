@@ -12,6 +12,7 @@ import path from "node:path";
 import { gitEnvironment } from "../content/content-rules.mjs";
 import { graphView, inPlan } from "../api/page-views.mjs";
 import { fail } from "../store/store.mjs";
+import { specsDirectory } from "./specs-path.mjs";
 
 const BLOCKING = new Set(["requires", "blocks"]);
 
@@ -50,7 +51,7 @@ export function planTasks(store, data, plan) {
 // it. `root` is the checkout readSpec found the folder in.
 export function specFolderState(root, name) {
   if (!root || !name) return null;
-  const folder = path.join(root, ".kiro", "specs", name);
+  const folder = path.join(specsDirectory(root), name);
   if (!fs.existsSync(folder))
     return { path: folder, exists: false, dirty: false };
   let dirty = false,

@@ -9,21 +9,16 @@ import { repoFilesOf } from "../git/repo-files.mjs";
 import {
   CRITIQUE,
   hasFactsBlocks,
+  isSpecFile,
   MANIFEST,
-  SPECS_DIRECTORY,
   specHash,
   parseSpec,
   specItems,
 } from "./spec-plans.mjs";
 
+import { DEFAULT_SPECS_PATH } from "./specs-path.mjs";
+
 const NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
-const FILES = [
-  "requirements.md",
-  "bugfix.md",
-  "design.md",
-  "tasks.md",
-  MANIFEST,
-];
 
 // The first mirror a repository entry names, or null.
 export function mirrorOf(policy) {
@@ -37,16 +32,25 @@ export function mirrorOf(policy) {
 // and batched GraphQL reads), at `head` when the caller knows it. A missing
 // branch or folder reads as none; any other failure throws, so a tick never
 // mistakes it for "no specs".
-export async function readPrivateSpecs(source, mirror, head = null) {
+// `specsPath` is the plans branch's specs folder.
+export async function readPrivateSpecs(
+  source,
+  mirror,
+  head = null,
+  specsPath = DEFAULT_SPECS_PATH,
+) {
   const files = repoFilesOf(source),
     ref = mirror.plansBranch,
-    names = [...FILES, CRITIQUE],
-    specsRoot = `${SPECS_DIRECTORY.split("\\").join("/")}/`,
+    specsRoot = `${specsPath}/`,
     { files: found } = await files.readAt(mirror.mirror, head || ref, {
       prefix: specsRoot,
       want: (file) => {
-        const [name, ...rest] = file.slice(specsRoot.length).split("/");
-        return NAME.test(name) && names.includes(rest.join("/"));
+        const [name, ...rest] = file.slice(specsRoot.length).split("/"),
+          inner = rest.join("/");
+        return (
+          NAME.test(name) &&
+          (isSpecFile(inner) || inner === MANIFEST || inner === CRITIQUE)
+        );
       },
     }),
     folders = new Map();
@@ -59,8 +63,7 @@ export async function readPrivateSpecs(source, mirror, head = null) {
     .map(([name, texts]) => {
       const base = `${specsRoot}${name}`,
         read = {};
-      for (const file of FILES)
-        if (file !== MANIFEST && texts.has(file)) read[file] = texts.get(file);
+      for (const [file, text] of texts) if (isSpecFile(file)) read[file] = text;
       return {
         // Not read and not hashed: lint says to delete it.
         ...(texts.has(MANIFEST) ? { leftover: true } : {}),

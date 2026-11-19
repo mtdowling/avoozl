@@ -43,6 +43,7 @@ import { epicRows } from "../epics/epic-rows.mjs";
 import { taskLinks } from "../tasks/scm-links.mjs";
 import { approvals, batchRules } from "../flow/flow-batch.mjs";
 import { ownSummary } from "../tasks/title-repeat.mjs";
+import { DEFAULT_SPECS_PATH } from "../specs/specs-path.mjs";
 import {
   checkCommand,
   repositoryChecks,
@@ -1307,7 +1308,7 @@ export function taskOrigin(task, data, plan = null) {
       ...base,
       kind: "spec",
       label: `Spec ${spec}`,
-      text: `Approving the spec folder .kiro/specs/${spec}/ made this task${sources[0] ? `, from ${sources[0].document}${lines(sources[0])}` : ""}.`,
+      text: `Approving the spec folder ${spec} made this task${sources[0] ? `, from ${sources[0].document}${lines(sources[0])}` : ""}.`,
     };
   if (plan)
     return {
@@ -1421,7 +1422,7 @@ export function activityView(store, data, { limit = 50 } = {}) {
 export function inPlan(task, { plan = null, spec = null } = {}) {
   if (plan && task.planId === plan) return true;
   if (!spec) return false;
-  const folder = `.kiro/specs/${spec}/`;
+  const folder = `${DEFAULT_SPECS_PATH}/${spec}/`;
   return taskSourceRefs(task).some(
     (ref) =>
       typeof ref.document === "string" && ref.document.startsWith(folder),
@@ -1431,11 +1432,15 @@ export function inPlan(task, { plan = null, spec = null } = {}) {
 // The spec folder a task came from, by the same links inPlan reads: a source
 // reference under .kiro/specs/<name>/ (Requirement 59.6). Null when it has
 // none.
+// shortcut: these older source references were written under the default
+// specs path; read the repository's specs.path if a custom one ever
+// writes them.
 export function specOf(task) {
-  const folder = (document) =>
-    typeof document === "string"
-      ? (document.match(/^\.kiro\/specs\/([^/]+)\//)?.[1] ?? null)
-      : null;
+  const prefix = `${DEFAULT_SPECS_PATH}/`,
+    folder = (document) =>
+      typeof document === "string" && document.startsWith(prefix)
+        ? (document.slice(prefix.length).match(/^([^/]+)\//)?.[1] ?? null)
+        : null;
   for (const ref of taskSourceRefs(task)) {
     const name = folder(ref.document);
     if (name) return name;
@@ -1692,7 +1697,7 @@ export function chatContext(
     return [
       `- Task: ${task.title ?? id} (${id})`,
       `- State: ${state.get(id) ?? "unknown"}; status ${task.status ?? "none"}; owner ${taskAuthority(task)}`,
-      `- Plan: ${plan ? `${plan.title || plan.id} (${plan.id}, ${plan.state || "draft"})` : spec ? `spec .kiro/specs/${spec}/` : "none"}`,
+      `- Plan: ${plan ? `${plan.title || plan.id} (${plan.id}, ${plan.state || "draft"})` : spec ? `spec ${spec}` : "none"}`,
       ...(epicOfPlan(data, task.planId)
         ? [`- Epic: ${epicOfPlan(data, task.planId).title}`]
         : []),
