@@ -80,7 +80,7 @@ export function fileClasses(paths, globs = classGlobs(), partial = false) {
 export const docsOnly = (classes) =>
   classes.length > 0 &&
   classes.every((name) => name === "spec" || name === "docs");
-export const groupClass = (classes) =>
+const groupClass = (classes) =>
   GROUP_ORDER.find((name) => classes.includes(name)) || "code";
 
 // The workspace's GitHub repositories: those `github.repositories` names.
@@ -137,7 +137,7 @@ export function readEffectiveCIConfig(
   }
 }
 
-export function pruneCIHistory(store, { now = Date.now() } = {}) {
+function pruneCIHistory(store, { now = Date.now() } = {}) {
   const cut = now - KEEP_MS;
   return store.transaction(() => {
     let removed = 0;
@@ -157,7 +157,7 @@ export function pruneCIHistory(store, { now = Date.now() } = {}) {
 
 // Window starts are aligned to whole windows since the epoch, so each
 // trigger fires at most once a window (§4.30).
-export function windowStart(now, days) {
+function windowStart(now, days) {
   const size = days * DAY_MS;
   return Math.floor(now / size) * size;
 }

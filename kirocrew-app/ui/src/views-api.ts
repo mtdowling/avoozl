@@ -299,7 +299,6 @@ export interface DeliveryItem extends TaskOwner {
   batchGroup?: DeliveryBatch | null
   alone?: string | null
   sessions: DeliverySession[]
-  runs: { id: string; state: string; provider: string | null; createdAt: string | null }[]
   evidence: {
     id?: string
     kind?: string | null
@@ -370,7 +369,7 @@ export interface ConflictItem extends TaskOwner {
   planReview?: { planId: string; revisionHash: string }
   // A spec pull request adopted into its spec (R107.5).
   specPull?: SpecPull
-  kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | 'resource' | 'github-conflict' | 'tracker-conflict' | string
+  kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | 'github-conflict' | 'tracker-conflict' | string
   // Null for a review group, which stands for many tasks.
   taskId: string | null
   title: string
@@ -378,7 +377,6 @@ export interface ConflictItem extends TaskOwner {
   field?: string
   slot?: string
   link?: string | null
-  runs?: string[]
   // A github-conflict: Avoozl's value, GitHub's, and who changed it when.
   expected?: string | string[] | null
   actual?: string | string[] | null
@@ -704,7 +702,6 @@ export const CONFLICT_LABELS: Record<string, string> = {
   'needs-human': 'Needs you',
   review: 'Review',
   'stale-session': 'Session ended',
-  resource: 'Shared resource',
   'content-match': 'Content rule',
   'content-unavailable': 'Rule set unavailable',
   'provider-out': 'Provider out',

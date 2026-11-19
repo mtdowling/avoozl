@@ -7,15 +7,6 @@ export function resolveTaskId(data, id) {
   }
   return id;
 }
-export function taskIdentityIds(data, id) {
-  const target = resolveTaskId(data, id);
-  return [
-    target,
-    ...Object.keys(data.taskAliases || {}).filter(
-      (alias) => resolveTaskId(data, alias) === target,
-    ),
-  ];
-}
 export function taskSourceRefs(task) {
   const refs = new Map();
   for (const ref of [task.source, ...(task.sourceReferences || [])].filter(

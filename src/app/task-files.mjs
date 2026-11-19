@@ -14,7 +14,7 @@ import { taskRepository } from "../work-model.mjs";
 
 // Output caps. A larger file list is cut and marked; a larger diff is
 // summarized by its line counts instead of returned.
-export const FILES_LIMIT = 3000;
+const FILES_LIMIT = 3000;
 export const DIFF_BYTES = 256 * 1024;
 const LIST_BYTES = 8 * 1024 * 1024;
 
@@ -86,7 +86,7 @@ async function commit(cwd, ref) {
 
 // A path as Git lists it: relative, forward slashes, no `.` or `..` part, no
 // drive letter, NUL, or backslash. Refused before Git is called.
-export function checkPath(value) {
+function checkPath(value) {
   if (typeof value !== "string" || !value || value.length > 4096)
     fail("Name a file: path.");
   if (

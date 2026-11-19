@@ -117,7 +117,7 @@ export const cliReportCaller = (binding) => ({
 // A findings file (`runner report TASK findings --file PATH`): a regular file
 // of at most the result file's size (R96.1), read as JSON data. Avoozl's
 // findings validator (findingsInput) judges its fields when it is reported.
-export function readFindingsFile(file) {
+function readFindingsFile(file) {
   if (typeof file !== "string" || !file)
     fail("Name the findings file: --file PATH.");
   let stat;

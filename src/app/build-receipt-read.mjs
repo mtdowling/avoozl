@@ -17,10 +17,10 @@ import { insertBreakdowns } from "./build-breakdown.mjs";
 import { withSource } from "./github-rate.mjs";
 
 const META = "buildReceipts";
-export const ARTIFACT_NAME = "build-receipt";
+const ARTIFACT_NAME = "build-receipt";
 // shortcut: at most this many pages of 100 per check; a head with artifacts past
 // it keeps only what the first pages hold.
-export const ARTIFACT_PAGES = 10;
+const ARTIFACT_PAGES = 10;
 const ZIP_MAX = 64 * 1024;
 const DAY_MS = 86_400_000;
 const isReceipt = (name) =>
@@ -372,7 +372,7 @@ const median = (values) => {
 
 // A pull request's observations: failed ones apart, the rest summed per phase
 // over targets, and the phase that took the most (R101.4).
-export function buildOf(observations) {
+function buildOf(observations) {
   const phases = new Map();
   let totalMs = 0,
     failedMs = 0;

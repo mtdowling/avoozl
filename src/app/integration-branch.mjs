@@ -7,8 +7,8 @@ import { ruleBranch } from "./github-branch-rules.mjs";
 import { fail } from "./store.mjs";
 import { specFacts } from "./spec-plans.mjs";
 
-export const SYNC_SCHEDULES = ["weekly", "daily", "off"];
-export const DEFAULT_SYNC = "weekly";
+const SYNC_SCHEDULES = ["weekly", "daily", "off"];
+const DEFAULT_SYNC = "weekly";
 
 // Why a branch name cannot be used, or null. A subset of git's ref rules,
 // stricter on purpose: letters, digits and . _ - / only.

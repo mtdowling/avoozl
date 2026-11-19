@@ -33,14 +33,14 @@ import {
   withPolicy,
 } from "./intake.mjs";
 
-export const FIX_VERSION = 1;
+const FIX_VERSION = 1;
 export const INTAKE_MARKER = "<!-- avoozl-intake:v1 -->";
 const ITEM_ID =
   /^([A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100})#([1-9]\d{0,9})$/;
 const lower = (value) => String(value ?? "").toLowerCase();
 
 // "owner/repo#12" -> {repository, number}.
-export function parseItemId(id) {
+function parseItemId(id) {
   const found = ITEM_ID.exec(String(id ?? ""));
   if (!found) fail("Name the GitHub item as owner/repository#number.");
   return { repository: found[1], number: Number(found[2]) };

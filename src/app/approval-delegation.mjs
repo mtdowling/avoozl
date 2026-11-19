@@ -14,7 +14,7 @@ const PERSON = /^[^\n\r]{1,200}$/;
 
 const entries = (store) => store.getMeta(KEY) || [];
 
-export function readIdentity(value) {
+function readIdentity(value) {
   const identity = typeof value === "string" ? value.trim() : "";
   if (!IDENTITY.test(identity))
     fail(
@@ -32,7 +32,7 @@ export function listDelegates(store) {
   };
 }
 
-export const activeDelegate = (store, identity) =>
+const activeDelegate = (store, identity) =>
   entries(store).find(
     (entry) => entry.identity === identity && !entry.revokedAt,
   ) || null;

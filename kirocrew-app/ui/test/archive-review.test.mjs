@@ -56,7 +56,6 @@ const item = (id, extra = {}) => ({
   complete: false,
   repository: null,
   sessions: [],
-  runs: [],
   evidence: [],
   integration: null,
   pullRequests: [],

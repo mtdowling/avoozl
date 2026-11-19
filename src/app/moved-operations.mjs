@@ -98,13 +98,9 @@ export const MOVED_OPERATIONS = new Map([
   ].map((name) => [name, TEAM]),
 ]);
 
-// The task an old run-era input names: a taskId, or the task of the run it
-// names by id.
+// The task an old run-era input names by taskId.
 function namedTask(store, input) {
-  const data = store.read(),
-    run = typeof input?.id === "string" ? store.get("runs", input.id) : null,
-    id = input?.taskId || run?.taskId || null;
-  return id ? resolveTaskId(data, id) : null;
+  return input?.taskId ? resolveTaskId(store.read(), input.taskId) : null;
 }
 
 // The Kiro Crew sessions bound to one task, with a link to each.

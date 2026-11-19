@@ -475,7 +475,7 @@ async function conflictIssue(
 }
 
 // The signed-in `gh` user's token, only for that same person.
-export function defaultGrant(github) {
+function defaultGrant(github) {
   return async (person) => {
     if (!github?.signedIn?.()) return null;
     const me = await github.currentUser();

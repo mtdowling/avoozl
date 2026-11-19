@@ -23,7 +23,7 @@ const REPOSITORY = /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/;
 const SHA = /^[0-9a-f]{40}$/;
 const HOST = /^https:\/\/[A-Za-z0-9.-]+(:\d+)?$/;
 const PASS = new Set(["success", "neutral", "skipped"]);
-export const DEFAULT_HOST = "https://github.com";
+const DEFAULT_HOST = "https://github.com";
 
 const lower = (value) => String(value ?? "").toLowerCase();
 

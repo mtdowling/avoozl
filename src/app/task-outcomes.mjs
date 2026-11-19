@@ -45,7 +45,7 @@ const text = (value) => typeof value === "string" && value.length > 0;
 
 // A record the reducer may use. `landed` needs its exact commit and evidence
 // (R102.5); reconcile writes `landed-unverified` when evidence is missing.
-export function validOutcome(outcome, { spec, task } = {}) {
+function validOutcome(outcome, { spec, task } = {}) {
   if (!outcome || !OUTCOME_KINDS.includes(outcome.kind)) return false;
   if (outcome.spec !== spec || outcome.task !== task) return false;
   if (!text(outcome.revision) || !text(outcome.definition)) return false;

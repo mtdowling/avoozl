@@ -22,7 +22,7 @@ import {
 } from "./task-notes.mjs";
 import { fail } from "./store.mjs";
 
-export const CHOICES = Object.freeze(["done", "skipped", "refused"]);
+const CHOICES = Object.freeze(["done", "skipped", "refused"]);
 // The close reason each choice writes on GitHub, and back. A refusal closes
 // as not planned too; the tick tells it from a skip by the refusal record
 // (github-close.mjs).
@@ -31,9 +31,6 @@ const CLOSE_REASON = {
   skipped: "not_planned",
   refused: "not_planned",
 };
-export const choiceOfReason = (reason) =>
-  String(reason || "").toUpperCase() === "NOT_PLANNED" ? "skipped" : "done";
-
 function manualTask(data, taskId) {
   const task = data.tasks.find((t) => t.id === taskId);
   if (!task) fail(`No task ${taskId}.`, 404);
