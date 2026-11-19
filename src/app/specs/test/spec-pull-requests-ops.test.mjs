@@ -120,7 +120,7 @@ function open(t) {
       },
     }),
   );
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   store.put("repositories", {
     id: "code",
     root: code,

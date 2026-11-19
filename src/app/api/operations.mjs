@@ -2073,14 +2073,7 @@ export class Operations {
   }
   // Create the first snapshot of a new workspace database.
   initialize(snapshot) {
-    this.store.transaction(() => {
-      this.store.write(snapshot);
-      this.store.setMeta("mode", "active");
-    });
-  }
-  // Local-only maintenance: replace or check the database from a snapshot.
-  importSnapshot(snapshot, options) {
-    return this.store.importSnapshot(snapshot, options);
+    this.store.initialize(snapshot);
   }
   async perform(name, input = {}, expectedRevision, context = {}) {
     const store = this.store;

@@ -55,7 +55,7 @@ function setup(t) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const store = new Store(dbPath);
   t.after(() => store.close());
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
 

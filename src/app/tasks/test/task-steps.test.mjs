@@ -129,7 +129,7 @@ test("task.detail returns steps from stored records and makes no GitHub call", a
   const root = temporaryDirectory("avoozl-steps-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [
       {

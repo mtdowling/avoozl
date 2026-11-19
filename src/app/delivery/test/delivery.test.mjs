@@ -55,7 +55,7 @@ function setup(t, { tasks = [leaf("a")], edges = [], delivery, lanes } = {}) {
   git(checkout, "commit", "-m", "Start");
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks, edges });
+  store.initialize({ ...snapshot(), tasks, edges });
   store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),

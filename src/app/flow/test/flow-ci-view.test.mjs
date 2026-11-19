@@ -159,7 +159,7 @@ test("Flow repository selections retain CI for repository IDs, GitHub names and 
     ),
     ops = new Operations(store, { workspaceRoot: root, github }),
     data = store.read();
-  store.importSnapshot({
+  store.initialize({
     ...data,
     tasks: [{ ...data.tasks[0], repository: "app" }],
   });
@@ -232,7 +232,7 @@ test("Flow repository selections retain CI for repository IDs, GitHub names and 
 
   // A task that already uses the GitHub name keeps that value; the app ID
   // must not become a second choice for the same repository.
-  store.importSnapshot({
+  store.initialize({
     ...data,
     tasks: [{ ...data.tasks[0], repository: "EXAMPLE/APP" }],
   });
@@ -242,7 +242,7 @@ test("Flow repository selections retain CI for repository IDs, GitHub names and 
     "example/without-repository",
     "legacy",
   ]);
-  store.importSnapshot({
+  store.initialize({
     ...data,
     tasks: [{ ...data.tasks[0], repositoryId: "app" }],
   });
@@ -268,7 +268,7 @@ test("a repository without a repository retains its legacy GitHub mapping until 
       ),
     }),
     data = store.read();
-  store.importSnapshot({
+  store.initialize({
     ...data,
     tasks: [{ ...data.tasks[0], repositoryId: "app" }],
   });
@@ -292,7 +292,7 @@ test("a repository without a repository retains its legacy GitHub mapping until 
     view.ci.repositories.map((row) => row.repository),
     ["example/app"],
   );
-  store.importSnapshot({ ...data, tasks: [] });
+  store.initialize({ ...data, tasks: [] });
   assert.deepEqual(
     (await ops.execute("flow.view")).repositories,
     ["app"],

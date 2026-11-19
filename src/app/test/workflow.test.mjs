@@ -14,46 +14,14 @@ import {
 } from "./fixtures.mjs";
 import { flushOutbox } from "../store/outbox.mjs";
 
-test("SQLite import round trips every legacy record and unknown metadata", (t) => {
+test("SQLite initialize round trips every record and unknown metadata", (t) => {
   const { store } = fixture(t);
   assert.equal(canonical(store.read()), canonical(snapshot()));
   assert.equal(
     store.db.prepare("PRAGMA integrity_check").get().integrity_check,
     "ok",
   );
-  const imported = store.getMeta("import");
-  assert.equal(imported.tasks, 1);
-  assert.equal(store.getMeta("mode"), "shadow");
-});
-test("three-way final import preserves new tasks and upstream changes, rejects competing edits", async (t) => {
-  const { store } = fixture(t),
-    ops = new Operations(store);
-  await ops.execute("task.capture", {
-    prompt: "New local work",
-    submissionId: "unique-capture-id",
-    context: { filters: { epic: "sample" } },
-  });
-  let incoming = snapshot();
-  incoming.tasks[0].notes = "New upstream evidence";
-  store.importSnapshot(incoming, { final: true });
-  assert.equal(store.read().tasks.length, 2);
-  assert.equal(store.read().tasks[0].notes, "New upstream evidence");
-  await ops.execute("task.update", {
-    id: "sample-task",
-    title: "Shadow title",
-  });
-  incoming = structuredClone(incoming);
-  incoming.tasks[0].title = "Upstream title";
-  const before = canonical(store.read());
-  assert.equal(
-    store.importSnapshot(incoming, { dryRun: true }).conflicts.length,
-    1,
-  );
-  assert.throws(
-    () => store.importSnapshot(incoming, { final: true }),
-    /Import conflicts/,
-  );
-  assert.equal(canonical(store.read()), before);
+  assert.equal(store.getMeta("mode"), "active");
 });
 test("unapproved drafts never enter ready work; approved extraction is exact and retry-safe", async (t) => {
   const { store } = fixture(t),

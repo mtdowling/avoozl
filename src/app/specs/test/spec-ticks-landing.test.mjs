@@ -43,7 +43,7 @@ async function machine(t, w, name) {
     store = new Store(path.join(w.root, `${name}.sqlite`));
   t.after(() => store.close());
   git(w.root, "clone", "-q", w.origin, clone);
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [leaf("t1"), leaf("t2")],
     edges: [],
@@ -105,7 +105,7 @@ async function workspace(t, { specInCode = true } = {}) {
     }),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [leaf("t1"), leaf("t2")],
     edges: [],

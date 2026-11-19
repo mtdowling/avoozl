@@ -111,7 +111,7 @@ async function workspace(t, delivery) {
   git(checkout, "commit", "-m", "Start");
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   fs.writeFileSync(path.join(root, ".avoozl.json"), policy(delivery));
   const ops = new Operations(store, { workspaceRoot: root });
   // Integration runs the repository's validation script at the landed commit.

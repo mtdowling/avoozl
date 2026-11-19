@@ -31,7 +31,7 @@ function setup(t, config = {}) {
   const root = temporaryDirectory("avoozl-activity-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [leaf("a1"), leaf("a2")],
     edges: [{ from: "a1", to: "a2", kind: "requires" }],
@@ -467,7 +467,7 @@ test("an older database starts from its current state; later changes are logged"
   const root = temporaryDirectory("avoozl-activity-old-"),
     file = path.join(root, "workspace.sqlite");
   const old = new Store(file);
-  old.importSnapshot({
+  old.initialize({
     ...snapshot(),
     tasks: [
       leaf("a1", {

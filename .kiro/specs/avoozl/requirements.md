@@ -5694,19 +5694,16 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
    twice; a value of the wrong shape; anything nested under a fact; a `$`
    fact that is not directly under a task item; a bullet under an item that
    reads as a fact without its `$`, such as `done:`; a `Facts:` block in
-   `tasks.md` on disk; and a task with no facts. A revision stored with
-   `Facts:` blocks SHALL be read and hashed as its `$` layout. Every rule the manifest had, such as acceptance on a
+   `tasks.md`; and a task with no facts. Every rule the manifest had, such as acceptance on a
    leaf, SHALL hold with the file named `tasks.md`.
 6. The revision hash SHALL cover the spec's prose and its parsed facts, not
-   their layout. A spec converted from the manifest to `Facts:` bullets, or from those to
-   `$` fact bullets,
-   with nothing else changed, SHALL NOT need a person's approval again: it
-   keeps its hash where the old manifest's text allows, and otherwise its
-   approval is carried to the new hash with `carriedFrom` recorded, no
-   approval pull request and no issue change. Any other difference SHALL
-   need a normal approval. Checkbox marks and `Status:` SHALL stay outside
-   the hash. Tests SHALL prove both on copies. (Changed 2026-11-18: owner
-   decision on the carry-over.)
+   their layout. A changed revision hash SHALL need a normal approval.
+   Checkbox marks and `Status:` SHALL stay outside the hash. Avoozl SHALL
+   NOT read the old layouts (`avoozl/manifest.json`, `Facts:` blocks) from
+   disk or from a record stored in SQLite: a stored revision in an old
+   layout reads as a folder lint refuses, and a person recreates it.
+   (Changed 2026-11-19: owner decision, no backward compatibility; the
+   approval carry-over of 2026-11-18 is removed.)
 7. Avoozl SHALL parse a spec once, store its revision, and parse again only
    when the revision changes, as it did. Ticks SHALL stay outside the hash.
 8. The spec page, the review tabs, the graph, spec pull request adoption,

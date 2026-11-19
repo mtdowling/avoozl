@@ -179,7 +179,7 @@ test('a new Needs you item gives one notice, two give two, and a reload gives no
   const other = path.join(scratch, 'other')
   fs.mkdirSync(other, { recursive: true })
   const second = new Store(workspaceConfig({ workspace: other, env: process.env }).dbPath)
-  second.importSnapshot({ ...snapshot(), tasks: [pinned('p1'), pinned('p2')], edges: [] })
+  second.initialize({ ...snapshot(), tasks: [pinned('p1'), pinned('p2')], edges: [] })
   second.put('repositories', { id: 'r1', root: fs.mkdtempSync(path.join(scratch, 'r1-')) })
   const registry = new WorkspaceRegistry({ configPath: path.join(machine.configDirectory, 'config.json'), catalogPath: path.join(machine.stateDirectory, 'catalog.sqlite') })
   registry.add('other', { root: other, name: 'Other' })

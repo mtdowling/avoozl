@@ -44,7 +44,7 @@ function workspace(t, { tasks = [], edges = [], policy } = {}) {
   const root = temporaryDirectory("avoozl-supersede-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks, edges });
+  store.initialize({ ...snapshot(), tasks, edges });
   if (policy)
     fs.writeFileSync(
       path.join(root, ".avoozl.json"),

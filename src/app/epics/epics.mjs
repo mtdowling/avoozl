@@ -101,10 +101,8 @@ export function ownLegacyEpics(data, plans) {
 }
 
 // No write drops an epic row a stored task still names. Each row of
-// `sources` (the stored snapshot's rows, then the import baseline's) that
-// `data` lacks and a task in `data` names is put back, once. The baseline
-// brings back rows an approval dropped before this rule. Returns the IDs
-// put back.
+// `sources` (the stored snapshot's rows) that `data` lacks and a task in
+// `data` names is put back, once. Returns the IDs put back.
 export function keepNamedEpics(data, ...sources) {
   const have = new Set((data.epics || []).map((epic) => epic.id)),
     named = new Set((data.tasks || []).map((task) => task.epic)),

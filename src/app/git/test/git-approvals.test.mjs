@@ -114,7 +114,7 @@ function workspace() {
 }
 const open = (root, file) => {
   const store = new Store(path.join(root, file));
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   return { store, ops: new Operations(store, { workspaceRoot: root }) };
 };
 async function approve(ops, id) {

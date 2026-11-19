@@ -31,7 +31,7 @@ function pinned(t) {
   const root = temporaryDirectory("avoozl-pin-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [leaf("chat", { session: { harness: "kirocrew" } }), leaf("plain")],
     edges: [],

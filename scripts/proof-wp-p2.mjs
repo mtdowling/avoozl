@@ -156,7 +156,7 @@ const tick = async () => {
 const task = (id) => store.read().tasks.find((t) => t.id === id);
 const result = {};
 try {
-  store.importSnapshot({
+  store.initialize({
     ...store.read(),
     // "back" waits on "hand", so two tasks are ready at first.
     tasks: [

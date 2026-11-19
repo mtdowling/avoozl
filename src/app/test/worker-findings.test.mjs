@@ -85,7 +85,7 @@ async function workspace(t, { process: onProcess = false } = {}) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const store = new Store(dbPath);
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [
       {

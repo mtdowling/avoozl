@@ -83,7 +83,7 @@ function open(t) {
       },
     }),
   );
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   store.setMeta("workspaceRepository", { root });
   for (const [file, text] of Object.entries(specFiles()))
     github.files.set(`${PLANS}:.kiro/specs/config/${file}`, text);

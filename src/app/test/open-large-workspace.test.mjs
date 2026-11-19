@@ -52,7 +52,7 @@ class SlowGitHub extends FakeGitHub {
 function workspace(t) {
   const { root, store } = fixture(t),
     github = new SlowGitHub();
-  store.importSnapshot(bigSnapshot(snapshot()));
+  store.initialize(bigSnapshot(snapshot()));
   assert.equal(store.read().tasks.length, BIG.tasks);
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),

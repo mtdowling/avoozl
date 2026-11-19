@@ -3,7 +3,7 @@ import { reconcileSpecDependencies } from "../../spec-dependencies.mjs";
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
-import { digest, summarizeErrors, validate } from "../../model.mjs";
+import { summarizeErrors, validate } from "../../model.mjs";
 import { keepNamedEpics, ownLegacyEpics } from "../epics/epics.mjs";
 
 export const canonical = (value) => JSON.stringify(normalize(value));
@@ -93,6 +93,7 @@ const DROPPED_TABLES = [
   "github_queue_repositories",
   "github_queue_items",
   "github_queue_associations",
+  "baseline",
 ];
 
 // The tables of {id, body} rows; the read tables add the three with
@@ -267,7 +268,6 @@ export class Store {
       this.db.exec(`
    CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS entities(kind TEXT NOT NULL,id TEXT NOT NULL,ordinal INTEGER NOT NULL,body TEXT NOT NULL,PRIMARY KEY(kind,id));
-   CREATE TABLE IF NOT EXISTS baseline(kind TEXT NOT NULL,id TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(kind,id));
    CREATE TABLE IF NOT EXISTS plans(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS approvals(id TEXT PRIMARY KEY,plan_id TEXT NOT NULL,hash TEXT NOT NULL,body TEXT NOT NULL,UNIQUE(plan_id,hash));
    CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY AUTOINCREMENT,run_id TEXT,kind TEXT NOT NULL,at TEXT NOT NULL,body TEXT NOT NULL);
@@ -344,7 +344,9 @@ export class Store {
       if (stale.length) {
         this.db.exec("BEGIN IMMEDIATE");
         for (const name of stale) this.db.exec(`DROP TABLE IF EXISTS ${name}`);
-        this.db.exec("DELETE FROM meta WHERE key LIKE 'runArchive:%'");
+        this.db.exec(
+          "DELETE FROM meta WHERE key LIKE 'runArchive:%' OR key IN ('baselineMetadata','import')",
+        );
         this.db.exec("COMMIT");
       }
       // Ideas were removed (RC30.3): drop any stored idea. It writes only
@@ -378,9 +380,8 @@ export class Store {
     }
     this.keepLegacyEpics();
   }
-  // Epic rows from before Requirement 59 get their plan once, on open, and
-  // one an older approval dropped while a task still names it comes back
-  // from the import baseline (design §6.9). Commit does the work. Writes
+  // Epic rows from before Requirement 59 get their plan once, on open
+  // (design §6.9). Commit does the work. Writes
   // only when there is something to do, so a plain open stays read-only. A
   // snapshot that cannot be written as it is still opens; its next commit
   // does the same.
@@ -388,19 +389,7 @@ export class Store {
     if (this.readOnly) return;
     const epics = this.getMeta("snapshot")?.epics;
     if (!epics) return;
-    const have = new Set(epics.map((epic) => epic?.id)),
-      missing = (this.getMeta("baselineMetadata")?.epics || [])
-        .map((epic) => epic?.id)
-        .filter((id) => id && !have.has(id)),
-      unowned = epics.some((epic) => epic && typeof epic.planId !== "string"),
-      named =
-        missing.length &&
-        this.db
-          .prepare(
-            "SELECT 1 FROM entities WHERE kind='task' AND json_extract(body,'$.epic') IN (SELECT value FROM json_each(?)) LIMIT 1",
-          )
-          .get(JSON.stringify(missing));
-    if (!unowned && !named) return;
+    if (!epics.some((epic) => epic && typeof epic.planId !== "string")) return;
     try {
       this.mutate(
         "Keep each epic from before Requirement 59, with its plan",
@@ -471,7 +460,7 @@ export class Store {
   }
   read() {
     const metadata = this.getMeta("snapshot");
-    if (!metadata) fail("Import a JSON snapshot first.", 503);
+    if (!metadata) fail("Create the workspace first: avoozl init PATH.", 503);
     if (this.cache?.revision === metadata.revision) return this.cache;
     const data = { ...metadata, tasks: [], documents: {}, edges: [] },
       stored = new Map();
@@ -536,11 +525,7 @@ export class Store {
       fail("Database changed. Reload and review before saving.", 409);
     // No write drops an epic a stored task names, and each epic from
     // before Requirement 59 has its plan before it is written (§6.9).
-    keepNamedEpics(
-      data,
-      this.read().epics || [],
-      this.getMeta("baselineMetadata")?.epics || [],
-    );
+    keepNamedEpics(data, this.read().epics || []);
     ownLegacyEpics(data, this.list("plans"));
     reconcileSpecDependencies(data, this.list("plans"), this.list("approvals"));
     data.revision = this.read().revision + 1;
@@ -562,118 +547,15 @@ export class Store {
       return result;
     });
   }
-  importSnapshot(data, { final = false, dryRun = false } = {}) {
-    const errors = validate(data);
-    if (errors.length) fail(summarizeErrors(errors), 422);
-    const sourceHash = digest(canonical(data)),
-      old = this.initialized() ? this.read() : null;
-    let merged = structuredClone(data);
-    const conflicts = [];
-    if (old) {
-      const baseline = new Map(
-        this.db
-          .prepare("SELECT * FROM baseline")
-          .all()
-          .map((r) => [r.kind + "\0" + r.id, JSON.parse(r.body)]),
-      );
-      for (const [kind, list] of [
-        ["task", "tasks"],
-        ["edge", "edges"],
-        ["document", "documents"],
-      ]) {
-        const entries = (value) =>
-          list === "documents"
-            ? Object.entries(value[list])
-            : value[list].map((v, i) => [v.id || "edge-" + i, v]);
-        const current = new Map(entries(old)),
-          incoming = new Map(entries(merged));
-        for (const [id, value] of current) {
-          const base = baseline.get(kind + "\0" + id),
-            next = incoming.get(id);
-          if (base === undefined) {
-            if (next && canonical(next) !== canonical(value))
-              conflicts.push(kind + ":" + id);
-            else incoming.set(id, value);
-          } else if (canonical(value) !== canonical(base)) {
-            if (
-              next &&
-              canonical(next) !== canonical(base) &&
-              canonical(next) !== canonical(value)
-            )
-              conflicts.push(kind + ":" + id);
-            else if (!next)
-              conflicts.push(kind + ":" + id + " removed upstream");
-            else incoming.set(id, value);
-          }
-        }
-        merged[list] =
-          list === "documents"
-            ? Object.fromEntries(incoming)
-            : [...incoming.values()];
-      }
-      const baseMetadata = this.getMeta("baselineMetadata") || {};
-      for (const key of new Set([
-        ...Object.keys(baseMetadata),
-        ...Object.keys(old),
-      ])) {
-        if (
-          [
-            "tasks",
-            "edges",
-            "documents",
-            "revision",
-            "updatedAt",
-            "changelog",
-          ].includes(key)
-        )
-          continue;
-        if (canonical(old[key]) !== canonical(baseMetadata[key])) {
-          if (
-            canonical(data[key]) !== canonical(baseMetadata[key]) &&
-            canonical(data[key]) !== canonical(old[key])
-          )
-            conflicts.push("metadata:" + key);
-          else merged[key] = old[key];
-        }
-      }
-      merged.revision = Math.max(old.revision, data.revision) + 1;
-    }
-    const report = {
-      sourceHash,
-      sourceRevision: data.revision,
-      tasks: data.tasks.length,
-      documents: Object.keys(data.documents).length,
-      edges: data.edges.length,
-      conflicts,
-      final,
-    };
-    if (dryRun) return report;
-    if (conflicts.length)
-      fail(
-        "Import conflicts require reconciliation: " + conflicts.join(", "),
-        409,
-      );
-    return this.transaction(() => {
-      this.write(merged);
-      this.db.exec("DELETE FROM baseline");
-      const put = this.db.prepare("INSERT INTO baseline VALUES (?,?,?)");
-      for (const [kind, rows] of [
-        ["task", data.tasks.map((v) => [v.id, v])],
-        ["document", Object.entries(data.documents)],
-        ["edge", data.edges.map((v, i) => [v.id || "edge-" + i, v])],
-      ])
-        for (const [id, v] of rows) put.run(kind, id, JSON.stringify(v));
-      const { tasks, documents, edges, ...metadata } = data;
-      this.setMeta("baselineMetadata", metadata);
-      this.setMeta("import", { ...report, at: stamp() });
+  // The first snapshot of a new workspace database.
+  initialize(snapshot) {
+    this.transaction(() => {
+      this.write(snapshot);
+      this.setMeta("mode", "active");
       this.ensureReportSecret();
-      if (final) this.setMeta("mode", "final-import");
-      else if (!this.getMeta("mode")) this.setMeta("mode", "shadow");
-      this.event(null, "import.completed", report);
-      return report;
     });
   }
-  // The secret behind CLI report tokens (R88.2). Made by an import or a
+  // The secret behind CLI report tokens (R88.2). Made by initialize or a
   // session binding, never while a brief is planned.
   ensureReportSecret() {
     if (!this.getMeta("report.secret"))

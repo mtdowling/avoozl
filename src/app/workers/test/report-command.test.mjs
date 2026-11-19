@@ -48,7 +48,7 @@ async function setup(t) {
     checks: [],
     repository: "app",
   });
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [task("a"), task("b")],
     edges: [],

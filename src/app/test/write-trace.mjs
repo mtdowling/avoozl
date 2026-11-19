@@ -40,7 +40,7 @@ if (trace) {
 }
 
 if (process.env.AVOOZL_DENY_OPERATIONS)
-  for (const name of ["execute", "perform", "initialize", "importSnapshot"])
+  for (const name of ["execute", "perform", "initialize"])
     Operations.prototype[name] = () => {
       throw Error("Operations denied by write-trace.");
     };

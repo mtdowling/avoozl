@@ -136,7 +136,7 @@ export async function largeWorkspace(
     }),
   );
   const store = new Store(path.join(root, "workspace.sqlite"));
-  store.importSnapshot(emptySnapshot());
+  store.initialize(emptySnapshot());
   store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),

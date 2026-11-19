@@ -47,7 +47,7 @@ function setup(t, tasks = [leaf("a")]) {
     checkout = gitCheckout(path.join(root, "app"));
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks, edges: [] });
+  store.initialize({ ...snapshot(), tasks, edges: [] });
   store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
@@ -401,7 +401,7 @@ test("a backend that started before any workspace reads sessions once one is add
   fs.mkdirSync(path.dirname(target.dbPath), { recursive: true });
   const store = new Store(target.dbPath);
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [leaf("a")], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [leaf("a")], edges: [] });
   await bind(
     new Operations(store, { workspaceRoot: workspace }),
     "a",

@@ -16,7 +16,7 @@ test("same-database upgrade and SQLite backup preserve durable workspace history
     database = path.join(root, "legacy.sqlite"),
     backup = path.join(root, "backup.sqlite");
   let store = new Store(database);
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   store.mutate("Accept migrated task", (data) => {
     const task = data.tasks[0];
     task.status = "accepted";
@@ -164,7 +164,7 @@ test("opening a store drops stored ideas and keeps other incoming items (RC30.3)
 });
 
 // Tables nothing writes to any more: runs, teams, the safety gate, execution
-// jobs, and the GitHub queue and intake.
+// jobs, the GitHub queue and intake, and the JSON import baseline.
 const DROPPED = [
   "runs",
   "run_capabilities",
@@ -187,6 +187,7 @@ const DROPPED = [
   "github_queue_repositories",
   "github_queue_items",
   "github_queue_associations",
+  "baseline",
 ];
 
 test("opening an older database drops the tables nothing writes to and keeps the rest", () => {
@@ -202,12 +203,14 @@ test("opening an older database drops the tables nothing writes to and keeps the
           .map((row) => row.name),
       );
   let store = new Store(database);
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   store.put("plans", { id: "kept", title: "Kept" });
   for (const name of DROPPED)
     store.db.exec(`CREATE TABLE ${name}(id TEXT PRIMARY KEY, body TEXT)`);
   store.db.exec("INSERT INTO runs VALUES ('run-old', '{}')");
   store.setMeta("runArchive:run-old", "2026-01-01T00:00:00Z");
+  store.setMeta("baselineMetadata", { epics: [] });
+  store.setMeta("import", { tasks: 1 });
   store.setMeta("kept", true);
   store.close();
 
@@ -216,6 +219,8 @@ test("opening an older database drops the tables nothing writes to and keeps the
   for (const name of DROPPED) assert.ok(!present.has(name), name);
   assert.equal(store.get("plans", "kept").title, "Kept");
   assert.equal(store.getMeta("runArchive:run-old"), null);
+  assert.equal(store.getMeta("baselineMetadata"), null);
+  assert.equal(store.getMeta("import"), null);
   assert.equal(store.getMeta("kept"), true);
   assert.equal(store.read().tasks.length > 0, true);
   store.close();
@@ -244,7 +249,7 @@ test("an older database's projects become repositories once, with no old name le
   // The older shape: a `projects` table, a `project_id` lock column, and
   // `projectId` fields and `project.*` events in stored rows.
   let store = new Store(database);
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   store.mutate("Name the task's repository", (data) => {
     data.tasks[0].projectId = "app";
   });

@@ -67,7 +67,7 @@ function setup(t, repoPath, extra = {}) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const store = new Store(dbPath);
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   return {
     root,
     store,
@@ -246,7 +246,7 @@ test("worker pull reads offers through the operation and starts nothing", async 
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const store = new Store(dbPath);
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   const github = {
     available: () => true,
     currentUser: async () => ({ login: "worker-a" }),

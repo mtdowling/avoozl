@@ -29,7 +29,7 @@ const task = (id, extra = {}) => ({
 function seed(t) {
   const { root, store } = fixture(t),
     data = store.read();
-  store.importSnapshot({
+  store.initialize({
     ...data,
     tasks: ["a", "b", "c", "d", "e", "f", "g"].map((id) =>
       task(id, { repository: id === "g" ? "lib" : "code" }),

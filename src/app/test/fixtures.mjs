@@ -50,7 +50,7 @@ export function snapshot() {
 export function fixture(t) {
   const root = temporaryDirectory(),
     store = new Store(path.join(root, "workspace.sqlite"));
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   t.after(() => {
     try {
       store.close();
@@ -143,7 +143,7 @@ export function workspaceFixture(t, shape = "local") {
       reason: "Fixture dependency.",
     })),
   );
-  store.importSnapshot(data);
+  store.initialize(data);
   if (issues.length) {
     store.put("github_repositories", {
       ...fixtureRepository,

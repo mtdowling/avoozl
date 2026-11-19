@@ -42,7 +42,7 @@ function setup(t, { refuse = new Set() } = {}) {
     store = new Store(path.join(root, "workspace.sqlite")),
     stopped = [];
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [leaf("a1"), leaf("a2"), leaf("a3"), leaf("b1")],
     edges: [],

@@ -28,7 +28,7 @@ function setup(t, n) {
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   const ids = Array.from({ length: n }, (_, i) => "t" + (i + 1));
-  store.importSnapshot({ ...snapshot(), tasks: ids.map(leaf), edges: [] });
+  store.initialize({ ...snapshot(), tasks: ids.map(leaf), edges: [] });
   store.put("repositories", {
     id: "app",
     root,

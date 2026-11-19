@@ -370,7 +370,7 @@ async function workspace(
   writeSpecs(root);
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   // The planning checkout holds the spec folders; code is a plain folder.
   store.put("repositories", {
     id: "plans",

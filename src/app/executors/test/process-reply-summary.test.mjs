@@ -195,7 +195,7 @@ test("a child's task summary is stored and shown", async (t) => {
       acceptance: ["b is observable."],
     },
   ];
-  store.importSnapshot(data);
+  store.initialize(data);
   const ops = new Operations(store, { workspaceRoot: root });
   await ops.execute("task.summary.request", { id: "b" });
   const config = { roles: { taskSummary: { harness: "fake-cli" } } };

@@ -227,7 +227,7 @@ async function setup() {
       tasks: [ID.b1, ID.b2, ID.b3],
       reason: "Three one-line notes",
     };
-    store.importSnapshot({
+    store.initialize({
       ...store.read(),
       tasks: [
         leaf(ID.single, "Write notes/single.txt", "notes/single.txt", "alpha"),

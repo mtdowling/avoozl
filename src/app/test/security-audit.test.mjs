@@ -136,7 +136,7 @@ test("a new database and its folders are private; old ones are tightened", {
   assert.equal(mode(out), 0o600);
 });
 
-test("backup and export --output write 0600 files", {
+test("backup --output writes a 0600 file", {
   skip: process.platform === "win32" && "Node maps no modes on Windows",
 }, async () => {
   const { spawnSync } = await import("node:child_process");
@@ -147,19 +147,14 @@ test("backup and export --output write 0600 files", {
   initializeWorkspace(workspace, { name: "t" });
   const previous = process.umask(0o022);
   try {
-    for (const [command, name] of [
-      ["backup", "b.sqlite"],
-      ["export", "e.json"],
-    ]) {
-      const file = path.join(out, name),
-        run = spawnSync(
-          process.execPath,
-          [cli, command, "--workspace", workspace, "--output", file],
-          { encoding: "utf8" },
-        );
-      assert.equal(run.status, 0, run.stderr);
-      assert.equal(fs.statSync(file).mode & 0o777, 0o600, command);
-    }
+    const file = path.join(out, "b.sqlite"),
+      run = spawnSync(
+        process.execPath,
+        [cli, "backup", "--workspace", workspace, "--output", file],
+        { encoding: "utf8" },
+      );
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   } finally {
     process.umask(previous);
   }

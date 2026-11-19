@@ -86,7 +86,7 @@ const files = {
 };
 for (let n = 1; n <= 12; n += 1)
   tasks.push(leaf(`t${n}`, n <= 6 ? "s1" : "s2"));
-store.importSnapshot({ ...snapshot(), tasks, edges: [] });
+store.initialize({ ...snapshot(), tasks, edges: [] });
 store.put("repositories", {
   id: "app",
   root: fs.realpathSync.native(checkout),

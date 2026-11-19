@@ -67,7 +67,7 @@ test("a worker runs on its pin's harness, else the saved one, else its repositor
   const root = temporaryDirectory("avoozl-role-harness-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [
       leaf("pinned", { session: { harness: "codex" } }),
@@ -220,7 +220,7 @@ test("the planner's saved harness wins over its repository's executor", (t) => {
   const root = temporaryDirectory("avoozl-role-harness-planner-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   const checkout = path.join(root, "app");
   store.put("repositories", { id: "app", root: checkout });
   store.setMeta("newPlans", [

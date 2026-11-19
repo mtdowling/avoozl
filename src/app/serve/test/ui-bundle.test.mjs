@@ -15,10 +15,9 @@ import {
 import { temporaryDirectory } from "../../test/temporary.mjs";
 import { SECRET, sign } from "../../test/signed-principal.mjs";
 
-const SECRET = "test-proxy-secret",
-  repoUi = fileURLToPath(
-    new URL("../../../../kirocrew-app/ui", import.meta.url),
-  );
+const repoUi = fileURLToPath(
+  new URL("../../../../kirocrew-app/ui", import.meta.url),
+);
 
 // A ui folder with one source file and a built page.
 function uiFolder() {

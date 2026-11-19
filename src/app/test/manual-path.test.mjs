@@ -110,7 +110,7 @@ function workspace(t, avoozl, machine) {
 // The tick runs this workspace; a person takes tasks by hand beside it.
 function onTheTick(t) {
   const ws = workspace(t, { lanes: { local: 2 }, delivery: {} }, {});
-  ws.store.importSnapshot({
+  ws.store.initialize({
     ...snapshot(),
     tasks: [leaf("a"), leaf("b")],
     edges: [],
