@@ -1,10 +1,8 @@
 # Getting started
 
-You need Node 22.13 or later (for built-in SQLite) and Git. Run inside Kiro
-Crew 0.12.2 or later, or on its own. The GitHub features also need `gh`
-signed in, or a token.
-
-## Build and test
+Avoozl needs Node 22.13 or later (for built-in SQLite) and Git, and runs
+inside Kiro Crew 0.12.2 or later or on its own. The GitHub features also need
+`gh` signed in, or a token.
 
 ```sh
 git clone https://github.com/mtdowling/avoozl.git
@@ -30,14 +28,14 @@ Open Kiro Crew's App Store, review Avoozl's trust request, and enable it. The
 **Avoozl** page appears in the sidebar. The trust request asks for these API
 grants:
 
-| Grant                          | Used for                                                   |
-| ------------------------------ | ---------------------------------------------------------- |
-| `/apps/avoozl/api/*`           | The app's own backend                                      |
-| `/api/chat/slots/avoozl_*`     | Status of the sessions the tick opened, and no others      |
-| `/api/usage/turns`             | Token and credit counts per flow stage, for those sessions |
-| `/api/models`                  | The model lists in Settings                                |
-| `/api/apps/spec-builder/specs` | Handing a new spec to Spec Builder                         |
-| `/api/reveal`                  | Showing a spec file in the file browser                    |
+- `/apps/avoozl/api/*` reaches the app's own backend.
+- `/api/chat/slots/avoozl_*` reads the status of the sessions the tick opened,
+  and no others.
+- `/api/usage/turns` reads token and credit counts per flow stage for those
+  sessions.
+- `/api/models` fills the model lists in Settings.
+- `/api/apps/spec-builder/specs` hands a new spec to Spec Builder.
+- `/api/reveal` shows a spec file in the file browser.
 
 An update that adds a grant waits until you approve it. To update, pull, then
 run `npm run build && kirocrew app update avoozl` in the checkout.
@@ -55,11 +53,9 @@ bind option. It prints a one-time owner link that signs one browser in;
 
 Without Kiro Crew, a button that opens a chat opens a **Start a session**
 dialog. Start runs the message as a read-only session on a harness approved on
-this machine. Features that need Kiro Crew say "Needs Kiro Crew".
-
-On a headless machine, set `serve.enabled` (and optionally a fixed
-`serve.port`) in the machine file `config.json`. The supervisor then runs the
-server and restarts it on the same port.
+this machine. Features that need Kiro Crew say "Needs Kiro Crew". See
+[Workspaces](workspaces.md#standalone-server) for headless machines and the
+other server settings.
 
 The CLI and MCP work with or without the page:
 
@@ -89,7 +85,8 @@ my-plans/
 A new workspace has no tasks and no repositories, and the triage agent is off.
 `node cli.mjs seed --workspace ~/plans` adds a made-up example epic as draft
 specs. Loading examples never approves a plan, starts a session, or configures
-a repository.
+a repository. See [Workspaces](workspaces.md) for settings files, demo mode and
+backups.
 
 ## Write and approve a spec
 
@@ -108,12 +105,13 @@ bullet that gives its dependencies and what done means:
 
 Choose **New spec** on the Specs page. Review the lint results and the graph,
 then choose **Approve revision**. An approval is a commit on main authored by
-an approver, so a later edit reads as unapproved until you approve again.
+an approver, so a later edit reads as unapproved until you approve again. See
+[Specs](specs.md) for the full task format and for approvals.
 
 ## Deliver
 
 Register the checkout the work changes, with its base branch and its named
 checks, then set the repository's `landing` to `off`, `direct` or `pr`.
 Avoozl pushes and merges only after the checks pass on the exact head it
-lands, and it never force pushes. See [delivery.md](delivery.md) for the
-commands, and [overview.md](overview.md) for what each page shows.
+lands, and it never force pushes. See [Delivery](delivery.md) for the
+commands, and [Avoozl](overview.md) for what each page shows.

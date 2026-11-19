@@ -1,8 +1,15 @@
 # Glossary
 
-One meaning for each word. If a word is not here, it has its ordinary meaning.
+Each word here has one meaning, and a word that is not listed has its ordinary
+meaning. Words that look alike are set apart below, such as `take` and `accept`
+in these commands:
 
-## claim, take, grant, accept
+```sh
+avoozl take TASK
+avoozl worker accept
+```
+
+## Claim, take, grant, accept
 
 | Word | Means | Where you see it |
 | ---- | ----- | ---------------- |
@@ -13,9 +20,9 @@ One meaning for each word. If a word is not here, it has its ordinary meaning.
 | statement | The one-sentence point of a review finding. | A finding's `statement` |
 | principal | The signed identity a request carries to the app backend. | `principalAllows`, `verifyPrincipal` |
 
-## review
+## Review
 
-"Review" alone names nothing. Use the full name.
+"Review" alone names nothing, so use the full name.
 
 | Name | Means | Setting |
 | ---- | ----- | ------- |
@@ -26,10 +33,17 @@ One meaning for each word. If a word is not here, it has its ordinary meaning.
 | spec approval reviewers | The GitHub logins asked to review a spec's approval pull request. | `github.specReviewers` |
 | changed tasks | Tasks whose design text changed since they were approved. Needs you lists them as "N tasks in SPEC changed: check them". | |
 
-## other words
+## Other terms
 
-- **driver**: the one machine that drives a spec. **worker**: a machine that runs granted tasks.
-- **trust list**: the people or permission whose reviews and discussions count: `allowedActors`, `minimumPermission`. Set once, on the repository (Edit repository > GitHub).
-- **base branch**: the branch work lands on. Set once, on the repository (Edit repository > Landing).
-- **required checks**: GitHub check names a pull request must pass (`requiredChecks`). A repository's own check commands (`projects.<id>.checks`) are a different thing.
-- **mode**: plans-repo, single-repo or local. It is worked out from repository roles and is never written.
+- **driver**: the one machine that drives a spec. **worker**: a machine that
+  runs granted tasks.
+- **trust list**: the people or permission whose reviews and discussions count:
+  `allowedActors`, `minimumPermission`. Set once, on the repository (Edit
+  repository > GitHub).
+- **base branch**: the branch work lands on. Set once, on the repository (Edit
+  repository > Landing).
+- **required checks**: GitHub check names a pull request must pass
+  (`requiredChecks`). A repository's own check commands (`projects.<id>.checks`)
+  are a different thing.
+- **mode**: plans-repo, single-repo or local. It is worked out from repository
+  roles and is never written.

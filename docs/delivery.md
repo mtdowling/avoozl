@@ -11,7 +11,7 @@ node cli.mjs repository configure code --workspace ~/plans \
 That registers the checkout the work changes, its base branch, a folder for
 worktrees, and its checks. Checkout paths are per machine, so they stay out of
 `.avoozl.json`. See
-[policies.md](policies.md#what-runs-on-its-own-and-who-can-stop-it)
+[Repository checks and isolation](checks.md)
 for checks, their environment, and the sandbox they run in.
 
 ## Turning delivery on
@@ -30,7 +30,7 @@ node cli.mjs spec publish NAME --workspace ~/plans
 node cli.mjs spec takeover NAME --workspace ~/plans
 ```
 
-See [drivers.md](drivers.md) for how a spec's driver is chosen.
+See [Drivers](drivers.md) for how a spec's driver is chosen.
 
 A workspace whose `.avoozl.json` still says `"runner": "crew-mode"` starts
 nothing until a person chooses **Let the tick run it** in **Needs you**.
@@ -66,9 +66,9 @@ other chats need two steps in Kiro Crew, each done once:
 
 Each minute the tick starts a worker session for each ready task, in its own
 worktree. The worker runs as a Kiro Crew chat or as a process harness such as
-Claude Code or Codex. See [agents.md](agents.md#roles-and-models) for choosing
-one. Sessions run on this machine unless a worker machine pulls the work with
-`avoozl worker setup`.
+Claude Code or Codex. See [Agents and the CLI](agents.md#roles-and-models) for
+choosing one. Sessions run on this machine unless a worker machine pulls the
+work with `avoozl worker setup`.
 
 When a session reports done, Avoozl runs the checks itself on the exact commit
 in a clean worktree, with no model call. It then integrates the commit and
@@ -99,11 +99,12 @@ Avoozl pushes and merges only after the checks pass on the exact head it
 lands. It never force pushes, uses `--admin`, or bypasses a required check or
 review. Each repository's `landing` setting picks how:
 
-| `landing` | What Avoozl does with verified work |
-| --- | --- |
-| `off` | Pushes nothing. The verified commit waits in **Needs you**. This is the default until setup writes another. |
-| `direct` | Lands it in merge batches on the base branch. |
-| `pr` | Pushes the task branch, opens or reuses one pull request, waits for its required checks and reviews on that head, and merges. Without merge permission it waits for an authorized person to merge. |
+- `off` pushes nothing. The verified commit waits in **Needs you**. This is the
+  default until setup writes another.
+- `direct` lands it in merge batches on the base branch.
+- `pr` pushes the task branch, opens or reuses one pull request, waits for its
+  required checks and reviews on that head, and merges. Without merge
+  permission it waits for an authorized person to merge.
 
 `avoozl setup OWNER/REPO --repo ID --landing pr|direct|off` previews the
 repository setup, and `--yes` applies it. Setup requires the GitHub checks

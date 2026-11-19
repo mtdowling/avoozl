@@ -42,7 +42,7 @@ the title. Write one only when it adds to the title. Lint refuses a summary
 that repeats the title.
 
 A task never names checks. Every task runs its repository's checks. See
-[policies.md](policies.md#what-runs-on-its-own-and-who-can-stop-it) for how
+[Repository checks and isolation](checks.md) for how
 checks are set.
 
 ### Batches
@@ -82,7 +82,7 @@ scope, and pick how to start:
 - **From a goal**: you type the goal, and an Avoozl planner chat writes the
   draft.
 - **From template**: you start from a workflow template in an approved
-  plugin. See [plugins.md](plugins.md#template-part) for writing one.
+  plugin. See [Writing a plugin](plugins.md#template-part) for writing one.
 
 Before Spec Builder starts, Avoozl offers to add
 `.kiro/steering/avoozl-specs.md` to the repository and shows its text. The
@@ -105,10 +105,11 @@ the approval from the CLI.
 
 A spec can be as small as one task. With the repository's `landing` set to
 `pr`, a one-task spec becomes one pull request, checked and merged like any
-other task. See [delivery.md](delivery.md#landing) for the landing settings.
+other task. See [Delivery](delivery.md#landing) for the landing settings.
 
 To let an agent approve for you, grant it once from your own terminal. See
-[policies.md](policies.md) for approval delegation.
+[Person-only operations](person-only.md#approval-delegation) for approval
+delegation.
 
 ### Approval commits
 

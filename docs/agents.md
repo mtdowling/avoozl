@@ -57,10 +57,12 @@ its `action` field:
 { "action": "get", "input": { "id": "TASK_ID" } }
 ```
 
-| Tool | Access |
-| --- | --- |
-| `plans_workspace`, `plans_repos`, `plans_plugins` | Read only |
-| `plans_maintain`, `plans_view`, `plans_plan`, `plans_review`, `plans_task`, `plans_session`, `plans_conflicts`, `plans_intake`, `plans_document`, `plans_github`, `plans_content` | Read and write |
+Access differs by tool:
+
+- `plans_workspace`, `plans_repos` and `plans_plugins` are read only.
+- `plans_maintain`, `plans_view`, `plans_plan`, `plans_review`, `plans_task`,
+  `plans_session`, `plans_conflicts`, `plans_intake`, `plans_document`,
+  `plans_github` and `plans_content` read and write.
 
 Each tool's description lists its actions.
 
@@ -84,7 +86,7 @@ these in the Avoozl app:
 
 An agent may pull the Andon cord with `plans_session`, action `stop_line`, but
 not resume it. See
-[policies.md](policies.md#person-only-is-not-a-wall-against-code-running-as-you)
+[Person-only operations](person-only.md)
 for what person-only does and does not guard.
 
 ## CLI

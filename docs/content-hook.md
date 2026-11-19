@@ -1,13 +1,32 @@
-# The content hook
+# Content hook
 
-`avoozl content hook` checks an agent's writes to GitHub before they run.
-Any agent that writes with your GitHub login can use it, for example a
-Kiro Crew agent or another coding agent with
-pre-tool-use hooks. It uses your workspace's content rules (see
-[Ban private terms](policies.md#ban-private-terms-from-everything-avoozl-writes)).
-There is no new rule format.
+`avoozl content hook` checks an agent's writes to GitHub before they run, using
+your workspace's content rules. Any agent that writes with your GitHub login and
+supports pre-tool-use hooks can use it.
 
-## What it checks
+For a Kiro agent, put the hook in the agent's file:
+
+```json [Kiro agent file]
+{
+  "hooks": {
+    "preToolUse": [
+      {
+        "matcher": "*",
+        "command": "avoozl content hook --workspace /path/to/workspace"
+      }
+    ]
+  }
+}
+```
+
+The matcher must be `*`, `execute_bash`, `shell` or `@builtin`, or absent, so
+the hook sees shell calls. Other agents with a pre-tool-use command take the
+same command.
+
+There is no new rule format. See
+[Content rules](content-rules.md) for how to write the rules.
+
+## Checked calls
 
 The agent runs the hook before each shell call. The hook reads the call as
 JSON on stdin and, for a write, runs content rules on it first:
@@ -27,27 +46,6 @@ the place, never the matched text. Text the hook cannot read from the call,
 because it comes from a shell expansion such as `$VAR` or `$(...)`, or from
 a here-document, is refused with the reason. The agent can write the text
 to a file and pass the file instead.
-
-## Add it to an agent
-
-For a Kiro agent, put the hook in the agent's file:
-
-```json
-{
-  "hooks": {
-    "preToolUse": [
-      {
-        "matcher": "*",
-        "command": "avoozl content hook --workspace /path/to/workspace"
-      }
-    ]
-  }
-}
-```
-
-The matcher must be `*`, `execute_bash`, `shell` or `@builtin`, or absent,
-so the hook sees shell calls. Other agents with a pre-tool-use command take
-the same command.
 
 ## Limits
 
