@@ -15,7 +15,7 @@ import { integrationView, landBranch } from "../integration-head.mjs";
 import { landingQueueView } from "../landing-queue-view.mjs";
 import { landingView } from "../landing-view.mjs";
 import { loadLayeredConfig } from "../layered-config.mjs";
-import { manualClaim } from "../manual-claim.mjs";
+import { manualTake } from "../manual-take.mjs";
 import { deliverNotifications } from "../notifications.mjs";
 import { stampPrompts } from "../operation-support.mjs";
 import { deliveryView } from "../page-views.mjs";
@@ -27,11 +27,11 @@ import {
   switchPreview,
   updateProviders,
 } from "../provider-health.mjs";
-import { claimsFresh, claimsView, refreshClaims } from "../radar-claims.mjs";
 import { releaseQueue, releaseStep } from "../radar-coder-queue.mjs";
+import { crewsFresh, crewsView, refreshCrews } from "../radar-crews.mjs";
 import { flowView as radarFlowView } from "../radar-flow.mjs";
 import {
-  claimWork,
+  acceptWork,
   pullWork,
   readRunnerConfig,
   reportDone,
@@ -85,14 +85,14 @@ export const entries = [
   },
 
   {
-    name: "worker.claim",
+    name: "worker.accept",
     class: "execute",
     policy: notOnMcp(
       "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.",
     ),
     handler({}) {
       const store = this.store;
-      return claimWork(store, this.workspaceRoot, this.github);
+      return acceptWork(store, this.workspaceRoot, this.github);
     },
   },
 
@@ -134,23 +134,23 @@ export const entries = [
       });
     },
   },
-  // A manual claim is the person's at this machine's command line
+  // Taking a task by hand is the person's at this machine's command line
   // (worker-paths WP2.7): never over MCP or from an agent session.
   {
-    name: "runner.claim",
+    name: "runner.take",
     class: "execute",
-    policy: person("Only a person claims a task by hand."),
+    policy: person("Only a person takes a task by hand."),
     async handler({ input, context }) {
       const store = this.store;
 
       if (context.local !== true || context.caller || context.mcp)
         fail(
-          "A claim is a person's: run avoozl claim TASK from the command line.",
+          "Taking a task is a person's: run avoozl take TASK from the command line.",
           403,
         );
       return stampPrompts(
         store,
-        await manualClaim(
+        await manualTake(
           store,
           { ...input, workspaceRoot: this.workspaceRoot },
           { github: readGitHubPolicyOrNull(this.workspaceRoot) },
@@ -363,7 +363,7 @@ export const entries = [
     },
   },
   // Issue Radar's live claims on every registered repository, read from
-  // GitHub only (radar-claims.mjs). `refresh` reads GitHub first.
+  // GitHub only (radar-crews.mjs). `refresh` reads GitHub first.
   // The merge path of each Issue Radar repository (RC5.1): three items,
   // read from GitHub; nothing is written.
   // The Release queue (RC4.5): what is released, claimed, next or held, and
@@ -477,21 +477,21 @@ export const entries = [
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         github = policy?.mode && this.github?.available?.();
       if (this.backgroundReads && input.refresh !== true) {
-        const stale = github && !claimsFresh(store, Date.now());
+        const stale = github && !crewsFresh(store, Date.now());
         const refreshing =
           (stale || this.refreshing.has("radar.crews")) &&
           this.refreshLater("radar.crews", () =>
-            refreshClaims(store, this.github, policy),
+            refreshCrews(store, this.github, policy),
           );
-        const view = claimsView(store);
+        const view = crewsView(store);
         return refreshing ? { ...view, refreshing: true } : view;
       }
       // Read at most every 2 minutes, however often the Dashboard asks.
       if (github)
-        await refreshClaims(store, this.github, policy, {
+        await refreshCrews(store, this.github, policy, {
           force: input.refresh === true,
         });
-      return claimsView(store);
+      return crewsView(store);
     },
   },
 

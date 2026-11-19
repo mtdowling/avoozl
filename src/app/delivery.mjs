@@ -1485,7 +1485,7 @@ export function reconcileDeliveries(
         binding.source === "tick" &&
         (binding.report?.kind !== "findings" || decisionSent(store, binding))
       ) {
-        // Only the cron messages a session it opened; a manual claim is a
+        // Only the cron messages a session it opened; a task taken by hand is a
         // person's and is never nudged.
         // Quiet: the session ended its turn without a done or blocked report.
         // It is nudged, never replaced; past the nudge bound a person decides.
@@ -1623,7 +1623,7 @@ export function startNow(store, input = {}, { policy = null } = {}) {
   const data = store.read();
   if (statusComplete(data, task.status))
     fail(`${task.id} is already done.`, 409);
-  if (claimedTaskIds(store).has(task.id))
+  if (busyTaskIds(store).has(task.id))
     fail(`${task.id} is already running.`, 409);
   // Every leaf the tick could start, ignoring capacity.
   const unlimited = {
@@ -1651,7 +1651,7 @@ export function startNow(store, input = {}, { policy = null } = {}) {
     store.setMeta(START_NOW, [
       task.id,
       ...startNowIds(store).filter(
-        (id) => id !== task.id && !claimedTaskIds(store).has(id),
+        (id) => id !== task.id && !busyTaskIds(store).has(id),
       ),
     ]),
   );
@@ -1845,7 +1845,7 @@ export function workerBrief(
 // a delivery under way (anything but `failed`), or a runner attempt that
 // ended but the tick has not recorded yet. Readiness excludes them, so a
 // claimed task never appears ready twice. Reads only.
-export function claimedTaskIds(store, bindings = listSessionBindings(store)) {
+export function busyTaskIds(store, bindings = listSessionBindings(store)) {
   const claimed = new Set(),
     deliveries = new Map(
       store.list("task_deliveries").map((d) => [d.taskId, d]),
@@ -1918,7 +1918,7 @@ export function readyCandidates(
   return queryTasks(data, {
     scope: "all",
     repositories: [...repositories.keys()],
-    claimed: claimedTaskIds(store, bindings),
+    claimed: busyTaskIds(store, bindings),
     q: "ready:true",
   })
     .filter(

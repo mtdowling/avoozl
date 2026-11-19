@@ -8,10 +8,7 @@
       "managedLabels": {
         "managed": "avoozl:managed",
         "responding": "avoozl:responding",
-        "planning": "avoozl:planning",
-        "ready": "avoozl:ready",
-        "stale": "avoozl:stale",
-        "decision": "avoozl:decision"
+        "ready": "avoozl:ready"
       },
       "rules": [
         { "id": "pause", "action": "pause", "match": "label:avoozl:paused" },

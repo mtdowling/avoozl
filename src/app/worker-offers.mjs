@@ -8,7 +8,7 @@
 // - Authority. An offer counts only when its author passed replay (write
 //   access), it names the current generation's driver and generation, it
 //   names this worker's login by opaque id, and no hold or stop is open. A
-//   task already claimed or settled is not offered.
+//   task already granted or settled is not offered.
 // - References. An offer's source repository, branch and commit become a
 //   qualified reference, apart from the pool's target and base. The source
 //   must be in this machine's own registry; an offer cannot add a URL, a
@@ -35,7 +35,7 @@ export const workerId = (login) =>
     .slice(0, 16);
 
 // `runner.pools` of a worker: where each spec's journal lives and what it
-// lands on. [{spec, repository, issue, target, claims?, base, visibility?}]
+// lands on. [{spec, repository, issue, target, grants?, base, visibility?}]
 export function poolsOf(value) {
   if (value === undefined) return [];
   if (!Array.isArray(value)) fail("runner.pools must be a list.");
@@ -46,9 +46,9 @@ export function poolsOf(value) {
     if (!SPEC.test(String(pool.spec))) fail(`${where}.spec is a spec ID.`);
     for (const key of ["repository", "target"])
       if (!NAME.test(String(pool[key]))) fail(`${where}.${key} is owner/name.`);
-    // The spec's one canonical claim namespace (R90.4); the target by default.
-    if (pool.claims !== undefined && !NAME.test(String(pool.claims)))
-      fail(`${where}.claims is owner/name.`);
+    // The spec's one canonical grant namespace (R90.4); the target by default.
+    if (pool.grants !== undefined && !NAME.test(String(pool.grants)))
+      fail(`${where}.grants is owner/name.`);
     if (!Number.isSafeInteger(pool.issue) || pool.issue < 1)
       fail(`${where}.issue is an issue number.`);
     if (typeof pool.base !== "string" || !pool.base.trim())
@@ -63,7 +63,7 @@ export function poolsOf(value) {
       repository: pool.repository,
       issue: pool.issue,
       target: pool.target,
-      claims: pool.claims ?? pool.target,
+      grants: pool.grants ?? pool.target,
       base: pool.base,
       visibility: pool.visibility ?? "public",
     };
@@ -87,10 +87,10 @@ function offersFrom(replay, { pool, login, registry }) {
     return { offers: [], held: false, refused: [] };
   const me = workerId(login),
     settled = new Map(),
-    claimed = new Set(
-      state.claims
-        .filter((claim) => claim.generation === state.generation)
-        .flatMap((claim) => claim.tasks.map((t) => t.task)),
+    granted = new Set(
+      state.grants
+        .filter((grant) => grant.generation === state.generation)
+        .flatMap((grant) => grant.tasks.map((t) => t.task)),
     ),
     seen = new Set(),
     offers = [],
@@ -107,7 +107,7 @@ function offersFrom(replay, { pool, login, registry }) {
       refused.push({ task, reason: "an offer names one task and one head" });
       continue;
     }
-    if (claimed.has(task) || SETTLED.has(settled.get(`${task}\0${definition}`)))
+    if (granted.has(task) || SETTLED.has(settled.get(`${task}\0${definition}`)))
       continue;
     let ref;
     try {

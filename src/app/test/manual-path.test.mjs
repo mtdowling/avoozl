@@ -1,6 +1,6 @@
 // Task 52.1 (R96.5, design §4.28): the manual path stays. A person at a
 // plain shell, with no Kiro Crew session, gateway or MCP, can run `avoozl
-// next`, `avoozl claim` and `avoozl runner report`. One test per command;
+// next`, `avoozl take` and `avoozl runner report`. One test per command;
 // each runs the real CLI as a child process.
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -134,16 +134,16 @@ test("avoozl next lists ready work from a plain shell", (t) => {
   assert.equal(view.finished, false);
 });
 
-test("avoozl claim gives a person the task and its worktree from a plain shell", (t) => {
+test("avoozl take gives a person the task and its worktree from a plain shell", (t) => {
   const { root, store } = onTheTick(t);
-  const claim = avoozl(root, "claim", "a");
+  const taken = avoozl(root, "take", "a");
   assert.deepEqual(
-    [claim.binding.taskId, claim.binding.slot, claim.binding.conductor],
+    [taken.binding.taskId, taken.binding.slot, taken.binding.conductor],
     ["a", "manual-a-1", "cli"],
   );
-  assert.equal(claim.worktree.branch, "avoozl/a");
-  assert.ok(fs.existsSync(claim.worktree.path));
-  // The claim holds: next shows it running, not ready, and a second claim is
+  assert.equal(taken.worktree.branch, "avoozl/a");
+  assert.ok(fs.existsSync(taken.worktree.path));
+  // Taking holds: next shows it running, not ready, and a second take is
   // refused with a message a person can act on.
   const view = avoozl(root, "next");
   assert.deepEqual(ids(view.ready), ["b"]);
@@ -153,32 +153,32 @@ test("avoozl claim gives a person the task and its worktree from a plain shell",
   );
   const again = spawnSync(
     process.execPath,
-    [cli, "claim", "a", "--workspace", root],
+    [cli, "take", "a", "--workspace", root],
     { encoding: "utf8", env: plainEnv(), cwd: root },
   );
   assert.notEqual(again.status, 0);
   assert.match(again.stderr, /not ready to start/);
-  assert.match(claim.report, /runner report a done/);
+  assert.match(taken.report, /runner report a done/);
   assert.equal(store.get("session_bindings", "manual-a-1").report, undefined);
 });
 
-test("avoozl runner report finishes a person's claim from its worktree with no token", (t) => {
+test("avoozl runner report finishes a task a person took from its worktree with no token", (t) => {
   const { root, store } = onTheTick(t);
-  const claim = avoozl(root, "claim", "a");
-  const head = commit(claim.worktree.path, "a.txt");
+  const taken = avoozl(root, "take", "a");
+  const head = commit(taken.worktree.path, "a.txt");
   const report = (cwd, id) =>
     spawnSync(
       process.execPath,
       [cli, "runner", "report", id, "done", "--workspace", root],
       { encoding: "utf8", env: plainEnv(), cwd },
     );
-  // Outside the worktree, or for a task nobody claimed, it is refused.
+  // Outside the worktree, or for a task nobody took, it is refused.
   const outside = report(root, "a");
   assert.notEqual(outside.status, 0);
   assert.match(outside.stderr, /this task's worktree/);
-  assert.match(report(claim.worktree.path, "b").stderr, /No one has claimed b/);
+  assert.match(report(taken.worktree.path, "b").stderr, /No one has taken b/);
   // From the worktree, the commit is read from HEAD.
-  const done = report(claim.worktree.path, "a");
+  const done = report(taken.worktree.path, "a");
   assert.equal(done.status, 0, done.stderr);
   assert.equal(JSON.parse(done.stdout).report.commit, head);
   assert.equal(store.get("session_bindings", "manual-a-1").report.kind, "done");

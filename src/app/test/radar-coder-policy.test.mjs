@@ -12,18 +12,15 @@ const policy = (mode, repository = {}) =>
 const repo = (mode, repository) =>
   policy(mode, repository).repositories["example/app"];
 
-test("the Radar labels default to avoozl:plan, avoozl:ready, crew: in progress, avoozl:merge-conflict", () => {
+test("the Radar labels default to avoozl:plan, avoozl:ready and crew: in progress", () => {
   for (const mode of ["plans-repo", "single-repo"]) {
     const entry = repo(mode, {});
     assert.deepEqual(entry.radar, {
       planLabel: "avoozl:plan",
-      conflictLabel: "avoozl:merge-conflict",
-      approvalLabel: "avoozl:plan-approved",
       reviewLabel: "avoozl:review",
       draftedLabel: "avoozl:drafted",
-      clearPlanLabel: false,
     });
-    assert.equal(entry.crewLabels.claim, "crew: in progress");
+    assert.equal(entry.crewLabels.inProgress, "crew: in progress");
     assert.equal(entry.managedLabels.ready, undefined);
   }
 });
@@ -33,31 +30,24 @@ test("a missing or empty radar block gives the defaults; worker repositories get
     repo("plans-repo", { radar: {} }).radar.planLabel,
     "avoozl:plan",
   );
-  assert.equal(repo("plans-repo").radar.conflictLabel, "avoozl:merge-conflict");
+  assert.equal(repo("plans-repo").radar.reviewLabel, "avoozl:review");
 });
 
 test("radar settings are read, and bad ones refused", () => {
   const entry = repo("single-repo", {
-    radar: {
-      planLabel: "plan me",
-      conflictLabel: "conflict",
-      clearPlanLabel: true,
-    },
+    radar: { planLabel: "plan me", reviewLabel: "look" },
   });
   assert.deepEqual(entry.radar, {
     planLabel: "plan me",
-    conflictLabel: "conflict",
-    approvalLabel: "avoozl:plan-approved",
-    reviewLabel: "avoozl:review",
+    reviewLabel: "look",
     draftedLabel: "avoozl:drafted",
-    clearPlanLabel: true,
   });
   for (const radar of [
     { planLabel: "" },
     { planLabel: "   " },
-    { conflictLabel: "" },
+    { reviewLabel: "" },
     { planLabel: 4 },
-    { clearPlanLabel: "yes" },
+    { conflictLabel: "x" },
     { crews: [] },
   ])
     assert.throws(() => repo("single-repo", { radar }), /radar/);
@@ -67,9 +57,9 @@ test("radar settings are read, and bad ones refused", () => {
 const LABELS = {
   planning: (name) => ({ radar: { planLabel: name } }),
   "needs-human": (name) => ({ crewLabels: { needsHuman: name } }),
-  claim: (name) => ({ crewLabels: { claim: name } }),
+  "in-progress": (name) => ({ crewLabels: { inProgress: name } }),
   ready: (name) => ({ managedLabels: { ready: name } }),
-  conflict: (name) => ({ radar: { conflictLabel: name } }),
+  review: (name) => ({ radar: { reviewLabel: name } }),
 };
 const merge = (...parts) =>
   parts.reduce((all, part) => {
@@ -106,9 +96,8 @@ test("a default name clashes with a set one", () => {
     /planning.*ready|ready.*planning/,
   );
   assert.throws(
-    () =>
-      repo("single-repo", { radar: { conflictLabel: "crew: in progress" } }),
-    /conflict.*claim|claim.*conflict/,
+    () => repo("single-repo", { radar: { reviewLabel: "crew: in progress" } }),
+    /review.*in-progress|in-progress.*review/,
   );
 });
 
@@ -127,17 +116,9 @@ test("an existing worker repository with its own labels still validates", () => 
   assert.equal(entry.managedLabels.ready, "agent:ready");
 });
 
-test("radar.showPlansRepo is unset by default, read when set, and refuses a non-boolean", () => {
-  assert.equal("showPlansRepo" in repo("plans-repo", {}).radar, false);
-  for (const showPlansRepo of [true, false])
-    assert.equal(
-      repo("plans-repo", { radar: { showPlansRepo } }).radar.showPlansRepo,
-      showPlansRepo,
-    );
-  assert.throws(
-    () => repo("plans-repo", { radar: { showPlansRepo: "yes" } }),
-    /radar\.showPlansRepo must be true or false/,
-  );
+test("the conflict and approval labels are not settings", () => {
+  for (const radar of [{ conflictLabel: "x" }, { approvalLabel: "x" }])
+    assert.throws(() => repo("plans-repo", { radar }), /Unknown setting/);
 });
 
 test("conflicts leaves the count unset by default, and bad values are refused by key", () => {

@@ -229,7 +229,7 @@ export class Operations {
     // Conditional reads and the rate-limit pause live in this workspace.
     if (client instanceof GitHubClient)
       client.bind(store, {
-        cacheSeconds: (repo) => this.cacheSeconds(repo),
+        cacheSeconds: () => this.cacheSeconds(),
         countFile: countFilePath(),
         writeLimits: () => this.writeLimits(),
       });
@@ -510,7 +510,7 @@ export class Operations {
     if (
       cached &&
       this.privateSpecsAt &&
-      now - this.privateSpecsAt < this.cacheSeconds(mirror.mirror) * 1000
+      now - this.privateSpecsAt < this.cacheSeconds() * 1000
     )
       return;
     try {
@@ -1643,9 +1643,9 @@ export class Operations {
       perHour: policy?.writesPerHour ?? undefined,
     };
   }
-  // github.cacheSeconds, with a repository's own value first. The files are
-  // read at most every five seconds; an unreadable file means the default.
-  cacheSeconds(repo = "") {
+  // github.cacheSeconds, one value for the workspace. The files are read at
+  // most every five seconds; an unreadable file means the default.
+  cacheSeconds() {
     const at = Date.now();
     if (!this.cachePolicy || at - this.cachePolicy.at > 5000)
       this.cachePolicy = {
@@ -1653,11 +1653,7 @@ export class Operations {
         policy: readGitHubPolicyOrNull(this.workspaceRoot),
       };
     const policy = this.cachePolicy.policy;
-    return (
-      policy?.repositories?.[repo]?.cacheSeconds ??
-      policy?.cacheSeconds ??
-      DEFAULT_CACHE_SECONDS
-    );
+    return policy?.cacheSeconds ?? DEFAULT_CACHE_SECONDS;
   }
   // The merge path of the named repository; none without a name.
   async mergePaths(only) {

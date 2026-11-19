@@ -450,9 +450,6 @@ test("explicit Settings operations persist typed desired state without changing 
   const issue = await ops.execute("github.configure", {
     repository: "Example/Code",
     repositoryId: "code",
-    label: "ready",
-    managedLabel: "projected",
-    allowedActors: ["maintainer"],
   });
   assert.equal(issue.id, "Example/Code");
 
@@ -477,14 +474,10 @@ test("explicit Settings operations persist typed desired state without changing 
     via: "github",
     repository: "Example/Code",
     executionRepository: "code",
-    label: "ready",
-    managedLabel: "projected",
     assignee: "operator",
     autoStart: false,
     provider: null,
     model: null,
-    allowedActors: ["maintainer"],
-    minimumPermission: "write",
   });
   assert.equal(saved.github, undefined);
   assert.equal(saved.planningRepository.root, "planning");

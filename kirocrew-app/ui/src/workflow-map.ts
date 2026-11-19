@@ -23,7 +23,7 @@ export const WORKFLOW_STATUS: Record<string, StepTag> = {
   'epic-plan-label': 'fake-tested',
   'epic-draft': 'fake-tested',
   'epic-approve': 'fake-tested',
-  'epic-claim': 'fake-tested',
+  'epic-mark': 'fake-tested',
   'epic-start': 'fake-tested',
   'epic-merge': 'fake-tested',
   'review-chat': 'not built',
@@ -33,7 +33,7 @@ export const WORKFLOW_STATUS: Record<string, StepTag> = {
 
 // Where a value is set. `tab` is a repository dialog sub-tab; `field` names the
 // input the page focuses.
-export type JumpField = 'plan' | 'conflict' | 'mergeMethod' | 'autoMerge' | 'approval' | 'ready' | 'claim' | 'needsHuman' | 'actors' | 'permission'
+export type JumpField = 'plan' | 'mergeMethod' | 'autoMerge' | 'ready' | 'inProgress' | 'needsHuman' | 'actors' | 'permission'
 // `radar` is Settings › Issue Radar, a page of its own; the others are
 // tabs of the repository's Edit dialog (repo-edit-tabs.ts).
 export interface Jump {
@@ -42,12 +42,10 @@ export interface Jump {
 }
 const TAB: Record<JumpField, Jump['tab']> = {
   plan: 'radar',
-  conflict: 'radar',
   mergeMethod: 'landing',
   autoMerge: 'landing',
-  approval: 'radar',
   ready: 'radar',
-  claim: 'radar',
+  inProgress: 'radar',
   needsHuman: 'radar',
   actors: 'github',
   permission: 'github',
@@ -108,7 +106,7 @@ export interface WorkflowInput {
 // rc-20.1 moves the backend defaults, an unset repository still gets the old
 // names from the backend; the map shows the decided ones.
 const DEFAULTS = {
-  claim: 'crew: in progress',
+  inProgress: 'crew: in progress',
   needsHuman: 'crew: needs human',
   plan: 'avoozl:plan',
   ready: 'avoozl:ready',
@@ -142,15 +140,16 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
 
   const ready = named(repository.managedLabels.ready ?? '', DEFAULTS.ready, 'Ready label', 'ready')
   const plan = named(repository.planLabel, DEFAULTS.plan, 'Planning label', 'plan')
-  const approval = named(repository.approvalLabel, DEFAULTS.approval, 'Approval label', 'approval')
-  const conflict = named(repository.conflictLabel, DEFAULTS.conflict, 'Conflict label', 'conflict')
+  // Avoozl's approval and conflict labels have fixed names: nothing to jump to.
+  const approval: Value = { label: 'Approval label', text: DEFAULTS.approval, source: 'default' }
+  const conflict: Value = { label: 'Conflict label', text: DEFAULTS.conflict, source: 'default' }
   const mergeMethod: Value = {
     label: 'Merge method',
     text: repository.mergeMethod.trim() || 'squash',
     source: repository.mergeMethod.trim() ? 'set' : 'default',
     jump: jump('mergeMethod'),
   }
-  const claim = named(repository.crewLabels.claim ?? '', DEFAULTS.claim, 'Claim label', 'claim')
+  const inProgress = named(repository.crewLabels.inProgress ?? '', DEFAULTS.inProgress, 'In-progress label', 'inProgress')
   const needsHuman = named(repository.crewLabels.needsHuman ?? '', DEFAULTS.needsHuman, 'Escalation label', 'needsHuman')
   const review = placeholderLabel(repository, 'reviewLabel', DEFAULTS.review, 'Review label')
   const drafted = placeholderLabel(repository, 'draftedLabel', DEFAULTS.drafted, 'Drafted label')
@@ -176,7 +175,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
   const labels: LabelRow[] = [
     { key: 'plan', label: 'Planning', name: plan.text, source: plan.source, writer: 'you', jump: plan.jump },
     { key: 'needsHuman', label: 'Escalation', name: needsHuman.text, source: needsHuman.source, writer: 'radar', jump: needsHuman.jump },
-    { key: 'claim', label: 'Claim', name: claim.text, source: claim.source, writer: 'radar', jump: claim.jump },
+    { key: 'inProgress', label: 'In progress', name: inProgress.text, source: inProgress.source, writer: 'radar', jump: inProgress.jump },
     { key: 'ready', label: 'Ready', name: ready.text, source: ready.source, writer: 'avoozl', jump: ready.jump },
     { key: 'approval', label: 'Approval', name: approval.text, source: approval.source, writer: 'you', jump: approval.jump },
     { key: 'conflict', label: 'Conflict (on pull requests)', name: conflict.text, source: conflict.source, writer: 'avoozl', jump: conflict.jump },
@@ -223,7 +222,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
         text: "The label in the crew's scope (set in Issue Radar). Avoozl's ready label is the same name.",
         values: [ready],
       },
-      { key: 'maint-crew', who: 'radar', title: 'The crew claims, fixes, opens a PR', text: 'It runs CI on the pull request.', values: [], ...tag('maint-crew') },
+      { key: 'maint-crew', who: 'radar', title: 'The crew picks it up, fixes, opens a PR', text: 'It runs CI on the pull request.', values: [], ...tag('maint-crew') },
       { ...closer, key: 'maint-close' },
     ],
   }
@@ -268,12 +267,12 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
       { key: 'epic-draft', who: 'avoozl', title: 'Avoozl drafts the spec', text: 'A spec with tasks and their order.', values: [], ...tag('epic-draft') },
       { key: 'epic-approve', who: 'you', title: 'You approve', text: 'Add the approval label, or approve in Avoozl or a chat.', values: [approval], ...tag('epic-approve') },
       {
-        key: 'epic-claim',
+        key: 'epic-mark',
         who: 'avoozl',
-        title: 'Avoozl claims the parent and writes the sub-issues',
+        title: 'Avoozl marks the parent in progress and writes the sub-issues',
         text: 'It adds blocked-by links, so the order lives on GitHub.',
-        values: [claim],
-        ...tag('epic-claim'),
+        values: [inProgress],
+        ...tag('epic-mark'),
       },
       releaseCard,
       buildCard,
@@ -317,12 +316,10 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
 export const fieldSelector = (id: string, field: JumpField): string =>
   ({
     plan: '#' + id + '-label-planLabel',
-    conflict: `#${id}-label-conflictLabel`,
     mergeMethod: `#${id}-merge-method input:checked, #${id}-merge-method`,
     autoMerge: `#${id}-auto-merge input:checked, #${id}-auto-merge`,
-    approval: `#${id}-label-approvalLabel`,
     ready: `#${id}-label-ready`,
-    claim: `#${id}-crew-claim`,
+    inProgress: `#${id}-crew-inProgress`,
     needsHuman: `#${id}-crew-needsHuman`,
     actors: `#${id}-actors`,
     permission: `#${id}-permission`,

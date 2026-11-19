@@ -9,7 +9,7 @@ import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 
-const HEAD = ['Issue', 'Crew', 'Phase', 'Claimed', 'Last update', 'PR']
+const HEAD = ['Issue', 'Crew', 'Phase', 'Started', 'Last update', 'PR']
 
 function Row({ row, now }: { row: RadarClaim; now: number }) {
   return (
@@ -31,7 +31,7 @@ function Row({ row, now }: { row: RadarClaim; now: number }) {
         {row.crewName ?? row.crewId ?? 'no crew named'}
       </Box>
       <Box as="td" py="1" pr="2">
-        {row.phase ?? 'claim label, no claim comment'}
+        {row.phase ?? 'in-progress label, no crew comment'}
       </Box>
       <Box as="td" py="1" pr="2">
         {relativeTime(row.claimedAt ?? null, now)}
@@ -66,7 +66,7 @@ function PhoneRow({ row, now }: { row: RadarClaim; now: number }) {
       )}{' '}
       {row.stale && <Badge variant="warning">Stale</Badge>}
       <Hint size="xs" block>
-        {row.repository} #{row.number} · {row.crewName ?? row.crewId ?? 'no crew named'} · {row.phase ?? 'claim label, no claim comment'} · claimed{' '}
+        {row.repository} #{row.number} · {row.crewName ?? row.crewId ?? 'no crew named'} · {row.phase ?? 'in-progress label, no crew comment'} · started{' '}
         {relativeTime(row.claimedAt ?? null, now)} · updated {relativeTime(row.updated ?? row.issueUpdatedAt ?? null, now)}
         {row.pr ? ` · PR #${row.pr}` : ''}
       </Hint>

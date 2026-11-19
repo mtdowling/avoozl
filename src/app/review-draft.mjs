@@ -14,7 +14,7 @@ import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 import { callerSlot } from "./delivery.mjs";
 import { allowWrite, enforce, screenReply } from "./content-rules.mjs";
 import { fail } from "./store.mjs";
-import { parseMarkers, crewName } from "./radar-claims.mjs";
+import { parseMarkers, crewName } from "./radar-crews.mjs";
 import { fence } from "./github-respond.mjs";
 import { sessionUrl } from "./notifications.mjs";
 import { recordActivity } from "./activity-log.mjs";

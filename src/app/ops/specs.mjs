@@ -33,12 +33,12 @@ import { specAuthority, takeOverSpec } from "../spec-takeover.mjs";
 import { fail } from "../store.mjs";
 import { taskDefinition } from "../task-outcomes.mjs";
 import { readCache } from "../untriaged.mjs";
-import { publishOffer, reserveClaims } from "../worker-claims.mjs";
+import { publishOffer, reserveGrants } from "../worker-grants.mjs";
 import {
-  claimStaleMs,
-  claimStatus,
-  reconcileClaims,
-  releaseClaim,
+  grantStaleMs,
+  grantStatus,
+  reconcileGrants,
+  releaseGrant,
 } from "../worker-release.mjs";
 import { publishPlanningPullRequest } from "../workspace-repository.mjs";
 import { person, notOnMcp, routed } from "../operation-policy.mjs";
@@ -162,14 +162,14 @@ async function specprAdoptHandler({ name, input, context }) {
     return requestChanges(store, this.github, input);
   fail(`Unknown operation ${name}.`, 404);
 }
-// The driver's side of worker claims (R90.4): offer a task to a worker
+// The driver's side of worker accepts (R90.4): offer a task to a worker
 // login, and reserve and acknowledge the requests. A person's own act at
 // this machine; no session or MCP caller.
 async function specOfferHandler({ name, input, context }) {
   const store = this.store;
 
   if (context.caller || context.mcp)
-    fail("Only a person drives worker offers and claims.", 403);
+    fail("Only a person drives worker offers and grants.", 403);
   const authority = await specAuthority(
       store,
       {
@@ -192,27 +192,27 @@ async function specOfferHandler({ name, input, context }) {
     github: this.github,
     journal: authority.journal,
     options: authority.options,
-    claims: input.claims,
+    grants: input.grants,
   };
-  if (name === "spec.claims.status")
-    return claimStatus(authority.journal, authority.options, {
-      staleAfter: claimStaleMs(
+  if (name === "spec.grants.status")
+    return grantStatus(authority.journal, authority.options, {
+      staleAfter: grantStaleMs(
         loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config?.workers
-          ?.claimStaleAfter,
+          ?.grantStaleAfter,
       ),
     });
-  if (name === "spec.claims.release")
-    return releaseClaim({
+  if (name === "spec.grants.release")
+    return releaseGrant({
       ...held,
       task: input.task,
       by: { kind: "person" },
     });
-  if (name === "spec.claims") {
+  if (name === "spec.grants") {
     // Carry or settle what exists first, then answer new requests.
-    const reconciled = await reconcileClaims(held);
+    const reconciled = await reconcileGrants(held);
     return {
       reconciled,
-      ...(await reserveClaims({
+      ...(await reserveGrants({
         ...held,
         base: input.base,
         ...(input.cap ? { cap: input.cap } : {}),
@@ -429,11 +429,15 @@ export const entries = [
         fail("Only a person applies repository setup.", 403);
       if (!this.github?.available?.())
         fail("Repository setup needs GitHub; run gh auth login.", 503);
+      // The checks and the base branch are the repository's own settings.
+      const wanted = this.githubPolicy().repositories?.[input.repository];
       return repositorySetup(
         store,
         this.github,
         {
           ...input,
+          checks: wanted?.requiredChecks,
+          base: wanted?.baseBranch ?? undefined,
         },
         {
           writeRepository: (repository) => {
@@ -467,21 +471,21 @@ export const entries = [
     handler: specOfferHandler,
   },
   {
-    name: "spec.claims",
+    name: "spec.grants",
     class: "execute",
-    policy: person("Only a person reserves worker claims."),
+    policy: person("Only a person reserves worker accepts."),
     handler: specOfferHandler,
   },
   {
-    name: "spec.claims.release",
+    name: "spec.grants.release",
     class: "execute",
-    policy: person("Only a person releases a worker claim."),
+    policy: person("Only a person releases a worker accept."),
     handler: specOfferHandler,
   },
   {
-    name: "spec.claims.status",
+    name: "spec.grants.status",
     class: "execute",
-    policy: person("Only a person reads worker claims."),
+    policy: person("Only a person reads worker accepts."),
     handler: specOfferHandler,
   },
 

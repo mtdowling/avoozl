@@ -43,7 +43,7 @@ const finding = (extra = {}) => ({
   file: "design.md",
   line: 3,
   quote: "Use src/missing.mjs.",
-  claim: "The named helper is absent.",
+  statement: "The named helper is absent.",
   evidence: "Searched src/ for missing.mjs; no matching file was found.",
   ...extra,
 });
@@ -261,7 +261,7 @@ test("planner answers are revision-bound, preserve open findings, and stop at th
         finding(),
         finding({
           kind: "hidden-order",
-          claim: "An ordering edge is missing.",
+          statement: "An ordering edge is missing.",
         }),
       ],
     },
@@ -737,7 +737,7 @@ test("a person's Accept starts one planner turn outside the rounds cap; Review a
         finding({
           kind: "hidden-order",
           severity: "warn",
-          claim: "An ordering edge is missing.",
+          statement: "An ordering edge is missing.",
         }),
       ],
     },
@@ -914,7 +914,7 @@ test("a child's review with a served model records the round as a chat's does", 
     .list("review_threads")
     .filter((thread) => thread.roundId === round().id);
   assert.equal(threads.length, 1);
-  assert.equal(threads[0].claim, "The named helper is absent.");
+  assert.equal(threads[0].statement, "The named helper is absent.");
 });
 
 test("with no served model the round is skipped with today's reason", async (t) => {

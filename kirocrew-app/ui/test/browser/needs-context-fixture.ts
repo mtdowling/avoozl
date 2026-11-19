@@ -31,7 +31,7 @@ export const needsContextItems = [
     id: 'review:plan:p_search',
     taskId: null,
     plan: 'Recipe search',
-    title: 'Review 2 tasks in Recipe search: their design text changed',
+    title: '2 tasks in Recipe search changed: check them',
     detail: 'Each is new, or its own text in the plan changed since it was last reviewed. None starts until you mark it reviewed.',
     tasks: [
       {

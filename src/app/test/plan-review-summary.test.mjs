@@ -62,7 +62,7 @@ function finding(env, id, roundId, extra = {}) {
     severity: "important",
     file: "design.md",
     line: 1,
-    claim: "A requirement has no task.",
+    statement: "A requirement has no task.",
     evidence: "Compared the stored requirement and task files.",
     ...extra,
   });

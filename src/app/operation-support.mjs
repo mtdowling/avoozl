@@ -2,7 +2,7 @@
 import { statusComplete } from "../model.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { taskAuthority, taskKind, taskRepository } from "../work-model.mjs";
-import { claimedTaskIds, declaredChecks } from "./delivery.mjs";
+import { busyTaskIds, declaredChecks } from "./delivery.mjs";
 import { sessionUrl } from "./notifications.mjs";
 import { checkCommand } from "./repository-checks.mjs";
 import { promptVersions, roleTarget } from "./retro-memory.mjs";
@@ -14,7 +14,7 @@ import path from "node:path";
 // session tables reads as having no claims.
 export function claimedOrNone(store) {
   try {
-    return claimedTaskIds(store);
+    return busyTaskIds(store);
   } catch {
     return new Set();
   }

@@ -1674,7 +1674,7 @@ upgrade each repository is read again, once, like a **Check now**.
 | Source   | Actor                                        | Standing                                                                       | Check                                                                                             |
 | -------- | -------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
 | `github` | The newest event that made the rule true     | GitHub repository permission                                                   | The repository's `allowedActors` and `minimumPermission` (unchanged)                              |
-| Plugin   | `trigger.actor`, with the `actor` capability | `trigger.permission`: the plugin maps its own system's roles to `none`…`admin` | The source's `allowedActors` and `minimumPermission`, default `write`, by the same `actorAllowed` |
+| Plugin   | `trigger.actor`, with the `actor` capability | `trigger.permission`: the plugin maps its own system's roles to `none`…`admin` | The source repository's `allowedActors` and `minimumPermission`, default `write`, by the same `actorAllowed` |
 | MCP      | None that Avoozl can verify                  | The local owner                                                                | Meets only `pause` and `quarantine` rules                                                         |
 
 The plugin states who acted and what that person may do in its system;
@@ -3057,7 +3057,7 @@ never stages a path under `.avoozl/`, whatever the repository's
 .gitignore says, and refuses to land a worker commit that holds one
 (`commitWorkerChanges`, `refuseAvoozlPaths`). A missing or bad file, or `done` with a non-zero exit, is `exited <code>` and
 takes the retry path. Kiro Crew chats and people use `avoozl runner report
-TASK done|blocked`; `next`, `claim` and the report stay as the manual
+TASK done|blocked`; `next`, `take` and the report stay as the manual
 path.
 
 **Prompts.** `prompts/<role>.md` holds each role's prompt; the build writes
@@ -3127,7 +3127,7 @@ is approved.
 | 49    | Every role on any executor              | Verifier, reviewer, planner, retro and watch each run on `process`                                |
 | 50    | The UI                                  | In flight, Send message, Settings › Models and the `session` pin work for `process` sessions      |
 | 51    | Headless workers                        | A machine under launchd runs tasks with the CLI only; the base for §4.26's pull-based worker mode |
-| 52    | The manual path                         | `next`, `claim` and `runner report` still work for a person                                       |
+| 52    | The manual path                         | `next`, `take` and `runner report` still work for a person                                       |
 
 ### 4.29 Cross-model plan review
 
@@ -3189,7 +3189,7 @@ findings only for that revision. The worktrees are removed when the round
 ends.
 
 **Findings.** Stored as `review_threads` rows with `source: "plan-review"`,
-`roundId`, `kind`, `severity`, `file`, `line`, `claim` and `evidence`. The
+`roundId`, `kind`, `severity`, `file`, `line`, `statement` and `evidence`. The
 existing quote-anchored threads for text plans are unchanged. A spec finding
 is checked against the named file of that revision: the file must be in
 the hash, and the line in range. At most 50 findings per round, as today.
@@ -4019,7 +4019,7 @@ Retain the legacy fact spellings `route: github` (landing queue) and
   page (§4.27), not a GitHub browser.
 - Phase 56 supplies outcomes, journal, migration, qualified branches, driver
   safety, refresh, recovery, epic/intake and mirror import changes.
-  Direct and PR landing remain Phases 41–42; worker claims remain Phase 43.
+  Direct and PR landing remain Phases 41–42; worker grants remain Phase 43.
   Phase 45 deleted the shared projection callers (45.4) after the
   replacement landing and UI proofs. Phase 55's receipts remain.
 
@@ -4575,13 +4575,10 @@ does, and Triage is what no source covers.
         "via": "github",
         "repository": "example/app",
         "executionRepository": "app",
-        "label": "avoozl:ready",
         "assignee": "example-bot",
         "autoStart": false,
         "provider": null,
-        "model": null,
-        "allowedActors": [],
-        "minimumPermission": "write"
+        "model": null
       }
     }
   }
@@ -4590,11 +4587,11 @@ does, and Triage is what no source covers.
 
 | Kind | Keys only it takes | Where it may live | Read by |
 | --- | --- | --- | --- |
-| `github` | `executionRepository`, `workspaceRepository`, `label`, `managedLabel`, `assignee`, `autoStart`, `provider`, `model` | `.avoozl.json` | `github_repositories`, `github sync` |
+| `github` | `executionRepository`, `workspaceRepository`, `assignee`, `autoStart`, `provider`, `model` | `.avoozl.json` | `github_repositories`, `github sync` |
 | `plugin:<id>` | `labelFields`, `assigneeField` | either | the tick's `poll` |
 | `mcp` | `labelFields`, `assigneeField` | either | `intake.submit` |
 
-All kinds take `repository`, `allowedActors` and `minimumPermission`.
+All kinds take `repository`. Who counts is the repository's own `allowedActors` and `minimumPermission` (`github.repositories`); a source has none.
 
 **Load.** `github-sources.mjs` owns the GitHub kind. `githubSources(value)`
 returns the file's GitHub sources by GitHub repository: each `via: github`
@@ -4856,7 +4853,7 @@ Notes:
 
 ### 5.1 Crew Mode spike result (2026-11-11)
 
-Replaced 2026-11-18 by the worker-paths spec (D6, D7): the tick is the one dispatcher, and a person takes a task by hand with `avoozl claim`.
+Replaced 2026-11-18 by the worker-paths spec (D6, D7): the tick is the one dispatcher, and a person takes a task by hand with `avoozl take`.
 
 **Verified.** A Crew Mode conductor delivered a four-task Avoozl graph
 (`slug`, `clamp`; `post-url` requires `slug`; `page-url` requires `post-url` and
@@ -4959,7 +4956,7 @@ entry may replace the workspace's list.
 
 - `model` is the writer's model. The tick passes it to `open_session` for
   worker sessions it opens, and a Crew Mode conductor names it when it claims
-  a task (`runner.claim`). Each binding records the model it was opened on.
+  a task (`runner.take`). Each binding records the model it was opened on.
 - Each reviewer has `id`, `focus`, `agent`, `model`, and `distinctFrom`
   (`model`, the default, or `session`). Validation refuses a duplicate `id`,
   an empty `focus`, and, for `distinctFrom: model`, a missing or `auto` model
@@ -7163,7 +7160,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 49. Every role on any executor | Verifier, reviewer, planner, retro, watch (§4.28) |
 | 50. Kiro Crew stays the only UI | In flight, Send message, harness and model per role (§4.28) |
 | 51. Headless workers | Supervisor under launchd or systemd, CLI only (§4.28) |
-| 52. Manual path | `next`, `claim`, `runner report` kept (§4.28) |
+| 52. Manual path | `next`, `take`, `runner report` kept (§4.28) |
 | 54. Steady CI waste | File classes per pull request, repeat runs, fixed CI limits over every pull request, CI plan proposals with PDCA by class, the Flow CI card (§4.30) |
 | 55. Every build receipt | Every line of every receipt artifact, failed attempts kept, costliest phase in Flow, the build report format and breakdowns in the retro brief (§4.31) |
 | 56. Working branches and a spec journal | Qualified working heads and forks, durable minimal outcomes, guarded intents, held rebuild, epic lifecycle, intake/export and mirror imports; explicit dependencies in tasks.md (§4.32) |

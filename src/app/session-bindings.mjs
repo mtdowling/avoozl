@@ -234,8 +234,8 @@ export function bindSession(
         : ["title", "tick"].includes(input.source)
           ? input.source
           : "bind",
-      // Who claimed it for a Crew Mode conductor: its own session slot, or
-      // "cli" for the local command line. Set only by runner.claim.
+      // Who took it, for a Crew Mode conductor: its own session slot, or
+      // "cli" for the local command line. Set only by runner.take.
       ...(conductor ? { conductor } : {}),
       // The model the session was opened on, and the commit a checks or
       // review session judges (§5.2). Unset means unknown.

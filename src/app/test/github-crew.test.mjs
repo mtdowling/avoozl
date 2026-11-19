@@ -16,23 +16,23 @@ test("crew labels default to Issue Radar's own and stay configurable", () => {
         [REPO]: base,
         "example/other": {
           ...base,
-          crewLabels: { claim: "bot busy", needsHuman: "help wanted" },
+          crewLabels: { inProgress: "bot busy", needsHuman: "help wanted" },
         },
       },
     });
   assert.deepEqual(policy.repositories[REPO].crewLabels, {
-    claim: "crew: in progress",
+    inProgress: "crew: in progress",
     needsHuman: "crew: needs human",
   });
   assert.deepEqual(policy.repositories["example/other"].crewLabels, {
-    claim: "bot busy",
+    inProgress: "bot busy",
     needsHuman: "help wanted",
   });
   for (const crewLabels of [
-    { claim: "same", needsHuman: "Same" },
-    { claim: "go" },
+    { inProgress: "same", needsHuman: "Same" },
+    { inProgress: "go" },
     { unknown: "x" },
-    { claim: "" },
+    { inProgress: "" },
   ])
     assert.throws(() =>
       normalizeGitHubPolicy({

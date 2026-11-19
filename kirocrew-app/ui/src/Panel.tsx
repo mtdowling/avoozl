@@ -120,7 +120,7 @@ function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
           row.instance ?? (row.source === 'radar' ? 'No Avoozl' : null),
           row.crew ?? row.who,
           row.source === 'radar' ? row.ref : row.who,
-          !row.phase ? 'claim label, no claim comment' : null,
+          !row.phase ? 'in-progress label, no crew comment' : null,
         ].filter(Boolean)
         return (
           <PanelRow
@@ -132,7 +132,7 @@ function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
             chips={
               <>
                 <PanelChip tone={row.stale ? 'warn' : 'info'} tip={row.updated ? `Updated ${relativeTime(row.updated, now)}` : undefined}>
-                  {row.phase ?? 'claimed'}
+                  {row.phase ?? 'in progress'}
                 </PanelChip>
                 {row.stale && <PanelChip tone="warn">Stale</PanelChip>}
                 {check && (
@@ -144,7 +144,7 @@ function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
             }
             age={shortAgo(row.claimedAt ?? row.updated, now)}
             ageTip={
-              [row.claimedAt && `Claimed ${relativeTime(row.claimedAt, now)}`, row.updated && `updated ${relativeTime(row.updated, now)}`].filter(Boolean).join(', ') || undefined
+              [row.claimedAt && `Started ${relativeTime(row.claimedAt, now)}`, row.updated && `updated ${relativeTime(row.updated, now)}`].filter(Boolean).join(', ') || undefined
             }
             meta={[...new Set(meta)].join(' · ')}
             actions={
@@ -401,7 +401,7 @@ export default function AvoozlPanel() {
   )
   const inFlight = (
     <PanelSection id="in-flight" title="In flight" count={model.inFlight.length} summary={reads?.crews && reads.crews.stale > 0 ? `${reads.crews.stale} stale` : undefined} open>
-      {unreadOr('inFlight', 'No crew has a claim right now.', model.inFlight.length, () => (
+      {unreadOr('inFlight', 'No crew is working on an issue right now.', model.inFlight.length, () => (
         <FlightRows rows={model.inFlight} now={now} />
       ))}
     </PanelSection>
@@ -600,7 +600,7 @@ export default function AvoozlPanel() {
           <div data-panel-crew>
             <PanelSection id="crew" title={`Crew ${kind.crew}`} open>
               {!crewRow ? (
-                <PanelEmpty>{loading ? 'Loading…' : unread('inFlight') ? NOTE_UNREAD.inFlight : "No live claim from this crew in Avoozl's repositories."}</PanelEmpty>
+                <PanelEmpty>{loading ? 'Loading…' : unread('inFlight') ? NOTE_UNREAD.inFlight : "No issue this crew is working on in Avoozl's repositories."}</PanelEmpty>
               ) : (
                 <PanelList>
                   <PanelRow
@@ -651,7 +651,7 @@ export default function AvoozlPanel() {
                   </Box>
                 </PanelList>
               )}
-              <PanelEmpty>Avoozl cannot message this chat. It shows what the claim on GitHub says.</PanelEmpty>
+              <PanelEmpty>Avoozl cannot message this chat. It shows what the crew's label and comment on GitHub say.</PanelEmpty>
             </PanelSection>
           </div>
           {lineSection}
@@ -683,6 +683,6 @@ export default function AvoozlPanel() {
 
 // "2 next · 1 held", what the queue chip and its section header say.
 function queueSummary(queue: NonNullable<PanelModel['queue']>): string {
-  const parts = [queue.claimed ? `${queue.claimed} claimed` : '', `${queue.next} next`, queue.held ? `${queue.held} held` : ''].filter(Boolean)
+  const parts = [queue.claimed ? `${queue.claimed} in progress` : '', `${queue.next} next`, queue.held ? `${queue.held} held` : ''].filter(Boolean)
   return parts.join(' · ')
 }

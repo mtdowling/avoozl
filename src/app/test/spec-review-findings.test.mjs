@@ -120,7 +120,7 @@ function finding(extra = {}) {
     file: "design.md",
     line: 3,
     quote: "Use src/missing.mjs.",
-    claim: "The named source file does not exist.",
+    statement: "The named source file does not exist.",
     evidence: "Searched src/ for missing.mjs; no matching file was found.",
     ...extra,
   };
@@ -222,7 +222,7 @@ test("valid findings use the served model, survive revision changes, and retry w
   assert.equal(rebound.changed, false);
   assert.equal(rebound.binding.review.roundId, round.id);
   await assert.rejects(
-    submit([finding({ claim: "A different claim." })]),
+    submit([finding({ statement: "A different statement." })]),
     /final findings/,
   );
   assert.equal(store.get("plans", plan.id).hash, updated.hash);
@@ -246,7 +246,7 @@ test("invalid findings are refused atomically against the exact stored files", a
     { quote: "x".repeat(501) },
     { kind: "other" },
     { severity: "minor" },
-    { claim: " " },
+    { statement: " " },
     { evidence: "" },
   ]) {
     await assert.rejects(submit([finding(), finding(bad)]));

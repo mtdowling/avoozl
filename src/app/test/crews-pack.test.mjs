@@ -56,7 +56,6 @@ test("the preview lists each label as a setting and creates nothing in Radar", (
   assert.deepEqual(names, [
     `github.repositories.${REPO}.managedLabels.ready`,
     `github.repositories.${REPO}.radar.planLabel`,
-    `github.repositories.${REPO}.radar.conflictLabel`,
   ]);
   assert.ok(preview.changes.every((c) => c.action === "create"));
   // Nothing in the preview asks for a crew, a model price or a prompt write.
@@ -158,7 +157,7 @@ async function install(ops) {
 
 test("a pack with a private name is refused, and a clean one imports only after its preview", async (t) => {
   const bad = setup(t, {
-    labels: { plan: "zebra", ready: "ready", conflict: "merge conflict" },
+    labels: { plan: "zebra", ready: "ready" },
   });
   await install(bad.ops);
   await assert.rejects(

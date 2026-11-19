@@ -399,7 +399,7 @@ function crewState(entry, settings = {}) {
   const labels = new Set((entry.labels || []).map(lower)),
     crew = settings.crewLabels || CREW_LABEL_DEFAULTS;
   return {
-    claimed: labels.has(lower(crew.claim)),
+    claimed: labels.has(lower(crew.inProgress)),
     needsHuman: labels.has(lower(crew.needsHuman)),
     needsHumanLabel: crew.needsHuman,
   };

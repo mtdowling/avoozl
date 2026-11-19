@@ -4,12 +4,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { previewWorker } from "../worker-setup.mjs";
 
-const pool = (spec, claims = "example/code") => ({
+const pool = (spec, grants = "example/code") => ({
   spec,
   repository: "example/plans",
   issue: 1,
   target: "example/code",
-  claims,
+  grants,
   base: "main",
   visibility: "private",
 });
@@ -45,14 +45,14 @@ test("setup shows login, readable target, writable fork and claim mode", async (
   assert.deepEqual(result.sources, [
     { repository: "me/code", role: "admin", push: true },
   ]);
-  assert.equal(result.claims[0].mode, "request");
+  assert.equal(result.grants[0].mode, "request");
   // Write access to the claim repository lets this login reserve itself.
   const writer = await previewWorker({
     config: config(),
     github: github({ "example/code": "write" }),
     gateway: () => ({}),
   });
-  assert.equal(writer.claims[0].mode, "reserve");
+  assert.equal(writer.grants[0].mode, "reserve");
 });
 
 test("an unreadable target, no push right or no login is a problem", async () => {

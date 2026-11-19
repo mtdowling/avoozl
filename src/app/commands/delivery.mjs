@@ -142,23 +142,23 @@ export const commands = [
     },
   },
   {
-    command: "claim",
+    command: "take",
     help: [
       help(
         "deliver",
-        "claim TASK_ID [--release [--discard]]",
+        "take TASK_ID [--release [--discard]]",
         "Take a ready task by hand: prints its worktree and the report command; --release gives it back",
       ),
     ],
     async run({ options, positionals, localOrRequest }) {
-      // A manual claim is a person's: not from an agent the supervisor started.
+      // Taking a task by hand is a person's: not from an agent the supervisor started.
       if (process.env.AVOOZL_CHILD)
         throw Error(
-          "A claim is a person's. This command is running inside an agent the supervisor started.",
+          "Taking a task is a person's. This command is running inside an agent the supervisor started.",
         );
       console.log(
         JSON.stringify(
-          await localOrRequest("runner.claim", {
+          await localOrRequest("runner.take", {
             taskId: positionals[0],
             ...(options.release ? { release: true } : {}),
             ...(options.discard ? { discard: true } : {}),

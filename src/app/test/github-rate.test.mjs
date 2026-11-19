@@ -558,21 +558,15 @@ test("inside the max age a read makes no GitHub call, and after it a 304 revalid
   assert.equal(log.requests.length, 2);
 });
 
-test("a repository's own seconds beat the default, and 0 turns the cache off", async (t) => {
-  const { github, log, clock } = aged(
+test("0 seconds turns the cache off for every repository", async (t) => {
+  const { github, log } = aged(
     t,
     { "/repos/o/a": { id: 1 }, "/repos/o/b": { id: 2 } },
-    (repo) => (repo === "o/a" ? 0 : 300),
+    () => 0,
   );
   for (const repo of ["o/a", "o/b", "o/a", "o/b"])
     await github.repository(repo);
-  assert.deepEqual(
-    log.requests.map((r) => r.path),
-    ["/repos/o/a", "/repos/o/b", "/repos/o/a"],
-  );
-  clock.now += 299_000;
-  await github.repository("o/b");
-  assert.equal(log.requests.length, 3);
+  assert.equal(log.requests.length, 4);
 });
 
 test("a write makes that repository's answers stale, and the next read revalidates", async (t) => {

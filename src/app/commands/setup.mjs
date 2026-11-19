@@ -8,11 +8,11 @@ import { initializeWorkspace } from "../workspace.mjs";
 import { help } from "../command-help.mjs";
 
 async function runSpecOffer({ options, positionals, localOrRequest, need }) {
-  // The driver offers a task to a worker login and reserves the claims its
+  // The driver offers a task to a worker login and reserves the grants its
   // workers ask for (R90.4): each a person's own act at this machine.
-  // `spec claims release SPEC TASK` and `spec claims status SPEC`.
+  // `spec grants release SPEC TASK` and `spec grants status SPEC`.
   const sub =
-      positionals[0] === "claims" &&
+      positionals[0] === "grants" &&
       ["release", "status"].includes(positionals[1])
         ? positionals.splice(1, 1)[0]
         : null,
@@ -20,7 +20,7 @@ async function runSpecOffer({ options, positionals, localOrRequest, need }) {
   console.log(
     JSON.stringify(
       await localOrRequest(
-        sub ? `spec.claims.${sub}` : `spec.${positionals[0]}`,
+        sub ? `spec.grants.${sub}` : `spec.${positionals[0]}`,
         sub === "status"
           ? { planId }
           : sub === "release"
@@ -28,9 +28,9 @@ async function runSpecOffer({ options, positionals, localOrRequest, need }) {
                 planId,
                 task: need(
                   positionals[2],
-                  "spec claims release SPEC TASK --claims OWNER/REPO",
+                  "spec grants release SPEC TASK --grants OWNER/REPO",
                 ),
-                claims: need(options.claims, "--claims OWNER/REPO"),
+                grants: need(options.grants, "--grants OWNER/REPO"),
               }
             : positionals[0] === "offer"
               ? {
@@ -50,9 +50,9 @@ async function runSpecOffer({ options, positionals, localOrRequest, need }) {
                 }
               : {
                   planId,
-                  claims: need(
-                    options.claims,
-                    "spec claims SPEC --claims OWNER/REPO --base BRANCH [--cap N]",
+                  grants: need(
+                    options.grants,
+                    "spec grants SPEC --grants OWNER/REPO --base BRANCH [--cap N]",
                   ),
                   base: need(options.base, "--base BRANCH"),
                   ...(options.cap ? { cap: Number(options.cap) } : {}),
@@ -294,7 +294,7 @@ export const commands = [
     },
   },
   { command: "spec offer", help: [], run: runSpecOffer },
-  { command: "spec claims", help: [], run: runSpecOffer },
+  { command: "spec grants", help: [], run: runSpecOffer },
   {
     command: "workspace",
     help: [
@@ -355,7 +355,7 @@ export const commands = [
     help: [
       help(
         "setup",
-        "github configure OWNER/REPO --repo ID [--assignee LOGIN] [--allowed-actors LOGINS]",
+        "github configure OWNER/REPO --repo ID [--assignee LOGIN]",
         "",
       ),
       help(
@@ -392,17 +392,10 @@ export const commands = [
           repository: options.repository || positionals[1],
           repositoryId: options.repo,
           assignee: options.assignee,
-          label: options.label,
-          managedLabel: options["managed-label"],
           provider: options.provider,
           model: options.model,
           autoStart: options["auto-start"],
           active: !options.inactive,
-          minimumPermission: options.permission,
-          allowedActors: options["allowed-actors"]
-            ?.split(",")
-            .map((entry) => entry.trim())
-            .filter(Boolean),
         };
       } else if (action === "setup") {
         // Preview first; rerun with --confirm --preview-hash HASH to write.
@@ -469,8 +462,8 @@ export const commands = [
     help: [
       help(
         "setup",
-        "setup OWNER/REPO --repo ID --checks NAME[,NAME] [--base BRANCH]\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
-        "Preview repository setup for landing; --checks names the required GitHub checks, not the repository's own checks; --yes applies it",
+        "setup OWNER/REPO --repo ID\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+        "Preview repository setup for landing; the required checks and base branch come from the repository's settings; --yes applies it",
       ),
     ],
     async run({ options, positionals, localOrRequest, need }) {
@@ -485,11 +478,9 @@ export const commands = [
           await localOrRequest("repository.setup", {
             repository: need(
               positionals[0],
-              "setup OWNER/REPO --repo ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+              "setup OWNER/REPO --repo ID [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
             ),
             repositoryId: options.repo,
-            base: options.base,
-            checks: list(options.checks),
             methods: list(options.methods),
             landing: options.landing,
             confirm: Boolean(options.yes),

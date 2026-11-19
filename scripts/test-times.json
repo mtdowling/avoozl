@@ -208,7 +208,6 @@
     "src/app/test/github-include-done.test.mjs": 867,
     "src/app/test/github-intake-budget.test.mjs": 342,
     "src/app/test/github-intake.test.mjs": 834,
-    "src/app/test/github-label-behaviors.test.mjs": 261,
     "src/app/test/github-marker.test.mjs": 320,
     "src/app/test/github-pacer.test.mjs": 4125,
     "src/app/test/github-planner.test.mjs": 2076,

@@ -63,7 +63,7 @@ export const commands = [
                 : `${anchor.lineStart}-${anchor.lineEnd}`,
             where = `${anchor.file}:${lines}${anchor.moved ? " (moved or removed)" : ""}`;
           console.log(
-            `${finding.id} ${where} ${finding.severity} ${finding.findingState} ${finding.category}: ${finding.claim}\n  Evidence: ${finding.evidence}${finding.answer ? "\n  Planner: " + finding.answer.action + " " + finding.answer.text : ""}`,
+            `${finding.id} ${where} ${finding.severity} ${finding.findingState} ${finding.category}: ${finding.statement}\n  Evidence: ${finding.evidence}${finding.answer ? "\n  Planner: " + finding.answer.action + " " + finding.answer.text : ""}`,
           );
         }
       }

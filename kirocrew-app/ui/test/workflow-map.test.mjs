@@ -15,8 +15,8 @@ const SINGLE = {
       allowedActors: ['sam', 'lee'],
       release: { capacity: 3, mode: 'step' },
       managedLabels: { ready: 'go-crew' },
-      crewLabels: { claim: 'taken', needsHuman: 'wants-person' },
-      radar: { planLabel: 'shape-it', approvalLabel: 'ship-it', conflictLabel: 'rebase-me' },
+      crewLabels: { inProgress: 'taken', needsHuman: 'wants-person' },
+      radar: { planLabel: 'shape-it' },
     },
   },
 }
@@ -36,9 +36,9 @@ test('single repository: three lanes with the saved label names', () => {
   )
   const epic = Object.fromEntries(cards(built, 'epic').map((card) => [card.key, card]))
   assert.equal(valueOf(epic['epic-plan-label'], 'Planning label').text, 'shape-it')
-  assert.equal(valueOf(epic['epic-approve'], 'Approval label').text, 'ship-it')
+  assert.equal(valueOf(epic['epic-approve'], 'Approval label').text, 'avoozl:plan-approved')
   assert.equal(valueOf(epic['epic-punt'], 'Escalation label').text, 'wants-person')
-  assert.equal(valueOf(epic['epic-claim'], 'Claim label').text, 'taken')
+  assert.equal(valueOf(epic['epic-mark'], 'In-progress label').text, 'taken')
   assert.equal(valueOf(epic['epic-plan-label'], 'Allowed people').text, 'sam, lee')
   // Who codes is gone (R91.6): the worker builds, and no card names a coder.
   assert.equal(epic['epic-build-worker'].title, 'Worker chats build')
@@ -100,7 +100,7 @@ test('defaults: Radar labels are Radar defaults and Avoozl labels use the avoozl
   assert.deepEqual(rows, {
     plan: 'avoozl:plan',
     needsHuman: 'crew: needs human',
-    claim: 'crew: in progress',
+    inProgress: 'crew: in progress',
     ready: 'avoozl:ready',
     approval: 'avoozl:plan-approved',
     conflict: 'avoozl:merge-conflict',
@@ -133,7 +133,7 @@ test('tags come from the one table, and no card text writes a tag', () => {
 test('the Labels table lists each label, its writer and a setting to open', () => {
   const rows = Object.fromEntries(map(SINGLE).labels.map((row) => [row.key, row]))
   assert.deepEqual(
-    ['plan', 'needsHuman', 'claim', 'ready', 'approval', 'conflict', 'review', 'drafted'].filter((key) => !rows[key]),
+    ['plan', 'needsHuman', 'inProgress', 'ready', 'approval', 'conflict', 'review', 'drafted'].filter((key) => !rows[key]),
     [],
   )
   assert.equal(rows.plan.name, 'shape-it')

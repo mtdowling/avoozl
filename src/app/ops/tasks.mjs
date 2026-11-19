@@ -38,7 +38,6 @@ import { withWorkLock } from "../git.mjs";
 import { paceNeedsYou } from "../github-pacer.mjs";
 import { readGitHubPolicyOrNull } from "../github-policy.mjs";
 import { rateNeedsYou } from "../github-rate.mjs";
-import { parseRepository } from "../github.mjs";
 import { listHarnessDefinitions } from "../harness-definitions.mjs";
 import { highlightLanguages } from "../highlight-languages.mjs";
 import { instanceView } from "../instance.mjs";
@@ -1373,41 +1372,6 @@ export const entries = [
         extractionId: extraction.id,
       });
       return { plan, extraction };
-    },
-  },
-
-  {
-    name: "work.release",
-    class: "protect",
-    policy: routed,
-    async handler({ input }) {
-      const store = this.store;
-
-      const task = this.read().tasks.find(
-          (candidate) =>
-            candidate.id === resolveTaskId(this.read(), input.taskId),
-        ),
-        claim = task?.githubClaim;
-      if (!task) fail("Task not found.", 404);
-      if (!claim?.repository || !claim.number || !claim.login)
-        fail("This task is not owned through a GitHub claim.", 409);
-      await this.github.removeAssignees(
-        parseRepository(claim.repository),
-        claim.number,
-        [claim.login],
-      );
-      return store.mutate(`Release ${task.id}`, (data) => {
-        const current = data.tasks.find(
-          (candidate) => candidate.id === task.id,
-        );
-        current.owner = "";
-        current.githubClaim = {
-          ...current.githubClaim,
-          releasedAt: new Date().toISOString(),
-        };
-        current.updatedAt = new Date().toISOString();
-        return current;
-      });
     },
   },
 

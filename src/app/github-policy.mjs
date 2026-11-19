@@ -25,13 +25,12 @@ export const RULE_ACTIONS = Object.freeze([
   "resume",
   "quarantine",
 ]);
+// The labels Avoozl writes whose names a repository may change. Others are
+// fixed: see RADAR_FIXED_LABELS.
 export const MANAGED_LABEL_KEYS = Object.freeze([
   "managed",
   "responding",
-  "planning",
   "ready",
-  "stale",
-  "decision",
 ]);
 export const PERMISSIONS = Object.freeze([
   "read",
@@ -51,36 +50,35 @@ export const MODE_CHOICES = Object.freeze([LOCAL_MODE, ...MODES]);
 // Issue Radar's own labels, which Avoozl reads and never writes (§6.4). The
 // defaults are Issue Radar's: its fixed claim label and the default of its
 // per-repository `needs_human_label` setting.
-export const CREW_LABEL_KEYS = Object.freeze(["claim", "needsHuman"]);
+export const CREW_LABEL_KEYS = Object.freeze(["inProgress", "needsHuman"]);
 export const CREW_LABEL_DEFAULTS = Object.freeze({
-  claim: "crew: in progress",
+  inProgress: "crew: in progress",
   needsHuman: "crew: needs human",
 });
 // Issue Radar's own page route (its app.json), where a user scopes a crew
 // (R17.4).
 export const ISSUE_RADAR_PATH = "/issue-radar";
-// Avoozl's own workflow labels (design D2, D26), each with an `avoozl:`
-// default (RC21). Ready is `managedLabels.ready`. A name set in `.avoozl.json`
-// always wins; only an unset name reads the default.
+// The workflow labels something reads (design D2, D26), each with an
+// `avoozl:` default (RC21). Ready is `managedLabels.ready`. A name set in
+// `.avoozl.json` always wins; only an unset name reads the default.
 export const RADAR_KEYS = Object.freeze([
   "planLabel",
-  "conflictLabel",
-  "approvalLabel",
   "reviewLabel",
   "draftedLabel",
-  "clearPlanLabel",
-  "showPlansRepo",
   "escalationDraft",
 ]);
 export const RADAR_DEFAULTS = Object.freeze({
   planLabel: "avoozl:plan",
-  conflictLabel: "avoozl:merge-conflict",
-  approvalLabel: "avoozl:plan-approved",
   reviewLabel: "avoozl:review",
   draftedLabel: "avoozl:drafted",
-  clearPlanLabel: false,
+});
+// Created at setup under these names; nothing reads a setting for them.
+export const RADAR_FIXED_LABELS = Object.freeze({
+  conflict: "avoozl:merge-conflict",
+  approval: "avoozl:plan-approved",
 });
 export const READY_LABEL_DEFAULT = "avoozl:ready";
+export const MANAGED_LABEL_DEFAULT = "avoozl:managed";
 // The `github` keys the Settings view edits.
 export const POLICY_KEYS = Object.freeze([
   "mode",
@@ -120,7 +118,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "requiredChecks",
     "pullRequestReviews",
     "release",
-    "priority",
     "priorityLabels",
     "waitingLabels",
     "managedLabels",
@@ -136,7 +133,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "conflicts",
     "merge",
     "landing",
-    "cacheSeconds",
     "triage",
   ],
   approval: ["decisionRecord"],
@@ -423,21 +419,14 @@ function repositoryInput(value, id, mode) {
     fail(
       `${label} has a respond rule, so managedLabels.responding must name its label.`,
     );
-  // `priorityLabels` is the newer name for `priority`; both are one list.
-  if (value.priority !== undefined && value.priorityLabels !== undefined)
-    fail(
-      `${label} has both priority and priorityLabels; use only priorityLabels.`,
-    );
-  const priorityKey =
-      value.priorityLabels !== undefined ? "priorityLabels" : "priority",
-    priority = names(value[priorityKey], `${label}.${priorityKey}`),
+  const priority = names(value.priorityLabels, `${label}.priorityLabels`),
     // Labels that mean "waiting on someone outside": the task waits with
     // the reason "Waiting on the author" while one is on its item.
     waitingLabels = names(value.waitingLabels, `${label}.waitingLabels`);
   for (const entry of [...priority, ...waitingLabels])
     if (managedNames.has(lower(entry)))
       fail(
-        `${label}.${priority.includes(entry) ? priorityKey : "waitingLabels"} cannot use managed label ${entry}.`,
+        `${label}.${priority.includes(entry) ? "priorityLabels" : "waitingLabels"} cannot use managed label ${entry}.`,
       );
   const crewInput = onlyKeys(
       value.crewLabels ?? {},
@@ -454,20 +443,9 @@ function repositoryInput(value, id, mode) {
     );
   const radarInput = onlyKeys(value.radar ?? {}, RADAR_KEYS, `${label}.radar`),
     radar = { ...RADAR_DEFAULTS };
-  for (const key of [
-    "planLabel",
-    "conflictLabel",
-    "approvalLabel",
-    "reviewLabel",
-    "draftedLabel",
-  ])
+  for (const key of ["planLabel", "reviewLabel", "draftedLabel"])
     if (Object.hasOwn(radarInput, key))
       radar[key] = name(radarInput[key], `${label}.radar.${key}`);
-  if (radarInput.clearPlanLabel !== undefined) {
-    if (typeof radarInput.clearPlanLabel !== "boolean")
-      fail(`${label}.radar.clearPlanLabel must be true or false.`);
-    radar.clearPlanLabel = radarInput.clearPlanLabel;
-  }
   // R103.9: draft an escalation's plan locally when the needs-human label
   // appears. Off by default; it writes nothing to GitHub and starts nothing.
   if (radarInput.escalationDraft !== undefined) {
@@ -490,20 +468,14 @@ function repositoryInput(value, id, mode) {
     decisionRecord: approvalInput.decisionRecord ?? false,
   };
 
-  // Unset follows the repository: on when it is private, off when public.
-  if (radarInput.showPlansRepo !== undefined) {
-    if (typeof radarInput.showPlansRepo !== "boolean")
-      fail(`${label}.radar.showPlansRepo must be true or false.`);
-    radar.showPlansRepo = radarInput.showPlansRepo;
-  }
   const seen = new Map();
   for (const [role, entry] of [
     ["planning", radar.planLabel],
     ["needs-human", crewLabels.needsHuman],
-    ["claim", crewLabels.claim],
+    ["in-progress", crewLabels.inProgress],
     ["ready", managed.ready ?? READY_LABEL_DEFAULT],
-    ["conflict", radar.conflictLabel],
-    ["approval", radar.approvalLabel],
+    ["conflict", RADAR_FIXED_LABELS.conflict],
+    ["approval", RADAR_FIXED_LABELS.approval],
     ["review", radar.reviewLabel],
     ["drafted", radar.draftedLabel],
   ]) {
@@ -534,13 +506,7 @@ function repositoryInput(value, id, mode) {
       fail(`${label}.crewLabels cannot use managed label ${entry}.`);
   // RC21.2: an Avoozl workflow label is not one of the other managed labels
   // (ready is itself `managedLabels.ready`).
-  for (const key of [
-    "planLabel",
-    "conflictLabel",
-    "approvalLabel",
-    "reviewLabel",
-    "draftedLabel",
-  ])
+  for (const key of ["planLabel", "reviewLabel", "draftedLabel"])
     if (managedNames.has(lower(radar[key])))
       fail(`${label}.radar.${key} cannot use managed label ${radar[key]}.`);
   // A crew writes these with the owner's login, so they must never start
@@ -592,7 +558,7 @@ function repositoryInput(value, id, mode) {
     release,
     // The code repository has bin/build-receipt (RC32.8).
     buildReceipts: value.buildReceipts === true,
-    priority,
+    priorityLabels: priority,
     waitingLabels,
     managedLabels: managed,
     crewLabels,
@@ -610,10 +576,6 @@ function repositoryInput(value, id, mode) {
       ? { sourceRules: rules.filter((rule) => rule.source) }
       : {}),
     // Deferred features (task 8.2), each off by default.
-    cacheSeconds: cacheSecondsInput(
-      value.cacheSeconds,
-      `${label}.cacheSeconds`,
-    ),
     discussions,
     untriaged,
     conflicts: conflictsInput(value.conflicts, `${label}.conflicts`),
@@ -869,14 +831,14 @@ export function readGitHubPolicyOrNull(workspaceRoot) {
   }
 }
 
-// A registered repository the policy does not name: no rules, the same
-// actor checks.
-export function legacyRepositoryPolicy(config) {
+// A registered repository the policy does not name: no rules, and the
+// default actor check.
+export function legacyRepositoryPolicy() {
   return {
     baseBranch: null,
-    allowedActors: [...(config.allowedActors || [])],
-    minimumPermission: config.minimumPermission || "write",
-    managedLabels: config.managedLabel ? { managed: config.managedLabel } : {},
+    allowedActors: [],
+    minimumPermission: DEFAULT_PERMISSION,
+    managedLabels: {},
     rules: [],
   };
 }

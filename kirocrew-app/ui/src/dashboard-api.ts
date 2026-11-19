@@ -375,10 +375,10 @@ export function countsStyles(layout: CountsLayout) {
   } as const
 }
 
-// The On the line rail (RC8.4): Ready, Claimed, PR, CI, Merge. It reads the
-// claim marker only. The marker holds no CI result, so with a pull request
-// open CI is the step in progress, and Merge is never done on a live claim.
-export const RAIL_STEPS = ['Ready', 'Claimed', 'PR', 'CI', 'Merge'] as const
+// The On the line rail (RC8.4): Ready, In progress, PR, CI, Merge. It reads the
+// crew marker only. The marker holds no CI result, so with a pull request
+// open CI is the step in progress, and Merge is never done while a crew is working.
+export const RAIL_STEPS = ['Ready', 'In progress', 'PR', 'CI', 'Merge'] as const
 export interface RailStep {
   label: (typeof RAIL_STEPS)[number]
   state: 'done' | 'now' | 'later'

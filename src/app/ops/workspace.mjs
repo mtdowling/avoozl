@@ -38,7 +38,7 @@ import { journalOf } from "../spec-scheduler.mjs";
 import { fail } from "../store.mjs";
 import { WORKSPACE_LOCK, tick, tickHealth, tickLog } from "../tick.mjs";
 import { planPage, recentIntegrations } from "../views.mjs";
-import { checkStaleClaims } from "../worker-release.mjs";
+import { checkStaleGrants } from "../worker-release.mjs";
 import {
   assertRepositoryRemovable,
   removeWorkspaceRepositoryRecords,
@@ -108,7 +108,7 @@ export const entries = [
     async handler({ input }) {
       const store = this.store;
 
-      // A worker machine pulls and claims before it runs what it was given.
+      // A worker machine pulls and accepts before it runs what it was given.
       await workerTick(store, this.workspaceRoot, this.github);
       // A runner holds no plans, so its tick only runs handed tasks.
       const remote = await runnerTick(store, this.workspaceRoot, {
@@ -138,14 +138,14 @@ export const entries = [
                 }
               : null;
           };
-        // Stale worker claims reach Needs you; nothing releases them (R90.6).
-        await checkStaleClaims(store, {
+        // Stale worker accepts reach Needs you; nothing releases them (R90.6).
+        await checkStaleGrants(store, {
           workspaceRoot: this.workspaceRoot,
           driving,
           journalFor,
         }).catch(() => 0);
         // Worker machines get the driven specs' ready tasks, and their
-        // claims are answered, when workers.offerTo names them (WP5).
+        // grants are answered, when workers.offerTo names them (WP5).
         if (driving.length)
           await this.workerOffers(store, driving).catch((error) =>
             store.event(null, "worker.offers", { error: error.message }),
@@ -466,25 +466,19 @@ export const entries = [
         editable: Boolean(repository?.editable),
       });
       try {
-        const labels = input.labelBehaviors,
-          issueIntake =
-            githubRepository && authorizeIssues
-              ? await prepareGitHubRepository(store, this.github, {
-                  repository: githubRepository,
-                  workspaceRepositoryId: id,
-                  repositoryId: repository.id,
-                  registering: repository,
-                  assignee: input.assignee,
-                  label:
-                    input.readyLabel || labels?.ready?.[0] || "avoozl:ready",
-                  managedLabel: input.managedLabel,
-                  allowedActors: input.allowedActors,
-                  minimumPermission: input.minimumPermission,
-                  provider: input.provider,
-                  model: input.model,
-                  autoStart: input.autoStart,
-                })
-              : null;
+        const issueIntake =
+          githubRepository && authorizeIssues
+            ? await prepareGitHubRepository(store, this.github, {
+                repository: githubRepository,
+                workspaceRepositoryId: id,
+                repositoryId: repository.id,
+                registering: repository,
+                assignee: input.assignee,
+                provider: input.provider,
+                model: input.model,
+                autoStart: input.autoStart,
+              })
+            : null;
         this.configuration?.updateUnifiedRepository({
           id,
           previousRepository: existing?.github,

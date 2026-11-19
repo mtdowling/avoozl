@@ -195,33 +195,33 @@ try {
   await takeOverSpec(store, { workspaceRoot: P.ws, actor: "Operator" }, PLAN);
   event("setup.done", { root: ROOT, repo: git(REPO, "rev-parse", "HEAD") });
 
-  // 2. Action 1: claim one task from the command line.
-  const claim = person(P.checkout, "claim", "hand");
-  const claimed = claim.status === 0 ? JSON.parse(claim.stdout) : null;
-  result.claim = {
-    status: claim.status,
-    worktree: claimed?.worktree?.path ?? null,
-    report: claimed?.report ?? null,
+  // 2. Action 1: take one task from the command line.
+  const take = person(P.checkout, "take", "hand");
+  const taken = take.status === 0 ? JSON.parse(take.stdout) : null;
+  result.take = {
+    status: take.status,
+    worktree: taken?.worktree?.path ?? null,
+    report: taken?.report ?? null,
   };
 
-  // Action 4, run here: claim a third task and release it before any tick,
+  // Action 4, run here: take a third task and release it before any tick,
   // so the first tick shows whether a released task is ready again. Run
   // after the landing, the tick has already started it.
-  const second = person(P.checkout, "claim", "back");
-  const release = person(P.checkout, "claim", "back", "--release");
+  const second = person(P.checkout, "take", "back");
+  const release = person(P.checkout, "take", "back", "--release");
 
   // 3. Action 2: three ticks.
   const perTick = [];
   for (let i = 0; i < 3; i++) perTick.push(await tick());
   result.ticks = perTick;
   result.release = {
-    claim: second.status,
+    take: second.status,
     release: release.status,
     firstTick: perTick[0],
   };
 
-  // 4. Action 3: commit in the claimed worktree and report done.
-  const wt = claimed.worktree.path;
+  // 4. Action 3: commit in the taken worktree and report done.
+  const wt = taken.worktree.path;
   fs.mkdirSync(path.join(wt, "notes"), { recursive: true });
   fs.writeFileSync(path.join(wt, "notes", "hand.txt"), "alpha\n");
   git(wt, "add", ".");
@@ -258,9 +258,9 @@ try {
 }
 
 const verdict = {
-  claimPrintsWorktreeAndReport: Boolean(
-    result.claim.worktree &&
-      /runner report hand done/.test(result.claim.report ?? ""),
+  takePrintsWorktreeAndReport: Boolean(
+    result.take.worktree &&
+      /runner report hand done/.test(result.take.report ?? ""),
   ),
   tickStartsOtherOnly:
     !result.ticks.flat().includes("hand") &&
@@ -271,7 +271,7 @@ const verdict = {
     Boolean(result.landed.integration) &&
     result.landed.checkRuns.some((r) => r.commit === result.done.head),
   releasedReadyAndStarted:
-    result.release.claim === 0 &&
+    result.release.take === 0 &&
     result.release.release === 0 &&
     result.release.firstTick.includes("back"),
 };

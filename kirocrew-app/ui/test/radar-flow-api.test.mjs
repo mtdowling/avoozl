@@ -15,7 +15,7 @@ const view = (extra = {}) => ({
   median: [15 * MIN, 45 * MIN, 35 * MIN, 10 * MIN],
   medianLead: 105 * MIN,
   efficiency: 90 / 210,
-  bottleneck: 'Claim to PR',
+  bottleneck: 'Start to PR',
   errors: [],
   repositories: ['o/r'],
   ...extra,
@@ -35,8 +35,8 @@ test('one row per stage, the slowest marked', () => {
   assert.deepEqual(
     rows.map((r) => [r.name, r.median, r.slowest]),
     [
-      ['Ready to Claim', '15 min', false],
-      ['Claim to PR', '45 min', true],
+      ['Ready to start', '15 min', false],
+      ['Start to PR', '45 min', true],
       ['PR to green', '35 min', false],
       ['Green to merge', '10 min', false],
     ],

@@ -29,8 +29,8 @@ import {
   acknowledged,
   envelopeFor,
   forgetRequest,
-  requestClaims,
-} from "./worker-claims.mjs";
+  requestGrants,
+} from "./worker-grants.mjs";
 
 const run = promisify(execFile);
 const TASKS = "runner.tasks";
@@ -267,17 +267,17 @@ export async function pullWork(store, workspaceRoot, github) {
   return result;
 }
 
-// `avoozl worker claim`: ask for each pulled offer, and start only those the
+// `avoozl worker accept`: ask for each pulled offer, and start only those the
 // driver acknowledged for this worker, within the free lanes (R90.4). A task
 // no acknowledgment names starts nothing.
-export async function claimWork(store, workspaceRoot, github) {
+export async function acceptWork(store, workspaceRoot, github) {
   const config = readRunnerConfig(workspaceRoot);
   if (config?.role !== "worker")
     fail('This workspace is not a worker (.avoozl.json runner.role "worker").');
   if (!github?.available?.()) fail("A worker needs GitHub to claim.", 409);
   const login = (await github.currentUser())?.login;
   if (!login) fail("GitHub did not name this worker's login.", 409);
-  const requested = await requestClaims(store, {
+  const requested = await requestGrants(store, {
       pools: config.pools,
       github,
     }),
@@ -318,7 +318,7 @@ export async function claimWork(store, workspaceRoot, github) {
 
 // A worker machine's own tick (worker-paths WP5.2): pull offers within the
 // free lanes, ask for them, and start the ones the driver acknowledged, with
-// the same functions `avoozl worker pull` and `avoozl worker claim` run once
+// the same functions `avoozl worker pull` and `avoozl worker accept` run once
 // by hand. With no GitHub, or a GitHub that fails, the tick records one line
 // and starts nothing; the next tick tries again. Returns what it did, or null
 // on a workspace that is not a worker.
@@ -334,7 +334,7 @@ export async function workerTick(store, workspaceRoot, github) {
     const pulled = await pullWork(store, workspaceRoot, github);
     return {
       pulled: pulled.offers.length,
-      claimed: await claimWork(store, workspaceRoot, github),
+      claimed: await acceptWork(store, workspaceRoot, github),
     };
   } catch (error) {
     return skipped(error.message);

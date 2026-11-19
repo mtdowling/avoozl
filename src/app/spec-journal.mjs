@@ -42,7 +42,7 @@ const JOURNAL_KINDS = [
   "approval",
   "control",
   "generation",
-  "claim",
+  "grant",
   "offer",
   "intent",
   "void",
@@ -161,10 +161,10 @@ export function validateRecord(
       // The opaque driver a generation names, and the driver that wrote a
       // record (driver-generations.mjs).
       driver: matches(OPAQUE),
-      // The worker an offer or a claim acknowledgment names, by the opaque
+      // The worker an offer or a grant acknowledgment names, by the opaque
       // id of its login (worker-offers.mjs); never the login itself.
       worker: matches(OPAQUE),
-      // A claim record that ends the claim: the driver settled it after a
+      // A grant record that ends the grant: the driver settled it after a
       // verified result, or a person released it (R90.6).
       released: (value) => ["settled", "person"].includes(value),
       // An intent's check evidence; a void names the intent it voids.
@@ -244,7 +244,7 @@ export function validateRecord(
     checkpoint: ["refs"],
     approval: ["revision"],
     control: ["controls"],
-    claim: ["tasks"],
+    grant: ["tasks"],
     offer: ["tasks", "refs", "base", "worker", "driver"],
     intent: ["tasks", "refs", "base"],
     void: ["voids"],

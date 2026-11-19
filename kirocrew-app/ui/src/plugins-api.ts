@@ -345,6 +345,8 @@ export interface IntakeSourceRow {
   items?: SourceItems | null
   // A GitHub source: its repository's Issue Radar escalation label.
   escalationLabel?: string | null
+  // Who counts: the source repository's own setting, null when it has none.
+  who?: { allowedActors: string[]; minimumPermission: string | null } | null
 }
 
 // A GitHub source (design §4.39): set in Repository setup.
@@ -363,10 +365,6 @@ export interface SourceForm {
   repository: string
   labelFields: string
   assigneeField: string
-  // Who counts, for a plugin source: a minimum permission, or named people.
-  who: 'permission' | 'people'
-  minimumPermission: string
-  allowedActors: string
   scope: 'machine' | 'repository'
 }
 
@@ -376,9 +374,6 @@ export const emptySourceForm = (): SourceForm => ({
   repository: '',
   labelFields: '',
   assigneeField: '',
-  who: 'permission',
-  minimumPermission: '',
-  allowedActors: '',
   scope: 'machine',
 })
 
@@ -401,10 +396,6 @@ export function sourceEntry(form: SourceForm, taken: string[]): { id?: string; e
   if (taken.includes(id)) return { error: `A source named ${id} already exists.`, field: 'id' }
   if (!form.repository.trim()) return { error: 'Pick the repository its work lands in.', field: 'repository' }
   const fields = list(form.labelFields)
-  // Who counts applies to a plugin's items only: an MCP caller is you.
-  const plugin = form.via !== 'mcp'
-  const people = plugin && form.who === 'people' ? list(form.allowedActors) : []
-  if (plugin && form.who === 'people' && !people.length) return { error: 'Name at least one person, or choose a permission.', field: 'allowedActors' }
   return {
     id,
     entry: {
@@ -412,8 +403,6 @@ export function sourceEntry(form: SourceForm, taken: string[]): { id?: string; e
       repository: form.repository.trim(),
       ...(fields.length ? { labelFields: fields } : {}),
       ...(form.assigneeField.trim() ? { assigneeField: form.assigneeField.trim() } : {}),
-      ...(people.length ? { allowedActors: people } : {}),
-      ...(plugin && form.who === 'permission' && form.minimumPermission ? { minimumPermission: form.minimumPermission } : {}),
     },
   }
 }
@@ -473,13 +462,14 @@ export function sourceTriggers(row: IntakeSourceRow, plugins: PluginRow[]): { le
   return { level: 'Full rules', line: 'Its rules can start, deliver, pause or quarantine work, when the person who acted counts.' }
 }
 
-// Who counts on a saved source, in words.
-export function whoCounts(entry: Record<string, unknown> | null): string {
-  if (!entry || entry.via === 'mcp') return 'Not used: an MCP caller is you'
-  const people = strings(entry.allowedActors)
-  const permission = typeof entry.minimumPermission === 'string' ? entry.minimumPermission : null
+// Who counts on a saved source, in words. It is the source repository's
+// setting (Edit repository > GitHub), never the source's own.
+export function whoCounts(row: IntakeSourceRow): string {
+  if (!row.entry || row.entry.via === 'mcp') return 'Not used: an MCP caller is you'
+  const people = row.who?.allowedActors ?? []
+  const permission = row.who?.minimumPermission ?? (people.length ? null : DEFAULT_PERMISSION)
   if (people.length) return `${people.join(', ')}${permission ? `, or anyone with ${permission} or higher` : ''}`
-  return `Anyone with ${permission ?? DEFAULT_PERMISSION} or higher${permission ? '' : ' (default)'}`
+  return `Anyone with ${permission} or higher`
 }
 
 export const listText = (value: unknown) => strings(value).join(', ')

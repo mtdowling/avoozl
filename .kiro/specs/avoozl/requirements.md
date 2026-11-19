@@ -2095,7 +2095,7 @@ and the Untriaged reader onto the record without changing what they do.
     actor's standing (`trigger.permission`, one of `none`, `read`,
     `triage`, `write`, `maintain`, `admin`, mapped by the plugin from its
     own system's roles), and Avoozl SHALL apply the same check against
-    the source's `allowedActors` and `minimumPermission` (default
+    the source repository's `allowedActors` and `minimumPermission` (default
     `write`). A plugin without the `actor` capability SHALL have no
     allowed actor.
 14. An MCP caller SHALL count as the local owner, with no verifiable
@@ -2443,7 +2443,7 @@ setting or runs until someone on that computer has seen it and approved it.
    hold `description` and `settings`, and `settings` MAY set only:
    per-repository `rules` (trigger `match` lines), `untriaged` (filter and
    triage labels), `allowedActors` and `minimumPermission` (who counts),
-   `requiredChecks`, `priority`, `managedLabels`, and `concurrency`;
+   `requiredChecks`, `priorityLabels`, and `managedLabels`;
    `project` `fields` and `statusValues`; `epicIssueType`; `contentRules`
    `sets` as references only; `delivery` `reviewers` (review roles),
    `agent`, `model`, `runner`, and `concurrency`; and `flow`. Both
@@ -2490,7 +2490,7 @@ setting or runs until someone on that computer has seen it and approved it.
     whose item carries one SHALL wait in **Blocked or waiting** with the
     reason "Waiting on the author". Absent, nothing changes.
 12. A pack and a repository entry MAY set `priorityLabels`, an ordered
-    list, the newer name for `priority`; setting both SHALL be refused. A
+    list. A
     task's best priority label SHALL set its order inside Ready and Up
     next, after a set rank, and SHALL never change its lane. Absent,
     nothing changes. The sample pack sets `waitingLabels:
@@ -4156,7 +4156,7 @@ plan and without trusting those machines.
 6. Claim release SHALL be person-only, with generation-aware reconciliation
    of outstanding intents. A completed, verified result MAY settle its claim
    through the driver. Quiet, expired leases, lost connectivity and vanished
-   chats SHALL NOT release a claim automatically. After `workers.claimStaleAfter`
+   chats SHALL NOT release a claim automatically. After `workers.grantStaleAfter`
    (default 24 h), Needs you SHALL offer person-only Release claim.
 7. Retired 2026-11-18 by the worker-paths spec (WP5.5): a machine with no
    GitHub access is not a worker machine. The record: "SSH push of an
@@ -4449,7 +4449,7 @@ in a way Avoozl reads the same, so that Avoozl reads one kind of result.
 4. A child that exits with no result file, an unreadable one, or a non-zero
    exit code with `done` SHALL be treated as `exited <code>`, and its task
    SHALL follow the retry path (Requirement 8).
-5. `avoozl claim`, `avoozl next` and `avoozl runner report` SHALL stay as
+5. `avoozl take`, `avoozl next` and `avoozl runner report` SHALL stay as
    the manual path for a person. (Changed 2026-11-18 by the worker-paths
    spec, WP9.1.)
 
@@ -5063,7 +5063,7 @@ finding either fixed, answered, or decided by me at a known revision.
 
 Facts. Phase 53 is built (53.1–53.5). Spec findings are `review_threads`
 rows with `source: "plan-review"` and `kind`, `severity` (`blocking`,
-`important`, `suggestion`, `question`), `file`, `line`, `claim`,
+`important`, `suggestion`, `question`), `file`, `line`, `statement`,
 `evidence` and `answer` (`src/app/plan-reviews.mjs`,
 `src/app/plan-review-answers.mjs`). `plan.review.dispose` closes a finding
 as resolved, accepted, rejected or deferred; it records no revision, does
@@ -5236,12 +5236,10 @@ my repositories to it.
    Repository setup SHALL write each repository's `role` and the mode and
    `planningRepository` the roles derive, and running it twice SHALL change
    nothing more.
-8. The keys `github.mode` and `github.planningRepository` SHALL stay in the
-   schema and stay readable. WHEN any repository has a `role` THEN the
-   roles SHALL win and the loader SHALL derive both keys from them, so
-   every existing reader sees one consistent value. A stored mode that
-   disagrees with the roles SHALL be shown once as "The file says X; the
-   roles say Y" and replaced on the next save. Keys SHALL NOT be deleted.
+8. Avoozl SHALL NOT write `github.mode` or `github.planningRepository`.
+   WHEN any repository has a `role` THEN the roles SHALL win and the loader
+   SHALL derive both keys from them, so every reader sees one consistent
+   value. Saving Settings SHALL drop both keys from a file that has roles.
 9. Switching a role SHALL delete no stored setting, as switching a mode did
    not. Settings that the new mode does not read SHALL show as "Kept, not
    used".
@@ -5547,10 +5545,11 @@ once under `intake.sources`, so that I read and change intake in one place.
    `mcp`. A GitHub source names the GitHub `repository` (owner/name) and
    SHALL carry the keys `github.issueIntake` held: `executionRepository` (the
    execution repository), optional `workspaceRepository` when it differs
-   from `executionRepository`, `label` (default `avoozl:ready`), optional
-   `managedLabel`, `assignee`, `autoStart`, `provider`, `model`,
-   `allowedActors` and
-   `minimumPermission` (default `write`). `labelFields` and
+   from `executionRepository`,
+   `assignee`, `autoStart`, `provider` and `model`. A source has no label
+   and no trust list: the ready label is `managedLabels.ready` and who counts
+   is `allowedActors` and `minimumPermission`, both on the repository's
+   `github.repositories` entry. `labelFields` and
    `assigneeField` SHALL be refused on a GitHub source, and the GitHub
    keys SHALL be refused on a plugin or MCP source.
 2. A GitHub source SHALL live in `.avoozl.json`, as `github.issueIntake`

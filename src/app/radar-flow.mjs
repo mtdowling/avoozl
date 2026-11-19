@@ -1,4 +1,4 @@
-// Flow from GitHub data (RC8.5, design D10): Ready to Claim, Claim to PR, PR
+// Flow from GitHub data (RC8.5, design D10): Ready to start, Start to PR, PR
 // to green, green to merge, and flow efficiency, for the issues crews
 // finished. Crews no longer code Avoozl's tasks (R91.6), so nothing new is
 // read: the view shows rows cached before, plus every stored build

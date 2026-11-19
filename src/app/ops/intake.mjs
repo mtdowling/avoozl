@@ -166,20 +166,30 @@ export const entries = [
       return {
         sources: declaredSources(this.pluginOptions, store).map(
           ({ id, scope, entry, error, source }) => {
+            // Who counts is the repository's setting, shown here read only.
+            const configured = source
+                ? Object.entries(policy?.repositories || {}).find(
+                    ([repository]) => same(repository, source.repository),
+                  )?.[1]
+                : null,
+              who = configured
+                ? {
+                    allowedActors: configured.allowedActors,
+                    minimumPermission: configured.minimumPermission,
+                  }
+                : null;
             // A GitHub source (§4.39): its repository's read, and the Issue
             // Radar escalation label its Triage rows open first with.
             if (source?.via === "github") {
               const read = reads.find((r) =>
-                  same(r.repository, source.repository),
-                ),
-                configured = Object.entries(policy?.repositories || {}).find(
-                  ([repository]) => same(repository, source.repository),
-                )?.[1];
+                same(r.repository, source.repository),
+              );
               return {
                 id,
                 scope,
                 entry,
                 error,
+                who,
                 state: read
                   ? { cursor: null, readAt: read.checkedAt, error: read.error }
                   : null,
@@ -192,6 +202,7 @@ export const entries = [
               scope,
               entry,
               error,
+              who,
               state: id ? sourceRowOf(store, `source:${id}`) : null,
               items: (id && counts.get(id)) || none,
             };

@@ -14,7 +14,7 @@
 // harness is a fake: for each child the tick starts, it writes the task's
 // note in the child's worktree and finishes the session as done, through
 // the same function the supervisor calls (finishProcessSession). Nothing
-// else is run by hand: no `worker`, `spec offer` or `spec claims` command.
+// else is run by hand: no `worker`, `spec offer` or `spec grants` command.
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";

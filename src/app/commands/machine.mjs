@@ -397,19 +397,19 @@ export const commands = [
       ),
       help(
         "machine",
-        "worker claim",
+        "worker accept",
         "Worker mode: ask for pulled offers, start the acknowledged ones",
       ),
       help(
         "machine",
         "worker setup",
-        "Worker mode: preview login, access, claims and executor",
+        "Worker mode: preview login, access, grants and executor",
       ),
     ],
     async run({ positionals, localOrRequest }) {
       // Worker mode (R90): this machine pulls offers from spec journals.
-      if (!["pull", "claim", "setup"].includes(positionals[0]))
-        throw Error("Use worker pull|claim|setup.");
+      if (!["pull", "accept", "setup"].includes(positionals[0]))
+        throw Error("Use worker pull|accept|setup.");
       console.log(
         JSON.stringify(
           await localOrRequest(`worker.${positionals[0]}`),

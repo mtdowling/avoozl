@@ -34,7 +34,7 @@ export interface BuildView {
   recent: { repository: string | null; pr: number; number?: number; totalMs: number; failedMs: number; phases: BuildPhase[]; costliest: BuildPhase | null }[]
 }
 
-export const STAGE_NAMES = ['Ready to Claim', 'Claim to PR', 'PR to green', 'Green to merge'] as const
+export const STAGE_NAMES = ['Ready to start', 'Start to PR', 'PR to green', 'Green to merge'] as const
 
 export function githubFlowClient(api: AppApi) {
   return {
