@@ -137,6 +137,7 @@ export const APP_OPERATIONS = new Set([
   "delivery.integrate",
   "delivery.settings.get",
   "delivery.settings.update",
+  "delivery.runner.release",
   "flow.instructions.update",
   "flow.retro.decide",
   "flow.retro.start",

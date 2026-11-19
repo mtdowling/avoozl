@@ -401,7 +401,7 @@ test("P35: a pack is refused by name for an unknown key and never runs code", as
     ],
     [{ settings: { project: {} } }, /settings\.project is not/],
     [
-      { settings: { delivery: { runner: "tick", hooks: [] } } },
+      { settings: { delivery: { agent: "a", hooks: [] } } },
       /settings\.delivery\.hooks is not/,
     ],
     [

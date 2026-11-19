@@ -251,7 +251,7 @@ What a pack may set, and where each lands in `.avoozl.json`:
 | `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`. |
 | `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                                                  |
 | `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                                               |
-| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`.                                                                                                                            |
+| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`.                                                                                                                                      |
 | `settings.flow`              | Flow settings, such as `retro.everyTasks`                                                                                                                                                |
 
 - Every key is checked with the same rules Settings uses. Any other key is

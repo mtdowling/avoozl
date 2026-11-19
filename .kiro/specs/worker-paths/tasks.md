@@ -72,14 +72,14 @@ of the other specs.
     - done:
       - Tests with the tick on: a claimed task stays unstarted across three ticks; `runner report` from its worktree with no token finishes it and Avoozl runs the checks; a claim is refused for a task that is not ready, has a running session or is held by Stop the line, each with its reason; a claim over MCP and from a child of the supervisor is refused; release refuses a dirty worktree without `--discard`.
   - `src/app/manual-claim.mjs` from `claimTask`, with no Crew Mode test and no conductor branch; a test that the ready query's existing rule keeps the tick off a claimed task; `avoozl claim TASK --release` and `--discard`.
-- [ ] wp-2.2 Remove Crew Mode dispatch, and hold the workspaces that used it, after wp-2.1, wp-p1 [WP1.1, WP1.2, WP1.3, WP1.4, WP2.6, WP7.4, WP7.5] (§D7)
+- [x] wp-2.2 Remove Crew Mode dispatch, and hold the workspaces that used it, after wp-2.1, wp-p1 [WP1.1, WP1.2, WP1.3, WP1.4, WP2.6, WP7.4, WP7.5] (§D7)
   - Facts:
     - done:
       - Tests: a `crew-mode` workspace starts nothing across three ticks and shows one Needs you item; the operation is refused from MCP and from an agent session, and from a person it removes the key and the next tick starts work; `"runner": "tick"` loads and is ignored; the source test of WP1.4 passes and fails on a planted second dispatcher; the pull request lists what each moved or deleted test covered and where it is covered now; the schema parity test passes.
     - after: wp-2.1, wp-p1
   - `delivery.runner` leaves the validators and the schema; a file with `crew-mode` reads as held with one Needs you item and the person-only **Let the tick run it**; `runner.mjs` keeps `nextView`; the hook file, the runner prompt, the relay branches and the `--slot` forms go; the app entry point lists the commands it still runs; the seven test files that name `crew-mode` move to the manual claim or the tick.
 
-- [ ] wp-p2 Proof: a person finishes a task by hand while the tick runs the rest, after wp-2.2 [WP1, WP2] (§D6, §D7)
+- [x] wp-p2 Proof: a person finishes a task by hand while the tick runs the rest, after wp-2.2 [WP1, WP2] (§D6, §D7)
   - Facts:
     - done:
       - Expected: (1) the claim prints the worktree and the report command; (2) the tick starts the other task only; (3) Avoozl runs the checks on the commit and lands it; (4) the released task is ready again and the next tick starts it.
@@ -143,13 +143,13 @@ of the other specs.
 
 ## Phase 5: Names
 
-- [ ] wp-5.1 Removed commands answer with their replacement, after wp-2.2, wp-3.3, wp-4.2 [WP7.1, WP7.2, WP7.3] (§D7, §D8, §D9)
+- [x] wp-5.1 Removed commands answer with their replacement, after wp-2.2, wp-3.3, wp-4.2 [WP7.1, WP7.2, WP7.3] (§D7, §D8, §D9)
   - Facts:
     - done:
       - A test calls each removed command and operation and gets one line naming its replacement and no change to the workspace; the help test passes; the `plans_*` tool names, the environment aliases and the `aicommander` command pass their existing tests.
     - after: wp-2.2, wp-3.3, wp-4.2
   - Every command and operation this spec removes, and `register-session` and `session-hook`, answers through `moved-operations.mjs`; the help table drops them.
-- [ ] wp-5.2 One meaning for each word, and the product spec says the same, after wp-5.1 [WP8, WP9] (§D1)
+- [x] wp-5.2 One meaning for each word, and the product spec says the same, after wp-5.1 [WP8, WP9] (§D1)
   - Facts:
     - done:
       - The word test passes and fails on a planted "Crew Mode"; `node scripts/spec-lint.mjs` reports 0 errors; each retired requirement keeps its text under a dated line naming this spec.

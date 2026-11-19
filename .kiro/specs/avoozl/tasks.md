@@ -4680,7 +4680,7 @@ Owner request 2026-11-18 (Requirement 109, design §4.38). One build task.
 ## Phase 63: One intake list
 
 Owner decision 2026-11-18 (Requirement 110, design §4.39;
-`docs/simplification-audit.md` item 6). One build task. Other
+`docs/research/simplification-audit.md` item 6). One build task. Other
 simplification items run in parallel and touch settings files; merge main
 often and keep theirs on a clash.
 

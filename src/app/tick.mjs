@@ -962,7 +962,7 @@ async function runTick(
         readySkip = new Set([...requested.map((d) => d.task), ...held]),
         // Ranking, release and repository-wide path holds (spec-scheduler.mjs).
         schedule =
-          unobserved.length || !delivery || delivery.runner !== "tick"
+          unobserved.length || !delivery || delivery.crewModeHeld
             ? null
             : scheduleHolds(store, {
                 github: readGitHubPolicyOrNull(workspaceRoot),

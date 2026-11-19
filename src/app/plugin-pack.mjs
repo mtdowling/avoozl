@@ -44,7 +44,7 @@ const PACK_SETTINGS = Object.freeze({
   ],
   epicIssueType: null,
   contentRules: ["sets"],
-  delivery: ["reviewers", "agent", "model", "runner", "concurrency"],
+  delivery: ["reviewers", "agent", "model", "concurrency"],
   // The labels a repository shares with Issue Radar crews. A pack creates
   // no crew.
   crews: ["labels"],

@@ -458,14 +458,14 @@ test("P27 action 6: a reviewer on the writer's model or auto is refused; an unkn
   );
   assert.throws(() => withModel("auto"), /not auto/);
 
-  const env = await workspace(t, { runner: "crew-mode" }),
+  const env = await workspace(t),
     { root, store, ops } = env;
   // The same refusal through the tick: the file is invalid, a decision is
   // raised, and no review opens on that policy.
   for (const model of ["fake-a", "auto"]) {
     fs.writeFileSync(
       path.join(root, ".avoozl.json"),
-      policy({ runner: "crew-mode", reviewers: [{ ...REVIEWERS[0], model }] }),
+      policy({ reviewers: [{ ...REVIEWERS[0], model }] }),
     );
     const result = await ops.execute("workspace.tick", { sessions: [] });
     assert.equal(result.policy.status, "invalid");
@@ -478,12 +478,9 @@ test("P27 action 6: a reviewer on the writer's model or auto is refused; an unkn
     );
     assert.deepEqual(result.dispatch, []);
   }
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    policy({ runner: "crew-mode" }),
-  );
+  fs.writeFileSync(path.join(root, ".avoozl.json"), policy({}));
 
-  // A Crew Mode conductor claims w1 without saying which model it used.
+  // A person claims w1 by hand; nothing says which model wrote it.
   const claim = await ops.execute(
     "runner.claim",
     { taskId: W1, slot: "w-1" },

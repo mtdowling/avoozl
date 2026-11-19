@@ -24,6 +24,8 @@ on:
         description: "Platforms to run, comma separated (empty runs all)"
         required: false
         default: ""
+permissions:
+  contents: read
 jobs:
   plan:
     runs-on: ubuntu-latest

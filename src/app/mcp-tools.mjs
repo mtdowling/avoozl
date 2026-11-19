@@ -230,7 +230,6 @@ const tools = {
       start: ["run.start", "dispatch a task: {taskId, repository, agent}"],
       status: ["session.status", "record a session's status"],
       report: ["session.report", "report on your bound task"],
-      claim: ["runner.claim", "claim a ready leaf for a worker"],
       worktree: ["worktree.prepare", "create or return the leaf's worktree"],
       checks: ["flow.checks.run", "run declared checks at HEAD"],
       stop_line: [

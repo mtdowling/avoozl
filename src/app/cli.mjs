@@ -30,7 +30,6 @@ import {
 } from "./supervisor-unit.mjs";
 import { reportByToken } from "./report-match.mjs";
 import { HOLDS_TASKS, readRunnerConfig } from "./remote-runner.mjs";
-import { hookEvent, runnerHookBrief } from "./runner.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
 import { reconcileSource } from "./source-sync.mjs";
@@ -766,33 +765,7 @@ try {
     console.log(
       JSON.stringify(await localOrRequest("workspace.tick"), null, 2),
     );
-  else if (command === "next" && options.hook) {
-    // An AgentSpawn hook: brief a Crew Mode conductor whose session starts in
-    // one of this workspace's checkouts while delivery.runner is crew-mode.
-    // Anything else prints nothing, and no failure ever blocks a session.
-    try {
-      const event = await hookEvent(process.stdin),
-        cwd =
-          typeof event?.cwd === "string" && path.isAbsolute(event.cwd)
-            ? event.cwd
-            : process.cwd();
-      if (fs.existsSync(dbPath)) {
-        const store = new Store(dbPath);
-        try {
-          const brief = runnerHookBrief(store, {
-            workspaceRoot: config.workspaceRoot,
-            cwd,
-            command: `node ${JSON.stringify(process.argv[1])}`,
-          });
-          if (brief) process.stdout.write(brief);
-        } finally {
-          store.close();
-        }
-      }
-    } catch {
-      // A hook that cannot brief stays silent; the session starts as usual.
-    }
-  } else if (command === "next")
+  else if (command === "next")
     console.log(JSON.stringify(await localOrRequest("runner.next"), null, 2));
   else if (command === "checks" && positionals[0] === "run")
     console.log(
@@ -952,7 +925,7 @@ try {
           taskId: positionals[1],
           state,
         });
-    } else throw Error("Use runner accept|status|report|handoff|pull.");
+    } else throw Error("Use runner status|report.");
     console.log(JSON.stringify(result, null, 2));
   } else if (command === "worker") {
     // Worker mode (R90): this machine pulls offers from spec journals.
@@ -1035,31 +1008,14 @@ try {
       JSON.stringify(
         await localOrRequest("runner.claim", {
           taskId: positionals[0],
-          slot: options.slot,
           ...(options.release ? { release: true } : {}),
           ...(options.discard ? { discard: true } : {}),
-          ...(options.title ? { title: options.title } : {}),
-          ...(options.model ? { model: options.model } : {}),
         }),
         null,
         2,
       ),
     );
-  } else if (command === "report")
-    console.log(
-      JSON.stringify(
-        await localOrRequest("session.report", {
-          taskId: positionals[0],
-          slot: options.slot,
-          kind: options.kind,
-          ...(options.text !== undefined ? { text: options.text } : {}),
-          ...(options.commit !== undefined ? { commit: options.commit } : {}),
-        }),
-        null,
-        2,
-      ),
-    );
-  else if (command === "verify" && positionals[0] === "allow")
+  } else if (command === "verify" && positionals[0] === "allow")
     console.log(
       JSON.stringify(
         await localOrRequest("verify.allow", {
@@ -1975,7 +1931,7 @@ try {
     helpCommands().includes(command)
   )
     console.error(helpPointer(command));
-  process.exitCode = command === "next" && options.hook ? 0 : 1;
+  process.exitCode = 1;
 }
 
 // One spec in `plan batches` and the approve preview.

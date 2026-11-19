@@ -1,28 +1,15 @@
-// Crew Mode runner support (design §5.1, task 2.14). A Crew Mode conductor
-// drives rounds from `next` and reports through `claim` and plans_report; the
-// tick still verifies and integrates. Every write goes through
-// Operations.execute, so the conductor's CLI, the MCP server and the app
-// backend share one writer.
-import fs from "node:fs";
-import path from "node:path";
-import { fail } from "./store.mjs";
+// `avoozl next` (worker-paths WP2.5): a read of the ready, running, waiting,
+// Needs you and done lists. The tick starts the work; a person takes one task
+// with `avoozl claim` (manual-claim.mjs).
 import {
-  callerSlot,
   claimedTaskIds,
   DELIVERY_DEFAULTS,
-  leafBrief,
   liveAttempt,
-  prepareWorktree,
   readyLeaves,
-  briefAllowed,
-  shipMode,
 } from "./delivery.mjs";
 import { sessionUrl } from "./notifications.mjs";
-import { bindSession, listSessionBindings } from "./session-bindings.mjs";
-import { readDeliveryPolicy } from "./tick.mjs";
+import { listSessionBindings } from "./session-bindings.mjs";
 import { scheduleHolds } from "./spec-scheduler.mjs";
-import { readGitHubPolicyOrNull } from "./github-policy.mjs";
-import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { isArchivedTask } from "../browse-model.mjs";
 import { statusComplete } from "../query.mjs";
 import {
@@ -37,10 +24,6 @@ import {
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const NEEDS_YOU_STATUSES = new Set(["blocked", "review"]);
-
-// What a conductor does with the buckets, returned with every answer.
-const RUNNER_RULE =
-  "Start every task in ready. Wait while running is not empty. Ask the user about needsYou. Stop only when every leaf is done.";
 
 const effective = (policy) =>
   policy?.delivery || { ...DELIVERY_DEFAULTS, repositories: {} };
@@ -88,9 +71,7 @@ export function nextView(store, { policy, github = null }) {
     byId = new Map(data.tasks.map((task) => [task.id, task])),
     complete = (status) => statusComplete(data, status);
   const result = {
-    runner: delivery.runner,
     policy: policy?.status || "absent",
-    rule: RUNNER_RULE,
     ready: [],
     running: [],
     waiting: [],
@@ -188,33 +169,13 @@ export function nextView(store, { policy, github = null }) {
       });
       continue;
     }
-    const leaf = startable.get(task.id),
-      brief = leaf
-        ? leafBrief(store, data, leaf, {
-            relay: true,
-            ship: shipMode(delivery, task, store),
-          })
-        : null;
-    // A brief a content rule blocks is not offered (§4.9); its decision
-    // shows the task under needsYou in the Conflicts view.
-    if (
-      leaf &&
-      briefAllowed(store, {
-        taskId: task.id,
-        role: "worker",
-        brief,
-        repository: leaf.project.repository || leaf.project.id,
-      })
-    ) {
+    const leaf = startable.get(task.id);
+    if (leaf) {
       result.ready.push({
         ...item,
         attempt: leaf.attempt,
         repository: leaf.project.id,
         checkout: leaf.project.root,
-        sessionTitle: `avoozl:${task.id} ${task.title || ""}`
-          .trim()
-          .slice(0, 200),
-        brief,
       });
       continue;
     }
@@ -239,142 +200,4 @@ export function nextView(store, { policy, github = null }) {
   }
   result.finished = leaves.length > 0 && result.done.length === leaves.length;
   return result;
-}
-
-// runner.claim / `avoozl claim`: record that a Crew Mode conductor started a
-// worker session on a ready leaf, then prepare the leaf's worktree. The
-// readiness check and the binding are one transaction, so a claimed task never
-// appears ready twice and cannot be claimed twice.
-export async function claimTask(
-  store,
-  input = {},
-  { caller, local, policy, github = null },
-) {
-  const conductor = callerSlot(caller) || (local ? "cli" : null);
-  if (!conductor)
-    fail(
-      "A claim needs the conductor's session identity from the Kiro Crew gateway, or the local command line.",
-      403,
-    );
-  if (policy?.status !== "loaded" || policy.delivery?.runner !== "crew-mode")
-    fail(
-      'Set "delivery": {"runner": "crew-mode"} in .avoozl.json before a Crew Mode conductor claims tasks.',
-      409,
-    );
-  const task = store.read().tasks.find((t) => t.id === input.taskId),
-    { binding, changed } = bindSession(
-      store,
-      {
-        taskId: input.taskId,
-        slot: input.slot,
-        role: "worker",
-        // The model the conductor opened the worker on; a review role with
-        // distinctFrom model waits for a person when it is missing (§5.2).
-        ...(input.model !== undefined ? { model: input.model } : {}),
-        title:
-          input.title ??
-          (task
-            ? `avoozl:${task.id} ${task.title || ""}`.trim().slice(0, 200)
-            : undefined),
-      },
-      {
-        conductor,
-        guard: (taskId) => {
-          if (
-            !readyLeaves(store, policy.delivery, {
-              skip: scheduleHolds(store, { github }).skip,
-            }).some((leaf) => leaf.task.id === taskId)
-          )
-            fail(
-              `${taskId} is not ready to start: it is claimed, blocked, held by overlapping paths, or over capacity. Run next again.`,
-              409,
-            );
-        },
-      },
-    );
-  let worktree = null,
-    worktreeError = null;
-  try {
-    worktree = await prepareWorktree(store, { taskId: binding.taskId });
-  } catch (error) {
-    worktreeError = error.message;
-  }
-  return {
-    binding,
-    changed,
-    link: sessionUrl(binding.slot),
-    worktree: worktree && { path: worktree.path, branch: worktree.branch },
-    ...(worktreeError ? { worktreeError } : {}),
-  };
-}
-
-// The hook event a Kiro Crew AgentSpawn hook writes to stdin, or {} when it
-// writes none. Waits at most `ms` for stdin to end, so a hook never hangs.
-export async function hookEvent(stream, { ms = 1000, max = 1_000_000 } = {}) {
-  if (stream.isTTY) return {};
-  const text = await new Promise((resolve) => {
-    let value = "";
-    const done = () => {
-      clearTimeout(timer);
-      stream.off("data", data);
-      stream.off("end", done);
-      stream.off("error", done);
-      stream.pause?.();
-      resolve(value);
-    };
-    const data = (chunk) => {
-      value += chunk;
-      if (value.length > max) done();
-    };
-    const timer = setTimeout(done, ms);
-    stream.on("data", data);
-    stream.once("end", done);
-    stream.once("error", done);
-  });
-  try {
-    const event = JSON.parse(text || "{}");
-    return event && typeof event === "object" ? event : {};
-  } catch {
-    return {};
-  }
-}
-
-const STEERING = new URL("./runner/avoozl-runner.md", import.meta.url);
-
-function within(directory, root) {
-  try {
-    const a = fs.realpathSync.native(directory),
-      b = fs.realpathSync.native(root);
-    return a === b || a.startsWith(b + path.sep);
-  } catch {
-    return false;
-  }
-}
-
-// What the AgentSpawn hook prints: the runner steering file and the current
-// bucket counts, or "" unless delivery.runner is crew-mode and the session
-// starts in the workspace or one of its registered checkouts. Reads only.
-export function runnerHookBrief(store, { workspaceRoot, cwd, command }) {
-  const policy = readDeliveryPolicy(workspaceRoot);
-  if (policy.status !== "loaded" || policy.delivery?.runner !== "crew-mode")
-    return "";
-  const roots = [
-    workspaceRoot,
-    ...workspaceRepositories(store).map((entry) => entry.localCheckout),
-  ].filter(Boolean);
-  if (!roots.some((root) => within(cwd, root))) return "";
-  const view = nextView(store, {
-      policy,
-      github: readGitHubPolicyOrNull(workspaceRoot),
-    }),
-    counts = ["ready", "running", "waiting", "needsYou", "done"]
-      .map((bucket) => `${view[bucket].length} ${bucket}`)
-      .join(", ");
-  return [
-    fs.readFileSync(STEERING, "utf8").trimEnd(),
-    "",
-    `AVOOZL is \`${command}\` in this workspace.`,
-    `Right now: ${counts}. Run \`${command} next\` for the details.`,
-    "",
-  ].join("\n");
 }

@@ -312,6 +312,8 @@ export interface ConflictItem extends TaskOwner {
   taskId: string | null
   title: string
   detail: string
+  // A crew-mode item: the .avoozl.json hash Let the tick run it saves against.
+  hash?: string
   field?: string
   slot?: string
   link?: string | null
@@ -319,8 +321,9 @@ export interface ConflictItem extends TaskOwner {
   // crew asked for one on an issue no task owns (R52.10). 'hand-set-review':
   // status running or review with no live session behind it. 'review-draft':
   // a review draft made from the review label (RC20). 'disk': a volume too
-  // full for a worktree.
-  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'forward' | 'forward-audit' | 'public-branch' | 'disk'
+  // full for a worktree. 'crew-mode': a workspace a Crew Mode conductor
+  // drove, held until a person lets the tick run it (WP1.3).
+  reason?: 'review' | 'blocked' | 'crew' | 'crew-mode' | 'hand-set-review' | 'approval' | 'review-draft' | 'forward' | 'forward-audit' | 'public-branch' | 'disk'
   // A crew's needs-human row for a trusted escalation (R103.8): the GitHub
   // item, what the crew wrote, and Intake's Plan this and Deliver this.
   item?: { source: 'github'; id: string }
@@ -447,6 +450,8 @@ export function viewsClient(api: AppApi) {
     // Go ahead, Investigate again or Stop on a task's findings (§4.21).
     decideInvestigation: (workspaceId: string, taskId: string, action: 'go' | 'again' | 'stop') => run<unknown>('investigation.decide', { taskId, action }, workspaceId),
     // Land a verified local task under manual ship (§4.25).
+    // Let the tick run a workspace a Crew Mode conductor drove (WP1.3).
+    letTickRun: (workspaceId: string, expectedHash?: string) => run<unknown>('delivery.runner.release', expectedHash ? { expectedHash } : {}, workspaceId),
     integrate: (workspaceId: string, taskId: string, commit?: string) => run<unknown>('delivery.integrate', { taskId, ...(commit ? { commit } : {}) }, workspaceId),
     // Retry a delivery waiting on a decision, dismissing the named findings.
     retry: (workspaceId: string, taskId: string, dismiss: { finding: string; reason: string }[] = []) => run<unknown>('delivery.retry', { taskId, dismiss }, workspaceId),

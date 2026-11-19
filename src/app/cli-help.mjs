@@ -200,16 +200,10 @@ export const HELP_GROUPS = Object.freeze([
         "tick --workspace PATH",
         "Run one workspace tick and print its intents",
       ),
-      entry(
-        "next [--hook]",
-        "Crew Mode buckets: ready, running, waiting, needsYou, done",
-      ),
+      entry("next", "The ready, running, waiting, Needs you and done lists"),
       entry(
         "claim TASK_ID [--release [--discard]]",
         "Take a ready task by hand: prints its worktree and the report command; --release gives it back",
-      ),
-      entry(
-        "report TASK_ID --slot SESSION --kind done|blocked|question|progress [--commit SHA] [--text TEXT]",
       ),
       entry(
         "retry TASK_ID [--dismiss FINDING --reason TEXT]",
@@ -348,12 +342,8 @@ export const HELP_GROUPS = Object.freeze([
         "Report from the task's worktree; a worker's brief gives the token",
       ),
       entry(
-        "next --hook",
-        "An AgentSpawn hook: brief a Crew Mode conductor whose session starts in this workspace",
-      ),
-      entry(
         "content hook",
-        "A PreToolUse hook: refuse a crew write that matches a rule",
+        "A PreToolUse hook: refuse a session's write that matches a rule",
       ),
       entry(
         "content check --push --task TASK_ID",

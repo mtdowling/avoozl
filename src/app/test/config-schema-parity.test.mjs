@@ -239,6 +239,10 @@ const IGNORED = new Map([
     pointer,
     "Retired by merge batches (landing-config.mjs)",
   ]),
+  [
+    "#/properties/delivery/properties/runner",
+    "deliveryPolicy: tick is ignored, crew-mode holds (worker-paths WP1)",
+  ],
 ]);
 
 // Deprecated keys a reader still reads as an older spelling of a new key.

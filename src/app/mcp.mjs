@@ -60,7 +60,7 @@ export const NARROW_TOOLS = {
   ],
   plans_report: [
     "session.report",
-    "Narrow tool for worker, verifier, reviewer and falsifier chats. Report on your bound task from its worker, verifier, falsifier, or review session: {taskId, kind: progress|done|blocked|question|findings, text?, commit?, checks?, verdict?, findings?, closures?}. A local worker's done needs no commit: Avoozl reads HEAD of its task worktree and refuses a different one. Other done reports need the full commit SHA; a verifier's done also lists checks: [{command, exitCode}], one per declared check, and a check it could not run as {command, exitCode: null, notRun: reason}. A review's done names the commit it judged with verdict approved|changes-requested, findings [{id, kind: defect|observation, paths, text}], and closures [{finding: \"<attempt>:<role>:<id>\", state: fixed|unchanged, note?}] for every open finding of its role. blocked and question need text. A progress report may mark phase coding|tests|commands|ci-wait for timing, and a check entry may add durationMs. A worker told to investigate first reports kind findings with findings {read, cause, plan, check, confidence: low|medium|high}, changes no file, and reports done only after Avoozl's Go ahead; a falsifier's done has no commit and carries falsifier {verdict: stands|refuted, evidence, confidence}. Any report may attach evidence: [{kind: file, path, note?}] (an image or video of at most 20 MB, by absolute path) or [{kind: note, text}]. Only the session bound to the task's newest attempt may report. A Crew Mode conductor relays its worker's result by adding the worker's slot: {taskId, slot, kind, ...}; only the conductor that claimed the task may.",
+    "Narrow tool for worker, verifier, reviewer and falsifier chats. Report on your bound task from its worker, verifier, falsifier, or review session: {taskId, kind: progress|done|blocked|question|findings, text?, commit?, checks?, verdict?, findings?, closures?}. A local worker's done needs no commit: Avoozl reads HEAD of its task worktree and refuses a different one. Other done reports need the full commit SHA; a verifier's done also lists checks: [{command, exitCode}], one per declared check, and a check it could not run as {command, exitCode: null, notRun: reason}. A review's done names the commit it judged with verdict approved|changes-requested, findings [{id, kind: defect|observation, paths, text}], and closures [{finding: \"<attempt>:<role>:<id>\", state: fixed|unchanged, note?}] for every open finding of its role. blocked and question need text. A progress report may mark phase coding|tests|commands|ci-wait for timing, and a check entry may add durationMs. A worker told to investigate first reports kind findings with findings {read, cause, plan, check, confidence: low|medium|high}, changes no file, and reports done only after Avoozl's Go ahead; a falsifier's done has no commit and carries falsifier {verdict: stands|refuted, evidence, confidence}. Any report may attach evidence: [{kind: file, path, note?}] (an image or video of at most 20 MB, by absolute path) or [{kind: note, text}]. Only the session bound to the task's newest attempt may report.",
   ],
   plans_post_reply: [
     "reply.post",
@@ -76,7 +76,7 @@ export const NARROW_TOOLS = {
   ],
   plans_next: [
     "runner.next",
-    "Narrow tool for a Crew Mode conductor. What a Crew Mode conductor does next, with every local leaf in one bucket: ready (start each, with its brief and session title), running (claimed; wait), waiting (with the blockers each waits on), needsYou (blocked, review, questions, and stopped deliveries; ask the user), and done. Rule: start ready; wait while running is not empty; ask the user about needsYou; stop only when every leaf is done. Reads only.",
+    "Narrow tool for the avoozl skill. Every local leaf in one list: ready, running, waiting (with the blockers each waits on), needsYou (blocked, review, questions, and stopped deliveries), and done. The tick starts ready work. Reads only.",
   ],
   plans_run_checks: [
     "flow.checks.run",
@@ -84,7 +84,7 @@ export const NARROW_TOOLS = {
   ],
   plans_claim_task: [
     "runner.claim",
-    "Narrow tool for a Crew Mode conductor. Claim one ready leaf for the worker session a Crew Mode conductor just started: {taskId, slot, title?, model?}. Name the model you opened the worker on; review roles that must differ from the writer's model wait for a person without it. Records the structured session binding (role worker, attempt, conductor) and prepares the leaf's worktree. Refused unless the task is ready now and .avoozl.json sets delivery.runner to crew-mode; a claimed task is never ready again.",
+    "Refused over MCP: a manual claim is a person's, with avoozl claim TASK at the command line. The tick starts every other task.",
   ],
   plans_plan_review: [
     "plan.review.findings",
