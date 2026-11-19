@@ -366,9 +366,6 @@ function SetFormView(props: { form: SetForm; set: (patch: Partial<SetForm>) => v
 // ---------------------------------------------------------------------------
 // The terms editor: Rule builder and File view over one text.
 
-const rowGrid = { display: 'grid', gridTemplateColumns: 'minmax(6rem, 9rem) minmax(8rem, 10rem) minmax(0, 1fr) auto', gap: 8, alignItems: 'center' }
-const rowGridNarrow = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) auto', gap: 6, alignItems: 'center' }
-
 // The kind picker: a rule (word or pattern) or an Allow row (word or pattern).
 type RowKind = 'word' | 'pattern' | 'allow-word' | 'allow-pattern'
 
@@ -376,7 +373,6 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
   const { row, index } = props
   const error = rowError(row, props.rows)
   const errorId = `avoozl-term-error-${index}`
-  const grid = props.narrow ? rowGridNarrow : rowGrid
   if (row.kind === 'blank') return null
   if (row.kind === 'note' || row.kind === 'raw')
     return (
@@ -482,20 +478,30 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
   return (
     <Box as="li" flex flexCol gap="1" data-term-row={index + 1}>
       {props.narrow ? (
-        <div style={grid}>
+        <Box
+          css-display="grid"
+          css-grid-template-columns={props.narrow ? 'minmax-0-1fr-minmax-0-1fr-auto' : 'minmax-6rem-9rem-minmax-8rem-10rem-minmax-0-1fr-auto'}
+          css-gap={props.narrow ? '6' : '8'}
+          css-align-items="center"
+        >
           {name}
           {kind}
           <span />
           {value}
           {drop}
-        </div>
+        </Box>
       ) : (
-        <div style={grid}>
+        <Box
+          css-display="grid"
+          css-grid-template-columns={props.narrow ? 'minmax-0-1fr-minmax-0-1fr-auto' : 'minmax-6rem-9rem-minmax-8rem-10rem-minmax-0-1fr-auto'}
+          css-gap={props.narrow ? '6' : '8'}
+          css-align-items="center"
+        >
           {name}
           {kind}
           {value}
           {drop}
-        </div>
+        </Box>
       )}
       {error && (
         <ErrorText id={errorId} as="span" size="xs" role="alert">

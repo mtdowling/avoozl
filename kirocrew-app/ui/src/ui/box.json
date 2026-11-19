@@ -2,6 +2,7 @@
   "flags": {
     "alignMiddle": "align-middle",
     "alignTop": "align-top",
+    "bgAccent10": "bg-accent/10",
     "block": "block",
     "borderDashed": "border-dashed",
     "borderL2": "border-l-2",
@@ -262,6 +263,9 @@
       "start": "start",
       "stretch": "stretch"
     },
+    "aspect-ratio": {
+      "1-1": "1 / 1"
+    },
     "background": {
       "accent": "var(--accent)",
       "accent-subtle-bg-elevated": "var(--accent-subtle, var(--bg-elevated))",
@@ -519,8 +523,10 @@
       "max-content-minmax-0-1fr": "max-content minmax(0, 1fr)",
       "minmax-0-1fr": "minmax(0, 1fr)",
       "minmax-0-1fr-minmax-0-1fr": "minmax(0,1fr) minmax(0,1fr)",
+      "minmax-0-1fr-minmax-0-1fr-auto": "minmax(0, 1fr) minmax(0, 1fr) auto",
       "minmax-0-2fr-minmax-6rem-1fr": "minmax(0, 2fr) minmax(6rem, 1fr)",
       "minmax-6rem-14rem-minmax-0-1fr-auto": "minmax(6rem, 14rem) minmax(0, 1fr) auto",
+      "minmax-6rem-9rem-minmax-8rem-10rem-minmax-0-1fr-auto": "minmax(6rem, 9rem) minmax(8rem, 10rem) minmax(0, 1fr) auto",
       "minmax-7rem-auto-1fr": "minmax(7rem, auto) 1fr",
       "repeat-auto-fill-minmax-12rem-15rem": "repeat(auto-fill, minmax(12rem, 15rem))",
       "repeat-auto-fill-minmax-min-100%-15rem-1fr": "repeat(auto-fill, minmax(min(100%, 15rem), 1fr))",
@@ -608,6 +614,7 @@
       "auto": "auto"
     },
     "max-height": {
+      "28": 28,
       "200": 200,
       "260": 260,
       "16rem": "16rem",
@@ -641,6 +648,7 @@
     "min-width": {
       "0": 0,
       "18": 18,
+      "24": 24,
       "36": 36,
       "112": 112,
       "160": 160,
@@ -712,6 +720,7 @@
       "2px-12px-2px-0": "2px 12px 2px 0",
       "2px-12px-8px": "2px 12px 8px",
       "2px-4px": "2px 4px",
+      "2px-8px": "2px 8px",
       "3px-4px": "3px 4px",
       "3px-6px": "3px 6px",
       "4px-10px": "4px 10px",
@@ -739,6 +748,7 @@
       "0": 0,
       "12": 12,
       "22": 22,
+      "24": 24,
       "30": 30
     },
     "padding-right": {
@@ -881,6 +891,20 @@
     "background-color",
     "fill",
     "stroke",
-    "border-color"
+    "border-color",
+    "padding",
+    "padding-top",
+    "padding-bottom",
+    "padding-right",
+    "margin",
+    "margin-left",
+    "margin-right",
+    "margin-top",
+    "margin-bottom",
+    "grid-column",
+    "grid-row",
+    "border-radius",
+    "line-height",
+    "font-size"
   ]
 }

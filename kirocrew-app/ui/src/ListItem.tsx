@@ -46,15 +46,10 @@ function Value({ fact }: { fact: ListFact }) {
   )
 }
 
-export default function ListItem(props: { title: ReactNode; actions?: ReactNode; facts: ListFact[]; className?: string; attrs?: Record<string, string | boolean> }) {
+export default function ListItem(props: { title: ReactNode; actions?: ReactNode; facts: ListFact[]; highlighted?: boolean; attrs?: Record<string, string | boolean> }) {
   const facts = props.facts.filter(hasValue)
   return (
-    <li
-      className={`flex min-w-0 flex-col gap-1 border-t py-2.5 first:border-t-0 ${props.className ?? ''}`}
-      style={{ borderColor: 'var(--border)' }}
-      data-list-item
-      {...props.attrs}
-    >
+    <Box as="li" flex minW0 flexCol gap="1" border="t" py="2.5" firstBorderT0 bgAccent10={props.highlighted} css-border-color="border" data-list-item {...props.attrs}>
       <Box flex flexWrap items="center" gapX="3" gapY="1">
         <Box as="span" css-flex="1-1-12rem" flex minW0 flexWrap items="center" gapX="2" gapY="1" data-list-title>
           {props.title}
@@ -79,6 +74,6 @@ export default function ListItem(props: { title: ReactNode; actions?: ReactNode;
           ))}
         </Box>
       )}
-    </li>
+    </Box>
   )
 }
