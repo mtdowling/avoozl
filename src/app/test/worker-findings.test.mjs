@@ -63,7 +63,10 @@ else if (/^Go ahead/.test(text)) {
 
 // A workspace with a real checkout and one leaf `a` that investigates first.
 // With `process`, a supervisor and an approved fake harness run on it too.
-async function workspace(t, { process: onProcess = false } = {}) {
+async function workspace(
+  t,
+  { process: onProcess = false, minConfidence = undefined } = {},
+) {
   const root = temporaryDirectory("avoozl-findings-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
@@ -77,7 +80,10 @@ async function workspace(t, { process: onProcess = false } = {}) {
     path.join(root, ".avoozl.json"),
     JSON.stringify({
       version: 1,
-      delivery: { concurrency: 2, investigate: { mode: "all" } },
+      delivery: {
+        concurrency: 2,
+        investigate: { mode: "all", ...(minConfidence && { minConfidence }) },
+      },
     }),
   );
   const { dbPath } = workspaceConfig({ workspace: root, env: {} });
@@ -357,8 +363,11 @@ test("a definition with no resume codes the task without the step and says why",
 // nk-2.1 (NK2.1, NK2.5): the falsifier as a child. It reads a detached copy
 // of the task's code, writes only its result, and its verdict opens the gate
 // as a chat's does, with no commit.
-async function falsifierChild(t, { withCommit = false } = {}) {
-  const w = await workspace(t, { process: true });
+async function falsifierChild(
+  t,
+  { withCommit = false, minConfidence = undefined } = {},
+) {
+  const w = await workspace(t, { process: true, minConfidence });
   enqueueSessionRequests(w.store, { starts: [await w.dispatch()] });
   const worker = () =>
     w.store.list("session_bindings").find((b) => b.role === "worker");
@@ -399,6 +408,17 @@ test("a process falsifier's verdict opens the gate as a chat's does, with no com
     git(w.store.get("projects", "app").root, "status", "--porcelain"),
     "",
   );
+});
+
+// nk-p1: with the bar at ask, a round that stands at high confidence still
+// waits for a person, so a proof can test Go ahead and Investigate again.
+test("with minConfidence ask, a high round that stands waits in Needs you", async (t) => {
+  const { w } = await falsifierChild(t, { minConfidence: "ask" });
+  const row = w.store.get("task_investigations", "a");
+  assert.deepEqual(row.rounds.at(-1).reply, STANDS);
+  assert.equal(row.rounds.at(-1).findings.confidence, "high");
+  assert.equal(row.state, "needs-you");
+  assert.equal(row.message, undefined);
 });
 
 test("a process falsifier's report with a commit field is refused", async (t) => {

@@ -167,7 +167,9 @@ async function setup() {
     model: MODEL,
     // Investigate first on every task (R75), with the falsifier's verdict
     // needing a person unless both are sure.
-    investigate: { mode: "all", minConfidence: "high" },
+    // A person decides every round, so steps 2a and 2b test Go ahead and
+    // Investigate again however sure the agents are.
+    investigate: { mode: "all", minConfidence: "ask" },
   };
   // Every role on this machine's harness (Settings › Models, R98.6).
   const { ROLES } = await import("../src/app/chat-models.mjs");

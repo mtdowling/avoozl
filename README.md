@@ -425,7 +425,8 @@ Avoozl never asks for a force push, and drops any brief or message that does.
   a worker reports what it read, the cause it believes, the change it plans,
   how it will check it, and how sure it is. A second, read-only chat tries
   to prove that wrong. Coding starts only when both are sure enough
-  (`minConfidence`, default `high`) and the findings stand; otherwise the
+  (`minConfidence`: `medium`, `high` (default), or `ask` so a person always
+  decides) and the findings stand; otherwise the
   task waits in Needs you with **Go ahead**, **Investigate again** and
   **Stop**. `mode` is `not-small` (default), `all` or `off`; a task's facts
   may set `investigate: true` or `false`.

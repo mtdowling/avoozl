@@ -309,7 +309,7 @@ export interface DeliverySettings {
     prFeedback?: boolean
     feedbackRounds?: number
     ship?: ShipMode
-    investigate?: { mode?: InvestigateMode; minConfidence?: 'medium' | 'high'; agent?: string; model?: string }
+    investigate?: { mode?: InvestigateMode; minConfidence?: 'medium' | 'high' | 'ask'; agent?: string; model?: string }
   }
 }
 
@@ -318,7 +318,7 @@ export interface DeliveryForm {
   feedbackRounds: string
   ship?: ShipMode
   investigateMode?: InvestigateMode
-  minConfidence?: 'medium' | 'high'
+  minConfidence?: 'medium' | 'high' | 'ask'
   // Older falsifier agent and model keys, kept until a Settings › Models save moves them.
   investigateRest?: { agent?: string; model?: string }
 }

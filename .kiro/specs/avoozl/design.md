@@ -2699,7 +2699,7 @@ dispatch ─▶ worker: findings + confidence (no edits)
 | Setting                              | Values                    | Default       |
 | ------------------------------------ | ------------------------- | ------------- |
 | `delivery.investigate.mode`          | `all`, `not-small`, `off` | `not-small`   |
-| `delivery.investigate.minConfidence` | `medium`, `high`          | `high`        |
+| `delivery.investigate.minConfidence` | `medium`, `high`, `ask`   | `high`        |
 | Task fact `investigate`              | `true`, `false`           | from the mode |
 
 The falsifier is role `falsifier`, chosen like a review role (§4.10) with

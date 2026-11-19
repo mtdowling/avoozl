@@ -34,7 +34,8 @@ export const INVESTIGATE_DEFAULTS = Object.freeze({
 });
 export const FALSIFIER_VERDICTS = Object.freeze(["stands", "refuted"]);
 export const INVESTIGATION_ACTIONS = Object.freeze(["go", "again", "stop"]);
-const MIN_CONFIDENCE = new Set(["medium", "high"]);
+// `ask` is a bar no confidence meets, so every task waits for a person.
+const MIN_CONFIDENCE = new Set(["medium", "high", "ask"]);
 const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 const FIELD_MAX = 2000;
@@ -64,7 +65,7 @@ export function investigateSettings(value, where = "delivery.investigate") {
     value.minConfidence !== undefined &&
     !MIN_CONFIDENCE.has(value.minConfidence)
   )
-    throw Error(`${where}.minConfidence must be medium or high.`);
+    throw Error(`${where}.minConfidence must be medium, high or ask.`);
   if (value.agent !== undefined && !AGENT.test(value.agent))
     throw Error(`${where}.agent must be an agent name.`);
   if (value.model !== undefined && !MODEL.test(value.model))
@@ -264,8 +265,10 @@ export function recordFindings(store, binding, findings, at) {
 
 const passes = (row, policy, repository) => {
   const round = row.rounds.at(-1),
-    min = rank(investigatePolicy(policy, repository).minConfidence);
+    bar = investigatePolicy(policy, repository).minConfidence,
+    min = rank(bar);
   return (
+    bar !== "ask" &&
     round?.reply?.verdict === "stands" &&
     rank(round.findings.confidence) >= min &&
     rank(round.reply.confidence) >= min

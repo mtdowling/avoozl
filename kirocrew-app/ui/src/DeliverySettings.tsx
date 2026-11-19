@@ -144,6 +144,7 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
               <SelectField id="avoozl-delivery-confidence" disabled={Boolean(offInvestigate)} value={form.minConfidence ?? DELIVERY_DEFAULTS.minConfidence} onChange={(e) => set({ minConfidence: e.target.value as DeliveryForm['minConfidence'] })} look="field">
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
+                <option value="ask">Always ask</option>
               </SelectField>
             </Labeled>
           </Row>

@@ -2341,7 +2341,8 @@
           "default": "not-small"
         },
         "minConfidence": {
-          "enum": ["medium", "high"],
+          "description": "The confidence the worker and the falsifier both need for coding to start on its own. ask: a person always decides.",
+          "enum": ["medium", "high", "ask"],
           "default": "high"
         },
         "agent": {
