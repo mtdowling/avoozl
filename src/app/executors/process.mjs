@@ -290,7 +290,7 @@ export async function commitChildWork(binding, worktree) {
 // change what it reads. Avoozl reads with its own GitHub client; the child
 // makes no call.
 async function fillSnapshot(store, row, request, github) {
-  const folder = fs.mkdtempSync(path.join(os.tmpdir(), row.scratch));
+  const folder = scratchFolder(row.scratch);
   try {
     const filled = await row.snapshot(store, request, { github });
     writeSnapshot(folder, filled.files);
@@ -300,6 +300,13 @@ async function fillSnapshot(store, row, request, github) {
     throw error;
   }
 }
+
+// A new folder of a session's own, by its real path. The temp folder can be
+// a symlink (/var to /private/var on macOS); a harness that resolves its
+// folder would then see its own writes outside the relative paths its
+// permission rules name (Claude Code's Edit(.avoozl/output/*)) and refuse them.
+export const scratchFolder = (prefix) =>
+  fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
 
 // Write {relative path: text} under `folder`, each file read-only. A path
 // that leaves the folder, or names `.avoozl/`, is refused.
@@ -762,7 +769,7 @@ export async function drainProcessRequests(
               })
             : // A scratch role reads only its brief: a folder of its own.
               row?.folder === "scratch" && !request.worktree
-              ? fs.mkdtempSync(path.join(os.tmpdir(), row.scratch))
+              ? scratchFolder(row.scratch)
               : row?.folder === "given" && request.worktree
                 ? request.worktree
                 : row?.folder === "spec" && request.worktree
