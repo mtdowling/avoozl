@@ -459,10 +459,10 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
     >
       <Box as="ol" flex flexWrap gapX="3" gapY="1" size="xs" aria-label="Steps">
         {steps.map((key, i) => (
-          <li key={key} aria-current={key === step ? 'step' : undefined} className={`inline-flex items-center gap-1 ${key === step ? 'font-semibold' : 'text-muted'}`}>
+          <Box key={key} aria-current={key === step ? 'step' : undefined} as="li" inlineFlex items="center" gap="1" weight={key === step ? 'semibold' : undefined} tone={key === step ? undefined : 'muted'}>
             {isDone(key) && <Glyph icon={Check} size={11} aria-label="done" css-color="ok" />}
             {i + 1}. {ONBOARD_STEPS.find((s) => s.key === key)!.title}
-          </li>
+          </Box>
         ))}
       </Box>
       <div>

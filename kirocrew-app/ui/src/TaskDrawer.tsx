@@ -399,9 +399,9 @@ function TaskPanel(props: {
         </ErrorText>
       )}
       {message && (
-        <p role={message.ok ? 'status' : 'alert'} className={`text-sm ${message.ok ? 'text-muted' : 'text-danger'}`}>
+        <Box role={message.ok ? 'status' : 'alert'} as="p" size="sm" tone={message.ok ? 'muted' : 'danger'}>
           {message.text}
-        </p>
+        </Box>
       )}
       {task.manual && (
         <ManualTask

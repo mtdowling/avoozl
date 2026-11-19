@@ -549,9 +549,9 @@ export default function DashboardView(props: {
       <Box id="avoozl-dashboard-title" as="h2" srOnly>
         Home
       </Box>
-      <span role="status" className={busy || value?.failed ? 'text-xs text-muted' : 'sr-only'}>
+      <Box role="status" as="span" size={busy || value?.failed ? 'xs' : undefined} tone={busy || value?.failed ? 'muted' : undefined} srOnly={!(busy || value?.failed)}>
         {busy ? 'Loading…' : value?.failed ? `${value.failed} of 4 reads failed; those sections are empty.` : ''}
-      </span>
+      </Box>
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
       <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />

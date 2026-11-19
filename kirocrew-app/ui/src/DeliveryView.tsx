@@ -85,10 +85,10 @@ function LaneCardView(props: {
     <li data-lane-card>
       <Box css-overflow-wrap="break-word">
           {/* In a narrow lane the title wraps below its icon rather than split words. */}
-          <div className={`flex items-start gap-2 ${props.compact ? 'flex-wrap' : ''}`}>
+          <Box flex items="start" gap="2" flexWrap={props.compact}>
             {props.phase && <StateIcon phase={props.phase} />}
             <TaskTitleLink id={card.id} title={card.title} size={props.compact ? 'sm' : 'base'} weight="semibold" tight />
-          </div>
+          </Box>
           <Box mt="1" flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
             <span>{card.id}</span>
             {card.epic && <Badge>{card.epic}</Badge>}
@@ -293,9 +293,9 @@ export function DeliveryBoard(props: {
     <Stack as="ul">
       {pages.take(id, cards).map((card) => props.card(card, phase, compact))}
       {pages.more(id, cards.length).left > 0 && (
-        <li className={compact ? 'px-2' : 'px-3'}>
+        <Box as="li" px={compact ? '2' : '3'}>
           <ShowMore {...pages.more(id, cards.length)} />
-        </li>
+        </Box>
       )}
     </Stack>
   )
@@ -318,9 +318,9 @@ export function DeliveryBoard(props: {
             className={`flex min-w-0 flex-col gap-2 rounded-lg border ${compact ? 'py-2' : 'py-3'}`}
             style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)', ['--lane-line' as string]: laneBackground(lane.tint) }}
           >
-            <button
+            <PlainButton
               type="button"
-              className={`flex items-center gap-2 text-left text-sm font-semibold ${compact ? 'px-2' : 'px-3'}`}
+              flex items="center" gap="2" align="left" size="sm" weight="semibold" px={compact ? '2' : '3'}
               aria-expanded={!shut}
               onClick={() => {
                 const next = new Set(folded)
@@ -333,22 +333,22 @@ export function DeliveryBoard(props: {
               {(single || narrow) && <span aria-hidden="true">{shut ? '▸' : '▾'}</span>}
               {lane.label}
               <Badge variant={lane.id === 'needs-you' && cards.length ? 'warning' : undefined}>{cards.length}</Badge>
-            </button>
+            </PlainButton>
             {!shut &&
               (cards.length === 0 ? (
-                <p className={`text-xs text-muted ${compact ? 'px-2' : 'px-3'}`}>None</p>
+                <Box as="p" size="xs" tone="muted" px={compact ? '2' : '3'}>None</Box>
               ) : lane.id === 'in-progress' ? (
                 <>
                   {props.machines?.length ? (
-                    <p className={`text-xs text-muted ${compact ? 'px-2' : 'px-3'}`} data-machine-counts>
+                    <Box as="p" size="xs" tone="muted" px={compact ? '2' : '3'} data-machine-counts>
                       {props.machines.map(loadLabel).join(' · ')}
-                    </p>
+                    </Box>
                   ) : null}
                   {progressGroups(lanes).map((group) => (
                     <Stack key={group.id} gap={2} role="group" aria-label={`${group.label}: ${group.cards.length}`}>
-                      <h4 className={`flex items-center gap-1.5 ${compact ? 'px-2' : 'px-3'} text-xs font-semibold uppercase tracking-wide text-muted`}>
+                      <Box as="h4" flex items="center" gap="1.5" px={compact ? '2' : '3'} size="xs" weight="semibold" uppercase trackingWide tone="muted">
                         {group.label} <Badge>{group.cards.length}</Badge>
-                      </h4>
+                      </Box>
                       {list(`${lane.id}:${group.id}`, group.cards, group.id)}
                     </Stack>
                   ))}
@@ -546,9 +546,9 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
         Delivery
       </ViewHeading>
       {(error || message) && (
-        <p role={error || !message?.ok ? 'alert' : 'status'} className={`text-sm ${error || !message?.ok ? 'text-danger' : 'text-muted'}`}>
+        <Box role={error || !message?.ok ? 'alert' : 'status'} as="p" size="sm" tone={error || !message?.ok ? 'danger' : 'muted'}>
           {error ?? message?.text}
-        </p>
+        </Box>
       )}
       {!workspaceId ? (
         <Hint as="p" size="sm">Choose a workspace in the header.</Hint>

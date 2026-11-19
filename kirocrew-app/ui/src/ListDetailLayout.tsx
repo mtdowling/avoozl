@@ -126,12 +126,12 @@ export function ListDetailLayout(props: {
           <Box as="span" css-writing-mode="vertical-rl" css-transform="rotate-180deg" css-white-space="nowrap">{folded.label}</Box>
         </PlainButton>
       )}
-      <div
+      <Box
         data-detail-column={props.id}
-        style={{ flex: '1 1 0%', minWidth: 0, minHeight: 0, paddingLeft: 12, borderLeft: '1px solid var(--border)', ...(fillHeight !== null ? { display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' } : { overflowY: 'auto' }) }}
+        css-flex="1-1-0%" css-min-width="0" css-min-height="0" css-padding-left="12" css-border-left="1px-solid-border" css-display={fillHeight !== null ? 'flex' : undefined} css-flex-direction={fillHeight !== null ? 'column' : undefined} css-overflow={fillHeight !== null ? 'hidden' : undefined} css-position={fillHeight !== null ? 'relative' : undefined} css-overflow-y={fillHeight !== null ? undefined : 'auto'}
       >
         {props.detail}
-      </div>
+      </Box>
     </div>
   )
 }
