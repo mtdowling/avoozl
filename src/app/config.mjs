@@ -45,14 +45,7 @@ export function operatorName({ configured, workspaceRoot } = {}) {
 export function workspaceConfig(options = {}) {
   const env = options.env || process.env;
   const workspaceRoot = path.resolve(
-    // AVOOZL_* is the current form. AICOMMANDER_* and NUPP_WORKSPACE_* stay
-    // accepted: they are compatibility interfaces, not names to drop because
-    // the product was renamed.
-    options.workspace ||
-      env.AVOOZL_WORKSPACE ||
-      env.AICOMMANDER_WORKSPACE ||
-      env.NUPP_WORKSPACE ||
-      process.cwd(),
+    options.workspace || env.AVOOZL_WORKSPACE || process.cwd(),
   );
   const loaded = loadLayeredConfig({
       workspaceRoot,

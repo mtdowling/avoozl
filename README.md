@@ -532,13 +532,11 @@ rather than copying the database file: SQLite also keeps a WAL file.
 
 ## Compatibility
 
-Avoozl was first released as AICommander. These names keep working:
+Only `AVOOZL_*` variables and the `avoozl` command work. A configuration
+file with an unknown top-level key fails to load, naming the file and the key.
+Two older inputs still read:
 
-- `AVOOZL_*` variables, and the older `AICOMMANDER_*` and `NUPP_WORKSPACE_*`
-  names, including `NUPP_WORKSPACE` for the workspace.
-- The `aicommander` command, the same CLI as `avoozl`.
-- Older fenced-`task` plan files, which stay readable so their work can move
-  to spec folders.
+- Older fenced-`task` plan files, so their work can move to spec folders.
 - An `.avoozl.json` with no `role` keys, which gets its roles from its
   stored `github.mode`.
 

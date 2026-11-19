@@ -11,13 +11,9 @@ const repo = (mode, repository = {}) =>
   }).repositories["example/app"];
 const MODES = ["plans-repo", "single-repo"];
 
-test("the default is avoozl:plan-approved, in both modes, for worker and radar repositories", () => {
+test("the default is avoozl:plan-approved, in both modes", () => {
   for (const mode of MODES)
-    for (const coder of [undefined, "worker", "issue-radar"])
-      assert.equal(
-        repo(mode, { coder }).radar.approvalLabel,
-        "avoozl:plan-approved",
-      );
+    assert.equal(repo(mode).radar.approvalLabel, "avoozl:plan-approved");
   // A worker repository with no radar block, and with an empty one.
   assert.equal(repo("plans-repo").radar.approvalLabel, "avoozl:plan-approved");
   assert.equal(

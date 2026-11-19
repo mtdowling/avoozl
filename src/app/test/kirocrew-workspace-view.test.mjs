@@ -41,7 +41,7 @@ function sign(body, kind = "owner-session") {
 function isolatedEnv(root) {
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "config") };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_/.test(name)) delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   return env;
 }
 

@@ -36,7 +36,6 @@ function policy(roles = {}) {
     repositories: {
       "o/app": {
         baseBranch: "main",
-        coder: "worker",
         allowedActors: ["carol"],
         ...roles,
       },

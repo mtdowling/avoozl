@@ -145,7 +145,6 @@ export function setup(
         repositories: {
           [REPO]: {
             baseBranch: "main",
-            coder: "issue-radar",
             allowedActors: ["maintainer"],
             minimumPermission: "write",
             requiredChecks: ["build"],

@@ -1,4 +1,4 @@
-import { complete, MCP_TOOLS, validateMcpRequest } from "../mcp.mjs";
+import { complete, validateMcpRequest } from "../mcp.mjs";
 import { workspaceIdentity } from "./identity.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { mcpRefusal, PERSON_ONLY } from "./mcp-policy.mjs";
@@ -12,10 +12,24 @@ import {
 } from "./mcp-views.mjs";
 // Single-operation tools. Each narrow tool is the one a role's agent, prompt
 // or brief names, so the agent's allowedTools grant that one operation and
-// not a grouped tool's other actions. The person-only names answer a session
-// with a refusal that points at the app. plans_workspace is a grouped tool;
-// its old {input} call still reads the workspace.
-export const OLD_TOOLS = {
+// not a grouped tool's other actions.
+export const NARROW_TOOLS = {
+  plans_query: [
+    "query",
+    "Narrow tool for the planner. Search tasks: {q?, status?, epic?, tag?, scope?}. Read only.",
+  ],
+  plans_get_task: [
+    "task.get",
+    "Narrow tool for the planner. Read one task: {id}. Read only.",
+  ],
+  plans_documents: [
+    "plan.table",
+    "Narrow tool for the planner. Stored plans grouped with progress. Read only.",
+  ],
+  plans_get_document: [
+    "document.get",
+    "Narrow tool for the planner. Read one workspace document: {id}. Read only.",
+  ],
   plans_duplicates: [
     "task.duplicates",
     "Narrow tool for the planner. List repeated-title task candidates, or find similarly worded work with a title. Matching wording does not prove duplicate scope.",
@@ -100,18 +114,10 @@ export const OLD_TOOLS = {
     "plan.approve",
     "Extract an explicitly authorized revision into tasks atomically. Requires expectedHash and expectedRevision; the reviewed document hash and database revision are the authorization. approvedBy and evidence are optional: approvedBy defaults to the workspace operator, and evidence records a real statement when there is one. For a spec plan, retitled lists approved task IDs whose tasks.md item text may change in this approval. Refused here unless delegate names an approval delegate a person granted; it then approves on that person's behalf and the receipt records the delegation.",
   ],
-  plans_content_allow: [
-    "content.allow",
-    "Allow one blocked write once: {id, reason}. Only a person allows, from the Avoozl page or the CLI; a session calling this is refused (403).",
-  ],
-  plans_flow_run_anyway: [
-    "flow.runAnyway",
-    "Resume dispatch while a line stop stays open: {stopId, confirm: true}. Only a person runs anyway, from the Avoozl page or the CLI; a session calling this is refused (403).",
-  ],
 };
-const operations = OLD_TOOLS;
-// The operation and input an old plans_* call names, or {error}.
-const oldCall = (name, args) => {
+const operations = NARROW_TOOLS;
+// The operation and input a narrow tool call names, or {error}.
+const narrowCall = (name, args) => {
   const input = args.input ?? {};
   return input && typeof input === "object" && !Array.isArray(input)
     ? { operation: operations[name][0], input }
@@ -140,6 +146,10 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
         "plan.review.findings",
         "task.duplicates",
         "runner.next",
+        "query",
+        "task.get",
+        "plan.table",
+        "document.get",
       ].includes(operation),
     },
   }),
@@ -187,7 +197,6 @@ export async function handleMcp(
   const tools = [
     ...groupedToolList(classifyOperation),
     ...viewToolList(),
-    ...MCP_TOOLS,
     ...WORKSPACE_TOOLS,
   ].map(withViewLink);
   if (message?.method === "tools/list") return ok({ tools });
@@ -203,7 +212,7 @@ export async function handleMcp(
         ? groupedCall(name, args)
         : Object.hasOwn(VIEW_TOOLS, name)
           ? viewCall(name, args)
-          : oldCall(name, args);
+          : narrowCall(name, args);
     const refuse = (text) =>
       ok({ isError: true, content: [{ type: "text", text }] });
     if (route.error) return refuse(route.error);

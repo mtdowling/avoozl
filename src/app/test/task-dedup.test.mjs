@@ -118,7 +118,10 @@ test("consolidation retains provenance, criteria, evidence, graph semantics and 
       jsonrpc: "2.0",
       id: 1,
       method: "tools/call",
-      params: { name: "plans_get_task", arguments: { id: "copied-task" } },
+      params: {
+        name: "plans_get_task",
+        arguments: { input: { id: "copied-task" } },
+      },
     },
     ops,
   );

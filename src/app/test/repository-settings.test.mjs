@@ -92,7 +92,7 @@ test("repository settings use a file hash to avoid clobbering direct edits", (t)
   });
   writeJson(path.join(root, ".avoozl.json"), {
     version: 1,
-    notes: { editedBy: "person" },
+    name: "Edited by a person",
     conversations: { autoArchiveCompleted: true },
   });
 
@@ -309,7 +309,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
 
   writeJson(filename, {
     version: 1,
-    integrations: {
+    packs: {
       github: {
         apiKey: "must-not-be-configured",
       },
@@ -331,7 +331,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
   });
   assert.match(
     configuration.metadata().repository.error.message,
-    /secret-like key integrations\.github\.apiKey/,
+    /secret-like key packs\.github\.apiKey/,
   );
 });
 

@@ -2,13 +2,11 @@
 // authorization (app-backend.mjs principalAllows): `observe` reads only;
 // `draft`, `execute`, `protect`, and `incident` change state. An operation not
 // listed here is refused by name, so a new operation fails closed until it is
-// classified. Moved run-era operations (moved-operations.mjs) keep their old
-// class so an old client keeps the same answer.
+// classified.
 const OBSERVE = new Set([
   "review.chat.show",
   "client.describe",
   "workspace",
-  "concurrency.status",
   "workspace.examples",
   "state",
   "query",
@@ -38,13 +36,7 @@ const OBSERVE = new Set([
   "plan.review.findings",
   "plan.review.view",
   "plan.review.pipeline.get",
-  "run.context",
-  "models",
-  "openhands.profiles",
-  "openhands.models",
   "handoff",
-  "metrics",
-  "usage.limits",
   "repositories.list",
   "repositories.detect",
   "onboarding.inspect",
@@ -121,13 +113,6 @@ const OBSERVE = new Set([
   "github.settings.validate",
   "local.ignore.status",
   "trash",
-  "session.discover",
-  "targets.list",
-  "targets.status",
-  "jobs.status",
-  "review.queue",
-  "checkpoint.reconcile",
-  "primary.liveState",
   "task.notes.list",
   "template.list",
   "template.preview",
@@ -146,33 +131,19 @@ const DRAFT = new Set([
   "plan.review.dispose",
   "plan.review.finding.decide",
   "plan.review.apply",
-  "plan.review.pipeline",
   "plan.extraction.submit",
   "plan.extraction.dispose",
   "document.update",
   "report.save",
   "report.delete",
   "intent.get",
-  "search.prompt",
-  "checkpoint.publish",
   "github.breakdown.classify",
   "github.breakdown.draft",
 ]);
 
 const EXECUTE = new Set([
   "intake.submit",
-  "driver.open",
-  "driver.context",
   "run.start",
-  "run.send",
-  "run.answer",
-  "run.interrupt",
-  "run.resume",
-  "run.approvals",
-  "run.model",
-  "run.unsend",
-  "run.queue",
-  "session.register",
   "session.bind",
   "session.rediscover",
   "session.request",
@@ -222,10 +193,7 @@ const EXECUTE = new Set([
   "prompt.override.rebase",
   "runner.claim",
   "instance.rename",
-  "remote.accept",
   "remote.report",
-  "remote.handoff",
-  "remote.pull",
   "worker.pull",
   "worker.claim",
   "spec.offer",
@@ -234,15 +202,10 @@ const EXECUTE = new Set([
   "spec.claims.status",
   "worker.setup",
   "notifications.deliver",
-  "batch.start",
-  "batch.control",
   "plan.extract",
   "queue.design.triage",
-  "github.start",
   "intent.submit",
   "activity",
-  "jobs.dispatch",
-  "jobs.redispatch",
   "task.notes.add",
 ]);
 
@@ -257,7 +220,6 @@ const PROTECT = new Set([
   "driver.takeover",
   "driver.forceTakeover",
   "driver.away.decide",
-  "relay.forget",
   "provider.switch",
   "provider.switch.dryRun",
   "provider.health.clear",
@@ -345,20 +307,13 @@ const PROTECT = new Set([
   "workspace.repository.sync",
   "planning.publish",
   "planning.reconcile",
-  "publication.retry",
   "visualization.delete",
   "agent.instructions.toggle",
   "legacy.mcp",
-  "targets.pair",
-  "targets.unpair",
-  "review.request",
-  "primary.handover",
-  "primary.adopt",
-  "primary.rebuild",
   "work.release",
 ]);
 
-const INCIDENT = new Set(["jobs.stop"]);
+const INCIDENT = new Set([]);
 
 // Every classified operation name, for the test that keeps this list, the
 // handlers and the MCP policy from drifting apart.

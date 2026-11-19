@@ -24,7 +24,6 @@ const POLICY = {
   mode: "single-repo",
   repositories: {
     [REPO]: {
-      coder: "issue-radar",
       buildReceipts: true,
       managedLabels: { ready: "ready" },
       crewLabels: { claim: "crew: in progress" },

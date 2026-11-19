@@ -7221,8 +7221,9 @@ Stop after P6 passes or when a proof fails twice; report what failed and why.
 7. Spec and research documents with machine-local paths stay out of the release
    or are rewritten to relative names; receipts under `docs/evidence/` are
    regenerated rather than edited (AGENTS.md).
-8. Compatibility: `plans_*` MCP names, `AVOOZL_*`, `AICOMMANDER_*`,
-   `NUPP_WORKSPACE_*`, and the `aicommander` command still work.
+8. No backward compatibility until Avoozl has other users (owner,
+   2026-11-18): only `AVOOZL_*` and the `avoozl` command, and an unknown
+   top-level settings key fails to load naming the file and key.
 9. Clean build from a fresh clone; `npm test` and `git diff --check` pass.
 10. App package installs with `kirocrew app install` and passes P15.
 11. npm package and signed GitHub release published; Avoozl's own repository

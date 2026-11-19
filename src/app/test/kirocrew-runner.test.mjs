@@ -55,10 +55,7 @@ const requires = (from, to) => ({
 function isolatedEnv(dir) {
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
   for (const name of Object.keys(env))
-    if (
-      /^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_|^NUPP_WORKSPACE$|^PORT$/.test(name)
-    )
-      delete env[name];
+    if (/^AVOOZL_|^PORT$/.test(name)) delete env[name];
   return env;
 }
 

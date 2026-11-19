@@ -17,15 +17,13 @@ test("Avoozl's executor runs the leaves of an Issue Radar repository", () => {
     route: "github",
     github: { repository: REPO, number: 4 },
   };
-  for (const coder of ["issue-radar", undefined, "worker"])
-    assert.equal(
-      isLinkedBranchLeaf(leaf, {
-        mode: "single-repo",
-        repositories: { [REPO]: coder ? { coder } : {} },
-      }),
-      true,
-      String(coder),
-    );
+  assert.equal(
+    isLinkedBranchLeaf(leaf, {
+      mode: "single-repo",
+      repositories: { [REPO]: {} },
+    }),
+    true,
+  );
 });
 
 // ---- the backfill ----------------------------------------------------------

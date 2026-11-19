@@ -88,8 +88,7 @@ test("with no sink, status shows how many wait and the oldest one's age", async 
   );
   const env = { ...process.env };
   for (const key of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE|KIROCREW)(_|$)/.test(key))
-      delete env[key];
+    if (/^(AVOOZL|KIROCREW)(_|$)/.test(key)) delete env[key];
   Object.assign(env, {
     HOME: path.join(root, "home"),
     XDG_CONFIG_HOME: path.join(root, "config"),

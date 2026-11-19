@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { workspaceConfig } from "../config.mjs";
 import { kirocrewConfiguration } from "../executors/kirocrew.mjs";
 import { groupedCall, GROUPED_TOOLS } from "../mcp-tools.mjs";
 import { Operations } from "../operations.mjs";
@@ -71,36 +72,28 @@ function workspace(t, tasks, tracked = {}) {
   };
 }
 
-test("the relay tool is gone and relay.forget refuses without changing state", async (t) => {
+test("the relay tool and relay.forget are gone", async (t) => {
   const { root, store } = fixture(t),
     ops = new Operations(store, { workspaceRoot: root });
-  store.setMeta("relay.state", {
-    slot: "old-relay",
-    queue: [{ id: "old-request" }],
-  });
-  const before = store.getMeta("relay.state");
   // plans_relay and its relay.call operation were removed (R56.3).
   assert.equal(Object.hasOwn(GROUPED_TOOLS, "plans_relay"), false);
   assert.equal(groupedCall("plans_relay", { action: "register" }), null);
-  await assert.rejects(
-    ops.execute("relay.forget", {}),
-    /Remote relay was removed/,
-  );
-  assert.deepEqual(store.getMeta("relay.state"), before);
+  await assert.rejects(ops.execute("relay.forget", {}), /Unknown operation/);
 });
 
-test("unknown machine file keys are dropped; pins still steer", async (t) => {
+test("an unknown machine file key is refused, naming it; pins still steer", async (t) => {
   fs.mkdirSync(path.dirname(MACHINE), { recursive: true });
-  // Nothing reads these keys; they never stop a workspace from loading.
   fs.writeFileSync(
     MACHINE,
-    JSON.stringify({
-      version: 1,
-      oldKey: { enabled: true },
-      providers: { oldProviderKey: 1 },
-    }),
+    JSON.stringify({ version: 1, oldKey: { enabled: true } }),
   );
   t.after(() => fs.rmSync(MACHINE, { force: true }));
+  const { root } = fixture(t);
+  assert.throws(
+    () => workspaceConfig({ workspace: root }),
+    /Unknown setting "oldKey" in global Avoozl configuration/,
+  );
+  fs.writeFileSync(MACHINE, JSON.stringify({ version: 1 }));
   const env = workspace(t, [
     leaf("a"),
     leaf("b", { session: { agent: "agent-p", model: "model-p" } }),

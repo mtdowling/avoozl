@@ -6,11 +6,8 @@
 // Each action is [operation, hint] or [operation, hint, shape], where `shape`
 // rewrites the input before the call (a GitHub setup preview never confirms).
 const tools = {
-  // Read only, so an agent allowed the old read-only plans_workspace name
-  // gains nothing by it being a grouped tool now.
   plans_workspace: {
     summary: "The workspace, read only.",
-    defaultAction: "get",
     actions: {
       get: [
         "workspace",
@@ -474,9 +471,7 @@ export function groupedToolList(classify) {
       name,
       description: `${tool.summary} Actions: ${actions
         .map((action) => `${action} (${tool.actions[action][1]})`)
-        .join(
-          "; ",
-        )}.${tool.defaultAction ? ` action defaults to ${tool.defaultAction}.` : ""}`,
+        .join("; ")}.`,
       inputSchema: {
         type: "object",
         properties: {
@@ -484,7 +479,7 @@ export function groupedToolList(classify) {
           input: { type: "object", additionalProperties: true },
           expectedRevision: { type: "integer" },
         },
-        required: tool.defaultAction ? [] : ["action"],
+        required: ["action"],
         additionalProperties: false,
       },
       annotations: {
@@ -501,7 +496,7 @@ export function groupedCall(name, args = {}) {
   const tool = tools[name];
   if (!tool) return null;
   const actions = Object.keys(tool.actions),
-    action = args.action ?? tool.defaultAction;
+    action = args.action;
   if (typeof action !== "string" || !Object.hasOwn(tool.actions, action))
     return {
       error: `${action === undefined ? "Name an action" : `Unknown action ${JSON.stringify(action)}`} for ${name}. Choose one of: ${actions.join(", ")}.`,

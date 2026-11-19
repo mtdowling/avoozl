@@ -30,6 +30,7 @@ import { createHash } from "node:crypto";
 import { git, withWorkLock } from "./git.mjs";
 import {
   assertPortableRepositoryConfig,
+  assertKnownKeys,
   assertSafeConfig,
 } from "./layered-config.mjs";
 import { flowPolicy, syncSpans } from "./flow.mjs";
@@ -101,7 +102,6 @@ import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { taskSummaryDispatches } from "./task-summary.mjs";
 import { summaryLine } from "./title-repeat.mjs";
 import {
-  validateModels,
   validateRoles,
   validatePlanReview,
   withChatModels,
@@ -179,6 +179,7 @@ function parsePolicy(text) {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw Error(".avoozl.json must contain a JSON object.");
   if (value.version !== 1) throw Error("Unsupported .avoozl.json version.");
+  assertKnownKeys(value, ".avoozl.json");
   assertSafeConfig(value, ".avoozl.json");
   assertPortableRepositoryConfig(value, ".avoozl.json");
   deliveryPolicy(value);
@@ -186,7 +187,6 @@ function parsePolicy(text) {
   repositoryPlugins(value);
   refuseTrackedProviders(value);
   validateContentRules(value.contentRules);
-  validateModels(value.models);
   validateRoles(value);
   validatePlanReview(value.planReview);
   validateIntake(value.intake);

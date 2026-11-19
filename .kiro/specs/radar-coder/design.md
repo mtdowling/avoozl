@@ -508,10 +508,9 @@ Rules for the removal:
   the code only when no repository in any known workspace is on `worker`, which
   the owner decides (rc-12.1). Owner decision 2026-11-14: `coder: worker` is
   retired, so these removals are for every repository, after rc-p11.
-- Keep these names and files working: `plans_*` MCP names, `NUPP_WORKSPACE`
-  and `AICOMMANDER_*` variables, the `aicommander` command, the
-  `aicommander.*` editor settings (AGENTS.md). A compatibility test asserts each
-  still resolves (rc-12.8).
+- Keep the narrow `plans_*` MCP tools a shipped agent, prompt or brief names.
+  No older environment alias, command name or editor setting stays (owner,
+  2026-11-18: no backward compatibility until Avoozl has other users).
 - Do not rewrite `docs/research/` or `docs/evidence/`.
 
 ## D14. Four gates stay four

@@ -134,7 +134,7 @@ test("an operation the backend does not offer names the stale build", async (t) 
   initializeWorkspace(root);
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "config") };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_/.test(name)) delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   const server = startAppBackend({
     config: workspaceConfig({ workspace: root, env }),
     secret: "secret",
