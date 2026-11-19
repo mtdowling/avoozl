@@ -26,6 +26,7 @@ lists the parts the plugin provides:
 | `rules`    | Content rule sets supplied while Avoozl runs                      | Yes       |
 | `intake`   | An intake source: its `poll` brings outside work in               | Yes       |
 | `template` | A workflow template that starts a new spec from a reusable folder | No        |
+| `policy`   | A limit this machine holds Avoozl to, such as no triage agent     | No        |
 
 Avoozl's own worker paths deliver every task, and each task's record is local.
 A plugin cannot add a delivery route or a task tracker, and Avoozl refuses a
@@ -48,13 +49,14 @@ These keys appear in the manifest:
   interface this plugin was built for. It is not the plugin's own version.
   Settings shows it as **Contract version**. This Avoozl supports contract
   version `1`.
-- `provides` lists the parts: `pack`, `rules`, `intake` and `template`.
+- `provides` lists the parts: `pack`, `rules`, `intake`, `template` and
+  `policy`.
 - `capabilities` lists optional features per kind. An intake part may list
   `actor`. Rules list none.
 - `pack` names the pack file inside the folder; it defaults to
   `avoozl-pack.json`.
 - `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides
-  only data parts (`pack`, `template`) runs no code, so it has no
+  only data parts (`pack`, `template`, `policy`) runs no code, so it has no
   `entry`; Avoozl refuses one that names an entry, and never starts a
   process for it.
 
@@ -330,6 +332,34 @@ yet.
 
 A starter may hold manual tasks (`"manual": true`): steps only a person
 does. See [Manual tasks and task links](manual-tasks.md).
+
+## Policy part
+
+A policy part is a limit a machine holds Avoozl to. It is data only, so a
+plugin that provides only `policy` has no `entry` and runs no code. The one
+limit so far blocks the [triage agent](triage.md):
+
+```json [avoozl-plugin.json]
+{
+  "id": "team-policy",
+  "version": "1.0.0",
+  "contract": 1,
+  "provides": ["policy"],
+  "policy": {
+    "triage": "blocked",
+    "reason": "Our team triages issues by hand."
+  }
+}
+```
+
+`triage` must be `"blocked"` and `reason` 1 to 300 characters. Avoozl
+reads the policy only from a plugin declared in this machine's `plugins.json`
+and approved here, so the block stays on this machine: a plugin that
+`.avoozl.json` declares sets no policy, and the block never writes the
+repository. While it holds, **Set up triage** shows the reason instead of
+its button, `avoozl triage setup` and `triage.setup` refuse with it, and a
+repository whose agent is on runs no triage and shows one Needs you row.
+Disable or remove the plugin to lift the block.
 
 ## Intake part
 

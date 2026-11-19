@@ -144,6 +144,7 @@ export const PLUGIN_PARTS: Record<string, { title: string; line: string }> = {
   pack: { title: 'Settings pack', line: 'Settings you preview and copy into .avoozl.json once. Runs no code.' },
   rules: { title: 'Content rules', line: 'Rule sets supplied while Avoozl runs. The terms never go into Git.' },
   intake: { title: 'Intake source', line: 'Brings outside work in, read on each tick.' },
+  policy: { title: 'Machine policy', line: 'A limit this machine holds Avoozl to, such as no triage agent. Runs no code.' },
   // Still listed by older plugins; Avoozl reads nothing from it (RC30.4).
   lessons: { title: 'Lessons pack (removed)', line: 'Avoozl no longer reads lessons packs. Remove lessons from provides.' },
 }

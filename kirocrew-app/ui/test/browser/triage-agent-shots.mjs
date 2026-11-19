@@ -6,6 +6,9 @@
 //   agent-<width>-<theme>.png         GitHub › Triage agent
 //   owner-<width>-<theme>.png         Needs you › From the agent
 //   home-<width>-<theme>.png          Home, whose Needs you counts the queue
+//   agent-off-<width>-<theme>.png     Triage agent before set up: Set up triage
+//   agent-setup-<width>-<theme>.png   The Set up triage flow, its preview
+//   agent-blocked-<width>-<theme>.png A plugin blocks triage on this machine
 //   new-fix-<width>-<theme>.png       New fix (beside New spec on Specs)
 //
 //   node test/browser/triage-agent-shots.mjs <out dir>
@@ -23,14 +26,17 @@ const SCREENS = [
   ['agent', 'github/agent', '[data-triage-run]', null, null],
   ['owner', 'waiting/agent', '[data-item-row]', null, null],
   ['home', null, '[data-shell]', null, null],
+  ['agent-off', 'github/agent', '[data-triage-empty]', null, null, 'off'],
+  ['agent-setup', 'github/agent', '[data-triage-setup-start]', `document.querySelector('[data-triage-setup-start]').click()`, '[data-triage-setup-apply]', 'off'],
+  ['agent-blocked', 'github/agent', '[data-triage-blocked]', null, null, 'blocked'],
 ]
 try {
   const page = await browser.page()
   const settle = (ms = 500) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-  for (const [name, nav, ready, then, after] of SCREENS)
+  for (const [name, nav, ready, then, after, agent = '1'] of SCREENS)
     for (const theme of ['light', 'dark'])
       for (const width of [1280, 390]) {
-        await page.open(harness.url({ page: 'app', theme, agent: '1' }), { width, height: SIZE[width], dark: theme === 'dark' })
+        await page.open(harness.url({ page: 'app', theme, agent }), { width, height: SIZE[width], dark: theme === 'dark' })
         await page.until(`Boolean(document.querySelector('[data-shell]'))`)
         if (nav) {
           if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)

@@ -46,8 +46,11 @@ Ask what the team needs, then list only those parts in `provides`:
 | Terms Avoozl must never write                                                                                   | `rules`    |
 | Outside work brought in on each tick                                                                            | `intake`   |
 | A repeated kind of work started the same way each time, as folders under `templates/`                           | `template` |
+| A limit on the machines that approve it: `"policy": {"triage": "blocked", "reason": "..."}` blocks the triage agent | `policy`   |
 
-A plugin with only `pack` or `template` has no `entry` and runs no code.
+A plugin with only `pack`, `template` or `policy` has no `entry` and runs no
+code. A `policy` part counts only when the plugin is declared in the
+machine's `plugins.json`, never in `.avoozl.json`.
 
 The code kinds are `intake` and `rules`. A manifest written
 before `provides` lists `kinds` instead; with `provides`, leave `kinds` out,

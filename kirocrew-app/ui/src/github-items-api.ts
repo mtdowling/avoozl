@@ -128,6 +128,8 @@ export interface TriageRepository {
 
 export interface TriageView {
   stopAll: string | null
+  // A plugin approved on this machine that blocks triage (TA12.3).
+  blocked: { plugin: string; reason: string } | null
   repositories: TriageRepository[]
   inProgress: RunView[]
   runs: RunView[]
@@ -135,6 +137,25 @@ export interface TriageView {
   calls: { day: string; rest: number; notModified: number; graphql: number; writes: number }
   rate: { limit: number; remaining: number; resetAt: string } | null
   ownerQueue: number
+}
+
+// Set up triage's preview (TA12.2): the defaults, the labels it can make
+// (exists is null when GitHub could not be read), and the harnesses.
+export interface TriageSetupPreview {
+  repository: string
+  defaults: { existing: string; dailyRuns: number; fullReviewMaxLines: number }
+  labels: { name: string; color: string; description: string; exists: boolean | null }[]
+  labelsError: string | null
+  harnesses: string[]
+  harness: string
+}
+
+export interface TriageSetup {
+  existing: 'take' | 'skip'
+  dailyRuns: number
+  fullReviewMaxLines: number
+  harness: string
+  createLabels: string[]
 }
 
 export interface ListFilter {
@@ -162,6 +183,9 @@ export function itemsClient(api: AppApi) {
     control: (workspaceId: string, action: 'pause' | 'resume' | 'stop' | 'start', repository?: string) =>
       call<unknown>(`triage.${action}`, workspaceId, repository ? { repository } : {}),
     settings: (workspaceId: string, repository: string, change: Record<string, unknown>) => call<unknown>('triage.settings', workspaceId, { repository, ...change }),
+    setupPreview: (workspaceId: string, repository: string) => call<TriageSetupPreview>('triage.setup', workspaceId, { repository }),
+    setup: (workspaceId: string, repository: string, choice: TriageSetup) => call<unknown>('triage.setup', workspaceId, { repository, confirm: true, ...choice }),
+    off: (workspaceId: string, repository: string) => call<unknown>('triage.off', workspaceId, { repository }),
     settle: (workspaceId: string, repository: string, number: number) => call<unknown>('triage.owner.done', workspaceId, { repository, number }),
   }
 }

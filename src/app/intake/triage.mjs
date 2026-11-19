@@ -60,6 +60,23 @@ export const TRIAGE_DEFAULTS = Object.freeze({
 });
 // The line every comment and review Avoozl posts for the agent carries.
 export const AGENT_LINE = "_Written by Avoozl's triage agent._";
+// The labels Set up triage offers to make (TA12.2), one per class the agent
+// labels, in GitHub's own default colors. Only a person makes them, after
+// the preview; the agent itself never creates a label (TA7.6).
+export const TRIAGE_LABELS = Object.freeze([
+  { name: "bug", color: "d73a4a", description: "Something isn't working" },
+  {
+    name: "question",
+    color: "d876e3",
+    description: "Further information is requested",
+  },
+  {
+    name: "enhancement",
+    color: "a2eeef",
+    description: "New feature or request",
+  },
+  { name: "performance", color: "fbca04", description: "Faster or smaller" },
+]);
 const RUNS = "triage_runs";
 const ITEMS = "github_items";
 const CONTROL = "triageControl";
@@ -87,11 +104,32 @@ export function triageSettings(policy, repository) {
   };
 }
 
-// The repositories the agent is on for, by their registered names.
-export const triageRepositories = (policy) =>
-  Object.keys(policy?.repositories || {}).filter(
-    (name) => triageSettings(policy, name).agent === "on",
-  );
+// The repositories the agent is on for, by their registered names. A
+// plugin's triage block (TA12) turns every one off.
+export const triageRepositories = (policy, block = null) =>
+  block
+    ? []
+    : Object.keys(policy?.repositories || {}).filter(
+        (name) => triageSettings(policy, name).agent === "on",
+      );
+
+// One Needs you row per repository whose `.avoozl.json` has the agent on
+// while a plugin blocks triage on this machine (TA12.3). Avoozl treats it as
+// off and writes nothing to the repository; turning it off clears the row.
+export function triageBlockedNeedsYou(policy, block) {
+  if (!block) return [];
+  return Object.keys(policy?.repositories || {})
+    .filter((name) => triageSettings(policy, name).agent === "on")
+    .map((repository) => ({
+      kind: "needs-human",
+      reason: "triage-blocked",
+      id: `triage-blocked:${repository}`,
+      taskId: null,
+      authority: "local",
+      title: `Triage is blocked for ${repository}`,
+      detail: `.avoozl.json turns the triage agent on for ${repository}, but plugin ${block.plugin} blocks triage on this machine: ${block.reason} Avoozl treats it as off. Turn it off on the Triage agent page to clear this row.`,
+    }));
+}
 
 // ---- Pause and Stop all (TA6.2, TA6.3) ---------------------------------------
 
@@ -317,10 +355,17 @@ function stopClosed(store, now) {
 export async function triageStep(
   store,
   github,
-  { policy, config = {}, workspaceRoot = null, now = Date.now(), run } = {},
+  {
+    policy,
+    config = {},
+    workspaceRoot = null,
+    now = Date.now(),
+    run,
+    block = null,
+  } = {},
 ) {
   const notify = [],
-    repositories = triageRepositories(policy),
+    repositories = triageRepositories(policy, block),
     // Only repositories the agent is on for are read, so a workspace that
     // has not turned it on makes no call here. The Issues and Pull requests
     // pages show what was read.
@@ -1028,8 +1073,15 @@ export function settleOwner(store, input = {}, now = Date.now()) {
   });
 }
 
-// The Triage agent page (TA6.1).
-export function triageView(store, policy, github = null, now = Date.now()) {
+// The Triage agent page (TA6.1). With a plugin's block (TA12) every
+// repository shows off, and `blocked` says why.
+export function triageView(
+  store,
+  policy,
+  github = null,
+  now = Date.now(),
+  block = null,
+) {
   const runs = runRows(store).sort((a, b) =>
       String(b.queuedAt).localeCompare(String(a.queuedAt)),
     ),
@@ -1047,12 +1099,13 @@ export function triageView(store, policy, github = null, now = Date.now()) {
   }
   return {
     stopAll: control.stopAll,
+    blocked: block,
     repositories: Object.keys(policy?.repositories || {}).map((repository) => {
       const settings = triageSettings(policy, repository),
         used = runsToday(store, repository, now);
       return {
         repository,
-        on: settings.agent === "on",
+        on: settings.agent === "on" && !block,
         paused: Boolean(control.paused[repository]),
         hold: triageHold(store, repository),
         cap: settings.dailyRuns,

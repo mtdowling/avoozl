@@ -30,6 +30,8 @@ import { describeWorkspace } from "../api/client.mjs";
 import { settleConflicts } from "../delivery/conflict-actions.mjs";
 import { startNow } from "../delivery/delivery.mjs";
 import { diskNeedsYou } from "../workspace/disk-space.mjs";
+import { triageBlockedNeedsYou } from "../intake/triage.mjs";
+import { triageBlock } from "../plugins/plugins.mjs";
 import { resolveDecision } from "../api/direct-links.mjs";
 import { machineLinks } from "../tick/crews.mjs";
 import { taskEvidence } from "../tasks/evidence.mjs";
@@ -455,6 +457,9 @@ export const entries = [
       view.items.push(...landingWaitNeedsYou(store, this.read()));
       view.items.push(...syncNeedsYou(store));
       view.items.push(...diskNeedsYou(store));
+      view.items.push(
+        ...triageBlockedNeedsYou(policy, triageBlock(this.pluginOptions)),
+      );
       view.items.push(...rateNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));

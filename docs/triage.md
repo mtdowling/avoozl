@@ -27,9 +27,43 @@ or a repository you have only registered, has the agent off.
 
 Avoozl takes no GitHub issue by itself, and no label is an order. Work starts
 in one of three ways: a person approves a spec, a person starts a fix, or the
-triage agent acts on a new issue or pull request. Turn the agent on per
-repository in **Settings › Repository setup**, or under
-`github.repositories.<owner/repo>.triage` in `.avoozl.json`.
+triage agent acts on a new issue or pull request.
+
+## Setting up triage
+
+Triage is separate from repository onboarding. Adding a repository, Set up
+GitHub and `avoozl setup` never ask about triage, never write a `triage` key
+and never make a label, and epic delivery works with triage never set up.
+
+Turn the agent on from **GitHub › Triage agent** with **Set up triage**. It
+asks which repository, whether to take the open items already there, the runs
+a day, the largest change that gets a full review, and where each run's
+session runs (`roles.triage.harness`). It reads the repository's labels and
+offers to make the ones the agent uses that are missing: `bug`, `question`,
+`enhancement` and `performance`. It shows what it will do before **Turn
+triage on** makes those labels and sets `triage.agent` to `on`. The CLI does
+the same:
+
+```sh
+avoozl triage setup example-org/app                     # preview
+avoozl triage setup example-org/app --existing skip \
+  --daily-runs 50 --labels enhancement --confirm        # make labels, turn on
+avoozl triage off example-org/app                       # labels stay
+```
+
+Only a person sets up triage or turns it off, in the app or the CLI. MCP
+refuses both, and `triage.settings` changes the other keys but never
+`triage.agent`. **Turn off** is one click and leaves every label as it is.
+
+## Blocking triage on a machine
+
+A plugin with a `policy` part can block triage on the machines that approve
+it. See [Policy part](plugins.md#policy-part). While it is approved, the
+Triage agent page shows its reason in place of **Set up triage**, the CLI and
+`triage.setup` refuse with that reason, and a repository whose `.avoozl.json`
+still has the agent on is treated as off, with one Needs you row until you
+turn it off. The block lives in this machine's plugin settings and never
+writes the repository.
 
 ## Triage runs
 
@@ -67,6 +101,8 @@ owner queue: **Needs you › From the agent**, and the owner-queue filter on
 The agent treats item text as data. Every write passes the
 [content rules](content-rules.md) first. It never closes an item, never
 approves or requests changes, and adds only labels the repository already has.
+It never makes a label; only Set up triage does, after a person sees the
+preview.
 Only a comment by the item's author or a collaborator starts a new run.
 
 The **GitHub › Triage agent** page shows the runs, their writes, the daily cap

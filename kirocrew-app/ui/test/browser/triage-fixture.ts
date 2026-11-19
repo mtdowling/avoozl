@@ -1,7 +1,7 @@
 // The harness's GitHub pages (&triage=1): issues and pull requests with
 // the triage agent's results, one item's detail each, and the Triage agent
 // page. Every name is fake.
-import type { ItemDetail, ItemList, ItemRow, TriageView } from '../../src/github-items-api.ts'
+import type { ItemDetail, ItemList, ItemRow, TriageSetupPreview, TriageView } from '../../src/github-items-api.ts'
 
 const at = (minutes: number) => new Date(Date.now() - minutes * 60000).toISOString()
 const REPO = 'acme/recipe-box'
@@ -145,6 +145,7 @@ export function detailFor(input: { number?: number }): ItemDetail {
 
 export const triageView: TriageView = {
   stopAll: null,
+  blocked: null,
   repositories: [
     {
       repository: REPO,
@@ -184,4 +185,39 @@ export const triageView: TriageView = {
   calls: { day: new Date().toISOString().slice(0, 10), rest: 41, notModified: 36, graphql: 9, writes: 6 },
   rate: { limit: 5000, remaining: 4870, resetAt: at(-40) },
   ownerQueue: 3,
+}
+
+// &agent=off: two repositories, triage never set up. &agent=blocked: a
+// plugin blocks triage while acme/recipe-box's .avoozl.json still has it on.
+export function triageOff(blocked: boolean): TriageView {
+  return {
+    ...triageView,
+    blocked: blocked ? { plugin: 'team-policy', reason: 'Our team triages issues by hand; no agent comments on GitHub.' } : null,
+    repositories: triageView.repositories.map((repo, i) => ({
+      ...repo,
+      on: false,
+      left: repo.cap,
+      used: 0,
+      settings: { ...repo.settings, agent: blocked && i === 0 ? 'on' : 'off' },
+    })),
+    inProgress: [],
+    runs: [],
+    days: [],
+    calls: { ...triageView.calls, rest: 0, notModified: 0, graphql: 0, writes: 0 },
+    ownerQueue: 0,
+  }
+}
+
+export const triageSetupPreview: TriageSetupPreview = {
+  repository: REPO,
+  defaults: { existing: 'skip', dailyRuns: 50, fullReviewMaxLines: 300 },
+  labels: [
+    { name: 'bug', color: 'd73a4a', description: "Something isn't working", exists: true },
+    { name: 'question', color: 'd876e3', description: 'Further information is requested', exists: true },
+    { name: 'enhancement', color: 'a2eeef', description: 'New feature or request', exists: false },
+    { name: 'performance', color: 'fbca04', description: 'Faster or smaller', exists: false },
+  ],
+  labelsError: null,
+  harnesses: ['auto', 'kirocrew', 'claude-code'],
+  harness: 'auto',
 }

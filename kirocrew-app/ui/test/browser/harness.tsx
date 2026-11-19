@@ -39,7 +39,7 @@ import type { EditTab } from '../../src/repo-edit-tabs.ts'
 import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
-import { detailFor, listFor, triageView } from './triage-fixture.ts'
+import { detailFor, listFor, triageOff, triageSetupPreview, triageView } from './triage-fixture.ts'
 import { ForwardScreen } from '../../src/ForwardScreen.tsx'
 import forwardLive from './forward-live-replies.json'
 import { AutoMergeFields, ConflictFields, MergeMethodFields } from '../../src/LandingFields.tsx'
@@ -636,7 +636,14 @@ answer('items.list', (body) => {
   return query.get('agent') === '1' ? listFor(input) : { kind: input.kind ?? 'issue', total: 0, items: [], labels: [], repositories: [], ownerQueue: 0 }
 })
 answer('items.detail', (body) => detailFor((body.input ?? {}) as { number?: number }))
-answer('triage.view', () => (query.get('agent') === '1' ? triageView : { ...triageView, repositories: [], inProgress: [], runs: [], days: [], ownerQueue: 0 }))
+answer('triage.view', () =>
+  query.get('agent') === '1'
+    ? triageView
+    : query.get('agent')
+      ? triageOff(query.get('agent') === 'blocked')
+      : { ...triageView, repositories: [], inProgress: [], runs: [], days: [], ownerQueue: 0 },
+)
+answer('triage.setup', () => triageSetupPreview)
 answer('fix.start', () => ({ taskId: 'fix-1' }))
 
 // Dashboards › Landing queue: empty by default; &landing=1 has two bases

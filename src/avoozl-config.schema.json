@@ -1371,7 +1371,8 @@
           "properties": {
             "agent": {
               "enum": ["on", "off"],
-              "default": "off"
+              "default": "off",
+              "description": "Set by Set up triage on the Triage agent page (avoozl triage setup) and by Turn off; repository onboarding never sets it."
             },
             "existing": {
               "enum": ["take", "skip"],

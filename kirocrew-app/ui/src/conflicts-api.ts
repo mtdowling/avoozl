@@ -132,6 +132,7 @@ export function whyLine(item: ConflictItem): string {
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'crew-mode') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'disk') return item.detail
+  if (item.kind === 'needs-human' && item.reason === 'triage-blocked') return item.detail
   if (item.kind === 'needs-human')
     return item.reason === 'blocked' ? 'Marked blocked: nothing starts until you unblock it.' : 'New or edited: it waits for your review before it can start.'
   if (item.kind === 'review') return item.detail

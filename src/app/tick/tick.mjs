@@ -111,7 +111,7 @@ import {
 import { mirrorPublicPollStep } from "../mirror/mirror-forward-poll.mjs";
 import { headStep } from "../epics/integration-head.mjs";
 import { recordHealth } from "../plugins/plugin-session.mjs";
-import { repositoryPlugins } from "../plugins/plugins.mjs";
+import { repositoryPlugins, triageBlock } from "../plugins/plugins.mjs";
 import {
   pollSources,
   purgeClosed,
@@ -821,6 +821,7 @@ async function runTick(
             policy: readGitHubPolicyOrNull(workspaceRoot),
             config: memory.value || {},
             workspaceRoot,
+            block: triageBlock(plugins?.options),
           });
           planned.notify.push(...triage.notify);
         } catch (error) {

@@ -39,6 +39,7 @@ export function askLine(item: ConflictItem): string {
       if (item.reason === 'crew-mode') return "Choose Let the tick run it. Avoozl then starts this workspace's ready tasks; until then it starts none."
       if (item.reason === 'review') return 'Read the task, then mark it reviewed so it may start.'
       if (item.reason === 'disk') return 'Free space on that volume. The work resumes by itself on the next tick.'
+      if (item.reason === 'triage-blocked') return 'Turn triage off for this repository on the Triage agent page.'
       return 'Read the reason and act where the row says.'
     default:
       return 'Read the reason and act where the row says.'

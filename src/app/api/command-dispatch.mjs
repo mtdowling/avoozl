@@ -86,6 +86,8 @@ export const APP_OPERATIONS = new Set([
   "triage.start",
   "triage.owner.done",
   "triage.settings",
+  "triage.setup",
+  "triage.off",
   "github.repository.labels",
   "task.detail",
   "task.summary.request",

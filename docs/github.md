@@ -88,7 +88,9 @@ repositories both work.
 
 No label is an order. With the triage agent on for a repository
 (`triage.agent`, off by default), each new issue and pull request gets one
-short run with no network. The agent answers a question from the docs,
+short run with no network. Setting up GitHub never turns it on or makes its
+labels; **Set up triage** on **GitHub › Triage agent** does. The agent
+answers a question from the docs,
 reproduces a bug and starts a fix, reviews someone else's pull request, or
 hands the item to you with a reason. It never closes, approves, or requests
 changes.

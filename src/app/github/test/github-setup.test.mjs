@@ -464,6 +464,12 @@ test("single-repo mode turns issues on in each code repository", async () => {
   assert.equal(fake.state.repositories["example/app"].has_issues, true);
   assert.equal(named.settings.github.planningRepository, undefined);
   assert.equal(named.settings.error, null);
+  // Onboarding sets up no triage (triage-agent TA12.1): no label anywhere,
+  // and no triage key in the proposed .avoozl.json.
+  assert.deepEqual(fake.state.labels, {});
+  for (const entry of Object.values(named.settings.github.repositories))
+    assert.equal("triage" in entry, false);
+  assert.doesNotMatch(named.settings.diff, /triage/);
 });
 
 test("github.setup runs through Operations and its proposal saves through Settings", async (t) => {
