@@ -105,24 +105,23 @@ export function LeftNav(props: {
   }, [])
   if (collapsed)
     return (
-      <nav
+      <Box
         ref={root}
         aria-label="Avoozl pages"
         data-left-nav="collapsed"
         data-top-row
-        style={{
-          flex: `0 0 ${NAV_COLLAPSED_WIDTH}px`,
-          width: NAV_COLLAPSED_WIDTH,
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'stretch',
-          gap: 4,
-          padding: '4px 2px',
-          borderRight: '1px solid var(--border)',
-          minHeight: 0,
-          overflowY: 'auto',
-        }}
+        as="nav"
+        css-flex={`0 0 ${NAV_COLLAPSED_WIDTH}px`}
+        css-width={NAV_COLLAPSED_WIDTH}
+        css-box-sizing="border-box"
+        css-display="flex"
+        css-flex-direction="column"
+        css-align-items="stretch"
+        css-gap="4"
+        css-padding="4px-2px"
+        css-border-right="1px-solid-border"
+        css-min-height="0"
+        css-overflow-y="auto"
       >
         <PlainButton
           type="button"
@@ -168,26 +167,25 @@ export function LeftNav(props: {
             )
           })}
         </Box>
-      </nav>
+      </Box>
     )
   return (
     <>
-      <nav
+      <Box
         ref={root}
         aria-label="Avoozl pages"
         data-left-nav="open"
         data-top-row
-        style={{
-          flex: `0 0 ${width}px`,
-          width,
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          padding: '8px 8px 4px 0',
-          minHeight: 0,
-          overflowY: 'auto',
-        }}
+        as="nav"
+        css-flex={`0 0 ${width}px`}
+        css-width={width}
+        css-box-sizing="border-box"
+        css-display="flex"
+        css-flex-direction="column"
+        css-gap="8"
+        css-padding="8px-8px-4px-0"
+        css-min-height="0"
+        css-overflow-y="auto"
       >
         {props.top}
         <NavAccordion groups={props.groups} value={props.value} child={props.child} onPick={props.onPick} />
@@ -214,7 +212,7 @@ export function LeftNav(props: {
           Collapse
         </PlainButton>
         {props.brand}
-      </nav>
+      </Box>
       <ResizeHandle
         label="Resize the nav"
         width={width}

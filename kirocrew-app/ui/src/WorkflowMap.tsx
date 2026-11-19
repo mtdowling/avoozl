@@ -159,7 +159,9 @@ export default function WorkflowMap(props: { workspaceId: string; mode: string; 
         <Card>
           <Box css-overflow-x="auto" overflow="x-auto" data-labels-table>
             <Box as="table" wFull align="left" size="xs">
-              <caption className="pb-1 text-left text-sm font-semibold">Labels</caption>
+              <Box as="caption" pb="1" align="left" size="sm" weight="semibold">
+                Labels
+              </Box>
               <thead>
                 <Box as="tr" tone="muted">
                   <th className="pe-2 font-normal">Label</th>

@@ -126,7 +126,7 @@ export function Picker(props: {
         border="all"
         shadow
       >
-        <ul ref={list} id={listId} role="listbox" aria-label={typeof props.label === 'string' ? props.label : undefined} className="flex flex-col p-1">
+        <Box ref={list} id={listId} role="listbox" aria-label={typeof props.label === 'string' ? props.label : undefined} as="ul" flex flexCol p="1">
           {shown.map((item, i) => (
             <li
               key={item.id}
@@ -168,7 +168,7 @@ export function Picker(props: {
               )}
             </li>
           ))}
-        </ul>
+        </Box>
         {total === 0 && (
           <Box as="p" px="2" py="1" size="xs" tone="muted">
             No match.
