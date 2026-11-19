@@ -43,7 +43,9 @@ export function RoleChoice(props: {
   return (
     <Box flex flexCol gap="1.5" data-role-choice>
       <Box htmlFor={`${props.id}-role`} as="label" flex flexCol gap="1" size="sm">
-        <span className={props.titled ? 'sr-only' : 'font-medium'}>Role</span>
+        <Box as="span" srOnly={props.titled} weight={props.titled ? undefined : 'medium'}>
+          Role
+        </Box>
         <SelectField
           id={`${props.id}-role`}
           value={role}

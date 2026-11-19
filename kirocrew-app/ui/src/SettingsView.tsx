@@ -1297,9 +1297,9 @@ function RepositoriesTab(props: {
             />
           )}
           {message && (
-            <p role={message.ok ? 'status' : 'alert'} className={`mt-2 text-sm ${message.ok ? 'text-muted' : 'text-danger'}`}>
+            <Box role={message.ok ? 'status' : 'alert'} as="p" mt="2" size="sm" tone={message.ok ? 'muted' : 'danger'}>
               {message.text}
-            </p>
+            </Box>
           )}
           {offer && message?.ok && (
             <Box mt="2" data-setup-offer>

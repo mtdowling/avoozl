@@ -74,9 +74,9 @@ export function Picker(props: {
       data-picker-inline={props.inline ? '' : undefined}
       style={{ maxWidth: props.maxWidth ?? '100%', position: 'relative' }}
     >
-      <label htmlFor={id} className={props.inline ? 'whitespace-nowrap' : undefined}>
+      <Box htmlFor={id} as="label" whitespace={props.inline ? 'nowrap' : undefined}>
         {props.label}
-      </label>
+      </Box>
       <input
         id={id}
         type="text"

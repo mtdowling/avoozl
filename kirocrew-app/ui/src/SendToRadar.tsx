@@ -124,9 +124,9 @@ export function SendToRadar(props: { workspaceId: string; client: Client; items:
     >
       <Box as="ol" flex flexWrap gap="2" size="xs" aria-label="Steps">
         {STEPS.map(([title], i) => (
-          <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
+          <Box key={title} aria-current={i === step ? 'step' : undefined} as="li" weight={i === step ? 'semibold' : undefined} tone={i === step ? undefined : 'muted'}>
             {i + 1}. {title}
-          </li>
+          </Box>
         ))}
       </Box>
       <div>

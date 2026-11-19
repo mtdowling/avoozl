@@ -582,9 +582,9 @@ function Checked({ list, now, onOpenSources }: { list: UntriagedList; now: numbe
         </span>
       )}
       {notes.map((row) => (
-        <span key={row.repository} className={row.error ? 'text-danger' : undefined}>
+        <Box key={row.repository} as="span" tone={row.error ? 'danger' : undefined}>
           {row.repository}: {row.error ?? `GitHub search returns ${row.read} of the ${row.searched ?? 'more'} items it found. Narrow its Untriaged filter to see the rest.`}
-        </span>
+        </Box>
       ))}
     </Box>
   )

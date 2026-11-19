@@ -7,6 +7,12 @@
 // ahead. Both land. Every session must have executor `process`, and no
 // request for `kirocrew` may be written.
 //
+// The gate lets a sure worker and a sure falsifier go ahead with no person
+// (R75.3), and Avoozl has no setting that always asks. So this script's
+// backend holds every gate pass for a person, before the tick can send it:
+// each round waits for the decision the proof presses. The held rounds are
+// listed in the report. Avoozl's own gate is unchanged.
+//
 // Everything lives under --root: a bare remote, its checkout, an Avoozl
 // workspace and an isolated Avoozl config and state home (XDG_CONFIG_HOME,
 // XDG_STATE_HOME). As in P59, Claude Code is confined by sandbox-exec and
@@ -118,12 +124,13 @@ console.log("ok");
 `;
 
 // The fake agent (plumbing only). A worker writes findings first and code
-// on Go ahead; a falsifier gives a verdict that a person must decide on.
+// on Go ahead; a falsifier gives a verdict. Both are sure, so the gate
+// would pass on its own, as it did for Claude Code: the hold must catch it.
 const FAKE_AGENT = `import fs from "node:fs";
 const text = fs.readFileSync(0, "utf8");
 const write = (value) => { fs.mkdirSync(".avoozl", { recursive: true }); fs.writeFileSync(".avoozl/result.json", JSON.stringify(value)); };
-const findings = { read: "check.mjs and notes/", cause: "notes/ has no file yet", plan: "add the one note file", check: "node check.mjs prints ok", confidence: "medium" };
-if (/You are an Avoozl Falsifier/.test(text)) write({ state: "done", report: { verdict: "stands", evidence: "check.mjs reads every notes/*.txt.", confidence: "medium" } });
+const findings = { read: "check.mjs and notes/", cause: "notes/ has no file yet", plan: "add the one note file", check: "node check.mjs prints ok", confidence: "high" };
+if (/You are an Avoozl Falsifier/.test(text)) write({ state: "done", report: { verdict: "stands", evidence: "check.mjs reads every notes/*.txt.", confidence: "high" } });
 else if (/^Go ahead/.test(text)) {
   const word = /notes\\/(\\w+)\\.txt/.exec(text)?.[1] ?? "one";
   fs.mkdirSync("notes", { recursive: true });
@@ -383,11 +390,39 @@ async function backend(seconds) {
     } catch (error) {
       log(`drain failure ${error.message}`);
     }
+    try {
+      for (const held of holdForPerson(store))
+        log(`held gate pass for ${held.task} round ${held.round}`);
+    } catch (error) {
+      log(`hold failure ${error.message}`);
+    }
     if (fs.existsSync(path.join(ROOT, "stop-backend"))) break;
     await sleep(3000);
   }
   log("backend stop");
   store.close();
+}
+
+// A gate pass (both sure, the findings stand) turns back into a decision a
+// person makes. Only the drain records a falsifier's reply and only the
+// tick sends Go ahead, and this runs between them, so no pass is sent.
+function holdForPerson(store) {
+  return store.transaction(() => {
+    const held = [];
+    for (const row of store.list("task_investigations")) {
+      if (row.state !== "go" || row.decidedBy !== "gate" || row.message?.sentAt)
+        continue;
+      const { message, decidedBy, gateAt, ...rest } = row;
+      store.put("task_investigations", { ...rest, state: "needs-you" });
+      held.push({ task: row.taskId, round: row.rounds.at(-1).n, gateAt });
+    }
+    if (held.length)
+      store.setMeta("nkp1.held", [
+        ...(store.getMeta("nkp1.held") ?? []),
+        ...held,
+      ]);
+    return held;
+  });
 }
 
 async function snapshotState() {
@@ -402,7 +437,7 @@ async function snapshotState() {
           n: round.n,
           findings: Boolean(round.findings),
           verdict: round.reply?.verdict ?? null,
-          decision: round.decision?.action ?? null,
+          decision: round.decision ?? null,
         })),
         delivery: store.get("task_deliveries", id)?.state ?? null,
       };
@@ -423,6 +458,7 @@ async function snapshotState() {
         state: r.state,
       })),
       decided: store.getMeta("nkp1.decided") ?? {},
+      held: store.getMeta("nkp1.held") ?? [],
     };
   } finally {
     store.close();
@@ -467,11 +503,14 @@ function verdict(state) {
       (t) => t.rounds.length && t.rounds.every((r) => r.findings && r.verdict),
     ),
     "2a the Go ahead task landed after one Go ahead":
-      go.delivery === "integrated" && (state.decided[GO] ?? []).join() === "go",
+      go.delivery === "integrated" &&
+      (state.decided[GO] ?? []).join() === "go" &&
+      go.rounds.map((r) => r.decision).join() === "go",
     "2b the other investigated again, then landed":
       again.delivery === "integrated" &&
       again.rounds.length >= 2 &&
-      (state.decided[AGAIN] ?? []).join() === "again,go",
+      (state.decided[AGAIN] ?? []).join() === "again,go" &&
+      again.rounds.map((r) => r.decision).join() === "again,go",
     "3a every session ran on process":
       state.bindings.length > 0 &&
       state.bindings.every((b) => b.executor === "process"),

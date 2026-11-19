@@ -178,9 +178,9 @@ export function DemoBar() {
       </Box>
     ) : null
   const notice = (
-    <p role="status" aria-live="polite" className={phone ? 'sr-only' : 'w-full text-sm'} data-demo-notice>
+    <Box role="status" aria-live="polite" as="p" srOnly={phone} wFull={!phone} size={phone ? undefined : 'sm'} data-demo-notice>
       {demo.notice ?? ''}
-    </p>
+    </Box>
   )
   // A phone gets a compact box: the badge, the intro, the controls and Exit.
   if (phone)

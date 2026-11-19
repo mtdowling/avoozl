@@ -206,9 +206,17 @@ function Outline(props: { headings: { level: number; text: string; id: string }[
     <Box as="ul" mt="1" flex flexCol gap="0.5">
       {props.headings.map((h) => (
         <Box key={h.id} as="li" css-padding-left={(h.level - 1) * 12} truncate>
-          <button type="button" className={`text-left hover:underline ${h.level === 1 ? 'font-medium' : 'text-xs text-muted'}`} onClick={() => props.onJump(h.id)}>
+          <PlainButton
+            type="button"
+            align="left"
+            hoverUnderline
+            weight={h.level === 1 ? 'medium' : undefined}
+            size={h.level === 1 ? undefined : 'xs'}
+            tone={h.level === 1 ? undefined : 'muted'}
+            onClick={() => props.onJump(h.id)}
+          >
             {h.text}
-          </button>
+          </PlainButton>
         </Box>
       ))}
     </Box>

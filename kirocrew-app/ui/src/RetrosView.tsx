@@ -97,9 +97,19 @@ function RetroChat({ retro }: { retro: Retro }) {
 function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boolean; onOpen: (proposal: string) => void; again: ReactNode }) {
   const bottleneck = retro.bottleneck ? (STAGE_LABELS[retro.bottleneck.stage as keyof typeof STAGE_LABELS] ?? retro.bottleneck.stage) : null
   return (
-    <li
-      className="flex flex-col gap-1.5 border-t pt-3 first:border-t-0 first:pt-0"
-      style={{ borderColor: 'var(--border)', ...(linked ? { boxShadow: 'inset 0 0 0 2px var(--accent)', borderRadius: 6, padding: 8 } : {}) }}
+    <Box
+      as="li"
+      css-border-color="border"
+      css-box-shadow={linked ? 'inset-0-0-0-2px-accent' : undefined}
+      css-border-radius={linked ? '6' : undefined}
+      css-padding={linked ? '8' : undefined}
+      flex
+      flexCol
+      gap="1.5"
+      border="t"
+      pt="3"
+      firstBorderT0
+      firstPt0
       data-retro={retro.id}
       data-linked={linked || undefined}
     >
@@ -157,7 +167,7 @@ function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boo
         retro.state === 'done' && <Hint size="xs">No proposals.</Hint>
       )}
       {retro.dropped?.length > 0 && <Hint size="xs">Dropped: {retro.dropped.map((d) => `${d.key ?? `proposal ${d.index + 1}`} (${d.reason})`).join('; ')}</Hint>}
-    </li>
+    </Box>
   )
 }
 

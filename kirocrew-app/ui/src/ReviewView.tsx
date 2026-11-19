@@ -602,10 +602,18 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
     </Box>
   )
   return (
-    <div
+    <Box
       data-review-view={place.plan}
-      className="flex min-w-0 flex-col"
-      style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 16, padding: phone ? '16px 0' : '16px 12px', ...(props.fill ? { flex: '1 1 0%', minHeight: 0 } : {}) }}
+      css-display="flex"
+      css-flex-direction="column"
+      css-min-width="0"
+      css-gap="16"
+      css-padding={phone ? '16px-0' : '16px-12px'}
+      css-flex={props.fill ? '1-1-0%' : undefined}
+      css-min-height={props.fill ? '0' : undefined}
+      flex
+      minW0
+      flexCol
     >
       <Box css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" flex flexWrap items="center" gap="2">
         <Box as="h3" css-flex="1-1-auto" m0 size="base" weight="semibold">
@@ -730,12 +738,20 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
           </Box>
           <ReviewCss />
           {all ? (
-            <section
+            <Box
               role="tabpanel"
               id="review-tab-panel"
               aria-labelledby="review-tab-all"
               data-review-all
-              style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: 'auto' } : {}) }}
+              as="section"
+              css-display="flex"
+              css-flex-direction="column"
+              css-gap="8"
+              css-min-width="0"
+              css-max-width="760"
+              css-flex={props.fill ? '1-1-0%' : undefined}
+              css-min-height={props.fill ? '0' : undefined}
+              css-overflow-y={props.fill ? 'auto' : undefined}
             >
               {shown.length === 0 && (
                 <Hint as="p" size="sm" flush data-review-empty>
@@ -753,7 +769,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                   onRevision={(hash) => set({ rev: hash })}
                 />
               ))}
-            </section>
+            </Box>
           ) : (
             <div
               ref={row}
@@ -767,24 +783,24 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                 ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: wide ? 'hidden' : 'auto' } : {}),
               }}
             >
-              <section
+              <Box
                 role="tabpanel"
                 id="review-tab-panel"
                 aria-labelledby={file ? `review-tab-${file.replace(/\W/g, '-')}` : undefined}
                 aria-label={file ? undefined : 'No file'}
                 data-review-doc={file ?? ''}
-                className="min-w-0"
-                style={{
-                  flex: '1 1 0',
-                  minWidth: 0,
-                  width: wide ? undefined : '100%',
-                  boxSizing: 'border-box',
-                  border: '1px solid var(--border)',
-                  borderRadius: 12,
-                  padding: '12px 14px',
-                  background: 'var(--card, var(--bg))',
-                  ...(props.fill && wide ? { minHeight: 0, overflowY: 'auto' } : {}),
-                }}
+                as="section"
+                css-flex="1-1-0"
+                css-min-width="0"
+                css-width={wide ? undefined : '100%'}
+                css-box-sizing="border-box"
+                css-border="1px-solid-border"
+                css-border-radius="12"
+                css-padding="12px-14px"
+                css-background="card-bg"
+                css-min-height={props.fill && wide ? '0' : undefined}
+                css-overflow-y={props.fill && wide ? 'auto' : undefined}
+                minW0
               >
                 <div
                   ref={doc}
@@ -802,7 +818,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                     </Hint>
                   )}
                 </div>
-              </section>
+              </Box>
               {wide && (
                 <ResizeHandle
                   label="Resize the side column"
@@ -907,6 +923,6 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
           )}
         </>
       )}
-    </div>
+    </Box>
   )
 }
