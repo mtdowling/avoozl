@@ -43,3 +43,16 @@ export function realClaude(candidate, home) {
   const real = found.map((file) => path.resolve(file)).find(isReal);
   return real ? fs.realpathSync(real) : null;
 }
+
+// The two Claude Code binaries a live proof needs (as P59 to P61 and nk-p1):
+// `exportWith` runs `default-credential-export` under the person's real HOME,
+// where its Bedrock login lives, so it is the command the person runs, the
+// toolbox shim on PATH; `child` is the real binary the sandboxed child runs
+// under the isolated HOME, where the shim and the wrapper both fail. `named` is
+// what SWP1_CLAUDE names, `onPath` what `command -v claude` finds.
+export function claudeBinaries({ named, onPath, home }) {
+  return {
+    exportWith: named || onPath || null,
+    child: realClaude(named || onPath || null, home),
+  };
+}

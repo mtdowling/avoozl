@@ -116,6 +116,21 @@ test("P-steer 3b: content rules screen steering, and a long comment is cut", asy
   assert.match(sent.text, /cut at 4,000 characters/);
 });
 
+test("P-steer 3c: Avoozl's own marked comment never steers the worker", async (t) => {
+  const w = await running(t, { commentSteering: { mention: MENTION } });
+  w.github.comment(
+    1,
+    "maintainer",
+    `${MENTION} use the v2 parser\n\n<!-- avoozl:posted -->`,
+  );
+  const result = await w.tick();
+  assert.deepEqual(w.toWorker(result), []);
+  assert.equal(
+    w.store.list("receipts").filter((r) => r.kind === "github-steer").length,
+    0,
+  );
+});
+
 test("P-steer 4: a closed session is not steered", async (t) => {
   const w = await running(t, { commentSteering: { mention: MENTION } });
   w.github.comment(1, "maintainer", `${MENTION} one more thing`);

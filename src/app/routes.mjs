@@ -19,6 +19,7 @@ import { pausedTaskIds } from "./github-project.mjs";
 import { PluginUnavailable } from "./plugin-session.mjs";
 import { fail } from "./store.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
+import { ownSummary, summaryLine } from "./title-repeat.mjs";
 
 export const quoteData = (text) =>
   "```text\n" + String(text).replaceAll("```", "'''") + "\n```";
@@ -43,11 +44,11 @@ export function routeBrief(task, notes = []) {
   return [
     `Avoozl task ${task.id}: ${task.title || task.id}`,
     "",
+    summaryLine(task),
     task.acceptance?.length
       ? `Acceptance: ${[].concat(task.acceptance).join("; ")}`
       : null,
     task.checks?.length ? `Checks: ${task.checks.join("; ")}` : null,
-    task.summary ? `Summary: ${task.summary}` : null,
     ...(notes.length ? ["", ...notes] : []),
     "",
     "Deliver this task on your own system. Avoozl reads its status from this route and takes your completion as the task's result.",
@@ -131,7 +132,7 @@ export async function routeStep(
       const own = {
           id: task.id,
           title: task.title,
-          summary: task.summary || "",
+          summary: ownSummary(task) ?? "",
           acceptance: task.acceptance || [],
           checks: task.checks || [],
           repository: task.repository ?? task.projectId ?? null,

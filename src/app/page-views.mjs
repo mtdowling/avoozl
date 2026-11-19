@@ -45,6 +45,7 @@ import { driverDecisions } from "./driver.mjs";
 import { epicRows } from "./epic-rows.mjs";
 import { taskLinks } from "./scm-links.mjs";
 import { approvals, batchRules } from "./flow-batch.mjs";
+import { ownSummary } from "./title-repeat.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
@@ -1394,7 +1395,7 @@ export function taskDetailView(
     task: {
       id,
       title: detail.title ?? id,
-      summary: detail.summary ?? "",
+      summary: ownSummary(detail) ?? "",
       acceptance: detail.acceptance || [],
       checks: detail.checks || [],
       // Its plan's epic and its phase inside the plan (Requirement 59).

@@ -136,9 +136,12 @@ plan, so those names stay.
   tasks.md
 ```
 
-Each checkbox in `tasks.md` has a task ID, and a `Facts:` bullet as its first
-child gives the task its kind, summary, acceptance (`done`), dependencies
-(`after`), checks and completion level. Front-matter at the top of `tasks.md`
+Each checkbox in `tasks.md` has a task ID and a title, and a `Facts:` bullet
+as its first child gives the task its kind, acceptance (`done`), dependencies
+(`after`), checks and completion level. The item's other bullets are its
+summary: what it delivers and how, which its worker reads after the title.
+Write one only when it adds to the title; lint refuses one that repeats it.
+Front-matter at the top of `tasks.md`
 holds defaults for every task, such as `repo` and `checks`:
 
 ```markdown
@@ -152,6 +155,7 @@ checks: npm test
     - after: 1.1
     - done:
       - An unknown key is reported with its path
+  - Report each key the schema does not name, with its JSON path.
 ```
 
 Avoozl refuses a folder that is missing a file, a `tasks.md` with a missing

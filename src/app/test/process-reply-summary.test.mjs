@@ -19,6 +19,7 @@ import { taskSummaryDispatches } from "../task-summary.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { postedText } from "../github-posted.mjs";
 
 const REPO = "example/code",
   LABEL = "bot:answering";
@@ -150,7 +151,7 @@ test("a child's reply is posted once, and none for a blocked result", async (t) 
   );
   assert.equal(posted.posted, true);
   assert.equal(w.github.comments.length, 1);
-  assert.equal(w.github.comments[0].body, body);
+  assert.equal(w.github.comments[0].body, postedText(body));
   await assert.rejects(
     finishProcessSession(
       w.ops,

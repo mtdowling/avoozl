@@ -55,6 +55,7 @@ import {
   machineIdentity,
   projectedMarker,
 } from "./github-sync.mjs";
+import { ownSummary } from "./title-repeat.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const SECTION =
@@ -107,7 +108,7 @@ function managedSection(
   return `<!-- avoozl:managed:start -->
 This issue is projected from approved design \`${plan.id}\` at \`${issueHash(plan).slice(0, 12)}\`.
 ${task.phase ? `\nPhase: ${task.phase.title}\n` : ""}${parentRef ? `\nParent: ${parentRef}\n` : ""}
-${task.summary || task.nextAction || ""}
+${ownSummary(task) || task.nextAction || ""}
 
 ## Acceptance criteria
 

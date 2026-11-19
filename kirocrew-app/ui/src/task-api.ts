@@ -19,6 +19,7 @@ export interface TaskDetail {
   task: {
     id: string
     title: string
+    // The task's own summary: its spec item's bullets, or an issue's body.
     summary: string
     acceptance: string[]
     checks: string[]

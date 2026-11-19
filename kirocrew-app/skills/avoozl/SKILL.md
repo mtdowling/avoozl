@@ -51,7 +51,7 @@ Use `avoozl help` to inspect the installed CLI surface before choosing commands.
   `plans_plugins` action `templates`. Starting a spec from one is the
   user's, in **New spec**, **From template**; its planner chat starts from
   the template's starter folder. Keep its phases, task IDs and manual tasks.
-- A manual task (`"manual": true`, completion `person`) is a step only a
+- A manual task (`"manual": true`) is a step only a
   person does, such as a team review. Never start, claim or mark one done:
   `plans_next` lists it under `needsYou` with reason `manual`. Tell the user
   to open it in the task drawer and press **Mark done**.

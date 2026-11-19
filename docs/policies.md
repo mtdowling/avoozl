@@ -213,6 +213,13 @@ Avoozl installs a `pre-push` hook in each task worktree it prepares, so a
 matching line stops the push. It cannot stop a merge on GitHub; a required
 commit status would.
 
+Every comment, review, review line comment and pull request body Avoozl
+posts goes through the same write path, which breaks each `@login` mention
+with a zero-width space after the `@` (code spans, fences and HTML comments
+stay as written) and adds a hidden `<!-- avoozl:posted -->` marker. A post
+notifies nobody, and a comment that carries the marker never starts or
+resumes work: comment steering and pull request feedback skip it.
+
 ## Use GitHub pull-request reviews as the review gate
 
 For a GitHub leaf, GitHub owns the review. With `pullRequestReviews` set,
@@ -352,19 +359,19 @@ manual in its facts in `tasks.md`:
   - Facts:
     - manual: true
     - repo: sdk
-    - completion: person
     - after: protocol-tests-proof
     - done:
       - The team agreed the results are good enough to cut over
 ```
 
-A manual task needs `done`, a `repo` (where its issue lives) and completion
-`person`. Lint refuses `checks`, `session`, `batch`, `paths` and `route` on
-it, by name, and refuses `person`
-on any other task. No agent ever runs it: it is never ready, batched,
-checked, reviewed or merged. Until its blockers finish it is in **Blocked
-or waiting**; then it is in **Needs you**, tagged **Manual**, with "Waiting
-for a person: <title>". Its dependents wait on it like on any task.
+A manual task needs `done` and a `repo` (where its issue lives). `manual:
+true` is the one way to say a person does a task: it completes by a person
+and takes no `checks` or `completion` default. Lint refuses `checks`,
+`session`, `batch`, `paths` and `route` on it, by name, and refuses
+`completion: person` anywhere, naming `manual: true` as the fix. No agent
+ever runs it: it is never ready, batched, checked, reviewed or merged.
+Until its blockers finish it is in **Blocked or waiting**; then it is in
+**Needs you**, tagged **Manual**, with "Waiting for a person: <title>". Its dependents wait on it like on any task.
 
 Open it in the task drawer to see its acceptance and **Mark done**. The
 dialog takes optional outcome links, and **Done**,

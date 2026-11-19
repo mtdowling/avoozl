@@ -99,6 +99,7 @@ import {
 } from "./github-rate.mjs";
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { taskSummaryDispatches } from "./task-summary.mjs";
+import { summaryLine } from "./title-repeat.mjs";
 import {
   validateModels,
   validateRoles,
@@ -488,10 +489,10 @@ function brief(task, repository) {
     "",
     `Repository: ${repository.id}, checkout ${repository.localCheckout}, base branch ${repository.baseBranch || "main"}.`,
     "Before changing anything, confirm `git rev-parse --show-toplevel` is that checkout.",
+    summaryLine(task),
     task.acceptance?.length
       ? `Acceptance: ${[].concat(task.acceptance).join("; ")}`
       : null,
-    task.summary ? `Summary: ${task.summary}` : null,
   ]
     .filter((line) => line !== null)
     .join("\n");
@@ -866,23 +867,21 @@ async function runTick(
               plansOf(store, verified),
             ),
             readOnly = readOnlyPlanIds(store);
-          planned.notify.push(
-            ...(
-              await integrateVerified(store, {
-                policy: delivery,
-                skip: new Set(
-                  store
-                    .read()
-                    .tasks.filter(
-                      (t) =>
-                        t.planId &&
-                        (readOnly.has(t.planId) || lost.has(t.planId)),
-                    )
-                    .map((t) => t.id),
-                ),
-              })
-            ).notify,
-          );
+          const integrated = await integrateVerified(store, {
+            policy: delivery,
+            skip: new Set(
+              store
+                .read()
+                .tasks.filter(
+                  (t) =>
+                    t.planId && (readOnly.has(t.planId) || lost.has(t.planId)),
+                )
+                .map((t) => t.id),
+            ),
+          });
+          planned.notify.push(...integrated.notify);
+          // A conflict at integration goes back to the worker chat.
+          planned.messages.push(...(integrated.messages ?? []));
           // `pr` projects land through pull requests (task 42.6).
           const landed = await landPullRequests(store, {
             github,
