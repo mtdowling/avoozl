@@ -5790,7 +5790,27 @@ box someone checked.
 6. A ticked parent SHALL count as done with its open sub-tasks.
 7. A task gated on Avoozl's own recorded validation (Requirement 38.4) SHALL
    not be completed by a tick.
-8. Ticks SHALL stay outside the revision hash (Requirement 111.7). Tests SHALL
-   show: a tick on the base branch completes a task with no approval, a tick
-   on another branch does nothing, a tick of an in-flight task releases its
-   worker, an untick lands in Needs you, and the hash does not change.
+8. Ticks on the base branch SHALL be the task state coworkers share: each
+   machine's database is private, and a per-task issue is not kept. When
+   Avoozl lands a task (its own worker, a merge batch, or any direct
+   landing), the landing commit itself SHALL tick that task's `[x]` in its
+   spec's `tasks.md` on the base branch. It SHALL be one commit, not a
+   follow-up. Only the landed task's line SHALL change, by its mark
+   character: the rest of the file stays byte-identical. A `Built:` line is
+   not written, because a commit cannot name itself.
+9. A parent SHALL be ticked only when every child is ticked, and only as a
+   result of a child's tick.
+10. A spec in a plans repository other than the code repository SHALL be
+    ticked there as its own commit on that repository's base branch, after
+    the code lands: fetched, built on the fetched head, pushed without force,
+    and started again from a fresh fetch when the branch moved.
+11. A machine that reads Avoozl's own landing tick SHALL treat it as known:
+    no second Activity line and no worker session released.
+12. Ticks SHALL stay outside the revision hash (Requirement 111.7), so no tick
+    needs a new approval.
+13. Tests SHALL show: landing a task puts `[x]` in `tasks.md` on origin's base
+    in the same commit; a second machine reading origin marks the task done;
+    the plans-repository race retries; a parent ticks only after its last
+    child; a tick on the base branch completes a task with no approval, a tick
+    on another branch does nothing, a tick of an in-flight task releases its
+    worker, an untick lands in Needs you, and the hash does not change.
