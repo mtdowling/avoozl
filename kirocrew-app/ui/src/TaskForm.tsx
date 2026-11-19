@@ -239,8 +239,8 @@ export default function TaskForm(props: {
           />
         </Field>
       )}
-      <Field id="avoozl-task-prose" label="Description">
-        <Area id="avoozl-task-prose" rows={4} value={form.prose} onChange={(prose) => set({ prose })} />
+      <Field id="avoozl-task-summary" label="Description">
+        <Area id="avoozl-task-summary" rows={4} value={form.summary} onChange={(summary) => set({ summary })} />
       </Field>
       <Box grid gap="3" smGridCols2>
         <Field id="avoozl-task-repository" label="Repository">

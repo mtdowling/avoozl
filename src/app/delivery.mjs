@@ -35,6 +35,7 @@ import {
 import { heldByStop } from "./flow-line.mjs";
 import { needsJudgment, taskCheckRuns } from "./check-runs.mjs";
 import { pathOutcome } from "./verify.mjs";
+import { summaryLine } from "./title-repeat.mjs";
 import { checkDoneList, localCheckList, localPass } from "./flow-checks.mjs";
 import {
   batchBrief,
@@ -1861,7 +1862,7 @@ export function plansRepoSteps(
 }
 
 // A plans-repo leaf's brief: the task's own title, acceptance and checks only
-// (no prose, no issue), so nothing from the plan reaches the code
+// (no summary, no issue), so nothing from the plan reaches the code
 // repository through the worker (R28.7).
 export function plansRepoBrief(
   task,
@@ -1900,14 +1901,15 @@ export function outsideSource(task) {
   return null;
 }
 
-// The brief's heading and the task's own text: its title line, its prose as
-// written, then its acceptance. Outside text is quoted as data under one line
+// The brief's heading and the task's own text: its title line, its summary
+// (its description bullets as written, when they add to the title), then its
+// acceptance. Outside text is quoted as data under one line
 // that says so; a plan's own task reads as before.
-function taskLines(task, heading, outside, { prose = true } = {}) {
+function taskLines(task, heading, outside, { summary = true } = {}) {
   const acceptance = task.acceptance?.length
       ? `Acceptance: ${[].concat(task.acceptance).join("; ")}`
       : null,
-    own = prose && task.prose ? task.prose : null;
+    own = summary ? summaryLine(task) : null;
   if (!outside)
     return {
       heading: `${heading}: ${task.title || task.id}`,
@@ -1926,7 +1928,7 @@ function taskLines(task, heading, outside, { prose = true } = {}) {
   };
 }
 
-// One worker brief for any route: the task's own title, prose, acceptance and
+// One worker brief for any route: the task's own title, summary, acceptance and
 // checks, the route's `steps`, and on a retry what the last attempt left.
 // It never names a planning issue or repository.
 export function workerBrief(
@@ -2919,7 +2921,7 @@ export function verifierBrief(task, project, commit, attempt) {
       `Avoozl verification for task ${task.id}`,
       outsideSource(task),
       {
-        prose: false,
+        summary: false,
       },
     ),
     // Every verifier chat now judges a bar in prose (§5.2 Checks); plain
@@ -2962,7 +2964,7 @@ export function reviewBrief(task, project, commit, attempt, role, open) {
     `Avoozl review ${role.id} for task ${task.id}`,
     outsideSource(task),
     {
-      prose: false,
+      summary: false,
     },
   );
   return [

@@ -23,6 +23,7 @@
 import { digest, statusComplete } from "../model.mjs";
 import { completionReached, taskKind, taskRepository } from "../work-model.mjs";
 import { fail } from "./store.mjs";
+import { ownSummary } from "./title-repeat.mjs";
 
 const receiptId = (planId) => `issue-export:${planId}`;
 const lower = (value) => String(value ?? "").toLowerCase();
@@ -62,7 +63,7 @@ function repositoryFor(store, task, named) {
 
 function bodyOf(task, key) {
   return [
-    task.prose || task.title || task.id,
+    ownSummary(task) || task.title || task.id,
     ...(task.acceptance?.length
       ? ["", "## Acceptance", "", ...task.acceptance.map((line) => `- ${line}`)]
       : []),

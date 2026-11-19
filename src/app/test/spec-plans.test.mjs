@@ -511,7 +511,7 @@ test("re-approval marks only the changed entry for review", async (t) => {
   // Needs you can show what changed: the task text as last reviewed is kept.
   const tasks = ops.read().tasks;
   const prior = tasks.find((task) => task.id === "config.1.2").reviewPrior;
-  assert.equal(prior.prose, "- Report unknown keys.");
+  assert.equal(prior.summary, "- Report unknown keys.");
   assert.ok(prior.title);
   assert.equal(
     tasks.find((task) => task.id === "config.1.1").reviewPrior,
@@ -794,7 +794,7 @@ const legacySpec = (ids = ["config-load", "config-check"]) => ({
         id,
         {
           kind: "leaf",
-          summary: `Do ${id}.`,
+          summary: `Handle the ${id} step of the loader.`,
           acceptance: [`${id} passes.`],
           checks: ["npm test"],
           ...(index ? { requires: [ids[0]] } : {}),
@@ -1171,7 +1171,7 @@ test("an item's whole line is its title, and one over the limit is refused", () 
     (p) => p.id === "fits.1.2",
   );
   assert.equal(proposal.title, fits);
-  assert.equal(proposal.prose, "- Report unknown keys.");
+  assert.equal(proposal.summary, "- Report unknown keys.");
 });
 
 // The planner's batch groups (R108.1–R108.3, §4.37): members name the group

@@ -21,7 +21,7 @@ const block = (fields) => "```task\n" + JSON.stringify(fields) + "\n```\n";
 const leaf = (id, extra = {}) => ({
   id,
   title: "Task " + id,
-  prose: "Change " + id + ".",
+  summary: "Change " + id + ".",
   acceptance: [id + " is observable."],
   checks: ["npm test"],
   ...extra,
@@ -184,7 +184,7 @@ test("plan blocks carry work-model fields and edge conditions into approval", as
         id: "parent",
         title: "Parent",
         kind: "package",
-        prose: "All.",
+        summary: "All.",
       }) +
       block(leaf("base", { completion: "released" })) +
       block(
@@ -287,4 +287,19 @@ test("a stored row with completion person reads as manual; a gate stays a gate",
   assert.equal(isGate(gate), true);
   assert.equal(isManual(gate), false);
   assert.equal(isManual({ ...stored, kind: "package" }), false);
+});
+
+test("a row stored with prose loads with it as its summary", (t) => {
+  const { store } = fixture(t),
+    [first] = store.read().tasks;
+  store.db
+    .prepare("UPDATE entities SET body=? WHERE kind='task' AND id=?")
+    .run(
+      JSON.stringify({ ...first, summary: undefined, prose: "- Old text." }),
+      first.id,
+    );
+  store.cache = null;
+  const task = store.read().tasks.find((x) => x.id === first.id);
+  assert.equal(task.summary, "- Old text.");
+  assert.equal(task.prose, undefined);
 });

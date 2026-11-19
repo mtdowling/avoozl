@@ -20,7 +20,7 @@ const proposal = (overrides = {}) => ({
   id: "cache-invalidation",
   title: "Invalidate the stale cache entry",
   kind: "leaf",
-  prose: "Found while implementing the delivery task.",
+  summary: "Found while implementing the delivery task.",
   acceptance: ["A changed record invalidates its cache entry."],
   checks: ["npm test"],
   completion: "integrated",
@@ -150,7 +150,7 @@ test("spec proposals are rejected by the task rules with no partial write", asyn
   await rejects(proposal({ title: "two\nlines" }), /on one line/);
   await rejects(proposal({ acceptance: [] }), /observable acceptance criteria/);
   await rejects(proposal({ tags: "discovered" }), /tags must be a list/);
-  await rejects(proposal({ prose: 7 }), /prose must be text/);
+  await rejects(proposal({ summary: 7 }), /summary must be text/);
   await rejects(proposal({ id: "1.2" }), /Repeated local task ID 1\.2/);
   await rejects("cache", /one proposed task as a JSON object/);
   await rejects(proposal({ budget: 3 }), /"budget" is not a task fact/);

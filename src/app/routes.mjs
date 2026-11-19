@@ -19,6 +19,7 @@ import { pausedTaskIds } from "./github-project.mjs";
 import { PluginUnavailable } from "./plugin-session.mjs";
 import { fail } from "./store.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
+import { ownSummary, summaryLine } from "./title-repeat.mjs";
 
 export const quoteData = (text) =>
   "```text\n" + String(text).replaceAll("```", "'''") + "\n```";
@@ -43,7 +44,7 @@ export function routeBrief(task, notes = []) {
   return [
     `Avoozl task ${task.id}: ${task.title || task.id}`,
     "",
-    task.prose || null,
+    summaryLine(task),
     task.acceptance?.length
       ? `Acceptance: ${[].concat(task.acceptance).join("; ")}`
       : null,
@@ -131,7 +132,7 @@ export async function routeStep(
       const own = {
           id: task.id,
           title: task.title,
-          prose: task.prose || "",
+          summary: ownSummary(task) ?? "",
           acceptance: task.acceptance || [],
           checks: task.checks || [],
           repository: task.repository ?? task.projectId ?? null,

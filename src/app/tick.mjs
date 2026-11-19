@@ -99,6 +99,7 @@ import {
 } from "./github-rate.mjs";
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { taskSummaryDispatches } from "./task-summary.mjs";
+import { summaryLine } from "./title-repeat.mjs";
 import {
   validateModels,
   validateRoles,
@@ -488,7 +489,7 @@ function brief(task, repository) {
     "",
     `Repository: ${repository.id}, checkout ${repository.localCheckout}, base branch ${repository.baseBranch || "main"}.`,
     "Before changing anything, confirm `git rev-parse --show-toplevel` is that checkout.",
-    task.prose || null,
+    summaryLine(task),
     task.acceptance?.length
       ? `Acceptance: ${[].concat(task.acceptance).join("; ")}`
       : null,

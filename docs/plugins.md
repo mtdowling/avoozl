@@ -262,7 +262,7 @@ example a local leaf, then a remote one, then a local one.
 | `completion({id})`      | `{pr?, answer?}`: a pull request link, an answer, or both                        |
 | `cancel({id})`          | `{cancelled}`                                                                    |
 
-- `submit` gets the task's own title, prose, acceptance and checks, and a
+- `submit` gets the task's own title, summary, acceptance and checks, and a
   brief. Make it idempotent by task ID.
 - The tick reads `status` every tick until the work is done. `needs-person`
   shows the task as "needs you" with your link.

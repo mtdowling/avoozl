@@ -37,7 +37,7 @@ export async function rebuildFromGitHub(store, github, options) {
   );
 }
 
-// The managed section projection writes: plan ID, prose, acceptance
+// The managed section projection writes: plan ID, summary, acceptance
 // criteria and the `requires` blockers, which tell a `requires` edge with no
 // level from a `sequence` edge (both are plain GitHub dependencies).
 export function parseManagedSection(body) {
@@ -65,8 +65,8 @@ export function parseManagedSection(body) {
             .filter(Boolean);
   return {
     planId,
-    // The `Parent: #N` line is a link projection adds, not the task's prose.
-    prose: lines
+    // The `Parent: #N` line is a link projection adds, not the task's summary.
+    summary: lines
       .slice(1, acceptanceAt === -1 ? lines.length : acceptanceAt)
       .filter((line) => !/^Parent: #\d+$/.test(line))
       .join("\n")
@@ -554,8 +554,8 @@ function taskRow({
     ...base,
     id: taskId,
     title: issue.title,
-    ...(section.prose && section.prose !== issue.title
-      ? { prose: section.prose }
+    ...(section.summary && section.summary !== issue.title
+      ? { summary: section.summary }
       : {}),
     nextAction: issue.title,
     kind,

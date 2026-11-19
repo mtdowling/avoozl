@@ -12,6 +12,7 @@ import { statusComplete } from "../query.mjs";
 import { completionReached, pluginId, taskAuthority } from "../work-model.mjs";
 import { PluginUnavailable } from "./plugin-session.mjs";
 import { canonical } from "./store.mjs";
+import { ownSummary } from "./title-repeat.mjs";
 
 export const trackerOf = (task) => pluginId(taskAuthority(task));
 
@@ -23,7 +24,7 @@ export function desiredFields(task, blockedBy) {
   return {
     title: task.title || task.id,
     section: [
-      task.prose || "",
+      ownSummary(task) || "",
       acceptance.length
         ? "Acceptance:\n" + acceptance.map((line) => "- " + line).join("\n")
         : "",

@@ -369,7 +369,6 @@ const builderTasks = [
   "  - Facts:",
   "    - kind: package",
   "    - after: 1.1, 1.2",
-  "  - Load and validate configuration",
   "  - [ ] 1.1 Read the config file",
   "    - Facts:",
   "      - done:",

@@ -263,7 +263,7 @@ export interface PlanRow {
   epic?: string | null
   epicTitle?: string | null
   // An epic folder's member plans, in its order.
-  members?: { key: string; plan: string; prose: string; title: string }[]
+  members?: { key: string; plan: string; summary: string; title: string }[]
   lastChange: string | null
   // Set while the plan is archived (plan.archive); older backends omit it.
   archived?: { at: string; by: string | null } | null

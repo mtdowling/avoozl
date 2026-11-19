@@ -384,17 +384,8 @@ export function lintPlan({
       );
     else normalizedTitles.set(titleKey, task);
 
-    if (!task.prose?.trim())
-      diagnostics.push(
-        diagnostic(
-          "task.basis",
-          "warning",
-          "Explain what this deliverable changes and why it is required by the design.",
-          at.lineStart,
-          at.lineEnd,
-          { taskId: task.id },
-        ),
-      );
+    // A task without a summary is fine: one exists only when it adds to
+    // the title.
     for (const acceptance of task.acceptance || [])
       if (placeholderAcceptance(acceptance))
         diagnostics.push(

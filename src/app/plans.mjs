@@ -142,11 +142,13 @@ export function validateProposal(item) {
         item[field].some((x) => typeof x !== "string"))
     )
       fail(field + " must be a list of strings.");
-  // A task has no summary: its prose says what it delivers. A stored
-  // proposal that still has one loads without it.
-  delete item.summary;
+  // A proposal stored while the field was named `prose` loads as summary.
+  if (item.prose !== undefined) {
+    item.summary ??= item.prose;
+    delete item.prose;
+  }
   for (const field of [
-    "prose",
+    "summary",
     "nextAction",
     "track",
     "projectId",
@@ -586,7 +588,7 @@ export function approvePlan(
         JSON.stringify([
           ...[
             "title",
-            "prose",
+            "summary",
             "acceptance",
             "nextAction",
             "track",
@@ -648,7 +650,7 @@ export function approvePlan(
               needsReview: t.needsReview,
               prior: {
                 title: t.title ?? null,
-                prose: t.prose ?? null,
+                summary: t.summary ?? null,
                 acceptance: t.acceptance ?? null,
               },
             },
@@ -698,7 +700,7 @@ export function approvePlan(
         design = {
           id: taskId,
           title: proposal.title,
-          ...(proposal.prose ? { prose: proposal.prose } : {}),
+          ...(proposal.summary ? { summary: proposal.summary } : {}),
           acceptance: proposal.acceptance,
           nextAction: proposal.nextAction || proposal.title,
           track,

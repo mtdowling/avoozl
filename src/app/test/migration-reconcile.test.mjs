@@ -23,7 +23,7 @@ const data = () => ({
       epic: "W1",
       status: "partial",
       title: "Collector",
-      prose:
+      summary:
         "Landed at abcdef1234; draft 99999999ab on codex/gc-lane, shift 2147483648.",
       source: { document: "plan.md", lineStart: 2, lineEnd: 3 },
       activity: {

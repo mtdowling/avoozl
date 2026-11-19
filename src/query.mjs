@@ -71,7 +71,7 @@ function searchable(data, t) {
   });
   const value = [
     t.title,
-    t.prose,
+    t.summary,
     t.nextAction,
     t.notes,
     t.id,

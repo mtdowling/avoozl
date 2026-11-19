@@ -2272,7 +2272,7 @@ export class Operations {
     const authority = taskAuthority(task),
       plan = task.planId ? this.store.get("plans", task.planId) : null,
       change = {};
-    for (const key of ["title", "prose", "acceptance", "checks", "requires"])
+    for (const key of ["title", "summary", "acceptance", "checks", "requires"])
       if (Object.hasOwn(input, key)) change[key] = input[key];
     if (typeof change.title === "string" && /[\r\n]/.test(change.title))
       fail("A title is one line.");
@@ -4171,7 +4171,7 @@ export class Operations {
               id: proposal.id,
               title: proposal.title,
               kind: "leaf",
-              prose: `Gap report: ${proposal.repository} fails ${proposal.requirement}.`,
+              summary: `Gap report: ${proposal.repository} fails ${proposal.requirement}.`,
               acceptance: proposal.acceptance,
             },
           },
@@ -5376,7 +5376,7 @@ export class Operations {
           }
           for (const key of [
             "title",
-            "prose",
+            "summary",
             "status",
             "phase",
             "track",
@@ -5437,7 +5437,7 @@ export class Operations {
           )
             fail("Title must contain 1–240 characters.");
           for (const key of [
-            "prose",
+            "summary",
             "notes",
             "nextAction",
             "owner",
@@ -6970,7 +6970,7 @@ export class Operations {
           id: task.id,
           title: task.title,
           nextAction: task.nextAction,
-          prose: task.prose,
+          summary: task.summary,
           blockers: signals.blockers.map((id) => ({
             id,
             title: taskMap.get(id)?.title || id,

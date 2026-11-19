@@ -73,7 +73,7 @@ const PERSON =
 // Facts that are gone, and what to do with a line that still has one.
 const REMOVED = {
   summary:
-    "The summary fact is gone: a task's prose bullets say what it delivers. Delete this line.",
+    "The summary fact is gone: a task's summary is its own bullets under the item. Delete this line.",
 };
 
 // Front-matter: defaults for a leaf, and values for the whole spec.
@@ -520,12 +520,12 @@ export function readFacts(text, items) {
   };
 }
 
-// The prose of each item in tasks.md: its child bullets other than the Facts
-// bullet, nested checklist items and a `Done when:` bullet, each with its
-// nested lines, as written. Returns item line -> text, for items that have
-// any. A task's prose is not a fact: the revision hash reads it only as
-// tasks.md text.
-export function itemProse(text, items) {
+// The description bullets of each item in tasks.md: its child bullets other
+// than the Facts bullet, nested checklist items and a `Done when:` bullet,
+// each with its nested lines, as written. Returns item line ->
+// [{line, text}], for items that have any. They are not facts: the revision
+// hash reads them only as tasks.md text.
+export function itemBullets(text, items) {
   const rows = String(text)
       .split("\n")
       .map((row) => row.replace(/\r$/, "")),
@@ -535,7 +535,7 @@ export function itemProse(text, items) {
     const base = indentOf(rows[item.line - 1] ?? ""),
       kept = [];
     let child = null,
-      own = false,
+      own = null,
       fenced = false;
     for (let at = item.line; at < rows.length; at++) {
       const raw = rows[at],
@@ -546,23 +546,39 @@ export function itemProse(text, items) {
         child ??= indent;
         const bullet = BULLET.exec(raw);
         own =
-          Boolean(bullet) &&
+          bullet &&
           !itemLines.has(at + 1) &&
           !FACTS.test(bullet[2]) &&
-          !/^Done when:/.test(bullet[2]);
+          !/^Done when:/.test(bullet[2])
+            ? { line: at + 1, lines: [] }
+            : null;
+        if (own) kept.push(own);
       }
-      if (own) kept.push(raw.slice(Math.min(indent, child)).trimEnd());
+      if (own) own.lines.push(raw.slice(Math.min(indent, child)).trimEnd());
       if (FENCE.test(raw)) fenced = !fenced;
     }
-    if (kept.length) out.set(item.line, kept.join("\n"));
+    if (kept.length)
+      out.set(
+        item.line,
+        kept.map(({ line, lines }) => ({ line, text: lines.join("\n") })),
+      );
   }
   return out;
 }
 
-// A task's prose as bullets under its item at column `indent`: lines that
+// Each item's summary: its description bullets joined, as written.
+export const itemSummaries = (text, items) =>
+  new Map(
+    [...itemBullets(text, items)].map(([line, bullets]) => [
+      line,
+      bullets.map((bullet) => bullet.text).join("\n"),
+    ]),
+  );
+
+// A task's summary as bullets under its item at column `indent`: lines that
 // are already bullets stay as written, and other text becomes one bullet.
-export function proseLines(prose, { indent = 2 } = {}) {
-  const text = typeof prose === "string" ? prose.trim() : "";
+export function summaryLines(summary, { indent = 2 } = {}) {
+  const text = typeof summary === "string" ? summary.trim() : "";
   if (!text) return [];
   const pad = " ".repeat(indent);
   return /^[-*+][ \t]/.test(text)

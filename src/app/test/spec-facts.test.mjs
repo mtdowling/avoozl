@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { factsLines, readFacts } from "../spec-facts.mjs";
 import { parseSpec, specHash, specItems } from "../spec-plans.mjs";
+import { workerBrief } from "../delivery.mjs";
 import { foldManifest, legacyHash } from "./legacy-facts.mjs";
 import { legacySpecFiles } from "./spec-fixture.mjs";
 
@@ -235,8 +236,8 @@ test("completion person is refused in facts and front-matter, naming manual", ()
   assert.match(fact.diagnostics[0].message, /manual: true/);
 });
 
-// A task's own prose bullets say what it delivers.
-const prosed = lines(
+// A task's own summary bullets say what it delivers.
+const described = lines(
   "---",
   "repo: app",
   "checks: npm test",
@@ -257,12 +258,12 @@ const prosed = lines(
   "    - A missing file is not an error.",
 );
 
-test("a task's prose is its bullets as written, without facts, Done when or sub-items", () => {
-  const parsed = parse(prosed),
-    prose = (key) => parsed.proposals.find((p) => p.specKey === key).prose;
+test("a task's summary is its bullets as written, without facts, Done when or sub-items", () => {
+  const parsed = parse(described),
+    summary = (key) => parsed.proposals.find((p) => p.specKey === key).summary;
   assert.deepEqual(codes(parsed), []);
   assert.equal(
-    prose("1.1"),
+    summary("1.1"),
     [
       "- Per file: read config.json from the working directory,",
       "  then parse it.",
@@ -270,15 +271,51 @@ test("a task's prose is its bullets as written, without facts, Done when or sub-
       "- A missing file is not an error.",
     ].join("\n"),
   );
-  assert.equal(prose("1"), "- The loader and its tests.");
-  // The prose is not a fact: the manifest the revision hash reads has none.
-  const facts = readFacts(prosed, specItems("config", prosed));
-  assert.equal(facts.manifest.tasks["1.1"].prose, undefined);
+  assert.equal(summary("1"), "- The loader and its tests.");
+  // The summary is not a fact: the manifest the revision hash reads has none.
+  const facts = readFacts(described, specItems("config", described));
+  assert.equal(facts.manifest.tasks["1.1"].summary, undefined);
+});
+
+test("a summary that repeats the title is refused and never reaches the brief", () => {
+  const repeating = parse(
+      described.replace(
+        "    - A missing file is not an error.",
+        "    - Read the config file.",
+      ),
+    ),
+    project = { id: "app", root: "/repo", baseBranch: "main" },
+    brief = (proposal) =>
+      workerBrief({ ...proposal, id: `config.${proposal.specKey}` }, project, {
+        attempt: 1,
+        worktree: "/wt",
+        steps: [],
+      });
+  assert.deepEqual(codes(repeating), [
+    "task.summary-repeats-title tasks.md:18",
+  ]);
+  assert.match(repeating.diagnostics[0].message, /repeats the title/);
+  const kept = repeating.proposals.find((p) => p.specKey === "1.1");
+  assert.doesNotMatch(kept.summary, /Read the config file/);
+  // One that adds context passes and reaches the brief.
+  const adds = parse(described).proposals.find((p) => p.specKey === "1.1");
+  assert.match(
+    brief(adds),
+    /\nSummary:\n- Per file: read config\.json[\s\S]*\nAcceptance: A missing file/,
+  );
+  // A stored summary that repeats the title stays out of the brief too.
+  assert.doesNotMatch(
+    brief({ ...adds, summary: "Read the config file." }),
+    /Summary:/,
+  );
 });
 
 test("a summary fact is refused, naming the line to delete", () => {
   const parsed = parse(
-    prosed.replace("      - done:", "      - summary: Read it.\n      - done:"),
+    described.replace(
+      "      - done:",
+      "      - summary: Read it.\n      - done:",
+    ),
   );
   assert.deepEqual(codes(parsed), ["facts.removed-key tasks.md:12"]);
   assert.match(parsed.diagnostics[0].message, /Delete this line/);
@@ -286,14 +323,14 @@ test("a summary fact is refused, naming the line to delete", () => {
 
 test("a long title stays whole and is refused over the limit", () => {
   const long = "Read the config file: " + "and report each problem. ".repeat(8),
-    whole = parse(prosed.replace("1.1 Read the config file", `1.1 ${long}`));
+    whole = parse(described.replace("1.1 Read the config file", `1.1 ${long}`));
   assert.ok(long.trim().length <= 240);
   assert.equal(
     whole.proposals.find((p) => p.specKey === "1.1").title,
     long.trim(),
   );
   const over = parse(
-    prosed.replace("1.1 Read the config file", `1.1 ${long.repeat(2)}`),
+    described.replace("1.1 Read the config file", `1.1 ${long.repeat(2)}`),
   );
   assert.deepEqual(codes(over), ["task.title-length tasks.md:10"]);
 });
@@ -316,7 +353,7 @@ test("an epic folder reads its rows from facts", () => {
   );
   assert.equal(parsed.kind, "epic");
   assert.deepEqual(
-    parsed.members.map((m) => [m.key, m.plan, m.step, m.prose]),
+    parsed.members.map((m) => [m.key, m.plan, m.step, m.summary]),
     [
       ["1", "native-runtime", "implement", "- Direction and work"],
       ["2", "native-runtime", "review", ""],
@@ -390,20 +427,20 @@ test("a pure conversion keeps the revision hash; a changed fact changes it", () 
     ),
   };
   assert.notEqual(specHash(changed), specHash(converted));
-  // Prose beside the facts is tasks.md text, not a fact: the hash reads it
+  // Summary beside the facts is tasks.md text, not a fact: the hash reads it
   // as the text it is, and the facts text stays the manifest's.
-  const prosed = {
+  const described = {
       ...old,
       "tasks.md": old["tasks.md"].replace(
         "  - [ ] 1.1 Read the config file",
         "  - [ ] 1.1 Read the config file\n    - Read it from the working directory.",
       ),
     },
-    withProse = foldManifest(prosed).files;
-  assert.equal(specHash(withProse), legacyHash(prosed));
+    withSummary = foldManifest(described).files;
+  assert.equal(specHash(withSummary), legacyHash(described));
 });
 
-test("an old record's summary folds into the item's prose", () => {
+test("an old record's summary folds into the item's summary", () => {
   const old = legacySpecFiles(),
     converted = foldManifest(old).files,
     parsed = parseSpec({ name: "config", exists: true, files: converted });
@@ -413,7 +450,7 @@ test("an old record's summary folds into the item's prose", () => {
   );
   assert.deepEqual(codes(parsed), []);
   assert.equal(
-    parsed.proposals.find((p) => p.specKey === "1.1").prose,
+    parsed.proposals.find((p) => p.specKey === "1.1").summary,
     "- Parse config.json from the working directory.",
   );
 });

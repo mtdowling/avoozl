@@ -217,7 +217,7 @@ const baseDetail = () => ({
   task: {
     id: 'team-review',
     title: 'Review with team',
-    prose: 'The team reviews the results before cutover.',
+    summary: 'The team reviews the results before cutover.',
     acceptance: ['The team agreed the runtime and protocol results are good enough to cut over'],
     checks: ['npm run test:protocol'],
     epic: null,

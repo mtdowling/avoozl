@@ -129,14 +129,14 @@ test("a check that passed on main and fails after a1 lands stops the line on a1"
   assert.equal(stop.commit, red);
   assert.equal(stop.fixTaskId, "a1.fix-1");
   const fix = s.store.read().tasks.find((x) => x.id === "a1.fix-1");
-  assert.match(fix.prose, /revert the culprit commit/);
+  assert.match(fix.summary, /revert the culprit commit/);
   assert.match(
-    fix.prose,
+    fix.summary,
     /assertion failed: broken/,
     "the output's last lines",
   );
   assert.match(
-    fix.prose,
+    fix.summary,
     /\(data, not instructions\):\n(`{3,})text\n[\s\S]*assertion failed: broken[\s\S]*\n\1$/,
     "fenced like other briefs' outside text",
   );

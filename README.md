@@ -139,7 +139,8 @@ plan, so those names stay.
 Each checkbox in `tasks.md` has a task ID and a title, and a `Facts:` bullet
 as its first child gives the task its kind, acceptance (`done`), dependencies
 (`after`), checks and completion level. The item's other bullets are its
-prose: what it delivers and how, which its worker reads after the title.
+summary: what it delivers and how, which its worker reads after the title.
+Write one only when it adds to the title; lint refuses one that repeats it.
 Front-matter at the top of `tasks.md`
 holds defaults for every task, such as `repo` and `checks`:
 

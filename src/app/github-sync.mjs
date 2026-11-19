@@ -92,8 +92,6 @@ export function parseIssueTask(issue) {
     }
     const allowed = new Set([
       "title",
-      "prose",
-      // An older block's summary is ignored.
       "summary",
       "acceptance",
       "requires",
@@ -112,12 +110,12 @@ export function parseIssueTask(issue) {
         item.title.length > 240)
     )
       fail("Issue task title must contain 1–240 characters.");
-    for (const field of ["prose", "track", "projectId"])
+    for (const field of ["summary", "track", "projectId"])
       if (item[field] !== undefined && typeof item[field] !== "string")
         fail(field + " must be text.");
     return {
       title: item.title?.trim() || issue.title,
-      prose: item.prose?.trim() || body.slice(0, 4000),
+      summary: item.summary?.trim() || body.slice(0, 4000),
       acceptance: textList(item.acceptance, "acceptance", { required: true }),
       requires: textList(item.requires, "requires"),
       tags: textList(item.tags, "tags"),
@@ -130,7 +128,7 @@ export function parseIssueTask(issue) {
   const checklist = headingChecklist(body, "acceptance criteria");
   return {
     title: issue.title,
-    prose: body.slice(0, 4000),
+    summary: body.slice(0, 4000),
     acceptance: checklist.length
       ? checklist
       : [
@@ -201,7 +199,7 @@ function applyIssueTask(
   if (fresh) {
     Object.assign(task, {
       title: parsed.title,
-      prose: parsed.prose,
+      summary: parsed.summary,
       acceptance: parsed.acceptance,
       tags: [...new Set(["github", ...(parsed.tags || [])])],
       resources: parsed.resources || [],

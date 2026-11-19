@@ -329,7 +329,7 @@ export interface DeliveryItem extends TaskOwner {
 
 // What Needs you shows so a person can decide in place (needs-you-context.mjs).
 export interface TaskText {
-  prose: string | null
+  summary: string | null
   acceptance: string[]
 }
 export interface ItemContext {

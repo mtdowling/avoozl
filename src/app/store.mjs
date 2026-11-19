@@ -300,9 +300,12 @@ export class Store {
       .all()) {
       const value = JSON.parse(row.body);
       stored.set(row.kind + "\0" + row.id, row.ordinal + "\0" + row.body);
-      // A task has no summary any more; an old row's is ignored.
+      // A row stored while the field was named `prose` loads as summary.
       if (row.kind === "task") {
-        delete value.summary;
+        if (value.prose !== undefined) {
+          value.summary ??= value.prose;
+          delete value.prose;
+        }
         data.tasks.push(value);
       } else if (row.kind === "document") data.documents[row.id] = value;
       else if (row.kind === "edge") data.edges.push(value);

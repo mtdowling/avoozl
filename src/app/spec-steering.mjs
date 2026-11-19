@@ -51,9 +51,10 @@ wants other rules. Avoozl never overwrites a changed copy.
 - Every item has one \`Facts:\` bullet as its first child. Under it, write
   one \`key: value\` bullet per fact. A list is \`key: a, b\` or \`key:\` with
   nested bullets. Sub-items come after \`Facts:\`.
-- Other bullets under an item are its prose: what it delivers and how. Its
-  worker reads the title, then the prose as written, then \`done:\`. Do not
-  repeat the title or \`done:\` in prose, and write no \`Done when:\` bullet.
+- Other bullets under an item are its summary: what it delivers and how. Its
+  worker reads the title, then the summary as written, then \`done:\`. Write
+  one only when it adds to the title: lint refuses one that repeats it. Do
+  not repeat \`done:\` either, and write no \`Done when:\` bullet.
 - An item with sub-items is a group: its facts say \`kind: package\` and
   \`after:\` its sub-items. It is done when its sub-items are.
 - Every other item is one task for one agent session in one repository.

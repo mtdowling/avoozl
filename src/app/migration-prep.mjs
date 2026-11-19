@@ -108,7 +108,7 @@ export function migrationBaseline(
     .filter((t) => done.has(t.id))
     .map((t) => {
       const text = [
-        t.prose,
+        t.summary,
         t.nextAction,
         t.notes,
         t.overview,
@@ -186,7 +186,7 @@ function headingPath(lines, lineStart) {
 
 // Step 4: map document-derived checklist entries onto delivery tasks.
 // Matching is lexical (TF-IDF cosine over the entry's lines plus its section
-// headings, against each task's title, prose, overview, notes, acceptance
+// headings, against each task's title, summary, overview, notes, acceptance
 // and epic title). A match is only a proposal: the owner, or a critique
 // session the owner reviews, accepts it before anything is applied (§10.2).
 // shortcut: lexical scoring misses reworded entries; upgrade to a critique
@@ -206,7 +206,7 @@ export function mapChecklistEntries(
     [
       t.title,
       t.title,
-      t.prose,
+      t.summary,
       t.overview,
       t.nextAction,
       t.notes,
@@ -271,7 +271,7 @@ export function mapChecklistEntries(
           .join(" ")
           .trim()
       : "";
-    const body = lineText || [e.title, e.prose].join(" ");
+    const body = lineText || [e.title, e.summary].join(" ");
     const section = at ? headingPath(doc, at.lineStart).slice(1) : [];
     const query = vector(words(body + " " + section.join(" ")));
     const scores = vectors

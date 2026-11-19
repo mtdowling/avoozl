@@ -64,7 +64,7 @@ export function partialEvidence(
     .map((t) => {
       const lines = sourceLines(t, readDocument);
       const text = textOf(
-        t.prose,
+        t.summary,
         t.nextAction,
         t.notes,
         t.activity?.summary,
@@ -86,7 +86,7 @@ export function partialEvidence(
         epic: t.epic,
         title: t.title,
         status: t.status,
-        prose: redactPaths(t.prose),
+        summary: redactPaths(t.summary),
         nextAction: t.nextAction ? redactPaths(t.nextAction) : null,
         acceptance: t.acceptance || [],
         evidence: t.evidence || [],
@@ -142,7 +142,7 @@ export function broadScope(data, kinds, { mapping } = {}) {
         children: data.tasks
           .filter((c) => c.parentId === k.id)
           .map((c) => c.id),
-        prose: redactPaths(t.prose),
+        summary: redactPaths(t.summary),
         source: t.source
           ? { document: t.source.document, lineStart: t.source.lineStart }
           : null,

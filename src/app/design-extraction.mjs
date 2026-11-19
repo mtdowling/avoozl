@@ -193,7 +193,7 @@ function factCoverage(store, fact, { projectId } = {}) {
           "task",
           task.id,
           task.title,
-          [task.prose, task.acceptance, task.nextAction].flat().join("\n"),
+          [task.summary, task.acceptance, task.nextAction].flat().join("\n"),
           { projectId: task.projectId || null },
         ),
       ),

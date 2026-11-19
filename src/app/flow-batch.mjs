@@ -23,6 +23,7 @@ import {
   taskRoute,
 } from "../work-model.mjs";
 import { statusComplete } from "../query.mjs";
+import { summaryLine } from "./title-repeat.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 
@@ -229,7 +230,7 @@ export function batchBrief(store, data, leaf, brief) {
       "",
       ...tasks.flatMap((task, i) => [
         `${i + 1}. Task ${task.id}: ${task.title || task.id}`,
-        task.prose ? task.prose.replace(/^/gm, "   ") : null,
+        summaryLine(task)?.replace(/^/gm, "   ") ?? null,
         task.acceptance?.length
           ? `   Acceptance: ${[].concat(task.acceptance).join("; ")}`
           : null,
