@@ -136,7 +136,7 @@ After a plan edit, reconcile affected task records and design links in the same 
 
 ## Agent sessions and reconnects
 
-Agent sessions run in Kiro Crew; Avoozl starts none. The tick opens a session for a ready leaf, or ask for one with `plans_session {action: "request"}`. Crew Mode conductors use `plans_next` and `plans_claim_task`. Steer, answer, or stop the work in the task's Kiro Crew session. Do not start additional sessions merely because the tools exist.
+Agent sessions run in Kiro Crew; Avoozl starts none. The tick opens a session for a ready leaf, or ask for one with `plans_session {action: "request"}`. `plans_next` lists every leaf; a person takes one by hand with `avoozl claim TASK`. Steer, answer, or stop the work in the task's Kiro Crew session. Do not start additional sessions merely because the tools exist.
 
 During a disconnect, continue already authorized local work and retry reads with bounded backoff. Inspect the session binding, handoff, and recorded evidence before resuming. Never launch a replacement worker because a check-in is stale.
 

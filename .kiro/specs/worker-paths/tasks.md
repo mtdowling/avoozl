@@ -149,7 +149,7 @@ of the other specs.
       - A test calls each removed command and operation and gets one line naming its replacement and no change to the workspace; the help test passes; the `plans_*` tool names, the environment aliases and the `aicommander` command pass their existing tests.
     - after: wp-2.2, wp-3.3, wp-4.2
   - Every command and operation this spec removes, and `register-session` and `session-hook`, answers through `moved-operations.mjs`; the help table drops them.
-- [ ] wp-5.2 One meaning for each word, and the product spec says the same, after wp-5.1 [WP8, WP9] (§D1)
+- [x] wp-5.2 One meaning for each word, and the product spec says the same, after wp-5.1 [WP8, WP9] (§D1)
   - Facts:
     - done:
       - The word test passes and fails on a planted "Crew Mode"; `node scripts/spec-lint.mjs` reports 0 errors; each retired requirement keeps its text under a dated line naming this spec.
