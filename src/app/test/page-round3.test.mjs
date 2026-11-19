@@ -37,7 +37,7 @@ function workspace(t, { delivery = {}, tasks, edges = [] } = {}) {
     leaf("loose"),
   ];
   data.edges = edges;
-  store.importSnapshot(data);
+  store.initialize(data);
   store.put("repositories", { id: "app", name: "app", root: checkout });
   if (delivery)
     fs.writeFileSync(

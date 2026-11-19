@@ -294,7 +294,7 @@ function workerWorkspace(t, origin, repo, { lanes } = {}) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const store = new Store(dbPath);
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   return { root, store };
 }
 
@@ -519,7 +519,7 @@ async function driverWorld(
   git(root, "config", "user.email", "driver@example.com");
   const store = new Store(path.join(dir, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [
       {
@@ -716,7 +716,7 @@ test("the driver's tick offers ready tasks once, holds them here and acknowledge
     repository: "example/code",
     planId: SPEC,
   };
-  store.importSnapshot({ ...snapshot(), tasks: [task], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [task], edges: [] });
   store.put("repositories", {
     id: "example/code",
     github: "example/code",

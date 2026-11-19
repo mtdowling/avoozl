@@ -26,7 +26,7 @@ function workspace(t) {
   const root = temporaryDirectory("avoozl-read-budget-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   return { root, store };
 }
 function client(t, fetch, cacheSeconds = 0) {

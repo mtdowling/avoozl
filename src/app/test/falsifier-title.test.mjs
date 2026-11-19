@@ -25,7 +25,7 @@ function titleFor(t, attempt) {
   const root = temporaryDirectory("avoozl-falsifier-title-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [leaf], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [leaf], edges: [] });
   store.put("repositories", { id: "app", root, baseBranch: "main" });
   const at = new Date().toISOString(),
     slot = `w-${attempt}`;

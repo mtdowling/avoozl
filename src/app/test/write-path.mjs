@@ -8,7 +8,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Store } from "../store.mjs";
-import { emptySnapshot } from "../workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));
@@ -77,49 +76,44 @@ export function assertInsideOperations(writes, label) {
   assert.deepEqual(outside, [], `${label} wrote SQLite outside Operations`);
 }
 
-// The initialized workspace's own metadata plus one task, so importing it into
-// that workspace has nothing to reconcile.
-const snapshot = () => ({
-  ...emptySnapshot(),
-  tasks: [
-    {
-      id: "sample-task",
-      title: "Implement fixture",
-      scope: "catalog",
-      status: "planned",
-      epic: "inbox",
-      track: "catalog",
-      tags: [],
-      acceptance: ["Pass fixture test."],
-    },
-  ],
-});
+// One task, added to the workspace `avoozl init` made.
+const tasks = () => [
+  {
+    id: "sample-task",
+    title: "Implement fixture",
+    scope: "catalog",
+    status: "planned",
+    epic: "inbox",
+    track: "catalog",
+    tags: [],
+    acceptance: ["Pass fixture test."],
+  },
+];
 
-// Starts a fresh workspace with one task through the CLI itself.
+// Starts a fresh workspace through the CLI itself, then adds one task here,
+// outside the traced process.
 export function seed(context) {
-  const { root, workspace, avoozl } = context,
-    file = path.join(root, "snapshot.json");
-  fs.writeFileSync(file, JSON.stringify(snapshot()));
-  for (const args of [
-    ["init", workspace],
-    ["import", file, "--workspace", workspace],
-  ]) {
-    const result = avoozl(args);
-    assert.equal(result.status, 0, result.stderr);
+  const { workspace, avoozl } = context,
+    result = avoozl(["init", workspace]);
+  assert.equal(result.status, 0, result.stderr);
+  const store = new Store(dbPath(workspace));
+  try {
+    store.initialize({ ...store.read(), tasks: tasks() });
+  } finally {
+    store.close();
   }
-  return file;
 }
 
-// Each CLI process is slow to start, so tests that do not check init and
-// import copy one seeded workspace instead of running them again.
+// Each CLI process is slow to start, so tests that do not check init copy
+// one seeded workspace instead of running it again.
 let template;
 export function seeded(context) {
   template ??= (() => {
     const base = setup();
-    return { workspace: base.workspace, file: seed(base) };
+    seed(base);
+    return base.workspace;
   })();
-  fs.cpSync(template.workspace, context.workspace, { recursive: true });
-  return template.file;
+  fs.cpSync(template, context.workspace, { recursive: true });
 }
 
 // name is "tool.action" for a grouped tool.

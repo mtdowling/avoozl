@@ -26,7 +26,7 @@ const task = (id, extra = {}) => ({
 function seed(t) {
   const { root, store } = fixture(t),
     data = store.read();
-  store.importSnapshot({
+  store.initialize({
     ...data,
     tasks: [
       task("open", { github: { repository: "example/code", number: 7 } }),

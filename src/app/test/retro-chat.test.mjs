@@ -23,7 +23,7 @@ function setup(t) {
   const root = temporaryDirectory("avoozl-retro-chat-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   store.put("flow_retros", {
     id: "retro-1",
     n: 1,

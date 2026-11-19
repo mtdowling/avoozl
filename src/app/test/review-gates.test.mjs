@@ -57,7 +57,7 @@ function setup(t, { delivery = {}, tasks, edges } = {}) {
     checkout = gitCheckout(path.join(root, "app"), { "src/a.txt": "a\n" });
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: tasks ?? [leaf("w1"), leaf("d1"), leaf("w2"), leaf("d2")],
     edges: edges ?? [

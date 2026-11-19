@@ -87,7 +87,7 @@ function setup(t, { github } = {}) {
   });
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.db.isOpen && store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   const ops = new Operations(store, {
     workspaceRoot: root,
     pluginSettingsFile: settingsFile,

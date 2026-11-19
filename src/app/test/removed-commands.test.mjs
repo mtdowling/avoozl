@@ -80,7 +80,7 @@ test("each removed operation is refused as unknown and writes nothing", async (t
   const root = temporaryDirectory("avoozl-removed-ops-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   const ops = new Operations(store, { workspaceRoot: root }),
     before = JSON.stringify(store.read());
   for (const name of [

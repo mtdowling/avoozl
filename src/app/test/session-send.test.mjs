@@ -35,7 +35,7 @@ function workspace(t) {
     store.close();
     fs.rmSync(root, { recursive: true, force: true });
   });
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   return { root, store };
 }
 

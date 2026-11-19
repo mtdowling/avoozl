@@ -351,7 +351,7 @@ const sources = { "example/code": { url: P.origin } };
   const { dbPath } = workspaceConfig({ workspace: P.driver.ws, env });
   const store = new Store(dbPath);
   try {
-    store.importSnapshot({
+    store.initialize({
       ...store.read(),
       tasks: Object.entries(TASKS).map(([id, t]) => ({
         id,

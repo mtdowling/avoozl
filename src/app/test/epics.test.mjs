@@ -528,35 +528,3 @@ test("approving an epic folder keeps every epic a stored task names", async (t) 
     ["W1", "grouped", "inbox", "mixed", "rewrite"],
   );
 });
-
-test("an epic an older approval dropped comes back from the import baseline", async (t) => {
-  const { root, store, ops } = workspace(t);
-  plan(root, "alpha", { tasks: "- [ ] 1 One\n", entries: { 1: leaf() } });
-  await approve(ops, "alpha");
-  writeLegacy(store);
-  // What an approval before this rule left: the imported rows are in the
-  // baseline only, and tasks still name them.
-  const imported = store.read().epics,
-    data = structuredClone(store.read());
-  data.epics = [];
-  data.revision += 1;
-  store.write(data);
-  store.setMeta("baselineMetadata", {
-    ...store.getMeta("baselineMetadata"),
-    epics: imported,
-  });
-  store.close();
-
-  const opened = new Store(store.filename);
-  assert.deepEqual(owners(opened), {
-    W1: ["plan", "alpha"],
-    grouped: ["plan", "alpha"],
-    inbox: ["doc", "inbox"],
-    mixed: ["doc", "mixed"],
-  });
-  const revision = opened.read().revision;
-  opened.close();
-  const again = new Store(store.filename);
-  t.after(() => again.close());
-  assert.equal(again.read().revision, revision, "a second open writes nothing");
-});

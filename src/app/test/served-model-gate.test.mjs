@@ -31,7 +31,7 @@ function setup(t) {
   git(checkout, "commit", "-m", "Start");
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [
       {

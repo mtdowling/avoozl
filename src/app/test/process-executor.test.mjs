@@ -369,7 +369,7 @@ test("the drain hands process requests to the supervisor and records status", as
   defer(() => store.close());
   const data = snapshot();
   data.tasks[0].repository = "app";
-  store.importSnapshot(data);
+  store.initialize(data);
   store.put("repositories", {
     id: "app",
     root: worktree,
@@ -451,7 +451,7 @@ test("Avoozl commits a write child's changes after it exits, never .avoozl/", as
   defer(() => store.close());
   const data = snapshot();
   data.tasks[0].repository = "app";
-  store.importSnapshot(data);
+  store.initialize(data);
   store.put("repositories", {
     id: "app",
     root: checkout,
@@ -557,7 +557,7 @@ test("a low plan quota holds new sessions and leaves running ones", async (t) =>
   defer(() => store.close());
   const data = snapshot();
   data.tasks[0].repository = "app";
-  store.importSnapshot(data);
+  store.initialize(data);
   store.put("repositories", {
     id: "app",
     root: worktree,
@@ -790,7 +790,7 @@ test("a write worker's done with nothing committed is refused", async (t) => {
   defer(() => store.close());
   const data = snapshot();
   data.tasks[0].repository = "app";
-  store.importSnapshot(data);
+  store.initialize(data);
   store.put("repositories", { id: "app", root: checkout, baseBranch: "main" });
   const reports = [];
   const ops = { execute: async (name, input) => reports.push(input) };
@@ -846,7 +846,7 @@ test("a start's own harness wins over its repository's", async (t) => {
   defer(() => store.close());
   const data = snapshot();
   data.tasks[0].repository = "app";
-  store.importSnapshot(data);
+  store.initialize(data);
   store.put("repositories", {
     id: "app",
     root: worktree,
@@ -1164,7 +1164,7 @@ test("a planner child's served model is kept on its session", async (t) => {
   });
   const store = new Store(path.join(root, "workspace.sqlite"));
   defer(() => store.close());
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   // The New plan request is pending, so its key names a task.
   store.setMeta("newPlans", [{ name: "new-one" }]);
   const folder = worktree;

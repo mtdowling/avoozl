@@ -32,7 +32,7 @@ function setup(t) {
   const root = temporaryDirectory("avoozl-ci-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   return store;
 }
 
@@ -226,7 +226,7 @@ test("54.2 one cached runs read per repository per check; a 304 reuses the cache
     seen = [],
     etag = '"v1"';
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   let clock = NOW;
   const fetch = async (url, options) => {
     seen.push({ url: String(url), headers: options.headers });
@@ -641,7 +641,7 @@ test("54.1 the closed list comes from the open pull request query, with no extra
     store = new Store(path.join(dir, "workspace.sqlite")),
     queries = [];
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   const fetch = async (url, options) => {
     if (new URL(url).pathname === "/graphql") {
       const body = JSON.parse(options.body);

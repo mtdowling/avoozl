@@ -309,7 +309,6 @@ export const entries = [
       const plans = planPage(store);
       return {
         mode: store.getMeta("mode"),
-        import: store.getMeta("import"),
         revision: this.read().revision,
         publication: {
           pending: store.db

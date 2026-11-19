@@ -18,7 +18,7 @@ test("CLI local mode writes SQLite only inside Operations", () => {
   const context = setup(),
     { workspace, avoozl, writes } = context;
   seed(context);
-  assertInsideOperations(writes(), "init and import");
+  assertInsideOperations(writes(), "init");
   const before = writes().length;
   for (const args of [
     ["update", "sample-task", "--title", "Renamed", "--workspace", workspace],
@@ -42,13 +42,12 @@ test("CLI local mode writes SQLite only inside Operations", () => {
 
 test("CLI local mode cannot write when Operations refuses", () => {
   const allowed = setup(),
-    file = seeded(allowed),
-    { workspace } = allowed,
-    denied = setup({ deny: true }),
+    { workspace } = allowed;
+  seeded(allowed);
+  const denied = setup({ deny: true }),
     before = dump(dbPath(workspace));
   for (const args of [
     ["update", "sample-task", "--title", "Bypass", "--workspace", workspace],
-    ["import", file, "--workspace", workspace],
     ["tick", "--workspace", workspace],
   ]) {
     const result = denied.avoozl(args);

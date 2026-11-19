@@ -24,7 +24,6 @@ try {
         [
           "start",
           "dry-run",
-          "final",
           "auto-start",
           "inactive",
           "skip-verify",

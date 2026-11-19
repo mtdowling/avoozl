@@ -30,7 +30,7 @@ function setup(t) {
   const root = temporaryDirectory("avoozl-andon-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [
       leaf("a1", { planId: "s1" }),

@@ -168,7 +168,7 @@ async function workspace(t) {
   // The CLI's default database, so the pre-push hook finds it.
   const store = new Store(path.join(terms, "..", "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   const ops = new Operations(store, {
     workspaceRoot: root,
     pluginSettingsFile,

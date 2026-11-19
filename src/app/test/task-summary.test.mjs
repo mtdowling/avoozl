@@ -24,7 +24,7 @@ function workspace(t, title = "Task b") {
     data = snapshot();
   data.tasks = [leaf("a", { status: "accepted" }), leaf("b", { title })];
   data.edges = [{ id: "a:requires:b", from: "a", to: "b", kind: "requires" }];
-  store.importSnapshot(data);
+  store.initialize(data);
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
 
@@ -92,7 +92,7 @@ test("a summary is written once per inputs, shown, and written again only when t
     leaf("b", { title: "Task b, renamed" }),
   ];
   data.edges = [{ id: "a:requires:b", from: "a", to: "b", kind: "requires" }];
-  store.importSnapshot(data);
+  store.initialize(data);
   assert.equal((await summary(ops)).state, "none");
   await ops.execute("task.summary.request", { id: "b" });
   assert.equal(store.get("receipts", "task-summary:b").attempt, 2);

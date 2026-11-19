@@ -36,7 +36,7 @@ const NOW = Date.parse("2026-11-15T12:00:00Z"),
 function setup(t) {
   const root = temporaryDirectory("avoozl-ci-evidence-"),
     store = new Store(path.join(root, "workspace.sqlite"));
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  store.initialize({ ...snapshot(), tasks: [], edges: [] });
   t.after(() => store.close());
   return { root, store };
 }

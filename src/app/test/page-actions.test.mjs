@@ -39,7 +39,7 @@ function workspace(t) {
     { id: "a:requires:b", from: "a", to: "b", kind: "requires" },
     { id: "b:requires:c", from: "b", to: "c", kind: "requires" },
   ];
-  store.importSnapshot(data);
+  store.initialize(data);
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
 

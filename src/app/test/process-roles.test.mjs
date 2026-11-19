@@ -178,7 +178,7 @@ function machine(t) {
   });
   const data = snapshot();
   data.tasks[0].repository = "app";
-  store.importSnapshot(data);
+  store.initialize(data);
   store.put("repositories", {
     id: "app",
     root: checkout,
@@ -318,7 +318,7 @@ test("a process repository's verifier and new-plan planner requests name process
   });
   const data = snapshot();
   Object.assign(data.tasks[0], { repository: "app", verify: "agent" });
-  store.importSnapshot(data);
+  store.initialize(data);
   const checkout = path.join(root, "app");
   store.put("repositories", { id: "app", root: checkout, executor: "process" });
   store.put("task_deliveries", {
@@ -367,7 +367,7 @@ test("a process planner whose spec folder is in no checkout runs with its reposi
     store.close();
     fs.rmSync(root, { recursive: true, force: true });
   });
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   const sandbox = { network: ["localhost:1"] };
   store.put("repositories", {
     id: "app",

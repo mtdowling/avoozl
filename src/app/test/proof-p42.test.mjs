@@ -119,7 +119,7 @@ function workspace(t, name, { skill = false, ids }) {
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   const repository = `${name}repo`;
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: ids.map((id) => leaf(id, repository)),
     edges: [],

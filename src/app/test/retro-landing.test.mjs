@@ -34,7 +34,7 @@ function seed(t, { lead, land }) {
       repository: "app",
       integration: { at: at(n * 200 + lead), commit: "c".repeat(40) },
     }));
-  store.importSnapshot({ ...snapshot(), tasks, edges: [] });
+  store.initialize({ ...snapshot(), tasks, edges: [] });
   store.put("repositories", { id: "app", landing: "pr" });
   ids.forEach((id, n) => {
     const from = n * 200;

@@ -86,7 +86,7 @@ if (fs.existsSync("breaks-main") && path.basename(process.cwd()).startsWith("avo
   const dbPath = path.join(root, "workspace.sqlite"),
     store = new Store(dbPath);
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks,
     edges: [{ from: "a1", to: "d1", kind: "requires" }],

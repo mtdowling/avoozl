@@ -48,7 +48,7 @@ function setup(t, { tasks = [leaf("a")], edges = [] } = {}) {
   const dbPath = path.join(root, "workspace.sqlite"),
     store = new Store(dbPath);
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks, edges });
+  store.initialize({ ...snapshot(), tasks, edges });
   store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),

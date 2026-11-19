@@ -96,7 +96,7 @@ const token = execFileSync("gh", ["auth", "token"], {
 try {
   store.read();
 } catch {
-  store.importSnapshot(emptySnapshot("P64 scratch"));
+  store.initialize(emptySnapshot("P64 scratch"));
 }
 let report;
 try {

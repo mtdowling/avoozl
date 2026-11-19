@@ -168,7 +168,7 @@ async function setup() {
       repository: "app",
       planId: PLAN,
     });
-    store.importSnapshot({
+    store.initialize({
       ...store.read(),
       tasks: [task(GO, WORDS[GO]), task(AGAIN, WORDS[AGAIN])],
       edges: [],

@@ -59,7 +59,7 @@ test("legacy schema gains missing tables and retains activity and idea migration
   let expected;
   try {
     expected = schema(store.db);
-    store.importSnapshot(snapshot());
+    store.initialize(snapshot());
     store.put("plans", { id: "fake-plan", state: "draft", hash: "fake-hash" });
     store.put("incoming_items", { id: "idea", record: { kind: "idea" } });
     store.put("incoming_items", { id: "ticket", record: { kind: "ticket" } });

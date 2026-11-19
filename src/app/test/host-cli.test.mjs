@@ -107,26 +107,17 @@ test("workspace CLI adopts existing state and local maintenance refuses register
   );
   assert.equal(retry.migration.alreadyAdopted, true);
 
-  const snapshot = path.join(machine, "snapshot.json"),
-    migrated = new Store(database);
-  try {
-    fs.writeFileSync(snapshot, JSON.stringify(migrated.read()));
-  } finally {
-    migrated.close();
-  }
-  for (const [args, message] of [
-    [
-      ["backup", "--workspace", "legacy-cli", "--output", snapshot + ".sqlite"],
-      "Backup",
-    ],
-    [
-      ["export", "--workspace", "legacy-cli", "--output", snapshot + ".out"],
-      "Export",
-    ],
-    [["import", snapshot, "--workspace", "legacy-cli", "--dry-run"], "Import"],
-  ])
-    assert.match(
-      invokeFailure(args, env),
-      new RegExp(`${message} is a local-only maintenance operation`),
-    );
+  assert.match(
+    invokeFailure(
+      [
+        "backup",
+        "--workspace",
+        "legacy-cli",
+        "--output",
+        path.join(machine, "backup.sqlite"),
+      ],
+      env,
+    ),
+    /Backup is a local-only maintenance operation/,
+  );
 });

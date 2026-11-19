@@ -47,7 +47,7 @@ function workspace(t, tasks, tracked = {}) {
   git(checkout, "commit", "-m", "Start");
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks, edges: [] });
+  store.initialize({ ...snapshot(), tasks, edges: [] });
   store.put("approvals", { id: "approval-1", planId: "p1", hash: "h1" });
   store.put("repositories", {
     id: "app",

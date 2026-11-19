@@ -77,7 +77,7 @@ function setup(
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const store = new Store(dbPath);
   t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks, edges });
+  store.initialize({ ...snapshot(), tasks, edges });
   store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),

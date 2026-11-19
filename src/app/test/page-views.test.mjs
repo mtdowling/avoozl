@@ -53,7 +53,7 @@ function graphSnapshot() {
 
 function graphFixture(t) {
   const { store } = fixture(t);
-  store.importSnapshot(graphSnapshot());
+  store.initialize(graphSnapshot());
   store.put("plans", {
     id: "other-plan",
     title: "Other plan",
@@ -278,7 +278,7 @@ test("views read an older read-only database that lacks newer tables", async (t)
   const root = temporaryDirectory(),
     dbPath = path.join(root, "workspace.sqlite");
   const older = new Store(dbPath);
-  older.importSnapshot(graphSnapshot());
+  older.initialize(graphSnapshot());
   older.db.exec("DROP TABLE session_bindings");
   older.close();
   fs.chmodSync(dbPath, 0o444);

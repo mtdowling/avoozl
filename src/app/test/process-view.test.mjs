@@ -257,7 +257,7 @@ test("delivery.view gives a live process session its details and no chat link", 
     'step one\n{"total_cost_usd":0.1}\n',
   );
   store = new Store(path.join(crew, "workspace.sqlite"));
-  store.importSnapshot(snapshot());
+  store.initialize(snapshot());
   enqueueSessionRequests(store, {
     starts: [
       {

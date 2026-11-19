@@ -578,7 +578,7 @@ export async function buildDemo(
   const config = demoConfig(root),
     store = new Store(config.dbPath);
   try {
-    store.importSnapshot(emptySnapshot(DEMO_NAME));
+    store.initialize(emptySnapshot(DEMO_NAME));
     const repository = {
       id: "app",
       name: "Recipe Box app",

@@ -55,7 +55,7 @@ async function workspace(t) {
   git(checkout, "push", "-q", "origin", "main");
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
-  store.importSnapshot({
+  store.initialize({
     ...snapshot(),
     tasks: [leaf("t1"), leaf("t2"), leaf("t3")],
     edges: [],

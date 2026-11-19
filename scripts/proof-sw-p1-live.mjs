@@ -304,7 +304,7 @@ async function setup(port) {
     path.join(P.ws, ".avoozl", "local", "workspace.sqlite"),
   );
   try {
-    store.importSnapshot({
+    store.initialize({
       ...store.read(),
       tasks: [
         {
