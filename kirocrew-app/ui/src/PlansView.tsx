@@ -2360,7 +2360,7 @@ export default function PlansView(props: {
     <>
       {specHeader}
       {specTabs}
-      <div data-spec-body style={{ padding: phone ? '20px 0' : '20px 12px 20px 12px', ...(phone ? {} : { flex: '1 1 0%', minHeight: 0, overflowY: 'auto', position: 'relative' }) }}>
+      <Box data-spec-body css-padding={phone ? '20px-0' : '20px-12px-20px-12px'} css-flex={phone ? undefined : '1-1-0%'} css-min-height={phone ? undefined : '0'} css-overflow-y={phone ? undefined : 'auto'} css-position={phone ? undefined : 'relative'}>
         <Box id="avoozl-plan-main" css-gap="20" css-scroll-margin-top="48" flex minW0 flexCol>
           <RadarGraphLink />
           <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
@@ -2418,7 +2418,7 @@ export default function PlansView(props: {
             </>
           )}
         </Box>
-      </div>
+      </Box>
     </>
   ) : null
   return (

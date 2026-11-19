@@ -52,7 +52,6 @@ import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
 import { PlainButton, PlainInput, PlainTextarea } from './ui/Plain'
-import { fieldStyle, mono } from './ui/looks/ContentRulesSettings.ts'
 import { Glyph } from './ui/Glyph'
 
 type Client = ReturnType<typeof contentClient>
@@ -317,13 +316,13 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
           <Box as="span" css-width="4.5rem" size="xs" tone="muted">
             {row.kind === 'note' ? 'Note' : `Line ${index + 1}`}
           </Box>
-          <input
+          <PlainInput
             value={row.text}
             aria-label={row.kind === 'note' ? `Note on line ${index + 1}` : `Line ${index + 1}`}
             aria-invalid={error ? 'true' : undefined}
             aria-describedby={error ? errorId : undefined}
             onChange={(e) => props.onChange({ kind: row.kind, text: e.target.value } as TermRow)}
-            style={{ ...fieldStyle, ...(row.kind === 'raw' ? mono : { color: 'var(--muted)' }) }}
+            css-border="1px-solid-border" css-border-radius="6" css-background="card-bg" css-padding="4px-8px" css-font-size="13" css-min-width="0" css-width="100%" css-font-family={row.kind === 'raw' ? 'mono-monospace' : undefined} css-color={row.kind === 'raw' ? 'text' : 'muted'}
           />
           <IconBtn icon={X} label={`Drop line ${index + 1}`} onClick={props.onRemove} />
         </Box>
@@ -369,14 +368,14 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
     </SelectField>
   )
   const value = (
-    <input
+    <PlainInput
       value={row.value}
       aria-label={`${allow ? 'Allowed ' : ''}${match === 'word' ? 'word or phrase' : 'pattern'} on line ${index + 1}`}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={error ? errorId : undefined}
       placeholder={allow ? (match === 'word' ? 'zebra falcon app' : String.raw`\bacme-0000\b`) : match === 'word' ? 'zebra falcon' : String.raw`\bacme-\d{4}\b`}
       onChange={(e) => props.onChange({ ...row, value: e.target.value })}
-      style={{ ...fieldStyle, ...(match === 'pattern' ? mono : {}), ...(error ? { borderColor: 'var(--danger)' } : {}), ...(props.narrow ? { gridColumn: '1 / 3' } : {}) }}
+      css-border="1px-solid-border" css-border-radius="6" css-background="card-bg" css-color="text" css-padding="4px-8px" css-font-size="13" css-min-width="0" css-width="100%" css-font-family={match === 'pattern' ? 'mono-monospace' : undefined} css-border-color={error ? 'danger' : undefined} css-grid-column={props.narrow ? '1-3' : undefined}
     />
   )
   const drop = <IconBtn icon={X} label={allow ? `Drop allow line ${index + 1}` : `Drop rule ${row.name || index + 1}`} onClick={props.onRemove} />

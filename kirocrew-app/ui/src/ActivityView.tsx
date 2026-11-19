@@ -238,9 +238,9 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
         </Tooltip>
         <Box as="span" css-font-size="13" css-color="muted">days</Box>
         {note && !parsed.error && (
-          <span role={note.ok ? 'status' : 'alert'} className={`ml-auto text-xs ${note.ok ? 'text-muted' : 'text-danger'}`}>
+          <Box role={note.ok ? 'status' : 'alert'} as="span" ml="auto" size="xs" tone={note.ok ? 'muted' : 'danger'}>
             {note.text}
-          </span>
+          </Box>
         )}
       </Row>
       {parsed.error && (

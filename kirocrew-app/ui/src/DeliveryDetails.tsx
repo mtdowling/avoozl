@@ -124,9 +124,9 @@ function GitHubReviewsBlock({ reviews }: { reviews: GitHubReviews }) {
       {reviews.reviews.length > 0 && (
         <Box as="ul" ml="3" mt="1" flex flexCol gap="1">
           {reviews.reviews.map((review) => (
-            <li key={review.reviewer} className={review.allowed && !review.stale ? '' : 'text-muted'}>
+            <Box key={review.reviewer} as="li" tone={review.allowed && !review.stale ? undefined : 'muted'}>
               {githubReviewLabel(review)}
-            </li>
+            </Box>
           ))}
         </Box>
       )}

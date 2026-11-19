@@ -26,7 +26,7 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
   const runs = reviewRuns(props.item)
   if (!runs.length) return null
   return (
-    <ul className={`flex flex-col gap-1 ${props.compact ? 'text-xs' : 'text-sm'}`} data-review-runs>
+    <Box as="ul" flex flexCol gap="1" size={props.compact ? 'xs' : 'sm'} data-review-runs>
       {runs.map((run) => (
         <Box key={run.key} as="li" flex flexWrap items="center" gap="1.5">
           <Badge variant={run.live ? 'info' : undefined}>{run.role}</Badge>
@@ -52,7 +52,7 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
           </Box>
         </Box>
       ))}
-    </ul>
+    </Box>
   )
 }
 
@@ -94,10 +94,9 @@ export function HandSetReview(props: {
     }
   }
   return (
-    <div
+    <Box
       data-hand-set-review
-      className={`flex flex-col gap-2 rounded border p-2 ${props.compact ? 'text-xs' : 'text-sm'}`}
-      style={{ borderColor: 'color-mix(in srgb, var(--warn, var(--muted)) 55%, var(--border))' }}
+      css-border-color="mix-warn-muted-55%-border" flex flexCol gap="2" rounded="base" border="all" p="2" size={props.compact ? 'xs' : 'sm'}
     >
       <Box as="span" weight="medium">{noSessionLabel(task.noSession)}</Box>
       {task.nextAction ? (
@@ -150,6 +149,6 @@ export function HandSetReview(props: {
           {error ?? chat.error}
         </ErrorText>
       )}
-    </div>
+    </Box>
   )
 }

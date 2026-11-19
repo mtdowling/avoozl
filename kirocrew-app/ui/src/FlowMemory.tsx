@@ -56,7 +56,7 @@ export function DiffBlock({ diff, label }: { diff: string | undefined; label: st
 function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { proposal: Proposal & { retro: string }; busy: boolean; linked: boolean; onDecide: (p: Proposal & { retro: string }, d: 'approve' | 'reject') => void; onOpenRetro: () => void }) {
   const pdca = pdcaText(proposal)
   return (
-    <li className="flex flex-col gap-1.5 border-t pt-2 first:border-t-0 first:pt-0 text-sm" data-proposal={`${proposal.retro}:${proposal.id}`} data-linked={linked || undefined} style={{ borderColor: 'var(--border)', ...(linked ? { boxShadow: 'inset 0 0 0 2px var(--accent)', borderRadius: 6, padding: 8 } : {}) }}>
+    <Box as="li" css-border-color="border" css-box-shadow={linked ? 'inset-0-0-0-2px-accent' : undefined} css-border-radius={linked ? '6' : undefined} css-padding={linked ? '8' : undefined} flex flexCol gap="1.5" border="t" pt="2" firstBorderT0 firstPt0 size="sm" data-proposal={`${proposal.retro}:${proposal.id}`} data-linked={linked || undefined}>
       <Box as="span" css-overflow-wrap="anywhere" flex flexWrap items="center" gap="2">
         <Badge>{proposal.type}</Badge>
         <Box as="code" size="xs">{proposalText(proposal)}</Box>
@@ -90,7 +90,7 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
           </Btn>
         </Row>
       )}
-    </li>
+    </Box>
   )
 }
 
