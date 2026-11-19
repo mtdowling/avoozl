@@ -156,7 +156,7 @@ test("the block is validated, and 0 tries asks at once", () => {
   });
   assert.throws(
     () => normalizeGitHubPolicy(entry({ landing: { mode: "fast" } })),
-    /landing\.mode must be direct, pr, train or off/,
+    /landing\.mode must be direct, pr or off/,
   );
   assert.throws(
     () => normalizeGitHubPolicy(entry({ landing: { autoMerge: "yes" } })),

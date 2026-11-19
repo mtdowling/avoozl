@@ -66,9 +66,6 @@ export function enqueueLanding(
     driver = null,
     source = null,
     pr = null,
-    // Integrator-train fields (branch, forkPoint, builtOn, footprint,
-    // cheap); `direct` and `pr` entries have none.
-    extra = {},
   },
   { now = Date.now() } = {},
 ) {
@@ -92,7 +89,6 @@ export function enqueueLanding(
       driver,
       ...(source ? { source } : {}),
       ...(pr ? { pr } : {}),
-      ...extra,
       seq,
       state: "queued",
       queuedAt: new Date(now).toISOString(),
@@ -240,7 +236,8 @@ export function withdrawLanding(store, { projectId, base, key }, reason) {
 //
 // options: `limit` (default 1) bounds a batch; `isAlone(entry)` marks a
 // member that must land alone; `accept(entry)` lets a member join a batch;
-// `bisect` turns on the rerun, the search for the culprit and the
+// `onStep(step, entries)` tells the Landing queue page what the batch is
+// doing ("testing", "rerun", "bisect", "push"); `bisect` turns on the rerun, the search for the culprit and the
 // confirmation alone (MB4) for batches of direct landing.
 //
 // Returns {state, entry, entries} with state one of: empty, paused,
@@ -288,6 +285,7 @@ export async function landNext(
     if (!SHA.test(baseHead ?? ""))
       fail(`The base ${base} has no exact head to land on.`, 409);
     // Outside the lock: stack the members on the base and run the checks.
+    options.onStep?.("testing", entries);
     let candidate,
       verdict,
       flaky = false,
@@ -346,6 +344,7 @@ export async function landNext(
       }
       // MB4.1: a failing check runs once more on the same head.
       let failing = commandsOf(verdict.checks);
+      options.onStep?.("rerun", entries);
       const again = await steps.check(candidate, entries, baseHead, failing);
       if (again?.ok) {
         flaky = true;
@@ -360,6 +359,7 @@ export async function landNext(
       }
       if (commandsOf(again?.checks).length) failing = commandsOf(again.checks);
       // MB4.2: the first boundary where the failing checks fail.
+      options.onStep?.("bisect", entries);
       let lo = 1,
         hi = entries.length,
         atHi = { candidate, checks: again?.checks ?? verdict.checks };
@@ -441,6 +441,7 @@ export async function landNext(
     if (late)
       return { state: "paused", entry: entries[0], entries, stop: late.id };
     // Inside the lock: re-read the base, move the ref, push. Nothing else.
+    options.onStep?.("push", entries);
     let outcome;
     try {
       outcome = await withWorkLock(

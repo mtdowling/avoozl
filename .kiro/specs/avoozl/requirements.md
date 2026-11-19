@@ -4085,7 +4085,7 @@ pressing merge.
 1. Each repository SHALL have one landing block,
    `github.repositories.<owner/name>.landing`, edited in one place,
    Settings › Repository setup › Edit › Landing: `mode` (`direct`, `pr`,
-   `train` or `off`; `train` is to be retired into `direct` by the
+   or `off`; `train` is retired and loads as `direct`, by the
    `merge-batches` spec, which replaced the deleted `landing-trains` spec on
    2026-11-18), `autoMerge` (Requirement 80, default `true`) and
    `method` (`squash` or `merge`, default `squash`, RC28.7). The default
@@ -4099,10 +4099,11 @@ pressing merge.
    over its older key. Avoozl's own repository and Nupp SHALL land as they
    did before the change, each covered by a test.
 2. `direct` SHALL select an exact verified working-branch portion, or a
-   train of up to four tasks across specs of the same driver. A landing
-   worktree SHALL merge it with the current base, check that exact candidate,
-   and fast-forward from the recorded base. A moved base SHALL require a new
-   candidate and checks. A failed train SHALL be bisected to one task.
+   merge batch of waiting members across specs and drivers, up to the size
+   limit of `merge-batches` MB2. A landing worktree SHALL stack them on the
+   current base, check that exact candidate, and fast-forward from the
+   recorded base. A moved base SHALL require a new candidate and checks. A
+   failed merge batch SHALL be narrowed to one culprit (`merge-batches` MB4).
    Declared append-only `landing.unionPaths` SHALL merge only in that landing
    worktree and SHALL still pass all checks.
 3. `pr` SHALL open or reuse one pull request for an exact verified portion,
@@ -4111,7 +4112,7 @@ pressing merge.
    repository's approval rules. Only the head of the per-base queue MAY be
    updated. Source push permission SHALL NOT imply target merge permission.
    Without merge permission Avoozl SHALL observe an authorized maintainer's
-   merge. Protected review SHALL NOT combine unrelated pull requests into a train.
+   merge. Protected review SHALL NOT combine unrelated pull requests into a merge batch.
 4. Avoozl SHALL land only after checks passed on the updated head. It SHALL
    never force push, never use `--admin`, and never bypass a required
    review or check.
@@ -4974,7 +4975,7 @@ GitHub issue per task or exposing private planning information.
     quiet workers and elapsed leases SHALL grant no claim or takeover rights.
 15. Landing portions SHALL name exact commits/tasks, not the latest mutable
     branch head. Only verified work SHALL enter the spec working branch.
-    Direct trains MAY combine up to four tasks for one driver; protected PRs
+    Direct merge batches MAY combine up to the size limit of tasks across drivers; protected PRs
     SHALL land separately with checks/reviews for their own heads. Base moves
     SHALL merge back without force push. The integration lock SHALL cover
     only guarded ref movement/push, not checks or agent work.

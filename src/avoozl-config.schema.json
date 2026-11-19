@@ -147,20 +147,48 @@
       "description": "One row per role: its harness, its model where it has one and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins. Older models, harnesses, delivery agent and model keys still load into it.",
       "additionalProperties": false,
       "properties": {
-        "worker": { "$ref": "#/$defs/agentRole" },
-        "falsifier": { "$ref": "#/$defs/agentRole" },
-        "planner": { "$ref": "#/$defs/chatRole" },
-        "planReviewer": { "$ref": "#/$defs/chatRole" },
-        "retro": { "$ref": "#/$defs/chatRole" },
-        "reviewDraft": { "$ref": "#/$defs/chatRole" },
-        "verifier": { "$ref": "#/$defs/harnessRole" },
-        "reviewer": { "$ref": "#/$defs/harnessRole" },
-        "responder": { "$ref": "#/$defs/harnessRole" },
-        "taskSummary": { "$ref": "#/$defs/harnessRole" },
-        "assist": { "$ref": "#/$defs/harnessRole" },
-        "issuePlanner": { "$ref": "#/$defs/harnessRole" },
-        "planAnswer": { "$ref": "#/$defs/harnessRole" },
-        "prReview": { "$ref": "#/$defs/harnessRole" }
+        "worker": {
+          "$ref": "#/$defs/agentRole"
+        },
+        "falsifier": {
+          "$ref": "#/$defs/agentRole"
+        },
+        "planner": {
+          "$ref": "#/$defs/chatRole"
+        },
+        "planReviewer": {
+          "$ref": "#/$defs/chatRole"
+        },
+        "retro": {
+          "$ref": "#/$defs/chatRole"
+        },
+        "reviewDraft": {
+          "$ref": "#/$defs/chatRole"
+        },
+        "verifier": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "reviewer": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "responder": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "taskSummary": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "assist": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "issuePlanner": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "planAnswer": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "prReview": {
+          "$ref": "#/$defs/harnessRole"
+        }
       }
     },
     "models": {
@@ -250,469 +278,8 @@
           "description": "Older key of each repository's conflicts.maxAttempts, read for a repository that sets none. Still loads; Avoozl does not write it."
         },
         "trains": {
-          "type": "object",
-          "description": "Integrator trains for repositories with landing: train. A target's keys replace the same keys at this level. Refused when it holds machine keys.",
-          "additionalProperties": false,
-          "properties": {
-            "branchPrefix": {
-              "type": "string",
-              "default": "avoozl-batch/"
-            },
-            "trigger": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "minBranches": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 32,
-                  "default": 3
-                },
-                "maxWaitMinutes": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 1440,
-                  "default": 15
-                },
-                "maxBranches": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 32,
-                  "default": 10,
-                  "description": "Batch size: the most branches one train carries. Not a concurrency setting."
-                },
-                "cooldownSeconds": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 3600,
-                  "default": 60
-                }
-              }
-            },
-            "validation": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "cheap": {
-                  "type": "array",
-                  "items": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  }
-                },
-                "full": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["command"],
-                    "properties": {
-                      "command": {
-                        "type": "array",
-                        "minItems": 1,
-                        "items": {
-                          "type": "string",
-                          "minLength": 1
-                        }
-                      },
-                      "results": {
-                        "type": "string"
-                      },
-                      "suiteArgs": {
-                        "type": "array",
-                        "minItems": 1,
-                        "items": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "description": "Arguments that run one suite; one must hold {suite}."
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            "platforms": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "rules": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "classifier": {
-                  "type": "array",
-                  "minItems": 1,
-                  "items": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                }
-              }
-            },
-            "failure": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "action": {
-                  "enum": ["return", "eject"],
-                  "default": "return"
-                },
-                "retries": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 10,
-                  "default": 2
-                },
-                "trunk": {
-                  "enum": ["revert", "fix-forward"],
-                  "default": "revert"
-                },
-                "maxBisects": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 10,
-                  "default": 2
-                },
-                "maxRebases": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 10,
-                  "default": 3
-                },
-                "flakyReruns": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 3,
-                  "default": 1
-                }
-              }
-            },
-            "conflicts": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "mechanical": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": ["paths", "strategy"],
-                    "properties": {
-                      "paths": {
-                        "type": "array",
-                        "minItems": 1,
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "strategy": {
-                        "enum": ["union", "regenerate", "format"]
-                      },
-                      "command": {
-                        "type": "array",
-                        "minItems": 1,
-                        "items": {
-                          "type": "string",
-                          "minLength": 1
-                        }
-                      },
-                      "verify": {
-                        "type": "array",
-                        "minItems": 1,
-                        "items": {
-                          "type": "string",
-                          "minLength": 1
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            "ci": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "workflow": {
-                  "type": "string"
-                },
-                "waitForLastTrain": {
-                  "type": "boolean",
-                  "default": false
-                }
-              }
-            },
-            "scheduling": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "overlap": {
-                  "enum": ["same-train", "serialize"],
-                  "default": "same-train"
-                }
-              }
-            },
-            "pullRequests": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "mode": {
-                  "enum": ["review-only"],
-                  "default": "review-only"
-                },
-                "commentTemplate": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              }
-            },
-            "targets": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["policy"],
-                "properties": {
-                  "branchPrefix": {
-                    "type": "string",
-                    "default": "avoozl-batch/"
-                  },
-                  "trigger": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                      "minBranches": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 32,
-                        "default": 3
-                      },
-                      "maxWaitMinutes": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 1440,
-                        "default": 15
-                      },
-                      "maxBranches": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 32,
-                        "default": 10
-                      },
-                      "cooldownSeconds": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 3600,
-                        "default": 60
-                      }
-                    }
-                  },
-                  "validation": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                      "cheap": {
-                        "type": "array",
-                        "items": {
-                          "type": "array",
-                          "minItems": 1,
-                          "items": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        }
-                      },
-                      "full": {
-                        "type": "object",
-                        "additionalProperties": {
-                          "type": "object",
-                          "additionalProperties": false,
-                          "required": ["command"],
-                          "properties": {
-                            "command": {
-                              "type": "array",
-                              "minItems": 1,
-                              "items": {
-                                "type": "string",
-                                "minLength": 1
-                              }
-                            },
-                            "results": {
-                              "type": "string"
-                            },
-                            "suiteArgs": {
-                              "type": "array",
-                              "minItems": 1,
-                              "items": {
-                                "type": "string",
-                                "minLength": 1
-                              },
-                              "description": "Arguments that run one suite; one must hold {suite}."
-                            }
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "platforms": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                      "rules": {
-                        "type": "object",
-                        "additionalProperties": {
-                          "type": "array",
-                          "minItems": 1,
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      },
-                      "classifier": {
-                        "type": "array",
-                        "minItems": 1,
-                        "items": {
-                          "type": "string",
-                          "minLength": 1
-                        }
-                      }
-                    }
-                  },
-                  "failure": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                      "action": {
-                        "enum": ["return", "eject"],
-                        "default": "return"
-                      },
-                      "retries": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 10,
-                        "default": 2
-                      },
-                      "trunk": {
-                        "enum": ["revert", "fix-forward"],
-                        "default": "revert"
-                      },
-                      "maxBisects": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 10,
-                        "default": 2
-                      },
-                      "maxRebases": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 10,
-                        "default": 3
-                      },
-                      "flakyReruns": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 3,
-                        "default": 1
-                      }
-                    }
-                  },
-                  "conflicts": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                      "mechanical": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "additionalProperties": false,
-                          "required": ["paths", "strategy"],
-                          "properties": {
-                            "paths": {
-                              "type": "array",
-                              "minItems": 1,
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "strategy": {
-                              "enum": ["union", "regenerate", "format"]
-                            },
-                            "command": {
-                              "type": "array",
-                              "minItems": 1,
-                              "items": {
-                                "type": "string",
-                                "minLength": 1
-                              }
-                            },
-                            "verify": {
-                              "type": "array",
-                              "minItems": 1,
-                              "items": {
-                                "type": "string",
-                                "minLength": 1
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "ci": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                      "workflow": {
-                        "type": "string"
-                      },
-                      "waitForLastTrain": {
-                        "type": "boolean",
-                        "default": false
-                      }
-                    }
-                  },
-                  "scheduling": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                      "overlap": {
-                        "enum": ["same-train", "serialize"],
-                        "default": "same-train"
-                      }
-                    }
-                  },
-                  "pullRequests": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                      "mode": {
-                        "enum": ["review-only"],
-                        "default": "review-only"
-                      },
-                      "commentTemplate": {
-                        "type": "string",
-                        "minLength": 1
-                      }
-                    }
-                  },
-                  "policy": {
-                    "enum": ["optimistic", "gated"]
-                  }
-                }
-              }
-            }
-          }
+          "deprecated": true,
+          "description": "Ignored. Retired by merge batches: verified work lands in merge batches with landing mode direct. Old files that set it still load."
         },
         "unionPaths": {
           "type": "array",
@@ -720,7 +287,7 @@
             "type": "string",
             "minLength": 1
           },
-          "description": "Append-only files merged with union semantics when a landing conflict touches only them. Read as union rules by integrator trains."
+          "description": "Append-only files merged with union semantics when a landing conflict touches only them."
         }
       }
     },
@@ -728,7 +295,7 @@
       "$ref": "#/$defs/planningRepository"
     },
     "plugins": {
-      "description": "Route and tracker plugins this repository declares (design §4.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
+      "description": "Route and tracker plugins this repository declares (design \u00a74.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
       "type": "array",
       "items": {
         "type": "object",
@@ -783,7 +350,7 @@
       }
     },
     "intake": {
-      "description": "Every source that brings work in (design §4.12, §4.39): GitHub repositories (via github, set in Repository setup), tracker plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
+      "description": "Every source that brings work in (design \u00a74.12, \u00a74.39): GitHub repositories (via github, set in Repository setup), tracker plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1087,7 +654,7 @@
     },
     "packs": {
       "type": "object",
-      "description": "Written by a pack import (design §4.14): for each plugin whose pack was imported, the version and time of the import and the settings that came from it. Records provenance only; Avoozl never re-applies it.",
+      "description": "Written by a pack import (design \u00a74.14): for each plugin whose pack was imported, the version and time of the import and the settings that came from it. Records provenance only; Avoozl never re-applies it.",
       "additionalProperties": {
         "type": "object",
         "properties": {
@@ -1118,8 +685,12 @@
           "type": "array",
           "items": {
             "oneOf": [
-              { "$ref": "#/$defs/commandSink" },
-              { "$ref": "#/$defs/webhookSink" }
+              {
+                "$ref": "#/$defs/commandSink"
+              },
+              {
+                "$ref": "#/$defs/webhookSink"
+              }
             ]
           }
         }
@@ -1130,78 +701,38 @@
       "additionalProperties": false,
       "description": "Run the standalone page under this machine's supervisor. Global configuration only; the repository file may not set it.",
       "properties": {
-        "enabled": { "type": "boolean", "default": false },
-        "port": { "type": "integer", "minimum": 1024, "maximum": 65535 }
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535
+        }
       }
     },
     "machine": {
       "type": "object",
-      "description": "This machine's validation environments. Global configuration only; the repository file may not set platforms or slots.",
+      "description": "This machine's settings. Global configuration only.",
       "properties": {
-        "platforms": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["kind"],
-            "properties": {
-              "kind": {
-                "enum": ["native", "container", "vm"]
-              },
-              "wrapper": {
-                "type": "array",
-                "minItems": 1,
-                "items": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "cleanup": {
-                "type": "array",
-                "minItems": 1,
-                "items": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "slot": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        "slots": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 32
-          }
-        },
         "alias": {
           "type": "string",
           "description": "This machine's name."
+        },
+        "platforms": {
+          "deprecated": true,
+          "description": "Ignored. Retired by merge batches: verified work lands in merge batches with landing mode direct. Old files that set it still load."
+        },
+        "slots": {
+          "deprecated": true,
+          "description": "Ignored. Retired by merge batches: verified work lands in merge batches with landing mode direct. Old files that set it still load."
         }
       }
     },
     "lease": {
-      "type": "object",
-      "description": "Landing lease timing. Global configuration only.",
-      "additionalProperties": false,
-      "properties": {
-        "heartbeatSeconds": {
-          "type": "integer",
-          "minimum": 10,
-          "maximum": 600,
-          "default": 60
-        },
-        "missedHeartbeats": {
-          "type": "integer",
-          "minimum": 2,
-          "maximum": 10,
-          "default": 3
-        }
-      }
+      "deprecated": true,
+      "description": "Ignored. Retired by merge batches: verified work lands in merge batches with landing mode direct. Old files that set it still load."
     }
   },
   "propertyNames": {
@@ -1223,8 +754,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "harness": { "$ref": "#/$defs/harnessName" },
-        "model": { "$ref": "#/$defs/chatModel" }
+        "harness": {
+          "$ref": "#/$defs/harnessName"
+        },
+        "model": {
+          "$ref": "#/$defs/chatModel"
+        }
       }
     },
     "commandSink": {
@@ -1233,14 +768,26 @@
       "additionalProperties": false,
       "required": ["kind", "argv"],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,40}$" },
-        "kind": { "const": "command" },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,40}$"
+        },
+        "kind": {
+          "const": "command"
+        },
         "argv": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 60000 }
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        }
       }
     },
     "webhookSink": {
@@ -1249,29 +796,46 @@
       "additionalProperties": false,
       "required": ["kind", "url"],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,40}$" },
-        "kind": { "const": "webhook" },
-        "url": { "type": "string" },
-        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 60000 }
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,40}$"
+        },
+        "kind": {
+          "const": "webhook"
+        },
+        "url": {
+          "type": "string"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        }
       }
     },
     "harnessRole": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "harness": { "$ref": "#/$defs/harnessName" }
+        "harness": {
+          "$ref": "#/$defs/harnessName"
+        }
       }
     },
     "agentRole": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "harness": { "$ref": "#/$defs/harnessName" },
+        "harness": {
+          "$ref": "#/$defs/harnessName"
+        },
         "agent": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
         },
-        "model": { "$ref": "#/$defs/chatModel" }
+        "model": {
+          "$ref": "#/$defs/chatModel"
+        }
       }
     },
     "runner": {
@@ -1635,8 +1199,8 @@
           "description": "SHA-256 hash of the approved worktree helper script."
         },
         "landing": {
-          "description": "How verified work reaches the base branch. direct: Avoozl merges and fast-forwards the base. pr: Avoozl opens a pull request and merges it once its checks pass. train: the integrator lands batches. off, or absent: Avoozl pushes nothing and the commit waits for a person.",
-          "enum": ["direct", "pr", "train", "off"]
+          "description": "How verified work reaches the base branch. direct: Avoozl lands verified work on the base in merge batches. pr: Avoozl opens a pull request and merges it once its checks pass. train: retired; it loads as direct. off, or absent: Avoozl pushes nothing and the commit waits for a person.",
+          "enum": ["direct", "pr", "off", "train"]
         },
         "planning": {
           "type": "boolean",
@@ -1709,7 +1273,7 @@
     },
     "github": {
       "type": "object",
-      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design §4.4), Remote setup remains an explicit action. issueIntake and queue are older keys: issueIntake is read as intake.sources GitHub sources and queue is ignored; Avoozl moves both on its next write (§4.39).",
+      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design \u00a74.4), Remote setup remains an explicit action. issueIntake and queue are older keys: issueIntake is read as intake.sources GitHub sources and queue is ignored; Avoozl moves both on its next write (\u00a74.39).",
       "properties": {
         "issueIntake": {
           "type": "object",
@@ -1897,7 +1461,7 @@
       "properties": {
         "role": {
           "enum": ["local", "code", "planning", "both"],
-          "description": "What this repository is for (design §4.34). local: tasks stay in the workspace database. code: pull requests land here and issues live in the planning repository. planning: holds the issues and specs, no code. both: code and its own issues. The mode and planningRepository derive from the roles."
+          "description": "What this repository is for (design \u00a74.34). local: tasks stay in the workspace database. code: pull requests land here and issues live in the planning repository. planning: holds the issues and specs, no code. both: code and its own issues. The mode and planningRepository derive from the roles."
         },
         "checkout": {
           "type": "string",
@@ -2056,7 +1620,7 @@
           "description": "Who merges and how, for this repository (design 4.25). Edited on Settings > Repository setup > Edit > Landing.",
           "properties": {
             "mode": {
-              "enum": ["direct", "pr", "train", "off"],
+              "enum": ["direct", "pr", "off", "train"],
               "description": "How Avoozl lands verified work. Unset reads the checkout's projects.<id>.landing, else off."
             },
             "autoMerge": {
@@ -2073,8 +1637,14 @@
               "description": "direct landing: how many verified tasks land in one merge batch. auto sizes the batch from how often changes fail; a number from 1 to 16 replaces the size, and 1 lands one task at a time.",
               "default": "auto",
               "oneOf": [
-                { "const": "auto" },
-                { "type": "integer", "minimum": 1, "maximum": 16 }
+                {
+                  "const": "auto"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 16
+                }
               ]
             }
           }

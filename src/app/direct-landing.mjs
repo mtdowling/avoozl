@@ -20,7 +20,13 @@ import { git, removeLandedTaskWorktree } from "./git.mjs";
 import { enqueueLanding, landingQueue, landNext } from "./landing-queue.mjs";
 import { directSteps, dropMember } from "./merge-batch.mjs";
 import { landingSettings } from "./landing-config.mjs";
-import { recordBatch, sizeLimit, sizeRecord } from "./merge-batch-size.mjs";
+import {
+  recordBatch,
+  setTesting,
+  sizeLimit,
+  sizeRecord,
+  testingNow,
+} from "./merge-batch-size.mjs";
 import { sendConflictBack } from "./landing-conflicts.mjs";
 import { markLanded, sendFailureBack, syncBase } from "./pr-landing.mjs";
 import { driverIdOf } from "./spec-scheduler.mjs";
@@ -136,19 +142,38 @@ export async function landDirect(
             };
           },
         });
-      const result = await landNext(
-        store,
-        { projectId: project.id, base },
-        steps,
-        {
+      const startedAt = new Date().toISOString(),
+        result = await landNext(store, { projectId: project.id, base }, steps, {
           limit,
           bisect: true,
+          onStep: (step, members) =>
+            setTesting(
+              store,
+              { projectId: project.id, base },
+              {
+                members: members.map((e) => e.key),
+                step,
+                since:
+                  step === "testing"
+                    ? at
+                    : (testingNow(store, { projectId: project.id, base })
+                        ?.since ?? at),
+              },
+            ),
           isAlone: (entry) => record.alone.includes(entry.key),
           accept: (entry) => authorities.has(entry.spec),
-        },
-      );
+        });
+      setTesting(store, { projectId: project.id, base }, null);
       if (result.batch)
-        recordBatch(store, { projectId: project.id, base }, result.batch);
+        recordBatch(
+          store,
+          { projectId: project.id, base },
+          {
+            ...result.batch,
+            at,
+            seconds: Math.round((Date.now() - Date.parse(startedAt)) / 1000),
+          },
+        );
       for (const sent of result.sentBack ?? []) {
         const out =
           sent.state === "conflict"
@@ -210,6 +235,7 @@ export async function landDirect(
         await dropMember(project.root, result.entry);
       }
     } catch (error) {
+      setTesting(store, { projectId: project.id, base }, null);
       if (error.contention) continue;
       // One notice per head and cause, not one per tick.
       const seen = store.getMeta(ERRORS) ?? {},

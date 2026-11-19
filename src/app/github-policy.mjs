@@ -1,5 +1,5 @@
 import { kirocrewSessionSettings } from "./executors/kirocrew.mjs";
-import { LANDING_MODES } from "./landing-config.mjs";
+import { LANDING_MODES, landingMode } from "./landing-config.mjs";
 // Repository policy in `.avoozl.json` (design §4.4): GitHub mode, task
 // authority, the Project, and per-repository rules that map labels to fixed
 // actions. No label name is built in. Validation is deterministic; the one
@@ -828,8 +828,8 @@ function landingInput(value, merge, label) {
       `${label}.landing`,
     ),
     old = onlyKeys(merge ?? {}, GITHUB_BLOCK_KEYS.merge, `${label}.merge`);
-  if (block.mode != null && !LANDING_MODES.includes(block.mode))
-    fail(`${label}.landing.mode must be direct, pr, train or off.`);
+  if (block.mode != null && !LANDING_MODES.includes(landingMode(block.mode)))
+    fail(`${label}.landing.mode must be direct, pr or off.`);
   if (block.autoMerge != null && typeof block.autoMerge !== "boolean")
     fail(`${label}.landing.autoMerge must be true or false.`);
   if (
@@ -850,7 +850,7 @@ function landingInput(value, merge, label) {
       fail(`${label}.${at} must be squash or merge.`);
   return {
     landing: {
-      mode: block.mode ?? null,
+      mode: landingMode(block.mode) ?? null,
       autoMerge: block.autoMerge ?? null,
       mergeBatch: block.mergeBatch ?? null,
     },

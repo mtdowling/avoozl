@@ -4,7 +4,7 @@
 //
 // - A portion is one pull request for an exact verified commit. Its head may
 //   be a branch of an authorized fork; nothing is copied upstream. Each
-//   portion lands alone: protected review never makes a train.
+//   portion lands alone: protected review never makes a merge batch.
 // - Only the queue head is touched. If the pull request's head is not the
 //   exact commit, Avoozl fast-forwards the source branch, and only when its
 //   own login may write there (`landingRights`). A fork's maintainer-only

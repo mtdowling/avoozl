@@ -82,7 +82,7 @@ of the other specs.
 
 ## Phase 2: One system
 
-- [ ] mb-2.1 Remove integrator trains, after mb-p1 [MB1.2, MB1.3, MB9.1, MB9.2, MB9.3] (§D1, §D8)
+- [x] mb-2.1 Remove integrator trains, after mb-p1 [MB1.2, MB1.3, MB9.1, MB9.2, MB9.3] (§D1, §D8)
   - Facts:
     - summary: Phase 2 (One system). Remove integrator trains. See MB1.2, MB1.3, MB9.1, MB9.2, MB9.3; §D1, §D8.
     - done:
@@ -90,7 +90,7 @@ of the other specs.
     - after: mb-p1
   - The modules D1 lists go; `train` loads as `direct`; `landing.trains`, `machine.platforms`, `machine.slots` and `lease` load and are ignored; `avoozl integrator` and `landing submit` answer with one line; the comment in `test.yml` is rewritten.
   - Done when: Tests: a file with `landing.mode: "train"` lands in merge batches; each retired key loads and the schema marks it ignored; each retired command prints its line and changes nothing; no source file imports a removed module; the pull request lists what each deleted test covered and where it is covered now.
-- [ ] mb-2.2 The Landing queue page and status, after mb-1.3 [MB7] (§D6)
+- [x] mb-2.2 The Landing queue page and status, after mb-1.3 [MB7] (§D6)
   - Facts:
     - summary: Phase 2 (One system). The Landing queue page and status. See MB7; §D6.
     - done:
@@ -99,7 +99,7 @@ of the other specs.
     - after: mb-1.3
   - Waiting, Testing, Last merge batches and Size per base, from stored records; the same in `avoozl landing status --json` and the MCP read; one Needs you item past 60 minutes.
   - Done when: UI and CLI tests show each part from fixture records; none of the three makes a GitHub call; a member waiting 61 minutes opens one Needs you item and a second read opens none; screenshots of the page at 390 and 1280 px, light and dark, go to the owner.
-- [ ] mb-2.3 The words and the product spec, after mb-2.1, mb-2.2 [MB1.5, MB9.4] (§D8)
+- [x] mb-2.3 The words and the product spec, after mb-2.1, mb-2.2 [MB1.5, MB9.4] (§D8)
   - Facts:
     - summary: Phase 2 (One system). The words and the product spec. See MB1.5, MB9.4; §D8.
     - done:
@@ -110,7 +110,7 @@ of the other specs.
 
 ## Phase 3: The retro
 
-- [ ] mb-3.1 The retro suggests a landing mode [MB8] (§D7)
+- [x] mb-3.1 The retro suggests a landing mode [MB8] (§D7)
   - Facts:
     - summary: Phase 3 (The retro). The retro suggests a landing mode. See MB8; §D7.
     - done:

@@ -1,6 +1,6 @@
 // Dashboards › Landing queue (Requirement 92.7, design §4.27, task 44.5):
-// one card per target base, its items in landing order, and why each one is
-// held. Reads landing.queue, which comes from Avoozl's store only, so
+// one card per target base: who waits and why, the merge batch under test,
+// the last merge batches and the size limit (Requirement MB7). Reads landing.queue, which comes from Avoozl's store only, so
 // Refresh redraws without a GitHub call. Rows take the full width at 390 px.
 import { useCallback, useMemo } from 'react'
 import { Card } from './ui/Card'
@@ -13,7 +13,7 @@ import { RefreshButton } from './RefreshButton.tsx'
 import Badge from './ui/Badge.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { safeHref } from './views-api.ts'
-import { baseTitle, holdVariant, holdWord, itemCount, itemLinks, landingNote, landingQueueClient, queueLine, type LandingItem } from './landing-queue-api.ts'
+import { baseTitle, batchTime, holdVariant, holdWord, itemCount, itemLinks, landingNote, landingQueueClient, sizeLine, testingLine, type FinishedBatch, type LandingBase, type LandingItem } from './landing-queue-api.ts'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 
@@ -68,9 +68,52 @@ function Row(props: { item: LandingItem; now: number }) {
           </a>
         ))}
         {!item.pr && item.checks && <CheckDot checks={item.checks} />}
-        {item.since && <Box as="span" tabularNums>{duration(item.since, props.now)}</Box>}
+        {item.since && <Box as="span" tabularNums>waiting {duration(item.since, props.now)}</Box>}
       </Box>
     </li>
+  )
+}
+
+const OUTCOME_VARIANT = { landed: 'success', 'partly landed': 'warning', 'culprit sent back': 'danger' } as const
+
+function LastBatch(props: { batch: FinishedBatch; now: number }) {
+  const { batch } = props
+  return (
+    <Box as="li" flex minW0 flexWrap items="center" gapX="3" gapY="1" size="xs" tone="muted" data-landing-last={batch.outcome}>
+      <Box as="span" shrink0>
+        <Badge variant={OUTCOME_VARIANT[batch.outcome]}>{batch.outcome}</Badge>
+      </Box>
+      <Box as="span" tabularNums>
+        {batch.size} {batch.size === 1 ? 'member' : 'members'}
+      </Box>
+      {batch.seconds != null && <Box as="span" tabularNums>{batchTime(batch.seconds)}</Box>}
+      <Box as="span" tabularNums>{duration(batch.at, props.now)} ago</Box>
+    </Box>
+  )
+}
+
+// What a base that lands directly adds to its waiting list: the batch being
+// tested, the last batches and the size limit.
+function MergeBatches(props: { base: LandingBase; now: number }) {
+  const { base } = props
+  if (!base.size) return null
+  return (
+    <Box flex flexCol gap="2" mb="2" data-landing-batches>
+      <Hint as="p" size="xs" data-landing-size>{sizeLine(base.size)}</Hint>
+      <Box as="p" size="xs" tone="muted" data-landing-testing>
+        {base.testing ? `Testing: ${testingLine(base.testing)}.` : 'Testing: no merge batch right now.'}
+      </Box>
+      {base.last && base.last.length > 0 && (
+        <Box flex flexCol gap="1">
+          <SectionHeading level={4} title="Last merge batches" />
+          <Box as="ul" flex flexCol gap="1">
+            {base.last.map((batch) => (
+              <LastBatch key={batch.at} batch={batch} now={props.now} />
+            ))}
+          </Box>
+        </Box>
+      )}
+    </Box>
   )
 }
 
@@ -90,7 +133,7 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
       >
         Landing queue
       </ViewHeading>
-      <Hint as="p" size="xs">What waits to land on each base, in landing order, and why. Read from Avoozl's own records; Refresh does not call GitHub.</Hint>
+      <Hint as="p" size="xs">What waits to land on each base, in landing order, and why; the merge batch being tested; the last merge batches; and the size limit. Read from Avoozl's own records; Refresh does not call GitHub.</Hint>
       {error && (
         <Box role="alert" as="p" css-color="danger" size="sm">
           {error}
@@ -109,11 +152,8 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
           <Card key={base.key}>
             <div data-landing-base={base.key}>
               <SectionHeading level={3} title={`${baseTitle(base)} (${base.items.length})`} meta={landingNote(base)} className="mb-1" />
-              {queueLine(base) && (
-                <Box as="p" mb="1" size="xs" tone="muted" data-landing-queue-line>
-                  {queueLine(base)}
-                </Box>
-              )}
+              <MergeBatches base={base} now={now} />
+              {base.size && <SectionHeading level={4} title={`Waiting (${base.items.length})`} />}
               <Box as="ul" flex wFull flexCol>
                 {base.items.map((item) => (
                   <Row key={item.key} item={item} now={now} />

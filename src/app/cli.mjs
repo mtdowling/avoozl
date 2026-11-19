@@ -63,6 +63,20 @@ function generate(config) {
   }
 }
 
+// `avoozl integrator ...` and `avoozl landing submit` were retired by the
+// merge batches spec; they print this line and change nothing.
+const RETIRED_COMMANDS = new Set(["integrator"]);
+const RETIRED_LANDING =
+  "This command is retired. Verified work lands in merge batches with landing mode direct; see landing status.";
+
+// One line per base for `landing status`.
+const landingStatusLine = (b) =>
+  `${b.repository ?? b.projectId} ${b.base}: ${b.items.length} waiting` +
+  (b.testing
+    ? `, testing ${b.testing.members.length} (${b.testing.step})`
+    : "") +
+  (b.size ? `, size limit ${b.size.limit}` : "");
+
 const args = process.argv.slice(2),
   options = {},
   positionals = [];
@@ -740,7 +754,7 @@ try {
         await localOrRequest("repository.setup", {
           repository: need(
             positionals[0],
-            "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|train|off] [--yes]",
+            "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
           ),
           project: options.project,
           base: options.base,
@@ -1371,31 +1385,8 @@ try {
         2,
       ),
     );
-  } else if (command === "integrator") {
-    const action = positionals[0];
-    if (action === "status") {
-      const status = await localOrRequest("integrator.status");
-      console.log(
-        options.json
-          ? JSON.stringify(status, null, 2)
-          : status.targets.length
-            ? status.targets
-                .map(
-                  (t) =>
-                    `${t.repository} ${t.target}: ${t.policy ?? "no policy"}, lease ${t.lease.state}${t.lease.holder ? ` (pid ${t.lease.holder.pid})` : ""}, train ${t.train ?? "none"}`,
-                )
-                .join("\n")
-            : "No repository lands in trains.",
-      );
-    } else if (action === "run") {
-      // The supervisor starts this; it is the only process that pushes a
-      // train trunk, never a chat shell (LT2.2).
-      if (process.env.AVOOZL_CHILD)
-        throw Error(
-          "A supervisor child may not run the integrator. Start it at this machine's command line or let the supervisor do it.",
-        );
-      await import("./integrator-main.mjs");
-    } else throw Error("Choose integrator run or status.");
+  } else if (RETIRED_COMMANDS.has(command)) {
+    console.log(RETIRED_LANDING);
   } else if (command === "landing") {
     const action = positionals[0];
     if (action === "status") {
@@ -1404,36 +1395,12 @@ try {
       console.log(
         options.json
           ? JSON.stringify(view, null, 2)
-          : view.bases
-              .map(
-                (b) =>
-                  `${b.repository ?? b.projectId} ${b.base}: ${b.items.length} waiting${b.queue?.train ? `, ${b.queue.train.id} at ${b.queue.train.step}` : ""}`,
-              )
-              .join("\n") || "Nothing waits to land.",
+          : view.bases.map(landingStatusLine).join("\n") ||
+              "Nothing waits to land.",
       );
-    } else if (action === "review")
-      console.log(
-        JSON.stringify(
-          await localOrRequest("landing.review", {
-            taskId: need(positionals[1], "landing review TASK"),
-          }),
-          null,
-          2,
-        ),
-      );
-    else if (action !== "submit")
-      throw Error("Choose landing submit, review or status.");
-    else
-      console.log(
-        JSON.stringify(
-          await localOrRequest("landing.submit", {
-            taskId: need(positionals[1], "landing submit TASK --branch NAME"),
-            branch: need(options.branch, "landing submit TASK --branch NAME"),
-          }),
-          null,
-          2,
-        ),
-      );
+    } else if (action === "submit" || action === "review")
+      console.log(RETIRED_LANDING);
+    else throw Error("Choose landing status.");
   } else if (command === "mirror") {
     // Preview first; rerun with --confirm --preview-hash HASH to apply.
     const action = positionals[0];

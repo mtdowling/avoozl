@@ -10,7 +10,13 @@ const MIN_RESULTS = 5;
 const ASSUMED_RATE = 0.1;
 const META = "mergeBatchSize";
 
-export const emptySize = () => ({ limit: 1, results: [], alone: [] });
+export const emptySize = () => ({
+  limit: 1,
+  results: [],
+  alone: [],
+  last: [],
+});
+const LAST = 10;
 
 // The share of the last results that were culprits, with 10% assumed below
 // five results.
@@ -66,7 +72,7 @@ export function sizeRecord(store, { projectId, base }) {
 export function recordBatch(
   store,
   { projectId, base },
-  { landed = [], culprits = [], held, waiting, halve },
+  { landed = [], culprits = [], held, waiting, halve, at, seconds },
 ) {
   return store.transaction(() => {
     const all = store.getMeta(META) ?? {},
@@ -82,6 +88,23 @@ export function recordBatch(
       ...before.alone.filter((k) => !landed.includes(k)),
       ...culprits.filter((k) => !before.alone.includes(k)),
     ];
+    // The page's "Last merge batches": outcome, size and duration.
+    if (at)
+      next.last = [
+        ...before.last,
+        {
+          at,
+          size: held,
+          landed: landed.length,
+          culprits: culprits.length,
+          seconds,
+          outcome: !culprits.length
+            ? "landed"
+            : landed.length
+              ? "partly landed"
+              : "culprit sent back",
+        },
+      ].slice(-LAST);
     store.setMeta(META, {
       ...all,
       [projectId]: { ...(all[projectId] ?? {}), [base]: next },
@@ -89,3 +112,19 @@ export function recordBatch(
     return next;
   });
 }
+
+// The merge batch being tested now, for the Landing queue page: {members,
+// step, since}, or null when none runs. Plain data in the store's meta.
+const NOW = "mergeBatchNow";
+export function setTesting(store, { projectId, base }, value) {
+  store.transaction(() => {
+    const all = store.getMeta(NOW) ?? {},
+      mine = { ...(all[projectId] ?? {}) };
+    if (value) mine[base] = value;
+    else delete mine[base];
+    store.setMeta(NOW, { ...all, [projectId]: mine });
+  });
+}
+
+export const testingNow = (store, { projectId, base }) =>
+  store.getMeta(NOW)?.[projectId]?.[base] ?? null;

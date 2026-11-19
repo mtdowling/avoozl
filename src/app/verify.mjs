@@ -154,7 +154,7 @@ export function outputTail(text, dir = "\u0000") {
 }
 
 // The last `lines` lines of output, redacted like a check's tail, for a log
-// excerpt sent back to a worker (landing-trains LT10.5).
+// excerpt sent back to a worker.
 export function outputExcerpt(text, dir = "\u0000", lines = 200) {
   return String(text || "")
     .split(/\r?\n/)
