@@ -468,3 +468,45 @@ test("the Triage agent page shows runs, counts, caps and calls", async (t) => {
   assert.ok(view.calls.writes >= 1);
   assert.equal(view.days[0].runs, 2);
 });
+
+test("a triage child the drain starts on process gets its repository's model proxy", async (t) => {
+  const { enqueueSessionRequests } = await import("../session-requests.mjs");
+  const { drainProcessRequests } = await import("../executors/process.mjs");
+  const { childRecord, openSupervisorDatabase } = await import(
+    "../supervisor.mjs"
+  );
+  const w = triageWorkspace(t);
+  // The item's repository runs its roles on `process`, its model through a
+  // loopback proxy; the triage role has no network of its own.
+  w.store.put("repositories", {
+    ...w.store.get("repositories", "app"),
+    executor: "process",
+    harness: "fake-cli",
+    sandbox: {
+      network: ["localhost:8080"],
+      modelProxy: ["localhost:18471"],
+    },
+  });
+  w.fake.add(1);
+  const { dispatch } = await w.tick();
+  enqueueSessionRequests(w.store, { starts: dispatch });
+  const stateDirectory = fs.mkdtempSync(path.join(w.root, "state-"));
+  const { errors } = await drainProcessRequests(w.store, {
+    stateDirectory,
+    ops: { github: w.github },
+  });
+  assert.deepEqual(errors, []);
+  const [binding] = w.store
+    .list("session_bindings")
+    .filter((entry) => entry.role === "triage");
+  const db = openSupervisorDatabase(stateDirectory);
+  try {
+    // What the supervisor will give the child: the proxy, and not the network.
+    assert.deepEqual(
+      JSON.parse(childRecord(db, binding.slot).settings).network,
+      ["localhost:18471"],
+    );
+  } finally {
+    db.close();
+  }
+});

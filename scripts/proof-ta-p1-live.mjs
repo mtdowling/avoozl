@@ -674,9 +674,22 @@ async function prove() {
     () =>
       preflightModel(RUN, MACHINE, {
         role: "triage",
-        repository: processRepository(RUN, ["node", "test.mjs"], {
-          github: GH,
-        }),
+        repository: "app",
+        // A triage session binds to its run; this one is the preflight's.
+        record: {
+          table: "triage_runs",
+          id: "triage:preflight",
+          row: {
+            id: "triage:preflight",
+            item: `${GH}#0`,
+            repository: GH,
+            number: 0,
+            kind: "issue",
+            attempt: 1,
+            why: "preflight",
+            state: "running",
+          },
+        },
         env: agentEnv(RUN, { noProxy: "127.0.0.1" }),
       }),
   );

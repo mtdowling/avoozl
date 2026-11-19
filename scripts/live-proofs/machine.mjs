@@ -394,12 +394,28 @@ export async function startMachine(run, script, seconds, preflight = null) {
   return { backend, proxy };
 }
 
-// One real model turn before the tick: `role`'s session through Avoozl's
-// own process executor and supervisor, so it gets that role's sandbox and
-// network. It must exit 0 with a call through the proxy; else the proof
-// stops in seconds with the child's log, instead of after every run fails.
-export async function preflightModel(run, machine, { role, repository, env }) {
-  const { processExecutor } = await import(
+// One real model turn before the tick, started the way the tick starts a
+// session: a start request queued in the workspace, naming its repository,
+// and drained by drainProcessRequests to the supervisor. So the child gets
+// what that role's children get: the repository found from the request,
+// its sandbox, and the role's network (the model proxy for an offline one).
+// A session binds to its role's record (session-bindings.mjs), so a triage
+// preflight has a run row of its own, removed with the rest.
+// It must exit 0 with a call through the proxy; else the proof stops in
+// seconds with the child's log. Its binding and request are removed after.
+export async function preflightModel(
+  run,
+  machine,
+  { role, repository, record = null, env },
+) {
+  const { Store } = await import("../../src/app/store.mjs");
+  const { kirocrewRequest } = await import(
+    "../../src/app/executors/kirocrew.mjs"
+  );
+  const { enqueueSessionRequests } = await import(
+    "../../src/app/session-requests.mjs"
+  );
+  const { drainProcessRequests, processExecutor } = await import(
     "../../src/app/executors/process.mjs"
   );
   const {
@@ -410,48 +426,78 @@ export async function preflightModel(run, machine, { role, repository, env }) {
   } = await import("../../src/app/supervisor.mjs");
   const folder = path.join(run.root, "preflight");
   fs.mkdirSync(folder, { recursive: true });
-  const executor = processExecutor({
-    stateDirectory: machine.stateDirectory,
-    repositoryFor: () => repository,
-    harnessFor: () => run.harness,
-  });
-  const id = await executor.start(
-    role,
-    "preflight",
-    folder,
-    "Preflight: reply with the single word ok and do nothing else.",
-    run.model,
-    "read",
-  );
+  const task = record?.id ?? "preflight";
+  const store = new Store(run.db);
+  let slot = null,
+    request = null;
+  try {
+    if (record) store.put(record.table, record.row);
+    request = kirocrewRequest(store, {
+      task,
+      role,
+      executor: "process",
+      harness: run.harness,
+      repository,
+      attempt: 1,
+      title: `avoozl:preflight ${role}`,
+      worktree: folder,
+      permissionClass: "read",
+      model: run.model,
+      brief: "Preflight: reply with the single word ok and do nothing else.",
+    });
+    enqueueSessionRequests(store, { starts: [request] });
+    const { errors } = await drainProcessRequests(store, {
+      stateDirectory: machine.stateDirectory,
+    });
+    if (errors.length)
+      throw Error(`Preflight: the drain refused the start: ${errors[0].error}`);
+    slot =
+      store.list("session_bindings").find((entry) => entry.taskId === task)
+        ?.slot ?? null;
+  } finally {
+    store.close();
+  }
+  if (!slot) throw Error("Preflight: the drain started no session.");
   launchSupervisor({
     stateDirectory: machine.stateDirectory,
     configDirectory: machine.configDirectory,
     env,
   });
+  const executor = processExecutor({ stateDirectory: machine.stateDirectory });
   const end = Date.now() + 240_000;
-  let status = await executor.status(id);
+  let status = await executor.status(slot);
   while (!status.startsWith("exited") && Date.now() < end) {
     await sleep(2000);
-    status = await executor.status(id);
+    status = await executor.status(slot);
   }
   const db = openSupervisorDatabase(machine.stateDirectory);
-  const row = childRecord(db, id);
+  const row = childRecord(db, slot);
   db.close();
+  // The tick must not finish a session for a task that does not exist.
+  const cleanup = new Store(run.db);
+  try {
+    cleanup.remove("session_bindings", slot);
+    cleanup.remove("session_requests", request.id);
+    if (record) cleanup.remove(record.table, record.id);
+  } finally {
+    cleanup.close();
+  }
   const tail = (file, lines) =>
     fs.existsSync(file ?? "")
       ? fs.readFileSync(file, "utf8").trim().split("\n").slice(-lines)
       : [];
+  const network = JSON.parse(row?.settings || "{}").network ?? null;
   const proxied = tail(run.paths.proxyLog, 1000).some((line) =>
     / allow connect /.test(line),
   );
-  run.event("preflight", { role, status, proxied });
+  run.event("preflight", { role, status, network, proxied });
   if (status === "exited 0" && proxied) return;
   // The proof stops here: the supervisor it started goes too.
   const sup = runningSupervisor(machine.stateDirectory, {});
   if (sup?.pid) process.kill(sup.pid, "SIGTERM");
   throw Error(
     [
-      `Preflight: one ${role} turn ${status}, ${proxied ? "with" : "with no"} call through the model proxy.`,
+      `Preflight: one ${role} turn ${status}, network ${JSON.stringify(network)}, ${proxied ? "with" : "with no"} call through the model proxy.`,
       ...tail(row?.log_file, 12),
     ].join("\n"),
   );
