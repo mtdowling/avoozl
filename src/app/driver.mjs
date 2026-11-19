@@ -1615,8 +1615,8 @@ export async function forceTakeOver(store, github, input = {}, hooks = {}) {
 
 // ---------------------------------------------------------------------------
 // Away tasks (R66.11): never started again because a lease expired. One
-// completes from GitHub facts when they show it done; otherwise one decision
-// asks a person whether to start it here.
+// completes when its work lands; otherwise one decision asks a person
+// whether to start it here.
 
 function settleAway(store, ctx, plan) {
   const data = store.read(),
@@ -1643,7 +1643,7 @@ function settleAway(store, ctx, plan) {
     }
   }
   if (done.length)
-    store.mutate("Away tasks completed from GitHub", (next) => {
+    store.mutate("Away tasks completed", (next) => {
       for (const task of next.tasks)
         if (done.includes(task.id)) delete task.driverAway;
     });

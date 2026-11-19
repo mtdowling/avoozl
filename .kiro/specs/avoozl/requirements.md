@@ -4282,11 +4282,10 @@ removed, so that the app has one way to deliver work.
    marker, the `avoozl-crew` agent and the Issue Radar grant, and the remote
    coder, the relay and the router chat with their agents.
 2. Avoozl SHALL retain PR landing, release ranking, setup push plumbing,
-   build receipts and the executor seam. It SHALL retire per-task projection,
-   Project synchronization and task-issue completion only after the ordered
-   binding migration and its proof (Requirement 102). Spec issue publication,
-   epic links and journals SHALL remain. Export issues SHALL be the sole
-   explicit offboarding path allowed to create task issues.
+   build receipts and the executor seam. Per-task projection, Project
+   synchronization, task-issue completion, rebuild from GitHub and the issue
+   export SHALL be deleted (changed 2026-11-18: no path creates task issues).
+   Spec issue publication, epic links and journals SHALL remain.
 3. Leaf modules MAY be audited and already unreferenced ones deleted at any
    time. Task 45.2 SHALL wait for P52 to prove replacement PR landing.
    Tasks 45.2 and 45.3 MAY edit their shared callers. Remaining
@@ -4325,8 +4324,8 @@ removed, so that the app has one way to deliver work.
      reads, the handoff labels, crew review rules, conflicts and merge
      method. A test SHALL show that a repository whose file still says
      `coder: issue-radar` feeds Triage and its Radar escalations.
-   - The shared task projection and synchronization callers SHALL stay
-     for 45.4 (criterion 2), less their coder handling.
+   - The shared task projection and synchronization callers are deleted
+     by 45.4 (criterion 2).
 
 ### Requirement 92: Links to related GitHub items, and the landing queue
 
@@ -4904,8 +4903,7 @@ GitHub issue per task or exposing private planning information.
 
 1. Git SHALL hold design and implementation; the spec issue SHALL hold
    ownership and durable outcomes; SQLite SHALL cache local execution.
-   There SHALL be one issue per published spec and epic, never per task,
-   except the explicit, idempotent offboarding export in criterion 19.
+   There SHALL be one issue per published spec and epic, never per task.
 2. Publish issue SHALL be an explicit per-spec act in its home repository,
    independent of approval. Approval alone SHALL make no GitHub write.
    A fork checkout SHALL NOT move the registered issue home or require fork issues.
@@ -5007,13 +5005,12 @@ GitHub issue per task or exposing private planning information.
     home/visibility match. Initial intake SHALL make at most two idempotent
     writes: an ownership label and a privacy-safe status comment. Deliver this
     alone MAY use same-repository Fixes; input closure SHALL mean withdrawal,
-    not task completion. Export issues SHALL preview, create only incomplete
-    task issues and their blocked-by links once, then mark the spec Exported
-    and cease driving it. Existing bindings SHALL not be duplicated on retry.
-20. Migration SHALL hold release and stop ticks, disable task projection/close
-    reconciliation, preview and retire issue bindings without status changes,
-    run one tick with unchanged readiness and no task-issue reads/writes, then
-    and only then allow closing obsolete task issues. Spec issues SHALL remain.
+    not task completion. (Changed 2026-11-18: the issue export is deleted;
+    no path creates task issues.)
+20. Task projection, close reconciliation and issue bindings SHALL be gone:
+    a tick makes no task-issue reads or writes, and an old binding row is
+    ignored. Obsolete task issues MAY be closed by hand. Spec issues SHALL
+    remain. (Changed 2026-11-18: the migration path is deleted with them.)
     `route: github` and `merged-pr` SHALL retain their accepted source syntax,
     meaning queue landing and accepted landing, without rewriting approved files.
 21. Private mirror sync SHALL import upstream changes by a reviewed PR after
@@ -5059,7 +5056,7 @@ GitHub issue per task or exposing private planning information.
 Added 2026-11-16 (owner decision). Design §4.32.11. Planning only. Extends
 Requirement 102. Where they conflict it supersedes Requirement 52.7 and,
 in `radar-coder`, the hand-over of projected issues (RC1.6, RC2) and the
-claim at approval (RC19). Phase 45 is no longer paused: 45.2 landed in #509; 45.4 waits on P53, P54 and P66.
+claim at approval (RC19). Phase 45 is no longer paused: 45.2 landed in #509.
 
 The owner's words: Issue Radar should not take on Avoozl-created issues.
 It can take on maintenance and triage, and can punt an issue to Avoozl to
@@ -5105,10 +5102,11 @@ skip is a rule in the crew's prompt, not code.
    confirms, through the write pacer, and idempotently on retry. An issue a
    crew already claimed SHALL be left alone and shown once in Needs you.
    Avoozl SHALL NOT remove a crew's claim or needs-human label.
+   (Changed 2026-11-18: 45.4 deleted per-task issues, so there are no
+   projected task issues left to label.)
 6. Export issues (56.9) SHALL NOT set `crew:avoozl` on any issue they
-   create (owner decision, 2026-11-16). Export hands the work away from
-   Avoozl, so Issue Radar and people may take those issues. A test SHALL
-   check that no export create request carries `crew:avoozl`.
+   create (owner decision, 2026-11-16). (Changed 2026-11-18: 45.4 deleted
+   the issue export.)
 7. Radar SHALL keep maintenance and triage of issues Avoozl did not create.
    Send to Issue Radar (Requirement 52) SHALL stay for those issues and
    SHALL refuse an issue that carries `crew:avoozl`.

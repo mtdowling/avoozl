@@ -228,10 +228,10 @@ test("a Models save moves the older keys into roles; Delivery keeps delivery on"
   );
   const settings = new RepositorySettings(store, { workspaceRoot: root });
   const delivered = settings.updateDeliverySettings({
-    delivery: { feedbackRounds: 4 },
+    delivery: { ship: "manual" },
     expectedHash: settings.readDeliverySettings().hash,
   });
-  assert.equal(delivered.delivery.feedbackRounds, 4);
+  assert.equal(delivered.delivery.ship, "manual");
   const kept = JSON.parse(fs.readFileSync(filename, "utf8")).delivery;
   assert.equal(kept.agent, "alt-worker");
   assert.equal(kept.model, "w1");
@@ -259,6 +259,7 @@ test("a Models save moves the older keys into roles; Delivery keeps delivery on"
   assert.deepEqual(file.roles, before.roles);
   for (const key of ["models", "harnesses", "flow"])
     assert.equal(file[key], undefined, key);
-  assert.deepEqual(file.delivery, { feedbackRounds: 4 });
+  // A Settings save drops the retired prFeedback.
+  assert.deepEqual(file.delivery, { ship: "manual" });
   assert.equal(deliveryPolicy(file).agent, "alt-worker");
 });

@@ -27,6 +27,7 @@ import {
 import {
   DELIVERY_KEYS,
   DELIVERY_REPOSITORY_KEYS,
+  RETIRED_DELIVERY_KEYS,
   REVIEWER_KEYS,
 } from "../delivery.mjs";
 import { FLOW_PATHS } from "../flow.mjs";
@@ -96,12 +97,12 @@ const PAIRS = [
     "#/properties/intake/properties/sources/additionalProperties",
     [...new Set([...SOURCE_KEYS, ...GITHUB_SOURCE_KEYS])],
   ],
-  ["#/properties/delivery", DELIVERY_KEYS],
+  ["#/properties/delivery", [...DELIVERY_KEYS, ...RETIRED_DELIVERY_KEYS]],
   ["#/$defs/deliveryInvestigate", INVESTIGATE_KEYS],
   ["#/$defs/deliveryReviewer", REVIEWER_KEYS],
   [
     "#/properties/delivery/properties/repositories/additionalProperties",
-    DELIVERY_REPOSITORY_KEYS,
+    [...DELIVERY_REPOSITORY_KEYS, ...RETIRED_DELIVERY_KEYS],
   ],
   ["#/$defs/flow", [...new Set(FLOW_PATHS.map((path) => path.split(".")[0]))]],
   ...["stopTheLine", "retro", "ci", "verify"].map((group) => [
@@ -271,6 +272,16 @@ const IGNORED = new Map([
     "Retired by merge batches (landing-config.mjs)",
   ]),
   [`${REPOSITORY}/coder`, "Who codes was removed (R91.6)"],
+  ...RETIRED_DELIVERY_KEYS.flatMap((key) => [
+    [
+      `#/properties/delivery/properties/${key}`,
+      "PR feedback was removed (45.4)",
+    ],
+    [
+      `#/properties/delivery/properties/repositories/additionalProperties/properties/${key}`,
+      "PR feedback was removed (45.4)",
+    ],
+  ]),
   [`${REPOSITORY}/concurrency`, "github-policy.mjs releaseInput"],
   ["#/$defs/flow/properties/lessons", "flowSection drops it"],
   ["#/$defs/flow/properties/batch", "flowSection drops it"],

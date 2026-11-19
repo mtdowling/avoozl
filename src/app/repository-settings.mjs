@@ -13,7 +13,7 @@ import { sandboxNetwork } from "./sandbox.mjs";
 import { validateLanes } from "./lanes.mjs";
 import { applyLandingModes } from "./landing-config.mjs";
 import { flowPolicy } from "./flow.mjs";
-import { deliveryPolicy } from "./delivery.mjs";
+import { deliveryPolicy, RETIRED_DELIVERY_KEYS } from "./delivery.mjs";
 import { refuseTrackedProviders } from "./provider-health.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
@@ -473,8 +473,6 @@ export function conversationSettings(store) {
 // The worker's agent and model are in the roles table (Settings › Models,
 // R98.7); a save here keeps any older `delivery.agent` and `model`.
 const DELIVERY_FORM_KEYS = [
-  "prFeedback",
-  "feedbackRounds",
   // Investigate first and ship mode (§4.21, §4.25).
   "investigate",
   "ship",
@@ -980,6 +978,7 @@ export class RepositorySettings {
         409,
       );
     const next = { ...value.delivery };
+    for (const key of RETIRED_DELIVERY_KEYS) delete next[key];
     for (const key of DELIVERY_FORM_KEYS)
       if (delivery[key] === undefined || delivery[key] === null)
         delete next[key];

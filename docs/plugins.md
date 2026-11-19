@@ -272,8 +272,8 @@ example a local leaf, then a remote one, then a local one.
 
 ## Tracker kind
 
-A task with `"authority": "plugin:<id>"` keeps its record in that tracker,
-the way a GitHub task keeps its record in an issue. SQLite only caches it:
+A task with `"authority": "plugin:<id>"` keeps its record in that tracker.
+SQLite only caches it:
 direct edits are refused, and changes go through the spec and projection.
 
 | Call                               | Reply                                                                                  |
@@ -356,9 +356,9 @@ file:
       "minimumPermission": "write",
       "rules": [
         {
-          "id": "deliver",
-          "action": "deliver",
-          "match": "label:avoozl:deliver -label:needs-triage -label:response-requested"
+          "id": "ask",
+          "action": "respond",
+          "match": "label:question -label:needs-triage"
         }
       ],
       "untriaged": {
@@ -366,7 +366,6 @@ file:
         "triageLabels": ["response-requested", "closing-soon"]
       }
     },
-    "project": { "fields": { "status": "Status", "release": "Release" } },
     "contentRules": { "sets": [{ "id": "team-terms", "plugin": "sdk-team" }] }
   }
 }
@@ -377,7 +376,6 @@ What a pack may set, and where each lands in `.avoozl.json`:
 | Pack key                     | Sets                                                                                                                                                                                                                    |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`. |
-| `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                                                                                |
 | `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                                                  |
 | `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                                               |
 | `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`.                                                                                                                            |
@@ -394,8 +392,8 @@ a pack setting.`, and the plugin shows as invalid until it is fixed.
 
 **Import.** On the plugin's card in **Settings > Plugins**, **Preview and
 import pack** shows each setting as **Create**, **Change**, **Keep** or
-**Skip** (a setting that cannot apply here, such as Project fields with no
-Project set), with the old and new values. Nothing is written until
+**Skip** (a setting that cannot apply here, such as repository rules with no
+repository chosen), with the old and new values. Nothing is written until
 **Import settings**, and only:
 
 - after this computer approved this exact plugin version;

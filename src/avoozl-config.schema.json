@@ -487,15 +487,12 @@
           "default": "tick"
         },
         "prFeedback": {
-          "type": "boolean",
-          "default": true,
-          "description": "Send a pull request's review comments and failed checks back to the worker."
+          "deprecated": true,
+          "description": "Ignored. Pull request feedback was removed with per-task issues. Files that still set it load as before."
         },
         "feedbackRounds": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 20,
-          "default": 5
+          "deprecated": true,
+          "description": "Ignored. Pull request feedback was removed with per-task issues. Files that still set it load as before."
         },
         "reviewers": {
           "type": "array",
@@ -529,12 +526,12 @@
                 }
               },
               "prFeedback": {
-                "type": "boolean"
+                "deprecated": true,
+                "description": "Ignored. Pull request feedback was removed with per-task issues. Files that still set it load as before."
               },
               "feedbackRounds": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 20
+                "deprecated": true,
+                "description": "Ignored. Pull request feedback was removed with per-task issues. Files that still set it load as before."
               },
               "investigate": {
                 "$ref": "#/$defs/deliveryInvestigate"

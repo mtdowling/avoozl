@@ -112,10 +112,6 @@ export const DELIVERY_DEFAULTS = Object.freeze({
   // Crew Mode conductor that claims them (§5.1). Verification and integration
   // stay with the tick either way.
   runner: "tick",
-  // Pull request feedback (§4.13, R54.8, R54.14): on by default, at most
-  // this many rounds per leaf.
-  prFeedback: true,
-  feedbackRounds: 5,
 });
 const RUNNERS = new Set(["tick", "crew-mode"]);
 
@@ -130,8 +126,13 @@ const DELIVERY_LIMITS = Object.freeze({
   retries: [0, 10],
   quietMinutes: [1, 1440],
   nudges: [0, 10],
-  feedbackRounds: [1, 20],
 });
+// Pull request feedback went with per-task issues (45.4): an older file's
+// keys load and are ignored, and a Settings save drops them.
+export const RETIRED_DELIVERY_KEYS = Object.freeze([
+  "prFeedback",
+  "feedbackRounds",
+]);
 export const DELIVERY_KEYS = Object.freeze([
   ...Object.keys(DELIVERY_LIMITS),
   "agent",
@@ -139,15 +140,12 @@ export const DELIVERY_KEYS = Object.freeze([
   "runner",
   "model",
   "reviewers",
-  "prFeedback",
   "investigate",
   "ship",
 ]);
 export const DELIVERY_REPOSITORY_KEYS = Object.freeze([
   "concurrency",
   "reviewers",
-  "prFeedback",
-  "feedbackRounds",
   "investigate",
   "ship",
 ]);
@@ -172,18 +170,13 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
   if (!delivery || typeof delivery !== "object" || Array.isArray(delivery))
     throw Error("delivery must be an object.");
   for (const key of Object.keys(delivery))
-    if (!DELIVERY_KEYS.includes(key))
+    if (!DELIVERY_KEYS.includes(key) && !RETIRED_DELIVERY_KEYS.includes(key))
       throw Error(`delivery.${key} is not a delivery setting.`);
   investigateSettings(delivery.investigate);
   shipSetting(delivery.ship, "delivery.ship");
   for (const [key, [min, max]] of Object.entries(DELIVERY_LIMITS))
     if (delivery[key] !== undefined && !bounded(delivery[key], min, max))
       throw Error(`delivery.${key} must be a whole number ${min}–${max}.`);
-  if (
-    delivery.prFeedback !== undefined &&
-    typeof delivery.prFeedback !== "boolean"
-  )
-    throw Error("delivery.prFeedback must be true or false.");
   if (delivery.agent !== undefined && !AGENT.test(delivery.agent))
     throw Error("delivery.agent must be an agent name.");
   if (delivery.runner !== undefined && !RUNNERS.has(delivery.runner))
@@ -207,27 +200,20 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
     if (
       !entry ||
       typeof entry !== "object" ||
-      Object.keys(entry).some((key) => !DELIVERY_REPOSITORY_KEYS.includes(key))
+      Object.keys(entry).some(
+        (key) =>
+          !DELIVERY_REPOSITORY_KEYS.includes(key) &&
+          !RETIRED_DELIVERY_KEYS.includes(key),
+      )
     )
       throw Error(
-        `delivery.repositories.${id} may set only reviewers, prFeedback, feedbackRounds, investigate, and ship.`,
+        `delivery.repositories.${id} may set only reviewers, investigate, and ship.`,
       );
     investigateSettings(
       entry.investigate,
       `delivery.repositories.${id}.investigate`,
     );
     shipSetting(entry.ship, `delivery.repositories.${id}.ship`);
-    if (entry.prFeedback !== undefined && typeof entry.prFeedback !== "boolean")
-      throw Error(
-        `delivery.repositories.${id}.prFeedback must be true or false.`,
-      );
-    if (
-      entry.feedbackRounds !== undefined &&
-      !bounded(entry.feedbackRounds, 1, 20)
-    )
-      throw Error(
-        `delivery.repositories.${id}.feedbackRounds must be a whole number 1–20.`,
-      );
     normalized[id] =
       entry.reviewers === undefined
         ? entry

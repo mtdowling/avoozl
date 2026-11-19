@@ -42,7 +42,7 @@ Ask what the team needs, then list only those parts in `provides`:
 
 | Need                                                                                                            | Part       |
 | --------------------------------------------------------------------------------------------------------------- | ---------- |
-| Shared triggers, Untriaged filter, who counts, checks, review roles, Project fields, flow and delivery defaults | `pack`     |
+| Shared triggers, Untriaged filter, who counts, checks, review roles, flow and delivery defaults | `pack`     |
 | Terms Avoozl must never write                                                                                   | `rules`    |
 | Task records kept in another system                                                                             | `tracker`  |
 | Outside work brought in on each tick                                                                            | `intake`   |

@@ -110,7 +110,7 @@ work comes only from approved specs.
 ## Ban private terms from everything Avoozl writes
 
 Content rules keep private names, hostnames, repositories and paths out of
-spec files, issues, pull request text, comments, Project fields, session
+spec files, issues, pull request text, comments, session
 briefs and worker diffs. `.avoozl.json` names the rule sets; the rules live
 outside Git, so the list itself never lands in a repository.
 
