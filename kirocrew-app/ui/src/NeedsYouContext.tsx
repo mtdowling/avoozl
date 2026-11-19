@@ -201,7 +201,6 @@ function Evidence({ item }: { item: ConflictItem }) {
           {item.boundary ? ` (${item.boundary})` : ''}. The matched text is not stored here.
         </Box>
       )}
-      {kinds.includes('resource') && <Box as="p" m0 size="sm">Runs: {item.runs!.join(', ')}</Box>}
       {kinds.includes('escalation') && item.escalation && (
         <Box flex flexCol gap="1" size="sm" data-escalation-evidence>
           <Box as="p" m0>An Issue Radar crew added “{item.escalation.label}”{item.escalation.scope ? ` (${item.escalation.scope})` : ''}.</Box>

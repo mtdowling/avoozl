@@ -25,7 +25,7 @@ export const PACK_FILE = "avoozl-pack.json";
 const MAX_PACK_BYTES = 256 * 1024;
 
 // What a pack may set, by group (R55.4). Anything else is refused by name.
-export const PACK_SETTINGS = Object.freeze({
+const PACK_SETTINGS = Object.freeze({
   // Each key applies to every repository the person picks at import.
   repositories: [
     "rules",
@@ -297,7 +297,7 @@ function lowered(before, after, repository) {
   return notes;
 }
 
-export const settingName = (unit) => unit.path.join(".");
+const settingName = (unit) => unit.path.join(".");
 
 // The import preview (R55.5): each setting as create, change, keep or skip,
 // any who-counts change spelled out, and the hash an import must name.

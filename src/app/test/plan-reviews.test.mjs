@@ -75,35 +75,3 @@ test("review comments bind exact unique text, reanchor, reply, and apply suggest
   assert.equal(reviews.items[0].stale, true);
   assert.equal(reviews.items[0].replies[0].author, "Maintainer");
 });
-
-test("a review run cannot submit feedback against another revision", async (t) => {
-  const { store } = fixture(t),
-    design = plan(store);
-  store.put("runs", {
-    id: "run-review-guard",
-    taskId: "plan:" + design.id,
-    state: "running",
-    provider: "codex",
-    mode: "ask",
-    review: {
-      planId: design.id,
-      revisionHash: design.hash,
-    },
-  });
-  const ops = new Operations(store);
-  await assert.rejects(
-    ops.execute("plan.review.submit", {
-      runId: "run-review-guard",
-      planId: design.id,
-      revisionHash: "0".repeat(64),
-      comments: [
-        {
-          quote: "Use an exact durable receipt.",
-          comment: "This should not land.",
-        },
-      ],
-    }),
-    /not authorized/,
-  );
-  assert.equal(store.list("review_threads").length, 0);
-});

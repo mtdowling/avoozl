@@ -89,14 +89,7 @@ import { applyActivity } from "../activity.mjs";
 import { applyPlanMetadata, planSummaries } from "../plan-model.mjs";
 import { auditPlans, dispatchMcp } from "../mcp.mjs";
 import { fail, canonical } from "./store.mjs";
-import {
-  runPage,
-  taskSessions,
-  planPage,
-  pendingRequests,
-  compactEvent,
-  recentIntegrations,
-} from "./views.mjs";
+import { planPage, recentIntegrations } from "./views.mjs";
 import {
   createPlan,
   savePlan,
@@ -109,11 +102,8 @@ import {
   projectConfig,
   originRepositorySync,
   projectGitHubRepository,
-  validateRun,
   integrateRun,
-  runChanges,
   withWorkLock,
-  WORKING_STATES,
   detectCheckout,
 } from "./git.mjs";
 import { workspaceIdentity } from "./identity.mjs";
@@ -616,7 +606,7 @@ import {
 
 // Avoozl-recorded validation at a task's current commit (§5.2, R38.5): its
 // integrated commit, else its delivery's, else the newest validated commit.
-// Results come from validateRun records and checks-role verdicts at that
+// Results come from validation records and checks-role verdicts at that
 // commit; the newest result per check counts. Returns null unless every
 // declared check passed there. With no declared checks, every check that ran
 // at the commit must have passed.
@@ -845,27 +835,19 @@ function repositoryBase(store, task, projectId) {
     : "";
 }
 
-function taskLocalChanges(store, task, runs, projectId, repositoryUrl) {
-  const worktreeRuns = runs.filter((run) => run.worktree && !run.readOnly),
-    diffRun =
-      worktreeRuns.find((run) => WORKING_STATES.includes(run.state)) ||
-      worktreeRuns.at(-1),
-    diffAvailable = Boolean(diffRun && fs.existsSync(diffRun.worktree)),
-    project = store.get("projects", projectId);
-  if (!project && !diffAvailable) return null;
+function taskLocalChanges(store, task, projectId, repositoryUrl) {
+  const project = store.get("projects", projectId);
+  if (!project) return null;
   return {
     projectId,
-    root: project?.root || "",
-    branch: diffRun?.branch || task.integration?.branch || "",
-    worktree: diffRun?.worktree || "",
-    diffRunId: diffAvailable ? diffRun.id : "",
+    root: project.root || "",
+    branch: task.integration?.branch || "",
     repositoryUrl,
   };
 }
 
-function taskCodeChanges(store, data, task, runs, evidenceRecords) {
-  const projectId =
-      task.projectId || runs.map((run) => run.projectId).find(Boolean) || "",
+function taskCodeChanges(store, data, task, evidenceRecords) {
+  const projectId = task.projectId || "",
     base = repositoryBase(store, task, projectId),
     commits = new Map(),
     pulls = new Map();
@@ -899,12 +881,6 @@ function taskCodeChanges(store, data, task, runs, evidenceRecords) {
       evidence.commit,
       evidence.kind === "command" ? "Validated" : "Evidence",
     );
-  for (const run of runs) {
-    addCommit(run.expectedCommit, "Run output");
-    addCommit(run.integratedCommit, "Integrated");
-    addPull(run.pullRequest);
-    for (const pull of run.pullRequests || []) addPull(pull);
-  }
   for (const pull of task.github?.pullRequests || []) addPull(pull);
   for (const pull of task.pullRequests || []) addPull(pull);
   for (const receipt of store.list("receipts")) {
@@ -929,7 +905,7 @@ function taskCodeChanges(store, data, task, runs, evidenceRecords) {
     issue,
     commits: [...commits.values()],
     pullRequests: [...pulls.values()],
-    local: taskLocalChanges(store, task, runs, projectId, base),
+    local: taskLocalChanges(store, task, projectId, base),
   };
 }
 
@@ -943,18 +919,6 @@ function retitledInput(value) {
   )
     fail("retitled is a list of task IDs.");
   return value;
-}
-
-// Old completed runs of an accepted task leave the conversation list, as
-// before; nothing new is started or stopped.
-function archiveCompletedRun(store, run, at) {
-  if (run.driver || store.getMeta("runArchive:" + run.id)) return;
-  store.setMeta("runArchive:" + run.id, at);
-  store.event(run.id, "run.auto-archived", {
-    id: run.id,
-    archivedAt: at,
-    reason: "completed-task",
-  });
 }
 
 // Review roles for the Settings page: the writer's model and each role, for
@@ -2453,14 +2417,9 @@ export class Operations {
     const task = data.tasks.find((t) => t.id === id);
     if (!task) fail("Task not found.", 404);
     const doc = data.documents[task.source?.document],
-      runs = this.store
-        .list("runs")
-        .filter((r) => resolveTaskId(data, r.taskId) === id),
       evidenceRecords = this.store
         .list("evidence")
-        .filter((e) => resolveTaskId(data, e.taskId) === id),
-      activeRun =
-        runs.find((run) => WORKING_STATES.includes(run.state)) || runs.at(-1);
+        .filter((e) => resolveTaskId(data, e.taskId) === id);
     return {
       ...task,
       // Its plan's epic; a task never stores one (Requirement 59.2).
@@ -2478,34 +2437,12 @@ export class Operations {
       documents: (task.contextDocuments || [])
         .map((id) => data.documents[id])
         .filter(Boolean),
-      runs,
       evidenceRecords,
       executionLocation: {
-        branch:
-          task.activity?.branch ||
-          activeRun?.branch ||
-          task.integration?.branch ||
-          null,
-        worktree: task.activity?.worktree || activeRun?.worktree || null,
+        branch: task.activity?.branch || task.integration?.branch || null,
+        worktree: task.activity?.worktree || null,
       },
-      codeChanges: taskCodeChanges(
-        this.store,
-        data,
-        task,
-        runs,
-        evidenceRecords,
-      ),
-      team: {
-        jobs: this.store
-          .list("execution_jobs")
-          .filter((job) => job.taskId === task.id),
-        checkpoints: this.store
-          .list("team_checkpoints")
-          .filter((checkpoint) => checkpoint.taskId === task.id),
-        reviews: this.store
-          .list("review_requests")
-          .filter((review) => review.taskId === task.id),
-      },
+      codeChanges: taskCodeChanges(this.store, data, task, evidenceRecords),
     };
   }
   startExtractionPipeline(input) {
@@ -2667,26 +2604,17 @@ export class Operations {
     return { items: result };
   }
   intentResult(receipt) {
-    const run = receipt.runId ? this.store.get("runs", receipt.runId) : null,
-      plan = receipt.planId ? this.store.get("plans", receipt.planId) : null,
+    const plan = receipt.planId
+        ? this.store.get("plans", receipt.planId)
+        : null,
       task = receipt.taskId
         ? this.read().tasks.find(
             (t) => t.id === resolveTaskId(this.read(), receipt.taskId),
           )
-        : null,
-      // Only an old ask or run receipt named a run; a draft starts none.
-      needsRun = ["ask", "run"].includes(receipt.input.action);
+        : null;
     return {
-      ...(run ? { run } : {}),
       ...(plan ? { plan } : {}),
       ...(task ? { task } : {}),
-      ...(needsRun && !run
-        ? {
-            pending: true,
-            submissionId: receipt.submissionId,
-            runId: receipt.runId,
-          }
-        : {}),
     };
   }
   async submitIntent(input, expectedRevision) {
@@ -2718,10 +2646,7 @@ export class Operations {
         "This submission belongs to a different message. Start a new message.",
         409,
       );
-    if (receipt) {
-      const result = this.intentResult(receipt);
-      if (!result.pending) return result;
-    }
+    if (receipt) return this.intentResult(receipt);
     // Asking or running an agent is a Kiro Crew session now.
     if (action === "ask" || action === "run")
       return {
@@ -2736,22 +2661,11 @@ export class Operations {
           submissionId,
           requestHash,
           input: structuredClone({ ...input, submissionId }),
-          runId: input.runId || "run-" + digest(submissionId).slice(0, 24),
           createdAt: new Date().toISOString(),
         };
         this.store.put("receipts", receipt);
       }
       const saved = receipt.input;
-      const legacy = this.store.get("runs", receipt.runId);
-      if (legacy) {
-        if (
-          legacy.prompt !== saved.prompt ||
-          legacy.provider !== saved.provider ||
-          legacy.projectId !== saved.projectId
-        )
-          fail("Run ID already belongs to another request.", 409);
-        return this.intentResult(receipt);
-      }
       if (action === "task") {
         const { task } = await this.execute(
           "task.capture",
@@ -2903,14 +2817,6 @@ export class Operations {
       const receipt = store.get("evidence", input.id);
       if (receipt?.kind !== "task-merge") fail("Merge receipt not found.", 404);
       return receipt;
-    }
-    if (["run.validate", "integration.merge"].includes(name)) {
-      const id = input.id;
-      if (id && store.get("runs", id)?.external)
-        fail(
-          "This is a read-only external transcript. Continue or steer it in its original Claude session; no duplicate agent will be launched.",
-          409,
-        );
     }
     if (name === "session.bind")
       return store.transaction(() => {
@@ -4644,84 +4550,6 @@ export class Operations {
         claimed: claimedOrNone(store),
       }).map(withGraphState(store, data));
     }
-    if (name === "search.result") {
-      const run = store.get("runs", input.id);
-      if (!run || !run.prompt?.startsWith("NUPP_PROMPT_SEARCH"))
-        fail("Prompt search not found.", 404);
-      if (
-        ["starting", "running", "waiting-input", "waiting-approval"].includes(
-          run.state,
-        )
-      )
-        return { pending: true, id: run.id };
-      if (run.state !== "completed")
-        fail(run.error || "Search stopped. Inspect its session in Workspace.");
-      const row = store.db
-        .prepare(
-          "SELECT body FROM events WHERE run_id=? AND kind='message' ORDER BY seq DESC LIMIT 1",
-        )
-        .get(run.id);
-      const text = row ? JSON.parse(row.body).text : "";
-      let parsed;
-      try {
-        parsed = JSON.parse(
-          text.replace(/^\s*```(?:json)?\s*/, "").replace(/\s*```\s*$/, ""),
-        );
-      } catch {
-        fail(
-          "The agent did not return a valid search. Its response is retained in Agent sessions.",
-        );
-      }
-      if (
-        typeof parsed.query !== "string" ||
-        parsed.query.length > 4000 ||
-        !["all", "runtime"].includes(parsed.scope)
-      )
-        fail("The agent returned an unsupported query.");
-      const ids = parsed.ids;
-      if (
-        ids !== undefined &&
-        (!Array.isArray(ids) ||
-          ids.length > 500 ||
-          ids.some((id) => !this.read().tasks.some((t) => t.id === id)))
-      )
-        fail("The search contains unknown or excessive task IDs.");
-      const id = "search-" + run.id,
-        existing = this.read().presentation?.views?.find((v) => v.id === id);
-      if (existing) return { view: existing, explanation: existing.caption };
-      const query = ids?.length === 0 ? "id:__no_matches__" : parsed.query,
-        view = {
-          id,
-          title: "Search: " + (run.searchPrompt || "Tasks").slice(0, 100),
-          caption: String(
-            parsed.explanation || "Agent-interpreted search",
-          ).slice(0, 2000),
-          view: [
-            "tasks",
-            "activity",
-            "graph",
-            "epics",
-            "strip",
-            "report",
-            "documents",
-          ].includes(run.searchContext?.view)
-            ? run.searchContext.view
-            : "tasks",
-          filters: { scope: parsed.scope, q: query },
-          taskIds: ids || [],
-          selected: "",
-          group: run.searchContext?.group || "epic",
-          detail: "all",
-          createdAt: new Date().toISOString(),
-          searchRunId: run.id,
-        };
-      store.mutate("Save prompt search", (data) => {
-        data.presentation ??= { views: [] };
-        data.presentation.views ??= [];
-        data.presentation.views.push(view);
-      });
-      return { view, explanation: view.caption };
-    }
     if (name === "task.get")
       return withGraphState(store, this.read())(this.detail(input.id));
     if (name === "report.save")
@@ -4883,20 +4711,6 @@ export class Operations {
         },
         expectedRevision,
       );
-    if (["run.archive", "run.unarchive"].includes(name))
-      return store.transaction(() => {
-        const run = store.get("runs", input.id);
-        if (!run || run.deletedAt) fail("Conversation not found.", 404);
-        const key = "runArchive:" + run.id,
-          old = store.getMeta(key),
-          archivedAt =
-            name === "run.archive" ? old || new Date().toISOString() : null;
-        if (old !== archivedAt) {
-          store.setMeta(key, archivedAt);
-          store.event(run.id, name, { id: run.id, archivedAt });
-        }
-        return { id: run.id, archivedAt };
-      });
     // Archive or unarchive a plan (plan-archive.mjs): a session may too
     // (R56.4), and either one undoes the other. Delete below is the one-way path.
     if (name === "plan.archive" || name === "plan.unarchive") {
@@ -4956,31 +4770,19 @@ export class Operations {
         folder,
       });
     }
-    if (["run.delete", "run.restore", "plan.restore"].includes(name))
+    if (name === "plan.restore")
       return store.transaction(() => {
-        const kind = name.startsWith("run.") ? "runs" : "plans",
-          row = store.get(kind, input.id);
+        const row = store.get("plans", input.id);
         if (!row) fail("Record not found.", 404);
-        if (
-          kind === "runs" &&
-          ["starting", "running", "waiting-input", "waiting-approval"].includes(
-            row.state,
-          )
-        )
-          fail("Stop this session before deleting it.", 409);
-        if (
-          kind === "plans" &&
-          (row.state === "approved" || Object.keys(row.mapping || {}).length)
-        )
+        if (row.state === "approved" || Object.keys(row.mapping || {}).length)
           fail(
             "Approved plans keep their task and approval history. Abandon the linked work instead.",
             409,
           );
-        if (name.endsWith(".restore")) delete row.deletedAt;
-        else row.deletedAt = new Date().toISOString();
-        store.put(kind, row);
-        store.event(kind === "runs" ? row.id : null, name, { id: row.id });
-        return { id: row.id, deletedAt: row.deletedAt || null };
+        delete row.deletedAt;
+        store.put("plans", row);
+        store.event(null, name, { id: row.id });
+        return { id: row.id, deletedAt: null };
       });
     // Saved views and presentations are display configuration. Deleting one
     // removes that configuration only: tasks, plans and evidence are untouched.
@@ -5026,70 +4828,23 @@ export class Operations {
     }
     if (name === "trash")
       return {
-        runs: store
-          .list("runs")
-          .filter((r) => r.deletedAt)
-          .slice(-100)
-          .map((r) => ({
-            id: r.id,
-            title: r.title || r.prompt?.slice(0, 160) || r.id,
-          })),
         plans: store
           .list("plans")
           .filter((p) => p.deletedAt)
           .slice(-100)
           .map((p) => ({ id: p.id, title: p.title })),
       };
-    if (name === "run.list") return runPage(store, input);
-    if (name === "driver.list") {
-      const projects = store.list("projects"),
-        runs = store.list("runs");
-      return {
-        projects: projects.map((project) => ({
-          projectId: project.id,
-          title: project.name || project.title || project.id,
-          root: project.root,
-          run:
-            runs
-              .filter(
-                (run) =>
-                  run.driver === true &&
-                  run.projectId === project.id &&
-                  run.driverActive !== false &&
-                  !run.deletedAt,
-              )
-              .sort(
-                (left, right) =>
-                  (right.driverGeneration || 1) -
-                    (left.driverGeneration || 1) ||
-                  String(right.createdAt || "").localeCompare(
-                    String(left.createdAt || ""),
-                  ),
-              )[0] || null,
-        })),
-        defaultProjectId: projects.length === 1 ? projects[0].id : null,
-      };
-    }
     if (name === "task.sessions") {
       const task = this.read().tasks.find((t) => t.id === input.id);
       if (!task) fail("Task not found.", 404);
-      // Past runs first, then the task's Kiro Crew sessions, which own the
-      // work now.
-      return [
-        ...taskSessions(store, {
-          taskId: task.id,
-          sessionId:
-            task.activity?.connection?.runId || task.activity?.sessionId,
-        }),
-        ...kiroCrewSessions(store, task.id).map((session) => ({
-          id: session.slot,
-          taskId: task.id,
-          title: `${session.role} attempt ${session.attempt}`,
-          state: session.status,
-          provider: "kiro-crew",
-          url: session.url,
-        })),
-      ];
+      return kiroCrewSessions(store, task.id).map((session) => ({
+        id: session.slot,
+        taskId: task.id,
+        title: `${session.role} attempt ${session.attempt}`,
+        state: session.status,
+        provider: "kiro-crew",
+        url: session.url,
+      }));
     }
     if (name === "plan.list") return planPage(store, input);
     if (name === "plan.specs") return this.specList();
@@ -5174,8 +4929,7 @@ export class Operations {
       return doc;
     }
     if (name === "workspace") {
-      const runs = runPage(store, { archived: "all" }),
-        plans = planPage(store);
+      const plans = planPage(store);
       return {
         mode: store.getMeta("mode"),
         import: store.getMeta("import"),
@@ -5190,9 +4944,6 @@ export class Operations {
         },
         plans: plans.items,
         planTotal: plans.total,
-        runs: runs.items,
-        runTotal: runs.total,
-        requests: pendingRequests(store),
         batches: store.list("batches").slice(0, 40),
         integrations: store
           .list("integration")
@@ -5207,10 +4958,6 @@ export class Operations {
           repositories: store.list("github_repositories"),
           issues: store.list("github_issues").slice(0, 100),
           lastSync: store.getMeta("githubSync"),
-          queue: {
-            repositories: store.list("github_queue_repositories"),
-            lastSync: store.getMeta("githubQueueSync"),
-          },
         },
         workspaceRepository: workspaceRepositoryStatus(store),
         // Which machine drives each spec (§6.10), from SQLite only.
@@ -6000,21 +5747,7 @@ export class Operations {
     if (name === "plan.extract.get")
       return getExtraction(store, input.id || input.extractionId);
     if (name === "plan.extraction.submit") {
-      const run = input.runId ? store.get("runs", input.runId) : null;
-      if (
-        run &&
-        (run.extraction?.extractionId !== input.extractionId ||
-          run.extraction?.revisionHash !== input.revisionHash)
-      )
-        fail(
-          "This run is not authorized to submit that extraction revision.",
-          403,
-        );
-      return submitExtraction(store, {
-        ...input,
-        provider: input.provider || run?.provider,
-        model: input.model || run?.actualModel || run?.model,
-      });
+      return submitExtraction(store, input);
     }
     if (name === "plan.extraction.dispose") return disposeFact(store, input);
     if (name === "plan.review.get") return currentPlanReview(store, input);
@@ -6075,18 +5808,9 @@ export class Operations {
           caller: context.caller,
           mcp: context.mcp,
         });
-      const run = input.runId ? store.get("runs", input.runId) : null;
-      if (
-        run &&
-        (run.review?.planId !== input.planId ||
-          run.review?.revisionHash !== input.revisionHash)
-      )
-        fail("This run is not authorized to review that plan revision.", 403);
       return createReviewThreads(store, {
         ...input,
-        author: input.author || run?.provider || this.operator,
-        provider: input.provider || run?.provider,
-        model: input.model || run?.actualModel || run?.model,
+        author: input.author || this.operator,
       });
     }
     if (name === "plan.review.reply")
@@ -6232,29 +5956,11 @@ export class Operations {
         store.transaction(() => {
           if (existing?.github && existing.github !== githubRepository) {
             store.db
-              .prepare(
-                "DELETE FROM github_queue_items WHERE json_extract(body,'$.repository')=?",
-              )
-              .run(existing.github);
-            store.db
-              .prepare("DELETE FROM github_queue_repositories WHERE id=?")
-              .run(existing.github);
-            store.db
               .prepare("DELETE FROM github_repositories WHERE id=?")
               .run(existing.github);
           }
           if (project) store.put("projects", project);
           else store.db.prepare("DELETE FROM projects WHERE id=?").run(id);
-          if (existing?.github) {
-            store.db
-              .prepare(
-                "DELETE FROM github_queue_items WHERE json_extract(body,'$.repository')=?",
-              )
-              .run(existing.github);
-            store.db
-              .prepare("DELETE FROM github_queue_repositories WHERE id=?")
-              .run(existing.github);
-          }
           if (issueIntake) store.put("github_repositories", issueIntake);
           else if (existing?.github)
             store.db
@@ -6387,18 +6093,6 @@ export class Operations {
       if (!task) fail("Task not found.", 404);
       if (!claim?.repository || !claim.number || !claim.login)
         fail("This task is not owned through a GitHub claim.", 409);
-      if (
-        store
-          .list("execution_jobs")
-          .some(
-            (job) =>
-              job.taskId === task.id &&
-              ["pending", "dispatched", "active", "stopping"].includes(
-                job.state,
-              ),
-          )
-      )
-        fail("Stop active execution jobs before releasing this work.", 409);
       await this.github.removeAssignees(
         parseRepository(claim.repository),
         claim.number,
@@ -6651,23 +6345,6 @@ export class Operations {
       const id = String(input.id || "").trim(),
         project = id ? store.get("projects", id) : null;
       if (!project) fail("Project not found.", 404);
-      const activeRun = store
-        .list("runs")
-        .find(
-          (run) =>
-            run.projectId === id &&
-            [
-              "starting",
-              "running",
-              "waiting-input",
-              "waiting-approval",
-            ].includes(run.state),
-        );
-      if (activeRun)
-        fail(
-          `Project ${id} still has an active conversation. Stop it before removing the project.`,
-          409,
-        );
       const locked = store.db
         .prepare("SELECT id FROM work_locks WHERE project_id=? LIMIT 1")
         .get(id);
@@ -6677,14 +6354,11 @@ export class Operations {
           409,
         );
       const authorization = store
-          .list("github_repositories")
-          .find((entry) => entry.projectId === id),
-        monitoring = store
-          .list("github_queue_repositories")
-          .find((entry) => entry.projectId === id);
-      if (authorization || monitoring)
+        .list("github_repositories")
+        .find((entry) => entry.projectId === id);
+      if (authorization)
         fail(
-          `Project ${id} is still connected to GitHub. Remove or reassign its monitored and label-authorized repositories first.`,
+          `Project ${id} is still connected to GitHub. Remove or reassign its label-authorized repositories first.`,
           409,
         );
       this.configuration?.assertWritable();
@@ -6694,56 +6368,6 @@ export class Operations {
       store.event(null, "project.removed", { projectId: id });
       return { ...project, removed: true };
     }
-    if (name === "run.event") {
-      const row = store.db
-        .prepare("SELECT * FROM events WHERE seq=? AND run_id=?")
-        .get(input.seq ?? null, input.id ?? null);
-      if (!row) fail("Event not found.", 404);
-      return {
-        seq: row.seq,
-        kind: row.kind,
-        at: row.at,
-        ...JSON.parse(row.body),
-      };
-    }
-    if (name === "run.get") {
-      const run = store.get("runs", input.id);
-      if (!run) fail("Run not found.", 404);
-      run.archivedAt = store.getMeta("runArchive:" + run.id);
-      const events = store.events({
-          runId: run.id,
-          after: input.after || 0,
-          before: input.before,
-          latest: input.after === undefined,
-          limit: input.limit || 200,
-        }),
-        first = events[0]?.seq || 0;
-      return {
-        ...run,
-        events: input.compact ? events.map(compactEvent) : events,
-        hasEarlier: Boolean(
-          first &&
-            store.db
-              .prepare("SELECT 1 FROM events WHERE run_id=? AND seq<? LIMIT 1")
-              .get(run.id, first),
-        ),
-        deliveries: store.db
-          .prepare(
-            "SELECT body FROM deliveries WHERE run_id=? ORDER BY rowid DESC LIMIT 100",
-          )
-          .all(run.id)
-          .map((r) => JSON.parse(r.body))
-          .reverse(),
-        requests: store.db
-          .prepare(
-            "SELECT body FROM requests WHERE json_extract(body,'$.runId')=? AND json_extract(body,'$.state')='pending' ORDER BY rowid LIMIT 100",
-          )
-          .all(run.id)
-          .map((r) => JSON.parse(r.body)),
-      };
-    }
-    if (name === "run.changes") return runChanges(store, input);
-    if (name === "run.validate") return validateRun(store, input.id);
     if (name === "integration.merge") {
       return integrateRun(store, input);
     }
@@ -6797,32 +6421,9 @@ export class Operations {
           },
           expectedRevision,
         );
-      if (autoArchive && !input.componentOnly)
-        for (const run of store
-          .list("runs")
-          .filter(
-            (run) =>
-              resolveTaskId(this.read(), run.taskId) === task.id &&
-              run.state === "completed",
-          ))
-          archiveCompletedRun(store, run, task.acceptanceEvidence.at);
       return task;
     }
     if (name === "handoff") {
-      const run = store.get("runs", input.id);
-      if (run)
-        return {
-          run,
-          task: this.read().tasks.find((t) => t.id === run.taskId) || null,
-          plan: run.planId ? store.get("plans", run.planId) : null,
-          requests: store.list("requests").filter((r) => r.runId === run.id),
-          deliveries: store
-            .list("deliveries")
-            .filter((d) => d.runId === run.id),
-          evidence: store.list("evidence").filter((e) => e.runId === run.id),
-          reconnect:
-            "Inspect durable state and uncertain delivery receipts before resuming. Keep the same provider session ID; never start duplicate work because a check-in is stale.",
-        };
       const task = this.detail(input.id);
       return {
         task,
@@ -6830,7 +6431,6 @@ export class Operations {
         prerequisites: task.relationships
           .filter((e) => e.to === task.id)
           .map((e) => this.read().tasks.find((t) => t.id === e.from)),
-        runs: task.runs,
         evidence: task.evidenceRecords,
         nextAction: task.nextAction,
         agentInstructions: matchingAgentInstructions(
@@ -6844,16 +6444,6 @@ export class Operations {
     }
     if (name === "queue") {
       const data = this.read(),
-        active = store
-          .list("runs")
-          .filter((r) =>
-            [
-              "starting",
-              "running",
-              "waiting-input",
-              "waiting-approval",
-            ].includes(r.state),
-          ),
         ready = queryTasks(data, {
           scope: "all",
           ...input,
@@ -6873,15 +6463,6 @@ export class Operations {
                 data.tasks.find((x) => x.id === e.to)?.status,
               ),
           ).length,
-          conflicts: active
-            .filter(
-              (r) =>
-                resolveTaskId(data, r.taskId) === t.id ||
-                (r.resources || []).some((x) =>
-                  (t.resources || []).includes(x),
-                ),
-            )
-            .map((r) => r.id),
         }))
         .sort((a, b) => b.unblocks - a.unblocks);
       const visible = data.tasks.filter((t) => !isPlanInventory(data, t)),
@@ -6897,7 +6478,6 @@ export class Operations {
         summary: {
           ready: ranked.length,
           blocked: blocked.length,
-          active: active.length,
         },
         blocked: blocked.slice(0, 40).map(({ task, signals }) => ({
           id: task.id,
@@ -6915,7 +6495,6 @@ export class Operations {
           Math.max(1, Math.min(100, Number(input.limit) || 40)),
         ),
         readyTotal: ranked.length,
-        active,
         integrations: store
           .list("integration")
           .filter((i) => i.state === "ready"),

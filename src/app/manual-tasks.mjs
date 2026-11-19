@@ -16,7 +16,7 @@ import {
 } from "./task-notes.mjs";
 import { fail } from "./store.mjs";
 
-export const CHOICES = Object.freeze(["done", "skipped", "refused"]);
+const CHOICES = Object.freeze(["done", "skipped", "refused"]);
 
 function manualTask(data, taskId) {
   const task = data.tasks.find((t) => t.id === taskId);

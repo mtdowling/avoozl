@@ -88,7 +88,7 @@ test('Conflicts filter: kind with counts, plan, epic, repository and age', () =>
   const choices = conflictChoices(items, graph)
   assert.deepEqual(
     choices.kinds.map((k) => k.label),
-    ['Decisions (0)', 'Needs you (1)', 'Sessions and resources (1)'],
+    ['Decisions (0)', 'Needs you (1)', 'Sessions (1)'],
   )
   assert.deepEqual(
     choices.repositories.map((r) => r.value),
@@ -235,7 +235,7 @@ test('each view heading and its nav tab show the same icon, hidden from readers'
   ])
     assert.match(source(file), new RegExp(`<ViewHeading\\s+id="avoozl-${view}-title"\\s+view="${view}"[\\s>]`), file)
   assert.match(source('App.tsx'), /<NavLabel view=\{t\.key\} text=\{t\.label\}/)
-  assert.match(source('App.tsx'), /const Icon = VIEW_ICONS\[props\.view\][\s\S]*?<Icon size=\{ICON\} aria-hidden="true"/)
+  assert.match(source('App.tsx'), /const Icon = VIEW_ICONS\[props\.view\][\s\S]*?<Glyph icon=\{Icon\} size=\{ICON\} aria-hidden="true"/)
   const controls = source('ui/controls.tsx')
   assert.match(controls, /<Icon size=\{level === 2 \? 18 : 16\} aria-hidden="true"/)
   assert.match(controls, /<Icon size=\{ICON\} aria-hidden="true"/)

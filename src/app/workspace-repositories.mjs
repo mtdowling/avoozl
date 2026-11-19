@@ -1,16 +1,8 @@
 import { normalizeGitHubLabelBehaviors } from "./github-label-behaviors.mjs";
 import { fail } from "./store.mjs";
 
-const activeStates = new Set([
-  "starting",
-  "running",
-  "waiting-input",
-  "waiting-approval",
-]);
-
 export function workspaceRepositories(store) {
   const projects = store.list("projects");
-  const queue = store.list("github_queue_repositories");
   const authorization = store.list("github_repositories");
   const byId = new Map();
 
@@ -65,21 +57,6 @@ export function workspaceRepositories(store) {
     return byId.get(id);
   };
 
-  for (const entry of queue) {
-    const item = ensure(
-      entry.id,
-      entry.workspaceRepositoryId || entry.projectId,
-    );
-    item.github = entry.id;
-    item.queue = {
-      enabled: entry.enabled !== false,
-      issues: entry.includeIssues !== false,
-      pullRequests: entry.includePullRequests !== false,
-      visibility:
-        entry.visibility || (entry.private === false ? "public" : "private"),
-    };
-    item.labels = normalizeGitHubLabelBehaviors(entry.labelBehaviors);
-  }
   for (const entry of authorization) {
     const item = ensure(
       entry.id,
@@ -108,16 +85,6 @@ export function workspaceRepositories(store) {
 
 export function assertRepositoryRemovable(store, repository) {
   if (repository.localCheckout) {
-    const active = store
-      .list("runs")
-      .find(
-        (run) => run.projectId === repository.id && activeStates.has(run.state),
-      );
-    if (active)
-      fail(
-        `Repository ${repository.id} still has an active conversation. Stop it before removing the repository.`,
-        409,
-      );
     const locked = store.db
       .prepare("SELECT id FROM work_locks WHERE project_id=? LIMIT 1")
       .get(repository.id);
@@ -133,14 +100,6 @@ export function removeWorkspaceRepositoryRecords(store, repository) {
   assertRepositoryRemovable(store, repository);
   store.transaction(() => {
     if (repository.github) {
-      store.db
-        .prepare(
-          "DELETE FROM github_queue_items WHERE json_extract(body,'$.repository')=?",
-        )
-        .run(repository.github);
-      store.db
-        .prepare("DELETE FROM github_queue_repositories WHERE id=?")
-        .run(repository.github);
       store.db
         .prepare("DELETE FROM github_repositories WHERE id=?")
         .run(repository.github);

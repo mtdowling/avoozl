@@ -77,7 +77,7 @@ function readConfig(configFile) {
 
 // This machine's names, read now. `override` ({hostname, username}) is for
 // tests, which use made-up names only.
-export function machineFacts(override = null) {
+function machineFacts(override = null) {
   if (override) return override;
   let username = "";
   try {

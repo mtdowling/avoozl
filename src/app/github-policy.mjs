@@ -46,7 +46,7 @@ export const MODES = Object.freeze(["plans-repo", "single-repo"]);
 // the workspace database. It normalizes to a null mode, and the GitHub
 // settings stored beside it are kept but not used, so switching back
 // restores them (owner decision 2026-11-12).
-export const LOCAL_MODE = "local";
+const LOCAL_MODE = "local";
 export const MODE_CHOICES = Object.freeze([LOCAL_MODE, ...MODES]);
 // Issue Radar's own labels, which Avoozl reads and never writes (§6.4). The
 // defaults are Issue Radar's: its fixed claim label and the default of its
@@ -369,7 +369,7 @@ function releaseInput(value, label) {
 }
 
 // How long GitHub answers stay fresh, in seconds; 0 turns the cache off.
-export const CACHE_SECONDS_MAX = 3600;
+const CACHE_SECONDS_MAX = 3600;
 function cacheSecondsInput(value, label) {
   if (value === undefined || value === null) return null;
   if (!Number.isSafeInteger(value) || value < 0 || value > CACHE_SECONDS_MAX)
@@ -685,7 +685,7 @@ function repositoryInput(value, id, mode) {
 // (RC28.5): Avoozl merges the base into it with one resolver chat, or only
 // asks a person.
 export const CONFLICT_ACTIONS = Object.freeze(["fix", "ask"]);
-export const MAX_ATTEMPTS = 10;
+const MAX_ATTEMPTS = 10;
 // One count for crew pull requests and landing (R87.6, RC28.4). A
 // repository that sets none reads `landing.conflictRounds`, then this.
 export const CONFLICT_DEFAULTS = Object.freeze({
@@ -763,7 +763,7 @@ export const mergeMethodOf = (settings) =>
     : "SQUASH";
 
 // The Untriaged list's settings (design §8.5, R49.3-R49.5), each optional.
-export const UNTRIAGED_MAX_DAYS = 3650;
+const UNTRIAGED_MAX_DAYS = 3650;
 function untriagedInput(value, label, managedNames) {
   const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.untriaged, label);
   let filter = null;

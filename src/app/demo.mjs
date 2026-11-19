@@ -22,9 +22,9 @@ import { sampleSpecs } from "./sample-specs.mjs";
 // letter (host-config.mjs), so no real workspace can have this one.
 export const DEMO_WORKSPACE_ID = "@demo";
 export const DEMO_RECEIPT = "demo:sample";
-export const DEMO_VERSION = 1;
-export const DEMO_NAME = "Demo: Recipe Box";
-export const DEMO_REPOSITORY = "example/recipe-box";
+const DEMO_VERSION = 1;
+const DEMO_NAME = "Demo: Recipe Box";
+const DEMO_REPOSITORY = "example/recipe-box";
 const OWNER = "Demo owner";
 
 // The default sample folder: one per user, under the system temp folder.
@@ -40,7 +40,7 @@ export function defaultDemoRoot(tmp = os.tmpdir()) {
 
 // The sample's own paths. Machine settings (plugins, driver, prompts) live
 // inside it too, so nothing reaches the person's settings folder.
-export function demoPaths(root) {
+function demoPaths(root) {
   return {
     root,
     settings: path.join(root, ".avoozl", "demo-machine"),
@@ -55,7 +55,7 @@ export function demoPaths(root) {
 
 // The sample's workspace configuration. Its home is the sample folder, so
 // no machine-wide Avoozl settings are read into it.
-export function demoConfig(root) {
+function demoConfig(root) {
   return workspaceConfig({
     workspace: root,
     home: root,
@@ -167,7 +167,7 @@ const CHECKS = {
 
 // Two other Avoozl instances, so In flight shows more than one group. The
 // fake mirror holds their name variables (demoGitHub `listRepoVariables`).
-export const DEMO_INSTANCES = Object.freeze([
+const DEMO_INSTANCES = Object.freeze([
   { id: "inst-00000000a001", name: "Mira" },
   { id: "inst-00000000b002", name: "Juno" },
 ]);
@@ -186,7 +186,7 @@ const releasedBy = (instance, taskId) =>
 // What the fake GitHub holds: an epic issue with one sub-issue per leaf, a
 // Project, pull requests and their checks, and two issues for Intake.
 // Every name is made up.
-export function demoGitHubData(now = Date.now()) {
+function demoGitHubData(now = Date.now()) {
   const overlay = radarOverlay(now, DEMO_REPOSITORY);
   const issues = [
     ISSUE(1, "Recipe Box: first release", "open", {
@@ -468,7 +468,7 @@ const SAYS = [
   ["onboarding.", "look at folders on this machine"],
 ];
 
-export function demoPreview(operation) {
+function demoPreview(operation) {
   const said =
     SAYS.find(([prefix]) => operation.startsWith(prefix))?.[1] ||
     `run ${operation}`;
@@ -476,7 +476,7 @@ export function demoPreview(operation) {
 }
 
 // Whether the demo runs an operation for real: only reads of the sample.
-export function demoRuns(operation) {
+function demoRuns(operation) {
   try {
     return (
       classifyOperation(operation) === "observe" &&

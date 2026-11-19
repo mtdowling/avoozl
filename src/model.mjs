@@ -4,7 +4,7 @@ import { edgeErrors, workModelErrors } from "./work-model.mjs";
 import { createHash } from "node:crypto";
 export const digest = (value) =>
   createHash("sha256").update(value).digest("hex");
-export const sourceKey = (title) =>
+const sourceKey = (title) =>
   digest(title.replace(/^\s*[-*]\s*\[[ xX]\]\s*/, "").trim()).slice(0, 16);
 export function blocks(text) {
   const lines = text.split("\n"),

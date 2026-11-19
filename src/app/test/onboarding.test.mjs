@@ -248,7 +248,5 @@ test("Onboard end to end: reads before setup write nothing; nothing is approved"
 
   // The flow never approved, dispatched or pushed.
   assert.equal(ws.store.list("approvals").length, 0);
-  assert.equal(ws.store.list("runs").length, 0);
-  assert.equal(ws.store.list("execution_jobs").length, 0);
   assert.ok(ws.store.list("plans").every((row) => row.state !== "approved"));
 });

@@ -137,7 +137,6 @@ test("unset, unknown and same-model pairs are skipped with a reason, without ope
     assert.equal(round.state, "skipped");
     assert.match(round.note, reason);
     assert.ok(round.endedAt);
-    assert.equal(store.list("runs").length, 0);
     assert.equal(store.list("session_requests").length, 0);
     const repeated = start(input);
     assert.equal(repeated.created, false);
@@ -261,17 +260,14 @@ test("invalid findings are refused atomically against the exact stored files", a
   assert.equal((await submit([])).round.state, "done");
 });
 
-test("the attested session cannot target another revision, round or run", async (t) => {
+test("the attested session cannot target another revision or round", async (t) => {
   const { store, plan, start, bind } = setup(t),
     { round } = start(),
     submit = await bind(round);
   for (const [extra, context] of [
     [{ revisionHash: "0".repeat(64) }, {}],
     [{ roundId: "missing-round" }, {}],
-    [
-      { runId: "another-run" },
-      { caller: { sessionKey: "dashboard:another-slot" } },
-    ],
+    [{}, { caller: { sessionKey: "dashboard:another-slot" } }],
     [{}, { caller: null }],
   ])
     await assert.rejects(submit([finding()], extra, context), /not authorized/);
@@ -282,28 +278,6 @@ test("the attested session cannot target another revision, round or run", async 
   );
   const result = await submit([finding()], { planId: plan.id });
   assert.equal(result.round.state, "done");
-});
-
-test("legacy review runs use only actualModel and remain bound to one round", async (t) => {
-  const { store, plan, ops, start } = setup(t),
-    { round } = start();
-  store.put("runs", {
-    id: "legacy-review",
-    taskId: "plan:" + plan.id,
-    state: "running",
-    model: "fake-requested",
-    actualModel: "fake-reviewer",
-  });
-  bindSpecReviewRound(store, { roundId: round.id, runId: "legacy-review" });
-  const submitted = await ops.execute("plan.review.submit", {
-    runId: "legacy-review",
-    planId: plan.id,
-    revisionHash: plan.hash,
-    comments: [finding()],
-    model: "fake-writer",
-  });
-  assert.equal(submitted.threads[0].model, "fake-reviewer");
-  assert.equal(store.get("runs", "legacy-review").review.roundId, round.id);
 });
 
 test("each stored hash gets its own round, and a planner answer cannot escape its pass limit", async (t) => {

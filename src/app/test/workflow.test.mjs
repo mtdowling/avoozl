@@ -4,8 +4,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { Store, canonical } from "../store.mjs";
 import { Operations } from "../operations.mjs";
-import { projectConfig, git, validateRun, integrateRun } from "../git.mjs";
-import { fixture, snapshot, markdown, recordedRun } from "./fixtures.mjs";
+import { projectConfig, git, integrateRun } from "../git.mjs";
+import {
+  fixture,
+  snapshot,
+  markdown,
+  recordedRun,
+  validateRun,
+} from "./fixtures.mjs";
 import { flushOutbox } from "../outbox.mjs";
 
 test("SQLite import round trips every legacy record and unknown metadata", (t) => {
@@ -219,18 +225,15 @@ test("real isolated Git work validates at its head, rebases and integrates witho
     checks: [[process.execPath, "check.mjs"]],
   });
   store.put("projects", project);
-  // A run the removed agent host had started, as an old workspace holds it.
   const run = await recordedRun(store, {
     id: "run-fixture",
     projectId: "fixture",
-    state: "running",
   });
   assert.notEqual(run.worktree, repo);
   fs.writeFileSync(path.join(run.worktree, "result.txt"), "done");
   await git(run.worktree, ["add", "."]);
   await git(run.worktree, ["commit", "-m", "Complete fixture"]);
-  store.put("runs", { ...store.get("runs", run.id), state: "completed" });
-  const validation = await validateRun(store, run.id);
+  const validation = await validateRun(store, run);
   assert.equal(validation.passed, true);
   assert.equal(store.read().tasks[0].status, "implemented");
   // A concurrent main change is part of the normal integration path.

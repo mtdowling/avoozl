@@ -38,8 +38,8 @@ const SHA256 = /^[0-9a-f]{64}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 const FINAL_STATUSES = new Set(["closed", "lost"]);
 const FINAL_REPORTS = new Set(["done", "blocked"]);
-export const HEARTBEAT_MINUTES = 15;
-export const TAKEOVER_WAIT_MS = 10_000;
+const HEARTBEAT_MINUTES = 15;
+const TAKEOVER_WAIT_MS = 10_000;
 export const EXPORT_FORMAT = "avoozl-driver-export";
 
 // What a forced take-over without an export does not bring over (§6.10).
@@ -94,7 +94,7 @@ function writeSettingsFile(file, value) {
 
 // {machine, label, heartbeatMinutes}. The machine ID is made once, on first
 // use, and never filled from the host name.
-export function machineSettings(file) {
+function machineSettings(file) {
   let value = readSettingsFile(file);
   if (!MACHINE_ID.test(value.machine || "")) {
     value = { ...value, machine: newMachineId() };
@@ -607,7 +607,7 @@ function readLocalDriver(store, ctx, plan, { heartbeat = false } = {}) {
   return { row: putRow(store, row), notify: [] };
 }
 
-export function githubModeOf(ctx) {
+function githubModeOf(ctx) {
   return Boolean(ctx?.identity().mode);
 }
 
@@ -742,7 +742,7 @@ async function createPlanIssue(
 }
 
 // Words for why a spec reads only here, shown in the banner and errors.
-export function reasonText(row) {
+function reasonText(row) {
   const who = row.claim
     ? `${row.claim.login}${row.claim.label ? " · " + row.claim.label : ""} (${row.claim.machine})`
     : null;
@@ -1028,7 +1028,6 @@ const MOVED_TABLES = [
 const COLUMN_TABLES = [
   ["flow_spans", "task_id", []],
   ["flow_usage", "task_id", []],
-  ["usage_samples", "task_id", []],
   // The activity log (§4.16): a new machine numbers its own rows.
   ["activity_log", "target_id", ["seq"]],
 ];

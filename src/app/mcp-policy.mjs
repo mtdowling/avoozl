@@ -133,16 +133,6 @@ export const PERSON_ONLY = new Map([
     "github.settings.update",
     person("Only a person changes GitHub settings, including Who counts."),
   ],
-  ["github.queue.configure", person("Only a person changes GitHub setup.")],
-  ["github.queue.remove", person("Only a person changes GitHub setup.")],
-  [
-    "github.intake.capability.create",
-    person("Only a person changes GitHub setup."),
-  ],
-  [
-    "github.intake.capability.revoke",
-    person("Only a person changes GitHub setup."),
-  ],
   ["configuration.update", person("Only a person changes workspace settings.")],
   [
     "conversations.settings.update",
@@ -263,7 +253,6 @@ export const PERSON_ONLY = new Map([
     "workspace.repository.sync",
     person("Only a person syncs the workspace repository."),
   ],
-  ["run.delete", person("Only a person deletes a past run.")],
   ["report.delete", person("Only a person deletes a report.")],
   ["visualization.delete", person("Only a person deletes a visualization.")],
 ]);
@@ -273,7 +262,6 @@ export const PERSON_ONLY = new Map([
 const moved = "Moved to Kiro Crew; no MCP tool offers it.";
 const proposalsPage =
   "The Flow tab's Proposals view; proposals are a person's to decide.";
-const removed = "Removed; the operation has no handler.";
 const page = "App page rendering only.";
 const remote =
   "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.";
@@ -363,7 +351,6 @@ export const NOT_ON_MCP = new Map([
     "run.queue",
     "driver.open",
     "driver.context",
-    "driver.list",
     "concurrency.status",
     "openhands.profiles",
     "openhands.models",
@@ -389,24 +376,6 @@ export const NOT_ON_MCP = new Map([
     "safety.resume",
     "safety.coordinator.ack",
   ].map((name) => [name, moved]),
-  ...[
-    "queue.items",
-    "queue.comments",
-    "queue.diff",
-    "queue.sync",
-    "queue.claim",
-    "queue.createTask",
-    "queue.confirmLink",
-    "github.intake.capabilities",
-    "openhands.automations.capabilities",
-    "openhands.automations.recommendations",
-    "openhands.automations.coverage",
-    "openhands.automations.intake.preflight",
-    "openhands.automations.intake.prepare",
-    "openhands.automations.intake.state",
-    "openhands.automations.setup",
-    "work.take",
-  ].map((name) => [name, removed]),
 ]);
 
 // The refusal for an operation reached through MCP, or null.

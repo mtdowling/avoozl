@@ -2,9 +2,9 @@
 // may take a new ready label. It never makes a task eligible, never touches a
 // task that already holds its label, and reads no GitHub.
 
-export const RANKING_DEFAULT = Object.freeze({ enabled: true, agingHours: 12 });
+const RANKING_DEFAULT = Object.freeze({ enabled: true, agingHours: 12 });
 // A held task is released whatever it overlaps after this many waits.
-export const AGING_LIMIT = 4;
+const AGING_LIMIT = 4;
 
 // Settings from a repository's `release.ranking` as written.
 export function rankingFor(release = {}) {

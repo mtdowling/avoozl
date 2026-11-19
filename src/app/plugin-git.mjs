@@ -26,7 +26,7 @@ export function maskCredentials(text) {
     .replace(TOKEN, "***");
 }
 
-export const isGitUrl = (value) => URL_FORM.test(value) || SCP_FORM.test(value);
+const isGitUrl = (value) => URL_FORM.test(value) || SCP_FORM.test(value);
 
 // The shape checks validateEntry runs for a git entry. No network.
 export function validateGitSource(entry, where) {

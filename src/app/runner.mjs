@@ -40,7 +40,7 @@ const BLOCKING = new Set(["requires", "sequence"]);
 const NEEDS_YOU_STATUSES = new Set(["blocked", "review"]);
 
 // What a conductor does with the buckets, returned with every answer.
-export const RUNNER_RULE =
+const RUNNER_RULE =
   "Start every task in ready. Wait while running is not empty. Ask the user about needsYou. Stop only when every leaf is done.";
 
 const effective = (policy) =>

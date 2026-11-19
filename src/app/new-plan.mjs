@@ -60,7 +60,7 @@ export function pendingNewPlans(store) {
 }
 
 // The planner's brief. Field values sit in one data block, after the rules.
-export function newPlanBrief(request) {
+function newPlanBrief(request) {
   const { name, folder, category, phases, repositories, goal, context } =
     request;
   const data = [
@@ -114,11 +114,7 @@ export function newPlanBrief(request) {
 // What New plan hands Spec Builder as the user's first words. Spec Builder
 // appends it to its own seed prompt. The rules come from the steering file
 // when it is there; otherwise they ride along here.
-export function specBuilderDescription(
-  request,
-  steering,
-  rules = STEERING_TEXT,
-) {
+function specBuilderDescription(request, steering, rules = STEERING_TEXT) {
   const { category, epic, phases, repositories, goal, context } = request;
   const front = [
     category && `category: ${category}`,

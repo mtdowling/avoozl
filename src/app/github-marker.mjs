@@ -12,7 +12,7 @@ import { secretReason } from "./workspace-repository.mjs";
 const BASE32 = "abcdefghijklmnopqrstuvwxyz234567";
 // The issues above tasks: one per cross-plan epic and one per plan. Their
 // marker taskId is `epic.<id>` or `plan.<id>`.
-export const PARENT_KINDS = Object.freeze(["epic", "plan"]);
+const PARENT_KINDS = Object.freeze(["epic", "plan"]);
 // shortcut: a marker of kind "epic" whose taskId does not start with
 // "epic." is an issue projected for a task before Requirement 59, which now
 // reads as a package. A spec folder named "epic" would be misread; rename it.

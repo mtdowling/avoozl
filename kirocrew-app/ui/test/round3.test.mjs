@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import test from 'node:test'
-import { MAX_HIGHLIGHT, highlight, registerLanguages, toGrammar, tokenStyle } from '../src/highlight.ts'
+import { MAX_HIGHLIGHT, highlight, registerLanguages, toGrammar, tokenStyle } from '../src/ui/highlight.ts'
 import { outline } from '../src/markdown.ts'
 import { bulkAction, confirmSettle, liveChats, tabCounts, whyLine } from '../src/conflicts-api.ts'
 import { itemRef } from '../src/chat-api.ts'
@@ -110,7 +110,7 @@ test('a fence in a custom language highlights from its JSON grammar; an unknown 
   // Colors are theme variables and never the warning yellow.
   assert.match(tokenStyle(['keyword']).color, /^var\(--tile-purple/)
   assert.equal(tokenStyle(['comment']).fontStyle, 'italic')
-  assert.doesNotMatch(source('highlight.ts'), /--warn/)
+  assert.doesNotMatch(source('ui/highlight.ts'), /--warn/)
   // The global Prism the grammars need is put back afterwards.
   assert.equal(globalThis.Prism, undefined)
 })

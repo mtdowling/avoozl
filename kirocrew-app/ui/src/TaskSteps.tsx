@@ -5,13 +5,8 @@ import { afterPrevious, clock, type TaskStep } from './task-api.ts'
 import { buildMedian } from './radar-flow-api.ts'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { DOT } from './ui/looks/TaskSteps.ts'
 
-const DOT: Record<TaskStep['state'], { border: string; background: string }> = {
-  done: { border: 'var(--ok)', background: 'var(--ok)' },
-  now: { border: 'var(--accent)', background: 'var(--accent)' },
-  later: { border: 'var(--border)', background: 'transparent' },
-  skipped: { border: 'var(--border)', background: 'transparent' },
-}
 
 function Step({ steps, index }: { steps: TaskStep[]; index: number }) {
   const step = steps[index],

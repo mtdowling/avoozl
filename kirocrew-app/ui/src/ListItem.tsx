@@ -33,9 +33,9 @@ function Value({ fact }: { fact: ListFact }) {
     )
   const text = fact.value ?? ''
   const cell = (
-    <span className={`block min-w-0 ${fact.mono ? 'font-mono' : ''} ${fact.truncate ? 'truncate' : ''}`} style={{ color: 'var(--text)', ...(fact.truncate ? {} : { overflowWrap: 'anywhere' }) }}>
+    <Box as="span" css-color="text" css-overflow-wrap={fact.truncate ? undefined : 'anywhere'} block minW0 fontMono={fact.mono} truncate={fact.truncate}>
       {text}
-    </span>
+    </Box>
   )
   return fact.truncate ? (
     <Tooltip text={text} display="block">

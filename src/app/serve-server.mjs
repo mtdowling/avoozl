@@ -50,7 +50,7 @@ export function contentSecurityPolicy(styles) {
 
 // The built files by URL, listed once at start. A request path is looked up in
 // this table; it is never joined to a folder (SW3.4).
-export function builtFiles(folder) {
+function builtFiles(folder) {
   const files = new Map();
   const walk = (relative) => {
     for (const entry of fs.readdirSync(path.join(folder, relative), {
@@ -83,7 +83,7 @@ export function builtFiles(folder) {
 // no Kiro Crew, each answers in the shape the page reads, empty or refused with
 // "Needs Kiro Crew", never as a failure of the server.
 const NEEDS = (what) => `Needs Kiro Crew: ${what} works only inside Kiro Crew.`;
-export const KIROCREW_ROUTES = new Map([
+const KIROCREW_ROUTES = new Map([
   ["GET /api/models", [200, { models: [], needsKiroCrew: true }]],
   ["GET /api/chat/slots", [200, []]],
   ["GET /api/usage/turns", [200, []]],

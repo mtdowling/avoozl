@@ -158,7 +158,6 @@
     "src/app/test/build-receipt-read.test.mjs": 1219,
     "src/app/test/build-receipt.test.mjs": 1603,
     "src/app/test/build-report.test.mjs": 293,
-    "src/app/test/changes.test.mjs": 690,
     "src/app/test/chat-models.test.mjs": 529,
     "src/app/test/check-runs.test.mjs": 3536,
     "src/app/test/cli-person-only.test.mjs": 2814,

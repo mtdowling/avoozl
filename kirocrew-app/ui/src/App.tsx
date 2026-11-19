@@ -54,6 +54,7 @@ import {
   type WorkspaceList,
 } from './workspace-api'
 import { Box } from './ui/Box'
+import { Glyph } from './ui/Glyph'
 
 function storage(): Storage | null {
   try {
@@ -69,7 +70,7 @@ function NavLabel(props: { view: keyof typeof VIEW_ICONS; text: string; count?: 
   const Icon = VIEW_ICONS[props.view]
   return (
     <Box data-nav-label-row as="span" css-display="flex" css-align-items="center" css-gap="6" css-min-width="0" css-max-width="100%">
-      <Icon size={ICON} aria-hidden="true" style={{ flexShrink: 0 }} />
+      <Glyph icon={Icon} size={ICON} aria-hidden="true" css-flex-shrink="0" />
       <Box data-nav-text as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{props.text}</Box>
       {props.count ? (
         <Box data-nav-count as="span" css-flex-shrink="0" css-display="inline-flex">
@@ -349,25 +350,25 @@ function AvoozlPage() {
           brand={<BrandCard workspaceId={active} />}
         />
       )}
-      <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${phone ? '' : 'pb-2'}`} data-shell-main>
-      <div className={`flex flex-wrap items-center gap-3 pb-2 ${phone ? 'px-4' : 'px-2'}`} data-main-top>
+      <Box flex minH0 minW0 flex1 flexCol pb={phone ? undefined : '2'} data-shell-main>
+      <Box flex flexWrap items="center" gap="3" pb="2" px={phone ? '4' : '2'} data-main-top>
         {/* The workspace is the pill at the top of the nav (Radar's switcher). */}
         <Box as="span" flex1 />
         {/* On a desktop, Refresh as a small icon. A phone keeps it in its menu. */}
         <Box as="span" flex items="stretch" gap="1.5" data-main-actions>
           {!phone && <PageRefreshIcon />}
         </Box>
-      </div>
+      </Box>
       <DemoBar />
       {!ownBanner && !needsWorkspace && stops.length > 0 && (
-        <div className={`pb-2 ${phone ? 'px-4' : 'px-2'}`} data-shell-line-banner>
+        <Box pb="2" px={phone ? '4' : '2'} data-shell-line-banner>
           <LineBanner stops={stops} workspaceId={active} />
-        </div>
+        </Box>
       )}
       {error && (
-        <p role="alert" className={`pb-2 text-sm text-danger ${phone ? 'px-4' : 'px-2'}`}>
+        <Box role="alert" as="p" pb="2" size="sm" tone="danger" px={phone ? '4' : '2'}>
           {error}
-        </p>
+        </Box>
       )}
       <div
         ref={(element) => {
@@ -455,7 +456,7 @@ function AvoozlPage() {
           />
         )}
       </div>
-      </div>
+      </Box>
       </div>
     </Box>
     </TaskDrawerProvider>

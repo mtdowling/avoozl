@@ -55,7 +55,7 @@ const SPEC = /^[a-z0-9][a-z0-9-]{0,79}$/;
 // runs them on the task tick.
 export const HOLDS_TASKS = (config) => config?.role === "worker";
 const TERMINAL = new Set(["pushed", "failed"]);
-export const REMOTE_AGENTS = ["kirocrew-worker"];
+const REMOTE_AGENTS = ["kirocrew-worker"];
 
 const executorOf = (value) => {
   if (value === undefined || value === "kirocrew") return "kirocrew";
