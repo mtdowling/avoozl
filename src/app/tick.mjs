@@ -866,23 +866,21 @@ async function runTick(
               plansOf(store, verified),
             ),
             readOnly = readOnlyPlanIds(store);
-          planned.notify.push(
-            ...(
-              await integrateVerified(store, {
-                policy: delivery,
-                skip: new Set(
-                  store
-                    .read()
-                    .tasks.filter(
-                      (t) =>
-                        t.planId &&
-                        (readOnly.has(t.planId) || lost.has(t.planId)),
-                    )
-                    .map((t) => t.id),
-                ),
-              })
-            ).notify,
-          );
+          const integrated = await integrateVerified(store, {
+            policy: delivery,
+            skip: new Set(
+              store
+                .read()
+                .tasks.filter(
+                  (t) =>
+                    t.planId && (readOnly.has(t.planId) || lost.has(t.planId)),
+                )
+                .map((t) => t.id),
+            ),
+          });
+          planned.notify.push(...integrated.notify);
+          // A conflict at integration goes back to the worker chat.
+          planned.messages.push(...(integrated.messages ?? []));
           // `pr` projects land through pull requests (task 42.6).
           const landed = await landPullRequests(store, {
             github,

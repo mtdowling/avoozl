@@ -418,7 +418,6 @@
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-archive.test.mjs",
    "src/app/test/task-dedup.test.mjs",
    "src/app/test/task-files.test.mjs",
@@ -473,8 +472,7 @@
    "src/app/test/demo.test.mjs",
    "src/app/test/mcp-tools.test.mjs",
    "src/app/test/plan-review-summary.test.mjs",
-   "src/app/test/spec-pull-requests-ops.test.mjs",
-   "src/app/test/workspace.test.mjs"
+   "src/app/test/spec-pull-requests-ops.test.mjs"
   ],
   "src/app/approval-delegation.mjs": [
    "src/app/test/approval-batches.test.mjs",
@@ -656,12 +654,10 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-steps.test.mjs",
    "src/app/test/task-summary.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/build-receipt.mjs": [
@@ -854,7 +850,6 @@
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/ui-bundle.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-claims.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/worker-mode.test.mjs",
@@ -1075,7 +1070,6 @@
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/ui-bundle.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-brief-boundary.test.mjs",
    "src/app/test/worker-claims.test.mjs",
    "src/app/test/worker-findings.test.mjs",
@@ -1117,7 +1111,6 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
    "src/app/test/verify.test.mjs",
    "src/app/test/worker-claims.test.mjs",
@@ -1672,7 +1665,6 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/crew-label-backfill.mjs": [
@@ -1792,12 +1784,10 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-steps.test.mjs",
    "src/app/test/task-summary.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-brief-boundary.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
@@ -2026,7 +2016,6 @@
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-archive.test.mjs",
    "src/app/test/task-dedup.test.mjs",
    "src/app/test/task-files.test.mjs",
@@ -2046,7 +2035,6 @@
    "src/app/test/worker-brief-boundary.test.mjs",
    "src/app/test/worker-briefs.test.mjs",
    "src/app/test/worker-findings.test.mjs",
-   "src/app/test/worker-mode.test.mjs",
    "src/app/test/workflow.test.mjs",
    "src/app/test/workspace-repositories.test.mjs",
    "src/app/test/workspace-repository.test.mjs",
@@ -2113,7 +2101,6 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/driver-generations.mjs": [
@@ -2203,10 +2190,8 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/driver.mjs": [
@@ -2313,14 +2298,12 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-notes.test.mjs",
    "src/app/test/task-steps.test.mjs",
    "src/app/test/task-summary.test.mjs",
    "src/app/test/tick-activity.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workspace.test.mjs"
   ],
@@ -2448,7 +2431,6 @@
    "src/app/test/tracker-gate-node.test.mjs",
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/tracker-gate-view.test.mjs",
-   "src/app/test/verify-integrate.test.mjs",
    "src/app/test/work-model.test.mjs",
    "src/app/test/workflow.test.mjs",
    "src/app/test/workspace-repository.test.mjs",
@@ -2492,7 +2474,6 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-brief-boundary.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
@@ -2511,7 +2492,6 @@
    "src/app/test/process-roles.test.mjs",
    "src/app/test/session-open.test.mjs",
    "src/app/test/session-send.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/executors/kirocrew.mjs": [
@@ -2652,7 +2632,6 @@
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/supervisor.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-summary.test.mjs",
@@ -2662,7 +2641,6 @@
    "src/app/test/verify-integrate.test.mjs",
    "src/app/test/verify.test.mjs",
    "src/app/test/worker-brief-boundary.test.mjs",
-   "src/app/test/worker-claims.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/worker-mode.test.mjs"
   ],
@@ -2670,6 +2648,7 @@
    "src/app/test/role-prompts.test.mjs"
   ],
   "src/app/executors/process.mjs": [
+   "src/app/test/github-planner.test.mjs",
    "src/app/test/needs-kirocrew.test.mjs",
    "src/app/test/new-plan.test.mjs",
    "src/app/test/notification-sinks.test.mjs",
@@ -2684,9 +2663,7 @@
    "src/app/test/role-table.test.mjs",
    "src/app/test/session-open.test.mjs",
    "src/app/test/session-send.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
-   "src/app/test/worker-findings.test.mjs",
-   "src/app/test/worker-mode.test.mjs"
+   "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/flow-batch.mjs": [
    "src/app/test/check-runs.test.mjs",
@@ -2738,7 +2715,6 @@
    "src/app/test/task-steps.test.mjs",
    "src/app/test/task-summary.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-brief-boundary.test.mjs",
    "src/app/test/worker-briefs.test.mjs",
    "src/app/test/worker-findings.test.mjs"
@@ -2852,10 +2828,8 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/flow-github.mjs": [
@@ -2908,7 +2882,6 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/flow-retro.mjs": [
@@ -2970,10 +2943,8 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/flow-usage.mjs": [
@@ -3331,10 +3302,8 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/forward-epics.mjs": [
@@ -3675,7 +3644,6 @@
   ],
   "src/app/gate-clear.mjs": [
    "src/app/test/check-runs.test.mjs",
-   "src/app/test/cli-smoke.test.mjs",
    "src/app/test/delivery.test.mjs",
    "src/app/test/demo-radar.test.mjs",
    "src/app/test/demo.test.mjs",
@@ -3745,14 +3713,11 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/tracker-gate-clear.test.mjs",
-   "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/gate-label.mjs": [
    "src/app/test/check-runs.test.mjs",
-   "src/app/test/cli-smoke.test.mjs",
    "src/app/test/delivery.test.mjs",
    "src/app/test/demo.test.mjs",
    "src/app/test/executor-requests.test.mjs",
@@ -3800,13 +3765,11 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/tracker-gate-clear.test.mjs",
    "src/app/test/tracker-gate-label.test.mjs",
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/gate-step.mjs": [
@@ -3841,15 +3804,12 @@
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/gate-view.mjs": [
-   "src/app/test/cli-smoke.test.mjs",
    "src/app/test/demo.test.mjs",
    "src/app/test/home-no-wait.test.mjs",
-   "src/app/test/mcp-tools.test.mjs",
-   "src/app/test/tracker-gate-view.test.mjs"
+   "src/app/test/mcp-tools.test.mjs"
   ],
   "src/app/gateway-client.mjs": [
    "src/app/test/command-dispatch.test.mjs",
@@ -3967,7 +3927,6 @@
    "src/app/test/spec-rebuild.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/supervisor.test.mjs",
    "src/app/test/task-files.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
@@ -4089,11 +4048,9 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/tracker-gate-clear.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/github-completion.mjs": [
@@ -4155,7 +4112,6 @@
    "src/app/test/task-steps.test.mjs",
    "src/app/test/task-summary.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/github-intake.mjs": [
@@ -4259,7 +4215,6 @@
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workspace-repositories.test.mjs"
   ],
@@ -4308,10 +4263,8 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/github-marker.mjs": [
@@ -4423,7 +4376,6 @@
    "src/app/test/task-notes.test.mjs",
    "src/app/test/ui-bundle.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workspace-status.test.mjs",
    "src/app/test/workspace.test.mjs"
@@ -4673,10 +4625,8 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/github-plans-repo.mjs": [
@@ -5121,7 +5071,6 @@
    "src/app/test/tracker-gate-node.test.mjs",
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workspace.test.mjs"
   ],
@@ -5186,11 +5135,9 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/tracker-gate-node.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/github-rate.mjs": [
@@ -5486,11 +5433,9 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/tick-activity.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/github-rebuild.mjs": [
@@ -5550,10 +5495,8 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/github-reviews.mjs": [
@@ -5567,7 +5510,6 @@
   ],
   "src/app/github-sources.mjs": [
    "src/app/test/check-runs.test.mjs",
-   "src/app/test/cli-smoke.test.mjs",
    "src/app/test/config-schema.test.mjs",
    "src/app/test/delivery.test.mjs",
    "src/app/test/demo.test.mjs",
@@ -5633,10 +5575,8 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workspace-repositories.test.mjs"
   ],
@@ -5686,10 +5626,8 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/github-sync.mjs": [
@@ -6071,8 +6009,7 @@
   "src/app/headless-tick.mjs": [
    "src/app/test/needs-kirocrew.test.mjs",
    "src/app/test/notification-commands.test.mjs",
-   "src/app/test/notification-sinks.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs"
+   "src/app/test/notification-sinks.test.mjs"
   ],
   "src/app/highlight-languages.mjs": [
    "src/app/test/demo.test.mjs",
@@ -6337,10 +6274,8 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/instance.mjs": [
@@ -6476,11 +6411,9 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/untriaged.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-brief-boundary.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
@@ -6768,7 +6701,6 @@
    "src/app/test/task-summary.test.mjs",
    "src/app/test/tick-activity.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-brief-boundary.test.mjs",
    "src/app/test/worker-briefs.test.mjs",
    "src/app/test/worker-findings.test.mjs"
@@ -6837,10 +6769,8 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/issue-match.mjs": [
@@ -7062,7 +6992,6 @@
    "src/app/test/ui-bundle.test.mjs",
    "src/app/test/untriaged.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-claims.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/worker-mode.test.mjs",
@@ -7074,7 +7003,8 @@
   "src/app/landing-conflicts.mjs": [
    "src/app/test/direct-landing.test.mjs",
    "src/app/test/landing-conflicts.test.mjs",
-   "src/app/test/pr-landing.test.mjs"
+   "src/app/test/pr-landing.test.mjs",
+   "src/app/test/proof-p45.test.mjs"
   ],
   "src/app/landing-pulls.mjs": [
    "src/app/test/landing-pulls.test.mjs",
@@ -7115,7 +7045,8 @@
    "src/app/test/landing-queue.test.mjs",
    "src/app/test/landing-view.test.mjs",
    "src/app/test/merge-batch.test.mjs",
-   "src/app/test/pr-landing.test.mjs"
+   "src/app/test/pr-landing.test.mjs",
+   "src/app/test/proof-p45.test.mjs"
   ],
   "src/app/landing-view.mjs": [
    "src/app/test/demo.test.mjs",
@@ -7312,7 +7243,6 @@
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/ui-bundle.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-claims.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/worker-mode.test.mjs",
@@ -7572,7 +7502,6 @@
    "src/app/test/machine-status.test.mjs",
    "src/app/test/notification-sinks.test.mjs",
    "src/app/test/serve-supervisor.test.mjs",
-   "src/app/test/serve.test.mjs",
    "src/app/test/workspace-status.test.mjs"
   ],
   "src/app/manual-claim.mjs": [
@@ -7832,7 +7761,6 @@
    "src/app/test/review-finding-actions.test.mjs",
    "src/app/test/single-write-path-servers.test.mjs",
    "src/app/test/task-dedup.test.mjs",
-   "src/app/test/task-files.test.mjs",
    "src/app/test/task-notes.test.mjs"
   ],
   "src/app/mcp-views.mjs": [
@@ -8193,10 +8121,8 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/mirror-forward-git.mjs": [
@@ -8255,10 +8181,8 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/mirror-forward-run.mjs": [
@@ -8311,10 +8235,8 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/mirror-forward.mjs": [
@@ -8387,10 +8309,8 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/mirror-policy.mjs": [
@@ -8569,10 +8489,8 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/moved-operations.mjs": [
@@ -9110,10 +9028,8 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/notification-sinks.mjs": [
@@ -9299,7 +9215,6 @@
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/ui-bundle.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-claims.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/worker-mode.test.mjs",
@@ -9420,7 +9335,6 @@
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-notes.test.mjs",
    "src/app/test/tracker-gate-clear.test.mjs",
@@ -9431,7 +9345,6 @@
    "src/app/test/ui-bundle.test.mjs",
    "src/app/test/untriaged.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-claims.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/worker-mode.test.mjs",
@@ -9540,7 +9453,6 @@
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
    "src/app/test/task-dedup.test.mjs",
-   "src/app/test/task-files.test.mjs",
    "src/app/test/task-notes.test.mjs",
    "src/app/test/task-summary.test.mjs",
    "src/app/test/tracker-gate-clear.test.mjs",
@@ -9795,7 +9707,6 @@
    "src/app/test/single-write-path-servers.test.mjs",
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-notes.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workflow.test.mjs",
@@ -10030,11 +9941,9 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-archive.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/plan-review-answers.mjs": [
@@ -10232,10 +10141,8 @@
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/plan-review-summary.mjs": [
@@ -10307,8 +10214,7 @@
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/work-model.test.mjs",
    "src/app/test/workflow.test.mjs",
-   "src/app/test/workspace-repository.test.mjs",
-   "src/app/test/workspace.test.mjs"
+   "src/app/test/workspace-repository.test.mjs"
   ],
   "src/app/plan-review-tools.mjs": [
    "src/app/test/demo.test.mjs",
@@ -10412,7 +10318,6 @@
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-notes.test.mjs",
    "src/app/test/tracker-gate-clear.test.mjs",
@@ -10421,7 +10326,6 @@
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workspace.test.mjs"
   ],
@@ -10497,10 +10401,8 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/plans-facts.mjs": [
@@ -10713,7 +10615,6 @@
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workspace.test.mjs"
   ],
@@ -10966,7 +10867,6 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/pr-review.mjs": [
@@ -11024,10 +10924,8 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/privacy.mjs": [
@@ -11116,10 +11014,8 @@
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-brief-boundary.test.mjs",
    "src/app/test/worker-claims.test.mjs",
-   "src/app/test/worker-findings.test.mjs",
    "src/app/test/worker-mode.test.mjs",
    "src/app/test/worker-offers.test.mjs",
    "src/app/test/worker-release.test.mjs",
@@ -11148,6 +11044,7 @@
    "src/app/test/page-round3.test.mjs",
    "src/app/test/page-views.test.mjs",
    "src/app/test/plan-review-step.test.mjs",
+   "src/app/test/process-executor.test.mjs",
    "src/app/test/process-reply-summary.test.mjs",
    "src/app/test/process-view.test.mjs",
    "src/app/test/proof-p27.test.mjs",
@@ -11332,7 +11229,6 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/switch-dry-run.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-steps.test.mjs",
@@ -11340,7 +11236,6 @@
    "src/app/test/tick-activity.test.mjs",
    "src/app/test/ui-bundle.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-brief-boundary.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workspace-repositories.test.mjs"
@@ -11415,10 +11310,8 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/public-signoff.mjs": [
@@ -11619,10 +11512,8 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/radar-crews.mjs": [
@@ -11730,11 +11621,9 @@
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/untriaged.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/radar-retro-rules.mjs": [
@@ -11917,7 +11806,6 @@
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/untriaged.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workspace.test.mjs"
   ],
@@ -11981,10 +11869,8 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-claims.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/worker-mode.test.mjs"
@@ -12047,10 +11933,8 @@
    "src/app/test/spec-homes.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/report-command.mjs": [
@@ -12116,10 +12000,8 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-briefs.test.mjs",
    "src/app/test/worker-claims.test.mjs",
    "src/app/test/worker-findings.test.mjs",
@@ -12131,6 +12013,7 @@
    "src/app/test/falsifier-title.test.mjs",
    "src/app/test/flow-batch.test.mjs",
    "src/app/test/flow-full-stop.test.mjs",
+   "src/app/test/github-planner.test.mjs",
    "src/app/test/kirocrew-pin.test.mjs",
    "src/app/test/kirocrew-runner.test.mjs",
    "src/app/test/manual-claim.test.mjs",
@@ -12159,7 +12042,6 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/repository-roles.mjs": [
@@ -12330,7 +12212,6 @@
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-dedup.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-notes.test.mjs",
@@ -12341,7 +12222,6 @@
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/untriaged.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/work-model.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workflow.test.mjs",
@@ -12389,7 +12269,6 @@
    "src/app/test/supersede-accept.test.mjs",
    "src/app/test/task-archive.test.mjs",
    "src/app/test/task-notes.test.mjs",
-   "src/app/test/verify-integrate.test.mjs",
    "src/app/test/workspace-repositories.test.mjs"
   ],
   "src/app/repository-setup.mjs": [
@@ -12495,7 +12374,6 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-notes.test.mjs",
    "src/app/test/task-summary.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
@@ -12510,7 +12388,6 @@
   ],
   "src/app/review-draft.mjs": [
    "src/app/test/check-runs.test.mjs",
-   "src/app/test/cli-smoke.test.mjs",
    "src/app/test/delivery.test.mjs",
    "src/app/test/demo-radar.test.mjs",
    "src/app/test/demo.test.mjs",
@@ -12575,10 +12452,8 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/review-findings.mjs": [
@@ -12955,7 +12830,6 @@
    "src/app/test/tracker-gate-node.test.mjs",
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workflow.test.mjs",
    "src/app/test/workspace.test.mjs"
@@ -13238,7 +13112,6 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/switch-dry-run.test.mjs",
    "src/app/test/task-dedup.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
@@ -13346,11 +13219,9 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-summary.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-claims.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/worker-mode.test.mjs"
@@ -14219,11 +14090,9 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/tracker-gate-node.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/spec-steering.mjs": [
@@ -14572,7 +14441,6 @@
    "src/app/test/serve-supervisor.test.mjs",
    "src/app/test/session-open.test.mjs",
    "src/app/test/session-send.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/supervisor.test.mjs",
    "src/app/test/worker-briefs.test.mjs",
    "src/app/test/worker-findings.test.mjs",
@@ -14670,13 +14538,11 @@
    "src/app/test/single-write-path.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/tick-activity.test.mjs",
    "src/app/test/tracker-gate-node.test.mjs",
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/task-notes.mjs": [
@@ -14744,11 +14610,9 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-notes.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/task-outcomes.mjs": [
@@ -14819,12 +14683,10 @@
    "src/app/test/single-repo-delivery.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-steps.test.mjs",
    "src/app/test/task-summary.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/templates.mjs": [
@@ -14912,13 +14774,11 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-steps.test.mjs",
    "src/app/test/task-summary.test.mjs",
    "src/app/test/tick-activity.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/tick.mjs": [
@@ -15004,13 +14864,11 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-dedup.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/tick-activity.test.mjs",
    "src/app/test/tracker-gate-node.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/work-model.test.mjs",
    "src/app/test/worker-brief-boundary.test.mjs",
    "src/app/test/worker-findings.test.mjs",
@@ -15045,7 +14903,6 @@
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/ui-bundle.mjs": [
@@ -15120,11 +14977,9 @@
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/untriaged.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs"
   ],
   "src/app/verify.mjs": [
@@ -15142,7 +14997,6 @@
    "src/app/test/routes.test.mjs",
    "src/app/test/verify.test.mjs",
    "src/app/test/worker-claims.test.mjs",
-   "src/app/test/worker-findings.test.mjs",
    "src/app/test/worker-results.test.mjs"
   ],
   "src/app/views.mjs": [
@@ -15445,7 +15299,6 @@
    "src/app/test/proof-p32.test.mjs",
    "src/app/test/proof-p40.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/worker-release.test.mjs"
   ],
@@ -15569,13 +15422,11 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/stock-kirocrew.test.mjs",
-   "src/app/test/supervisor-unit.test.mjs",
    "src/app/test/task-dedup.test.mjs",
    "src/app/test/task-issue-retirement.test.mjs",
    "src/app/test/task-steps.test.mjs",
    "src/app/test/task-summary.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workflow.test.mjs",
    "src/app/test/workspace-repositories.test.mjs",
@@ -15739,7 +15590,6 @@
    "src/app/test/tracker-gate-node.test.mjs",
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/work-model.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workflow.test.mjs",
@@ -16519,7 +16369,6 @@
    "src/app/test/tracker-gate-node.test.mjs",
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/work-model.test.mjs",
    "src/app/test/worker-findings.test.mjs",
    "src/app/test/workflow.test.mjs",
@@ -16676,7 +16525,6 @@
    "src/app/test/tracker-gate-step.test.mjs",
    "src/app/test/tracker-gate-view.test.mjs",
    "src/app/test/verify-integrate.test.mjs",
-   "src/app/test/verify.test.mjs",
    "src/app/test/work-model.test.mjs",
    "src/app/test/worker-commit.test.mjs",
    "src/app/test/worker-findings.test.mjs",
