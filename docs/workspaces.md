@@ -85,6 +85,14 @@ browser notices about new **Needs you** items, off until you turn it on.
 The app backend inside Kiro Crew also binds `127.0.0.1`, and it accepts only
 requests the Kiro Crew gateway signed. Do not expose either one.
 
+`npm run build` builds the standalone page into
+`kirocrew-app/ui/dist/standalone/` from Kiro Crew's own source at a pinned
+release: v0.12.2 (`kirocrew-app/ui/kirocrew-pin.json`), the same release as
+the Kiro Crew version this app asks for. The build fetches that source into a
+cache outside git, checks its digest, and edits none of it. The standalone
+page and the page inside Kiro Crew match when the installed Kiro Crew is the
+pinned release.
+
 ## Backup
 
 ```sh
