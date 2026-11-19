@@ -215,7 +215,12 @@ export function sandboxProfile({
   writable = [],
   network,
 }) {
-  const lines = ["(version 1)", "(allow default)", "(deny network*)"];
+  // `on` (a repository check's network setting) leaves the network open.
+  const lines = [
+    "(version 1)",
+    "(allow default)",
+    ...(network.mode === "on" ? [] : ["(deny network*)"]),
+  ];
   for (const port of network.ports)
     lines.push(`(allow network-outbound (remote ip "localhost:${port}"))`);
   if (writeRoots) {
@@ -246,7 +251,7 @@ export function sandboxProfile({
 }
 
 function bwrapArgs({ writeRoots, secrets, readable, writable, network }) {
-  if (network.mode !== "off")
+  if (network.mode === "restricted")
     fail(
       "On Linux the sandbox turns the network off; a list of loopback ports is not supported yet.",
     );
@@ -260,7 +265,7 @@ function bwrapArgs({ writeRoots, secrets, readable, writable, network }) {
     "/dev",
     "--proc",
     "/proc",
-    "--unshare-net",
+    ...(network.mode === "on" ? [] : ["--unshare-net"]),
   ];
   if (!writeRoots)
     fail(

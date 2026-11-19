@@ -86,6 +86,7 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryList, repositoryRows, useRe
 import { EditRepository, ViewRepository, type EditSettings } from './RepositoryModals.tsx'
 import type { EditTab } from './repo-edit-tabs.ts'
 import { FormSection } from './FormSection.tsx'
+import IsolationPanel from './IsolationPanel.tsx'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
@@ -1217,9 +1218,26 @@ function RepositoriesTab(props: {
     }
     setMessage({ ok: true, text: `Added ${id}.` })
   }
-  // The repository's own settings, inside its Edit dialog, on its open tab:
-  // the editor, or what a local or settings-less repository has instead.
+  // The repository's own settings, inside its Edit dialog, on its open tab,
+  // with the Isolation panel under Landing for a registered checkout.
   const settingsFor = (
+    row: RepositoryRow,
+    view: { entry: RepositoryForm | null; setEntry: (entry: RepositoryForm) => void; tab: EditTab; setTab: (tab: EditTab) => void },
+  ): EditSettings => {
+    const own = repositorySettings(row, view)
+    if (view.tab !== 'landing' || !row.checkout) return own
+    return {
+      ...own,
+      body: (
+        <>
+          {own.body}
+          <IsolationPanel key={row.checkout.id} workspaceId={props.workspaceId} projectId={row.checkout.id} value={row.checkout.isolation} />
+        </>
+      ),
+    }
+  }
+  // The editor, or what a local or settings-less repository has instead.
+  const repositorySettings = (
     row: RepositoryRow,
     view: { entry: RepositoryForm | null; setEntry: (entry: RepositoryForm) => void; tab: EditTab; setTab: (tab: EditTab) => void },
   ): EditSettings => {
@@ -1265,8 +1283,8 @@ function RepositoriesTab(props: {
       body: tab === 'landing' && (
         <FormSection title="Checks" blurb="A local-only repository: no GitHub remote, so the GitHub settings do not apply.">
           <Box as="p" size="sm" data-local-checks>
-            Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from its facts in tasks.md, or this repository&apos;s checks when a
-            task names none.
+            Required checks apply only to GitHub pull requests. Here Avoozl runs this repository&apos;s checks for every task; a check with paths runs only when a change touches
+            them.
           </Box>
         </FormSection>
       ),
@@ -1408,7 +1426,7 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
             </dd>
           </Box>
           <Box as="p" size="sm" data-local-checks>
-            Avoozl runs each task&apos;s own checks from its facts in tasks.md, or this repository&apos;s checks when a task names none.
+            Avoozl runs this repository&apos;s checks for every task; a check with paths runs only when a change touches them.
           </Box>
         </FormSection>
         <ReviewRoles review={props.review} repository={row.github ?? row.name} />

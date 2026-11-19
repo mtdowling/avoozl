@@ -628,6 +628,43 @@ folders) plus the names a project lists in `checksEnv`:
 Push and GitHub credentials (`GH_TOKEN`, `GITHUB_TOKEN`, `SSH_AUTH_SOCK`
 and the like) never reach a check, even when listed.
 
+Every check runs in the repository's `isolation`:
+
+```json
+{
+  "projects": {
+    "code": {
+      "isolation": {
+        "run": "sandbox",
+        "network": "off",
+        "writable": ["/var/cache/code-build"],
+        "prepare": ["npm", "ci"]
+      }
+    }
+  }
+}
+```
+
+- `sandbox` (the default): the process sandbox. A check writes only its
+  folder, its own temp folder, a per-repository cache folder and
+  `writable`; it reads no credential or Avoozl state folder, plus
+  `readable` where those would hide a file it needs.
+- `container`: `docker` or `podman` runs `image` with the folder mounted
+  at the same path, `--network none` unless the network is on, the same
+  environment allowlist, and no home folder.
+- `unconfined`: no isolation. Only with this machine's opt-in,
+  `"checks": true` in `harness-unconfined.json` in Avoozl's config
+  folder. A machine with no sandbox runs a `sandbox` check unconfined too.
+
+`network` is `off` unless set `on`. `prepare` runs once per worktree and
+commit before the checks, outside isolation, with the environment
+allowlist; when it fails, no check runs. Each check record names its
+isolation, and the Landing page and the task's timeline show "not
+sandboxed" for one that ran unconfined. Only a person sets `isolation`.
+
+Example only: Nupp's checks drive its Linux and Windows VMs, so it would
+use `{ "run": "sandbox", "network": "on" }`.
+
 ### Person-only is not a wall against code running as you
 
 Person-only operations (approve a plan, change plugins, read content-rule

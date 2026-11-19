@@ -115,6 +115,7 @@ export async function runChecksAt(
       timeoutFor: timeoutFor || (() => timeoutMs),
       run,
       env: project.checksEnv,
+      project,
     });
     return { head, checks: results };
   } finally {
@@ -244,6 +245,7 @@ async function runOne(store, project, record, options) {
               timeoutFor,
               run: options.run,
               env: project.checksEnv,
+              project,
             }),
           }
         : await runChecksAt(project, record.commit, argvs, {

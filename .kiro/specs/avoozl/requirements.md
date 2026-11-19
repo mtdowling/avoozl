@@ -5711,3 +5711,45 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
 11. Tests SHALL cover: each key and each refusal in 5, the leftover manifest,
     default and package rules, an epic folder, a batch group, the hash in 6,
     proposed work writing a `Facts:` bullet, and the planner text.
+
+### Requirement 112: A repository's checks run in its isolation
+
+Added 2026-11-18 (owner decision). Design §5.2. Changes Requirements 7.1
+and 86.7: a check no longer runs as the person with nothing between it and
+the machine.
+
+**User story:** As the owner, I want every check Avoozl runs to run in a
+sandbox or a container with the network off by default, so that a worker's
+commit cannot read my credentials or reach the network through its checks.
+
+#### Acceptance criteria
+
+1. A project SHALL have one `isolation` setting, `{run, image, network,
+   readable, writable, prepare}`, kept in its project settings. `run` SHALL
+   be `sandbox` (the default), `container` or `unconfined`; `network` SHALL
+   be `off` (the default) or `on`; `image` SHALL be required with
+   `container`; `readable` and `writable` SHALL be absolute paths; `prepare`
+   SHALL be command arguments. Only a person SHALL set it, with
+   `project.configure` or Settings › Repository setup › Landing.
+2. With `sandbox`, every check (Avoozl's own check runs, integration's and
+   landing's candidate runs) SHALL run in the process sandbox, writing only
+   the check's folder, its own temp folder, a per-repository cache folder
+   outside every secret path, and `writable`; reading no secret path; with
+   the network as set; and with only the checks' environment allowlist
+   (Requirement 7.1).
+3. With `container`, a check SHALL run in `docker` or `podman`, whichever
+   is installed, with the folder mounted at the same path, `--network none`
+   unless the network is on, the same environment allowlist, and no home
+   folder mounted.
+4. `unconfined` SHALL be accepted only with the machine's opt-in. A machine
+   with no sandbox SHALL run a `sandbox` check unconfined. Either way the
+   check's record SHALL say `isolation: "unconfined"`, and the Landing page
+   and the task's timeline SHALL show "not sandboxed".
+5. `prepare` SHALL run once per worktree and commit before its checks,
+   outside isolation, with the environment allowlist. A failed prepare SHALL
+   run no check and SHALL say why.
+6. Every check record SHALL name the isolation it ran under.
+7. Tests SHALL show that, in a sandboxed check, a TCP connection to a public
+   host fails with the network off, a write outside the roots fails, and
+   `GH_TOKEN` is absent; container tests SHALL be skipped, saying so, where
+   no runtime is installed.

@@ -33,6 +33,12 @@ if (fs.existsSync("broken")) { console.error("assertion failed: broken"); proces
       }),
     }),
     counter = path.join(root, "flaky-count");
+  // The check keeps its flaky counter beside the checkout: a sandboxed
+  // check may write there only when the repository lists it.
+  store.put("projects", {
+    ...store.get("projects", "app"),
+    isolation: { writable: [root] },
+  });
   // Land a commit on main as if Avoozl integrated task `id`.
   const land = (id, file, text = id || file) => {
     if (text === false) fs.rmSync(path.join(checkout, file));
