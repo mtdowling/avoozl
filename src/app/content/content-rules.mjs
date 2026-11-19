@@ -67,7 +67,7 @@ export const sha256 = (text) =>
     .digest("hex");
 
 // Public rules for text that will be published: secrets and machine paths.
-// The release scan (scripts/release-scan.mjs) and the Onboard flow's leak
+// The release scan (scripts/check/release-scan.mjs) and the Onboard flow's leak
 // scan of a public repository's specs share them. Private names are never
 // written here; they come from a terms file.
 export const PUBLISH_RULES = Object.freeze(

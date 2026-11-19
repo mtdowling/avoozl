@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Runs the node tests and the page tests. With no flag, every test runs
-// (`npm test`). `--changed [--base REV]` runs only what scripts/select-tests.mjs
+// (`npm test`). `--changed [--base REV]` runs only what scripts/test/select-tests.mjs
 // picks (`npm run test:changed`). `--ui` also runs the page tests after the
 // node tests; `npm test` leaves them to `npm run test:ui`.
 //
-// CI narrows the list further (scripts/test-plan.mjs):
+// CI narrows the list further (scripts/test/test-plan.mjs):
 //   --system S --shard K/N   slice K of N of what system S runs (linux,
 //                            macos or windows), balanced by measured time
 //   --system linux --chrome-only   only the page tests that drive Chrome
@@ -14,7 +14,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { machineAvoozlPaths } from "../src/app/settings/host-config.mjs";
+import { machineAvoozlPaths } from "../../src/app/settings/host-config.mjs";
 import { changedFiles, select } from "./select-tests.mjs";
 import { allTestFiles, planFor, shardOf } from "./test-plan.mjs";
 
@@ -48,7 +48,7 @@ if (!process.env.CI && !process.env.GIT_CONFIG_GLOBAL) {
 }
 // No test reads or writes the person's real Avoozl config or state. Every
 // test process gets temporary XDG folders and no KIROCREW_HOME, and
-// scripts/test-guard.mjs makes a write under a real folder throw.
+// scripts/test/test-guard.mjs makes a write under a real folder throw.
 const home = os.homedir(),
   real = machineAvoozlPaths(),
   guard = [

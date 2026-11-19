@@ -7,7 +7,7 @@ import {
   osSensitive,
   planFor,
   shardOf,
-} from "../../../scripts/test-plan.mjs";
+} from "../../../scripts/test/test-plan.mjs";
 
 const all = allTestFiles();
 const sel = { node: all.node, uiFiles: all.ui };
@@ -27,7 +27,9 @@ test("a file not on the reviewed OS-neutral list counts as OS-sensitive", () => 
     "src/app/test/brand-new.test.mjs",
   ]);
   const { osNeutral } = JSON.parse(
-    fs.readFileSync(new URL("../../../scripts/test-map.json", import.meta.url)),
+    fs.readFileSync(
+      new URL("../../../scripts/test/test-map.json", import.meta.url),
+    ),
   );
   assert.ok(osNeutral.length > 0);
   assert.deepEqual(osSensitive(osNeutral), []);

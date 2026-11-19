@@ -13,7 +13,7 @@ import {
   readSpecFolder,
   specFacts,
 } from "../specs/spec-plans.mjs";
-import { RULES, scanText } from "../../../scripts/release-scan.mjs";
+import { RULES, scanText } from "../../../scripts/check/release-scan.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 // The statement in use, from its one source; the templates repeat it.
 import { SCOPE_STATEMENT as SCOPE } from "../../work-split.mjs";

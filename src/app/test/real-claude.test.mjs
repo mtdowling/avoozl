@@ -7,7 +7,7 @@ import {
   REAL_CLAUDE_BYTES,
   claudeBinaries,
   realClaude,
-} from "../../../scripts/real-claude.mjs";
+} from "../../../scripts/proofs/real-claude.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 // A sparse file of the given size: it takes no disk.

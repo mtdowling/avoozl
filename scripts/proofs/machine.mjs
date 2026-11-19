@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { claudeBinaries } from "../real-claude.mjs";
+import { claudeBinaries } from "./real-claude.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -66,7 +66,7 @@ export async function stopMachine({ root, backend, proxy, stateDirectory }) {
 // The command line every headless proof takes, and the paths under --root.
 // `prefix` names its environment overrides (NKP1_CLAUDE, NKP1_MODEL, ...).
 export function proofRun({ tag, prefix, script, proxyPort }) {
-  const repo = path.resolve(path.dirname(script), "..");
+  const repo = path.resolve(path.dirname(script), "..", "..");
   const { values, positionals } = parseArgs({
     args: process.argv.slice(2),
     allowPositionals: true,
@@ -78,7 +78,7 @@ export function proofRun({ tag, prefix, script, proxyPort }) {
   });
   if (!values.root) {
     console.error(
-      `Usage: node scripts/${path.basename(script)} --root DIR [--agent claude|fake]`,
+      `Usage: node scripts/proofs/${path.basename(script)} --root DIR [--agent claude|fake]`,
     );
     process.exit(64);
   }
@@ -369,7 +369,7 @@ export async function startMachine(run, script, seconds, preflight = null) {
     proxy = spawn(
       process.execPath,
       [
-        path.join(run.repo, "scripts", "live-proofs", "p57-model-proxy.mjs"),
+        path.join(run.repo, "scripts", "proofs", "p57-model-proxy.mjs"),
         String(run.proxyPort),
         run.paths.proxyLog,
       ],

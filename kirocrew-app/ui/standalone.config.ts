@@ -1,6 +1,6 @@
 // The standalone page's build (`vite build --mode standalone`): the Avoozl page
 // plus Kiro Crew's own parts, read unmodified from the source at the pin
-// (kirocrew-pin.json, fetched by scripts/fetch-kirocrew-ui.mjs). What the page
+// (kirocrew-pin.json, fetched by scripts/bundle/fetch-kirocrew-ui.mjs). What the page
 // does not need is left out here, by configuration alone, never by editing a
 // fetched file (SW12.3).
 import fs from 'node:fs'
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import type { Plugin, UserConfig } from 'vite'
-import { listStyleTexts } from '../../scripts/standalone-styles.mjs'
+import { listStyleTexts } from '../../scripts/bundle/standalone-styles.mjs'
 
 // Vite names modules with forward slashes on every platform.
 const posix = (file: string) => file.split(path.sep).join('/')

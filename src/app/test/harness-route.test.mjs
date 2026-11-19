@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const script = fileURLToPath(
-  new URL("../../../scripts/live-harness/harness.sh", import.meta.url),
+  new URL("../../../scripts/dev/live-harness.sh", import.meta.url),
 );
 
 test("harness.sh parses and offers route-avoozl", () => {

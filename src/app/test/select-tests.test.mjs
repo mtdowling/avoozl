@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { select } from "../../../scripts/select-tests.mjs";
+import { select } from "../../../scripts/test/select-tests.mjs";
 
 test("a docs or spec change runs only the tests that read repository docs", () => {
   const s = select(["docs/overview.md", ".kiro/specs/x/tasks.md"]);
@@ -17,8 +17,8 @@ test("anything unclassified, a package or CI file, a helper, or the selector run
     "package.json",
     ".github/workflows/test.yml",
     "src/app/test/helpers.mjs",
-    "scripts/select-tests.mjs",
-    "scripts/run-tests.mjs",
+    "scripts/test/select-tests.mjs",
+    "scripts/test/run-tests.mjs",
     "something-new/file.txt",
     "src/schema.json",
   ])
@@ -40,7 +40,7 @@ test("a changed test file runs itself", () => {
 
 test("the test map names only test files that exist", () => {
   const map = JSON.parse(
-    fs.readFileSync("scripts/test-map.json", "utf8"),
+    fs.readFileSync("scripts/test/test-map.json", "utf8"),
   ).files;
   for (const tests of Object.values(map))
     for (const t of tests) assert.ok(fs.existsSync(t), t);

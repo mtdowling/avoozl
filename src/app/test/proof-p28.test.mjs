@@ -565,7 +565,7 @@ test("P28: content rules block, ask, allow once, fail closed, and never leak a t
         pathToFileURL(
           path.resolve(
             import.meta.dirname,
-            "../../../scripts/release-scan.mjs",
+            "../../../scripts/check/release-scan.mjs",
           ),
         ).href,
       )}; console.log(JSON.stringify(scanText("plain\\nthe zorblat note", RULES)))`,

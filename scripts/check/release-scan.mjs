@@ -4,10 +4,10 @@
 // excluded file or a secret, private name, or machine path that is not
 // allowed below.
 //
-//   node scripts/release-scan.mjs            scan the two packages, plugin docs and
+//   node scripts/check/release-scan.mjs            scan the two packages, plugin docs and
 //                                            fake plugins; exit 1 on a finding
-//   node scripts/release-scan.mjs --tree     also count findings in every tracked file
-//   node scripts/release-scan.mjs --history  also count findings added anywhere in HEAD's history
+//   node scripts/check/release-scan.mjs --tree     also count findings in every tracked file
+//   node scripts/check/release-scan.mjs --history  also count findings added anywhere in HEAD's history
 //   --json                                   print the report as JSON
 //
 // Research under docs/research/ and receipts under docs/evidence/ record
@@ -23,9 +23,13 @@ import {
   matchLine,
   parseTerms,
   PUBLISH_RULES,
-} from "../src/app/content/content-rules.mjs";
+} from "../../src/app/content/content-rules.mjs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+);
 
 // Public rules. Names that are themselves private (internal systems, the
 // managed remote harness, private repositories, machine names) are not

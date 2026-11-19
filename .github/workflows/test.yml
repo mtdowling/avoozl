@@ -1,9 +1,9 @@
 name: Test
 # Pushes run only on main; a pull request runs once, from pull_request.
 # Main, the nightly run and a manual run test everything on all three
-# systems. A pull request runs the tests that scripts/select-tests.mjs picks
+# systems. A pull request runs the tests that scripts/test/select-tests.mjs picks
 # for its changes: all of them on Linux, and on macOS and Windows only the
-# OS-sensitive ones (scripts/test-plan.mjs).
+# OS-sensitive ones (scripts/test/test-plan.mjs).
 #
 # The plan job splits each system's tests into up to three shards
 # (.github/workflows/test-shards.yml). The three "test (<os>)" jobs at the
@@ -50,9 +50,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = pull_request ]; then
-            node scripts/test-plan.mjs --base HEAD~1 --github-output
+            node scripts/test/test-plan.mjs --base HEAD~1 --github-output
           else
-            node scripts/test-plan.mjs --full --github-output
+            node scripts/test/test-plan.mjs --full --github-output
           fi
       # A dispatch that names platforms runs only those systems: the others
       # get no shards, and their required check passes with nothing to run,
@@ -95,10 +95,10 @@ jobs:
       - run: npm ci --ignore-scripts
         if: steps.modules.outputs.cache-hit != 'true'
       - run: npm run format:check
-      - run: node scripts/check-no-images.mjs
-      - run: node scripts/spec-lint.mjs
+      - run: node scripts/check/check-no-images.mjs
+      - run: node scripts/check/spec-lint.mjs
 
-  # Copy/paste check (scripts/dup.mjs): fails when duplicated lines grow past
+  # Copy/paste check (scripts/check/dup.mjs): fails when duplicated lines grow past
   # scripts/dup-baseline.json. Main and the nightly run only; a pull request
   # runs `npm run dup:changed` before it opens (AGENTS.md).
   dup:

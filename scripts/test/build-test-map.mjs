@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Writes scripts/test-map.json: for each source file, the node test files that
+// Writes scripts/test/test-map.json: for each source file, the node test files that
 // run at least one of its functions. Each test file runs alone under V8
-// coverage, and the node processes it starts count too. scripts/select-tests.mjs
+// coverage, and the node processes it starts count too. scripts/test/select-tests.mjs
 // reads the map. Regenerate it after adding tests or call paths:
 //   npm run test:map
 import fs from "node:fs";
@@ -10,7 +10,11 @@ import path from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
+const root = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+  ),
   prefix = pathToFileURL(root).href + "/",
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-map-")),
   tests = execFileSync(
@@ -81,9 +85,9 @@ for (const f of tracked(/^(src\/.*\.mjs|cli\.mjs)$/).filter(
   (f) => !/\.test\.mjs$/.test(f) && !/^src\/app\/(.+\/)?test\//.test(f),
 ))
   files[f] = [...(exercised.get(f) ?? [])].sort();
-// osNeutral is a reviewed list kept by hand (scripts/test-plan.mjs); a new
+// osNeutral is a reviewed list kept by hand (scripts/test/test-plan.mjs); a new
 // map keeps it as it is.
-const mapFile = path.join(root, "scripts/test-map.json"),
+const mapFile = path.join(root, "scripts/test/test-map.json"),
   { osNeutral } = JSON.parse(fs.readFileSync(mapFile, "utf8"));
 fs.writeFileSync(mapFile, JSON.stringify({ files, osNeutral }, null, 1) + "\n");
 fs.rmSync(tmp, { recursive: true, force: true });

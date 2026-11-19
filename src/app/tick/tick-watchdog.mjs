@@ -2,7 +2,7 @@
 // reads one workspace's tick-health.json and posts a macOS notification when
 // the last tick is older than --stale-minutes or ended in an error. It writes
 // nothing, starts no tick, and changes no Avoozl state. Nothing installs it;
-// see scripts/tick-watchdog.plist.example and kirocrew-app/README.md
+// see scripts/dev/tick-watchdog.plist.example and kirocrew-app/README.md
 // "Tick watchdog".
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";

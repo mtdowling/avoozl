@@ -18,8 +18,8 @@
 // the run pushes to and opens one pull request and one issue in. Run it from
 // a terminal outside Kiro Crew, on a machine user with no Kiro Crew, as P59:
 //
-//   node scripts/proof-nk-p2-live.mjs --root DIR --github OWNER/SCRATCH [--agent claude|codex]
-//   node scripts/proof-nk-p2-live.mjs --root DIR --agent fake --offline
+//   node scripts/proofs/proof-nk-p2-live.mjs --root DIR --github OWNER/SCRATCH [--agent claude|codex]
+//   node scripts/proofs/proof-nk-p2-live.mjs --root DIR --agent fake --offline
 //
 // `--agent fake --offline` checks this script's plumbing for steps 1 to 4
 // and 6 with no GitHub, and never counts as the proof.
@@ -29,14 +29,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import {
-  installHarness,
-  isolatedMachine,
-  stopMachine,
-} from "./live-proofs/machine.mjs";
+import { installHarness, isolatedMachine, stopMachine } from "./machine.mjs";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
+  "..",
   "..",
 );
 const CLI = path.join(REPO_ROOT, "cli.mjs");
@@ -59,7 +56,7 @@ const { values } = parseArgs({
 const AGENT = values.agent;
 if (!values.root || !["claude", "codex", "fake"].includes(AGENT)) {
   console.error(
-    "Usage: node scripts/proof-nk-p2-live.mjs --root DIR --github OWNER/SCRATCH [--agent claude|codex] | --root DIR --agent fake --offline",
+    "Usage: node scripts/proofs/proof-nk-p2-live.mjs --root DIR --github OWNER/SCRATCH [--agent claude|codex] | --root DIR --agent fake --offline",
   );
   process.exit(64);
 }
@@ -134,7 +131,7 @@ const cli = (...args) =>
   });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const withStore = async (use) => {
-  const { Store } = await import("../src/app/store/store.mjs");
+  const { Store } = await import("../../src/app/store/store.mjs");
   const store = new Store(DB);
   try {
     return await use(store);
@@ -143,7 +140,7 @@ const withStore = async (use) => {
   }
 };
 const operations = async (store) => {
-  const { Operations } = await import("../src/app/api/operations.mjs");
+  const { Operations } = await import("../../src/app/api/operations.mjs");
   return new Operations(store, {
     workspaceRoot: P.ws,
     configDirectory: MACHINE.configDirectory,
@@ -261,7 +258,7 @@ async function setup() {
   const login = GITHUB ? JSON.parse(gh("api", "user")).login : null;
   const configFile = path.join(P.ws, ".avoozl.json");
   const config = JSON.parse(fs.readFileSync(configFile, "utf8"));
-  const { ROLES } = await import("../src/app/settings/chat-models.mjs");
+  const { ROLES } = await import("../../src/app/settings/chat-models.mjs");
   config.delivery = {
     ...(config.delivery || {}),
     retries: 1,
@@ -391,9 +388,9 @@ function agentEnv() {
 // machine's sinks, and the Needs you items for anything that waits on Kiro
 // Crew), every few seconds.
 async function backend() {
-  const { tickCatalog } = await import("../src/app/tick/headless-tick.mjs");
+  const { tickCatalog } = await import("../../src/app/tick/headless-tick.mjs");
   const { launchSupervisor } = await import(
-    "../src/app/executors/supervisor.mjs"
+    "../../src/app/executors/supervisor.mjs"
   );
   const env = agentEnv();
   const log = (line) =>
@@ -500,7 +497,7 @@ async function until(what, check, minutes) {
 // could not, with the supervisor's reason.
 async function rolesOnHarness() {
   const { openSupervisorDatabase } = await import(
-    "../src/app/executors/supervisor.mjs"
+    "../../src/app/executors/supervisor.mjs"
   );
   const db = openSupervisorDatabase(MACHINE.stateDirectory);
   try {
@@ -520,7 +517,7 @@ async function rolesOnHarness() {
 }
 
 async function prove() {
-  const { sandboxKind } = await import("../src/app/executors/sandbox.mjs");
+  const { sandboxKind } = await import("../../src/app/executors/sandbox.mjs");
   if (AGENT !== "fake" && !sandboxKind())
     throw Error(
       "No sandbox here (inside another sandbox?). Run nk-p2 from a terminal outside Kiro Crew.",
@@ -538,7 +535,7 @@ async function prove() {
     proxy = spawn(
       process.execPath,
       [
-        path.join(REPO_ROOT, "scripts", "live-proofs", "p57-model-proxy.mjs"),
+        path.join(REPO_ROOT, "scripts", "proofs", "p57-model-proxy.mjs"),
         String(PROXY_PORT),
         P.proxyLog,
       ],

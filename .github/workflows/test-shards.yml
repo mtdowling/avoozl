@@ -70,7 +70,7 @@ jobs:
           if [ "${{ github.event_name }}" = pull_request ]; then
             changed="--changed --base HEAD~1"
           fi
-          node bin/build-receipt --target "${{ inputs.os }} ${{ matrix.shard }}" -- node scripts/run-tests.mjs --ui $changed --system ${{ inputs.system }} --shard ${{ matrix.shard }}
+          node bin/build-receipt --target "${{ inputs.os }} ${{ matrix.shard }}" -- node scripts/test/run-tests.mjs --ui $changed --system ${{ inputs.system }} --shard ${{ matrix.shard }}
       # Every shard keeps its receipt, and the summary prints every line (R101.3).
       - name: Receipt to the job summary
         if: always() && hashFiles('build-receipt.jsonl') != ''
@@ -135,7 +135,7 @@ jobs:
           if [ "${{ github.event_name }}" = pull_request ]; then
             changed="--changed --base HEAD~1"
           fi
-          node bin/build-receipt --target "ubuntu-latest chrome" -- node scripts/run-tests.mjs --ui $changed --system linux --chrome-only
+          node bin/build-receipt --target "ubuntu-latest chrome" -- node scripts/test/run-tests.mjs --ui $changed --system linux --chrome-only
       # Every test browser has a profile folder named avoozl-chrome-*. One
       # still running after the tests means a test left its browser open.
       - name: No browser left running

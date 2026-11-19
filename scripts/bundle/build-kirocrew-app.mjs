@@ -6,11 +6,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import { build } from "vite";
-import { buildAgents } from "../src/app/executors/kirocrew/build-agents.mjs";
-import { writeUiStamp } from "../src/app/serve/ui-bundle.mjs";
+import { buildAgents } from "../../src/app/executors/kirocrew/build-agents.mjs";
+import { writeUiStamp } from "../../src/app/serve/ui-bundle.mjs";
 import { buildStandalone } from "./build-standalone.mjs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
+const root = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+  ),
   app = path.join(root, "kirocrew-app"),
   ui = path.join(app, "ui"),
   lib = path.join(app, "bin", "lib"),

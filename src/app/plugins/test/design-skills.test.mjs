@@ -13,7 +13,7 @@ import {
   BOUNDARIES,
   BUILTIN_SETS,
 } from "../../content/content-rules.mjs";
-import { RULES, scanText } from "../../../../scripts/release-scan.mjs";
+import { RULES, scanText } from "../../../../scripts/check/release-scan.mjs";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

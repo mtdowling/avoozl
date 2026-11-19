@@ -14,7 +14,7 @@
       "!!kirocrew-app/bin/lib",
       "!!docs/research",
       "!!docs/evidence",
-      "!scripts/test-map.json",
+      "!scripts/test/test-map.json",
       "!kirocrew-app/agents/*.json"
     ]
   },

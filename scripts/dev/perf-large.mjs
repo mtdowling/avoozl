@@ -1,7 +1,7 @@
 // Time the tick and the page reads on a large synthetic workspace, with the
 // SQLite statements each one runs and the size of its reply.
 //
-//   node scripts/perf-large.mjs [--specs 60] [--keep DIR]
+//   node scripts/dev/perf-large.mjs [--specs 60] [--keep DIR]
 //
 // Builds the workspace from src/app/test/large-workspace.mjs in a temporary
 // folder (or DIR), prints one Markdown table, and removes the folder unless
@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { StatementSync } from "node:sqlite";
-import { largeWorkspace } from "../src/app/test/large-workspace.mjs";
+import { largeWorkspace } from "../../src/app/test/large-workspace.mjs";
 
 const args = process.argv.slice(2),
   option = (name) => {

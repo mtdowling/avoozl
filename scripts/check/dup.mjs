@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // Copy/paste check with jscpd, configured in .jscpd.json.
 //
-//   node scripts/dup.mjs              whole repo; fails when duplicated lines
-//                                     grew past scripts/dup-baseline.json
-//   node scripts/dup.mjs --update     same, then lowers the baseline to the
+//   node scripts/check/dup.mjs              whole repo; fails when duplicated lines
+//                                     grew past scripts/check/dup-baseline.json
+//   node scripts/check/dup.mjs --update     same, then lowers the baseline to the
 //                                     current count (never raises it)
-//   node scripts/dup.mjs --changed [--base REF]
+//   node scripts/check/dup.mjs --changed [--base REF]
 //                                     clones that touch files changed since
 //                                     the merge base with REF (origin/main);
 //                                     fails when the change adds or grows one
@@ -37,7 +37,7 @@ const git = (...a) =>
 const root = git("rev-parse", "--show-toplevel").trim();
 process.chdir(root);
 const config = JSON.parse(fs.readFileSync(".jscpd.json", "utf8"));
-const BASELINE = "scripts/dup-baseline.json";
+const BASELINE = "scripts/check/dup-baseline.json";
 
 const detect = (paths, extra = {}) =>
   jscpd.detectClonesAndStatistic({

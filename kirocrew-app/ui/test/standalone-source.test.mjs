@@ -10,7 +10,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { parseSync } from 'rolldown/utils'
-import { checkDigest, fetchKiroCrewUi, readPin, treeDigest } from '../../../scripts/fetch-kirocrew-ui.mjs'
+import { checkDigest, fetchKiroCrewUi, readPin, treeDigest } from '../../../scripts/bundle/fetch-kirocrew-ui.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const ui = path.join(root, 'kirocrew-app', 'ui')
@@ -113,7 +113,7 @@ test('a source that cannot be had fails saying so', () => {
 })
 
 test("the build script builds Kiro Crew's bundles before the standalone page and still stamps them", () => {
-  const script = fs.readFileSync(path.join(root, 'scripts', 'build-kirocrew-app.mjs'), 'utf8')
+  const script = fs.readFileSync(path.join(root, 'scripts', 'bundle', 'build-kirocrew-app.mjs'), 'utf8')
   const at = (text) => script.indexOf(text)
   assert.ok(at('writeUiStamp(ui)') > 0)
   assert.ok(at('buildStandalone(') > at('writeUiStamp(ui)'))

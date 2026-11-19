@@ -7,7 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const script = fileURLToPath(
-  new URL("../../../scripts/spec-lint.mjs", import.meta.url),
+  new URL("../../../scripts/check/spec-lint.mjs", import.meta.url),
 );
 
 test("spec lint passes on this repository's specs", () => {

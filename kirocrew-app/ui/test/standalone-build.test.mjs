@@ -7,9 +7,9 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { parseSync } from 'rolldown/utils'
-import { STANDALONE_NOTICES, missingNotices } from '../../../scripts/release-scan.mjs'
+import { STANDALONE_NOTICES, missingNotices } from '../../../scripts/check/release-scan.mjs'
 import { missingClasses } from './class-tokens.mjs'
-import { listStyleTexts } from '../../../scripts/standalone-styles.mjs'
+import { listStyleTexts } from '../../../scripts/bundle/standalone-styles.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const ui = path.join(root, 'kirocrew-app', 'ui')

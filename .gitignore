@@ -8,7 +8,7 @@ workspace.local.json
 *.log
 .DS_Store
 
-# Images are never committed (scripts/check-no-images.mjs). Screenshots go
+# Images are never committed (scripts/check/check-no-images.mjs). Screenshots go
 # to .avoozl-shots/ or the temp folder and are shown in chat.
 .avoozl-shots/
 *.png

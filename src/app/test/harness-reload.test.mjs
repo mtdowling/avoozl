@@ -7,7 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const script = fileURLToPath(
-  new URL("../../../scripts/live-harness/harness.sh", import.meta.url),
+  new URL("../../../scripts/dev/live-harness.sh", import.meta.url),
 );
 // The harness is a bash script for Linux and macOS.
 const skip = process.platform === "win32";

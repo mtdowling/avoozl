@@ -5,18 +5,18 @@ and sign-in token, with Avoozl installed and enabled. Avoozl never reads,
 writes or restarts your real gateway or home.
 
 ```sh
-scripts/live-harness/harness.sh start       # set up if needed, then start
-scripts/live-harness/harness.sh stop
-scripts/live-harness/harness.sh status
-scripts/live-harness/harness.sh check       # gateway, both apps, repo, Avoozl page
-scripts/live-harness/harness.sh url         # dashboard URL with the sign-in token
-scripts/live-harness/harness.sh signin      # owner shell, once per home: save a sign-in cookie
-scripts/live-harness/harness.sh browser-state  # Playwright storage state from that cookie
-scripts/live-harness/harness.sh reload-app  # load a new app build
-scripts/live-harness/harness.sh reset       # stop, move old state aside, start clean with `start`
+scripts/dev/live-harness.sh start       # set up if needed, then start
+scripts/dev/live-harness.sh stop
+scripts/dev/live-harness.sh status
+scripts/dev/live-harness.sh check       # gateway, both apps, repo, Avoozl page
+scripts/dev/live-harness.sh url         # dashboard URL with the sign-in token
+scripts/dev/live-harness.sh signin      # owner shell, once per home: save a sign-in cookie
+scripts/dev/live-harness.sh browser-state  # Playwright storage state from that cookie
+scripts/dev/live-harness.sh reload-app  # load a new app build
+scripts/dev/live-harness.sh reset       # stop, move old state aside, start clean with `start`
 ```
 
-The script is `scripts/live-harness/harness.sh`. It needs `kirocrew`, `gh`,
+The script is `scripts/dev/live-harness.sh`. It needs `kirocrew`, `gh`,
 `python3` and `curl` on the path, and it is a bash script for Linux and macOS.
 
 `start` is safe to repeat. It installs the app from a copy of the built
@@ -72,8 +72,8 @@ owner's too. Run the harness on macOS with a `setsid` stand-in on the path
 The owner runs this once per harness home, in their own terminal:
 
 ```sh
-scripts/live-harness/harness.sh start
-scripts/live-harness/harness.sh signin
+scripts/dev/live-harness.sh start
+scripts/dev/live-harness.sh signin
 ```
 
 `signin` saves a cookie session to `<harness>/cookies.txt` (mode 600) and

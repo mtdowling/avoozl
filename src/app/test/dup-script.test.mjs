@@ -7,7 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
-const script = path.join(repoRoot, "scripts", "dup.mjs");
+const script = path.join(repoRoot, "scripts", "check", "dup.mjs");
 
 // A function long enough to count as a clone when copied.
 const BODY = `export function summarize(rows, options = {}) {
@@ -59,8 +59,8 @@ test("dup:changed fails on a new copy and passes once it is gone", (t) => {
 
 test("dup fails when duplication grows and --update only lowers the baseline", (t) => {
   const { dir, run } = repo(t);
-  const baseline = path.join(dir, "scripts", "dup-baseline.json");
-  fs.mkdirSync(path.dirname(baseline));
+  const baseline = path.join(dir, "scripts", "check", "dup-baseline.json");
+  fs.mkdirSync(path.dirname(baseline), { recursive: true });
   fs.writeFileSync(path.join(dir, "src", "b.mjs"), `// Copy.\n${BODY}`);
   const write = (lines) =>
     fs.writeFileSync(

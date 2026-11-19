@@ -235,8 +235,6 @@
     "src/app/tasks/test/manual-tasks.test.mjs": 1405,
     "src/app/mcp/test/mcp-tools.test.mjs": 1088,
     "src/app/mcp/test/mcp-views.test.mjs": 699,
-    "src/app/store/test/migration-prep.test.mjs": 304,
-    "src/app/store/test/migration-reconcile.test.mjs": 290,
     "src/app/mirror/test/mirror-forward-poll.test.mjs": 1249,
     "src/app/mirror/test/mirror-forward-protections.test.mjs": 9828,
     "src/app/mirror/test/mirror-forward-run.test.mjs": 5353,

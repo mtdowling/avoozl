@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { trackedImages } from "../../../scripts/check-no-images.mjs";
+import { trackedImages } from "../../../scripts/check/check-no-images.mjs";
 import { assertShotOutsideGit } from "../../../kirocrew-app/ui/test/browser/chrome.mjs";
 
 const repo = fileURLToPath(new URL("../../../", import.meta.url));

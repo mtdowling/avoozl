@@ -49,5 +49,5 @@ replaced on its own, since it changes no code. Statuses are up to one tick old.
 stopped running. It reads `<workspace>/.avoozl/local/tick-health.json` and posts a
 macOS notification when the last tick is older than `--stale-minutes`
 (default 10) or ended in an error. It only reads. Nothing installs it; to run
-it every 10 minutes, fill in `scripts/tick-watchdog.plist.example` and load
+it every 10 minutes, fill in `scripts/dev/tick-watchdog.plist.example` and load
 it with `launchctl load`. `--dry-run` prints the problem without notifying.

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Splits the selected tests across CI shards and operating systems. Used by
-// scripts/run-tests.mjs and, as a script, by the plan job in
+// scripts/test/run-tests.mjs and, as a script, by the plan job in
 // .github/workflows/test.yml:
 //
-//   node scripts/test-plan.mjs [--base REV] [--full] [--github-output]
+//   node scripts/test/test-plan.mjs [--base REV] [--full] [--github-output]
 //
 // prints, for each system, how many test files it runs and in how many shards.
 import fs from "node:fs";
@@ -16,7 +16,11 @@ import {
   uiTestFiles,
 } from "./select-tests.mjs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+);
 const readJson = (file) =>
   JSON.parse(fs.readFileSync(path.join(root, file), "utf8"));
 
@@ -30,22 +34,24 @@ export const allTestFiles = () => ({
 export const needsChrome = (file) =>
   fs.readFileSync(path.join(root, file), "utf8").includes("findChrome");
 
-// scripts/test-map.json lists, in "osNeutral", the test files a person has
+// scripts/test/test-map.json lists, in "osNeutral", the test files a person has
 // reviewed and found to give the same result on every system: they start no
 // process, touch no file system or git, and read no path or line ending. Any
 // file not listed, including a new one, counts as OS-sensitive.
 export function osSensitive(files) {
-  const neutral = new Set(readJson("scripts/test-map.json").osNeutral ?? []);
+  const neutral = new Set(
+    readJson("scripts/test/test-map.json").osNeutral ?? [],
+  );
   return files.filter((f) => !neutral.has(f));
 }
 
 let times;
-// Milliseconds each file took alone (scripts/test-times.json); a file without
+// Milliseconds each file took alone (scripts/test/test-times.json); a file without
 // a measurement counts as the median.
 export function cost(file) {
   if (!times) {
     try {
-      times = readJson("scripts/test-times.json").times;
+      times = readJson("scripts/test/test-times.json").times;
     } catch {
       times = {};
     }

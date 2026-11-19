@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { readFileSync } from 'node:fs'
 import { standaloneConfig } from './standalone.config.ts'
-import { fetchKiroCrewUi } from '../../scripts/fetch-kirocrew-ui.mjs'
+import { fetchKiroCrewUi } from '../../scripts/bundle/fetch-kirocrew-ui.mjs'
 
 const version = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version as string
 

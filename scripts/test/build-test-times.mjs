@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Writes scripts/test-times.json: how long each test file takes alone, in
+// Writes scripts/test/test-times.json: how long each test file takes alone, in
 // milliseconds, with Chrome skipped as on the macOS and Windows shards.
-// scripts/test-plan.mjs uses it to give each CI shard about the same work.
+// scripts/test/test-plan.mjs uses it to give each CI shard about the same work.
 // Files not listed count as the median. Regenerate it now and then:
 //   npm run test:times
 import os from "node:os";
@@ -11,7 +11,11 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { allTestFiles } from "./test-plan.mjs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+);
 const { node, ui } = allTestFiles();
 const files = [...node, ...ui];
 
@@ -38,7 +42,7 @@ await Promise.all(
 );
 const sorted = Object.fromEntries(Object.entries(times).sort());
 fs.writeFileSync(
-  path.join(root, "scripts/test-times.json"),
+  path.join(root, "scripts/test/test-times.json"),
   JSON.stringify({ times: sorted }, null, 2) + "\n",
 );
 console.log(`Timed ${files.length} test files.`);

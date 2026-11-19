@@ -3,7 +3,7 @@
 // `npm run test:changed` use it; main and the nightly run always run it with
 // --full. Anything it cannot classify selects every test.
 //
-//   node scripts/select-tests.mjs [--base REV] [--full] [--json] [--github-output]
+//   node scripts/test/select-tests.mjs [--base REV] [--full] [--json] [--github-output]
 //
 // shortcut: the "reads" tables below were taken from a trace of which repo
 // files each test opens. A new test that reads docs, examples or app files is
@@ -13,7 +13,11 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+);
 // Test files and their helpers sit in a test/ folder beside the modules.
 const IN_TEST_DIR = /^src\/app\/(.+\/)?test\//;
 
@@ -140,9 +144,9 @@ export function select(
   for (const f of changed) {
     if (out.full) break;
     const isTest = /\.test\.mjs$/.test(f);
-    if (f === "scripts/run-tests.mjs")
+    if (f === "scripts/test/run-tests.mjs")
       full(`${f}: the selector or runner changed`);
-    else if (/^scripts\/[\w-]+-live\.mjs$/.test(f)) {
+    else if (/^scripts\/proofs\//.test(f)) {
       for (const t of pick(SCANNERS, all)) out.node.add(t);
       out.reasons.push(`${f}: live proof script, read only by the scanners`);
     } else if (
@@ -160,7 +164,7 @@ export function select(
       out.ui = true;
       for (const t of pick(SCANNERS, all)) out.node.add(t);
       out.reasons.push(`${f}: page test or helper`);
-    } else if (/^scripts\/[\w-]+-live\.mjs$/.test(f)) {
+    } else if (/^scripts\/proofs\//.test(f)) {
       for (const t of pick(SCANNERS, all)) out.node.add(t);
       out.reasons.push(`${f}: live proof script, read only by the scanners`);
     } else if (/^kirocrew-app\/ui\/(src|assets)\//.test(f)) {
@@ -190,7 +194,7 @@ export function select(
   if (!out.full && srcChanged.length) {
     out.ui = true;
     const map = JSON.parse(
-      fs.readFileSync(path.join(root, "scripts/test-map.json"), "utf8"),
+      fs.readFileSync(path.join(root, "scripts/test/test-map.json"), "utf8"),
     ).files;
     for (const s of srcChanged) {
       const ran = (map[s] ?? []).filter((t) => all.includes(t));
@@ -216,7 +220,7 @@ export function select(
           out.node.add(t);
     }
     out.reasons.push(
-      `${srcChanged.length} source file(s): tests that run their functions (scripts/test-map.json) or import them`,
+      `${srcChanged.length} source file(s): tests that run their functions (scripts/test/test-map.json) or import them`,
     );
   }
   if (out.full) {

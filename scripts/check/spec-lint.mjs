@@ -7,12 +7,12 @@ import {
   listSpecFolders,
   lintSpec,
   readSpecFolder,
-} from "../src/app/specs/spec-plans.mjs";
+} from "../../src/app/specs/spec-plans.mjs";
 
 // The repository root, or the folder named as the first argument.
 const root = process.argv[2]
   ? path.resolve(process.argv[2])
-  : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 let failed = false;
 const names = listSpecFolders(root);
 if (!names.length) {
