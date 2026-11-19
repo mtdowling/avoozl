@@ -79,12 +79,15 @@ async function workspace(t, { specInCode = true } = {}) {
     tasks: [leaf("t1"), leaf("t2")],
     edges: [],
   });
-  store.put("projects", {
+  const project = {
     id: "app",
-    root: app.checkout,
     baseBranch: "main",
     landing: "direct",
     checks: [CHECK],
+  };
+  store.put("projects", {
+    ...project,
+    root: app.checkout,
     worktreeRoot: path.join(root, "wt"),
   });
   store.put("plans", {
