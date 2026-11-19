@@ -4707,3 +4707,15 @@ and convert them too.
     - after: 64.1
   - In the Nupp plans repository, branch `avoozl-plans`, run the converter on a copy, check the parse and the hashes, convert in one pull request and merge it after its checks. Touch no Nupp code repository. Report a question if those specs fall under person-only approval.
   - Built: Nupp plans pull request #42 on `avoozl-plans`, merged 2026-11-18.
+
+## Phase 65: A tick on the base branch completes the task
+
+Owner request 2026-11-19 (Requirement 113, design §4.41).
+
+- [x] 65.1 A tick on the base branch marks the task done, no re-approval, after 64.1 [R113.1, R113.2, R113.3, R113.4, R113.5, R113.6, R113.7, R113.8] (§4.41)
+  - Facts:
+    - done:
+      - A tick on the base branch marks the task done, no re-approval
+      - Each workspace tick reads tasks.md from the base branch; a `[x]` item completes its task with the tick's commit, releases its worker session, and keeps the hash; an untick waits in Needs you with Reopen and Keep done; a ticked item with no ID is a lint error; tests cover each.
+    - after: 64.1
+  - `spec-ticks.mjs` and `applyBaseTicks` in `operations.mjs`; `conflicts.settle` takes `reopen` and `keep`; the Conflicts page shows the `untick` item.

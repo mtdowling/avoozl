@@ -60,6 +60,7 @@ const ANSWERS: Record<string, string> = {
   manual: 'Do the step',
   'github-conflict': 'Pick a version',
   'stale-session': 'Restart or close',
+  untick: 'Reopen or keep done',
   'ready-to-merge': 'Merge',
   'branch-landing': 'Approve the landing',
   'content-match': 'Allow or edit',

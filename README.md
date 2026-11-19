@@ -197,6 +197,13 @@ their tasks waits on is not pulled in: the preview counts the tasks that wait,
 and they start once that spec is approved too. Only a `[x]` task, which starts
 as done, needs its owners approved in the same batch.
 
+A tick later is read too: when a commit on the spec's base branch ticks a
+task `[x]` in `tasks.md`, Avoozl marks that task done on its next tick, with
+no new approval, and closes any worker session it had on it. Ticks on other
+branches, unsaved edits, and `[~]` or `[-]` marks do nothing. If a tick is
+taken out of a done task, the task stays done and Needs you offers Reopen or
+Keep done.
+
 To let an agent approve for you, name it once from your own terminal:
 
 ```sh
