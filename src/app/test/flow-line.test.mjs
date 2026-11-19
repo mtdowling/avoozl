@@ -381,29 +381,3 @@ test("local checks first: a recorded pass, a done list for one commit, and CI-on
     .filter((r) => r.kind === "ci-only");
   assert.deepEqual([only.commit, only.checks], [head, ["build"]]);
 });
-
-test("a head an integrator train pushed counts for stop the line only once the train is validated", async (t) => {
-  const s = setup(t, [leaf("a1"), leaf("c2")]);
-  s.integrated(s.land("c2", "c2.txt"));
-  assert.deepEqual((await watchLine(s.store, s.config)).notify, []);
-  const red = s.land("a1", "broken");
-  s.store.put("landing_trains", {
-    id: "train-1",
-    projectId: "app",
-    target: "main",
-    pushed: red,
-    validated: false,
-  });
-  assert.deepEqual((await watchLine(s.store, s.config)).notify, []);
-  assert.equal(s.store.list("flow_stops").length, 0);
-  s.store.put("landing_trains", {
-    id: "train-1",
-    projectId: "app",
-    target: "main",
-    pushed: red,
-    validated: true,
-  });
-  const { notify } = await watchLine(s.store, s.config);
-  assert.equal(notify.length, 1);
-  assert.equal(s.store.list("flow_stops")[0].commit, red);
-});

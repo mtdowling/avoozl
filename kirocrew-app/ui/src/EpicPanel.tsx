@@ -90,7 +90,7 @@ export function EpicPanel(props: {
                     </Box>
                   </Box>
                   <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
-                    <span className="block h-full" style={{ width: `${bar(member.progress.done, member.progress.total)}%`, background: 'var(--ok)' }} />
+                    <Box as="span" css-width={`${bar(member.progress.done, member.progress.total)}%`} css-background="ok" block hFull />
                   </Box>
                 </PlainButton>
               </li>

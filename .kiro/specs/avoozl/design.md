@@ -2726,7 +2726,7 @@ who merges and how, and how many times a conflict is fixed:
 
 | Key                    | Values                       | Default | Older key, still read, never written                           |
 | ---------------------- | ---------------------------- | ------- | -------------------------------------------------------------- |
-| `landing.mode`         | `direct`, `pr`, `train`, `off` | `off`   | `projects.<id>.landing` of the checkout of that repository    |
+| `landing.mode`         | `direct`, `pr`, `off`          | `off`   | `projects.<id>.landing` of the checkout of that repository    |
 | `landing.autoMerge`    | `true`, `false`              | `true`  | `delivery.repositories.<id>.ship`, then `delivery.ship`        |
 | `landing.method`       | `squash`, `merge`            | `squash`| `merge.method`                                                 |
 | `conflicts.maxAttempts`| 0–10                         | 2       | `landing.conflictRounds` (top level)                           |
@@ -2813,11 +2813,11 @@ Avoozl    Avoozl     chat     Avoozl     Avoozl   Avoozl (Stop the line)
   a timeout. A failure goes back to the same chat as one retry round
   (Requirement 8's bound).
 - **Land.** One queue per base branch, held by `withWorkLock`
-  (`src/app/git.mjs`) with kind `integration`. One exact portion lands at a time; direct trains follow §4.32.5.
+  (`src/app/git.mjs`) with kind `integration`. One exact portion lands at a time; direct merge batches follow §4.32.5.
 - **Accept.** Stop the line (Requirement 64) watches every head Avoozl
   landed. A red head pauses the queue for that base and opens a fix task.
 
-**Landing modes.** `direct` checks an exact merged portion or bounded train
+**Landing modes.** `direct` checks an exact merged portion or merge batch
 against the current target base, then advances it with a guarded fast-forward.
 `pr` proposes an exact verified portion from the target repository or a fork;
 its own required checks and standing review govern the merge. `off` verifies
@@ -2857,7 +2857,7 @@ per-repository `delivery.repositories.*.concurrency` and
 `maxConcurrentRuns`, are accepted and ignored; nothing writes them, and an
 old file loads with no warning. The Workspaces "Agents at once" field and
 `avoozl workspace concurrency` are removed: a per-workspace field cannot hold
-one machine number, and nothing enforced them. Train `maxBranches` and the
+one machine number, and nothing enforced them. The merge batch size and the
 Radar crew `count` are batch sizes, not concurrency settings.
 shortcut: each workspace counts only its own live chats against the lanes,
 so two workspaces on one machine can run up to twice the lanes; count across
@@ -3782,8 +3782,8 @@ Builds on phases 40–42, revised by Requirement 102.
   (`src/app/git.mjs:36-52`). Hold it for the ref move and push only.
 - **`direct`: a portion is an exact commit on the working branch.** The landing worktree
   merges it with the current base, checks that head once, fast-forwards, pushes. A
-  train may combine portions of several specs the same driver schedules, up to four
-  tasks. On failure, halve and retry (`findCulprit`, `src/app/flow-line.mjs:107`).
+  merge batch may combine portions of several specs and drivers, up to the size limit
+  (`merge-batches` D2). On failure, rerun once, then bisect to the culprit (`merge-batches` D4).
 - **`pr`: a portion is one pull request** from a ref at that exact commit. Its head has
   its own passing required checks and its own standing approval, so several tasks can
   land together under protected review. Avoozl updates only a source branch it is authorized to write,

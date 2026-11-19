@@ -13,7 +13,6 @@ import {
 } from "./content-rules.mjs";
 import { queueNotifications } from "./notifications.mjs";
 import { commandEvidence, git } from "./git.mjs";
-import { unvalidatedTrainHead } from "./train-heads.mjs";
 import {
   dependentsOf,
   flowPolicy,
@@ -244,27 +243,6 @@ function openStop(
   return stop;
 }
 
-// Opens the line stop a failed integrator train needs under `fix-forward`
-// (landing-trains LT10.4): the same stop and first-in-line fix task a red
-// trunk check opens. Returns {stop, notify}.
-export function openLineStop(
-  store,
-  project,
-  { check, culprit, commit, from, to, tail, config, now = Date.now() },
-) {
-  const notify = [],
-    scope = flowPolicy(config || {}).for(project.id).stopTheLine.scope,
-    stop = openStop(store, project, {
-      check,
-      culprit: { culprit, commit, range: { from, to }, runs: 0 },
-      notify,
-      now,
-      scope,
-      tail,
-    });
-  return { stop, notify };
-}
-
 const fixOpen = (store, id) => {
   const task = store.read().tasks.find((t) => t.id === id);
   return (
@@ -368,9 +346,6 @@ export async function watchLine(
         green: {},
       };
     if (state.head === head) continue;
-    // A head an integrator train pushed counts only once the train is
-    // validated (landing-trains LT8.7).
-    if (unvalidatedTrainHead(store, project.id, head)) continue;
     const known = Object.keys(state.green).length > 0;
     // Nothing known green and a head Avoozl did not integrate: nothing to
     // compare against, so nothing is written.

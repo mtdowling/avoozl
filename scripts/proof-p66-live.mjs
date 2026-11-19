@@ -60,10 +60,10 @@ import {
 import { specBase } from "../src/app/spec-base.mjs";
 import { runCheckAt } from "../src/app/flow-line.mjs";
 import {
-  mergeTrain,
+  stackMembers,
   directSteps,
   queuePortion,
-} from "../src/app/landing-trains.mjs";
+} from "../src/app/merge-batch.mjs";
 import { landNext } from "../src/app/landing-queue.mjs";
 import { rebuildSpec, resumeRebuild } from "../src/app/spec-rebuild.mjs";
 import { refreshSpec } from "../src/app/spec-refresh.mjs";
@@ -920,7 +920,7 @@ async function main() {
   const oldDriver = drivers[ALPHA];
   const main2 = baseHead();
   await git(codeRoot, ["fetch", "-q", url(CODE), "main"]);
-  const merged = await mergeTrain(
+  const merged = await stackMembers(
     codeRoot,
     [
       {

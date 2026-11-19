@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
+import { finishProcessSession } from "../executors/process.mjs";
 import {
   harnessPermission,
   parseHarnessDefinition,
@@ -357,18 +358,25 @@ test("a planner that ends without classifying asks once and holds the issue", as
 });
 
 // nk-2.3 (NK2.4): the critique as a `process` child. Its folder and only
-// write root in the spec folder is avoozl/; the breakdown stays a chat.
+// write root in the spec folder is avoozl/.
 test("a child's critique.md is read as a chat's is, and it can write nothing else", async (t) => {
-  const { state, github, code } = await openWorkspace(t),
-    crew = fakeKiroCrew(state);
+  const { state, github, code } = await openWorkspace(t);
   state.store.put("projects", {
     ...state.store.get("projects", "code"),
     executor: "process",
   });
-  let intents = await crew.tick();
+  let intents = await state.ops.execute("workspace.tick", { sessions: [] });
   const [start] = planners(intents);
-  assert.equal(start.executor, "kirocrew", "the breakdown stays a chat");
-  const [planner] = crew.sessions.values();
+  assert.equal(start.executor, "process", "the breakdown is a child too");
+  const planner = { slot: "process-breakdown" };
+  await state.ops.execute("session.bind", {
+    taskId: start.task,
+    slot: planner.slot,
+    title: start.title,
+    source: "tick",
+    role: start.role,
+    attempt: start.attempt,
+  });
   await state.ops.execute(
     "github.breakdown.classify",
     { repository: REPO, number: 7, kind: "broad", reason: "Two leaves." },
@@ -435,4 +443,122 @@ test("a child's critique.md is read as a chat's is, and it can write nothing els
     ],
   });
   assert.equal(github.subIssues.length, 2, "children published");
+});
+
+// nk-3.3 (NK5.4): the issue planner's breakdown as a `process` child. Its
+// report classifies the issue; a broad one's folder is linted after it
+// exits, and lint errors go back by resume at most twice.
+async function breakdownChild(t) {
+  const workspace = await openWorkspace(t),
+    { state, code } = workspace;
+  state.store.put("projects", {
+    ...state.store.get("projects", "code"),
+    executor: "process",
+  });
+  const intents = await state.ops.execute("workspace.tick", { sessions: [] });
+  const [start] = planners(intents);
+  assert.equal(start.executor, "process");
+  assert.equal(start.worktree, path.join(code, ".kiro", "specs", SPEC));
+  assert.match(start.brief, /"report": \{"kind": "bounded" or "broad"/);
+  assert.doesNotMatch(start.brief, /plans_classify_issue/);
+  const slot = "process-plan-" + Math.random().toString(36).slice(2);
+  await state.ops.execute("session.bind", {
+    taskId: start.task,
+    slot,
+    title: start.title,
+    source: "tick",
+    role: start.role,
+    attempt: start.attempt,
+    worktree: start.worktree,
+    context: start.context,
+  });
+  fs.mkdirSync(start.worktree, { recursive: true });
+  const binding = () => state.store.get("session_bindings", slot),
+    finish = (report) =>
+      finishProcessSession(
+        state.ops,
+        binding(),
+        { state: "done", text: "", report },
+        state.store,
+      ),
+    breakdown = () =>
+      sourceTask(state.store) &&
+      state.store.list("github_issues").find((row) => row.number === 7)
+        ?.breakdown,
+    sends = () =>
+      state.store
+        .list("session_requests")
+        .filter((row) => row.kind === "send" && row.request.slot === slot),
+    decisions = () =>
+      state.store
+        .list("app_notifications")
+        .filter((row) => /still has lint errors/.test(row.payload.title));
+  return {
+    ...workspace,
+    start,
+    slot,
+    binding,
+    finish,
+    breakdown,
+    sends,
+    decisions,
+  };
+}
+
+const brokenSpec = (code) => {
+  writeSpec(code, SPEC);
+  fs.writeFileSync(
+    path.join(code, ".kiro", "specs", SPEC, "tasks.md"),
+    "# Tasks\n\n- [ ] 1 Load\n  - [ ] 1.1 Read\n  - [ ] 1.1 Read again\n",
+  );
+};
+
+test("a bounded issue writes no folder and records its kind", async (t) => {
+  const w = await breakdownChild(t);
+  await w.finish({ kind: "bounded", reason: "One leaf in one repository." });
+  assert.equal(w.breakdown().classification.kind, "bounded");
+  assert.equal(fs.existsSync(w.start.worktree), false);
+});
+
+test("a broad issue stores a folder that lints clean", async (t) => {
+  const w = await breakdownChild(t);
+  writeSpec(w.code, SPEC);
+  const draft = await w.finish({ kind: "broad", reason: "Two leaves." });
+  assert.equal(draft.canPublish, true);
+  assert.equal(w.breakdown().classification.kind, "broad");
+  assert.equal(w.breakdown().spec.name, SPEC);
+  assert.deepEqual(w.sends(), []);
+});
+
+test("lint errors reach the same session by resume, and a clean second try is stored", async (t) => {
+  const w = await breakdownChild(t);
+  brokenSpec(w.code);
+  await w.finish({ kind: "broad", reason: "Two leaves." });
+  assert.equal(w.sends().length, 1);
+  assert.match(w.sends()[0].request.text, /found errors/);
+  assert.equal(w.sends()[0].request.executor, "process");
+  assert.equal(w.binding().awaitingResume, true);
+  writeSpec(w.code, SPEC);
+  const draft = await w.finish({ kind: "broad", reason: "Two leaves." });
+  assert.equal(draft.canPublish, true);
+  assert.deepEqual(w.decisions(), []);
+});
+
+test("errors left after two tries open one Needs you item", async (t) => {
+  const w = await breakdownChild(t);
+  brokenSpec(w.code);
+  for (let i = 0; i < 3; i += 1)
+    await w.finish({ kind: "broad", reason: "Two leaves." });
+  assert.equal(w.sends().length, 2);
+  assert.equal(w.decisions().length, 1);
+});
+
+test("a definition with no resume goes to Needs you at the first error", async (t) => {
+  const w = await breakdownChild(t);
+  w.state.ops.resumable = () => false;
+  brokenSpec(w.code);
+  await w.finish({ kind: "broad", reason: "Two leaves." });
+  assert.deepEqual(w.sends(), []);
+  assert.equal(w.decisions().length, 1);
+  assert.match(w.decisions()[0].payload.body, /cannot be resumed/);
 });

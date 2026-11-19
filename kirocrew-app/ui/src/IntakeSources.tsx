@@ -361,9 +361,9 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
       footer={
         <>
           {problem && (
-            <p role="alert" className="m-0 mr-auto text-xs text-danger" style={{ order: -1 }}>
+            <Box role="alert" as="p" css-order={-1} m0 mrAuto size="xs" tone="danger">
               {problem.text}
-            </p>
+            </Box>
           )}
           <IconLabel icon={Plus} primary onClick={add} disabled={busy}>
             Add source
@@ -375,7 +375,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
         <Group legend="Source">
           <Field id="intake-id" label="Name" marker="required" raw="intake.sources.<id>" hint="Lowercase letters, digits and dashes. Rules match it with source:<name>.">
             {(described) => (
-              <Input id="intake-id" value={form.id} onChange={(event: Change) => set({ id: event.target.value })} placeholder="e.g. tickets" aria-describedby={described} aria-invalid={invalid('id')} style={{ width: '20ch', maxWidth: '100%' }} />
+              <Input id="intake-id" value={form.id} onChange={(event: Change) => set({ id: event.target.value })} placeholder="e.g. tickets" aria-describedby={described} aria-invalid={invalid('id')} css-width="20ch" css-max-width="100%" />
             )}
           </Field>
           <Field id="intake-repository" label="Work lands in" marker="required" raw="repository" hint="Its rules apply, and a delivered item's task lands there.">
@@ -397,10 +397,10 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
         </Group>
         <Group legend="Item fields">
           <Field id="intake-labelFields" label="Fields as labels" marker="optional" raw="labelFields" hint="Comma list. Each adds a field:value label before rules match.">
-            {(described) => <Input id="intake-labelFields" value={form.labelFields} onChange={(event: Change) => set({ labelFields: event.target.value })} placeholder="none" aria-describedby={described} style={{ width: '28ch', maxWidth: '100%' }} />}
+            {(described) => <Input id="intake-labelFields" value={form.labelFields} onChange={(event: Change) => set({ labelFields: event.target.value })} placeholder="none" aria-describedby={described} css-width="28ch" css-max-width="100%" />}
           </Field>
           <Field id="intake-assigneeField" label="Assignee field" marker="optional" raw="assigneeField" hint="The item field that names who it's assigned to.">
-            {(described) => <Input id="intake-assigneeField" value={form.assigneeField} onChange={(event: Change) => set({ assigneeField: event.target.value })} placeholder="none" aria-describedby={described} style={{ width: '20ch', maxWidth: '100%' }} />}
+            {(described) => <Input id="intake-assigneeField" value={form.assigneeField} onChange={(event: Change) => set({ assigneeField: event.target.value })} placeholder="none" aria-describedby={described} css-width="20ch" css-max-width="100%" />}
           </Field>
         </Group>
         {plugin && (
@@ -436,7 +436,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
                   line: 'Only these people can set off a rule.',
                   fields: (
                     <Field id="intake-allowedActors" label="People" marker="required" raw="allowedActors" hint="Comma list of names, as the plugin reports them.">
-                      {(described) => <Input id="intake-allowedActors" value={form.allowedActors} onChange={(event: Change) => set({ allowedActors: event.target.value })} placeholder="e.g. sam, riley" aria-describedby={described} aria-invalid={invalid('allowedActors')} style={{ width: '28ch', maxWidth: '100%' }} />}
+                      {(described) => <Input id="intake-allowedActors" value={form.allowedActors} onChange={(event: Change) => set({ allowedActors: event.target.value })} placeholder="e.g. sam, riley" aria-describedby={described} aria-invalid={invalid('allowedActors')} css-width="28ch" css-max-width="100%" />}
                     </Field>
                   ),
                 },

@@ -7,6 +7,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Card } from './Card'
 import { SectionHeading } from './controls.tsx'
+import type { LookProps } from './Box'
 
 const Paired = createContext(false)
 
@@ -26,11 +27,14 @@ export function PairedCards(props: { paired: boolean; children: ReactNode; attrs
   )
 }
 
+// A tinted list panel: a hairline frame on a faint tint of the text color.
+const TINTED = { 'css-border': '1px-solid-border', 'css-border-radius': '10', 'css-padding': '12', 'css-background': 'mix-text-4%-card-bg' } as const satisfies LookProps
+
 // `grow` is the card's share of the row's width; `minWidth` its narrowest;
 // `width` a fixed width instead.
 // With no `title` the card has no heading and its whole body scrolls.
-// `style` changes the card's look (a tinted list panel).
-export function PairedCard(props: { title?: ReactNode; label: string; meta?: ReactNode; grow?: number; minWidth?: string; width?: string; style?: CSSProperties; children?: ReactNode }) {
+// `tinted` draws it as a tinted list panel.
+export function PairedCard(props: { title?: ReactNode; label: string; meta?: ReactNode; grow?: number; minWidth?: string; width?: string; tinted?: boolean; children?: ReactNode }) {
   const paired = useContext(Paired)
   const body = useRef<HTMLDivElement>(null)
   const [scrolls, setScrolls] = useState(false)
@@ -44,9 +48,9 @@ export function PairedCard(props: { title?: ReactNode; label: string; meta?: Rea
     check()
     return () => watch.disconnect()
   }, [paired, props.children])
-  const card: CSSProperties = { ...props.style, ...(paired ? { flex: props.width ? `0 0 ${props.width}` : `${props.grow ?? 1} 1 0`, minWidth: props.minWidth ?? 0, minHeight: 0, display: 'flex', flexDirection: 'column' } : { minWidth: 0 }) }
+  const card: LookProps = { ...(props.tinted ? TINTED : {}), ...(paired ? { 'css-flex': props.width ? `0 0 ${props.width}` : `${props.grow ?? 1} 1 0`, 'css-min-width': props.minWidth ?? 0, 'css-min-height': 0, 'css-display': 'flex', 'css-flex-direction': 'column' } : { 'css-min-width': 0 }) }
   return (
-    <Card style={card}>
+    <Card {...card}>
       {props.title ? <SectionHeading title={props.title} meta={props.meta} className="mb-2" /> : null}
       <div
         ref={body}

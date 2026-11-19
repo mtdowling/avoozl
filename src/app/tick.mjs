@@ -809,6 +809,7 @@ async function runTick(
             github,
             workspaceRoot,
             rounds: attemptsFor(memory.value),
+            config: memory.value,
           });
           planned.notify.push(...pushed.notify);
           planned.messages.push(...pushed.messages);

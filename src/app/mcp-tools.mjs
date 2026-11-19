@@ -67,10 +67,6 @@ const tools = {
     actions: {
       graph: ["graph.view", "the dependency graph, optionally one plan"],
       delivery: ["delivery.view", "delivery columns"],
-      integrator: [
-        "integrator.status",
-        "per train target: the landing lease holder, the running train and its step, and the trigger state; from stored records",
-      ],
       landing_holds: [
         "landing.queue",
         "what waits to land on each base, in landing order, and why each one is held; from stored records, no GitHub call",
@@ -200,14 +196,6 @@ const tools = {
       retry: [
         "delivery.retry",
         "resume a stopped delivery, when the person asks",
-      ],
-      landing_submit: [
-        "landing.submit",
-        "queue a batch branch for the integrator: {taskId, branch}; the branch starts with the batch prefix and passes the cheap checks",
-      ],
-      landing_review: [
-        "landing.review",
-        "open a review pull request for a queued batch branch, only when the person asks: {taskId}",
       ],
       validate: ["run.validate", "run acceptance checks at the worktree head"],
       integrate: ["integration.merge", "rebase, revalidate, fast-forward"],

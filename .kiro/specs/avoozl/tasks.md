@@ -4053,6 +4053,10 @@ Requirements 86, 87 (design §4.26, §4.32). Direct landing is implemented
 before P50 exercises it; P51 is a separate owner-run private pilot after
 the scratch safety proof, with owner minutes, credits and wall-clock per task.
 
+Retired: the bounded landing trains of task 41.3 are replaced by merge
+batches in `direct` landing (`.kiro/specs/merge-batches/`). Its text stays as
+the record of what was built then.
+
 - [x] 41.1 Schedule spec drivers with repository-wide path holds, after 40.5, 56.4 [R86.2, R86.5, R86.9, R102.4] (§4.32)
   - Facts:
     - summary: Phase 41. Schedule spec drivers with repository-wide path holds. See R86.2, R86.5, R86.9, R102.4; §4.32.
@@ -5462,7 +5466,7 @@ the spec pull request item through the same list, not a second one.
 ## Phase 61: The planner decides batches
 
 Owner decision 2026-11-18 (Requirement 108, design §4.37). One build task.
-Landing trains are being built on `task/lt-*` and touch `delivery.mjs`;
+Merge batches (`merge-batches` spec) touch `delivery.mjs`;
 merge main often and keep to `flow-batch.mjs` and the call sites.
 
 - [x] 61.1 Planner batch groups replace `size: "small"` and `flow.batch`, after 12.8 [R108.1, R108.2, R108.3, R108.4, R108.5, R108.6, R108.7, R108.8, R108.9, R108.10, R108.11, R108.12] (§4.37)

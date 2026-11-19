@@ -567,7 +567,7 @@ if (query.get('page') === 'app') {
   if (roles)
     answer('repositories.list', () => ({ items: [
       { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main', landing: 'pr', harness: 'kiro' },
-      { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main', landing: 'train' },
+      { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main', landing: 'direct' },
       { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
     ] }))
   // Add repository and Set up GitHub and import specs read a folder the same way.
