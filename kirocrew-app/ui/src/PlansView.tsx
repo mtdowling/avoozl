@@ -1437,10 +1437,16 @@ function GithubLink(props: { link: { url: string }; children: ReactNode }) {
 function LinksSection(props: { links: SpecLinks | null | undefined; loading: boolean }) {
   const links = props.links
   const muted = 'var(--muted)'
-  const none = <Box as="span" css-color={muted}>{props.loading ? '…' : 'None'}</Box>
+  const none = (
+    <Box as="span" css-color={muted}>
+      {props.loading ? '…' : 'None'}
+    </Box>
+  )
   const row = (label: string, body: ReactNode) => (
     <div data-spec-links-row={label}>
-      <Box as="dt" css-color={muted}>{label}</Box>
+      <Box as="dt" css-color={muted}>
+        {label}
+      </Box>
       <Box as="dd" css-margin="0">
         {body}
       </Box>
@@ -1462,7 +1468,9 @@ function LinksSection(props: { links: SpecLinks | null | undefined; loading: boo
           links?.issue ? (
             <GithubLink link={links.issue}>{scmLinkText(links.issue)}</GithubLink>
           ) : links?.journal?.home === 'local' ? (
-            <Box as="span" css-color={muted}>None; the journal is kept locally</Box>
+            <Box as="span" css-color={muted}>
+              None; the journal is kept locally
+            </Box>
           ) : (
             none
           ),
@@ -1505,7 +1513,13 @@ function LinksSection(props: { links: SpecLinks | null | undefined; loading: boo
                           aria-label={dot.label}
                           aria-describedby={describedBy}
                           data-check-dot={pull.checks?.dot ?? 'none'}
-                          as="span" css-width="8" css-height="8" css-border-radius="50%" css-background={dot.color} inlineFlex shrink0
+                          as="span"
+                          css-width="8"
+                          css-height="8"
+                          css-border-radius="50%"
+                          css-background={dot.color}
+                          inlineFlex
+                          shrink0
                         />
                       )
                     }
@@ -1566,13 +1580,17 @@ function SpecRail(props: {
   const muted = 'var(--muted)'
   const date = (label: string, at: string | null | undefined) => (
     <Box flex items="baseline" justify="between" gap="3" data-rail-date={label}>
-      <Box as="span" css-color={muted}>{label}</Box>
+      <Box as="span" css-color={muted}>
+        {label}
+      </Box>
       {at ? (
         <Tooltip text={at}>
           <span>{relativeTime(at)}</span>
         </Tooltip>
       ) : (
-        <Box as="span" css-color={muted}>—</Box>
+        <Box as="span" css-color={muted}>
+          —
+        </Box>
       )}
     </Box>
   )
@@ -1587,12 +1605,18 @@ function SpecRail(props: {
               {row.epicTitle ?? row.epic}
             </PlainButton>
           ) : (
-            <Box as="span" css-color={muted}>No epic</Box>
+            <Box as="span" css-color={muted}>
+              No epic
+            </Box>
           )}
         </RailSection>
       )}
       <RailSection title="Category" edit={edit('category')}>
-        {row.category ?? <Box as="span" css-color={muted}>None in its front-matter</Box>}
+        {row.category ?? (
+          <Box as="span" css-color={muted}>
+            None in its front-matter
+          </Box>
+        )}
         {(row.type || row.home) && (
           <Box as="span" mt="1" flex flexWrap gap="1">
             {row.type && <Badge>{row.type}</Badge>}
@@ -1610,13 +1634,17 @@ function SpecRail(props: {
             ))}
           </Box>
         ) : (
-          <Box as="span" css-color={muted}>{graph ? 'No repository yet' : '…'}</Box>
+          <Box as="span" css-color={muted}>
+            {graph ? 'No repository yet' : '…'}
+          </Box>
         )}
       </RailSection>
       {row.planId && <LinksSection links={plan?.links} loading={!plan} />}
       <RailSection title="Phases" edit={edit('phases')}>
         {phaseList.length === 0 ? (
-          <Box as="span" css-color={muted}>{graph ? 'No phase yet' : '…'}</Box>
+          <Box as="span" css-color={muted}>
+            {graph ? 'No phase yet' : '…'}
+          </Box>
         ) : (
           <Stack as="ul" gap={1}>
             {phaseList.map(([id, phase]) => {
@@ -1659,7 +1687,9 @@ function SpecRail(props: {
         <Box as="dl" css-margin="0" mt="2" flex flexCol gap="0.5">
           {STATES.map((state) => (
             <Box key={state.id} flex items="baseline" justify="between" gap="3" data-state-count={state.id}>
-              <Box as="dt" css-color={muted}>{state.label}</Box>
+              <Box as="dt" css-color={muted}>
+                {state.label}
+              </Box>
               <Box as="dd" css-margin="0" tabularNums>
                 {graph ? counts[state.id] : '…'}
               </Box>
@@ -1692,7 +1722,9 @@ function SpecRail(props: {
       </RailSection>
       <RailSection title={`Open decisions (${decisions.length})`}>
         {decisions.length === 0 ? (
-          <Box as="span" css-color={muted}>None.</Box>
+          <Box as="span" css-color={muted}>
+            None.
+          </Box>
         ) : (
           <Stack as="ul" gap={1}>
             {decisions.map((task) => (

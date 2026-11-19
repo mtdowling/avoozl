@@ -70,7 +70,15 @@ createRoot(document.getElementById('root')!).render(
     <span data-part="glyph">
       <Glyph icon={Check} size={14} aria-hidden="true" css-color="danger" />
     </span>
-    <SvgRoot data-part="svg" width={40} height={20} css-display="block"><SvgG data-part="svg-g" css-opacity={0.5}><SvgRect data-part="svg-rect" width={10} height={10} css-fill="var(--danger)" /><SvgPath data-part="svg-path" d="M0 0L5 5" css-stroke="var(--accent)" /><SvgText data-part="svg-text" x={0} y={18} css-font-size="11">a</SvgText></SvgG></SvgRoot>
+    <SvgRoot data-part="svg" width={40} height={20} css-display="block">
+      <SvgG data-part="svg-g" css-opacity={0.5}>
+        <SvgRect data-part="svg-rect" width={10} height={10} css-fill="var(--danger)" />
+        <SvgPath data-part="svg-path" d="M0 0L5 5" css-stroke="var(--accent)" />
+        <SvgText data-part="svg-text" x={0} y={18} css-font-size="11">
+          a
+        </SvgText>
+      </SvgG>
+    </SvgRoot>
     <StatTileStyle />
     <StatTile data-part="tile" name="Needs you: 3" value={3} label="Needs you" sub="2 decisions" warm />
     <StatTile data-part="tile-cool" name="Flow: 1" value={1} label="Flow" sub="" />

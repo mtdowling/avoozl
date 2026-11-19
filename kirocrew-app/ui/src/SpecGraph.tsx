@@ -43,7 +43,16 @@ export function SpecGraph(props: { graph: Graph | null; planId: string; only?: M
       aria-selected={mode === key}
       data-spec-graph-tab={key}
       onClick={() => (key === 'tree' ? drill({ kind: 'spec', id: planId }) : setMode('frontier'))}
-      css-border-color={mode === key ? 'border-strong-border' : 'transparent'} css-color={mode === key ? 'accent' : 'muted'} css-background={mode === key ? 'card' : 'transparent'} h6 cursorPointer whitespace="nowrap" rounded="sm" border="all" px="3" size="11"
+      css-border-color={mode === key ? 'border-strong-border' : 'transparent'}
+      css-color={mode === key ? 'accent' : 'muted'}
+      css-background={mode === key ? 'card' : 'transparent'}
+      h6
+      cursorPointer
+      whitespace="nowrap"
+      rounded="sm"
+      border="all"
+      px="3"
+      size="11"
     >
       {label}
     </PlainButton>

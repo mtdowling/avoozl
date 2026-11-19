@@ -126,7 +126,8 @@ function Node(props: { node: LaidNode; selected: boolean; dim: boolean; onSelect
       onBlur={() => props.onHover(null)}
       opacity={props.dim ? 0.3 : draft ? 0.6 : 1}
       data-draft={draft || undefined}
-      css-cursor="pointer" css-outline="none"
+      css-cursor="pointer"
+      css-outline="none"
     >
       <title>{draft ? `${node.title} (draft spec)` : node.title}</title>
       <SvgRect
@@ -135,7 +136,8 @@ function Node(props: { node: LaidNode; selected: boolean; dim: boolean; onSelect
         rx={6}
         strokeWidth={selected ? 2.5 : 1}
         strokeDasharray={node.members || draft ? '5 3' : undefined}
-        css-fill="card" css-stroke={selected ? 'var(--accent)' : color}
+        css-fill="card"
+        css-stroke={selected ? 'var(--accent)' : color}
       />
       <SvgRect width={5} height={NODE_HEIGHT} rx={3} css-fill={color} />
       <SvgText x={12} y={15} fontSize={11} fontWeight={600} css-fill="text">
@@ -625,7 +627,8 @@ export default function GraphView({
               onMouseDown={(e) => e.button === 1 && e.preventDefault()}
               onAuxClickCapture={noLinkAfterDrag}
               data-panning={panning || undefined}
-              css-cursor={panning ? 'grabbing' : 'grab'} css-user-select="none"
+              css-cursor={panning ? 'grabbing' : 'grab'}
+              css-user-select="none"
             >
               {panning && <PanningStyle />}
               <defs>
@@ -641,14 +644,7 @@ export default function GraphView({
                   const key = groupKey(cluster.group)
                   return (
                     <g key={`${key}:${i}`} opacity={lit ? 0.5 : 1}>
-                      <SvgRect
-                        x={cluster.x}
-                        y={cluster.y}
-                        width={cluster.width}
-                        height={cluster.height}
-                        rx={8}
-                        css-fill="bg-elevated" css-stroke="border" css-opacity="0.7"
-                      />
+                      <SvgRect x={cluster.x} y={cluster.y} width={cluster.width} height={cluster.height} rx={8} css-fill="bg-elevated" css-stroke="border" css-opacity="0.7" />
                       {cluster.label && (
                         <SvgText
                           x={cluster.x + 6}
@@ -660,7 +656,8 @@ export default function GraphView({
                           aria-label={`${cluster.title}, ${cluster.count} tasks. Press to open it.`}
                           onClick={() => !moved.current && drillGroup(cluster.group)}
                           onKeyDown={(e) => pressed(e, () => drillGroup(cluster.group))}
-                          css-fill="muted" css-cursor="pointer"
+                          css-fill="muted"
+                          css-cursor="pointer"
                         >
                           {clip(cluster.title, 30)} ›
                         </SvgText>
@@ -681,7 +678,8 @@ export default function GraphView({
                       aria-label={`${group.title}: ${group.count} with no dependencies. Press to open it.`}
                       onClick={() => !moved.current && drillGroup(group.group)}
                       onKeyDown={(e) => pressed(e, () => drillGroup(group.group))}
-                      css-fill="muted" css-cursor="pointer"
+                      css-fill="muted"
+                      css-cursor="pointer"
                     >
                       {clip(`${group.title} · ${group.count} with no dependencies`, group.chars)}
                     </SvgText>
@@ -701,7 +699,8 @@ export default function GraphView({
                       strokeLinejoin="round"
                       strokeDasharray={edge.kind === 'sequence' ? '6 4' : undefined}
                       markerEnd={on ? 'url(#avoozl-arrow-on)' : 'url(#avoozl-arrow)'}
-                      css-stroke={on ? 'accent' : 'muted'} css-opacity={dim ? 0.12 : on ? 1 : edge.satisfied ? 0.35 : 0.8}
+                      css-stroke={on ? 'accent' : 'muted'}
+                      css-opacity={dim ? 0.12 : on ? 1 : edge.satisfied ? 0.35 : 0.8}
                     />
                   )
                 })}

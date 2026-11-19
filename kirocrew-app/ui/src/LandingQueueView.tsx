@@ -46,7 +46,13 @@ function CheckDot(props: { checks: LandingItem['checks'] }) {
         data-check-dot={dot}
         role="img"
         aria-label={text}
-        as="span" css-width="8" css-height="8" css-background={DOT[dot] ?? 'var(--muted)'} inlineBlock shrink0 rounded="full"
+        as="span"
+        css-width="8"
+        css-height="8"
+        css-background={DOT[dot] ?? 'var(--muted)'}
+        inlineBlock
+        shrink0
+        rounded="full"
       />
     </Tooltip>
   )

@@ -203,7 +203,13 @@ function Toggle(props: { label: string; options: { key: string; label: string }[
           type="button"
           aria-pressed={props.value === option.key}
           onClick={() => props.onChange(option.key)}
-          css-background={props.value === option.key ? 'accent-subtle-bg-hover' : undefined} css-color={props.value === option.key ? 'text' : 'muted'} css-font-weight={props.value === option.key ? '600' : undefined} rounded="full" px="2" py="0.5" size="xs"
+          css-background={props.value === option.key ? 'accent-subtle-bg-hover' : undefined}
+          css-color={props.value === option.key ? 'text' : 'muted'}
+          css-font-weight={props.value === option.key ? '600' : undefined}
+          rounded="full"
+          px="2"
+          py="0.5"
+          size="xs"
         >
           {option.label}
         </PlainButton>

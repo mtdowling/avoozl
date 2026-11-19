@@ -455,7 +455,12 @@ export function TimingFold({
           <Box key={span.id} as="li" flex items="center" gap="2">
             <Box
               aria-hidden="true"
-              as="span" css-width="8" css-height="8" css-border-radius="2" css-background={STAGE_COLORS[span.stage as keyof typeof STAGE_COLORS] ?? 'var(--muted)'} css-flex="none"
+              as="span"
+              css-width="8"
+              css-height="8"
+              css-border-radius="2"
+              css-background={STAGE_COLORS[span.stage as keyof typeof STAGE_COLORS] ?? 'var(--muted)'}
+              css-flex="none"
             />
             <span>{STAGE_LABELS[span.stage as keyof typeof STAGE_LABELS] ?? span.stage}</span>
             {span.detail && (

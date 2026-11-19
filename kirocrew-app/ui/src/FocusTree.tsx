@@ -261,7 +261,16 @@ export default function GraphPage(props: {
               aria-selected={place.tab === t.key}
               data-graph-tab={t.key}
               onClick={() => go({ tab: t.key, root: t.key === 'focus' ? (root ?? null) : null })}
-              css-border-color={place.tab === t.key ? 'border-strong-border' : 'transparent'} css-color={place.tab === t.key ? 'accent' : 'muted'} css-background={place.tab === t.key ? 'card' : 'transparent'} css-letter-spacing={place.tab === t.key ? '.08em' : '.08em'} h6 cursorPointer whitespace="nowrap" rounded="sm" border="all" px="3"
+              css-border-color={place.tab === t.key ? 'border-strong-border' : 'transparent'}
+              css-color={place.tab === t.key ? 'accent' : 'muted'}
+              css-background={place.tab === t.key ? 'card' : 'transparent'}
+              css-letter-spacing={place.tab === t.key ? '.08em' : '.08em'}
+              h6
+              cursorPointer
+              whitespace="nowrap"
+              rounded="sm"
+              border="all"
+              px="3"
             >
               {t.label}
             </PlainButton>
@@ -477,7 +486,9 @@ function Refs({ tasks, struck }: { tasks: { task: GraphTask; met?: boolean }[]; 
       {tasks.map(({ task, met }, i) => (
         <span key={task.id}>
           {i > 0 && ' · '}
-          <Box as="span" css-text-decoration={struck || met ? 'line-through' : undefined} css-color={struck || met ? 'muted-strong-muted' : 'text'}>{task.id}</Box>
+          <Box as="span" css-text-decoration={struck || met ? 'line-through' : undefined} css-color={struck || met ? 'muted-strong-muted' : 'text'}>
+            {task.id}
+          </Box>
         </span>
       ))}
     </>
@@ -687,7 +698,11 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                     >
                       <Box as="span" flex items="baseline" gap="2">
                         <Box
-                          as="span" css-color={faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state]} css-text-decoration={faded ? 'line-through' : undefined} size="12" weight="bold"
+                          as="span"
+                          css-color={faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state]}
+                          css-text-decoration={faded ? 'line-through' : undefined}
+                          size="12"
+                          weight="bold"
                         >
                           {node.id}
                         </Box>
@@ -742,7 +757,10 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
             width="100%"
             viewBox={`0 0 ${width} ${height}`}
             preserveAspectRatio="xMinYMin meet"
-            css-display="block" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" css-max-width={width} css-min-width={Math.round(width * 0.85)}
+            css-display="block"
+            css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace"
+            css-max-width={width}
+            css-min-width={Math.round(width * 0.85)}
           >
             <defs>
               <marker id="avoozl-tree-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={6} markerHeight={6} orient="auto">
@@ -762,7 +780,8 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                   strokeWidth={1.6}
                   strokeDasharray={edge.kind === 'sequence' ? '3 6' : edge.satisfied ? '2 5' : undefined}
                   markerEnd="url(#avoozl-tree-arrow)"
-                  css-stroke={color} css-opacity={edge.satisfied ? '0.4' : '0.8'}
+                  css-stroke={color}
+                  css-opacity={edge.satisfied ? '0.4' : '0.8'}
                 />
               )
             })}
@@ -799,7 +818,8 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                       rx={3}
                       strokeWidth={isRoot ? 2 : 1.2}
                       strokeDasharray={draft ? '5 3' : undefined}
-                      css-fill="card" css-stroke={isRoot ? 'accent' : 'border-strong-border'}
+                      css-fill="card"
+                      css-stroke={isRoot ? 'accent' : 'border-strong-border'}
                     />
                     <SvgText
                       x={11}
