@@ -5757,3 +5757,40 @@ commit cannot read my credentials or reach the network through its checks.
    host fails with the network off, a write outside the roots fails, and
    `GH_TOKEN` is absent; container tests SHALL be skipped, saying so, where
    no runtime is installed.
+
+### Requirement 113: A tick on the base branch completes the task
+
+Added 2026-11-19 (owner request). Design §4.41. Changes Requirement 30.6 and
+111.7: a tick in `tasks.md` is no longer read only when a revision is
+approved.
+
+**User story:** As the owner, I want Avoozl to notice a commit that ticks off
+a task and know it is complete, so that I do not approve the spec again for a
+box someone checked.
+
+#### Acceptance criteria
+
+1. When Avoozl reads an approved spec's `tasks.md` as the spec's base branch
+   holds it, in single-repository and plans-repository mode, a task whose
+   item is ticked `[x]` and that is not done SHALL become done at once, with
+   no approval and no new revision. Its evidence SHALL name the base branch,
+   the `tasks.md` line and the commit that ticked it, and the task's
+   integration SHALL carry that commit as its landing commit. One Activity
+   line SHALL say so.
+2. Only the base branch SHALL count. A tick on a working or worker branch, or
+   an edit not committed, SHALL do nothing. Only `[x]` SHALL count: `[~]` and
+   `[-]` stay Kiro's queued and running marks.
+3. A tick on a task an Avoozl worker session is running SHALL make the task
+   done and SHALL close that worker's session binding, with one Activity
+   line saying the session was released.
+4. A tick taken out of a done task SHALL NOT reopen it. It SHALL show in
+   Needs you with Reopen and Keep done, and stay done until a person chooses.
+5. A ticked item with no task ID SHALL be a lint error naming `tasks.md` and
+   its line.
+6. A ticked parent SHALL count as done with its open sub-tasks.
+7. A task gated on Avoozl's own recorded validation (Requirement 38.4) SHALL
+   not be completed by a tick.
+8. Ticks SHALL stay outside the revision hash (Requirement 111.7). Tests SHALL
+   show: a tick on the base branch completes a task with no approval, a tick
+   on another branch does nothing, a tick of an in-flight task releases its
+   worker, an untick lands in Needs you, and the hash does not change.
