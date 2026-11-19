@@ -42,9 +42,9 @@ export const HEARTBEAT_MINUTES = 15;
 export const TAKEOVER_WAIT_MS = 10_000;
 export const EXPORT_FORMAT = "avoozl-driver-export";
 
-// What a rebuild cannot bring back (§6.10 "Rebuild from GitHub"). Shown
-// before a rebuild runs.
-export const REBUILD_LOSSES = [
+// What a forced take-over without an export does not bring over (§6.10).
+// Shown before it runs.
+export const NO_EXPORT_LOSSES = [
   "Flow timing and stop history, so lead time and time to fix restart",
   "Retros and proposals",
   "Notes and links not shown on GitHub",
@@ -699,45 +699,6 @@ export async function recheckDrivers(store, github, planIds) {
     }
   }
   return lost;
-}
-
-// Projection's gate (§6.10 "First driver"): the plan issue comes first,
-// assigned to the projecting person with this machine's claim, and no task
-// issue is made until both read back. Afterwards, every projection reads
-// it again and goes on only while this workspace drives the spec.
-export async function ensurePlanIssue(store, github, plan) {
-  const ctx = driverContext(store);
-  if (!ctx || !githubModeOf(ctx)) return null;
-  const identity = ctx.identity(),
-    namespace = requireNamespace(identity),
-    login = await currentLogin(github);
-  let { row } = await readGitHubDriver(store, github, ctx, plan, { login });
-  if (row.reason === "not-projected") {
-    const config = planIssueConfig(store, plan, identity),
-      epicRef = epicIssue(store, plan);
-    let assignees = [login];
-    if (epicRef) {
-      const epicConfig = configById(store, epicRef.repository, identity),
-        epicAssignees = epicConfig
-          ? logins(await github.issue(epicConfig, epicRef.number))
-          : [];
-      // The epic issue's one assignee already decides.
-      if (epicAssignees.length === 1) assignees = [];
-    }
-    const created = await createPlanIssue(store, github, ctx, plan, {
-      config,
-      claim: newClaim(ctx, login),
-      assignees,
-    });
-    putRow(store, { ...row, repository: config.id, number: created.number });
-    ({ row } = await readGitHubDriver(store, github, ctx, plan, { login }));
-  }
-  if (row.state !== "driver")
-    fail(
-      `This workspace reads only for spec ${specName(plan)}: ${reasonText(row)} Nothing was projected.`,
-      409,
-    );
-  return row;
 }
 
 async function createPlanIssue(
@@ -1452,16 +1413,7 @@ export function takeoverPreview(store, input = {}) {
   return {
     planId: plan.id,
     spec: specName(plan),
-    lost: input.rebuild ? REBUILD_LOSSES : [],
-    reraised: input.rebuild
-      ? [
-          "Conflicts",
-          "Disallowed closes",
-          "Leak hits",
-          "Quarantined snapshots",
-          "A zero-or-several assignee decision",
-        ]
-      : [],
+    lost: input.withoutExport ? NO_EXPORT_LOSSES : [],
     current: {
       assignees: row.assignees || [],
       driver: row.claim ? claimFrom(row.claim) : null,
@@ -1471,12 +1423,10 @@ export function takeoverPreview(store, input = {}) {
   };
 }
 
-export async function takeOver(store, github, input = {}, hooks = {}) {
+export async function takeOver(store, github, input = {}) {
   const ctx = driverContext(store);
   if (!ctx) fail("This workspace has no driver settings.", 409);
   const plan = requirePlan(store, input.planId);
-  if (input.file && input.rebuild)
-    fail("Take over from an export or rebuild from GitHub, not both.");
   if (!githubModeOf(ctx)) return localTakeOver(store, ctx, plan, input);
   const login = await currentLogin(github);
   let { row } = await readGitHubDriver(store, github, ctx, plan, { login });
@@ -1490,13 +1440,7 @@ export async function takeOver(store, github, input = {}, hooks = {}) {
   const value = input.file
     ? verifyExport(ctx, plan, input.file, row.claim?.export ?? null)
     : null;
-  if (input.rebuild && input.acknowledgeLoss !== true)
-    return {
-      needs: "acknowledge",
-      ...takeoverPreview(store, { ...input, planId: plan.id }),
-    };
   const away = value ? importExport(store, value, ctx.now()) : [];
-  if (input.rebuild) await hooks.rebuild?.(row.repository);
   const claim = newClaim(ctx, login, { from: claimFrom(row.claim) });
   if (legacy) {
     const config = planIssueConfig(store, plan, ctx.identity()),
@@ -1516,7 +1460,7 @@ export async function takeOver(store, github, input = {}, hooks = {}) {
     claim,
     value,
     away,
-    kind: value ? "export" : input.rebuild ? "rebuild" : "claim",
+    kind: value ? "export" : "claim",
   });
 }
 
@@ -1540,11 +1484,7 @@ async function settleTakeover(
   const marked = won ? await markOpenWork(store, github, plan) : [];
   const next = putRow(store, {
     ...rest,
-    ...(won
-      ? { reproject: true }
-      : before?.handoff
-        ? { handoff: before.handoff }
-        : {}),
+    ...(!won && before?.handoff ? { handoff: before.handoff } : {}),
     setup: won ? setupList(ctx, value) : before?.setup || [],
     takeover: {
       kind,
@@ -1571,8 +1511,6 @@ function localTakeOver(store, ctx, plan, input) {
     row.state === "driver"
   )
     fail(`You already drive ${specName(plan)}.`, 409);
-  if (input.rebuild)
-    fail("Local only mode has no GitHub to rebuild from.", 409);
   const value = input.file
     ? verifyExport(ctx, plan, input.file, row?.export ?? undefined)
     : null;
@@ -1627,7 +1565,7 @@ export async function forceTakeOver(store, github, input = {}, hooks = {}) {
   if (!value && input.acknowledgeLoss !== true)
     return {
       needs: "acknowledge",
-      ...takeoverPreview(store, { planId: plan.id, rebuild: true }),
+      ...takeoverPreview(store, { planId: plan.id, withoutExport: true }),
     };
   // 1. The plan issue's assignees, exactly this login, read back. GitHub
   // silently ignores the change for a token without push access.
@@ -1641,9 +1579,8 @@ export async function forceTakeOver(store, github, input = {}, hooks = {}) {
         409,
       );
   }
-  // 2. Rebuild from GitHub, or import a matching export.
+  // 2. Import a matching export, if one was given.
   const away = value ? importExport(store, value, ctx.now()) : [];
-  if (!value) await hooks.rebuild?.(row.repository);
   // 3. A forced claim naming the old driver.
   const from = claimFrom(row.claim) || {
       machine: null,
@@ -1657,7 +1594,7 @@ export async function forceTakeOver(store, github, input = {}, hooks = {}) {
     claim,
     value,
     away,
-    kind: value ? "export" : "rebuild",
+    kind: value ? "export" : "claim",
     forced: true,
   });
   store.event(null, "driver.forced", {
@@ -1675,32 +1612,6 @@ export async function forceTakeOver(store, github, input = {}, hooks = {}) {
     },
   ]);
   return result;
-}
-
-// Specs taken over here and not yet projected again: the next tick projects
-// each once, which raises again every conflict still on GitHub.
-export function takenOverPlanIds(store) {
-  let rows;
-  try {
-    rows = store.list(TABLE);
-  } catch {
-    return new Set();
-  }
-  return new Set(
-    rows
-      .filter(
-        (row) =>
-          row.reproject && row.state === "driver" && row.mode === "github",
-      )
-      .map((row) => row.id),
-  );
-}
-
-export function reprojected(store, planId) {
-  const row = store.get(TABLE, planId);
-  if (!row?.reproject) return;
-  const { reproject: _reproject, ...rest } = row;
-  putRow(store, rest);
 }
 
 // ---------------------------------------------------------------------------

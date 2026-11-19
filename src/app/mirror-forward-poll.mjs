@@ -10,25 +10,6 @@ import { noteInstances } from "./mirror-forward-run.mjs";
 
 const marker = (id) => `<!-- avoozl-review-copy ${id} -->`;
 
-// True when the task has no mirror, forwarding is off, or its public pull
-// request merged (or it was never forwarded because no record exists for a
-// task a person closed).
-export function publicMergeReached(store, task, repo) {
-  const mirror = repo?.mirror;
-  if (!mirror) return true;
-  // Forwarding off writes no record, so the mirror merge is the done point.
-  if (mirror.forward === "off") return true;
-  // A batch epic's task counts as done on its mirror merge, so dependents
-  // inside the epic start; the one public pull request is the epic's own.
-  if (inBatchEpic(store, mirror, task)) return true;
-  const records = store
-    .list("mirror_forward")
-    .filter(
-      (record) => record.taskId === task.id && record.mirror === mirror.mirror,
-    );
-  return records.some((record) => record.state === "public_merged");
-}
-
 async function copyComments(store, github, record, mirror) {
   const done = new Set(record.copiedComments ?? []);
   const fresh = (

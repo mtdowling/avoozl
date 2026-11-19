@@ -36,22 +36,17 @@ export function taskAuthority(task) {
     : "local";
 }
 
-// A github task whose first issue does not exist yet (§3.2). It does not
-// dispatch until projection creates the issue.
+// A tracker plugin's task whose record does not exist yet (§3.2). It does
+// not dispatch until the plugin creates the record.
 export function pendingProjection(task) {
-  const authority = taskAuthority(task);
-  if (authority.startsWith("plugin:")) return !task?.tracker?.id;
-  return (
-    authority === "github" &&
-    !(task?.github && (task.github.number || task.github.nodeId))
-  );
+  return taskAuthority(task).startsWith("plugin:") && !task?.tracker?.id;
 }
 
-// A tracker plugin owns a task's record, not its delivery: a plugin-authority
-// task with no route of its own is delivered locally (§4.8).
+// Every task Avoozl codes is delivered locally and lands through the queue;
+// an old `route: github` means the same (R102.20). Only a route plugin
+// delivers elsewhere (§4.8).
 export function taskRoute(task) {
-  if (isSource(task?.route)) return task.route;
-  return taskAuthority(task) === "github" ? "github" : "local";
+  return pluginId(task?.route) ? task.route : "local";
 }
 
 // The plugin id in `plugin:<id>`, or null.
@@ -81,7 +76,7 @@ export const isGate = (task) =>
 export function taskCompletion(task) {
   if (isManual(task)) return "person";
   if (COMPLETIONS.includes(task?.completion)) return task.completion;
-  return taskRoute(task) === "github" ? "merged-pr" : "integrated";
+  return "integrated";
 }
 
 // The newest task in `id`'s supersede chain (§5.2, R39.2). Readiness judges
@@ -130,7 +125,9 @@ export function completionReached(task, level, complete) {
   }
   // Packages complete from their children (the tick records it).
   if (task.childrenComplete && taskKind(task) === "package") return true;
-  if (level === "integrated" && task.integration?.commit) return true;
+  // `merged-pr` is an old value for landed (R102.20).
+  if (["integrated", "merged-pr"].includes(level) && task.integration?.commit)
+    return true;
   // A route plugin's completion is the remote leaf's verdict (R22.8).
   if (task.routeVerdict?.state === "done" && level !== "released") return true;
   // A tracker plugin's task: Avoozl's verdict as stored in its record, or an

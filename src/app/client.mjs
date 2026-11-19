@@ -115,8 +115,6 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "github.issues",
   "github.sync",
   "github.authorize",
-  "github.project",
-  "github.project.preview",
   "github.start",
   "repositories.list",
   "repositories.detect",

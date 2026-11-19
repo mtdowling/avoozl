@@ -29,15 +29,13 @@ import {
 import { sessionUrl } from "./notifications.mjs";
 import { processSessionDetails } from "./process-view.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
-import { projectItemRecords } from "./github-project.mjs";
-import { FEEDBACK, feedbackSummary } from "./github-feedback.mjs";
 import { remoteLeaf, routeNeedsYou } from "./routes.mjs";
 import { pluginHealth } from "./plugin-session.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
 import { listSpans, taskFlow } from "./flow.mjs";
 import { taskSteps } from "./task-steps.mjs";
 import { observationsForTask } from "./build-receipt-read.mjs";
-import { NODE_STATES, avoozlState } from "../delivery-lanes.mjs";
+import { NODE_STATES } from "../delivery-lanes.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import { fail } from "./store.mjs";
 import { linkSets } from "./scm-links.mjs";
@@ -54,8 +52,6 @@ const ACTIVE_RUNS = new Set([
   "waiting-approval",
 ]);
 const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
-// Managed fields a person's choice can settle (github.conflict.resolve).
-const RESOLVABLE_FIELDS = new Set(["title", "body", "labels", "blockers"]);
 
 // Rows of a table this workspace may not have yet: a database that predates
 // it, or a table another task adds later.
@@ -80,14 +76,6 @@ function claimedLeaves(store) {
     return claimedTaskIds(store);
   } catch {
     return new Set();
-  }
-}
-
-function projectBoard(store) {
-  try {
-    return projectItemRecords(store);
-  } catch {
-    return new Map();
   }
 }
 
@@ -186,8 +174,7 @@ function liveSessions(store) {
 function statusWithoutSession(task, live, claimed) {
   return ["review", "running"].includes(task.status) &&
     !live.has(task.id) &&
-    !claimed.has(task.id) &&
-    !task.githubVerdict?.reviews
+    !claimed.has(task.id)
     ? task.status
     : null;
 }
@@ -268,7 +255,6 @@ function graphStates(store, data) {
       }).map((task) => task.id),
     ),
     complete = (status) => statusComplete(data, status),
-    board = projectBoard(store),
     submissions = new Map(
       optionalList(store, "route_submissions").map((row) => [row.taskId, row]),
     ),
@@ -286,12 +272,7 @@ function graphStates(store, data) {
       needsYou(task, submissions, health, manual)
     )
       return "needs-you";
-    if (
-      task.status === "deferred" ||
-      task.planArchived ||
-      board.get(task.id)?.paused
-    )
-      return "deferred";
+    if (task.status === "deferred" || task.planArchived) return "deferred";
     // Running only while a session is live; a delivery between sessions
     // (the tick opens the next one) waits.
     if (live.has(task.id)) return "running";
@@ -688,40 +669,6 @@ function graphPlans(store, data) {
 // Leaves that are running or have delivery records: their session bindings,
 // runs, evidence, integration and pull requests. Records from tables added by
 // later tasks (`task_deliveries`, `task_worktrees`) are passed through as-is.
-// What the GitHub Project board says about a task that Avoozl does not act
-// on, as short lines for the Delivery view (§6.7).
-function projectNotes(record) {
-  if (!record) return null;
-  const notes = [];
-  if (record.paused)
-    notes.push(
-      `Paused: ${record.paused.actor} moved the card to Deferred. No new session starts.`,
-    );
-  if (record.ignored?.direction === "into")
-    notes.push(
-      `Deferred by a person the policy does not allow (${record.ignored.actor || "unknown"}): ${record.ignored.reason} Not paused.`,
-    );
-  if (record.ignored?.direction === "out")
-    notes.push(
-      `Moved out of Deferred by a person the policy does not allow (${record.ignored.actor || "unknown"}): ${record.ignored.reason} Still paused.`,
-    );
-  if (record.mismatch)
-    notes.push(
-      `Board Status is ${record.mismatch.board}; Avoozl's state is ${record.mismatch.avoozl}.`,
-    );
-  if (record.releaseDraft)
-    notes.push(
-      `Release was changed to ${record.releaseDraft.to}; a plan change moving ${record.releaseDraft.specKey || "this task"} from ${record.releaseDraft.from || "no milestone"} to ${record.releaseDraft.to} is drafted for review.`,
-    );
-  return {
-    status: record.status ?? null,
-    state: record.state ?? null,
-    release: record.applied?.Release ?? null,
-    wave: record.applied?.Wave ?? null,
-    notes,
-  };
-}
-
 // One delivery's review rounds (§5.2, R36.12): per subject commit, each
 // role's verdict, model, stale mark, findings with closure state, and a link
 // to its session. A verdict on any commit but the delivery's current one is
@@ -777,31 +724,6 @@ export function reviewRounds(delivery) {
   return [...rounds.values()];
 }
 
-// A GitHub leaf's pull-request reviews as the tick last read them (task
-// 9.10): the verdict on the head commit and each reviewer's review, with a
-// link to the pull request. GitHub owns the review; this only shows it.
-function githubReviews(verdict) {
-  const reviews = verdict?.reviews;
-  if (!reviews) return null;
-  return {
-    state: reviews.state,
-    approvals: reviews.approvals,
-    needed: reviews.needed,
-    headSha: reviews.headSha ?? null,
-    pullRequest: reviews.pullRequest ?? null,
-    pullRequestNumber: reviews.pullRequestNumber ?? null,
-    held: verdict.state === "held",
-    reviews: (reviews.reviews || []).map((review) => ({
-      reviewer: review.reviewer,
-      state: review.state,
-      commit: review.commit ?? null,
-      stale: review.stale === true,
-      allowed: review.allowed === true,
-      reason: review.reason ?? null,
-    })),
-  };
-}
-
 // A remote leaf's submission as the tick last read it. The plugin's link,
 // reason and result are its own text: the page escapes them.
 function routeDelivery(row) {
@@ -852,14 +774,9 @@ export function deliveryView(store, data, { config } = {}) {
     evidence = byTask(optionalList(store, "evidence")),
     deliveries = byTask(optionalList(store, "task_deliveries")),
     worktrees = byTask(optionalList(store, "task_worktrees")),
-    board = projectItemRecords(store),
     live = liveSessions(store),
     claimed = claimedLeaves(store),
     archivedOf = archivedPlanOf(store),
-    // Pull request feedback rows, read once rather than once per leaf.
-    feedback = new Map(
-      optionalList(store, FEEDBACK).map((row) => [row.id, row]),
-    ),
     unreachableCrews = new Set(
       (store.getMeta("crews.snapshot")?.instances || [])
         .filter((i) => i.reachable === false)
@@ -919,8 +836,7 @@ export function deliveryView(store, data, { config } = {}) {
     if (taskKind(task) !== "leaf") continue;
     const id = task.id,
       pullRequests = task.github?.pullRequests || [],
-      links = Array.isArray(task.evidence) ? task.evidence : [],
-      prFeedback = feedbackSummary(feedback.get(id));
+      links = Array.isArray(task.evidence) ? task.evidence : [];
     if (
       !DELIVERY_STATUSES.has(task.status) &&
       !bindings.has(id) &&
@@ -928,12 +844,9 @@ export function deliveryView(store, data, { config } = {}) {
       !evidence.has(id) &&
       !deliveries.has(id) &&
       !worktrees.has(id) &&
-      !board.has(id) &&
       !task.integration &&
       !pullRequests.length &&
       !links.length &&
-      !task.githubVerdict?.reviews &&
-      !prFeedback &&
       !submissions.has(id) &&
       !task.github?.unlinked &&
       // A planner-grouped task shows its batch or why it runs alone.
@@ -1028,15 +941,10 @@ export function deliveryView(store, data, { config } = {}) {
         url: typeof pull.url === "string" ? pull.url : null,
         merged: pull.merged === true || Boolean(pull.mergedAt),
       })),
-      githubReviews: githubReviews(task.githubVerdict),
-      // Pull request feedback (§4.13, R54.13): latest event, rounds, and
-      // comments not relayed.
-      prFeedback,
       deliveries: deliveries.get(id) || [],
       rounds: (deliveries.get(id) || []).flatMap(reviewRounds),
       worktrees: worktrees.get(id) || [],
       links: taskLinkSets[id] ?? null,
-      project: projectNotes(board.get(id)),
       route: routeDelivery(submissions.get(id)),
       needsYou: needsYou(task, submissions, health),
       // The $spent / $cap chip (§4.17).
@@ -1061,24 +969,8 @@ export function deliveryView(store, data, { config } = {}) {
   return { revision: data.revision, items, contentReports };
 }
 
-// Each task's Avoozl state (ready, running, reviewing, needs-you, waiting,
-// done, deferred) by the Delivery tab's own lane rule, for the Project field
-// the tick fills (github-project.mjs).
-export function avoozlStates(store, data) {
-  const items = new Map(
-    deliveryView(store, data).items.map((item) => [item.id, item]),
-  );
-  return new Map(
-    graphView(store, data, {}).tasks.map((task) => [
-      task.id,
-      avoozlState(task, items.get(task.id) ?? null),
-    ]),
-  );
-}
-
-// Open conflicts and decisions: open decisions on tasks, GitHub projection
-// conflicts (managed fields, duplicate task IDs, closed issues), tasks
-// that need a person, sessions that ended under unfinished tasks, and active
+// Open conflicts and decisions: open decisions on tasks, tasks that need a
+// person, sessions that ended under unfinished tasks, and active
 // runs that share a resource.
 // Issue Radar's hold on a GitHub leaf (github-crew.mjs), in plain words for
 // Needs you (R52.10); null for any other decision.
@@ -1093,17 +985,9 @@ function crewHoldText(task) {
 export function conflictsView(store, data) {
   const live = liveSessions(store),
     claimed = claimedLeaves(store),
-    archivedOf = archivedPlanOf(store),
-    board = projectItemRecords(store);
+    archivedOf = archivedPlanOf(store);
   const complete = (status) => statusComplete(data, status),
     byId = new Map(data.tasks.map((task) => [task.id, task])),
-    // A person's chosen resolution per task and field (github.conflict.resolve),
-    // applied by the next projection.
-    resolutions = new Map(
-      optionalList(store, "github_issues")
-        .filter((record) => record.taskId && record.projectedPlanId)
-        .map((record) => [record.taskId, record.resolutions || {}]),
-    ),
     items = [];
   for (const task of data.tasks) {
     if (task.decision)
@@ -1125,48 +1009,6 @@ export function conflictsView(store, data) {
         detail: `${conflict.field} was changed in ${taskAuthority(task)}; Avoozl left it alone.`,
         link: task.tracker.link ?? null,
         field: conflict.field,
-      });
-    for (const conflict of task.projectionConflicts || []) {
-      const resolvable = RESOLVABLE_FIELDS.has(conflict.field),
-        chosen = resolutions.get(task.id)?.[conflict.field];
-      items.push({
-        kind: "github-conflict",
-        taskId: task.id,
-        ...ownership(task),
-        title: task.title ?? task.id,
-        field: conflict.field,
-        detail: conflict.reason,
-        expected: conflict.expected ?? null,
-        actual: conflict.actual ?? null,
-        changedBy: conflict.changedBy ?? null,
-        changedAt: conflict.changedAt ?? null,
-        // `desired` reapplies Avoozl's value; `github` keeps the person's
-        // until the plan changes that field again. State and identity
-        // conflicts are settled on GitHub.
-        choices: resolvable ? ["desired", "github"] : [],
-        resolution:
-          resolvable && chosen && chosen.desired === conflict.desired
-            ? chosen.choice
-            : null,
-      });
-    }
-    // An Avoozl state a person changed on the board (§6.7): written back
-    // once; kept here until the state next moves.
-    const reverted = board.get(task.id)?.stateConflict;
-    if (reverted)
-      items.push({
-        kind: "github-conflict",
-        taskId: task.id,
-        ...ownership(task),
-        title: task.title ?? task.id,
-        field: "Avoozl state",
-        detail: `It was set to ${reverted.board ?? "empty"} on the Project; Avoozl wrote ${reverted.avoozl} back.`,
-        expected: reverted.avoozl,
-        actual: reverted.board ?? null,
-        changedBy: null,
-        changedAt: reverted.at ?? null,
-        choices: [],
-        resolution: null,
       });
     if (!complete(task.status) && task.status === "blocked")
       items.push({
@@ -1262,23 +1104,8 @@ export function conflictsView(store, data) {
   items.push(...providerOutItems(store));
   // The tick failed three times in a row.
   items.push(...tickFailedItems(store));
-  // Ready to merge under manual ship (§4.25, R80.3, R80.4): a pull request
-  // a person merges on GitHub, or a local task waiting for Integrate.
-  for (const row of optionalList(store, "pr_feedback")) {
-    const task = byId.get(row.taskId);
-    if (!row.ready || !row.pull || !task || complete(task.status)) continue;
-    items.push({
-      kind: "ready-to-merge",
-      id: "ready-to-merge:" + task.id,
-      taskId: task.id,
-      ...ownership(task),
-      title: `${task.id} is ready to merge`,
-      detail: `Its checks and reviews pass on ${String(row.ready.head).slice(0, 12)}. You merge it on GitHub; Avoozl never merges it.`,
-      link: row.ready.url,
-      pullRequest: row.ready.number,
-      openedAt: row.ready.at,
-    });
-  }
+  // Ready to merge under manual ship (§4.25, R80.3, R80.4): a local task
+  // waiting for Integrate.
   for (const delivery of optionalList(store, "task_deliveries")) {
     const task = byId.get(delivery.taskId);
     if (

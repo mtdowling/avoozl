@@ -62,7 +62,6 @@ export interface TakeoverPreview {
   planId: string
   spec: string
   lost: string[]
-  reraised: string[]
   current: { assignees: string[]; driver: DriverClaim | null; seenAt: string | null }
   setup: { kind: string; id?: string }[]
 }
@@ -148,7 +147,7 @@ export function setupText(item: { kind: string; id?: string }): string {
 // The Force take over confirm: every check before the red button works.
 export function forceReady(spec: DriverSpec, typed: string, acknowledged: boolean, file: string): string | null {
   if (typed.trim() !== spec.spec) return `Type ${spec.spec} to confirm.`
-  if (!file.trim() && !acknowledged) return 'Tick that you understand what a rebuild loses, or give an export file.'
+  if (!file.trim() && !acknowledged) return 'Tick that you understand what a take-over without an export loses, or give an export file.'
   if (file.trim() && !/^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(file.trim())) return 'Give the export file by its full path.'
   return null
 }
@@ -175,15 +174,14 @@ export function driverClient(api: AppApi) {
     api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId }).then((reply) => reply.result)
   return {
     status: (workspaceId: string, planId?: string) => run<DriverStatus>(workspaceId, 'driver.status', planId ? { planId } : {}),
-    preview: (workspaceId: string, planId: string, rebuild: boolean) =>
-      run<TakeoverPreview>(workspaceId, 'driver.takeover.preview', { planId, rebuild }),
+    preview: (workspaceId: string, planId: string, withoutExport: boolean) =>
+      run<TakeoverPreview>(workspaceId, 'driver.takeover.preview', { planId, withoutExport }),
     handoff: (workspaceId: string, planId: string, action: 'start' | 'export' | 'cancel', extra: { folder?: string; unfinished?: boolean } = {}) =>
       run<DriverStatus & { file?: string }>(workspaceId, 'driver.handoff', { planId, action, ...extra }),
-    takeover: (workspaceId: string, planId: string, how: { file?: string; rebuild?: boolean }) =>
+    takeover: (workspaceId: string, planId: string, how: { file?: string }) =>
       run<DriverStatus & { won?: boolean }>(workspaceId, 'driver.takeover', {
         planId,
         ...(how.file ? { file: how.file } : {}),
-        ...(how.rebuild ? { rebuild: true, acknowledgeLoss: true } : {}),
       }),
     force: (workspaceId: string, planId: string, confirm: string, file?: string) =>
       run<DriverStatus & { won?: boolean }>(workspaceId, 'driver.forceTakeover', {

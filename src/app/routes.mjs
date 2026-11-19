@@ -15,7 +15,6 @@ import {
   taskKind,
   taskRoute,
 } from "../work-model.mjs";
-import { pausedTaskIds } from "./github-project.mjs";
 import { PluginUnavailable } from "./plugin-session.mjs";
 import { fail } from "./store.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
@@ -90,8 +89,7 @@ function put(store, row) {
 // Ready remote leaves, by rank then graph order. `skip` holds tasks that
 // must not start this tick (parked plugins, held by another step).
 function readyRemoteLeaves(store, data, skip) {
-  const submitted = submittedTaskIds(store),
-    paused = pausedTaskIds(store);
+  const submitted = submittedTaskIds(store);
   return queryTasks(data, {
     scope: "all",
     claimed: submitted,
@@ -100,7 +98,6 @@ function readyRemoteLeaves(store, data, skip) {
     (task) =>
       remoteLeaf(task) &&
       !pendingProjection(task) &&
-      !paused.has(task.id) &&
       !skip.has(task.id),
   );
 }

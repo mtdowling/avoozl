@@ -119,7 +119,6 @@ export const APP_OPERATIONS = new Set([
   "content.terms.get",
   "content.terms.update",
   "content.sets.update",
-  "github.conflict.resolve",
   "conflicts.settle",
   "delivery.retry",
   "verify.allow",
@@ -176,10 +175,6 @@ export const APP_OPERATIONS = new Set([
   // The Onboard flow's reads; its writes are the operations above.
   "onboarding.inspect",
   "onboarding.scan",
-  "plan.issues.preview",
-  "spec.changed.preview",
-  "github.project",
-  "spec.changed.apply",
   "plan.delete",
   "plan.delete.preview",
   "plan.archive",

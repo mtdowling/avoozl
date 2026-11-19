@@ -790,20 +790,9 @@ export function approvePlan(
           ...design.batch,
           tasks: design.batch.tasks.map((ref) => mapping[ref] || ref),
         };
-      // With a GitHub mode a task defaults to github and shows as pending
-      // projection until its issue exists; local stays opt-in (R28.2–R28.3).
-      const authority = newTaskAuthority(githubPolicy, proposal.authority);
+      const authority = newTaskAuthority(proposal.authority);
       if (authority !== "local" || proposal.authority === "local")
         design.authority = authority;
-      if (
-        existing?.planId === id &&
-        authority === "local" &&
-        (existing.github?.number || existing.github?.nodeId)
-      )
-        fail(
-          `Task ${taskId} already has a GitHub issue. Take it back local explicitly instead of marking it local in the plan.`,
-          409,
-        );
       if (existing && existing.planId !== id) {
         existing.contextDocuments = [
           ...new Set([...(existing.contextDocuments || []), documentId]),

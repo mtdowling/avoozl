@@ -85,15 +85,12 @@ try {
           "kirocrew",
           "hook",
           "confirm",
-          "iteration",
-          "table-by-wave",
           "no-epic",
           "push",
           "accept-lowered",
           "full",
           "confirm-public",
           "untriaged",
-          "rebuild",
           "force",
           "unfinished",
           "cancel",
@@ -1021,14 +1018,11 @@ try {
         result = await localOrRequest("driver.takeover", {
           planId,
           ...(file ? { file } : {}),
-          ...(options.rebuild
-            ? { rebuild: true, acknowledgeLoss: options.yes === true }
-            : {}),
         });
-      // A rebuild shows what it loses first; --yes runs it.
+      // Without an export it shows what is lost first; --yes runs it.
       if (result?.needs === "acknowledge")
         result =
-          "A rebuild from GitHub loses:\n" +
+          "A take-over without an export loses:\n" +
           result.lost.map((line) => "  - " + line).join("\n") +
           "\nRun again with --yes to go on.";
     } else if (action === "set")
@@ -1130,9 +1124,7 @@ try {
   } else if (command === "rebuild")
     console.log(
       JSON.stringify(
-        await localOrRequest("workspace.rebuild", {
-          repository: options.repository || positionals[0],
-        }),
+        await localOrRequest("workspace.rebuild", {}),
         null,
         2,
       ),
@@ -1182,16 +1174,6 @@ try {
           .map((entry) => entry.trim())
           .filter(Boolean),
       };
-    } else if (action === "project" || action === "preview") {
-      operation =
-        action === "project" ? "github.project" : "github.project.preview";
-      value = {
-        planId: need(
-          options.plan || positionals[1],
-          `github ${action} PLAN_ID [--repository OWNER/REPO]`,
-        ),
-        repository: options.repository,
-      };
     } else if (action === "start") {
       operation = "github.start";
       value = {
@@ -1216,39 +1198,12 @@ try {
         planningRepository:
           options["planning-repository"] ?? provided.planningRepository,
         repositories: list(options.repositories) ?? provided.repositories,
-        project:
-          options["project-owner"] ||
-          options["project-number"] ||
-          options["project-title"]
-            ? {
-                owner: options["project-owner"],
-                number: options["project-number"]
-                  ? Number(options["project-number"])
-                  : undefined,
-                title: options["project-title"],
-              }
-            : provided.project,
-        releases: list(options.releases) ?? provided.releases,
-        iteration: options.iteration ?? provided.iteration,
-        tableByWave: options["table-by-wave"] ?? provided.tableByWave,
         epic: options["no-epic"] ? false : provided.epic,
         confirm: options.confirm ?? provided.confirm,
         previewHash: options["preview-hash"] ?? provided.previewHash,
       };
-    } else if (action === "retire-issues") {
-      // Retire task-issue bindings in order (R102.20): preview, hold,
-      // apply, verify, close. Each step is a person's own act.
-      const step = positionals[1] || "preview";
-      if (!["preview", "hold", "apply", "verify", "close"].includes(step))
-        throw Error(
-          "Choose github retire-issues preview, hold, apply, verify, or close [--reason completed|not_planned].",
-        );
-      operation = "github.retireTaskIssues";
-      value = { step, ...(options.reason ? { reason: options.reason } : {}) };
     } else
-      throw Error(
-        "Choose github status, configure, sync, project, preview, setup, start, or retire-issues.",
-      );
+      throw Error("Choose github status, configure, sync, setup, or start.");
     console.log(
       JSON.stringify(await localOrRequest(operation, value), null, 2),
     );
@@ -1347,31 +1302,23 @@ try {
     );
   } else if (command === "spec") {
     const action = positionals[0];
-    if (!["publish", "takeover", "export-issues"].includes(action))
-      throw Error("Choose spec publish, spec takeover or spec export-issues.");
+    if (!["publish", "takeover"].includes(action))
+      throw Error("Choose spec publish or spec takeover.");
     const planId = need(
       options.plan || positionals[1],
       action === "takeover"
         ? "spec takeover SPEC"
-        : `spec ${action} SPEC [--repository OWNER/REPO]${action === "export-issues" ? " [--confirm]" : ""}`,
+        : `spec ${action} SPEC [--repository OWNER/REPO]`,
     );
     // Publish the spec issue or local journal (R102.2) and take it over
-    // (R102.13): each a person's own act. Export issues (R102.19): preview
-    // first; --confirm creates the spec's unfinished task issues and stops
-    // Avoozl driving it.
+    // (R102.13): each a person's own act.
     console.log(
       JSON.stringify(
         await localOrRequest(
-          action === "export-issues" ? "spec.exportIssues" : `spec.${action}`,
+          `spec.${action}`,
           action === "takeover"
             ? { planId }
-            : action === "publish"
-              ? { planId, repository: options.repository }
-              : {
-                  planId,
-                  repository: options.repository,
-                  confirm: Boolean(options.confirm),
-                },
+            : { planId, repository: options.repository },
         ),
         null,
         2,

@@ -330,19 +330,6 @@ export function parseMarker(body) {
   }
 }
 
-// `order` records an allowed actor's close without code (§6.5), copied from
-// the issue's own close event; reopening removes it.
-export function withOrder(marker, { actor, reason, closedAt }) {
-  const order = { actor, reason, closedAt };
-  validateOrder(order);
-  return { ...marker, order };
-}
-
-export function withoutOrder(marker) {
-  const { order: _order, ...rest } = marker;
-  return rest;
-}
-
 // Plans-repo mode keeps every sub-issue link and dependency between planning
 // issues, so no code-repository issue shows a link into the plan (R28.7).
 export function assertPlanningLink(identity, ...repositories) {
@@ -358,11 +345,3 @@ export function assertPlanningLink(identity, ...repositories) {
       );
 }
 
-// Plans-repo mode adds only planning issues to the Project, never code pull
-// requests or code issues, so no Project event lands on public code (F40).
-export function assertPlanningProjectItem(identity, item) {
-  if (identity?.mode !== "plans-repo") return;
-  if (item?.pullRequest)
-    fail("In plans-repo mode Avoozl adds no pull request to the Project.", 409);
-  assertPlanningLink(identity, item?.repository);
-}

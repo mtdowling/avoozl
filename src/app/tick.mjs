@@ -37,7 +37,6 @@ import { retroStep } from "./flow-retro.mjs";
 import { ciRepositories, ciStep, readEffectiveCIConfig } from "./flow-ci.mjs";
 import { queueCheckRuns } from "./check-runs.mjs";
 import {
-  claimedTaskIds,
   completeParents,
   deliveryPolicy,
   holdUnprovenReviews,

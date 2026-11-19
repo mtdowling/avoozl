@@ -120,27 +120,3 @@ export async function mergePath(
   };
 }
 
-// The Create and release gate (RC5.1): refuses while a repository whose ship
-// mode is auto-merge is not ready, naming each missing item. A manual
-// repository only warns, so its entries come back for the caller to show.
-export function requireMergePath(paths) {
-  const stopped = paths.filter(
-    (path) => !path.ready && path.ship === "auto-merge",
-  );
-  if (stopped.length)
-    fail(
-      `Auto-merge is not ready. ${stopped
-        .map(
-          (path) =>
-            `${path.repository}: ${path.items
-              .filter((item) => !item.ok)
-              .map((item) => `${item.label} (${item.detail})`)
-              .join("; ")}`,
-        )
-        .join(". ")}`,
-      409,
-    );
-  return paths
-    .filter((path) => !path.ready)
-    .map((path) => ({ repository: path.repository, missing: path.missing }));
-}

@@ -53,7 +53,7 @@ const tools = {
       tick: ["workspace.tick", "run one bounded tick"],
       rebuild: [
         "workspace.rebuild",
-        "rebuild GitHub and tracker tasks from their sources",
+        "rebuild tracker plugin tasks from their records",
       ],
       seed_example: [
         "workspace.seed",
@@ -126,10 +126,6 @@ const tools = {
       delegates: [
         "approval.delegates",
         "who may approve on a person's behalf, and every grant",
-      ],
-      project_preview: [
-        "github.project.preview",
-        "GitHub writes projecting would make",
       ],
       delete_preview: ["plan.delete.preview", "what deleting would remove"],
       create: ["plan.create", "store a spec folder as a draft: {spec}"],
@@ -428,10 +424,8 @@ const tools = {
         ({ confirm, ...input }) => input,
       ],
       sync: ["github.sync", "sync issues now"],
-      project: ["github.project", "project an approved plan to issues"],
       publish: ["planning.publish", "publish an approved plan"],
       reconcile: ["planning.reconcile", "reconcile planning pull requests"],
-      rebuild: ["github.rebuild", "rebuild GitHub tasks from GitHub"],
       classify: ["github.breakdown.classify", "bounded or broad"],
       draft_children: [
         "github.breakdown.draft",

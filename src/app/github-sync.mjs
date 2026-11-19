@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import os from "node:os";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
-import { taskIssuesRetired } from "./task-issue-retirement.mjs";
 import { parseRepository } from "./github.mjs";
 import { isParentMarker, parseMarker } from "./github-marker.mjs";
 import {
@@ -544,8 +543,8 @@ export async function syncGitHubIssues(
       }
       // A plan or epic issue is never delivered (Requirement 59.8).
       if (isParentMarker(projectedMarker(issue.body))) continue;
-      // A retired task issue (R102.20) never binds its task again.
-      if (projectedMarker(issue.body) && taskIssuesRetired(store)) continue;
+      // A task issue an older Avoozl projected (R102.20) binds no task.
+      if (projectedMarker(issue.body)) continue;
       seen.add(id);
       const previous = store.get("github_issues", id),
         body = String(issue.body || ""),

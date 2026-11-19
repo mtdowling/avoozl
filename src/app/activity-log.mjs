@@ -757,12 +757,3 @@ export function recordTickActivity(store, config) {
   return written;
 }
 
-// A board value Avoozl wrote back (the Wave revert in github-project.mjs).
-export function recordRevert(store, { taskId, field }) {
-  return quietly(store, {
-    source: "github",
-    kind: "github.revert",
-    summary: `${field} on ${taskId} was set by hand; Avoozl wrote its value back`,
-    targetId: taskId,
-  });
-}

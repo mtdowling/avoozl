@@ -348,50 +348,12 @@ export function briefNotes(store, task, blockers = []) {
   return parts.join("\n");
 }
 
-// Entries a person ticked Show on the issue, oldest first (R61.23).
-export function shownNotes(store, taskId) {
-  return taskNotes(store, taskId).filter((entry) => entry.onIssue);
-}
-
 // The issue's "Links" lines for shown entries, and the reverse
 // for rebuild (design §3.3). A note line an older version wrote is skipped. Each line carries the entry's ID in a comment
 // so a rebuild restores the same row and a second run writes nothing.
 // shortcut: a URL is written as stored; one with spaces or ")" would not
 // read back, but such URLs are rare in a link a person pastes.
 const ISSUE_AUTHOR = /^(a person(?: \(([^)]+)\))?|session:\S+)$/;
-export function issueNotesLines(entries) {
-  return entries.map(
-    (entry) =>
-      `- <!-- ${entry.id}${entry.outcome ? " outcome" : ""} --> Link from ${authorText(entry)} at ${entry.at}: [${entry.label}](${entry.url})`,
-  );
-}
-
-export function parseIssueNotes(lines, taskId) {
-  const entries = [];
-  const head =
-    /^- <!-- (note-[0-9a-f]{12})( outcome)? --> Link from (.+?) at (\S+): \[(.*)\]\((\S+)\)$/;
-  for (const line of lines) {
-    const match = head.exec(line);
-    if (!match) continue;
-    const [, id, outcome, who, at, label, url] = match,
-      author = ISSUE_AUTHOR.exec(who);
-    if (!author) continue;
-    // Edit and remove times are this machine's; a rebuild keeps them.
-    entries.push({
-      id,
-      taskId,
-      kind: "link",
-      url,
-      label,
-      outcome: Boolean(outcome),
-      author: author[1].startsWith("session:") ? author[1] : "person",
-      ...(author[2] ? { login: author[2] } : {}),
-      at,
-      onIssue: true,
-    });
-  }
-  return entries;
-}
 
 // Plans whose issues must be written again because a shown entry changed;
 // the tick projects them and clears them (tick.mjs githubStep).
@@ -401,11 +363,4 @@ export function markReproject(store, task) {
   const current = store.getMeta(REPROJECT) || [];
   if (!current.includes(task.planId))
     store.setMeta(REPROJECT, [...current, task.planId]);
-}
-export const notesReprojectIds = (store) =>
-  new Set(store.getMeta(REPROJECT) || []);
-export function notesReprojected(store, planIds) {
-  const current = store.getMeta(REPROJECT) || [],
-    left = current.filter((id) => !planIds.includes(id));
-  if (left.length !== current.length) store.setMeta(REPROJECT, left);
 }

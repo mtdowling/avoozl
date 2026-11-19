@@ -33,21 +33,6 @@ export const MANAGED_LABEL_KEYS = Object.freeze([
   "stale",
   "decision",
 ]);
-export const STATUS_VALUE_KEYS = Object.freeze([
-  "todo",
-  "inProgress",
-  "done",
-  "deferred",
-]);
-export const FIELD_KEYS = Object.freeze([
-  "status",
-  "release",
-  "wave",
-  "iteration",
-  "avoozlState",
-  // A text field Avoozl owns like Wave: each task's phase (R59.8).
-  "phase",
-]);
 // GitHub links at most 100 sub-issues under one parent, closed ones
 // included (design §6.9 Limits).
 export const SUB_ISSUE_CAP = 100;
@@ -104,12 +89,13 @@ export const RADAR_DEFAULTS = Object.freeze({
 });
 export const READY_LABEL_DEFAULT = "avoozl:ready";
 export const LEGACY_KEYS = Object.freeze(["issueIntake", "queue"]);
+// Task issues and the Project were retired (R102.20): an old file's
+// `project` and `defaultAuthority` are ignored.
+const RETIRED_KEYS = Object.freeze(["project", "defaultAuthority"]);
 // The `github` keys the Settings view edits; the legacy keys stay as written.
 export const POLICY_KEYS = Object.freeze([
   "mode",
   "planningRepository",
-  "defaultAuthority",
-  "project",
   "epicIssueType",
   "cacheSeconds",
   "writesPerMinute",
@@ -124,7 +110,6 @@ export const POLICY_KEYS = Object.freeze([
 export const GITHUB_BLOCK_KEYS = Object.freeze({
   subIssues: ["maxPerParent"],
   issues: ["includeDone"],
-  project: ["owner", "number", "fields", "statusValues"],
   rule: [
     "id",
     "action",
@@ -278,41 +263,6 @@ function issuesInput(value) {
   if (value.includeDone !== undefined && typeof value.includeDone !== "boolean")
     fail("github.issues.includeDone must be true or false.");
   return { includeDone: value.includeDone === true };
-}
-
-function projectInput(value) {
-  if (value === undefined || value === null) return null;
-  onlyKeys(value, GITHUB_BLOCK_KEYS.project, "github.project");
-  if (!Number.isSafeInteger(value.number) || value.number < 1)
-    fail("github.project.number must be a positive whole number.");
-  const fields = onlyKeys(
-      value.fields ?? {},
-      FIELD_KEYS,
-      "github.project.fields",
-    ),
-    statusValues = onlyKeys(
-      value.statusValues ?? {},
-      STATUS_VALUE_KEYS,
-      "github.project.statusValues",
-    );
-  return {
-    owner: name(value.owner, "github.project.owner"),
-    number: value.number,
-    fields: Object.fromEntries(
-      FIELD_KEYS.filter((key) => Object.hasOwn(fields, key)).map((key) => [
-        key,
-        name(fields[key], `github.project.fields.${key}`, { optional: true }),
-      ]),
-    ),
-    statusValues: Object.fromEntries(
-      STATUS_VALUE_KEYS.filter((key) => Object.hasOwn(statusValues, key)).map(
-        (key) => [
-          key,
-          name(statusValues[key], `github.project.statusValues.${key}`),
-        ],
-      ),
-    ),
-  };
 }
 
 function ruleInput(value, label) {
@@ -904,7 +854,7 @@ export function priorityRank(priority, labels) {
 // and ignores `queue` (§4.39).
 export function normalizeGitHubPolicy(value) {
   if (value === undefined || value === null) value = {};
-  onlyKeys(value, [...LEGACY_KEYS, ...POLICY_KEYS], "github");
+  onlyKeys(value, [...LEGACY_KEYS, ...POLICY_KEYS, ...RETIRED_KEYS], "github");
   // Roles decide the mode (R105.2); a block with none is read as written.
   try {
     resolveRoles(value);
@@ -925,21 +875,12 @@ export function normalizeGitHubPolicy(value) {
     fail("github.mode plans-repo needs github.planningRepository.");
   // Kept for a switch back, used only in plans-repo mode.
   const planningRepository = mode === "plans-repo" ? stored : null;
-  const defaultAuthority = local
-    ? "local"
-    : (value.defaultAuthority ?? (mode ? "github" : "local"));
-  if (!["github", "local"].includes(defaultAuthority))
-    fail("github.defaultAuthority must be github or local.");
-  if (defaultAuthority === "github" && !mode)
-    fail("github.defaultAuthority github needs a github.mode.");
   const repositories = value.repositories ?? {};
   if (!record(repositories))
     fail("github.repositories must contain a JSON object.");
   return {
     mode,
     planningRepository,
-    defaultAuthority,
-    project: projectInput(value.project),
     epicIssueType: name(value.epicIssueType, "github.epicIssueType", {
       optional: true,
     }),
@@ -999,13 +940,11 @@ export function readGitHubPolicyOrNull(workspaceRoot) {
   }
 }
 
-// Authority for a task a plan approval creates (§3.2, R28.2–R28.3).
-export function newTaskAuthority(policy, requested) {
-  if (requested === "local") return "local";
-  if (typeof requested === "string" && requested.startsWith("plugin:"))
-    return requested;
-  return policy?.mode && policy.defaultAuthority !== "local"
-    ? "github"
+// Authority for a task a plan approval creates (§3.2): a tracker plugin's
+// when the plan names one, else local. No approval binds a task to an issue.
+export function newTaskAuthority(requested) {
+  return typeof requested === "string" && requested.startsWith("plugin:")
+    ? requested
     : "local";
 }
 

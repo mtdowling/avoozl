@@ -9,7 +9,6 @@
 // repository per check. Writes: `pr_ci` and `ci_runs` rows.
 import { CI_CLASSES, flowPolicy, listOr } from "./flow.mjs";
 import { globToRegex } from "./forward-guard.mjs";
-import { LINKED_BRANCHES } from "./github-plans-repo.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
 import {
   migrateReceiptMeta,
@@ -162,16 +161,9 @@ export function windowStart(now, days) {
   return Math.floor(now / size) * size;
 }
 
-// The task an open pull request delivers: its linked branch, or an issue it
-// closes that a task tracks. Null for a pull request no task owns.
+// The task an open pull request delivers: an issue it closes that a task
+// tracks. Null for a pull request no task owns.
 function taskOf(store, data, repository, pull) {
-  const branch = listOr(store, LINKED_BRANCHES).find(
-    (row) =>
-      !row.error &&
-      row.name === pull.headRefName &&
-      (!row.repository || lower(row.repository) === lower(repository)),
-  );
-  if (branch) return branch.taskId;
   for (const ref of pull.closingIssuesReferences?.nodes || []) {
     const where = ref.repository?.nameWithOwner || repository,
       task = data.tasks.find(

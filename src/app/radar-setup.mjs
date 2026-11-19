@@ -21,7 +21,6 @@ export const SETUP_STEPS = Object.freeze([
   "auto-merge",
   "merge-method",
   "agents-pr",
-  "project",
 ]);
 const RULESET_NAME = "avoozl-required-check",
   COLORS = {
@@ -211,21 +210,6 @@ async function inspect(github, repository, settings, context = {}) {
     });
   }
 
-  // The Project is read only here: Set up GitHub makes it and its fields.
-  steps.push(
-    context.project
-      ? {
-          id: "project",
-          status: "ok",
-          detail: `The Project is ${context.project.owner}#${context.project.number}.`,
-        }
-      : {
-          id: "project",
-          status: "input",
-          detail:
-            "No Project is set. Create it and its fields with Set up GitHub.",
-        },
-  );
   return steps;
 }
 
