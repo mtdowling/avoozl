@@ -91,6 +91,8 @@ const HARNESS_ONLY_ROLES = Object.freeze([
   "prReview",
   // The assistant the page's Open chat buttons start without Kiro Crew.
   "assist",
+  // One issue or pull request's triage run (triage.mjs).
+  "triage",
 ]);
 export const ROLES = Object.freeze([
   "worker",

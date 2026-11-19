@@ -316,9 +316,10 @@ export async function triageStep(
 ) {
   const notify = [],
     repositories = triageRepositories(policy),
-    // The Issues and Pull requests pages show every registered repository;
-    // the agent acts only where it is on.
-    read = Object.keys(policy?.repositories || {});
+    // Only repositories the agent is on for are read, so a workspace that
+    // has not turned it on makes no call here. The Issues and Pull requests
+    // pages show what was read.
+    read = repositories;
   if (!github || !read.length) return { dispatch: [], notify };
   const client = countingClient(github, store),
     budget = triageBudget(client, { othersWaiting: othersWaiting(store) }),

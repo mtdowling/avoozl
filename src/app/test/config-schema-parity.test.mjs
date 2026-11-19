@@ -136,6 +136,7 @@ const PAIRS = [
   [`${REPOSITORY}/commentSteering`, GITHUB_BLOCK_KEYS.commentSteering],
   [`${REPOSITORY}/discussions`, GITHUB_BLOCK_KEYS.discussions],
   [`${REPOSITORY}/untriaged`, GITHUB_BLOCK_KEYS.untriaged],
+  [`${REPOSITORY}/triage`, GITHUB_BLOCK_KEYS.triage],
   [`${REPOSITORY}/conflicts`, GITHUB_BLOCK_KEYS.conflicts],
   [`${REPOSITORY}/merge`, GITHUB_BLOCK_KEYS.merge],
   [`${REPOSITORY}/landing`, GITHUB_BLOCK_KEYS.landing],

@@ -160,6 +160,9 @@
         },
         "prReview": {
           "$ref": "#/$defs/harnessRole"
+        },
+        "triage": {
+          "$ref": "#/$defs/harnessRole"
         }
       }
     },

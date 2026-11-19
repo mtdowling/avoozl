@@ -19,7 +19,6 @@ import { CLASS_LABELS, RESULT_LABELS, ageOf, callsLine, itemsClient, type RunVie
 
 function RunRow(props: { run: RunView }) {
   const { run } = props
-  const href = run.url ? safeHref(run.url) : null
   return (
     <Box as="li" css-border-color="border" border="t" firstBorderT0 py="1.5" flex flexCol gap="0.5" data-triage-run={run.id}>
       <Box as="span" flex minW0 items="center" gap="2" size="sm">
@@ -28,8 +27,8 @@ function RunRow(props: { run: RunView }) {
           {run.repository}#{run.number}
         </Box>
         <Box as="span" minW0 flex1 truncate weight="medium">
-          {href ? (
-            <TextLink href={href} target="_blank" rel="noreferrer">
+          {run.url && safeHref(run.url) ? (
+            <TextLink href={safeHref(run.url) ?? undefined} target="_blank" rel="noreferrer">
               {run.title ?? 'Untitled'}
             </TextLink>
           ) : (

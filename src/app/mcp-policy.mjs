@@ -293,6 +293,10 @@ const page = "App page rendering only.";
 const remote =
   "A worker machine reports by the CLI; no MCP tool accepts or reports a remote task.";
 export const NOT_ON_MCP = new Map([
+  ...["items.list", "items.detail", "triage.view"].map((name) => [
+    name,
+    "The GitHub pages' reads; the triage agent's session gets its snapshot instead.",
+  ]),
   [
     "review.chat.show",
     "A person reads a stored pull request review with avoozl show.",
