@@ -55,37 +55,9 @@
       "type": "string",
       "minLength": 1
     },
-    "canvasOrigins": {
-      "oneOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "format": "uri"
-          },
-          "uniqueItems": true
-        }
-      ],
-      "deprecated": true,
-      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
-    },
-    "agentManifest": {
-      "type": "string",
-      "minLength": 1,
-      "deprecated": true,
-      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
-    },
     "url": {
       "type": "string",
       "format": "uri"
-    },
-    "ahp": {
-      "$ref": "#/$defs/ahp",
-      "deprecated": true,
-      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
     },
     "conversations": {
       "$ref": "#/$defs/conversations"
@@ -144,67 +116,50 @@
     },
     "roles": {
       "type": "object",
-      "description": "One row per role: its harness, its model where it has one and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins. Older models, harnesses, delivery agent and model keys still load into it.",
-      "additionalProperties": false,
-      "properties": {
-        "worker": { "$ref": "#/$defs/agentRole" },
-        "falsifier": { "$ref": "#/$defs/agentRole" },
-        "planner": { "$ref": "#/$defs/chatRole" },
-        "planReviewer": { "$ref": "#/$defs/chatRole" },
-        "retro": { "$ref": "#/$defs/chatRole" },
-        "reviewDraft": { "$ref": "#/$defs/chatRole" },
-        "verifier": { "$ref": "#/$defs/harnessRole" },
-        "reviewer": { "$ref": "#/$defs/harnessRole" },
-        "responder": { "$ref": "#/$defs/harnessRole" },
-        "taskSummary": { "$ref": "#/$defs/harnessRole" },
-        "assist": { "$ref": "#/$defs/harnessRole" },
-        "issuePlanner": { "$ref": "#/$defs/harnessRole" },
-        "planAnswer": { "$ref": "#/$defs/harnessRole" },
-        "prReview": { "$ref": "#/$defs/harnessRole" }
-      }
-    },
-    "models": {
-      "type": "object",
-      "description": "Older key, read into roles.<role>.model. Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
-      "additionalProperties": false,
-      "properties": {
-        "planner": {
-          "$ref": "#/$defs/chatModel"
-        },
-        "planReviewer": {
-          "$ref": "#/$defs/chatModel"
-        },
-        "driver": {
-          "deprecated": true,
-          "description": "Ignored. The driver chat was removed. Files that still set it load as before."
-        },
-        "retro": {
-          "$ref": "#/$defs/chatModel"
-        },
-        "reviewDraft": {
-          "$ref": "#/$defs/chatModel"
-        }
-      }
-    },
-    "harnesses": {
-      "type": "object",
-      "description": "Older key, read into roles.<role>.harness. The harness each role's chat runs on: kirocrew for a Kiro Crew chat, or a harness definition's name for a supervisor child. A role left out, or auto, runs on its project's executor. A task's session.harness pin wins.",
+      "description": "One row per role: its harness, its model where it has one and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins. Older delivery agent and model keys still load into it.",
       "additionalProperties": false,
       "properties": {
         "worker": {
-          "$ref": "#/$defs/harnessName"
+          "$ref": "#/$defs/agentRole"
+        },
+        "falsifier": {
+          "$ref": "#/$defs/agentRole"
         },
         "planner": {
-          "$ref": "#/$defs/harnessName"
+          "$ref": "#/$defs/chatRole"
         },
         "planReviewer": {
-          "$ref": "#/$defs/harnessName"
+          "$ref": "#/$defs/chatRole"
         },
         "retro": {
-          "$ref": "#/$defs/harnessName"
+          "$ref": "#/$defs/chatRole"
         },
         "reviewDraft": {
-          "$ref": "#/$defs/harnessName"
+          "$ref": "#/$defs/chatRole"
+        },
+        "verifier": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "reviewer": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "responder": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "taskSummary": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "assist": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "issuePlanner": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "planAnswer": {
+          "$ref": "#/$defs/harnessRole"
+        },
+        "prReview": {
+          "$ref": "#/$defs/harnessRole"
         }
       }
     },
@@ -1117,32 +1072,6 @@
         }
       }
     },
-    "ahpPort": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 65535,
-      "deprecated": true
-    },
-    "ahpHost": {
-      "type": "string",
-      "minLength": 1,
-      "deprecated": true
-    },
-    "ahpProjection": {
-      "type": "string",
-      "minLength": 1,
-      "deprecated": true
-    },
-    "ahpTokens": {
-      "type": "string",
-      "minLength": 1,
-      "deprecated": true
-    },
-    "ahpManifest": {
-      "type": "string",
-      "minLength": 1,
-      "deprecated": true
-    },
     "packs": {
       "type": "object",
       "description": "Written by a pack import (design §4.14): for each plugin whose pack was imported, the version and time of the import and the settings that came from it. Records provenance only; Avoozl never re-applies it.",
@@ -1176,8 +1105,12 @@
           "type": "array",
           "items": {
             "oneOf": [
-              { "$ref": "#/$defs/commandSink" },
-              { "$ref": "#/$defs/webhookSink" }
+              {
+                "$ref": "#/$defs/commandSink"
+              },
+              {
+                "$ref": "#/$defs/webhookSink"
+              }
             ]
           }
         }
@@ -1188,8 +1121,15 @@
       "additionalProperties": false,
       "description": "Run the standalone page under this machine's supervisor. Global configuration only; the repository file may not set it.",
       "properties": {
-        "enabled": { "type": "boolean", "default": false },
-        "port": { "type": "integer", "minimum": 1024, "maximum": 65535 }
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535
+        }
       }
     },
     "machine": {
@@ -1281,8 +1221,12 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "harness": { "$ref": "#/$defs/harnessName" },
-        "model": { "$ref": "#/$defs/chatModel" }
+        "harness": {
+          "$ref": "#/$defs/harnessName"
+        },
+        "model": {
+          "$ref": "#/$defs/chatModel"
+        }
       }
     },
     "commandSink": {
@@ -1291,14 +1235,26 @@
       "additionalProperties": false,
       "required": ["kind", "argv"],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,40}$" },
-        "kind": { "const": "command" },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,40}$"
+        },
+        "kind": {
+          "const": "command"
+        },
         "argv": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 60000 }
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        }
       }
     },
     "webhookSink": {
@@ -1307,29 +1263,46 @@
       "additionalProperties": false,
       "required": ["kind", "url"],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,40}$" },
-        "kind": { "const": "webhook" },
-        "url": { "type": "string" },
-        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 60000 }
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,40}$"
+        },
+        "kind": {
+          "const": "webhook"
+        },
+        "url": {
+          "type": "string"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        }
       }
     },
     "harnessRole": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "harness": { "$ref": "#/$defs/harnessName" }
+        "harness": {
+          "$ref": "#/$defs/harnessName"
+        }
       }
     },
     "agentRole": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "harness": { "$ref": "#/$defs/harnessName" },
+        "harness": {
+          "$ref": "#/$defs/harnessName"
+        },
         "agent": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
         },
-        "model": { "$ref": "#/$defs/chatModel" }
+        "model": {
+          "$ref": "#/$defs/chatModel"
+        }
       }
     },
     "runner": {
@@ -1452,9 +1425,6 @@
     },
     "safePropertyName": {
       "anyOf": [
-        {
-          "enum": ["ahpTokens"]
-        },
         {
           "not": {
             "pattern": "(^|[-_])(api[-_]?key|access[-_]?key|private[-_]?key|client[-_]?secret|secret|password|passwd|token|credential)s?($|[-_])"
@@ -1603,36 +1573,6 @@
         "maxLength": 160
       }
     },
-    "ahp": {
-      "type": "object",
-      "properties": {
-        "port": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 65535
-        },
-        "host": {
-          "type": "string",
-          "minLength": 1
-        },
-        "projection": {
-          "type": "string",
-          "minLength": 1
-        },
-        "tokens": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Path to the generated AHP token file; never an inline token."
-        },
-        "manifest": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": {
-        "$ref": "#/$defs/safeValue"
-      }
-    },
     "conversations": {
       "type": "object",
       "properties": {
@@ -1767,26 +1707,8 @@
     },
     "github": {
       "type": "object",
-      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design §4.4), Remote setup remains an explicit action. issueIntake and queue are older keys: issueIntake is read as intake.sources GitHub sources and queue is ignored; Avoozl moves both on its next write (§4.39).",
+      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design §4.4), Remote setup remains an explicit action.",
       "properties": {
-        "issueIntake": {
-          "type": "object",
-          "propertyNames": {
-            "pattern": "^[^/]+/[^/]+$"
-          },
-          "additionalProperties": {
-            "$ref": "#/$defs/githubIssueIntake"
-          }
-        },
-        "queue": {
-          "type": "object",
-          "propertyNames": {
-            "pattern": "^[^/]+/[^/]+$"
-          },
-          "additionalProperties": {
-            "$ref": "#/$defs/githubQueueRepository"
-          }
-        },
         "mode": {
           "enum": ["local", "plans-repo", "single-repo"],
           "description": "Where issues live. local, or absent, means every task is local; GitHub settings stored beside local are kept but not used. Derived from repository roles when any repository has a role."
@@ -1970,10 +1892,6 @@
           "minLength": 1,
           "description": "Must equal the repository's default branch when a mode is set."
         },
-        "coder": {
-          "deprecated": true,
-          "description": "Ignored. Who codes was removed (R91.6). Files that still set it load as before."
-        },
         "radar": {
           "type": "object",
           "description": "Avoozl's workflow labels. Planning, needs-human, claim, ready, conflict, approval, review, drafted and waiting-on-tracker names must all differ.",
@@ -2145,10 +2063,6 @@
           "minimum": 0,
           "maximum": 3600,
           "description": "This repository's GitHub cache time in seconds, instead of github.cacheSeconds."
-        },
-        "concurrency": {
-          "deprecated": true,
-          "description": "Ignored. It set the retired local workers; release.capacity sets how many issues are ready at once. Files that still set it load as before."
         },
         "release": {
           "description": "Ready-label capacity: N at once per repository, and per crew label scope. N defaults to 1; 0 releases nothing. With lanes, the only concurrency setting.",
@@ -2536,96 +2450,6 @@
         }
       }
     },
-    "githubIssueIntake": {
-      "type": "object",
-      "required": ["projectId", "assignee"],
-      "properties": {
-        "projectId": {
-          "type": "string",
-          "minLength": 1
-        },
-        "workspaceRepositoryId": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Stable ID used by the unified Repositories settings surface."
-        },
-        "assignee": {
-          "type": "string",
-          "minLength": 1
-        },
-        "label": {
-          "type": "string",
-          "minLength": 1,
-          "default": "avoozl:ready"
-        },
-        "managedLabel": {
-          "type": "string",
-          "minLength": 1,
-          "default": "avoozl:managed"
-        },
-        "enabled": {
-          "type": "boolean",
-          "default": true
-        },
-        "autoStart": {
-          "type": "boolean",
-          "default": false
-        },
-        "provider": {
-          "type": ["string", "null"]
-        },
-        "model": {
-          "type": ["string", "null"]
-        },
-        "allowedActors": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "minimumPermission": {
-          "enum": ["write", "maintain", "admin"],
-          "default": "write"
-        }
-      },
-      "additionalProperties": false
-    },
-    "githubQueueRepository": {
-      "type": "object",
-      "properties": {
-        "projectId": {
-          "type": ["string", "null"]
-        },
-        "workspaceRepositoryId": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Stable ID used by the unified Repositories settings surface."
-        },
-        "enabled": {
-          "type": "boolean",
-          "default": true
-        },
-        "includeIssues": {
-          "type": "boolean",
-          "default": true
-        },
-        "includePullRequests": {
-          "type": "boolean",
-          "default": true
-        },
-        "labelBehaviors": {
-          "$ref": "#/$defs/githubLabelBehaviors"
-        },
-        "visibility": {
-          "enum": ["private", "public"],
-          "default": "private",
-          "description": "Public Queue sources are metadata-only and never authorize or mutate GitHub."
-        }
-      },
-      "additionalProperties": false
-    },
     "githubLabelBehaviors": {
       "type": "object",
       "description": "Repository-specific GitHub labels mapped to normalized Avoozl Queue states. Omitted behaviors use the avoozl:* defaults.",
@@ -2800,14 +2624,6 @@
               }
             }
           }
-        },
-        "lessons": {
-          "deprecated": true,
-          "description": "Ignored. The lessons store was removed. Files that still set it load as before."
-        },
-        "batch": {
-          "deprecated": true,
-          "description": "Ignored. The planner decides batches. Files that still set it load as before."
         }
       }
     },

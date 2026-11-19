@@ -100,7 +100,6 @@ import {
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { taskSummaryDispatches } from "./task-summary.mjs";
 import {
-  validateModels,
   validateRoles,
   validatePlanReview,
   withChatModels,
@@ -185,7 +184,6 @@ function parsePolicy(text) {
   repositoryPlugins(value);
   refuseTrackedProviders(value);
   validateContentRules(value.contentRules);
-  validateModels(value.models);
   validateRoles(value);
   validatePlanReview(value.planReview);
   validateIntake(value.intake);

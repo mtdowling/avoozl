@@ -28,15 +28,11 @@ because its activity lease expired. Keep plan approval, implementation,
 integration, and whole-head acceptance distinct.
 
 The Nupp plans workspace uses this same application. Its own rules and data remain
-outside this repo. NUPP*WORKSPACE environment aliases are compatibility
-interfaces; preserve them when changing public surfaces. The deprecated
-one-tool-per-operation `plans*\*` MCP names were removed, except the narrow
-tools a role's agent, prompt or brief names; keep those so no agent's
-allowed tools grow.
+outside this repo. Keep the narrow `plans_*` MCP tools a role's agent, prompt
+or brief names, so no agent's allowed tools grow.
 
-This application was renamed from AICommander to Avoozl. `AVOOZL_*` is the
-current environment prefix, and `AICOMMANDER_*`, `NUPP_WORKSPACE_*`, the
-`aicommander` command name, and the `aicommander.*` editor settings remain
-accepted for the same reason. Research under `docs/research/` and generated
-receipts under `docs/evidence/` record what was observed at the time: do not
-rewrite their contents to match a later name; regenerate a receipt instead.
+No backward compatibility until Avoozl has other users.
+
+Research under `docs/research/` and generated receipts under `docs/evidence/`
+record what was observed at the time: do not rewrite their contents to match a
+later name; regenerate a receipt instead.

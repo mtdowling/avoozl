@@ -29,12 +29,7 @@ import { PluginUnavailable } from "./plugin-session.mjs";
 import { declaredPlugins, readPluginSettings } from "./plugins.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { canonical, fail } from "./store.mjs";
-import {
-  GITHUB_VIA,
-  githubSources,
-  validateGitHubSource,
-  writeGitHubSources,
-} from "./github-sources.mjs";
+import { GITHUB_VIA, validateGitHubSource } from "./github-sources.mjs";
 
 // `retro` holds the skill changes a person approved from a retrospective
 // (design §4.18).
@@ -240,20 +235,6 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
     if (workspaceRoot) {
       const file = readJson(path.join(workspaceRoot, ".avoozl.json"));
       add(file.intake, "repository");
-      // Old `github.issueIntake` entries, read as the sources they describe.
-      try {
-        for (const source of githubSources(file))
-          if (source.legacy)
-            found.push({
-              id: source.id,
-              scope: "repository",
-              entry: source.entry,
-              source: validateSource(source.id, source.entry),
-              error: null,
-            });
-      } catch {
-        // The settings loader reports an invalid GitHub block.
-      }
     }
   } catch (error) {
     found.push({
@@ -362,7 +343,6 @@ export function editSource(
     fail(`Intake source ${id} is not declared there.`, 404);
   const edit = (value) => {
     // Old GitHub intake keys move into `intake.sources` on this write.
-    if (scope === "repository") writeGitHubSources(value);
     const intake = record(value.intake) ? value.intake : {},
       sources = { ...(record(intake.sources) ? intake.sources : {}) };
     if (remove) delete sources[id];

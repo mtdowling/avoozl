@@ -73,8 +73,7 @@ const results = [];
 
 function isolate() {
   for (const name of Object.keys(process.env))
-    if (/^(KIROCREW|AVOOZL|AICOMMANDER|NUPP_WORKSPACE)/.test(name))
-      delete process.env[name];
+    if (/^(KIROCREW|AVOOZL)/.test(name)) delete process.env[name];
   process.env.HOME = process.env.USERPROFILE = HOME;
   process.env.XDG_CONFIG_HOME = path.join(HOME, "config");
   process.env.XDG_STATE_HOME = path.join(HOME, "state");

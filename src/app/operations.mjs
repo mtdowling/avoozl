@@ -630,11 +630,7 @@ import {
   matchingAgentInstructions,
   toggleAgentInstruction,
 } from "./agent-instructions.mjs";
-import {
-  MOVED_OPERATIONS,
-  kiroCrewSessions,
-  movedOperation,
-} from "./moved-operations.mjs";
+import { sessionUrl } from "./notifications.mjs";
 import { completeManual, reopenManual } from "./manual-tasks.mjs";
 import {
   checkInputs,
@@ -2909,12 +2905,8 @@ export class Operations {
       const result = this.intentResult(receipt);
       if (!result.pending) return result;
     }
-    // Asking or running an agent is a Kiro Crew session now.
     if (action === "ask" || action === "run")
-      return {
-        ...movedOperation(this.store, "run.start", input),
-        operation: "intent.submit",
-      };
+      fail("Ask or run an agent in a Kiro Crew session.", 400);
     if (this.pendingIntents.has(id)) return this.pendingIntents.get(id);
     const execute = async () => {
       if (!receipt) {
@@ -3017,16 +3009,15 @@ export class Operations {
     // boundary in this process never checks with sets it has not loaded.
     if (this.workspaceRoot && rulePluginsStale(store))
       await loadRulePlugins(store, this.plugins);
-    // Run-era operations keep their names and answer with where the work
-    // went (moved-operations.mjs). A run start that names a task, repository,
-    // and agent is a dispatch request, and an extraction without provider
-    // rounds still opens a record for a planner session to fill.
-    if (
-      name === "run.start" &&
-      input.taskId &&
-      input.repository &&
-      (input.agent || input.executor)
-    )
+    // A run start is a dispatch request, and an extraction opens a record
+    // for a planner session to fill.
+    if (name === "run.start") {
+      if (
+        !input.taskId ||
+        !input.repository ||
+        !(input.agent || input.executor)
+      )
+        fail("run.start needs taskId, repository and agent.", 400);
       return requestSession(
         store,
         {
@@ -3040,13 +3031,18 @@ export class Operations {
         },
         workspaceRepositories(store),
       );
-    if (
-      name === "plan.extract" &&
-      !input.provider &&
-      !(Array.isArray(input.sequence) && input.sequence.length)
-    )
+    }
+    if (name === "plan.extract") {
+      if (
+        input.provider ||
+        (Array.isArray(input.sequence) && input.sequence.length)
+      )
+        fail(
+          "plan.extract takes no provider; a planner session fills it.",
+          400,
+        );
       return this.startExtractionPipeline(input);
-    if (MOVED_OPERATIONS.has(name)) return movedOperation(store, name, input);
+    }
     if (name === "client.describe") return describeWorkspace(store);
     if (name === "workspace.examples") return listExamples();
     if (name === "workspace.seed")
@@ -4845,7 +4841,6 @@ export class Operations {
             store.setMeta("conversationSettings", settings);
             return settings;
           });
-    if (name === "publication.retry") return { retryRequested: true };
     if (name === "query") {
       // Each row says the state the page shows for it, beside its status.
       const data = this.read();
@@ -7412,16 +7407,7 @@ export class Operations {
       };
     }
     if (name === "legacy.mcp")
-      return dispatchMcp(
-        input.message,
-        {
-          read: () => this.read(),
-          commit: (next, summary) =>
-            store.transaction(() => store.commit(next, summary, next.revision)),
-          base: input.base,
-        },
-        { versionHeader: input.versionHeader },
-      );
+      return dispatchMcp(input.message, { versionHeader: input.versionHeader });
     fail("Unknown operation " + name, 404);
   }
 }
@@ -7436,4 +7422,17 @@ function stampPrompts(store, result) {
     next = { ...binding, prompts: { [target]: version } };
   store.put("session_bindings", next);
   return { ...result, binding: next };
+}
+
+// The Kiro Crew sessions bound to one task, with a link to each.
+function kiroCrewSessions(store, taskId) {
+  return listSessionBindings(store)
+    .filter((binding) => binding.taskId === taskId)
+    .map((binding) => ({
+      slot: binding.slot,
+      role: binding.role,
+      attempt: binding.attempt,
+      status: binding.status || null,
+      url: sessionUrl(binding.slot),
+    }));
 }

@@ -1,7 +1,6 @@
-// Compatibility surfaces kept through the rename (AGENTS.md): the AVOOZL_*,
-// AICOMMANDER_* and NUPP_WORKSPACE_* variables, and the `aicommander`
-// command. Each is exercised the way a caller uses it: a child process with
-// only that name set.
+// No backward compatibility until Avoozl has other users (AGENTS.md): only
+// AVOOZL_* variables and the `avoozl` command, the narrow plans_* tools a
+// role names, and an unknown top-level settings key is a load error.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -14,15 +13,6 @@ import { temporaryDirectory } from "./temporary.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url)),
   cli = path.join(root, "cli.mjs");
-
-// The `plans_*` tools from the Phase 0 baseline (0747a53) that stay. The
-// deprecated one-tool-per-operation names were removed on 2026-11-18 (R56.3).
-const KEPT_TOOLS = `plans_activate_visualization plans_activity
-plans_approve_plan plans_audit plans_documents plans_get_document
-plans_get_task plans_list_visualizations plans_present plans_query
-plans_status plans_visualize plans_workspace`.split(/\s+/);
-const REMOVED_TOOLS = `plans_update_task plans_bind_session plans_tick
-plans_send_message plans_andon_raise plans_relay`.split(/\s+/);
 
 // A child environment with no Avoozl-family variable from this machine.
 function cleanEnv(dir, extra = {}) {
@@ -44,15 +34,7 @@ function setup(name) {
   return { dir, workspace };
 }
 
-function run(dir, args, extra) {
-  return execFileSync(process.execPath, [cli, ...args], {
-    cwd: dir,
-    encoding: "utf8",
-    env: cleanEnv(dir, extra),
-  });
-}
-
-test("the stdio MCP server lists the kept plans_* tools and no removed one", () => {
+test("the stdio MCP server lists no old plan-file tool", () => {
   const { dir, workspace } = setup("Compat MCP");
   const messages = [
     {
@@ -83,87 +65,67 @@ test("the stdio MCP server lists the kept plans_* tools and no removed one", () 
     .map((line) => JSON.parse(line))
     .find((message) => message.id === 2);
   const names = new Set(listed.result.tools.map((tool) => tool.name));
-  assert.deepEqual(
-    KEPT_TOOLS.filter((name) => !names.has(name)),
-    [],
-  );
-  assert.deepEqual(
-    REMOVED_TOOLS.filter((name) => names.has(name)),
-    [],
-  );
-});
-
-test("each workspace variable family selects the workspace", () => {
-  const { dir, workspace } = setup("Compat env");
-  const flagged = run(dir, ["query", "--workspace", workspace]);
   for (const name of [
-    "AVOOZL_WORKSPACE",
-    "AICOMMANDER_WORKSPACE",
-    "NUPP_WORKSPACE",
-  ]) {
-    // The current directory has no workspace, so only the variable can
-    // name one; a fall back to a server would fail with no server running.
-    assert.equal(run(dir, ["query"], { [name]: workspace }), flagged, name);
-    const env = cleanEnv(dir, { [name]: workspace });
-    assert.equal(workspaceConfig({ env }).workspaceRoot, workspace, name);
-  }
+    "plans_query",
+    "plans_get_task",
+    "plans_documents",
+    "plans_get_document",
+  ])
+    assert.ok(names.has(name), name);
+  for (const name of [
+    "plans_status",
+    "plans_activity",
+    "plans_audit",
+    "plans_visualize",
+    "plans_present",
+    "plans_list_visualizations",
+    "plans_activate_visualization",
+    "plans_content_allow",
+    "plans_flow_run_anyway",
+  ])
+    assert.ok(!names.has(name), name);
 });
 
-test("each family's database, documents and URL variables still apply", () => {
-  const { dir, workspace } = setup("Compat paths");
-  const cases = [
-    ["AVOOZL_DB", "dbPath", "a.sqlite"],
-    ["AICOMMANDER_DB", "dbPath", "b.sqlite"],
-    ["NUPP_WORKSPACE_DB", "dbPath", "c.sqlite"],
-    ["AVOOZL_DOCUMENTS", "plansRoot", "docs-a"],
-    ["AICOMMANDER_DOCUMENTS", "plansRoot", "docs-b"],
-    ["NUPP_WORKSPACE_DOCS", "plansRoot", "docs-c"],
-  ];
-  for (const [name, key, value] of cases) {
-    const env = cleanEnv(dir, { [name]: value });
-    assert.equal(
-      workspaceConfig({ workspace, env })[key],
-      path.resolve(workspace, value),
+test("only AVOOZL_* variables name the workspace and its paths", () => {
+  const { dir, workspace } = setup("Compat env");
+  assert.equal(
+    workspaceConfig({ env: cleanEnv(dir, { AVOOZL_WORKSPACE: workspace }) })
+      .workspaceRoot,
+    workspace,
+  );
+  for (const name of ["AICOMMANDER_WORKSPACE", "NUPP_WORKSPACE"])
+    assert.notEqual(
+      workspaceConfig({ env: cleanEnv(dir, { [name]: workspace }) })
+        .workspaceRoot,
+      workspace,
       name,
     );
-  }
-  for (const name of ["AVOOZL_URL", "AICOMMANDER_URL", "NUPP_WORKSPACE_URL"]) {
-    const env = cleanEnv(dir, { [name]: "http://127.0.0.1:1234" });
-    assert.equal(
-      workspaceConfig({ workspace, env }).endpoint,
-      "http://127.0.0.1:1234",
-      name,
-    );
-  }
+  const db = (env) => workspaceConfig({ workspace, env: cleanEnv(dir, env) });
+  assert.equal(
+    db({ AVOOZL_DB: "a.sqlite" }).dbPath,
+    path.resolve(workspace, "a.sqlite"),
+  );
+  assert.equal(
+    db({ AICOMMANDER_DB: "b.sqlite" }).dbPath,
+    db({}).dbPath,
+  );
 });
 
-test("the aicommander command runs the same CLI", (t) => {
+test("package.json names only the avoozl command", () => {
   const pkg = JSON.parse(
     fs.readFileSync(path.join(root, "package.json"), "utf8"),
   );
-  assert.equal(pkg.bin.aicommander, pkg.bin.avoozl);
-  const { dir, workspace } = setup("Compat command");
-  // npm installs a bin as a link named for the command; run it that way.
-  const link = path.join(dir, "aicommander");
-  try {
-    fs.symlinkSync(path.join(root, pkg.bin.aicommander), link);
-  } catch (error) {
-    // Windows without symlink rights: the bin mapping above still holds.
-    if (error.code === "EPERM") return t.skip("no symlink permission");
-    throw error;
-  }
-  const output = execFileSync(
-    process.execPath,
-    [link, "query", "--workspace", workspace],
-    { cwd: dir, encoding: "utf8", env: cleanEnv(dir) },
-  );
-  assert.equal(output, run(dir, ["query", "--workspace", workspace]));
-  assert.match(
-    execFileSync(process.execPath, [link, "help"], {
-      cwd: dir,
-      encoding: "utf8",
-      env: cleanEnv(dir),
-    }),
-    /Avoozl/,
+  assert.deepEqual(Object.keys(pkg.bin), ["avoozl"]);
+});
+
+test("an unknown top-level key fails to load, naming the file and key", () => {
+  const { workspace } = setup("Compat keys");
+  const file = path.join(workspace, ".avoozl.json"),
+    value = JSON.parse(fs.readFileSync(file, "utf8"));
+  fs.writeFileSync(file, JSON.stringify({ ...value, ahpPort: 9765 }));
+  assert.throws(
+    () => workspaceConfig({ workspace, env: {} }),
+    (error) =>
+      error.message.includes('"ahpPort"') && error.message.includes(file),
   );
 });

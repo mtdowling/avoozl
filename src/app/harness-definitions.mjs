@@ -58,8 +58,7 @@ export const ROLE_CLASSES = Object.freeze(["read", "write"]);
 // Variables a harness may keep to sign in to its own provider. Never a
 // GitHub, git, SSH, Kiro Crew or Avoozl name: those stay out of a child.
 const KEEP_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
-const NEVER_KEPT =
-  /^(GH_|GITHUB_|GIT_|SSH_|KIROCREW_|KIRO_|AVOOZL_|AICOMMANDER_|NUPP_WORKSPACE)/;
+const NEVER_KEPT = /^(GH_|GITHUB_|GIT_|SSH_|KIROCREW_|KIRO_|AVOOZL_)/;
 const SHELLS = new Set([
   "sh",
   "bash",

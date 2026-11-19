@@ -128,14 +128,11 @@ function verifyProblem(inner, value) {
 }
 const VERIFY_LISTS = new Set(["protectedPaths", "checkTimeouts"]);
 // Every `flow` setting by dotted path: the checked values above, the lists
-// checked on their own, and the two retired groups an old file may still
-// carry. A test holds src/avoozl-config.schema.json to this list.
+// checked on their own. A test holds src/avoozl-config.schema.json to this list.
 export const FLOW_PATHS = Object.freeze([
   ...Object.keys(FLOW_KEYS),
   "ci.classes",
   ...[...VERIFY_LISTS].map((key) => `verify.${key}`),
-  "lessons",
-  "batch",
 ]);
 
 // `ci.classes`: a class name to at most 50 globs (§4.30).
@@ -161,13 +158,6 @@ export function flowSection(value, where = "flow") {
   if (value === undefined) return {};
   if (!record(value)) throw Error(`${where} must be an object.`);
   const groups = { stopTheLine: 1, retro: 1, ci: 1, verify: 1 };
-  // The lessons store was removed (RC30.4), and batching has no setting:
-  // the planner decides batches (§4.37, R108.8). An old `flow.lessons` or
-  // `flow.batch` is read as nothing, so a saved file keeps working.
-  if ("lessons" in value || "batch" in value) {
-    const { lessons: _lessons, batch: _batch, ...rest } = value;
-    value = rest;
-  }
   for (const key of Object.keys(value)) {
     if (key === "localChecksFirst") continue;
     if (!(key in groups)) throw Error(`${where}.${key} is not a flow setting.`);
