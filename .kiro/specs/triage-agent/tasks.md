@@ -115,6 +115,7 @@ of the other specs.
   - Facts:
     - done:
       - UI tests show each part; Pause stops new runs before the next tick and holds a running session's writes for the owner; Stop all does the same everywhere; a pulled stop line stops triage in its scope; screenshots go to the owner.
+      - Tests: an item closed or merged while its run runs stops the run, sends none of its writes and records why.
     - checks: npm test, npm run test:ui, git diff --check
     - after: ta-4.1, ta-2.3
   - Runs in progress, every run with its item, class, reason, writes and result, counts per day, caps left and calls used; Pause per repository and Stop all; Stop the line stops triage in its scope.

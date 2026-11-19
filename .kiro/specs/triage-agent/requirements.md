@@ -224,6 +224,9 @@ done, and to stop it, so that I trust it with my repositories.
    and its writes are held for the owner.
 3. Stop the line (Requirement 64) SHALL also stop triage runs in its scope.
    An agent MAY pull it; only a person resumes it.
+4. A run whose item is closed or merged while it runs SHALL be stopped, and
+   none of its writes SHALL be sent. The item's record SHALL say the run was
+   stopped because the item closed. (Changed 2026-11-18: added.)
 
 ### Requirement TA7: Trust
 

@@ -33,6 +33,9 @@ with `triage.agent: on`:
    Anyone else's comment waits on the item as data for its next run.
 3. When a run's result arrives, carry out its writes through the client
    (D7) after the content rules pass, and record them on the item.
+4. For each run in progress, read its item's state with the changes of
+   step 1. An item closed or merged since the run started stops the run,
+   and its writes are dropped, never sent (TA6.4).
 
 There is no long-running agent and no self-scheduled wake. A run gets the
 context a long-running agent would remember in its brief: the last 20
