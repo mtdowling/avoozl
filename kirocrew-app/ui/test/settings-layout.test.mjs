@@ -12,7 +12,6 @@ import {
   toPolicy,
   unusedInLocal,
   visibleSettings,
-  PROJECT_FIELD_RULES,
   REPOSITORY_FIELD_RULES,
   checkRows,
   missingRequired,
@@ -30,24 +29,10 @@ test('every Settings group and repository tab renders its blurb', () => {
   for (const tab of ['general', 'landing', 'github', 'checks', 'reviews', 'map']) assert.match(settings, new RegExp(`blurb=\\{REPOSITORY_BLURBS\\.${tab}\\}`), tab)
   // Managed labels say what they are, and that hand edits are conflicts.
   assert.match(settings, /Labels Avoozl itself adds and removes on issues to show their state\. Don't edit them by hand: a hand edit shows as a conflict\./)
-  for (const title of ['Managed labels', 'Who counts', 'Priority', 'Project fields', 'Set up GitHub']) assert.match(settings, new RegExp(`title="${title}"\\s+blurb=`), title)
+  for (const title of ['Managed labels', 'Who counts', 'Priority', 'Set up GitHub']) assert.match(settings, new RegExp(`title="${title}"\\s+blurb=`), title)
 })
 
-test('Project fields: owner and number are required, every field name is optional with its blank meaning', () => {
-  assert.deepEqual(PROJECT_FIELD_RULES.owner, { required: true, when: 'to use a Project' })
-  assert.deepEqual(PROJECT_FIELD_RULES.number, { required: true, when: 'to use a Project' })
-  for (const key of ['status', 'release', 'wave', 'iteration', 'todo', 'inProgress', 'done', 'deferred']) {
-    assert.equal(PROJECT_FIELD_RULES[key].required, false, key)
-    assert.match(PROJECT_FIELD_RULES[key].blank, /^blank: /, key)
-  }
-  assert.equal(PROJECT_FIELD_RULES.iteration.blank, 'blank: Avoozl skips Iteration')
-  assert.equal(PROJECT_FIELD_RULES.status.blank, 'blank: uses the field named Status')
-  // The tab gives each field its rule, so each renders its marker.
-  const project = settings.slice(settings.indexOf('export function ProjectFields'))
-  assert.match(project, /rule=\{PROJECT_FIELD_RULES\.owner\}/)
-  assert.match(project, /rule=\{PROJECT_FIELD_RULES\.number\}/)
-  assert.equal((project.match(/rule=\{PROJECT_FIELD_RULES\[key\]\}/g) ?? []).length, 2)
-  // The marker is the shared field row's.
+test('a required field shows the shared Required marker', () => {
   assert.match(source('FieldRow.tsx'), /data-marker="required"/)
   assert.match(source('FieldRow.tsx'), /data-marker="optional"/)
 })
@@ -58,9 +43,6 @@ test('Save is blocked with a clear message while a required setting is missing',
     repositories: { 'o/app': { baseBranch: 'main' } },
   })
   assert.equal(missingRequired(form), null)
-  assert.match(missingRequired({ ...form, projectNumber: '2' }), /Project needs its owner/)
-  assert.match(missingRequired({ ...form, projectOwner: 'o' }), /Project needs its number/)
-  assert.match(missingRequired({ ...form, fields: { wave: 'Wave' } }), /Project needs its owner/)
   assert.match(missingRequired({ ...form, mode: 'plans-repo' }), /planning repository/)
   form.repositories[0].baseBranch = ''
   assert.match(missingRequired(form), /o\/app needs its default branch/)
@@ -113,21 +95,21 @@ test('no mode is Local only', () => {
 
 test('each mode shows only the settings it reads, and Local only keeps the rest', () => {
   const local = visibleSettings('local')
-  for (const key of ['triggers', 'requiredChecks', 'pullRequestReviews', 'projectFields', 'setupGitHub', 'planningRepository']) assert.ok(!local.has(key), key)
+  for (const key of ['triggers', 'requiredChecks', 'pullRequestReviews', 'setupGitHub', 'planningRepository']) assert.ok(!local.has(key), key)
   for (const key of ['landingBranch', 'workerChats', 'reviewerChats', 'localChecks']) assert.ok(local.has(key), key)
   const single = visibleSettings('single-repo')
   assert.ok(!single.has('planningRepository'))
   assert.ok(single.has('setupGitHub'))
   const plans = visibleSettings('plans-repo')
   assert.ok(plans.has('planningRepository') && !plans.has('issueRadarCrews'))
-  assert.equal(LOCAL_HIDDEN_LINE, 'Labels, checks, reviews and the Project board only apply to GitHub modes.')
+  assert.equal(LOCAL_HIDDEN_LINE, 'Labels, checks and reviews only apply to GitHub modes.')
   const form = toForm({ mode: 'local', planningRepository: 'o/plans', project: { owner: 'o', number: 2 }, repositories: { 'o/app': {} } })
   // Kept, not deleted: the stored values stay in the form and the policy.
   assert.equal(form.planningRepository, 'o/plans')
   assert.equal(toPolicy(form).planningRepository, 'o/plans')
-  assert.deepEqual(unusedInLocal(form), ['planning repository', 'Project board', '1 repository GitHub setting'])
-  // Local only needs no base branch or Project number.
-  assert.equal(missingRequired({ ...form, projectNumber: '' }), null)
+  assert.deepEqual(unusedInLocal(form), ['planning repository', '1 repository GitHub setting'])
+  // Local only needs no base branch.
+  assert.equal(missingRequired(form), null)
   assert.match(settings, /if \(!isGitHubMode\(form\.mode\)\)\s*return \{ tabs: LOCAL_TABS, body: <LocalRepository/)
   assert.match(settings, /<p>\{LOCAL_HIDDEN_LINE\}<\/p>/)
 })
@@ -200,16 +182,16 @@ test('GitHub: every group is its own tab and bordered section, and Radar setting
   const github = settings.slice(settings.indexOf('function WorkspaceGitHub('), settings.indexOf('function RadarSettings('))
   const shown = github.slice(github.indexOf('<Tabs id="avoozl-github-tab"'))
   for (const [tab, title] of [
-    ['issues', 'New tasks and issues'],
+    ['issues', 'Epic issues'],
     ['sync', 'Sync pace'],
     ['setup', 'Set up GitHub'],
   ])
     assert.match(shown, new RegExp(`\\{tab === '${tab}' && \\(\\s*<Card>\\s*<Section title="${title}"`), title)
-  assert.match(shown, /\{tab === 'project' && \(\s*<Card>\s*<ProjectFields/)
+  assert.doesNotMatch(shown, /ProjectFields|tab === 'project'/)
   assert.doesNotMatch(github, /CrewScopes|RadarValuesScreen|level="sub"/)
   // GitHub calls is a bordered section of its own.
   assert.match(settings, /<Card>\s*<Section title="GitHub calls"/)
-  const radar = settings.slice(settings.indexOf('function RadarSettings('), settings.indexOf('export function ProjectFields'))
+  const radar = settings.slice(settings.indexOf('function RadarSettings('))
   // The crew scope and Radar values were Radar coding (R91.6).
   assert.doesNotMatch(radar, /CrewScope|RadarValuesScreen|ReleaseModePicker/)
   assert.match(settings, /tab === 'radar' \? \(\s*<RadarSettings/)
@@ -300,12 +282,12 @@ test('Settings › Issue Radar holds every Radar intake setting, each in its own
   const page = body('function RadarSettings(')
   const titles = [...page.matchAll(/<Section\s+title=\{?["']?([^"'}]+)/g)].map((m) => m[1])
   // Conflicts and the merge method are on the repository's Landing tab (§4.25).
-  assert.deepEqual(titles, ['Issue Radar', 'Repository', 'Handoff to Avoozl', 'Labels Radar uses', 'Crew review rules'])
+  assert.deepEqual(titles, ['Issue Radar', 'Repository', 'Handoff to Avoozl', 'Labels Radar uses'])
   assert.equal((page.match(/<Section\s+title=/g) ?? []).length, (page.match(/<Section\s+title=[^>]*blurb=/g) ?? []).length)
-  for (const part of ['<AvoozlLabelFields', 'crewLabels.${key}', '<ReviewRulesFields']) assert.ok(page.includes(part), part)
+  for (const part of ['<AvoozlLabelFields', 'crewLabels.${key}']) assert.ok(page.includes(part), part)
   // Each section box is a Card around one Section; nothing loose between them.
   const tops = [...page.slice(page.indexOf('data-radar-settings')).matchAll(/\n {6}(<\w+|\{\w+)/g)].map((m) => m[1])
-  assert.deepEqual(tops, ['{names', '<Card', '<Card', '<Card'])
+  assert.deepEqual(tops, ['{names', '<Card', '<Card'])
   // The repository editor keeps no Radar field and no Crews and rules tab.
   const editor = body('export function RepositoryEditor(')
   assert.doesNotMatch(editor, /CrewsRulesSettings|ReleaseModePicker|crewLabels|Issue Radar labels|tab === 'crews'/)

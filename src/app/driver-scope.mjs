@@ -9,8 +9,6 @@
 //   (drain: running chats still report, verify and integrate), and away
 //   tasks (R66.11), which wait for GitHub facts or a person.
 
-import { exportedPlanIds } from "./issue-export.mjs";
-
 const memo = new WeakMap();
 
 function rows(store) {
@@ -32,40 +30,32 @@ function driverRow(store, planId) {
   return planId ? rows(store).get(planId) || null : null;
 }
 
-// Plans this workspace does not drive, and plans an export holds or
-// handed away (R102.19): nothing dispatches or lands for them.
+// Plans this workspace does not drive: nothing dispatches or lands for them.
 export function readOnlyPlanIds(store) {
-  return new Set([
-    ...[...rows(store).values()]
+  return new Set(
+    [...rows(store).values()]
       .filter((row) => row.state !== "driver")
       .map((row) => row.id),
-    ...exportedPlanIds(store),
-  ]);
+  );
 }
 
 export function readOnlyTask(store, task) {
   const row = driverRow(store, task?.planId);
-  return Boolean(
-    (row && row.state !== "driver") ||
-      (task?.planId && exportedPlanIds(store).has(task.planId)),
-  );
+  return Boolean(row && row.state !== "driver");
 }
 
 // Task IDs that may not start new work here.
 export function driverHeldTaskIds(store, data = store.read()) {
   const all = rows(store),
-    exported = exportedPlanIds(store),
     held = new Set();
   if (!all.size) {
-    for (const task of data.tasks)
-      if (task.driverAway || exported.has(task.planId)) held.add(task.id);
+    for (const task of data.tasks) if (task.driverAway) held.add(task.id);
     return held;
   }
   for (const task of data.tasks) {
     const row = task.planId ? all.get(task.planId) : null;
     if (
       task.driverAway ||
-      exported.has(task.planId) ||
       (row && (row.state !== "driver" || row.handoff?.state))
     )
       held.add(task.id);

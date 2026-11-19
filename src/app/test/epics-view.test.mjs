@@ -66,13 +66,6 @@ test("a draft spec is listed as not on GitHub, with what to do", async () => {
   });
 });
 
-test("Issue Radar's graph is the tab link; its view and focus have no URL", async () => {
-  await withSample(async (demo) => {
-    const { radarGraph } = await demo.execute("epics.view", {});
-    assert.deepEqual(radarGraph, { url: "/issue-radar", focus: false });
-  });
-});
-
 test("with no epics and no merges the views are empty, not broken", () => {
   const store = {
     read: () => ({ epics: [], tasks: [] }),
@@ -81,7 +74,6 @@ test("with no epics and no merges the views are empty, not broken", () => {
   assert.deepEqual(epicsView(store, { repositories: [] }), {
     epics: [],
     unprojected: [],
-    radarGraph: { url: "/issue-radar", focus: false },
   });
 });
 

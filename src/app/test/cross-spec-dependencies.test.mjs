@@ -4,7 +4,6 @@ import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { createSpecPlan, readSpecFolder } from "../spec-plans.mjs";
-import { projectPlanIssues } from "../github-projection.mjs";
 import { queryTasks } from "../../query.mjs";
 import { taskSignals } from "../../workbench-model.mjs";
 import { completionReached } from "../../work-model.mjs";
@@ -121,30 +120,6 @@ test("separate approvals resolve an interleaved acyclic graph without foreign pl
     ],
   );
   assert.equal(w.store.list("approvals").length, 2);
-});
-
-test("pending references refuse GitHub projection before any GitHub read or write", async (t) => {
-  const w = interleaved(t);
-  await approve(w, "left");
-  let calls = 0;
-  const github = new Proxy(
-    {},
-    {
-      get() {
-        calls++;
-        throw Error("Unexpected GitHub call");
-      },
-    },
-  );
-  await assert.rejects(
-    projectPlanIssues(w.store, github, {
-      planId: "left",
-      locked: true,
-      identity: { namespace: "avz_testtesttesttest", mode: "single-repo" },
-    }),
-    /Approve referenced spec owners/,
-  );
-  assert.equal(calls, 0);
 });
 
 test("unknown names and foreign unowned task collisions still refuse approval", async (t) => {

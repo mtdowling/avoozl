@@ -58,7 +58,7 @@ export const HELP_GROUPS = Object.freeze([
         "github configure OWNER/REPO --project ID [--assignee LOGIN] [--allowed-actors LOGINS]",
       ),
       entry(
-        "github setup --mode plans-repo|single-repo [--planning-repository OWNER/REPO]\n[--repositories A,B] [--project-owner LOGIN] [--project-number N | --project-title T]\n[--releases A,B] [--iteration] [--table-by-wave] [--no-epic]",
+        "github setup --mode plans-repo|single-repo [--planning-repository OWNER/REPO]\n[--repositories A,B] [--no-epic]",
         "Preview the GitHub setup; add --confirm --preview-hash HASH to apply",
       ),
       entry(
@@ -165,15 +165,9 @@ export const HELP_GROUPS = Object.freeze([
         "Resume a spec after its journal was reanchored",
       ),
       entry(
-        "spec export-issues SPEC [--repository OWNER/REPO] [--confirm]",
-        "Preview, then with --confirm create the spec's unfinished task issues and stop driving it",
-      ),
-      entry(
         "gap-report preview|accept SPEC (--path FILE | --issue OWNER/REPO#N)",
         "Turn a gap report into proposed tasks in the sub-specs of a parent spec",
       ),
-      entry("github project PLAN_ID --repository OWNER/REPO"),
-      entry("github preview PLAN_ID", "List projection writes, making none"),
       entry(
         "intake [list] [--source ID] [--kind KIND] [--state open|closed] [--untriaged]",
         "Incoming items",
@@ -236,10 +230,6 @@ export const HELP_GROUPS = Object.freeze([
         "Remove a link; it stays in the activity history (a person only)",
       ),
       entry(
-        "task links TASK_ID show LINK_ID [--off]",
-        "Show it on the task's issue, or stop (a person only)",
-      ),
-      entry(
         "task done TASK_ID [--skipped|--refused] [--link URL --label LABEL]",
         "Mark a manual task done, skipped or refused (a person only;\nrefused is a no-go and keeps its dependents held)",
       ),
@@ -265,20 +255,12 @@ export const HELP_GROUPS = Object.freeze([
         "Resume dispatch while a line stop stays open (a person only)",
       ),
       entry(
-        "public-crews stop",
-        "Stop public crews: pull the cord on every public repository and list the crews to pause",
-      ),
-      entry(
         "content allow DECISION_ID --reason TEXT",
         "Allow one blocked write once (a person only)",
       ),
       entry(
         "github sync [--repository OWNER/REPO]",
         "Import assigned ready issues",
-      ),
-      entry(
-        "rebuild [--repository OWNER/REPO]",
-        "Rebuild GitHub tasks from their issues",
       ),
     ],
   },
@@ -423,7 +405,7 @@ export const HELP_GROUPS = Object.freeze([
         "Stop new work for SPEC; with --folder write the export (a person only)",
       ),
       entry(
-        "driver takeover SPEC [--file EXPORT.json | --rebuild [--yes]]",
+        "driver takeover SPEC [--file EXPORT.json]",
         "Drive SPEC here once its plan issue names you (a person only)",
       ),
       entry(

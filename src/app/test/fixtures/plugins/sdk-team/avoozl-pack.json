@@ -14,16 +14,6 @@
         "decision": "avoozl:decision"
       },
       "rules": [
-        {
-          "id": "plan",
-          "action": "plan",
-          "match": "label:avoozl:plan -label:needs-triage -label:response-requested"
-        },
-        {
-          "id": "deliver",
-          "action": "deliver",
-          "match": "label:avoozl:deliver -label:needs-triage -label:response-requested -label:blocked -label:avoozl:paused"
-        },
         { "id": "pause", "action": "pause", "match": "label:avoozl:paused" },
         {
           "id": "quarantine",
@@ -42,15 +32,6 @@
         "notify": false
       },
       "requiredChecks": []
-    },
-    "project": {
-      "fields": { "status": "Status", "release": "Release", "wave": "Wave" },
-      "statusValues": {
-        "todo": "Todo",
-        "inProgress": "In progress",
-        "done": "Done",
-        "deferred": "Deferred"
-      }
     },
     "contentRules": {
       "sets": [{ "id": "team-terms", "plugin": "sdk-team", "action": "block" }]

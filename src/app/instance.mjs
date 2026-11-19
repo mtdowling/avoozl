@@ -82,7 +82,6 @@ export const plainInstanceName = (id) =>
 
 // The ID if one exists, without making one (a planning-only read must not write).
 export const peekInstance = (store) => store.getMeta(KEY) ?? null;
-export const peekInstanceId = (store) => peekInstance(store)?.id ?? null;
 
 export function renameInstance(store, value) {
   const name = String(value ?? "").trim();

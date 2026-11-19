@@ -19,7 +19,6 @@ import { kirocrewSession, kirocrewDispatches } from "./executors/kirocrew.mjs";
 // done report. On the cron it also reads and writes GitHub: completion,
 // issue intake, planner sessions for matched issues, broad-issue publishing,
 // re-projection, crew labels and the Project board.
-import { notesReprojectIds, notesReprojected } from "./task-notes.mjs";
 import { recordActivity, recordTickActivity } from "./activity-log.mjs";
 import fs from "node:fs";
 import { refuseTrackedProviders } from "./provider-health.mjs";
@@ -39,7 +38,6 @@ import { retroStep } from "./flow-retro.mjs";
 import { ciRepositories, ciStep, readEffectiveCIConfig } from "./flow-ci.mjs";
 import { queueCheckRuns } from "./check-runs.mjs";
 import {
-  claimedTaskIds,
   completeParents,
   deliveryPolicy,
   holdUnprovenReviews,
@@ -63,33 +61,15 @@ import {
 } from "./session-bindings.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { queueNotifications, sessionUrl } from "./notifications.mjs";
-import {
-  closeGitHubParents,
-  closePlanAndEpicIssues,
-  reconcileGitHubCompletion,
-} from "./github-close.mjs";
 import { readGitHubPolicy, readGitHubPolicyOrNull } from "./github-policy.mjs";
-import { ensureLinkedBranches } from "./github-linked-branches.mjs";
-import { refreshProjectedReadiness } from "./github-projection.mjs";
 import { planningIdentity } from "./github-marker.mjs";
-import { syncProject } from "./github-project.mjs";
 import { reviewDispatches } from "./pr-review.mjs";
-import { publicCrewAudit } from "./public-crews.mjs";
 import { respondStep } from "./github-respond.mjs";
-import { steeringStep } from "./github-steering.mjs";
-import { feedbackStep } from "./github-feedback.mjs";
 import { investigationStep } from "./investigate.mjs";
 import { revertCorrections } from "./corrections.mjs";
 import { evidenceCommentStep } from "./evidence.mjs";
-import { findPlanningLeak } from "./github-plans-repo.mjs";
-import { plannerStep } from "./github-planner.mjs";
 import { intakeNotices, syncGitHubIssues } from "./github-sync.mjs";
-import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
-import {
-  conflictFixDispatches,
-  conflictFixStep,
-} from "./radar-conflict-fix.mjs";
 import {
   RATE_LIMIT_TEXT,
   githubGate,
@@ -125,19 +105,17 @@ import {
   sourceMap,
   validateIntake,
 } from "./intake.mjs";
-import { settleUnavailable, validateContentRules } from "./content-rules.mjs";
 import {
-  driverStep,
-  recheckDrivers,
-  reprojected,
-  takenOverPlanIds,
-} from "./driver.mjs";
+  findPlanningLeak,
+  settleUnavailable,
+  validateContentRules,
+} from "./content-rules.mjs";
+import { driverStep, recheckDrivers } from "./driver.mjs";
 import {
   driverGuard,
   driverHeldTaskIds,
   readOnlyPlanIds,
 } from "./driver-scope.mjs";
-import { ticksHeld } from "./task-issue-retirement.mjs";
 import { revalidateSpecs, scheduleHolds } from "./spec-scheduler.mjs";
 import { landPullRequests } from "./pr-landing.mjs";
 import { landDirect } from "./direct-landing.mjs";
@@ -334,28 +312,22 @@ export function tickLogEntry(run) {
     run.outcome === "unreadable" ||
     run.policy === "invalid"
       ? "error"
-      : run.outcome === "locked" ||
-          run.outcome === "held" ||
-          run.held ||
-          run.project?.status === "error"
+      : run.outcome === "locked" || run.outcome === "held" || run.held
         ? "warn"
         : "info";
   const text =
     run.outcome === "locked"
       ? "Skipped: another tick held the lock."
-      : run.outcome === "held"
-        ? "Skipped: a task-issue retirement holds this workspace."
-        : run.outcome === "error"
-          ? `Failed: ${run.error || "unknown error"}`
-          : [
-              "Ran",
-              run.policy ? `policy ${run.policy}` : null,
-              run.project?.status ? `Project ${run.project.status}` : null,
-              run.held ? `held: ${run.held.reason}` : null,
-              run.error ? run.error : null,
-            ]
-              .filter(Boolean)
-              .join("; ") + ".";
+      : run.outcome === "error"
+        ? `Failed: ${run.error || "unknown error"}`
+        : [
+            "Ran",
+            run.policy ? `policy ${run.policy}` : null,
+            run.held ? `held: ${run.held.reason}` : null,
+            run.error ? run.error : null,
+          ]
+            .filter(Boolean)
+            .join("; ") + ".";
   return { at: run.at ?? null, level, text };
 }
 
@@ -522,63 +494,11 @@ function servedOf(row) {
   };
 }
 
-// The GitHub step (§6.5): verdicts for GitHub leaves, then parents complete
-// and their issues close. Dependents are released by readiness in the same
-// tick. A GitHub failure is reported, not thrown: local work keeps moving.
-// Last, plans-repo leaves about to be dispatched get their linked branch,
-// so the dispatch below can send their briefs (§6.6). Between the two,
-// plans whose readiness changed are projected again (§4.5 step 10).
-async function githubStep(store, github, workspaceRoot, delivery) {
-  try {
-    const policy = readGitHubPolicy(workspaceRoot),
-      { notify, messages } = await reconcileGitHubCompletion(store, github, {
-        policy,
-      });
-    completeParents(store);
-    await closeGitHubParents(store, github, { policy });
-    await closePlanAndEpicIssues(store, github, { policy });
-    // Readiness changed by this tick's verdicts reaches GitHub now:
-    // `dispatch.ready` for the runner.
-    // A taken-over spec, and one whose shown links changed
-    // (R61.23), are projected once more.
-    const identity = planningIdentity(workspaceRoot),
-      reproject = takenOverPlanIds(store),
-      noted = notesReprojectIds(store),
-      projection = await refreshProjectedReadiness(store, github, {
-        identity,
-        skipPlans: readOnlyPlanIds(store),
-        forcePlans: new Set([...reproject, ...noted]),
-      });
-    for (const planId of projection.projected)
-      if (reproject.has(planId)) reprojected(store, planId);
-    notesReprojected(
-      store,
-      projection.projected.filter((planId) => noted.has(planId)),
-    );
-    // A linked branch is the start of new work: none for a held spec.
-    const branches = await ensureLinkedBranches(store, github, {
-      delivery,
-      policy,
-      skip: driverHeldTaskIds(store),
-    });
-    return {
-      status: "ok",
-      notify: [...notify, ...branches.notify],
-      messages,
-      ...(projection.projected.length || projection.errors.length
-        ? { projection }
-        : {}),
-    };
-  } catch (error) {
-    return { status: "error", error: error.message, notify: [], messages: [] };
-  }
-}
-
 // Issue intake (§4.5 steps 4 and 5). Rules are evaluated on every registered
 // repository and broad issues advance through preview and publishing.
 // Readiness changes reach GitHub through the GitHub step's re-projection.
 // Like the GitHub step, a failure is reported, not thrown.
-async function intakeStep(store, github, workspaceRoot, breakdownHooks) {
+async function intakeStep(store, github, workspaceRoot) {
   try {
     const policy = readGitHubPolicy(workspaceRoot),
       notify = [];
@@ -594,8 +514,6 @@ async function intakeStep(store, github, workspaceRoot, breakdownHooks) {
         ),
       );
     }
-    if (breakdownHooks && store.list("github_issues").some((r) => r.breakdown))
-      await advanceGitHubBreakdowns(store, github, breakdownHooks());
     return { notify };
   } catch (error) {
     return {
@@ -607,29 +525,6 @@ async function intakeStep(store, github, workspaceRoot, breakdownHooks) {
         },
       ],
     };
-  }
-}
-
-// Project sync after completion (§6.7). Its failure is reported, not
-// raised: issue delivery keeps working without the Project.
-async function projectStep(store, github, workspaceRoot) {
-  try {
-    const policy = readGitHubPolicy(workspaceRoot);
-    if (!policy.project) return { result: null, notify: [] };
-    const result = await syncProject(store, github, {
-      policy,
-      identity: planningIdentity(workspaceRoot),
-      claimed: claimedTaskIds(store),
-    });
-    return {
-      result: {
-        status: result.status,
-        ...(result.reason ? { reason: result.reason } : {}),
-      },
-      notify: result.notify,
-    };
-  } catch (error) {
-    return { result: { status: "error", reason: error.message }, notify: [] };
   }
 }
 
@@ -691,18 +586,11 @@ async function runTick(
     sessions,
     cron = false,
     github: client,
-    breakdownHooks,
     plugins,
     folders = null,
   },
 ) {
   const at = new Date().toISOString();
-  // A task-issue retirement stops ticks from its hold until its one
-  // verifying tick (R102.20, §4.32.13).
-  if (ticksHeld(store)) {
-    recordRun(store, { at, outcome: "held" });
-    return { skipped: "retirement" };
-  }
   const roster = sessionList(sessions),
     // The script cron, which carries out intents, as opposed to the page's
     // plan-only tick. A Kiro Crew with ScriptContext.session_status (MC-2)
@@ -883,62 +771,10 @@ async function runTick(
             text: error.message,
           });
         }
-      // Only the cron reads and writes GitHub; the page's tick plans only.
-      const githubResult =
-        script && github
-          ? await githubStep(store, github, workspaceRoot, delivery)
-          : null;
-      if (githubResult) {
-        planned.notify.push(...githubResult.notify);
-        planned.messages.push(...githubResult.messages);
-      }
       if (script && github)
         planned.notify.push(
-          ...(await intakeStep(store, github, workspaceRoot, breakdownHooks))
-            .notify,
+          ...(await intakeStep(store, github, workspaceRoot)).notify,
         );
-      // The public crew audit (R85.6, R85.7, §6.14): what a crew wrote on a
-      // public repository since the last pass, checked with content rules.
-      if (script && github)
-        try {
-          const step = await publicCrewAudit(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-          });
-          planned.notify.push(...step.notify);
-          for (const text of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not audit a public crew",
-              text,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not audit a public crew",
-            text: error.message,
-          });
-        }
-      // A resolver chat that is already running is finished (RC28).
-      if (script && github)
-        try {
-          const step = await conflictFixStep(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-            delivery: delivery || {},
-          });
-          planned.notify.push(...step.notify);
-          for (const text of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not fix a source conflict",
-              text,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not fix a source conflict",
-            text: error.message,
-          });
-        }
       // Review drafts by label (RC20): new labels, and drafts waiting on a
       // person. Dispatch of the chats waits for the roster check below. A
       // read that fails keeps the last state and is tried next tick (design
@@ -1029,42 +865,7 @@ async function runTick(
             text: error.message,
           });
         }
-      // Comment-mention steering (task 8.2), off unless a repository sets it.
-      if (script && github)
-        try {
-          const steer = await steeringStep(
-            store,
-            github,
-            readGitHubPolicy(workspaceRoot),
-          );
-          planned.messages.push(...steer.messages);
-          planned.notify.push(...steer.notify);
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not read steering comments",
-            text: error.message,
-          });
-        }
-      // Pull request feedback (§4.13): before dispatch, so a resume brief
-      // in this same tick carries it.
-      if (script && github && delivery)
-        try {
-          const feedback = await feedbackStep(store, github, {
-            policy: readGitHubPolicy(workspaceRoot),
-            delivery,
-          });
-          planned.messages.push(...feedback.messages);
-          planned.notify.push(...feedback.notify);
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not read pull request feedback",
-            text: error.message,
-          });
-        }
-      // The evidence comment on each open pull request (§4.22, R76.4),
-      // after feedback read the pull requests this tick.
+      // The evidence comment on each open pull request (§4.22, R76.4).
       if (script && github && delivery)
         try {
           const policy = readGitHubPolicy(workspaceRoot);
@@ -1087,8 +888,7 @@ async function runTick(
             text: error.message,
           });
         }
-      // CI per pull request for the retro (§4.30): after feedback, so the
-      // open pull request read is the one this tick already made.
+      // CI per pull request for the retro (§4.30).
       if (script)
         try {
           const step = await ciStep(store, github, {
@@ -1108,14 +908,6 @@ async function runTick(
             text: error.message,
           });
         }
-      // The board is read after this tick's completion and state changes, and
-      // before dispatch, so a Deferred card stops dispatch in this same tick.
-      // Only the cron, which carries out notifications, runs it.
-      const project =
-        script && github
-          ? await projectStep(store, github, workspaceRoot)
-          : { result: null, notify: [] };
-      planned.notify.push(...project.notify);
       // Incoming items from plugin sources (§4.12): one poll per source,
       // before dispatch, so a delivered item's leaf can start this tick.
       if (script && plugins)
@@ -1157,24 +949,6 @@ async function runTick(
           planned.notify.push({
             channel: "failure",
             title: "Avoozl could not run the respond step",
-            text: error.message,
-          });
-        }
-      // Planner sessions for matched issues: one to classify and draft, one
-      // isolated critique per drafted revision.
-      let planners = [];
-      if (script && github)
-        try {
-          const step = plannerStep(store, workspaceRoot, {
-            open: !unobserved.length,
-            config: memory.value || {},
-          });
-          planners = step.dispatch;
-          planned.notify.push(...step.notify);
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not start planner sessions",
             text: error.message,
           });
         }
@@ -1254,7 +1028,6 @@ async function runTick(
                 ...reviewDispatches(store, { config: roleConfig }),
                 ...reviewDraftDispatches(store, { config: roleConfig }),
                 ...taskSummaryDispatches(store, { config: roleConfig }),
-                ...conflictFixDispatches(store),
               ]
             : [];
       // Read each spec's plan issue again right before its dispatches; a
@@ -1274,7 +1047,6 @@ async function runTick(
         ...verify.filter((d) => !readOnlyTask(d.task)),
         ...investigation.dispatch.filter((d) => !heldTask(d.task)),
         ...responders.filter((d) => !heldTask(d.task)),
-        ...planners.filter((d) => !heldTask(d.task)),
         ...retro.dispatch,
         ...reviews.filter((d) => !heldTask(d.task)),
       ];
@@ -1406,17 +1178,6 @@ async function runTick(
       recordTickActivity(store, memory.value || {});
       return {
         policy,
-        ...(githubResult
-          ? {
-              github: {
-                status: githubResult.status,
-                ...(githubResult.error ? { error: githubResult.error } : {}),
-                ...(githubResult.projection
-                  ? { projection: githubResult.projection }
-                  : {}),
-              },
-            }
-          : {}),
         // A closed or lost session is final; it is read once and not again.
         observe: bindings
           .filter((b) => !FINAL_STATUSES.has(b.status))
@@ -1430,7 +1191,6 @@ async function runTick(
         ...(unobserved.length
           ? { held: { reason: "unobserved", slots: unobserved } }
           : {}),
-        ...(project.result ? { project: project.result } : {}),
       };
     });
     recordRun(store, {
@@ -1440,7 +1200,6 @@ async function runTick(
       ...observerOf(store, script, roster),
       ...(result.policy.error ? { error: result.policy.error } : {}),
       ...(result.held ? { held: result.held } : {}),
-      ...(result.project ? { project: result.project } : {}),
     });
     return result;
   } catch (error) {

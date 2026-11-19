@@ -137,7 +137,6 @@ test("avoozl next puts every local leaf in one bucket with what it waits on", as
       leaf("merged", { integration: { commit: "f".repeat(40) } }),
       leaf("later", { status: "deferred" }),
       leaf("epic", { kind: "package" }),
-      leaf("remote", { route: "github" }),
     ],
     edges: [requires("a", "dep"), requires("b", "dep")],
     delivery: { concurrency: 2 },

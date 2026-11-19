@@ -171,16 +171,13 @@ function Loss(props: { preview: TakeoverPreview | null }) {
   return (
     <Box data-driver-loss flex flexCol gap="1" size="sm">
       <Box as="p" weight="medium">
-        A rebuild from GitHub loses
+        A take-over without an export loses
       </Box>
       <Box as="ul" listDisc pl="5">
         {props.preview.lost.map((line) => (
           <li key={line}>{line}</li>
         ))}
       </Box>
-      <Hint as="p" size="xs">
-        The next tick raises again: {props.preview.reraised.join(', ')}.
-      </Hint>
     </Box>
   )
 }
@@ -207,20 +204,15 @@ export function TakeOverDialog(props: { workspaceId: string; spec: DriverSpec; o
   const { spec } = props
   const api = useAppApi()
   const client = useMemo(() => driverClient(api), [api])
-  const [how, setHow] = useState<'file' | 'rebuild' | 'claim'>(spec.mode === 'local' ? 'file' : 'file')
+  const [how, setHow] = useState<'file' | 'claim'>('file')
   const [file, setFile] = useState('')
-  const [preview, setPreview] = useState<TakeoverPreview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    if (how !== 'rebuild') return setPreview(null)
-    client.preview(props.workspaceId, spec.planId, true).then(setPreview, (caught: unknown) => setError(errorMessage(caught)))
-  }, [client, how, props.workspaceId, spec.planId])
   const go = async () => {
     setBusy(true)
     setError(null)
     try {
-      const result = await client.takeover(props.workspaceId, spec.planId, how === 'file' ? { file: file.trim() } : how === 'rebuild' ? { rebuild: true } : {})
+      const result = await client.takeover(props.workspaceId, spec.planId, how === 'file' ? { file: file.trim() } : {})
       if (result.won === false) setError('Another machine took it over at the same time and won. This spec reads only here.')
       else props.onClose(true)
     } catch (caught) {
@@ -231,7 +223,6 @@ export function TakeOverDialog(props: { workspaceId: string; spec: DriverSpec; o
   }
   const options: { key: typeof how; label: string; note: string }[] = [
     { key: 'file', label: 'From an export', note: 'The file the old driver wrote. Avoozl checks it against the claim before anything changes.' },
-    ...(spec.mode === 'local' ? [] : [{ key: 'rebuild' as const, label: 'Rebuild from GitHub', note: 'When the old machine is gone. Some local history is lost.' }]),
     { key: 'claim', label: 'Keep this machine’s records', note: 'Your other machine handed it to you, or this workspace already has its state.' },
   ]
   return (
@@ -269,7 +260,6 @@ export function TakeOverDialog(props: { workspaceId: string; spec: DriverSpec; o
           ))}
         </Box>
         {how === 'file' && <FileField id="avoozl-driver-file" value={file} onChange={setFile} />}
-        {how === 'rebuild' && <Loss preview={preview} />}
         <Hint as="p" size="xs">
           Avoozl waits 10 seconds and reads the plan issue again; it drives only if its claim is still there.
         </Hint>
@@ -350,8 +340,8 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
         {!file.trim() && (
           <>
             <Loss preview={preview} />
-            <Switch label="I understand what a rebuild from GitHub loses" checked={acknowledged} onChange={setAcknowledged}>
-              I understand what a rebuild from GitHub loses
+            <Switch label="I understand what a take-over without an export loses" checked={acknowledged} onChange={setAcknowledged}>
+              I understand what a take-over without an export loses
             </Switch>
           </>
         )}

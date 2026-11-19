@@ -66,7 +66,6 @@ import {
   taskAuthority,
   taskKind,
   taskRepository,
-  taskRoute,
 } from "../work-model.mjs";
 import {
   duplicateAudit,
@@ -106,7 +105,6 @@ import {
   integrateRun,
   withWorkLock,
   detectCheckout,
-  git,
 } from "./git.mjs";
 import { workspaceIdentity } from "./identity.mjs";
 import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
@@ -130,22 +128,10 @@ import {
   planningIdentity,
   requireNamespace,
 } from "./github-marker.mjs";
-import {
-  claimsFresh,
-  claimsView,
-  RADAR_INTERVAL_MS,
-  refreshClaims,
-} from "./radar-claims.mjs";
-import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
+import { claimsFresh, claimsView, refreshClaims } from "./radar-claims.mjs";
+import { mergePath } from "./radar-merge-path.mjs";
 import { instanceIdentity } from "./instance.mjs";
 import { mirrorEntryKey, mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
-import { radarSetup } from "./radar-setup.mjs";
-import { radarReread, radarValues } from "./radar-values.mjs";
-import {
-  armedPullRequests,
-  disarmPullRequest,
-  mergeMethodNeedsYou,
-} from "./radar-arm.mjs";
 import { approvalNeedsYou, releaseClaims } from "./approval-label.mjs";
 import {
   crewLabelBackfill,
@@ -169,12 +155,6 @@ import {
   requireIntegrationBranch,
 } from "./integration-branch.mjs";
 import {
-  checkConflictFix,
-  conflictFixNeedsYou,
-  decideConflictFix,
-  reportConflictFix,
-} from "./radar-conflict-fix.mjs";
-import {
   countFilePath,
   rateNeedsYou,
   rateView,
@@ -186,21 +166,16 @@ import { diskNeedsYou } from "./disk-space.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
   CREW_LABEL_KEYS,
-  FIELD_KEYS,
-  CREW_LABEL_DEFAULTS,
   MANAGED_LABEL_KEYS,
   MODE_CHOICES,
-  newTaskAuthority,
   normalizeGitHubPolicy,
   PERMISSIONS,
   actorAllowed,
-  ISSUE_RADAR_PATH,
   policySection,
   readGitHubPolicy,
   readGitHubPolicyOrNull,
   requireDefaultBranches,
   RULE_ACTIONS,
-  STATUS_VALUE_KEYS,
 } from "./github-policy.mjs";
 import {
   requireMirrorsPrivate,
@@ -220,16 +195,9 @@ import {
   writeRepo,
 } from "./mirror-sync.mjs";
 import { forwardAuditRows } from "./forward-audit.mjs";
-import {
-  publicCrewAuditRows,
-  publicRepositories,
-  stopPublicCrews,
-} from "./public-crews.mjs";
-import { publicCrewsView, signOff } from "./public-signoff.mjs";
 import { publicBranchRows } from "./mirror-forward-batch.mjs";
 import { mirrorForwardRows } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
-import { syncProject } from "./github-project.mjs";
 import { cancelSetup, githubSetup } from "./github-setup.mjs";
 import {
   archiveEnded,
@@ -243,11 +211,6 @@ import {
   conversationSettings,
   RepositorySettings,
 } from "./repository-settings.mjs";
-import {
-  projectPlanIssues,
-  resolveProjectionConflict,
-} from "./github-projection.mjs";
-import { rebuildFromGitHub } from "./github-rebuild.mjs";
 import {
   addGitPlugin,
   addPlugin,
@@ -330,7 +293,6 @@ import {
   specPullView,
   syncSpecPulls,
 } from "./spec-pull-requests.mjs";
-import { readCrewStrip } from "./radar-crews.mjs";
 import { flowView, readFlowConfig, readFlowPolicy } from "./flow.mjs";
 import { usageView } from "./flow-usage.mjs";
 import {
@@ -349,13 +311,8 @@ import {
   resumeStop,
   runAnyway,
 } from "./flow-line.mjs";
-import {
-  commitChecks,
-  localCheckList,
-  localPass,
-  runLocalChecks,
-} from "./flow-checks.mjs";
-import { checkCommand, checksSetting } from "./repository-checks.mjs";
+import { runLocalChecks } from "./flow-checks.mjs";
+import { checkCommand } from "./repository-checks.mjs";
 import { queueNotifications } from "./notifications.mjs";
 
 import {
@@ -385,27 +342,7 @@ const PLUGIN_OPERATIONS = new Set([
   "template.list",
   "template.preview",
 ]);
-import {
-  advanceGitHubBreakdowns,
-  breakdownHold,
-  classifyGitHubIssue,
-  draftGitHubChildren,
-} from "./github-breakdown.mjs";
-import { previewProjection } from "./github-preview.mjs";
-import {
-  clampLimits,
-  paceNeedsYou,
-  refuseOtherRun,
-  runView,
-} from "./github-pacer.mjs";
-import { planProjectionBatches } from "./radar-coder-batch.mjs";
-import {
-  applySpecChange,
-  approvedBefore,
-  changeIssues,
-  planSpecChange,
-  specTasks,
-} from "./spec-changed.mjs";
+import { clampLimits, paceNeedsYou, runView } from "./github-pacer.mjs";
 import { inspectFolder, scanSpecs } from "./onboarding.mjs";
 import {
   assertRepositoryRemovable,
@@ -572,11 +509,6 @@ import {
 import { lintPlan } from "./plan-quality.mjs";
 import { flowView as radarFlowView } from "./radar-flow.mjs";
 import {
-  applyRetroRule,
-  retroView,
-  undoRetroRule,
-} from "./radar-retro-rules.mjs";
-import {
   createSpecPlan,
   epicMembers,
   findSpecFolder,
@@ -585,7 +517,6 @@ import {
   specFacts,
   linkSpecPlan,
   listSpecFolders,
-  parseSpec,
   proposeSpecWork,
   readCritique,
   readSpecFolder,
@@ -615,14 +546,6 @@ import { taskDefinition } from "./task-outcomes.mjs";
 import { repositorySetup } from "./repository-setup.mjs";
 import { reanchorSpec, resumeSpec } from "./spec-reanchor.mjs";
 import {
-  applyRetirement,
-  closeRetiredIssues,
-  holdRetirement,
-  previewRetirement,
-  verifyRetirement,
-} from "./task-issue-retirement.mjs";
-import { applyExport, previewExport } from "./issue-export.mjs";
-import {
   approvalChangedAtMerge,
   approvalEvidence,
   mayLinkSpecIssue,
@@ -648,7 +571,6 @@ import {
   noteAuthor,
   notesView,
   removeNote,
-  showNote,
 } from "./task-notes.mjs";
 
 // Avoozl-recorded validation at a task's current commit (§5.2, R38.5): its
@@ -999,7 +921,6 @@ export class Operations {
       repositoryBindingGuard = null,
       notifier = null,
       crewReader = null,
-      sessionsReader = null,
       // Stops one Kiro Crew session by slot (session-observer.mjs
       // gatewaySessionStopper); only the app backend has one.
       sessionStopper = null,
@@ -1023,8 +944,7 @@ export class Operations {
       configDirectory = null,
       // Tests replace the shipped prompts to model an Avoozl update.
       shippedPrompts = null,
-      // The app backend's reads that go to GitHub or Kiro Crew (radar.crews,
-      // radar.armed) answer from the last read and refresh after replying,
+      // The app backend's reads that go to GitHub (radar.crews) answer from the last read and refresh after replying,
       // so no page request waits on the network. The CLI and MCP keep
       // reading first.
       backgroundReads = false,
@@ -1033,8 +953,6 @@ export class Operations {
     this.store = store;
     this.backgroundReads = backgroundReads;
     this.refreshing = new Map();
-    this.crewStrip = null;
-    this.armedRead = null;
     // The plugin loader (plugins.mjs). It opens one plugin session per
     // tick, and runs nothing unless a plugin is declared and approved.
     this.plugins = plugins;
@@ -1045,7 +963,6 @@ export class Operations {
     // Reads Issue Radar's crews through the gateway (radar-handoff.mjs);
     // only the app backend has one.
     this.crewReader = crewReader;
-    this.sessionsReader = sessionsReader;
     this.sessionStopper = sessionStopper;
     this.kirocrewAbsent = kirocrewAbsent;
     this.reviewOptions = reviewOptions;
@@ -1253,14 +1170,7 @@ export class Operations {
   screenPack(pack) {
     const crews = pack?.settings?.crews;
     if (!crews) return;
-    const text = [
-        pack.description,
-        Object.values(crews.labels ?? {}),
-        crews.models,
-        crews.reviewRules,
-        crews.template,
-        crews.prompt,
-      ]
+    const text = [pack.description, Object.values(crews.labels ?? {})]
         .flat()
         .filter((entry) => typeof entry === "string")
         .join("\n"),
@@ -2284,30 +2194,9 @@ export class Operations {
     const heads = input.push
       ? pushedCommits(input.stdin).map((p) => p.local)
       : [input.head || "HEAD"];
-    const checked = [],
-      local =
-        input.push &&
-        taskRoute(task) === "github" &&
-        localCheckList(project).length > 0 &&
-        readFlowPolicy(this.workspaceRoot).for(project.id).localChecksFirst;
+    const checked = [];
     for (const head of heads) {
       gitRevision(head);
-      // Local checks first (R45.4): a recorded local pass, not a rerun.
-      if (local) {
-        const sha = /^[0-9a-f]{40}$/.test(head)
-          ? head
-          : await git(worktree?.path || project.root, ["rev-parse", head]);
-        const pass = await localPass(
-          project.root,
-          sha,
-          await commitChecks(project, sha),
-        );
-        if (!pass.ok)
-          fail(
-            `Local checks first: ${pass.cause}. Run \`avoozl checks run --task ${task.id}\` in this worktree, then push again.`,
-            409,
-          );
-      }
       enforceDiff(store, {
         project: { ...project, root: worktree?.path || project.root },
         head,
@@ -2429,31 +2318,10 @@ export class Operations {
         authorities: ["github", "local"],
         permissions: PERMISSIONS,
         actions: RULE_ACTIONS,
-        fields: FIELD_KEYS,
-        statusValues: STATUS_VALUE_KEYS,
         managedLabels: MANAGED_LABEL_KEYS,
         crewLabels: CREW_LABEL_KEYS,
       },
     };
-  }
-  // Release options for the wizard: milestones in the mode's spec folders,
-  // then those of tasks already in the workspace, first seen first.
-  setupMilestones(mode) {
-    const names = [];
-    let roots = [];
-    try {
-      roots = this.specRoots(mode ?? undefined);
-    } catch {
-      // In plans-repo mode `.avoozl.json` sits in the planning checkout.
-      roots = this.workspaceRoot ? [this.workspaceRoot] : [];
-    }
-    for (const root of roots)
-      for (const spec of listSpecFolders(root))
-        for (const proposal of parseSpec(readSpecFolder(root, spec)).proposals)
-          if (proposal.milestone) names.push(proposal.milestone);
-    for (const task of this.store.read().tasks)
-      if (task.milestone) names.push(task.milestone);
-    return [...new Set(names)];
   }
   // The `.avoozl.json` GitHub policy, read on each use so an edit applies
   // without a restart. Invalid policy refuses the operation that needs it.
@@ -2504,71 +2372,6 @@ export class Operations {
       DEFAULT_CACHE_SECONDS
     );
   }
-  // Broad issues (§6.2): the child graph is a spec folder; approval stores it
-  // as an approved plan, without its root epic, which is the source issue.
-  // `locked`: the caller already holds the workspace tick lock.
-  breakdownHooks({ locked = false } = {}) {
-    const store = this.store,
-      policy = this.githubPolicy(),
-      identity = planningIdentity(this.workspaceRoot);
-    return {
-      policy,
-      identity,
-      readSpec: (name) => this.readSpec(name),
-      lint: (spec) =>
-        this.withContentDiagnostics(
-          lintSpec({
-            spec,
-            plan: { id: spec.name },
-            data: {
-              ...this.read(),
-              projects: store.list("projects"),
-            },
-          }),
-          spec,
-        ),
-      approveChildren: ({ spec, children, row, actor }) => {
-        const config = store.get("github_repositories", row.repository);
-        let plan = createSpecPlan(
-          store,
-          {
-            id: spec.name,
-            prompt: `Children of ${row.repository}#${row.number}`,
-            context: {
-              projectId: config.projectId,
-              issue: { repository: row.repository, number: row.number },
-            },
-          },
-          spec,
-        );
-        if (plan.hash !== spec.hash)
-          plan = saveSpecPlan(
-            store,
-            { id: plan.id, expectedHash: plan.hash },
-            spec,
-          );
-        approvePlan(store, {
-          id: plan.id,
-          expectedHash: plan.hash,
-          expectedRevision: store.read().revision,
-          approvedBy: actor,
-          operator: this.operator,
-          proposals: children.map(({ topLevel: _top, ...child }) => child),
-          githubPolicy: policy,
-        });
-        return store.get("plans", plan.id);
-      },
-      project: async (planId, repository) =>
-        this.withProjectSync(
-          await projectPlanIssues(store, this.github, {
-            planId,
-            repository,
-            identity,
-            locked,
-          }),
-        ),
-    };
-  }
   // The merge path of the named repository; none without a name.
   async mergePaths(only) {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot),
@@ -2579,39 +2382,6 @@ export class Operations {
         .filter(([id]) => id === only)
         .map(([id, entry]) => mergePath(this.github, id, entry, { delivery })),
     );
-  }
-  // Projection adds its issues to the Project with the tick's own sync, so
-  // the two agree (§6.7). A Project failure never fails issue projection.
-  async withProjectSync(projection) {
-    try {
-      const policy = this.githubPolicy();
-      if (!policy.project) return projection;
-      // The tick's lock: one Project writer at a time.
-      const result = await withWorkLock(this.store, WORKSPACE_LOCK, () =>
-        syncProject(this.store, this.github, {
-          policy,
-          identity: planningIdentity(this.workspaceRoot),
-          claimed: claimedTaskIds(this.store),
-        }),
-      );
-      return {
-        ...projection,
-        project: {
-          status: result.status,
-          writes: result.writes,
-          problems: result.problems || [],
-          ...(result.reason ? { reason: result.reason, fix: result.fix } : {}),
-        },
-      };
-    } catch (error) {
-      // A tick holding the lock syncs the board itself.
-      return {
-        ...projection,
-        project: error.contention
-          ? { status: "locked" }
-          : { status: "error", reason: error.message },
-      };
-    }
   }
   async reconcilePlanningPullRequests() {
     const receipts = this.store
@@ -2646,15 +2416,6 @@ export class Operations {
           "Merged planning revision did not hydrate as the approved design.",
           409,
         );
-      const projection = await this.withProjectSync(
-        await projectPlanIssues(this.store, this.github, {
-          planId: receipt.planId,
-          identity: planningIdentity(this.workspaceRoot),
-        }),
-      );
-      receipt.state = "projected";
-      receipt.projectedAt = new Date().toISOString();
-      receipt.issueIds = projection.issues.map((issue) => issue.id);
       this.store.put("receipts", receipt);
       result.push(receipt);
     }
@@ -3224,7 +2985,6 @@ export class Operations {
         cron: input.cron === true,
         folders: input.folders ?? null,
         github: this.github,
-        breakdownHooks: () => this.breakdownHooks({ locked: true }),
         plugins: this.plugins,
       });
       if (result.skipped) return result;
@@ -3368,7 +3128,6 @@ export class Operations {
     if (name === "task.start")
       return startNow(store, input, {
         policy: readDeliveryPolicy(this.workspaceRoot),
-        github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
     if (name === "chat.context") {
       // Ask for help (§8.9): the page's own words and settings.
@@ -3490,8 +3249,6 @@ export class Operations {
             'This workspace\'s .avoozl.json still says "runner": "crew-mode", from before the tick started every task. Avoozl starts nothing here until you let the tick run it.',
           hash: this.settingsFile().readFile().hash,
         });
-      view.items.push(...conflictFixNeedsYou(store));
-      view.items.push(...mergeMethodNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
       view.items.push(...crewLabelNeedsYou(store));
       view.items.push(...reviewDraftNeedsYou(store));
@@ -3507,7 +3264,6 @@ export class Operations {
       view.items.push(...mirrorNeedsYou(store));
       view.items.push(...mirrorForwardRows(store, policy));
       view.items.push(...forwardAuditRows(store));
-      view.items.push(...publicCrewAuditRows(store));
       view.items.push(...publicBranchRows(store));
       // A role waiting on Kiro Crew on a machine with none, with this
       // machine's approved harnesses for Run on (NK8.2).
@@ -3668,19 +3424,11 @@ export class Operations {
       return handOffDriver(store, this.github, input);
     if (name === "driver.away.decide") return decideAway(store, input);
     if (name === "driver.takeover" || name === "driver.forceTakeover") {
-      const hooks = {
-        rebuild: (repository) =>
-          rebuildFromGitHub(store, this.github, {
-            repository,
-            identity: planningIdentity(this.workspaceRoot),
-            policy: this.githubPolicy(),
-            readSpec: (spec) => this.readSpec(spec),
-          }),
-        notify: (notices) => queueNotifications(store, notices),
-      };
       return name === "driver.takeover"
-        ? takeOver(store, this.github, input, hooks)
-        : forceTakeOver(store, this.github, input, hooks);
+        ? takeOver(store, this.github, input)
+        : forceTakeOver(store, this.github, input, {
+            notify: (notices) => queueNotifications(store, notices),
+          });
     }
     if (name === "flow.settings.update") {
       const written = this.settingsFile().updateFlowSettings(input);
@@ -3818,42 +3566,6 @@ export class Operations {
         by: context.local ? "cli" : "dashboard",
       });
     }
-    // Stop public crews (R85.9): the cord for every public repository, and
-    // the crews to pause in Kiro Crew. An agent may stop; only a person
-    // resumes (flow.resume).
-    if (name === "publiccrews.stop") {
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        crews = await Promise.all(
-          publicRepositories(store, policy).map((repository) =>
-            readCrews(this.crewReader, repository),
-          ),
-        ),
-        result = stopPublicCrews(
-          store,
-          { policy, crews },
-          {
-            by:
-              context.caller || context.mcp
-                ? {
-                    kind: "agent",
-                    name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
-                  }
-                : { kind: "person", name: context.local ? "cli" : "dashboard" },
-            link: ISSUE_RADAR_PATH,
-          },
-        );
-      const changed = result.stops.filter((s) => s.changed);
-      if (changed.length)
-        queueNotifications(store, [
-          {
-            channel: "failure",
-            title: `Public crews stopped on ${changed.length} ${changed.length === 1 ? "repository" : "repositories"}`,
-            text: `${changed.map((s) => s.repository).join(", ")}. ${result.note}`,
-            resume: "Press Resume on the Dashboard banner when it is safe.",
-          },
-        ]);
-      return result;
-    }
     // Issue Radar's live claims on every registered repository, read from
     // GitHub only (radar-claims.mjs). `refresh` reads GitHub first.
     // The merge path of each Issue Radar repository (RC5.1): three items,
@@ -3875,104 +3587,9 @@ export class Operations {
         by: context.local ? "cli" : "dashboard",
       });
     }
-    // Pull requests Avoozl armed that are still open, and the person-only
-    // Disarm (RC5.4).
-    if (name === "radar.armed") {
-      if (!this.github?.available?.()) return { pullRequests: [] };
-      if (!this.backgroundReads) return armedPullRequests(store, this.github);
-      const refreshing =
-        (!this.armedRead ||
-          Date.now() - this.armedRead.at >= RADAR_INTERVAL_MS) &&
-        this.refreshLater("radar.armed", async () => {
-          const at = Date.now();
-          this.armedRead = {
-            at,
-            value: await armedPullRequests(store, this.github),
-          };
-        });
-      return {
-        ...(this.armedRead?.value ?? { pullRequests: [] }),
-        ...(refreshing ? { refreshing: true } : {}),
-      };
-    }
-    if (name === "radar.disarm") {
-      if (context.caller || context.mcp)
-        fail("Only a person disarms auto-merge, in the Avoozl page.", 403);
-      this.armedRead = null;
-      return disarmPullRequest(store, this.github, input);
-    }
-    // A person's choice on a source conflict Avoozl asked about (RC28.3).
-    if (name === "conflictfix.decide") {
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person decides a source conflict, in the Avoozl page.",
-          403,
-        );
-      return decideConflictFix(store, input);
-    }
-    // The bound resolver chat's drop check and its one report (RC28.2, RC28.3).
-    if (name === "conflictfix.check")
-      return checkConflictFix(store, input, context.caller);
-    if (name === "conflictfix.report")
-      return reportConflictFix(
-        store,
-        this.github,
-        {
-          policy: readGitHubPolicyOrNull(this.workspaceRoot),
-          delivery: readDeliveryPolicy(this.workspaceRoot).delivery || {},
-        },
-        input,
-        context.caller,
-      );
-    // The Create and release preflight (RC2.9) was Issue Radar's; no
-    // repository is Radar-coded any more (R91.6).
-    if (name === "radar.preflight") {
-      const plan = store.get("plans", input.planId);
-      if (!plan) fail("Plan not found.", 404);
-      return { preflight: null };
-    }
-    // Flow from GitHub data (RC8.5): stage times of Radar issues read before
-    // Who codes was removed (R91.6), and every stored build observation.
-    // Nothing is read from GitHub here any more.
+    // Flow from GitHub data: stage times cached earlier and every stored
+    // build observation. Nothing is read from GitHub here.
     if (name === "radar.flow") return radarFlowView(store);
-    // Retro rule targets (RC8.6): applied rules with their check, and the
-    // apply (a pull request, or the full prompt text to copy) or undo.
-    if (name === "radar.retro")
-      return {
-        rules: retroView(
-          store,
-          Object.entries(
-            store.getMeta("radarFlow")?.repositories ?? {},
-          ).flatMap(([repository, entry]) =>
-            entry.rows.map((row) => ({ ...row, repository })),
-          ),
-        ),
-      };
-    if (name === "radar.retro.apply") {
-      if (input.undo) {
-        if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-        return undoRetroRule(store, this.github, input.id);
-      }
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
-      if (!policy?.repositories?.[input.repository])
-        fail(`${input.repository} is not a registered repository.`, 404);
-      if (input.target !== "prompt" && !this.github?.available?.())
-        fail("GitHub is not available.", 503);
-      return applyRetroRule(store, this.github, input, {
-        check: (text) => {
-          const result = checkContent(this.store, {
-            boundary: "github",
-            repository: input.repository,
-            target: "pull-request-text",
-            text,
-          });
-          return [
-            ...result.findings.map((f) => `${f.set}/${f.rule}`),
-            ...result.unavailable.map((u) => `${u.set} unavailable`),
-          ];
-        },
-      });
-    }
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
     // default branch, head checks, acceptance. Landing is a person's approval
     // of one head; Avoozl never merges the branch.
@@ -4030,12 +3647,8 @@ export class Operations {
       }
       return { added };
     }
-    if (name === "radar.mergepath")
-      return { repositories: await this.mergePaths(input.repository) };
     // An epic's integration branch (RC16.1): exists, not the default,
     // protected. Read only; refuses a branch that is not ready.
-    // Radar's set up steps through gh (RC7.1): a preview of each, or one
-    // confirmed step with {step, confirm, previewHash}.
     // The mirror setup buttons (RC27): a dry run, or a confirmed apply with
     // {confirm, previewHash, ticked}. `this.mirrorGit` is a test seam.
     if (name === "mirror.adopt" || name === "mirror.create") {
@@ -4115,36 +3728,6 @@ export class Operations {
         fail(result.reason, 409);
       return result;
     }
-    if (name === "radar.setup") {
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        entry = policy?.repositories?.[input.repository];
-      if (!input.repository) fail("Name the repository to set up.", 400);
-      if (!entry)
-        fail(`${input.repository} is not a registered repository.`, 404);
-      if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-      return radarSetup(this.github, input.repository, entry, input, {
-        project: policy.project ?? null,
-        // The pull request text goes through content rules before any write.
-        check: (text) => {
-          const result = checkContent(this.store, {
-            boundary: "github",
-            repository: input.repository,
-            target: "pull-request-text",
-            text,
-          });
-          return [
-            ...result.findings.map((f) => `${f.set}/${f.rule}`),
-            ...result.unavailable.map((u) => `${u.set} unavailable`),
-          ];
-        },
-      });
-    }
-    // The public sign-off for one registered repository (R85.8, RC10.1):
-    // person only. `radar.signoff` is the older name of the same operation.
-    if (name === "publiccrews.signoff" || name === "radar.signoff")
-      return signOff(store, readGitHubPolicyOrNull(this.workspaceRoot), input, {
-        by: this.operator,
-      });
     if (name === "radar.integrationbranch") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         entry = policy?.repositories?.[input.repository];
@@ -4162,73 +3745,17 @@ export class Operations {
         ),
       );
     }
-    // The values only the owner can enter in Issue Radar, with a re-read
-    // when Radar's own read is available (RC7.2, RC7.3). Writes nothing.
-    if (name === "radar.values") {
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        entry = policy?.repositories?.[input.repository];
-      if (!input.repository) fail("Name the repository to set up.", 400);
-      if (!entry)
-        fail(`${input.repository} is not a registered repository.`, 404);
-      const values = radarValues({
-        repository: input.repository,
-        settings: entry,
-        crew: input.crew ?? entry.radar?.crew,
-      });
-      // Radar's crew list, read through the gateway grant when there is one.
-      const crews = await readCrews(this.crewReader, input.repository),
-        read = crews.available
-          ? {
-              connected: [input.repository],
-              crews: crews.crews,
-              needsHumanLabel: crews.needsHumanLabel,
-              claimTtlHours: crews.claimTtlHours,
-            }
-          : null;
-      return {
-        repository: input.repository,
-        ...radarReread(values, read, crews.reason),
-      };
-    }
     if (name === "radar.crews") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        repositories = Object.keys(policy?.repositories || {}),
         github = policy?.mode && this.github?.available?.();
-      const shaped = (view, strip) =>
-        // Behind the grant only: without it the view is the GitHub-only one.
-        strip
-          ? {
-              ...view,
-              unseen: view.unseen.filter((name) => name !== "paused"),
-              crewStrip: strip,
-            }
-          : view;
       if (this.backgroundReads && input.refresh !== true) {
-        const now = Date.now(),
-          stale =
-            (github && !claimsFresh(store, now)) ||
-            (this.crewReader &&
-              repositories.length > 0 &&
-              (!this.crewStrip ||
-                now - this.crewStrip.at >= RADAR_INTERVAL_MS));
+        const stale = github && !claimsFresh(store, Date.now());
         const refreshing =
           (stale || this.refreshing.has("radar.crews")) &&
-          this.refreshLater("radar.crews", async () => {
-            // Side by side: a slow GitHub does not hold the crew strip. The
-            // strip's costs are for the claims read last.
-            await Promise.all([
-              github && refreshClaims(store, this.github, policy),
-              readCrewStrip({
-                crewReader: this.crewReader,
-                sessionsReader: this.sessionsReader,
-                repositories,
-                rows: claimsView(store).rows,
-              }).then((value) => {
-                this.crewStrip = { at: Date.now(), value };
-              }),
-            ]);
-          });
-        const view = shaped(claimsView(store), this.crewStrip?.value ?? null);
+          this.refreshLater("radar.crews", () =>
+            refreshClaims(store, this.github, policy),
+          );
+        const view = claimsView(store);
         return refreshing ? { ...view, refreshing: true } : view;
       }
       // Read at most every 2 minutes, however often the Dashboard asks.
@@ -4236,15 +3763,7 @@ export class Operations {
         await refreshClaims(store, this.github, policy, {
           force: input.refresh === true,
         });
-      const view = claimsView(store),
-        strip = await readCrewStrip({
-          crewReader: this.crewReader,
-          sessionsReader: this.sessionsReader,
-          repositories,
-          rows: view.rows,
-        });
-      this.crewStrip = { at: Date.now(), value: strip };
-      return shaped(view, strip);
+      return claimsView(store);
     }
     // The Untriaged list (§8.5): cached GitHub items no rule, triage label,
     // or task covers. `refresh` reads GitHub first (Check now); read only.
@@ -4272,8 +3791,7 @@ export class Operations {
         store,
         declaredSources(this.pluginOptions, store),
       );
-      // The Public crews card (R85.8): each public repository's checklist.
-      return { ...tab, publicCrews: publicCrewsView(store, policy) };
+      return tab;
     }
     // Incoming items (§4.12). Submit runs the pipeline at once, under the
     // tick's lock; list and view only read.
@@ -4297,14 +3815,10 @@ export class Operations {
           403,
         );
       const taskId = resolveTaskId(this.read(), input.taskId),
-        by = context.local ? "cli" : this.operator || "person",
-        github = this.github,
-        policy = this.workspaceRoot
-          ? readGitHubPolicyOrNull(this.workspaceRoot)
-          : null;
+        by = context.local ? "cli" : this.operator || "person";
       return name === "task.manual.complete"
-        ? completeManual(store, { ...input, taskId }, { by, github, policy })
-        : reopenManual(store, { taskId }, { by, github });
+        ? completeManual(store, { ...input, taskId }, { by })
+        : reopenManual(store, { taskId }, { by });
     }
     if (name.startsWith("task.notes.")) {
       if (typeof input.taskId !== "string" || !input.taskId)
@@ -4326,7 +3840,6 @@ export class Operations {
         );
       if (name === "task.notes.edit") return editNote(store, task, input);
       if (name === "task.notes.remove") return removeNote(store, task, input);
-      if (name === "task.notes.show") return showNote(store, task, input);
     }
     if (name === "intake.view") return viewItem(store, input);
     if (name === "intake.sources") {
@@ -4449,7 +3962,11 @@ export class Operations {
         );
       if (!repository)
         fail(`${input.repository} is not a registered repository.`, 404);
-      return readCrews(this.crewReader, repository);
+      // A public repository's dialog says to add the content hook first.
+      return {
+        ...(await readCrews(this.crewReader, repository)),
+        public: store.get("github_repositories", repository)?.private === false,
+      };
     }
     // Plan this on a GitHub Intake row of a Radar-coded repository: the
     // planner chat's seed, with the issue recorded as the plan's source.
@@ -5137,7 +4654,6 @@ export class Operations {
         {
           github: this.github,
           settings: this.settingsFile().readGitHubSettings(),
-          milestones: this.setupMilestones(input.mode),
         },
         input,
       );
@@ -5619,7 +5135,6 @@ export class Operations {
         );
       const existing = new Set(data.tasks.map((t) => t.id));
       const rows = new Map(data.tasks.map((t) => [t.id, t]));
-      const githubPolicy = this.githubPolicy();
       const quality =
         specQuality ||
         lintPlan({
@@ -5657,7 +5172,7 @@ export class Operations {
           ...(rows.has(mapping[p.id])
             ? ownership(rows.get(mapping[p.id]))
             : {
-                authority: newTaskAuthority(githubPolicy, p.authority),
+                authority: "local",
                 issue: null,
               }),
           lineStart: p.lineStart,
@@ -6166,32 +5681,9 @@ export class Operations {
         ...input,
         policy: this.githubPolicy(),
       });
-      // Previews, approvals and publishing for issues with a proposal.
-      if (store.list("github_issues").some((row) => row.breakdown))
-        result.breakdown = await advanceGitHubBreakdowns(
-          store,
-          this.github,
-          this.breakdownHooks(),
-        );
       // Kiro Crew sessions start from the tick; a sync starts nothing.
       return { ...result, starts: [] };
     }
-    if (name === "github.breakdown.classify")
-      return classifyGitHubIssue(
-        store,
-        this.githubPolicy(),
-        input,
-        context.caller,
-      );
-    if (name === "github.breakdown.draft")
-      return draftGitHubChildren(
-        store,
-        input,
-        this.breakdownHooks(),
-        context.caller,
-      );
-    if (name === "github.breakdown.advance")
-      return advanceGitHubBreakdowns(store, this.github, this.breakdownHooks());
     if (name === "github.authorize")
       return syncGitHubIssues(store, this.github, {
         policy: this.githubPolicy(),
@@ -6202,137 +5694,6 @@ export class Operations {
           labelEventId: input.labelEventId,
         },
       });
-    if (name === "github.conflict.resolve")
-      return resolveProjectionConflict(store, input);
-    // `avoozl rebuild`: GitHub tasks from their issues when repositories are
-    // registered (§3.3).
-    if (name === "workspace.rebuild") {
-      const github = store.list("github_repositories").length
-        ? await this.perform("github.rebuild", input, undefined, context)
-        : null;
-      return github || {};
-    }
-    if (name === "github.rebuild")
-      return rebuildFromGitHub(store, this.github, {
-        repository: input.repository,
-        identity: planningIdentity(this.workspaceRoot),
-        policy: this.githubPolicy(),
-        readSpec: (spec) => this.readSpec(spec),
-      });
-    // Create and release (RC5.1): refused for auto-merge until the merge
-    // path is ready. `release` is set only by that action.
-    if (name === "github.project" && input.release === true) {
-      requireMergePath(await this.mergePaths(input.repository));
-    }
-    if (name === "github.project") {
-      if (!input.dryRun) refuseOtherRun(store, input.planId);
-      return this.withProjectSync(
-        await projectPlanIssues(store, this.github, {
-          ...input,
-          identity: planningIdentity(this.workspaceRoot),
-        }),
-      );
-    }
-    // The issues approving a draft spec plan would make, without approving
-    // it: approval runs on a scratch copy of the store that is thrown away,
-    // then the projection preview reads that copy. Nothing is written here
-    // or on GitHub.
-    if (name === "plan.issues.preview") {
-      const plan = store.get("plans", input.planId);
-      if (!plan) fail("Plan not found.", 404);
-      if (!plan.spec) fail("Only a spec plan is previewed this way.", 409);
-      let policy = null;
-      try {
-        policy = this.githubPolicy();
-      } catch {
-        policy = null;
-      }
-      // Lint implies a leaf's repository when only one is registered;
-      // the preview does the same for the issue repository.
-      const configured = store.list("github_repositories"),
-        repository =
-          input.repository ||
-          (configured.length === 1 ? configured[0].id : undefined);
-      const withChecks = (value) => value;
-      const projection = (target) =>
-        previewProjection(target, this.github, {
-          planId: plan.id,
-          repository,
-          identity: planningIdentity(this.workspaceRoot),
-          policy,
-          claimed: claimedTaskIds(target),
-          batches: input.batches,
-        });
-      // The planner's batch groups (§4.37), for the preview's batch edit.
-      const grouped = (target) =>
-          planProjectionBatches({
-            tasks: target
-              .read()
-              .tasks.filter((task) => task.planId === plan.id),
-            edges: target.read().edges,
-            mode: "suggest",
-            complete: (status) => statusComplete(target.read(), status),
-          }),
-        suggested = (target) =>
-          grouped(target).batches.map((batch) => batch.tasks);
-      if (plan.state === "approved")
-        return withChecks({
-          ...(await projection(store)),
-          simulated: false,
-          suggestedBatches: suggested(store),
-        });
-      const quality = this.lintSpecPlan(plan, [], { content: false }),
-        blocking = quality.diagnostics.filter((d) => d.severity === "error");
-      if (blocking.length)
-        return withChecks({
-          planId: plan.id,
-          writes: [],
-          blocked: blocking,
-          simulated: true,
-        });
-      const scratch = store.scratch();
-      try {
-        approvePlan(scratch, {
-          id: plan.id,
-          expectedHash: plan.hash,
-          expectedRevision: scratch.read().revision,
-          githubPolicy: policy,
-          proposals: quality.proposals,
-          baseline: true,
-          // As plan.approve does: another spec's task IDs resolve.
-          declaredDependencies: quality.declaredDependencies,
-          approvedBy: this.operator,
-          operator: this.operator,
-        });
-        // Projection refuses a task whose referenced owner is unapproved, so
-        // the preview says which approvals come first.
-        const waiting = scratch
-          .read()
-          .tasks.filter(
-            (task) =>
-              task.planId === plan.id && task.pendingSpecDependencies?.length,
-          );
-        if (waiting.length)
-          return withChecks({
-            planId: plan.id,
-            writes: [],
-            blocked: waiting.map((task) => ({
-              code: "spec.pending-owner",
-              severity: "error",
-              taskId: task.id,
-              message: `Approve ${[...new Set(task.pendingSpecDependencies.map((ref) => ref.spec))].join(", ")} first: ${task.id} needs ${task.pendingSpecDependencies.map((ref) => ref.taskId).join(", ")}.`,
-            })),
-            simulated: true,
-          });
-        return withChecks({
-          ...(await projection(scratch)),
-          simulated: true,
-          suggestedBatches: suggested(scratch),
-        });
-      } finally {
-        scratch.close();
-      }
-    }
     // Publish issue (R102.2): a person's explicit act, never part of approval.
     if (name === "spec.publish") {
       if (context.caller || context.mcp)
@@ -6506,121 +5867,6 @@ export class Operations {
             tail: input.tail,
           });
     }
-    // Retire task-issue bindings (R102.20, §4.32.13): preview, hold, apply,
-    // one verifying tick, then close. Each step is a person's own act.
-    // Export issues (R102.19): preview, or with confirm create the spec's
-    // unfinished task issues and stop driving it. A person's own act.
-    if (name === "spec.exportIssues") {
-      if (context.caller || context.mcp)
-        fail("Only a person exports a spec's task issues.", 403);
-      const options = { planId: input.planId, repository: input.repository };
-      return input.confirm
-        ? applyExport(store, {
-            ...options,
-            github: this.github,
-            actor: this.operator,
-          })
-        : previewExport(store, options);
-    }
-    if (name === "github.retireTaskIssues") {
-      if (context.caller || context.mcp)
-        fail("Only a person retires task-issue bindings.", 403);
-      const step = input.step || "preview";
-      if (step === "preview") return previewRetirement(store);
-      if (step === "hold")
-        return holdRetirement(store, { actor: this.operator });
-      if (step === "apply") return applyRetirement(store);
-      if (step === "verify") {
-        const github = this.github;
-        try {
-          return await verifyRetirement(store, {
-            github,
-            runTick: async (client) => {
-              this.github = client;
-              return this.execute("workspace.tick", { cron: true });
-            },
-          });
-        } finally {
-          this.github = github;
-        }
-      }
-      if (step === "close")
-        return closeRetiredIssues(store, {
-          github: this.github,
-          reason: input.reason,
-        });
-      fail("Choose preview, hold, apply, verify, or close.", 400);
-    }
-    // Spec changed (RC2.8): what an edited spec would do to each issue, and
-    // the write once the spec is approved again. A person applies it.
-    if (name === "spec.changed.preview" || name === "spec.changed.apply") {
-      const plan = store.get("plans", input.planId);
-      if (!plan?.spec) fail("Spec plan not found.", 404);
-      const before = approvedBefore(plan) ?? plan.files,
-        after = plan.files,
-        identity = planningIdentity(this.workspaceRoot),
-        remaining = new Set(specTasks(plan.spec, after).keys()),
-        issues = await changeIssues({
-          tasks: store.read().tasks.filter((task) => task.planId === plan.id),
-          github: this.github,
-          claimLabel: (repository) =>
-            (
-              identity.repositories?.[repository]?.crewLabels ||
-              CREW_LABEL_DEFAULTS
-            ).claim,
-          localClaimed: claimedTaskIds(store),
-          remaining,
-        }),
-        rows = planSpecChange({ name: plan.spec, before, after, issues }),
-        receipt = `spec-changed:${plan.id}:${plan.hash}`,
-        approved = plan.state === "approved";
-      if (name === "spec.changed.preview")
-        return {
-          planId: plan.id,
-          hash: plan.hash,
-          approved,
-          applied: store.getMeta(receipt) ?? null,
-          rows,
-        };
-      if (context.caller || context.mcp)
-        fail("Only a person applies a spec change.", 403);
-      if (store.getMeta(receipt)) fail("This change was already applied.", 409);
-      const done = await applySpecChange(this.github, {
-        rows,
-        approved,
-        archive: (id) =>
-          store.mutate("Archive " + id, (data) => {
-            const task = data.tasks.find((item) => item.id === id);
-            task.archivedReason = "removed from the spec";
-            return archiveTask(task);
-          }),
-        project: () =>
-          projectPlanIssues(store, this.github, {
-            planId: plan.id,
-            identity,
-            holdClaimed: true,
-          }),
-      });
-      store.setMeta(receipt, done);
-      return { planId: plan.id, done };
-    }
-    if (name === "github.project.preview") {
-      // Like `withProjectSync`, a bad Project policy never hides the issue
-      // preview; the projection reads its own identity.
-      let policy = null;
-      try {
-        policy = this.githubPolicy();
-      } catch {
-        policy = null;
-      }
-      return previewProjection(store, this.github, {
-        planId: input.planId,
-        repository: input.repository,
-        identity: planningIdentity(this.workspaceRoot),
-        policy,
-        claimed: claimedTaskIds(store),
-      });
-    }
     if (name === "workspace.repository.configure") {
       this.configuration?.assertWritable();
       const configured = await configureWorkspaceRepository(
@@ -6645,17 +5891,8 @@ export class Operations {
         await requirePrivateRepository(this.github, config.repository);
       return syncWorkspaceRepository(store);
     }
-    if (name === "planning.publish") {
-      const plan = input.planId ? store.get("plans", input.planId) : null;
-      if (plan?.extractionId)
-        return this.withProjectSync(
-          await projectPlanIssues(store, this.github, {
-            ...input,
-            identity: planningIdentity(this.workspaceRoot),
-          }),
-        );
+    if (name === "planning.publish")
       return publishPlanningPullRequest(store, this.github, input);
-    }
     if (name === "planning.reconcile")
       return this.reconcilePlanningPullRequests();
     if (name === "project.configure") {

@@ -41,7 +41,7 @@ test("the setting validates, with sandbox and network off by default", () => {
       run: "container",
       image: "alpine:3",
       network: "on",
-      readable: ["/opt/sdk"],
+      readable: [path.resolve("/opt/sdk")],
       prepare: ["npm", "ci"],
     },
   );

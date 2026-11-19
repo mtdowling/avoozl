@@ -5,7 +5,6 @@ import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
 import { Input } from './ui/Input'
 import Badge from './ui/Badge.tsx'
-import { ConflictFixActions } from './ConflictFixActions.tsx'
 import { SpecPullDecision } from './SpecPullDecision.tsx'
 import { CONFLICT_LABELS, safeHref, viewsClient, type ConflictItem, type Graph } from './views-api.ts'
 import { relativeTime, taskClient, type SettleAction, type SettleResult, type TaskDetail } from './task-api.ts'
@@ -64,17 +63,7 @@ const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter,
 
 const LABELS: Record<string, string> = {
   ...CONFLICT_LABELS,
-  'github-conflict': 'GitHub edit',
   'spec-pull': 'Spec pull request',
-}
-
-const FIELD_NAMES: Record<string, string> = {
-  title: 'Title',
-  body: 'Managed body section',
-  labels: 'Managed labels',
-  blockers: 'Blocked-by links',
-  state: 'Issue state',
-  identity: 'Issue identity',
 }
 
 // One item's resolve choices, shared by the Conflicts tab and the task
@@ -142,18 +131,6 @@ export function ConflictActions(props: {
           }
         />
       )}
-      {item.kind === 'needs-human' && item.reason === 'conflict-fix' && item.conflictFix && (
-        <ConflictFixActions
-          fix={item.conflictFix}
-          busy={busy}
-          onDecide={(action, text) =>
-            run(async () => {
-              await views.decideConflictFix(workspaceId, item.conflictFix!.repository, item.conflictFix!.pullRequest, action)
-              return { ok: true, text }
-            })
-          }
-        />
-      )}
       {item.kind === 'ready-to-merge' && (
         <ReadyToMerge
           item={item}
@@ -205,42 +182,6 @@ export function ConflictActions(props: {
         <ForwardButton item={item} workspaceId={workspaceId} onDone={() => void run(async () => ({ ok: true, text: 'Forwarded.' }))} />
       )}
       {item.kind === 'content-match' && item.id && <ContentActions id={item.id} readable={item.readable === true} workspaceId={workspaceId} busy={busy} run={run} />}
-      {item.kind === 'github-conflict' && (item.choices?.length ?? 0) > 0 && (
-        <Row gap={2}>
-          <DangerBtn
-            icon={RotateCcw}
-            tooltip="Next tick writes Avoozl's value over the GitHub edit"
-            disabled={busy || item.resolution === 'desired'}
-            confirm={{
-              title: `Re-apply Avoozl's ${FIELD_NAMES[item.field ?? ''] ?? item.field} on ${item.taskId}?`,
-              body: `The next tick writes Avoozl's value over the edit ${item.changedBy ?? 'someone'} made on GitHub. Their text is lost unless they keep a copy.`,
-              action: 'Re-apply',
-            }}
-            onConfirm={() =>
-              run(async () => {
-                await views.resolveConflict(workspaceId, item.taskId!, item.field!, 'desired')
-                return { ok: true, text: 'Avoozl rewrites it on the next tick.' }
-              })
-            }
-          >
-            Re-apply Avoozl’s value
-          </DangerBtn>
-          <IconLabel
-            icon={Check}
-            tooltip="Keep GitHub's edit until the spec changes this field"
-            disabled={busy || item.resolution === 'github'}
-            onClick={() =>
-              run(async () => {
-                await views.resolveConflict(workspaceId, item.taskId!, item.field!, 'github')
-                return { ok: true, text: 'GitHub’s value stays until the spec changes this field.' }
-              })
-            }
-          >
-            Keep GitHub’s value
-          </IconLabel>
-          {item.resolution && <Hint size="xs">Chosen; applied on the next tick.</Hint>}
-        </Row>
-      )}
       {action === 'settle' && (
         <Row gap={2} align="end">
           <Box htmlFor={`answer-${itemKey(item)}`} as="label" css-min-width="16rem" flex flex1 flexCol gap="1" size="xs">
@@ -665,7 +606,7 @@ function ConflictDetail(props: {
         <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable'].includes(item.kind) ? 'warning' : 'danger'}>
           {LABELS[item.kind] ?? item.kind}
         </Badge>
-        {item.field && <Badge>{FIELD_NAMES[item.field] ?? item.field}</Badge>}
+        {item.field && <Badge>{item.field}</Badge>}
         {item.kind !== 'spec-pull' && <Authority owner={item} />}
         {item.taskId && <Hint size="xs">{item.taskId}</Hint>}
         {time && (
@@ -891,14 +832,6 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                     onChange: (repository) => setField({ repository }),
                   },
                   { kind: 'select', key: 'age', label: 'Age', value: filter.age ?? '', options: choices.ages, onChange: (age) => setField({ age }) },
-                  {
-                    kind: 'select',
-                    key: 'changed-by',
-                    label: 'Changed by',
-                    value: filter.changedBy ?? '',
-                    options: choices.changedBy,
-                    onChange: (changedBy) => setField({ changedBy }),
-                  },
                 ]}
               >
                 {/* The count once, on the Filters row, with Refresh. */}

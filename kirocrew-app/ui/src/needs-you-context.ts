@@ -20,8 +20,6 @@ export function askLine(item: ConflictItem): string {
       return item.integrate ? 'Press Integrate to land the verified commit.' : 'Merge the pull request on GitHub. Avoozl never merges it.'
     case 'branch-landing':
       return 'Approve this exact head, then merge the branch on GitHub yourself.'
-    case 'github-conflict':
-      return 'Choose whose value stays: Avoozl’s or the edit made on GitHub.'
     case 'untick':
       return 'Reopen the task, or keep it done.'
     case 'stale-session':
@@ -37,7 +35,6 @@ export function askLine(item: ConflictItem): string {
       return 'Choose who drives this work: start it here, or wait for its pull request.'
     case 'needs-human':
       if (item.reason === 'blocked') return 'Unblock the task, or leave it blocked.'
-      if (item.reason === 'conflict-fix') return 'Choose whether Avoozl resolves the source conflict or you do.'
       if (item.reason === 'forward') return 'Read the exact public diff, then forward it or not.'
       if (item.reason === 'crew') return 'Answer on GitHub. The crew picks the issue up again when the label comes off.'
       if (item.reason === 'crew-mode') return "Choose Let the tick run it. Avoozl then starts this workspace's ready tasks; until then it starts none."
@@ -111,10 +108,9 @@ export function reviewEvidence(title: string, context: ItemContext | undefined):
 }
 
 // Which evidence blocks an item has. An item with none says so on the page.
-export type Evidence = 'values' | 'investigation' | 'review' | 'links' | 'checks' | 'content' | 'escalation' | 'summary' | 'text'
+export type Evidence = 'investigation' | 'review' | 'links' | 'checks' | 'content' | 'escalation' | 'summary' | 'text'
 export function evidenceOf(item: ConflictItem): Evidence[] {
   const out: Evidence[] = []
-  if (item.expected !== undefined || item.actual !== undefined) out.push('values')
   if (item.findings || item.reply) out.push('investigation')
   if (item.kind === 'review' && item.tasks?.length) out.push('review')
   if (item.kind === 'plan-review' && item.context?.review) out.push('summary')

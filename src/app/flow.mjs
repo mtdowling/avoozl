@@ -13,7 +13,6 @@ import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 import { taskRepository } from "../work-model.mjs";
 import { inPlan } from "./page-views.mjs";
 import { fail } from "./store.mjs";
-import { retirementHoldsRelease } from "./task-issue-retirement.mjs";
 
 export const STAGES = Object.freeze([
   "queued",
@@ -823,7 +822,7 @@ const median = (values) => {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 };
 
-// When a task finished: integrated (local) or merged or closed (GitHub).
+// When a task finished: integrated, or marked done by a person.
 export function finishedAt(task) {
   return (
     task?.integration?.at ||
@@ -832,23 +831,18 @@ export function finishedAt(task) {
     (task?.manual === true && task.manualDone?.choice !== "refused"
       ? task.manualDone?.at
       : null) ||
-    (task?.githubVerdict?.state === "verified"
-      ? task.githubVerdict.mergedAt
-      : null) ||
     null
   );
 }
 
 // Fix work (§4.11, R79.1): a bugfix spec's task, a manifest `type: fix`, a
-// stop-the-line fix task, a task whose source conflict Avoozl fixed (RC28.6),
-// or a GitHub issue of type Bug.
+// stop-the-line fix task, or a GitHub issue of type Bug.
 export function isFixWork(task) {
   return Boolean(
     task &&
       (task.specType === "bugfix" ||
         task.type === "fix" ||
         task.flowFix ||
-        task.conflictFixes?.length > 0 ||
         String(task.github?.issueType || "").toLowerCase() === "bug"),
   );
 }
@@ -1284,11 +1278,8 @@ export function stopScope(store, data, stop) {
 }
 
 // Tasks no new dispatch may start while the line is stopped; Run anyway
-// lifts a stop's pause while the stop stays open (R44.10). A task-issue
-// retirement holds every release until its verifying tick (R102.20).
+// lifts a stop's pause while the stop stays open (R44.10).
 export function linePausedTaskIds(store, data = store.read()) {
-  if (retirementHoldsRelease(store))
-    return new Set(data.tasks.map((t) => t.id));
   const out = new Set();
   for (const stop of openStops(store))
     if (!stop.runAnyway)

@@ -6,7 +6,6 @@ export type LaneId =
   | "needs-you"
   | "waiting"
   | "done";
-export type AvoozlState = LaneId | "deferred";
 export type LaneNodeState =
   | "done"
   | "needs-you"
@@ -31,14 +30,8 @@ export interface LaneItem {
   complete?: boolean;
   status?: string | null;
   handSetReview?: boolean;
-  githubReviews?: { state?: string } | null;
 }
 
-export const AVOOZL_STATES: readonly (readonly [AvoozlState, string])[];
 export const NODE_STATES: readonly (readonly [LaneNodeState, string])[];
 export function nodeState(task: LaneTask): LaneNodeState;
 export function laneOf(task: LaneTask | null, item: LaneItem | null): LaneId;
-export function avoozlState(
-  task: LaneTask | null,
-  item: LaneItem | null,
-): AvoozlState;

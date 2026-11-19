@@ -54,14 +54,6 @@ export const NARROW_TOOLS = {
     "plan.extraction.submit",
     "Narrow tool for the design extraction chat. Submit one extraction round. Stated and inferred facts require one exact unique quote; this cannot approve the plan.",
   ],
-  plans_classify_issue: [
-    "github.breakdown.classify",
-    "Narrow tool for the planner in breakdown mode. Record a planner's classification of one issue a deliver rule matched: {repository, number, kind: bounded|broad, reason}. Bounded keeps the issue as its own leaf. Broad holds it from dispatch until its child graph is drafted, critiqued, previewed on the issue and approved. Writes nothing to GitHub.",
-  ],
-  plans_draft_children: [
-    "github.breakdown.draft",
-    "Narrow tool for the planner in breakdown mode. Name the spec folder that holds a broad issue's child graph: {repository, number, spec}. Its one top-level package item stands for the issue; every other item nests under it. Returns the lint diagnostics and whether a current critique exists. Writes nothing to GitHub; the next sync posts the preview.",
-  ],
   plans_prepare_worktree: [
     "worktree.prepare",
     "Narrow tool for worker chats. Create or return a leaf's isolated worktree on branch avoozl/<task-id>: {taskId}. A retry returns the same worktree with its commits; nothing is removed or reset.",
@@ -81,14 +73,6 @@ export const NARROW_TOOLS = {
   plans_post_review_draft: [
     "reviewdraft.post",
     "Narrow tool for the review draft chat. Post your one draft review on the pull request your review draft chat is bound to: {body, comments?: [{path, line, start_line?, side?: RIGHT|LEFT, body}]}. Avoozl picks the pull request from your session and posts a PENDING review on the head commit your brief names, under the login of the person who asked; they edit and submit it. It refuses text with a secret-looking token, a URL with credentials or an absolute or home path (nothing is posted; fix it and post again), returns GitHub's refusal of a line outside the diff with nothing posted, and swaps the review label for the drafted label. It never submits, approves or requests changes.",
-  ],
-  plans_conflict_check: [
-    "conflictfix.check",
-    "Narrow tool for the conflict fix chat. The drop check of your conflict fix chat, before you push: {cwd: <absolute worktree path>, explained?: [{path, line, why}]}. HEAD must be your merge commit with the pull request's old head as its first parent. For each file changed on both sides, it lists every line the base branch added that HEAD no longer has. Push only when it returns ok true; a line you dropped on purpose goes in explained with the reason.",
-  ],
-  plans_conflict_report: [
-    "conflictfix.report",
-    "Narrow tool for the conflict fix chat. Report your conflict fix once: {ok: true, commit: <merge commit SHA you pushed>, files: [{path, how}]} or {ok: false, reason} when you pushed nothing. Avoozl picks the pull request from your session, checks the pushed head is the commit that passed plans_conflict_check, then arms auto-merge, clears the conflict and needs-human labels, and posts one comment listing the files.",
   ],
   plans_next: [
     "runner.next",

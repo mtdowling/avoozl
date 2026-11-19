@@ -997,8 +997,9 @@ Replaced 2026-11-18 by the worker-paths spec (D9): every session runs on this ma
 **Decided**, owner 2026-11-18: every session Avoozl opens runs on this
 machine, on the executor its harness names (§4.28). `src/app/session-pins.mjs`
 checks a task's `session` fact: `agent`, `model` or `harness`, and
-nothing else. The crew snapshot (`crews.mjs`, `crew-reader.mjs`) stays for the
-In flight view's unreachable-crew flag.
+nothing else. The crew snapshot (`crews.mjs`) stays for the In flight
+view's unreachable-crew flag. Its reader had no caller and was deleted; it
+is in git history.
 
 #### Current-code facts
 
@@ -2830,9 +2831,10 @@ only and pushes nothing. No force pushes or bypasses. See Requirement 87 and
 A merge conflict goes back to the same worker chat with the file list, for
 the repository's `conflicts.maxAttempts` rounds (default 2; older key
 `landing.conflictRounds`, §4.25), then to Needs you. The
-resolver chat (`avoozl-conflict-fix`, RC28) is removed. The arming and
-merge code (`radar-arm.mjs`, `radar-merge*.mjs`) is renamed and becomes the
-`pr` mode. A pause from Stop the line keeps the queue's order.
+resolver chat (`avoozl-conflict-fix`, RC28) is removed, and so are the
+arming code (`radar-arm.mjs`), the merge method arm (`radar-merge-method.mjs`)
+and the `conflicts.onSourceConflict` setting; they are in git history.
+`pr` mode lands pull requests itself. A pause from Stop the line keeps the queue's order.
 
 Every push passes the pre-push content rule first (Requirement 40): commit
 messages, branch name and added lines. The push and the merge run in the
@@ -3970,11 +3972,8 @@ label: on Kiro Crew main, removing it hands the issue back to a crew. Once
 `crew:avoozl` is on, a person may clear it and crews still skip the issue. If a live
 crew claim is present, Plan this says so and asks to confirm. Send to Issue Radar
 stays for issues Avoozl did not create and refuses one carrying `crew:avoozl`.
-- **Offboarding:** `avoozl spec export-issues SPEC`, with a preview: one issue per task
-  that is not complete, then blocked-by links, then `Status: Exported`. This is the
-  only code that writes task issues. Exported issues never carry `crew:avoozl` (owner
-  decision, 2026-11-16): export hands work away from Avoozl, so Issue Radar and people
-  may take them. A test checks that no export create request sets it.
+- **Offboarding:** none in code (changed 2026-11-18). The issue export was deleted
+  with per-task issues; no Avoozl code writes task issues.
 
 #### 4.32.12 Smaller rules
 
@@ -3996,18 +3995,11 @@ live in authorized forks in each layout. Mirror imports use reviewed PRs;
 forwarding recognizes imports whose second parent is upstream ancestry and
 does not propose those commits back upstream.
 
-Retire task-issue bindings in this order:
-1. Hold release and stop that workspace's ticks.
-2. Install the build that disables task projection and close reconciliation.
-3. Preview and retire issue numbers, node IDs, verdicts and dispatch flags;
-   preserve task statuses and approved source files.
-4. Run one tick: unchanged ready set, no task-issue reads/writes or recreation.
-5. Only then close obsolete task issues. Existing spec issues remain journals.
-
-An allowed close currently means done by order or skipped and releases
-successors (`github-close.mjs`), so step 5 cannot precede step 4. A failed
-migration stays held and reports its unchanged/changed bindings; retry is
-idempotent. No live workspace is migrated by a spec-editing pull request.
+Task-issue bindings are gone (changed 2026-11-18, 45.4). Task projection,
+close reconciliation, Project sync, rebuild from GitHub and the binding
+migration were deleted together. A tick reads and writes no task issue and
+ignores an old binding row, so closing an obsolete task issue by hand changes
+nothing in Avoozl. Existing spec issues remain journals.
 
 Retain the legacy fact spellings `route: github` (landing queue) and
 `merged-pr` (accepted landing). Do not rewrite approved plans to rename them.
@@ -4016,7 +4008,7 @@ Retain the legacy fact spellings `route: github` (landing queue) and
 
 - Replace task projection/sync/rebuild/close/completion and Project state
   with journal validation, outcome reduction and spec issue publication.
-  Keep epic issue links. Move task rendering to the explicit export path.
+  Keep epic issue links. Task rendering to issues is deleted (45.4).
 - Generalize integration and spec homes to qualified working heads. Keep
   checkpoint push plumbing; stop publishing task snapshots as GitHub state.
 - Replace the old issue-marker driver claim with generations/intents; keep
@@ -4026,10 +4018,10 @@ Retain the legacy fact spellings `route: github` (landing queue) and
 - Phase 44 becomes links from specs and in-flight work plus a Landing queue
   page (§4.27), not a GitHub browser.
 - Phase 56 supplies outcomes, journal, migration, qualified branches, driver
-  safety, refresh, recovery, epic/intake/export and mirror import changes.
+  safety, refresh, recovery, epic/intake and mirror import changes.
   Direct and PR landing remain Phases 41–42; worker claims remain Phase 43.
-  Phase 45 removes shared projection callers only after migration and the
-  replacement landing, worker and UI proofs. Phase 55's receipts remain.
+  Phase 45 deleted the shared projection callers (45.4) after the
+  replacement landing and UI proofs. Phase 55's receipts remain.
 
 Build Phase 56's foundation while the live executor proof waits; branch
 integration still depends on verified worker preparation. Scratch proofs
@@ -6250,80 +6242,35 @@ shortcut: the report call is not tied to the worker's session, and checks run
 inside the tick. Upgrade both once `plans_report`-style caller identity and a
 separate check job exist.
 
-### 6.14 Crews on public repositories
+### 6.14 The content hook
 
-Requirement 85. Facts in `docs/public-crews.md`; read from Kiro Crew
-0.12.2.4 and proved on a scratch repository.
+Requirement 85. Usage in `docs/content-hook.md`.
 
-**Where a crew writes.** The crew brief tells the crew to post and edit its
-claim comment, add its labels, commit, push, open the pull request and put
-`Fixes #n` in its body, all with `gh` and `git` in its own shell. Issue
-Radar's backend writes to GitHub only for a person in the dashboard, behind
-an owner check that refuses an agent. An agent reaches two backend routes,
-the ledger read and the ledger write, and neither calls GitHub. A crew's
-agent is the `agent` field of its crew record, so a hook on that agent runs
-for every call the crew makes. Crews run with approvals granted, so no person
-sees a prompt.
-
-**Layer 1.** `docs/public-crews.md` gives the clean home: its own `KIRO_HOME`
-holds the crew's agent and nothing else. Tried: with a separate `KIRO_HOME`
-the agent did not see the owner's global steering, and a file placed under
-that home was read at once. The agent could still read the owner's home
-folder, credentials and git settings. So the checklist item says "no
-injected context", not "isolated".
-
-**Layer 2.** `avoozl content hook` (`src/app/public-crews.mjs`) is the
-agent's `preToolUse` command. It reads the event, splits the shell line into
-commands, and for a write command (criterion 3) takes the text, labels and
+`avoozl content hook` (`src/app/content-hook.mjs`) is an agent's
+pre-tool-use command. It reads the event, splits the shell line into
+commands, and for a write command (criterion 1) takes the text, labels and
 branch from its arguments. For `git push` and `gh pr create` it also runs the
 `diff` boundary over the commits not yet on the base branch, their messages
-and added lines, as the pre-push hook does (§4.9). It uses the `github` and
-`diff` boundaries and the repository's rule sets as they are; there is no
-new rule format. A refusal is exit code 2 with the rule set, id and place on
-stderr. Text it cannot read (`$(...)`, `$VAR`, a here-document it cannot
-see) is refused with the reason.
+and added lines, as the pre-push check on Avoozl's own pushes does (§4.9);
+that check is separate code. It uses the `github` and `diff` boundaries and
+the repository's rule sets as they are; there is no new rule format. A
+refusal is exit code 2 with the rule set, id and place on stderr. Text it
+cannot read (`$(...)`, `$VAR`, a here-document it cannot see) is refused
+with the reason.
 
-Tried on the scratch repository with a fake canary string. Blocked: comment,
+Tried on a scratch repository with a fake canary string. Blocked: comment,
 label, issue title, `gh api` body, commit message, branch name, pull request
 body, and a push whose commit held the canary only in a file. Not blocked: a
 script that ran `gh issue comment` with the canary inside the script. That
-last case is the stated limit, and the audit exists for it.
+is the stated limit, and nothing cleans it up afterward: the audit on the
+tick that did was removed 2026-11-19.
 
-**Layer 3.** `publicCrewAudit` runs from the tick for each repository with a
-public crew. It lists issue comments, pull requests and branches updated
-since a per-repository cursor, keeps those that carry the crew marker
-(`kirocrew-crew v=1`), the `crew/` branch prefix or a crew label, and runs
-content rules on each. A comment hit is deleted. A pull request or issue hit
-is closed and its branch deleted. The cord is pulled with `pullCord` for the
-repository, a notification is sent, and a Needs you item is opened. The
-receipt keeps rule set, rule id, place, link and a hash. The tick is every 60
-seconds, so a hit can be public for up to a minute plus one read.
+Send to Issue Radar shows one line for a public repository
+(`untriaged.crews` answers `public`): the crew writes with the person's
+login, so add the hook to the crew's agent first. Nothing is stored.
 
-**Layer 4.** `publiccrews.signoff` stores who, when and a hash of the
-checklist: crew home path, the hook command's hash, the covering rule sets,
-and the audit setting. `untriaged.handoff` refuses a public repository
-without a current sign-off. A change to any hashed item lapses it.
-
-**Kill switch.** `publiccrews.stop` pulls the cord with scope `repo` for each
-public repository with a crew and lists the crews to pause in Kiro Crew. It
-cannot pause a crew itself: the pause route is for the dashboard owner only.
-
-**Requests to Kiro Crew (drafted, not filed).** (1) Radar crew writes
-through one Radar tool instead of the shell, so one gate sees them all;
-(2) a per-crew home and agent setting with no global steering or memory;
-(3) a pause an app may call; (4) a crew setting that attaches a named hook
-to its agent. Drafts are in the pull request that added this section.
-
-| Choice                          | Why                                                      |
-| ------------------------------- | -------------------------------------------------------- |
-| Reuse content rules             | One matcher and one terms file; nothing new to leak      |
-| Delete comments, not edit       | GitHub keeps edit history; a delete leaves no history    |
-| Audit as well as the hook       | The hook cannot see scripts or backend writes            |
-| Sign-off lapses on change       | A changed hook or home is not the one a person approved  |
-| Stop the line, not a crew pause | Avoozl can stop its own dispatch; it cannot pause a crew |
-
-shortcut: the hook reads command text, and the audit runs once a minute.
-Upgrade both when Kiro Crew routes crew writes through one tool.
+shortcut: the hook reads command text. Upgrade when agent writes go through
+one tool.
 
 ---
 
@@ -6974,7 +6921,7 @@ The branch must be rebased onto `main` before any change lands.
 | Examples                                         | `examples.mjs`, `examples/`                                                                                                                                                                                  | **Keep**                                                                                                    | Explicit, transactional seeding                                                                                                                                                     |
 | Bundled skills                                   | `src/app/skills/avoozl`, `kirocrew-app/skills/avoozl`                                                                                                                                                        | **Adapt**                                                                                                   | One skill, in the app                                                                                                                                                               |
 | Kiro Crew app                                    | `kirocrew-app/`                                                                                                                                                                                              | **Replace** contents                                                                                        | Manifest §4.2, real page, backend, MCP, cron, agents                                                                                                                                |
-| Live proof scripts                               | `scripts/github-projection-live.mjs`, `scripts/github-completion-live.mjs`                                                                                                                                   | **Keep**, extend                                                                                            | Base for proofs P6–P11                                                                                                                                                              |
+| Live proof scripts                               | Two live proof scripts, in git history                                                                                                                                                                       | **Keep**, extend                                                                                            | Base for proofs P6–P11                                                                                                                                                              |
 | Compat server                                    | `compat-server.mjs`                                                                                                                                                                                          | **Delete**                                                                                                  | Follows the website                                                                                                                                                                 |
 
 ---

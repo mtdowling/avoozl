@@ -85,17 +85,17 @@ test("a rule refuses match together with the legacy keys", () => {
   assert.throws(
     () =>
       policy([
-        { id: "go", action: "deliver", match: "label:x", labelsAll: ["x"] },
+        { id: "go", action: "pause", match: "label:x", labelsAll: ["x"] },
       ]),
     /both match and labelsAll; use only match/,
   );
   assert.throws(
-    () => policy([{ id: "go", action: "deliver", match: "label:x is:open" }]),
+    () => policy([{ id: "go", action: "pause", match: "label:x is:open" }]),
     /rules\[0\]\.match cannot use is:open/,
   );
   // Legacy rules still read unchanged.
   const legacy = policy([
-    { id: "go", action: "deliver", labelsAll: ["x"], assignee: "mona" },
+    { id: "go", action: "pause", labelsAll: ["x"], assignee: "mona" },
   ]).rules[0];
   assert.deepEqual(
     [legacy.match, legacy.labelsAll, legacy.assignee, legacy.unassigned],
@@ -125,8 +125,8 @@ test("match rules evaluate exactly like the equivalent legacy rules", () => {
         user: { login: "mona" },
       });
   for (const [legacy, match] of pairs) {
-    const old = policy([{ id: "r", action: "deliver", ...legacy }]),
-      next = policy([{ id: "r", action: "deliver", match }]);
+    const old = policy([{ id: "r", action: "pause", ...legacy }]),
+      next = policy([{ id: "r", action: "pause", match }]);
     for (const issue of issues)
       assert.deepEqual(
         matchingRules(next, issue, []),
@@ -136,7 +136,7 @@ test("match rules evaluate exactly like the equivalent legacy rules", () => {
   }
   // no:assignee has no legacy key: it matches only unassigned issues.
   const unassigned = policy([
-    { id: "r", action: "deliver", match: "label:go no:assignee" },
+    { id: "r", action: "pause", match: "label:go no:assignee" },
   ]);
   const hit = (assignees) =>
     matchingRules(

@@ -45,10 +45,9 @@ const tools = {
     },
   },
   plans_maintain: {
-    summary: "Workspace upkeep: the tick, rebuilds, examples.",
+    summary: "Workspace upkeep: the tick, examples.",
     actions: {
       tick: ["workspace.tick", "run one bounded tick"],
-      rebuild: ["workspace.rebuild", "rebuild GitHub tasks from their issues"],
       seed_example: [
         "workspace.seed",
         "load one example pack, once, only when asked",
@@ -116,10 +115,6 @@ const tools = {
       delegates: [
         "approval.delegates",
         "who may approve on a person's behalf, and every grant",
-      ],
-      project_preview: [
-        "github.project.preview",
-        "GitHub writes projecting would make",
       ],
       delete_preview: ["plan.delete.preview", "what deleting would remove"],
       create: ["plan.create", "store a spec folder as a draft: {spec}"],
@@ -241,23 +236,11 @@ const tools = {
         "flow.stop",
         "pull the Andon cord: {scope: all|repo|spec|task, repository?, spec?, taskId?, reason}; only a person resumes",
       ],
-      stop_public_crews: [
-        "publiccrews.stop",
-        "Stop public crews: pull the cord on every public repository and list the crews to pause in Issue Radar; only a person resumes",
-      ],
       reply: ["reply.post", "post a responder's one reply"],
       task_summary: ["tasksummary.submit", "a task summary chat's one summary"],
       review_draft: [
         "reviewdraft.post",
         "post a review draft chat's one pending review",
-      ],
-      conflict_check: [
-        "conflictfix.check",
-        "a conflict fix chat's drop check before it pushes",
-      ],
-      conflict_report: [
-        "conflictfix.report",
-        "a conflict fix chat's one report",
       ],
     },
   },
@@ -307,7 +290,7 @@ const tools = {
   },
   plans_github: {
     summary:
-      "GitHub reads, sync, breakdowns and the Untriaged list. Setup writes, settings and handing items to Issue Radar are a person's, in the app.",
+      "GitHub reads, sync and the Untriaged list. Setup writes, settings and handing items to Issue Radar are a person's, in the app.",
     actions: {
       untriaged: ["untriaged.view", "items no rule claims"],
       crews: ["untriaged.crews", "Issue Radar crews for a repository"],
@@ -320,15 +303,6 @@ const tools = {
         "radar.flow",
         "stage times of finished Issue Radar issues, from GitHub",
       ],
-      retro: [
-        "radar.retro",
-        "applied retro rules with the check after N issues and an undo offer",
-      ],
-      radar_setup_preview: [
-        "radar.setup",
-        "what each Radar set up step (labels, branch rule, auto-merge, review-rules pull request, Project) would write, without writing",
-        ({ confirm, ...input }) => input,
-      ],
       mirror_adopt_preview: [
         "mirror.adopt",
         "dry run of Adopt existing setup for a private mirror: what exists and what would be written (repository, source)",
@@ -338,18 +312,6 @@ const tools = {
         "mirror.create",
         "dry run of Create setup for a private mirror: the steps that would run, in order (repository, source)",
         ({ confirm, ...input }) => input,
-      ],
-      values: [
-        "radar.values",
-        "the values to enter in Issue Radar, ticked where Radar's own read confirms them",
-      ],
-      mergepath: [
-        "radar.mergepath",
-        "can crew pull requests merge by themselves",
-      ],
-      preflight: [
-        "radar.preflight",
-        "the Create and release checks for a spec: approval, decision record, merge path, crew label scope, public sign-off",
       ],
       gap_report: [
         "gap.preview",
@@ -362,10 +324,6 @@ const tools = {
       integration_branches: [
         "integration.view",
         "each integration branch: tasks merged, commits behind the default branch, head checks, acceptance and landing approval",
-      ],
-      armed: [
-        "radar.armed",
-        "pull requests Avoozl armed for auto-merge that are still open",
       ],
       epics: [
         "epics.view",
@@ -396,19 +354,8 @@ const tools = {
         ({ confirm, ...input }) => input,
       ],
       sync: ["github.sync", "sync issues now"],
-      project: ["github.project", "project an approved plan to issues"],
       publish: ["planning.publish", "publish an approved plan"],
       reconcile: ["planning.reconcile", "reconcile planning pull requests"],
-      rebuild: ["github.rebuild", "rebuild GitHub tasks from GitHub"],
-      classify: ["github.breakdown.classify", "bounded or broad"],
-      draft_children: [
-        "github.breakdown.draft",
-        "name a broad issue's child spec",
-      ],
-      advance: [
-        "github.breakdown.advance",
-        "preview, detect approval, publish children",
-      ],
     },
   },
   plans_repos: {

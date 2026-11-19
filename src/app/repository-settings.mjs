@@ -463,8 +463,6 @@ export function conversationSettings(store) {
 // The worker's agent and model are in the roles table (Settings › Models,
 // R98.7); a save here keeps any older `delivery.agent` and `model`.
 const DELIVERY_FORM_KEYS = [
-  "prFeedback",
-  "feedbackRounds",
   // Investigate first and ship mode (§4.21, §4.25).
   "investigate",
   "ship",

@@ -239,16 +239,6 @@ export const ROLE_TABLE = Object.freeze({
       RESULT_LIMIT,
     ],
   },
-  // The issue planner's sessions are `planner` sessions, so a child runs by
-  // the planner row. Its critique runs as a child in the spec folder's
-  // `avoozl/` folder, its one write root (NK2.4); its breakdown in the spec
-  // folder, handing back its kind and reason (NK5.4).
-  issuePlanner: {
-    setting: "issuePlanner",
-    roles: [],
-    process: true,
-    access: "write",
-  },
   // Plan review reads the plan snapshot Avoozl prepares and hands back its
   // findings and summary in an output file. A round counts only with a
   // served model the harness output names (NK3.3, NK5.2).

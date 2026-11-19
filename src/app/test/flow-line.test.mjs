@@ -4,15 +4,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { linePausedTaskIds, listSpans } from "../flow.mjs";
+import { linePausedTaskIds } from "../flow.mjs";
 import { findCulprit, heldByStop, watchLine } from "../flow-line.mjs";
-import {
-  checkDoneList,
-  localPass,
-  recordGitHubTiming,
-  runLocalChecks,
-} from "../flow-checks.mjs";
-import { repositoryChecks } from "../repository-checks.mjs";
+import { runLocalChecks } from "../flow-checks.mjs";
 import { deliveryWorkspace, git, leaf } from "./delivery-fixture.mjs";
 
 // A repository whose one check fails while a file named `broken` exists;
@@ -249,20 +243,12 @@ test("Run anyway is a person's: confirmed, recorded, and refused to sessions", a
   );
 });
 
-test("local checks first: a recorded pass, a done list for one commit, and CI-only failures", async (t) => {
-  const s = setup(t, [
-    leaf("g1", { route: "github", github: { repository: "o/p", number: 1 } }),
-  ]);
+test("a worker's check run runs the repository's checks on its commit", async (t) => {
+  const s = setup(t, [leaf("g1")]);
   const worktree = path.join(s.root, "wt");
   git(s.checkout, "worktree", "add", "-q", worktree, "-b", "avoozl/g1");
   const head = git(worktree, "rev-parse", "HEAD"),
-    project = s.store.get("projects", "app"),
-    named = repositoryChecks(project);
-  assert.equal(
-    (await localPass(project.root, head, named)).ok,
-    false,
-    "no record yet",
-  );
+    project = s.store.get("projects", "app");
   const ran = await runLocalChecks({
     cwd: worktree,
     root: project.root,
@@ -271,78 +257,4 @@ test("local checks first: a recorded pass, a done list for one commit, and CI-on
   assert.equal(ran.passed, true);
   assert.equal(ran.checks[0].commit, head);
   assert.ok(Number.isInteger(ran.checks[0].durationMs));
-  assert.equal((await localPass(project.root, head, named)).ok, true);
-  assert.equal(checkDoneList(ran.checks, named), head);
-  assert.throws(() => checkDoneList(undefined, named), /list checks/);
-  assert.throws(
-    () => checkDoneList([{ ...ran.checks[0], exitCode: 1 }], named),
-    /exited 1/,
-  );
-  assert.throws(
-    () =>
-      checkDoneList(
-        [
-          ran.checks[0],
-          { command: "x", exitCode: 0, durationMs: 1, commit: "f".repeat(40) },
-        ],
-        named,
-      ),
-    /same pushed commit/,
-  );
-  // The pre-push hook's check reads the record and does not run the checks.
-  const other = git(s.checkout, "rev-parse", "main");
-  fs.writeFileSync(path.join(worktree, "n.txt"), "n\n");
-  git(worktree, "add", ".");
-  git(
-    worktree,
-    "-c",
-    "user.name=T",
-    "-c",
-    "user.email=t@e.x",
-    "commit",
-    "-qm",
-    "n",
-  );
-  const unrecorded = git(worktree, "rev-parse", "HEAD");
-  await assert.rejects(
-    s.ops.execute("content.check", {
-      taskId: "g1",
-      push: true,
-      stdin: `refs/heads/avoozl/g1 ${unrecorded} refs/heads/avoozl/g1 ${"0".repeat(40)}\n`,
-    }),
-    /Local checks first: no recorded local pass/,
-  );
-  await s.ops.execute("content.check", {
-    taskId: "g1",
-    push: true,
-    stdin: `refs/heads/avoozl/g1 ${head} refs/heads/avoozl/g1 ${other}\n`,
-  });
-  // CI fails on the commit that passed here: "CI only", with the CI wait.
-  const task = s.store.read().tasks.find((x) => x.id === "g1");
-  await recordGitHubTiming(s.store, task, {
-    headSha: head,
-    checks: [
-      {
-        name: "build",
-        state: "failure",
-        startedAt: "2026-11-12T10:01:00Z",
-        completedAt: "2026-11-12T10:21:00Z",
-      },
-      {
-        name: "lint",
-        state: "success",
-        startedAt: "2026-11-12T10:00:00Z",
-        completedAt: "2026-11-12T10:05:00Z",
-      },
-    ],
-  });
-  const [ci] = listSpans(s.store, { taskId: "g1" });
-  assert.deepEqual(
-    [ci.stage, ci.startedAt, ci.endedAt],
-    ["ci-wait", "2026-11-12T10:00:00Z", "2026-11-12T10:21:00Z"],
-  );
-  const [only] = s.store
-    .list("flow_records")
-    .filter((r) => r.kind === "ci-only");
-  assert.deepEqual([only.commit, only.checks], [head, ["build"]]);
 });

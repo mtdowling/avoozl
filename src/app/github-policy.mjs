@@ -33,24 +33,6 @@ export const MANAGED_LABEL_KEYS = Object.freeze([
   "stale",
   "decision",
 ]);
-export const STATUS_VALUE_KEYS = Object.freeze([
-  "todo",
-  "inProgress",
-  "done",
-  "deferred",
-]);
-export const FIELD_KEYS = Object.freeze([
-  "status",
-  "release",
-  "wave",
-  "iteration",
-  "avoozlState",
-  // A text field Avoozl owns like Wave: each task's phase (R59.8).
-  "phase",
-]);
-// GitHub links at most 100 sub-issues under one parent, closed ones
-// included (design §6.9 Limits).
-const SUB_ISSUE_CAP = 100;
 export const PERMISSIONS = Object.freeze([
   "read",
   "triage",
@@ -88,8 +70,6 @@ export const RADAR_KEYS = Object.freeze([
   "draftedLabel",
   "clearPlanLabel",
   "showPlansRepo",
-  "reviewRules",
-  "crew",
   "escalationDraft",
 ]);
 export const RADAR_DEFAULTS = Object.freeze({
@@ -105,23 +85,16 @@ export const READY_LABEL_DEFAULT = "avoozl:ready";
 export const POLICY_KEYS = Object.freeze([
   "mode",
   "planningRepository",
-  "defaultAuthority",
-  "project",
   "epicIssueType",
   "cacheSeconds",
   "writesPerMinute",
   "writesPerHour",
-  "subIssues",
-  "issues",
   "specReviewers",
   "repositories",
 ]);
 // The keys each block under `github` accepts, by place. The validators below
 // read them, and a test holds src/avoozl-config.schema.json to the same lists.
 export const GITHUB_BLOCK_KEYS = Object.freeze({
-  subIssues: ["maxPerParent"],
-  issues: ["includeDone"],
-  project: ["owner", "number", "fields", "statusValues"],
   rule: [
     "id",
     "action",
@@ -131,10 +104,8 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "labelsNone",
     "assignee",
     "author",
-    "autoPublishChildren",
   ],
   pullRequestReviews: ["approvals"],
-  commentSteering: ["mention"],
   discussions: ["categories"],
   release: ["capacity", "mode", "scopes", "ranking"],
   ranking: ["enabled", "agingHours"],
@@ -149,7 +120,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "requiredChecks",
     "pullRequestReviews",
     "release",
-    "dependencyText",
     "priority",
     "priorityLabels",
     "waitingLabels",
@@ -160,8 +130,6 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "acceptedLabel",
     "rules",
     "buildReceipts",
-    "stackedPullRequests",
-    "commentSteering",
     "discussions",
     "untriaged",
     "mirror",
@@ -170,9 +138,8 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "landing",
     "cacheSeconds",
   ],
-  crew: ["count", "models", "template"],
   approval: ["decisionRecord"],
-  conflicts: ["onSourceConflict", "maxAttempts"],
+  conflicts: ["maxAttempts"],
   merge: ["method"],
   landing: ["mode", "autoMerge", "method", "mergeBatch"],
   untriaged: ["filter", "triageLabels", "ignoreOlderThanDays", "notify"],
@@ -224,18 +191,6 @@ function permission(value, label) {
   return value;
 }
 
-// `github.subIssues.maxPerParent` (R59.15): how many sub-issues Avoozl links
-// under one parent issue, default GitHub's own limit.
-function subIssuesInput(value) {
-  if (value === undefined || value === null)
-    return { maxPerParent: SUB_ISSUE_CAP };
-  onlyKeys(value, GITHUB_BLOCK_KEYS.subIssues, "github.subIssues");
-  const cap = value.maxPerParent ?? SUB_ISSUE_CAP;
-  if (!Number.isSafeInteger(cap) || cap < 1)
-    fail("github.subIssues.maxPerParent must be a whole number of at least 1.");
-  return { maxPerParent: cap };
-}
-
 // `github.specReviewers` (R102.18): the GitHub logins asked to review each
 // spec's approval pull request, by spec folder name. With none for a spec,
 // the repository's own CODEOWNERS and rules decide; Avoozl adds no rule.
@@ -264,51 +219,6 @@ function specReviewersInput(value) {
   );
 }
 
-// `github.issues.includeDone` (R74): whether a task already done when its
-// spec is approved gets an issue. Off by default: only open tasks do.
-function issuesInput(value) {
-  if (value === undefined || value === null) return { includeDone: false };
-  onlyKeys(value, GITHUB_BLOCK_KEYS.issues, "github.issues");
-  if (value.includeDone !== undefined && typeof value.includeDone !== "boolean")
-    fail("github.issues.includeDone must be true or false.");
-  return { includeDone: value.includeDone === true };
-}
-
-function projectInput(value) {
-  if (value === undefined || value === null) return null;
-  onlyKeys(value, GITHUB_BLOCK_KEYS.project, "github.project");
-  if (!Number.isSafeInteger(value.number) || value.number < 1)
-    fail("github.project.number must be a positive whole number.");
-  const fields = onlyKeys(
-      value.fields ?? {},
-      FIELD_KEYS,
-      "github.project.fields",
-    ),
-    statusValues = onlyKeys(
-      value.statusValues ?? {},
-      STATUS_VALUE_KEYS,
-      "github.project.statusValues",
-    );
-  return {
-    owner: name(value.owner, "github.project.owner"),
-    number: value.number,
-    fields: Object.fromEntries(
-      FIELD_KEYS.filter((key) => Object.hasOwn(fields, key)).map((key) => [
-        key,
-        name(fields[key], `github.project.fields.${key}`, { optional: true }),
-      ]),
-    ),
-    statusValues: Object.fromEntries(
-      STATUS_VALUE_KEYS.filter((key) => Object.hasOwn(statusValues, key)).map(
-        (key) => [
-          key,
-          name(statusValues[key], `github.project.statusValues.${key}`),
-        ],
-      ),
-    ),
-  };
-}
-
 function ruleInput(value, label) {
   onlyKeys(value, GITHUB_BLOCK_KEYS.rule, label);
   if (typeof value.id !== "string" || !RULE_ID.test(value.id))
@@ -333,6 +243,12 @@ function ruleInput(value, label) {
           unassigned: false,
           source: null,
         };
+  // A GitHub issue is never a task (R102.20): only an intake source's
+  // items are delivered or planned by rule; a person starts an issue.
+  if (!fields.source && ["plan", "deliver", "execute"].includes(value.action))
+    fail(
+      `${label} would ${value.action} a GitHub issue. Use Deliver this or Plan this in Triage instead.`,
+    );
   // Avoozl writes nothing to a non-GitHub source yet (R50.20).
   if (fields.source && value.action === "respond")
     fail(
@@ -344,7 +260,6 @@ function ruleInput(value, label) {
     match: value.match !== undefined ? value.match.trim() : null,
     ...fields,
     author: name(value.author, `${label}.author`, { optional: true }),
-    autoPublishChildren: value.autoPublishChildren === true,
   };
   // A rule with no positive label would match every open issue.
   if (!rule.labelsAll.length && !rule.labelsAny.length)
@@ -365,19 +280,6 @@ function reviewsInput(value, label) {
   if (!Number.isSafeInteger(approvals) || approvals < 1 || approvals > 10)
     fail(`${label}.approvals must be a whole number from 1 to 10.`);
   return { approvals };
-}
-
-// Comment-mention steering (task 8.2, R27.13): off unless present. A comment
-// on a running GitHub leaf's issue that names `mention`, by an actor the
-// policy allows, is relayed to the leaf's worker session.
-const MENTION =
-  /^@[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:\/[A-Za-z0-9._-]{1,100})?$/;
-function steeringInput(value, label) {
-  if (value === undefined || value === null) return null;
-  onlyKeys(value, GITHUB_BLOCK_KEYS.commentSteering, label);
-  if (typeof value.mention !== "string" || !MENTION.test(value.mention))
-    fail(`${label}.mention must be a GitHub @name or @org/team.`);
-  return { mention: value.mention };
 }
 
 // Discussions answering (task 8.2, R27.13): off unless present. Only
@@ -469,11 +371,6 @@ function writesInput(value, label, max) {
 function repositoryInput(value, id, mode) {
   const label = `github.repositories.${id}`;
   onlyKeys(value, GITHUB_BLOCK_KEYS.repository, label);
-  if (
-    value.stackedPullRequests !== undefined &&
-    typeof value.stackedPullRequests !== "boolean"
-  )
-    fail(`${label}.stackedPullRequests must be true or false.`);
   const baseBranch = name(value.baseBranch, `${label}.baseBranch`, {
     optional: true,
   });
@@ -481,11 +378,6 @@ function repositoryInput(value, id, mode) {
   if (mode && !baseBranch)
     fail(`${label}.baseBranch must name the repository's default branch.`);
   const release = releaseInput(value, label);
-  if (
-    value.dependencyText !== undefined &&
-    typeof value.dependencyText !== "boolean"
-  )
-    fail(`${label}.dependencyText must be true or false.`);
   const managedLabels = onlyKeys(
       value.managedLabels ?? {},
       MANAGED_LABEL_KEYS,
@@ -562,49 +454,6 @@ function repositoryInput(value, id, mode) {
   ])
     if (Object.hasOwn(radarInput, key))
       radar[key] = name(radarInput[key], `${label}.radar.${key}`);
-  // Text Set up proposes for `AGENTS.md` (RC7.1); a pull request, never a write.
-  if (radarInput.reviewRules !== undefined) {
-    if (
-      typeof radarInput.reviewRules !== "string" ||
-      !radarInput.reviewRules.trim() ||
-      radarInput.reviewRules.length > 4000
-    )
-      fail(`${label}.radar.reviewRules must be 1 to 4000 characters of text.`);
-    radar.reviewRules = radarInput.reviewRules.trim();
-  }
-  // What Set up shows for the crew (a team pack fills it). Avoozl creates no crew.
-  if (radarInput.crew !== undefined) {
-    const crew = onlyKeys(
-        radarInput.crew,
-        GITHUB_BLOCK_KEYS.crew,
-        `${label}.radar.crew`,
-      ),
-      { models, count } = crew;
-    if (
-      count !== undefined &&
-      !(Number.isSafeInteger(count) && count >= 1 && count <= 8)
-    )
-      fail(`${label}.radar.crew.count must be a whole number from 1 to 8.`);
-    if (
-      models !== undefined &&
-      !(
-        Array.isArray(models) &&
-        models.length >= 1 &&
-        models.length <= 8 &&
-        models.every((m) => typeof m === "string" && m.trim() && m.length <= 80)
-      )
-    )
-      fail(`${label}.radar.crew.models must be 1 to 8 model names.`);
-    if (
-      crew.template !== undefined &&
-      !(
-        typeof crew.template === "string" &&
-        /^[a-z][a-z0-9-]{0,60}$/.test(crew.template)
-      )
-    )
-      fail(`${label}.radar.crew.template must be a lowercase template ID.`);
-    radar.crew = crew;
-  }
   if (radarInput.clearPlanLabel !== undefined) {
     if (typeof radarInput.clearPlanLabel !== "boolean")
       fail(`${label}.radar.clearPlanLabel must be true or false.`);
@@ -713,11 +562,10 @@ function repositoryInput(value, id, mode) {
     value.pullRequestReviews,
     `${label}.pullRequestReviews`,
   );
-  const commentSteering = steeringInput(
-      value.commentSteering,
-      `${label}.commentSteering`,
+  const discussions = discussionsInput(
+      value.discussions,
+      `${label}.discussions`,
     ),
-    discussions = discussionsInput(value.discussions, `${label}.discussions`),
     untriaged = untriagedInput(
       value.untriaged,
       `${label}.untriaged`,
@@ -733,7 +581,6 @@ function repositoryInput(value, id, mode) {
     requiredChecks: names(value.requiredChecks, `${label}.requiredChecks`),
     pullRequestReviews,
     release,
-    dependencyText: value.dependencyText === true,
     // The code repository has bin/build-receipt (RC32.8).
     buildReceipts: value.buildReceipts === true,
     priority,
@@ -754,12 +601,10 @@ function repositoryInput(value, id, mode) {
       ? { sourceRules: rules.filter((rule) => rule.source) }
       : {}),
     // Deferred features (task 8.2), each off by default.
-    stackedPullRequests: value.stackedPullRequests === true,
     cacheSeconds: cacheSecondsInput(
       value.cacheSeconds,
       `${label}.cacheSeconds`,
     ),
-    commentSteering,
     discussions,
     untriaged,
     conflicts: conflictsInput(value.conflicts, `${label}.conflicts`),
@@ -772,23 +617,12 @@ function repositoryInput(value, id, mode) {
   };
 }
 
-// What Avoozl does with a crew's pull request that conflicts in source code
-// (RC28.5): Avoozl merges the base into it with one resolver chat, or only
-// asks a person.
-export const CONFLICT_ACTIONS = Object.freeze(["fix", "ask"]);
 const MAX_ATTEMPTS = 10;
-// One count for crew pull requests and landing (R87.6, RC28.4). A
-// repository that sets none reads `landing.conflictRounds`, then this.
-export const CONFLICT_DEFAULTS = Object.freeze({
-  onSourceConflict: "fix",
-  maxAttempts: 2,
-});
+// How many times a landing conflict goes back to the worker (R87.6). A
+// repository that sets none reads `landing.conflictRounds`, then 2.
 function conflictsInput(value, label) {
   const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.conflicts, label);
-  const action = input.onSourceConflict ?? CONFLICT_DEFAULTS.onSourceConflict,
-    count = input.maxAttempts ?? null;
-  if (!CONFLICT_ACTIONS.includes(action))
-    fail(`${label}.onSourceConflict must be fix or ask.`);
+  const count = input.maxAttempts ?? null;
   if (
     count !== null &&
     (!Number.isSafeInteger(count) || count < 0 || count > MAX_ATTEMPTS)
@@ -796,11 +630,10 @@ function conflictsInput(value, label) {
     fail(
       `${label}.maxAttempts must be a whole number from 0 to ${MAX_ATTEMPTS}.`,
     );
-  return { onSourceConflict: action, maxAttempts: count };
+  return { maxAttempts: count };
 }
 
-// How a crew pull request lands when Avoozl arms auto-merge (RC28.7):
-// `squash` (one commit per pull request on the base) or `merge`.
+// How a pull request lands: `squash` (one commit per pull request on the base) or `merge`.
 export const MERGE_METHODS = Object.freeze(["squash", "merge"]);
 export const MERGE_METHOD_DEFAULT = "squash";
 // GitHub's repository setting for each method, and its name on screen.
@@ -927,21 +760,12 @@ export function normalizeGitHubPolicy(value) {
     fail("github.mode plans-repo needs github.planningRepository.");
   // Kept for a switch back, used only in plans-repo mode.
   const planningRepository = mode === "plans-repo" ? stored : null;
-  const defaultAuthority = local
-    ? "local"
-    : (value.defaultAuthority ?? (mode ? "github" : "local"));
-  if (!["github", "local"].includes(defaultAuthority))
-    fail("github.defaultAuthority must be github or local.");
-  if (defaultAuthority === "github" && !mode)
-    fail("github.defaultAuthority github needs a github.mode.");
   const repositories = value.repositories ?? {};
   if (!record(repositories))
     fail("github.repositories must contain a JSON object.");
   return {
     mode,
     planningRepository,
-    defaultAuthority,
-    project: projectInput(value.project),
     epicIssueType: name(value.epicIssueType, "github.epicIssueType", {
       optional: true,
     }),
@@ -956,8 +780,6 @@ export function normalizeGitHubPolicy(value) {
       "github.writesPerHour",
       MAX_WRITES_PER_HOUR,
     ),
-    subIssues: subIssuesInput(value.subIssues),
-    issues: issuesInput(value.issues),
     ...(value.specReviewers === undefined || value.specReviewers === null
       ? {}
       : { specReviewers: specReviewersInput(value.specReviewers) }),
@@ -1001,34 +823,15 @@ export function readGitHubPolicyOrNull(workspaceRoot) {
   }
 }
 
-// Authority for a task a plan approval creates (§3.2, R28.2–R28.3).
-export function newTaskAuthority(policy, requested) {
-  if (requested === "local") return "local";
-  return policy?.mode && policy.defaultAuthority !== "local"
-    ? "github"
-    : "local";
-}
-
-// A registered repository from before the policy: its single ready label
-// becomes one deliver rule with the same assignee and actor checks.
+// A registered repository the policy does not name: no rules, the same
+// actor checks.
 export function legacyRepositoryPolicy(config) {
   return {
     baseBranch: null,
     allowedActors: [...(config.allowedActors || [])],
     minimumPermission: config.minimumPermission || "write",
     managedLabels: config.managedLabel ? { managed: config.managedLabel } : {},
-    rules: [
-      {
-        id: "intake",
-        action: "deliver",
-        labelsAll: [config.label || "avoozl:ready"],
-        labelsAny: [],
-        labelsNone: [],
-        assignee: config.assignee || null,
-        author: null,
-        autoPublishChildren: false,
-      },
-    ],
+    rules: [],
   };
 }
 

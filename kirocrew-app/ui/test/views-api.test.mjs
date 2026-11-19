@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
-import { canSupersede, githubReviewLabel, graphSummary, linkHref, safeHref, scalarFields, sessionLabel, supersedeInput, verdictLabel, viewsClient } from '../src/views-api.ts'
+import { canSupersede, graphSummary, linkHref, safeHref, scalarFields, sessionLabel, supersedeInput, verdictLabel, viewsClient } from '../src/views-api.ts'
 
 function fakeApi(reply) {
   const calls = []
@@ -137,13 +137,6 @@ test('only a local task not already replaced offers supersede', () => {
   assert.equal(canSupersede(item({ supersededBy: 'a-r2' })), false)
 })
 
-test('a GitHub review label says when it is stale or ignored', () => {
-  const base = { reviewer: 'ana', state: 'approved', commit: 'a'.repeat(40), stale: false, allowed: true, reason: null }
-  assert.equal(githubReviewLabel(base), 'ana · approved')
-  assert.equal(githubReviewLabel({ ...base, stale: true }), `ana · approved · stale (${'a'.repeat(12)})`)
-  assert.equal(githubReviewLabel({ ...base, allowed: false, reason: 'ana is not an allowed actor.' }), 'ana · approved · ignored: ana is not an allowed actor.')
-})
-
 test('resolution actions call the shared operations, with the revision where they take one', async () => {
   const calls = []
   const client = viewsClient({
@@ -152,22 +145,10 @@ test('resolution actions call the shared operations, with the revision where the
       return { result: {} }
     },
   })
-  await client.resolveConflict('w1', 'a.1', 'title', 'github')
   await client.updateTask('w1', 'a.2', { needsReview: false }, 41)
   await client.retry('w1', 'a.3')
   assert.deepEqual(calls, [
-    { operation: 'github.conflict.resolve', input: { taskId: 'a.1', field: 'title', choice: 'github' }, workspaceId: 'w1' },
     { operation: 'task.update', input: { id: 'a.2', needsReview: false }, workspaceId: 'w1', expectedRevision: 41 },
     { operation: 'delivery.retry', input: { taskId: 'a.3', dismiss: [] }, workspaceId: 'w1' },
   ])
-})
-
-test('prFeedbackLine shows rounds out of the bound, the latest round, and a stop', async () => {
-  const { prFeedbackLine } = await import('../src/views-api.ts')
-  const base = { pullRequest: null, rounds: 2, bound: 5, session: 'w', stopped: null, notRelayed: 0, notRelayedLinks: [], error: null }
-  assert.equal(prFeedbackLine({ ...base, latest: null }), '2 of 5 rounds')
-  assert.equal(
-    prFeedbackLine({ ...base, latest: { kinds: ['check', 'auto-merge'], at: 't', to: 'new attempt' }, stopped: 'same-check' }),
-    '2 of 5 rounds · last: failed checks, auto-merge off, carried to a new attempt · stopped: the same check failed 3 times',
-  )
 })

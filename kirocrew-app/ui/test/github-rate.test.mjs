@@ -70,7 +70,7 @@ test('Settings > GitHub lists calls this hour by source, busiest first', () => {
   assert.equal(rows[1].cached, 9)
 })
 
-test('a projection waiting on the write limits shows its progress and the pace', () => {
+test('paced writes waiting on the write limits shows its progress and the pace', () => {
   const resumeAt = new Date(2026, 10, 15, 14, 0).toISOString()
   const lines = rateLines({
     resources: {},

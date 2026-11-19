@@ -14,7 +14,6 @@ import {
   SPECS_DIRECTORY,
   specName,
 } from "./spec-plans.mjs";
-import { PLANNER_AGENT } from "./github-planner.mjs";
 import { sessionProject } from "./executors/process.mjs";
 import { roleRun } from "./role-table.mjs";
 import { recordPlanReviewWriter } from "./plan-review-authorship.mjs";
@@ -26,6 +25,8 @@ import {
   steeringStatus,
   writeSteering,
 } from "./spec-steering.mjs";
+
+const PLANNER_AGENT = "avoozl-planner";
 
 const META = "newPlans";
 const GOAL_LIMIT = 20000;
