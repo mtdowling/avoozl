@@ -9,7 +9,9 @@
 //                            macos or windows), balanced by measured time
 //   --system linux --chrome-only   only the page tests that drive Chrome
 // With --changed, macOS and Windows keep only the OS-sensitive files.
+import fs from "node:fs";
 import os from "node:os";
+import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { changedFiles, select } from "./select-tests.mjs";
 import { allTestFiles, planFor, shardOf } from "./test-plan.mjs";
@@ -22,8 +24,26 @@ const args = process.argv.slice(2),
     : "origin/main";
 
 // Most tests wait on child processes and the disk, so a few more than one per
-// core keeps small CI runners busy; big machines keep one fewer than their cores.
-const concurrency = String(Math.max(os.availableParallelism() - 1, 8));
+// core keeps small CI runners busy; big machines keep one fewer than their
+// cores. A local run also leaves room for what else the machine is doing:
+// the cores the last minute's load already uses come off (at least 2 stay).
+// Windows reports no load, so it keeps the full count.
+const cores = os.availableParallelism(),
+  most = Math.max(cores - 1, 8),
+  load = process.env.CI ? 0 : Math.round(os.loadavg()[0]),
+  concurrency = String(Math.max(2, Math.min(most, cores - load)));
+console.log(
+  `Test concurrency ${concurrency} (${cores} cores, 1-minute load ${process.env.CI ? "not used on CI" : load}).`,
+);
+// A local run keeps the person's own git settings out, as on a CI runner:
+// a global core.fsmonitor alone starts a watcher process for every scratch
+// repository and slows each git call.
+if (!process.env.CI && !process.env.GIT_CONFIG_GLOBAL) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-test-git-"));
+  process.env.GIT_CONFIG_GLOBAL = path.join(dir, "gitconfig");
+  fs.writeFileSync(process.env.GIT_CONFIG_GLOBAL, "");
+  process.on("exit", () => fs.rmSync(dir, { recursive: true, force: true }));
+}
 const node = (files) =>
   spawnSync(
     process.execPath,

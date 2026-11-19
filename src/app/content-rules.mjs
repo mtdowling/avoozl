@@ -522,6 +522,19 @@ export function gitExposure(file) {
         env: gitEnvironment(),
         stdio: ["ignore", "pipe", "ignore"],
       }).trim();
+  // Git finds a work tree through a `.git` in the folder or one above it,
+  // from the folder's real path. With none, Git would answer "not inside",
+  // so no Git process is started: this check runs on every guarded write.
+  let up;
+  try {
+    up = fs.realpathSync(folder);
+  } catch {
+    return null;
+  }
+  while (!fs.existsSync(path.join(up, ".git"))) {
+    if (path.dirname(up) === up) return null;
+    up = path.dirname(up);
+  }
   let inside = false;
   try {
     inside = run(["rev-parse", "--is-inside-work-tree"]) === "true";

@@ -126,8 +126,9 @@ export const dropMember = (root, entry) =>
   git(root, ["update-ref", "-d", memberRef(entry.key)]).catch(() => {});
 
 // Stacks each member, in order, on `baseHead` in a fresh detached landing
-// worktree. {candidate} or {conflict: files, key}. The worktree is removed
-// before returning; its commits stay in `root`.
+// worktree. {candidate, heads} or {conflict: files, key}; `heads[i]` is the
+// stack after member i. The worktree is removed before returning; its
+// commits stay in `root`.
 export async function stackMembers(root, entries, baseHead, unionPaths = []) {
   const union = new Set(unionPaths),
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-landing-"));
@@ -160,7 +161,21 @@ export async function stackMembers(root, entries, baseHead, unionPaths = []) {
       for (const file of files) await unionMerge(dir, file);
       await git(dir, ["commit", "--quiet", "--cleanup=strip", "-m", message]);
     }
-    return { candidate: await git(dir, ["rev-parse", "HEAD"]) };
+    // Each member's merge is the first parent of the next one's, so this
+    // one call names the head after every member.
+    const chain = (
+      await git(dir, [
+        "rev-list",
+        "--first-parent",
+        "-n",
+        String(Math.max(entries.length, 1)),
+        "HEAD",
+      ])
+    ).split("\n");
+    return {
+      candidate: chain[0],
+      heads: chain.slice(0, entries.length).reverse(),
+    };
   } finally {
     await git(root, ["worktree", "remove", "--force", dir]).catch(() => {});
     fs.rmSync(dir, { recursive: true, force: true });
@@ -223,7 +238,13 @@ export function directSteps({
   if (typeof intent !== "function")
     fail("Direct landing writes an intent before every push.", 400);
   const environment = { ...(env ?? process.env), ...NO_PROMPT },
-    log = { results: [] };
+    log = { results: [] },
+    // A bisect step stacks a prefix of members already stacked on the same
+    // base. The earlier stack's head after that prefix is the same
+    // candidate, so it is used again instead of stacked again.
+    stacked = new Map(),
+    stackId = (baseHead, entries) =>
+      [baseHead, ...entries.map((e) => `${e.key}@${e.commit}`)].join(" ");
   return {
     log,
     async readBase() {
@@ -234,11 +255,17 @@ export function directSteps({
       ).split(/\s+/)[0];
     },
     async prepare(entries, baseHead) {
+      const known = stacked.get(stackId(baseHead, entries));
+      if (known) return { candidate: known };
       await git(root, ["fetch", "--quiet", url, `refs/heads/${branch}`], {
         env: environment,
       });
       for (const entry of entries) await holdMember(root, entry);
-      return stackMembers(root, entries, baseHead, unionPaths);
+      const result = await stackMembers(root, entries, baseHead, unionPaths);
+      result.heads?.forEach((head, i) =>
+        stacked.set(stackId(baseHead, entries.slice(0, i + 1)), head),
+      );
+      return result;
     },
     // `only` names the checks to run again (a rerun or a bisect step); the
     // content scan is one of them. Every selected check runs, so the failing

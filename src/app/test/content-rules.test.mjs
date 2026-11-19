@@ -188,6 +188,20 @@ test("a terms file Git tracks or does not ignore is refused; a missing one fails
   assert.throws(() => parseTerms("nothing"), /rule: regex/);
 });
 
+test("a terms file outside Git is not exposed; one linked into a repository is", () => {
+  const outside = temporaryDirectory("avoozl-cr-out-"),
+    file = path.join(outside, "terms.txt");
+  fs.writeFileSync(file, "codename: zorblat\n");
+  assert.equal(gitExposure(file), null);
+  const repo = temporaryDirectory("avoozl-cr-repo-");
+  git(repo, "init", "-q");
+  fs.mkdirSync(path.join(repo, "terms"));
+  fs.writeFileSync(path.join(repo, "terms", "terms.txt"), "codename: x\n");
+  const link = path.join(outside, "linked");
+  fs.symlinkSync(path.join(repo, "terms"), link, "junction");
+  assert.match(gitExposure(path.join(link, "terms.txt")), /not ignored/);
+});
+
 test("added lines only: a line already in the base never matches", () => {
   const repo = temporaryDirectory("avoozl-cr-git-");
   git(repo, "init", "-q", "-b", "main");

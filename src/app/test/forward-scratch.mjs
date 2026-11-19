@@ -7,6 +7,7 @@ import path from "node:path";
 import { bindContentRules, contentBinding } from "../content-rules.mjs";
 import { forwardGit } from "../mirror-forward-git.mjs";
 import { fixture } from "./fixtures.mjs";
+import { gitTemplate } from "./git-template.mjs";
 
 export const SOURCE = "example/code";
 export const MIRROR = "example/code-private";
@@ -23,29 +24,51 @@ export const git = (cwd, ...args) =>
     },
   }).trim();
 
+// The public and private bare repositories and a work checkout whose main
+// merged one crew change, built once per test file for each `file`/`text`.
+const templates = new Map();
+function repositories(root, file, text) {
+  const id = JSON.stringify([file, text]);
+  if (!templates.has(id))
+    templates.set(
+      id,
+      gitTemplate((dir) => {
+        const pub = path.join(dir, "pub.git"),
+          priv = path.join(dir, "priv.git"),
+          work = path.join(dir, "work");
+        git(dir, "init", "-q", "--bare", "-b", "main", pub);
+        git(dir, "clone", "-q", pub, work);
+        fs.writeFileSync(path.join(work, "a.txt"), "base\n");
+        git(work, "add", ".");
+        git(work, "commit", "-q", "-m", "base");
+        git(work, "push", "-q", "origin", "HEAD:refs/heads/main");
+        git(dir, "clone", "-q", "--bare", pub, priv);
+        git(work, "remote", "add", "private", priv);
+        git(work, "checkout", "-q", "-b", "avoozl/task-1");
+        fs.mkdirSync(path.dirname(path.join(work, file)), { recursive: true });
+        fs.writeFileSync(path.join(work, file), text);
+        git(work, "add", ".");
+        git(work, "commit", "-q", "-m", "crew work");
+        git(work, "checkout", "-q", "main");
+        git(
+          work,
+          "merge",
+          "-q",
+          "--no-ff",
+          "-m",
+          "Merge crew",
+          "avoozl/task-1",
+        );
+        git(work, "push", "-q", "private", "main:refs/heads/main");
+        return { pub, priv, work, sha: git(work, "rev-parse", "HEAD") };
+      }),
+    );
+  return templates.get(id)(root);
+}
+
 export function scratch(t, { file = "feature.txt", text = "hello\n" } = {}) {
   const { root, store } = fixture(t),
-    pub = path.join(root, "pub.git"),
-    priv = path.join(root, "priv.git"),
-    work = path.join(root, "work");
-  fs.writeFileSync(path.join(root, ".avoozl.json"), "{}");
-  git(root, "init", "-q", "--bare", "-b", "main", pub);
-  git(root, "clone", "-q", pub, work);
-  fs.writeFileSync(path.join(work, "a.txt"), "base\n");
-  git(work, "add", ".");
-  git(work, "commit", "-q", "-m", "base");
-  git(work, "push", "-q", "origin", "HEAD:refs/heads/main");
-  git(root, "clone", "-q", "--bare", pub, priv);
-  git(work, "remote", "add", "private", priv);
-  git(work, "checkout", "-q", "-b", "avoozl/task-1");
-  fs.mkdirSync(path.dirname(path.join(work, file)), { recursive: true });
-  fs.writeFileSync(path.join(work, file), text);
-  git(work, "add", ".");
-  git(work, "commit", "-q", "-m", "crew work");
-  git(work, "checkout", "-q", "main");
-  git(work, "merge", "-q", "--no-ff", "-m", "Merge crew", "avoozl/task-1");
-  git(work, "push", "-q", "private", "main:refs/heads/main");
-  const sha = git(work, "rev-parse", "HEAD"),
+    { pub, priv, work, sha } = repositories(root, file, text),
     commands = [],
     urls = { [SOURCE]: pub, [MIRROR]: priv },
     forward = forwardGit({

@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { digest } from "../../model.mjs";
 import { fixture } from "./fixtures.mjs";
+import { gitTemplate } from "./git-template.mjs";
 import { git } from "../git.mjs";
 import { journalOutcomes, replayJournal } from "../spec-journal.mjs";
 import { taskOutcome } from "../task-outcomes.mjs";
@@ -46,15 +47,15 @@ const state = async (journal) =>
 
 // A bare upstream whose check fails when `bad.txt` exists, and a landing
 // clone where each portion is a commit on its own branch from the base.
-async function setup(t) {
-  const { root, store } = fixture(t),
-    seed = path.join(root, "seed"),
-    upstream = path.join(root, "upstream.git"),
-    landing = path.join(root, "landing");
+// Built once for the file; each test gets a copy.
+const repositories = gitTemplate(async (dir) => {
+  const seed = path.join(dir, "seed"),
+    upstream = path.join(dir, "upstream.git"),
+    landing = path.join(dir, "landing");
   fs.mkdirSync(seed);
-  const identity = async (dir) => {
-    await git(dir, ["config", "user.name", "Fixture"]);
-    await git(dir, ["config", "user.email", "fixture@example.invalid"]);
+  const identity = async (repo) => {
+    await git(repo, ["config", "user.name", "Fixture"]);
+    await git(repo, ["config", "user.email", "fixture@example.invalid"]);
   };
   await git(seed, ["init", "-q", "-b", "main"]);
   await identity(seed);
@@ -65,14 +66,19 @@ async function setup(t) {
   fs.writeFileSync(path.join(seed, "CHANGELOG.md"), "start\n");
   await git(seed, ["add", "."]);
   await git(seed, ["commit", "-q", "-m", "Start"]);
-  await git(root, ["clone", "-q", "--bare", seed, upstream]);
-  await git(root, ["clone", "-q", upstream, landing]);
+  await git(dir, ["clone", "-q", "--bare", seed, upstream]);
+  await git(dir, ["clone", "-q", upstream, landing]);
   await identity(landing);
+  return { upstream, landing, base: await git(seed, ["rev-parse", "HEAD"]) };
+});
+
+async function setup(t) {
+  const { root, store } = fixture(t),
+    { upstream, landing, base } = await repositories(root);
   const head = async () =>
     (
       await git(root, ["ls-remote", "--heads", upstream, "refs/heads/main"])
     ).split(/\s+/)[0];
-  const base = await head();
   const options = {
     visibility: "private",
     machine: { hostname: "made-up-host", username: "madeupuser" },
@@ -336,11 +342,18 @@ test("a push never forces", async (t) => {
 // pair-b.txt fail only together, and flaky.txt fails the first time a head
 // is checked and passes the second.
 function fakeRunner() {
-  const seen = new Map();
+  const seen = new Map(),
+    trees = new Map();
   return async (project, commit, argv) => {
-    const files = (
-      await git(project.root, ["ls-tree", "-r", "--name-only", commit])
-    ).split("\n");
+    // A commit's tree never changes, so each is listed once.
+    if (!trees.has(commit))
+      trees.set(
+        commit,
+        (
+          await git(project.root, ["ls-tree", "-r", "--name-only", commit])
+        ).split("\n"),
+      );
+    const files = trees.get(commit);
     const key = `${commit}:${argv.join(" ")}`;
     seen.set(key, (seen.get(key) ?? 0) + 1);
     const bad =
@@ -402,6 +415,30 @@ test("with member 5 of 8 bad, 1 to 4 land, 5 goes back with its failing check an
   assert.deepEqual(result.batch.culprits, ["spec-a.t5"]);
   assert.equal(await x.tree("bad.txt"), null);
   assert.equal(await x.head(), result.candidate);
+});
+
+test("a prefix of a stack already made is that stack's head, stacked once", async (t) => {
+  const x = await setup(t);
+  for (let n = 1; n <= 3; n += 1)
+    await x.portion("spec-a", `t${n}`, { [`f${n}.txt`]: `${n}\n` });
+  const entries = landingQueue(x.store, Q),
+    s = x.steps(),
+    full = await s.prepare(entries, x.base);
+  assert.equal(full.heads.length, 3);
+  assert.equal(full.heads[2], full.candidate);
+  const two = await s.prepare(entries.slice(0, 2), x.base);
+  assert.deepEqual(two, { candidate: full.heads[1] });
+  assert.equal(
+    await git(x.landing, ["rev-parse", `${full.candidate}^1`]),
+    two.candidate,
+  );
+  const files = await git(x.landing, ["ls-tree", "--name-only", two.candidate]);
+  assert.match(files, /f2\.txt/);
+  assert.doesNotMatch(files, /f3\.txt/);
+  // Another order is a new stack.
+  const other = await s.prepare([entries[1]], x.base);
+  assert.equal(other.heads.length, 1);
+  assert.notEqual(other.candidate, full.heads[0]);
 });
 
 test("a pair that fails only together sends back the later one naming the earlier, which lands", async (t) => {
