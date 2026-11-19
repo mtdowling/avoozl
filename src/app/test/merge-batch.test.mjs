@@ -439,6 +439,14 @@ test("a prefix of a stack already made is that stack's head, stacked once", asyn
   const other = await s.prepare([entries[1]], x.base);
   assert.equal(other.heads.length, 1);
   assert.notEqual(other.candidate, full.heads[0]);
+  // A member already in the stack adds no commit and keeps the head.
+  const again = { ...entries[0], key: "spec-a.again" },
+    noop = await s.prepare([entries[0], again, entries[1]], x.base);
+  assert.equal(noop.heads[1], noop.heads[0]);
+  assert.equal(
+    await git(x.landing, ["rev-parse", `${noop.heads[2]}^1`]),
+    noop.heads[1],
+  );
 });
 
 test("a pair that fails only together sends back the later one naming the earlier, which lands", async (t) => {
