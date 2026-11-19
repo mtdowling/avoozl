@@ -1776,18 +1776,7 @@ export function chatContext(
         `- Kind: ${item.kind}${item.field ? ` (field ${item.field})` : ""}${item.reason ? ` (${item.reason})` : ""}`,
         `- Why: ${item.detail}`,
       );
-      if (item.expected !== undefined || item.actual !== undefined)
-        lines.push(
-          `- Avoozl expected: ${shown(item.expected)}`,
-          `- GitHub has: ${shown(item.actual)}`,
-        );
-      if (item.changedBy || item.changedAt)
-        lines.push(
-          `- Changed by ${item.changedBy ?? "unknown"} at ${item.changedAt ?? "unknown time"}`,
-        );
       if (item.openedAt) lines.push(`- Opened: ${item.openedAt}`);
-      if (item.choices?.length)
-        lines.push(`- Choices: ${item.choices.join(", ")}`);
       if (item.taskId) lines.push(...taskLines(item.taskId));
       if (item.tasks?.length)
         lines.push(

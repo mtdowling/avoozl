@@ -1,7 +1,7 @@
 // Settings > Repository setup > Set up GitHub and import specs: a stepped
 // dialog for a repository that was just added (Add repository picked its
 // folder). Pick mode, check GitHub, set up, import specs, leak scan (public
-// repositories), preview issues, finish. Steps that do not apply are left out; steps
+// repositories), finish. Steps that do not apply are left out; steps
 // already satisfied show as done and can be skipped. Cancel is on every
 // step. Nothing is written before Set up, each GitHub write there asks
 // first, and the flow never approves a plan, starts an agent or pushes.
@@ -21,7 +21,6 @@ import {
   ONBOARD_STEPS,
   folderSpecs,
   imported,
-  issueSummary,
   modeProblem,
   onboardClient,
   onboardForm,
@@ -31,7 +30,6 @@ import {
   setupRequest,
   setupWrites,
   type FolderFacts,
-  type IssuePreview,
   type OnboardClient,
   type OnboardForm,
   type OnboardMode,
@@ -239,7 +237,6 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
   const [specs, setSpecs] = useState<SpecList | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [scan, setScan] = useState<ScanResult | null>(null)
-  const [previews, setPreviews] = useState<Record<string, IssuePreview | { error: string }>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const box = useRef<HTMLDivElement>(null)
@@ -355,14 +352,6 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
     })
   useEffect(() => {
     if (step === 'scan') void runScan()
-    if (step === 'issues')
-      void call(async () => {
-        const drafts = shown.filter((s) => s.plan && !s.plan.approved)
-        const entries = await Promise.all(
-          drafts.map(async (s) => [s.name, await client.previewIssues(workspaceId, s.plan!.id).catch((e: unknown) => ({ error: errorMessage(e) }))] as const),
-        )
-        setPreviews(Object.fromEntries(entries))
-      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step])
   const findings = scanFindings(scan)
@@ -439,11 +428,6 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
                 Next
               </Btn>
             </>
-          )}
-          {step === 'issues' && (
-            <Btn type="button" primary onClick={next} disabled={busy}>
-              Next
-            </Btn>
           )}
           {step === 'finish' && props.onOpenPlans && (
             <Btn
@@ -551,46 +535,6 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
               </Stack>
             </>
           )}
-        </Box>
-      )}
-      {step === 'issues' && (
-        <Box flex flexCol gap="3" size="sm" data-onboard-issues>
-          {shown.filter((s) => s.plan && !s.plan.approved).length === 0 && <Hint as="p">No draft specs to preview. Import a spec first.</Hint>}
-          {Object.entries(previews).map(([name, preview]) => {
-            if ('error' in preview)
-              return (
-                <ErrorText key={name} role="alert" size="sm">
-                  {name}: {preview.error}
-                </ErrorText>
-              )
-            const sum = issueSummary(preview)
-            return (
-              <section key={name} data-onboard-preview={name}>
-                <Box as="h4" weight="semibold">
-                  <code>{name}</code>
-                </Box>
-                {preview.blocked?.length ? (
-                  <Hint as="p" size="xs">Not previewed until lint passes: {preview.blocked[0].message}</Hint>
-                ) : (
-                  <>
-                    <Hint as="p" size="xs">
-                      Approving would create {sum.create.length} issue{sum.create.length === 1 ? '' : 's'}
-                      {sum.update.length ? `, update ${sum.update.length}` : ''}
-                      {sum.other ? `, and make ${sum.other} label, link or board changes` : ''}.
-                    </Hint>
-                    <Box as="ul" mt="1" flex flexCol gap="0.5" size="xs">
-                      {sum.create.slice(0, 8).map((w, i) => (
-                        <li key={i}>
-                          <Pill kind="create" /> {w.title} <Hint>in {w.repository}</Hint>
-                        </li>
-                      ))}
-                      {sum.create.length > 8 && <Hint as="li">and {sum.create.length - 8} more</Hint>}
-                    </Box>
-                  </>
-                )}
-              </section>
-            )
-          })}
         </Box>
       )}
       {step === 'finish' && (

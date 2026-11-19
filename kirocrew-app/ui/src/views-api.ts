@@ -201,67 +201,6 @@ export interface ReviewRound {
   verdicts: RoundVerdict[]
 }
 
-// A GitHub leaf's pull-request reviews on its head commit (task 9.10).
-export interface GitHubReviews {
-  state: 'approved' | 'changes-requested' | 'pending' | string
-  approvals: number
-  needed: number
-  headSha: string | null
-  pullRequest: string | null
-  pullRequestNumber: number | null
-  held: boolean
-  reviews: {
-    reviewer: string
-    state: string
-    commit: string | null
-    stale: boolean
-    allowed: boolean
-    reason: string | null
-  }[]
-}
-
-// Pull request feedback sent back to the leaf's worker (§4.13, R54.13).
-export interface PrFeedback {
-  pullRequest: string | null
-  latest: { kinds: string[]; at: string; to: string } | null
-  rounds: number
-  bound: number | null
-  session: string | null
-  stopped: string | null
-  notRelayed: number
-  notRelayedLinks: { login: string; url: string | null }[]
-  error: string | null
-}
-
-const FEEDBACK_KINDS: Record<string, string> = {
-  check: 'failed checks',
-  review: 'review',
-  comment: 'comment',
-  conflict: 'conflict',
-  'auto-merge': 'auto-merge off',
-}
-const FEEDBACK_TO: Record<string, string> = {
-  session: 'sent to the worker',
-  conductor: 'queued for the conductor',
-  'new attempt': 'carried to a new attempt',
-}
-const FEEDBACK_STOPS: Record<string, string> = {
-  bound: 'stopped: all rounds used',
-  'same-check': 'stopped: the same check failed 3 times',
-  blocked: 'stopped: the worker is blocked',
-}
-
-// One line: rounds used out of the bound, then the latest round.
-export function prFeedbackLine(feedback: PrFeedback): string {
-  const parts = [`${feedback.rounds} of ${feedback.bound ?? '?'} rounds`]
-  if (feedback.latest)
-    parts.push(
-      `last: ${feedback.latest.kinds.map((kind) => FEEDBACK_KINDS[kind] ?? kind).join(', ')}, ${FEEDBACK_TO[feedback.latest.to] ?? feedback.latest.to}`,
-    )
-  if (feedback.stopped) parts.push(FEEDBACK_STOPS[feedback.stopped] ?? `stopped: ${feedback.stopped}`)
-  return parts.join(' · ')
-}
-
 // One task's link set from src/app/scm-links.mjs (R92.1-R92.3). URLs are
 // built by the backend from validated fields; the page still passes each
 // through safeHref.
@@ -315,14 +254,10 @@ export interface DeliveryItem extends TaskOwner {
   pullRequests: { number: number | null; url: string | null; merged: boolean }[]
   deliveries: Record<string, unknown>[]
   rounds?: ReviewRound[]
-  githubReviews?: GitHubReviews | null
-  prFeedback?: PrFeedback | null
   worktrees: Record<string, unknown>[]
   // Branch, pull request, checks and landed commit from stored records
   // (R92.1-R92.3); older backends omit it.
   links?: TaskLinks | null
-  // The GitHub Project card, when the task is on the board.
-  project?: { status: string | null; release: string | null; wave: number | null; notes: string[] } | null
   // What a person must do before a remote leaf moves (route or plugin).
   needsYou?: unknown
   handSetReview?: boolean
@@ -373,7 +308,7 @@ export interface ConflictItem extends TaskOwner {
   planReview?: { planId: string; revisionHash: string }
   // A spec pull request adopted into its spec (R107.5).
   specPull?: SpecPull
-  kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | 'resource' | 'github-conflict' | 'tracker-conflict' | string
+  kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | 'resource' | 'tracker-conflict' | string
   // Null for a review group, which stands for many tasks.
   taskId: string | null
   title: string
@@ -382,13 +317,6 @@ export interface ConflictItem extends TaskOwner {
   slot?: string
   link?: string | null
   runs?: string[]
-  // A github-conflict: Avoozl's value, GitHub's, and who changed it when.
-  expected?: string | string[] | null
-  actual?: string | string[] | null
-  changedBy?: string | null
-  changedAt?: string | null
-  choices?: ('desired' | 'github')[]
-  resolution?: 'desired' | 'github' | null
   // A needs-human item: why it waits on a person. 'crew': an Issue Radar
   // crew asked for one on an issue no task owns (R52.10). 'hand-set-review':
   // status running or review with no live session behind it. 'review-draft':
@@ -527,10 +455,6 @@ export function viewsClient(api: AppApi) {
     // Resolve myself or Dismiss on a source conflict (RC28.3).
     decideConflictFix: (workspaceId: string, repository: string, pullRequest: number, action: 'resolve' | 'dismiss') =>
       run<unknown>('conflictfix.decide', { repository, pullRequest, action }, workspaceId),
-    // A person's choice for one conflicted managed field; the next
-    // projection applies it.
-    resolveConflict: (workspaceId: string, taskId: string, field: string, choice: 'desired' | 'github') =>
-      run<unknown>('github.conflict.resolve', { taskId, field, choice }, workspaceId),
     // Local tasks only: the backend refuses edits to a github task's row.
     updateTask: (workspaceId: string, id: string, change: Record<string, unknown>, expectedRevision: number) =>
       run<unknown>('task.update', { id, ...change }, workspaceId, expectedRevision),
@@ -688,18 +612,6 @@ export function verdictLabel(verdict: RoundVerdict): string {
       ? `${verdict.model ?? 'model unknown'} → served ${verdict.served}`
       : (verdict.model ?? 'model unknown')
   return [verdict.role, said, model, verdict.stale ? 'stale' : null]
-    .filter(Boolean)
-    .join(' · ')
-}
-
-// One GitHub review's label: reviewer, state, and why it counts for nothing.
-export function githubReviewLabel(review: GitHubReviews['reviews'][number]): string {
-  return [
-    review.reviewer,
-    review.state,
-    review.stale ? `stale (${review.commit?.slice(0, 12) ?? 'older commit'})` : null,
-    review.allowed ? null : `ignored: ${review.reason ?? 'not allowed'}`,
-  ]
     .filter(Boolean)
     .join(' · ')
 }

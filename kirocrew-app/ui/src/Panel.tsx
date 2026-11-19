@@ -40,7 +40,7 @@ import { nameFor } from './instance-api.ts'
 import { useInstance } from './InstanceName.tsx'
 import { relativeTime } from './task-api.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
-import { linkHref, viewsClient } from './views-api.ts'
+import { linkHref } from './views-api.ts'
 import { errorMessage, readPageState, workspaceClient, type WorkspaceList } from './workspace-api.ts'
 import { Box } from './ui/Box'
 
@@ -180,7 +180,6 @@ export default function AvoozlPanel() {
   const instance = useInstance(workspaceId)
   const chat = useMemo(() => currentChat(window.location), [])
   const plans = useMemo(() => plansClient(api), [api])
-  const views = useMemo(() => viewsClient(api), [api])
   const releases = useMemo(() => releaseClient(api), [api])
   useEffect(() => {
     if (workspaceId) workspaceClient(api).list().then((list) => setWorkspaceName(list.items.find((item) => item.id === workspaceId)?.name ?? null), () => undefined)
@@ -317,8 +316,7 @@ export default function AvoozlPanel() {
     if (!workspaceId || action.kind === 'link') return
     setBusy(row.key)
     try {
-      if (action.kind === 'resolve') await views.resolveConflict(workspaceId, action.taskId, action.field, action.choice)
-      else await releases.land(workspaceId, action.repository, action.branch, action.head)
+      await releases.land(workspaceId, action.repository, action.branch, action.head)
       setNote(null)
       await load()
     } catch (caught) {

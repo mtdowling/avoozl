@@ -33,9 +33,6 @@ export const MANAGED_LABEL_KEYS = Object.freeze([
   "stale",
   "decision",
 ]);
-// GitHub links at most 100 sub-issues under one parent, closed ones
-// included (design §6.9 Limits).
-export const SUB_ISSUE_CAP = 100;
 export const PERMISSIONS = Object.freeze([
   "read",
   "triage",
@@ -89,9 +86,14 @@ export const RADAR_DEFAULTS = Object.freeze({
 });
 export const READY_LABEL_DEFAULT = "avoozl:ready";
 export const LEGACY_KEYS = Object.freeze(["issueIntake", "queue"]);
-// Task issues and the Project were retired (R102.20): an old file's
-// `project` and `defaultAuthority` are ignored.
-const RETIRED_KEYS = Object.freeze(["project", "defaultAuthority"]);
+// Task issues and the Project were retired (R102.20): these keys of an old
+// file are ignored, and a Settings save drops them.
+export const RETIRED_KEYS = Object.freeze([
+  "project",
+  "defaultAuthority",
+  "subIssues",
+  "issues",
+]);
 // The `github` keys the Settings view edits; the legacy keys stay as written.
 export const POLICY_KEYS = Object.freeze([
   "mode",
@@ -100,16 +102,12 @@ export const POLICY_KEYS = Object.freeze([
   "cacheSeconds",
   "writesPerMinute",
   "writesPerHour",
-  "subIssues",
-  "issues",
   "specReviewers",
   "repositories",
 ]);
 // The keys each block under `github` accepts, by place. The validators below
 // read them, and a test holds src/avoozl-config.schema.json to the same lists.
 export const GITHUB_BLOCK_KEYS = Object.freeze({
-  subIssues: ["maxPerParent"],
-  issues: ["includeDone"],
   rule: [
     "id",
     "action",
@@ -215,18 +213,6 @@ function permission(value, label) {
   return value;
 }
 
-// `github.subIssues.maxPerParent` (R59.15): how many sub-issues Avoozl links
-// under one parent issue, default GitHub's own limit.
-function subIssuesInput(value) {
-  if (value === undefined || value === null)
-    return { maxPerParent: SUB_ISSUE_CAP };
-  onlyKeys(value, GITHUB_BLOCK_KEYS.subIssues, "github.subIssues");
-  const cap = value.maxPerParent ?? SUB_ISSUE_CAP;
-  if (!Number.isSafeInteger(cap) || cap < 1)
-    fail("github.subIssues.maxPerParent must be a whole number of at least 1.");
-  return { maxPerParent: cap };
-}
-
 // `github.specReviewers` (R102.18): the GitHub logins asked to review each
 // spec's approval pull request, by spec folder name. With none for a spec,
 // the repository's own CODEOWNERS and rules decide; Avoozl adds no rule.
@@ -253,16 +239,6 @@ function specReviewersInput(value) {
         return [spec, [...logins]];
       }),
   );
-}
-
-// `github.issues.includeDone` (R74): whether a task already done when its
-// spec is approved gets an issue. Off by default: only open tasks do.
-function issuesInput(value) {
-  if (value === undefined || value === null) return { includeDone: false };
-  onlyKeys(value, GITHUB_BLOCK_KEYS.issues, "github.issues");
-  if (value.includeDone !== undefined && typeof value.includeDone !== "boolean")
-    fail("github.issues.includeDone must be true or false.");
-  return { includeDone: value.includeDone === true };
 }
 
 function ruleInput(value, label) {
@@ -895,8 +871,6 @@ export function normalizeGitHubPolicy(value) {
       "github.writesPerHour",
       MAX_WRITES_PER_HOUR,
     ),
-    subIssues: subIssuesInput(value.subIssues),
-    issues: issuesInput(value.issues),
     ...(value.specReviewers === undefined || value.specReviewers === null
       ? {}
       : { specReviewers: specReviewersInput(value.specReviewers) }),

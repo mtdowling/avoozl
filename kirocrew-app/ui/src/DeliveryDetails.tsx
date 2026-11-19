@@ -5,15 +5,11 @@ import Badge from './ui/Badge.tsx'
 import { DangerBtn, TipBtn } from './ui/controls.tsx'
 import {
   canSupersede,
-  githubReviewLabel,
-  prFeedbackLine,
   safeHref,
   scalarFields,
   supersedeInput,
   verdictLabel,
   type DeliveryItem,
-  type GitHubReviews,
-  type PrFeedback,
   type ReviewRound,
 } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -96,81 +92,6 @@ function Rounds({ rounds }: { rounds: ReviewRound[] }) {
           </li>
         ))}
       </Box>
-    </Box>
-  )
-}
-
-// GitHub pull-request reviews on the head commit. GitHub owns them; this
-// shows the verdict Avoozl read and links to the pull request.
-function GitHubReviewsBlock({ reviews }: { reviews: GitHubReviews }) {
-  const href = safeHref(reviews.pullRequest)
-  const name = `PR ${reviews.pullRequestNumber ? `#${reviews.pullRequestNumber}` : ''}`
-  return (
-    <Box mt="2" size="xs">
-      <Box as="span" weight="medium">GitHub reviews</Box>{' '}
-      <Badge variant={reviews.state === 'approved' ? 'success' : reviews.state === 'pending' ? 'info' : 'danger'}>
-        {reviews.state}
-      </Badge>{' '}
-      {reviews.approvals} of {reviews.needed} approvals on <code>{reviews.headSha?.slice(0, 12) ?? 'unknown head'}</code>
-      {' · '}
-      {href ? (
-        <TextLink href={linkHref(href)} target="_blank" rel="noreferrer">
-          {name}
-        </TextLink>
-      ) : (
-        name
-      )}
-      {reviews.held && <ErrorText as="span"> · holding dependents</ErrorText>}
-      {reviews.reviews.length > 0 && (
-        <Box as="ul" ml="3" mt="1" flex flexCol gap="1">
-          {reviews.reviews.map((review) => (
-            <li key={review.reviewer} className={review.allowed && !review.stale ? '' : 'text-muted'}>
-              {githubReviewLabel(review)}
-            </li>
-          ))}
-        </Box>
-      )}
-    </Box>
-  )
-}
-
-// Pull request feedback Avoozl sent back to the worker (§4.13). Comments by
-// people the policy does not allow are counted and linked, never sent.
-function PrFeedbackBlock({ feedback }: { feedback: PrFeedback }) {
-  const href = safeHref(feedback.pullRequest)
-  return (
-    <Box mt="2" size="xs">
-      <Box as="span" weight="medium">PR feedback</Box> {prFeedbackLine(feedback)}
-      {feedback.session && <Hint> · {feedback.session}</Hint>}
-      {href && (
-        <>
-          {' · '}
-          <TextLink href={linkHref(href)} target="_blank" rel="noreferrer">
-            PR
-          </TextLink>
-        </>
-      )}
-      {feedback.error && <ErrorText>Last read failed: {feedback.error}</ErrorText>}
-      {feedback.notRelayed > 0 && (
-        <Hint as="p">
-          {feedback.notRelayed} not sent, from people the policy does not allow:{' '}
-          {feedback.notRelayedLinks.map((entry, i) => {
-            const link = safeHref(entry.url)
-            return (
-              <span key={i}>
-                {i > 0 && ', '}
-                {link ? (
-                  <TextLink href={linkHref(link)} target="_blank" rel="noreferrer">
-                    {entry.login}
-                  </TextLink>
-                ) : (
-                  entry.login
-                )}
-              </span>
-            )
-          })}
-        </Hint>
-      )}
     </Box>
   )
 }
@@ -347,8 +268,6 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
           })}
         </Box>
       )}
-      {item.githubReviews && <GitHubReviewsBlock reviews={item.githubReviews} />}
-      {item.prFeedback && <PrFeedbackBlock feedback={item.prFeedback} />}
       {item.evidence.length > 0 && (
         <Box mt="2" size="xs">
           <Box as="span" weight="medium">Evidence</Box>
@@ -363,23 +282,6 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
               </li>
             ))}
           </Box>
-        </Box>
-      )}
-      {item.project && (
-        <Box mt="2" size="xs">
-          <Box as="span" weight="medium">Project</Box>
-          <Hint as="p">
-            {[
-              item.project.status && `Status ${item.project.status}`,
-              item.project.release && `Release ${item.project.release}`,
-              item.project.wave !== null && `Wave ${item.project.wave}`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </Hint>
-          {item.project.notes.map((note, i) => (
-            <p key={i}>{note}</p>
-          ))}
         </Box>
       )}
       <Rounds rounds={item.rounds ?? []} />

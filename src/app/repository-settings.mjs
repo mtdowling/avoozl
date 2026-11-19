@@ -22,6 +22,7 @@ import { githubSources, writeGitHubSources } from "./github-sources.mjs";
 import {
   normalizeGitHubPolicy,
   POLICY_KEYS,
+  RETIRED_KEYS,
   policySection,
 } from "./github-policy.mjs";
 import {
@@ -827,7 +828,7 @@ export class RepositorySettings {
     const value = this.updateValue(before),
       next = Object.fromEntries(
         Object.entries(record(value.github) ? value.github : {}).filter(
-          ([key]) => !POLICY_KEYS.includes(key),
+          ([key]) => !POLICY_KEYS.includes(key) && !RETIRED_KEYS.includes(key),
         ),
       );
     Object.assign(next, section);

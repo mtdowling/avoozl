@@ -475,12 +475,6 @@ function TaskPanel(props: {
                   {detail.conflicts.map((item, i) => (
                     <Box key={i} as="li" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="2">
                       <Box size="sm" weight="medium">{whyLine(item)}</Box>
-                      {item.changedAt && (
-                        <Hint as="div" size="xs">
-                          Changed {relativeTime(item.changedAt)}
-                          {item.changedBy ? ` by ${item.changedBy}` : ''}. See the Timeline tab for this task&apos;s history.
-                        </Hint>
-                      )}
                       <span>
                         <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with this item" onClick={() => void chat.ask({ items: [itemRef(item)] })}>
                           Ask in a chat

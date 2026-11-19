@@ -13,8 +13,6 @@ export interface SettingsChoices {
   authorities: string[]
   permissions: string[]
   actions: string[]
-  fields: string[]
-  statusValues: string[]
   managedLabels: string[]
   crewLabels: string[]
 }
@@ -147,10 +145,6 @@ export interface SetupInput {
   mode: string
   planningRepository?: string
   repositories?: string[]
-  project?: { owner?: string; number?: number; title?: string }
-  releases?: string[]
-  iteration?: boolean
-  tableByWave?: boolean
   epic?: boolean
   confirm?: boolean
   previewHash?: string
@@ -196,48 +190,25 @@ export interface SetupForm {
   mode: string
   planningRepository: string
   repositories: string
-  projectOwner: string
-  projectNumber: string
-  projectTitle: string
-  releases: string
-  iteration: boolean
-  tableByWave: boolean
   epic: boolean
 }
 
 // Wizard defaults from the saved settings.
 export function setupForm(github: Policy): SetupForm {
-  const project = record(github.project)
   return {
     mode: str(github.mode) || 'plans-repo',
     planningRepository: str(github.planningRepository),
     repositories: Object.keys(record(github.repositories)).join(', '),
-    projectOwner: str(project.owner),
-    projectNumber: str(project.number),
-    projectTitle: '',
-    releases: '',
-    iteration: Boolean(record(project.fields).iteration),
-    tableByWave: false,
     epic: true,
   }
 }
 
-// The operation input; a number picks a Project, else a title finds or makes one.
+// The operation input.
 export function setupInput(form: SetupForm): SetupInput {
-  const number = /^\d+$/.test(form.projectNumber.trim()) ? Number(form.projectNumber.trim()) : undefined
-  const project = compact({
-    owner: blank(form.projectOwner),
-    number,
-    title: number === undefined ? blank(form.projectTitle) : undefined,
-  })
   return compact({
     mode: form.mode,
     planningRepository: form.mode === 'plans-repo' ? blank(form.planningRepository) : undefined,
     repositories: splitList(form.repositories),
-    project: Object.keys(project).length ? project : undefined,
-    releases: splitList(form.releases),
-    iteration: form.iteration,
-    tableByWave: form.tableByWave,
     epic: form.epic,
   }) as unknown as SetupInput
 }
@@ -450,21 +421,12 @@ function untriagedPolicy(form: UntriagedForm) {
 export interface SettingsForm {
   mode: string
   planningRepository: string
-  defaultAuthority: string
   epicIssueType: string
   // github.cacheSeconds; blank is 60.
   cacheSeconds: string
   // github.writesPerMinute and github.writesPerHour; blank is 60 and 400.
   writesPerMinute: string
   writesPerHour: string
-  // github.subIssues.maxPerParent (R59.15); blank is GitHub's 100.
-  maxPerParent: string
-  // github.issues.includeDone (R74); off means only open tasks get issues.
-  includeDone: boolean
-  projectOwner: string
-  projectNumber: string
-  fields: Record<string, string>
-  statusValues: Record<string, string>
   repositories: RepositoryForm[]
 }
 
@@ -559,25 +521,13 @@ export function emptyRepository(name = ''): RepositoryForm {
 }
 
 export function toForm(github: Policy): SettingsForm {
-  const project = record(github.project)
   return {
     mode: str(github.mode),
     planningRepository: str(github.planningRepository),
-    defaultAuthority: str(github.defaultAuthority),
     epicIssueType: str(github.epicIssueType),
     cacheSeconds: str(github.cacheSeconds),
     writesPerMinute: str(github.writesPerMinute),
     writesPerHour: str(github.writesPerHour),
-    maxPerParent: (() => {
-      const value = record(github.subIssues).maxPerParent
-      // The default reads as blank, so an untouched file stays untouched.
-      return value === 100 ? '' : str(value)
-    })(),
-    includeDone: record(github.issues).includeDone === true,
-    projectOwner: str(project.owner),
-    projectNumber: str(project.number),
-    fields: strings(project.fields),
-    statusValues: strings(project.statusValues),
     repositories: Object.entries(record(github.repositories)).map(([name, value]) => {
       const entry = record(value)
       const reviews = entry.pullRequestReviews
@@ -667,27 +617,13 @@ function named(values: Record<string, string>) {
 
 // Every top-level policy key is present; null clears it on save.
 export function toPolicy(form: SettingsForm): Policy {
-  const fields = named(form.fields),
-    statusValues = named(form.statusValues),
-    hasProject = Boolean(form.projectOwner.trim() || form.projectNumber.trim() || fields || statusValues)
   return {
     mode: blank(form.mode) ?? null,
     planningRepository: blank(form.planningRepository) ?? null,
-    defaultAuthority: blank(form.defaultAuthority) ?? null,
     epicIssueType: blank(form.epicIssueType) ?? null,
     cacheSeconds: count(form.cacheSeconds) ?? null,
     writesPerMinute: count(form.writesPerMinute) ?? null,
     writesPerHour: count(form.writesPerHour) ?? null,
-    subIssues: count(form.maxPerParent) !== undefined ? { maxPerParent: count(form.maxPerParent) } : null,
-    issues: form.includeDone ? { includeDone: true } : null,
-    project: hasProject
-      ? compact({
-          owner: blank(form.projectOwner),
-          number: count(form.projectNumber),
-          fields,
-          statusValues,
-        })
-      : null,
     repositories: form.repositories.length
       ? Object.fromEntries(
           form.repositories.map((repository) => [
@@ -759,41 +695,11 @@ export function toPolicy(form: SettingsForm): Policy {
 }
 
 // Required or optional, and what a blank field means, as the validator
-// (src/app/github-policy.mjs) and Project sync (src/app/github-project.mjs)
-// treat it. `when` names the condition a "required" holds under.
+// (src/app/github-policy.mjs) treats it. `when` names the condition a "required" holds under.
 export interface FieldRule {
   required: boolean
   when?: string
   blank?: string
-}
-
-export const PROJECT_FIELD_RULES: Record<string, FieldRule> = {
-  owner: { required: true, when: 'to use a Project' },
-  number: { required: true, when: 'to use a Project' },
-  status: { required: false, blank: 'blank: uses the field named Status' },
-  release: { required: false, blank: 'blank: uses the field named Release' },
-  wave: { required: false, blank: 'blank: uses the field named Wave' },
-  iteration: { required: false, blank: 'blank: Avoozl skips Iteration' },
-  avoozlState: { required: false, blank: 'blank: Avoozl skips Avoozl state' },
-  phase: { required: false, blank: 'blank: phases stay off the Project' },
-  todo: { required: false, blank: 'blank: Ready, or Todo on an older board' },
-  inProgress: { required: false, blank: 'blank: In progress' },
-  done: { required: false, blank: 'blank: Done' },
-  deferred: { required: false, blank: 'blank: Deferred' },
-}
-
-// The default each Project field falls back to, shown as its placeholder.
-export const PROJECT_DEFAULTS: Record<string, string> = {
-  status: 'Status',
-  release: 'Release',
-  wave: 'Wave',
-  iteration: '',
-  avoozlState: '',
-  phase: '',
-  todo: 'Ready',
-  inProgress: 'In progress',
-  done: 'Done',
-  deferred: 'Deferred',
 }
 
 export const REPOSITORY_FIELD_RULES: Record<string, FieldRule> = {
@@ -826,15 +732,8 @@ export const MANAGED_LABEL_TEXT: Record<string, string> = {
 export function missingRequired(form: SettingsForm): string | null {
   if (form.mode === 'plans-repo' && !form.planningRepository.trim())
     return 'A code repository needs a planning repository: give one repository the planning role in Repository setup.'
-  // Local only reads no Project or repository GitHub setting.
+  // Local only reads no repository GitHub setting.
   if (!isGitHubMode(form.mode)) return null
-  const project =
-    form.projectOwner.trim() ||
-    form.projectNumber.trim() ||
-    Object.values(form.fields).some((v) => v.trim()) ||
-    Object.values(form.statusValues).some((v) => v.trim())
-  if (project && !form.projectOwner.trim()) return 'The Project needs its owner (Settings › Workspaces › Project fields).'
-  if (project && !form.projectNumber.trim()) return 'The Project needs its number (Settings › Workspaces › Project fields).'
   for (const [index, repository] of form.repositories.entries()) {
     const name = repository.name.trim() || `Repository ${index + 1}`
     if (!repository.name.trim()) return `${name} needs its owner/name (Repositories › Mode and branch).`
@@ -1123,10 +1022,7 @@ export function tasksLiveLine(mode: string, planningRepository: string): string 
 // and workspaces apply in every mode.
 export type SettingKey =
   | 'planningRepository'
-  | 'defaultAuthority'
   | 'epicIssueType'
-  | 'subIssueCap'
-  | 'projectFields'
   | 'setupGitHub'
   | 'triggers'
   | 'requiredChecks'
@@ -1140,25 +1036,19 @@ export function visibleSettings(mode: string): Set<SettingKey> {
   const key = modeKey(mode)
   const always: SettingKey[] = ['reviewerChats', 'landingBranch', 'workerChats']
   if (key === 'local') return new Set([...always, 'localChecks'])
-  const github: SettingKey[] = ['defaultAuthority', 'epicIssueType', 'subIssueCap', 'projectFields', 'setupGitHub', 'triggers', 'requiredChecks', 'pullRequestReviews']
+  const github: SettingKey[] = ['epicIssueType', 'setupGitHub', 'triggers', 'requiredChecks', 'pullRequestReviews']
   if (key === 'plans-repo') return new Set([...always, ...github, 'planningRepository'])
   return new Set([...always, ...github])
 }
 
-// The one line under the sub-issue cap (R59.15).
-export const SUB_ISSUE_LINE = 'Most sub-issues Avoozl links under one issue. GitHub allows 100, closed ones included.'
-
-export const LOCAL_HIDDEN_LINE = 'Labels, checks, reviews and the Project board only apply to GitHub modes.'
+export const LOCAL_HIDDEN_LINE = 'Labels, checks and reviews only apply to GitHub modes.'
 
 // Saved GitHub settings that Local only keeps but does not use.
 export function unusedInLocal(form: SettingsForm): string[] {
   const kept: string[] = []
   if (form.planningRepository.trim()) kept.push('planning repository')
-  if (form.projectOwner.trim() || form.projectNumber.trim()) kept.push('Project board')
   if (form.repositories.length) kept.push(`${form.repositories.length} repository GitHub setting${form.repositories.length === 1 ? '' : 's'}`)
   if (form.epicIssueType.trim()) kept.push('epic issue type')
-  if (form.maxPerParent.trim()) kept.push('sub-issue cap')
-  if (form.includeDone) kept.push('issues for done tasks')
   return kept
 }
 
@@ -1166,8 +1056,7 @@ export function unusedInLocal(form: SettingsForm): string[] {
 // Each write's group in the review step, by the wizard's step id.
 export const SETUP_GROUPS: { key: string; title: string; steps: string[] }[] = [
   { key: 'repository', title: 'Repository', steps: ['token', 'repository', 'issues'] },
-  { key: 'project', title: 'Project', steps: ['project'] },
-  { key: 'fields', title: 'Fields and views', steps: ['fields', 'views', 'workflows', 'epic'] },
+  { key: 'epic', title: 'Epic issue type', steps: ['epic'] },
   { key: 'labels', title: 'Labels', steps: ['labels'] },
   { key: 'settings', title: 'Settings file', steps: ['settings'] },
 ]
