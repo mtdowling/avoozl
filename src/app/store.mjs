@@ -192,8 +192,6 @@ export class Store {
    CREATE TABLE IF NOT EXISTS corrections(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS task_notes(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS landing_queue(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS landing_leases(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS landing_trains(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS planning_spans(id TEXT PRIMARY KEY,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,slot TEXT NOT NULL,role TEXT NOT NULL,model TEXT,started_at TEXT NOT NULL,ended_at TEXT);
    CREATE TABLE IF NOT EXISTS planning_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,role TEXT NOT NULL,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
    CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
@@ -571,8 +569,6 @@ export class Store {
         "corrections",
         "task_notes",
         "landing_queue",
-        "landing_leases",
-        "landing_trains",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -641,8 +637,6 @@ export class Store {
         "corrections",
         "task_notes",
         "landing_queue",
-        "landing_leases",
-        "landing_trains",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -707,8 +701,6 @@ export class Store {
         "corrections",
         "task_notes",
         "landing_queue",
-        "landing_leases",
-        "landing_trains",
       ].includes(table)
     )
       this.db
@@ -792,8 +784,6 @@ export class Store {
         "corrections",
         "task_notes",
         "landing_queue",
-        "landing_leases",
-        "landing_trains",
       ].includes(table)
     )
       fail("Unknown record type");
