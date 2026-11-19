@@ -10,6 +10,7 @@ import { Store } from "../store.mjs";
 import { integrateVerified } from "../delivery.mjs";
 import { landingQueue } from "../landing-queue.mjs";
 import { landDirect } from "../direct-landing.mjs";
+import { graphView } from "../page-views.mjs";
 import { takeOverSpec } from "../spec-takeover.mjs";
 import { snapshot, verifiedTask } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -114,6 +115,16 @@ test("a verified task is queued, checked at the candidate and pushed by the tick
   // A second step has nothing to do.
   await step(w);
   assert.equal(git(w.origin, "rev-parse", "main"), landed);
+  // A Kiro Crew chat that reported done keeps its last read status, working:
+  // the landed task is not drawn as running (P39 live).
+  const state = () =>
+    graphView(w.store, w.store.read()).tasks.find((x) => x.id === "t1").state;
+  assert.equal(state(), "running");
+  w.store.put("session_bindings", {
+    ...w.store.get("session_bindings", "slot-t1"),
+    report: { kind: "done", commit },
+  });
+  assert.notEqual(state(), "running");
 });
 
 test("a failed check at the candidate goes back to the chat and pushes nothing", async (t) => {

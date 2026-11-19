@@ -3114,7 +3114,7 @@ export class Operations {
     // Proposals and prompt overrides (design §4.18).
     if (RETRO_READS.has(name) || RETRO_WRITES.has(name))
       return retroOperation(store, name, input, context, {
-        by: context.local ? "cli" : "dashboard",
+        by: context.local ? "cli" : this.operator || "dashboard",
       });
     if (PLUGIN_OPERATIONS.has(name)) {
       const result = await this.pluginOperation(name, input, context);
@@ -3567,7 +3567,7 @@ export class Operations {
           403,
         );
       return runAnyway(store, input, {
-        operator: context.local ? "cli" : "dashboard",
+        operator: context.local ? "cli" : this.operator || "dashboard",
       });
     }
     // Stop all agents (R64.12): a person only, through the app backend,
@@ -3576,7 +3576,10 @@ export class Operations {
       if (context.caller || context.mcp)
         fail("Only a person stops all agents. Do it in the Avoozl app.", 403);
       return pullFullStop(store, input, {
-        by: { kind: "person", name: context.local ? "cli" : "dashboard" },
+        by: {
+          kind: "person",
+          name: context.local ? "cli" : this.operator || "dashboard",
+        },
         stopSession: this.sessionStopper,
       });
     }
@@ -3590,7 +3593,10 @@ export class Operations {
                 kind: "agent",
                 name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
               }
-            : { kind: "person", name: context.local ? "cli" : "dashboard" },
+            : {
+                kind: "person",
+                name: context.local ? "cli" : this.operator || "dashboard",
+              },
       });
     if (name === "flow.resume") {
       if (context.caller || context.mcp)
@@ -3599,7 +3605,7 @@ export class Operations {
           403,
         );
       return resumeStop(store, input, {
-        by: context.local ? "cli" : "dashboard",
+        by: context.local ? "cli" : this.operator || "dashboard",
       });
     }
     // Issue Radar's live claims on every registered repository, read from
@@ -3620,7 +3626,7 @@ export class Operations {
       if (context.caller || context.mcp)
         fail("Only a person releases a phase, in the Avoozl page.", 403);
       return releaseStep(store, input, {
-        by: context.local ? "cli" : "dashboard",
+        by: context.local ? "cli" : this.operator || "dashboard",
       });
     }
     // Flow from GitHub data: stage times cached earlier and every stored
@@ -3639,7 +3645,7 @@ export class Operations {
           403,
         );
       return landBranch(store, input, {
-        by: context.local ? "cli" : "dashboard",
+        by: context.local ? "cli" : this.operator || "dashboard",
       });
     }
     // An external gap report becomes proposed tasks in the sub-specs; nothing is
