@@ -11,12 +11,11 @@ import { OPEN, MERGED } from './ui/looks/RoleHelp.ts'
 
 function Pill({ color, children }: { color: string; children: ReactNode }) {
   return (
-    <span
-      className="inline-flex items-center rounded-full px-1.5 text-[10px] font-semibold leading-4"
-      style={{ background: color, color: 'var(--card)' }}
+    <Box
+      as="span" css-background={color} css-color="card" inlineFlex items="center" rounded="full" px="1.5" size="10" weight="semibold" leading4
     >
       {children}
-    </span>
+    </Box>
   )
 }
 

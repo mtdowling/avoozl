@@ -235,22 +235,17 @@ export default function GraphPage(props: {
         </Box>
         <Row role="tablist" aria-label="Dependency views" gap={1} wrap={false}>
           {TABS.map((t) => (
-            <button
+            <PlainButton
               key={t.key}
               type="button"
               role="tab"
               aria-selected={place.tab === t.key}
               data-graph-tab={t.key}
               onClick={() => go({ tab: t.key, root: t.key === 'focus' ? (root ?? null) : null })}
-              className="h-6 cursor-pointer whitespace-nowrap rounded-sm border px-3"
-              style={
-                place.tab === t.key
-                  ? { borderColor: 'var(--border-strong, var(--border))', color: 'var(--accent)', background: 'var(--card)', letterSpacing: '.08em' }
-                  : { borderColor: 'transparent', color: 'var(--muted)', background: 'transparent', letterSpacing: '.08em' }
-              }
+              css-border-color={place.tab === t.key ? 'border-strong-border' : 'transparent'} css-color={place.tab === t.key ? 'accent' : 'muted'} css-background={place.tab === t.key ? 'card' : 'transparent'} css-letter-spacing={place.tab === t.key ? '.08em' : '.08em'} h6 cursorPointer whitespace="nowrap" rounded="sm" border="all" px="3"
             >
               {t.label}
-            </button>
+            </PlainButton>
           ))}
         </Row>
         <Box ml="auto" flex items="center" gap="1.5">
@@ -403,10 +398,10 @@ function Chip({ task }: { task: GraphTask }) {
         className="inline-block h-[7px] w-[7px] rounded-full"
         style={go ? { background: COLOR[state] } : { border: `1.5px solid ${COLOR[state]}` }}
       />
-      <span className="text-[9px]" style={{ color: COLOR[state], letterSpacing: '.12em' }}>
+      <Box as="span" css-color={COLOR[state]} css-letter-spacing=".12em" size="9">
         {STATE_CHIP[state]}
         <Box as="span" srOnly> ({STATE_WORD[state]})</Box>
-      </span>
+      </Box>
     </Box>
   )
 }
@@ -418,7 +413,7 @@ function Refs({ tasks, struck }: { tasks: { task: GraphTask; met?: boolean }[]; 
       {tasks.map(({ task, met }, i) => (
         <span key={task.id}>
           {i > 0 && ' · '}
-          <span style={struck || met ? { textDecoration: 'line-through', color: 'var(--muted-strong, var(--muted))' } : { color: 'var(--text)' }}>{task.id}</span>
+          <Box as="span" css-text-decoration={struck || met ? 'line-through' : undefined} css-color={struck || met ? 'muted-strong-muted' : 'text'}>{task.id}</Box>
         </span>
       ))}
     </>
@@ -580,12 +575,12 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                       style={{ background: 'var(--card)', borderColor: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))', borderWidth: isRoot ? 2 : 1, borderStyle: draft ? 'dashed' : 'solid' }}
                     >
                       <Box as="span" flex items="baseline" gap="2">
-                        <span className="text-[12px] font-bold" style={{ color: faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state], textDecoration: faded ? 'line-through' : undefined }}>
+                        <Box as="span" css-color={faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state]} css-text-decoration={faded ? 'line-through' : undefined} size="12" weight="bold">
                           {node.id}
-                        </span>
-                        <span className="ml-auto text-[9px]" style={{ color: COLOR[node.state], letterSpacing: '.1em' }}>
+                        </Box>
+                        <Box as="span" css-color={COLOR[node.state]} css-letter-spacing=".1em" ml="auto" size="9">
                           {tree.ghosts.has(node.id) ? 'MET' : STATE_CHIP[node.state]}
-                        </span>
+                        </Box>
                         <PlainButton
                           type="button"
                           tabIndex={-1}

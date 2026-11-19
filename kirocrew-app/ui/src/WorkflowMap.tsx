@@ -58,9 +58,9 @@ function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (j
       data-muted={muted ? 'true' : undefined}
     >
       <Box as="span" flex flexWrap items="center" gapX="2" gapY="0.5">
-        <span className="text-xs font-semibold" style={{ color: WHO_COLOR[card.who] }} data-who-tag>
+        <Box as="span" css-color={WHO_COLOR[card.who]} size="xs" weight="semibold" data-who-tag>
           {WHO_TEXT[card.who]}
-        </span>
+        </Box>
         {card.tag && (
           <Box as="span" css-border-color="border" rounded="base" border="all" px="1" size="11" tone="muted" data-status-tag>
             {card.tag}

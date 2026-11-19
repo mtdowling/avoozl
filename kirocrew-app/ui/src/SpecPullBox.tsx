@@ -22,7 +22,7 @@ export function ChecksDot({ checks }: { checks: SpecPull['checks'] }) {
   if (!checks) return <Hint size="xs">No checks yet</Hint>
   return (
     <Box as="span" css-gap="6" inlineFlex items="center" size="xs" data-pull-checks={checks}>
-      <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 999, background: DOT[checks] }} />
+      <Box aria-hidden="true" as="span" css-width="8" css-height="8" css-border-radius="999" css-background={DOT[checks]} />
       {CHECKS_TEXT[checks]}
     </Box>
   )
