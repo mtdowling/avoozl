@@ -1294,6 +1294,12 @@
               "default": "squash",
               "description": "How a pull request merges."
             },
+            "commitPrefix": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[^\\r\\n]*$",
+              "description": "Text every commit subject Avoozl writes here starts with, such as \"chore: \", for a repository whose checks enforce a message format. Landing, merge-forward, tick and worker commits and landing pull request titles carry it. Unset keeps Avoozl's own subjects."
+            },
             "mergeBatch": {
               "description": "direct landing: how many verified tasks land in one merge batch. auto sizes the batch from how often changes fail; a number from 1 to 16 replaces the size, and 1 lands one task at a time.",
               "default": "auto",

@@ -1,4 +1,5 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
+import { commitSubject } from "./landing-config.mjs";
 import { briefCell } from "./worker-briefs.mjs";
 import { cliCommand } from "./report-command.mjs";
 import { repositoryExecutor } from "./executors/process.mjs";
@@ -2965,7 +2966,10 @@ export async function rebaseForIntegration(repository, worktree, commit) {
       "--no-ff",
       "--no-edit",
       "-m",
-      `Merge ${target} into ${worktree.branch || "the task branch"}`,
+      commitSubject(
+        repository.commitPrefix,
+        `Merge ${target} into ${worktree.branch || "the task branch"}`,
+      ),
       target,
     ]);
   } catch (error) {
