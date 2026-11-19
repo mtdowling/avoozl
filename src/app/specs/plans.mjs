@@ -405,7 +405,7 @@ function approveEpic(
   store,
   data,
   plan,
-  { expectedRevision, approver, evidence, delegation, carriedFrom = null },
+  { expectedRevision, approver, evidence, delegation },
 ) {
   const now = new Date().toISOString(),
     plans = store.list("plans").filter((entry) => !entry.deletedAt),
@@ -427,10 +427,8 @@ function approveEpic(
       approval: approvalRecord(store, plan.id, plan.hash, approver),
       epic: { members: listed },
       ...(delegation ? { delegation } : {}),
-      ...(carriedFrom ? { carriedFrom } : {}),
     };
   store.put("approvals", receipt);
-  carried(plan, carriedFrom);
   plan.state = "approved";
   plan.kind = "plan";
   plan.epicFolder = true;
@@ -463,11 +461,6 @@ function approveEpic(
 // The hash a plan's issues name. An approval carried across a pure layout
 // change keeps the one they were projected at, so they need no edit; any
 // other approval clears it (design §4.40).
-export const issueHash = (plan) => plan.issueHash ?? plan.hash;
-function carried(plan, from) {
-  if (from) plan.issueHash ??= from;
-  else delete plan.issueHash;
-}
 
 export function approvePlan(
   store,
@@ -490,9 +483,6 @@ export function approvePlan(
     // A delegate's approval on a person's behalf (R109): {delegate,
     // onBehalfOf, grantedAt}, recorded on the receipt.
     delegation = null,
-    // The approved hash this revision's same content was approved at
-    // (design §4.40): recorded on the receipt, no person's step.
-    carriedFrom = null,
   },
 ) {
   // Authorization is the reviewed hash and database revision below. Who
@@ -522,7 +512,6 @@ export function approvePlan(
         approver: approvedBy?.trim() || operator?.trim() || "",
         evidence,
         delegation,
-        carriedFrom,
       });
     // A spec plan's tasks keep their tasks.md IDs; its tasks.md is plan.text.
     const extracted = Boolean(extraction),
@@ -1026,7 +1015,6 @@ export function approvePlan(
       evidence: evidence?.trim() || "",
       ...(baselined.length ? { baseline: baselined } : {}),
       ...(delegation ? { delegation } : {}),
-      ...(carriedFrom ? { carriedFrom } : {}),
       at: now,
       mapping,
       taskIds: Object.values(mapping),
@@ -1045,7 +1033,6 @@ export function approvePlan(
         : {}),
     };
     store.put("approvals", receipt);
-    carried(plan, carriedFrom);
     plan.state = "approved";
     // The epic this revision's front-matter names; an epic counts the plan
     // only while both sides agree (Requirement 59.2).

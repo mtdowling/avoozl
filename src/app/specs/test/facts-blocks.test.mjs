@@ -1,16 +1,10 @@
-// The `Facts:` block layout (Requirement 111 until 2026-11-19): a stored
-// record folds into `$key:` bullets with the same revision hash, and a
-// folder on disk that still has one is refused.
+// The `Facts:` block layout (Requirement 111 until 2026-11-19): a folder
+// that still has one is refused, and nothing reads it.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import {
-  currentFiles,
-  foldFactsBlocks,
-  hasFactsBlocks,
-} from "../spec-legacy.mjs";
-import { parseSpec, readSpecFolder, specHash } from "../spec-plans.mjs";
+import { hasFactsBlocks, parseSpec, readSpecFolder } from "../spec-plans.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 const prose = {
@@ -66,35 +60,9 @@ const FOLDED = [
   "",
   ...fence,
 ].join("\n");
-// specHash of { ...prose, "tasks.md": OLD } on main before `$` facts.
-const MAIN_HASH =
-  "533dd04dfc37f9e0d60ab695450c72139ce10b1e7a5dc1858c1066e33e01662a";
-
-test("a Facts: block folds into $ bullets, and a fenced one stays text", () => {
-  assert.equal(foldFactsBlocks(OLD), FOLDED);
+test("a Facts: bullet is a block, and a fenced one is text", () => {
   assert.equal(hasFactsBlocks(OLD), true);
-  assert.equal(hasFactsBlocks(FOLDED), false, "a fenced Facts: is not a block");
-  assert.equal(foldFactsBlocks(FOLDED), FOLDED);
-  assert.equal(currentFiles({ "tasks.md": OLD })["tasks.md"], FOLDED);
-});
-
-test("an old-layout record hashes as its folded text and as it did before", () => {
-  const old = { ...prose, "tasks.md": OLD },
-    folded = { ...prose, "tasks.md": FOLDED };
-  assert.equal(specHash(old), specHash(folded));
-  assert.equal(specHash(folded), MAIN_HASH);
-  const parsed = parseSpec({ name: "config", exists: true, files: folded });
-  assert.deepEqual(
-    parsed.diagnostics.map((d) => d.code),
-    [],
-  );
-  assert.deepEqual(
-    parsed.proposals.find((p) => p.specKey === "1.1").acceptance,
-    [
-      "A missing file yields defaults.",
-      "Invalid JSON names the file, and its line.",
-    ],
-  );
+  assert.equal(hasFactsBlocks(FOLDED), false);
 });
 
 test("a folder on disk with a Facts: block is refused at tasks.md:1", () => {
