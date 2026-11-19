@@ -28,6 +28,7 @@ import {
   sizeRecord,
   testingNow,
 } from "./merge-batch-size.mjs";
+import { tickEntry, tickPlansRepo } from "./spec-ticks.mjs";
 import { sendConflictBack } from "./landing-conflicts.mjs";
 import { markLanded, sendFailureBack, syncBase } from "./pr-landing.mjs";
 import { driverIdOf } from "./spec-scheduler.mjs";
@@ -137,6 +138,7 @@ export async function landDirect(
           projectId: project.id,
           isolation: project.isolation,
           unionPaths: config?.landing?.unionPaths ?? [],
+          tickOf: (dir, entry) => tickEntry(store, dir, entry),
           env,
           machine,
           configFile,
@@ -220,6 +222,16 @@ export async function landDirect(
           });
           await dropMember(project.root, entry);
         }
+        // A spec in a separate plans repository is ticked there, as its own
+        // guarded commit (spec-ticks.mjs).
+        for (const entry of result.entries)
+          await tickPlansRepo(store, {
+            entry,
+            candidate: result.candidate,
+            project,
+            workspaceRoot,
+            env,
+          }).catch(() => null);
         await syncBase(project, { env }).catch(() => null);
         for (const entry of result.entries) {
           const worktree = store.get("task_worktrees", entry.key);

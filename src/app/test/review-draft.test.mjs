@@ -19,6 +19,8 @@ import {
   reviewDraftsView,
 } from "../review-draft.mjs";
 import { fixture } from "./fixtures.mjs";
+import { Operations } from "../operations.mjs";
+import { isPosted } from "../github-posted.mjs";
 import os from "node:os";
 import { ROLE_TABLE } from "../role-table.mjs";
 import { finishProcessSession, writeSnapshot } from "../executors/process.mjs";
@@ -647,4 +649,25 @@ test("a child's line comment outside the diff is dropped", async (t) => {
     ["In the diff."],
   );
   assert.equal(store.get("receipts", child.task).droppedComments, 2);
+});
+
+test("a draft posted through the operation goes out as the person's text", async (t) => {
+  // The person submits the pending review under their login, so it carries
+  // no posted marker and pull request feedback reads it.
+  const { store, github } = await bound(t),
+    ops = new Operations(store, { github });
+  const result = await ops.execute(
+    "reviewdraft.post",
+    {
+      body: "Looks close, @bob.",
+      comments: [{ path: "src/greet.mjs", line: 4, body: "Ask @carol." }],
+    },
+    undefined,
+    { caller: { sessionKey: "dashboard:slot-d" }, mcp: true },
+  );
+  assert.equal(result.posted, true);
+  const [, , review] = github.calls.find(([kind]) => kind === "create");
+  assert.equal(review.body, "Looks close, @bob.");
+  assert.equal(review.comments[0].body, "Ask @carol.");
+  assert.equal(isPosted(review.body), false);
 });

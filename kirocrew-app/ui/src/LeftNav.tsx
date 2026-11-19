@@ -12,44 +12,50 @@ import { ChevronRight } from './icons.ts'
 import { ResizeHandle } from './ResizeHandle.tsx'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
+import type { LookProps } from './ui/Box'
 
 // Issue Radar's sidebar cards, measured on the host: 12px corners, the
 // elevated surface, a hairline border and a small shadow. The top card's
 // border is the stronger one. Buttons in them keep Kiro Crew's compact size
 // (28px at most) on every screen: there is no tall tap size.
-export const NAV_CARD = { border: '1px solid var(--border)', borderRadius: 12, background: 'var(--bg-elevated)', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)' } as const
-export const TOP_CARD = { ...NAV_CARD, border: '1px solid var(--border-strong, var(--border))' } as const
+export const NAV_CARD = {
+  'css-border': '1px-solid-border',
+  'css-border-radius': '12',
+  'css-background': 'bg-elevated',
+  'css-box-shadow': '0-1px-2px-rgba-0-0-0-0.05',
+} as const satisfies LookProps
+export const TOP_CARD = { ...NAV_CARD, 'css-border': '1px-solid-border-strong-border' } as const satisfies LookProps
 export { NAV_ROW }
 // The nav's small icon buttons (Stop the line, Refresh): 28px, icon only.
 export const NAV_ICON = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 28,
-  height: 28,
-  padding: 0,
-  borderRadius: 6,
-  border: '1px solid var(--border)',
-  background: 'transparent',
-  cursor: 'pointer',
-} as const
+  'css-display': 'inline-flex',
+  'css-align-items': 'center',
+  'css-justify-content': 'center',
+  'css-width': '28',
+  'css-height': '28',
+  'css-padding': '0',
+  'css-border-radius': '6',
+  'css-border': '1px-solid-border',
+  'css-background': 'transparent',
+  'css-cursor': 'pointer',
+} as const satisfies LookProps
 // The same icons on the page's top line: square, as tall as the row (the
 // Plan a goal button beside them), never over 28px.
 export const SQUARE = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  alignSelf: 'stretch',
-  aspectRatio: '1 / 1',
-  minWidth: 24,
-  maxHeight: 28,
-  padding: 0,
-  boxSizing: 'border-box',
-  borderRadius: 6,
-  border: '1px solid var(--border)',
-  background: 'transparent',
-  cursor: 'pointer',
-} as const
+  'css-display': 'inline-flex',
+  'css-align-items': 'center',
+  'css-justify-content': 'center',
+  'css-align-self': 'stretch',
+  'css-aspect-ratio': '1-1',
+  'css-min-width': '24',
+  'css-max-height': '28',
+  'css-padding': '0',
+  'css-box-sizing': 'border-box',
+  'css-border-radius': '6',
+  'css-border': '1px-solid-border',
+  'css-background': 'transparent',
+  'css-cursor': 'pointer',
+} as const satisfies LookProps
 // The small section under the nav card that holds those icons, drawn only
 // when there is something to put in it.
 export function NavLine(props: { children: ReactNode }) {

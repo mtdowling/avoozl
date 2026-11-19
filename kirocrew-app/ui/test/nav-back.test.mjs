@@ -246,7 +246,7 @@ test('the keys and the mouse back button: ours only with a step and from the pag
   // Every modal is portaled to <body>, so it carries the page mark.
   assert.match(source('ui/Modal.tsx'), /data-modal=\{props\.id\}[\s\S]*?\{\.\.\.\{ \[APP_ATTR\]: '' \}\}/)
   assert.match(source('DocumentReader.tsx'), /<Modal\b[\s\S]*?attrs=\{\{ 'data-document-reader': true \}\}/)
-  assert.match(source('App.tsx'), /<div \{\.\.\.\{ \[APP_ATTR\]: '' \}\} style=\{\{ display: 'contents' \}\}>/)
+  assert.match(source('App.tsx'), /<Box \{\.\.\.\{ \[APP_ATTR\]: '' \}\} css-display="contents">/)
 })
 
 test('focus returns to the opener, and a restore waits for the view to grow', () => {

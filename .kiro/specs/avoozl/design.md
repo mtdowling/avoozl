@@ -3592,8 +3592,8 @@ Packages complete from their children, as now.
 page labels that view as branch progress. Canonical progress and every cross-spec
 release use accepted outcomes only. A checked box on an unmerged branch never releases
 work in another spec, which does not have that code. Marks are already outside the
-approved hash (`withoutMarks`, `src/app/spec-plans.mjs:59-71,104-119`); no code writes
-one today.
+approved hash (`withoutMarks`, `src/app/spec-plans.mjs`). Changed 2026-11-19 (§4.41):
+a tick on the base branch completes the task; a tick on any other branch still does not.
 
 #### 4.32.2 A trailer identifies work; evidence accepts it
 
@@ -4765,6 +4765,63 @@ one character changed in prose, `after` or `done` does not.
 `spec-conversion.test.mjs` as above. `kirocrew-planner.test.mjs`: the
 planner prompt's example folder lints clean.
 
+### 4.41 A tick on the base branch completes the task
+
+**Why.** A task ticked in `tasks.md` stayed planned until the next approval
+read the stored revision. The owner wants the commit that ticks it to be
+enough.
+
+**What it does.** On each tick of the workspace, `applyBaseTicks`
+(`operations.mjs`) takes each approved spec and reads its `tasks.md` from the
+base branch by git (`spec-ticks.mjs` `baseTasks`): the project's
+`baseBranch`, or the plans branch for a plans-repository spec. The working
+tree is never read, so an unsaved edit and a worker branch count for nothing.
+A private spec read from the plans branch uses that read. A read runs again
+only when the branch head or the approved revision moved. `applyTicks`
+compares the `[x]` items with the database:
+
+- A ticked item whose task is not done becomes `accepted`. Its
+  `acceptanceEvidence.baseline` holds the file, line, branch and commit, and
+  `integration` holds the commit that ticked it (`git log -G` on `tasks.md`).
+  In plans-repository mode the plans branch is cached without history, so the
+  commit is the branch head at the first read. One `task.ticked` Activity line
+  is written.
+- A parent's ticked box completes its open sub-items.
+- An open worker session binding for the task is closed and one
+  `worker.released` Activity line says so. Avoozl cannot close the chat
+  itself; it stops observing and dispatching to it.
+- Each read stores the ticked IDs under the meta key `spec-ticks:<plan>`. An
+  ID that was ticked and is open now, on a done task, sets `task.untick`. The
+  Conflicts view shows it as an `untick` item; `conflicts.settle` with
+  `reopen` returns the task to planned, and with `keep` clears the item.
+- Marks stay outside the revision hash (`withoutMarks`), so none of this
+  creates a revision, an approval or a GitHub change by itself.
+- A task with `acceptFrom: validation` is skipped (Requirement 38.4).
+- Lint reports `task.ticked-unknown-id` for a ticked item with no task ID.
+
+**Write side: ticks are the shared state.** Each machine's SQLite is private,
+so the base branch's `tasks.md` is how coworkers learn a task is done.
+
+- Direct landing builds each landing candidate in a worktree
+  (`stackMembers`, `merge-batch.mjs`). Each member is merged with
+  `--no-commit`, `tickEntry` (`spec-ticks.mjs`) ticks its task in the
+  worktree, and one merge commit holds both. `tickedText` changes only the
+  mark character of that line, then ticks a parent whose children are all
+  ticked and that sits above a task just ticked.
+- A spec in another repository (`tickPlansRepo`): after the push, the
+  workspace's planning checkout fetches the plans branch, ticks in a
+  detached worktree, commits, and pushes without force; a rejected push
+  fetches again and starts over, five times. A plans branch with no local
+  checkout is not written.
+- A task Avoozl landed has `integration.commit`, so the read side treats its
+  tick as known (no Activity line, no worker released).
+- The read side fetches `origin/<base>` (once per checkout and tick) and reads
+  that, so a coworker's pushed tick reaches this machine. A checkout with no
+  remote reads its own branch.
+- Not covered: the pull-request landing and the local integrate path do not
+  tick in their commit yet. A tick there arrives when a person ticks it on
+  the base branch.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
@@ -5528,7 +5585,8 @@ P18 checks them (F39).
   (changed 2026-11-18, §4.40: there is no manifest file).
 - **Waves.** Kiro computes its own waves from `tasks.md` when it runs all
   tasks (F47). Avoozl ignores them: its graph comes only from the `Facts:` bullets.
-  `tasks.md` checkbox marks are not Avoozl state either.
+  A `[x]` mark on the base branch completes its task (§4.41); other marks are
+  not Avoozl state.
 - **Bugfix specs.** A `bugfix.md` spec maps the same way. Its unchanged
   behavior clauses become acceptance on the fix leaves.
 - **Validation** refuses: a missing folder; a missing `design.md` or

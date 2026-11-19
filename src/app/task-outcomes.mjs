@@ -2,8 +2,9 @@
 //
 // An outcome is a durable record bound to a spec, a task, the approved
 // revision hash and the task's definition digest, plus its commit and
-// evidence. Only the latest valid outcome counts. Branch checkmarks are
-// progress, never outcomes, and stay outside the revision hash
+// evidence. Only the latest valid outcome counts. Checkmarks on a working
+// branch are progress, never outcomes; a tick on the base branch completes
+// the task (spec-ticks.mjs). Marks stay outside the revision hash
 // (`withoutMarks` in spec-plans.mjs).
 import { digest } from "../model.mjs";
 

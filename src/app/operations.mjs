@@ -45,6 +45,7 @@ import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { applicationRoot } from "./config.mjs";
 import { mcpRefusal } from "./mcp-policy.mjs";
+import { asActor, currentActor } from "./github-posted.mjs";
 import { taskDiff, taskFiles } from "./task-files.mjs";
 import {
   bindDriver,
@@ -452,6 +453,7 @@ import {
   seenCheckNames,
 } from "./github-branch-rules.mjs";
 import { settleConflicts } from "./conflict-actions.mjs";
+import { applyTicks, baseTasks, tickCommit } from "./spec-ticks.mjs";
 import {
   declaredSources,
   editSource,
@@ -974,6 +976,19 @@ function reviewSettings({ delivery, error = null } = {}) {
   };
 }
 
+// Who an operation's GitHub posts are for (github-posted.mjs), or null when
+// the context does not say and an enclosing operation's actor holds. An
+// agent, a plugin and the tick are marked; so is a caller nobody named. A
+// review draft is the person's: it is a pending review under their login
+// that GitHub publishes only when they submit it.
+const AUTOMATION = new Set(["workspace.tick"]);
+export function postingActor(name, context) {
+  if (name === "reviewdraft.post") return "person";
+  if (context.caller || context.mcp || context.plugin) return "agent";
+  if (AUTOMATION.has(name)) return "avoozl";
+  return context.person === true ? "person" : null;
+}
+
 export class Operations {
   constructor(
     store,
@@ -1350,6 +1365,52 @@ export class Operations {
       this.privateSpecsAt = now;
     } catch {
       // Keep the last list.
+    }
+  }
+  // A tick on a spec's base branch completes its task (spec-ticks.mjs). Read
+  // again only when the branch head or the approved revision moved.
+  async applyBaseTicks() {
+    this.ticksSeen ??= new Map();
+    this.ticksFetched = new Set();
+    const projects = this.store.list("projects");
+    for (const plan of this.store.list("plans")) {
+      if (
+        !plan.spec ||
+        plan.deletedAt ||
+        !Object.keys(plan.mapping ?? {}).length
+      )
+        continue;
+      try {
+        if (pullFor(this.store, plan.spec)) continue;
+        const spec = this.readSpec(plan.spec);
+        if (!spec.exists) continue;
+        const branch = spec.root
+            ? spec.home === "plansBranch"
+              ? spec.ref
+              : projects.find((p) => p.root === spec.root)?.baseBranch || "main"
+            : spec.ref,
+          read = spec.root
+            ? await baseTasks(spec.root, branch, plan.spec, {
+                fetched: this.ticksFetched,
+              })
+            : { head: this.privateSpecsHead, text: spec.files["tasks.md"] };
+        if (!read?.text) continue;
+        const seen = `${read.head}:${plan.approvalId}`;
+        if (read.head && this.ticksSeen.get(plan.id) === seen) continue;
+        await applyTicks(this.store, plan, {
+          ...read,
+          branch,
+          // shortcut: the plans branch is cached with no history, so a tick
+          // there names the branch head it was first read at; use the
+          // contents API's commit list for the exact commit if that matters.
+          find: spec.root
+            ? (key) => tickCommit(spec.root, read.ref, plan.spec, key)
+            : async () => null,
+        });
+        this.ticksSeen.set(plan.id, seen);
+      } catch {
+        // Read again on the next tick.
+      }
     }
   }
   // Every spec folder the mode reads, in both homes (RC25.2), each with its
@@ -2695,9 +2756,14 @@ export class Operations {
   // only to open it, read it, or close it.
   // `context.caller` is the gateway-attested Kiro Crew session calling through
   // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
+  // `context.person` is a person's own call: the page's owner session or a
+  // CLI command outside any agent. Their GitHub posts go out as written.
   async execute(name, input = {}, expectedRevision, context = {}) {
-    const result = await withSource(sourceOfOperation(name), () =>
-      this.perform(name, input, expectedRevision, context),
+    const actor = postingActor(name, context) ?? currentActor() ?? "unknown";
+    const result = await asActor(actor, () =>
+      withSource(sourceOfOperation(name), () =>
+        this.perform(name, input, expectedRevision, context),
+      ),
     );
     // One activity row for a listed local action (§4.19); never fails it.
     recordOperation(this.store, name, input, result, {
@@ -3122,6 +3188,7 @@ export class Operations {
       });
       if (remote) return remote;
       await this.refreshPrivateSpecs();
+      await this.applyBaseTicks();
       if (input.cron === true) {
         const driving = Object.keys(store.getMeta("specDrivers") ?? {}),
           journalFor = async (planId) => {

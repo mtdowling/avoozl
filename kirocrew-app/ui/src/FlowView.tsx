@@ -50,6 +50,7 @@ import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
 import { Glyph } from './ui/Glyph'
+import { TONE } from './ui/tones.ts'
 
 // A stacked bar by stage, scaled to `scale` ms (the longest bar shown).
 export function StageBar({ stages, scale, label }: { stages: Record<string, number>; scale: number; label: string }) {
@@ -389,7 +390,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
           <MetricCards view={view} />
           {view.bottleneck && (
             <Card flex items="start" gap="2" size="sm">
-              <Gauge size={18} aria-hidden="true" style={{ color: STAGE_COLORS[view.bottleneck.stage], flex: 'none' }} />
+              <Glyph icon={Gauge} size={18} aria-hidden="true" css-color={STAGE_COLORS[view.bottleneck.stage]} css-flex="none" />
               <span>
                 <Box as="span" weight="semibold">
                   Biggest bottleneck: {STAGE_LABELS[view.bottleneck.stage]}
@@ -459,7 +460,7 @@ export function TimingFold({
               css-width="8"
               css-height="8"
               css-border-radius="2"
-              css-background={STAGE_COLORS[span.stage as keyof typeof STAGE_COLORS] ?? 'var(--muted)'}
+              css-background={STAGE_COLORS[span.stage as keyof typeof STAGE_COLORS] ?? TONE.muted}
               css-flex="none"
             />
             <span>{STAGE_LABELS[span.stage as keyof typeof STAGE_LABELS] ?? span.stage}</span>

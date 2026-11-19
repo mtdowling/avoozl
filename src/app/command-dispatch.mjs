@@ -502,7 +502,13 @@ export async function dispatchCommand({ claim, request, context }) {
     if (needs)
       return { status: 409, body: { error: needs, needsKiroCrew: true } };
     const { ops } = context.operations(context.workspaceFor(workspaceId));
-    const result = await ops.execute(operation, input, expectedRevision);
+    // Only the owner session writes (principalAllows): it is the person.
+    const result = await ops.execute(
+      operation,
+      input,
+      expectedRevision,
+      claim.kind === "owner-session" ? { person: true } : {},
+    );
     return {
       status: 200,
       body: {

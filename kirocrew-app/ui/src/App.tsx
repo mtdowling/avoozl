@@ -370,7 +370,7 @@ function AvoozlPage() {
     <WorkspacePill list={list} value={workspaceId} onChange={setWorkspaceId} onManage={openWorkspaces} />
   )
   return (
-    <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
+    <Box {...{ [APP_ATTR]: '' }} css-display="contents">
       <ConfirmProvider>
         <SpecLinkContext.Provider value={openSpec}>
           <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
@@ -421,12 +421,16 @@ function AvoozlPage() {
                       {error}
                     </Box>
                   )}
-                  <div
+                  <Box
                     ref={(element) => {
                       nav.scroller.current = element
                     }}
                     data-avoozl-pane
-                    className={`flex-1 min-h-0 overflow-y-auto pb-8 ${phone ? 'px-4' : 'px-2'}`}
+                    flex1
+                    minH0
+                    overflow="y-auto"
+                    pb="8"
+                    px={phone ? '4' : '2'}
                   >
                     {needsWorkspace ? (
                       <EmptyState
@@ -502,13 +506,13 @@ function AvoozlPage() {
                         onOpenPlans={() => chooseTab('plans')}
                       />
                     )}
-                  </div>
+                  </Box>
                 </Box>
               </Box>
             </Box>
           </TaskDrawerProvider>
         </SpecLinkContext.Provider>
       </ConfirmProvider>
-    </div>
+    </Box>
   )
 }

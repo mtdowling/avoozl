@@ -42,29 +42,27 @@ export function RailButton(props: { groups: NavGroup[]; value: string; child?: s
       </PlainButton>
     )
   return (
-    <button
+    <PlainButton
       type="button"
       data-top-rail-bar
       aria-expanded={props.open}
       aria-controls="avoozl-top-rail-list"
       aria-label={props.open ? 'Close the menu' : 'Open the menu'}
       onClick={() => props.onOpenChange(!props.open)}
-      style={{
-        ...TOP_CARD,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        minWidth: 0,
-        flex: '1 1 auto',
-        height: 28,
-        boxSizing: 'border-box',
-        padding: '0 10px',
-        color: 'inherit',
-        cursor: 'pointer',
-        fontSize: 14,
-        fontWeight: 600,
-        textAlign: 'left',
-      }}
+      {...TOP_CARD}
+      css-display="flex"
+      css-align-items="center"
+      css-gap="8"
+      css-min-width="0"
+      css-flex="1-1-auto"
+      css-height="28"
+      css-box-sizing="border-box"
+      css-padding="0-10px"
+      css-color="inherit"
+      css-cursor="pointer"
+      css-font-size="14"
+      css-font-weight="600"
+      css-text-align="left"
     >
       {/* One line: the page's label, then its sub-page, each cut short. */}
       <Box as="span" css-min-width="0" css-flex="1-1-auto" css-display="flex" css-align-items="center" css-gap="4" css-overflow="hidden" css-white-space="nowrap">
@@ -78,7 +76,7 @@ export function RailButton(props: { groups: NavGroup[]; value: string; child?: s
       <Box aria-hidden="true" as="span" css-display="inline-flex" css-flex-shrink="0" css-color="muted">
         <PanelLeftOpen size={16} />
       </Box>
-    </button>
+    </PlainButton>
   )
 }
 

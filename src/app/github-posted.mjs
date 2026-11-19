@@ -1,9 +1,12 @@
-// What Avoozl posts to GitHub as comments, reviews, review line comments and
-// pull request bodies. Each `@login` mention is broken with a zero-width
-// space after the `@`, so a post never notifies anyone, and each post ends
-// with a hidden marker. Code spans, fences and HTML comments are left as
-// written. A comment that carries the marker is Avoozl's own text: no intake,
-// responder or trigger path starts or resumes work from it.
+// What an agent or Avoozl's own automation posts to GitHub as comments,
+// reviews, review line comments and pull request bodies. Each `@login`
+// mention is broken with a zero-width space after the `@`, so a post never
+// notifies anyone, and each post ends with a hidden marker. Code spans,
+// fences and HTML comments are left as written. A comment that carries the
+// marker is Avoozl's own text: no intake, responder or trigger path starts or
+// resumes work from it. A person's own write goes out as written.
+import { AsyncLocalStorage } from "node:async_hooks";
+
 export const POSTED = "<!-- avoozl:posted -->";
 
 const ZWSP = "​";
@@ -60,3 +63,12 @@ export function postedText(text) {
     ? `${defused.replace(/\s+$/, "")}\n\n${POSTED}`
     : POSTED;
 }
+
+// Who the current operation writes for: "person", "agent", "avoozl" (the
+// tick) or "unknown". Operations.execute sets it around each operation.
+const actors = new AsyncLocalStorage();
+export const asActor = (actor, run) => actors.run(actor, run);
+export const currentActor = () => actors.getStore() ?? null;
+// Whether a post goes out as written: only for a person. An unknown actor is
+// marked.
+export const personPosting = () => currentActor() === "person";
