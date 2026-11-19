@@ -149,15 +149,16 @@ export function sandboxEnv(env = process.env, { keep = [] } = {}) {
 
 // A repository's network setting: absent is off; a list of `localhost:PORT`
 // entries allows only those loopback ports (a proxy the repository names).
-export function sandboxNetwork(value) {
+// `name` is the setting, for the message: sandbox.network or modelProxy.
+export function sandboxNetwork(value, name = "sandbox.network") {
   if (value === undefined || value === "off") return { mode: "off", ports: [] };
   if (!Array.isArray(value) || !value.length)
-    fail('sandbox.network must be "off" or a list of localhost:PORT entries.');
+    fail(`${name} must be "off" or a list of localhost:PORT entries.`);
   const ports = value.map((item) => {
     const match = typeof item === "string" && LOOPBACK_PORT.exec(item);
     if (!match || Number(match[1]) > 65535)
       fail(
-        `sandbox.network holds ${JSON.stringify(item)}; only localhost:PORT is allowed.`,
+        `${name} holds ${JSON.stringify(item)}; only localhost:PORT is allowed.`,
       );
     return Number(match[1]);
   });
