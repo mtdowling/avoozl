@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { digest } from "../../model.mjs";
 import { Store } from "../store.mjs";
 import { integrateVerified } from "../delivery.mjs";
 import { landDirect } from "../direct-landing.mjs";
@@ -181,7 +182,7 @@ test("a version 1 record loads as version 2 and its task still lands", async (t)
       issue: { repository: REPOSITORY, number: 9 },
       snapshot: "s",
       acceptance: ["The change does what o/app#9 asks.", "Checks pass."],
-      definition: "d",
+      definition: digest("old fix"),
       journal: { repository: REPOSITORY, number: 9 },
     };
   const loaded = loadFix(v1);
@@ -190,7 +191,7 @@ test("a version 1 record loads as version 2 and its task still lands", async (t)
     issue: { repository: REPOSITORY, number: 9 },
   });
   assert.equal(loaded.kind, undefined);
-  assert.equal(loaded.definition, "d");
+  assert.equal(loaded.definition, digest("old fix"));
   assert.equal(loadFix({ v: 7 }), null);
   w.store.mutate("Old fix", (data) => {
     data.tasks.push({

@@ -1702,6 +1702,33 @@
             }
           }
         },
+        "triage": {
+          "type": "object",
+          "description": "The triage agent for this repository: it answers, reproduces, fixes and reviews new issues and pull requests.",
+          "additionalProperties": false,
+          "properties": {
+            "agent": { "enum": ["on", "off"], "default": "off" },
+            "existing": {
+              "enum": ["take", "skip"],
+              "default": "skip",
+              "description": "Whether the agent takes the open items already there when it is turned on, or only new ones."
+            },
+            "dailyRuns": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 50
+            },
+            "fullReviewMaxLines": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 300
+            },
+            "labels": { "enum": ["suggest", "add"], "default": "suggest" },
+            "reviews": { "enum": ["post", "draft"], "default": "post" }
+          }
+        },
         "untriaged": {
           "type": "object",
           "description": "What the Triage list shows for this repository.",

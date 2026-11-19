@@ -78,6 +78,10 @@ export const NARROW_TOOLS = {
     "tasksummary.submit",
     "Narrow tool for the task summary chat. Send your one task summary: {summary}, 2 to 4 short plain sentences (at most 800 characters). Avoozl picks the task from your session. It changes nothing else.",
   ],
+  plans_submit_triage: [
+    "triage.submit",
+    "Narrow tool for the triage chat. Send your one triage result for the issue or pull request your session is bound to: {class: question|bug|optimization|feature|pull-request|unclear, reason, labels?, duplicateOf?, answer?: {body, citations: [path]}, question?, reproduction?: {path, text}, fix?: {bounded, why}, review?: {body, comments: [{path, line, side?, body}], partial, notCovered}, toOwner?: {reason}}. Avoozl checks it, runs the reproduction itself and makes every GitHub write after its content rules. It never closes, approves or requests changes.",
+  ],
   plans_post_review_draft: [
     "reviewdraft.post",
     "Narrow tool for the review draft chat. Post your one draft review on the pull request your review draft chat is bound to: {body, comments?: [{path, line, start_line?, side?: RIGHT|LEFT, body}]}. Avoozl picks the pull request from your session and posts a PENDING review on the head commit your brief names, under the login of the person who asked; they edit and submit it. It refuses text with a secret-looking token, a URL with credentials or an absolute or home path (nothing is posted; fix it and post again), returns GitHub's refusal of a line outside the diff with nothing posted, and swaps the review label for the drafted label. It never submits, approves or requests changes.",

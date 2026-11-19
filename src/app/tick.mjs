@@ -87,6 +87,7 @@ import { intakeNotices, syncGitHubIssues } from "./github-sync.mjs";
 import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
+import { triageStep } from "./triage.mjs";
 import {
   conflictFixDispatches,
   conflictFixStep,
@@ -1138,6 +1139,24 @@ async function runTick(
             text: error.message,
           });
         }
+      // The triage agent (triage-agent §D2): read what changed, queue one
+      // run per new item, and carry out finished runs' writes.
+      let triage = { dispatch: [], notify: [] };
+      if (script && github)
+        try {
+          triage = await under("triage", triageStep)(store, github, {
+            policy: readGitHubPolicyOrNull(workspaceRoot),
+            config: memory.value || {},
+            workspaceRoot,
+          });
+          planned.notify.push(...triage.notify);
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not run the triage agent",
+            text: error.message,
+          });
+        }
       // Comment-mention steering (task 8.2), off unless a repository sets it.
       if (script && github)
         try {
@@ -1398,6 +1417,7 @@ async function runTick(
         ...planners.filter((d) => !heldTask(d.task)),
         ...retro.dispatch,
         ...reviews.filter((d) => !heldTask(d.task)),
+        ...triage.dispatch,
       ];
       // Settings › Models: the planner, retro and review-draft chats open on
       // the saved model.

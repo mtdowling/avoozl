@@ -175,7 +175,7 @@ export async function startFix(store, input = {}, context = {}) {
   return { taskId: id, fix };
 }
 
-function specFiles(task, name) {
+function specFiles(task, name, checks) {
   const text = task.approvedSource?.text || task.summary || task.title,
     from = fixIssue(task);
   const origin = from
@@ -205,6 +205,10 @@ function specFiles(task, name) {
       "",
     ].join("\n"),
     "tasks.md": [
+      "---",
+      `repo: ${task.repository}`,
+      ...(checks.length ? [`checks: ${checks.join(", ")}`] : []),
+      "---",
       `# Tasks: ${task.title}`,
       "",
       "Status: Draft",
@@ -215,7 +219,7 @@ function specFiles(task, name) {
       "  - Facts:",
       "    - done:",
       `      - ${FIX_ACCEPTANCE[0]} ${FIX_ACCEPTANCE[1]}`,
-      `  - ${(text.split(/\r?\n/).find((line) => line.trim()) || task.title).trim()}`,
+      `  - Build what the requirements' text asks; it began as fix ${task.id} and grew past one change.`,
       "",
     ].join("\n"),
   };
@@ -234,7 +238,9 @@ export function fixToSpec(store, workspaceRoot, input = {}) {
     folder = path.join(workspaceRoot, SPECS_DIRECTORY, name);
   if (fs.existsSync(folder)) fail(`Spec folder ${name} already exists.`, 409);
   fs.mkdirSync(folder, { recursive: true });
-  for (const [file, text] of Object.entries(specFiles(task, name)))
+  const project = store.get("projects", task.repository),
+    checks = (project?.checks || []).map((argv) => argv.join(" "));
+  for (const [file, text] of Object.entries(specFiles(task, name, checks)))
     fs.writeFileSync(path.join(folder, file), text);
   const spec = readSpecFolder(workspaceRoot, name),
     errors = lintSpec({

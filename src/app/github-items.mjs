@@ -246,7 +246,7 @@ export async function readPullCounts(store, github, repository, numbers) {
       fields = batch
         .map(
           (number) =>
-            `p${number}: pullRequest(number: ${Number(number)}) { number updatedAt changedFiles additions deletions isDraft reviewDecision headRefOid ${CHECK_FIELDS} }`,
+            `p${number}: pullRequest(number: ${Number(number)}) { number updatedAt changedFiles additions deletions isDraft reviewDecision headRefOid headRefName reviewRequests(first: 10) { nodes { requestedReviewer { ... on User { login } } } } ${CHECK_FIELDS} }`,
         )
         .join(" "),
       data = await github.graphql(
@@ -264,12 +264,16 @@ export async function readPullCounts(store, github, repository, numbers) {
         store.put(ITEMS, {
           ...row,
           head: node.headRefOid ?? row.head ?? null,
+          branch: node.headRefName ?? row.branch ?? null,
           counts: {
             files: node.changedFiles ?? 0,
             additions: node.additions ?? 0,
             deletions: node.deletions ?? 0,
             checks: checkCounts(node.commits?.nodes?.[0]?.commit),
             reviewDecision: node.reviewDecision ?? null,
+            reviewers: (node.reviewRequests?.nodes || [])
+              .map((entry) => entry.requestedReviewer?.login)
+              .filter(Boolean),
             draft: node.isDraft === true,
             at: row.updatedAt,
           },
@@ -296,6 +300,7 @@ const DETAIL = `query($owner: String!, $name: String!, $number: Int!) {
       ... on PullRequest {
         number title body url state merged isDraft createdAt updatedAt authorAssociation ${ACTOR}
         baseRefName headRefName headRefOid changedFiles additions deletions reviewDecision
+        files(first: 100) { nodes { path } }
         labels(first: 30) { nodes { name color } }
         assignees(first: 10) { nodes { login } }
         reviewRequests(first: 10) { nodes { requestedReviewer { ... on User { login } ... on Team { name } } } }
@@ -355,6 +360,7 @@ function detailOf(node) {
             checks: checkCounts(node.commits?.nodes?.[0]?.commit),
           },
           reviewDecision: node.reviewDecision ?? null,
+          files: (node.files?.nodes || []).map((file) => file.path),
           reviewers: [
             ...(node.reviewRequests?.nodes || []).map((entry) => ({
               login:

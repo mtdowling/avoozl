@@ -171,6 +171,7 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "merge",
     "landing",
     "cacheSeconds",
+    "triage",
   ],
   crew: ["count", "models", "template"],
   approval: ["decisionRecord"],
@@ -178,6 +179,14 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
   merge: ["method"],
   landing: ["mode", "autoMerge", "method", "mergeBatch"],
   untriaged: ["filter", "triageLabels", "ignoreOlderThanDays", "notify"],
+  triage: [
+    "agent",
+    "existing",
+    "dailyRuns",
+    "fullReviewMaxLines",
+    "labels",
+    "reviews",
+  ],
 });
 // Who may give Avoozl orders when a repository names nobody.
 export const DEFAULT_PERMISSION = "write";
@@ -768,6 +777,9 @@ function repositoryInput(value, id, mode) {
     discussions,
     untriaged,
     conflicts: conflictsInput(value.conflicts, `${label}.conflicts`),
+    ...(value.triage === undefined || value.triage === null
+      ? {}
+      : { triage: triageInput(value.triage, `${label}.triage`) }),
     // One landing block (design §4.25); `merge.method` is its older key and
     // stays the field the arming code reads.
     ...landingInput(value.landing, value.merge, label),
@@ -889,6 +901,40 @@ function untriagedInput(value, label, managedNames) {
     ignoreOlderThanDays: days,
     notify: input.notify === true,
   };
+}
+
+// The triage agent's settings (triage-agent TA1.1, TA4.2, TA7.4, design
+// §D3, §D6). Only the keys a repository sets are kept; triage.mjs fills in
+// the defaults.
+const TRIAGE_CHOICES = {
+  agent: ["on", "off"],
+  existing: ["take", "skip"],
+  labels: ["suggest", "add"],
+  reviews: ["post", "draft"],
+};
+function triageInput(value, label) {
+  const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.triage, label),
+    out = {};
+  for (const [key, choices] of Object.entries(TRIAGE_CHOICES))
+    if (input[key] !== undefined) {
+      if (!choices.includes(input[key]))
+        fail(`${label}.${key} must be ${choices.join(" or ")}.`);
+      out[key] = input[key];
+    }
+  for (const [key, max] of [
+    ["dailyRuns", 1000],
+    ["fullReviewMaxLines", 100000],
+  ])
+    if (input[key] !== undefined) {
+      if (
+        !Number.isSafeInteger(input[key]) ||
+        input[key] < 1 ||
+        input[key] > max
+      )
+        fail(`${label}.${key} must be a whole number from 1 to ${max}.`);
+      out[key] = input[key];
+    }
+  return out;
 }
 
 // A leaf's place in the repository's priority list: the best (lowest) index

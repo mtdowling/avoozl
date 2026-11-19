@@ -2070,9 +2070,30 @@ export class GitHubClient {
     return this.paginate(`/repos/${owner}/${repo}/pulls/${number}/reviews`);
   }
 
+  // A submitted review (triage-agent TA4.3, TA8.5): `event` COMMENT for the
+  // triage agent's review; APPROVE and REQUEST_CHANGES only for a person's
+  // press on the Pull requests page (the operation refuses anyone else).
+  submitReview(value, number, { event, commit_id, body, comments = [] }) {
+    if (!["COMMENT", "APPROVE", "REQUEST_CHANGES"].includes(event))
+      fail("A review event is COMMENT, APPROVE or REQUEST_CHANGES.");
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "POST",
+      `/repos/${owner}/${repo}/pulls/${number}/reviews`,
+      {
+        body: {
+          event,
+          body,
+          ...(commit_id ? { commit_id } : {}),
+          ...(comments.length ? { comments } : {}),
+        },
+      },
+    );
+  }
+
   // Review drafts (radar-coder RC20): a pending review, one review, and the
-  // delete of a pending one. There is deliberately no call that submits,
-  // approves, requests changes or dismisses: a draft is the person's to send.
+  // delete of a pending one. A draft is the person's to send.
   createPendingReview(value, number, { commit_id, body, comments }) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;

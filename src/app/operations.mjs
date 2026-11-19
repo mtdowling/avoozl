@@ -1,5 +1,6 @@
 import { allowProtectedPaths } from "./verify.mjs";
 import { fixToSpec, openFixJournal, startFix } from "./fix.mjs";
+import { triageOperation } from "./triage-operations.mjs";
 import {
   ciSettingsView,
   ciFlowView,
@@ -4539,6 +4540,10 @@ export class Operations {
       return withWorkLock(store, WORKSPACE_LOCK, async () =>
         confirmSnapshot(store, input),
       );
+    // The triage agent and the Issues and Pull requests pages
+    // (triage-operations.mjs).
+    if (name.startsWith("triage.") || name.startsWith("items."))
+      return triageOperation(this, name, input, context);
     // A fix (triage-agent TA9): one change with no spec files. Starting it
     // is the approval, so only a person starts one or makes it a spec.
     if (name === "fix.start" || name === "fix.spec") {

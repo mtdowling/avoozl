@@ -24,7 +24,7 @@ export class FakeGitHubApi {
     this.writes = [];
     this.calls = { rest: 0, notModified: 0, graphql: 0, writes: 0 };
     this.log = [];
-    this.clock = Date.parse("2026-11-18T12:00:00Z");
+    this.clock = Date.now();
   }
 
   reset() {
@@ -221,7 +221,7 @@ export class FakeGitHubApi {
       ...(pull
         ? {
             baseRefName: "main",
-            headRefName: `branch-${item.number}`,
+            headRefName: item.branch ?? `branch-${item.number}`,
             headRefOid: item.head,
             changedFiles: item.changedFiles,
             additions: item.additions,
@@ -261,6 +261,7 @@ export class FakeGitHubApi {
               isDraft: false,
               reviewDecision: null,
               headRefOid: item.head,
+              headRefName: item.branch ?? `branch-${item.number}`,
               commits: this.checks(item),
             }
           : null;

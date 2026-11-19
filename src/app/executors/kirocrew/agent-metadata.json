@@ -241,5 +241,19 @@
     "tools": ["@avoozl:avoozl/plans_submit_task_summary"],
     "allowedTools": ["@avoozl:avoozl/plans_submit_task_summary"],
     "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-triage",
+    "model": "auto",
+    "description": "Avoozl Triage: classifies one GitHub issue or pull request with read-only tools and sends one result. Avoozl makes every write.",
+    "tools": [
+      "fs_read",
+      "grep",
+      "glob",
+      "thinking",
+      "@avoozl:avoozl/plans_submit_triage"
+    ],
+    "allowedTools": ["@avoozl:avoozl/plans_submit_triage"],
+    "includeMcpJson": false
   }
 ]
