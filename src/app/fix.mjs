@@ -185,8 +185,6 @@ function specFiles(task, name) {
     "requirements.md": [
       `# Requirements: ${task.title}`,
       "",
-      "Status: Draft",
-      "",
       "## Introduction",
       "",
       `This spec holds fix ${task.id}, which grew past one change. ${origin}`,
@@ -199,8 +197,6 @@ function specFiles(task, name) {
     "design.md": [
       `# Design: ${task.title}`,
       "",
-      "Status: Draft",
-      "",
       "The design is still to write. Start from the text in the requirements.",
       "",
     ].join("\n"),
@@ -209,8 +205,6 @@ function specFiles(task, name) {
       `repo: ${task.repository}`,
       "---",
       `# Tasks: ${task.title}`,
-      "",
-      "Status: Draft",
       "",
       "## Phase 1",
       "",
