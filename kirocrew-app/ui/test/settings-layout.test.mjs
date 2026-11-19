@@ -122,7 +122,7 @@ test('Repositories: one compact list with View, Edit and a trash Remove behind A
   assert.match(repos, /No, let me choose/)
   assert.match(repos, /Yes, add it/)
   const tab = settings.slice(settings.indexOf('function RepositoriesTab('), settings.indexOf('function GeneralTab('))
-  assert.match(tab, /\{adding && <AddRepositoryModal/)
+  assert.match(tab, /\{adding && \(?\s*<AddRepositoryModal/)
   assert.doesNotMatch(tab, /<AddRepository\b/)
   assert.match(tab, /Added repositories \(\$\{rows\.length\}\)/)
   assert.match(tab, /workspaces\.removeRepository\(props\.workspaceId, target\.checkout\.id\)/)

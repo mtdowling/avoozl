@@ -902,7 +902,15 @@ function RepositoriesTab(props: {
           }}
         />
       )}
-      {adding && <AddRepositoryModal workspaceId={props.workspaceId} mode={modeKey(form.mode)} onClose={() => setAdding(false)} onAdded={(id, role) => void added(id, role)} />}
+      {adding && (
+        <AddRepositoryModal
+          workspaceId={props.workspaceId}
+          mode={modeKey(form.mode)}
+          planningTaken={(checkouts ?? []).some((c) => c.planning)}
+          onClose={() => setAdding(false)}
+          onAdded={(id, role) => void added(id, role)}
+        />
+      )}
     </Box>
   )
 }

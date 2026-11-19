@@ -316,6 +316,7 @@ test("adopting a repository reads approvals, ticks and authors from git", async 
   });
   assert.deepEqual(result.approved, ["approved-spec"]);
   assert.deepEqual(result.drafts, ["stranger-spec"]);
+  assert.deepEqual(result.done, ["approved-spec.1.1"]);
   const task = ws.store
     .read()
     .tasks.find((entry) => entry.id === "approved-spec.1.1");
