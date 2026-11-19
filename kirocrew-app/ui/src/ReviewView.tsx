@@ -199,9 +199,9 @@ function FindingCard(props: {
       </Box>
       <Box css-padding-left="22" css-display="flex" css-flex-direction="column" css-gap="4" css-min-width="0">
         <Box as="p" css-margin="0" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="2px-8px" css-font-size="11" m0>
-          <span data-severity-label style={{ fontWeight: 600, color: ink }}>
+          <Box data-severity-label as="span" css-font-weight="600" css-color={ink}>
             {SEVERITY_LABEL[finding.severity]}
-          </span>
+          </Box>
           <Hint>{finding.category}</Hint>
           <Box as="code" tone="muted" data-finding-lines={props.showFile ? 'file' : undefined}>
             {lineText(finding.anchor)}

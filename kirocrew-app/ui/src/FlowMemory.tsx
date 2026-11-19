@@ -44,9 +44,9 @@ export function DiffBlock({ diff, label }: { diff: string | undefined; label: st
       data-diff
     >
       {lines.map((line, i) => (
-        <span key={i} style={{ display: 'block', color: LINE[line.kind] }}>
+        <Box key={i} as="span" css-display="block" css-color={LINE[line.kind]}>
           {line.text || ' '}
-        </span>
+        </Box>
       ))}
     </Box>
   )
