@@ -201,7 +201,7 @@ test('Up next follows the tick dispatch order, and epics count their running cha
 })
 
 test('a review group is one Needs you row that carries its tasks', () => {
-  const group = { kind: 'review', id: 'review:spec:p', taskId: null, title: 'Review 70 tasks in p: their design text changed', detail: 'd', tasks: [] }
+  const group = { kind: 'review', id: 'review:spec:p', taskId: null, title: '70 tasks in p changed: check them', detail: 'd', tasks: [] }
   const summary = summarize({ graph: null, delivery: null, conflicts: [group, { ...group, id: 'review:spec:q' }], plans: null })
   assert.deepEqual(
     summary.attention.map((a) => [a.kind, a.taskId, a.group?.id]),
@@ -296,7 +296,7 @@ test('a remote worker from a runner shows in In flight with its crew link', () =
 
 // rc-8.1: the five-step rail on an On the line row, from the claim marker only.
 test('the rail has five steps and reads only the claim marker', () => {
-  assert.deepEqual(RAIL_STEPS, ['Ready', 'Claimed', 'PR', 'CI', 'Merge'])
+  assert.deepEqual(RAIL_STEPS, ['Ready', 'In progress', 'PR', 'CI', 'Merge'])
   const state = (row) => railFor(row).map((step) => step.state)
   // A claim label with no marker: ready, and nothing more is known.
   assert.deepEqual(state({ noMarker: true, phase: null, pr: null }), ['done', 'now', 'later', 'later', 'later'])

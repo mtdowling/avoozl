@@ -1,8 +1,8 @@
 // Repository roles (design §4.34, Requirement 105). Each repository entry may
 // name a `role`; the workspace's GitHub mode follows from the roles. This
 // module has no imports so the config loader and the policy can both use it.
-// `github.mode` and `github.planningRepository` stay readable: a file with no
-// `role` is read through them, and a file with roles gets both keys derived.
+// `github.mode` and `github.planningRepository` are derived from the roles and
+// never written. A file with no `role` is still read through them.
 
 export const ROLES = Object.freeze(["local", "code", "planning", "both"]);
 
@@ -111,6 +111,21 @@ export function deriveGitHubKeys(github) {
   return next;
 }
 
+// The `github` block as it is stored: a block with roles keeps no `mode` or
+// `planningRepository`, since the roles make both.
+export function withoutDerivedKeys(github) {
+  if (!record(github)) return github;
+  let result;
+  try {
+    result = resolveRoles(github);
+  } catch {
+    return github;
+  }
+  if (!result.fromRoles) return github;
+  const { mode, planningRepository, ...rest } = github;
+  return rest;
+}
+
 // For the Settings read: the same block with every entry's role filled in,
 // so the form shows roles for a file that has none yet. Nothing is written.
 export function withRoles(github) {
@@ -129,21 +144,4 @@ export function withRoles(github) {
     ]),
   );
   return next;
-}
-
-// One line when the file's own mode disagrees with the mode its roles make.
-export function rolesNote(github) {
-  if (!record(github)) return null;
-  let result;
-  try {
-    result = resolveRoles(github);
-  } catch {
-    return null;
-  }
-  if (!result.fromRoles) return null;
-  const was =
-      github.mode === undefined || github.mode === null ? "local" : github.mode,
-    now = result.mode ?? "local";
-  if (was === now) return null;
-  return `The file says ${was}; the roles say ${now}. Saving writes ${now}.`;
 }

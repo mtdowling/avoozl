@@ -251,7 +251,7 @@ export async function startServe({
         return json(res, 400, { error: "Send a JSON object." });
       }
       const { status, body } = await dispatchCommand({
-        claim: { kind: "owner-session", ownerId: "local" },
+        principal: { kind: "owner-session", ownerId: "local" },
         request,
         context,
       });

@@ -16,7 +16,7 @@ import {
   renameInstance,
   stripInstance,
 } from "../instance.mjs";
-import { claimsView, refreshClaims } from "../radar-claims.mjs";
+import { crewsView, refreshCrews } from "../radar-crews.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const MIRA = "inst-00000000a001",
@@ -174,7 +174,7 @@ const claimPolicy = {
   mode: "single-repo",
   repositories: {
     "example/code": {
-      crewLabels: { claim: "crew: in progress" },
+      crewLabels: { inProgress: "crew: in progress" },
       mirror: { source: "example/code", mirror: "example/code-mirror" },
     },
   },
@@ -183,8 +183,8 @@ const claimPolicy = {
 test("claims group by owning Avoozl, with a No Avoozl group for a missing marker", async (t) => {
   const store = storeOf(t),
     github = claimGitHub(store);
-  await refreshClaims(store, github, claimPolicy, { force: true });
-  const { groups } = claimsView(store);
+  await refreshCrews(store, github, claimPolicy, { force: true });
+  const { groups } = crewsView(store);
   assert.deepEqual(
     groups.map((group) => [group.name, group.rows.map((row) => row.number)]),
     [
@@ -206,7 +206,7 @@ test("claims group by owning Avoozl, with a No Avoozl group for a missing marker
 test("a read costs one list, one comment read per claim and one variable list", async (t) => {
   const store = storeOf(t),
     github = claimGitHub(store);
-  await refreshClaims(store, github, claimPolicy, { force: true });
+  await refreshCrews(store, github, claimPolicy, { force: true });
   assert.deepEqual(github.calls.sort(), [
     "comments 1",
     "comments 2",
@@ -220,10 +220,10 @@ test("a read costs one list, one comment read per claim and one variable list", 
 test("a second look within the cache age makes no GitHub call", async (t) => {
   const store = storeOf(t),
     github = claimGitHub(store);
-  await refreshClaims(store, github, claimPolicy, { force: true });
+  await refreshCrews(store, github, claimPolicy, { force: true });
   const before = github.calls.length;
-  await refreshClaims(store, github, claimPolicy);
-  claimsView(store);
+  await refreshCrews(store, github, claimPolicy);
+  crewsView(store);
   assert.equal(github.calls.length, before);
 });
 
@@ -235,6 +235,6 @@ test("an unreadable variable list leaves the ID as the group name", async (t) =>
         throw new Error("no access");
       },
     };
-  await refreshClaims(store, github, claimPolicy, { force: true });
-  assert.ok(claimsView(store).groups.some((group) => group.name === MIRA));
+  await refreshCrews(store, github, claimPolicy, { force: true });
+  assert.ok(crewsView(store).groups.some((group) => group.name === MIRA));
 });

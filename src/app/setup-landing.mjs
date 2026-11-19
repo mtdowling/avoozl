@@ -40,7 +40,10 @@ function landingInput({ repository, base, checks, methods }) {
   if (typeof base !== "string" || !base.trim() || base.startsWith("-"))
     fail("Setup needs a base branch.", 400);
   if (!Array.isArray(checks) || !checks.length)
-    fail("Setup needs at least one required check name.", 400);
+    fail(
+      "Setup needs the repository's required checks: name them under Edit repository > Landing.",
+      400,
+    );
   for (const name of checks)
     if (typeof name !== "string" || !name.trim())
       fail("A required check name must be text.", 400);

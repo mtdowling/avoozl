@@ -347,7 +347,7 @@ export function createSpecReviewFindings(
           quote,
           quoteHash: quoteHash(quote),
         },
-        claim: findingText(finding.claim, "a claim"),
+        statement: findingText(finding.statement, "a statement"),
         evidence: findingText(finding.evidence, "evidence", 20000),
       };
     return { ...entry, fingerprint: digest(JSON.stringify([round.id, entry])) };

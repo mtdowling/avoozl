@@ -11,7 +11,7 @@ import { Operations } from "../operations.mjs";
 import {
   deriveGitHubKeys,
   resolveRoles,
-  rolesNote,
+  withoutDerivedKeys,
 } from "../repository-roles.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -128,14 +128,9 @@ test("the policy derives mode and planning repository from roles", () => {
   const policy = normalizeGitHubPolicy(github);
   assert.equal(policy.mode, "plans-repo");
   assert.equal(policy.planningRepository, "a/plans");
-  assert.equal(
-    rolesNote(github),
-    "The file says single-repo; the roles say plans-repo. Saving writes plans-repo.",
-  );
-  assert.equal(
-    rolesNote({ ...github, mode: "plans-repo", planningRepository: "a/plans" }),
-    null,
-  );
+  assert.deepEqual(Object.keys(withoutDerivedKeys(github)), ["repositories"]);
+  const bare = { mode: "plans-repo", planningRepository: "a/plans" };
+  assert.deepEqual(withoutDerivedKeys(bare), bare);
 });
 
 test("an unchanged file with no roles keeps its keys and behavior", () => {
@@ -190,8 +185,8 @@ test("reading shows roles and writes nothing; one save equals two", async (t) =>
     expectedHash: before.hash,
   });
   const saved = JSON.parse(fs.readFileSync(filename, "utf8")).github;
-  assert.equal(saved.mode, "plans-repo");
-  assert.equal(saved.planningRepository, "a/plans");
+  assert.equal(saved.mode, undefined);
+  assert.equal(saved.planningRepository, undefined);
   assert.equal(saved.repositories["a/app"].role, "code");
   assert.equal(saved.repositories["a/plans"].role, "planning");
   const again = await ops.execute("github.settings.update", {
@@ -201,7 +196,7 @@ test("reading shows roles and writes nothing; one save equals two", async (t) =>
   assert.equal(again.hash, first.hash);
 });
 
-test("saving roles writes the derived mode and refuses a mix without writing", async (t) => {
+test("saving roles reads back the derived mode and refuses a mix without writing", async (t) => {
   const { ops, filename } = workspace(t, {
     mode: "single-repo",
     repositories: repos({ "a/app": undefined, "a/lib": undefined }),
@@ -217,6 +212,10 @@ test("saving roles writes the derived mode and refuses a mix without writing", a
   assert.equal(saved.github.mode, "plans-repo");
   assert.equal(saved.github.planningRepository, "a/app");
   assert.equal(saved.effective.mode, "plans-repo");
+  assert.equal(
+    JSON.parse(fs.readFileSync(filename, "utf8")).github.mode,
+    undefined,
+  );
   const text = fs.readFileSync(filename, "utf8");
   next.repositories["a/lib"].role = "both";
   await assert.rejects(

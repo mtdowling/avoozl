@@ -95,7 +95,7 @@ async function both(t) {
     return { status: response.status, body: await response.json() };
   };
   const direct = (request) =>
-    dispatchCommand({ claim: OWNER, request, context });
+    dispatchCommand({ principal: OWNER, request, context });
   return { viaBackend, direct };
 }
 

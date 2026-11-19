@@ -564,7 +564,7 @@ export async function requestChanges(store, github, { id }) {
   if (!open.length) fail("The review has no open findings to post.", 409);
   const lines = open.map(
     (finding) =>
-      `- ${finding.severity ?? "info"}${finding.file ? ` (${finding.file}${finding.line ? `:${finding.line}` : ""})` : ""}: ${finding.claim}`,
+      `- ${finding.severity ?? "info"}${finding.file ? ` (${finding.file}${finding.line ? `:${finding.line}` : ""})` : ""}: ${finding.statement}`,
   );
   await github.createIssueComment(
     pull.repository,

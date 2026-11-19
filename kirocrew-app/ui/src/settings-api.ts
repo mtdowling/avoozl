@@ -111,8 +111,6 @@ export interface GitHubSettings {
   rate?: RateView
   review?: ReviewSettings
   choices: SettingsChoices
-  // The file's own mode when it disagrees with the roles, else null (R105.8).
-  rolesNote?: string | null
 }
 
 export interface Validation {
@@ -283,8 +281,6 @@ export interface RepositoryForm {
   allowedActors: string
   minimumPermission: string
   requiredChecks: string
-  // github.repositories.<id>.cacheSeconds; blank follows the workspace value.
-  cacheSeconds: string
   // Release (RC4.5): the mode, and how many crews work the repository.
   releaseMode: string
   releaseCapacity: string
@@ -295,12 +291,8 @@ export interface RepositoryForm {
   reviewApprovals: string
   managedLabels: Record<string, string>
   crewLabels: Record<string, string>
-  // The label that approves a drafted plan (radar.approvalLabel); blank is the default.
-  approvalLabel: string
-  // Issue Radar crew labels (radar.planLabel, radar.conflictLabel); blank
-  // is the shown default.
+  // Issue Radar crew label (radar.planLabel); blank is the shown default.
   planLabel: string
-  conflictLabel: string
   // conflicts.maxAttempts; blank is the default.
   maxAttempts: string
   // The landing block (design §4.25): landing.mode (direct, pr,
@@ -453,8 +445,7 @@ const SHOWN = new Set([
   'allowedActors',
   'minimumPermission',
   'requiredChecks',
-  'cacheSeconds',
-  'priority',
+  'priorityLabels',
   'pullRequestReviews',
   'managedLabels',
   'crewLabels',
@@ -483,7 +474,6 @@ export function emptyRepository(name = ''): RepositoryForm {
     allowedActors: '',
     minimumPermission: '',
     requiredChecks: '',
-    cacheSeconds: '',
     releaseMode: '',
     releaseCapacity: '',
     priority: '',
@@ -491,9 +481,7 @@ export function emptyRepository(name = ''): RepositoryForm {
     reviewApprovals: '',
     managedLabels: {},
     crewLabels: {},
-    approvalLabel: '',
     planLabel: '',
-    conflictLabel: '',
     maxAttempts: '',
     landingMode: '',
     autoMerge: '',
@@ -525,17 +513,14 @@ export function toForm(github: Policy): SettingsForm {
         allowedActors: joined(entry.allowedActors),
         minimumPermission: str(entry.minimumPermission),
         requiredChecks: joined(entry.requiredChecks),
-        cacheSeconds: str(entry.cacheSeconds),
         releaseMode: str(record(entry.release).mode),
         releaseCapacity: str(record(entry.release).capacity),
-        priority: joined(entry.priority),
+        priority: joined(entry.priorityLabels),
         pullRequestReviews: reviews !== undefined && reviews !== null,
         reviewApprovals: str(record(reviews).approvals),
         managedLabels: strings(entry.managedLabels),
         crewLabels: strings(entry.crewLabels),
-        approvalLabel: str(record(entry.radar).approvalLabel),
         planLabel: str(record(entry.radar).planLabel),
-        conflictLabel: str(record(entry.radar).conflictLabel),
         maxAttempts: str(record(entry.conflicts).maxAttempts),
         landingMode: str(record(entry.landing).mode),
         autoMerge: (() => {
@@ -581,7 +566,7 @@ export function toForm(github: Policy): SettingsForm {
             forwardAllow: joined(mirror.forwardAllow),
           }
         })(),
-        // radar keeps its other keys (planLabel, conflictLabel, clearPlanLabel).
+        // radar keeps its other keys (escalationDraft).
         rest: Object.fromEntries(Object.entries(entry).filter(([key]) => !SHOWN.has(key))),
       }
     }),
@@ -598,11 +583,10 @@ function named(values: Record<string, string>) {
   return Object.keys(kept).length ? kept : undefined
 }
 
-// Every top-level policy key is present; null clears it on save.
+// Every top-level policy key is present; null clears it on save. The mode
+// and planning repository are not written: the roles make them.
 export function toPolicy(form: SettingsForm): Policy {
   return {
-    mode: blank(form.mode) ?? null,
-    planningRepository: blank(form.planningRepository) ?? null,
     epicIssueType: blank(form.epicIssueType) ?? null,
     cacheSeconds: count(form.cacheSeconds) ?? null,
     writesPerMinute: count(form.writesPerMinute) ?? null,
@@ -618,13 +602,12 @@ export function toPolicy(form: SettingsForm): Policy {
               allowedActors: splitList(repository.allowedActors),
               minimumPermission: blank(repository.minimumPermission),
               requiredChecks: splitList(repository.requiredChecks),
-              cacheSeconds: count(repository.cacheSeconds),
               // The mode and capacity are shown; scopes pass through unchanged.
               release: (() => {
                 const release = compact({ ...record(repository.rest.release), mode: blank(repository.releaseMode), capacity: count(repository.releaseCapacity) })
                 return Object.keys(release).length ? release : undefined
               })(),
-              priority: splitList(repository.priority),
+              priorityLabels: splitList(repository.priority),
               // Present means on; a blank count leaves the backend's default (1).
               pullRequestReviews: repository.pullRequestReviews ? compact({ approvals: count(repository.reviewApprovals) }) : undefined,
               managedLabels: named(repository.managedLabels),
@@ -632,9 +615,7 @@ export function toPolicy(form: SettingsForm): Policy {
               radar: (() => {
                 const radar = compact({
                   ...record(repository.rest.radar),
-                  approvalLabel: blank(repository.approvalLabel),
                   planLabel: blank(repository.planLabel),
-                  conflictLabel: blank(repository.conflictLabel),
                   reviewLabel: blank(repository.reviewLabel),
                   draftedLabel: blank(repository.draftedLabel),
                 })
@@ -683,16 +664,12 @@ export interface FieldRule {
 export const REPOSITORY_FIELD_RULES: Record<string, FieldRule> = {
   name: { required: true },
   baseBranch: { required: true, when: 'with a GitHub mode' },
-  cacheSeconds: { required: false, blank: 'blank: the workspace value' },
   releaseCapacity: { required: false, blank: 'blank: no limit' },
   allowedActors: { required: false, blank: 'blank: anyone with the minimum permission' },
   minimumPermission: { required: false, blank: 'blank: write, unless actors are named' },
   managed: { required: true, when: 'to create issues' },
   ready: { required: true, when: 'to create issues' },
   responding: { required: false, blank: 'needed only for a respond rule' },
-  planning: { required: false, blank: 'blank: Avoozl adds none' },
-  stale: { required: false, blank: 'blank: Avoozl adds none' },
-  decision: { required: false, blank: 'blank: Avoozl adds none' },
 }
 
 // What managed label each state shows, in plain words.
@@ -700,9 +677,6 @@ export const MANAGED_LABEL_TEXT: Record<string, string> = {
   managed: 'Managed issue',
   ready: 'Ready to code',
   responding: 'Responding',
-  planning: 'Planning',
-  stale: 'Stale claim',
-  decision: 'Needs a decision',
 }
 
 // The first required setting the form leaves blank, as a sentence, or null.
@@ -1074,24 +1048,14 @@ export function settingsTabOnEnter<T extends string>(from: string, to: string, c
 export const RADAR_DEFAULTS_SHOWN = {
   planLabel: 'avoozl:plan',
   ready: 'avoozl:ready',
-  approvalLabel: 'avoozl:plan-approved',
-  conflictLabel: 'avoozl:merge-conflict',
   reviewLabel: 'avoozl:review',
   draftedLabel: 'avoozl:drafted',
 } as const
 
-// The six Avoozl labels in Settings: what each does and who writes it (RC21.4).
+// The four Avoozl labels in Settings: what each does and who writes it (RC21.4).
 export const AVOOZL_LABELS = [
   { key: 'planLabel', label: 'Planning', raw: 'radar.planLabel', job: 'Asks Avoozl to plan an issue.', writer: 'A person you trust adds it.' },
   { key: 'ready', label: 'Ready', raw: 'managedLabels.ready', job: "Marks an issue a crew may take. Set the crew's label scope to it.", writer: 'Avoozl adds and removes it.' },
-  {
-    key: 'approvalLabel',
-    label: 'Plan approved',
-    raw: 'radar.approvalLabel',
-    job: 'Approves the drafted plan of the issue it is on.',
-    writer: 'A person you trust, or Avoozl after an approval.',
-  },
-  { key: 'conflictLabel', label: 'Merge conflict', raw: 'radar.conflictLabel', job: 'Shows a pull request has a merge conflict.', writer: 'Avoozl adds and removes it.' },
   { key: 'reviewLabel', label: 'Review', raw: 'radar.reviewLabel', job: 'Asks Avoozl to draft a review of a pull request for you.', writer: 'A person you trust adds it.' },
   { key: 'draftedLabel', label: 'Drafted', raw: 'radar.draftedLabel', job: 'Shows a draft review waits for you to submit.', writer: 'Avoozl adds and removes it.' },
 ] as const
@@ -1105,9 +1069,6 @@ export const MERGE_METHOD_TEXT: Record<(typeof MERGE_METHODS)[number], { title: 
   squash: { title: 'Squash', line: 'One commit per pull request on the base, with its title and body. The repository must allow squash merging.' },
   merge: { title: 'Merge commit', line: 'The branch lands with a merge commit. The repository must allow merge commits.' },
 }
-
-export const OLD_LABEL_NOTE =
-  'The defaults now start with avoozl:. A repository that used the old names (to plan, ready, plan approved, merge conflict) without setting them reads the new names now; type the old name here to keep it.'
 
 export const valueSource = (value: string, fallback: string, unit = '') =>
   value.trim() ? `Set on this repository: ${value.trim()}${unit}.` : `Not set on this repository. Using the default (${fallback}${unit}).`

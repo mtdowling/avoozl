@@ -1,10 +1,10 @@
 // The driver's tick checks what a worker machine pushed (worker-paths WP5.3,
-// design D8). For each acknowledged claim of a spec this machine drives, it
+// design D8). For each acknowledged grant of a spec this machine drives, it
 // reads the head of the task's checkpoint branch on the worker's fork, has
 // worker-results.mjs fetch it, check its paths and run the checks again, and
 // integrates a verified head into the spec's working branch. A result that
 // fails any of that is a failed attempt on the driver, with the reason. A
-// task nobody claimed (no claim record) is never read, so a stranger's branch
+// task nobody was granted (no grant record) is never read, so a stranger's branch
 // is ignored. Each judged head is remembered, so a head is judged once.
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -148,8 +148,8 @@ export async function workerResultsStep(
       }),
     );
     if (state.held) continue;
-    for (const claim of state.claims) {
-      const [{ task: id, definition }] = claim.tasks,
+    for (const grant of state.grants) {
+      const [{ task: id, definition }] = grant.tasks,
         key = `${spec}:${id}:${definition}`,
         settled = state.outcomes.some(
           (o) =>
@@ -159,7 +159,7 @@ export async function workerResultsStep(
         ),
         offer = state.offers.find(
           (o) =>
-            o.worker === claim.worker &&
+            o.worker === grant.worker &&
             o.tasks[0].task === id &&
             o.tasks[0].definition === definition,
         ),
@@ -230,7 +230,7 @@ export async function workerResultsStep(
         // attempt on the driver.
         const decision = outcome === "protected";
         failedAttempt(store, task, {
-          worker: claim.worker,
+          worker: grant.worker,
           cause,
           state: decision ? "decision" : "failed",
           at: now(),

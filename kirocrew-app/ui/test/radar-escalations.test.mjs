@@ -23,7 +23,7 @@ test('the confirm says what Avoozl writes and that the crew label stays', () => 
 test('a live crew claim asks to take it over', () => {
   const ask = escalationAsk('o/app #14', 'Round or truncate?', { ...ESCALATION, claimed: true }, 'plan')
   assert.equal(ask.title, 'Take over o/app #14?')
-  assert.match(ask.body, /crew has claimed this issue/)
+  assert.match(ask.body, /crew is working on this issue/)
   assert.match(ask.body, /does not remove/)
 })
 

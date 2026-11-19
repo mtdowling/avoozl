@@ -17,7 +17,7 @@ export type EditTab = (typeof EDIT_TABS)[number]['key']
 export const EDIT_TAB_FIELDS: Record<EditTab, readonly (keyof RepositoryForm)[]> = {
   general: ['name'],
   landing: ['baseBranch', 'releaseCapacity', 'landingMode', 'autoMerge', 'mergeMethod', 'maxAttempts', 'requiredChecks', 'pullRequestReviews', 'reviewApprovals'],
-  github: ['cacheSeconds', 'rules', 'managedLabels', 'untriaged', 'minimumPermission', 'allowedActors', 'priority'],
+  github: ['rules', 'managedLabels', 'untriaged', 'minimumPermission', 'allowedActors', 'priority'],
   mirror: ['mirror'],
   map: [],
 }

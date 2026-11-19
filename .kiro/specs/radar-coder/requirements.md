@@ -127,9 +127,8 @@ and no stranger's issue reaches a plan.
    `crew: in progress`, and the needs-human label as Radar shows it. The
    Settings page SHALL show each name, what it does and who writes it.
 4. Avoozl SHALL NOT write Radar's claim or needs-human labels (Requirement
-   17.4, 52), except the one claim at approval (RC19). It SHALL write the planning label only to remove it after a plan
-   is projected, and only when the person set the repository's
-   `radar.clearPlanLabel` to on. Default: off.
+   17.4, 52), except the one claim at approval (RC19). It SHALL NOT write
+   the planning label.
 5. The `plan me` hand-off SHALL route as PR 67 built it: a trusted author, or
    the marker path, or `acceptedLabel` added by an allowed person. A
    `new-feature`, `architecture` or `needs-design` skip SHALL go to Intake. Any
@@ -483,7 +482,7 @@ machine, and what to change, without opening a crew's chat.
    update from GitHub and a Stale badge. It SHALL NOT claim to know a crew's
    machine, paused state or chat unless Variant A or the owner's machine map
    says so.
-5. Flow SHALL come from GitHub data: Ready to Claim, Claim to PR, PR to green,
+5. Flow SHALL come from GitHub data: Ready to start, Start to PR, PR to green,
    green to merge, and flow efficiency. Stop the line SHALL keep its meaning in
    RC4.3.
 6. **Retros** SHALL propose rule changes with a target. A change to
@@ -1005,16 +1004,18 @@ people know which labels belong to Avoozl.
    | ------------ | ---------------------- | ------------------------ |
    | Planning     | `radar.planLabel`      | `avoozl:plan`            |
    | Ready        | `managedLabels.ready`  | `avoozl:ready`           |
-   | Approval     | `radar.approvalLabel`  | `avoozl:plan-approved`   |
-   | Conflict     | `radar.conflictLabel`  | `avoozl:merge-conflict`  |
    | Review       | `radar.reviewLabel`    | `avoozl:review`          |
    | Drafted      | `radar.draftedLabel`   | `avoozl:drafted`         |
+
+   The approval (`avoozl:plan-approved`) and merge-conflict
+   (`avoozl:merge-conflict`) labels have fixed names that Set up creates;
+   nothing reads a setting for them.
 
    This changes the proposed defaults of RC1.3, RC5.6 and RC18.1 and the D2
    table. Only defaults change: a value set in `.avoozl.json` SHALL keep
    working unchanged.
-2. Any two of planning, ready, approval, conflict, review, drafted, Radar's
-   needs-human label and Radar's claim label SHALL be refused when equal,
+2. Any two of planning, ready, review, drafted, Radar's needs-human label
+   and Radar's in-progress label SHALL be refused when equal,
    naming both, as RC1.3 does. A name that is one of the repository's other
    managed labels SHALL also be refused.
 3. Radar's claim and needs-human labels SHALL stay Radar's: Avoozl reads them
@@ -1026,8 +1027,8 @@ people know which labels belong to Avoozl.
    labels with the others.
 5. Settings and Set up SHALL say, once, that a repository relying on the old
    defaults (`to plan`, `ready`, `plan approved`, `merge conflict`) now reads
-   the new names, and that setting the old name keeps it, and that a crew's
-   label scope must match the ready label (RC1.6).
+   the new names, and that a crew's label scope must match the ready label
+   (RC1.6).
 
 ### Requirement RC22: The Workflow map in Settings
 

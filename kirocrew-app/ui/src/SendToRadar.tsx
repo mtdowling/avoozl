@@ -248,7 +248,7 @@ export function SendToRadar(props: { workspaceId: string; client: Client; items:
             </Box>
           ))}
           <Hint as="p" size="xs">
-            To undo, remove the label on GitHub before a crew claims the issue.
+            To undo, remove the label on GitHub before a crew picks the issue up.
           </Hint>
         </Box>
       )}

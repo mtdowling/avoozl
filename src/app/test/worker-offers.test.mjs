@@ -123,19 +123,19 @@ test("a fork keeps its own identity and an unregistered source is refused", asyn
   assert.match(result.refused[0].reason, /not a registered repository/);
 });
 
-test("a claimed, settled or older-generation task is not offered", async () => {
+test("a granted, settled or older-generation task is not offered", async () => {
   const journal = await started();
-  for (const task of ["claimed", "settled", "old", "open"])
+  for (const task of ["granted", "settled", "old", "open"])
     await appendRecord(journal, offer(task, "worker-a"), OPTIONS);
   await appendRecord(
     journal,
     {
-      op: "claim-1",
-      kind: "claim",
+      op: "grant-1",
+      kind: "grant",
       spec: SPEC,
       driver: DRIVER,
       worker: workerId("other"),
-      tasks: [{ task: "claimed", definition: DEF }],
+      tasks: [{ task: "granted", definition: DEF }],
     },
     OPTIONS,
   );

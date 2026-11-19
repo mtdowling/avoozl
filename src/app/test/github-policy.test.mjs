@@ -30,14 +30,11 @@ const example = () => ({
       allowedActors: ["maintainer-login"],
       minimumPermission: "maintain",
       requiredChecks: ["build", "test"],
-      priority: ["critical", "high"],
+      priorityLabels: ["critical", "high"],
       managedLabels: {
         managed: "agent:managed",
         responding: "agent:responding",
-        planning: "agent:planning",
         ready: "agent:ready",
-        stale: "agent:stale",
-        decision: "agent:decision",
       },
       rules: [
         {
@@ -100,14 +97,17 @@ test("validation refuses each §4.4 violation", () => {
       app((repo) => (repo.rules[0].labelsAll = ["Agent:Ready"])),
       /managed label Agent:Ready as a trigger/,
     ],
-    [app((repo) => repo.priority.push("agent:stale")), /priority cannot use/],
+    [
+      app((repo) => repo.priorityLabels.push("agent:ready")),
+      /priorityLabels cannot use/,
+    ],
     [app((repo) => (repo.rules[1].id = "answer")), /repeats rule ID answer/],
     [
       app((repo) => (repo.rules[0].labelsAll = [])),
       /needs labelsAll or labelsAny/,
     ],
     [
-      app((repo) => (repo.managedLabels.stale = "agent:ready")),
+      app((repo) => (repo.managedLabels.responding = "agent:ready")),
       /different label for each state/,
     ],
     [app((repo) => (repo.label = "agent:ready")), /Unknown setting/],

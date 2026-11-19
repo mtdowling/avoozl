@@ -24,7 +24,7 @@ test('each edited field belongs to exactly one tab', () => {
 test('a tab shows a dot for its own unsaved changes and errors', () => {
   const saved = { ...emptyRepository('o/app'), baseBranch: 'main' }
   assert.deepEqual([...dirtyTabs({ saved, entry: null, roleChanged: false, sourceChanged: false })], [])
-  const entry = { ...saved, baseBranch: 'trunk', cacheSeconds: '120' }
+  const entry = { ...saved, baseBranch: 'trunk', minimumPermission: 'maintain' }
   assert.deepEqual([...dirtyTabs({ saved, entry, roleChanged: true, sourceChanged: true })].sort(), ['general', 'github', 'landing', 'mirror'])
   // A new entry is unsaved on every tab with fields.
   assert.deepEqual([...dirtyTabs({ saved: null, entry: saved, roleChanged: false, sourceChanged: false })].sort(), ['general', 'github', 'landing', 'mirror'])

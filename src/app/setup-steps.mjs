@@ -1,7 +1,11 @@
 // The GitHub writes of private mirror setup (mirror-setup.mjs): the labels
 // Avoozl uses, a branch rule that requires the CI check, and the
 // repository's auto-merge setting.
-import { READY_LABEL_DEFAULT, RADAR_DEFAULTS } from "./github-policy.mjs";
+import {
+  RADAR_DEFAULTS,
+  RADAR_FIXED_LABELS,
+  READY_LABEL_DEFAULT,
+} from "./github-policy.mjs";
 import { parseRepository } from "./github.mjs";
 
 const RULESET_NAME = "avoozl-required-check",
@@ -22,8 +26,8 @@ export function labelsWanted(settings) {
       name: settings.managedLabels?.ready ?? READY_LABEL_DEFAULT,
       color: COLORS.ready,
     },
-    { name: radar.conflictLabel, color: COLORS.conflict },
-    { name: radar.approvalLabel, color: COLORS.approval },
+    { name: RADAR_FIXED_LABELS.conflict, color: COLORS.conflict },
+    { name: RADAR_FIXED_LABELS.approval, color: COLORS.approval },
     { name: radar.reviewLabel, color: COLORS.review },
     { name: radar.draftedLabel, color: COLORS.drafted },
   ];

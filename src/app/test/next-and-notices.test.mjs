@@ -142,7 +142,7 @@ test("avoozl next puts every local leaf in one bucket with what it waits on", as
     delivery: { concurrency: 2 },
   });
   await ops.execute(
-    "runner.claim",
+    "runner.take",
     { taskId: "asks", slot: "w-asks" },
     undefined,
     local,
@@ -185,7 +185,7 @@ test("avoozl next puts every local leaf in one bucket with what it waits on", as
   );
 });
 
-test("every claim and next goes through Operations.execute, and MCP may not claim", async (t) => {
+test("every take and next goes through Operations.execute, and MCP may not take", async (t) => {
   // Nearby inputs: the CLI (another process, the local caller), the app's
   // MCP server (attested caller), and an unattested MCP call.
   const { root, store, ops } = setup(t, { tasks: [leaf("a"), leaf("b")] });
@@ -195,12 +195,12 @@ test("every claim and next goes through Operations.execute, and MCP may not clai
     executed.push(args[0]);
     return execute(...args);
   };
-  const viaCli = run(root, "claim", "a");
+  const viaCli = run(root, "take", "a");
   assert.equal(viaCli.binding.conductor, "cli");
   assert.deepEqual(ids(run(root, "next").ready), ["b"]);
   for (const attestedCaller of [true, false]) {
     const denied = await handleMcp(
-      tool("plans_claim_task", { taskId: "b" }, "dashboard:c"),
+      tool("plans_take_task", { taskId: "b" }, "dashboard:c"),
       ops,
       { attestedCaller },
     );

@@ -752,11 +752,9 @@ try {
         await localOrRequest("repository.setup", {
           repository: need(
             positionals[0],
-            "setup OWNER/REPO --repo ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+            "setup OWNER/REPO --repo ID [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
           ),
           repositoryId: options.repo,
-          base: options.base,
-          checks: list(options.checks),
           methods: list(options.methods),
           landing: options.landing,
           confirm: Boolean(options.yes),
@@ -1002,15 +1000,15 @@ try {
         2,
       ),
     );
-  } else if (command === "claim") {
-    // A manual claim is a person's: not from an agent the supervisor started.
+  } else if (command === "take") {
+    // Taking a task by hand is a person's: not from an agent the supervisor started.
     if (process.env.AVOOZL_CHILD)
       throw Error(
-        "A claim is a person's. This command is running inside an agent the supervisor started.",
+        "Taking a task is a person's. This command is running inside an agent the supervisor started.",
       );
     console.log(
       JSON.stringify(
-        await localOrRequest("runner.claim", {
+        await localOrRequest("runner.take", {
           taskId: positionals[0],
           ...(options.release ? { release: true } : {}),
           ...(options.discard ? { discard: true } : {}),
@@ -1092,17 +1090,10 @@ try {
         repository: options.repository || positionals[1],
         repositoryId: options.repo,
         assignee: options.assignee,
-        label: options.label,
-        managedLabel: options["managed-label"],
         provider: options.provider,
         model: options.model,
         autoStart: options["auto-start"],
         active: !options.inactive,
-        minimumPermission: options.permission,
-        allowedActors: options["allowed-actors"]
-          ?.split(",")
-          .map((entry) => entry.trim())
-          .filter(Boolean),
       };
     } else if (action === "setup") {
       // Preview first; rerun with --confirm --preview-hash HASH to write.
@@ -1164,13 +1155,13 @@ try {
     );
   } else if (
     command === "spec" &&
-    ["offer", "claims"].includes(positionals[0])
+    ["offer", "grants"].includes(positionals[0])
   ) {
-    // The driver offers a task to a worker login and reserves the claims its
+    // The driver offers a task to a worker login and reserves the grants its
     // workers ask for (R90.4): each a person's own act at this machine.
-    // `spec claims release SPEC TASK` and `spec claims status SPEC`.
+    // `spec grants release SPEC TASK` and `spec grants status SPEC`.
     const sub =
-        positionals[0] === "claims" &&
+        positionals[0] === "grants" &&
         ["release", "status"].includes(positionals[1])
           ? positionals.splice(1, 1)[0]
           : null,
@@ -1178,7 +1169,7 @@ try {
     console.log(
       JSON.stringify(
         await localOrRequest(
-          sub ? `spec.claims.${sub}` : `spec.${positionals[0]}`,
+          sub ? `spec.grants.${sub}` : `spec.${positionals[0]}`,
           sub === "status"
             ? { planId }
             : sub === "release"
@@ -1186,9 +1177,9 @@ try {
                   planId,
                   task: need(
                     positionals[2],
-                    "spec claims release SPEC TASK --claims OWNER/REPO",
+                    "spec grants release SPEC TASK --grants OWNER/REPO",
                   ),
-                  claims: need(options.claims, "--claims OWNER/REPO"),
+                  grants: need(options.grants, "--grants OWNER/REPO"),
                 }
               : positionals[0] === "offer"
                 ? {
@@ -1208,9 +1199,9 @@ try {
                   }
                 : {
                     planId,
-                    claims: need(
-                      options.claims,
-                      "spec claims SPEC --claims OWNER/REPO --base BRANCH [--cap N]",
+                    grants: need(
+                      options.grants,
+                      "spec grants SPEC --grants OWNER/REPO --base BRANCH [--cap N]",
                     ),
                     base: need(options.base, "--base BRANCH"),
                     ...(options.cap ? { cap: Number(options.cap) } : {}),
@@ -1502,7 +1493,7 @@ try {
               : `${anchor.lineStart}-${anchor.lineEnd}`,
           where = `${anchor.file}:${lines}${anchor.moved ? " (moved or removed)" : ""}`;
         console.log(
-          `${finding.id} ${where} ${finding.severity} ${finding.findingState} ${finding.category}: ${finding.claim}\n  Evidence: ${finding.evidence}${finding.answer ? "\n  Planner: " + finding.answer.action + " " + finding.answer.text : ""}`,
+          `${finding.id} ${where} ${finding.severity} ${finding.findingState} ${finding.category}: ${finding.statement}\n  Evidence: ${finding.evidence}${finding.answer ? "\n  Planner: " + finding.answer.action + " " + finding.answer.text : ""}`,
         );
       }
     }

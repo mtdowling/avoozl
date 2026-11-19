@@ -33,14 +33,11 @@ const PACK_SETTINGS = Object.freeze({
     "allowedActors",
     "minimumPermission",
     "requiredChecks",
-    "priority",
     // Order inside Ready and Up next, never the lane; and labels that mean
     // the item waits on someone outside. Absent: no change.
     "priorityLabels",
     "waitingLabels",
     "managedLabels",
-    // Accepted so an old pack still imports; it writes nothing (R6.3).
-    "concurrency",
   ],
   epicIssueType: null,
   contentRules: ["sets"],
@@ -59,17 +56,11 @@ function crewSettings(crews) {
     list.push({ path: ["managedLabels", "ready"], value: labels.ready });
   if (labels.plan !== undefined)
     list.push({ path: ["radar", "planLabel"], value: labels.plan });
-  if (labels.conflict !== undefined)
-    list.push({ path: ["radar", "conflictLabel"], value: labels.conflict });
   return list;
 }
 
 function validateCrews(crews) {
-  only(
-    crews.labels ?? {},
-    ["plan", "ready", "conflict"],
-    "settings.crews.labels",
-  );
+  only(crews.labels ?? {}, ["plan", "ready"], "settings.crews.labels");
   const entry = {};
   for (const { path: where, value } of crewSettings(crews)) {
     const group = (entry[where[0]] ??= {});
@@ -185,8 +176,7 @@ export function readPack(location, file = PACK_FILE) {
 function units(settings, current, repositories) {
   const list = [];
   for (const key of Object.keys(settings.repositories ?? {}))
-    if (key === "concurrency") continue;
-    else if (!repositories.length)
+    if (!repositories.length)
       list.push({
         path: ["github", "repositories", "*", key],
         skip: "No GitHub repository is chosen. Add one in Settings > Repositories, then preview again.",

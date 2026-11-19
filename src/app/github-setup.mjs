@@ -11,6 +11,7 @@
 import { digest } from "../model.mjs";
 import { MANAGED_LABEL_KEYS, normalizeGitHubPolicy } from "./github-policy.mjs";
 import { parseRepository } from "./github.mjs";
+import { withoutDerivedKeys } from "./repository-roles.mjs";
 import { fail } from "./store.mjs";
 
 const SCOPES = ["repo", "read:org"];
@@ -482,11 +483,10 @@ function lineDiff(before, after) {
 
 // Step 6: the `.avoozl.json` change, written only through Settings.
 function settingsProposal(request, settings, ctx) {
-  const before = settings.github || {},
+  const before = withoutDerivedKeys(settings.github || {}),
     next = structuredClone(before);
-  next.mode = request.mode;
-  if (request.planning) next.planningRepository = request.planning;
-  else delete next.planningRepository;
+  delete next.mode;
+  delete next.planningRepository;
   if (ctx.epic) next.epicIssueType = ctx.epic;
   const repositories = { ...before.repositories };
   for (const id of unique([
@@ -499,18 +499,17 @@ function settingsProposal(request, settings, ctx) {
       entry.managedLabels = { ...entry.managedLabels, ...request.labels[id] };
     repositories[id] = entry;
   }
-  // A workspace with roles takes the mode from them (R105.8), so the mode
-  // this run picks is written as roles on the entries too.
-  if (Object.values(repositories).some((entry) => entry.role !== undefined))
-    for (const [id, entry] of Object.entries(repositories))
-      entry.role =
-        request.mode === "single-repo"
-          ? "both"
-          : request.mode === "plans-repo"
-            ? lower(id) === lower(request.planning || "")
-              ? "planning"
-              : "code"
-            : "local";
+  // The roles make the mode (R105.8), so the mode this run picks is
+  // written as roles on the entries and nowhere else.
+  for (const [id, entry] of Object.entries(repositories))
+    entry.role =
+      request.mode === "single-repo"
+        ? "both"
+        : request.mode === "plans-repo"
+          ? lower(id) === lower(request.planning || "")
+            ? "planning"
+            : "code"
+          : "local";
   next.repositories = repositories;
   let error = null;
   try {

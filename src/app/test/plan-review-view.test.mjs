@@ -84,7 +84,7 @@ function setup(t) {
         quote,
         quoteHash: quoteHash(quote),
       },
-      claim: "A claim.",
+      statement: "A statement.",
       evidence: "Some evidence.",
       ...extra,
     });

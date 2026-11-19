@@ -26,7 +26,7 @@ const POLICY = {
     [REPO]: {
       buildReceipts: true,
       managedLabels: { ready: "ready" },
-      crewLabels: { claim: "crew: in progress" },
+      crewLabels: { inProgress: "crew: in progress" },
     },
   },
 };

@@ -15,7 +15,7 @@
 // `acceptedLabel`. Reads only; the result is stored on the cached item.
 import { parseMarker, planningIdentity } from "./github-marker.mjs";
 import { actorAllowed } from "./github-policy.mjs";
-import { latestSkip } from "./radar-claims.mjs";
+import { latestSkip } from "./radar-crews.mjs";
 import { fail } from "./store.mjs";
 import { hasAvoozlLabel } from "./github.mjs";
 import { fixRecord } from "./fix.mjs";

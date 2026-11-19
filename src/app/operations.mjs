@@ -130,7 +130,7 @@ import {
   planningIdentity,
   requireNamespace,
 } from "./github-marker.mjs";
-import { claimsFresh, claimsView, refreshClaims } from "./radar-claims.mjs";
+import { crewsFresh, crewsView, refreshCrews } from "./radar-crews.mjs";
 import { mergePath } from "./radar-merge-path.mjs";
 import { instanceIdentity } from "./instance.mjs";
 import { mirrorEntryKey, mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
@@ -414,7 +414,7 @@ import { taskEvidence } from "./evidence.mjs";
 import { instanceView, renameInstance } from "./instance.mjs";
 import { panelView, pullChecks } from "./panel-view.mjs";
 import {
-  claimedTaskIds,
+  busyTaskIds,
   declaredChecks,
   prepareWorktree,
   reportSession,
@@ -433,9 +433,9 @@ import {
   updateProviders,
 } from "./provider-health.mjs";
 import { nextView } from "./runner.mjs";
-import { manualClaim } from "./manual-claim.mjs";
+import { manualTake } from "./manual-take.mjs";
 import {
-  claimWork,
+  acceptWork,
   pullWork,
   readRunnerConfig,
   reportDone,
@@ -450,7 +450,7 @@ import { supersedeTask } from "./supersede.mjs";
 // session tables reads as having no claims.
 function claimedOrNone(store) {
   try {
-    return claimedTaskIds(store);
+    return busyTaskIds(store);
   } catch {
     return new Set();
   }
@@ -534,15 +534,15 @@ import {
 import { publishSpec } from "./spec-publication.mjs";
 import { specLinks } from "./scm-links.mjs";
 import { specAuthority, takeOverSpec } from "./spec-takeover.mjs";
-import { publishOffer, reserveClaims } from "./worker-claims.mjs";
+import { publishOffer, reserveGrants } from "./worker-grants.mjs";
 import { workerResultsStep } from "./worker-result-step.mjs";
 import { offerLogins, workerOffersStep } from "./worker-offer-step.mjs";
 import {
-  checkStaleClaims,
-  claimStaleMs,
-  claimStatus,
-  reconcileClaims,
-  releaseClaim,
+  checkStaleGrants,
+  grantStaleMs,
+  grantStatus,
+  reconcileGrants,
+  releaseGrant,
 } from "./worker-release.mjs";
 import { driverIdOf, journalOf } from "./spec-scheduler.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
@@ -976,7 +976,7 @@ export class Operations {
     // Conditional reads and the rate-limit pause live in this workspace.
     if (client instanceof GitHubClient)
       client.bind(store, {
-        cacheSeconds: (repo) => this.cacheSeconds(repo),
+        cacheSeconds: () => this.cacheSeconds(),
         countFile: countFilePath(),
         writeLimits: () => this.writeLimits(),
       });
@@ -1257,7 +1257,7 @@ export class Operations {
     if (
       cached &&
       this.privateSpecsAt &&
-      now - this.privateSpecsAt < this.cacheSeconds(mirror.mirror) * 1000
+      now - this.privateSpecsAt < this.cacheSeconds() * 1000
     )
       return;
     try {
@@ -2390,9 +2390,9 @@ export class Operations {
       perHour: policy?.writesPerHour ?? undefined,
     };
   }
-  // github.cacheSeconds, with a repository's own value first. The files are
-  // read at most every five seconds; an unreadable file means the default.
-  cacheSeconds(repo = "") {
+  // github.cacheSeconds, one value for the workspace. The files are read at
+  // most every five seconds; an unreadable file means the default.
+  cacheSeconds() {
     const at = Date.now();
     if (!this.cachePolicy || at - this.cachePolicy.at > 5000)
       this.cachePolicy = {
@@ -2400,11 +2400,7 @@ export class Operations {
         policy: readGitHubPolicyOrNull(this.workspaceRoot),
       };
     const policy = this.cachePolicy.policy;
-    return (
-      policy?.repositories?.[repo]?.cacheSeconds ??
-      policy?.cacheSeconds ??
-      DEFAULT_CACHE_SECONDS
-    );
+    return policy?.cacheSeconds ?? DEFAULT_CACHE_SECONDS;
   }
   // The merge path of the named repository; none without a name.
   async mergePaths(only) {
@@ -2827,8 +2823,8 @@ export class Operations {
       return runnerStatus(store, this.workspaceRoot);
     if (name === "remote.report")
       return reportDone(store, this.workspaceRoot, input);
-    if (name === "worker.claim")
-      return claimWork(store, this.workspaceRoot, this.github);
+    if (name === "worker.accept")
+      return acceptWork(store, this.workspaceRoot, this.github);
     if (name === "worker.setup") {
       const config = readRunnerConfig(this.workspaceRoot);
       if (config?.role !== "worker")
@@ -2847,17 +2843,17 @@ export class Operations {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
-    // A manual claim is the person's at this machine's command line
+    // Taking a task by hand is the person's at this machine's command line
     // (worker-paths WP2.7): never over MCP or from an agent session.
-    if (name === "runner.claim") {
+    if (name === "runner.take") {
       if (context.local !== true || context.caller || context.mcp)
         fail(
-          "A claim is a person's: run avoozl claim TASK from the command line.",
+          "Taking a task is a person's: run avoozl take TASK from the command line.",
           403,
         );
       return stampPrompts(
         store,
-        await manualClaim(
+        await manualTake(
           store,
           { ...input, workspaceRoot: this.workspaceRoot },
           { github: readGitHubPolicyOrNull(this.workspaceRoot) },
@@ -2970,7 +2966,7 @@ export class Operations {
       return deliverNotifications(store, this.notifier);
     if (name === "worktree.prepare") return prepareWorktree(store, input);
     if (name === "workspace.tick") {
-      // A worker machine pulls and claims before it runs what it was given.
+      // A worker machine pulls and accepts before it runs what it was given.
       await workerTick(store, this.workspaceRoot, this.github);
       // A runner holds no plans, so its tick only runs handed tasks.
       const remote = await runnerTick(store, this.workspaceRoot, {
@@ -3000,14 +2996,14 @@ export class Operations {
                 }
               : null;
           };
-        // Stale worker claims reach Needs you; nothing releases them (R90.6).
-        await checkStaleClaims(store, {
+        // Stale worker accepts reach Needs you; nothing releases them (R90.6).
+        await checkStaleGrants(store, {
           workspaceRoot: this.workspaceRoot,
           driving,
           journalFor,
         }).catch(() => 0);
         // Worker machines get the driven specs' ready tasks, and their
-        // claims are answered, when workers.offerTo names them (WP5).
+        // grants are answered, when workers.offerTo names them (WP5).
         if (driving.length)
           await this.workerOffers(store, driving).catch((error) =>
             store.event(null, "worker.offers", { error: error.message }),
@@ -3614,7 +3610,7 @@ export class Operations {
       });
     }
     // Issue Radar's live claims on every registered repository, read from
-    // GitHub only (radar-claims.mjs). `refresh` reads GitHub first.
+    // GitHub only (radar-crews.mjs). `refresh` reads GitHub first.
     // The merge path of each Issue Radar repository (RC5.1): three items,
     // read from GitHub; nothing is written.
     // The Release queue (RC4.5): what is released, claimed, next or held, and
@@ -3796,21 +3792,21 @@ export class Operations {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         github = policy?.mode && this.github?.available?.();
       if (this.backgroundReads && input.refresh !== true) {
-        const stale = github && !claimsFresh(store, Date.now());
+        const stale = github && !crewsFresh(store, Date.now());
         const refreshing =
           (stale || this.refreshing.has("radar.crews")) &&
           this.refreshLater("radar.crews", () =>
-            refreshClaims(store, this.github, policy),
+            refreshCrews(store, this.github, policy),
           );
-        const view = claimsView(store);
+        const view = crewsView(store);
         return refreshing ? { ...view, refreshing: true } : view;
       }
       // Read at most every 2 minutes, however often the Dashboard asks.
       if (github)
-        await refreshClaims(store, this.github, policy, {
+        await refreshCrews(store, this.github, policy, {
           force: input.refresh === true,
         });
-      return claimsView(store);
+      return crewsView(store);
     }
     // The Untriaged list (§8.5): cached GitHub items no rule, triage label,
     // or task covers. `refresh` reads GitHub first (Check now); read only.
@@ -3898,20 +3894,30 @@ export class Operations {
       return {
         sources: declaredSources(this.pluginOptions, store).map(
           ({ id, scope, entry, error, source }) => {
+            // Who counts is the repository's setting, shown here read only.
+            const configured = source
+                ? Object.entries(policy?.repositories || {}).find(
+                    ([repository]) => same(repository, source.repository),
+                  )?.[1]
+                : null,
+              who = configured
+                ? {
+                    allowedActors: configured.allowedActors,
+                    minimumPermission: configured.minimumPermission,
+                  }
+                : null;
             // A GitHub source (§4.39): its repository's read, and the Issue
             // Radar escalation label its Triage rows open first with.
             if (source?.via === "github") {
               const read = reads.find((r) =>
-                  same(r.repository, source.repository),
-                ),
-                configured = Object.entries(policy?.repositories || {}).find(
-                  ([repository]) => same(repository, source.repository),
-                )?.[1];
+                same(r.repository, source.repository),
+              );
               return {
                 id,
                 scope,
                 entry,
                 error,
+                who,
                 state: read
                   ? { cursor: null, readAt: read.checkedAt, error: read.error }
                   : null,
@@ -3924,6 +3930,7 @@ export class Operations {
               scope,
               entry,
               error,
+              who,
               state: id ? sourceRowOf(store, `source:${id}`) : null,
               items: (id && counts.get(id)) || none,
             };
@@ -5569,25 +5576,19 @@ export class Operations {
         editable: Boolean(repository?.editable),
       });
       try {
-        const labels = input.labelBehaviors,
-          issueIntake =
-            githubRepository && authorizeIssues
-              ? await prepareGitHubRepository(store, this.github, {
-                  repository: githubRepository,
-                  workspaceRepositoryId: id,
-                  repositoryId: repository.id,
-                  registering: repository,
-                  assignee: input.assignee,
-                  label:
-                    input.readyLabel || labels?.ready?.[0] || "avoozl:ready",
-                  managedLabel: input.managedLabel,
-                  allowedActors: input.allowedActors,
-                  minimumPermission: input.minimumPermission,
-                  provider: input.provider,
-                  model: input.model,
-                  autoStart: input.autoStart,
-                })
-              : null;
+        const issueIntake =
+          githubRepository && authorizeIssues
+            ? await prepareGitHubRepository(store, this.github, {
+                repository: githubRepository,
+                workspaceRepositoryId: id,
+                repositoryId: repository.id,
+                registering: repository,
+                assignee: input.assignee,
+                provider: input.provider,
+                model: input.model,
+                autoStart: input.autoStart,
+              })
+            : null;
         this.configuration?.updateUnifiedRepository({
           id,
           previousRepository: existing?.github,
@@ -5725,33 +5726,6 @@ export class Operations {
       });
       return { plan, extraction };
     }
-    if (name === "work.release") {
-      const task = this.read().tasks.find(
-          (candidate) =>
-            candidate.id === resolveTaskId(this.read(), input.taskId),
-        ),
-        claim = task?.githubClaim;
-      if (!task) fail("Task not found.", 404);
-      if (!claim?.repository || !claim.number || !claim.login)
-        fail("This task is not owned through a GitHub claim.", 409);
-      await this.github.removeAssignees(
-        parseRepository(claim.repository),
-        claim.number,
-        [claim.login],
-      );
-      return store.mutate(`Release ${task.id}`, (data) => {
-        const current = data.tasks.find(
-          (candidate) => candidate.id === task.id,
-        );
-        current.owner = "";
-        current.githubClaim = {
-          ...current.githubClaim,
-          releasedAt: new Date().toISOString(),
-        };
-        current.updatedAt = new Date().toISOString();
-        return current;
-      });
-    }
     if (name === "github.sync") {
       const result = await syncGitHubIssues(store, this.github, {
         ...input,
@@ -5793,11 +5767,15 @@ export class Operations {
         fail("Only a person applies repository setup.", 403);
       if (!this.github?.available?.())
         fail("Repository setup needs GitHub; run gh auth login.", 503);
+      // The checks and the base branch are the repository's own settings.
+      const wanted = this.githubPolicy().repositories?.[input.repository];
       return repositorySetup(
         store,
         this.github,
         {
           ...input,
+          checks: wanted?.requiredChecks,
+          base: wanted?.baseBranch ?? undefined,
         },
         {
           writeRepository: (repository) => {
@@ -5823,19 +5801,19 @@ export class Operations {
         },
       );
     }
-    // The driver's side of worker claims (R90.4): offer a task to a worker
+    // The driver's side of worker accepts (R90.4): offer a task to a worker
     // login, and reserve and acknowledge the requests. A person's own act at
     // this machine; no session or MCP caller.
     if (
       [
         "spec.offer",
-        "spec.claims",
-        "spec.claims.release",
-        "spec.claims.status",
+        "spec.grants",
+        "spec.grants.release",
+        "spec.grants.status",
       ].includes(name)
     ) {
       if (context.caller || context.mcp)
-        fail("Only a person drives worker offers and claims.", 403);
+        fail("Only a person drives worker offers and grants.", 403);
       const authority = await specAuthority(
           store,
           {
@@ -5858,27 +5836,27 @@ export class Operations {
         github: this.github,
         journal: authority.journal,
         options: authority.options,
-        claims: input.claims,
+        grants: input.grants,
       };
-      if (name === "spec.claims.status")
-        return claimStatus(authority.journal, authority.options, {
-          staleAfter: claimStaleMs(
+      if (name === "spec.grants.status")
+        return grantStatus(authority.journal, authority.options, {
+          staleAfter: grantStaleMs(
             loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config
-              ?.workers?.claimStaleAfter,
+              ?.workers?.grantStaleAfter,
           ),
         });
-      if (name === "spec.claims.release")
-        return releaseClaim({
+      if (name === "spec.grants.release")
+        return releaseGrant({
           ...held,
           task: input.task,
           by: { kind: "person" },
         });
-      if (name === "spec.claims") {
+      if (name === "spec.grants") {
         // Carry or settle what exists first, then answer new requests.
-        const reconciled = await reconcileClaims(held);
+        const reconciled = await reconcileGrants(held);
         return {
           reconciled,
-          ...(await reserveClaims({
+          ...(await reserveGrants({
             ...held,
             base: input.base,
             ...(input.cap ? { cap: input.cap } : {}),

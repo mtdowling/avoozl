@@ -46,7 +46,7 @@ test('a review group is one item that settles all its local tasks and shrinks as
     id: 'review:spec:p',
     taskId: null,
     plan: 'p',
-    title: 'Review 3 tasks in p: their design text changed',
+    title: '3 tasks in p changed: check them',
     detail: '',
     tasks: [
       { id: 'a', title: 'A', status: 'planned', authority: 'local' },
@@ -60,7 +60,7 @@ test('a review group is one item that settles all its local tasks and shrinks as
   const left = withoutSettled([group], 'reviewed', { revision: 2, settled: [{ taskId: 'a' }], refused: [] })
   assert.deepEqual(
     left.map((g) => [g.title, g.tasks.map((t) => t.id)]),
-    [['Review 2 tasks in p: their design text changed', ['b', 'g']]],
+    [['2 tasks in p changed: check them', ['b', 'g']]],
   )
   assert.deepEqual(withoutSettled(left, 'reviewed', { revision: 3, settled: [{ taskId: 'b' }, { taskId: 'g' }], refused: [] }), [])
   const remote = { ...group, tasks: [group.tasks[2]] }

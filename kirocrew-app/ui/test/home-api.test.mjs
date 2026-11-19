@@ -19,7 +19,7 @@ test('Stuck or quiet lists quiet chats, unreachable crews and stale claims, quie
   assert.deepEqual(
     rows.map((r) => [r.key, r.why]),
     [
-      ['claim:acme/a#9', 'Issue Radar claim is stale.'],
+      ['claim:acme/a#9', 'Issue Radar crew has not updated this in a while.'],
       ['chat:quieter', 'Worker chat. No word for 3 h.'],
       ['chat:quiet', 'Worker chat. No word for 40 min.'],
       ['chat:away', 'Worker chat. Its crew does not answer.'],

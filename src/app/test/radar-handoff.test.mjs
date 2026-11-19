@@ -412,7 +412,7 @@ test("a crew label is refused as a hand-off label", () => {
     repositories: {
       [REPO]: {
         baseBranch: "main",
-        crewLabels: { claim: "bot busy", needsHuman: "help" },
+        crewLabels: { inProgress: "bot busy", needsHuman: "help" },
       },
     },
   }).repositories[REPO];

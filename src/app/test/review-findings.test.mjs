@@ -178,7 +178,7 @@ function setup(t, { reviewed = true } = {}) {
       state: "open",
       kind: "gap",
       severity,
-      claim: "A claim.",
+      statement: "A statement.",
       evidence: "Some evidence.",
       ...extra,
     });

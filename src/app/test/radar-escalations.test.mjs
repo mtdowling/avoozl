@@ -119,7 +119,7 @@ const POLICY = (extra = {}) => ({
       baseBranch: "main",
       minimumPermission: "write",
       managedLabels: { managed: "avoozl:managed", ready: "ready" },
-      crewLabels: { needsHuman: NEEDS_HUMAN, claim: CLAIM },
+      crewLabels: { needsHuman: NEEDS_HUMAN, inProgress: CLAIM },
       rules: [],
       ...extra,
     },

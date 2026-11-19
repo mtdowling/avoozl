@@ -13,7 +13,7 @@
 //    candidate on the base whose outcome record is missing (a lost tail)
 //    comes back as landed by its intent's evidence, waiting to be recorded;
 //    a trailer without evidence is landed-unverified for a person.
-// 4. Restore claims, controls, voids and person outcomes from the journal.
+// 4. Restore grants, controls, voids and person outcomes from the journal.
 // 5. Private controls and spend come only from the private handoff export
 //    (driver.mjs buildExport). Without it they are unknown, never zero.
 //
@@ -232,7 +232,7 @@ export async function rebuildSpec({
     }
   }
 
-  // 4. Tasks, claims and decisions.
+  // 4. Tasks, grants and decisions.
   const tasks = {};
   for (const [task, definition] of approved)
     tasks[task] = taskOutcome(outcomes, {
@@ -241,12 +241,12 @@ export async function rebuildSpec({
       revision,
       definition,
     }).state;
-  const claims = [],
+  const grants = [],
     decisions = [];
   for (const { id, record } of replay.records) {
-    if (record.kind === "claim")
+    if (record.kind === "grant")
       for (const t of record.tasks)
-        claims.push({
+        grants.push({
           task: t.task,
           generation: record.generation,
           record: id,
@@ -276,7 +276,7 @@ export async function rebuildSpec({
     tasks,
     heads,
     landings,
-    claims,
+    grants,
     controls: Object.fromEntries(state.controls),
     decisions,
     branchProgress,

@@ -1628,9 +1628,9 @@ Phase 8 because task IDs never move.
   - Facts:
     - done:
       - Review roles in policy
-      - `delivery.model` and `delivery.reviewers` (`id`, `focus`, `agent`, `model`, `distinctFrom` `model` by default or `session`), replaceable per repository; validation per §5.2, including a refused `auto` or equal model for `distinctFrom: model`; `tick.py` passes `model` to `open_session`; `runner.claim` takes the worker's model; every binding records the model it was opened on. No new writer limit: per-repository `concurrency: 1` is the one-writer rule, and review sessions do not count against it.
+      - `delivery.model` and `delivery.reviewers` (`id`, `focus`, `agent`, `model`, `distinctFrom` `model` by default or `session`), replaceable per repository; validation per §5.2, including a refused `auto` or equal model for `distinctFrom: model`; `tick.py` passes `model` to `open_session`; `runner.take` takes the worker's model; every binding records the model it was opened on. No new writer limit: per-repository `concurrency: 1` is the one-writer rule, and review sessions do not count against it.
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
-  - `delivery.model` and `delivery.reviewers` (`id`, `focus`, `agent`, `model`, `distinctFrom` `model` by default or `session`), replaceable per repository; validation per §5.2, including a refused `auto` or equal model for `distinctFrom: model`; `tick.py` passes `model` to `open_session`; `runner.claim` takes the worker's model; every binding records the model it was opened on. No new writer limit: per-repository `concurrency: 1` is the one-writer rule, and review sessions do not count against it.
+  - `delivery.model` and `delivery.reviewers` (`id`, `focus`, `agent`, `model`, `distinctFrom` `model` by default or `session`), replaceable per repository; validation per §5.2, including a refused `auto` or equal model for `distinctFrom: model`; `tick.py` passes `model` to `open_session`; `runner.take` takes the worker's model; every binding records the model it was opened on. No new writer limit: per-repository `concurrency: 1` is the one-writer rule, and review sessions do not count against it.
   - Built: `4b82981`.
 - [x] 9.2 Roles on one delivery [R36.2–R36.8, R37.1, R37.2] (§5.2, F56)
   - Facts:
@@ -3664,9 +3664,9 @@ GitHub, and a race between two workers shows exactly one claim wins.
   - Facts:
     - done:
       - Person-only release and stale-claim status
-      - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.claimStaleAfter.
+      - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.grantStaleAfter.
     - after: 43.3
-  - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.claimStaleAfter.
+  - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.grantStaleAfter.
 
 - [x] 43.5 Verify fetched worker results before integration, after 43.2 [R90.2, R102.6, R102.7] (§4.32)
   - Facts:
@@ -4134,10 +4134,10 @@ mode of Phase 43.
 
 Requirement 96.4 (design §4.28).
 
-- [x] 52.1 `next`, `claim` and `runner report` keep working for a person, after avoozl-p56 [R96.4] (§4.28)
+- [x] 52.1 `next`, `take` and `runner report` keep working for a person, after avoozl-p56 [R96.4] (§4.28)
   - Facts:
     - done:
-      - `next`, `claim` and `runner report` keep working for a person
+      - `next`, `take` and `runner report` keep working for a person
       - One test per command from a plain shell.
     - after: avoozl-p56
   - One test per command from a plain shell.
@@ -4150,7 +4150,7 @@ Requirement 96.4 (design §4.28).
       - Expected: the task lands as if a worker did it.
     - after: 52.1
   - Setup: a scratch workspace with one ready task.
-  - Action: `avoozl next`, `avoozl claim`, edit and commit, `avoozl runner report TASK done`.
+  - Action: `avoozl next`, `avoozl take`, edit and commit, `avoozl runner report TASK done`.
   - Expected: the task lands as if a worker did it.
   - Failure means: the manual path broke.
   - Next decision: fix it before removing anything else.

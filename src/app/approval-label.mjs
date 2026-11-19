@@ -2,7 +2,7 @@
 // approval (RC19, design D24) now that no repository is Radar-coded (R91.6):
 // the Needs you rows already raised, and the release of claims Avoozl wrote
 // before. Nothing new is labeled or claimed.
-import { parseMarkers, liveClaim } from "./radar-claims.mjs";
+import { parseMarkers, liveClaim } from "./radar-crews.mjs";
 
 const ROWS = "approvalRows";
 const lower = (value) => String(value ?? "").toLowerCase();
@@ -44,7 +44,7 @@ export async function releaseClaims({ store, github, policy, plans }) {
     const config = store.get("github_repositories", receipt.repository),
       plan = plans.get(receipt.planId),
       claimLabel =
-        policy?.repositories?.[receipt.repository]?.crewLabels?.claim;
+        policy?.repositories?.[receipt.repository]?.crewLabels?.inProgress;
     if (!config || !claimLabel) continue;
     try {
       const issue = await github.issue(config, receipt.number),

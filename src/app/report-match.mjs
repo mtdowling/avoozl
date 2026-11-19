@@ -91,16 +91,16 @@ export function matchCliReport(store, { taskId, token, cwd, role = "worker" }) {
   return binding;
 }
 
-// R96.5: a person who ran `avoozl claim` holds no token; the local command
+// R96.5: a person who ran `avoozl take` holds no token; the local command
 // line already acts on the database. Matched by the worktree alone, and only
-// for a claim this machine's command line made, so a tick-opened chat still
+// for a take this machine's command line made, so a tick-opened chat still
 // needs its token.
-export function matchClaimReport(store, { taskId, cwd }) {
+export function matchTakeReport(store, { taskId, cwd }) {
   if (typeof taskId !== "string" || !taskId) fail("Name the task.");
   const binding = listSessionBindings(store)
     .filter((b) => b.taskId === taskId && b.role === "worker")
     .sort((x, y) => (y.attempt || 0) - (x.attempt || 0))[0];
-  if (!binding) fail(`No one has claimed ${taskId}. Run avoozl claim.`, 409);
+  if (!binding) fail(`No one has taken ${taskId}. Run avoozl take.`, 409);
   if (binding.conductor !== "cli")
     fail("This task's worker reports with the --token in its brief.", 403);
   const worktree = store.get("task_worktrees", taskId)?.path;
@@ -137,7 +137,7 @@ function readFindingsFile(file) {
 }
 
 // `avoozl runner report TASK done|blocked|findings [--token T]`, run from the
-// worktree; with no token it speaks for a command-line claim. `ops` is an
+// worktree; with no token it speaks for a command-line take. `ops` is an
 // Operations on this workspace's store. The commit of a done report is read
 // from the worktree's HEAD, never taken from the caller.
 export async function reportByToken(
@@ -170,7 +170,7 @@ export async function reportByToken(
   }
   const binding =
       token === undefined
-        ? matchClaimReport(store, { taskId, cwd })
+        ? matchTakeReport(store, { taskId, cwd })
         : matchCliReport(store, { taskId, token, cwd }),
     input =
       state === "findings"

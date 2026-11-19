@@ -249,7 +249,7 @@ yours by label, not by login:
   issue, both for Avoozl tasks and for issues sent from Intake.
 
 Labels a crew watches are set in Issue Radar. Labels it writes are set under
-`crewLabels` (`claim`, `needsHuman`) when yours differ from the defaults.
+`crewLabels` (`inProgress`, `needsHuman`) when yours differ from the defaults.
 
 Where a skipped issue goes (the needs-human label, for example `plan me`)
 depends on who may ask for work:
@@ -449,9 +449,8 @@ six things about it:
 
 - **One cache.** Every view, command and MCP tool reads GitHub through one
   client. An answer it holds is reused with no call for `github.cacheSeconds`
-  seconds (default 60, 0 turns it off). A repository may set its own under
-  `github.repositories.<owner/name>.cacheSeconds`. Both are in Settings >
-  GitHub and in `.avoozl.json`. A write (a comment, a label, a
+  seconds (default 60, 0 turns it off). It is one value for the workspace, in
+  Settings > GitHub and in `.avoozl.json`. A write (a comment, a label, a
   merge) makes the answers for its repository stale, not gone, so the next
   read asks with the `ETag` and a 304 is free. While the rate limit holds, a
   stored answer is served at any age. GraphQL queries are kept the same way,
