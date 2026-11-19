@@ -693,10 +693,10 @@ function TaskPanel(props: {
                 {task.owner && <Row label="Assignee">{task.owner}</Row>}
               </Box>
             </SectionBox>
-            {(task.prose || task.acceptance.length > 0 || task.checks.length > 0 || task.context) && (
+            {(task.summary || task.acceptance.length > 0 || task.checks.length > 0 || task.context) && (
               <SectionBox id="description" title="Description">
                 <Stack gap={3}>
-                  {task.prose && <Markdown text={task.prose} />}
+                  {task.summary && <Markdown text={task.summary} />}
                   {task.acceptance.length > 0 && (
                     <div>
                       <Box as="h4" size="sm" weight="semibold">
@@ -712,7 +712,7 @@ function TaskPanel(props: {
                   {task.checks.length > 0 && (
                     <div>
                       <Box as="h4" size="sm" weight="semibold">
-                        Checks
+                        Repository checks
                       </Box>
                       <Box as="ul" mt="1" flex flexCol gap="1" size="sm">
                         {task.checks.map((line, i) => (

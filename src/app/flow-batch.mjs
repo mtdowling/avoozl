@@ -14,7 +14,6 @@ import { cliCommand } from "./report-command.mjs";
 import { issueReportToken } from "./report-match.mjs";
 import { contentBinding } from "./content-rules.mjs";
 import {
-  isGate,
   isManual,
   taskAuthority,
   taskCompletion,
@@ -23,6 +22,7 @@ import {
   taskRoute,
 } from "../work-model.mjs";
 import { statusComplete } from "../query.mjs";
+import { summaryLine } from "./title-repeat.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 
@@ -55,8 +55,7 @@ function groupProblem(store, data, task, members, approved, config) {
     (t) =>
       taskKind(t) !== "leaf" ||
       isManual(t) ||
-      isGate(t) ||
-      ["person", "tracker"].includes(taskCompletion(t)) ||
+      taskCompletion(t) === "person" ||
       taskRoute(t) !== "local" ||
       taskAuthority(t) !== "local",
   );
@@ -229,11 +228,10 @@ export function batchBrief(store, data, leaf, brief) {
       "",
       ...tasks.flatMap((task, i) => [
         `${i + 1}. Task ${task.id}: ${task.title || task.id}`,
-        task.prose ? task.prose.replace(/^/gm, "   ") : null,
+        summaryLine(task)?.replace(/^/gm, "   ") ?? null,
         task.acceptance?.length
           ? `   Acceptance: ${[].concat(task.acceptance).join("; ")}`
           : null,
-        task.checks?.length ? `   Checks: ${task.checks.join("; ")}` : null,
       ]),
       "",
       ...run,

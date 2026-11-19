@@ -25,7 +25,7 @@ const CRASH =
 function machineEnvironment(machine) {
   const env = { ...process.env };
   for (const key of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)(_|$)/.test(key)) delete env[key];
+    if (/^AVOOZL(_|$)/.test(key)) delete env[key];
   Object.assign(env, {
     HOME: path.join(machine, "home"),
     XDG_CONFIG_HOME: path.join(machine, "config"),
@@ -174,21 +174,15 @@ test("every CLI command and subcommand runs without crashing", {
   assert.deepEqual(failures, []);
 });
 
-test("legacy workspace variables and registered IDs reach the database", async () => {
+test("AVOOZL_WORKSPACE and registered IDs reach the database", async () => {
   const machine = temporaryDirectory("avoozl-cli-smoke-alias-"),
     env = machineEnvironment(machine),
     workspace = path.join(machine, "ws");
   execFileSync(process.execPath, [cli, "init", workspace, "--port", "0"], {
     env,
   });
-  for (const name of [
-    "AVOOZL_WORKSPACE",
-    "AICOMMANDER_WORKSPACE",
-    "NUPP_WORKSPACE",
-  ]) {
-    const result = await run(["check"], { ...env, [name]: workspace });
-    assert.equal(result.code, 0, `${name}: ${result.stderr}`);
-  }
+  const result = await run(["check"], { ...env, AVOOZL_WORKSPACE: workspace });
+  assert.equal(result.code, 0, result.stderr);
   // A registered workspace ID names its root; no host server is needed.
   assert.equal(
     (await run(["workspace", "add", "smoke", "--root", workspace], env)).code,

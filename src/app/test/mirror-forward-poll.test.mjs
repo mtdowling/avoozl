@@ -32,7 +32,7 @@ const mirrorPolicy = {
 };
 const policy = {
   mode: "single-repo",
-  repositories: { [SOURCE]: { coder: "issue-radar", mirror: mirrorPolicy } },
+  repositories: { [SOURCE]: { mirror: mirrorPolicy } },
 };
 const record = (extra = {}) => ({
   id: "sha1",

@@ -52,7 +52,7 @@ async function hosted(t, serve) {
     XDG_STATE_HOME: path.join(root, "xdg-state"),
   };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_/.test(name)) delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   const supervisor = startSupervisor({
     stateDirectory,
     configDirectory,

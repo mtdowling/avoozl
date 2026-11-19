@@ -240,7 +240,7 @@ that there is one set of rules about what that machine is trusted to do.
    pull` and `avoozl worker claim` SHALL stay as the same steps run once by
    hand.
 3. On the driver the tick SHALL fetch a worker machine's pushed result,
-   check its diff and run its checks again before it lands (Requirement
+   check its diff and run the repository's checks again before it lands (Requirement
    90.2), with no command run by hand. `src/app/worker-results.mjs` SHALL be
    called from the tick or removed.
 4. Runner mode over SSH SHALL be removed: `runner.role` values `runner` and
@@ -276,23 +276,18 @@ answer.
 6. Unknown keys in a machine file SHALL be dropped, and SHALL NOT stop a
    workspace from loading.
 
-### Requirement WP7: Old names answer, and say where the work went
+### Requirement WP7: Removed names are gone
 
-**User story:** As a person with an old script or an old chat, I want a
-removed command to tell me what replaced it, so that nothing fails without
-a reason.
+**User story:** As the only user, I want removed commands and operations
+deleted, so that nothing old stays to maintain.
 
 #### Acceptance criteria
 
-1. Each removed command and operation SHALL answer through the table in
-   `src/app/moved-operations.mjs` with one line that names its replacement,
-   and SHALL change nothing.
-2. `avoozl register-session` and `avoozl session-hook` SHALL be removed the
-   same way. Their operation already only answers with a pointer (V:
-   `src/app/moved-operations.mjs:46`).
-3. The `plans_*` MCP tool names, the `AVOOZL_*`, `AICOMMANDER_*` and
-   `NUPP_WORKSPACE_*` variables and the `aicommander` command SHALL keep
-   working (AGENTS.md).
+1. (Changed 2026-11-18, owner decision: no backward compatibility until Avoozl has other users.) Each removed command and operation SHALL be deleted. A call
+   to one SHALL be refused as unknown.
+2. `avoozl register-session` and `avoozl session-hook` SHALL be deleted.
+3. The narrow `plans_*` MCP tools a shipped agent, prompt or brief names,
+   the `AVOOZL_*` variables and the `avoozl` command SHALL keep working.
 4. The installed app's entry point (`kirocrew-app/bin/avoozl.mjs`) SHALL
    list only the commands the app still runs.
 5. `kirocrew-app/hooks/avoozl-runner.json` SHALL be removed, and the app's

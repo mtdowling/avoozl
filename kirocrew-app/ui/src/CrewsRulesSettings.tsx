@@ -32,7 +32,7 @@ function Line(props: { id: string; label: string; value: string; fallback: strin
   )
 }
 
-// The value and setter for one of the seven labels: ready lives in
+// The value and setter for one of the six labels: ready lives in
 // managedLabels, the rest in radar.
 function labelValue(repository: RepositoryForm, key: (typeof AVOOZL_LABELS)[number]['key']): string {
   return key === 'ready' ? (repository.managedLabels.ready ?? '') : repository[key]

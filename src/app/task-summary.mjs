@@ -36,7 +36,7 @@ export function summaryFacts(view) {
   return {
     id: task.id,
     title: task.title,
-    description: task.prose,
+    description: task.summary,
     acceptance: task.acceptance,
     spec: view.plan?.title ?? null,
     phase: task.phase?.title ?? null,

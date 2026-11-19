@@ -12,12 +12,13 @@ import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { gitCheckout } from "./delivery-fixture.mjs";
 
 function git(cwd, ...args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
 
-const CHECK = "scripts/validate.sh";
+const CHECK = "git status";
 const leaf = (id, extra = {}) => ({
   id,
   title: "Task " + id,
@@ -53,15 +54,7 @@ const REVIEWERS = [
 
 function setup(t, { delivery = {}, tasks, edges } = {}) {
   const root = temporaryDirectory("avoozl-review-"),
-    checkout = path.join(root, "app");
-  fs.mkdirSync(path.join(checkout, "src"), { recursive: true });
-  git(checkout, "init", "-b", "main");
-  git(checkout, "config", "user.name", "Test");
-  git(checkout, "config", "user.email", "test@example.com");
-  fs.writeFileSync(path.join(checkout, "src/a.txt"), "a\n");
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-m", "Start");
+    checkout = gitCheckout(path.join(root, "app"), { "src/a.txt": "a\n" });
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   store.importSnapshot({

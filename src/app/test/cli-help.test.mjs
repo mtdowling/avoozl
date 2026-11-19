@@ -28,7 +28,7 @@ function cli(...args) {
   const home = temporaryDirectory("avoozl-cli-help-"),
     env = { ...process.env, HOME: home, XDG_CONFIG_HOME: home };
   for (const key of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)(_|$)/.test(key)) delete env[key];
+    if (/^AVOOZL(_|$)/.test(key)) delete env[key];
   return spawnSync(process.execPath, [CLI, ...args], {
     env,
     cwd: home,
@@ -51,9 +51,6 @@ test("the help holds every command the CLI runs, and no other", () => {
     [],
     "HELP_GROUPS names commands the CLI does not run",
   );
-  // The two session hooks were missing from the help before it was grouped.
-  for (const command of ["register-session", "session-hook"])
-    assert.match(helpText("hooks"), new RegExp(`^  avoozl ${command} `, "m"));
 });
 
 test("the overview fits one screen and names every group and command", () => {

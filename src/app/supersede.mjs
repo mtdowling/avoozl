@@ -25,10 +25,9 @@ const COPIED = [
   "epic",
   "track",
   "tags",
-  "prose",
+  "summary",
   "nextAction",
   "acceptance",
-  "checks",
   "acceptFrom",
   "verify",
   "completion",
@@ -44,11 +43,10 @@ const COPIED = [
 // changes only through plan approval (R38.4), so the replacement keeps it.
 const SETTABLE = {
   title: "text",
-  prose: "text",
+  summary: "text",
   nextAction: "text",
   notes: "text",
   acceptance: "list",
-  checks: "list",
   tags: "list",
 };
 
@@ -146,10 +144,10 @@ export function supersedeTask(data, input = {}, { operator } = {}) {
   const authority = taskAuthority(old);
   if (authority !== "local") {
     const error = Error(
-      `Task ${old.id} is owned by ${authority}; replace it in its plan or its tracker instead.`,
+      `Task ${old.id} is owned by ${authority}; replace it in its plan instead.`,
     );
     error.status = 409;
-    error.code = "authority-" + authority.replace(/:.*/, "");
+    error.code = "authority-" + authority;
     throw error;
   }
   if (old.supersededBy || old.status === SUPERSEDED_STATUS.id)

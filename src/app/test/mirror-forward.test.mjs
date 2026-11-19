@@ -19,7 +19,6 @@ const policy = (forward = "nudge") => ({
   mode: "single-repo",
   repositories: {
     [SOURCE]: {
-      coder: "issue-radar",
       mirror: {
         source: SOURCE,
         mirror: MIRROR,

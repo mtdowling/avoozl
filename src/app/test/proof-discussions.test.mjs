@@ -13,6 +13,7 @@ import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { fixture } from "./fixtures.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { postedText } from "../github-posted.mjs";
 
 const REPO = "example/code";
 
@@ -161,7 +162,7 @@ test("P-discuss 2: on, one allowed discussion gets one responder and one screene
   assert.equal(posted.posted, true);
   assert.deepEqual(
     w.github.discussionComments.map((c) => [c.discussionId, c.body]),
-    [["D_1", "Run `npm run build`."]],
+    [["D_1", postedText("Run `npm run build`.")]],
   );
   await assert.rejects(
     w.post("Again", "slot-d"),

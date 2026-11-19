@@ -179,7 +179,7 @@ test("Flow repository selections retain CI for project IDs, GitHub names and CI-
             "example/empty",
             "example/legacy",
             "example/without-project",
-          ].map((name) => [name, { baseBranch: "main", coder: "worker" }]),
+          ].map((name) => [name, { baseBranch: "main" }]),
         ),
       },
     }),
@@ -279,7 +279,7 @@ test("a project without a repository retains its legacy GitHub mapping until exp
       github: {
         mode: "single-repo",
         repositories: {
-          "example/app": { baseBranch: "main", coder: "worker" },
+          "example/app": { baseBranch: "main" },
         },
       },
     }),

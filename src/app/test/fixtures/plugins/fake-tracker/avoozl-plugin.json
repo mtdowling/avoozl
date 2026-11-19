@@ -1,8 +1,0 @@
-{
-  "id": "fake-tracker",
-  "version": "1.0.0",
-  "contract": 1,
-  "kinds": ["tracker"],
-  "capabilities": { "tracker": ["actor", "poll"] },
-  "entry": "index.mjs"
-}

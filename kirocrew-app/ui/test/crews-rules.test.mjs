@@ -41,7 +41,7 @@ test('Crews and rules modes are radio fold-outs, not selects', () => {
     assert.equal((view.match(new RegExp(`<${part} id=\\{id\\} repository=\\{repository\\} set=\\{set\\}[ />]`, 'g')) ?? []).length, 1, part)
 })
 
-test('the seven Avoozl labels show with their job, writer and avoozl: default (RC21.4)', () => {
+test('the six Avoozl labels show with their job, writer and avoozl: default (RC21.4)', () => {
   assert.deepEqual(
     AVOOZL_LABELS.map((entry) => [entry.raw, RADAR_DEFAULTS_SHOWN[entry.key]]),
     [
@@ -51,7 +51,6 @@ test('the seven Avoozl labels show with their job, writer and avoozl: default (R
       ['radar.conflictLabel', 'avoozl:merge-conflict'],
       ['radar.reviewLabel', 'avoozl:review'],
       ['radar.draftedLabel', 'avoozl:drafted'],
-      ['radar.trackerLabel', 'avoozl:waiting-on-tracker'],
     ],
   )
   for (const entry of AVOOZL_LABELS) assert.ok(entry.job && entry.writer, entry.key)
@@ -65,19 +64,21 @@ test('the seven Avoozl labels show with their job, writer and avoozl: default (R
 test('the review and drafted labels round-trip, and ready stays in managedLabels', () => {
   const policy = {
     mode: 'single-repo',
-    repositories: { 'example/code': { baseBranch: 'main', managedLabels: { ready: 'go' }, radar: { reviewLabel: 'review me', draftedLabel: 'drafted', trackerLabel: 'waiting' } } },
+    repositories: { 'example/code': { baseBranch: 'main', managedLabels: { ready: 'go' }, radar: { reviewLabel: 'review me', draftedLabel: 'drafted' } } },
   }
   const form = toForm(policy)
   assert.equal(form.repositories[0].reviewLabel, 'review me')
   assert.equal(form.repositories[0].draftedLabel, 'drafted')
-  assert.equal(form.repositories[0].trackerLabel, 'waiting')
   const out = toPolicy(form).repositories['example/code']
-  assert.deepEqual(out.radar, { reviewLabel: 'review me', draftedLabel: 'drafted', trackerLabel: 'waiting' })
+  assert.deepEqual(out.radar, { reviewLabel: 'review me', draftedLabel: 'drafted' })
   assert.deepEqual(out.managedLabels, { ready: 'go' })
 })
 
 test('the two values round-trip and a blank one leaves the file', () => {
-  const policy = { mode: 'single-repo', repositories: { 'example/code': { baseBranch: 'main', coder: 'issue-radar', radar: { planLabel: 'to plan', clearPlanLabel: true } } } }
+  const policy = {
+    mode: 'single-repo',
+    repositories: { 'example/code': { baseBranch: 'main', radar: { planLabel: 'to plan', clearPlanLabel: true } } },
+  }
   const form = toForm(policy)
   const repository = form.repositories[0]
   assert.equal(repository.planLabel, 'to plan')

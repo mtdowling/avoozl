@@ -49,7 +49,7 @@ function isolatedEnv(root) {
     APPDATA: path.join(root, "roaming"),
   };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_/.test(name)) delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   return env;
 }
 
@@ -708,7 +708,7 @@ test("the CLI pointed at avoozl serve is refused, and the error says why (SW5.4)
   const result = await new Promise((resolve) => {
     const child = spawn(
       process.execPath,
-      [cli, "gate", "list", "--workspace", workspace, "--url", s.origin],
+      [cli, "review", "drafts", "--workspace", workspace, "--url", s.origin],
       { env: { ...process.env, XDG_CONFIG_HOME: path.join(s.root, "xdg") } },
     );
     let stderr = "";

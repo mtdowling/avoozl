@@ -171,25 +171,18 @@ a coder. It still hosts no UI outside Kiro Crew.
 | Completion                                        | Derived: GitHub facts (Requirement 16) or local verified-and-integrated commit                                                                                                    | Cached verdict                                         | Never written as an independent fact for GitHub tasks                                                                         |
 | Activity and evidence                             | Append-only event log in SQLite, pointing at real sources                                                                                                                         | Authoritative for local; receipt for GitHub            | Evidence links, not copies                                                                                                    |
 | Human decisions                                   | SQLite for local tasks; GitHub labels and comments for GitHub tasks                                                                                                               | Authoritative / cache                                  |                                                                                                                               |
-| Tracker plugin records (`authority: plugin:<id>`) | The plugin's tracker: records, open or closed, managed fields, the stored marker, and native links when the plugin has `edges`                                                    | **Cache**                                              | Same rule as GitHub. Without `edges`, the graph's edges come from the approved manifest and SQLite caches them (§4.8)         |
 | Plugin approvals                                  | Machine-local Avoozl settings: id, version, content hash                                                                                                                          | Receipt                                                | Never in Git; never set by the tick (§4.8)                                                                                    |
 | Spec driver (which machine may write for a spec)  | GitHub: the plan issue's single assignee (else its epic issue's) plus the machine claim in its marker; Local only: a SQLite row                                                   | **Cache** in GitHub modes; authoritative in Local only | Moves only by a person: a reassignment then Take over, or Force take over (§6.10)                                             |
 
 ### 3.2 When SQLite is authoritative
 
-**Proposed.** Every task row carries `authority: "local" | "github" | "plugin:<id>"`.
+**Proposed.** Every task row carries `authority: "local" | "github"`.
 
 - `local`: SQLite owns the row. Writes go through operations. Portable records
   publish to Git for durability and review. A local task never syncs to GitHub.
 - `github`: the row is a cache. Operations refuse direct edits and route the
   change to GitHub (title, body, labels, edges, Project fields) through
   projection. The tick overwrites the row from GitHub on every sync.
-- `plugin:<id>`: the row is a cache of a record in a tracker plugin's system
-  (§4.8). The same rules as `github` apply: operations refuse direct edits
-  with 409 (as task 2.2 does for `github`) and route the change through the
-  plugin's `project`; the tick overwrites the row from `read`. A plugin task
-  shows the plugin's record link and the plugin id on every card. Added
-  2026-11-12 (Requirement 35).
 - **Default.** With no GitHub mode, every task is `local`. With a GitHub mode
   (§6.6), a new task's default is `github`: once its plan is approved, the
   next projection creates its issue. Local is opt-in, either per task
@@ -205,7 +198,7 @@ a coder. It still hosts no UI outside Kiro Crew.
   **Verified** in the Phase 2 work model (`taskAuthority` in
   `src/work-model.mjs` on branch `task/phase2-model-validation`).
 - A task changes authority only through an approved projection (local →
-  github, or local → `plugin:<id>`) or an explicit "take back local" action that closes the GitHub issue
+  github) or an explicit "take back local" action that closes the GitHub issue
   as `not_planned`. Projecting an opt-in local task needs a plan change that
   removes its `authority: local`, then approval. One task never has two
   writable rows.
@@ -217,8 +210,6 @@ a coder. It still hosts no UI outside Kiro Crew.
 `avoozl tick`. The result must equal the previous state for every task, edge,
 status, completion verdict, and managed-field baseline. Only session bindings may
 be missing; the tick rediscovers them from session titles (`avoozl:<task-id>`).
-The same test holds for `authority: "plugin:<id>"` tasks, rebuilt from the
-plugin's `list` and `read` plus the approved task facts (§4.8, proof P26).
 
 ### 3.4 Managed issue marker, version 2
 
@@ -375,11 +366,11 @@ plugin's `list` and `read` plus the approved task facts (§4.8, proof P26).
 | ------------ | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `id`         | lowercase, dotted path allowed (`w3.reactor-timers`)                                         | Immutable after approval; comes from the `tasks.md` item's ID (§6.8)                                                                                  |
 | `kind`       | `epic`, `package`, `leaf`                                                                    | Only leaves dispatch; epics and packages complete from children. Changed 2026-11-13: inside a plan only `package` and `leaf`; epics span plans (§6.9) |
-| `authority`  | `local`, `github`, `plugin:<id>`                                                             | §3.2; default `github` when a GitHub mode is set; `plugin:<id>` needs a loaded tracker plugin (§4.8)                                                  |
-| `route`      | `local`, `github`, `plugin:<id>`                                                             | How a leaf is delivered; `plugin:<id>` needs a loaded route plugin (§4.8)                                                                             |
+| `authority`  | `local`, `github`                                                                           | §3.2; default `github` when a GitHub mode is set                                                                                                      |
+| `route`      | `local`, `github`                                                                           | How a leaf is delivered                                                                                                                               |
 | `repository` | registered repository ID                                                                     | Required for leaves; exactly one                                                                                                                      |
 | `acceptance` | list of observable statements                                                                | Required for leaves                                                                                                                                   |
-| `checks`     | named commands (local) or check names (GitHub)                                               | Required for code leaves                                                                                                                              |
+| `checks`     | none: not a task field                                                                       | Changed 2026-11-18: every leaf runs its repository's named checks (§5.2); a stored task's list is ignored                                             |
 | `completion` | `merged-pr`, `integrated`, `released`, `answered`, `person`                                  | `answered` only for `respond`; `person` only, and always, for a `manual` leaf (§4.16)                                                                 |
 | `manual`     | `true` or absent                                                                             | A leaf only a person does: never dispatched, waits in Needs you, marked done by a person (§4.16)                                                      |
 | `status`     | `draft`, `approved`, `running`, `review`, `done`, `failed`, `blocked`, `deferred`, `partial` | `partial` exists only for migrated tasks (§10)                                                                                                        |
@@ -654,13 +645,14 @@ New MCP tools (**Proposed**, `plans_` prefix kept for consistency):
 - Plugins run only after a person approves their exact version and hash, each
   in a local child process over stdio, with no port and no listener (§4.8).
 
-### 4.8 Plugins: routes, trackers, and loading
+### 4.8 Plugins and loading
 
-**Proposed**, owner request 2026-11-12 (Requirements 22, 34, 35). This is the
-one way to add a delivery system or a task tracker. It stays a schema and an
-interface until the gate in Requirement 22.4 holds: every proof in Phases 0–7
-passes, and a second real route exists. A private code-review route in its own
-private package counts as that second real route. Test fakes never count.
+**Proposed**, owner request 2026-11-12 (Requirement 34). This is the one way
+to add an intake source or content rules from outside Avoozl. (Changed
+2026-11-18: route and tracker plugins are retired with Requirements 22 and
+35. Worker paths are the one dispatch path, and a task's record is local or
+a GitHub issue. A manifest that lists `route`, `tracker` or `gate` is
+refused when it loads.)
 
 **Where plugins live and how they are declared.** A plugin is a package
 installed into Avoozl's plugin folder under the app's data directory, a
@@ -671,18 +663,17 @@ Settings does it. A `plugins` entry declares each plugin:
 {
   "plugins": [
     {
-      "id": "example-tracker",
-      "package": "@example/avoozl-tracker",
+      "id": "example-intake",
+      "package": "@example/avoozl-intake",
       "contract": 1,
       "config": {
-        "baseUrl": "https://tracker.example.com",
-        "tokenEnv": "EXAMPLE_TRACKER_TOKEN",
-        "allowedActors": ["maintainer-login"]
+        "baseUrl": "https://tickets.example.com",
+        "tokenEnv": "EXAMPLE_INTAKE_TOKEN"
       }
     },
     {
-      "id": "example-review",
-      "path": "../avoozl-example-review",
+      "id": "example-rules",
+      "path": "../avoozl-example-rules",
       "contract": 1
     }
   ]
@@ -702,8 +693,8 @@ name a git repository instead of a package or a folder:
 
 ```json
 {
-  "id": "example-review",
-  "git": "https://git.example.com/team/review-plugin.git",
+  "id": "example-rules",
+  "git": "https://git.example.com/team/rules-plugin.git",
   "ref": "v1.4.0",
   "subdir": "plugin",
   "contract": 1
@@ -740,20 +731,17 @@ credentials masked.
 
 ```json
 {
-  "id": "example-tracker",
+  "id": "example-intake",
   "version": "1.2.0",
   "contract": 1,
-  "kinds": ["tracker"],
-  "capabilities": {
-    "tracker": ["edges", "subtasks", "actor", "pause"],
-    "route": []
-  },
+  "kinds": ["intake"],
+  "capabilities": { "intake": ["actor"] },
   "entry": "index.mjs"
 }
 ```
 
 The manifest `id` must equal the entry's `id`. `local` and `github` are
-reserved. Route names and authorities are `plugin:<id>`.
+reserved. An intake source names a plugin as `plugin:<id>`.
 
 **Consent.** Before the first load, and after any change of version or
 content hash (a SHA-256 over the package's files), Settings shows the id,
@@ -766,7 +754,7 @@ and talks to it with JSON messages over stdio. It gives the plugin no port.
 A plugin must open no listener; Avoozl checks the child's open sockets after
 start and on each health check, and stops and marks broken one that listens.
 (**Inferred**: listing a child's listening sockets needs no extra rights on
-macOS and Linux; proof P26 checks it.)
+macOS and Linux; `src/app/test/plugins.test.mjs` checks it.)
 The plugin may call its own system over the network. Every reply is checked
 against the contract schema and treated as untrusted data: quoted as data in
 briefs, escaped in views.
@@ -774,60 +762,23 @@ briefs, escaped in views.
 **Failure isolation.** Each call has a time limit (default 20 seconds) inside
 the tick's budget (§4.5). When a plugin is missing, unapproved, crashes, times
 out, replies with an invalid shape, or expects an unsupported contract version,
-Avoozl marks it unavailable for this tick, parks each of its tasks as "needs
-you" with the reason, writes nothing for those tasks, and finishes the tick for
-everything else. The next tick tries again. A plugin's tasks never fall back to
-another route or authority on their own.
+Avoozl marks it unavailable for this tick, shows the reason on its intake
+sources and rule sets, and finishes the tick for everything else. The next
+tick tries again.
 
 **Contract version.** One integer, `contract`. Avoozl lists the versions it
 supports and refuses others at load. Changes inside a version only add
 optional fields or capabilities.
 
-**Route kind** (Requirement 22). `submit(task, brief)` returns a remote ID and
-link; `status(id)` returns `queued`, `running`, `needs-person` (with a link),
-`failed`, or `done`; `completion(id)` returns a pull request link, an answer,
-or both; `cancel(id)`. Readiness and dependent release work as in §4.3 and
-Requirement 22.5–22.9.
+**Intake kind** (Requirement 50.7). One call, `poll({cursor, limit})`:
+changed items since the cursor, as incoming items (§4.12). With the `actor`
+capability the plugin reports who acted, so trigger rules can run on its
+items.
 
-**Tracker kind** (Requirement 35). The same jobs GitHub authority does, stated
-generically:
-
-| Job                                                                  | Contract call                                                                                             | GitHub equivalent                                 |
-| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| Create or update a task's record                                     | `project(task, desired)`, idempotent by namespace and task ID; returns record ID and link                 | Projection (§6.3), marker v2 (§3.4)               |
-| Read state                                                           | `read(ids)`: open or closed, close reason, last close or pause actor, managed field values, stored marker | Tick step 4                                       |
-| Rebuild                                                              | `list(namespace)`: every record carrying the namespace and task ID                                        | Rebuild from markers (§3.3)                       |
-| Close                                                                | `close(id, reason)` with `completed` or `not_planned`                                                     | Parent close; take back local (Requirement 33.3)  |
-| Bring outside work in (optional capability `poll`, Requirement 50.7) | `poll({cursor, limit})`: changed items since the cursor, as incoming items (§4.12)                        | Issue intake (§4.4) and the Untriaged read (§8.5) |
-
-- **Marker.** The plugin stores the namespace, task ID, and last applied
-  managed values with each record, where its tracker allows (a hidden field or
-  a managed description section). A tracker that cannot store them is refused
-  for the kind `tracker`.
-- **Graph.** Most trackers have no native blocked-by links. Then the graph
-  stays in Avoozl: blocking edges come from the approved task facts in Git,
-  SQLite caches them, and the tracker holds only records. An edge change is a
-  plan change. With the `edges` capability, Avoozl projects blocking edges as
-  the tracker's own links, and they become managed fields.
-- **Conflicts.** Managed fields are the title, the managed description
-  section, managed tags, and (with `edges`) blocking links. The three-way rule
-  of Requirement 15.1–15.3 applies with the marker's last applied values.
-  Avoozl edits no other field.
-- **Completion.** The verdict stays Avoozl's, from the task's route: local
-  verified-and-integrated commit (§5) or a route plugin's `completion`
-  (Requirement 22.8). After the verdict Avoozl calls `close(id, "completed")`.
-- **Orders.** A close or pause by someone else follows Requirement
-  33.8–33.10, using the actor from `read` and the entry's `allowedActors` or
-  the tracker permission the plugin reports. Without the `actor` capability,
-  every outside close or pause holds its dependents and opens a decision.
-- **One authority.** A task is `local`, `github`, or one `plugin:<id>`, never
-  two. A plugin row refuses direct edits with 409.
-
-**Private integrations.** A route for an internal code review system, or a
-tracker for an internal tracker, is a separate private package that plugs in
-here. Nothing in the public Avoozl repository names a company-internal tool:
-not code, tests, fixtures, docs, or this spec. Tests use only the fake route
-and fake tracker plugins under `test/fixtures/plugins/`. The release leak scan
+**Private integrations.** An intake source for an internal tracker is a
+separate private package that plugs in here. Nothing in the public Avoozl
+repository names a company-internal tool: not code, tests, fixtures, docs,
+or this spec. Tests use only the fake plugins under `test/fixtures/plugins/`. The release leak scan
 (§13 gate 5, task 7.4) covers plugin docs and fixtures.
 
 ### 4.9 Content rules
@@ -1062,8 +1013,8 @@ The writer's session comes from: the task's `session` fact, `delivery`
 retry keeps its last model unless it is out. Checks and review roles keep
 their own agent and model (§5.2). The binding records `agent`, `model`,
 `modelUsed` (when Kiro Crew reports it, F65), and `sessionReason`. Issue
-Radar and `plugin:<id>` leaves ignore `session`. A coding agent outside Kiro
-Crew is a route plugin (§4.8).
+Radar leaves ignore `session`. A coding agent outside Kiro Crew is a
+process harness (§4.28).
 
 ### 4.11 Flow: timing, stop the line, and retrospectives
 
@@ -1175,7 +1126,7 @@ after the content rules), never output. Stages and where each comes from:
 | ---------- | ------------------------------------------------------------------ | ------------------------------------------ | -------------------------------------------------- |
 | `queued`   | Task becomes ready                                                 | Its worker session is bound                | events                                             |
 | `coding`   | Worker bound, or a phase marker `coding`                           | Next span in the attempt, or `done`        | tool calls, markers, or events                     |
-| `tests`    | A shell call running a declared check, or marker `tests`           | Next tool row or marker                    | tool calls or markers; verifier sessions as events |
+| `tests`    | A shell call running a repository check, or marker `tests`         | Next tool row or marker                    | tool calls or markers; verifier sessions as events |
 | `commands` | Any other shell call, or marker `commands`                         | Next tool row or marker                    | tool calls or markers                              |
 | `ci-wait`  | First check run requested on the pushed head                       | Last required check run completed (F95)    | GitHub check runs                                  |
 | `review`   | Review role bound, or review requested on GitHub                   | Verdict reported, or review `submitted_at` | events, GitHub reviews                             |
@@ -1351,8 +1302,9 @@ Resume ─▶ flow.resume ─▶ each `interrupted` delivery of this stop ─▶
 
 Default on. It applies wherever a session Avoozl opens pushes: plans-repo
 workers (§6.6) and remote workers (§4.10). The brief tells the worker to run
-the declared checks before each push; the `done` report lists each check's
-command, exit code, and duration for the pushed commit; Avoozl refuses a
+the repository's checks before each push; the `done` report lists each
+check's name, command, exit code, and duration for the pushed commit, for
+the checks that commit's diff picks (§5.2); Avoozl refuses a
 `done` without them. The pre-push hook Avoozl installs in each worktree
 (task 10.4) also refuses a push whose commit has no recorded local pass. It
 reads the record the worker's check run left in the worktree's git
@@ -1447,7 +1399,7 @@ Reply:
   Settings proposals may touch only keys the Settings page edits, and never
   content rules, plugin trust or approvals, trigger actors or minimum
   permission, crew trust, or tokens: those guard safety, not speed. Removing
-  a review role or a declared check is allowed, because ceremony was one of
+  a review role or a repository check is allowed, because ceremony was one of
   the original causes, but it is marked "removes a check" and needs a second
   confirmation.
 - **Never applied by the agent.** Approve on a settings proposal writes it
@@ -1637,8 +1589,8 @@ Local only included, because a plugin or MCP source does not need GitHub.
 
 #### Two ways in
 
-**A plugin's `poll`** (preferred). A tracker plugin declares the new
-capability `poll` and implements `poll({cursor, limit})`, which returns
+**A plugin's `poll`** (preferred). A plugin provides `intake` and
+implements `poll({cursor, limit})`, which returns
 `{items, cursor, more}`: at most `limit` items (Avoozl asks for 500),
 an opaque cursor of at most 2,000 characters, and whether more are
 waiting. The tick cron calls it once per source per tick, after the
@@ -1786,7 +1738,7 @@ source is removed from the settings.
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | One record for every source                 | One matcher, one check, one list; a new source is a plugin, not a feature                        |
 | SQLite, not a file                          | The cron and the backend already share the database; one lock, one quiet-tick rule               |
-| `poll` on tracker plugins                   | Reuses plugin consent, health, and isolation (§4.8); no model turn; the cursor survives restarts |
+| `poll` on intake plugins                    | Reuses plugin consent, health, and isolation (§4.8); no model turn; the cursor survives restarts |
 | MCP only for declared `mcp` sources         | An MCP caller cannot pose as GitHub or a plugin                                                  |
 | Plugin states standing, Avoozl decides      | One `actorAllowed` and one visible bar                                                           |
 | MCP is the owner but meets no starting rule | It cannot prove an outside order (F108); stopping rules are safe                                 |
@@ -1897,7 +1849,7 @@ gets 403), like approval. The tick never imports. The CLI has
 | Who-counts change needs acceptance                 | Lowering who can give orders must never be silent                                   |
 | `packs` provenance in `.avoozl.json`               | A reviewer of the commit sees where each setting came from                          |
 | No follow mode, no org minimums                    | After import the settings are the repository's own; nobody upstream can change them |
-| Intake is the tracker kind's `poll`                | Reuses plugin consent, health, and isolation; Requirement 50 adds storage           |
+| Intake is its own plugin kind's `poll`             | Reuses plugin consent, health, and isolation; Requirement 50 adds storage           |
 
 ### 4.15 Onboard a repository
 
@@ -3655,7 +3607,7 @@ the plan is private). A trailer is only a pointer. Reconcile writes `landed` onl
 3. Acceptance evidence exists: an authorized landing intent carrying verified check,
    path and review evidence for the exact candidate and its actual landing (4.32.7),
    or re-verification at that commit — the diff stays inside declared paths, no
-   protected path is touched, the declared checks pass (`runCheckAt`,
+   protected path is touched, the repository's checks pass (`runCheckAt`,
    `src/app/flow-line.mjs:38`), and the repository's review rule was satisfied
    (`reviewVerdict`, `src/app/github-reviews.mjs:26`).
 
@@ -4708,12 +4660,10 @@ follow it. Spec-wide defaults are front-matter at the top of `tasks.md`:
 ```markdown
 ---
 repo: avoozl
-checks: npm test, git diff --check
 ---
 - [ ] lt-1.2 Queue table and records
   - Facts:
     - after: lt-1.1
-    - checks: npm test
     - done:
       - Tests load a valid file and get every default
       - An unknown key is refused, and the message names the key
@@ -4730,7 +4680,7 @@ checks: npm test, git diff --check
 | `repo` | `repository` | one text |
 | `summary`, `completion`, `phase`, `batch`, `authority`, `route`, `type`, `milestone`, `iteration`, `scope`, `track`, `projectId`, `taskId`, `nextAction`, `distinctReason`, `acceptFrom`, `verify`, `ship` | the same name | one text |
 | `done` | `acceptance` | list |
-| `checks`, `sequence`, `supports`, `unblocks`, `tags`, `resources`, `paths`, `labels`, `needs` | the same name | list |
+| `sequence`, `supports`, `unblocks`, `tags`, `resources`, `paths`, `labels`, `needs` | the same name | list |
 | `after` | `requires` | list; an entry may end `:<completion>` |
 | `manual`, `investigate` | the same name | `true` or `false` |
 | `session`, `tracker` | the same name | one line of JSON |
@@ -4739,7 +4689,13 @@ checks: npm test, git diff --check
 A list is `key: a, b` or `key:` with nested bullets. Nested bullets keep a
 comma inside an item, and the converter writes them for `done` always.
 
-**Front-matter keys.** `repo`, `checks`, `completion` (defaults for leaves);
+Changed 2026-11-18: there is no `checks` fact and no `checks` default.
+Every task runs its repository's checks (§5.2); a `checks` line in
+`Facts:` or front-matter is the error `facts.removed-key`, "Every task runs
+the repository's checks; delete this line." A stored record's task list is
+dropped when it is read.
+
+**Front-matter keys.** `repo`, `completion` (defaults for leaves);
 `ship`, `integrationBranch`, `integrationSync`, `forwardTarget`,
 `publicBranch`, `kind: epic` (the spec); `phase-<id>: <title>` and
 `batch-<id>: <reason>`. A batch group's members each write `batch: <id>`, so
@@ -4752,7 +4708,7 @@ already read from the manifest, `{tasks, ship, phases, batches, ...}`, plus
 the line of each bullet. `parseSpec`, `lintSpec`, `proposeSpecWork`, the
 spec page, review tabs, graph, spec pull request adoption, import and the
 plan-review view take the facts from it. A default fills a leaf's missing
-`repo`, `checks` and `completion`; a package takes none. Diagnostics name
+`repo` and `completion`; a package takes none. Diagnostics name
 `tasks.md` and the bullet's line. A leftover `avoozl/manifest.json` is one
 error, `spec.manifest-left`, and nothing reads the file.
 
@@ -4807,7 +4763,7 @@ defaults and packages, an epic folder, a batch group, a leftover manifest.
 `spec-plans.test.mjs` and the fixtures write `Facts:`. A hash test: the same
 spec in old layout (built in the test) and new layout hashes the same, and a
 changed fact changes it. `spec-carry.test.mjs`: the same content carries;
-one character changed in prose, `after`, `checks` or `done` does not.
+one character changed in prose, `after` or `done` does not.
 `spec-conversion.test.mjs` as above. `kirocrew-planner.test.mjs`: the
 planner prompt's example folder lints clean.
 
@@ -4826,7 +4782,7 @@ planner prompt's example folder lints clean.
 | 7. Dispatch      | Crew Mode conductor (preferred, §5.1); tick and script cron as fallback                                                                                                                   | The conductor asks Avoozl for ready leaves and opens one worker session per leaf, up to capacity; the fallback opens `kirocrew-worker` sessions from the tick. The brief names the task ID, acceptance, checks, and the worktree tool                     |                                           |
 | 8. Work          | Worker session                                                                                                                                                                            | Calls `plans_prepare_worktree` (branch `avoozl/<task-id>`), implements, commits, reports `done` with the commit SHA through `plans_report`                                                                                                                | Worker reports `question`                 |
 | 9. Complex leaf  | Worker session                                                                                                                                                                            | May call `task_run` on a spec it writes for the leaf; Task Runner steps stay inside that run (F5, F6)                                                                                                                                                     |                                           |
-| 10. Verify       | Tick queues a check run that Avoozl makes itself (an `avoozl-verifier` session only for a bar that needs judgment), plus one session per review role when the repository names any (§5.2) | Runs the leaf's declared checks as argv on the exact SHA in a clean worktree and records exit codes and output tails; review roles report verdicts and findings on the same SHA                                                                           | Checks fail after the retry bound         |
+| 10. Verify       | Tick queues a check run that Avoozl makes itself (an `avoozl-verifier` session only for a bar that needs judgment), plus one session per review role when the repository names any (§5.2) | Runs the repository's checks the diff picks as argv on the exact SHA in a clean worktree and records exit codes and output tails; review roles report verdicts and findings                                                                               | Checks fail after the retry bound         |
 | 11. Integrate    | Tick (`integrateRun`)                                                                                                                                                                     | Rebases and merges into the local integration branch                                                                                                                                                                                                      | Rebase conflict the worker cannot resolve |
 | 12. Release      | Tick                                                                                                                                                                                      | Recomputes readiness; dispatches newly ready leaves                                                                                                                                                                                                       |                                           |
 | 13. Close parent | Tick                                                                                                                                                                                      | Marks packages and the epic done when all required children are done; whole-head acceptance stays a separate, explicit action                                                                                                                             | Whole-head acceptance                     |
@@ -4901,7 +4857,7 @@ below read `kirocrew-native` at `dd8b28b`.
 
 | #   | Fact                                                                                                                                                                                                                                                                                                                                                                                                      | Evidence                                                                                                                    |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| F56 | **Verified.** A worker's `done` report queues one check run that Avoozl makes itself on the leaf's declared checks (else the repository's) in a detached worktree at the reported commit; an `avoozl-verifier` session opens only for a bar that needs judgment (§5.2 Checks in code). `verdictCause` refuses a report for another commit, a declared check missing from the report, and a non-zero exit. | `src/app/delivery.mjs` `planVerifierDispatches`, `planCheckRuns`, `verifierBrief`, `verdictCause`; `src/app/check-runs.mjs` |
+| F56 | **Verified.** A worker's `done` report queues one check run that Avoozl makes itself on the repository's checks the commit's diff picks (changed 2026-11-18: a leaf names none) in a detached worktree at the reported commit; an `avoozl-verifier` session opens only for a bar that needs judgment (§5.2 Checks in code). `verdictCause` refuses a report for another commit, a picked check missing from the report, and a non-zero exit. | `src/app/delivery.mjs` `planVerifierDispatches`, `planCheckRuns`, `verifierBrief`, `verdictCause`; `src/app/check-runs.mjs` |
 | F57 | **Verified.** A rejected verdict marks the worker's attempt failed; the retry path opens a new worker attempt on the same worktree with the earlier cause quoted as data, up to `retries`, then a decision. A blocked or quiet verifier fails only the verification and is retried. Attempts and verifications stay on the `task_deliveries` row.                                                         | `delivery.mjs` `reconcileVerifications`, `reconcileDeliveries`, `workerBrief`                                               |
 | F58 | **Verified.** Only a `verified` delivery is integrated, and a local leaf's `integrated` completion is reached from `task.integration.commit`, so dependents already wait for the verifier and integration.                                                                                                                                                                                                | `delivery.mjs` `integrateVerified`; `src/work-model.mjs` `completionReached`; `src/query.mjs` `ready`                       |
 | F59 | **Verified.** Per-repository and workspace concurrency count only live worker attempts; verifier sessions do not count. The default workspace concurrency is 1.                                                                                                                                                                                                                                           | `delivery.mjs` `readyLeaves`, `DELIVERY_DEFAULTS`                                                                           |
@@ -4966,6 +4922,32 @@ entry may replace the workspace's list.
 The checks role makes no model call when the bar is commands. Owner
 decision 2026-11-13.
 
+**Repository checks** (changed 2026-11-18). The checks are the
+repository's, set in its workspace project config and only by a person
+(`project.configure`). `checks` maps a name (`^[a-z][a-z0-9-]{0,39}$`) to
+argv, or to `{"run": [argv], "paths": [glob, ...]}`:
+
+```json
+{
+  "test": ["npm", "test"],
+  "diff": ["git", "diff", "--check"],
+  "ui": { "run": ["npm", "run", "test:ui"], "paths": ["src/ui/**"] }
+}
+```
+
+A check with `paths` runs only when the commit's diff against the base
+touches a match; every other check always runs. Tasks never name checks:
+there is no `checks` fact or default (§4.40), and a stored task's list is
+ignored. The older form, a list of argv arrays, still loads, each check
+named by its argv joined with spaces and with no paths. Records, reruns,
+bisect steps and journal entries are keyed by check name; each still keeps
+`command` for display. A check runs with only the environment a process
+needs to start plus the names in `checksEnv`, whether or not it lists any;
+push and GitHub credentials never reach a check, even when listed.
+`verify.checkTimeouts` is keyed by check name (a key written as the
+command text still matches), with `verify.checkTimeoutSeconds` the
+default.
+
 - **Queue.** The tick queues one `check-run` record (in `flow_records`)
   per reported commit, after fetching remote hand-back branches, so a
   remote commit is checked here too. The app backend drain runs the queue
@@ -4974,8 +4956,7 @@ decision 2026-11-13.
   stopped line holds is not queued until the line is green. A run left
   `running` by a process that is gone goes back in the queue.
 - **Run.** A clean detached worktree at the exact reported commit. Each
-  declared check (`task.checks`, else the repository's `checks`) runs as
-  argv with no shell, with its own time limit (20 minutes), and records
+  repository check the commit's diff picks runs as argv with no shell, with its own time limit (20 minutes), and records
   its exit code and the last lines of its output, redacted by the content
   rules and with the worktree path removed. The worktree is removed
   afterwards. If HEAD is not the reported commit, nothing runs.
@@ -4985,11 +4966,10 @@ decision 2026-11-13.
   A non-zero exit fails the writer's attempt; the tail is kept beside
   that check on the verification. A run for an older commit judges nothing.
 - **Receipts.** The verification keeps role id `checks` and the same entry
-  shape (`command`, `exitCode`, `durationMs`), so receipts and gates read
+  shape (`name`, `command`, `exitCode`, `durationMs`), so receipts and gates read
   the same. Flow timing records the run as stage `checks`.
 - **Judgment.** A verifier session on `avoozl-verifier` opens only when
-  the task says `verify: "agent"`, or its acceptance is prose with no
-  declared check. Its report carries a `verdict` like a reviewer's.
+  the task says `verify: "agent"`, or its repository has no checks. Its report carries a `verdict` like a reviewer's.
 
 #### Flow
 
@@ -5054,16 +5034,17 @@ defect closed `unchanged` stays open. A person retrying a stopped delivery
 
 **Not run.** A checks report entry may be `{command, exitCode: null,
 notRun: "<reason>"}`. Avoozl reads `notRun`, a null exit code, 126, 127, and
-a declared check missing from the report as not run (Requirement 38.1).
-`validateRun` evidence with `exitCode: null` already fails; acceptance now
-also needs every declared check present at the current commit.
+a picked repository check missing from the report as not run (Requirement
+38.1). `validateRun` evidence with `exitCode: null` already fails;
+acceptance now also needs every repository check present at the current
+commit.
 
 **`acceptFrom: validation`.** A fact on a leaf, linted like
 `completion`. It changes `task.accept` and `task.update` as Requirement 38.4
 says. A leaf whose repository has review roles gets the same `task.update`
 refusals (Requirement 36.11) whether or not it sets the flag. The
 multi-step rewrite flow sets it on each writer leaf and lists that
-repository's validation script as a declared check, so the checks role runs
+repository's validation script as one of its checks, so the checks role runs
 it on the exact commit and acceptance can only come from its pass.
 
 **Supersede by hand.** `task.supersede` (`avoozl task supersede`,
@@ -5098,7 +5079,7 @@ the head moves. It is not part of the first cut (Requirement 36.13).
 | Verdicts name their commit; a moved head makes them stale          | Rule 3: the review judges what merges. Comparing the stored commit is enough; no timer or invalidation step is needed                                                                                                                                                                                                                   |
 | Re-review after a rebase that changes the commit                   | A rebase can change behavior. With one writer per repository the base rarely moves, so the extra round is rare                                                                                                                                                                                                                          |
 | Rework is a new attempt, not a superseded task                     | The retry path already keeps the worktree, quotes the cause, bounds retries, and keeps history (F57). Superseding for each rework would grow the graph and need edge tricks                                                                                                                                                             |
-| Closure checked in Avoozl, domain rules in the repository's script | The fixed-or-unchanged check is generic: paths and diffs. What a rewrite run must contain is that repository's business, so its validation script runs as a declared check, and Avoozl gains only `acceptFrom`                                                                                                                          |
+| Closure checked in Avoozl, domain rules in the repository's script | The fixed-or-unchanged check is generic: paths and diffs. What a rewrite run must contain is that repository's business, so its validation script runs as a repository check, and Avoozl gains only `acceptFrom`                                                                                                                        |
 | Task's own diff via patch-id                                       | A plain diff between two commits also shows base changes after a rebase, which would let `fixed` pass on someone else's edit                                                                                                                                                                                                            |
 | Not-run fails the checking session, not the writer                 | A missing tool is not the writer's fault; today it costs a worker retry (F62). It still never passes                                                                                                                                                                                                                                    |
 | `acceptFrom`, not `acceptance`                                     | `acceptance` already holds criteria text on every task (F66)                                                                                                                                                                                                                                                                            |
@@ -6152,14 +6133,16 @@ local folder just before `PluginProcess` spawns.
 
 **S8, checks env.** `projectConfig` and project settings take `checksEnv`.
 `commandEvidence`, `runChecksAt`, `runCheckAt` and `runLocalChecks` pass it to
-`repositoryEnvironment(env, allow)`. The setting is named `checksEnv`, not
-`checks.env`, because `checks` is a list.
+`checkEnvironment(env, allow)`. The setting is named `checksEnv`, not
+`checks.env`, because `checks` was a list. Changed 2026-11-18: a check
+always gets the allowlist, the start-up names plus `checksEnv`, even when
+`checksEnv` is absent, and never the push or GitHub credentials.
 
 | Choice                           | Why                                                        |
 | -------------------------------- | ---------------------------------------------------------- |
 | Gate on Kiro Crew's own markers  | Nothing for the person to set up; a terminal is unaffected |
 | Approval stored with the project | Whoever edits `checks` already runs code there             |
-| `checksEnv` off by default       | No existing check breaks                                   |
+| Allowlist always on              | A check never holds a token it was not given               |
 
 shortcut: S4 is a speed bump and S7 leaves a small window between the hash and
 the child's read; upgrade S4 with the upstream request, S7 by copying first.
@@ -7019,7 +7002,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P23   | Moving a workspace to the Kiro spec layout with the issue mapping unchanged                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | P24   | The Set up GitHub wizard creates everything on a fresh account, then changes nothing on a second run; a token without `project` gets the fix command and no Project writes                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | P25   | The linked-branch close and logged-out leak check repeated inside one organization (private planning repo, public code repo), before Phase 4 builds on it and before Phase 6                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| P26   | Fake tracker and fake route plugins load only after approval, run a mixed chain end to end, rebuild from the tracker, and a broken plugin parks its tasks without stopping the tick (Phase 8)                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| P26   | Retired 2026-11-18 with route and tracker plugins (Phase 8)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | P27   | Review gates with fake writers and reviewers: two review roles on distinct models gate integration of the exact commit, changes requested rework the same delivery, closures are checked against changed files, a not-run check keeps the gate shut without costing a writer attempt, a rebase forces re-review, typed paths around the gate are refused, and supersede survives plan re-approval (Phase 9)                                                                                                                                                                                                                                             |
 | P28   | Content rules with a fake terms file and a fake rules plugin: every boundary blocks a match and opens a decision without logging the term, agent calls are refused in-call, allow once passes one exact write, a missing or broken set fails closed, the built-in screens behave as before, and the terms never reach Git (Phase 10)                                                                                                                                                                                                                                                                                                                    |
 | P29   | Retired 2026-11-18 (Phase 11) |
@@ -7074,7 +7057,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 5. Removal                                                                    | Delete host, providers, OpenHands, website, extension, intake callback, queue browser                                                                                                                                                                                                                                                                               | Full test suite passes; no listener besides the app backend                                                         |
 | 6. Move an existing workspace                                                 | Migration on a copy, cutover to planning-repository issues and the Project, then stale-plan cleanup and the move to spec folders                                                                                                                                                                                                                                    | P14, P22, P23                                                                                                       |
 | 7. Release                                                                    | Docs, license audit, scans, npm and app publish                                                                                                                                                                                                                                                                                                                     | P15                                                                                                                 |
-| 8. Later                                                                      | Plugin seam: route and tracker contracts, loading and consent (§4.8); deferred GitHub features                                                                                                                                                                                                                                                                      | Only after P1–P25 pass; the seam also waits for a second real route (§14); then P26                                 |
+| 8. Later                                                                      | Plugin seam: loading and consent (§4.8); deferred GitHub features                                                                                                                                                                                                                                                                                                    | Only after P1–P25 pass; the seam also waits for a second real route (§14); then P26                                 |
 | 9. Review gates                                                               | Review roles on a local delivery, findings closure, not-run checks, `acceptFrom: "validation"`, supersede by hand (§5.2); GitHub pull-request reviews as verdicts later                                                                                                                                                                                             | Starts after Phase 2's proofs, independent of Phases 3–8; P27                                                       |
 | 10. Content rules                                                             | One matcher for banned terms at every write and approval boundary; terms outside Git; built-in sets from today's screens; rules plugins (§4.9)                                                                                                                                                                                                                      | Starts after Phase 2's proofs; GitHub and plugin tasks also wait for the tasks that built those boundaries; P28     |
 | 11. Retired                                                                   | Removed 2026-11-18. Only the `session` facts and the crew snapshot remain (§4.10)                                                                                                                                                                                                                                                                                          | None |
@@ -7178,8 +7161,9 @@ Stop after P6 passes or when a proof fails twice; report what failed and why.
 7. Spec and research documents with machine-local paths stay out of the release
    or are rewritten to relative names; receipts under `docs/evidence/` are
    regenerated rather than edited (AGENTS.md).
-8. Compatibility: `plans_*` MCP names, `AVOOZL_*`, `AICOMMANDER_*`,
-   `NUPP_WORKSPACE_*`, and the `aicommander` command still work.
+8. No backward compatibility until Avoozl has other users (owner,
+   2026-11-18): only `AVOOZL_*` and the `avoozl` command, and an unknown
+   top-level settings key fails to load naming the file and key.
 9. Clean build from a fresh clone; `npm test` and `git diff --check` pass.
 10. App package installs with `kirocrew app install` and passes P15.
 11. npm package and signed GitHub release published; Avoozl's own repository
@@ -7202,8 +7186,6 @@ Stop after P6 passes or when a proof fails twice; report what failed and why.
 | Iteration field sync                  | No configured Project names an iteration field by release                                                                                                             |
 | Separate integration branch           | No user enables it by release                                                                                                                                         |
 | Graph view layout engine              | The Delivery and Conflicts views answer every proof question without it                                                                                               |
-| Plugin seam (routes and loading)      | Never built beyond schema until a second real route exists. A private code-review route in its own private package counts as the second real route; test fakes do not |
-| Tracker plugin contract               | Never built beyond schema until the route seam's gate holds and a real tracker plugin is being written                                                                |
 | Any new listener, server, or database | Always, unless a failed proof shows no small contract fixes it                                                                                                        |
 
 ---

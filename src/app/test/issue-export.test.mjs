@@ -203,7 +203,7 @@ test("a create whose answer was lost is found again by its marker", async (t) =>
 test("export writes pass the content scan; a blocked write makes nothing and stays held", async (t) => {
   const { store, github } = workspace(t);
   store.mutate("A leak", (data) => {
-    data.tasks.find((x) => x.id === "b").prose =
+    data.tasks.find((x) => x.id === "b").summary =
       "Built on /Users/someone/projects/secret";
   });
   const guarded = guardGitHub(github, store);

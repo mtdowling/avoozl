@@ -22,8 +22,7 @@ function servedTools() {
     workspace = path.join(dir, "workspace"),
     env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_|^NUPP_WORKSPACE$/.test(name))
-      delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   initializeWorkspace(workspace);
   const output = execFileSync(
     "python3",
@@ -155,7 +154,7 @@ test("the planner prompt's example spec folder passes the spec reader", () => {
   assert.equal(result.proposals[1].repository, "sample", "a default fills it");
   for (const leaf of result.proposals.filter((t) => t.kind === "leaf")) {
     assert.equal(typeof leaf.repository, "string", leaf.id);
-    assert.ok(leaf.checks.length, leaf.id);
+    assert.equal(leaf.checks, undefined, "a task never names checks");
     assert.equal(leaf.completion, "integrated", leaf.id);
   }
   for (const block of planner.prompt.matchAll(/^```finding\n([\s\S]*?)^```$/gm))

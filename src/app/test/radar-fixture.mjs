@@ -29,7 +29,6 @@ export async function workspace(t, { mode, coder, blockTerm, radar }) {
         repositories: {
           "example/code": {
             baseBranch: "main",
-            ...(coder ? { coder } : {}),
             ...(radar ? { radar } : {}),
           },
         },

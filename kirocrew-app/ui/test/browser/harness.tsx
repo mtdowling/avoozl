@@ -32,8 +32,6 @@ import ActivityView from '../../src/ActivityView.tsx'
 import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
-import { GateList } from '../../src/TrackerGates.tsx'
-import { waitingGates, type GateRow } from '../../src/release-api.ts'
 import ReleaseQueue from '../../src/ReleaseQueue.tsx'
 import GithubFlow from '../../src/GithubFlow.tsx'
 import { ProjectionModal } from '../../src/ProjectionModal.tsx'
@@ -230,7 +228,7 @@ const baseDetail = () => ({
   task: {
     id: 'team-review',
     title: 'Review with team',
-    prose: 'The team reviews the results before cutover.',
+    summary: 'The team reviews the results before cutover.',
     acceptance: ['The team agreed the runtime and protocol results are good enough to cut over'],
     checks: ['npm run test:protocol'],
     epic: null,
@@ -865,7 +863,6 @@ if (query.get('page') === 'app') {
               'acme/recipe-box': {
                 baseBranch: 'main',
                 role: 'code',
-                coder: 'worker',
                 requiredChecks: ['test (ubuntu)', 'test (macos)', 'test (windows)'],
                 merge: { method: 'squash' },
                 rules: [{ id: 'ready', action: 'plan', match: 'label:ready -label:blocked' }],
@@ -2901,7 +2898,7 @@ if (intake) answerIntake(query.get('empty') === '1')
 if (query.get('plugins')) {
   const many = query.get('plugins') === 'many'
   const rows = Array.from({ length: 8 }, (_, i) => ({ ...PLUGINS[i % 2], id: `${PLUGINS[i % 2].id}-${i + 1}` }))
-  answer('plugins.list', () => ({ supportedContracts: [1], routes: [], plugins: many ? rows : [] }))
+  answer('plugins.list', () => ({ supportedContracts: [1], plugins: many ? rows : [] }))
 }
 // &rules=many|one: Settings > Content rules with fourteen rule sets, or one.
 if (query.get('rules')) {
@@ -3140,68 +3137,6 @@ function CrewsRulesPage() {
     </div>
   )
 }
-// ?page=tracker-gates: an open, a failed and a cleared gate, and the Waiting on you filter.
-const GATES: GateRow[] = [
-  {
-    taskId: 'sdk.1',
-    title: 'Wait for the review to ship',
-    tracker: 'ticket-tracker',
-    item: 'REV-1',
-    done: 'the review shipped to the live release',
-    state: 'open',
-    lastCheck: '2026-11-14T12:00:00Z',
-    nextCheck: '2026-11-14T12:02:00Z',
-    evidence: 'In review',
-    link: null,
-    cleared: null,
-    needsYou: false,
-    held: ['sdk.2'],
-  },
-  {
-    taskId: 'sdk.5',
-    title: 'A very long gate title that has to wrap on a phone without any sideways scrolling at all',
-    tracker: 'ticket-tracker',
-    item: 'https://tracker.example.test/a/very/long/path/that/must/wrap/REV-2',
-    done: 'resolved',
-    state: 'failed',
-    lastCheck: '2026-11-14T12:00:00Z',
-    nextCheck: '2026-11-14T12:30:00Z',
-    evidence: 'Rejected by the owner',
-    link: 'https://tracker.example.test/REV-2',
-    cleared: null,
-    needsYou: true,
-    held: [],
-  },
-  {
-    taskId: 'sdk.6',
-    title: 'Cut over',
-    tracker: 'ticket-tracker',
-    item: 'REV-3',
-    done: 'resolved',
-    state: 'cleared',
-    lastCheck: null,
-    nextCheck: null,
-    evidence: null,
-    link: null,
-    cleared: { actor: 'alice', how: 'command', at: '2026-11-14T13:00:00Z', reason: 'Shipped by hand.', lastState: 'failed' },
-    needsYou: false,
-    held: [],
-  },
-]
-function TrackerGatesPage() {
-  return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
-      <HarnessBoundary>
-        <GateList gates={GATES} onClear={() => undefined} />
-        <pre data-waiting>
-          {waitingGates(GATES)
-            .map((row) => row.taskId)
-            .join(',')}
-        </pre>
-      </HarnessBoundary>
-    </div>
-  )
-}
 // ?page=workflow-map&config=single|plans|local: the Workflow map drawn from a
 // real policy through toForm, with the Crews and rules fields beside it so a
 // jump has somewhere to land.
@@ -3213,7 +3148,6 @@ const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, u
       repositories: {
         'example/code': {
           baseBranch: 'main',
-          coder: 'issue-radar',
           allowedActors: ['sam', 'lee'],
           release: { capacity: 3, mode: 'step' },
           managedLabels: { ready: 'go-crew' },
@@ -3228,10 +3162,10 @@ const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, u
     policy: {
       mode: 'plans-repo',
       planningRepository: 'example/plans',
-      repositories: { 'example/code': { baseBranch: 'main', coder: 'worker', concurrency: 4, minimumPermission: 'maintain' } },
+      repositories: { 'example/code': { baseBranch: 'main', minimumPermission: 'maintain' } },
     },
   },
-  local: { mode: 'local', policy: { mode: 'local', repositories: { 'example/code': { baseBranch: 'trunk', coder: 'issue-radar', radar: { planLabel: 'kept-but-unused' } } } } },
+  local: { mode: 'local', policy: { mode: 'local', repositories: { 'example/code': { baseBranch: 'trunk', radar: { planLabel: 'kept-but-unused' } } } } },
 }
 function WorkflowMapPage() {
   const config = WORKFLOW_POLICIES[query.get('config') ?? 'single']
@@ -3269,8 +3203,6 @@ createRoot(document.getElementById('root')!).render(
     <WorkflowMapPage />
   ) : page === 'crews-rules' ? (
     <CrewsRulesPage />
-  ) : page === 'tracker-gates' ? (
-    <TrackerGatesPage />
   ) : page === 'forward' ? (
     <ForwardPage />
   ) : intake ? (

@@ -239,8 +239,8 @@ export default function TaskForm(props: {
           />
         </Field>
       )}
-      <Field id="avoozl-task-prose" label="Description">
-        <Area id="avoozl-task-prose" rows={4} value={form.prose} onChange={(prose) => set({ prose })} />
+      <Field id="avoozl-task-summary" label="Description">
+        <Area id="avoozl-task-summary" rows={4} value={form.summary} onChange={(summary) => set({ summary })} />
       </Field>
       <Box grid gap="3" smGridCols2>
         <Field id="avoozl-task-repository" label="Repository">
@@ -256,9 +256,6 @@ export default function TaskForm(props: {
       </Box>
       <Field id="avoozl-task-acceptance" label="Acceptance" hint="One condition per line.">
         <Area id="avoozl-task-acceptance" value={form.acceptance} onChange={(acceptance) => set({ acceptance })} />
-      </Field>
-      <Field id="avoozl-task-checks" label="Checks" hint="One command per line, such as npm test.">
-        <Area id="avoozl-task-checks" rows={2} value={form.checks} onChange={(checks) => set({ checks })} />
       </Field>
       <Prerequisites graph={graph} self={id} value={form.prerequisites} onChange={(prerequisites) => set({ prerequisites })} />
       {cycle && (

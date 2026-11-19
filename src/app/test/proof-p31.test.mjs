@@ -155,7 +155,6 @@ function writePolicy(root, untriaged, mode = "single-repo") {
                 [REPO]: {
                   baseBranch: "main",
                   // Plain issues are listed only for a repository Avoozl triages.
-                  coder: "worker",
                   allowedActors: ["owner"],
                   minimumPermission: "write",
                   managedLabels: {

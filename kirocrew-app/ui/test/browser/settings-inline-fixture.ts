@@ -60,7 +60,7 @@ export function installInlineFixture() {
   answer('flow.proposals', () => ({ proposals: [], dropped: [], prompts: [], notes: [], available: false }))
 
   // Repository setup
-  let github: Record<string, unknown> = { mode: 'single-repo', repositories: { 'acme/recipe-box': { baseBranch: 'main', coder: 'issue-radar' } } }
+  let github: Record<string, unknown> = { mode: 'single-repo', repositories: { 'acme/recipe-box': { baseBranch: 'main' } } }
   const githubSettings = () => ({
     filename: '.avoozl.json',
     exists: true,
@@ -120,7 +120,6 @@ export function installInlineFixture() {
   let disabled = false
   const plugins = () => ({
     supportedContracts: [1],
-    routes: [],
     plugins: [{ id: 'team-pack', source: 'repository', version: '1.0.0', contract: 1, kinds: [], state: disabled ? 'disabled' : 'approved', reason: null, health: null }],
   })
   answer('plugins.list', () => plugins())

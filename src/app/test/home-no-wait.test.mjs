@@ -14,7 +14,7 @@ import { initializeWorkspace } from "../workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 // Every read Home's page sends on first load: the shell, the nav, and each
-// Home card (DashboardView, ReleaseQueue, TrackerGates, IntegrationBranches,
+// Home card (DashboardView, ReleaseQueue, IntegrationBranches,
 // ReviewDrafts, the driver cell, setup cards).
 const HOME = [
   ["instance.view", {}],
@@ -27,7 +27,6 @@ const HOME = [
   ["flow.view", { window: "10" }],
   ["github.settings.get", {}],
   ["repositories.list", {}],
-  ["gate.list", {}],
   ["radar.releasequeue", {}],
   ["integration.view", {}],
   ["landing.view", {}],
@@ -71,7 +70,6 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
     repositories: {
       [REPO]: {
         baseBranch: "main",
-        coder: "issue-radar",
         minimumPermission: "write",
         managedLabels: { managed: "avoozl:managed", ready: "ready" },
         crewLabels: { needsHuman: "plan me" },
@@ -86,7 +84,7 @@ test("no Home read waits on GitHub, Kiro Crew or git", async (t) => {
     XDG_CONFIG_HOME: path.join(root, "config"),
   };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_/.test(name)) delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   const config = workspaceConfig({ workspace: root, env });
   // The page names its workspace, so each request resolves the catalog's
   // root (app-backend.mjs workspaceFor).

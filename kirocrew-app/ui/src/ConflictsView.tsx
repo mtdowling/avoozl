@@ -64,7 +64,6 @@ const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter,
 const LABELS: Record<string, string> = {
   ...CONFLICT_LABELS,
   'github-conflict': 'GitHub edit',
-  'tracker-conflict': 'Tracker edit',
   'spec-pull': 'Spec pull request',
 }
 
@@ -251,11 +250,6 @@ export function ConflictActions(props: {
           </IconLabel>
         )}
         {item.kind === 'stale-session' && item.deliveryState !== 'decision' && <Hint size="xs">Avoozl starts a new attempt on its own; dismiss this once you have read it.</Hint>}
-        {item.kind === 'tracker-conflict' && safeHref(item.link ?? null) && (
-          <PlainLink href={safeHref(item.link ?? null)!} target="_blank" rel="noreferrer" size="sm" underline>
-            Open in the tracker
-          </PlainLink>
-        )}
         {issue && (
           <PlainLink href={linkHref(issue)} target="_blank" rel="noreferrer" size="sm" underline>
             {item.kind === 'needs-human' && item.reason === 'review-draft' ? `Open pull request${item.pullRequest ? ` #${item.pullRequest}` : ''}` : 'Open the issue'}

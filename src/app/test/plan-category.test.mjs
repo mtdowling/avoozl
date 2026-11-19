@@ -151,20 +151,6 @@ test("approval records the front-matter category and never invents one", async (
   const docs = store.read().documents;
   assert.equal(docs["spec:config"].plan.category, "Runtime");
   assert.equal("category" in docs["spec:plain"].plan, false);
-  // plans_documents filters on the authored value.
-  const reply = await ops.execute("legacy.mcp", {
-    message: {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: { name: "plans_documents", arguments: { category: "Runtime" } },
-    },
-  });
-  const body = reply.body.result.structuredContent;
-  assert.deepEqual(
-    body.plans.map((p) => p.id),
-    ["spec:config"],
-  );
 });
 
 test("plan.table: one row per plan with counts, grouped by authored category", async (t) => {

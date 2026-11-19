@@ -10,95 +10,22 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { projectConfig } from "../git.mjs";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
-import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import {
+  as,
+  bind,
+  deliveryWorkspace,
+  git,
+  leaf,
+  workerDone,
+} from "./delivery-fixture.mjs";
 
 const repo = fileURLToPath(new URL("../../../", import.meta.url)),
   app = path.join(repo, "kirocrew-app");
 
-function git(cwd, ...args) {
-  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-}
-
-const leaf = (id, extra = {}) => ({
-  id,
-  title: "Task " + id,
-  kind: "leaf",
-  scope: "catalog",
-  status: "planned",
-  epic: "sample",
-  track: "catalog",
-  tags: [],
-  acceptance: ["Works."],
-  checks: ["npm test"],
-  repository: "app",
-  ...extra,
-});
-
-function setup(t, { tasks = [leaf("a")], edges = [], project = {} } = {}) {
-  const root = temporaryDirectory("avoozl-verify-"),
-    checkout = path.join(root, "app");
-  fs.mkdirSync(checkout);
-  git(checkout, "init", "-b", "main");
-  git(checkout, "config", "user.name", "Test");
-  git(checkout, "config", "user.email", "test@example.com");
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-m", "Start");
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks, edges });
-  store.put("projects", {
-    id: "app",
-    root: fs.realpathSync.native(checkout),
-    baseBranch: "main",
-    checks: [["git", "status"]],
-    ...project,
-  });
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    JSON.stringify({ version: 1, delivery: { concurrency: 4, retries: 1 } }),
-  );
-  return {
-    root,
-    checkout: fs.realpathSync.native(checkout),
-    store,
-    ops: new Operations(store, { workspaceRoot: root }),
-  };
-}
-
-const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
-
-async function bind(ops, taskId, slot, role, attempt) {
-  await ops.execute("session.bind", {
-    taskId,
-    slot,
-    role,
-    attempt,
-    source: "tick",
-    title: `avoozl:${taskId} ${role}`,
-  });
-}
-
-// A worker attempt that commits in the task's worktree and reports done.
-async function workerDone(ops, taskId, slot, attempt = 1) {
-  await bind(ops, taskId, slot, "worker", attempt);
-  const { path: worktree } = await ops.execute("worktree.prepare", { taskId });
-  fs.writeFileSync(path.join(worktree, `${taskId}-${attempt}.txt`), "work\n");
-  git(worktree, "add", ".");
-  git(worktree, "commit", "-m", `Work ${taskId} ${attempt}`);
-  const commit = git(worktree, "rev-parse", "HEAD");
-  await ops.execute(
-    "session.report",
-    { taskId, kind: "done", commit },
-    undefined,
-    as(slot),
-  );
-  return commit;
-}
+const setup = (t, options = {}) =>
+  deliveryWorkspace(t, { prefix: "avoozl-verify-", ...options });
 
 const verdict = (ops, taskId, slot, commit, checks) =>
   ops.execute(
@@ -113,7 +40,7 @@ const tick = (ops, slots = []) =>
     sessions: slots.map((target) => ({ target, status: "idle" })),
   });
 
-const passed = [{ command: "npm test", exitCode: 0 }];
+const passed = [{ command: "git status", exitCode: 0 }];
 
 // A bar that needs judgment opens a verifier chat (§5.2 Checks); its done
 // report adds a verdict on the acceptance.
@@ -154,8 +81,7 @@ test("the verifier agent ships with tool refs on the server key Kiro Crew regist
   initializeWorkspace(workspace);
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(dir, "config") };
   for (const name of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_|^NUPP_WORKSPACE$/.test(name))
-      delete env[name];
+    if (/^AVOOZL_/.test(name)) delete env[name];
   const served = JSON.parse(
     execFileSync(
       "python3",
@@ -194,7 +120,7 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   assert.equal(intent.attempt, 1);
   assert.match(intent.title, /^avoozl:a verify /);
   assert.ok(intent.brief.includes(commit));
-  assert.match(intent.brief, /npm test/);
+  assert.match(intent.brief, /git status/);
   assert.match(intent.brief, /--detach/);
   await bind(ops, "a", "v-1", "verifier", 1);
   assert.deepEqual(
@@ -250,7 +176,7 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   assert.equal(store.get("task_deliveries", "a").attempts[1].outcome, "done");
   assert.match(
     store.get("task_deliveries", "a").verifications.at(-1).cause,
-    /checks not run: check `npm test` was not run/,
+    /checks not run: check `git status` was not run/,
   );
   assert.deepEqual(
     rerun.dispatch.map((d) => [d.role, d.attempt]),
@@ -258,12 +184,14 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   );
   // Then a failing check: attempt 3 would be past retries 1, so a decision.
   await bind(ops, "a", "v-3", "verifier", 3);
-  await judged(ops, "a", "v-3", second, [{ command: "npm test", exitCode: 1 }]);
+  await judged(ops, "a", "v-3", second, [
+    { command: "git status", exitCode: 1 },
+  ]);
   const decided = await tick(ops);
   assert.equal(store.get("task_deliveries", "a").state, "decision");
   assert.match(
     store.get("task_deliveries", "a").attempts[1].cause,
-    /check `npm test` exited 1/,
+    /check `git status` exited 1/,
   );
   assert.equal(decided.notify.length, 1);
   assert.deepEqual(decided.dispatch, []);
@@ -274,12 +202,12 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   await tick(c.ops);
   await bind(c.ops, "c", "v-c1", "verifier", 1);
   await judged(c.ops, "c", "v-c1", cCommit, [
-    { command: "npm test", exitCode: 1 },
+    { command: "git status", exitCode: 1 },
   ]);
   await tick(c.ops);
   assert.match(
     c.store.get("task_deliveries", "c").attempts[0].cause,
-    /check `npm test` exited 1/,
+    /check `git status` exited 1/,
   );
 
   const d = setup(t, { tasks: [leaf("d", agent)] });
@@ -484,12 +412,17 @@ test("a verified commit integrates with integrateRun and records the integrated 
   assert.equal(git(dirty.checkout, "rev-parse", "main"), before);
   assert.deepEqual((await tick(dirty.ops)).notify, [], "decided once");
 
-  const unchecked = setup(t, { tasks: [leaf("c")], project: { checks: [] } });
-  await verified(unchecked.ops, "c");
+  // A repository with no checks is judged by its verifier, and integration
+  // still needs checks to run on the rebased work.
+  const unchecked = setup(t, { tasks: [leaf("c")], project: { checks: [] } }),
+    judgedCommit = await workerDone(unchecked.ops, "c", "w-c");
+  await unchecked.ops.execute("workspace.tick", {});
+  await bind(unchecked.ops, "c", "v-c", "verifier", 1);
+  await judged(unchecked.ops, "c", "v-c", judgedCommit, undefined);
   await tick(unchecked.ops);
   assert.match(
     unchecked.store.get("task_deliveries", "c").cause,
-    /acceptance commands/,
+    /Configure the repository's checks/,
   );
 });
 

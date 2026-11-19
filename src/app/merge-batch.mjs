@@ -28,6 +28,7 @@ import { enqueueLanding } from "./landing-queue.mjs";
 import { privacyScan, verifiedEvidence } from "./working-heads.mjs";
 import { mergeBaseBack } from "./spec-base.mjs";
 import { fail } from "./store.mjs";
+import { checkApplies } from "./repository-checks.mjs";
 
 const DIGEST = /^[0-9a-f]{64}$/;
 const NO_PROMPT = { GIT_TERMINAL_PROMPT: "0" };
@@ -71,7 +72,7 @@ export const trailers = (entry) =>
 // outcome carries no evidence and never completes its tasks (R102.5).
 export function journalChecks(checks = []) {
   return checks.map((check) => {
-    const name = String(check.command ?? check.name ?? "check")
+    const name = String(check.name ?? check.command ?? "check")
       .split(" ")
       .map((part, i) => (i === 0 ? path.basename(part) : part))
       .join(" ")
@@ -198,7 +199,8 @@ export async function landWithIntents(intents, push) {
 //   root        the landing checkout, with every portion's commit fetched
 //   url, branch the registered target remote and its base branch
 //   repository  the target repository identity, for the intents' refs
-//   checks      declared check argv lists, run at the candidate
+//   checks      the repository's checks ([{name, argv, paths}]); the ones
+//               the candidate's diff from the base picks run at it
 //   unionPaths  append-only paths merged with union semantics
 //   intent(spec, entries) -> {journal, input, options}: the spec's driver
 //               journal and landIntent input (driver, owner, login,
@@ -220,6 +222,12 @@ export function directSteps({
   scan = privacyScan,
 }) {
   if (!checks.length) fail("Direct landing needs at least one check.", 400);
+  // A bare argv list is a check named by its command, with no paths.
+  checks = checks.map((check) =>
+    Array.isArray(check)
+      ? { name: check.join(" "), argv: check, paths: null }
+      : check,
+  );
   if (typeof intent !== "function")
     fail("Direct landing writes an intent before every push.", 400);
   const environment = { ...(env ?? process.env), ...NO_PROMPT },
@@ -266,12 +274,23 @@ export function directSteps({
             },
           ],
         };
+      // Every check whose paths a member's change touches, and every check
+      // without paths: the candidate's diff from the base is every member's.
+      let files = null;
+      try {
+        files = (
+          await git(root, ["diff", "--name-only", "-z", baseHead, candidate])
+        )
+          .split("\0")
+          .filter(Boolean);
+      } catch {}
       const out = [];
-      for (const argv of checks) {
-        if (!wanted(argv.join(" "))) continue;
-        const result = await run({ root, checksEnv }, candidate, argv);
+      for (const check of checks) {
+        if (!wanted(check.name) || !checkApplies(check, files)) continue;
+        const result = await run({ root, checksEnv }, candidate, check.argv);
         out.push({
-          command: argv.join(" "),
+          name: check.name,
+          command: check.argv.join(" "),
           exitCode: result.exitCode,
           ...(result.exitCode !== 0 && result.tail
             ? { tail: result.tail }

@@ -20,7 +20,7 @@ const RESULT_LIMIT =
 // its shell, and a command line runs only when every part of it is listed
 // (P59: a verifier that chained `od` and `cat` onto the check was refused
 // and reported blocked).
-function allowedShell(allowCommands) {
+export function allowedShell(allowCommands) {
   if (!allowCommands?.length)
     return "Your shell runs no command here: read files with your file tools.";
   return `Your shell runs only these commands, one per call, with no ; && | or $(...): ${allowCommands

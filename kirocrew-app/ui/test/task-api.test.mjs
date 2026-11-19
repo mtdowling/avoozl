@@ -29,9 +29,8 @@ test('a new task is created as a draft with its prerequisites and kinds', () => 
       ...emptyForm(),
       id: 'new-task',
       title: ' New task ',
-      prose: 'Do it.',
+      summary: 'Do it.',
       acceptance: 'One\n\n Two ',
-      checks: 'npm test',
       prerequisites: [
         { id: 'a', kind: 'requires', condition: '' },
         { id: 'b', kind: 'requires', condition: 'integrated' },
@@ -43,9 +42,8 @@ test('a new task is created as a draft with its prerequisites and kinds', () => 
   assert.deepEqual(input, {
     id: 'new-task',
     title: 'New task',
-    prose: 'Do it.',
+    summary: 'Do it.',
     acceptance: ['One', 'Two'],
-    checks: ['npm test'],
     requires: ['a', { task: 'b', condition: 'integrated' }],
     sequence: ['c'],
     create: true,
@@ -58,7 +56,7 @@ const detail = {
   task: {
     id: 't',
     title: 'T',
-    prose: 'S',
+    summary: 'S',
     acceptance: ['A'],
     checks: [],
     epic: 'e1',

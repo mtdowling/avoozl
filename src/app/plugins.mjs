@@ -33,38 +33,24 @@ import { readTemplates } from "./templates.mjs";
 
 const PLUGIN_MANIFEST = "avoozl-plugin.json";
 const RESERVED_IDS = new Set(["local", "github"]);
-export const KINDS = ["route", "tracker", "rules", "gate"];
+export const KINDS = ["intake", "rules"];
 export const CAPABILITIES = {
-  route: [],
-  // `poll` brings outside work in (R50.7): the intake part.
-  tracker: ["edges", "subtasks", "actor", "pause", "poll"],
+  // The intake part's one call is `poll`, which brings outside work in
+  // (R50.7). `actor` says it reports who closed an item.
+  intake: ["actor"],
   rules: [],
-  // One read-only call, `status` (RC23.6).
-  gate: [],
 };
 // The parts one plugin may bundle (R55.1), and the code kind each runs as.
-// A pack is settings only and runs as nothing; intake is a tracker's `poll`.
-// `template` is a workflow template (design §4.16): folders under
-// templates/, data only too.
-export const PARTS = [
-  "pack",
-  "rules",
-  "tracker",
-  "intake",
-  "route",
-  "gate",
-  "template",
-];
+// A pack is settings only and runs as nothing. `template` is a workflow
+// template (design §4.16): folders under templates/, data only too.
+export const PARTS = ["pack", "rules", "intake", "template"];
 // Parts Avoozl no longer reads. A plugin may still list them, so its other
 // parts keep working; they do nothing. Lessons packs went with the lessons
 // store (RC30.4).
 const REMOVED_PARTS = ["lessons"];
 const PART_KIND = {
   rules: "rules",
-  tracker: "tracker",
-  intake: "tracker",
-  route: "route",
-  gate: "gate",
+  intake: "intake",
 };
 
 // A manifest's parts and the code kinds they need. A manifest written
@@ -191,8 +177,7 @@ export function validateEntry(entry, where = "plugins entry") {
       fail(`${where}.${key} is not a plugin setting.`);
   if (typeof entry.id !== "string" || !ID.test(entry.id))
     fail(`${where}.id must be a lowercase plugin id.`);
-  if (RESERVED_IDS.has(entry.id))
-    fail(`${where}.id ${entry.id} is reserved for a built-in route.`);
+  if (RESERVED_IDS.has(entry.id)) fail(`${where}.id ${entry.id} is reserved.`);
   if (
     ["package", "path", "git"].filter((key) => entry[key] !== undefined)
       .length !== 1
@@ -356,7 +341,7 @@ export function validateManifest(manifest, entry) {
     manifest.kinds.some((kind) => !KINDS.includes(kind))
   )
     fail(
-      `${PLUGIN_MANIFEST} kinds must list route, tracker, rules, or gate, or provides must list its parts.`,
+      `${PLUGIN_MANIFEST} kinds must list intake or rules, or provides must list its parts.`,
     );
   const { provides, kinds } = pluginParts(manifest);
   if (
@@ -382,10 +367,6 @@ export function validateManifest(manifest, entry) {
         `${PLUGIN_MANIFEST} capabilities.${kind} may list only ${CAPABILITIES[kind].join(", ") || "nothing"}.`,
       );
   }
-  if (provides.includes("intake") && !capabilities.tracker?.includes("poll"))
-    fail(
-      `${PLUGIN_MANIFEST} provides intake, so capabilities.tracker must list poll.`,
-    );
   if (provides.includes("pack")) {
     const file = manifest.pack ?? PACK_FILE;
     if (

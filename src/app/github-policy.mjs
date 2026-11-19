@@ -86,7 +86,6 @@ export const RADAR_KEYS = Object.freeze([
   "approvalLabel",
   "reviewLabel",
   "draftedLabel",
-  "trackerLabel",
   "clearPlanLabel",
   "showPlansRepo",
   "escalationDraft",
@@ -97,12 +96,10 @@ export const RADAR_DEFAULTS = Object.freeze({
   approvalLabel: "avoozl:plan-approved",
   reviewLabel: "avoozl:review",
   draftedLabel: "avoozl:drafted",
-  trackerLabel: "avoozl:waiting-on-tracker",
   clearPlanLabel: false,
 });
 export const READY_LABEL_DEFAULT = "avoozl:ready";
-export const LEGACY_KEYS = Object.freeze(["issueIntake", "queue"]);
-// The `github` keys the Settings view edits; the legacy keys stay as written.
+// The `github` keys the Settings view edits.
 export const POLICY_KEYS = Object.freeze([
   "mode",
   "planningRepository",
@@ -145,13 +142,10 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
     "folder",
     "baseBranch",
     "role",
-    // Who codes was removed (R91.6): an old file's `coder` is ignored.
-    "coder",
     "allowedActors",
     "minimumPermission",
     "requiredChecks",
     "pullRequestReviews",
-    "concurrency",
     "release",
     "dependencyText",
     "priority",
@@ -398,8 +392,7 @@ export const RELEASE_MODES = Object.freeze(["automatic", "step", "hold"]);
 
 // Release capacity (RC4.2): `release.capacity` is N, the most ready issues at
 // once; `release.scopes` gives a label its own N. It defaults to 1; 0
-// releases nothing. The older `concurrency` key only set Avoozl's retired local
-// workers; it is still accepted and ignored, so an old file reads without error.
+// releases nothing.
 function releaseInput(value, label) {
   const input = value.release ?? {};
   if (!record(input)) fail(`${label}.release must be an object.`);
@@ -563,7 +556,6 @@ function repositoryInput(value, id, mode) {
     "approvalLabel",
     "reviewLabel",
     "draftedLabel",
-    "trackerLabel",
   ])
     if (Object.hasOwn(radarInput, key))
       radar[key] = name(radarInput[key], `${label}.radar.${key}`);
@@ -610,7 +602,6 @@ function repositoryInput(value, id, mode) {
     ["approval", radar.approvalLabel],
     ["review", radar.reviewLabel],
     ["drafted", radar.draftedLabel],
-    ["waiting-on-tracker", radar.trackerLabel],
   ]) {
     const earlier = seen.get(lower(entry));
     if (earlier)
@@ -645,7 +636,6 @@ function repositoryInput(value, id, mode) {
     "approvalLabel",
     "reviewLabel",
     "draftedLabel",
-    "trackerLabel",
   ])
     if (managedNames.has(lower(radar[key])))
       fail(`${label}.radar.${key} cannot use managed label ${radar[key]}.`);
@@ -855,12 +845,10 @@ export function priorityRank(priority, labels) {
   return index < 0 ? list.length : index;
 }
 
-// The `github` block of `.avoozl.json`. `issueIntake` and `queue` are the
-// older settings: github-sources.mjs reads `issueIntake` as intake sources
-// and ignores `queue` (§4.39).
+// The `github` block of `.avoozl.json`.
 export function normalizeGitHubPolicy(value) {
   if (value === undefined || value === null) value = {};
-  onlyKeys(value, [...LEGACY_KEYS, ...POLICY_KEYS], "github");
+  onlyKeys(value, POLICY_KEYS, "github");
   // Roles decide the mode (R105.2); a block with none is read as written.
   try {
     resolveRoles(value);
@@ -958,8 +946,6 @@ export function readGitHubPolicyOrNull(workspaceRoot) {
 // Authority for a task a plan approval creates (§3.2, R28.2–R28.3).
 export function newTaskAuthority(policy, requested) {
   if (requested === "local") return "local";
-  if (typeof requested === "string" && requested.startsWith("plugin:"))
-    return requested;
   return policy?.mode && policy.defaultAuthority !== "local"
     ? "github"
     : "local";

@@ -93,3 +93,19 @@ for (const theme of ['light', 'dark'])
     assert.notEqual(glyph.danger, '')
     assert.ok(glyph.color.startsWith('rgb'))
   })
+
+for (const theme of ['light', 'dark'])
+  test(`the SVG parts draw their shape with the look props in ${theme}`, { skip }, async () => {
+    await page.open(harness.url({ theme }), {
+      width: 600,
+      height: 900,
+      dark: theme === 'dark',
+    })
+    await page.until(`Boolean(document.querySelector('[data-part="svg-rect"]'))`)
+    const read = (part) => page.evaluate(`(() => { const el = document.querySelector('[data-part="${part}"]'); return [el.tagName.toLowerCase(), el.getAttribute('style')] })()`)
+    assert.deepEqual(await read('svg'), ['svg', 'display: block;'])
+    assert.deepEqual(await read('svg-g'), ['g', 'opacity: 0.5;'])
+    assert.deepEqual(await read('svg-rect'), ['rect', 'fill: var(--danger);'])
+    assert.deepEqual(await read('svg-path'), ['path', 'stroke: var(--accent);'])
+    assert.deepEqual(await read('svg-text'), ['text', 'font-size: 11px;'])
+  })

@@ -15,6 +15,7 @@ import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { fixture } from "./fixtures.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { postedText } from "../github-posted.mjs";
 
 const REPO = "example/code",
   LABEL = "bot:answering",
@@ -166,7 +167,7 @@ test("a clean reply posts once and Avoozl removes the label", async (t) => {
   assert.equal(result.labelRemoved, true);
   assert.equal(w.github.comments.length, 1);
   assert.equal(w.github.comments[0].number, 7);
-  assert.equal(w.github.comments[0].body, clean);
+  assert.equal(w.github.comments[0].body, postedText(clean));
   assert.deepEqual(labels(w.github), [
     ["add", 7, LABEL],
     ["remove", 7, LABEL],

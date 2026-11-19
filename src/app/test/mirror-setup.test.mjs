@@ -334,7 +334,7 @@ test("Adopt finds what exists and writes only ticked lines", async () => {
     ["labels"],
   );
   const repo = github.state.repos.get(MIRROR);
-  assert.equal(repo.labels.length, 7);
+  assert.equal(repo.labels.length, 6);
   assert.equal(repo.autoMerge, false);
   assert.deepEqual(repo.rules, []);
   assert.deepEqual(d.saved, []);

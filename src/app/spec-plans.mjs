@@ -20,8 +20,8 @@ import {
   factName,
   factsLines,
   factsText,
-  itemProse,
-  proseLines,
+  itemBullets,
+  summaryLines,
   readFacts,
   withoutFacts,
 } from "./spec-facts.mjs";
@@ -30,6 +30,7 @@ import { resolveTaskId } from "../task-identity.mjs";
 import { integrationOf } from "./integration-branch.mjs";
 import { currentFiles } from "./spec-legacy.mjs";
 import { checkForwardTarget } from "./mirror-policy.mjs";
+import { repeatsTitle } from "./title-repeat.mjs";
 
 export const SPECS_DIRECTORY = path.join(".kiro", "specs");
 // The old facts file. Nothing reads it; a leftover one is a lint error.
@@ -513,7 +514,7 @@ export function parseSpec({
   }
 
   const facts = readFacts(files["tasks.md"] || "", items),
-    prose = itemProse(files["tasks.md"] || "", items),
+    bullets = itemBullets(files["tasks.md"] || "", items),
     manifest = facts.manifest,
     entries = manifest.tasks,
     problem = (code, line, message, extra) =>
@@ -645,7 +646,9 @@ export function parseSpec({
         key: item.key,
         plan: entry.plan,
         step,
-        prose: prose.get(item.line) ?? "",
+        summary: (bullets.get(item.line) ?? [])
+          .map((bullet) => bullet.text)
+          .join("\n"),
         title: item.title,
         line,
       });
@@ -733,14 +736,29 @@ export function parseSpec({
     try {
       // The item's whole line is its title. One over the limit is refused;
       // its cut form only keeps the other checks from failing on it.
+      // The item's description bullets are its summary. One that repeats
+      // the title is refused and left out.
+      const own = (bullets.get(item.line) ?? []).filter((bullet) => {
+          if (!repeatsTitle(bullet.text, item.title)) return true;
+          diagnostics.push(
+            diagnostic(
+              "task.summary-repeats-title",
+              "tasks.md",
+              bullet.line,
+              "This repeats the title; say what the title does not, or delete it.",
+              { taskId: item.id },
+            ),
+          );
+          return false;
+        }),
+        summary = own.map((bullet) => bullet.text).join("\n");
       const title = item.title.slice(0, TITLE_LIMIT),
         // The batch fact only names a group; the group is stamped below.
         { phase: phaseValue, batch: _batch, ...rest } = structuredClone(entry),
         fields = {
           ...rest,
           title,
-          // The item's own prose bullets say what it delivers.
-          ...(prose.has(item.line) ? { prose: prose.get(item.line) } : {}),
+          ...(summary ? { summary } : {}),
           // The spec's ship mode and a bugfix spec's type reach each leaf
           // (§4.25, §4.11).
           ...(specShip && entry.kind !== "package" ? { specShip } : {}),
@@ -754,7 +772,7 @@ export function parseSpec({
             "task.title-length",
             "tasks.md",
             item.line,
-            `Task "${item.key}" has a title of ${item.title.length} characters; the limit is ${TITLE_LIMIT}. Shorten it and move the rest into a prose bullet under the item.`,
+            `Task "${item.key}" has a title of ${item.title.length} characters; the limit is ${TITLE_LIMIT}. Shorten it and move the rest into a bullet under the item.`,
             { taskId: item.id },
           ),
         );
@@ -982,13 +1000,15 @@ export function lintSpec({
     epic: specEpic(spec.files),
     ...(parsed.kind === "epic"
       ? {
-          members: parsed.members.map(({ key, plan, step, prose, title }) => ({
-            key,
-            plan,
-            step,
-            prose,
-            title,
-          })),
+          members: parsed.members.map(
+            ({ key, plan, step, summary, title }) => ({
+              key,
+              plan,
+              step,
+              summary,
+              title,
+            }),
+          ),
         }
       : {}),
     diagnostics,
@@ -1065,15 +1085,15 @@ export function epicMembers(files = {}) {
   return [...new Set(epicRowsOf(files).map((member) => member.plan))];
 }
 
-// The epic's rows, in its tasks.md order: {key, plan, step, prose, title}.
+// The epic's rows, in its tasks.md order: {key, plan, step, summary, title}.
 export function epicRowsOf(files = {}) {
   const parsed = parseSpec({ name: "epic", exists: true, files });
   return parsed.kind === "epic"
-    ? parsed.members.map(({ key, plan, step, prose, title }) => ({
+    ? parsed.members.map(({ key, plan, step, summary, title }) => ({
         key,
         plan,
         step,
-        prose,
+        summary,
         title,
       }))
     : [];
@@ -1393,9 +1413,9 @@ function writeAtomically(target, text) {
 export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
   if (!proposal || typeof proposal !== "object" || Array.isArray(proposal))
     fail("Describe one proposed task as a JSON object.");
-  // Its prose goes under the item as bullets; an old caller's summary is
-  // ignored.
-  const { id: given, title, prose, summary: _summary, ...entry } = proposal;
+  // Its summary goes under the item as bullets.
+  // A task never names checks; an older caller's list is ignored.
+  const { id: given, title, summary, checks: _checks, ...entry } = proposal;
   if (
     typeof given !== "string" ||
     !(NAMED.test(given) || NUMBERED.test(given) || LETTERED.test(given))
@@ -1406,7 +1426,7 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
   const key = given.replace(/\.$/, "");
   if (typeof title !== "string" || /[\r\n]/.test(title))
     fail("Each task needs a title of 1–240 characters on one line.");
-  validateProposal({ ...structuredClone(entry), title, prose });
+  validateProposal({ ...structuredClone(entry), title, summary });
   return store.transaction(() => {
     const plan = store.get("plans", id);
     if (!plan || plan.deletedAt) fail("Plan not found.", 404);
@@ -1427,7 +1447,7 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
       eol = tasks.includes("\r\n") ? "\r\n" : "\n";
     let facts;
     try {
-      facts = [...factsLines(entry), ...proseLines(prose)];
+      facts = [...factsLines(entry), ...summaryLines(summary)];
     } catch (error) {
       fail(error.message);
     }

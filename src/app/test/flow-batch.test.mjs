@@ -329,27 +329,22 @@ test("a member that already ran alone keeps the rest of its group alone", async 
   );
 });
 
-test("batching has no setting, and an old flow.batch is ignored", async (t) => {
+test("batching has no setting, and flow.batch is refused", async (t) => {
   assert.deepEqual(
     Object.keys(FLOW_KEYS).filter((key) => key.startsWith("batch")),
     [],
   );
   assert.equal("batch" in FLOW_DEFAULTS, false);
-  assert.deepEqual(flowSection({ batch: { max: 9, by: "epic" } }), {});
-  // An old file with flow.batch loads, and the planner's group still runs.
+  assert.throws(
+    () => flowSection({ batch: { max: 9, by: "epic" } }),
+    /flow\.batch is not a flow setting/,
+  );
+  // The planner's group runs with no setting.
   const { ops } = setup(t, grouped(["a1", "a2"]), {
-    flow: { batch: { max: 1, by: "epic" }, localChecksFirst: true },
+    flow: { localChecksFirst: true },
   });
   const workers = workersOf(await tick(ops));
   assert.deepEqual(workers[0].batch.tasks, ["a1", "a2"]);
-  const settings = await ops.execute("flow.settings.get", {});
-  // A save that still carries the old key never fails.
-  const saved = await ops.execute("flow.settings.update", {
-    flow: { ...settings.flow, localChecksFirst: false },
-    expectedHash: settings.hash,
-  });
-  assert.equal(saved.flow.localChecksFirst, false);
-  await tick(ops);
 });
 
 // WP3.3: a `process` child makes no commits, so a group on it runs as single

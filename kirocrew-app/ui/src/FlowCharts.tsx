@@ -86,7 +86,7 @@ function StageMix({ points }: { points: SeriesPoint[] }) {
                   rounded="sm"
                 >
                   {STAGES.filter((s) => p.stages[s]).map((s) => (
-                    <span key={s} style={{ height: `${(100 * p.stages[s]) / (total || 1)}%`, background: STAGE_COLORS[s], display: 'block' }} />
+                    <Box key={s} as="span" css-height={`${(100 * p.stages[s]) / (total || 1)}%`} css-background={STAGE_COLORS[s]} css-display="block" />
                   ))}
                 </Box>
               )}

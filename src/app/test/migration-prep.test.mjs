@@ -27,7 +27,7 @@ const data = () => ({
       kind: "task",
       status: "implemented",
       title: "Coroutine resume",
-      prose: "Landed at abcdef1234.",
+      summary: "Landed at abcdef1234.",
       evidence: ["evidence/a.json"],
     },
     {

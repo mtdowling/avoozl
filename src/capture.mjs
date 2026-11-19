@@ -154,7 +154,7 @@ export function captureTask(data, input) {
     task = {
       id: "request-" + randomUUID().slice(0, 12),
       title,
-      prose: prompt,
+      summary: prompt,
       prompt,
       status: "planned",
       scope,

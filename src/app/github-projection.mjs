@@ -7,7 +7,6 @@ import { mirrorConfig, refusePrivateToSource } from "./mirror-sync.mjs";
 import { digest, queryTasks, statusComplete } from "../model.mjs";
 import {
   completionReached,
-  isGate,
   isManual,
   taskKind,
   taskRepository,
@@ -55,6 +54,7 @@ import {
   machineIdentity,
   projectedMarker,
 } from "./github-sync.mjs";
+import { ownSummary } from "./title-repeat.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const SECTION =
@@ -73,10 +73,6 @@ const FIELDS = ["title", "body", "labels", "blockers"];
 // on the issue (R61.23).
 const MANUAL_LINE =
   "Manual task: a person closes this issue or marks it done in Avoozl. No agent works on it.";
-// A gate says what it waits on and what counts as done (RC23.3). The values
-// are plain text from the approved spec, never a credential.
-export const gateLine = (task) =>
-  `Tracker gate: waits on ${task.gate?.plugin} item ${task.gate?.item}. Done when: ${task.gate?.done}. No agent works on it.`;
 // A public-safe issue that waits on a private task says only this (RC25.9).
 const PRIVATE_WAIT_LINE = "Waits on a private task.";
 // One line per workspace rule a Radar crew must follow (task.implement and
@@ -107,12 +103,12 @@ function managedSection(
   return `<!-- avoozl:managed:start -->
 This issue is projected from approved design \`${plan.id}\` at \`${issueHash(plan).slice(0, 12)}\`.
 ${task.phase ? `\nPhase: ${task.phase.title}\n` : ""}${parentRef ? `\nParent: ${parentRef}\n` : ""}
-${task.prose || task.nextAction || ""}
+${ownSummary(task) || task.nextAction || ""}
 
 ## Acceptance criteria
 
 ${(task.acceptance || []).map((item) => `- [ ] ${item}`).join("\n")}
-${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}${isManual(task) ? `\n> ${MANUAL_LINE}\n` : ""}${isGate(task) ? `\n> ${gateLine(task)}\n` : ""}${entries ? `\n## Links\n\n${entries}\n` : ""}${ruleLines ? `\n## Agent rules\n\n${AGENT_RULES_LINE}\n\n${ruleLines}\n` : ""}
+${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}${isManual(task) ? `\n> ${MANUAL_LINE}\n` : ""}${entries ? `\n## Links\n\n${entries}\n` : ""}${ruleLines ? `\n## Agent rules\n\n${AGENT_RULES_LINE}\n\n${ruleLines}\n` : ""}
 <!-- avoozl:managed:end -->`;
 }
 

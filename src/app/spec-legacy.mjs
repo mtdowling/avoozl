@@ -4,8 +4,9 @@
 // leftover one there is a lint error (spec-plans.mjs). Folding the stored
 // manifest into Facts bullets lets one reader parse old and new revisions,
 // so an approval can be carried across a pure conversion (design §4.40).
-import { factsLines, proseLines, withDefaults } from "./spec-facts.mjs";
+import { factsLines, summaryLines, withDefaults } from "./spec-facts.mjs";
 import { specItems } from "./spec-plans.mjs";
+import { repeatsTitle } from "./title-repeat.mjs";
 
 const OLD_MANIFEST = "avoozl/manifest.json";
 const MANIFEST = OLD_MANIFEST;
@@ -19,9 +20,6 @@ function mode(values) {
   const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
   return best ? { value: JSON.parse(best[0]), count: best[1] } : null;
 }
-
-const inline = (items) =>
-  items.every((item) => typeof item === "string" && !/[,\r\n]/.test(item));
 
 // Folds `files[MANIFEST]` into `files["tasks.md"]`. Returns the new files
 // (no manifest) and the spec-wide defaults it hoisted to front-matter.
@@ -39,16 +37,19 @@ export function foldManifest(files, { defaults = true, exact = true } = {}) {
     epic = manifest.kind === "epic",
     entries = structuredClone(manifest.tasks),
     front = [];
-  // A manual leaf completes by a person without saying so.
-  for (const entry of Object.values(entries))
+  // A manual leaf completes by a person without saying so, and every task
+  // runs its repository's checks, so a stored task's own list is dropped.
+  for (const entry of Object.values(entries)) {
     if (entry.manual === true && entry.completion === "person")
       delete entry.completion;
+    delete entry.checks;
+  }
   const leaves = Object.values(entries).filter(
     (entry) => !epic && entry.kind !== "package",
   );
   const hoisted = {};
   if (defaults && leaves.length > 1) {
-    // A manual leaf takes no checks or completion default.
+    // A manual leaf takes no completion default.
     const checked = leaves.filter((entry) => entry.manual !== true);
     for (const [name, among] of [
       ["repository", leaves],
@@ -63,29 +64,10 @@ export function foldManifest(files, { defaults = true, exact = true } = {}) {
       )
         hoisted[name] = top.value;
     }
-    const top = mode(checked.map((entry) => entry.checks));
-    if (
-      top &&
-      Array.isArray(top.value) &&
-      top.value.length &&
-      top.count * 2 > checked.length &&
-      checked.every((entry) => Array.isArray(entry.checks))
-    )
-      hoisted.checks = top.value;
   }
-  const names = {
-    repository: "repo",
-    completion: "completion",
-    checks: "checks",
-  };
-  for (const [name, value] of Object.entries(hoisted)) {
-    if (name === "checks" && !inline(value)) {
-      front.push("checks:", ...value.map((item) => `  - ${item}`));
-    } else
-      front.push(
-        `${names[name]}: ${Array.isArray(value) ? value.join(", ") : value}`,
-      );
-  }
+  const names = { repository: "repo", completion: "completion" };
+  for (const [name, value] of Object.entries(hoisted))
+    front.push(`${names[name]}: ${value}`);
   if (epic) front.push("kind: epic");
   for (const field of [
     "ship",
@@ -109,7 +91,7 @@ export function foldManifest(files, { defaults = true, exact = true } = {}) {
     const item = byLine.get(index + 1),
       entry = item && entries[item.key];
     if (!entry) return;
-    // A task has no summary fact: an old one is the item's prose.
+    // A task has no summary fact: an old one is the item's summary.
     const { summary, ...facts } = entry;
     // Leave out a key the defaults give back in the same place.
     let own = facts;
@@ -129,7 +111,10 @@ export function foldManifest(files, { defaults = true, exact = true } = {}) {
     const indent = /^\s*/.exec(row)[0].length + 2;
     out.push(
       ...factsLines(own, { indent }),
-      ...proseLines(summary, { indent }),
+      // One that only repeats the title adds nothing and is left out.
+      ...(repeatsTitle(summary, item.title)
+        ? []
+        : summaryLines(summary, { indent })),
     );
   });
   const next = { ...files };

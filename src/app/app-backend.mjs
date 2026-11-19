@@ -23,6 +23,7 @@ import {
   observeToolRows,
 } from "./session-observer.mjs";
 import { declaredChecks, prepareWorktree } from "./delivery.mjs";
+import { checkCommand } from "./repository-checks.mjs";
 import { drainProcessRequests } from "./executors/process.mjs";
 import { drainCheckRuns } from "./check-runs.mjs";
 import { observeUsage } from "./flow-usage.mjs";
@@ -326,7 +327,7 @@ export function startAppBackend({
                 return declaredChecks(
                   task,
                   store.get("projects", taskRepository(task) || ""),
-                );
+                ).map(checkCommand);
               },
             });
             if (errors.length) console.error(errors[0].error);

@@ -3,19 +3,18 @@
 // example (examples.mjs) installs them as draft spec folders.
 import { factsLines } from "./spec-facts.mjs";
 
-// A task item, its Facts bullet (Requirement 111) and its prose bullets.
-const item = (id, title, { prose = [], ...entry }) =>
+// A task item, its Facts bullet (Requirement 111) and its summary bullets.
+const item = (id, title, { summary = [], ...entry }) =>
   [
     `- [ ] ${id} ${title}`,
     ...factsLines(entry),
-    ...prose.map((line) => `  - ${line}`),
+    ...summary.map((line) => `  - ${line}`),
   ].join("\n");
 
 const leaf = (done, extra = {}) => ({
   kind: "leaf",
   repository: "app",
   acceptance: [done],
-  checks: ["npm test"],
   completion: "integrated",
   ...extra,
 });
@@ -54,7 +53,7 @@ export function sampleSpecs({ word = "demo" } = {}) {
         2.2: {
           kind: "leaf",
           repository: "app",
-          prose: ["A person imports three recipes on a phone."],
+          summary: ["A person imports three recipes on a phone."],
           acceptance: ["Three imports work on a phone."],
           completion: "answered",
           requires: ["2.1"],

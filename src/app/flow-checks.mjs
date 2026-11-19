@@ -1,11 +1,17 @@
 // Local checks first (design §4.11, Requirement 45): a session Avoozl opens
-// that pushes runs the repository's declared checks in its worktree before
+// that pushes runs the repository's checks in its worktree before
 // each push. The run leaves a record in the repository's git directory, so
 // the pre-push hook and the done report read it instead of running the
 // checks twice. Local delivery pushes nothing and is unchanged.
 import fs from "node:fs";
 import path from "node:path";
 import { commandEvidence, git } from "./git.mjs";
+import {
+  checkCommand,
+  resultFor,
+  selectedChecks,
+} from "./repository-checks.mjs";
+import { changedPaths } from "./verify.mjs";
 import { fail } from "./store.mjs";
 import { putSpan } from "./flow.mjs";
 import { taskRepository } from "../work-model.mjs";
@@ -19,20 +25,31 @@ async function recordDir(root) {
   return path.join(common, "avoozl-checks");
 }
 
-// The commands a pushing session runs before each push: the repository's
-// declared checks. A plans-repo leaf's own `checks` name required GitHub
-// checks, which run in CI, not here.
-export const localCheckList = (project) =>
-  (project?.checks || []).map((argv) => argv.join(" "));
+// Every check a pushing session may have to run: the repository's.
+export const localCheckList = (project) => selectedChecks(project);
 
-// Split a declared check into argv the way the verifier brief shows it.
-const argvOf = (check) =>
-  Array.isArray(check) ? check : String(check).trim().split(/\s+/);
+// The checks one commit runs, the same selection Avoozl's own check run
+// makes: a check with paths only when the commit's diff against the base
+// touches one. `dir` is a checkout that holds the commit. A diff that
+// cannot be read picks every check.
+export async function commitChecks(project, commit, dir = project.root) {
+  try {
+    const { paths } = await changedPaths(
+      dir,
+      project.baseBranch || "main",
+      commit,
+    );
+    return selectedChecks(project, paths);
+  } catch {
+    return selectedChecks(project);
+  }
+}
 
-// flow.checks.run: run every declared check at the worktree's HEAD and
-// record the result. Returns the entries for the done report.
-export async function runLocalChecks({ cwd, root, checks, env }) {
-  if (!checks.length) fail("This task declares no checks.", 409);
+// flow.checks.run: run the checks the worktree's HEAD picks and record the
+// result. Returns the entries for the done report.
+export async function runLocalChecks({ cwd, root, project, env }) {
+  if (!selectedChecks(project).length)
+    fail("This repository has no checks.", 409);
   const top = await git(cwd, ["rev-parse", "--show-toplevel"]).catch(
     () => null,
   );
@@ -43,13 +60,14 @@ export async function runLocalChecks({ cwd, root, checks, env }) {
   if (await git(cwd, ["status", "--porcelain", "--untracked-files=no"]))
     fail("Commit your change first: checks are recorded for a commit.", 409);
   const commit = await git(cwd, ["rev-parse", "HEAD"]),
+    checks = await commitChecks(project, commit, cwd),
     entries = [];
   for (const check of checks) {
-    const argv = argvOf(check),
-      started = Date.now(),
-      result = await commandEvidence(cwd, argv, { env });
+    const started = Date.now(),
+      result = await commandEvidence(cwd, check.argv, { env });
     entries.push({
-      command: argv.join(" "),
+      name: check.name,
+      command: checkCommand(check),
       exitCode: result.exitCode,
       durationMs: Date.now() - started,
       commit,
@@ -59,7 +77,12 @@ export async function runLocalChecks({ cwd, root, checks, env }) {
   fs.writeFileSync(
     path.join(mine, commit + ".json"),
     JSON.stringify(
-      { commit, at: new Date().toISOString(), checks: entries },
+      {
+        commit,
+        at: new Date().toISOString(),
+        selected: checks.map((check) => check.name),
+        checks: entries,
+      },
       null,
       2,
     ) + "\n",
@@ -95,8 +118,8 @@ export async function localPass(root, commit, checks) {
       cause: `a recorded check failed for ${commit.slice(0, 12)}`,
     };
   for (const check of checks) {
-    const name = argvOf(check).join(" "),
-      entry = record.checks?.find((e) => e.command === name);
+    const name = check.name,
+      entry = resultFor(record.checks, check);
     if (!entry)
       return {
         ok: false,
@@ -117,7 +140,7 @@ export async function localPass(root, commit, checks) {
 export function checkDoneList(entries, checks) {
   if (!Array.isArray(entries) || !entries.length)
     fail(
-      "Local checks first: list checks [{command, exitCode, durationMs, commit}] for the commit you pushed (run `avoozl checks run --task <id>` in your worktree before each push).",
+      "Local checks first: list checks [{name, command, exitCode, durationMs, commit}] for the commit you pushed (run `avoozl checks run --task <id>` in your worktree before each push).",
       409,
     );
   const commits = new Set(entries.map((e) => e.commit));
@@ -127,8 +150,8 @@ export function checkDoneList(entries, checks) {
       409,
     );
   for (const check of checks) {
-    const name = argvOf(check).join(" "),
-      entry = entries.find((e) => e.command === name);
+    const name = check.name,
+      entry = resultFor(entries, check);
     if (!entry)
       fail(
         `Local checks first: \`${name}\` is missing from the check list.`,

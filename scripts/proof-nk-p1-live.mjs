@@ -67,6 +67,8 @@ const PLAN = `${TAG}-plan`;
 // The task a person sends ahead, and the one they send back once.
 const GO = `${TAG}-go`;
 const AGAIN = `${TAG}-again`;
+// The file each task must land on origin main, and its exact text.
+const WORDS = { [GO]: "alpha", [AGAIN]: "beta" };
 
 // The isolated Avoozl home, set before any Avoozl module loads.
 const HOME = path.join(ROOT, "home");
@@ -132,7 +134,8 @@ const write = (value) => { fs.mkdirSync(".avoozl", { recursive: true }); fs.writ
 const findings = { read: "check.mjs and notes/", cause: "notes/ has no file yet", plan: "add the one note file", check: "node check.mjs prints ok", confidence: "high" };
 if (/You are an Avoozl Falsifier/.test(text)) write({ state: "done", report: { verdict: "stands", evidence: "check.mjs reads every notes/*.txt.", confidence: "high" } });
 else if (/^Go ahead/.test(text)) {
-  const word = /notes\\/(\\w+)\\.txt/.exec(text)?.[1] ?? "one";
+  const task = /^Go ahead on Avoozl task (\\S+)\\./.exec(text)?.[1];
+  const word = ${JSON.stringify(WORDS)}[task] ?? "one";
   fs.mkdirSync("notes", { recursive: true });
   fs.writeFileSync("notes/" + word + ".txt", word.replace(/[^a-z]/g, "") + "\\n");
   write({ state: "done", text: "Wrote the note." });
@@ -260,7 +263,7 @@ async function setup() {
     });
     store.importSnapshot({
       ...store.read(),
-      tasks: [task(GO, "alpha"), task(AGAIN, "beta")],
+      tasks: [task(GO, WORDS[GO]), task(AGAIN, WORDS[AGAIN])],
       edges: [],
     });
     store.put("projects", {
@@ -425,6 +428,20 @@ function holdForPerson(store) {
   });
 }
 
+// A file's text on origin's main, or null when it is not there: landed
+// means on the remote, not only a delivery state.
+function originFile(file) {
+  try {
+    return execFileSync("git", ["show", `main:${file}`], {
+      cwd: P.origin,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    return null;
+  }
+}
+
 async function snapshotState() {
   const { Store } = await import("../src/app/store.mjs");
   const store = new Store(DB);
@@ -440,6 +457,7 @@ async function snapshotState() {
           decision: round.decision ?? null,
         })),
         delivery: store.get("task_deliveries", id)?.state ?? null,
+        onOrigin: originFile(`notes/${WORDS[id]}.txt`),
       };
     };
     return {
@@ -502,12 +520,14 @@ function verdict(state) {
     ].every(
       (t) => t.rounds.length && t.rounds.every((r) => r.findings && r.verdict),
     ),
-    "2a the Go ahead task landed after one Go ahead":
+    "2a the Go ahead task landed its file on origin after one Go ahead":
       go.delivery === "integrated" &&
+      go.onOrigin === `${WORDS[GO]}\n` &&
       (state.decided[GO] ?? []).join() === "go" &&
       go.rounds.map((r) => r.decision).join() === "go",
-    "2b the other investigated again, then landed":
+    "2b the other investigated again, then landed its file on origin":
       again.delivery === "integrated" &&
+      again.onOrigin === `${WORDS[AGAIN]}\n` &&
       again.rounds.length >= 2 &&
       (state.decided[AGAIN] ?? []).join() === "again,go" &&
       again.rounds.map((r) => r.decision).join() === "again,go",

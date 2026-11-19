@@ -75,26 +75,15 @@ export function validateProposal(item) {
     fail(
       'A task names no epic: its plan does. Use "phase" to group tasks inside a plan.',
     );
-  // Local is opt-in per task; github comes only from projection (§3.2). A
-  // tracker plugin's authority is named in the plan and projected (R35.10).
-  if (
-    item.authority !== undefined &&
-    item.authority !== "local" &&
-    !(isSource(item.authority) && item.authority.startsWith("plugin:"))
-  )
+  // Local is opt-in per task; github comes only from projection (§3.2).
+  if (item.authority !== undefined && item.authority !== "local")
     fail(
-      'authority may only be "local" or "plugin:<id>"; a task becomes github through projection.',
+      'authority may only be "local"; a task becomes github through projection.',
     );
   if (item.route !== undefined && !isSource(item.route))
-    fail("route must be local, github or plugin:<id>.");
+    fail("route must be local or github.");
   if (item.completion !== undefined && !COMPLETIONS.includes(item.completion))
     fail("completion must be one of " + COMPLETIONS.join(", ") + ".");
-  // A tracker gate's reference (RC23.1) is stored as `gate`: `tracker` on a
-  // task is already a tracker plugin's record. Lint checks its parts.
-  if (item.tracker !== undefined) {
-    item.gate = item.tracker;
-    delete item.tracker;
-  }
   // A step only a person does (R61.9); its other rules are lint's.
   if (item.manual !== undefined && item.manual !== true)
     fail("manual may only be true.");
@@ -142,11 +131,16 @@ export function validateProposal(item) {
         item[field].some((x) => typeof x !== "string"))
     )
       fail(field + " must be a list of strings.");
-  // A task has no summary: its prose says what it delivers. A stored
-  // proposal that still has one loads without it.
-  delete item.summary;
+  // Every task runs its repository's checks: a stored proposal's own list
+  // is ignored.
+  delete item.checks;
+  // A proposal stored while the field was named `prose` loads as summary.
+  if (item.prose !== undefined) {
+    item.summary ??= item.prose;
+    delete item.prose;
+  }
   for (const field of [
-    "prose",
+    "summary",
     "nextAction",
     "track",
     "projectId",
@@ -586,7 +580,7 @@ export function approvePlan(
         JSON.stringify([
           ...[
             "title",
-            "prose",
+            "summary",
             "acceptance",
             "nextAction",
             "track",
@@ -597,7 +591,6 @@ export function approvePlan(
             "route",
             "completion",
             "repository",
-            "checks",
             "acceptFrom",
             "verify",
             "milestone",
@@ -610,7 +603,6 @@ export function approvePlan(
             "type",
             "session",
             "manual",
-            "gate",
           ].map((key) => task[key] ?? null),
           task.source?.hash ?? null,
           // Foreign edges are materialized at Store.commit, after this review
@@ -648,7 +640,7 @@ export function approvePlan(
               needsReview: t.needsReview,
               prior: {
                 title: t.title ?? null,
-                prose: t.prose ?? null,
+                summary: t.summary ?? null,
                 acceptance: t.acceptance ?? null,
               },
             },
@@ -698,7 +690,7 @@ export function approvePlan(
         design = {
           id: taskId,
           title: proposal.title,
-          ...(proposal.prose ? { prose: proposal.prose } : {}),
+          ...(proposal.summary ? { summary: proposal.summary } : {}),
           acceptance: proposal.acceptance,
           nextAction: proposal.nextAction || proposal.title,
           track,
@@ -711,7 +703,6 @@ export function approvePlan(
               "route",
               "completion",
               "repository",
-              "checks",
               "acceptFrom",
               "verify",
               "milestone",
@@ -726,7 +717,6 @@ export function approvePlan(
               "specShip",
               "specType",
               "manual",
-              "gate",
             ]
               .filter((key) => proposal[key] !== undefined)
               .map((key) => [key, proposal[key]]),
@@ -852,7 +842,6 @@ export function approvePlan(
           "specType",
           "phase",
           "manual",
-          "gate",
         ])
           if (design[key] === undefined) delete existing[key];
         delete existing.epic;

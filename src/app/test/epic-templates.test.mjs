@@ -79,7 +79,7 @@ test("codegen: each regeneration task names its command and its compare check", 
   for (const proposal of proposals)
     if (proposal.specKey.startsWith("regenerate-"))
       assert.match(
-        proposal.prose,
+        proposal.summary,
         /<generate command>.*<compare command>/,
         proposal.specKey,
       );

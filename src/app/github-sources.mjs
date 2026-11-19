@@ -1,11 +1,6 @@
 // GitHub sources (design §4.39, Requirement 110): a GitHub repository whose
 // issues may start work is one `intake.sources` entry with `via: "github"`,
-// beside plugin and MCP sources. It holds what `github.issueIntake` held.
-//
-// Old files still load: each `github.issueIntake` entry reads as the source
-// it describes, and `github.queue` is ignored (it never let anyone start
-// work). The settings writer moves old entries into `intake.sources` on its
-// first write and drops both old keys; nothing writes them after that.
+// beside plugin and MCP sources.
 import { fail } from "./store.mjs";
 
 export const GITHUB_VIA = "github";
@@ -25,19 +20,6 @@ export const GITHUB_SOURCE_KEYS = Object.freeze([
 ]);
 const PERMISSIONS = ["write", "maintain", "admin"];
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-export const ISSUE_INTAKE_KEYS = Object.freeze([
-  "projectId",
-  "workspaceRepositoryId",
-  "assignee",
-  "label",
-  "managedLabel",
-  "enabled",
-  "autoStart",
-  "provider",
-  "model",
-  "allowedActors",
-  "minimumPermission",
-]);
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const lower = (value) => String(value).toLowerCase();
@@ -119,17 +101,6 @@ export function validateGitHubSource(value, where) {
   };
 }
 
-// An old `github.issueIntake` entry, checked as before; null when disabled.
-function legacySettings(value, repository) {
-  const where = `GitHub issue intake ${repository}`;
-  if (!record(value)) fail(`${where} must contain a JSON object.`);
-  for (const key of Object.keys(value))
-    if (!ISSUE_INTAKE_KEYS.includes(key))
-      fail(`Unknown GitHub issue intake setting ${repository}.${key}.`);
-  const checked = settings(value, where);
-  return value.enabled === false ? null : checked;
-}
-
 // The source entry `settings` are written as.
 export function sourceEntry(repository, value) {
   return {
@@ -169,8 +140,8 @@ const sourcesOf = (value) =>
     ? value.intake.sources
     : {};
 
-// Every GitHub source of a `.avoozl.json` value, declared or old, by GitHub
-// repository: [{id, repository, entry, settings, legacy}]. A second source
+// Every GitHub source of a `.avoozl.json` value by GitHub
+// repository: [{id, repository, entry, settings}]. A second source
 // for one repository is left out (intake.mjs lists it with its error).
 export function githubSources(value) {
   const found = new Map(),
@@ -179,42 +150,15 @@ export function githubSources(value) {
     if (entry?.via !== GITHUB_VIA) continue;
     const checked = validateGitHubSource(entry, `intake.sources.${id}`),
       key = lower(checked.repository);
-    if (!found.has(key))
-      found.set(key, { id, entry, legacy: false, ...checked });
-  }
-  const legacy = record(value?.github) ? value.github.issueIntake : undefined;
-  if (legacy !== undefined && !record(legacy))
-    fail("GitHub issue intake must contain a JSON object.");
-  for (const [repository, old] of Object.entries(legacy || {})) {
-    if (!REPOSITORY.test(repository))
-      fail("GitHub issue intake must be an owner/repository name.");
-    const checked = legacySettings(old, repository);
-    if (!checked || found.has(lower(repository))) continue;
-    const id = githubSourceId(repository, taken);
-    taken.add(id);
-    found.set(lower(repository), {
-      id,
-      repository,
-      settings: checked,
-      entry: sourceEntry(repository, checked),
-      legacy: true,
-    });
+    if (!found.has(key)) found.set(key, { id, entry, ...checked });
   }
   return [...found.values()];
 }
 
-// The old keys moved into `intake.sources`, then `upsert` (repository and
-// settings) added or replaced and every source of `remove` (GitHub
+// `upsert` (repository and settings) added or replaced and every source of `remove` (GitHub
 // repositories) dropped. Changes `value` in place and returns it.
 export function writeGitHubSources(value, { upsert = null, remove = [] } = {}) {
-  const moved = githubSources(value).filter((source) => source.legacy),
-    sources = { ...sourcesOf(value) };
-  for (const source of moved) sources[source.id] = source.entry;
-  if (record(value.github)) {
-    delete value.github.issueIntake;
-    delete value.github.queue;
-    if (!Object.keys(value.github).length) delete value.github;
-  }
+  const sources = { ...sourcesOf(value) };
   const drop = new Set(
     [...remove, upsert?.repository].filter(Boolean).map(lower),
   );

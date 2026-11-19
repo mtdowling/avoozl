@@ -205,7 +205,6 @@ test("the sync names the default branch only and leaves the plans branch alone",
       mode: "single-repo",
       repositories: {
         "example/code": {
-          coder: "issue-radar",
           mirror: {
             source: "example/code",
             mirror: "example/code-private",

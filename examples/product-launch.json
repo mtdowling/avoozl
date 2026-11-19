@@ -24,7 +24,7 @@
     {
       "id": "example-launch-scope",
       "title": "Agree on the first release",
-      "prose": "Write down who the product serves and what the first release includes.",
+      "summary": "Write down who the product serves and what the first release includes.",
       "status": "accepted",
       "epic": "example-launch-foundation",
       "track": "example-launch-product",
@@ -41,7 +41,7 @@
     {
       "id": "example-launch-prototype",
       "title": "Build an interactive prototype",
-      "prose": "Implement the primary user journey with fixture data.",
+      "summary": "Implement the primary user journey with fixture data.",
       "status": "partial",
       "epic": "example-launch-foundation",
       "track": "example-launch-product",
@@ -56,7 +56,7 @@
     {
       "id": "example-launch-storage",
       "title": "Persist user settings",
-      "prose": "Keep settings after restarting the application.",
+      "summary": "Keep settings after restarting the application.",
       "status": "planned",
       "epic": "example-launch-foundation",
       "track": "example-launch-product",
@@ -71,7 +71,7 @@
     {
       "id": "example-launch-accessibility",
       "title": "Check keyboard navigation",
-      "prose": "Complete the main flow without a mouse.",
+      "summary": "Complete the main flow without a mouse.",
       "status": "planned",
       "epic": "example-launch-foundation",
       "track": "example-launch-product",
@@ -86,7 +86,7 @@
     {
       "id": "example-launch-guide",
       "title": "Write the getting-started guide",
-      "prose": "Help a new user finish the first meaningful action.",
+      "summary": "Help a new user finish the first meaningful action.",
       "status": "planned",
       "epic": "example-launch-delivery",
       "track": "example-launch-product",
@@ -101,7 +101,7 @@
     {
       "id": "example-launch-feedback",
       "title": "Collect pilot feedback",
-      "prose": "Wait for the prototype before inviting pilot users.",
+      "summary": "Wait for the prototype before inviting pilot users.",
       "status": "blocked",
       "epic": "example-launch-delivery",
       "track": "example-launch-product",
@@ -116,7 +116,7 @@
     {
       "id": "example-launch-polish",
       "title": "Address pilot findings",
-      "prose": "Resolve the highest-priority findings from the pilot.",
+      "summary": "Resolve the highest-priority findings from the pilot.",
       "status": "planned",
       "epic": "example-launch-delivery",
       "track": "example-launch-product",
@@ -131,7 +131,7 @@
     {
       "id": "example-launch-release",
       "title": "Publish the first release",
-      "prose": "Ship a build with the guide and an explicit acceptance record.",
+      "summary": "Ship a build with the guide and an explicit acceptance record.",
       "status": "planned",
       "epic": "example-launch-delivery",
       "track": "example-launch-product",

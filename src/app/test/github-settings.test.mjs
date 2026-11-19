@@ -115,7 +115,6 @@ for (const server of [false, true])
           namespace: "avz_0123456789abcdef",
           conversations: { autoArchiveCompleted: false },
           github: {
-            issueIntake: {},
             mode: "single-repo",
             repositories: {
               "example/old": { baseBranch: "main" },
@@ -147,8 +146,6 @@ for (const server of [false, true])
     const file = readJson(filename);
     assert.equal(file.namespace, "avz_0123456789abcdef");
     assert.deepEqual(file.conversations, { autoArchiveCompleted: false });
-    // The old (empty) issue intake key is dropped on the first write (R110.5).
-    assert.equal(file.github.issueIntake, undefined);
     assert.equal(readGitHubPolicy(root).planningRepository, "example/plans");
     const again = await ops.execute("github.settings.get");
     assert.equal(again.hash, saved.hash);
@@ -361,7 +358,7 @@ test("Local only is a mode: no GitHub mode, and stored GitHub settings are kept 
     defaultAuthority: "github",
     project: { owner: "example", number: 7 },
     repositories: {
-      "example/app": { coder: "issue-radar", rules: [] },
+      "example/app": { rules: [] },
     },
   };
   const policy = normalizeGitHubPolicy(stored);

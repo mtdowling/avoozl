@@ -109,7 +109,7 @@ test("each retired command prints one line and changes nothing", () => {
       XDG_STATE_HOME: path.join(home, "state"),
     };
   for (const key of Object.keys(env))
-    if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)(_|$)/.test(key)) delete env[key];
+    if (/^AVOOZL(_|$)/.test(key)) delete env[key];
   for (const args of [
     ["integrator", "status"],
     ["integrator", "run"],

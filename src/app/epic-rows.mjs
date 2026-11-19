@@ -73,7 +73,7 @@ function rowState(store, data, plan, step) {
     : { done: true };
 }
 
-// The rows of an epic folder's files: [{key, plan, step, title, prose,
+// The rows of an epic folder's files: [{key, plan, step, title, summary,
 // planId, done, reason}].
 export function epicRows(store, data, files) {
   const plans = store.list("plans").filter((plan) => !plan.deletedAt);

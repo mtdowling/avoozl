@@ -126,10 +126,10 @@ function PullState({ item }: { item: UntriagedItem }) {
     <Box as="span" inlineFlex flexWrap items="center" gap="1.5" size="xs">
       {item.draft && <Badge>draft</Badge>}
       {checks && (
-        <span className="inline-flex items-center gap-1" style={{ color: checks === 'passing' ? 'var(--ok)' : checks === 'failing' ? 'var(--danger)' : 'var(--muted)' }}>
+        <Box as="span" css-color={checks === 'passing' ? 'var(--ok)' : checks === 'failing' ? 'var(--danger)' : 'var(--muted)'} inlineFlex items="center" gap="1">
           {checks === 'passing' ? <Check size={12} aria-hidden="true" /> : checks === 'failing' ? <X size={12} aria-hidden="true" /> : null}
           {CHECK_TEXT[checks]}
-        </span>
+        </Box>
       )}
     </Box>
   )

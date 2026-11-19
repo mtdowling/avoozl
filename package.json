@@ -31,8 +31,7 @@
   "description": "Approve a spec; Avoozl runs it with coding agents, checks each commit itself, and lands it.",
   "license": "MIT",
   "bin": {
-    "avoozl": "./cli.mjs",
-    "aicommander": "./cli.mjs"
+    "avoozl": "./cli.mjs"
   },
   "files": [
     "cli.mjs",
