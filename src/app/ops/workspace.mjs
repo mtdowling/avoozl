@@ -146,6 +146,8 @@ export const entries = [
       if (remote) return remote;
       await this.refreshPrivateSpecs();
       await this.applyBaseTicks();
+      // An approver's spec commit that reached main approves it (§4.42).
+      await this.applyMainApprovals();
       if (input.cron === true) {
         const driving = Object.keys(store.getMeta("specDrivers") ?? {}),
           journalFor = async (planId) => {

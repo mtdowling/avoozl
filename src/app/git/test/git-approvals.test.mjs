@@ -15,6 +15,7 @@ import {
   parseLanding,
 } from "../../landing/landing-trailers.mjs";
 import { listSpans, putSpan } from "../../flow/flow.mjs";
+import { listActivity } from "../../store/activity-log.mjs";
 import { RETRO_DIR } from "../../flow/retro-files.mjs";
 import { Operations } from "../../api/operations.mjs";
 import { Store } from "../../store/store.mjs";
@@ -43,8 +44,8 @@ function repo() {
 }
 
 // Commit one spec folder with this author and committer.
-function commitSpec({ root, run }, name, { author, committer }) {
-  writeSpec(root, name, specFiles());
+function commitSpec({ root, run }, name, { author, committer, files }) {
+  writeSpec(root, name, files ?? specFiles());
   run(["add", "--", `.kiro/specs/${name}`]);
   run(["commit", "-q", "-m", `Spec ${name}`], {
     GIT_AUTHOR_NAME: "A",
@@ -305,4 +306,98 @@ test("an MCP push becomes a GitHub issue at once, or is refused", async () => {
     /names no GitHub repository/,
   );
   assert.equal(created.length, 1);
+});
+
+// The tick reads approvals that reach main with no click: a pull request an
+// approver authored and GitHub squash-merged, or a push (§4.42).
+const tickApprovals = (store) =>
+  listActivity(store, { kind: "plan.approved", source: "tick" }).items;
+const taskStates = (store, planId) =>
+  store
+    .read()
+    .tasks.filter((task) => task.planId === planId)
+    .map((task) => [task.id.slice(planId.length), task.status])
+    .sort();
+
+test("the tick adopts an approver's spec commit on main, and nothing else", async (t) => {
+  const r = workspace(),
+    { store, ops } = open(r.root, "workspace.sqlite"),
+    tick = () => ops.execute("workspace.tick", {});
+  t.after(() => store.close());
+  // Drafts on disk, as their spec branches hold them.
+  for (const name of ["merged", "foreign", "clicked"]) {
+    writeSpec(r.root, name, specFiles());
+    await ops.execute("plan.create", { spec: name });
+  }
+  // GitHub's squash merge of the owner's pull request: the owner is the
+  // author and GitHub the committer.
+  const squash = commitSpec(r, "merged", {
+    author: OWNER,
+    committer: "noreply@github.com",
+  });
+  // Someone else's spec commit, with the owner as committer.
+  commitSpec(r, "foreign", { author: OTHER, committer: OWNER });
+  await tick();
+  const merged = store.get("plans", "merged");
+  assert.equal(merged.state, "approved");
+  assert.deepEqual(
+    store.list("approvals").map((a) => [a.planId, a.hash, a.approvedBy]),
+    [["merged", merged.hash, OWNER]],
+  );
+  assert.match(store.list("approvals")[0].evidence, new RegExp(squash));
+  assert.equal(taskStates(store, "merged").length, 3);
+  assert.equal(store.get("plans", "foreign").state, "draft");
+  assert.deepEqual(taskStates(store, "foreign"), []);
+  // Activity names the commit and the approver, once.
+  const rows = tickApprovals(store);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].targetId, "merged");
+  assert.equal(rows[0].actor, OWNER);
+  assert.match(rows[0].summary, new RegExp(`${OWNER}.*${squash.slice(0, 12)}`));
+  await tick();
+  assert.equal(tickApprovals(store).length, 1);
+
+  // A later edit by a non-approver is a revision that needs approval again.
+  const files = specFiles();
+  files["requirements.md"] += "\nIt also reads config.toml.\n";
+  commitSpec(r, "merged", { author: OTHER, committer: OWNER, files });
+  await tick();
+  await ops.execute("plan.save", { id: "merged", expectedHash: merged.hash });
+  await tick();
+  const edited = store.get("plans", "merged");
+  assert.notEqual(edited.hash, merged.hash);
+  assert.equal(edited.state, "draft");
+  assert.ok(!store.list("approvals").some((a) => a.hash === edited.hash));
+
+  // A click makes its own approval commit: no second Activity row, and its
+  // tasks come out as the merged spec's did.
+  await approve(ops, "clicked");
+  await tick();
+  assert.equal(tickApprovals(store).length, 1);
+  assert.equal(
+    store.list("approvals").filter((a) => a.planId === "clicked").length,
+    1,
+  );
+  assert.deepEqual(taskStates(store, "clicked"), taskStates(store, "merged"));
+
+  // An approver's own push of an edit: the tick reads the text in as the
+  // next revision and approves it.
+  const pushed = commitSpec(r, "clicked", {
+    author: OWNER,
+    committer: OWNER,
+    files,
+  });
+  await tick();
+  const clicked = store.get("plans", "clicked");
+  assert.equal(clicked.state, "approved");
+  assert.equal(clicked.hash, edited.hash);
+  assert.ok(
+    store
+      .list("approvals")
+      .some((a) => a.planId === "clicked" && a.hash === clicked.hash),
+  );
+  assert.match(
+    tickApprovals(store)[0].summary,
+    new RegExp(pushed.slice(0, 12)),
+  );
 });

@@ -133,6 +133,7 @@ import {
   listSpecFolders,
   readCritique,
   readSpecFolder,
+  saveSpecPlan,
   specFacts,
   specItems,
   specModifiedAt,
@@ -150,7 +151,12 @@ import {
 import { driverIdOf } from "../specs/spec-scheduler.mjs";
 import { specAuthority } from "../specs/spec-takeover.mjs";
 import { sameFolder } from "../workspace/onboarding.mjs";
-import { applyTicks, baseTasks, tickCommits } from "../specs/spec-ticks.mjs";
+import {
+  applyTicks,
+  baseHead,
+  baseTasks,
+  tickCommits,
+} from "../specs/spec-ticks.mjs";
 import { canonical, fail } from "../store/store.mjs";
 import {
   checkInputs,
@@ -1449,6 +1455,130 @@ export class Operations {
       );
     return this.readFromGit();
   }
+  // Approve each plan as its approval commit names it: `found` is plan ID
+  // -> an approvalCommits entry whose hash is the plan's. Owners first: a
+  // spec whose checked tasks need another spec's waits for it, so approve
+  // until a pass approves nothing more. A plan that fails a check is left a
+  // draft. Returns the plan IDs approved.
+  adoptApprovals(found) {
+    const store = this.store,
+      left = new Map(found),
+      approved = [];
+    for (let moved = true; moved && left.size; ) {
+      moved = false;
+      for (const [id, match] of left) {
+        const plan = store.get("plans", id);
+        try {
+          const input = {
+              id: plan.id,
+              expectedHash: plan.hash,
+              expectedRevision: store.read().revision,
+            },
+            { specQuality, proposals } = this.approvalChecks(input);
+          approvePlan(store, {
+            ...input,
+            approvedBy: match.email,
+            evidence: `Approval commit ${match.commit} by ${match.email}.`,
+            operator: this.operator,
+            githubPolicy: this.githubPolicy(),
+            ...(specQuality
+              ? {
+                  proposals,
+                  baseline: true,
+                  declaredDependencies: specQuality.declaredDependencies,
+                }
+              : {}),
+          });
+          approved.push(id);
+          left.delete(id);
+          moved = true;
+        } catch {}
+      }
+    }
+    return approved;
+  }
+  // Approvals that reach main with no click (§4.42): a spec pull request an
+  // approver authored, merged on GitHub, or a push. On a tick, each checkout's
+  // base branch is read as `applyBaseTicks` fetched it; when it moved, or a
+  // spec's text did, the rebuild reader runs over the specs whose text on
+  // disk has no approval. A spec an approver committed with exactly that
+  // text is approved as that commit's author. Writes nothing to git.
+  // shortcut: specs read only from GitHub (plans branch, adopted pull
+  // requests) keep their approval pull request; a spec folder with no plan
+  // waits for import.
+  async applyMainApprovals() {
+    this.approvalsSeen ??= new Map();
+    this.mainApprovers ??= new Map();
+    const store = this.store,
+      approved = new Set(
+        store.list("approvals").map((a) => `${a.planId}:${a.hash}`),
+      ),
+      roots = new Map();
+    for (const plan of store.list("plans")) {
+      if (!plan.spec || plan.deletedAt || plan.archivedAt) continue;
+      try {
+        const disk = this.readSpec(plan.spec).hash;
+        if (disk === plan.hash && approved.has(`${plan.id}:${disk}`)) continue;
+        const root = await this.approvalCheckout(plan);
+        if (!root) continue;
+        if (!roots.has(root)) roots.set(root, []);
+        roots.get(root).push({ plan, disk });
+      } catch {}
+    }
+    const repositories = store.list("repositories");
+    for (const [root, group] of roots)
+      try {
+        const branch =
+            repositories.find((p) => p.root === root)?.baseBranch || "main",
+          { head } = await baseHead(root, branch, {
+            fetched: (this.ticksFetched ??= new Set()),
+          }),
+          seen = JSON.stringify([
+            head,
+            group.map(({ plan, disk }) => [plan.id, plan.hash, disk]),
+          ]);
+        if (this.approvalsSeen.get(root) === seen) continue;
+        // One check per checkout and approvers list, so each author is
+        // decided once and no tick asks GitHub about the same email again.
+        const list = `${root}\n${JSON.stringify(readGitHubPolicyOrNull(this.workspaceRoot)?.repositories ?? null)}`;
+        if (!this.mainApprovers.has(list))
+          this.mainApprovers.set(list, await this.approverOf(root));
+        const commits = await approvalCommits(root, {
+            allowed: this.mainApprovers.get(list),
+            ref: head,
+            specs: group.map(({ plan }) => plan.spec),
+          }),
+          found = new Map();
+        for (const { plan, disk } of group) {
+          const match = commits.find(
+            (entry) => entry.spec === plan.spec && entry.hash === disk,
+          );
+          if (!match) continue;
+          // The approved text is on disk as a newer revision: read it in.
+          if (plan.hash !== disk)
+            saveSpecPlan(
+              store,
+              { id: plan.id, expectedHash: plan.hash },
+              this.readSpec(plan.spec),
+            );
+          found.set(plan.id, match);
+        }
+        for (const id of this.adoptApprovals(found)) {
+          const match = found.get(id);
+          recordActivity(store, {
+            source: "tick",
+            actor: match.email,
+            kind: "plan.approved",
+            summary: `${match.spec} approved by ${match.email} in commit ${match.commit.slice(0, 12)} on ${branch}`,
+            targetId: id,
+            key: `approved:${id}:${match.commit}`,
+          });
+        }
+        this.approvalsSeen.set(root, seen);
+      } catch {
+        // Read again on the next tick.
+      }
+  }
   // The one reader behind `avoozl rebuild` and adopting a repository in
   // Settings > Repository setup (onboarding.adopt): the same steps over the
   // named specs, with `allowed` (an approverCheck) in place of the
@@ -1483,40 +1613,7 @@ export class Operations {
         match = commits.find((entry) => entry.hash === plan.hash);
       if (match) found.set(name, match);
     }
-    // Owners first: a spec whose checked tasks need another spec's waits for
-    // it, so approve until a pass approves nothing more.
-    const approved = [];
-    for (let moved = true; moved && found.size; ) {
-      moved = false;
-      for (const [name, match] of found) {
-        const plan = store.get("plans", name);
-        try {
-          const input = {
-              id: plan.id,
-              expectedHash: plan.hash,
-              expectedRevision: store.read().revision,
-            },
-            { specQuality, proposals } = this.approvalChecks(input);
-          approvePlan(store, {
-            ...input,
-            approvedBy: match.email,
-            evidence: `Approval commit ${match.commit} by ${match.email}.`,
-            operator: this.operator,
-            githubPolicy: this.githubPolicy(),
-            ...(specQuality
-              ? {
-                  proposals,
-                  baseline: true,
-                  declaredDependencies: specQuality.declaredDependencies,
-                }
-              : {}),
-          });
-          approved.push(name);
-          found.delete(name);
-          moved = true;
-        } catch {}
-      }
-    }
+    const approved = this.adoptApprovals(found);
     // Ticked tasks keep their tick commit as the landing commit.
     await this.applyBaseTicks({ land: true });
     const landed = [];

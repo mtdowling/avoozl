@@ -226,22 +226,30 @@ export async function tickBranch(
   }
 }
 
+// `branch` of the checkout at `root` as git holds it: {head, ref}. What the
+// remote holds is the shared state: fetch it (once per checkout in
+// `fetched`, one tick's set), then read it. A checkout with no remote reads
+// its own branch. Throws when the branch is not there.
+export async function baseHead(root, branch, { fetched } = {}) {
+  const remote = `refs/remotes/origin/${branch}`;
+  if (!fetched?.has(root)) {
+    fetched?.add(root);
+    await git(root, ["fetch", "--quiet", "origin", branch]).catch(() => {});
+  }
+  const ref = await git(root, ["rev-parse", "--verify", `${remote}^{commit}`])
+    .then(() => remote)
+    .catch(() => branch);
+  return {
+    head: await git(root, ["rev-parse", "--verify", `${ref}^{commit}`]),
+    ref,
+  };
+}
+
 // tasks.md of `branch` in the checkout at `root`, as git holds it, with the
 // branch's head; null when the branch or the file is not there.
 export async function baseTasks(root, branch, name, { fetched } = {}) {
   try {
-    // What the remote holds is the shared state: fetch it (once per
-    // checkout and tick), then read it. A checkout with no remote reads its
-    // own branch.
-    const remote = `refs/remotes/origin/${branch}`;
-    if (!fetched?.has(root)) {
-      fetched?.add(root);
-      await git(root, ["fetch", "--quiet", "origin", branch]).catch(() => {});
-    }
-    const ref = await git(root, ["rev-parse", "--verify", `${remote}^{commit}`])
-      .then(() => remote)
-      .catch(() => branch);
-    const head = await git(root, ["rev-parse", "--verify", `${ref}^{commit}`]);
+    const { head, ref } = await baseHead(root, branch, { fetched });
     // Not `git()`: its trim would shift the line numbers.
     const { stdout } = await exec(
       "git",
