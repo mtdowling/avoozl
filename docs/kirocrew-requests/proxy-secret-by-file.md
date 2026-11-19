@@ -35,7 +35,7 @@ it once and delete or ignore it.
 
 Avoozl's person-only rule would stop a same-user agent from signing as the
 owner. Until then, the rule stops MCP calls and app tokens, not code running as
-you (see `docs/policies.md`).
+you.
 
 ## Open points
 

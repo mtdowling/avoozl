@@ -1,6 +1,6 @@
 // One meaning for each word (worker-paths WP8): the page, the CLI help,
 // README.md and docs/*.md never name a removed way to run work. Dated
-// records under docs/research/, docs/evidence/ and docs/proposals/ are not
+// records under docs/research/ and docs/evidence/ are not
 // checked; they record what was true then.
 import assert from "node:assert/strict";
 import fs from "node:fs";

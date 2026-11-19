@@ -6,16 +6,12 @@ One meaning for each word. If a word is not here, it has its ordinary meaning.
 
 | Word | Means | Where you see it |
 | ---- | ----- | ---------------- |
-| claim | The record in a spec's plan issue that says which machine drives the spec. | Take over, Hand off, "no claim yet" |
+| claim | The record that says which machine drives a spec: a marker on the spec's issue, or a row in the workspace database in Local only mode. | Take over, Hand off, "no claim yet" |
 | take | Hold one item so nothing else works on it: a person takes a ready task by hand, or an executor takes a queued request. | `avoozl take TASK`, `executor.*.take` |
 | grant | The driver's permission for one worker to run one task of a shared spec. | `spec grants`, `workers.grantStaleAfter`, Release grant |
 | accept | A worker machine starts the tasks it was granted. | `avoozl worker accept` |
 | statement | The one-sentence point of a review finding. | A finding's `statement` |
 | principal | The signed identity a request carries to the app backend. | `principalAllows`, `verifyPrincipal` |
-
-Old names still in code, to rename when the file next changes: `claimedAt`
-and `claimToken` on executor requests, and the `claimed` row state in the
-Release queue.
 
 ## review
 

@@ -46,17 +46,13 @@ for the parts that run code, and, with a pack, `avoozl-pack.json`:
   interface this plugin was built for. It is not the plugin's own version.
   Settings shows it as **Contract version**. This Avoozl supports contract
   version `1`.
-- `provides` lists the parts: `pack`, `rules`, `intake` and `template`
-  (`lessons` is still accepted and does nothing). A manifest written before
-  `provides` lists `kinds` instead (`intake`, `rules`), and each kind is its
-  own part. With `provides`, leave `kinds` out; if you keep it, it must
-  match.
+- `provides` lists the parts: `pack`, `rules`, `intake` and `template`.
 - `capabilities` lists optional features per kind. An intake part may list
   `actor`. Rules list none.
 - `pack` names the pack file inside the folder; it defaults to
   `avoozl-pack.json`.
 - `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides
-  only data parts (`pack`, `lessons`, `template`) runs no code, so it has no
+  only data parts (`pack`, `template`) runs no code, so it has no
   `entry`; Avoozl refuses one that names an entry, and never starts a
   process for it.
 
@@ -180,7 +176,7 @@ computer, its `config` holds no machine path: name an environment variable
 ## Rules kind
 
 A rules plugin supplies content rule sets: terms Avoozl must never write
-(see "Ban private terms" in `docs/policies.md`). It lets a team ship its
+(see [Ban private terms](policies.md#ban-private-terms-from-everything-avoozl-writes)). It lets a team ship its
 list as a private package that public Avoozl never sees.
 
 | Call           | Reply                                             |
@@ -299,8 +295,13 @@ templates/sdk-rewrite/
 | `pack`                       | Optional: a settings pack, as in the pack part                                                                                           |
 | `flow`                       | Optional: flow defaults: `batch`, `stopTheLine`, `localChecksFirst`, `retro.everyTasks`                                                  |
 
-The prompt and starter files may use `{{<input id>}}`. Avoozl puts in what
-the person typed, as plain text, once, and never runs it. A `file` input is
+The prompt and starter files may use a placeholder for an input:
+
+```text
+{{<input id>}}
+```
+
+Avoozl puts in what the person typed, as plain text, once, and never runs it. A `file` input is
 read in the page, at most 200 KB of text; Avoozl never opens a path someone
 typed. The plugin shows as invalid, naming the key or file, when:
 
@@ -324,8 +325,8 @@ or pushed.
 The sample `sdk-templates/` plugin has an **SDK rewrite** template: six
 phases (inventory, codegen, runtime, protocol tests, review, cutover), a
 manual **Review with team** task that cutover waits on, two proof kinds and
-flow defaults. Proof P37 runs it with a fake GitHub; no template has run
-live yet.
+flow defaults. A test runs it with a fake GitHub; no template has run live
+yet.
 
 A starter may hold manual tasks (`"manual": true`): steps only a person
 does. See [Manual tasks and task links](policies.md#manual-tasks-and-task-links).
@@ -404,6 +405,6 @@ there. `labelFields` adds a `<field>:<value>` label per field and
 
 Copy the fake plugins' approach: keep the remote system in a file or a local
 stand-in, declare the plugin in a temporary `plugins.json`, approve its hash,
-and run ticks. Avoozl's proof P35 installs, previews, imports and polls the
-`sdk-team` bundle, proof P37 starts a spec from the `sdk-templates`
-template, and proof P32 polls the fake intake plugin as an intake source.
+and run ticks. Avoozl's own tests install, preview, import and poll the `sdk-team`
+bundle, start a spec from the `sdk-templates` template, and poll the fake
+intake plugin as an intake source.

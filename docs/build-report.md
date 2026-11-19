@@ -49,7 +49,7 @@ Example:
 A report is skipped and counted, never guessed, when:
 
 - `format` is not `avoozl.build-report` or `v` is not `1` (`version`);
-- a required field is missing (`missing:<field>`);
+- a required field is missing (`missing:<field>`, or `missing:costs.<cost>`);
 - a field has the wrong type or is too long (`invalid:<field>`);
 - the value is not an object (`not-object`), or an artifact line is not
   JSON (`json`).

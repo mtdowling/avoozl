@@ -1,11 +1,12 @@
 # Avoozl overview
 
-Status 2026-11-19, checked against `origin/main`. The avoozl spec
-(`.kiro/specs/avoozl/`) governs; `.kiro/specs/triage-agent/` describes the
-triage agent and the GitHub pages. This file lists what the app is and shows
-now; it is not a list of verdicts.
+Checked against the code on `main`. This page says what the app is and what
+it shows. The rest of these pages are the [triage agent and policies](policies.md),
+[plugins](plugins.md), [epic types](epic-types.md), the
+[content hook](content-hook.md), the [build report](build-report.md) and the
+[glossary](glossary.md).
 
-## 1. What Avoozl is
+## What Avoozl is
 
 Approve a spec; Avoozl runs it with coding agents, checks each commit itself,
 and lands it. It turns an approved spec into a task graph, runs each ready
@@ -14,49 +15,64 @@ process harness), checks the exact commit, and lands it by the repository's
 `landing` setting. A spec can be one task that becomes one pull request, or
 an epic across specs and repositories. GitHub is optional.
 
-| Is                                                                    | Is not                                                       |
-| --------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Plans specs of any size: spec, tasks, order                           | A label-command bot: no label is an order                    |
-| Runs, checks and lands each task, and releases what waited on it      | A coder that changes code on its own outside a spec, a fix or a triage run |
-| Local only mode: tasks in SQLite, no GitHub                           | An approver: the agent never approves, requests changes or closes |
-| Triages new issues and pull requests, with Issues and Pull requests pages | A second GitHub: no diff viewer, milestones or Projects       |
+| Is                                                                         | Is not                                                           |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Plans specs of any size: spec, tasks, order                                | A label-command bot: no label is an order                        |
+| Runs, checks and lands each task, and releases what waited on it           | A coder that changes code outside a spec, a fix or a triage run  |
+| Works with no GitHub (Local only mode)                                     | An approver: the agent never approves, requests changes or closes |
+| Triages new issues and pull requests, with Issues and Pull requests pages  | A second GitHub: no diff viewer, milestones or Projects          |
 
-## 2. Workflows
+## Where state lives
 
-| Workflow                   | Path                                                                                                                                                                                                                    |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Triage                     | The triage agent answers questions, reproduces bugs and starts fixes, and reviews other people's pull requests. What it cannot settle goes to Needs you › From the agent. |
-| Fix                        | Fix on an issue, New fix, or `avoozl fix`: one task with no spec files. Starting it is the approval. |
+Git holds what matters. SQLite is a cache, and `avoozl rebuild` makes it
+again.
+
+| What                | Where it lives                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------- |
+| Specs               | `.kiro/specs/<name>/` in git: `requirements.md` (or `bugfix.md`), `design.md`, `tasks.md` |
+| Task facts          | `Facts:` bullets under each task in `tasks.md`                                      |
+| Approvals           | A commit on main whose author is an approver                                        |
+| Task done           | The commit that lands a task ticks its box in `tasks.md` on main; other machines read the tick |
+| What landed         | Trailers on the landing commits                                                     |
+| Retros              | `.kiro/retros/`                                                                     |
+| Execution state     | The workspace database, rebuilt from the above                                      |
+
+A task never gets a GitHub issue. A spec can have one issue, its journal,
+and a fix started from an issue keeps its record there.
+
+## Workflows
+
+| Workflow                     | Path                                                                                                                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Triage                       | The triage agent answers questions, reproduces bugs and starts fixes, and reviews other people's pull requests. What it cannot settle goes to Needs you › From the agent. |
+| Fix                          | Fix on an issue, New fix, or `avoozl fix`: one task with no spec files. Starting it is the approval.                                                                    |
 | Light spec, one pull request | New spec, Blank or From a goal, with one task. Approve records the revision. With `landing: pr` Avoozl opens the pull request, waits for its checks and reviews, and merges it. |
-| Epic from an approved spec | Spec Builder writes requirements, design and tasks. Approve records the revision. The tick releases ready tasks by capacity, phase and Stop the line. Avoozl runs, checks and lands each one (R86, R87). Retro follows. |
+| Epic from an approved spec   | Spec Builder writes requirements, design and tasks. Approve records the revision. The tick releases ready tasks by capacity, phase and Stop the line. Avoozl runs, checks and lands each one. A retro follows. |
 
-## 3. Labels
+## Labels
 
 No label is an order. The labels Avoozl reads are per-repository settings:
 
-| Role                                   | Setting                 | Who writes it     |
-| -------------------------------------- | ----------------------- | ----------------- |
-| Priority (ready tasks with it start first) | `priorityLabels`    | A person          |
-| Waiting on the author (holds a task)   | `waitingLabels`         | A person          |
-| The triage agent's labels              | `triage.labels`         | The agent, from labels the repository has |
+| Role                                       | Setting         | Who writes it                              |
+| ------------------------------------------ | --------------- | ------------------------------------------ |
+| Priority (ready tasks with it start first) | `priorityLabels` | A person                                  |
+| Waiting on the author (holds a task)       | `waitingLabels`  | A person                                  |
+| The triage agent's labels                  | `triage.labels`  | The agent, from labels the repository has  |
 
-Label commands, the managed labels and Issue Radar's labels were removed on
-2026-11-19 (`docs/policies.md`).
-
-## 4. Screens
+## Screens
 
 The nav has eight entries (`kirocrew-app/ui/src/nav-api.ts`):
 
-| Nav entry  | Pages                                                          |
-| ---------- | -------------------------------------------------------------- |
-| Dashboards | Home, Graph, Delivery, CI, Landing queue                       |
-| Specs      | One list with status chips; spec details with tabs             |
-| Needs you  | Decisions, From the agent                                      |
-| GitHub     | Issues, Pull requests, Triage agent                            |
-| Flow       | One page                                                       |
-| Retros     | Retros, Proposals                                              |
-| Activity   | One page                                                       |
-| Settings   | Workspaces, Repository setup, GitHub, Plugins, Content rules, Flow, Models, Delivery |
+| Nav entry  | Pages                                                                                  |
+| ---------- | -------------------------------------------------------------------------------------- |
+| Dashboards | Home, Graph, Delivery, Landing queue                                                   |
+| Specs      | One list with status chips; spec details with tabs                                     |
+| Needs you  | Decisions, From the agent                                                              |
+| GitHub     | Issues, Pull requests, Triage agent                                                    |
+| Flow       | One page                                                                               |
+| Retros     | Retros, Proposals                                                                      |
+| Activity   | One page                                                                               |
+| Settings   | Workspaces, Repository setup, GitHub, Plugins, Content rules, Flow, Models, Delivery   |
 
 ## CLI
 
@@ -75,12 +91,3 @@ refuses and lists their ids.
 
 `avoozl plan restore PLAN_ID` brings a deleted plan back. Both are for a person: MCP and chat callers
 are still refused. The CLI runs it anywhere but a supervisor child, and says so when it runs inside an agent session.
-
-## Links
-
-| What                | Where                                                                   |
-| ------------------- | ----------------------------------------------------------------------- |
-| Triage agent spec   | [`.kiro/specs/triage-agent/`](../.kiro/specs/triage-agent/)             |
-| Experience proposal | [`docs/proposals/avoozl-experience.md`](proposals/avoozl-experience.md) |
-| Clickable mockups   | [`docs/proposals/experience/`](proposals/experience/)                   |
-| Research            | [`docs/research/`](research/)                                           |
