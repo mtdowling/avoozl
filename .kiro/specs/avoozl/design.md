@@ -1044,8 +1044,9 @@ allow host: \bbuild0\.corp\.example\b
 **Decided**, owner 2026-11-18: every session Avoozl opens runs on this
 machine, on the executor its harness names (§4.28). `src/app/session-pins.mjs`
 checks a task's `session` fact: `agent`, `model` or `harness`, and
-nothing else. The crew snapshot (`crews.mjs`, `crew-reader.mjs`) stays for the
-In flight view's unreachable-crew flag.
+nothing else. The crew snapshot (`crews.mjs`) stays for the In flight
+view's unreachable-crew flag. Its reader had no caller and was deleted; it
+is in git history.
 
 #### Current-code facts
 
@@ -2876,9 +2877,10 @@ only and pushes nothing. No force pushes or bypasses. See Requirement 87 and
 A merge conflict goes back to the same worker chat with the file list, for
 the repository's `conflicts.maxAttempts` rounds (default 2; older key
 `landing.conflictRounds`, §4.25), then to Needs you. The
-resolver chat (`avoozl-conflict-fix`, RC28) is removed. The arming and
-merge code (`radar-arm.mjs`, `radar-merge*.mjs`) is renamed and becomes the
-`pr` mode. A pause from Stop the line keeps the queue's order.
+resolver chat (`avoozl-conflict-fix`, RC28) is removed, and so are the
+arming code (`radar-arm.mjs`), the merge method arm (`radar-merge-method.mjs`)
+and the `conflicts.onSourceConflict` setting; they are in git history.
+`pr` mode lands pull requests itself. A pause from Stop the line keeps the queue's order.
 
 Every push passes the pre-push content rule first (Requirement 40): commit
 messages, branch name and added lines. The push and the merge run in the

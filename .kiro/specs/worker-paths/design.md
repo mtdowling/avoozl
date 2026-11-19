@@ -166,7 +166,7 @@ worker role, which move to `worker-mode.test.mjs`.
 
 The `agent`, `model` and `harness` pins stay in `src/app/session-pins.mjs`,
 and the provider checks stay in `provider-health.mjs`. The crew snapshot
-(`crews.mjs`, `crew-reader.mjs`) stays for the In flight view.
+(`crews.mjs`) stays for the In flight view.
 
 Removed: the remote steps and `remoteTarget` in `delivery.mjs`,
 `kirocrewRemoteSession`, `handback.mjs`, and the `crew` argument in

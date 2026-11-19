@@ -4467,7 +4467,7 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
     - checks: npm test, git diff --check
     - after: avoozl-p52
   - Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving.
-  - Left for 45.4 (shared, not Radar-only): `radar-arm.mjs` keeps only the armed list, Disarm and merge-method rows, and nothing arms any more; `radar-conflict-fix.mjs` finishes and reports fixes already queued but starts none; `showPlansRepo` stays in policy but no marker uses it; `public-signoff.mjs` still defaults its agent name to `avoozl-crew`; `scripts/live-harness` still names the agent; `radar-handoff.mjs` and `permissions.api` keep the Issue Radar route that Settings › Issue Radar and Triage use.
+  - Left for 45.4 (shared, not Radar-only), later deleted by the Radar leftovers cleanup: `radar-arm.mjs` (the armed list, Disarm and merge-method rows) and `radar-conflict-fix.mjs` (queued fixes); both are in git history. Still left: `showPlansRepo` stays in policy but no marker uses it; `public-signoff.mjs` still defaults its agent name to `avoozl-crew`; `scripts/live-harness` still names the agent; `radar-handoff.mjs` and `permissions.api` keep the Issue Radar route that Settings › Issue Radar and Triage use.
 - [x] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
   - Facts:
     - summary: Phase 45 (Remove the Issue Radar path). See R86.1, R91.1; §4.26.
