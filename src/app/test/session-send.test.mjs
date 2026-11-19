@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
-import { classifyOperation } from "../operation-kinds.mjs";
+import { classifyOperation } from "../operation-table.mjs";
 import { mcpRefusal } from "../mcp-policy.mjs";
 import { bindSession } from "../session-bindings.mjs";
 import {

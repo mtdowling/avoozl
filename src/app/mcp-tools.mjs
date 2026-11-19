@@ -1,6 +1,6 @@
 // Avoozl's grouped MCP tools (R56): one tool per thing a session acts on, each
 // with an `action` naming one existing operation. The authority class of each
-// operation (operation-kinds.mjs) is unchanged, and person-only operations
+// operation (operation-table.mjs) is unchanged, and person-only operations
 // (mcp-policy.mjs) have no action here and are refused under any name.
 //
 // Each action is [operation, hint] or [operation, hint, shape], where `shape`

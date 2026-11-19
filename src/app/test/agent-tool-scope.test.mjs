@@ -6,7 +6,7 @@ import fs from "node:fs";
 import test from "node:test";
 import { handleMcp } from "../mcp.mjs";
 import { GROUPED_TOOLS } from "../mcp-tools.mjs";
-import { classifyOperation } from "../operation-kinds.mjs";
+import { classifyOperation } from "../operation-table.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 

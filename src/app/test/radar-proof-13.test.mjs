@@ -17,9 +17,12 @@ test("Proof 13: the statement shows in the README and Set up", () => {
   assert.ok(source.includes("work-split.mjs"));
 });
 
-test("Quick goal is gone: no operation, page or module", () => {
-  const kinds = read("src/app/operation-kinds.mjs");
-  assert.doesNotMatch(kinds, /quickgoal\./);
+test("Quick goal is gone: no operation, page or module", async () => {
+  const { OPERATIONS } = await import("../operation-table.mjs");
+  assert.equal(
+    [...OPERATIONS.keys()].some((name) => name.startsWith("quickgoal.")),
+    false,
+  );
   for (const file of [
     "src/app/quick-goal.mjs",
     "src/app/quick-goal-ops.mjs",

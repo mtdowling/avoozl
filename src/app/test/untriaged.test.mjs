@@ -349,7 +349,7 @@ test("a rising count sends one batched notice at most once an hour", async () =>
 });
 
 test("the untriaged operations are read only", async () => {
-  const { classifyOperation } = await import("../operation-kinds.mjs");
+  const { classifyOperation } = await import("../operation-table.mjs");
   assert.equal(classifyOperation("untriaged.view"), "observe");
   assert.equal(classifyOperation("github.repository.labels"), "observe");
 });

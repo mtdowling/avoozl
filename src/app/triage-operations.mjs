@@ -1,8 +1,8 @@
 // The operations of the triage agent and the GitHub pages (triage-agent
-// TA1, TA5, TA6, TA8). Operations.execute hands every `triage.*` and
-// `items.*` call here with itself, so they share its store, GitHub client
-// and settings file.
+// TA1, TA5, TA6, TA8). Handlers run with the Operations instance as `this`,
+// so they share its store, GitHub client and settings file.
 import { fail } from "./store.mjs";
+import { notOnMcp, person, routed } from "./operation-policy.mjs";
 import { readGitHubPolicyOrNull } from "./github-policy.mjs";
 import { itemsAct, itemsDetail, itemsList } from "./github-pages.mjs";
 import {
@@ -12,20 +12,6 @@ import {
   submitTriage,
   triageView,
 } from "./triage.mjs";
-
-export const TRIAGE_OPERATIONS = Object.freeze({
-  observe: ["items.list", "items.detail", "triage.view"],
-  person: [
-    "items.act",
-    "triage.pause",
-    "triage.resume",
-    "triage.stop",
-    "triage.start",
-    "triage.owner.done",
-    "triage.settings",
-  ],
-  session: ["triage.submit"],
-});
 
 const lower = (value) => String(value ?? "").toLowerCase();
 
@@ -63,45 +49,103 @@ function saveSettings(ops, input) {
   return { repository: key, triage };
 }
 
-export async function triageOperation(ops, name, input = {}, context = {}) {
-  const store = ops.store,
-    person = !context.caller && !context.mcp,
-    policy = () => readGitHubPolicyOrNull(ops.workspaceRoot);
-  if (TRIAGE_OPERATIONS.person.includes(name) && !person)
-    fail("Only a person does this, from the Avoozl page.", 403);
-  switch (name) {
-    case "items.list":
-      return itemsList(store, input, { login: await login(ops.github) });
-    case "items.detail":
-      return itemsDetail(store, ops.github, input);
-    case "items.act":
-      return itemsAct(store, ops.github, input, {
-        policy: policy(),
-        workspaceRoot: ops.workspaceRoot,
-        actor: ops.operator,
-        login: await login(ops.github),
-        person,
+const policy = (ops) => readGitHubPolicyOrNull(ops.workspaceRoot);
+const control = (verb) =>
+  function ({ input }) {
+    return controlTriage(this.store, policy(this), verb, input);
+  };
+
+const reads =
+  "The GitHub pages' reads; the triage agent's session gets its snapshot instead.";
+
+export const entries = [
+  {
+    name: "items.list",
+    class: "observe",
+    policy: notOnMcp(reads),
+    async handler({ input }) {
+      return itemsList(this.store, input, { login: await login(this.github) });
+    },
+  },
+  {
+    name: "items.detail",
+    class: "observe",
+    policy: notOnMcp(reads),
+    handler({ input }) {
+      return itemsDetail(this.store, this.github, input);
+    },
+  },
+  {
+    name: "triage.view",
+    class: "observe",
+    policy: notOnMcp(reads),
+    handler() {
+      return triageView(this.store, policy(this), this.github);
+    },
+  },
+  {
+    name: "triage.submit",
+    class: "execute",
+    policy: routed,
+    handler({ input, context }) {
+      return submitTriage(this.store, input, context.caller);
+    },
+  },
+  {
+    name: "items.act",
+    class: "protect",
+    policy: person(
+      "Only a person acts on an issue or pull request: approve, request changes, close, label or comment.",
+    ),
+    async handler({ input, context }) {
+      return itemsAct(this.store, this.github, input, {
+        policy: policy(this),
+        workspaceRoot: this.workspaceRoot,
+        actor: this.operator,
+        login: await login(this.github),
+        person: !context.caller && !context.mcp,
       });
-    case "triage.view":
-      return triageView(store, policy(), ops.github);
-    case "triage.submit":
-      return submitTriage(store, input, context.caller);
-    case "triage.pause":
-    case "triage.resume":
-    case "triage.stop":
-    case "triage.start":
-      return controlTriage(
-        store,
-        policy(),
-        name.slice("triage.".length),
-        input,
-      );
-    case "triage.owner.done":
-      settleOwner(store, input);
+    },
+  },
+  {
+    name: "triage.pause",
+    class: "protect",
+    policy: person("Only a person pauses the triage agent."),
+    handler: control("pause"),
+  },
+  {
+    name: "triage.resume",
+    class: "protect",
+    policy: person("Only a person resumes the triage agent."),
+    handler: control("resume"),
+  },
+  {
+    name: "triage.stop",
+    class: "protect",
+    policy: person("Only a person stops the triage agent."),
+    handler: control("stop"),
+  },
+  {
+    name: "triage.start",
+    class: "protect",
+    policy: person("Only a person starts the triage agent again."),
+    handler: control("start"),
+  },
+  {
+    name: "triage.owner.done",
+    class: "protect",
+    policy: person("Only a person settles an owner queue item."),
+    handler({ input }) {
+      settleOwner(this.store, input);
       return { repository: input.repository, number: input.number };
-    case "triage.settings":
-      return saveSettings(ops, input);
-    default:
-      fail(`Unknown operation ${name}.`, 404);
-  }
-}
+    },
+  },
+  {
+    name: "triage.settings",
+    class: "protect",
+    policy: person("Only a person changes the triage agent's settings."),
+    handler({ input }) {
+      return saveSettings(this, input);
+    },
+  },
+];

@@ -5,7 +5,11 @@ and lands it. It is a local application with a Kiro Crew app page, CLI, and
 MCP interface. Its agent sessions run in Kiro Crew chats or as process
 harnesses under its supervisor. It pushes and merges by each repository's
 `landing` setting, after checks pass on the exact head. UI, CLI, and MCP
-share operations in `src/app/operations.mjs`.
+share operations. Each feature's operations are one table of
+`{name, class, policy, handler}` entries in `src/app/ops/` (the dispatcher, the
+class list and the MCP policy read `src/app/operation-table.mjs`), and each CLI
+command is an entry `{command, help, run}` in `src/app/commands/`. Add an
+operation or command as one entry; never add it to a list elsewhere.
 SQLite owns execution state; Markdown owns design prose.
 
 Keep application source independent of workspace paths and data. Tests use

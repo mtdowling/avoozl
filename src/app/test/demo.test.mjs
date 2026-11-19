@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { APP_OPERATIONS, startAppBackend } from "../app-backend.mjs";
-import { classifyOperation } from "../operation-kinds.mjs";
+import { classifyOperation } from "../operation-table.mjs";
 import { workspaceConfig } from "../config.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
 import {
