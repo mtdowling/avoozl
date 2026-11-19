@@ -11,6 +11,7 @@ import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { PlainLink } from './ui/Plain'
 import { DOT } from './ui/looks/TaskScmLinks.ts'
+import { StatusDot } from './ui/StatusDot'
 
 function Out(props: { to: string | null | undefined; children: ReactNode }) {
   const href = safeHref(props.to ?? null)
@@ -40,11 +41,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 export function Checks({ checks }: { checks: ScmChecks }) {
   return (
     <Box as="span" flex items="start" gap="1.5" data-checks-dot={checks.dot}>
-      <span
-        aria-hidden="true"
-        className="mt-1.5 inline-block h-2 w-2 flex-none rounded-full"
-        style={checks.dot === 'stale' ? { border: `1.5px solid ${DOT.stale}` } : { background: DOT[checks.dot] }}
-      />
+      <StatusDot top color={DOT[checks.dot]} hollow={checks.dot === 'stale'} />
       <Tooltip text={`Read for ${checks.head}${checks.current ? '' : '. Not the current head: run them again to see its state.'}`}>
         <Box as="span" minW0>
           <Out to={checks.url}>{checksLine(checks)}</Out>

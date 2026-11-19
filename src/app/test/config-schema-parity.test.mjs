@@ -121,7 +121,6 @@ const PAIRS = [
   ["#/$defs/githubMirror", MIRROR_KEYS],
   ["#/$defs/githubRepositoryPolicy", GITHUB_BLOCK_KEYS.repository],
   [`${REPOSITORY}/radar`, RADAR_KEYS],
-  [`${REPOSITORY}/radar/properties/crew`, GITHUB_BLOCK_KEYS.crew],
   [`${REPOSITORY}/managedLabels`, MANAGED_LABEL_KEYS],
   [`${REPOSITORY}/crewLabels`, CREW_LABEL_KEYS],
   [`${REPOSITORY}/approval`, GITHUB_BLOCK_KEYS.approval],

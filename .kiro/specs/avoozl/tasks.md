@@ -3336,14 +3336,17 @@ Owner request 2026-11-14 (Requirement 84, design §6.13). Prototype, off by defa
 ## Phase 39: Crews on public repositories
 
 Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
-38 because task IDs never move.
+38 because task IDs never move. Cut 2026-11-19 (owner decision): only the
+hook (39.1) stays, in `src/app/content-hook.mjs`, documented in
+`docs/content-hook.md`. The audit (39.2), the sign-off (39.3), Stop public
+crews (39.4) and P49 are retired; their code is in git history.
 
 - [x] 39.1 Hook command: scan a crew's writes before they run [R85.3, R85.4] (§6.14)
   - Facts:
     - done:
       - Hook command: scan a crew's writes before they run
       - `avoozl content hook` refuses a gh or git write that holds a rule match or text it cannot read, naming the rule set, id and place and never the text.
-  - `avoozl content hook`, `src/app/public-crews.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
+  - `avoozl content hook`, now `src/app/content-hook.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
 - [x] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85.6, R85.7] (§6.14)
   - Facts:
     - done:
@@ -3371,7 +3374,7 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
       - Public docs and the upstream requests, after 39.3 and 39.4
       - `docs/public-crews.md` states the limits in generic terms and drafts the Kiro Crew requests without filing them.
     - after: 39.3, 39.4
-  - `docs/public-crews.md` in generic terms; limits stated; requests drafted, none filed.
+  - `docs/public-crews.md` (now `docs/content-hook.md`) in generic terms; limits stated; requests drafted, none filed.
 
 - [x] avoozl-p49 P49 Proof: a public crew's leak is stopped, deleted and alerted [R85] (§6.14)
   - Facts:
@@ -3793,7 +3796,7 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
       - Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving.
     - after: avoozl-p52
   - Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving.
-  - Left for 45.4 (shared, not Radar-only): `radar-arm.mjs` keeps only the armed list, Disarm and merge-method rows, and nothing arms any more; `radar-conflict-fix.mjs` finishes and reports fixes already queued but starts none; `showPlansRepo` stays in policy but no marker uses it; `public-signoff.mjs` still defaults its agent name to `avoozl-crew`; `scripts/live-harness` still names the agent; `radar-handoff.mjs` and `permissions.api` keep the Issue Radar route that Settings › Issue Radar and Triage use.
+  - Left for 45.4 (shared, not Radar-only), later deleted by the Radar leftovers cleanup: `radar-arm.mjs` (the armed list, Disarm and merge-method rows) and `radar-conflict-fix.mjs` (queued fixes); both are in git history. Still left: `showPlansRepo` stays in policy but no marker uses it; `public-signoff.mjs` still defaults its agent name to `avoozl-crew`; `scripts/live-harness` still names the agent; `radar-handoff.mjs` and `permissions.api` keep the Issue Radar route that Settings › Issue Radar and Triage use.
 - [x] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
   - Facts:
     - done:

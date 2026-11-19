@@ -92,12 +92,6 @@ export const PERSON_ONLY = new Map([
     ),
   ],
   [
-    "radar.setup",
-    person("Only a person applies a Radar set up step.", (input) =>
-      Boolean(input?.confirm),
-    ),
-  ],
-  [
     "mirror.adopt",
     person("Only a person applies mirror setup.", (input) =>
       Boolean(input?.confirm),
@@ -117,12 +111,6 @@ export const PERSON_ONLY = new Map([
     "mirror.forward.review",
     person("Only a person reviews a change before it is forwarded."),
   ],
-  ["radar.signoff", person("Only a person signs off a public repository.")],
-  [
-    "publiccrews.signoff",
-    person("Only a person signs off a public repository."),
-  ],
-  ["radar.retro.apply", person("Only a person applies a retro rule.")],
   ["github.setup.cancel", person("Only a person cancels a GitHub setup.")],
   ["github.configure", person("Only a person changes GitHub setup.")],
   [
@@ -194,8 +182,6 @@ export const PERSON_ONLY = new Map([
   ["flow.runAnyway", person("Only a person presses Run anyway.")],
   ["flow.resume", person("Only a person resumes a pulled stop.")],
   ["radar.releasestep", person("Only a person releases a phase.")],
-  ["radar.disarm", person("Only a person disarms auto-merge.")],
-  ["conflictfix.decide", person("Only a person decides a source conflict.")],
   ["gap.accept", person("Only a person accepts gap report proposals.")],
   [
     "integration.land",

@@ -320,26 +320,12 @@ export interface ConflictItem extends TaskOwner {
   // status running or review with no live session behind it. 'review-draft':
   // a review draft made from the review label (RC20). 'disk': a volume too
   // full for a worktree.
-  reason?:
-    | 'review'
-    | 'blocked'
-    | 'crew'
-    | 'hand-set-review'
-    | 'approval'
-    | 'review-draft'
-    | 'conflict-fix'
-    | 'merge-method'
-    | 'forward'
-    | 'forward-audit'
-    | 'public-branch'
-    | 'disk'
+  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'forward' | 'forward-audit' | 'public-branch' | 'disk'
   // A crew's needs-human row for a trusted escalation (R103.8): the GitHub
   // item, what the crew wrote, and Intake's Plan this and Deliver this.
   item?: { source: 'github'; id: string }
   escalation?: Escalation
   start?: { plan: boolean; deliver: boolean }
-  // A source conflict Avoozl asked about (RC28): the pull request and the choices.
-  conflictFix?: { repository: string; pullRequest: number; actions: ('resolve' | 'dismiss')[] }
   // A forward item (RC24.9): the mirror change the Forward screen shows.
   forwardId?: string
   // A branch-landing item (RC16.6): the branch and the head a person may approve.
@@ -455,9 +441,6 @@ export function viewsClient(api: AppApi) {
     conflicts: (workspaceId: string) => run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId).then((r) => r.items),
     radarCrews: (workspaceId: string) => run<RadarCrews>('radar.crews', {}, workspaceId),
     conflictsPage: (workspaceId: string) => run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId),
-    // Resolve myself or Dismiss on a source conflict (RC28.3).
-    decideConflictFix: (workspaceId: string, repository: string, pullRequest: number, action: 'resolve' | 'dismiss') =>
-      run<unknown>('conflictfix.decide', { repository, pullRequest, action }, workspaceId),
     // Local tasks only: the backend refuses edits to a github task's row.
     updateTask: (workspaceId: string, id: string, change: Record<string, unknown>, expectedRevision: number) =>
       run<unknown>('task.update', { id, ...change }, workspaceId, expectedRevision),
@@ -513,18 +496,8 @@ export interface RadarCrews {
   errors: { repository: string; error: string }[]
   // What GitHub cannot show about a crew.
   unseen: string[]
-  // Issue Radar's own crew list and credits. Present only when Kiro Crew has
-  // given Avoozl the Issue Radar grant (Variant A).
-  crewStrip?: RadarCrewStrip
   // The backend answered from its last read and is reading again.
   refreshing?: boolean
-}
-
-export interface RadarCrewStrip {
-  crews: { repository: string; id: string; name: string; status: string | null }[]
-  counts: { onDuty: number; working: number; paused: number }
-  // Credits and turns per claimed issue, keyed "owner/repo#number".
-  cost: Record<string, { credits: number; turns: number; stages: { stage: string; credits: number; turns: number }[] }>
 }
 
 export function graphSummary(graph: Graph) {

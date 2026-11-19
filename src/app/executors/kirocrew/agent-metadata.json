@@ -18,36 +18,6 @@
     "includeMcpJson": false
   },
   {
-    "name": "avoozl-conflict-fix",
-    "model": "auto",
-    "description": "Avoozl Conflict fix: merges the base branch into one crew pull request that has a source conflict, keeps both sides, runs the checks, and pushes one merge commit to the same branch. Never rebases or force pushes.",
-    "tools": [
-      "fs_read",
-      "fs_write",
-      "grep",
-      "glob",
-      "execute_bash",
-      "thinking",
-      "@avoozl:avoozl/plans_conflict_check",
-      "@avoozl:avoozl/plans_conflict_report"
-    ],
-    "allowedTools": [],
-    "toolsSettings": {
-      "execute_bash": {
-        "deniedCommands": [
-          "git push .*--force.*",
-          "git push .* -f( .*)?",
-          "git push .* \\+.*",
-          "git push .*--mirror.*",
-          "git push .*--delete.*",
-          "git rebase.*",
-          "git reset.*"
-        ]
-      }
-    },
-    "includeMcpJson": false
-  },
-  {
     "name": "avoozl-falsifier",
     "model": "auto",
     "description": "Avoozl Falsifier: tries to prove a worker's findings wrong before any code is written, and reports whether they stand.",

@@ -47,7 +47,6 @@ import { Row } from './ui/Row'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
-import { BOX } from './ui/looks/IntakeSources.ts'
 import { Glyph } from './ui/Glyph'
 
 const TONE: Record<SourceTone, BadgeVariant | undefined> = { ok: 'success', off: undefined, error: 'danger', waiting: 'info' }
@@ -103,7 +102,7 @@ function SourceBox(props: {
   const heading = `avoozl-intake-${props.id}`
   return (
     <li>
-      <article aria-labelledby={heading} className="rounded-lg border p-3" style={BOX} {...props.attrs}>
+      <Box as="article" aria-labelledby={heading} rounded="lg" border="all" p="3" css-border-color="border" {...props.attrs}>
         <Row gap={2}>
           <Box id={heading} as="h4" css-overflow-wrap="anywhere" m0 size="sm" weight="semibold">
             {props.title}
@@ -130,7 +129,7 @@ function SourceBox(props: {
             {props.actions}
           </Box>
         )}
-      </article>
+      </Box>
     </li>
   )
 }

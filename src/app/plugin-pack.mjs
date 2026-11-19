@@ -45,9 +45,9 @@ const PACK_SETTINGS = Object.freeze({
   epicIssueType: null,
   contentRules: ["sets"],
   delivery: ["reviewers", "agent", "model", "runner", "concurrency"],
-  // Issue Radar crews (radar-coder RC7.4): what Set up shows and the labels
-  // and review rules a repository gets. A pack creates no crew.
-  crews: ["count", "models", "labels", "reviewRules", "template"],
+  // The labels a repository shares with Issue Radar crews. A pack creates
+  // no crew.
+  crews: ["labels"],
   flow: null,
 });
 
@@ -61,15 +61,6 @@ function crewSettings(crews) {
     list.push({ path: ["radar", "planLabel"], value: labels.plan });
   if (labels.conflict !== undefined)
     list.push({ path: ["radar", "conflictLabel"], value: labels.conflict });
-  if (crews.reviewRules !== undefined)
-    list.push({ path: ["radar", "reviewRules"], value: crews.reviewRules });
-  const crew = Object.fromEntries(
-    ["count", "models", "template"]
-      .filter((key) => crews[key] !== undefined)
-      .map((key) => [key, crews[key]]),
-  );
-  if (Object.keys(crew).length)
-    list.push({ path: ["radar", "crew"], value: crew });
   return list;
 }
 

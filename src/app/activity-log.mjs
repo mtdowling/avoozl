@@ -331,12 +331,6 @@ function operationRow(name, input, result) {
       targetId: stop?.scope === "task" ? stop.taskId : null,
     };
   }
-  if (name === "publiccrews.stop")
-    return {
-      kind: "andon.pull",
-      summary: `Stopped public crews on ${(result?.stops ?? []).length} repositories`,
-      targetId: null,
-    };
   if (name === "flow.resume")
     return {
       kind: "andon.resume",

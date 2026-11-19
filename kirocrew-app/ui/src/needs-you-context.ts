@@ -35,7 +35,6 @@ export function askLine(item: ConflictItem): string {
       return 'Choose who drives this work: start it here, or wait for its pull request.'
     case 'needs-human':
       if (item.reason === 'blocked') return 'Unblock the task, or leave it blocked.'
-      if (item.reason === 'conflict-fix') return 'Choose whether Avoozl resolves the source conflict or you do.'
       if (item.reason === 'forward') return 'Read the exact public diff, then forward it or not.'
       if (item.reason === 'crew') return 'Answer on GitHub. The crew picks the issue up again when the label comes off.'
       if (item.reason === 'review') return 'Read the task, then mark it reviewed so it may start.'

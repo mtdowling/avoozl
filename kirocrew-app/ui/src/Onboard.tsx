@@ -42,19 +42,11 @@ import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { PlainInput } from './ui/Plain'
-import { BADGE } from './ui/looks/Onboard.ts'
+import { WriteBadge } from './ui/WriteBadge'
 import { Glyph } from './ui/Glyph'
 
 const MODE_ICONS = { local: Laptop, 'plans-repo': Lock, 'single-repo': GitBranch } as const
 type Change = { target: { value: string } }
-
-function Pill({ kind }: { kind: string }) {
-  return (
-    <span className="rounded-full border px-1.5 text-[10px] font-semibold" style={BADGE[kind] ?? BADGE.keep}>
-      {kind}
-    </span>
-  )
-}
 
 function Facts({ rows }: { rows: [string, ReactNode][] }) {
   return (
@@ -187,7 +179,7 @@ function CheckStep({ result }: { result: SetupResult | null }) {
           <Box as="ul" mt="1" flex flexCol gap="1">
             {group.writes.map((write, i) => (
               <Box key={i} as="li" flex flexWrap items="baseline" gap="2">
-                <Pill kind={writeBadge(write)} />
+                <WriteBadge kind={writeBadge(write)} />
                 <span>
                   {write.object} <code>{write.name}</code>
                   {write.visibility ? ` (${write.visibility})` : ''} in {write.owner}
@@ -208,7 +200,7 @@ function CheckStep({ result }: { result: SetupResult | null }) {
           <Box as="ul" mt="1" flex flexCol gap="1">
             {kept.map((step) => (
               <Box key={step.id} as="li" flex flexWrap items="baseline" gap="2">
-                <Pill kind="keep" />
+                <WriteBadge kind="keep" />
                 <span>{step.title}</span>
                 {step.notes[0] && (
                   <Box as="span" wFull pl="12" size="xs" tone="muted">

@@ -25,7 +25,7 @@ import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
-import { BADGE_STYLE } from './ui/looks/SetupWizard.ts'
+import { WriteBadge } from './ui/WriteBadge'
 import { Glyph } from './ui/Glyph'
 
 type Client = ReturnType<typeof settingsClient>
@@ -184,9 +184,7 @@ export function SetupDialog(props: {
               <Box as="ul" mt="1" flex flexCol gap="1">
                 {group.writes.map((write, i) => (
                   <Box key={i} as="li" flex flexWrap items="baseline" gap="2">
-                    <span className="rounded-full border px-1.5 text-[10px] font-semibold" style={BADGE_STYLE[writeBadge(write)]}>
-                      {writeBadge(write)}
-                    </span>
+                    <WriteBadge kind={writeBadge(write)} />
                     <span>
                       {write.object} <code>{write.name}</code>
                       {write.visibility ? ` (${write.visibility})` : ''} in {write.owner}
