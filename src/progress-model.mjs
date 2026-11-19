@@ -77,7 +77,6 @@ export function epicProgress(data, { scope = "all", matchingIds = null } = {}) {
     return {
       id,
       title: epic?.title || (id === "unassigned" ? "No epic" : id),
-      summary: epic?.summary || "",
       color: epic?.color || palette[index % palette.length],
       tasks: items,
       complete,

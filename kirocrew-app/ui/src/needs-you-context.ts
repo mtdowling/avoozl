@@ -66,9 +66,9 @@ const range = (source: { lineStart: number | null; lineEnd: number | null }) =>
 // The snippet header: file path, then its lines when the record has them.
 export const sourceLine = (source: NonNullable<ItemContext['source']>) => [source.path, range(source)].filter(Boolean).join(' · ')
 
-// A task's text as lines: its title, summary and each acceptance line.
+// A task's text as lines: its title, its prose and each acceptance line.
 export function taskLines(title: string | null | undefined, text: TaskText | undefined): string[] {
-  return [title ?? '', text?.summary ?? '', ...(text?.acceptance ?? []).map((line) => `- ${line}`)].filter((line) => line.trim() !== '')
+  return [title ?? '', text?.prose ?? '', ...(text?.acceptance ?? []).map((line) => `- ${line}`)].filter((line) => line.trim() !== '')
 }
 
 export interface DiffLine {
@@ -116,7 +116,7 @@ export function evidenceOf(item: ConflictItem): Evidence[] {
   if (item.findings || item.reply) out.push('investigation')
   if (item.kind === 'review' && item.tasks?.length) out.push('review')
   if (item.kind === 'plan-review' && item.context?.review) out.push('summary')
-  if (item.context?.text && item.kind !== 'review' && item.context.text.summary) out.push('text')
+  if (item.context?.text && item.kind !== 'review' && item.context.text.prose) out.push('text')
   const links = item.context?.links
   if (links && (links.branch || links.pr || links.checks)) out.push('links')
   if (item.context?.failedChecks?.checks.length) out.push('checks')

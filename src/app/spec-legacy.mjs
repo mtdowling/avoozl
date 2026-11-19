@@ -4,7 +4,7 @@
 // leftover one there is a lint error (spec-plans.mjs). Folding the stored
 // manifest into Facts bullets lets one reader parse old and new revisions,
 // so an approval can be carried across a pure conversion (design §4.40).
-import { factsLines, withDefaults } from "./spec-facts.mjs";
+import { factsLines, proseLines, withDefaults } from "./spec-facts.mjs";
 import { specItems } from "./spec-plans.mjs";
 
 const OLD_MANIFEST = "avoozl/manifest.json";
@@ -100,8 +100,10 @@ export function foldManifest(files, { defaults = true, exact = true } = {}) {
     const item = byLine.get(index + 1),
       entry = item && entries[item.key];
     if (!entry) return;
+    // A task has no summary fact: an old one is the item's prose.
+    const { summary, ...facts } = entry;
     // Leave out a key the defaults give back in the same place.
-    let own = { ...entry };
+    let own = facts;
     const drop = (name, value) => {
       if (key(own[name]) !== key(value)) return;
       const { [name]: _gone, ...rest } = own;
@@ -116,7 +118,10 @@ export function foldManifest(files, { defaults = true, exact = true } = {}) {
       for (const [name, value] of Object.entries(hoisted))
         if (!(name === "checks" && own.manual === true)) drop(name, value);
     const indent = /^\s*/.exec(row)[0].length + 2;
-    out.push(...factsLines(own, { indent }));
+    out.push(
+      ...factsLines(own, { indent }),
+      ...proseLines(summary, { indent }),
+    );
   });
   const next = { ...files };
   delete next[MANIFEST];

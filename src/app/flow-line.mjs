@@ -179,7 +179,7 @@ function createFixTask(store, stop, culpritTask, project, tail) {
       repository: project.id,
       route: "local",
       authority: "local",
-      summary: lines.join("\n"),
+      prose: lines.join("\n"),
       flowFix: { stop: stop.id },
     });
   });

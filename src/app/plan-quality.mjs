@@ -384,7 +384,7 @@ export function lintPlan({
       );
     else normalizedTitles.set(titleKey, task);
 
-    if (!task.summary?.trim())
+    if (!task.prose?.trim())
       diagnostics.push(
         diagnostic(
           "task.basis",

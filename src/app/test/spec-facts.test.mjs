@@ -63,7 +63,6 @@ test("every key the reader uses round-trips through Facts bullets", () => {
   const entry = {
     kind: "leaf",
     repository: "app",
-    summary: "Read it.",
     acceptance: ["It reads, with commas, in one line."],
     completion: "integrated",
     checks: ["npm test"],
@@ -206,6 +205,69 @@ test("a manual leaf takes no checks default", () => {
   assert.equal(parsed.proposals[0].checks, undefined);
 });
 
+// A task's own prose bullets say what it delivers.
+const prosed = lines(
+  "---",
+  "repo: app",
+  "checks: npm test",
+  "---",
+  "- [ ] 1 Load configuration",
+  "  - Facts:",
+  "    - kind: package",
+  "    - after: 1.1",
+  "  - The loader and its tests.",
+  "  - [ ] 1.1 Read the config file",
+  "    - Facts:",
+  "      - done:",
+  "        - A missing file yields defaults.",
+  "    - Per file: read config.json from the working directory,",
+  "      then parse it.",
+  "      - Keep comments out.",
+  "    - Done when: A missing file yields defaults.",
+  "    - A missing file is not an error.",
+);
+
+test("a task's prose is its bullets as written, without facts, Done when or sub-items", () => {
+  const parsed = parse(prosed),
+    prose = (key) => parsed.proposals.find((p) => p.specKey === key).prose;
+  assert.deepEqual(codes(parsed), []);
+  assert.equal(
+    prose("1.1"),
+    [
+      "- Per file: read config.json from the working directory,",
+      "  then parse it.",
+      "  - Keep comments out.",
+      "- A missing file is not an error.",
+    ].join("\n"),
+  );
+  assert.equal(prose("1"), "- The loader and its tests.");
+  // The prose is not a fact: the manifest the revision hash reads has none.
+  const facts = readFacts(prosed, specItems("config", prosed));
+  assert.equal(facts.manifest.tasks["1.1"].prose, undefined);
+});
+
+test("a summary fact is refused, naming the line to delete", () => {
+  const parsed = parse(
+    prosed.replace("      - done:", "      - summary: Read it.\n      - done:"),
+  );
+  assert.deepEqual(codes(parsed), ["facts.removed-key tasks.md:12"]);
+  assert.match(parsed.diagnostics[0].message, /Delete this line/);
+});
+
+test("a long title stays whole and is refused over the limit", () => {
+  const long = "Read the config file: " + "and report each problem. ".repeat(8),
+    whole = parse(prosed.replace("1.1 Read the config file", `1.1 ${long}`));
+  assert.ok(long.trim().length <= 240);
+  assert.equal(
+    whole.proposals.find((p) => p.specKey === "1.1").title,
+    long.trim(),
+  );
+  const over = parse(
+    prosed.replace("1.1 Read the config file", `1.1 ${long.repeat(2)}`),
+  );
+  assert.deepEqual(codes(over), ["task.title-length tasks.md:10"]);
+});
+
 test("an epic folder reads its rows from facts", () => {
   const parsed = parse(
     lines(
@@ -215,7 +277,7 @@ test("an epic folder reads its rows from facts", () => {
       "- [ ] 1 Native runtime",
       "  - Facts:",
       "    - plan: native-runtime",
-      "    - summary: Direction and work",
+      "  - Direction and work",
       "- [ ] 2 Review it",
       "  - Facts:",
       "    - plan: native-runtime",
@@ -224,9 +286,9 @@ test("an epic folder reads its rows from facts", () => {
   );
   assert.equal(parsed.kind, "epic");
   assert.deepEqual(
-    parsed.members.map((m) => [m.key, m.plan, m.step, m.summary]),
+    parsed.members.map((m) => [m.key, m.plan, m.step, m.prose]),
     [
-      ["1", "native-runtime", "implement", "Direction and work"],
+      ["1", "native-runtime", "implement", "- Direction and work"],
       ["2", "native-runtime", "review", ""],
     ],
   );
@@ -235,9 +297,8 @@ test("an epic folder reads its rows from facts", () => {
 test("a pure conversion keeps the revision hash; a changed fact changes it", () => {
   // The old layout as Avoozl's writers left it: version 1, each task's keys
   // in the usual order.
-  const leaf = (summary, acceptance, extra = {}) => ({
+  const leaf = (acceptance, extra = {}) => ({
     kind: "leaf",
-    summary,
     acceptance: [acceptance],
     completion: "integrated",
     checks: ["npm test"],
@@ -252,21 +313,15 @@ test("a pure conversion keeps the revision hash; a changed fact changes it", () 
             tasks: {
               1: {
                 kind: "package",
-                summary: "The goal.",
                 acceptance: [
                   "The CLI reads, validates, and reports its config.",
                 ],
                 requires: ["1.1", "1.2"],
               },
-              1.1: leaf(
-                "Parse config.json from the working directory.",
-                "A missing file yields defaults.",
-              ),
-              1.2: leaf(
-                "Report unknown keys.",
-                "An unknown key is reported with its path.",
-                { requires: ["1.1"] },
-              ),
+              1.1: leaf("A missing file yields defaults."),
+              1.2: leaf("An unknown key is reported with its path.", {
+                requires: ["1.1"],
+              }),
             },
           },
           null,
@@ -300,9 +355,35 @@ test("a pure conversion keeps the revision hash; a changed fact changes it", () 
   const changed = {
     ...converted,
     "tasks.md": converted["tasks.md"].replace(
-      "summary: Report unknown keys.",
-      "summary: Report unknown keys and types.",
+      "- An unknown key is reported with its path.",
+      "- An unknown key is reported with its JSON path.",
     ),
   };
   assert.notEqual(specHash(changed), specHash(converted));
+  // Prose beside the facts is tasks.md text, not a fact: the hash reads it
+  // as the text it is, and the facts text stays the manifest's.
+  const prosed = {
+      ...old,
+      "tasks.md": old["tasks.md"].replace(
+        "  - [ ] 1.1 Read the config file",
+        "  - [ ] 1.1 Read the config file\n    - Read it from the working directory.",
+      ),
+    },
+    withProse = foldManifest(prosed).files;
+  assert.equal(specHash(withProse), legacyHash(prosed));
+});
+
+test("an old record's summary folds into the item's prose", () => {
+  const old = legacySpecFiles(),
+    converted = foldManifest(old).files,
+    parsed = parseSpec({ name: "config", exists: true, files: converted });
+  assert.match(
+    converted["tasks.md"],
+    /1\.1 Read the config file\n {4}- Facts:\n(?: {6}.*\n)+ {4}- Parse config\.json from the working directory\./,
+  );
+  assert.deepEqual(codes(parsed), []);
+  assert.equal(
+    parsed.proposals.find((p) => p.specKey === "1.1").prose,
+    "- Parse config.json from the working directory.",
+  );
 });

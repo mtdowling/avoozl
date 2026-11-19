@@ -119,24 +119,21 @@ new `plans_intake_*` tools. No earlier task changes.
 
 - [x] 0.1 Rebase `feature/kirocrew-github-delivery` onto `main` and resolve conflicts in `github-sync.mjs`, `operations.mjs`, `store.mjs`, `cli.mjs`, and `mcp.mjs`. [R25.3] (§9)
   - Facts:
-    - summary: Phase 0 (Baseline). See R25.3; §9.
     - done:
       - Rebase `feature/kirocrew-github-delivery` onto `main` and resolve conflicts in `github-sync.mjs`, `operations.mjs`, `store.mjs`, `cli.mjs`, and `mcp.mjs`.
       - Done when the rebased branch passes `npm test` and opens a copy of the Nupp database without schema errors.
     - checks: npm test, git diff --check
-  - Done when the rebased branch passes `npm test` and opens a copy of the Nupp database without schema errors.
   - Built: `965f7c4`, the branch rebased onto `main` (`fa57279`); tests pass at `d22f2b9`, and P3 (`445a519`) opened a Nupp copy without schema errors.
 - [x] 0.2 Tag the last host-era release (OpenHands, website, extension) so removed surfaces stay recoverable. (§9)
   - Facts:
-    - summary: Phase 0 (Baseline). Tags the host-era release; no code change. See §9.
     - done:
       - Tag the last host-era release (OpenHands, website, extension) so removed surfaces stay recoverable.
       - The report names what was done and where the result is.
     - completion: answered
+  - Tags the host-era release; no code change.
   - Built: tag `host-era-final` at `fa57279`.
 - [x] 0.3 Add a test fixture workspace generator that produces local, GitHub-cache, and mixed workspaces in a temporary directory. [R25]
   - Facts:
-    - summary: Phase 0 (Baseline). See R25.
     - done:
       - Add a test fixture workspace generator that produces local, GitHub-cache, and mixed workspaces in a temporary directory.
     - checks: npm test, git diff --check
@@ -146,7 +143,6 @@ new `plans_intake_*` tools. No earlier task changes.
 
 - [x] 1.1 Add `avoozl app-backend`: HTTP on `127.0.0.1` only, health route, every other route requires a valid gateway-signed principal and returns 401 otherwise. [R1, R20.4] (§4.1, §4.7)
   - Facts:
-    - summary: Phase 1 (App shell inside Kiro Crew). See R1, R20.4; §4.1, §4.7.
     - done:
       - Add `avoozl app-backend`: HTTP on `127.0.0.1` only, health route, every other route requires a valid gateway-signed principal and returns 401 otherwise.
     - checks: npm test, git diff --check
@@ -154,7 +150,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `d22f2b9` (receipt `docs/evidence/phase1-core-runtime.md`, `5202d53`).
 - [x] 1.2 Add `avoozl mcp` as the app's stdio MCP server, keeping every `plans_*` tool name. [R24.5] (§4.1)
   - Facts:
-    - summary: Phase 1 (App shell inside Kiro Crew). See R24.5; §4.1.
     - done:
       - Add `avoozl mcp` as the app's stdio MCP server, keeping every `plans_*` tool name.
     - checks: npm test, git diff --check
@@ -162,7 +157,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `d22f2b9` (receipt `docs/evidence/phase1-core-runtime.md`, `5202d53`).
 - [x] 1.3 Replace `kirocrew-app/app.json` with the manifest in §4.2: node backend with `signedPrincipal`, `mcpServers`, script cron, notification channels, agents, skill, optional `gh`. [R1, R26.3]
   - Facts:
-    - summary: Phase 1 (App shell inside Kiro Crew). See R1, R26.3.
     - done:
       - Replace `kirocrew-app/app.json` with the manifest in §4.2: node backend with `signedPrincipal`, `mcpServers`, script cron, notification channels, agents, skill, optional `gh`.
     - checks: npm test, git diff --check
@@ -170,7 +164,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `e5c0f58` (receipt `docs/evidence/phase1-app-package.md`, `d3ac3d1`).
 - [x] 1.4 Ship `crons/tick.py:run` that calls `plans_tick`, opens and messages sessions from the returned intents, and raises `Skip` when there is nothing to do. [R26.2–26.5] (§4.6)
   - Facts:
-    - summary: Phase 1 (App shell inside Kiro Crew). See R26.2–26.5; §4.6.
     - done:
       - Ship `crons/tick.py:run` that calls `plans_tick`, opens and messages sessions from the returned intents, and raises `Skip` when there is nothing to do.
     - checks: npm test, git diff --check
@@ -178,7 +171,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `e5c0f58` (receipt `docs/evidence/phase1-app-package.md`, `d3ac3d1`).
 - [x] 1.5 Implement `workspace.tick` with the lock, policy load, and an empty intent list; prove two ticks in a row write nothing. [R26.4, R26.5] (§4.5)
   - Facts:
-    - summary: Phase 1 (App shell inside Kiro Crew). See R26.4, R26.5; §4.5.
     - done:
       - Implement `workspace.tick` with the lock, policy load, and an empty intent list; prove two ticks in a row write nothing.
     - checks: npm test, git diff --check
@@ -186,7 +178,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `d22f2b9` (receipt `docs/evidence/phase1-core-runtime.md`, `5202d53`).
 - [x] 1.6 Build the Workspace view: workspace list from the machine catalog, add or initialize workspace, repository registration, tick health. [R3, R20] (§8)
   - Facts:
-    - summary: Phase 1 (App shell inside Kiro Crew). See R3, R20; §8.
     - done:
       - Build the Workspace view: workspace list from the machine catalog, add or initialize workspace, repository registration, tick health.
     - checks: npm test, git diff --check
@@ -194,7 +185,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `31f14f0` (receipt `docs/evidence/phase1-workspace-view.md`, `40907fe`).
 - [x] 1.7 Add `plans_bind_session` and session-title rediscovery (`avoozl:<task-id> …`). [R1.2] (§3.3, §8)
   - Facts:
-    - summary: Phase 1 (App shell inside Kiro Crew). See R1.2; §3.3, §8.
     - done:
       - Add `plans_bind_session` and session-title rediscovery (`avoozl:<task-id> …`).
     - checks: npm test, git diff --check
@@ -203,7 +193,6 @@ new `plans_intake_*` tools. No earlier task changes.
 
 - [x] avoozl-p1 P1 Proof: real Avoozl backend inside Kiro Crew [R1, R20.4]
   - Facts:
-    - summary: Phase 1 (App shell inside Kiro Crew). Proof. See R1, R20.4.
     - done:
       - Expected: the page loads data through `useAppApi`; the direct call gets 401; the only Avoozl listener is on `127.0.0.1`.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -217,7 +206,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: pass, receipt `docs/evidence/proof-p1.md`, `9310ab9`.
 - [x] avoozl-p2 P2 Proof: tick script cron opens, messages, and observes sessions [R26, R1.2]
   - Facts:
-    - summary: Phase 1 (App shell inside Kiro Crew). Proof. See R26, R1.2.
     - done:
       - Expected: one session titled `avoozl:<task-id>` opens in that folder on the named agent, receives one brief, is bound before the brief is sent, and its closed status is read on the next tick.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -231,7 +219,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: pass, receipt `docs/evidence/proof-p2.md`, `dcb8a8a`.
 - [x] avoozl-p3 P3 Proof: workspace picker loads real SQLite data [R3.1]
   - Facts:
-    - summary: Phase 1 (App shell inside Kiro Crew). Proof. See R3.1.
     - done:
       - Expected: 141 W tasks across 7 epics, 130 edges, and the 3 milestones appear; the source file is unchanged byte for byte.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -248,7 +235,6 @@ new `plans_intake_*` tools. No earlier task changes.
 
 - [x] 2.1 Extend the work model with `kind`, `authority`, `route`, `completion`, and edge completion conditions [R4.3–4.6, R19.2, R28.5] (§3.2, §4.3)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R4.3–4.6, R19.2, R28.5; §3.2, §4.3.
     - done:
       - Extend the work model with `kind`, `authority`, `route`, `completion`, and edge completion conditions
       - Readiness per §4.3. A row linked to an issue reads as `github`; any other row reads as `local` (§3.2).
@@ -258,7 +244,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `0d18b94` (receipt `docs/evidence/phase2-model-validation.md`, `aadf2fc`).
 - [x] 2.2 Refuse direct edits of `authority: github` rows in operations; route them to projection. Authority changes only through an approved projection or "take back local". [R19.3, R28.4] (§3.2)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R19.3, R28.4; §3.2.
     - done:
       - Refuse direct edits of `authority: github` rows in operations; route them to projection. Authority changes only through an approved projection or "take back local".
     - checks: npm test, git diff --check
@@ -266,7 +251,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `0d18b94` (receipt `docs/evidence/phase2-model-validation.md`, `aadf2fc`).
 - [x] 2.3 Ship the `avoozl-planner` agent and update the `avoozl` skill for goal capture [R4.1, R30.7] (§5, §6.8)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R4.1, R30.7; §5, §6.8.
     - done:
       - Ship the `avoozl-planner` agent and update the `avoozl` skill for goal capture
       - Drafting one Kiro spec folder (`requirements.md` or `bugfix.md`, `design.md`, `tasks.md` with an ID on every item, `avoozl/manifest.json`), and critique into `avoozl/critique.md` in a second, isolated session.
@@ -278,7 +262,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `85f5ea3` (receipt `docs/evidence/phase2-planner.md`, `1aac5b2`); rework `068789d` and `315d8b8` (receipt `docs/evidence/phase2-spec-plans.md`, `61f9c64`).
 - [x] 2.4 Extend deterministic validation [R4.5, R4.7, R30.4, R30.5, R30.8] (§5, §6.8)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R4.5, R4.7, R30.4, R30.5, R30.8; §5, §6.8.
     - done:
       - Extend deterministic validation
       - Leaf boundedness (one repository, acceptance, checks, completion), cycles, unknown references, duplicate IDs. Add a spec-folder reader that turns `tasks.md` plus `avoozl/manifest.json` into the task list `lintPlan` checks, and refuse a missing folder, a missing file, neither or both of `requirements.md` and `bugfix.md`, an item with no ID, a duplicate ID, and a manifest entry with no item or an item with no entry. `extractPlan` stays a read path for migration only.
@@ -290,7 +273,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `0d18b94` (receipt `docs/evidence/phase2-model-validation.md`, `aadf2fc`); spec reader `b79bbdd` (receipt `docs/evidence/phase2-spec-plans.md`, `61f9c64`).
 - [x] 2.5 Build the Plans view: Kiro spec folders (feature and bugfix), manifest, critique findings, diagnostics, approve the exact revision (hash of the folder's files), draft-chat launcher. [R4.8, R20, R30] (§8)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R4.8, R20, R30; §8.
     - done:
       - Build the Plans view: Kiro spec folders (feature and bugfix), manifest, critique findings, diagnostics, approve the exact revision (hash of the folder's files), draft-chat launcher.
       - Impact (R30): `plan.create` and `plan.save` hold one Markdown text per plan today; for spec folders they take the folder's files and one folder hash as `expectedHash`.
@@ -300,7 +282,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `9d9c7d4` (receipt `docs/evidence/phase2-spec-plans.md`, `61f9c64`).
 - [x] 2.6 Add `plans_prepare_worktree` (branch `avoozl/<task-id>`, isolated worktree) and `plans_report` (`progress`, `done` with commit SHA, `blocked`, `question`). [R6.6] (§4.6, §5)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R6.6; §4.6, §5.
     - done:
       - Add `plans_prepare_worktree` (branch `avoozl/<task-id>`, isolated worktree) and `plans_report` (`progress`, `done` with commit SHA, `blocked`, `question`).
     - checks: npm test, git diff --check
@@ -308,7 +289,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `4f0732e` (receipt `docs/evidence/phase2-dispatch-recovery.md`, `0307b04`).
 - [x] 2.7 Dispatch ready local leaves in the tick by priority and graph order within per-repository and per-workspace limits. [R6.1–6.3, R26.7] (§4.5)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R6.1–6.3, R26.7; §4.5.
     - done:
       - Dispatch ready local leaves in the tick by priority and graph order within per-repository and per-workspace limits.
     - checks: npm test, git diff --check
@@ -316,7 +296,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `4f0732e` (receipt `docs/evidence/phase2-dispatch-recovery.md`, `0307b04`).
 - [x] 2.8 Ship the `avoozl-verifier` agent; open a verifier session per `done` report; accept only matching SHA and passing declared checks. [R7.1] (§5)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R7.1; §5.
     - done:
       - Ship the `avoozl-verifier` agent; open a verifier session per `done` report; accept only matching SHA and passing declared checks.
     - checks: npm test, git diff --check
@@ -324,7 +303,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `e5e77ad` (receipt `docs/evidence/phase2-verify-integrate.md`, `7c686da`).
 - [x] 2.9 Integrate verified commits with `integrateRun`; support an optional `integrationBranch`; record the integrated commit. [R7.2, R2.2] (§5)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R7.2, R2.2; §5.
     - done:
       - Integrate verified commits with `integrateRun`; support an optional `integrationBranch`; record the integrated commit.
     - checks: npm test, git diff --check
@@ -332,7 +310,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `e5e77ad` (receipt `docs/evidence/phase2-verify-integrate.md`, `7c686da`).
 - [x] 2.10 Release dependents in the same tick; complete packages and epics from children; keep whole-head acceptance a separate action. [R7.3, R7.4] (§5)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R7.3, R7.4; §5.
     - done:
       - Release dependents in the same tick; complete packages and epics from children; keep whole-head acceptance a separate action.
     - checks: npm test, git diff --check
@@ -340,7 +317,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `e5e77ad` (receipt `docs/evidence/phase2-verify-integrate.md`, `7c686da`).
 - [x] 2.11 Failure handling: retry with a resume brief on the same worktree up to the bound, nudge quiet sessions, never replace on elapsed time alone, open a decision past the bound. [R8] (§5)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R8; §5.
     - done:
       - Failure handling: retry with a resume brief on the same worktree up to the bound, nudge quiet sessions, never replace on elapsed time alone, open a decision past the bound.
     - checks: npm test, git diff --check
@@ -348,7 +324,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `4f0732e` (receipt `docs/evidence/phase2-dispatch-recovery.md`, `0307b04`).
 - [x] 2.12 Decisions and notifications through the app's channels with a link to the session. [R9, R26.10] (§4.2)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R9, R26.10; §4.2.
     - done:
       - Decisions and notifications through the app's channels with a link to the session.
     - checks: npm test, git diff --check
@@ -356,7 +331,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `819db47` (receipt `docs/evidence/phase2-runner-notices.md`, `7ace224`).
 - [x] 2.13 Build the Graph, Delivery, and Conflicts views for local tasks. [R20, R21] (§8)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R20, R21; §8.
     - done:
       - Build the Graph, Delivery, and Conflicts views for local tasks.
     - checks: npm test, git diff --check
@@ -365,7 +339,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `92edf4e` (receipt `docs/evidence/phase2-views.md`, `1a2d120`).
 - [x] 2.14 Crew Mode runner support [R6.5, R26, R27.14] (§5.1, §6.6)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R6.5, R26, R27.14; §5.1, §6.6.
     - done:
       - Crew Mode runner support
       - Exclude claimed tasks from readiness (or add a claim operation), add a structured session binding the conductor reports, add one `avoozl next` command (and `plans_next` tool) that returns `ready`, `running`, `waiting` (with the blockers each waits on), `needsYou` (blocked, review, open decisions), and `done`, and ship a steering file and `AgentSpawn` hook that drive rounds from it through one writer. Rule: start `ready`; wait while `running` is not empty; ask the user for `needsYou`; stop only when all are `done`. Keep the worker brief builder route-neutral: task 4.7 reuses this runner for plans-repo leaves.
@@ -375,7 +348,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `819db47` (receipt `docs/evidence/phase2-runner-notices.md`, `7ace224`).
 - [x] 2.15 Plans table grouped by category [R30.9, R20] (§6.8, §8)
   - Facts:
-    - summary: Phase 2 (Local delivery). See R30.9, R20; §6.8, §8.
     - done:
       - Plans table grouped by category
       - One row per plan with status, a progress bar (done over total leaves; "no tasks" when there are none), ready, running and needs-you counts, epics, last change, and Open docs, Graph, Delivery, Review, and Plan a change buttons. Category comes only from `category:` in the spec's front-matter; remove the title-based guess.
@@ -386,7 +358,6 @@ new `plans_intake_*` tools. No earlier task changes.
 
 - [x] avoozl-p4 P4 Proof: one local parent decomposes into dependent leaves [R4]
   - Facts:
-    - summary: Phase 2 (Local delivery). Proof. See R4.
     - done:
       - Expected: one Kiro spec folder that passes validation; one epic and at least three leaves with stable IDs, `requires` edges loader → validator → flag, a critique record from a separate session, validation passing; the second and third ticks write nothing until something changes.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -400,7 +371,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: pass on the retry, receipt `docs/evidence/proof-p4.md`, `a0b808e`.
 - [x] avoozl-p5 P5 Proof: automatic Kiro Crew execution of ready leaves [R6, R7]
   - Facts:
-    - summary: Phase 2 (Local delivery). Proof. See R6, R7.
     - done:
       - Expected: only the loader dispatches first; after its verifier passes and it integrates, the validator dispatches, then the flag; every task links to its worker and verifier sessions; the integration branch has three verified commits.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -430,7 +400,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: pass, receipt `docs/evidence/proof-p5.md`, `6613970`.
 - [x] avoozl-p6 P6 Proof: worker failure and recovery [R8]
   - Facts:
-    - summary: Phase 2 (Local delivery). Proof. See R8.
     - done:
       - Expected: the first leaf retries once with a resume brief and then succeeds; the closed session marks its leaf failed and retryable; after restart the first tick observes every bound session before any new dispatch; no task loses its ID, edges, or evidence.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -444,7 +413,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: pass, receipt `docs/evidence/proof-p6.md`, `072a9a7`.
 - [x] avoozl-p2b P2b Proof: Crew Mode conductor runs the local graph through Avoozl [R6, R8] (§5.1)
   - Facts:
-    - summary: Phase 2 (Local delivery). Proof. See R6, R8; §5.1.
     - done:
       - Expected: rounds match readiness; a claimed task never appears ready twice; every task carries a structured session binding; the failed leaf retries and passes; all writes go through one writer.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -477,7 +445,6 @@ new `plans_intake_*` tools. No earlier task changes.
 
 - [x] 3.1 Remove the private-only check; allow public and private repositories. [R10.2] (§9)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R10.2; §9.
     - done:
       - Remove the private-only check; allow public and private repositories.
     - checks: npm test, git diff --check
@@ -485,7 +452,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `9054021` (receipt `docs/evidence/phase3-policy.md`, `a84eb34`).
 - [x] 3.2 Implement the `.avoozl.json` repository policy schema and validation in §4.4, replacing single-label intake and label behaviors. [R10, R11] (§4.4)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R10, R11; §4.4.
     - done:
       - Implement the `.avoozl.json` repository policy schema and validation in §4.4, replacing single-label intake and label behaviors.
     - checks: npm test, git diff --check
@@ -493,7 +459,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `9054021` (receipt `docs/evidence/phase3-policy.md`, `a84eb34`).
 - [x] 3.3 Generalize the rule matcher: `labelsAll`, `labelsAny`, `labelsNone`, assignee, author, newest triggering event's actor and permission; ignore and do not write for disallowed actors. [R10.4, R10.5, R11.2, R27.1]
   - Facts:
-    - summary: Phase 3 (GitHub core). See R10.4, R10.5, R11.2, R27.1.
     - done:
       - Generalize the rule matcher: `labelsAll`, `labelsAny`, `labelsNone`, assignee, author, newest triggering event's actor and permission; ignore and do not write for disallowed actors.
     - checks: npm test, git diff --check
@@ -501,7 +466,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `9054021` (receipt `docs/evidence/phase3-policy.md`, `a84eb34`).
 - [x] 3.4 Keep snapshot freeze and quarantine on body change for every matched rule. [R12.1, R12.2]
   - Facts:
-    - summary: Phase 3 (GitHub core). See R12.1, R12.2.
     - done:
       - Keep snapshot freeze and quarantine on body change for every matched rule.
     - checks: npm test, git diff --check
@@ -509,7 +473,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `9054021` (receipt `docs/evidence/phase3-policy.md`, `a84eb34`).
 - [x] 3.5 Implement marker version 2 with an opaque namespace ID (generated by `avoozl init`, stored in `.avoozl.json`), hash-only source pins, and `applied` hashes [R14.1, R10.7, R33.8] (§3.4)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R14.1, R10.7, R33.8; §3.4.
     - done:
       - Implement marker version 2 with an opaque namespace ID (generated by `avoozl init`, stored in `.avoozl.json`), hash-only source pins, and `applied` hashes
       - Reject markers containing paths, repository names of the planning workspace, or credential patterns. Changed 2026-11-12: add the `order` field (closer, close reason, close time) for a close without code by an allowed actor, removed on reopen.
@@ -519,7 +482,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `22ae436` (receipt `docs/evidence/phase3-marker-api.md`, `0d8ce5f`).
 - [x] 3.6 Add GitHub sub-issue, issue dependency, and issue type endpoints to `github.mjs` (F37–F39, F44) [R12.5, R13.7, R27.5, R33.4, R33.5] (§6.3, §6.6)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R12.5, R13.7, R27.5, R33.4, R33.5; §6.3, §6.6.
     - done:
       - Add GitHub sub-issue, issue dependency, and issue type endpoints to `github.mjs` (F37–F39, F44)
       - Project parent–child links, including across repositories and organizations. Changed 2026-11-12: also add GraphQL `createLinkedBranch` and a read of an issue's `linkedBranches` and open `blockedBy` count (F51, F53, L13).
@@ -529,7 +491,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `22ae436` (receipt `docs/evidence/phase3-marker-api.md`, `0d8ce5f`).
 - [x] 3.7 Update projection per §6.3 [R13, R14.2, R27.6, R33.8] (§3.4, §6.3, §6.4)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R13, R14.2, R27.6, R33.8; §3.4, §6.3, §6.4.
     - done:
       - Update projection per §6.3
       - Reuse open and closed marked issues, a closed issue for an unfinished task judged by the 3.11 close-without-code rule (changed 2026-11-12: was always a conflict), epic issue type when present, links then dependencies for `requires` and `sequence`, completion levels and `supports` edges in the marker only, re-read, ready labels last and capped by concurrency.
@@ -539,7 +500,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `121042c` (receipt `docs/evidence/phase3-projection.md`, `e1db9c3`).
 - [x] 3.8 Enforce one writer per namespace inside the tick lock; other workspaces preview only. [R13.5] (§6.3)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R13.5; §6.3.
     - done:
       - Enforce one writer per namespace inside the tick lock; other workspaces preview only.
     - checks: npm test, git diff --check
@@ -547,7 +507,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `121042c` (receipt `docs/evidence/phase3-projection.md`, `e1db9c3`).
 - [x] 3.9 Managed-field conflicts for title, managed body section, managed labels, and blocked-by links (edges) using marker baselines [R15] (§3.4)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R15; §3.4.
     - done:
       - Managed-field conflicts for title, managed body section, managed labels, and blocked-by links (edges) using marker baselines
       - Project field edits are never conflicts: 3.15 handles Deferred, Release, and Wave, and every other Status value is left alone (§6.7). Changed 2026-11-12.
@@ -557,7 +516,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `121042c` (receipt `docs/evidence/phase3-projection.md`, `e1db9c3`).
 - [x] 3.10 Implement `avoozl rebuild` from GitHub markers, sub-issues, dependencies, labels, and Project fields. [R14.3] (§3.3)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R14.3; §3.3.
     - done:
       - Implement `avoozl rebuild` from GitHub markers, sub-issues, dependencies, labels, and Project fields.
     - checks: npm test, git diff --check
@@ -565,7 +523,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `14b477f` (receipt `docs/evidence/phase3-rebuild.md`, `c7af204`); gaps `b043d1a` and `6c2460d` (receipt `docs/evidence/phase3-rebuild-gaps.md`, `c853d2b`).
 - [x] 3.11 Wire `inspectGitHubTaskCompletion` into the tick with cached verdicts for leaves GitHub closed [R16, R12.6, R28.7, R33.3, R33.7–R33.10] (§6.5)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R16, R12.6, R28.7, R33.3, R33.7–R33.10; §6.5.
     - done:
       - Wire `inspectGitHubTaskCompletion` into the tick with cached verdicts for leaves GitHub closed
       - Closed as `COMPLETED`, exactly one `closedByPullRequestsReferences` closer, merged, in the leaf's registered code repository (drop the same-repository limit; read its checks there), on `baseBranch`, with `requiredChecks` passing on its head SHA; release dependents; close parents. Avoozl closes no leaf issue and matches no pull request by branch name. A merged, passing pull request on the task's linked branch (or naming `Closes #N`) whose issue is still open opens a decision. A leaf closed with no merged closing pull request (by hand, or by Auto-close issue after a drag to Done), as `COMPLETED` or `NOT_PLANNED`: read the latest `ClosedEvent` actor (fall back to the Status change's actor when it names `@github-project-automation`) and run the trigger-label actor check (the code repository's policy for a plans-repo leaf); an allowed closer is an order: mark the task done by order (never a verified completion), write the SQLite receipt and the marker `order` field, release dependents at every completion level including `merged-pr` and `integrated`, start no new session for the task, and leave a running one alone; a disallowed or unreadable closer holds the dependents and opens a decision, and Avoozl does not reopen the issue. A reopened leaf loses done (verified or by order) on the next tick and its `order` is removed: dependents not yet started wait again, running sessions are left alone, done dependents stay done. Each released dependent's brief says its blocker closed without merged code (closer, reason, time) and to check for the missing code first, with the blocker's issue link, or task ID and title only in plans-repo mode; for an Issue Radar leaf the note goes in the managed body section. Parents count children done by order. Replace the Phase 2 `merged-pr` shortcut in `completionReached` (any merged pull request counts) with the cached verdict or the order. Changed 2026-11-12: was head-branch matching plus Avoozl closing plans-repo and non-default-base issues; later the same day, a hand-closed blocker always held its dependents.
@@ -575,7 +532,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `aab92f0` (receipt `docs/evidence/phase3-completion.md`, `dba0c0d`).
 - [x] 3.12 Build `plans_project_preview` and the Plans preview of every create, update, link, edge, label, and Project field change. [R13.1, R29] (§6.1)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R13.1, R29; §6.1.
     - done:
       - Build `plans_project_preview` and the Plans preview of every create, update, link, edge, label, and Project field change.
     - checks: npm test, git diff --check
@@ -583,7 +539,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `17c8234` (receipt `docs/evidence/phase3-preview.md`, `629572e`).
 - [x] 3.13 Settings view for `.avoozl.json` [R11, R20, R28, R29] (§4.4, §8)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R11, R20, R28, R29; §4.4, §8.
     - done:
       - Settings view for `.avoozl.json`
       - Mode, planning repository, default authority, Project and fields, epic issue type, repository policy, with validation. GitHub objects (labels, Project, fields) are created by the wizard in 3.18, not here.
@@ -593,7 +548,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `40f7f41` and `315ccf0` (receipt `docs/evidence/phase3-settings.md`, `dc39267`).
 - [x] 3.14 GitHub modes and authority [R28.1–R28.5, R16.5] (§3.2, §4.4)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R28.1–R28.5, R16.5; §3.2, §4.4.
     - done:
       - GitHub modes and authority
       - `github.mode` (`plans-repo`, `single-repo`, absent), `planningRepository`, `defaultAuthority`, per-repository `coder`; validation per §4.4; new tasks default to `github` when a mode is set; accept `authority: local` on a manifest entry as opt-in and keep refusing `github` there (the Phase 2 lint refuses any `authority` on planned items today); show "pending projection" until the first issue exists. Changed 2026-11-12: validation also refuses a `baseBranch` other than the code repository's default for github tasks, and a `statusValues` key other than `todo`, `inProgress`, `done`, and `deferred`.
@@ -603,7 +557,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `9054021` (receipt `docs/evidence/phase3-policy.md`, `a84eb34`).
 - [x] 3.15 Project sync per §6.7 [R29, R33] (§6.7)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R29, R33; §6.7.
     - done:
       - Project sync per §6.7
       - Add managed issues to the configured Project; set Release from manifest milestones when the item is added, and again only when an approved manifest moves the task and the field still holds Avoozl's last value; Wave computed from blocking edges (one function shared with projection; done tasks keep their wave; write only on change), optional Iteration; record `applied.project` (no Status); never write Status. On each 60-second tick, after completion: Deferred by an allowed actor (same `allowedActors`/`minimumPermission` check as trigger labels) pauses dispatch and linked-branch creation without touching a running session and notifies the owner; leaving Deferred resumes and writes nothing; Deferred by a disallowed or unreadable actor is ignored and shown in Delivery, not reverted; a drag to Done is left to Auto-close issue and judged as a close by 3.11 (changed 2026-11-12); every other Status value is left alone, and a mismatch with Avoozl's state shows in Delivery; a Release value Avoozl did not write is kept, used for the parent rule, and drafts a manifest change for review; a Wave edit is reverted and recomputed with a Kiro Crew notification; report unavailable without the `project` scope. Changed 2026-11-12: Avoozl wrote Status and reverted drags to Done, Running, Review, and a not-ready Ready, disallowed edits, and non-matching automation values.
@@ -613,7 +566,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `f2d9b46` (receipt `docs/evidence/phase3-project-sync.md`, `0ba58b8`).
 - [x] 3.16 Read plans only from Kiro spec folders in the mode's repository (planning repository, code repository, or the workspace's planning repository) [R30] (§6.8)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R30; §6.8.
     - done:
       - Read plans only from Kiro spec folders in the mode's repository (planning repository, code repository, or the workspace's planning repository)
       - Map `tasks.md` IDs to issues; ignore Kiro's task waves and checkbox marks; refuse an approved ID whose item text changed without approval.
@@ -623,7 +575,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `7c98d4e` (receipt `docs/evidence/phase3-spec-reading.md`, `88570d3`).
 - [x] 3.17 Marker and leak rules for plans-repo mode: the marker never names the planning repository; Avoozl writes links only between planning issues and adds only planning issues to the Project. [R28.7, R28.11] (§3.4, §6.6)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R28.7, R28.11; §3.4, §6.6.
     - done:
       - Marker and leak rules for plans-repo mode: the marker never names the planning repository; Avoozl writes links only between planning issues and adds only planning issues to the Project.
     - checks: npm test, git diff --check
@@ -631,7 +582,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: `22ae436` (receipt `docs/evidence/phase3-marker-api.md`, `0d8ce5f`).
 - [x] 3.18 **Set up GitHub** wizard in Settings (`github.setup`, `avoozl github setup`, `plans_github_setup`), after 3.13–3.15 [R32, R33.6] (§4.4, §6.7, §8.2)
   - Facts:
-    - summary: Phase 3 (GitHub core). See R32, R33.6; §4.4, §6.7, §8.2.
     - done:
       - Set up GitHub wizard in Settings (`github.setup`, `avoozl github setup`, `plans_github_setup`), after 3.13–3.15
       - Check token scopes and show the fix command; choose mode and pick or create the private planning repository; turn on issues; pick or create a private org or user Project; make sure Status has Todo, In progress, Done, and Deferred (a template Project usually lacks only Deferred), map them through `statusValues` in the proposed `.avoozl.json` diff, never remove or rename an option, and keep every existing option `id`; read the Project's built-in workflows (`workflows { name enabled }`) and put on the checklist every one whose `enabled` differs from the recommendation (Auto-add sub-issues on; Auto-add on with a managed-label filter; Item added → Todo on; Pull request linked → In progress on; Item closed → Done on; Pull request merged → Done on; Auto-close issue on; Auto-archive off), plus the columns and filter it cannot read; never delete a workflow (L12); Release from spec milestones, Wave (number), optional Iteration, a Board view `Board by release` with a column per Status and grouped by Release, and an optional `Table by wave` grouped by Wave (no Roadmap view). Views: REST views with `group_by` first; on failure, GraphQL `createProjectV2View` and a "Group by …, then Save" checklist item; create the `Epic` issue type when allowed; create managed labels; propose the `.avoozl.json` diff for review. One preview of every write, one confirmation, idempotent by name, no delete or rename, per-step permission failures reported while the rest runs; end with the checklist of what the API cannot do (limits L1–L13). Changed 2026-11-12: no Ready, In review, or Blocked options; workflow check added; Auto-close issue now recommended on (a drag to Done closes as done, judged by 3.11).
@@ -642,7 +592,6 @@ new `plans_intake_*` tools. No earlier task changes.
 
 - [x] avoozl-p7 P7 Proof: configurable GitHub label intake on a public repository [R10, R11, R27.1]
   - Facts:
-    - summary: Phase 3 (GitHub core). Proof. See R10, R11, R27.1.
     - done:
       - Expected: only the combinations the rules describe match; the disallowed account's labels cause no match and no write; the edited issue is quarantined; trigger and managed labels never overlap.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -675,7 +624,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: pass, receipt `docs/evidence/proof-p7.md`.
 - [ ] avoozl-p8 P8 Proof: single-repo projection with sub-issues and dependencies [R13]
   - Facts:
-    - summary: Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R13.
     - done:
       - Expected: one parent issue of type Epic with three sub-issues, issue dependencies matching the `requires` and `sequence` edges, a `supports` edge present only in the marker, the ready label only on the unblocked leaf; the second apply changes nothing.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -700,6 +648,7 @@ new `plans_intake_*` tools. No earlier task changes.
       - 3.17
       - 3.18
     - manual: true
+  - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
   - Setup: single-repo mode; an approved three-leaf graph with a parent epic targeting one repository, in a spec folder in that repository; the owner has an `Epic` issue type.
   - Action: preview, apply, then apply again.
   - Expected: one parent issue of type Epic with three sub-issues, issue dependencies matching the `requires` and `sequence` edges, a `supports` edge present only in the marker, the ready label only on the unblocked leaf; the second apply changes nothing.
@@ -708,7 +657,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Superseded 2026-11-17: proves per-task issue projection with sub-issues and dependencies, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
 - [x] avoozl-p9 P9 Proof: cross-repository dependencies and fresh-workspace recovery [R13.2, R14, R19]
   - Facts:
-    - summary: Phase 3 (GitHub core). Proof. See R13.2, R14, R19.
     - done:
       - Expected: GitHub shows the cross-repository blocker; only the first leaf is ready; after rebuild every task, edge, status, and managed baseline matches the earlier state and no issue is duplicated.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -740,7 +688,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: pass on the retry, receipt `docs/evidence/p9-cross-repo-rebuild.md`, `d85c379`.
 - [ ] avoozl-p10 P10 Proof: managed-field conflict handling [R15]
   - Facts:
-    - summary: Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R15.
     - done:
       - Expected: each human-edited issue field is reported as a conflict and left unchanged; untouched fields update; resolving in Conflicts applies the chosen value; no Project edit opens a conflict; the Done drag closes its issue through Auto-close issue and is judged as an order (P11 proves its effects), not a conflict; Deferred and Release are handled per §6.7 (P16 proves their effects). Changed 2026-11-12.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -766,6 +713,7 @@ new `plans_intake_*` tools. No earlier task changes.
       - 3.18
       - avoozl-p8
     - manual: true
+  - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
   - Setup: projected issues from P8.
   - Action: a person edits one title, one managed body section, removes one managed label, and adds one blocked-by link by hand; an allowed actor drags one issue's Project Status to Deferred, drags another to Done, and changes a third's Release; the design changes all four issue fields; apply.
   - Expected: each human-edited issue field is reported as a conflict and left unchanged; untouched fields update; resolving in Conflicts applies the chosen value; no Project edit opens a conflict; the Done drag closes its issue through Auto-close issue and is judged as an order (P11 proves its effects), not a conflict; Deferred and Release are handled per §6.7 (P16 proves their effects). Changed 2026-11-12.
@@ -774,7 +722,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Superseded 2026-11-17: proves managed-field conflicts on projected task issues and Project fields, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
 - [ ] avoozl-p11 P11 Proof: exact pull-request completion [R16, R33]
   - Facts:
-    - summary: Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R16, R33.
     - done:
       - Expected: A's closed issue is a decision, not done; B completes and releases D in the same tick; in plans-repo mode GitHub closes B's planning issue with the pull request as closer, and the fork pull request closes nothing and counts for nothing; Avoozl closes no leaf issue in either mode; C and F are done by order, not verified: their dependents E and G are released in the next tick (both levels count; E shows as ready but paused), G's brief says the blocker closed without merged code (closer, reason, time) and to check for the missing code first, with the issue link in single-repo mode and task ID and title only in plans-repo mode, and the receipt and marker hold the order; F's close event names the person who dragged (record which source named the closer); H's dependent J stays held with a decision while GitHub shows it unblocked, and H stays closed; after the reopens, E is waiting again and gets no session, G's running session is left alone, and both orders are gone from the markers; the non-default-base merge leaves its issue open and opens a decision.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -799,6 +746,7 @@ new `plans_intake_*` tools. No earlier task changes.
       - 3.17
       - 3.18
     - manual: true
+  - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
   - Setup: three projected leaves A, B, C with a required check, and a dependent leaf D that requires B. Changed 2026-11-12: also leaves F and H, with E requiring C at level `merged-pr`, G requiring F at level `integrated`, and J requiring H; E's card is in Deferred so it does not start; Auto-close issue on; a policy with one allowed actor and a second account with write access that it does not allow. Run once in single-repo mode and once in plans-repo mode (Avoozl creates the linked branch `avoozl/<task-id>` in the code repository at dispatch).
   - Action: for A, open two pull requests that both say `Closes #N` (single-repo) or open one from a fork branch with the same name plus the linked one (plans-repo); close one and merge the other with a failing check (branch protection off for this step). Merge B's pull request with passing checks. As the allowed actor, close C's issue by hand as not planned, and drag F's card to Done. As the disallowed account, close H's issue. Tick until G's session is running, then reopen C and F and tick. Merge a passing pull request with `Closes #N` into a non-default branch in a scratch repository whose policy was edited by hand past validation.
   - Expected: A's closed issue is a decision, not done; B completes and releases D in the same tick; in plans-repo mode GitHub closes B's planning issue with the pull request as closer, and the fork pull request closes nothing and counts for nothing; Avoozl closes no leaf issue in either mode; C and F are done by order, not verified: their dependents E and G are released in the next tick (both levels count; E shows as ready but paused), G's brief says the blocker closed without merged code (closer, reason, time) and to check for the missing code first, with the issue link in single-repo mode and task ID and title only in plans-repo mode, and the receipt and marker hold the order; F's close event names the person who dragged (record which source named the closer); H's dependent J stays held with a decision while GitHub shows it unblocked, and H stays closed; after the reopens, E is waiting again and gets no session, G's running session is left alone, and both orders are gone from the markers; the non-default-base merge leaves its issue open and opens a decision.
@@ -807,7 +755,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Superseded 2026-11-17: proves task completion by issue close and linked-branch close, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
 - [ ] avoozl-p16 P16 Proof: GitHub Project sync [R29, R31.3, R33]
   - Facts:
-    - summary: Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R29, R31.3, R33.
     - done:
       - Expected: every managed issue from both repositories is on the Project, at Todo from the Item added workflow; Avoozl makes no Status write at any point (no Status change by the token's account in any item's history); the running leaf moves to In progress when its pull request opens and to Done when GitHub closes the issue, by `@github-project-automation`; blocked leaves show GitHub's Blocked icon; Release matches each issue's milestone and parents take their children's latest; Iteration is set only where a task's facts name one; the second sync writes nothing. Board drags: the Deferred leaf gets no new session, no linked branch, and no ready label over both ticks, and the owner gets one Kiro Crew notification; dragged back, it resumes and dispatches, and its card stays at Todo; the drag to Done closes the issue through Auto-close issue and the task becomes done by order (P11 proves the release and brief note), with no GitHub comment; the running session under a Deferred card keeps running; the Release change is kept on later ticks, the parent's Release follows it, a facts change moving that task is drafted for review, and nothing is committed; the disallowed account's Deferred drag is not reverted, does not pause dispatch, and shows in Delivery; no board edit opens a conflict. The report says which writer source (timeline, item change record, or value only) was readable. Wave reads a1 1, b1 1, a2 2, b2 3, b3 4 (the `supports` edge adds nothing); a1 stays 1 after it is done and no other wave moves; b3's hand-set 9 is reverted to 4 in the next tick with a Kiro Crew notification; after the edge removal the next tick writes a2 1, b2 2, b3 3 and nothing else, and the tick after it writes nothing; without the scope, Settings reports Project sync unavailable and issue projection still works.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -832,6 +779,7 @@ new `plans_intake_*` tools. No earlier task changes.
       - 3.17
       - 3.18
     - manual: true
+  - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
   - Setup: an org Project with Status (Todo, In progress, Done, Deferred) and Release single-select fields, a Wave number field, and an Iteration field; the recommended built-in workflows set by hand from the wizard's checklist (Auto-close issue on); an approved plan with leaves in two repositories, two milestones, and one iteration named in the task facts; a token with the `project` scope; a policy with one allowed actor and a second account with write access that the policy does not allow. For Wave, a 5-task graph across 2 epics: epic A holds a1 and a2, epic B holds b1, b2, and b3; a2 requires a1; b2 requires a2 and b1; b3 follows b2 by `sequence`; a1 `supports` b3.
   - Action: apply; let one leaf run until its pull request opens, then merge it with passing checks; sync twice. Board drags, each followed by a tick: as the allowed actor, drag a ready leaf to Deferred and tick twice; drag it back to Todo; drag an open leaf to Done; drag a leaf with a running session to Deferred; change one leaf's Release to the other milestone; as the disallowed account, drag a ready leaf to Deferred. For Wave: apply; mark a1 done and tick; set b3's Wave by hand to 9 and tick; remove the a2-requires-a1 edge, approve, and tick twice. Then remove the `project` scope and sync.
   - Expected: every managed issue from both repositories is on the Project, at Todo from the Item added workflow; Avoozl makes no Status write at any point (no Status change by the token's account in any item's history); the running leaf moves to In progress when its pull request opens and to Done when GitHub closes the issue, by `@github-project-automation`; blocked leaves show GitHub's Blocked icon; Release matches each issue's milestone and parents take their children's latest; Iteration is set only where a task's facts name one; the second sync writes nothing. Board drags: the Deferred leaf gets no new session, no linked branch, and no ready label over both ticks, and the owner gets one Kiro Crew notification; dragged back, it resumes and dispatches, and its card stays at Todo; the drag to Done closes the issue through Auto-close issue and the task becomes done by order (P11 proves the release and brief note), with no GitHub comment; the running session under a Deferred card keeps running; the Release change is kept on later ticks, the parent's Release follows it, a facts change moving that task is drafted for review, and nothing is committed; the disallowed account's Deferred drag is not reverted, does not pause dispatch, and shows in Delivery; no board edit opens a conflict. The report says which writer source (timeline, item change record, or value only) was readable. Wave reads a1 1, b1 1, a2 2, b2 3, b3 4 (the `supports` edge adds nothing); a1 stays 1 after it is done and no other wave moves; b3's hand-set 9 is reverted to 4 in the next tick with a Kiro Crew notification; after the edge removal the next tick writes a2 1, b2 2, b3 3 and nothing else, and the tick after it writes nothing; without the scope, Settings reports Project sync unavailable and issue projection still works.
@@ -840,7 +788,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Superseded 2026-11-17: proves per-task GitHub Project sync, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
 - [x] avoozl-p20 P20 Proof: local and github tasks in one workspace [R28.2–R28.5, R31.4]
   - Facts:
-    - summary: Phase 3 (GitHub core). Proof. See R28.2–R28.5, R31.4.
     - done:
       - Expected: two issues exist and the local leaf has none and shows "local" in every view; it never appears in a projection preview while marked local; after the plan change it gets one issue, keeps its task ID, and now shows its issue link; no task ever has two writable rows.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -872,7 +819,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: pass on the retry, receipt `docs/evidence/p20-local-and-github.md`, `93edbaa`.
 - [x] avoozl-p21 P21 Proof: Kiro spec folder validation [R30]
   - Facts:
-    - summary: Phase 3 (GitHub core). Proof. See R30.
     - done:
       - Expected: each broken copy is refused with the file and line; the two good specs project, the bugfix spec's unchanged-behavior clauses appear as acceptance; Kiro's waves never change Avoozl's edges.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -904,7 +850,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Built: pass on the retry, receipt `docs/evidence/p21-spec-validation.md`, `82200b4`.
 - [ ] avoozl-p24 P24 Proof: Set up GitHub wizard [R32, R33.6]
   - Facts:
-    - summary: Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R32, R33.6.
     - done:
       - Expected: the preview lists every write before any is made. Run 1 creates a private planning repository with issues on, a private org Project with Status options Todo, In progress, Done, and Deferred, Release with the named release, a Wave number field, a Board view with Status columns and the `Table by wave` view the person asked for, no Roadmap view, the `Epic` type, and the managed labels, and the `.avoozl.json` change validates. Run 2 shows "Nothing to change" and writes nothing (no object's `updated_at` moves). The T2 run turns on issues and adds the missing labels, leaves the existing label's color as it was, reports the missing `project` scope with `gh auth refresh -s project`, and makes no Project call that writes. The run after the fix creates a private user Project with Release holding both milestones, and reports the `Epic` step as not available on a user account. The template-Project run adds only Deferred, keeps Todo, In progress, and Done with their option `id`s, leaves the item at In progress, and its `.avoozl.json` diff maps `todo`, `inProgress`, `done`, and `deferred` to those four options. Every run reads the built-in workflows and writes none: its checklist lists each workflow whose `enabled` differs from the recommendation (a Project with Auto-close issue off gets "turn on Auto-close issue"; `nupp-lang` Project #2, already on, gets no Auto-close item) and the column and filter lines it cannot read. No run deletes or renames anything. Each run ends with the checklist and its links, and the checklist has no date-field item. The report records whether REST views worked on each account (settling L7b): if REST grouped the views, they are grouped by Release and by Wave and the checklist has no grouping item; if it fell back to GraphQL, the checklist says "Group by Release, then Save" (and the same for Wave) and following it gives the grouped views.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -929,6 +874,7 @@ new `plans_intake_*` tools. No earlier task changes.
       - 3.17
       - 3.18
     - manual: true
+  - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
   - Setup: a fresh test organization with one code repository whose issues are off, no Project, no `Epic` type, and no managed labels; a fresh test user account with one repository that holds a spec folder with two milestones and already has one label named like a managed label, with its own color; token T1 with `repo`, `read:org`, `project`, and `admin:org` as an organization admin; token T2 like T1 but without `project`; in the organization, a second Project made from a built-in template whose Status has only Todo, In progress, and Done, with one item set to In progress.
   - Action: with T1 on the organization, run the wizard in plans-repo mode, let it create the planning repository and an org Project, name the first release, confirm once, and approve the `.avoozl.json` diff; run it again. With T1, run it on the template Project. With T2 on the user account, run it in single-repo mode; then run the fix command it shows and run it again.
   - Expected: the preview lists every write before any is made. Run 1 creates a private planning repository with issues on, a private org Project with Status options Todo, In progress, Done, and Deferred, Release with the named release, a Wave number field, a Board view with Status columns and the `Table by wave` view the person asked for, no Roadmap view, the `Epic` type, and the managed labels, and the `.avoozl.json` change validates. Run 2 shows "Nothing to change" and writes nothing (no object's `updated_at` moves). The T2 run turns on issues and adds the missing labels, leaves the existing label's color as it was, reports the missing `project` scope with `gh auth refresh -s project`, and makes no Project call that writes. The run after the fix creates a private user Project with Release holding both milestones, and reports the `Epic` step as not available on a user account. The template-Project run adds only Deferred, keeps Todo, In progress, and Done with their option `id`s, leaves the item at In progress, and its `.avoozl.json` diff maps `todo`, `inProgress`, `done`, and `deferred` to those four options. Every run reads the built-in workflows and writes none: its checklist lists each workflow whose `enabled` differs from the recommendation (a Project with Auto-close issue off gets "turn on Auto-close issue"; `nupp-lang` Project #2, already on, gets no Auto-close item) and the column and filter lines it cannot read. No run deletes or renames anything. Each run ends with the checklist and its links, and the checklist has no date-field item. The report records whether REST views worked on each account (settling L7b): if REST grouped the views, they are grouped by Release and by Wave and the checklist has no grouping item; if it fell back to GraphQL, the checklist says "Group by Release, then Save" (and the same for Wave) and following it gives the grouped views.
@@ -937,7 +883,6 @@ new `plans_intake_*` tools. No earlier task changes.
   - Superseded 2026-11-17: the old wizard creates task labels, a Project and the Epic type that the Phase 56 model (R102.20, §4.32) does not use; the new setup path (42.2, 42.7) was proved by P52; not run.
 - [ ] avoozl-p25 P25 Proof: linked-branch close and leak check inside an organization [R31.5, R33.4] (§6.6, F51, F52)
   - Facts:
-    - summary: Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R31.5, R33.4; §6.6, F51, F52.
     - done:
       - Expected: both planning issues close as `COMPLETED` with the pull request as closer within one tick; the Project item moves to Done by `@github-project-automation`; no logged-out fetch and no notification to a code-repository-only watcher names the planning repository; the result for the merger without planning access is recorded either way. Write the receipt under `docs/evidence/` in the Avoozl repository.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -962,6 +907,7 @@ new `plans_intake_*` tools. No earlier task changes.
       - 3.17
       - 3.18
     - manual: true
+  - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
   - Setup: a scratch organization shaped like `nupp-lang`: a private planning repository with issues on, a public code repository with a branch ruleset or protection on its default branch (one required check), auto-merge allowed, and the org's default member visibility; an org Project with the recommended workflows; a second org member with write access to the code repository and no access to the planning repository. Repeat the script behind `docs/evidence/github-linked-branch-probe.md` (Avoozl commit `31adf4e`).
   - Action: create a planning issue; `createLinkedBranch` with `repositoryId` of the code repository and name `avoozl/<task-id>`; push one commit; open a pull request with no closing keyword and no planning-repository text; read `closingIssuesReferences` right away; let auto-merge merge it under the required check; repeat once with the second member as the merger. Logged out, fetch the pull request page and its partials, the commit and branch pages, and REST pull request, issue, timeline, and events, and grep each for the planning repository's name and node IDs. Also check the watcher notification email of a code-repository watcher.
   - Expected: both planning issues close as `COMPLETED` with the pull request as closer within one tick; the Project item moves to Done by `@github-project-automation`; no logged-out fetch and no notification to a code-repository-only watcher names the planning repository; the result for the merger without planning access is recorded either way. Write the receipt under `docs/evidence/` in the Avoozl repository.
@@ -977,7 +923,6 @@ applies to both.
 
 - [x] 4.1 Settings shows the exact ready label each Issue Radar crew must scope to, with a link to Issue Radar (single-repo mode). [R17.4] (§6.4)
   - Facts:
-    - summary: Phase 4 (Delivery loops). See R17.4; §6.4.
     - done:
       - Settings shows the exact ready label each Issue Radar crew must scope to, with a link to Issue Radar (single-repo mode).
     - checks: npm test, git diff --check
@@ -995,7 +940,6 @@ applies to both.
   - Built: `d37e395` (receipt `docs/evidence/phase4-crew-labels-priority.md`, `bdb1e83`).
 - [x] 4.2 Stale-claim detection: crew claim label without the ready label; needs-human label opens a decision and blocks dependents. [R17.3, R27.11] (§6.4)
   - Facts:
-    - summary: Phase 4 (Delivery loops). See R17.3, R27.11; §6.4.
     - done:
       - Stale-claim detection: crew claim label without the ready label; needs-human label opens a decision and blocks dependents.
     - checks: npm test, git diff --check
@@ -1013,7 +957,6 @@ applies to both.
   - Built: `d37e395` (receipt `docs/evidence/phase4-crew-labels-priority.md`, `bdb1e83`).
 - [x] 4.3 Ship the `avoozl-responder` agent (read-only tools) and `plans_post_reply` with secret and path screening; responding label added and removed by Avoozl. [R27.2, R27.3] (§4.7, §6.2)
   - Facts:
-    - summary: Phase 4 (Delivery loops). See R27.2, R27.3; §4.7, §6.2.
     - done:
       - Ship the `avoozl-responder` agent (read-only tools) and `plans_post_reply` with secret and path screening; responding label added and removed by Avoozl.
     - checks: npm test, git diff --check
@@ -1031,7 +974,6 @@ applies to both.
   - Built: `dd80c99` (receipt `docs/evidence/phase4-responder.md`, `fec95fc`).
 - [x] 4.4 Broad-issue flow: classify, draft child graph, critique, preview comment, approval by re-labeling or `autoPublishChildren`, sub-issues and edges. [R12.3–12.6, R27.5] (§6.2)
   - Facts:
-    - summary: Phase 4 (Delivery loops). See R12.3–12.6, R27.5; §6.2.
     - done:
       - Broad-issue flow: classify, draft child graph, critique, preview comment, approval by re-labeling or `autoPublishChildren`, sub-issues and edges.
     - checks: npm test, git diff --check
@@ -1049,7 +991,6 @@ applies to both.
   - Built: `fafda83` (receipt `docs/evidence/phase4-broad-issue.md`, `c708d77`).
 - [x] 4.5 Priority order by configured labels, then graph order, under the concurrency cap. [R27.7] (§4.5)
   - Facts:
-    - summary: Phase 4 (Delivery loops). See R27.7; §4.5.
     - done:
       - Priority order by configured labels, then graph order, under the concurrency cap.
     - checks: npm test, git diff --check
@@ -1067,7 +1008,6 @@ applies to both.
   - Built: `d37e395` (receipt `docs/evidence/phase4-crew-labels-priority.md`, `bdb1e83`).
 - [x] 4.6 Optional `dependencyText` parsing of `depends on #N`, written back as native edges after approval. [R27.8]
   - Facts:
-    - summary: Phase 4 (Delivery loops). See R27.8.
     - done:
       - Optional `dependencyText` parsing of `depends on #N`, written back as native edges after approval.
     - checks: npm test, git diff --check
@@ -1085,7 +1025,6 @@ applies to both.
   - Built: `fafda83` (receipt `docs/evidence/phase4-broad-issue.md`, `c708d77`).
 - [x] 4.7 Plans-repo delivery [R27.4, R27.9, R27.14, R28.6, R18, R33.4] (§6.6)
   - Facts:
-    - summary: Phase 4 (Delivery loops). See R27.4, R27.9, R27.14, R28.6, R18, R33.4; §6.6.
     - done:
       - Plans-repo delivery
       - The Crew Mode runner from 2.14 (script cron fallback) opens one worker session per ready plans-repo leaf in the code repository's folder; before the brief is sent, the tick creates (or reuses) the leaf's linked branch `avoozl/<task-id>` in the code repository from the head of `baseBranch` with `createLinkedBranch` (3.6); the brief carries only the task's own title and acceptance, and tells the worker to fetch that branch, push to it, open one pull request against `baseBranch` with no closing keyword, enable auto-merge, and fix CI and review until merge. Changed 2026-11-12: the worker used to create the branch.
@@ -1105,7 +1044,6 @@ applies to both.
   - Built: `f44bf0e` (receipt `docs/evidence/phase4-plans-repo-delivery.md`, `bf49f0d`).
 - [x] 4.8 Leak screen [R28.7, R28.8] (§6.6)
   - Facts:
-    - summary: Phase 4 (Delivery loops). See R28.7, R28.8; §6.6.
     - done:
       - Leak screen
       - Each tick searches candidate pull request titles, bodies, and commit messages for the planning repository's `owner/name`, URL, and `owner/name#`; a hit opens a decision, blocks completion, and asks the worker to edit.
@@ -1125,7 +1063,6 @@ applies to both.
   - Built: `f44bf0e` (receipt `docs/evidence/phase4-plans-repo-delivery.md`, `bf49f0d`).
 - [x] 4.9 Plans-repo completion [R16.5, R29.2, R33.3, R33.8, R33.9] (§6.5)
   - Facts:
-    - summary: Phase 4 (Delivery loops). See R16.5, R29.2, R33.3, R33.8, R33.9; §6.5.
     - done:
       - Plans-repo completion
       - Once GitHub closes the planning issue through the linked branch and the 3.11 verdict holds, release dependents in the same tick; Avoozl closes nothing and writes no Status. A merged, passing pull request whose planning issue stayed open opens a decision. A planning issue closed without merged code follows 3.11: an order by an actor the code repository's policy allows releases dependents with the brief note (task ID and title, no planning link); any other closer holds them with a decision. Changed 2026-11-12: Avoozl used to close the planning issue and update Status; later the same day, the close-without-code order was added.
@@ -1146,7 +1083,6 @@ applies to both.
 
 - [x] avoozl-p12 P12 Proof: automatic Issue Radar execution [R17, R27.4]
   - Facts:
-    - summary: Phase 4 (Delivery loops). Proof. See R17, R27.4.
     - done:
       - Expected: children appear as sub-issues with edges; only unblocked children get the ready label; the crew claims one, opens a pull request that closes it, and Avoozl never writes the PR; blocked children receive the ready label only after their blocker completes.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -1160,13 +1096,13 @@ applies to both.
   - Built: pass on the retry, receipt `docs/evidence/p12-p13-issue-radar-auto-merge.md`, `9f62a7a`.
 - [ ] avoozl-p13 P13 Proof: automatic pull-request merge [R18]
   - Facts:
-    - summary: Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 4 (Delivery loops). Proof. See R18.
     - done:
       - Expected: each merges through Issue Radar or GitHub auto-merge under required checks; Avoozl's completion check accepts it; the parent closes after the last child.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
     - completion: person
     - after: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, avoozl-p12, avoozl-p17
     - manual: true
+  - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
   - Setup: P12 repository and the P17 code repository, each with required checks and auto-merge allowed.
   - Action: let the crew's pull request and the worker's pull request pass checks.
   - Expected: each merges through Issue Radar or GitHub auto-merge under required checks; Avoozl's completion check accepts it; the parent closes after the last child.
@@ -1175,13 +1111,13 @@ applies to both.
   - Superseded 2026-11-17: its open plans-repo half needs P17 and proves worker auto-merge closing a task issue through a linked branch, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
 - [ ] avoozl-p17 P17 Proof: plans-repo mode in one organization, public code repository [R28.6–R28.11, R31.2]
   - Facts:
-    - summary: Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 4 (Delivery loops). Proof. See R28.6–R28.11, R31.2.
     - done:
       - Expected: issues, sub-issues, and the dependency exist only in the planning repository; Avoozl creates the first leaf's linked branch `avoozl/<task-id>` before its brief, and the worker opens a pull request from it with no closing keyword; after merge with passing checks, GitHub closes the planning issue as completed with the pull request as closer, the Item closed workflow sets Status to Done, Avoozl closes nothing and writes no Status, and the second leaf is released in the same tick; neither public pull request, its commits, nor its branch names the planning repository, and the public repository shows no Project event or link into it to a logged-out viewer; the third leaf's leak opens a decision and does not complete until the text is fixed. Changed 2026-11-12.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
     - completion: person
     - after: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9
     - manual: true
+  - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
   - Setup: one organization with a private planning repository and a public code repository with required checks and auto-merge allowed; an org Project; an approved spec folder in the planning repository with an epic and two dependent leaves in the code repository; Crew Mode runner on.
   - Action: no human action until both leaves are done. Then, on a third leaf, make the worker put the planning repository's name in the pull request body.
   - Expected: issues, sub-issues, and the dependency exist only in the planning repository; Avoozl creates the first leaf's linked branch `avoozl/<task-id>` before its brief, and the worker opens a pull request from it with no closing keyword; after merge with passing checks, GitHub closes the planning issue as completed with the pull request as closer, the Item closed workflow sets Status to Done, Avoozl closes nothing and writes no Status, and the second leaf is released in the same tick; neither public pull request, its commits, nor its branch names the planning repository, and the public repository shows no Project event or link into it to a logged-out viewer; the third leaf's leak opens a decision and does not complete until the text is fixed. Changed 2026-11-12.
@@ -1190,13 +1126,13 @@ applies to both.
   - Superseded 2026-11-17: proves plans-repo task issues, linked branches and Project status, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
 - [ ] avoozl-p18 P18 Proof: plans-repo mode across two organizations [R28.10, R31.1]
   - Facts:
-    - summary: Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 4 (Delivery loops). Proof. See R28.10, R31.1.
     - done:
       - Expected: the P17 results hold across organizations, including GitHub closing the A planning issue through a linked branch in B (changed 2026-11-12); the pull request lookup in B works with read access; the cross-organization sub-issue is accepted (F38); the cross-organization dependency is accepted or refused, and the result is recorded in design F39.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
     - completion: person
     - after: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9
     - manual: true
+  - Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md).
   - Setup: planning repository and Project in organization A; code repository in organization B; the token can read B and push branches there; one more repository in B with an issue, for the cross-organization dependency check.
   - Action: run the P17 flow; then, in single-repo style, add a dependency from a B issue on an A issue and a sub-issue across A and B.
   - Expected: the P17 results hold across organizations, including GitHub closing the A planning issue through a linked branch in B (changed 2026-11-12); the pull request lookup in B works with read access; the cross-organization sub-issue is accepted (F38); the cross-organization dependency is accepted or refused, and the result is recorded in design F39.
@@ -1205,7 +1141,6 @@ applies to both.
   - Superseded 2026-11-17: proves plans-repo task issues and linked-branch close across two organizations, which Phase 56 (R102.20, §4.32) retires and 45.4 deletes; the code still runs until 45.4 lands; not run.
 - [x] avoozl-p19 P19 Proof: single-repo mode end to end [R28.9, R16, R31.1]
   - Facts:
-    - summary: Phase 4 (Delivery loops). Proof. See R28.9, R16, R31.1.
     - done:
       - Expected: GitHub closes both issues and Avoozl's verdict agrees; both release dependents; Avoozl closes neither; validation refuses the non-default `baseBranch` with the file and field.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -1222,7 +1157,6 @@ applies to both.
 
 - [x] 5.1 Delete the agent host, scheduler, providers, approvals, run capabilities, external sessions, and telemetry; keep old tables read-only. [R1.1, R26.1] (§9)
   - Facts:
-    - summary: Phase 5 (Removal). See R1.1, R26.1; §9.
     - done:
       - Delete the agent host, scheduler, providers, approvals, run capabilities, external sessions, and telemetry; keep old tables read-only.
     - checks: npm test, git diff --check
@@ -1230,7 +1164,6 @@ applies to both.
   - Built: `c594e39` (receipt `docs/evidence/phase5-agent-host-targets-removal.md`, `6561d9f`).
 - [x] 5.2 Delete OpenHands integration, Canvas app and backend, and their docs. [R1.3] (§9)
   - Facts:
-    - summary: Phase 5 (Removal). See R1.3; §9.
     - done:
       - Delete OpenHands integration, Canvas app and backend, and their docs.
     - checks: npm test, git diff --check
@@ -1238,7 +1171,6 @@ applies to both.
   - Built: `f31f057` (receipt `docs/evidence/phase5-openhands-vscode-removal.md`, `c7a1a81`).
 - [x] 5.3 Replace the website with the app page; delete `server.mjs` host modes, `src/web`, `ui`, `ui-dist`, compat server, and unused page modules, keeping pure models. [R1.3] (§9)
   - Facts:
-    - summary: Phase 5 (Removal). See R1.3; §9.
     - done:
       - Replace the website with the app page; delete `server.mjs` host modes, `src/web`, `ui`, `ui-dist`, compat server, and unused page modules, keeping pure models.
     - checks: npm test, git diff --check
@@ -1246,7 +1178,6 @@ applies to both.
   - Built: `4da8705` (receipt `docs/evidence/phase5-website-intake-queue-removal.md`, `1657244`).
 - [x] 5.4 Delete the VS Code extension and Agent Host Protocol facade. [R1.3] (§9)
   - Facts:
-    - summary: Phase 5 (Removal). See R1.3; §9.
     - done:
       - Delete the VS Code extension and Agent Host Protocol facade.
     - checks: npm test, git diff --check
@@ -1254,7 +1185,6 @@ applies to both.
   - Built: `f31f057` (receipt `docs/evidence/phase5-openhands-vscode-removal.md`, `c7a1a81`).
 - [x] 5.5 Delete the GitHub intake callback and the GitHub queue browser. [R26.1] (§9)
   - Facts:
-    - summary: Phase 5 (Removal). See R26.1; §9.
     - done:
       - Delete the GitHub intake callback and the GitHub queue browser.
     - checks: npm test, git diff --check
@@ -1262,7 +1192,6 @@ applies to both.
   - Built: `4da8705` (receipt `docs/evidence/phase5-website-intake-queue-removal.md`, `1657244`).
 - [x] 5.6 Remove team coordination, execution targets, and the target listener from the public tree; delete safety and restart control after moving pause and resume into rule actions. (§9)
   - Facts:
-    - summary: Phase 5 (Removal). See §9.
     - done:
       - Remove team coordination, execution targets, and the target listener from the public tree; delete safety and restart control after moving pause and resume into rule actions.
     - checks: npm test, git diff --check
@@ -1270,7 +1199,6 @@ applies to both.
   - Built: `c594e39` (receipt `docs/evidence/phase5-agent-host-targets-removal.md`, `6561d9f`).
 - [x] 5.7 Map run-era `plans_*` MCP tools to dispatch or to a pointer to the Kiro Crew session; keep every name. [R24.5] (§9)
   - Facts:
-    - summary: Phase 5 (Removal). See R24.5; §9.
     - done:
       - Map run-era `plans_*` MCP tools to dispatch or to a pointer to the Kiro Crew session; keep every name.
     - checks: npm test, git diff --check
@@ -1278,7 +1206,6 @@ applies to both.
   - Built: `c594e39` (receipt `docs/evidence/phase5-agent-host-targets-removal.md`, `6561d9f`).
 - [x] 5.8 Search the whole project for `listen(`, `0.0.0.0`, `[::]`, and `--host`; every hit is the loopback app backend or removed. [R24] (§4.7)
   - Facts:
-    - summary: Phase 5 (Removal). See R24; §4.7.
     - done:
       - Search the whole project for `listen(`, `0.0.0.0`, `[::]`, and `--host`; every hit is the loopback app backend or removed.
     - checks: npm test, git diff --check
@@ -1293,7 +1220,6 @@ receipts are that workspace's.
 
 - [x] 6.1 Freeze a copy of the workspace database and record the plans repository commit. [R23.8] (§10.2)
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). See R23.8; §10.2.
     - done:
       - Freeze a copy of the workspace database and record the plans repository commit.
     - checks: npm test, git diff --check
@@ -1301,7 +1227,6 @@ receipts are that workspace's.
   - Built: receipt `docs/evidence/phase6-prep.md`.
 - [x] 6.2 Assign kinds to the epics, their tasks, and the milestones without changing IDs or edge kinds. [R23.1, R23.6] (§10.2)
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). See R23.1, R23.6; §10.2.
     - done:
       - Assign kinds to the epics, their tasks, and the milestones without changing IDs or edge kinds.
     - checks: npm test, git diff --check
@@ -1309,7 +1234,6 @@ receipts are that workspace's.
   - Built: receipt `docs/evidence/phase6-prep.md`.
 - [x] 6.3 Record the finished tasks as the migration baseline with evidence. [R23.2]
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). See R23.2.
     - done:
       - Record the finished tasks as the migration baseline with evidence.
     - checks: npm test, git diff --check
@@ -1317,7 +1241,6 @@ receipts are that workspace's.
   - Built: receipt `docs/evidence/phase6-prep.md`.
 - [x] 6.4 Map document-derived checklist entries to tasks as acceptance or context; commit a mapping report with every unmatched entry. [R23.5] (§10.2)
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). See R23.5; §10.2.
     - done:
       - Map document-derived checklist entries to tasks as acceptance or context; commit a mapping report with every unmatched entry.
     - checks: npm test, git diff --check
@@ -1325,7 +1248,6 @@ receipts are that workspace's.
   - Built: receipt `docs/evidence/phase6-prep.md`.
 - [x] 6.5 Reconcile the partial tasks against evidence, branches, commits, and runs; create remaining leaves as `<task-id>.<slug>`. [R23.3] (§10.2)
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). See R23.3; §10.2.
     - done:
       - Reconcile the partial tasks against evidence, branches, commits, and runs; create remaining leaves as `<task-id>.<slug>`.
     - checks: npm test, git diff --check
@@ -1333,7 +1255,6 @@ receipts are that workspace's.
   - Built: proposals for owner review at 6.8, receipt `docs/evidence/phase6-reconcile.md`.
 - [x] 6.6 Decompose broad planned tasks into packages and bounded leaves. [R23.6]
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). See R23.6.
     - done:
       - Decompose broad planned tasks into packages and bounded leaves.
     - checks: npm test, git diff --check
@@ -1341,7 +1262,6 @@ receipts are that workspace's.
   - Built: proposals for owner review at 6.8, receipt `docs/evidence/phase6-reconcile.md`.
 - [x] 6.7 Drain the observing and interrupted runs in the old host and import their evidence. [R23.7]
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). See R23.7.
     - done:
       - Drain the observing and interrupted runs in the old host and import their evidence.
     - checks: npm test, git diff --check
@@ -1349,7 +1269,6 @@ receipts are that workspace's.
   - Built: receipt `docs/evidence/phase6-reconcile.md`.
 - [ ] 6.8 Prepare one cutover change in the planning repository with manifest, mapping report, reconciliation report, and finished-task baseline for owner approval [R23.7, R23.9, R33.6] (§10.1, §10.2)
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). Works in the planning repository being moved and its GitHub org, which this workspace does not register. See R23.7, R23.9, R33.6; §10.1, §10.2.
     - done:
       - Prepare one cutover change in the planning repository with manifest, mapping report, reconciliation report, and finished-task baseline for owner approval
       - Run the Set up GitHub wizard (3.18) in the chosen mode for the setup in §10.1 (issues on in the planning repository, Project with Status and Release, optional `Epic` type) and follow its workflow checklist; Auto-close issue stays on (F55) (changed 2026-11-12: was to turn it off); set each code repository's `baseBranch` to its default branch. Changed 2026-11-12.
@@ -1357,11 +1276,11 @@ receipts are that workspace's.
     - completion: person
     - after: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
     - manual: true
+  - Works in the planning repository being moved and its GitHub org, which this workspace does not register.
   - Run the Set up GitHub wizard (3.18) in the chosen mode for the setup in §10.1 (issues on in the planning repository, Project with Status and Release, optional `Epic` type) and follow its workflow checklist; Auto-close issue stays on (F55) (changed 2026-11-12: was to turn it off); set each code repository's `baseBranch` to its default branch. Changed 2026-11-12.
   - Open: Not done; the cutover change is not prepared.
 - [ ] 6.9 Project the cutover into the chosen GitHub mode [R23.4, R23.9, R23.10, R29, R33] (§10.2 step 8)
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). Works in the moved workspace's issues and Project, which this workspace does not register. See R23.4, R23.9, R23.10, R29, R33; §10.2 step 8.
     - done:
       - Project the cutover into the chosen GitHub mode
       - Epics as parent issues, unfinished tasks as sub-issues, blocking edges as issue dependencies, every issue on the Project with Release from the milestones; deferred tasks get Status Deferred once, as the owner's recorded order, and Avoozl writes no other Status; the SQLite database becomes a read-only archive. Changed 2026-11-12.
@@ -1369,34 +1288,34 @@ receipts are that workspace's.
     - completion: person
     - after: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
     - manual: true
+  - Works in the moved workspace's issues and Project, which this workspace does not register.
   - Epics as parent issues, unfinished tasks as sub-issues, blocking edges as issue dependencies, every issue on the Project with Release from the milestones; deferred tasks get Status Deferred once, as the owner's recorded order, and Avoozl writes no other Status; the SQLite database becomes a read-only archive. Changed 2026-11-12.
   - Open: Not done; nothing is projected into issues.
 - [x] 6.10 Stale-plan cleanup [R23.13, R23.15] (§10.2 step 10)
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). Works in the planning repository being moved, which this workspace does not register. See R23.13, R23.15; §10.2 step 10.
     - done:
       - Stale-plan cleanup
       - List plan files in the planning repository that are stale or no longer current, each with one evidence line (every task done or migrated; superseded or no live reference); after owner approval of the list, delete them in one reviewed commit that changes nothing else.
       - The report names what was done and where the result is.
     - completion: answered
     - after: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
+  - Works in the planning repository being moved, which this workspace does not register.
   - List plan files in the planning repository that are stale or no longer current, each with one evidence line (every task done or migrated; superseded or no live reference); after owner approval of the list, delete them in one reviewed commit that changes nothing else.
   - Built: one owner-approved deletion commit in the planning repository.
 - [x] 6.11 Move each current plan to `.kiro/specs/<name>/` with `requirements.md` (or `bugfix.md`), `design.md`, `tasks.md`, and `avoozl/manifest.json`, using existing task IDs as item tokens so markers and issue links stay
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). Works in the planning repository being moved, which this workspace does not register.
     - done:
       - Move each current plan to `.kiro/specs/<name>/` with `requirements.md` (or `bugfix.md`), `design.md`, `tasks.md`, and `avoozl/manifest.json`, using existing task IDs as item tokens so markers and issue links stay
       - Stop using the migration read path for the workspace. [R23.14, R23.15, R30] (§10.2 step 11)
       - The report names what was done and where the result is.
     - completion: answered
     - after: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
+  - Works in the planning repository being moved, which this workspace does not register.
   - Stop using the migration read path for the workspace. [R23.14, R23.15, R30] (§10.2 step 11)
   - Built: one commit in the planning repository; every spec folder imported, 0 refused.
 
 - [ ] avoozl-p14 P14 Proof: existing workspace graph migration [R23]
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). Proof. See R23.
     - done:
       - Expected: every task and edge keeps its ID and kind across the baseline and the issues; finished tasks are in the baseline with no issues; one issue per epic and one sub-issue per unfinished task, with deferred tasks at Status Deferred, blocked tasks held by issue dependencies or a decision, review tasks pointing at their open pull request, and no other Status written by Avoozl (changed 2026-11-12); blocking edges as issue dependencies and `supports` edges in markers; each issue's Release matches its milestone; zero new tasks from document-derived entries; every unmatched entry listed; no leaf ready under an unreconciled partial task; the second tick writes nothing; the original database unchanged.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -1411,7 +1330,6 @@ receipts are that workspace's.
   - Open: Not run.
 - [ ] avoozl-p22 P22 Proof: stale-plan cleanup [R23.13, R23.15]
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). Proof. Runs against the planning repository being moved, which this workspace does not register. See R23.13, R23.15.
     - done:
       - Expected: each listed file has one reason naming its evidence, and no listed file holds an unfinished task without an issue or is linked from an open issue, task facts, current plan, or steering file; the commit deletes only the listed files; the preview and tick show no issue or marker change; the revert restores every file byte for byte.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -1419,6 +1337,7 @@ receipts are that workspace's.
     - completion: person
     - after: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11
     - manual: true
+  - Proof. Runs against the planning repository being moved, which this workspace does not register.
   - Setup: the planning repository after cutover, with every task as an issue or in the baseline.
   - Action: run the stale-plan listing; review the list; approve it; let Avoozl make the deletion commit; run projection preview and the tick; revert the commit on a scratch branch.
   - Expected: each listed file has one reason naming its evidence, and no listed file holds an unfinished task without an issue or is linked from an open issue, task facts, current plan, or steering file; the commit deletes only the listed files; the preview and tick show no issue or marker change; the revert restores every file byte for byte.
@@ -1427,7 +1346,6 @@ receipts are that workspace's.
   - Open: Not run; 6.10's deletion was reviewed by the owner instead.
 - [ ] avoozl-p23 P23 Proof: move to the Kiro spec layout [R23.14, R23.15, R30]
   - Facts:
-    - summary: Phase 6 (Move an existing workspace). Proof. Runs against the planning repository being moved, which this workspace does not register. See R23.14, R23.15, R30.
     - done:
       - Expected: every current plan is a spec folder that passes validation; every task ID and issue link is unchanged; the preview shows no issue created, closed, re-parented, or re-linked, and only marker source pins change; the second tick writes nothing; nothing reads the workspace through the migration read path afterward.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -1435,6 +1353,7 @@ receipts are that workspace's.
     - completion: person
     - after: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 6.10, 6.11, avoozl-p22
     - manual: true
+  - Proof. Runs against the planning repository being moved, which this workspace does not register.
   - Setup: the planning repository after P22.
   - Action: run the move; validate every spec; run projection preview; then apply and run the tick twice.
   - Expected: every current plan is a spec folder that passes validation; every task ID and issue link is unchanged; the preview shows no issue created, closed, re-parented, or re-linked, and only marker source pins change; the second tick writes nothing; nothing reads the workspace through the migration read path afterward.
@@ -1446,7 +1365,6 @@ receipts are that workspace's.
 
 - [x] 7.1 Rewrite README and docs around installing the Kiro Crew app; no host-era instructions. [R24.1] (§13)
   - Facts:
-    - summary: Phase 7 (Open-source release). See R24.1; §13.
     - done:
       - Rewrite README and docs around installing the Kiro Crew app; no host-era instructions.
     - checks: npm test, git diff --check
@@ -1454,7 +1372,6 @@ receipts are that workspace's.
   - Built: `52d1ce9` (receipt `docs/evidence/phase7-release-prep.md`, `a356449`).
 - [x] 7.2 Ship no default trigger rule; document example policies. [R24.3] (§13)
   - Facts:
-    - summary: Phase 7 (Open-source release). See R24.3; §13.
     - done:
       - Ship no default trigger rule; document example policies.
     - checks: npm test, git diff --check
@@ -1462,7 +1379,6 @@ receipts are that workspace's.
   - Built: `d962108` (receipt `docs/evidence/phase7-release-prep.md`, `a356449`).
 - [x] 7.3 License audit of bundled third-party code with notices. [R24.4] (§13)
   - Facts:
-    - summary: Phase 7 (Open-source release). See R24.4; §13.
     - done:
       - License audit of bundled third-party code with notices.
     - checks: npm test, git diff --check
@@ -1470,7 +1386,6 @@ receipts are that workspace's.
   - Built: `7dac03f` (receipt `docs/evidence/phase7-release-prep.md`, `a356449`).
 - [x] 7.4 Secret, private-name, company-internal-tool-name, and absolute-path scans over the tree and history [R24.2, R34.10] (§13)
   - Facts:
-    - summary: Phase 7 (Open-source release). See R24.2, R34.10; §13.
     - done:
       - Secret, private-name, company-internal-tool-name, and absolute-path scans over the tree and history
       - Keep specs and research with machine-local paths out of the release or rewrite them; regenerate receipts instead of editing them.
@@ -1480,7 +1395,6 @@ receipts are that workspace's.
   - Built: `caa64e0` (receipt `docs/evidence/phase7-release-prep.md`, `a356449`).
 - [x] 7.5 Verify compatibility surfaces: `plans_*`, `AVOOZL_*`, `AICOMMANDER_*`, `NUPP_WORKSPACE_*`, and the `aicommander` command. [R24.5]
   - Facts:
-    - summary: Phase 7 (Open-source release). See R24.5.
     - done:
       - Verify compatibility surfaces: `plans_*`, `AVOOZL_*`, `AICOMMANDER_*`, `NUPP_WORKSPACE_*`, and the `aicommander` command.
     - checks: npm test, git diff --check
@@ -1488,18 +1402,17 @@ receipts are that workspace's.
   - Built: `9051f35` (receipt `docs/evidence/phase7-release-prep.md`, `a356449`).
 - [ ] 7.6 Publish the npm package, the app package, and a signed GitHub release; dogfood the GitHub loop on Avoozl's own repository. (§13)
   - Facts:
-    - summary: Phase 7 (Open-source release). Publishes packages and a release; spends no code change in this repository. See §13.
     - done:
       - Publish the npm package, the app package, and a signed GitHub release; dogfood the GitHub loop on Avoozl's own repository.
       - The report names what was done and where the result is.
     - completion: person
     - after: avoozl-p14, avoozl-p22, avoozl-p23
     - manual: true
+  - Publishes packages and a release; spends no code change in this repository.
   - Open: Not done; nothing is published.
 
 - [ ] avoozl-p15 P15 Proof: open-source installation on a clean machine [R24]
   - Facts:
-    - summary: Phase 7 (Open-source release). Proof. See R24.
     - done:
       - Expected: local delivery completes with no GitHub; GitHub features report unavailable until `gh` or a token exists, then work; no step needs private context.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -1517,7 +1430,6 @@ receipts are that workspace's.
 
 - [x] 8.1 Delivery plugin seam [R22] (§4.8, §12, §14)
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). See R22; §4.8, §12, §14.
     - done:
       - Delivery plugin seam
       - Route schema with submit, status, completion, and cancel; Settings lists routes; local and GitHub remain the only built-in routes, and any other route comes from a plugin (8.6). Starts only when the R22.4 gate holds: P1–P25 pass and a second real route exists (a private code-review route counts; fakes do not).
@@ -1565,7 +1477,6 @@ receipts are that workspace's.
   - Built: `8bc3b04`.
 - [x] 8.6 Plugin loading, after 8.1 [R22.10, R34.1–R34.9, R34.11] (§4.4, §4.7, §4.8)
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). See R22.10, R34.1–R34.9, R34.11; §4.4, §4.7, §4.8.
     - done:
       - Plugin loading, after 8.1
       - `plugins` entries in `.avoozl.json` and in machine-local settings (`id`, one of `package` or `path`, `contract`, non-secret `config`); validation per §4.4; `avoozl-plugin.json` manifest (`id`, `version`, `contract`, `kinds`, capabilities, `entry`), reserved ids `local` and `github`; Settings **Add plugin**, approve, disable, remove; approval per id, version, and content hash, stored on this machine only, never by the tick or example installation; a warning before saving a `plugins` entry into a public repository's `.avoozl.json`; one Node child process per plugin over stdio, no port, a listening-socket check that stops a plugin that listens; reply schema validation, replies quoted as untrusted data; per-call time limit inside the tick budget; a missing, unapproved, crashed, timed-out, invalid, or wrong-contract plugin parks its tasks as "needs you" and the tick finishes everything else; supported contract versions listed and others refused. Move 8.1's fake route behind the loader.
@@ -1604,7 +1515,6 @@ receipts are that workspace's.
   - Built: `8662302` and `773b2f2`; git sources `be12bc0` and `91f3b6a`.
 - [x] 8.7 Tracker plugin contract, after 8.6, and only when a real tracker plugin is being written (§14) [R19, R35] (§3.1, §3.2, §3.3, §4.8)
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). See §14; R19, R35; §3.1, §3.2, §3.3, §4.8.
     - done:
       - Tracker plugin contract, after 8.6, and only when a real tracker plugin is being written
       - `authority: plugin:<id>` for tasks whose plugin declares `tracker`; `project`, `read`, `list`, `close`; the stored marker (namespace, task ID, last applied values) and refusal of a tracker that cannot store it; edges from the approved manifest cached in SQLite when the plugin lacks `edges`, the tracker's own links as managed fields when it has `edges`; 409 on direct edits of plugin rows, as 2.2 does for github rows; three-way conflicts on managed fields; Avoozl's completion verdict then `close(id, "completed")`; outside closes and pauses judged as orders with the plugin-reported actor, held with a decision when the actor is unknown; local -> `plugin:<id>` only through an approved projection, and "take back local" back; rebuild from `list`, `read`, and the manifest.
@@ -1641,7 +1551,6 @@ receipts are that workspace's.
   - Built: `2699722`.
 - [x] 8.8 Private integration boundary, with 8.6 [R34.10, R34.11, R24.2] (§4.8, §13)
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). See R34.10, R34.11, R24.2; §4.8, §13.
     - done:
       - Private integration boundary, with 8.6
       - A public guide to writing a route or tracker plugin that uses only the fake plugins as examples; the fake route and fake tracker live under `test/fixtures/plugins/`; extend the 7.4 scan to plugin docs and fixtures so no company-internal tool name lands in the public tree.
@@ -1677,7 +1586,6 @@ receipts are that workspace's.
   - Built: `e13890b`.
 - [x] avoozl-p26 P26 Proof: fake tracker and fake route plugins end to end [R22.5–R22.10, R34, R35] (§4.8)
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). Proof. See R22.5–R22.10, R34, R35; §4.8.
     - done:
       - Expected: (1) nothing loads and every task shows "needs you"; (2) the tracker holds five records with markers and no edges, `a` runs in a local worker, and `b` goes through `submit` with no worker session; (3) the crash and then the listener each mark the route plugin broken and park only `b`, while the tick finishes and `x` keeps advancing; no plugin child process is left listening; (4) `y` is held and a decision opens, and `x`'s record is not reopened; (5) `b` shows "needs you" with the fake link, then `completion`; `c`'s brief quotes `b`'s result as data; `a`, `b`, and `c` close as `completed` only after Avoozl's verdict; (6) the hand edit is a conflict and is left alone, and the direct edit is refused with 409; (7) the version change stops loading until re-approval and parks the tracker's tasks meanwhile; (8) rebuild matches every task, edge, status, verdict, and baseline from the fake tracker and the manifest; the public tree still passes the 7.4 scan.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -1691,7 +1599,6 @@ receipts are that workspace's.
   - Built: pass, receipt `docs/evidence/p26-fake-plugins.md`, `64bd862`.
 - [x] 8.2 Deferred GitHub features, each behind its own proof: stacked pull requests on an open blocker, Discussions answering, comment-mention steering. [R27.13]
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). See R27.13.
     - done:
       - Deferred GitHub features, each behind its own proof: stacked pull requests on an open blocker, Discussions answering, comment-mention steering.
     - checks: npm test, git diff --check
@@ -1725,7 +1632,6 @@ receipts are that workspace's.
   - Built: `51622d0` (receipt `docs/evidence/phase8-deferred-github.md`, `13301d4`).
 - [x] 8.3 Crew Mode dispatch if Kiro Crew provides MC-5; otherwise apply its kill criterion. (§7.1, §14)
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). See §7.1, §14.
     - done:
       - Crew Mode dispatch if Kiro Crew provides MC-5; otherwise apply its kill criterion.
     - checks: npm test, git diff --check
@@ -1759,7 +1665,6 @@ receipts are that workspace's.
   - Built: `6339f3b`, the kill criterion applied (receipt `docs/evidence/phase8-crew-mode-mc5.md`, `6339f3b`).
 - [x] 8.4 Review every kill criterion in §14 and remove features that meet one. [R25.6]
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). See R25.6.
     - done:
       - Review every kill criterion in §14 and remove features that meet one.
     - checks: npm test, git diff --check
@@ -1793,7 +1698,6 @@ receipts are that workspace's.
   - Built: receipt `docs/evidence/phase8-kill-review.md`, `b712742`.
 - [x] 8.5 Add MCP App views (`ui://` resources) to `plans_graph`, `plans_preview`, `plans_project_preview`, and `plans_decision`
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass).
     - done:
       - Add MCP App views (`ui://` resources) to `plans_graph`, `plans_preview`, `plans_project_preview`, and `plans_decision`
       - Buttons call the same operations with expected revisions. [R20] (§8.1) Optional: only for small focused views; the app page stays the main view. Proof below.
@@ -1830,7 +1734,6 @@ receipts are that workspace's.
   - Built: `src/app/mcp-views.mjs` (four `ui://avoozl/*` views; Refresh, Project with a plan-hash check, and Settle with the expected revision). There is no Approve button: approval is person-only over MCP. Not run live in a Kiro Crew chat (proof P8b).
 - [ ] avoozl-p8b P8b Proof: Avoozl views render and act inside chat [R20] (§8.1)
   - Facts:
-    - summary: Phase 8 (Later, only after P1–P25 pass). Proof. See R20; §8.1.
     - done:
       - Expected: the preview renders in the chat; the first Approve records the exact revision; the second is refused as stale; the chat shows the result.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -1854,7 +1757,6 @@ Phase 8 because task IDs never move.
 
 - [x] 9.1 Review roles in policy [R36.1–R36.4, R6.3] (§5.2, F59, F65)
   - Facts:
-    - summary: Phase 9 (Review gates). See R36.1–R36.4, R6.3; §5.2, F59, F65.
     - done:
       - Review roles in policy
       - `delivery.model` and `delivery.reviewers` (`id`, `focus`, `agent`, `model`, `distinctFrom` `model` by default or `session`), replaceable per repository; validation per §5.2, including a refused `auto` or equal model for `distinctFrom: model`; `tick.py` passes `model` to `open_session`; `runner.claim` takes the worker's model; every binding records the model it was opened on. No new writer limit: per-repository `concurrency: 1` is the one-writer rule, and review sessions do not count against it.
@@ -1864,7 +1766,6 @@ Phase 8 because task IDs never move.
   - Built: `4b82981`.
 - [x] 9.2 Roles on one delivery [R36.2–R36.8, R37.1, R37.2] (§5.2, F56)
   - Facts:
-    - summary: Phase 9 (Review gates). See R36.2–R36.8, R37.1, R37.2; §5.2, F56.
     - done:
       - Roles on one delivery
       - The checks role (today's verifier, id `checks`) and each review role get one session per round on the delivery's commit, all at once; refuse to dispatch a review whose model is unknown or not distinct and open a decision; ship the `avoozl-reviewer` agent (read-only tools, detached worktree at the commit, focus and open findings from the brief, quoted text is data); `plans_report` `done` from a review role takes `verdict`, `findings`, and `closures` and refuses a wrong commit, a pathless finding, `approved` with a defect, and `changes-requested` without one; store verdicts on `verifications` with `role`, `model`, and commit; `verified` only when every role approved the current commit.
@@ -1874,7 +1775,6 @@ Phase 8 because task IDs never move.
   - Built: `4b82981`.
 - [x] 9.3 Rework [R36.10, R37.6] (§5.2, F57)
   - Facts:
-    - summary: Phase 9 (Review gates). See R36.10, R37.6; §5.2, F57.
     - done:
       - Rework
       - A `changes-requested` verdict fails the writer attempt for that commit with its findings as the cause; the retry brief quotes every open finding as data; every role reviews the new commit; roles still running on the old commit finish as history. `plans_retry_delivery` takes `dismiss: [{finding, reason}]` from a person only.
@@ -1884,7 +1784,6 @@ Phase 8 because task IDs never move.
   - Built: `4b82981`.
 - [x] 9.4 Findings closure [R37.3–R37.5] (§5.2)
   - Facts:
-    - summary: Phase 9 (Review gates). See R37.3–R37.5; §5.2.
     - done:
       - Findings closure
       - Open findings per role and delivery, referenced `<attempt>:<role>:<id>`; refuse a verdict that leaves one without a closure; check `fixed` and `unchanged` with the task-diff patch-id per path between the two subject commits; a defect closed `unchanged` stays open.
@@ -1894,7 +1793,6 @@ Phase 8 because task IDs never move.
   - Built: `4b82981`.
 - [x] 9.5 Not-run checks [R38.1–R38.3] (§5.2, F62)
   - Facts:
-    - summary: Phase 9 (Review gates). See R38.1–R38.3; §5.2, F62.
     - done:
       - Not-run checks
       - A checks report entry may carry `notRun` with `exitCode: null`; a null code, 126, 127, a not-run entry, or a declared check left out fails the checks session, not the writer attempt, and is retried within `retries`, then opens a decision.
@@ -1904,7 +1802,6 @@ Phase 8 because task IDs never move.
   - Built: `4b82981`.
 - [x] 9.6 Integration waits for the reviewed commit [R36.7–R36.9] (§5.2, F63)
   - Facts:
-    - summary: Phase 9 (Review gates). See R36.7–R36.9; §5.2, F63.
     - done:
       - Integration waits for the reviewed commit
       - Integrate a `verified` delivery only by fast-forwarding the commit every role approved; when the base moved, rebase in the task's worktree and, if the head changed, open a new round on it instead of merging.
@@ -1914,7 +1811,6 @@ Phase 8 because task IDs never move.
   - Built: `4b82981`.
 - [x] 9.7 `acceptFrom: "validation"` [R36.11, R38.4, R38.5] (§5.2, F60, F61, F66)
   - Facts:
-    - summary: Phase 9 (Review gates). See R36.11, R38.4, R38.5; §5.2, F60, F61, F66.
     - done:
       - `acceptFrom: "validation"`
       - Manifest field and lint; `task.accept` refuses typed evidence and `componentOnly` and accepts only Avoozl-recorded validation at the integrated commit covering every declared check; `task.update` refuses a typed `integration`, a complete status, and edits to `checks` or `acceptFrom` on such a leaf, and refuses typed `integration` and a complete status on any leaf whose repository has review roles. Fix `acceptanceFromValidation` and `validatedEvidence` to use the current commit and require every declared check.
@@ -1924,7 +1820,6 @@ Phase 8 because task IDs never move.
   - Built: `c69f0e5`.
 - [x] 9.8 Supersede by hand [R39] (§5.2, F64)
   - Facts:
-    - summary: Phase 9 (Review gates). See R39; §5.2, F64.
     - done:
       - Supersede by hand
       - `task.supersede` (CLI, `plans_supersede_task`, a Delivery view action) per §5.2; status `superseded` (not complete, hidden by default); the ready rule resolves edges through `supersededBy`; plan approval leaves the chain and status alone; refuse cycles and GitHub or plugin authority with 409; no new dispatch for a superseded task, and a running session is left alone.
@@ -1934,7 +1829,6 @@ Phase 8 because task IDs never move.
   - Built: `c69f0e5`.
 - [x] 9.9 Delivery view: per round, each role's verdict, model, subject commit, stale mark, and findings with closure state; links to each session. Graph-specific only; no pull-request or CI view (§8). [R36.12] (§5.2, §8)
   - Facts:
-    - summary: Phase 9 (Review gates). See §8; R36.12; §5.2, §8.
     - done:
       - Delivery view: per round, each role's verdict, model, subject commit, stale mark, and findings with closure state; links to each session. Graph-specific only; no pull-request or CI view.
     - checks: npm test, git diff --check
@@ -1942,7 +1836,6 @@ Phase 8 because task IDs never move.
   - Built: `87bdd70`.
 - [x] 9.10 Optional, later, after 3.11 [R36.13, R33] (§5.2)
   - Facts:
-    - summary: Phase 9 (Review gates). See R36.13, R33; §5.2.
     - done:
       - Optional, later, after 3.11
       - For GitHub-route leaves, read pull-request reviews on the head SHA as verdicts from reviewers the repository policy allows (`APPROVED`, `CHANGES_REQUESTED`), stale when the head moves, shown in the Delivery view. Not needed for P27.
@@ -1955,7 +1848,6 @@ Phase 8 because task IDs never move.
 
 - [x] avoozl-p27 P27 Proof: review gates with fake writers and reviewers [R36, R37, R38, R39] (§5.2)
   - Facts:
-    - summary: Phase 9 (Review gates). Proof. See R36, R37, R38, R39; §5.2.
     - done:
       - Expected: (1) `w2` does not start while `w1`'s writer is live; three role sessions open on C1 with three different models; (2) `d1` stays waiting, the attempt fails, and the retry brief quotes F1; (3) the `unchanged` approval is refused in-session; the not-run check fails only the checks session and is retried, and no writer attempt is spent; (4) the rebase produces C3, nothing merges, and all three roles review C3, with F1 still closed; after they approve, C3 fast-forwards and `d1` dispatches; (5) both calls are refused, and `w1` is accepted only from validation recorded at its integrated commit; (6) policy validation refuses `fake-a`, and `auto` opens a decision instead of a review; (7) `d2` waits on `w2b`, not `w2`, `w2` stays `superseded` after re-approval, and its history is intact. Every earlier verdict stays on the delivery.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -1983,7 +1875,6 @@ numbered after Phase 9 because task IDs never move.
 
 - [x] 10.1 Matcher [R40.2, R40.4, R40.11, R40.13] (§4.9, F67, F68)
   - Facts:
-    - summary: Phase 10 (Content rules). See R40.2, R40.4, R40.11, R40.13; §4.9, F67, F68.
     - done:
       - Matcher
       - New `src/app/content-rules.mjs` with the terms parser moved from `scripts/release-scan.mjs` (`rule: regex`, `#` comments, per line, ignoring case), the decoder moved from `github-plans-repo.mjs`, and `check({boundary, repository, target, text, added})` returning `{set, rule, boundary, target, line}` and never the matched text; run each check in a `worker_threads` worker with a time limit (default 2 seconds) and treat a timeout or a rule that does not compile as unavailable; the release scan imports the parser and matcher, keeps its public rules and terms file location, and prints only rule id, file, and line for private-term findings.
@@ -1993,7 +1884,6 @@ numbered after Phase 9 because task IDs never move.
   - Built: in the publish commit `ac3825f` (`src/app/content-rules.mjs`; `src/app/test/content-rules.test.mjs`, `content-terms.test.mjs`).
 - [x] 10.2 Policy [R40.1, R40.2, R40.10] (§4.4, §4.9, F74)
   - Facts:
-    - summary: Phase 10 (Content rules). See R40.1, R40.2, R40.10; §4.4, §4.9, F74.
     - done:
       - Policy
       - `contentRules.sets` in `.avoozl.json` (`id`, `action` `block` by default or `report`, optional `boundaries` from `plan`, `github`, `brief`, `diff`, optional `repositories`, optional `plugin`) with validation per §4.4 and §4.9; terms from machine-local `contentRules.terms.<id>`, else `.avoozl/local/content-rules/<id>.txt`; refuse a terms file Git tracks or would track (`git ls-files`, `git check-ignore`); an unavailable set fails closed at every boundary it covers and opens one decision naming the set and the reason, and the tick finishes the rest; Settings lists each set with its source kind and availability, never its rules.
@@ -2003,7 +1893,6 @@ numbered after Phase 9 because task IDs never move.
   - Built: in the publish commit `ac3825f` (`src/app/content-rules.mjs`; `src/app/test/content-rules.test.mjs`, `content-terms.test.mjs`).
 - [x] 10.3 Built-in sets [R40.12] (§4.9, F68–F71)
   - Facts:
-    - summary: Phase 10 (Content rules). See R40.12; §4.9, F68–F71.
     - done:
       - Built-in sets
       - Put `findPlanningLeak` (`builtin:planning-repository`), `screenReply` (`builtin:reply-safety`), and `secretReason` with `validateMarker`'s path and planning-repository checks (`builtin:published-secrets`) behind `check`, at today's boundaries with today's patterns, decoding, and refusal messages; configuration cannot turn them off; every existing test for these screens passes unchanged.
@@ -2013,7 +1902,6 @@ numbered after Phase 9 because task IDs never move.
   - Built: in the publish commit `ac3825f` (`src/app/content-rules.mjs`; `src/app/test/content-rules.test.mjs`, `content-terms.test.mjs`).
 - [x] 10.4 Local boundaries [R40.3, R40.5] (§4.9)
   - Facts:
-    - summary: Phase 10 (Content rules). See R40.3, R40.5; §4.9.
     - done:
       - Local boundaries
       - `plan.create`, `plan.save`, and `plan.propose` refuse a planner draft in-call with set, rule, file, and line and record the refusal; `lintSpec` adds `content.match` diagnostics over every spec file and `avoozl/manifest.json` so approval is refused and a decision opens; worker, verifier, and reviewer briefs are checked before they are sent; `plans_report` `done` refuses a commit whose added lines match; `plans_prepare_worktree` installs a `pre-push` hook (`avoozl content check --push`) in that worktree only, not the main checkout's hooks (settle the Inferred note in §4.9); local integration holds a matching diff with a decision; lines already in the base never match.
@@ -2023,7 +1911,6 @@ numbered after Phase 9 because task IDs never move.
   - Built: in the publish commit `ac3825f` (`src/app/content-rules.mjs`; `src/app/test/content-rules.test.mjs`, `content-terms.test.mjs`).
 - [x] 10.5 Decisions and allow once [R40.5–R40.8] (§4.9)
   - Facts:
-    - summary: Phase 10 (Content rules). See R40.5–R40.8; §4.9.
     - done:
       - Decisions and allow once
       - One decision per set and target; **Allow once** with a reason from the app page or CLI only (the MCP tools sessions call get 403; the tick and example installation cannot), recording who, why, when, rule, target, and the SHA-256 of the exact content, used up by one write; the decision view reads the matched line again from its source on demand and stores nothing; `report` sets write and record the finding in the Delivery view with one Kiro Crew notification; a test greps SQLite, events, decisions, and notification payloads for each fake term, plain and encoded, and finds none.
@@ -2033,7 +1920,6 @@ numbered after Phase 9 because task IDs never move.
   - Built: in the publish commit `ac3825f` (`src/app/content-rules.mjs`; `src/app/test/content-rules.test.mjs`, `content-terms.test.mjs`).
 - [x] 10.6 GitHub boundaries, after 3.7, 3.15, 4.3, 4.4, and 4.8 [R40.3, R40.5] (§4.9, §6.3, §6.7)
   - Facts:
-    - summary: Phase 10 (Content rules). See R40.3, R40.5; §4.9, §6.3, §6.7.
     - done:
       - GitHub boundaries, after 3.7, 3.15, 4.3, 4.4, and 4.8
       - Issue titles and whole bodies before each create or update in projection; Release and Iteration values before each Project field write; every comment Avoozl writes (breakdown previews, published summaries, steering replies) and responder replies; candidate pull request titles, bodies, commit messages, and added diff lines each tick, which block completion and open a decision as 4.8 does. A match writes nothing for that issue, item, or comment and the tick goes on.
@@ -2043,7 +1929,6 @@ numbered after Phase 9 because task IDs never move.
   - Built: in the publish commit `ac3825f` (`src/app/content-rules.mjs`; `src/app/test/content-rules.test.mjs`, `content-terms.test.mjs`).
 - [x] 10.7 Rules plugins, after 8.6 [R40.9, R40.14, R34] (§4.8, §4.9, F73)
   - Facts:
-    - summary: Phase 10 (Content rules). See R40.9, R40.14, R34; §4.8, §4.9, F73.
     - done:
       - Rules plugins, after 8.6
       - Plugin kind `rules` beside `route` and `tracker`; contract call `ruleSets()` returning `[{id, version, rules: [{id, pattern}]}]`, schema-checked; the usual consent, child process, and time limit; rules kept in memory only, never in SQLite, receipts, or Git, and findings record the set `version`; a fake rules plugin under `test/fixtures/plugins/`, covered by the 7.4 and 8.8 scans.
@@ -2053,7 +1938,6 @@ numbered after Phase 9 because task IDs never move.
   - Built: in the publish commit `ac3825f` (`src/app/content-rules.mjs`; `src/app/test/content-rules.test.mjs`, `content-terms.test.mjs`).
 - [x] 10.8 Allowed patterns [R40.15, R40.13] (§4.9 Allowed patterns)
   - Facts:
-    - summary: Phase 10 (Content rules). See R40.15, R40.13; §4.9.
     - done:
       - Allowed patterns
       - `allow: regex` and `allow <rule>: regex` lines in terms files, parsed by `parseTerms` and `checkTermsText` with line-numbered errors that never repeat the line; the worker drops a match when an allow pattern matches the same line and returns only counts; built-in sets unchanged; `checkRuleSets` refuses a set with `allow`; the release scan applies a file's allow lines to that file's rules only; the Rule builder gets an Allow row with an optional rule picker, the File view reads allow lines, Try it strikes through allowed matches; How rules work and `docs/plugins.md` updated; tests for allow-all, allow-one-rule, a non-matching line still blocking, built-ins unaffected, no echo, the release scan, and builder and File view round trip.
@@ -2064,7 +1948,6 @@ numbered after Phase 9 because task IDs never move.
 
 - [x] avoozl-p28 P28 Proof: content rules with fake terms and a fake rules plugin [R40] (§4.9)
   - Facts:
-    - summary: Phase 10 (Content rules). Proof. See R40; §4.9.
     - done:
       - Expected: (1) the save is refused in-call naming `fake-terms`, `codename`, `design.md`, and the line, and no decision opens; (2) approval is refused with a `content.match` diagnostic and a decision; allow once records who, why, and the hash and the next approval passes; the changed line is blocked again; (3) that issue is not written and a decision opens, and the other issue is projected; (4) no Release write and a decision naming `fake-plugin-set`; (5) `done` is refused in-call, the hook stops the push, and the fixed commit is accepted and integrates; the base file never blocks; (6) `b` does not complete and a decision opens; (7) both refusals match today's messages and the existing screen tests pass unchanged; (8) the brief is sent, and the Delivery view shows one `fake-paths` finding with one notification; (9) the missing file blocks every boundary `fake-terms` covers with one decision while uncovered work goes on; the tracked file is refused; the crashed plugin makes only `fake-plugin-set` unavailable; the slow rule times out in about 2 seconds, its set fails closed, and the tick finishes; (10) validation refuses the `terms` key, and the MCP allow gets 403; (11) zero hits anywhere, and the release scan prints `codename` with file and line but not the line.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -2084,70 +1967,60 @@ references hold; nothing in them exists.
 
 - [x] 11.1 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
     - checks: npm test, git diff --check
 - [x] 11.2 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
 - [x] 11.3 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
 - [x] 11.4 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
 - [x] 11.5 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
 - [x] 11.6 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
 - [x] 11.7 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
 - [x] 11.8 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
 - [x] 11.9 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
 - [x] 11.13 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
@@ -2155,69 +2028,59 @@ references hold; nothing in them exists.
 - [x] 11.14 Retired 2026-11-18
   - Facts:
     - checks: npm test, git diff --check
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - after: 11.1
 - [x] 11.15 Retired 2026-11-18
   - Facts:
     - checks: npm test, git diff --check
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - after: 11.14
 - [x] 11.16 Retired 2026-11-18
   - Facts:
     - checks: npm test, git diff --check
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - after: 11.14
 - [x] 11.17 Retired 2026-11-18
   - Facts:
     - checks: npm test, git diff --check
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - after: 11.14
 - [x] 11.18 Retired 2026-11-18
   - Facts:
     - checks: npm test, git diff --check
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - after: 11.14
 - [x] 11.10 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
     - checks: npm test, git diff --check
 - [x] avoozl-p29 P29 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - after: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 11.10
     - checks: npm test, git diff --check
 - [x] 11.11 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4, 11.2, 11.3
 - [x] 11.12 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4, 11.8, 11.11
 - [x] avoozl-p33 P33 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
@@ -2236,7 +2099,6 @@ never move.
 
 - [x] 12.1 Timing store and event spans [R43.1–R43.3, R43.6–R43.8] (§4.11, F96)
   - Facts:
-    - summary: Phase 12 (Flow). See R43.1–R43.3, R43.6–R43.8; §4.11, F96.
     - done:
       - Timing store and event spans
       - New `flow_spans` table (`task_id`, `attempt`, `batch_id`, `role`, `stage`, `started_at`, `ended_at`, `source`, `detail`) and `src/app/flow.mjs`; spans for `queued`, `review`, `rework`, `merge`, and `waiting` from readiness, bindings, reports, verdicts, retries, and integration; no setting; open spans close at the next ending event after a restart; `detail` passes the content rules; no prompts, output, tokens, or cost; old `usage_samples` and `provider_events` untouched.
@@ -2246,7 +2108,6 @@ never move.
   - Built: `156ae8e` (flow.mjs, `flow_spans`).
 - [x] 12.2 Tool-call reader, after 12.1 [R43.4] (§4.11, F90–F94)
   - Facts:
-    - summary: Phase 12 (Flow). See R43.4; §4.11, F90–F94.
     - done:
       - Tool-call reader, after 12.1
       - First read one live tick-opened worker slot with `GET /api/chat/slots/<slot>?cursor=1` and record in the receipt whether tool rows carry `meta.kind` and `meta.input`, settling F91 live; then read each live tick-opened worker once per tick beside the status read, keep only `kind`, the command's first words, and `ts`; a shell call running a declared check is `tests`, other shell calls `commands`, the rest `coding`; source `tool-calls`.
@@ -2256,7 +2117,6 @@ never move.
   - Built: `156ae8e` (reader; live slot read not done, row shape Inferred, see P30 receipt).
 - [x] 12.3 Phase markers and check durations, after 12.1 [R43.5, R45.2] (§4.11)
   - Facts:
-    - summary: Phase 12 (Flow). See R43.5, R45.2; §4.11.
     - done:
       - Phase markers and check durations, after 12.1
       - `plans_report` `progress` takes optional `phase` (`coding`, `tests`, `commands`, `ci-wait`), stamped on receipt; the brief asks for markers only when Avoozl cannot read the session's tool calls (Crew Mode, remote, or no read); verifier entries and `done` check lists gain `durationMs`; unmarked worker time is `coding`; source `markers`.
@@ -2266,7 +2126,6 @@ never move.
   - Built: `156ae8e`.
 - [x] 12.4 GitHub timing, after 12.1 and 3.11 [R43.3] (§4.11, F95)
   - Facts:
-    - summary: Phase 12 (Flow). See R43.3; §4.11, F95.
     - done:
       - GitHub timing, after 12.1 and 3.11
       - `ci-wait` from the first check run requested to the last required check completed on each pushed head, and GitHub `review` spans from request to `submitted_at`, through the reads completion already makes (§6.5); no new poller; "CI only" failures recorded when CI fails on a commit with a local pass.
@@ -2276,7 +2135,6 @@ never move.
   - Built: `156ae8e` (ci-wait and CI only from the completion read; GitHub review spans not built).
 - [x] 12.5 Metrics, after 12.1 [R43.7] (§4.11)
   - Facts:
-    - summary: Phase 12 (Flow). See R43.7; §4.11.
     - done:
       - Metrics, after 12.1
       - Lead time, flow efficiency, first-pass rate, time to fix, change failure rate, and integrations per day, per task and per window, computed on read; `flow.view` observe operation for the UI, CLI `avoozl flow`, and MCP `plans_flow`.
@@ -2286,7 +2144,6 @@ never move.
   - Built: `156ae8e` (`flow.view`, `avoozl flow`, `plans_flow`); charts over time `fc2db02`.
 - [x] 12.6 Stop the line, after 12.1 and 9.5 [R44] (§4.11)
   - Facts:
-    - summary: Phase 12 (Flow). See R44; §4.11.
     - done:
       - Stop the line, after 12.1 and 9.5
       - Trigger on a passed check failing on the landing branch after one rerun, and on a failed verification that also fails on the task's base; flaky record; culprit by range, bisect in a scratch worktree up to 8 runs, else unknown; pause by `flow.stopTheLine.scope` (default `dependents`); stopped check not judged on other commits; one fix task `<culprit-id>.fix-<n>` first in line, revert allowed; resume on green with time to fix and one notification.
@@ -2298,7 +2155,6 @@ never move.
   - Built: `156ae8e` (flow-line.mjs); local landing branch only.
 - [x] 12.7 Local checks first, after 12.3, 4.7, and 10.4 [R45] (§4.11)
   - Facts:
-    - summary: Phase 12 (Flow). See R45; §4.11.
     - done:
       - Local checks first, after 12.3, 4.7, and 10.4
       - `flow.localChecksFirst` (default `true`); briefs for pushing sessions say to run the declared checks before each push; `done` for a pushed commit refused without a passing check list for that commit; the 10.4 pre-push hook also refuses a push with no recorded local pass and does not rerun checks; local delivery unchanged.
@@ -2308,7 +2164,6 @@ never move.
   - Built: `156ae8e` (flow-checks.mjs, `plans_run_checks`, `avoozl checks run`).
 - [x] 12.8 Batching, after 12.1, 9.2, and 9.6 [R46] (§4.11)
   - Facts:
-    - summary: Phase 12 (Flow). See R46; §4.11.
     - done:
       - Batching, after 12.1, 9.2, and 9.6
       - Manifest `size: "small"`; group ready local-authority leaves by `flow.batch.by` (`epic` default, or `files`) up to `flow.batch.max` (default 3, 1 is off), same repository, route, crew, and review roles, no edges; one session and worktree, one commit and `done` per task, checks and review once on the batch head, one rebase; on failure split and retry alone with no attempt cost; Graph and Delivery show the batch.
@@ -2319,7 +2174,6 @@ never move.
   - Built: `736fbd6` (flow-batch.mjs); split worktree retired `2f2de0c`.
 - [x] 12.9 Retrospectives, after 12.5 and 10.4 [R47.1–R47.6, R47.8, R47.9] (§4.11)
   - Facts:
-    - summary: Phase 12 (Flow). See R47.1–R47.6, R47.8, R47.9; §4.11.
     - done:
       - Retrospectives, after 12.5 and 10.4
       - Tool-less `avoozl-retro` agent in `kirocrew-app/agents/`; triggers with the defaults in §4.11, one at a time per workspace, folded triggers, one-hour spike gap; brief through the `brief` content-rule boundary; reply schema-checked, at most 3 typed proposals, refused safety keys, "removes a check" marked; Approve writes settings through the validated operation or opens a planner draft; Reject records why; 10-minute timeout.
@@ -2329,7 +2183,6 @@ never move.
   - Built: `736fbd6` (flow-retro.mjs, `avoozl-retro` agent).
 - [x] 12.10 PDCA check, after 12.9 [R47.7] (§4.11)
   - Facts:
-    - summary: Phase 12 (Flow). See R47.7; §4.11.
     - done:
       - PDCA check, after 12.9
       - On Approve record the proposal's metric over the last `everyTasks` finished tasks; after that many more record it again and mark helped, no change, or worse (10% threshold in the expected direction); a change that did not help puts a typed revert proposal in the next retrospective.
@@ -2339,7 +2192,6 @@ never move.
   - Built: `736fbd6`.
 - [x] 12.11 Flow tab, Timing fold, and Line stopped banner per §8.4, after 12.5, 12.6, and 12.9 [R48.1–R48.5] (§8.4)
   - Facts:
-    - summary: Phase 12 (Flow). See R48.1–R48.5; §8.4.
     - done:
       - Flow tab, Timing fold, and Line stopped banner per §8.4, after 12.5, 12.6, and 12.9
       - Top-level Flow tab with the `Gauge` icon (or `Timer` if the host lacks it) on heading and nav; metric cards with the previous window; stacked bars marked coarse when not from tool calls; bottleneck callout; retros with Approve, Reject, PDCA, and Run a retro now; shared filter panel; drawer Timing fold after Delivery; red Dashboard banner with Open fix task and confirmed Run anyway. Check the page by drawing it and looking at it.
@@ -2349,7 +2201,6 @@ never move.
   - Built: `07a7d4c`; charts, tokens and credits `fc2db02`; checked from screenshots, light and dark, wide to 320 px.
 - [x] 12.12 Settings Flow group and validation, after 12.6, 12.7, 12.8, and 12.9 [R48.6–R48.8, R47.8] (§4.11, §8.4)
   - Facts:
-    - summary: Phase 12 (Flow). See R48.6–R48.8, R47.8; §4.11, §8.4.
     - done:
       - Settings Flow group and validation, after 12.6, 12.7, 12.8, and 12.9
       - `flow` in `.avoozl.json` per workspace and per repository (`projects.<id>.flow`); validation of every key and value; `flow.retro.instructions` machine-local only and refused in tracked files; Settings sub-groups Timing, Stop the line, Local checks first, Batching, Retro, each with a heading and one line, raw keys small, "(optional)" markers, defaults as placeholders; edits through the shared operations with expected revisions.
@@ -2359,7 +2210,6 @@ never move.
   - Built: `07a7d4c`; model dropdown and built-in prompt part `fc2db02`.
 - [ ] 12.13 MC-13 upstream ask [R43.4, R43.5] (§4.11, §7.1, F90–F94)
   - Facts:
-    - summary: Phase 12 (Flow). Files an upstream request with Kiro Crew; changes no code here. See R43.4, R43.5; §4.11, §7.1, F90–F94.
     - done:
       - MC-13 upstream ask
       - File the standalone request with Kiro Crew for an app-scoped tool-call read with end time and exit code, covering sessions bound to the app's tasks, local and remote; change no Kiro Crew code; when it ships, record its contract in §7.1 and switch 12.2 to it, keeping markers for older hosts.
@@ -2367,13 +2217,13 @@ never move.
     - completion: person
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
     - manual: true
+  - Files an upstream request with Kiro Crew; changes no code here.
   - File the standalone request with Kiro Crew for an app-scoped tool-call read with end time and exit code, covering sessions bound to the app's tasks, local and remote; change no Kiro Crew code; when it ships, record its contract in §7.1 and switch 12.2 to it, keeping markers for older hosts.
   - Drafted, not filed: the request is ready for the owner to file (2026-11-13). Usage needs no ask: `GET /api/usage/turns` already serves an app its own sessions' tokens and credits (Verified from source).
   - Open: filed as kirodotdev/KiroCrew#36743 (open); waits on Kiro Crew.
 
 - [x] avoozl-p30 P30 Proof: flow with fake workers and scripted timings [R43–R48] (§4.11, §8.4)
   - Facts:
-    - summary: Phase 12 (Flow). Proof. See R43–R48; §4.11, §8.4.
     - done:
       - Expected: (1) `c1` shows `coding`, `commands`, and `tests` spans from tool calls, the check counted as `tests`, and no output stored; (2) `b1`'s spans come from markers and show as coarse; (3) one batch of 3 by epic, one session, one commit and one `done` per task, checks once on the head; `a4` waits; (4) the batch splits, each task retries alone, no attempt counts; (5) the culprit is `a1`, the line stops, `d1` is not dispatched, `c2` keeps running, `c2`'s result for that check after its rebase is not judged and costs no attempt, a fix task is first in line, and the red banner names the check, `main`, `a1`, the fix task, and the paused count; Needs you stays empty; (6) a flaky record and no stop; (7) green on `main` resumes `d1`, records time to fix, and notifies once; `a1` stays accepted; (8) dispatch resumes with the stop still shown and who pressed it; the agent call gets 403; (9) the push without a pass is refused by the hook and the `done` is refused; the CI failure is recorded as "CI only" with a `ci-wait` span from the feed; (10) the retro names the biggest bottleneck with numbers; the content-rules proposal is dropped with a reason; Approve writes `flow.batch.max` 5 with an expected revision and nothing else changes; (11) PDCA marks "did not help" and the next retro carries a revert proposal; (12) the open span closes at its next ending event, not at the restart; (13) validation refuses the file and names the key. The Flow tab and drawer show each of these, and lead time, flow efficiency, first-pass rate, and time to fix match values computed by hand from the script.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -2396,7 +2246,6 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
 
 - [x] 13.1 Untriaged settings and filter, after 3.13 and 3.14 [R49.3–R49.5] (§8.5, §4.4)
   - Facts:
-    - summary: Phase 13 (Untriaged). See R49.3–R49.5; §8.5, §4.4.
     - done:
       - Untriaged settings and filter, after 3.13 and 3.14
       - `untriaged` per repository in `github.repositories` (`filter`, `triageLabels`, `ignoreOlderThanDays`, `notify`), validated in `github-policy.mjs`; the filter parsed by `parseMatch` without the `label:` requirement; blank means `-label:<triage labels>`; triage labels refused when managed; Settings group with the filter's chips and count, checkboxes from the repository's labels (read only) with missing names kept and marked, and plain "(optional)" markers.
@@ -2406,7 +2255,6 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - Built: `c551205` (policy, filter); Settings group `58ac891`.
 - [x] 13.2 Cached read in the tick, after 13.1 [R49.1, R49.6] (§8.5, F12)
   - Facts:
-    - summary: Phase 13 (Untriaged). See R49.1, R49.6; §8.5, F12.
     - done:
       - Cached read in the tick, after 13.1
       - One GraphQL search per repository at most every 10 minutes from the cron's tick, up to 3 pages of 100; `untriaged.json` beside the database with `checkedAt`, the query, and any error; a failed read keeps the last items; a changed query reads on the next tick; nothing in Local only mode; no GitHub writes.
@@ -2416,7 +2264,6 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - Built: `c551205`; a changed age alone reads again `f60cd3f` (found by P31).
 - [x] 13.3 `untriaged.view` and hand-off links, after 13.2 [R49.2, R49.7, R49.8, R49.15] (§8.5, F98–F100)
   - Facts:
-    - summary: Phase 13 (Untriaged). See R49.2, R49.7, R49.8, R49.15; §8.5, F98–F100.
     - done:
       - `untriaged.view` and hand-off links, after 13.2
       - Observe operation that applies the exclusions at read time (triage and managed labels, rule matches without the actor check, task issues, recorded pull requests, pull requests that close a task's issue); `refresh: true` reads first; per-item GitHub, Issue Radar, and Code review links with the fallback and its tooltip; the bulk selection link.
@@ -2426,7 +2273,6 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - Built: `c551205`.
 - [x] 13.4 Untriaged tab and Dashboard count, after 13.3 and 2.13 [R49.9–R49.13] (§8.5)
   - Facts:
-    - summary: Phase 13 (Untriaged). See R49.9–R49.13; §8.5.
     - done:
       - Untriaged tab and Dashboard count, after 13.3 and 2.13
       - Top-level tab with the `Inbox` icon and an accent count badge; shared filter panel (repository, kind, age, author, label); 100-row pages; rows with kind icon, number and title, repository, author, age, labels, comments, draft and checks; icon buttons with the shared tooltip; keyboard multi-select and the bulk button; checked time and Check now; the empty state; hidden in Local only; the Dashboard count. Check the page by drawing it at three widths in light and dark and looking at it.
@@ -2437,7 +2283,6 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - Built: `58ac891`, page `43f2744`.
 - [x] 13.5 Untriaged notice, after 13.2 [R49.14] (§8.5)
   - Facts:
-    - summary: Phase 13 (Untriaged). See R49.14; §8.5.
     - done:
       - Untriaged notice, after 13.2
       - New `untriaged` notification channel; one notice per workspace when a notifying repository's count rose since the last notice and an hour has passed; counts per repository, never one per item.
@@ -2447,18 +2292,17 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - Built: `c551205`.
 - [x] 13.6 MC-14 upstream ask [R49.8] (§8.5, §7.1, F98, F99)
   - Facts:
-    - summary: Phase 13 (Untriaged). Files an upstream request with Kiro Crew; changes no code here. See R49.8; §8.5, §7.1, F98, F99.
     - done:
       - MC-14 upstream ask
       - File the standalone request with Kiro Crew for page links into Issue Radar (repository, filter, selected numbers, one item) (the review app link was dropped 2026-11-14); change no Kiro Crew code; when it ships, record the contract in §7.1 and switch 13.3's links to it.
       - The report names what was done and where the result is.
     - completion: answered
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
+  - Files an upstream request with Kiro Crew; changes no code here.
   - File the standalone request with Kiro Crew for page links into Issue Radar (repository, filter, selected numbers, one item) (the review app link was dropped 2026-11-14); change no Kiro Crew code; when it ships, record the contract in §7.1 and switch 13.3's links to it.
   - Built: filed as kirodotdev/KiroCrew#36431; the links stay on the fallback until it ships.
 - [x] 13.7 Send to Issue Radar, after 13.3 and 13.4 [R52.1–R52.6, R52.10, R52.11] (§8.5)
   - Facts:
-    - summary: Phase 13 (Untriaged). See R52.1–R52.6, R52.10, R52.11; §8.5.
     - done:
       - Send to Issue Radar, after 13.3 and 13.4
       - `untriaged.crews` (observe) reads a repository's crews through the gateway client and degrades to a typed label with the reason; `untriaged.handoff` (owner session only) refuses bad labels, checks Who counts for the `gh` login, passes content rules, adds the label per issue, and stores `radar-handoff` receipts; `untriaged.view` gains `withRadar`; the crew picker and confirm dialogs with the empty-scope warning; the With Issue Radar list; needs-human rows under Needs you; help text and docs; the draft upstream ask for a read-only crew list. Check the page by drawing it at three widths in light and dark and looking at it.
@@ -2468,7 +2312,6 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - Built: in the publish commit `ac3825f`: `untriaged.crews`, `untriaged.handoff`, `radar-handoff` receipts, `withRadar`, `SendToRadar.tsx`; tests `src/app/test/radar-handoff.test.mjs`.
 - [x] 13.8 Crew composition rules, after 3.15 and 13.7 [R52.7–R52.9] (§6.4, §6.5)
   - Facts:
-    - summary: Phase 13 (Untriaged). See R52.7–R52.9; §6.4, §6.5.
     - done:
       - Crew composition rules, after 3.15 and 13.7
       - A claimed issue's close without a merged closing pull request holds and opens a decision, never an order; crew label events never trigger a rule, and a rule naming one as a positive label is refused; a test that the ready label leaves a leaf blocked again by a reopened blocker.
@@ -2478,7 +2321,6 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - Built: in the publish commit `ac3825f`: a claimed issue's close holds (`src/app/test/github-close.test.mjs`), crew label events never trigger and a rule naming one is refused (`radar-handoff.test.mjs`), a reopened blocker removes the ready label (`single-repo-delivery.test.mjs`).
 - [ ] 13.9 Read-only crew list upstream ask [R52.2] (§8.5, §7.1)
   - Facts:
-    - summary: Phase 13 (Untriaged). Files an upstream request with Kiro Crew; changes no code here. See R52.2; §8.5, §7.1.
     - done:
       - Read-only crew list upstream ask
       - File the standalone request with Kiro Crew for an app-reachable, read-only crew list (names, state, scope labels, needs-human label) that does not also grant crew writes; change no Kiro Crew code; when it ships, switch 13.7's reader to it.
@@ -2486,12 +2328,12 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
     - completion: person
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
     - manual: true
+  - Files an upstream request with Kiro Crew; changes no code here.
   - File the standalone request with Kiro Crew for an app-reachable, read-only crew list (names, state, scope labels, needs-human label) that does not also grant crew writes; change no Kiro Crew code; when it ships, switch 13.7's reader to it.
   - Open: not filed yet; filing upstream is the owner's.
 
 - [x] avoozl-p31 P31 Proof: the Untriaged list with a fake GitHub, then a live read-only count [R49] (§8.5)
   - Facts:
-    - summary: Phase 13 (Untriaged). Proof. See R49; §8.5.
     - done:
       - Expected: (1) one search; (2) items 1, 5, and 6 only, 6 showing draft and failing checks, with GitHub, Issue Radar, and Code review links and the fallback tooltips; (3) item 5 leaves; (4) items stay and the error shows with the checked time; (5) one notice naming the count, no second within the hour; (6) the bulk link opens Issue Radar and its tooltip names #1 and #6; (7) the tab and Dashboard count are hidden and nothing is read; (8) counts per repository, and no GitHub write.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -2515,7 +2357,6 @@ never move.
 
 - [x] 14.1 Incoming-item record and storage [R50.1–R50.3] (§4.12, F112)
   - Facts:
-    - summary: Phase 14 (Incoming items). See R50.1–R50.3; §4.12, F112.
     - done:
       - Incoming-item record and storage
       - `incoming_items` and `intake_sources` store tables; the record shape with the trust-boundary checks of R50.2 (bad items refused alone, with the field named); dedup on source plus ID by content hash; stale `updatedAt` ignored and reported; a quiet pass writes nothing.
@@ -2525,7 +2366,6 @@ never move.
   - Built: `3040bef`: `incoming_items` and `intake_sources` tables (`src/app/store.mjs`), the record and checks (`incomingItem` gains `trigger`, `src/app/plugin-contract.mjs`; first part in 16.4), dedup, stale and quiet writes in `takeItem` (`src/app/intake.mjs`).
 - [x] 14.2 Source settings, after 3.13 [R50.6, R50.11, R50.20] (§4.12, §4.4)
   - Facts:
-    - summary: Phase 14 (Incoming items). See R50.6, R50.11, R50.20; §4.12, §4.4.
     - done:
       - Source settings, after 3.13
       - `intake.sources` in `.avoozl.json` and in machine-local settings, validated like `plugins` entries: reserved `github` and `local`, `via` naming a `plugins` entry with `poll` or `mcp`, a registered `repository`, `labelFields`, `assigneeField`, `allowedActors`, `minimumPermission` (default `write`); one Settings group with the public-repository warning and plain "(optional)" markers; a `respond` rule with a non-GitHub `source:` refused.
@@ -2535,7 +2375,6 @@ never move.
   - Built: `3040bef`, `dbcf1b9`: `validateSource`, `declaredSources`, `editSource` (`src/app/intake.mjs`); `intake` in the tick's policy check and the schema; Settings › Plugins › Intake sources (`IntakeSources.tsx`) with the shared-repo confirm; respond with `source:` refused (`github-policy.mjs`).
 - [x] 14.3 `intake.submit`, `intake.list`, `intake.view`, after 14.1 and 14.2 [R50.5, R50.8] (§4.12)
   - Facts:
-    - summary: Phase 14 (Incoming items). See R50.5, R50.8; §4.12.
     - done:
       - `intake.submit`, `intake.list`, `intake.view`, after 14.1 and 14.2
       - Operations in `operations.mjs`; CLI `avoozl intake submit|list|view`; MCP `plans_intake_submit`, `plans_intake_list`, `plans_intake_view` with no existing `plans_*` name changed; submit only to an `mcp` source, 1–100 items, per-item results; run under the workspace tick lock.
@@ -2545,7 +2384,6 @@ never move.
   - Built: `3040bef`: `intake.submit`, `intake.list`, `intake.view` (and `intake.sources`) in `operations.mjs`, under the tick lock; CLI `avoozl intake`; MCP as `plans_intake` actions `submit_items`, `items`, `item`, `sources` (R56 grouping, not new names).
 - [x] 14.4 Pipeline, after 14.3 and 10.6 [R50.9–R50.11, R50.19] (§4.12, §4.9, F107, F109, F110)
   - Facts:
-    - summary: Phase 14 (Incoming items). See R50.9–R50.11, R50.19; §4.12, §4.9, F107, F109, F110.
     - done:
       - Pipeline, after 14.3 and 10.6
       - The `intake` content boundary (block quarantines with a decision that never names the text; report records), off unless a set names it; `source:` in `parseMatch` (one per rule; absent means GitHub; refused in an Untriaged filter); `labelFields` and `assigneeField` mapping; actions by today's precedence; `deliver`/`execute` make a pinned local leaf in the source's repository and `plan` an inbox task through `task.capture`; `review` items skipped by deliver, execute, plan, and respond rules.
@@ -2555,7 +2393,6 @@ never move.
   - Built: `3040bef`: the opt-in `intake` boundary (`content-rules.mjs`); `source:` in `parseMatch` and `sourceRules` in the normalized policy so GitHub code never sees them; `matchView` for `labelFields` and `assigneeField`; leaves and inbox tasks from `takeItem`; reviews skip starting rules.
 - [x] 14.5 Who counts per source, after 14.4 [R50.12–R50.14] (§4.12, F106–F108)
   - Facts:
-    - summary: Phase 14 (Incoming items). See R50.12–R50.14; §4.12, F106–F108.
     - done:
       - Who counts per source, after 14.4
       - GitHub unchanged; a plugin source's `trigger.actor` and `trigger.permission` checked by `actorAllowed` against the source's settings; no `actor` capability means no allowed actor; an MCP caller's items meet only `pause` and `quarantine` rules, and its claimed author and trigger are stored as claims.
@@ -2565,7 +2402,6 @@ never move.
   - Built: `3040bef`: `judgeItem` (`src/app/intake.mjs`): plugin `trigger` through `actorAllowed` against the source's settings, no `actor` capability means nobody, MCP items meet only pause and quarantine and keep author and trigger as `claims`.
 - [x] 14.6 Plugin `poll`, after 8.7 and 14.4 [R50.7] (§4.8, §4.12, F104, F105)
   - Facts:
-    - summary: Phase 14 (Incoming items). See R50.7; §4.8, §4.12, F104, F105.
     - done:
       - Plugin `poll`, after 8.7 and 14.4
       - New tracker capability `poll` and reply check (`items`, `cursor` of at most 2,000 characters, `more`, at most 500 items); the tick opens every plugin a declared source names; one poll per source per tick; the cursor stored after every item is handled; a failed or invalid poll keeps the cursor and items and shows the error; a poll-only plugin is never asked to project, read, list, or close; the fake tracker plugin gains `poll`.
@@ -2576,7 +2412,6 @@ never move.
   - Built: `3040bef`: `pollSources` and the tick's `pollStep` (`src/app/tick.mjs`): one poll per source, cursor stored after the page, a failed poll keeps cursor and items and shows the error; the fake tracker gains `poll` (changed-since cursor). The `poll` contract itself is from 16.4 (`837497b`).
 - [x] 14.7 GitHub intake on the record, after 14.4 [R50.4] (§4.12, F101)
   - Facts:
-    - summary: Phase 14 (Incoming items). See R50.4; §4.12, F101.
     - done:
       - GitHub intake on the record, after 14.4
       - `syncGitHubIssues` writes each listed issue as a `github` item and points its `github_issues` row at it; listing by label, events, permissions, snapshot freeze, and results unchanged; the existing GitHub intake tests pass unchanged.
@@ -2586,7 +2421,6 @@ never move.
   - Built: `3040bef`: `mirrorGitHubIssue`; each `github_issues` row points at its item through `item`; GitHub intake tests pass unchanged.
 - [x] 14.8 Untriaged read on the record, after 14.1 and 13.3 [R50.4] (§4.12, §8.5, F102)
   - Facts:
-    - summary: Phase 14 (Incoming items). See R50.4; §4.12, §8.5, F102.
     - done:
       - Untriaged read on the record, after 14.1 and 13.3
       - The search results become `github` items and each repository's read state an `intake_sources` row (query, checked time, error, truncated, the keys the last search returned); `untriaged.json` no longer written, and the first tick after upgrade reads once; `untriaged.view` returns the same items and repository rows as before for GitHub, plus `source` on each.
@@ -2596,7 +2430,6 @@ never move.
   - Built: `3040bef`: `readCache` and `writeCache` (`src/app/untriaged.mjs`) read and write `github` items and `github:<repo>` source rows; `untriaged.json` is not written and an upgraded workspace reads once; `untriaged.view` is unchanged for GitHub (P31 passes as is).
 - [x] 14.9 Updates and closes, after 14.5 [R50.17, R50.18, R50.21] (§4.12, §6.5)
   - Facts:
-    - summary: Phase 14 (Incoming items). See R50.17, R50.18, R50.21; §4.12, §6.5.
     - done:
       - Updates and closes, after 14.5
       - Title and labels follow to the tied task and rules run again, with withdrawal when no allowed match is left; a body change after the snapshot quarantines; closes follow the allowed-close rule (order, brief note, never verified; otherwise hold and a decision; never reopen); a reopen withdraws the order and leaves running sessions alone; untied closed items deleted after 30 days.
@@ -2606,7 +2439,6 @@ never move.
   - Built: `3040bef`: title, labels and rules follow to the tied task with withdrawal; body change after the snapshot quarantines; `judgeClose` with `intakeVerdict` (order) or `intakeHold` (decision), reopen lifts both; `purgeClosed` after 30 days. `completionReached` and `blockerNotes` read `intakeVerdict`.
 - [x] 14.10 Untriaged for every source, after 14.8, 14.5, and 13.4 [R50.15, R50.16, R50.19] (§8.5)
   - Facts:
-    - summary: Phase 14 (Incoming items). See R50.15, R50.16, R50.19; §8.5.
     - done:
       - Untriaged for every source, after 14.8, 14.5, and 13.4
       - Source filter and source on each row; non-GitHub rows link to the item, show no Issue Radar button, show **Code review** for reviews, and offer person-only **Plan this** and **Deliver this** (403 from a session caller or MCP, with a confirm dialog naming the item); the tab in Local only mode when a non-GitHub source is declared; **Check now** polls a plugin source once. Check the page by drawing it at three widths in light and dark and looking at it.
@@ -2617,7 +2449,6 @@ never move.
   - Built: `3040bef`, `dbcf1b9`, `2c932c0`: `intakeTab` adds every source's items with `source`; the Intake tab (renamed, R50.23) has a Source column and filter, item links, no Issue Radar on other sources, Code review for reviews, Plan this and Deliver this behind a confirm (403 for sessions and MCP), shows in Local only with a source, and Check now polls. Drawn at 1440, 1000 and 600 in light and dark with a harness and looked at.
 - [x] 14.11 MC-15 upstream ask [R50.19] (§4.12, §7.1, F99)
   - Facts:
-    - summary: Phase 14 (Incoming items). Files an upstream request with Kiro Crew; changes no code here. See R50.19; §4.12, §7.1, F99.
     - done:
       - MC-15 upstream ask
       - Removed 2026-11-14: the separate review app was dropped, so there is no ask to file and no `review` rule action.
@@ -2625,11 +2456,11 @@ never move.
     - completion: person
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
     - manual: true
+  - Files an upstream request with Kiro Crew; changes no code here.
   - Removed 2026-11-14: the separate review app was dropped, so there is no ask to file and no `review` rule action.
   - Open: not filed yet; filing upstream is the owner's.
 - [x] 14.12 Docs and leak scan, after 14.3 and 14.6 [R50.22] (§4.8, §13)
   - Facts:
-    - summary: Phase 14 (Incoming items). See R50.22; §4.8, §13.
     - done:
       - Docs and leak scan, after 14.3 and 14.6
       - The plugin guide gains `poll` with the fake plugin as its example; a short guide to `plans_intake_submit` from a Kiro Crew cron job using a fake source; sources named only generically; the 7.4 scan covers the new docs and fixtures.
@@ -2640,7 +2471,6 @@ never move.
 
 - [x] avoozl-p32 P32 Proof: incoming items from a fake plugin source and a fake MCP caller [R50] (§4.12, §8.5)
   - Facts:
-    - summary: Phase 14 (Incoming items). Proof. See R50; §4.12, §8.5.
     - done:
       - Expected: (1) `T1`, `T5`, and `T6` each become one pinned local leaf in `o/app`; `T2` is untriaged (eve lacks `write`); `T3` untriaged; `R1` untriaged with **Code review** and no leaf; issue 1 delivers and issue 2 is untriaged, as before; (2) nothing written; (3) the cursor and items stay, the error shows on the source, and the rest of the tick runs; after restore the next page is read and no item is duplicated; (4) `S1` is listed, not delivered (an MCP claim meets no starting rule); `S2` is paused; the bad link is refused with the field named while the others are stored; the replay is `unchanged` and the older one `stale`; (5) both refused; (6) `T4` is quarantined with a decision naming the set and rule and not the term; (7) the tab lists items from `github`, `tickets`, and `script` with a Source filter, non-GitHub rows link to their items and show no Issue Radar button; the page press makes one pinned leaf, and the MCP call gets 403; (8) `T1`'s task is quarantined until re-triggered or confirmed; (9) `T5`'s close is an order: `d5` is released with the brief note, and `T5`'s leaf has no verified completion; `T6`'s close holds `d6` and opens a decision, Avoozl does not reopen it, and the reopen lifts the hold with running sessions untouched; (10) the closed untied item is gone and tied ones stay; (11) every P31 expectation holds, and `untriaged.json` is not written.
       - A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict.
@@ -2662,7 +2492,6 @@ proves against a fake GitHub and fake workers. It is numbered after Phase
 
 - [x] 15.1 Pull request read [R54.1, R54.2] (§4.13, F114)
   - Facts:
-    - summary: Phase 15 (Pull request feedback). See R54.1, R54.2; §4.13.
     - done:
       - Pull request read
       - For each covered leaf (plans-repo, or single-repo `coder: worker`) with an open pull request on its branch, one GraphQL read per repository per tick: head SHA, check runs and statuses on the head, reviews, unresolved review threads with comments, `mergeable`, and `autoMergeRequest`; skipped when `updatedAt` is unchanged; a failed read keeps the last state and shows the error.
@@ -2672,7 +2501,6 @@ proves against a fake GitHub and fake workers. It is numbered after Phase
   - Built: `5147ccc` (`pullRequestHeads`, `pullRequestFeedback`, `feedbackOf` in `src/app/github.mjs`); read stage in `src/app/github-feedback.mjs`, `d192dfb`. An unchanged pull request is read again only while a check runs, a required check is missing, mergeability is unknown, or a new head has no checks for 10 minutes.
 - [x] 15.2 Feedback events and receipts, after 15.1 [R54.3–R54.5, R54.11, R54.12] (§4.13, F116)
   - Facts:
-    - summary: Phase 15 (Pull request feedback). See R54.3–R54.5, R54.11, R54.12; §4.13.
     - done:
       - Feedback events and receipts
       - Events per R54.3; reviews and comments filtered by `actorAllowed` with the repository's policy, others counted only; receipt key pull request, head SHA, and GitHub event ID; a comment that is also a steering mention sent once; a CI failure after a local pass still records "CI only".
@@ -2682,7 +2510,6 @@ proves against a fake GitHub and fake workers. It is numbered after Phase
   - Built: `d192dfb`, `5a5eb19`. Reviews and comments hold their own commit in the receipt key, so a force-push does not resend them.
 - [x] 15.3 Relay, after 15.2 [R54.6, R54.7, R54.9, R54.10] (§4.13, F115)
   - Facts:
-    - summary: Phase 15 (Pull request feedback). See R54.6, R54.7, R54.9, R54.10; §4.13.
     - done:
       - Relay
       - One message per pull request per tick, quoted with `fence()`, failed checks with conclusion and details link and the `gh run view --log-failed` hint, task ID and title only in plans-repo mode, through the `brief` content boundary and the leak screen; to `intents.messages` for a live tick-opened worker, to `next` for a Crew Mode worker, else a new attempt on the same branch with a resume brief, the kept agent and model (R53.6), counted against the R8 retry bound; an unreachable crew waits; Avoozl writes nothing to GitHub.
@@ -2692,7 +2519,6 @@ proves against a fake GitHub and fake workers. It is numbered after Phase
   - Built: `d192dfb`. The new attempt keeps the last worker's model; R53's per-task agent and model is not built yet. R41.10 (unreachable crew) is not built, so nothing waits on it.
 - [x] 15.4 Bounds and decisions, after 15.3 [R54.8, R54.14] (§4.13)
   - Facts:
-    - summary: Phase 15 (Pull request feedback). See R54.8, R54.14; §4.13.
     - done:
       - Bounds and decisions
       - `delivery.feedbackRounds` (default 5) and `delivery.prFeedback` (default on) per repository and workspace, validated; a round counted on send or attempt; stop and one **Needs you** decision on the bound, on the same check failing on 3 head commits in a row, or on `blocked`.
@@ -2702,7 +2528,6 @@ proves against a fake GitHub and fake workers. It is numbered after Phase
   - Built: `d192dfb`. Settings are `delivery.prFeedback` and `delivery.feedbackRounds` (1–20), also under `delivery.repositories.<project>`. Settling the decision resumes with a fresh bound.
 - [x] 15.5 Delivery view, after 15.4 [R54.4, R54.13] (§4.13, §8)
   - Facts:
-    - summary: Phase 15 (Pull request feedback). See R54.4, R54.13; §4.13, §8.
     - done:
       - Delivery view
       - Each covered leaf shows its latest event, rounds used out of the bound, the session the last round went to, and a count with links for comments not relayed. Check the page by drawing it and looking at it.
@@ -2713,7 +2538,6 @@ proves against a fake GitHub and fake workers. It is numbered after Phase
 
 - [x] avoozl-p34 P34 Proof: pull request feedback with a fake GitHub and fake workers [R54] (§4.13)
   - Facts:
-    - summary: Phase 15 (Pull request feedback). Proof. See R54; §4.13.
     - done:
       - Proof: pull request feedback with a fake GitHub and fake workers
       - Expected: (1) nothing is sent; (2) `a`'s worker gets one message naming both checks with links, `b`'s worker gets `alice`'s review quoted as data, `mallory`'s comment is not sent and is counted in the Delivery view, and the second tick sends nothing new; (3) a new attempt opens on `c`'s branch with the same agent and model and a resume brief naming the conflict and auto-merge; (4) after the third head, one decision opens and nothing more is sent for `a`; (5) one decision opens for `b`; (6) nothing is sent for `d`; (7) nothing is sent for `c`. No message names the planning repository; the fake GitHub records no write by Avoozl.
@@ -2735,7 +2559,6 @@ task IDs never move.
 
 - [x] 16.1 Bundle manifest, after 8.6 [R55.1–R55.3] (§4.14, F117)
   - Facts:
-    - summary: Phase 16 (Plugin bundles). See R55.1–R55.3; §4.14, F117.
     - done:
       - Bundle manifest, after 8.6
       - `provides` with parts `pack`, `rules`, `tracker`, `intake`, `route`; kinds derived; `intake` needs `poll`; a pack-only plugin has no `entry` and never starts a process; the approval stores the parts.
@@ -2745,7 +2568,6 @@ task IDs never move.
   - Built: `837497b` (docs and skill `a675b9a`).
 - [x] 16.2 Pack file and checks, after 16.1 [R55.3, R55.4] (§4.14, F118)
   - Facts:
-    - summary: Phase 16 (Plugin bundles). See R55.3, R55.4; §4.14, F118.
     - done:
       - Pack file and checks, after 16.1
       - `avoozl-pack.json` with `description` and `settings`; a whitelist per group, then the Settings validators; unknown, credential-like, and rule-like keys refused by name.
@@ -2755,7 +2577,6 @@ task IDs never move.
   - Built: `837497b` (docs and skill `a675b9a`).
 - [x] 16.3 Preview and import, after 16.2 [R55.5–R55.7, R55.9] (§4.14, F119)
   - Facts:
-    - summary: Phase 16 (Plugin bundles). See R55.5–R55.7, R55.9; §4.14, F119.
     - done:
       - Preview and import, after 16.2
       - `plugin.pack.preview` and `plugin.pack.import` (person only, approved plugin, exact preview hash, accepted who-counts widening); create, change, keep, skip; `packs` provenance; CLI.
@@ -2765,7 +2586,6 @@ task IDs never move.
   - Built: `837497b` (docs and skill `a675b9a`).
 - [x] 16.4 Intake contract hook, after 8.7 [R55.8, R50.2, R50.7] (§4.8, §4.14)
   - Facts:
-    - summary: Phase 16 (Plugin bundles). See R55.8, R50.2, R50.7; §4.8, §4.14.
     - done:
       - Intake contract hook, after 8.7
       - Tracker capability `poll` and its reply check; each item checked per R50.2; tracker rebuild asks only plugins that provide `tracker`.
@@ -2775,7 +2595,6 @@ task IDs never move.
   - Built: `837497b` (docs and skill `a675b9a`).
 - [x] 16.5 Settings > Plugins parts and Import, after 16.3 [R55.2, R55.5–R55.7] (§4.14, §8)
   - Facts:
-    - summary: Phase 16 (Plugin bundles). See R55.2, R55.5–R55.7; §4.14, §8.
     - done:
       - Settings > Plugins parts and Import, after 16.3
       - Cards list parts and imports; Preview and import pack dialog; Add plugin lists parts and the pack preview. Check the page by drawing it and looking at it.
@@ -2785,7 +2604,6 @@ task IDs never move.
   - Built: `837497b` (docs and skill `a675b9a`).
 - [x] 16.6 Docs and plugin skill, after 16.5 [R55.10] (§4.14)
   - Facts:
-    - summary: Phase 16 (Plugin bundles). See R55.10; §4.14.
     - done:
       - Docs and plugin skill, after 16.5
       - `docs/plugins.md` covers bundles, packs, and intake; the app ships an `avoozl-plugin` skill; a generic sample bundle.
@@ -2795,7 +2613,6 @@ task IDs never move.
   - Built: `837497b` (docs and skill `a675b9a`).
 - [x] 16.7 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
@@ -2803,7 +2620,6 @@ task IDs never move.
 
 - [x] avoozl-p35 P35 Proof: one bundle plugin with a pack, rules, a tracker, and an intake source [R55] (§4.14)
   - Facts:
-    - summary: Phase 16 (Plugin bundles). Proof. See R55; §4.14.
     - done:
       - Proof: one bundle plugin with a pack, rules, a tracker, and an intake source
       - Expected: it installs shared, previews as create, refuses import before approval and from an agent, imports with provenance after approval, polls a fake intake source with a bad item refused by field, refuses an unknown pack key by name, shows and requires acceptance of a who-counts lowering, and needs a new approval for a new version.
@@ -2822,7 +2638,6 @@ Numbered after Phase 16 because task IDs never move.
 
 - [x] 17.1 Group MCP tools by object, after 2.3 [R56] (§8)
   - Facts:
-    - summary: Phase 17 (MCP tool groups). See R56; §8.
     - done:
       - Group MCP tools by object, after 2.3
       - About 12 to 15 tools with an action field cover every safe operation; no MCP call performs a person-only operation by any name; old plans_* names keep working.
@@ -2838,7 +2653,6 @@ move.
 
 - [x] 18.1 Avoozl state Project field and board view [R29.18–R29.21] (§6.7, §8.2)
   - Facts:
-    - summary: Phase 18 (Avoozl state and code review chat). See R29.18–R29.21; §6.7, §8.2.
     - done:
       - Avoozl state Project field and board view
       - Avoozl state follows the Delivery lane, is written only on change, a person's edit is written back once and recorded, setup creates the field and view, and Status is never written.
@@ -2847,7 +2661,6 @@ move.
   - Built: `4e49f4c`, `src/app/test/github-project.test.mjs`, `src/app/test/github-setup.test.mjs`.
 - [x] 18.2 Code review chat [R49.16–R49.18] (§8.5)
   - Facts:
-    - summary: Phase 18 (Avoozl state and code review chat). See R49.16–R49.18; §8.5.
     - done:
       - Code review chat
       - Code review queues one seeded review chat the tick opens, the row shows Attach, content rules run on the seed, and Avoozl writes nothing to GitHub.
@@ -2862,7 +2675,6 @@ move.
 
 - [x] 19.1 New plan drawer and Plans button icons, after 2.5 [R57] (§8.6)
   - Facts:
-    - summary: Phase 19 (New plan). See R57; §8.6.
     - done:
       - New plan drawer and Plans button icons, after 2.5
       - New plan opens a seeded planner chat; a clean folder becomes a draft plan; nothing is approved, started or pushed.
@@ -2878,7 +2690,6 @@ move.
 
 - [x] 20.1 Onboard reads, after 3.18 [R58.2, R58.6, R58.7] (§4.15)
   - Facts:
-    - summary: Phase 20 (Onboard a repository). See R58; §4.15.
     - done:
       - Onboard reads, after 3.18
       - Folder inspect, leak scan and issue preview are read-only operations; the preview approves only a scratch copy.
@@ -2888,7 +2699,6 @@ move.
   - Built: see the commit that adds `src/app/onboarding.mjs`.
 - [x] 20.2 Onboard dialog, after 20.1 and 16.5 [R58] (§4.15, §8)
   - Facts:
-    - summary: Phase 20 (Onboard a repository). See R58; §4.15.
     - done:
       - Onboard dialog, after 20.1 and 16.5
       - Cancel before Set up writes nothing; each GitHub write asks first; the flow never approves, dispatches or pushes.
@@ -2912,7 +2722,6 @@ the owner's own plans once, after P36 passes.
 
 - [x] 21.1 Epic folders and the `epic:` key, after Phase 3's proofs [R59.1–R59.4, R59.7] (§6.9)
   - Facts:
-    - summary: Phase 21 (Epics and phases). See R59.1–R59.4, R59.7; §6.9.
     - done:
       - Epic folders and the `epic:` key, after Phase 3's proofs
       - An epic folder is known by its manifest's top-level kind, lists member plans, and is refused with the §6.9 codes; `epic:` front-matter is read like `category:`; `kind: "epic"`, per-entry `epic`, a plan's `epics` list and `memberPlan` are validation errors and never load under another name.
@@ -2933,7 +2742,6 @@ the owner's own plans once, after P36 passes.
   - Built: 9535b47 Read epic folders, plan epics and phases; refuse the old epic forms
 - [x] 21.2 Phases from the manifest and `tasks.md` headings, after 21.1 [R59.5, R59.6] (§6.9)
   - Facts:
-    - summary: Phase 21 (Epics and phases). See R59.5, R59.6; §6.9.
     - done:
       - Phases from the manifest and `tasks.md` headings, after 21.1
       - Every task has a phase from its manifest value, else its heading, else No phase; the store keeps only cross-plan epics; no `doc:` epic is created anywhere.
@@ -2943,7 +2751,6 @@ the owner's own plans once, after P36 passes.
   - Built: 9535b47 (phases, no `doc:` or Inbox groups, tasks lose `epic`)
 - [x] 21.3 Epic and phase reads on the page, CLI, and MCP, after 21.2 [R59.4, R59.10] (§6.9, §8)
   - Facts:
-    - summary: Phase 21 (Epics and phases). See R59.4, R59.10; §6.9, §8.
     - done:
       - Epic and phase reads on the page, CLI, and MCP, after 21.2
       - An epic read lists member plans with computed status and progress and open decisions; plan and task reads carry epic and phase; the reads are reachable through the grouped MCP tools.
@@ -2953,7 +2760,6 @@ the owner's own plans once, after P36 passes.
   - Built: 9535b47 (`epic.list`, `epic.get`, plan and task reads, CLI `epics`/`epic`, MCP `plans_plan`)
 - [x] 21.4 Epic and plan issues on GitHub, after 21.2 [R59.8, R59.9, R59.15] (§6.9, §6.3)
   - Facts:
-    - summary: Phase 21 (Epics and phases). See R59.8, R59.9, R59.15; §6.9, §6.3.
     - done:
       - Epic and plan issues on GitHub, after 21.2
       - Projection makes the epic issue with the epic type, plan issues as its sub-issues and task issues under them; the phase line and optional Project field are written; the tick closes plan then epic issues; a second preview writes nothing; `github.subIssues.maxPerParent` (default 100) is validated, shown in GitHub modes only, and checked against each parent's existing sub-issue total; children past the cap and refused links show in the preview and Delivery.
@@ -2963,7 +2769,6 @@ the owner's own plans once, after P36 passes.
   - Built: a5871a4 Project epic and plan issues, cap sub-issues per parent, and add P36
 - [x] 21.5 Views use epic and phase, after 21.3 [R59.6, R59.10] (§6.9, §8)
   - Facts:
-    - summary: Phase 21 (Epics and phases). See R59.6, R59.10; §6.9, §8.
     - done:
       - Views use epic and phase, after 21.3
       - Graph drills All > Epic > Plan > Phase > task with back navigation; Graph, Delivery, Flow, and Plans have separate Epic and Phase filters; Progress by epic counts all member plans; the plan left column and the epic page show epic and phases; no view shows a `doc:` ID or path.
@@ -2973,7 +2778,6 @@ the owner's own plans once, after P36 passes.
   - Built: bae8870 Show epics, plans and phases in the views; batch by phase; add Epic and Phases to New plan
 - [x] 21.6 Batch by phase and the New plan fields, after 21.2 and 19.1 [R59.11, R59.14] (§6.9, §8.6)
   - Facts:
-    - summary: Phase 21 (Epics and phases). See R59.11, R59.14; §6.9, §8.6.
     - done:
       - Batch by phase and the New plan fields, after 21.2 and 19.1
       - `flow.batch.by` accepts `phase` as the default and `files`, and refuses `epic` naming `phase`; New plan has Epic and Phases fields; the planner agent and skill write epic folders, the `epic:` key, and phase headings.
@@ -2983,7 +2787,6 @@ the owner's own plans once, after P36 passes.
   - Built: bae8870 (batch by phase, New plan Epic and Phases, planner agent and skill); 9535b47 planner prompt
 - [x] 21.7 Rewrite the owner's plans once, after avoozl-p36 [R59.12, R59.13] (§6.9)
   - Facts:
-    - summary: Phase 21 (Epics and phases). See R59.12, R59.13; §6.9.
     - done:
       - Rewrite the owner's plans once, after avoozl-p36
       - A one-time script, kept in the task's report and not in `src/`, runs through existing operations on a copy and then live after a sha256 backup; per-plan epics become phases, `doc:` tasks go to their section or No phase, orphaned tasks are archived as "plan removed", old manifest forms and `flow.batch.by: "epic"` are rewritten, every plan lints with 0 errors, a second run changes nothing, spec edits are local commits, and nothing is approved, started, written to GitHub, or pushed.
@@ -2994,7 +2797,6 @@ the owner's own plans once, after P36 passes.
 
 - [x] avoozl-p36 P36 Proof: one epic over two member plans, and old forms refused [R59] (§6.9)
   - Facts:
-    - summary: Phase 21 (Epics and phases). Proof. See R59; §6.9.
     - done:
       - Proof: one epic over two member plans, and old forms refused
       - Expected: membership needs both sides; phases come from manifest values or headings; no `doc:` group appears; three levels of sub-issues project, children past `github.subIssues.maxPerParent` stay unlinked and are shown, and a second preview writes nothing; plan then epic issues close from children; every old form is a validation error; `flow.batch.by: "epic"` is refused.
@@ -3015,7 +2817,6 @@ P28; its proof runs after P36.
 
 - [x] 22.1 Manual leaves in lint and the tick, after 21.1 [R61.9–R61.11, R61.13, R61.15] (§4.16, §4.3)
   - Facts:
-    - summary: Phase 22 (Templates, manual tasks, links and notes). See R61.9–R61.11, R61.13, R61.15; §4.16, §4.3.
     - done:
       - Manual leaves in lint and the tick, after 21.1
       - A manual leaf lints only with completion `person` and no run fields; it is never dispatched or batched; it shows in Blocked or waiting, then Needs you tagged Manual; only a person marks it Done or Skipped or reopens it, and either releases its dependents; MCP calls are refused.
@@ -3025,7 +2826,6 @@ P28; its proof runs after P36.
   - Built: `src/work-model.mjs` (`person`, `isManual`), `src/app/plan-quality.mjs` (`spec.manual-field`, `spec.person-completion`), `src/query.mjs` (never ready), `src/app/page-views.mjs` (Needs you tagged Manual), `src/app/runner.mjs` (`needsYou` reason `manual`), `src/app/manual-tasks.mjs` (`task.manual.complete`/`reopen`, person only), `src/app/flow.mjs` (waiting on a person; out of first-pass and time to fix); the spec's 25 manual tasks now carry completion `person`. Tests: `src/app/test/manual-tasks.test.mjs`.
 - [x] 22.2 Manual leaves on GitHub, after 22.1 and 18.1 [R61.14] (§4.16, §6.3, §6.7)
   - Facts:
-    - summary: Phase 22 (Templates, manual tasks, links and notes). See R61.14; §4.16, §6.3, §6.7.
     - done:
       - Manual leaves on GitHub, after 22.1 and 18.1
       - The manual leaf's issue never gets a ready or trigger label and says a person closes it; Mark done closes it as the person's login after Who counts; an allowed GitHub close completes it; any other close holds dependents with a decision and no reopen; a reopen leaves running sessions alone.
@@ -3035,7 +2835,6 @@ P28; its proof runs after P36.
   - Built: `src/app/github-projection.mjs` (manual line, no ready label), `src/app/github-close.mjs` (`judgeManual`: an allowed close completes with its reason, any other holds and opens a decision, a reopen opens it again), Mark done closes as the `gh` login after Who counts. Tests: `src/app/test/proof-p37.test.mjs`.
 - [x] 22.3 Links and notes store, operations, CLI, and MCP, after 17.1 and avoozl-p28 [R61.16–R61.18, R61.20–R61.22] (§4.16, §4.9)
   - Facts:
-    - summary: Phase 22 (Templates, manual tasks, links and notes). See R61.16–R61.18, R61.20–R61.22; §4.16, §4.9.
     - done:
       - Links and notes store, operations, CLI, and MCP, after 17.1 and avoozl-p28
       - Links and notes are stored in SQLite with the §4.16 limits; the `notes` boundary blocks a banned term for sessions and persons; a session adds only to its bound task and cannot edit or remove; briefs carry the newest entries and blockers' outcomes as data; the plan revision does not change.
@@ -3045,7 +2844,6 @@ P28; its proof runs after P36.
   - Built: `src/app/task-notes.mjs` (`task_notes` table, limits by name, `notes` boundary with Allow once, bound-task adds, briefs of 20 entries within 8,000 characters plus blockers' outcomes), operations, `avoozl task notes`, `plans_task` `notes`/`add_note`. Tests: `src/app/test/task-notes.test.mjs`.
 - [x] 22.4 Task drawer Links and notes and the Mark done dialog, after 22.1 and 22.3 [R61.12, R61.19] (§4.16, §8)
   - Facts:
-    - summary: Phase 22 (Templates, manual tasks, links and notes). See R61.12, R61.19; §4.16, §8.
     - done:
       - Task drawer Links and notes and the Mark done dialog, after 22.1 and 22.3
       - The drawer lists links and notes newest first with author and time, adds, edits and removes them after a confirm, and shows a manual leaf's acceptance with a Mark done dialog that saves an outcome and Done or Skipped.
@@ -3056,7 +2854,6 @@ P28; its proof runs after P36.
   - Built: `kirocrew-app/ui/src/TaskNotes.tsx` (Links and notes fold, Mark done dialog on the shared Modal and RadioFold, Allow once in place), Manual badge on Dashboard and Delivery. Tests: `kirocrew-app/ui/test/manual-notes.test.mjs`; drawn at 320, 768 and 1280 in light and dark with the harness and looked at.
 - [x] 22.5 Links and notes on the issue, after 22.2 and 22.3 [R61.23] (§4.16, §3.3)
   - Facts:
-    - summary: Phase 22 (Templates, manual tasks, links and notes). See R61.23; §4.16, §3.3.
     - done:
       - Links and notes on the issue, after 22.2 and 22.3
       - Only entries a person marks Show on the issue reach the managed body, after the `github` boundary; edits there are conflicts; a rebuild restores shown entries.
@@ -3066,7 +2863,6 @@ P28; its proof runs after P36.
   - Built: Show on the issue (`task.notes.show`, person only) lists entries under Links and notes in the managed body; the tick projects the plan again; `src/app/github-rebuild.mjs` restores shown entries. Tests: `src/app/test/proof-p37.test.mjs` step 7.
 - [x] 22.6 Template plugin part and checks, after 16.3 and 21.2 [R61.1–R61.6] (§4.16, §4.14)
   - Facts:
-    - summary: Phase 22 (Templates, manual tasks, links and notes). See R61.1–R61.6; §4.16, §4.14.
     - done:
       - Template plugin part and checks, after 16.3 and 21.2
       - A plugin can provide templates without code; a template with an unknown key, an unknown placeholder, a starter that does not lint, phases that do not match, or an invalid pack or flow makes its plugin invalid; only approved plugins' templates are listed.
@@ -3076,7 +2872,6 @@ P28; its proof runs after P36.
   - Built: `src/app/templates.mjs` (keys, inputs, plain-text `{{input}}`, starter lints with sample values, phases match, `pack` and `flow` validators), `template` part in `src/app/plugins.mjs` (no entry, invalid template makes the plugin invalid), `template.list` and `template.preview` for approved plugins only. Tests: `src/app/test/templates.test.mjs`.
 - [x] 22.7 From template in the New plan drawer, after 22.6, 21.6 and 19.1 [R61.6–R61.8] (§4.16, §8.6)
   - Facts:
-    - summary: Phase 22 (Templates, manual tasks, links and notes). See R61.6–R61.8; §4.16, §8.6.
     - done:
       - From template in the New plan drawer, after 22.6, 21.6 and 19.1
       - From template lists approved templates, fills their inputs, seeds the planner chat, and returns a draft plan that records the template; settings import only when ticked, through the pack preview hash; a picked epic gets a draft revision; nothing is approved, started or pushed.
@@ -3086,7 +2881,6 @@ P28; its proof runs after P36.
   - Built: `kirocrew-app/ui/src/NewPlanDrawer.tsx` Blank or From template fold-outs, `kirocrew-app/ui/src/TemplateStart.tsx` (inputs, file read in the page up to 200 KB, pack preview with Import these settings unticked); `src/app/new-plan.mjs` takes `template` and `inputs`, records the template on the draft and saves the epic's own draft revision. Tests: `src/app/test/proof-p37.test.mjs`, `kirocrew-app/ui/test/manual-notes.test.mjs`.
 - [x] 22.8 Sample SDK rewrite template, docs, and skills, after 22.7 and 22.4 [R61.24] (§4.16)
   - Facts:
-    - summary: Phase 22 (Templates, manual tasks, links and notes). See R61.24; §4.16.
     - done:
       - Sample SDK rewrite template, docs, and skills, after 22.7 and 22.4
       - The sample SDK rewrite template lints and loads; the docs and the plugin and planner skills describe templates, manual leaves, and links and notes; the sample names no private system or company.
@@ -3097,7 +2891,6 @@ P28; its proof runs after P36.
 
 - [x] avoozl-p37 P37 Proof: an SDK rewrite plan from a template, gated by a manual team review, with links and notes [R61] (§4.16)
   - Facts:
-    - summary: Phase 22 (Templates, manual tasks, links and notes). Proof. See R61; §4.16.
     - done:
       - Proof: an SDK rewrite plan from a template, gated by a manual team review, with links and notes
       - Expected: the template makes a draft that joins an epic and imports no setting unless ticked; the manual review is never dispatched and gates cutover; only a person in the app or an allowed GitHub closer completes it; links and notes are refused by content rules and field limits, reach the dependent's brief as data, and reach the issue only when shown.
@@ -3118,7 +2911,6 @@ people read, and it builds on the incoming-item record of Phase 14.
 
 - [x] 23.1 Say spec on the page, in docs and in skills, after 19.1 [R62] (§8.7)
   - Facts:
-    - summary: Phase 23 (Specs and ideas). See R62; §8.7.
     - done:
       - Say spec on the page, in docs and in skills, after 19.1
       - Every user-facing plan word reads spec; the compatibility names are unchanged; a page-source test fails on any plan word outside its allowlist.
@@ -3128,7 +2920,6 @@ people read, and it builds on the incoming-item record of Phase 14.
   - Built: `e179407`, `46ed4da` (page-source test `kirocrew-app/ui/test/specs-name.test.mjs`); the Specs tab, Change spec in `PlansView.tsx`.
 - [x] 23.2 Idea record and operations, after 14.10 and 17.1 [R63.1, R63.3–R63.6, R63.10] (§8.8, §4.12)
   - Facts:
-    - summary: Phase 23 (Specs and ideas). See R63.1, R63.3–R63.6, R63.10; §8.8, §4.12.
     - done:
       - Idea record and operations, after 14.10 and 17.1
       - Ideas are `local` incoming items with notes and links and their limits; capture and append pass the `intake` boundary; sessions only capture and append; ideas never match a rule, tie to a task, count as untriaged or get purged.
@@ -3139,7 +2930,6 @@ people read, and it builds on the incoming-item record of Phase 14.
   - Built: `f254b8f` (`src/app/ideas.mjs`, `idea.capture`, `idea.append`, `idea.archive`, `idea.restore`, `plans_intake` actions `capture_idea` and `add_idea_note`, CLI `avoozl intake idea`; `src/app/test/ideas.test.mjs`).
 - [x] 23.3 Ideas on the page, after 23.1 and 23.2 [R63.2, R63.7, R63.10] (§8.8)
   - Facts:
-    - summary: Phase 23 (Specs and ideas). See R63.2, R63.7, R63.10; §8.8.
     - done:
       - Ideas on the page, after 23.1 and 23.2
       - + New idea on Specs and Intake, the Idea kind filter and the idea drawer with notes, links, Archive and Restore work at 375 and 1280 px in light and dark.
@@ -3150,7 +2940,6 @@ people read, and it builds on the incoming-item record of Phase 14.
   - Built: `f254b8f` (`Ideas.tsx`, + New idea, Ideas (N), the idea drawer; `kirocrew-app/ui/test/ideas.test.mjs`).
 - [x] 23.4 Riff on this and Make it a spec, after 23.3 [R63.8, R63.9] (§8.8, §8.6)
   - Facts:
-    - summary: Phase 23 (Specs and ideas). See R63.8, R63.9; §8.8, §8.6.
     - done:
       - Riff on this and Make it a spec, after 23.3
       - Riff on this opens a seeded chat that only appends to the idea; Make it a spec prefills the New spec entry point and graduates the idea when the request is recorded; a cancel changes nothing.
@@ -3161,7 +2950,6 @@ people read, and it builds on the incoming-item record of Phase 14.
 
 - [ ] avoozl-p38 P38 Proof: the Specs name and ideas [R62, R63] (§8.7, §8.8)
   - Facts:
-    - summary: Phase 23 (Specs and ideas). Proof. See R62, R63; §8.7, §8.8.
     - done:
       - Proof: the Specs name and ideas
       - Expected: no user-facing plan word outside the allowlist and compat names unchanged; bad idea fields and blocked text refused; ideas never start work or count as untriaged; a session cannot archive or graduate; riff only appends; Make it a spec prefills New spec and graduates the idea; archived ideas survive the purge.
@@ -3182,7 +2970,6 @@ automatic stops of 12.6.
 
 - [x] 24.1 Pulled stops in the backend, CLI and MCP, after 12.6 [R64.2–R64.5, R64.7–R64.11] (§4.11)
   - Facts:
-    - summary: Phase 24 (Pull the Andon cord). See R64.2–R64.5, R64.7–R64.11; §4.11.
     - done:
       - Pulled stops in the backend, CLI and MCP, after 12.6
       - `flow.stop` records a pulled stop after the `brief` content rules and pauses dispatch in its scope; `flow.resume` is person only and recorded; a pulled stop never closes by itself; MCP `stop_line`, `avoozl flow stop` and `avoozl flow resume` work; Flow and the retro carry the pull.
@@ -3192,7 +2979,6 @@ automatic stops of 12.6.
   - Built: `79e5fa7` (`flow.stop`, `flow.resume`, `plans_session` action `stop_line`, `avoozl flow stop|resume`; `src/app/test/flow-andon.test.mjs`).
 - [x] 24.2 Stop the line on the Dashboard, after 24.1 [R64.1, R64.6, R64.7] (§4.11)
   - Facts:
-    - summary: Phase 24 (Pull the Andon cord). See R64.1, R64.6, R64.7; §4.11.
     - done:
       - Stop the line on the Dashboard, after 24.1
       - The red header button, its dialog and the banner with Resume work at 375 and 1280 px in light and dark.
@@ -3204,7 +2990,6 @@ automatic stops of 12.6.
 
 - [ ] avoozl-p39 P39 Proof: pull the Andon cord [R64] (§4.11)
   - Facts:
-    - summary: Phase 24 (Pull the Andon cord). Proof. See R64; §4.11.
     - done:
       - Proof: pull the Andon cord
       - Expected: a pulled stop pauses its scope and leaves running sessions alone; bad pulls are refused with nothing recorded; only a person resumes; nothing else closes a pulled stop; Flow, the retro and the CLI see each pull.
@@ -3224,7 +3009,6 @@ Phase 24 because task IDs never move.
 
 - [x] 25.1 Spec Builder hand-off, steering file and manifest from tasks.md, after 19.1 [R65] (§8.6)
   - Facts:
-    - summary: Phase 25 (New plan hands off to Spec Builder). See R65; §8.6.
     - done:
       - Spec Builder hand-off, steering file and manifest from tasks.md, after 19.1
       - New plan creates the spec in Spec Builder and opens it; the steering file is written only after asking; the tick writes the manifest and imports a draft; Avoozl calls no Spec Builder route but create.
@@ -3242,7 +3026,6 @@ machine claim in its marker.
 
 - [x] 26.1 Driver lock and read-only ticks, after 3.8 and 21.4 [R66.1–R66.9] (§6.10)
   - Facts:
-    - summary: Phase 26 (Driver handoff). See R66.1–R66.9; §6.10.
     - done:
       - Driver lock and read-only ticks, after 3.8 and 21.4
       - A spec is driven only where its plan issue (else its epic issue) has exactly one assignee equal to the gh login and the marker claim names this machine; zero or several reads only everywhere with one decision; the check runs again before each dispatch, projection and integrate; Avoozl changes no assignee; Local only uses a SQLite row.
@@ -3252,7 +3035,6 @@ machine claim in its marker.
   - Built: `e213632`, `f31d6ba`, PR #22. The driver reads the plan issue that 21.4 projects (`upsertParent` in `github-projection.mjs`); machine settings are in `driver.json` beside `plugins.json`. Tested against fakes only.
 - [x] 26.2 Hand off and take over from an export, after 26.1 and 12.1 [R66.10–R66.12, R66.15, R66.16] (§6.10)
   - Facts:
-    - summary: Phase 26 (Driver handoff). See R66.10–R66.12, R66.15, R66.16; §6.10.
     - done:
       - Hand off and take over from an export, after 26.1 and 12.1
       - Hand off drains without ending chats, writes a one-spec export with no machine-local contents and links the plan issue to reassign; Take over checks the file against the claim and imports it in one transaction; away tasks are never restarted by lease; the re-approve list shows; agent, MCP, app-token and plugin callers get 403.
@@ -3262,7 +3044,6 @@ machine claim in its marker.
   - Built: e213632, 24c78bb Carry the activity log in driver exports. Live session bindings, worktrees and in-flight deliveries do not move; their tasks come over as away. The raw lessons store moves with the export through `lessonsHook` (`f31d6ba`). Tested against fakes only.
 - [x] 26.3 Rebuild and force take over, after 26.1 and 3.10 [R66.11, R66.13–R66.15] (§6.10)
   - Facts:
-    - summary: Phase 26 (Driver handoff). See R66.11, R66.13–R66.15; §6.10.
     - done:
       - Rebuild and force take over, after 26.1 and 3.10
       - Rebuild from GitHub shows the loss list first and re-raises open decisions; Force take over names the old driver, needs the spec name typed, sets the plan issue's assignee to this login and reads it back, and records a forced claim; a returning old driver reads only.
@@ -3272,7 +3053,6 @@ machine claim in its marker.
   - Built: e213632. A take-over projects the spec once more on the next tick, which raises open decisions again from GitHub. Rebuild runs for the plan issue's repository. Tested against fakes only.
 - [x] 26.4 Driver in the header, banner, dialogs and Settings, after 26.2 and 26.3 [R66.17] (§6.10)
   - Facts:
-    - summary: Phase 26 (Driver handoff). See R66.17; §6.10.
     - done:
       - Driver in the header, banner, dialogs and Settings, after 26.2 and 26.3
       - The header driver chip, read-only banner with its reason, stepped Hand off dialog, confirm dialogs and Settings › General › This computer work at 375 and 1280 px in light and dark.
@@ -3283,7 +3063,6 @@ machine claim in its marker.
 
 - [x] avoozl-p40 P40 Proof: driver handoff [R66] (§6.10)
   - Facts:
-    - summary: Phase 26 (Driver handoff). Proof. See R66; §6.10.
     - done:
       - Proof: driver handoff
       - Expected: only the machine named by the plan issue's single assignee and its claim writes for a spec; zero or several assignees read only with one decision; one login on two machines is told apart; the dispatch check stops a reassigned driver; age never moves the role; hand off drains, exports and leaves the reassign to a person; take over checks the file; rebuild and forced take-over list what is lost; a silently ignored reassignment is caught; a returning old driver reads only; person-only moves refuse other callers.
@@ -3302,44 +3081,44 @@ Task IDs stay so they are never reused.
 
 - [x] 27.1 Retired
   - Facts:
-    - summary: Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.1–R67.5; §4.17.
     - done:
       - Price table and budget levels, after 12.12
       - A machine-local, versioned price table with no shipped prices, refused in tracked files, packs and manifests; budget usd, tokens and credits at workspace, repository, spec and task, most specific key winning; fallback caps of 2,000,000 tokens and 200 credits; the driver export leaves prices out.
     - checks: npm test, git diff --check
     - after: 12.12
+  - Removed 2026-11-17 (owner).
 - [x] 27.2 Retired
   - Facts:
-    - summary: Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.4, R67.7, R67.11–R67.14; §4.17.
     - done:
       - Spend and receipts, after 27.1 and 12.9
       - Turns are priced on read from raw counts; budget.receipt gives totals by stage, model and attempt with priced flags, cap and level, raises, stops, price version and hash, and missing reasons; the CLI, plans_view action receipt and the retro payload carry it; no prompt or text is held.
     - checks: npm test, git diff --check
     - after: 27.1, 12.9
+  - Removed 2026-11-17 (owner).
 - [x] 27.3 Retired
   - Facts:
-    - summary: Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.6–R67.9, R67.14, R67.15; §4.17.
     - done:
       - Stop at the cap, Raise budget and Stop, after 27.2, 12.8 and 15.4
       - At a cap nothing new is dispatched for the task, each live session gets one stop message and budget_reached on its Avoozl calls, and no session is stopped, interrupted or closed; Raise budget and Stop are person only and cost no attempt; unpriced turns use the token and credit caps; unknown spend warns and never stops; no gate reads the budget.
     - checks: npm test, git diff --check
     - after: 27.2, 12.8, 15.4
+  - Removed 2026-11-17 (owner).
 - [x] 27.4 Retired
   - Facts:
-    - summary: Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.2, R67.10, R67.11; §4.17.
     - done:
       - Spend on the page, after 27.3 and 12.11
       - The drawer Budget fold with Export JSON, the spend chip on the Delivery and In flight cards, and the budget fields work at 375 and 1280 px in light and dark. Settings › Prices was removed 2026-11-14 (owner).
     - checks: npm test, git diff --check
     - after: 27.3, 12.11
+  - Removed 2026-11-17 (owner).
 - [x] avoozl-p41 Retired
   - Facts:
-    - summary: Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). Proof. See R67; §4.17.
     - done:
       - Proof: budgets and receipts
       - Expected: caps resolve by level; a capped task gets no new session and a stop message only after its running turn, with no session stopped; retries, verifier and review rounds share one cap; a batch shares the sum of its caps; unpriced turns stop at the token or credit cap; Raise budget and Stop are person only; a price change recomputes the receipt and keeps the stop's old dollars; unknown spend warns without stopping; export, CLI and MCP agree with no text; no budget opens a gate.
     - checks: npm test, git diff --check
     - after: 27.1, 27.2, 27.3, 27.4
+  - Removed 2026-11-17 (owner).
 
 ## Phase 28: Retro prompt and skill proposals, and lessons
 
@@ -3350,7 +3129,6 @@ retro model.
 
 - [x] 28.1 Prompt registry and override store, after 12.9 [R68.2, R68.5, R68.8, R68.9] (§4.18, F121–F123)
   - Facts:
-    - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R68.2, R68.5, R68.8, R68.9; §4.18.
     - done:
       - Prompt registry and override store, after 12.9
       - The five built-in prompts are named sections with shipped hashes and locked sections; overrides live in the workspace's file under the Avoozl config directory with full version records; person-only revert; briefs, seeds and the steering template use the override; no shipped file changes.
@@ -3360,7 +3138,6 @@ retro model.
   - Built: `a0a0771` (`src/app/prompts.mjs`, overrides under `~/.config/avoozl/prompts/`; agent prompts split into named sections with Person only and Untrusted data locked).
 - [x] 28.2 Prompt and skill proposals in the retro, after 28.1 [R68.1, R68.3–R68.6] (§4.18, F124)
   - Facts:
-    - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R68.1, R68.3–R68.6; §4.18.
     - done:
       - Prompt and skill proposals in the retro, after 28.1
       - The retro brief holds unlocked sections and up to 3 skill texts; prompt and skill proposals carry a base hash, a diff and evidence from 3 or more runs; bad diffs, stale bases, missing evidence and locked sections are dropped with reasons; the `proposal` content-rule boundary runs on each.
@@ -3370,7 +3147,6 @@ retro model.
   - Built: `a0a0771` (`flow-retro.mjs` `memoryBrief`, `changeProblem`; `proposal` and `lesson` content-rule boundaries).
 - [x] 28.3 Approve and where each change lands, after 28.2 and 14.10 [R68.7–R68.11] (§4.18)
   - Facts:
-    - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R68.7–R68.11; §4.18.
     - done:
       - Approve and where each change lands, after 28.2 and 14.10
       - Only a person approves; a prompt change writes an override version, a repository skill change makes one leaf through Deliver this, and an external skill change writes a note on the plugin card; nothing edits a shipped file or a pinned plugin.
@@ -3380,7 +3156,6 @@ retro model.
   - Built: `a0a0771` (`decideProposal` hooks; repository skill leaf via `deliverRetroSkill` in `intake.mjs`, source `retro`). Tested against fakes in Local only; the GitHub-mode pull request path is not run.
 - [x] 28.4 Prompt and skill versions on attempts and PDCA, after 28.3 and 12.10 [R68.12, R68.13] (§4.18)
   - Facts:
-    - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R68.12, R68.13; §4.18.
     - done:
       - Prompt and skill versions on attempts and PDCA, after 28.3 and 12.10
       - Each attempt records prompt versions and skill hashes, shown in the receipt and Timing; PDCA compares old and new versions and marks mixed windows; a change that did not help gets a revert proposal.
@@ -3390,7 +3165,6 @@ retro model.
   - Built: `a0a0771` (prompt version stamped at bind, skills from `plans_report` `skills`; Timing fold `versions`). Skills from tool-call reads are not wired: only report-listed skills are recorded.
 - [x] 28.5 Retired (lessons store)
   - Facts:
-    - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R69.1–R69.6, R69.9, R70.1; §4.18.
     - done:
       - Lessons store, write and read, after 28.2 and 12.10
       - One lessons SQLite file on this Mac with pattern, finding, change, outcome, evidence, context and source; summary-only validation and the `lesson` boundary on write and use; ranked matching lessons and a did-not-work list in the brief; share and read switches; untested expiry.
@@ -3398,7 +3172,6 @@ retro model.
     - after: 28.2, 12.10
 - [x] 28.6 Retired (lessons store)
   - Facts:
-    - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R69.7, R69.8, R70.6; §4.18.
     - done:
       - Lessons packs and export, after 28.5 and 16.3
       - A bundle's lessons pack imports read-only after a preview by a person; a new pack version re-checks changed lessons and retires removed ones; export is person-only and passes the content rules.
@@ -3406,7 +3179,6 @@ retro model.
     - after: 28.5, 16.3
 - [x] 28.7 Retired (lessons store)
   - Facts:
-    - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R70.2–R70.5; §4.18.
     - done:
       - Healing, after 28.5 and 28.4
       - Drift checks mark lessons stale or needs re-check with reasons and clear on confirmation, all recorded; marked lessons are not citable; a lessons review proposes rewrite, merge and retire for a person; nothing is deleted; a changed built-in under an override shows a three-way diff and a rebase proposal while the override stays in use, and locked sections use the new text.
@@ -3414,7 +3186,6 @@ retro model.
     - after: 28.5, 28.4
 - [x] 28.8 Retired (lessons store)
   - Facts:
-    - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R68.14, R69.10, R70.7; §4.18.
     - done:
       - Proposals and Lessons views and Settings, after 28.7, 28.6, 12.11 and 12.12
       - Flow has Overview, Proposals and Lessons views with diffs, evidence, Approve, Reject, Revert, filters, confidence, last confirmed, stale reason and history; Settings › Flow › Lessons has the switches and ages; drawn at 375 and 1280 px in light and dark.
@@ -3423,7 +3194,6 @@ retro model.
 
 - [x] 28.9 Retired (lessons store)
   - Facts:
-    - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R69.1, R69.11–R69.15; §4.18.
     - done:
       - Share chosen lessons, after 28.8
       - The Lessons view ranks share candidates; a person previews and shares chosen kept lessons as summaries by pull request to the plans repository or code repository after content rules; Local only shares nowhere; lessons.export {raw: true} exists for the driver export.
@@ -3432,7 +3202,6 @@ retro model.
 
 - [ ] avoozl-p42 P42 Proof: prompt and skill proposals [R68] (§4.18)
   - Facts:
-    - summary: Phase 28 (Retro prompt and skill proposals, and lessons). Proof. See R68, R69, R70; §4.18.
     - done:
       - Proof: prompt and skill proposals, and lessons
       - Expected: no prompt or skill change applies without a person; locked sections, stale bases and blocked text are refused; overrides stay outside shipped files and revert in one step; repository skill changes land as leaves and external ones as notes; PDCA compares versions; lessons reach another workspace with no source text, honor opt-out, and heal on drift; override drift keeps the override with a rebase proposal; packs and export are person-only.
@@ -3456,7 +3225,6 @@ workspaces, a fake GitHub and a fake plugin.
 
 - [x] 29.1 Activity table, helper and screening, after 10.4 [R71.1, R71.4, R71.5, R71.8] (§4.19)
   - Facts:
-    - summary: Phase 29 (Activity log). See R71.1, R71.4, R71.5, R71.8; §4.19.
     - done:
       - Activity table, helper and screening, after 10.4
       - An activity_log table and one recordActivity helper validate, trim and screen each row with the built-in secret and path screens and the activity content boundary; a matched or unchecked row is saved redacted; a test fails if a secret-shaped value is saved.
@@ -3466,7 +3234,6 @@ workspaces, a fake GitHub and a fake plugin.
   - Built: `84b92b4`, PR #12 (`src/app/activity-log.mjs` `recordActivity`; `src/app/test/activity-log.test.mjs`).
 - [x] 29.2 Local actions and tick events, after 29.1 and 14.10 [R71.2, R71.3] (§4.19)
   - Facts:
-    - summary: Phase 29 (Activity log). See R71.2, R71.3; §4.19.
     - done:
       - Local actions and tick events, after 29.1 and 14.10
       - The listed local actions record one row each with source local or mcp; the tick records GitHub and plugin closes, board orders, label orders, incoming items, conflicts and reverts once each; recording never fails an action.
@@ -3476,7 +3243,6 @@ workspaces, a fake GitHub and a fake plugin.
   - Built: `84b92b4`, PR #12.
 - [x] 29.3 Retention, `activity.list` and MCP, after 29.2 [R71.6, R71.9] (§4.19)
   - Facts:
-    - summary: Phase 29 (Activity log). See R71.6, R71.9; §4.19.
     - done:
       - Retention, activity.list and MCP, after 29.2
       - activity.retentionDays defaults to 30 and is saved by a person only; each tick prunes older rows; activity.list filters and pages 100 rows; plans_view action activity reads it and recent keeps the Dashboard timeline.
@@ -3486,7 +3252,6 @@ workspaces, a fake GitHub and a fake plugin.
   - Built: `84b92b4`, `e8c84e7`, PR #12 (`activity.list`, `activity.settings.update`, `pruneActivity`, `plans_view` action `activity`).
 - [x] 29.4 Activity tab and the retention setting, after 29.3 and 12.11 [R71.7] (§4.19)
   - Facts:
-    - summary: Phase 29 (Activity log). See R71.7; §4.19.
     - done:
       - Activity tab and the retention setting, after 29.3 and 12.11
       - The Activity tab uses the shared heading, filter panel and 100-row pages; task rows open the drawer and GitHub links open in a new tab with noopener noreferrer; the tab's Keep activity field sets the retention.
@@ -3497,7 +3262,6 @@ workspaces, a fake GitHub and a fake plugin.
 
 - [ ] avoozl-p43 P43 Proof: activity log [R71] (§4.19)
   - Facts:
-    - summary: Phase 29 (Activity log). Proof. See R71; §4.19.
     - done:
       - Proof: activity log
       - Expected: every listed local action and tick event makes one row, a change seen twice makes one, secret-shaped and rule-matched values are saved redacted, old rows are pruned on the tick, and the tab and plans_view read the same rows.
@@ -3519,7 +3283,6 @@ per-chat model change (F126); everything proves with fakes for Kiro Crew.
 
 - [x] 30.1 Provider health from usage and errors, after 12.12 [R72.1–R72.4, R72.17, R72.18] (§4.20, F127, F128)
   - Facts:
-    - summary: Phase 30 (Provider health and switching models). See R72.1–R72.4, R72.17, R72.18; §4.20.
     - done:
       - Provider health from usage and errors, after 12.12
       - Machine-local providers settings are validated and refused in .avoozl.json; usage sums and error rows mark providers and models low or out, storing the kind only; marks clear on a later turn or the cooldown, and a person's only when undone; providers.view reads them; settings save and undo are person-only.
@@ -3530,7 +3293,6 @@ per-chat model change (F126); everything proves with fakes for Kiro Crew.
   - Changed 2026-11-13 (11.14): settings are `lowPercent` and `limits` only; the window (5 h) and cooldown (30 min) are fixed, providers come from the model ID, and other keys are dropped. `providerFacts` reads each provider's level and usage live.
 - [x] 30.2 New work skips out models, after 30.1 and 11.11 [R72.5–R72.7] (§4.20)
   - Facts:
-    - summary: Phase 30 (Provider health and switching models). See R72.5–R72.7; §4.20.
     - done:
       - New work skips out models, after 30.1 and 11.11
       - New tasks drop out and then low choices, fall back to the replacement or providers.fallback, never take a review role's model, and wait with a reason when nothing is healthy; retries keep a model until it is out; the path without rules does the same; Preview shows it; with no settings nothing changes.
@@ -3541,7 +3303,6 @@ per-chat model change (F126); everything proves with fakes for Kiro Crew.
   - Changed 2026-11-13 (11.14): `out` is a hard check and never offered, with a person's replacement offered instead; `low` stays an option and is a fact in the routing brief; the fallback list is gone. `healthyChoices` and `chooseSession` are removed (`placement.mjs` `modelChecks`).
 - [x] 30.3 Switch running chats, after 30.1 [R72.8–R72.11] (§4.20, F126)
   - Facts:
-    - summary: Phase 30 (Provider health and switching models). See R72.8–R72.11; §4.20, F126.
     - done:
       - Switch running chats, after 30.1
       - Live tick chats on an out model switch through POST /api/chat/slots/<slot>/model in the same session, deferred to the next turn when busy; the binding records the switch; each switch is a provider_switches record passed to the activity hook; a refusal is not retried; the served-model gate counts every model a switched chat ran on.
@@ -3551,7 +3312,6 @@ per-chat model change (F126); everything proves with fakes for Kiro Crew.
   - Built: `bd54c3e`, PR #13 (the backend pass, `provider_switches`, `onSwitchRecorded`).
 - [x] 30.4 Manual Switch model, after 30.3 [R72.12–R72.15] (§4.20)
   - Facts:
-    - summary: Phase 30 (Provider health and switching models). See R72.12–R72.15; §4.20.
     - done:
       - Manual Switch model, after 30.3
       - provider.switch.preview lists the chats with a hash and writes nothing; person-only provider.switch refuses a stale hash, queues one switch per chat and with alsoNewTasks marks the old model out with the replacement until undone; MCP gets the person-only refusal and app tokens and agent tools are refused.
@@ -3562,7 +3322,6 @@ per-chat model change (F126); everything proves with fakes for Kiro Crew.
   - Built: `bd54c3e`, PR #13 (`provider.switch.preview`, `provider.switch`).
 - [x] 30.5 Switch model dialog, Needs you, and Settings › Providers, after 30.4 [R72.12, R72.13, R72.16, R72.17] (§4.20, §8)
   - Facts:
-    - summary: Phase 30 (Provider health and switching models). See R72.12, R72.13, R72.16, R72.17; §4.20, §8.
     - done:
       - Switch model dialog, Needs you, and Settings › Providers, after 30.4
       - Switch model in the Dashboard header and on In flight opens the dialog with From, To from /api/models, Also new tasks, the preview and marks with Undo; out marks show in Needs you; Settings › Providers edits this machine's providers settings.
@@ -3575,7 +3334,6 @@ per-chat model change (F126); everything proves with fakes for Kiro Crew.
 
 - [x] avoozl-p44 P44 Proof: provider health and switching [R72] (§4.20)
   - Facts:
-    - summary: Phase 30 (Provider health and switching models). Proof. See R72; §4.20.
     - done:
       - Proof: provider health and switching
       - Expected: no task opens on an out model; low and out choices are skipped and retries keep a model until it is out; running chats on an out model switch in the same session at the next turn and each switch is recorded; the review gate holds across a switch; the manual switch previews, refuses a stale hash and marks new tasks only when asked; only a person can switch, undo or save; Needs you shows out marks; with no settings nothing changes.
@@ -3596,7 +3354,6 @@ and §8.9). Numbered after Phase 30 because task IDs never move.
 
 - [x] 31.1 Stop all agents in the backend and CLI, after 24.1 [R64.12, R64.14–R64.16] (§4.11)
   - Facts:
-    - summary: Phase 31 (Stop all agents and searchable pickers). See R64.12, R64.14–R64.16; §4.11.
     - done:
       - Stop all agents in the backend and CLI, after 24.1
       - A person-only full stop stops every running session Avoozl opened, keeps worktrees, marks attempts Interrupted by stop without spending a retry, and Resume re-dispatches each on the same branch, agent and model.
@@ -3606,7 +3363,6 @@ and §8.9). Numbered after Phase 30 because task IDs never move.
   - Built: `75a61e3`, PR #11 (`flow.stop {full: true}`, Interrupted by stop in `src/app/delivery.mjs`, `avoozl flow stop --full`; `src/app/test/flow-full-stop.test.mjs`).
 - [x] 31.2 Stop all agents in the dialog, after 31.1 and 24.2 [R64.12, R64.13] (§4.11)
   - Facts:
-    - summary: Phase 31 (Stop all agents and searchable pickers). See R64.12, R64.13; §4.11.
     - done:
       - Stop all agents in the dialog, after 31.1 and 24.2
       - The dialog offers Stop the line and Stop all agents, and the full stop's confirm warns that replies in progress are lost and saved files are kept.
@@ -3616,7 +3372,6 @@ and §8.9). Numbered after Phase 30 because task IDs never move.
   - Built: `2456191`, PR #11 (`StopLine.tsx`).
 - [x] 31.3 One searchable picker for tasks and specs, after 24.2 [R73] (§8.9)
   - Facts:
-    - summary: Phase 31 (Stop all agents and searchable pickers). See R73; §8.9.
     - done:
       - One searchable picker for tasks and specs, after 24.2
       - Every task and spec choice uses one keyboard-accessible combobox that matches ID, title and spec, shows state, and stays fast with 5,000 tasks.
@@ -3632,21 +3387,18 @@ references hold; nothing in them exists.
 
 - [x] 32.1 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: 11.11, 11.13
 - [x] 32.2 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: 32.1, 11.12
 - [x] avoozl-p47 P47 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
@@ -3659,7 +3411,6 @@ Phase 32, which the remote relay holds, because task IDs never move.
 
 - [x] 33.1 Skip done tasks in projection, after 3.7 [R74] (§6.3)
   - Facts:
-    - summary: Phase 33 (Only open tasks get issues). See R74; §6.3.
     - done:
       - Skip done tasks in projection, after 3.7
       - With github.issues.includeDone unset, a done task with no issue gets no issue, card or link, edges from it are met, and the plan issue is still made; with it true, done tasks get issues as before.
@@ -3676,7 +3427,6 @@ isolated temporary workspaces, a fake GitHub and fake workers.
 
 - [x] 34.1 Findings, falsifier and the confidence gate, after 11.11 and 12.9 [R75] (§4.21)
   - Facts:
-    - summary: Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R75; §4.21.
     - done:
       - Findings, falsifier and the confidence gate
       - A leaf's worker reports findings with no file changes, a read-only falsifier on another model replies, and coding starts only when both reach the confidence gate; otherwise the task waits in Needs you.
@@ -3686,7 +3436,6 @@ isolated temporary workspaces, a fake GitHub and fake workers.
   - Built: PR #42 (`src/app/investigate.mjs`, agent `avoozl-falsifier`, person-only `investigation.decide`, Flow stages `investigate` and `falsify`; a findings report with a changed worktree and a done before Go ahead are refused 409). The binding carries `investigate`, so a session bound by hand or by a Crew Mode conductor is not gated. The falsifier's usage counts toward the task's budget like any session bound to it.
 - [x] 34.2 Evidence bundle, after 34.1 and 22.3 [R76] (§4.22)
   - Facts:
-    - summary: Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R76; §4.22.
     - done:
       - Evidence bundle
       - Each task has one screened local evidence bundle shown in the drawer and summarized in one pull request comment.
@@ -3696,7 +3445,6 @@ isolated temporary workspaces, a fake GitHub and fake workers.
   - Built: PR #42 (`src/app/evidence.mjs`, content boundary `evidence`, `Evidence.tsx` in the drawer, `evidenceCommentStep` in the tick, `evidence` in the driver export). `github.evidence.attach` is not built: GitHub's API has no comment upload.
 - [x] 34.3 Bring pull requests up to date, after 15.4 [R77] (§4.23)
   - Facts:
-    - summary: Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R77; §4.23.
     - done:
       - Bring pull requests up to date
       - When the base branch moves, each conflicting or behind pull request's writer gets one message to merge it in, and no brief can ask for a force push.
@@ -3706,7 +3454,6 @@ isolated temporary workspaces, a fake GitHub and fake workers.
   - Built: PR #42 (`baseHead`, `mergeState` and `reviewDecision` in the pull request reads; `base-moved` in `src/app/github-feedback.mjs`; `asksForcePush` in `briefAllowed` and the tick; `rebaseForIntegration` merges forward). The stacked pull request brief and the commit-message leak message no longer ask for a force push.
 - [x] 34.4 Corrections and rules, after 28.3 [R78] (§4.24)
   - Facts:
-    - summary: Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R78; §4.24.
     - done:
       - Corrections and rules
       - The same correction on two tasks makes one rule proposal; approval lands it as a steering leaf.
@@ -3716,7 +3463,6 @@ isolated temporary workspaces, a fake GitHub and fake workers.
   - Built: PR #42 (`src/app/corrections.mjs`; changes requested from pull request feedback, `delivery.retry` with `reason`, reverts read from the landing branch; retro proposal type `rule` and `deliverRetroRule`). shortcut: PDCA matches later corrections by kind and repository, not by meaning; the next retro reads them and judges.
 - [x] 34.5 Fix-work share, after 12.11 [R79] (§4.11)
   - Facts:
-    - summary: Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R79; §4.11.
     - done:
       - Fix-work share
       - Flow shows fix tasks over finished tasks as a card and in the charts.
@@ -3726,7 +3472,6 @@ isolated temporary workspaces, a fake GitHub and fake workers.
   - Built: PR #42 (`isFixWork`, `metrics.fixWork`, `fixShare` per day and week, `fixWork` in the retro payload; leaves of a bugfix spec carry `specType`, and issue intake keeps the issue type).
 - [x] 34.6 Ship mode, after 15.4 [R80] (§4.25)
   - Facts:
-    - summary: Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R80; §4.25.
     - done:
       - Ship mode
       - With delivery.ship manual, writers do not enable auto-merge and Needs you shows Ready to merge; auto-merge stays the default.
@@ -3737,7 +3482,6 @@ isolated temporary workspaces, a fake GitHub and fake workers.
 
 - [x] avoozl-p45 P45 Proof: investigate first, evidence, staying current, rules, fix share and ship mode [R75–R80] (§4.21–§4.25)
   - Facts:
-    - summary: Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R75–R80; §4.21–§4.25.
     - done:
       - P45 Proof
       - P45 passes with fake workers, a fake falsifier and a fake GitHub.
@@ -3757,7 +3501,6 @@ Phase 34 because task IDs never move.
 
 - [x] 35.1 Read a task's changed files and diffs, after 2.6 [R81.4–R81.6] (§8.10)
   - Facts:
-    - summary: Phase 35 (Review a task's changes in the drawer). See R81.4–R81.6; §8.10.
     - done:
       - Read a task's changed files and diffs, after 2.6
       - task.files and task.diff read with Git only, refuse paths outside the task's worktree and option-shaped inputs, cap their output, and MCP may call both.
@@ -3767,7 +3510,6 @@ Phase 34 because task IDs never move.
   - Built: `4d0b101`.
 - [x] 35.2 Files fold in the task drawer, after 35.1 [R81.1–R81.3] (§8.10)
   - Facts:
-    - summary: Phase 35 (Review a task's changes in the drawer). See R81.1–R81.3; §8.10.
     - done:
       - Files fold in the task drawer, after 35.1
       - The drawer's Files fold shows the changed-file tree with badges and counts, Show all files, unified and split diffs with summaries for binaries and large files, Open in editor links (Kiro by default), and the GitHub branch for remote tasks.
@@ -3778,7 +3520,6 @@ Phase 34 because task IDs never move.
 
 - [x] avoozl-p46 P46 Proof: review a task's changes in the drawer [R81] (§8.10)
   - Facts:
-    - summary: Phase 35 (Review a task's changes in the drawer). Proof. See R81; §8.10.
     - done:
       - Proof: review a task's changes in the drawer
       - Expected: each change has its badge and counts; text diffs show and binaries, large files and links are summarized; every path or option-shaped input outside the rules is refused and nothing outside the worktree is read or written; a removed worktree reads the branch; MCP gets both reads; the fold draws unified and split diffs and editor links follow the choice.
@@ -3797,7 +3538,6 @@ Owner request 2026-11-13 (Requirement 82, design §6.11).
 
 - [x] 36.1 Demo sample, fake GitHub and preview gate, after 3.7 [R82.1–R82.4, R82.7] (§6.11)
   - Facts:
-    - summary: Phase 36 (Demo mode). See R82; §6.11.
     - done:
       - Demo sample, fake GitHub and preview gate, after 3.7
       - The sample installs once and whole, keeps edits, previews every change, and no GitHub write or agent start is reachable.
@@ -3806,7 +3546,6 @@ Owner request 2026-11-13 (Requirement 82, design §6.11).
   - `src/app/demo.mjs` staged once-only install, the fake GitHub and the gate; `demo.start`, `demo.exit`, `demo.status` and `@demo` in the app backend; `src/app/test/demo.test.mjs`.
 - [x] 36.2 Demo badge, bar, tour and exit, after 36.1 and 31.3 [R82.3, R82.5–R82.7] (§6.11)
   - Facts:
-    - summary: Phase 36 (Demo mode). See R82; §6.11.
     - done:
       - Demo badge, bar, tour and exit, after 36.1 and 31.3
       - The tour walks the nine pages with keys and reduced motion, a change shows its preview, and Exit demo returns to the person's workspace.
@@ -3816,7 +3555,6 @@ Owner request 2026-11-13 (Requirement 82, design §6.11).
   - `host.ts`, `demo-api.ts`, `Demo.tsx` and the App wiring; `kirocrew-app/ui/test/demo-tour.test.mjs` with tour, keys, preview, exit and layout at 320, 768 and 1280 px, light and dark.
 - [x] 36.3 README and screenshots, after 36.2 [R82] (§6.11)
   - Facts:
-    - summary: Phase 36 (Demo mode). See R82; §6.11.
     - done:
       - README and screenshots, after 36.2
       - The README says how to start the demo, and screenshots show it at three widths in light and dark.
@@ -3831,7 +3569,6 @@ Phase 36 because task IDs never move.
 
 - [x] 37.1 CLI refuses person-only operations in an agent session [R83.1, R83.2] (§6.12)
   - Facts:
-    - summary: Phase 37 (Security follow-ups). See R83.1, R83.2; §6.12.
     - done:
       - CLI refuses person-only operations in an agent session
       - The CLI refuses person-only operations in an agent session unless --as-person is given.
@@ -3839,7 +3576,6 @@ Phase 36 because task IDs never move.
   - `agentSession`, `cliRefusal`, `--as-person`; `src/app/test/cli-person-only.test.mjs`; request draft in `docs/kirocrew-requests/`.
 - [x] 37.2 Private folder, database, backups and exports [R83.3] (§6.12)
   - Facts:
-    - summary: Phase 37 (Security follow-ups). See R83.3; §6.12.
     - done:
       - Private folder, database, backups and exports
       - The folder, database, backups and exports are private files.
@@ -3847,7 +3583,6 @@ Phase 36 because task IDs never move.
   - `Store`, `privateFile`; `src/app/test/security-audit.test.mjs`.
 - [x] 37.3 Name repository-owned code; approve the worktree helper's hash [R83.4] (§6.12)
   - Facts:
-    - summary: Phase 37 (Security follow-ups). See R83.4; §6.12.
     - done:
       - Name repository-owned code; approve the worktree helper's hash
       - Repository-owned code is named in docs/policies.md, and the worktree helper runs only at its approved hash.
@@ -3855,7 +3590,6 @@ Phase 36 because task IDs never move.
   - `docs/policies.md`; `worktreeHelper` in `git.mjs` and project settings; same test file.
 - [x] 37.4 Hash a local plugin again before it starts [R83.6] (§6.12)
   - Facts:
-    - summary: Phase 37 (Security follow-ups). See R83.6; §6.12.
     - done:
       - Hash a local plugin again before it starts
       - A local plugin is hashed again before it starts.
@@ -3863,7 +3597,6 @@ Phase 36 because task IDs never move.
   - `pluginHost`; `src/app/test/plugins.test.mjs`.
 - [x] 37.5 Opt-in `checksEnv` allowlist [R83.5] (§6.12)
   - Facts:
-    - summary: Phase 37 (Security follow-ups). See R83.5; §6.12.
     - done:
       - Opt-in `checksEnv` allowlist
       - Checks see only the environment variables the opt-in checksEnv allowlist names.
@@ -3876,7 +3609,6 @@ Owner request 2026-11-14 (Requirement 84, design §6.13). Prototype, off by defa
 
 - [x] 38.1 Envelope, runner state, accept, status, report, runner tick [R84.1–R84.7, R84.9, R84.10] (§6.13)
   - Facts:
-    - summary: Phase 38 (Runner mode over SSH). See R84.1–R84.7, R84.9, R84.10; §6.13.
     - done:
       - Envelope, runner state, accept, status, report, runner tick
       - A runner accepts an envelope once, keeps its state, reports status and runs its tick.
@@ -3884,7 +3616,6 @@ Owner request 2026-11-14 (Requirement 84, design §6.13). Prototype, off by defa
   - `src/app/remote-runner.mjs`, `remote.*` operations, `avoozl runner`, `workerMode` in `tick.py`; `src/app/test/remote-runner.test.mjs`.
 - [x] 38.2 Driver hand-off, pull and In flight with Remote and Attach, after 38.1 [R84.8] (§6.13)
   - Facts:
-    - summary: Phase 38 (Runner mode over SSH). See R84.8; §6.13.
     - done:
       - Driver hand-off, pull and In flight with Remote and Attach, after 38.1
       - The driver hands a task off, pulls its status and shows it In flight with Remote and Attach.
@@ -3893,7 +3624,6 @@ Owner request 2026-11-14 (Requirement 84, design §6.13). Prototype, off by defa
   - `handoff`, `pullStatus`, `remoteView`, `driverTick`; `RemoteWorker` in `views-api.ts`, `remoteRow` in `dashboard-api.ts`, the badge and link in `DashboardView.tsx`; `kirocrew-app/ui/test/dashboard-api.test.mjs`.
 - [x] 38.3 Live check with two test crews, after 38.2 [R84] (§6.13)
   - Facts:
-    - summary: Phase 38 (Runner mode over SSH). See R84; §6.13.
     - done:
       - Live check with two test crews, after 38.2
       - Two test crews hand a task off and read it back; the result is written in docs/research/runner-mode-ssh.md.
@@ -3903,7 +3633,6 @@ Owner request 2026-11-14 (Requirement 84, design §6.13). Prototype, off by defa
 
 - [x] avoozl-p48 P48 Proof: a task handed to a runner comes back with its worker [R84] (§6.13)
   - Facts:
-    - summary: Phase 38 (Runner mode over SSH). Proof. See R84; §6.13.
     - done:
       - Proof: a task handed to a runner comes back with its worker
       - Expected: accepted once, a repeat is a no-op; one worker chat opens; checks run and the branch is pushed; status has the worker chat key, crew ID and path, no token, and an Attach link; a restart makes no second worker; a failed pull keeps the last answer marked stale.
@@ -3923,7 +3652,6 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
 
 - [x] 39.1 Hook command: scan a crew's writes before they run [R85.3, R85.4] (§6.14)
   - Facts:
-    - summary: Phase 39 (Crews on public repositories). See R85.3, R85.4; §6.14.
     - done:
       - Hook command: scan a crew's writes before they run
       - `avoozl content hook` refuses a gh or git write that holds a rule match or text it cannot read, naming the rule set, id and place and never the text.
@@ -3931,7 +3659,6 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
   - `avoozl content hook`, `src/app/public-crews.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
 - [x] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85.6, R85.7] (§6.14)
   - Facts:
-    - summary: Phase 39 (Crews on public repositories). See R85.6, R85.7; §6.14.
     - done:
       - Audit on the tick: delete a hit, pull the cord, alert, after 39.1
       - The tick deletes a matching crew comment, closes a matching pull request, pulls the cord for the repository, and sends one notice and one Needs you item.
@@ -3940,7 +3667,6 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
   - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
 - [x] 39.3 Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2 [R85.1, R85.2, R85.8, R85.10] (§6.14)
   - Facts:
-    - summary: Phase 39 (Crews on public repositories). See R85.1, R85.2, R85.8, R85.10; §6.14.
     - done:
       - Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2
       - A person signs off the checklist; a public repository is handed to Issue Radar only with a current sign-off, which lapses when a hashed item changes.
@@ -3949,7 +3675,6 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
   - `publiccrews.signoff`, the Public crews card, the `untriaged.handoff` check; person-only; lapse on a changed hash.
 - [x] 39.4 Stop public crews, after 39.2 [R85.9] (§6.14)
   - Facts:
-    - summary: Phase 39 (Crews on public repositories). See R85.9; §6.14.
     - done:
       - Stop public crews, after 39.2
       - One person-only action pulls the cord for every public repository with a crew and lists the crews to pause.
@@ -3958,7 +3683,6 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
   - `publiccrews.stop` in the app, the CLI and MCP policy (person only to resume).
 - [x] 39.5 Public docs and the upstream requests, after 39.3 and 39.4 [R85.2, R85.5] (§6.14)
   - Facts:
-    - summary: Phase 39 (Crews on public repositories). See R85.2, R85.5; §6.14.
     - done:
       - Public docs and the upstream requests, after 39.3 and 39.4
       - `docs/public-crews.md` states the limits in generic terms and drafts the Kiro Crew requests without filing them.
@@ -3968,7 +3692,6 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
 
 - [ ] avoozl-p49 P49 Proof: a public crew's leak is stopped, deleted and alerted [R85] (§6.14)
   - Facts:
-    - summary: Phase 39 (Crews on public repositories). Proof. See R85; §6.14.
     - done:
       - Proof: a public crew's leak is stopped, deleted and alerted
       - Expected: a canary in a comment, pull request or published file is refused with no text; a script write goes through and the tick deletes it, pulls the cord and notifies once; a clean comment stays; handoff is refused before sign-off and after a hook change.
@@ -3989,7 +3712,6 @@ foundation tasks without that dependency may proceed while the live proof waits.
 
 - [x] 40.1 Worker brief edits and reports only, after avoozl-p56 [R86.3, R96] (§4.26)
   - Facts:
-    - summary: Phase 40. Worker brief edits and reports only. See R86.3, R96; §4.26.
     - done:
       - Worker brief edits and reports only
       - The brief drops push, PR, auto-merge, merge and comment steps. Avoozl commits sandboxed process results; chats/people may commit locally. Read HEAD from the worktree, never from a report. A prompt test enforces this boundary.
@@ -3999,7 +3721,6 @@ foundation tasks without that dependency may proceed while the live proof waits.
 
 - [x] 40.2 Report by CLI, matched by worktree and token, after avoozl-p56 [R88.2, R88.3, R96.4] (§4.26)
   - Facts:
-    - summary: Phase 40. Report by CLI, matched by worktree and token. See R88.2, R88.3, R96.4; §4.26.
     - done:
       - Report by CLI, matched by worktree and token
       - Use `avoozl runner report TASK done|blocked` for chats and people. Carry the worktree path and token in the brief; local chats use project: false. Test wrong tokens/worktrees and reporting without MCP sharing.
@@ -4011,7 +3732,6 @@ foundation tasks without that dependency may proceed while the live proof waits.
 
 - [x] 40.3 Trust mode set at open and again every tick, after avoozl-p56 [R88.1] (§4.26)
   - Facts:
-    - summary: Phase 40 (Unattended basics). See R88.1; §4.26.
     - done:
       - Trust mode set at open and again every tick
       - A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat.
@@ -4020,7 +3740,6 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat.
 - [x] 40.4 Prepare with the worktree helper and clean up after landing, after avoozl-p56 [R88.6] (§4.26)
   - Facts:
-    - summary: Phase 40 (Unattended basics). See R88.6; §4.26.
     - done:
       - Prepare with the worktree helper and clean up after landing
       - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
@@ -4029,7 +3748,6 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
 - [x] 40.5 Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
   - Facts:
-    - summary: Phase 40 (Unattended basics). See R86.6, R86.7; §4.26.
     - done:
       - Verify: warm checks off the tick, per-check timeouts, declared and protected paths
       - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
@@ -4038,7 +3756,6 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
 - [x] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
   - Facts:
-    - summary: Phase 40 (Unattended basics). See R88.4; §4.26.
     - done:
       - One automatic resume for a vanished chat
       - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
@@ -4048,7 +3765,6 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - Built: `reconcileDeliveries` in `src/app/delivery.mjs` ends the first gone attempt since the last person retry as `vanished` (outside the retry count) and marks its binding lost, so the next tick opens attempt 2 in the same worktree with the last report quoted; a second vanish, or a gone batch, opens the decision. Test: `src/app/test/stock-kirocrew.test.mjs`.
 - [x] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
   - Facts:
-    - summary: Phase 40 (Unattended basics). See R88.5; §4.26.
     - done:
       - Lanes: 3 on this Mac by default
       - `lanes.local` default 3; a fourth ready task waits.
@@ -4059,7 +3775,6 @@ foundation tasks without that dependency may proceed while the live proof waits.
 
 - [x] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7, 41.1, 41.2, 41.3, 41.5, 41.9 [R86, R87.10, R88] (§4.26)
   - Facts:
-    - summary: Phase 40 (Unattended basics). Proof. See R86, R87.10, R88; §4.26.
     - done:
       - Proof: a three-task chain survives a gateway restart unattended
       - Expected: (1) each task lands in order with its checks recorded; (2) trust is set again, task 2 goes on in the same worktree, no second chat unless Kiro Crew says it is gone; (3) the tick push goes through Kiro Crew's push policy; worktrees removed after landing.
@@ -4084,7 +3799,6 @@ the record of what was built then.
 
 - [x] 41.1 Schedule spec drivers with repository-wide path holds, after 40.5, 56.4 [R86.2, R86.5, R86.9, R102.4] (§4.32)
   - Facts:
-    - summary: Phase 41. Schedule spec drivers with repository-wide path holds. See R86.2, R86.5, R86.9, R102.4; §4.32.
     - done:
       - Schedule spec drivers with repository-wide path holds
       - Use unblock ranking, current spec authority and generation, and repository-wide path holds. A verified-on-branch dependency releases only in-spec work based on that working head; cross-spec work waits for accepted outcomes.
@@ -4094,7 +3808,6 @@ the record of what was built then.
 
 - [x] 41.2 Per-base landing queue with brief integration locks, after 40.5, 56.4 [R87.5, R102.15] (§4.32)
   - Facts:
-    - summary: Phase 41. Per-base landing queue with brief integration locks. See R87.5, R102.15; §4.32.
     - done:
       - Per-base landing queue with brief integration locks
       - Preserve order on Stop the line; perform checks outside the integration lock, guard only ref movement and push. Test a concurrent base move cannot land an unchecked candidate.
@@ -4104,7 +3817,6 @@ the record of what was built then.
 
 - [x] 41.3 Direct portions and bounded landing trains, after 41.2 [R87.1, R87.2, R87.4, R87.9, R102.13, R102.15] (§4.32)
   - Facts:
-    - summary: Phase 41. Direct portions and bounded landing trains. See R87.1, R87.2, R87.4, R87.9, R102.13, R102.15; §4.32.
     - done:
       - Direct portions and bounded landing trains
       - Select exact verified portions, merge/check the current base, write an intent and guard the fast-forward. Up to four tasks for one driver; bisect failures. Merge declared append-only union paths only in the landing worktree. Check outgoing data before every push; never force push.
@@ -4114,7 +3826,6 @@ the record of what was built then.
 
 - [x] 41.4 Conflicts go back to the same chat, bounded; remove the resolver chat, after 41.3 [R87.6] (§4.26)
   - Facts:
-    - summary: Phase 41 (Scheduler and direct landing). See R87.6; §4.26.
     - done:
       - Conflicts go back to the same chat, bounded; remove the resolver chat
       - The conflicted file list in the brief; `landing.conflictRounds` default 2; then Needs you; `avoozl-conflict-fix` removed.
@@ -4124,7 +3835,6 @@ the record of what was built then.
   - Built: `src/app/landing-conflicts.mjs` (`conflictRounds`, `conflictMessage`, `sendConflictBack`), `landing.conflictRounds` in the config schema and `layered-config.mjs`, tests `src/app/test/landing-conflicts.test.mjs`. Not wired into the tick, which does not call `landNext` yet. `avoozl-conflict-fix` and `radar-conflict-fix.mjs` stay until Phase 45 removes the Radar path, because that code still dispatches the agent.
 - [x] 41.5 Prepare from spec working heads and merge landed bases back, after 41.3 [R87.7, R102.6, R102.15] (§4.32)
   - Facts:
-    - summary: Phase 41. Prepare from spec working heads and merge landed bases back. See R87.7, R102.6, R102.15; §4.32.
     - done:
       - Prepare from spec working heads and merge landed bases back
       - Generalize RC16 from epic-only integration; Prepare and qualified-ref resolution agree on the exact spec base. Merge the landed target back with a merge commit; preserve verified but unlanded portions and unfinished task refs.
@@ -4134,7 +3844,6 @@ the record of what was built then.
 
 - [x] 41.6 Restore the Delivery page and the Files and diff view, after 41.3 [R88.7] (§4.26)
   - Facts:
-    - summary: Phase 41 (Scheduler and direct landing). See R88.7; §4.26.
     - done:
       - Restore the Delivery page, Settings › Budgets and the Files and diff view
       - From ba04389 and 70c2236, updated to the new loop; screenshots for the owner.
@@ -4144,7 +3853,6 @@ the record of what was built then.
 - [ ] 41.8 Nupp AGENTS.md clause for Avoozl-run work, after 41.3 [R91.5, R94.4a] (§4.26)
   - Facts:
     - checks: npm test, git diff --check
-    - summary: Phase 41 (Scheduler and direct landing). See R91.5, R94.4a; §4.26.
     - done:
       - Nupp AGENTS.md clause for Avoozl-run work
       - A proposed Nupp AGENTS.md clause, checked against the core-dev copy, says Avoozl-run work edits, commits nothing or only locally, and stops: no merge, push or worktree removal.
@@ -4152,7 +3860,6 @@ the record of what was built then.
   - Nupp's AGENTS.md tells agents to rebase, fast-forward merge, push and delete the worktree. Propose a clause for work Avoozl runs: edit, commit nothing (or only locally, as the project config says), and stop; no merge, push or worktree removal. Check the copy on `core-dev`, not only `main`. Proposed as a Nupp change, not made from Avoozl's repository.
 - [ ] 41.7 Nupp setup: `direct` on public `core-dev` with the repository's helper and check, after 41.3 [R91.5] (§4.26)
   - Facts:
-    - summary: Phase 41 (Scheduler and direct landing). See R91.5; §4.26.
     - done:
       - Nupp setup: `direct` on public `core-dev` with the repository's helper and check
       - `scripts/worktree` approved by hash, `scripts/test-changed` as the check; plans stay in a private planning workspace; no mirror or forward.
@@ -4162,7 +3869,6 @@ the record of what was built then.
 
 - [x] 41.9 The tick lands `direct` portions through the landing queue, after 41.3, 42.6 [R87.1, R87.2, R88.6] (§4.26)
   - Facts:
-    - summary: Phase 41 (Scheduler and direct landing). The tick lands direct portions through the landing queue. See R87.1, R87.2, R88.6; §4.26.
     - done:
       - The tick lands `direct` portions through the landing queue
       - A verified task in a repository with landing `direct` is queued as one portion. Each tick runs `landNext` with `directSteps` per base: checks on the merged candidate, an intent in the spec's journal, a guarded fast-forward push, never forced. Landed marks the task integrated at the candidate, fast-forwards the local base and removes the task worktree and branch; failed checks go back to the chat. Real git test with a bare remote; no live write.
@@ -4173,7 +3879,6 @@ the record of what was built then.
 
 - [ ] avoozl-p51 P51 Proof: the 13 Nupp pilot tasks land direct, after 41.1, 41.2, 41.3, 41.4, 41.5, 41.6, 41.7, 41.8, avoozl-p50, avoozl-p66 [R86, R87, R91.5] (§4.26)
   - Facts:
-    - summary: Phase 41 (Scheduler and direct landing). Proof. See R86, R87, R91.5; §4.26.
     - done:
       - Proof: the 13 Nupp pilot tasks land direct
       - Expected: each task lands on public `core-dev` after its checks; no private text in any commit message, branch name or added line; a receipt per task with owner minutes, credits and wall-clock.
@@ -4193,7 +3898,6 @@ required check; 42.4 is an independent owner settings review, not its gate.
 
 - [x] 42.1 PR portions from target repositories or forks, after 41.3, 56.7 [R87.3, R87.4, R91.2, R102.8, R102.18] (§4.32)
   - Facts:
-    - summary: Phase 42. PR portions from target repositories or forks. See R87.3, R87.4, R91.2, R102.8, R102.18; §4.32.
     - done:
       - PR portions from target repositories or forks
       - Open/reuse the PR from an exact verified source head without an upstream copy. Update only the queue head and writable source. Enforce that PR head's required checks and standing reviews; record actual approvers and merger. Without target merge permission, observe an authorized maintainer's merge. No protected-review trains.
@@ -4203,7 +3907,6 @@ required check; 42.4 is an independent owner settings review, not its gate.
 
 - [x] 42.2 Setup target and source access in one preview, after 42.1 [R89.1, R89.2, R89.4] (§4.32)
   - Facts:
-    - summary: Phase 42. Setup target and source access in one preview. See R89.1, R89.2, R89.4; §4.32.
     - done:
       - Setup target and source access in one preview
       - Preview registered code/plan roots, target/base, trusted forks and separate push/merge access. Do not create task labels, Project or issue types. Publish issue is a separate spec action; a no-change retry writes nothing.
@@ -4213,7 +3916,6 @@ required check; 42.4 is an independent owner settings review, not its gate.
 
 - [x] 42.3 Setup: ruleset update without duplicates, merge methods, CI variable, commit status, after 42.2 [R89.3] (§4.26)
   - Facts:
-    - summary: Phase 42 (PR landing and the setup command). See R89.3; §4.26.
     - done:
       - Setup: ruleset update without duplicates, merge methods, CI variable, commit status
       - First caller of `createCommitStatus`; a fake GitHub test that a ruleset with the rule gets no second one.
@@ -4222,7 +3924,6 @@ required check; 42.4 is an independent owner settings review, not its gate.
   - First caller of `createCommitStatus`; a fake GitHub test that a ruleset with the rule gets no second one.
 - [ ] 42.4 Review Avoozl repository settings against owner policy, after 42.3 [R87.8] (§4.26)
   - Facts:
-    - summary: Phase 42. Review Avoozl repository settings against owner policy. See R87.8; §4.26.
     - done:
       - Review Avoozl repository settings against owner policy
       - Owner-only: preview and report the current landing/check policy. Preserve the owner's disabled required-CI gate; do not restore three required checks automatically. Apply a real settings change only if explicitly authorized.
@@ -4233,7 +3934,6 @@ required check; 42.4 is an independent owner settings review, not its gate.
 
 - [x] 42.5 Take over writes the spec journal's generation, after 56.4 [R102.13, R102.14] (§4.32)
   - Facts:
-    - summary: Phase 42. Take over writes the spec journal's generation. See R102.13, R102.14; §4.32.
     - done:
       - Take over writes the spec journal's generation
       - `avoozl spec publish SPEC` and `avoozl spec takeover SPEC` (operation `spec.takeover`, person-only). Take over on a published spec (local or GitHub journal) appends the next generation with `takeOver` (driver-generations.mjs) and keeps the driver id with `rememberDriver`. Person-only; a held or concurrent journal refuses. Landing reads this driver; no take over means nothing lands.
@@ -4242,7 +3942,6 @@ required check; 42.4 is an independent owner settings review, not its gate.
   - `avoozl spec publish SPEC` and `avoozl spec takeover SPEC` (operation `spec.takeover`, person-only). Take over on a published spec (local or GitHub journal) appends the next generation with `takeOver` (driver-generations.mjs) and keeps the driver id with `rememberDriver`. Person-only; a held or concurrent journal refuses. Landing reads this driver; no take over means nothing lands.
 - [x] 42.6 The tick lands `pr` portions through the landing queue, after 42.1, 42.3, 42.5, 41.4 [R87.3, R87.4, R87.5, R87.6, R89.3] (§4.26)
   - Facts:
-    - summary: Phase 42 (PR landing and the setup command). The tick lands pr portions through the landing queue. See R87.3, R87.4, R87.5, R87.6, R89.3; §4.26.
     - done:
       - The tick lands `pr` portions through the landing queue
       - A verified task in a repository with landing `pr` is pushed to its task branch (`pushHead`, never forced) and queued as one portion. Each tick runs `landNext` with `pullSteps` per base, with intents in the spec's journal. Landed marks the task integrated at the merge commit; failed checks send the task back to its chat; a conflict uses `sendConflictBack`. `direct` and `off` keep today's path. Fake GitHub and git test; no live write.
@@ -4251,7 +3950,6 @@ required check; 42.4 is an independent owner settings review, not its gate.
   - A verified task in a repository with landing `pr` is pushed to its task branch (`pushHead`, never forced) and queued as one portion. Each tick runs `landNext` with `pullSteps` per base, with intents in the spec's journal. Landed marks the task integrated at the merge commit; failed checks send the task back to its chat; a conflict uses `sendConflictBack`. `direct` and `off` keep today's path. Fake GitHub and git test; no live write.
 - [x] 42.7 `avoozl setup REPO`: one preview, `--yes` applies, after 42.2, 42.3 [R89.1, R89.2, R89.3] (§4.26)
   - Facts:
-    - summary: Phase 42 (PR landing and the setup command). avoozl setup REPO. See R89.1, R89.2, R89.3; §4.26.
     - done:
       - `avoozl setup REPO`: one preview, `--yes` applies
       - CLI over `previewAccess` and `previewLanding`: prints every change, writes only with `--yes`, and a second run prints "Nothing to change" and writes nothing. Writes the project's landing setting and checks. The old Radar `github setup` stays as it is.
@@ -4261,7 +3959,6 @@ required check; 42.4 is an independent owner settings review, not its gate.
 
 - [x] avoozl-p52 P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3, 42.5, 42.6, 42.7 [R87, R89] (§4.26)
   - Facts:
-    - summary: Phase 42 (PR landing and the setup command). Proof. See R87, R89; §4.26.
     - done:
       - Proof: ten tasks land through pull requests on a repository with a required check
       - Expected: ten pull requests merge one at a time after the check passes on each head; the moved base is merged in and checked again; the failed task goes back to its chat; no force push; setup run again changes nothing.
@@ -4281,7 +3978,6 @@ GitHub, and a race between two workers shows exactly one claim wins.
 
 - [x] 43.1 Worker mode on the plan-less runner role, after avoozl-p52, avoozl-p61 [R90.1, R90.2] (§4.26)
   - Facts:
-    - summary: Phase 43 (Worker machines pull work). See R90.1, R90.2; §4.26.
     - done:
       - Worker mode on the plan-less runner role
       - Envelope with IDs only; repository and checks from the worker's own `.avoozl.json`; the worker reads `HEAD`, runs checks, pushes the branch.
@@ -4290,7 +3986,6 @@ GitHub, and a race between two workers shows exactly one claim wins.
   - Envelope with IDs only; repository and checks from the worker's own `.avoozl.json`; the worker reads `HEAD`, runs checks, pushes the branch.
 - [x] 43.2 Pull minimal offers and qualified task refs, after 43.1 [R90.3, R90.5, R102.7] (§4.32)
   - Facts:
-    - summary: Phase 43. Pull minimal offers and qualified task refs. See R90.3, R90.5, R102.7; §4.32.
     - done:
       - Pull minimal offers and qualified task refs
       - Read authorized offers from the spec journal, not ready issues. Resolve source repository/ref/SHA including forks separately from target/base; at most one offer per free lane. An unregistered URL cannot create a clone or command.
@@ -4300,7 +3995,6 @@ GitHub, and a race between two workers shows exactly one claim wins.
 
 - [x] 43.3 Canonical claim reservation and generation acknowledgment, after 43.2 [R90.4, R102.14] (§4.32)
   - Facts:
-    - summary: Phase 43. Canonical claim reservation and generation acknowledgment. See R90.4, R102.14; §4.32.
     - done:
       - Canonical claim reservation and generation acknowledgment
       - Reserve one task ref in the spec's canonical claim namespace before acknowledging a worker. A worker without write access requests reservation. Race two forks with identically named branches: one acknowledgment, no loser execution; an over-cap request never starts. Comments are not CAS.
@@ -4310,7 +4004,6 @@ GitHub, and a race between two workers shows exactly one claim wins.
 
 - [x] 43.4 Person-only release and stale-claim status, after 43.3 [R90.6, R102.14] (§4.32)
   - Facts:
-    - summary: Phase 43. Person-only release and stale-claim status. See R90.6, R102.14; §4.32.
     - done:
       - Person-only release and stale-claim status
       - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.claimStaleAfter.
@@ -4320,7 +4013,6 @@ GitHub, and a race between two workers shows exactly one claim wins.
 
 - [x] 43.5 Verify fetched worker results before integration, after 43.2 [R90.2, R102.6, R102.7] (§4.32)
   - Facts:
-    - summary: Phase 43. Verify fetched worker results before integration. See R90.2, R102.6, R102.7; §4.32.
     - done:
       - Verify fetched worker results before integration
       - Fetch the exact qualified checkpoint commit; independently check paths, protected paths and checks before integrating. Wrong repository/head, inaccessible fork or private metadata holds the result rather than completing it.
@@ -4330,7 +4022,6 @@ GitHub, and a race between two workers shows exactly one claim wins.
 
 - [x] 43.6 Executor-aware worker setup with access preview, after 43.1 [R90.7, R90.8, R90.9] (§4.32)
   - Facts:
-    - summary: Phase 43. Executor-aware worker setup with access preview. See R90.7, R90.8, R90.9; §4.32.
     - done:
       - Executor-aware worker setup with access preview
       - Preview login, readable targets, writable source/forks and canonical claim access. Process workers may be headless; require Kiro Crew only for that executor. SSH envelopes stay only without GitHub access.
@@ -4340,7 +4031,6 @@ GitHub, and a race between two workers shows exactly one claim wins.
 
 - [ ] avoozl-p53 P53 Proof: two machines claim across fork locations, after 43.1, 43.2, 43.3, 43.4, 43.5, 43.6 [R90, R102.14] (§4.32)
   - Facts:
-    - summary: Phase proof. P53 Proof: two machines claim across fork locations. See R90, R102.14; §4.32.
     - done:
       - P53 Proof: two machines claim across fork locations
       - Setup: owner-provided second machine and login; isolated scratch workspace, registered target and forks, a published scratch spec issue and one canonical claim namespace.
@@ -4368,7 +4058,6 @@ Screenshot approval remains owner work.
 
 - [x] 44.1 One link set per spec and task from stored records, after 40.4, 41.2, 42.6, 56.2, 56.3, 56.8, 56.14 [R92.1, R92.2, R92.3] (§4.27)
   - Facts:
-    - summary: Phase 44. One link set per spec and task from stored records. See R92.1, R92.2, R92.3; §4.27.
     - done:
       - One link set per spec and task from stored records
       - Pure read model over the spec issue and journal, spec working branch, task branch and worktree, task PR and check state from landing, landed commit from delivery records, and intake/escalation issues. URLs come from validated repository, number, ref and SHA fields only.
@@ -4380,7 +4069,6 @@ Screenshot approval remains owner work.
 
 - [x] 44.2 Links box in the spec details panel, after 44.1 [R92.4, R92.9, R92.10, R92.12] (§4.27)
   - Facts:
-    - summary: Phase 44. Links box in the spec details panel. See R92.4, R92.9, R92.10, R92.12; §4.27.
     - done:
       - Links box in the spec details panel
       - Spec issue, working branch, open PRs with a check dot each, Radar issues it came from. Links open with target=_blank rel="noopener noreferrer"; a private spec issue renders only locally.
@@ -4390,7 +4078,6 @@ Screenshot approval remains owner work.
 
 - [x] 44.3 Links box in the task details view and the Graph modal, after 44.1 [R92.5, R92.9, R92.10, R92.12] (§4.27)
   - Facts:
-    - summary: Phase 44. Links box in the task details view and the Graph modal. See R92.5, R92.9, R92.10, R92.12; §4.27.
     - done:
       - Links box in the task details view and the Graph modal
       - Branch, PR, checks, landed commit and issue; the Graph modal reuses the same view. A worktree path shows as local text only.
@@ -4400,7 +4087,6 @@ Screenshot approval remains owner work.
 
 - [x] 44.4 PR and branch chips on In flight rows, after 44.1 [R92.6, R92.9, R92.12] (§4.27)
   - Facts:
-    - summary: Phase 44. PR and branch chips on In flight rows. See R92.6, R92.9, R92.12; §4.27.
     - done:
       - PR and branch chips on In flight rows
       - `PR #N` with a check dot, and the branch. Chips fit a 390 px row.
@@ -4410,7 +4096,6 @@ Screenshot approval remains owner work.
 
 - [x] 44.5 Landing queue page under Dashboards, after 44.1 [R92.7, R92.2, R92.12] (§4.27)
   - Facts:
-    - summary: Phase 44. Landing queue page under Dashboards. See R92.7, R92.2, R92.12; §4.27.
     - done:
       - Landing queue page under Dashboards
       - A Dashboards page next to CI, not a nav pill. Per target base, items in landing order with each hold reason; full-width rows at 390 px. No GitHub call; Refresh redraws.
@@ -4420,7 +4105,6 @@ Screenshot approval remains owner work.
 
 - [x] 44.6 Radar back-links through intake and the journal, after 44.1, 56.11 [R92.8, R92.10] (§4.27)
   - Facts:
-    - summary: Phase 44. Radar back-links through intake and the journal. See R92.8, R92.10; §4.27.
     - done:
       - Radar back-links through intake and the journal
       - Spec shows its Radar source issues. The intake status comment names the spec issue where visibility permits; the journal records the source issue as owner/repo#N under the privacy scan, so GitHub shows a cross-reference. Tests: a public Radar issue never names a private spec; no Radar API, grant or import; no new GitHub write.
@@ -4430,7 +4114,6 @@ Screenshot approval remains owner work.
 
 - [x] avoozl-p54 P54 Proof: links and the landing queue on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6 [R92, R102.7, R102.12] (§4.27)
   - Facts:
-    - summary: Phase proof. P54 Proof: links and the landing queue on real GitHub. See R92, R102.7, R102.12; §4.27.
     - done:
       - P54 Proof: links and the landing queue on real GitHub
       - Setup: isolated scratch workspace with two registered targets, one PR from a fork, a spec created from a scratch Radar-style issue, one landed and one held task; no real workspace tick.
@@ -4456,7 +4139,6 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
 
 - [x] 45.1 Audit Radar-only leaf modules and delete any already unreferenced modules and their tests [R91.1, R91.3] (§4.26)
   - Facts:
-    - summary: Phase 45 (Remove the Issue Radar path). See R91.1, R91.3; §4.26.
     - done:
       - Audit Radar-only leaf modules and delete any already unreferenced modules and their tests
       - Remove only modules with no active production importers; preserve setup and PR landing code. Record retained modules and their importers for 45.4, including when no module can yet be deleted; `npm test` passes.
@@ -4464,7 +4146,6 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
   - Remove only modules with no active production importers; preserve setup and PR landing code. Record retained modules and their importers for 45.4, including when no module can yet be deleted; `npm test` passes.
 - [x] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant, after avoozl-p52 [R91.1] (§4.26)
   - Facts:
-    - summary: Phase 45 (Remove the Issue Radar path). See R91.1; §4.26.
     - done:
       - Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant
       - Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving.
@@ -4474,13 +4155,11 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
   - Left for 45.4 (shared, not Radar-only): `radar-arm.mjs` keeps only the armed list, Disarm and merge-method rows, and nothing arms any more; `radar-conflict-fix.mjs` finishes and reports fixes already queued but starts none; `showPlansRepo` stays in policy but no marker uses it; `public-signoff.mjs` still defaults its agent name to `avoozl-crew`; `scripts/live-harness` still names the agent; `radar-handoff.mjs` and `permissions.api` keep the Issue Radar route that Settings › Issue Radar and Triage use.
 - [x] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
   - Facts:
-    - summary: Phase 45 (Remove the Issue Radar path). See R86.1, R91.1; §4.26.
     - done:
       - Delete the remote coder, the relay and the router chat with their agents
     - checks: npm test, git diff --check
 - [ ] 45.4 Retire shared task projection and synchronization callers, after 45.1, 45.2, 45.3, avoozl-p53, avoozl-p54, 56.5, 56.9, avoozl-p66 [R86.1, R91.2, R91.3, R102.20] (§4.32)
   - Facts:
-    - summary: Phase 45. Retire shared task projection and synchronization callers. See R86.1, R91.2, R91.3, R102.20; §4.32.
     - done:
       - Retire shared task projection and synchronization callers
       - Remove per-task projection, Project sync, issue close/completion/rebuild and old driver markers after binding retirement and replacement proofs. Keep spec issue publication, epic links, journals, explicit export, ranking, setup, receipts and the executor seam. No task-issue reconciliation remains.
@@ -4491,7 +4170,6 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
 
 - [x] 45.6 Remove Who codes; the Avoozl worker is the only coder [R86.1, R91.6] (§4.26)
   - Facts:
-    - summary: Phase 45 (Remove the Issue Radar path). Remove Who codes; the Avoozl worker is the only coder. See R86.1, R91.6; §4.26.
     - done:
       - Remove Who codes; the Avoozl worker is the only coder
       - A stored `coder` loads and is ignored with no warning; a `coder: issue-radar` repository still feeds Triage and its Radar escalations; Radar intake (56.8), Triage escalations (56.14), back-links (44.6) and Settings › Issue Radar stay.
@@ -4501,7 +4179,6 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
 
 - [ ] 45.5 Compatibility names still resolve; docs say one path, after 45.4, 45.6 [R91.4] (§4.26)
   - Facts:
-    - summary: Phase 45 (Remove the Issue Radar path). See R91.4; §4.26.
     - done:
       - Compatibility names still resolve; docs say one path
       - `docs/research/` and `docs/evidence/` untouched except new receipts.
@@ -4511,7 +4188,6 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
 
 - [ ] avoozl-p55 P55 Proof: after removal there is one delivery path, after 45.1, 45.2, 45.3, 45.4, 45.5, 45.6 [R91] (§4.26)
   - Facts:
-    - summary: Phase 45 (Remove the Issue Radar path). Proof. See R91; §4.26.
     - done:
       - Proof: after removal there is one delivery path
       - Expected: the task lands; no Radar, relay, router or crew agent or module remains; every compatibility name resolves.
@@ -4531,7 +4207,6 @@ the interface, existing behavior is preserved and the suite passes.
 
 - [x] 46.1 Executor interface: start, send, status, optional stop and usage [R93.1, R93.4] (§4.28)
   - Facts:
-    - summary: Phase 46 (Name the executor seam). See R93.1, R93.4; §4.28.
     - done:
       - Executor interface: start, send, status, optional stop and usage
       - Contract tests cover the calls and allowed status values; the interface carries no Kiro Crew folder, project or agent-file detail. The comprehensive boundary test runs at P56 after 46.2–46.4 move the existing references.
@@ -4539,7 +4214,6 @@ the interface, existing behavior is preserved and the suite passes.
   - Contract tests cover the calls and allowed status values; the interface carries no Kiro Crew folder, project or agent-file detail. The comprehensive boundary test runs at P56 after 46.2–46.4 move the existing references.
 - [x] 46.2 The `kirocrew` executor holds today's session calls from `tick.py`, after 46.1 [R93.2, R93.6] (§4.28)
   - Facts:
-    - summary: Phase 46 (Name the executor seam). See R93.2, R93.6; §4.28.
     - done:
       - The `kirocrew` executor holds today's session calls from `tick.py`
       - All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`. Preserve existing behavior coverage; only assertions about retired request fields may change (R93.6).
@@ -4548,7 +4222,6 @@ the interface, existing behavior is preserved and the suite passes.
   - All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`. Preserve existing behavior coverage; only assertions about retired request fields may change (R93.6).
 - [x] 46.3 The tick writes session requests that name an executor; each executor takes only its own, after 46.2 [R93.3, R93.4] (§4.28)
   - Facts:
-    - summary: Phase 46 (Name the executor seam). See R93.3, R93.4; §4.28.
     - done:
       - The tick writes session requests that name an executor; each executor takes only its own
       - Planner requests carry no Kiro Crew folder, project or agent-file details.
@@ -4557,7 +4230,6 @@ the interface, existing behavior is preserved and the suite passes.
   - Planner requests carry no Kiro Crew folder, project or agent-file details.
 - [x] 46.4 Role prompts in `prompts/<role>.md`; agent files built from them, after 46.1 [R97.1, R97.2] (§4.28)
   - Facts:
-    - summary: Phase 46 (Name the executor seam). See R97.1, R97.2; §4.28.
     - done:
       - Role prompts in `prompts/<role>.md`; agent files built from them
       - Runtime prompt readers use the prompt files, not generated agent JSON. A test fails when a built agent differs from its prompt.
@@ -4567,7 +4239,6 @@ the interface, existing behavior is preserved and the suite passes.
 
 - [x] avoozl-p56 P56 Proof: the seam is named and nothing else changed, after 46.1, 46.2, 46.3, 46.4 [R93, R97] (§4.28)
   - Facts:
-    - summary: Phase 46 (Name the executor seam). Proof. See R93, R97; §4.28.
     - done:
       - Proof: the seam is named and nothing else changed
       - Expected: the suite passes with behavior coverage retained under R93.6; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.
@@ -4588,7 +4259,6 @@ recovers, and a backend restart mid-run.
 
 - [x] 47.1 Harness definition files: argv lists, placeholders, hash approval, after avoozl-p56 [R94.1, R94.2, R94.3] (§4.28)
   - Facts:
-    - summary: Phase 47 (Supervisor and the process executor). See R94.1, R94.2, R94.3; §4.28.
     - done:
       - Harness definition files: argv lists, placeholders, hash approval
       - Loading refuses a shell string, an unknown placeholder and an unapproved hash.
@@ -4598,7 +4268,6 @@ recovers, and a backend restart mid-run.
   - Built: `src/app/harness-definitions.mjs` (machine config `harnesses/<name>.json`, approvals in `harness-approvals.json`); tests in `src/app/test/harness-definitions.test.mjs`.
 - [x] 47.2 Permission classes, write roots and the skip-flag refusal, after 47.1 [R94.4, R94.4b, R94.5] (§4.28)
   - Facts:
-    - summary: Phase 47 (Supervisor and the process executor). See R94.4, R94.4b, R94.5; §4.28.
     - done:
       - Permission classes, write roots and the skip-flag refusal
       - Definitions with bypassPermissions, danger-full-access or a --dangerously-* flag are refused at load in a test; write roots are the task folder, temp and project cache dirs.
@@ -4609,7 +4278,6 @@ recovers, and a backend restart mid-run.
 - [x] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
   - Facts:
     - checks: npm test, git diff --check
-    - summary: Phase 47 (Supervisor and the process executor). See R94.4a; §4.28.
     - done:
       - Avoozl commits after the child exits
       - The child only edits; Avoozl commits in the worktree from the changed files and checks the diff.
@@ -4618,7 +4286,6 @@ recovers, and a backend restart mid-run.
   - Built: `drainProcessRequests` in `src/app/executors/process.mjs` commits a write worker's changes with `commitWorkerChanges` (`.avoozl/` left out) when its child exits, before 47.6 reads the result and HEAD, and only in a linked worktree (`commitChildWork`); the done report's commit then goes through Verify. A failed commit closes the session unreported (retry path). Tests: `src/app/test/process-executor.test.mjs`.
 - [x] 47.11 Avoozl's worker commit never stages a path under `.avoozl/`, and landing refuses a worker commit that holds one [R94.4a, R96.1, R96.3] (§4.28)
   - Facts:
-    - summary: Phase 47 (Supervisor and the process executor). See R94.4a, R96.1, R96.3; §4.28.
     - done:
       - Avoozl's worker commit never stages a path under `.avoozl/`, and landing refuses a worker commit that holds one
       - Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git.mjs`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.mjs`.
@@ -4627,7 +4294,6 @@ recovers, and a backend restart mid-run.
 - [x] 47.8 Per-project command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
   - Facts:
     - checks: npm test, git diff --check
-    - summary: Phase 47 (Supervisor and the process executor). See R94.4c; §4.28.
     - done:
       - Per-project command allow-list; `git push` never allowed
       - Unattended children run the project's build and test commands without a prompt; adding git push is refused.
@@ -4636,7 +4302,6 @@ recovers, and a backend restart mid-run.
 - [x] 47.9 Plan-quota stop, after 47.4 [R94.6a] (§4.28)
   - Facts:
     - checks: npm test, git diff --check
-    - summary: Phase 47 (Supervisor and the process executor). See R94.6, R94.6a; §4.28.
     - done:
       - Spend cap from the task budget and the plan-quota stop
       - No new session starts on a harness whose plan quota reads low.
@@ -4645,7 +4310,6 @@ recovers, and a backend restart mid-run.
 - [x] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
   - Facts:
     - checks: npm test, git diff --check
-    - summary: Phase 47 (Supervisor and the process executor). See R95.6, R95.7; §4.28.
     - done:
       - Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted
       - A child cannot read the workspace database or credentials; docs and Settings call the chat refusal a speed bump.
@@ -4654,7 +4318,6 @@ recovers, and a backend restart mid-run.
   - Built: `src/app/sandbox.mjs` (`sandbox-exec` on macOS, `bwrap` on Linux, else the per-machine opt-in), wrapped around each child in `src/app/supervisor.mjs`; text in `docs/policies.md` and Settings › Models; tests in `src/app/test/sandbox.test.mjs`.
 - [x] 47.3 `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend, after 47.1 [R95.1, R95.2, R95.3, R95.4] (§4.28)
   - Facts:
-    - summary: Phase 47 (Supervisor and the process executor). See R95.1, R95.2, R95.3, R95.4; §4.28.
     - done:
       - `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend
       - Finds its children again after a restart; a missing one is `gone`.
@@ -4664,7 +4327,6 @@ recovers, and a backend restart mid-run.
   - Built: `src/app/supervisor.mjs` (state in the machine state folder's `supervisor/supervisor.sqlite`, lock `supervisor.lock`), entry `src/app/supervisor-main.mjs`, wrapper `src/app/supervisor-child.mjs` that writes each exit code; the app backend launches it under Kiro Crew's gateway; tests in `src/app/test/supervisor.test.mjs`.
 - [x] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
   - Facts:
-    - summary: Phase 47 (Supervisor and the process executor). See R93.2, R93.5; §4.28.
     - done:
       - The `process` executor and the Claude Code definition
       - Default for the Nupp compiler repository.
@@ -4674,7 +4336,6 @@ recovers, and a backend restart mid-run.
   - Built: `src/app/executors/process.mjs` (start, send by resume, status, stop over the supervisor; `drainProcessRequests` takes `process` requests in the app backend, prepares a worker's task worktree and binds the session); a project opts in with `executor: "process"`, `harness` and `sandbox` in its settings, which is how the Nupp compiler repository makes it its default; the definition at `examples/harnesses/claude-code.json` (stdin prompt, `--session-id`/`--resume`, `acceptEdits`/`plan`, `--allowedTools Bash(...)`), copied to the machine config and approved by hash; tests in `src/app/test/process-executor.test.mjs`.
 - [x] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
   - Facts:
-    - summary: Phase 47 (Supervisor and the process executor). See R95.5; §4.28.
     - done:
       - Child marker; the CLI refuses person-only commands in a child
       - Refused even with `--as-person`.
@@ -4684,7 +4345,6 @@ recovers, and a backend restart mid-run.
   - Built: the supervisor sets `AVOOZL_CHILD=1` and `AVOOZL_CHILD_SESSION` on each child (`src/app/supervisor.mjs`); `cliRefusal` in `src/app/mcp-policy.mjs` ignores `--as-person` there; tests in `src/app/test/cli-person-only.test.mjs` and `src/app/test/supervisor.test.mjs`.
 - [x] 47.6 Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats, after 47.4 [R96.1, R96.2, R96.3, R96.4] (§4.28)
   - Facts:
-    - summary: Phase 47 (Supervisor and the process executor). See R96.1, R96.2, R96.3, R96.4; §4.28.
     - done:
       - Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats
       - A missing or bad result file, or done with a non-zero exit, takes the retry path.
@@ -4695,7 +4355,6 @@ recovers, and a backend restart mid-run.
 
 - [x] avoozl-p57 P57 Proof: a Claude Code chain runs under the supervisor and survives faults, after 47.1, 47.2, 47.3, 47.4, 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11 [R93, R94, R95, R96] (§4.28)
   - Facts:
-    - summary: Phase 47 (Supervisor and the process executor). Proof. See R93, R94, R95, R96; §4.28.
     - done:
       - Proof: a Claude Code chain runs under the supervisor and survives faults
       - Expected: (1) all 3 tasks finish with an exit code and a result file, and Avoozl commits each one; (2) the resume argv delivers the feedback and the task passes; (3) the killed child is `exited` or `gone` and its task recovers on the retry path; (4) the supervisor keeps or finds its children and nothing runs twice; (5) refused.
@@ -4715,7 +4374,6 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
 
 - [x] 48.1 A Codex definition file, after avoozl-p57 [R94.1, R94.4] (§4.28)
   - Facts:
-    - summary: Phase 48 (A second harness by definition file only). See R94.1, R94.4; §4.28.
     - done:
       - A Codex definition file
       - Its start and resume argv, permission values and cost source.
@@ -4726,7 +4384,6 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
 
 - [x] 48.2 Inner sandbox off only under Avoozl's sandbox, after 48.1 [R94.4b, R94.4d] (§4.28)
   - Facts:
-    - summary: Phase 48 (A second harness by definition file only). See R94.4b, R94.4d; §4.28.
     - done:
       - Inner sandbox off only under Avoozl's sandbox
       - `permission.write` may be exactly `danger-full-access`; the child then starts only inside Avoozl's sandbox with the task write roots, and is refused with no Avoozl sandbox, opt-in or not. Tests: refused without the Avoozl sandbox, allowed with it, every other bypass value still refused.
@@ -4737,7 +4394,6 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
 
 - [x] avoozl-p58 P58 Proof: Codex runs a task from its definition file alone, after 48.1, 48.2 [R94.7] (§4.28)
   - Facts:
-    - summary: Phase 48 (A second harness by definition file only). Proof. See R94.7; §4.28.
     - done:
       - Proof: Codex runs a task from its definition file alone
       - Expected: the child exits with a valid `.avoozl/result.json`, Avoozl commits its changes and the task finishes; `git diff --stat` of every source file against the recorded commit is empty, and the proof fails if any source file changed.
@@ -4757,7 +4413,6 @@ Requirement 97.3 (design §4.28).
 
 - [x] 49.1 Verifier, reviewer, planner, retro and watch run on `process`, after avoozl-p57 [R97.3, R94.4] (§4.28)
   - Facts:
-    - summary: Phase 49 (Every role on any executor). See R97.3, R94.4; §4.28.
     - done:
       - Verifier, reviewer, planner, retro and watch run on `process`
       - Read-only roles get the read-only class.
@@ -4768,7 +4423,6 @@ Requirement 97.3 (design §4.28).
 
 - [x] avoozl-p59 P59 Proof: each role runs on either executor, after 49.1 [R97] (§4.28)
   - Facts:
-    - summary: Phase 49 (Every role on any executor). Proof. See R97; §4.28.
     - done:
       - Proof: each role runs on either executor
       - Expected: the same result kinds from both; a read-only role cannot write.
@@ -4790,28 +4444,24 @@ approved.
 
 - [x] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
   - Facts:
-    - summary: Phase 50 (Kiro Crew stays the only UI). See R98.1; §4.28.
     - done:
       - In flight for `process` sessions: status, log tail, cost, copyable attach command
     - checks: npm test, git diff --check
     - after: avoozl-p57
 - [x] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)
   - Facts:
-    - summary: Phase 50 (Kiro Crew stays the only UI). See R98.2; §4.28.
     - done:
       - Send message queues a `send`
     - checks: npm test, git diff --check
     - after: 50.1
 - [x] 50.3 Settings › Models picks harness and model per role; a `session` pin may name a harness, after avoozl-p57 [R98.3, R98.4] (§4.28)
   - Facts:
-    - summary: Phase 50 (Kiro Crew stays the only UI). See R98.3, R98.4; §4.28.
     - done:
       - Settings › Models picks harness and model per role; a `session` pin may name a harness
     - checks: npm test, git diff --check
     - after: avoozl-p57
 - [x] 50.4 One `roles` table for harness, agent and model; Settings › Models is the only place to pick them, after 50.3 [R98.6, R98.7, R98.8, R98.9, R98.10] (§4.28)
   - Facts:
-    - summary: Phase 50 (Kiro Crew stays the only UI). See R98.6–R98.10; §4.28.
     - done:
       - One `roles` table for harness, agent and model; Settings › Models is the only place to pick them
     - checks: npm test, git diff --check
@@ -4822,7 +4472,6 @@ approved.
 
 - [x] avoozl-p60 P60 Proof: a process session is watched and steered from the Avoozl page, after 50.1, 50.2, 50.3 [R98] (§4.28)
   - Facts:
-    - summary: Phase 50 (Kiro Crew stays the only UI). Proof. See R98; §4.28.
     - done:
       - Proof: a process session is watched and steered from the Avoozl page
       - Expected: status, log tail and cost show; the message reaches the child through `send`; the next task of that role uses the new harness; screenshots at 390 and 1280 px, light and dark.
@@ -4842,14 +4491,12 @@ mode of Phase 43.
 
 - [x] 51.1 The supervisor under launchd or systemd, running the tick too, after avoozl-p57 [R95.3] (§4.28)
   - Facts:
-    - summary: Phase 51 (Headless workers). See R95.3; §4.28.
     - done:
       - The supervisor under launchd or systemd, running the tick too
     - checks: npm test, git diff --check
     - after: avoozl-p57
 - [x] 51.2 CLI only: `avoozl status` and `avoozl runner status --json`, after 51.1 [R98.5] (§4.28)
   - Facts:
-    - summary: Phase 51 (Headless workers). See R98.5; §4.28.
     - done:
       - CLI only: `avoozl status` and `avoozl runner status --json`
     - checks: npm test, git diff --check
@@ -4857,7 +4504,6 @@ mode of Phase 43.
 
 - [x] avoozl-p61 P61 Proof: a headless machine runs tasks with the CLI only, after 51.1, 51.2 [R95, R98.5] (§4.28)
   - Facts:
-    - summary: Phase 51 (Headless workers). Proof. See R95, R98.5; §4.28.
     - done:
       - Proof: a headless machine runs tasks with the CLI only
       - Expected: both tasks finish; the supervisor comes back and finds its state; `runner status --json` reports both.
@@ -4875,7 +4521,6 @@ Requirement 96.4 (design §4.28).
 
 - [x] 52.1 `next`, `claim` and `runner report` keep working for a person, after avoozl-p56 [R96.4] (§4.28)
   - Facts:
-    - summary: Phase 52 (The manual path stays). See R96.4; §4.28.
     - done:
       - `next`, `claim` and `runner report` keep working for a person
       - One test per command from a plain shell.
@@ -4886,7 +4531,6 @@ Requirement 96.4 (design §4.28).
 
 - [x] avoozl-p62 P62 Proof: a person finishes a task by hand, after 52.1 [R96.4] (§4.28)
   - Facts:
-    - summary: Phase 52 (The manual path stays). Proof. See R96.4; §4.28.
     - done:
       - Proof: a person finishes a task by hand
       - Expected: the task lands as if a worker did it.
@@ -4906,7 +4550,6 @@ dependency on the worker rebuild (Phases 40–52) and may ship before it.
 
 - [x] 53.1 Plan reviewer role and `planReview` settings [R99.1, R99.10, R99.13] (§4.29)
   - Facts:
-    - summary: Phase 53 (Cross-model plan review). See R99.1, R99.10, R99.13; §4.29.
     - done:
       - Plan reviewer role and `planReview` settings
       - `models.planReviewer` saves from Settings › Models, validation refuses one equal to a named planner, and `planReview.mode` and `planReview.rounds` are checked.
@@ -4914,7 +4557,6 @@ dependency on the worker rebuild (Phases 40–52) and may ship before it.
   - `planReviewer` in `MODEL_ROLES`, `plan-review` in `DISPATCH_ROLE`, `validateModels` refuses a reviewer equal to a named planner; `planReview.mode` and `planReview.rounds` validated; the Settings › Models row. Tests use fake model names.
 - [x] 53.2 Review rounds and spec findings keyed by hash, after 53.1 [R99.2, R99.5, R99.6] (§4.29)
   - Facts:
-    - summary: Phase 53 (Cross-model plan review). See R99.2, R99.5, R99.6; §4.29.
     - done:
       - Review rounds and spec findings keyed by hash, after 53.1
       - Spec findings are stored per plan and revision hash; a bad file or line, and a session on the writer's model, are refused; a skipped review records its reason.
@@ -4923,7 +4565,6 @@ dependency on the worker rebuild (Phases 40–52) and may ship before it.
   - `review_rounds` rows per pass and round; `plan.review.submit` takes spec findings (kind, severity, file, line, claim, evidence) and refuses a bad file or line and a same-model session. Tests: the different-model rule; findings keyed by hash.
 - [x] 53.3 Tick opens the reviewer, then the planner answers, after 53.2 [R99.3, R99.4, R99.7, R99.10] (§4.29)
   - Facts:
-    - summary: Phase 53 (Cross-model plan review). See R99.3, R99.4, R99.7, R99.10; §4.29.
     - done:
       - Tick opens the reviewer, then the planner answers, after 53.2
       - A stored draft revision gets one read-only reviewer chat on the reviewer model, the planner answers each finding fixed or answered, and rounds stop at `planReview.rounds`.
@@ -4932,7 +4573,6 @@ dependency on the worker rebuild (Phases 40–52) and may ship before it.
   - `planReviewStep`: mode, model check, read-only brief with worktrees at recorded commits, content rules at `brief`; `plan.review.findings` and `plan.review.answer`; rounds; `ask` opens one Needs you item. Fake chats only.
 - [x] 53.4 Review counts in the Approve dialogs, after 53.2 [R99.8, R99.9] (§4.29)
   - Facts:
-    - summary: Phase 53 (Cross-model plan review). See R99.8, R99.9; §4.29.
     - done:
       - Review counts in the Approve dialogs, after 53.2
       - The single and batch Approve dialogs show reviewer model, found, fixed and for you per spec with each open finding, and approval gives the same result with or without a review.
@@ -4941,7 +4581,6 @@ dependency on the worker rebuild (Phases 40–52) and may ship before it.
   - `plan.reviewSummary` on `approvalChecks` and each `approvalBatches` entry; the single and batch dialogs show found, fixed, for you and each open finding. Tests: review never changes approval (and makes no GitHub write); the batch dialog shows counts.
 - [x] 53.5 CLI, MCP tools and Flow planning, after 53.3 [R99.11, R99.12] (§4.29)
   - Facts:
-    - summary: Phase 53 (Cross-model plan review). See R99.11, R99.12; §4.29.
     - done:
       - CLI, MCP tools and Flow planning, after 53.3
       - `avoozl plan review SPEC` prints and starts a review, the planner reads and answers findings over MCP, and Flow shows review time and usage under Planning per spec.
@@ -4951,7 +4590,6 @@ dependency on the worker rebuild (Phases 40–52) and may ship before it.
 
 - [x] avoozl-p63 P63 Proof: a draft is reviewed on another model and the person sees it at approval [R99] (§4.29)
   - Facts:
-    - summary: Phase 53 (Cross-model plan review). Proof. See R99; §4.29.
     - done:
       - Proof: a draft is reviewed on another model and the person sees it at approval
       - Expected: no review runs on the writer's model or with no reviewer set; a different model finds the wrong reference and hidden order at the right line; a new hash gets a fresh round; both Approve dialogs show the counts and approval is unchanged, with no GitHub write.
@@ -4971,7 +4609,6 @@ dependency on Phases 40–53 and may ship before them.
 
 - [x] 54.1 File classes from the widened open pull request read [R100.1, R100.4, R100.6] (§4.30)
   - Facts:
-    - summary: Phase 54 (Retrospectives catch steady CI waste). See R100.1, R100.4, R100.6; §4.30.
     - done:
       - File classes from the widened open pull request read
       - Each pull request in the workspace's repositories, task or other, is stored with its file classes from the existing open pull request read; globs, order, override and partial are tested, and a fake client sees no new GraphQL call.
@@ -4979,7 +4616,6 @@ dependency on Phases 40–53 and may ship before them.
   - `openPullRequests` adds `createdAt`, `files` and head check runs with times, run id and event; `flow.ci` settings in `flowSection`; class globs with defaults through `globToRegex`; `pr_ci` rows for task and other pull requests. Tests: classes, order, override and partial; a fake client sees no new GraphQL call.
 - [x] 54.2 Workflow runs read and repeat runs, after 54.1 [R100.2, R100.6] (§4.30)
   - Facts:
-    - summary: Phase 54 (Retrospectives catch steady CI waste). See R100.2, R100.6; §4.30.
     - done:
       - Workflow runs read and repeat runs, after 54.1
       - At most one cached workflow runs read per repository per check; a test shows two runs of one workflow on one commit record a repeat run, a re-run attempt does not, and a 304 reuses the cache.
@@ -4988,7 +4624,6 @@ dependency on Phases 40–53 and may ship before them.
   - At most one `actions/runs` read per repository per check through the HTTP cache; `ci_runs` rows; `job_ms` from check runs or wall time marked an estimate. Tests: a 304 reuses the cache; two runs of one workflow on one commit are a repeat run; attempt 2 of one run is not.
 - [x] 54.3 Steady waste triggers, after 54.2 [R100.3, R100.4, R100.8] (§4.30)
   - Facts:
-    - summary: Phase 54 (Retrospectives catch steady CI waste). See R100.3, R100.4, R100.8; §4.30.
     - done:
       - Steady waste triggers, after 54.2
       - Tests: 10 spec-only pull requests with 25 CI minutes each fire docs-only waste once in the window; a varied but steady repository with no waste fires nothing; the existing outlier trigger tests pass unchanged.
@@ -4997,7 +4632,6 @@ dependency on Phases 40–53 and may ship before them.
   - Docs-only waste, CI wait share and repeat run in `triggers`, keyed once per repository, kind and window, outside the spike gap; a retrospective with no finished tasks. Tests: 10 spec-only pull requests with 25 CI minutes fire docs-only waste once; a varied but steady repository fires nothing; the Requirement 47.1 tests pass unchanged.
 - [x] 54.4 CI facts in the brief, CI plan proposals and PDCA by class, after 54.3 [R100.4, R100.5] (§4.30)
   - Facts:
-    - summary: Phase 54 (Retrospectives catch steady CI waste). See R100.4, R100.5; §4.30.
     - done:
       - CI facts in the brief, CI plan proposals and PDCA by class, after 54.3
       - The brief holds minutes by class, wait share and repeat runs with other pull requests as number, author and classes only; a test drops a proposal naming an unseen workflow, opens a draft for an approved one, and runs PDCA by class.
@@ -5006,7 +4640,6 @@ dependency on Phases 40–53 and may ship before them.
   - Brief per repository: minutes by class, task and other, wait share, repeat runs, workflow files; `other` pull requests as number, author and classes only. `PLAN_FIELDS` adds `repository` and `workflow`; `METRICS` adds `CI minutes per pull request`. Tests: an unseen workflow is dropped; an approved proposal opens a draft; PDCA compares closed pull requests of one class.
 - [x] 54.5 Flow CI card and Settings › Flow CI group, after 54.3 [R100.7, R100.8] (§4.30)
   - Facts:
-    - summary: Phase 54 (Retrospectives catch steady CI waste). See R100.7, R100.8; §4.30.
     - done:
       - Flow CI card and Settings › Flow CI group, after 54.3
       - The Flow tab shows CI minutes by class and repeat runs and Settings › Flow edits the CI limits, tested on the view data, with before and after screenshots (phone and desktop, light and dark) approved by the owner before merge.
@@ -5015,7 +4648,6 @@ dependency on Phases 40–53 and may ship before them.
   - The CI card (minutes by class, wait share, Repeat runs) and the Settings fields with class globs read-only. Ships before and after screenshots (phone and desktop, light and dark) and waits for the owner's approval before merge. Tests: the view data for the card, and No pull requests read without GitHub.
 - [x] 54.6 Closed pull requests from the open pull request query, after 54.2 [R100.1, R100.4, R100.6] (§4.30)
   - Facts:
-    - summary: Phase 54 (Retrospectives catch steady CI waste). See R100.1, R100.4, R100.6; §4.30.
     - done:
       - Closed pull requests from the open pull request query, after 54.2
       - The open pull request query's first page also reads the 50 most recently updated closed pull requests; one never seen open gets a row, its runs link by branch, a seen one takes its exact close time, and a test shows no extra call.
@@ -5025,7 +4657,6 @@ dependency on Phases 40–53 and may ship before them.
 
 - [ ] avoozl-p64 P64 Proof: the retro catches steady CI waste on a real repository [R100] (§4.30)
   - Facts:
-    - summary: Phase 54 (Retrospectives catch steady CI waste). Proof. See R100; §4.30.
     - done:
       - Proof: the retro catches steady CI waste on a real repository
       - Expected: with no Avoozl tasks, spec-only pull requests on a repository that runs its workflow twice per commit fire docs-only waste and repeat run, the brief labels them other, a CI plan proposal names the workflow, reads stay within the budget, and PDCA shows spec CI minutes per pull request down at least 10%.
@@ -5045,7 +4676,6 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
 
 - [x] 55.1 Every line of a receipt file, and task, attempt and phase in the wrapper [R101.2, R101.3] (§4.31)
   - Facts:
-    - summary: Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.2, R101.3; §4.31.
     - done:
       - Every line of a receipt file, and task, attempt and phase in the wrapper
       - `parseReceipts` keeps every line and counts skipped ones, an old version 1 line parses, and the wrapper records task, attempt and phase with the rc-31.1 tests unchanged.
@@ -5054,7 +4684,6 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
   - Built: pass, `src/app/test/build-receipt.test.mjs`.
 - [x] 55.2 CI uploads a receipt from every platform, after 55.1 [R101.3] (§4.31)
   - Facts:
-    - summary: Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.3; §4.31.
     - done:
       - CI uploads a receipt from every platform, after 55.1
       - A CI run uploads `build-receipt-<os>` from each of the 3 platforms and prints every line in the job summary; the workflow diff went to the owner as a protected path.
@@ -5063,7 +4692,6 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
   - Each test job uploads `build-receipt-<os>` with `if: always()`; the summary prints every line. A workflow file is a protected path, so the diff goes to the owner before it lands. Done when a CI run shows 3 artifacts and every line in the summary.
 - [x] 55.3 Reader: every artifact, every line, stored observations, after 55.1, 54.2, 54.6 [R101.1, R101.2, R101.5, R101.6] (§4.31)
   - Facts:
-    - summary: Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.1, R101.2, R101.5, R101.6; §4.31.
     - done:
       - Reader: every artifact, every line, stored observations, after 55.1, 54.2, 54.6
       - Tests on a fake GitHub: a pull request with several phases on 3 platforms keeps every record, a failed attempt is kept and marked, one artifact list per check and one download per new artifact, and the next check costs 0.
@@ -5073,7 +4701,6 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
   - Built: pass, `src/app/test/build-receipt-read.test.mjs`.
 - [x] 55.4 Flow and Trace show every record; PDCA on build minutes, after 55.3 [R101.4, R101.12] (§4.31)
   - Facts:
-    - summary: Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.4, R101.12; §4.31.
     - done:
       - Flow and Trace show every record; PDCA on build minutes, after 55.3
       - Flow names the costliest phase and keeps failed attempts out of medians, Trace lists every observation by phase, with before and after screenshots (phone and desktop, light and dark) approved by the owner before merge.
@@ -5083,7 +4710,6 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
   - `buildView` replaces `receiptsView`: totals, phases, costliest phase, failed apart, medians per phase, target and start; Trace groups every observation by phase. `METRICS` adds Build minutes per pull request. Tests: the costliest phase shows in Flow; failed attempts stay out of medians. Ships before and after screenshots (phone and desktop, light and dark) and waits for the owner's approval before merge.
 - [x] 55.5 Build report format, `receipts.report` and the adapter, after 55.1 [R101.7, R101.8, R101.9] (§4.31)
   - Facts:
-    - summary: Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.7, R101.8, R101.9; §4.31.
     - done:
       - Build report format, `receipts.report` and the adapter, after 55.1
       - `docs/build-report.md` documents version 1; the adapter parses the field and artifact forms, skips and counts an unknown version or a missing field, and its fixtures use made-up names only.
@@ -5093,7 +4719,6 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
   - Built: pass, `src/app/test/build-report.test.mjs`.
 - [x] 55.6 Breakdowns stored, in the retro brief, and compared by key only, after 55.3, 55.5, 54.4 [R101.9, R101.10, R101.11] (§4.31)
   - Facts:
-    - summary: Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.9, R101.10, R101.11; §4.31.
     - done:
       - Breakdowns stored, in the retro brief, and compared by key only, after 55.3, 55.5, 54.4
       - Tests: mismatched keys are never compared, a retro brief includes the breakdown, and a repository with no reports gives the same brief and call count as before.
@@ -5104,7 +4729,6 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
 
 - [x] avoozl-p65 P65 Proof: every receipt kept and a breakdown in a retro on a real repository, after 55.1, 55.2, 55.3, 55.4, 55.5, 55.6 [R101] (§4.31)
   - Facts:
-    - summary: Phase 55 (Every build receipt, and a build breakdown for retrospectives). Proof. See R101; §4.31.
     - done:
       - Proof: every receipt kept and a breakdown in a retro on a real repository
       - Expected: on a scratch repository with CI on 3 platforms, a pull request with a failed and re-run test job keeps every observation with the failed attempt marked, Flow names the costliest phase, reads stay within one list per check and one download per artifact, and the retro brief compares only breakdowns with the same key.
@@ -5128,7 +4752,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.1 Task outcomes, legacy values and branch-progress semantics [R102.3, R102.4, R102.5, R102.20] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Task outcomes, legacy values and branch-progress semantics. See R102.3, R102.4, R102.5, R102.20; §4.32.
     - done:
       - Task outcomes, legacy values and branch-progress semantics
       - Define the task-definition digest and latest valid outcome reducer; done/skipped/landed complete, refused/reopened/unverified/stale hold. Explicitly carry forward unchanged evidence only on new approval.
@@ -5139,7 +4762,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.2 Publish spec issues and validate the minimal journal, after 56.1, 56.12 [R102.1, R102.2, R102.9, R102.10, R102.11, R103.1] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Publish spec issues and validate the minimal journal. See R102.1, R102.2, R102.9, R102.10, R102.11, R103.1; §4.32.
     - done:
       - Publish spec issues and validate the minimal journal
       - Implement explicit per-spec publication, one issue per spec/epic and local-file parity. Approval alone makes no GitHub write. Keep epic links and existing issue ownership. Spec, epic and sub-issues carry crew:avoozl in their create call.
@@ -5151,7 +4773,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.3 Qualified working heads, fork checkpoints and verified integration, after 56.2, 56.11, 40.5 [R102.6, R102.7, R102.8, R102.15] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Qualified working heads, fork checkpoints and verified integration. See R102.6, R102.7, R102.8, R102.15; §4.32.
     - done:
       - Qualified working heads, fork checkpoints and verified integration
       - Generalize spec homes and integration branches to source repository/ref/SHA and target/base. Discover PR fork heads; accept trusted owner-published pre-PR refs. Fetch only registered sources, validate relationships and exact commits; no arbitrary issue URLs or commands.
@@ -5163,7 +4784,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.4 Driver generations, guarded intents and landing reconciliation, after 56.2, 56.3 [R102.5, R102.13, R102.14] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Driver generations, guarded intents and landing reconciliation. See R102.5, R102.13, R102.14; §4.32.
     - done:
       - Driver generations, guarded intents and landing reconciliation
       - Retain assignee/fallback authority and private handoff. Person-only takeover writes a generation; ambiguous concurrent takeovers hold. Revalidate controls/authority before dispatch and landing.
@@ -5175,7 +4795,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.5 Ordered issue-binding retirement without completing work, after 56.1, 56.2 [R102.20] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Ordered issue-binding retirement without completing work. See R102.20; §4.32.
     - done:
       - Ordered issue-binding retirement without completing work
       - Preview and apply: hold/stop ticks, disable projection and close reconciliation, retire only issue bindings/verdicts/dispatch flags without status or source changes, then run one tick and verify unchanged readiness with no task-issue reads/writes/recreation. Only after that offer closing obsolete issues; keep spec issues.
@@ -5187,7 +4806,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.6 Independent refresh and held reconstruction, after 56.4, 56.5 [R102.12, R102.16, R102.17] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Independent refresh and held reconstruction. See R102.12, R102.16, R102.17; §4.32.
     - done:
       - Independent refresh and held reconstruction
       - Cache repository hashes separately from journal/assignee/control/review/check reads. Use conditional reads or available webhooks; unchanged definitions are not reparsed. Holds and reassignment are observed with no branch commit.
@@ -5199,7 +4817,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.7 Epic design/review/implement rows and approval evidence, after 56.2 [R59, R102.18] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Epic design/review/implement rows and approval evidence. See R59, R102.18; §4.32.
     - done:
       - Epic design/review/implement rows and approval evidence
       - Extend epic entries with step, default implement. Allow one row per (plan, step), forbid task fields/dispatch, derive design/review/implement from current member state; never hand-tick lifecycle rows.
@@ -5211,7 +4828,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.8 GitHub intake with proportionate plans and private-safe status, after 56.2, 56.7, 56.12 [R102.19, R103.1, R103.10] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). GitHub intake with proportionate plans and private-safe status. See R102.19, R103.1, R103.10; §4.32.
     - done:
       - GitHub intake with proportionate plans and private-safe status
       - Accept GitHub starts in plan/deliver. Bounded fixes use a compact versioned acceptance definition and the existing issue journal, without a full spec; coordinated design uses a proportionate spec. Reuse an issue only when home/visibility match.
@@ -5223,7 +4839,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.9 Idempotent task-issue offboarding export, after 56.5, 56.7, 56.12 [R102.19, R91.2, R103.6] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Idempotent task-issue offboarding export. See R102.19, R91.2, R103.6; §4.32.
     - done:
       - Idempotent task-issue offboarding export
       - Preview export-issues SPEC, create only incomplete task issues and blocked-by links, record stable export bindings, then mark Exported and cease dispatch/landing. A retry creates no duplicate issues or links; a partial failure stays held and resumes safely.
@@ -5237,7 +4852,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Mirror import PRs and forward ancestry. See R102.21; §4.32.
     - done:
       - Mirror import PRs and forward ancestry
       - After private divergence, import upstream into a public-tracking branch and a reviewed mirror PR. Forward recognition excludes upstream/import ancestry, including an import merge whose second parent is on the public-tracking branch.
@@ -5249,7 +4863,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.11 Privacy enforcement for checkpoints and public metadata, after 56.2 [R87.9, R102.11, R102.12, R102.23, R102.24, R102.25] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Privacy enforcement for checkpoints and public metadata. See R87.9, R102.11, R102.12, R102.23, R102.24, R102.25; §4.32.
     - done:
       - Privacy enforcement for checkpoints and public metadata
       - Reuse existing content scanning in process before every outgoing push range and every externally visible journal/intake/PR/status write. Check ref names, commit messages, added lines and public metadata; apply the explicit journal schema without raw logs, commands, paths or private identifiers.
@@ -5263,7 +4876,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.12 Every Avoozl-created issue carries crew:avoozl at create [R103.1, R103.2, R103.3] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Every Avoozl-created issue carries crew:avoozl at create. See R103.1, R103.2, R103.3; §4.32.
     - done:
       - Every Avoozl-created issue carries crew:avoozl at create
       - Add crew:avoozl in the GitHub client's createIssue, REST and GraphQL forms, with one named opt-out for export. No label edit after a create. Covers projection, the extracted-design parent, mirror follow-up and conflict issues today.
@@ -5274,7 +4886,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.13 Stop handing Avoozl task issues to Issue Radar, after 56.12 [R103.4, R103.5, R103.7] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Stop handing Avoozl task issues to Issue Radar. See R103.4, R103.5, R103.7; §4.32.
     - done:
       - Stop handing Avoozl task issues to Issue Radar
       - Until 56.5 runs, issueRadarAdapter.handOver adds no ready label and the claim at approval writes no claim label or marker; the executor runs those tasks. Keep Radar code and settings (Phase 45 paused).
@@ -5286,7 +4897,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.14 Issue Radar escalations open first in intake, after 56.8, 56.12 [R103.8, R103.9, R103.10, R103.11] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Issue Radar escalations open first in intake. See R103.8, R103.9, R103.10, R103.11; §4.32.
     - done:
       - Issue Radar escalations open first in intake
       - Keep the plan-me path. Trusted escalations (the repository's needs-human label) sort first in Untriaged, or Intake for a Radar-coded repository, with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.
@@ -5298,7 +4908,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] 56.15 Reanchor a held journal by a person's record, after 56.2 [R102.26] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). Reanchor a held journal by a person's record. See R102.26; §4.32.
     - done:
       - Reanchor a held journal by a person's record
       - Schema, writer and replay: a `reanchor` record names held record IDs and the reviewed tail (ID and current digest); replay accepts it only from a write-access author whose tail is the last known record, ignores the named records' contents, clears their holds and continues. Unnamed or later holds stay. No comment is edited or deleted; no approval, completion or generation change.
@@ -5310,7 +4919,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] avoozl-p66 P66 Proof: journal, working-head recovery and takeover, after 56.3, 56.4, 56.5, 56.6, 56.7, 56.8, 56.15, 41.3 [R102] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). P66 Proof: journal, working-head recovery and takeover. See R102; §4.32.
     - done:
       - P66 Proof: journal, working-head recovery and takeover
       - Setup: isolated scratch GitHub code and private planning repositories, published epic/spec issues, a three-task in-spec chain and one cross-spec successor, actual executor, direct landing and made-up secret canaries. No real workspace or private pilot.
@@ -5331,7 +4939,6 @@ proof or run a real workspace to get past that wait.
 
 - [x] avoozl-p67 P67 Proof: fork source and upstream permissions, after avoozl-p66, 42.1, 42.2, 56.9, 56.10 [R102.7, R102.8, R102.12, R102.19, R102.21] (§4.32)
   - Facts:
-    - summary: Phase 56 (Working branches and a spec journal). P67 Proof: fork source and upstream permissions. See R102.7, R102.8, R102.12, R102.19, R102.21; §4.32.
     - done:
       - P67 Proof: fork source and upstream permissions
       - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real project settings.
@@ -5362,7 +4969,6 @@ approval before merge.
 
 - [x] 57.1 Finding schema, anchors and storage, after 53.2, 53.4 [R104.1, R104.2, R104.3, R104.4, R104.5, R104.8, R104.15] (§4.33)
   - Facts:
-    - summary: Phase 57 (Review findings the owner can read and decide). See R104.1, R104.2, R104.3, R104.4, R104.5, R104.8, R104.15; §4.33.
     - done:
       - Finding schema, anchors and storage, after 53.2, 53.4
       - Plan-review findings store severity info, warn or blocker (old values mapped on read), a quote-hash anchor and an append-only decision list; follow-ups have their own table; findingState and anchorAt are tested for moved, removed and duplicated text, and the summary counts by severity and state with zero GitHub calls.
@@ -5371,7 +4977,6 @@ approval before merge.
   - `review_threads` plan-review rows gain `anchor {file, lineStart, lineEnd, quote, quoteHash}` and append-only `decisions`; `review_followups` table; severity `info`/`warn`/`blocker` with the read mapping for old values; pure `findingState` and `anchorAt`; `plan.reviewSummary` adds `bySeverity` and `byState`. Tests: severity mapping, anchor survives edits, moved or removed, old rows without a quote, zero GitHub calls.
 - [x] 57.2 Reviewer and planner briefs, severity and quote parsing, after 57.1 [R104.3, R104.7, R104.14, R104.16] (§4.33)
   - Facts:
-    - summary: Phase 57 (Review findings the owner can read and decide). See R104.3, R104.7, R104.14, R104.16; §4.33.
     - done:
       - Reviewer and planner briefs, severity and quote parsing, after 57.1
       - Submit derives lines from an exact quote and refuses a missing or ambiguous one; a same-pass repeat of a rejected or resolved finding is dropped and counted; the planner brief carries accepted, rejected and deferred findings; an accepted finding opens one planner turn per plan per tick outside planReview.rounds; Review anyway adds one round at the cap. Fake chats only.
@@ -5380,7 +4985,6 @@ approval before merge.
   - The reviewer brief asks for `info`/`warn`/`blocker` and an exact quote; `plan.review.submit` derives lines from the quote, refuses a missing or ambiguous quote, and drops a same-pass repeat of a rejected or resolved finding with a count in the note. The planner answer brief carries accepted, rejected and deferred lists. `planReviewStep` opens one person-triggered planner turn per plan per tick for an accepted, unfixed finding, outside `planReview.rounds`; Review anyway starts one more round at the cap. Fake chats only.
 - [x] 57.3 Person actions: operation, policy, CLI and MCP read, after 57.1 [R104.5, R104.6, R104.8] (§4.33)
   - Facts:
-    - summary: Phase 57 (Review findings the owner can read and decide). See R104.5, R104.6, R104.8; §4.33.
     - done:
       - Person actions: operation, policy, CLI and MCP read, after 57.1
       - plan.review.finding.decide records accept, reject (with reason), defer (with a follow-up row), resolve and reopen with who, when and revision; it and plan.review.dispose are person-only and refused over MCP; the CLI decides and prints severity, state and anchor; defer makes no task and no GitHub call.
@@ -5389,7 +4993,6 @@ approval before merge.
   - `plan.review.finding.decide` (accept, reject with reason, defer with a follow-up row, resolve, reopen) recording who, when and revision; added to `PERSON_ONLY`; `plan.review.dispose` maps onto it and becomes person-only; `avoozl plan finding ID ACTION [--note]`; `avoozl plan review SPEC` and `plans_plan_review` show severity, state and anchor. Tests: MCP and agent refusal for both operations; history order; defer makes no task and no GitHub call.
 - [x] 57.4 Review view with tabs, cards, filters and chat links, after 57.1, 57.3 [R104.9, R104.10, R104.11, R104.15] (§4.33)
   - Facts:
-    - summary: Phase 57 (Review findings the owner can read and decide). See R104.9, R104.10, R104.11, R104.15; §4.33.
     - done:
       - Review view with tabs, cards, filters and chat links, after 57.1, 57.3
       - The spec page's Review mode shows requirements, design and tasks tabs with severity-bordered finding cards, history and person action buttons, severity and state filters kept in the address, and Open review chat and Open planner chat links (or Chat closed), tested on plan.review.view data. Before and after screenshots (phone and desktop, light and dark) are approved by the owner before merge.
@@ -5398,7 +5001,6 @@ approval before merge.
   - `plan.review.view`; the spec page's Review mode with requirements, design and tasks tabs; severity borders and labels; card body, history and Accept, Reject, Defer, Resolve and Reopen; severity and state filters with counts in the address; Open review chat and Open planner chat, or Chat closed. Tests on the view data. Owner screenshot approval before merge.
 - [x] 57.5 Rail alignment, scroll and highlight, and moved findings, after 57.4 [R104.4, R104.9] (§4.33)
   - Facts:
-    - summary: Phase 57 (Review findings the owner can read and decide). See R104.4, R104.9; §4.33.
     - done:
       - Rail alignment, scroll and highlight, and moved findings, after 57.4
       - Rendered blocks carry their source line; each rail card sits level with its anchor with overlaps stacked; clicking a card scrolls and highlights its lines and clicking text selects the card; moved or removed findings list first; narrow screens show cards inline. Before and after screenshots (phone and desktop, light and dark) are approved by the owner before merge.
@@ -5407,7 +5009,6 @@ approval before merge.
   - `data-source-line` on rendered blocks in `Markdown.tsx`; cards level with their anchor, overlaps stacked; card click scrolls and highlights, text click selects the card; Moved or removed group first; inline cards on narrow screens. UI tests for alignment order and selection. Owner screenshot approval before merge.
 - [x] 57.6 Approve dialogs: counts, Open review link and in-place revision updates, after 57.1, 57.4 [R104.12, R104.13] (§4.33)
   - Facts:
-    - summary: Phase 57 (Review findings the owner can read and decide). See R104.12, R104.13; §4.33.
     - done:
       - Approve dialogs: counts, Open review link and in-place revision updates, after 57.1, 57.4
       - Both Approve dialogs show counts by severity and state with an Open review link and no close controls; a hash change while open updates the dialog in place with changed files and findings and resets Approve, with no thrown changed error; plan.approve still refuses a stale hash. Before and after screenshots (phone and desktop, light and dark) are approved by the owner before merge.
@@ -5417,7 +5018,6 @@ approval before merge.
 
 - [x] avoozl-p68 P68 Proof: a person reads, decides and approves a reviewed spec, after 57.1, 57.2, 57.3, 57.4, 57.5, 57.6, avoozl-p63 [R104] (§4.33)
   - Facts:
-    - summary: Phase 57 (Review findings the owner can read and decide). P68 Proof: a person reads, decides and approves a reviewed spec. See R104; §4.33.
     - done:
       - P68 Proof: a person reads, decides and approves a reviewed spec
       - Setup: an isolated workspace and Kiro Crew home, a scratch planning repository with one draft spec that has a missing file, a hidden order and a vague criterion, and real planner and reviewer chats on two different owner-selected models with planReview.rounds 1.
@@ -5444,7 +5044,6 @@ picker. The owner waived screenshot review for this task.
 
 - [x] 58.1 Repository roles replace Where tasks live, after 3.14, 20.2 [R105.1, R105.2, R105.3, R105.4, R105.5, R105.6, R105.7, R105.8, R105.9, R105.10, R28.1] (§4.34)
   - Facts:
-    - summary: Phase 58 (A role per repository replaces Where tasks live). See R105; §4.34.
     - done:
       - Repository roles replace Where tasks live, after 3.14, 20.2
       - Repository setup shows an in-place role picker per repository (local, code, planning, both); the mode and planningRepository derive from roles through one resolver that also reads old files without writing; mixed roles are refused; the Where tasks live page is gone with its link opening Repository setup and workspace-wide settings in Settings › Workspaces. Tests cover the mapping, migration and screens, and screenshots (phone and desktop, light and dark, full app shell) are under docs/evidence/repo-roles/.
@@ -5463,7 +5062,6 @@ The owner waived screenshot review.
 
 - [x] 59.1 Remove Trace; task details get a Timeline of Avoozl's task steps, after 55.4 [R106.1, R106.2, R106.3, R106.4, R106.5, R106.6, R106.7, R106.8, R106.9] (§4.35)
   - Facts:
-    - summary: Phase 59 (Trace moves into task details). See R106; §4.35.
     - done:
       - Remove Trace; task details get a Timeline of Avoozl's task steps, after 55.4
       - The Timeline box in task details lists spec approved, ready, started (attempt N), failed attempts, checks, landed, builds and integrated from stored records only, each with its time and the wait before it; the Trace nav entry, page, drawer, Done work list, radar.trace and trace.done are gone; an old trace link opens Delivery or the task's details; tests cover the steps, redirects, nav and zero GitHub calls, and screenshots (phone and desktop, light and dark, full app shell) are under docs/evidence/trace-into-task/.
@@ -5480,7 +5078,6 @@ the spec pull request item through the same list, not a second one.
 
 - [x] 60.1 Adopt spec-only pull requests into their spec, out of Triage, with a Proposed change box, a PR chip and a Decisions item, after 58.1, 57.6 [R107.1, R107.2, R107.3, R107.4, R107.5, R107.6, R107.7, R107.8, R107.9] (§4.36)
   - Facts:
-    - summary: Phase 60 (Spec pull requests are adopted into their spec). See R107; §4.36.
     - done:
       - Adopt spec-only pull requests into their spec, out of Triage, with a Proposed change box, a PR chip and a Decisions item, after 58.1, 57.6
       - An open pull request that changes only one spec folder in a planning or both repository is linked to its spec (own branch, owner login, or an allowed author; otherwise Review as spec in Triage), imported as a draft revision and reviewed; the Overview shows a Proposed change box, the Specs list a PR chip and Decisions one item; Approve approves exactly that head and merges after checks with the repository's merge method, Reject closes with a named reason, Request changes posts the findings as one comment; an adopted spec pull request never shows in Triage; no new GitHub polling; tests cover detection, author check, adoption, Triage exclusion, approve then merge and reject, and screenshots in the full app shell are under docs/evidence/spec-pr-adoption/.
@@ -5496,7 +5093,6 @@ merge main often and keep to `flow-batch.mjs` and the call sites.
 
 - [x] 61.1 Planner batch groups replace `size: "small"` and `flow.batch`, after 12.8 [R108.1, R108.2, R108.3, R108.4, R108.5, R108.6, R108.7, R108.8, R108.9, R108.10, R108.11, R108.12] (§4.37)
   - Facts:
-    - summary: Phase 61 (The planner decides batches). See R108; §4.37.
     - done:
       - Planner batch groups replace `size: "small"` and `flow.batch`, after 12.8
       - A manifest `batches` group is linted, stored on its member tasks at approval, and dispatched by the tick as one handoff when every open member is ready; a group that breaks a code rule (plan, approved hash, repository, at most 5, no edge, local automatic leaf, no earlier attempt or split) runs as single tasks with the reason on the task; a failing batch splits and each task retries alone; `flow.batch`, `size` and the Batching box are gone and old values load silently; Delivery shows one In progress card per batch with its tasks and reason and each task links to its batch; tests cover each case, and screenshots are under docs/evidence/agent-batching/.
@@ -5510,7 +5106,6 @@ Owner request 2026-11-18 (Requirement 109, design §4.38). One build task.
 
 - [x] 62.1 Approval delegation and an exact-set preview, after 61.1 [R109.1, R109.2, R109.3, R109.4, R109.5, R109.6, R109.7, R109.8, R109.9] (§4.38)
   - Facts:
-    - summary: Phase 62 (Approval delegation and exact-set approval). See R109; §4.38.
     - done:
       - Approval delegation and an exact-set preview, after 61.1
       - A person grants or revokes approval delegation to a named identity, stored in the workspace database; plan.approve and plan.approveMany with delegate are refused without an active grant and otherwise approve as the granting person, recording delegation {delegate, onBehalfOf, grantedAt} on the receipt and on approval pull requests; grant and revoke are person-only; the approval preview counts tasks waiting on draft specs left out and says approval does not need them; tests cover each case.
@@ -5527,7 +5122,6 @@ often and keep theirs on a clash.
 
 - [x] 63.1 GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 56.14, 44.6 [R110.1, R110.2, R110.3, R110.4, R110.5, R110.6, R110.7, R110.8, R110.9, R50.6] (§4.39)
   - Facts:
-    - summary: Phase 63 (One intake list). See R110, R50.6; §4.39.
     - done:
       - GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 56.14, 44.6
       - `intake.sources` takes `via: github` with the old issue intake keys and refuses the wrong keys per kind; an old `github.issueIntake` loads as a source and an old `github.queue` is ignored, with no warning and no apply flag; Avoozl's next write moves old entries into `intake.sources` once; `github configure` and Repository setup write a source; Radar intake, escalations and back-links still work on a migrated repository; Intake sources lists each GitHub source in the shared box with a link to Repository setup; tests cover each case, and screenshots are checked outside git, not kept in it.
@@ -5544,7 +5138,6 @@ and convert them too.
 
 - [x] 64.1 Facts bullets replace `avoozl/manifest.json`, convert this repository's specs, after 61.1, 62.1 [R111.1, R111.2, R111.3, R111.4, R111.5, R111.6, R111.7, R111.8, R111.9, R111.10, R111.11] (§4.40)
   - Facts:
-    - summary: Phase 64 (Task facts move into tasks.md). See R111; §4.40.
     - done:
       - Facts bullets replace avoozl/manifest.json, convert this repository's specs, after 61.1, 62.1
       - `spec-facts.mjs` reads `Facts:` bullets and front-matter into the parse; lint refuses each bad shape with its file and line; a leftover manifest is an error; the revision hash is unchanged by a pure conversion; every spec here is converted and its manifest deleted; tests cover each rule and the before and after parse.
@@ -5553,7 +5146,6 @@ and convert them too.
   - `spec-facts.mjs` reads `Facts:` bullets and front-matter into the object `parseSpec` read from the manifest, with lint codes and lines; `specHash` stops reading the manifest and hashes prose plus canonical parsed facts, so a converted spec keeps its hash; the manifest readers, `spec-manifest.mjs`, the manifest review tab, the planner prompt and the steering file change; every spec here is converted once and its `manifest.json` deleted; tests cover each rule and the before and after parse.
 - [ ] 64.2 Convert the Nupp plans to Facts bullets, after 64.1 [R111.10] (§4.40)
   - Facts:
-    - summary: Phase 64 (Task facts move into tasks.md). See R111.10; §4.40.
     - done:
       - Convert the Nupp plans to Facts bullets, after 64.1
       - The Nupp plans branch `avoozl-plans` is converted in one pull request, tested on a copy first, merged after its checks, with no Nupp code repository touched.

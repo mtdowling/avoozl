@@ -229,11 +229,11 @@ export function batchBrief(store, data, leaf, brief) {
       "",
       ...tasks.flatMap((task, i) => [
         `${i + 1}. Task ${task.id}: ${task.title || task.id}`,
+        task.prose ? task.prose.replace(/^/gm, "   ") : null,
         task.acceptance?.length
           ? `   Acceptance: ${[].concat(task.acceptance).join("; ")}`
           : null,
         task.checks?.length ? `   Checks: ${task.checks.join("; ")}` : null,
-        task.summary ? `   Summary: ${task.summary}` : null,
       ]),
       "",
       ...run,

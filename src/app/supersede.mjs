@@ -25,7 +25,7 @@ const COPIED = [
   "epic",
   "track",
   "tags",
-  "summary",
+  "prose",
   "nextAction",
   "acceptance",
   "checks",
@@ -44,7 +44,7 @@ const COPIED = [
 // changes only through plan approval (R38.4), so the replacement keeps it.
 const SETTABLE = {
   title: "text",
-  summary: "text",
+  prose: "text",
   nextAction: "text",
   notes: "text",
   acceptance: "list",

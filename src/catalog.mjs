@@ -69,7 +69,7 @@ function catalogTask(document, block) {
   return {
     id,
     title: block.title.replace(/\*\*/g, "").replace(/`/g, ""),
-    summary:
+    prose:
       "Imported plan item. The source checkbox is historical context; task edits in this database are authoritative.",
     status: block.checked ? "recorded" : "planned",
     // No group is made up from a file path (Requirement 59.6): an imported

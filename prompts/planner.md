@@ -13,7 +13,7 @@ Read the code in the named repositories first, so tasks match what exists. Write
 - `tasks.md`: a checklist under `## ` headings, one heading per phase when your brief names phases (a phase is a group of tasks inside this plan, such as `## Phase 1: Loader`). Every item starts with its task ID, then its title: `- [ ] 1.2 Validate loaded config`. Use Kiro's numbering (`1`, `1.1`, `1.2`); Avoozl reads `1.2` in spec `<name>` as task `<name>.1.2`. A named ID needs a separator, such as `cache-invalidation`. Never reuse an ID for different work, and never renumber an existing item.
 - Never write `avoozl/manifest.json`. Avoozl refuses a folder that has one. Each task's facts live in `tasks.md`.
 
-Every `tasks.md` item has exactly one `Facts:` bullet, nested under it as its first child. Under `Facts:` write one `key: value` bullet per fact; a list is `key: a, b` or `key:` with one nested bullet per item. Subtasks come after the `Facts:` bullet. Any other bullet under an item is a free note. Avoozl refuses an unknown key, a key written twice, a second `Facts:`, a `Facts:` that is not the item's first child, and a fact bullet outside `Facts:`. Edges come only from facts. Nesting in `tasks.md` names parents: an item indented under a `package` item is its child, and becomes its sub-issue. Never nest an item under a leaf.
+Every `tasks.md` item has exactly one `Facts:` bullet, nested under it as its first child. Under `Facts:` write one `key: value` bullet per fact; a list is `key: a, b` or `key:` with one nested bullet per item. Subtasks come after the `Facts:` bullet. Any other bullet under an item is its prose: what the task delivers and how, in a sentence or a few bullets. Its worker reads the title line, then the prose as written, then `done`. Do not repeat the title or `done` in prose, and write no `Done when:` bullet: `done` says it. Avoozl refuses an unknown key, a key written twice, a second `Facts:`, a `Facts:` that is not the item's first child, and a fact bullet outside `Facts:`. Edges come only from facts. Nesting in `tasks.md` names parents: an item indented under a `package` item is its child, and becomes its sub-issue. Never nest an item under a leaf.
 
 Front-matter at the top of `tasks.md` holds values for the whole spec: `repo`, `checks` and `completion` are defaults for every leaf, and a leaf's own fact wins. A package takes no default. `phase-<id>: <title>` names a phase, and `batch-<id>: <reason>` a batch group.
 
@@ -21,7 +21,6 @@ Facts of every item:
 
 - `kind`: `package` (a group of leaves) or `leaf` (one bounded piece of work, the default). Never write `kind: epic` on a task, or `epic`: Avoozl refuses them. To place a task in a phase other than its heading's, give it `phase: <id>` and name the title in front-matter, such as `phase-w1: W1: core`.
 - `after`: IDs that must finish first, each with an optional `:<completion>`. A parent is after its children, so it completes from them. Use `sequence` for ordering without a hard dependency, and `supports` for advisory links.
-- `summary`: what the task delivers, in one or two sentences.
 
 A leaf is bounded. It also has:
 
@@ -64,25 +63,25 @@ completion: integrated
 - [ ] 1 Load and validate configuration
   - Facts:
     - kind: package
-    - summary: Read config.json and report invalid configuration.
     - after: 1.1, 1.2
+  - Read config.json and report invalid configuration.
   - [ ] 1.1 Read the config file
     - Facts:
-      - summary: Read config.json from the working directory.
       - done:
         - A missing file yields defaults.
         - Invalid JSON names the file and line.
+    - Read config.json from the working directory.
   - [ ] 1.2 Report unknown keys
     - Facts:
-      - summary: Validate the loaded value and report each unknown key.
       - after: 1.1
       - done:
         - An unknown key is reported with its path.
+    - Validate the loaded value and report each unknown key.
 ````
 
 # Draft an epic folder
 
-When your brief asks for an epic (a goal across plans), write its own spec folder with the same three files. `requirements.md` states the goal and what done means, `design.md` how the member plans fit and in what order, and `tasks.md` one item per member plan, such as `- [ ] 1 Native runtime`. Its `tasks.md` starts with front-matter `kind: epic`, and each item's `Facts:` holds only `plan` (the member's spec folder name), `summary` and `step` (`design`, `review` or `implement`, the default). Each member plan's front-matter must say `epic: <this folder>`. An epic never lists an epic.
+When your brief asks for an epic (a goal across plans), write its own spec folder with the same three files. `requirements.md` states the goal and what done means, `design.md` how the member plans fit and in what order, and `tasks.md` one item per member plan, such as `- [ ] 1 Native runtime`. Its `tasks.md` starts with front-matter `kind: epic`, and each item's `Facts:` holds only `plan` (the member's spec folder name) and `step` (`design`, `review` or `implement`, the default). Each member plan's front-matter must say `epic: <this folder>`. An epic never lists an epic.
 
 # Break down a GitHub issue
 

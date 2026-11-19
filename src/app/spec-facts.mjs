@@ -29,7 +29,6 @@ const STATUS = /^Status:/;
 const KEYS = {
   kind: { as: "kind", type: "text" },
   repo: { as: "repository", type: "text" },
-  summary: { as: "summary", type: "text" },
   done: { as: "acceptance", type: "list" },
   completion: { as: "completion", type: "text" },
   checks: { as: "checks", type: "list" },
@@ -68,6 +67,11 @@ const KEYS = {
   step: { as: "step", type: "text" },
 };
 const FACT_KEYS = Object.keys(KEYS);
+// Facts that are gone, and what to do with a line that still has one.
+const REMOVED = {
+  summary:
+    "The summary fact is gone: a task's prose bullets say what it delivers. Delete this line.",
+};
 
 // Front-matter: defaults for a leaf, and values for the whole spec.
 const DEFAULTS = {
@@ -90,7 +94,6 @@ const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
 const ORDER = [
   "kind",
   "repository",
-  "summary",
   "acceptance",
   "completion",
   "checks",
@@ -342,6 +345,14 @@ export function readFacts(text, items) {
       }
       const [, key, inline] = match,
         spec = Object.hasOwn(KEYS, key) ? KEYS[key] : null;
+      if (Object.hasOwn(REMOVED, key)) {
+        problems.push(
+          problem("facts.removed-key", at + 1, REMOVED[key], {
+            key: item.key,
+          }),
+        );
+        continue;
+      }
       if (!spec) {
         problems.push(
           problem(
@@ -493,6 +504,58 @@ export function readFacts(text, items) {
     frontLine: (key) => front.at[key] ?? 1,
     batchLine: (id) => front.at[`batch-${id}`] ?? batchLine[id] ?? 1,
   };
+}
+
+// The prose of each item in tasks.md: its child bullets other than the Facts
+// bullet, nested checklist items and a `Done when:` bullet, each with its
+// nested lines, as written. Returns item line -> text, for items that have
+// any. A task's prose is not a fact: the revision hash reads it only as
+// tasks.md text.
+export function itemProse(text, items) {
+  const rows = String(text)
+      .split("\n")
+      .map((row) => row.replace(/\r$/, "")),
+    itemLines = new Set(items.map((item) => item.line)),
+    out = new Map();
+  for (const item of items) {
+    const base = indentOf(rows[item.line - 1] ?? ""),
+      kept = [];
+    let child = null,
+      own = false,
+      fenced = false;
+    for (let at = item.line; at < rows.length; at++) {
+      const raw = rows[at],
+        indent = indentOf(raw);
+      if (!fenced && !raw.trim()) continue;
+      if (!fenced && indent <= base) break;
+      if (!fenced && (child === null || indent <= child)) {
+        child ??= indent;
+        const bullet = BULLET.exec(raw);
+        own =
+          Boolean(bullet) &&
+          !itemLines.has(at + 1) &&
+          !FACTS.test(bullet[2]) &&
+          !/^Done when:/.test(bullet[2]);
+      }
+      if (own) kept.push(raw.slice(Math.min(indent, child)).trimEnd());
+      if (FENCE.test(raw)) fenced = !fenced;
+    }
+    if (kept.length) out.set(item.line, kept.join("\n"));
+  }
+  return out;
+}
+
+// A task's prose as bullets under its item at column `indent`: lines that
+// are already bullets stay as written, and other text becomes one bullet.
+export function proseLines(prose, { indent = 2 } = {}) {
+  const text = typeof prose === "string" ? prose.trim() : "";
+  if (!text) return [];
+  const pad = " ".repeat(indent);
+  return /^[-*+][ \t]/.test(text)
+    ? text.split(/\r?\n/).map((line) => pad + line)
+    : text
+        .split(/\r?\n/)
+        .map((line, at) => (at ? `${pad}  ${line}` : `${pad}- ${line}`));
 }
 
 // `entry` with each key of `fill` placed before the first key of `entry` that

@@ -488,10 +488,10 @@ function brief(task, repository) {
     "",
     `Repository: ${repository.id}, checkout ${repository.localCheckout}, base branch ${repository.baseBranch || "main"}.`,
     "Before changing anything, confirm `git rev-parse --show-toplevel` is that checkout.",
+    task.prose || null,
     task.acceptance?.length
       ? `Acceptance: ${[].concat(task.acceptance).join("; ")}`
       : null,
-    task.summary ? `Summary: ${task.summary}` : null,
   ]
     .filter((line) => line !== null)
     .join("\n");

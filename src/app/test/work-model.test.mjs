@@ -19,7 +19,7 @@ const block = (fields) => "```task\n" + JSON.stringify(fields) + "\n```\n";
 const leaf = (id, extra = {}) => ({
   id,
   title: "Task " + id,
-  summary: "Change " + id + ".",
+  prose: "Change " + id + ".",
   acceptance: [id + " is observable."],
   checks: ["npm test"],
   ...extra,
@@ -182,7 +182,7 @@ test("plan blocks carry work-model fields and edge conditions into approval", as
         id: "parent",
         title: "Parent",
         kind: "package",
-        summary: "All.",
+        prose: "All.",
       }) +
       block(leaf("base", { completion: "released" })) +
       block(

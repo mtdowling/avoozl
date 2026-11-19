@@ -300,8 +300,11 @@ export class Store {
       .all()) {
       const value = JSON.parse(row.body);
       stored.set(row.kind + "\0" + row.id, row.ordinal + "\0" + row.body);
-      if (row.kind === "task") data.tasks.push(value);
-      else if (row.kind === "document") data.documents[row.id] = value;
+      // A task has no summary any more; an old row's is ignored.
+      if (row.kind === "task") {
+        delete value.summary;
+        data.tasks.push(value);
+      } else if (row.kind === "document") data.documents[row.id] = value;
       else if (row.kind === "edge") data.edges.push(value);
     }
     this.cache = data;
