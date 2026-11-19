@@ -82,8 +82,8 @@ On Windows, Node cannot set these modes, so the files keep the access of the
 folder they are in, which in a user profile is you, the system and
 administrators. Move the workspace out of a shared folder if that matters.
 
-::: info See also
+## See also
+
 - [Agents and the CLI](agents.md#person-only-actions) for the actions MCP
   refuses
 - [Repository checks and isolation](checks.md) for the sandbox around checks
-:::

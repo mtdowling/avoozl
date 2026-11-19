@@ -157,7 +157,7 @@ settings, are refused over MCP. `node cli.mjs help` lists the CLI commands.
 
 ## Documentation
 
-See the [documentation site](https://mtdowling.com/avoozl/) for the rest:
+The [docs](docs/README.md) cover the rest:
 
 - [Getting started](docs/getting-started.md) for setup in more detail
 - [Overview](docs/overview.md) for where state lives and what each page shows
@@ -196,7 +196,6 @@ Application operations and storage live in `src/app/`, shared models in
 ```sh
 npm test
 npm run format
-npm run docs:dev
 ```
 
 `npm run test:changed` runs only the tests a change reaches, as CI does. Tests
