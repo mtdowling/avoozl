@@ -7,6 +7,7 @@ import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import { SEVERITIES, STATES } from './review-view.ts'
 import type { TaskOwner } from './views-api.ts'
+import type { RowDriver } from './driver-api.ts'
 import { TONE } from './ui/tones.ts'
 
 export interface Counts {
@@ -240,6 +241,8 @@ export interface PlanRow {
   archived?: { at: string; by: string | null } | null
   // The plan's own events (archived, unarchived), newest first.
   timeline?: { action: string; by: string | null; at: string }[]
+  // An approved spec's driver from the cache (R116.11); older backends omit it.
+  driver?: RowDriver
 }
 
 export interface PlanTable {

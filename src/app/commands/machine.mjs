@@ -491,12 +491,17 @@ export const commands = [
       help(
         "machine",
         "driver takeover SPEC [--file EXPORT.json]",
-        "Drive SPEC here once its plan issue names you (a person only)",
+        "Drive SPEC here; assigns you on its spec issue when nobody is (a person only)",
+      ),
+      help(
+        "machine",
+        "driver release SPEC",
+        "Stop driving SPEC and unassign you on its spec issue (a person only)",
       ),
       help(
         "machine",
         "driver takeover SPEC --force --confirm SPEC [--file EXPORT.json | --yes]",
-        "Assign the plan issue to you and take over by force (a person only)",
+        "Assign the spec issue to you and take over by force (a person only)",
       ),
       help(
         "machine",
@@ -528,7 +533,12 @@ export const commands = [
           ...(options.folder ? { folder: path.resolve(options.folder) } : {}),
           ...(options.unfinished ? { unfinished: true } : {}),
         });
-      } else if (action === "takeover") {
+      } else if (action === "release")
+        result = await localOrRequest("driver.handoff", {
+          planId,
+          action: "release",
+        });
+      else if (action === "takeover") {
         const file = options.file ? path.resolve(options.file) : undefined;
         if (options.force) {
           if (typeof options.confirm !== "string")
@@ -558,7 +568,7 @@ export const commands = [
             ? { heartbeatMinutes: Number(options.heartbeat) }
             : {}),
         });
-      else throw Error("Use driver status|handoff|takeover|set.");
+      else throw Error("Use driver status|handoff|release|takeover|set.");
       console.log(
         typeof result === "string" ? result : JSON.stringify(result, null, 2),
       );

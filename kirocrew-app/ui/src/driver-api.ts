@@ -1,5 +1,5 @@
-// Calls and pure helpers for the spec driver (design §6.10, R66): the
-// header chip, the read-only banner, the Hand off, Take over and Force take
+// Calls and pure helpers for the spec driver (design §6.10 and §4.44, R66,
+// R116): the spec's chip and its Specs list row, the read-only banner, the Hand off, Take over and Force take
 // over dialogs, and Settings › General › This computer. The backend
 // (src/app/workers/driver.mjs) decides everything; this module only words it. Keep
 // it free of JSX and runtime imports so node can test it directly.
@@ -81,51 +81,89 @@ export function ago(at: string | null | undefined, now = Date.now()): string {
   return `${Math.round(hours / 24)} d ago`
 }
 
-// The header chip: "Driver: you", or who drives and when it was last seen.
+// The driver as a Specs list row says it (R116.11), from the cached driver
+// row: who has the spec, by its issue's assignee. Null while it is unread.
+export interface RowDriver {
+  mode?: 'github' | 'local' | null
+  state: string
+  reason: string
+  assignees?: string[]
+}
+
+export function rowDriverText(driver: RowDriver | null | undefined): string | null {
+  if (!driver) return null
+  if (driver.reason === 'not-shared') return 'Not shared'
+  if (driver.state === 'driver') return 'You drive'
+  const assignees = driver.assignees ?? []
+  switch (driver.reason) {
+    case 'other-person':
+    case 'forced-away':
+      return assignees[0] ? `Taken by ${assignees[0]}` : 'Taken by someone else'
+    case 'several':
+      return `${assignees.length} assignees`
+    case 'no-assignee':
+      return 'Nobody drives'
+    case 'other-machine':
+    case 'local-other-machine':
+    case 'no-claim':
+      return 'Your other machine'
+    case 'handed-off':
+      return 'Handed off'
+    default:
+      return null
+  }
+}
+
+// The spec's chip: the row's words, with the driving machine and when it
+// was last seen where a claim names them.
 export function chipText(spec: DriverSpec | null | undefined, now = Date.now()): string {
   if (!spec) return 'Driver: unknown'
+  if (spec.reason === 'not-shared') return 'Driver: you · not shared'
   if (spec.you) return 'Driver: you'
   if (spec.mode === 'local') return `Driver: ${spec.driver?.label || spec.driver?.machine || 'another machine'} · this file`
   const who = spec.driver
-  if (!who || ['no-assignee', 'several'].includes(spec.reason)) return 'Driver: nobody'
-  const name = [who.login, who.label].filter(Boolean).join(' · ')
-  if (!spec.seenAt) return `Driver: ${name}`
-  return spec.stale ? `Driver: ${name} · not seen since ${spec.seenAt}` : `Driver: ${name} · seen ${ago(spec.seenAt, now)}`
+  const assignee = spec.assignees?.length === 1 ? spec.assignees[0] : null
+  if (spec.reason === 'several') return `Driver: nobody · ${spec.assignees?.length ?? 2} assignees`
+  if (!assignee) return 'Driver: nobody'
+  const taken = ['other-person', 'forced-away'].includes(spec.reason)
+  // A claim by another login is the old driver's, not the assignee's.
+  const mine = who && who.login?.toLowerCase() === assignee.toLowerCase()
+  const name = [taken ? `Taken by ${assignee}` : `Driver: ${assignee}`, mine ? who.label : null].filter(Boolean).join(' · ')
+  if (!mine || !spec.seenAt) return name
+  return spec.stale ? `${name} · not seen since ${spec.seenAt}` : `${name} · seen ${ago(spec.seenAt, now)}`
 }
 
 // The read-only banner's first words, by why it reads only here.
 export function bannerTitle(spec: DriverSpec): string {
   switch (spec.reason) {
     case 'other-person':
-      return 'Assigned to someone else'
+      return 'Someone else drives this spec'
     case 'other-machine':
       return 'Your other machine drives this spec'
     case 'no-assignee':
+      return 'Nobody drives this spec'
     case 'several':
-      return 'No single assignee'
+      return 'Several assignees'
     case 'handed-off':
       return 'Handed off'
     case 'forced-away':
       return 'Taken over by force'
     case 'no-claim':
-    case 'no-plan-issue':
       return 'No machine drives this spec yet'
     case 'local-other-machine':
       return 'Another machine holds this spec'
-    case 'not-projected':
-      return 'Not on GitHub yet'
     default:
       return 'Read only here'
   }
 }
 
-// Which button the banner offers: Take over when this login is the
-// assignee, Force take over otherwise; none while no single person is
-// assigned or after this machine handed it off.
+// Which button the banner offers: Take over when nobody or this login is
+// assigned (Take over assigns you), Force take over when someone else is;
+// none with several assignees, an unread issue, or after this machine
+// handed it off.
 export function bannerAction(spec: DriverSpec): 'takeover' | 'force' | null {
   if (spec.you || spec.state === 'unknown') return null
-  if (['no-assignee', 'several', 'not-projected', 'unreadable', 'rate-limited'].includes(spec.reason)) return null
-  if (spec.reason === 'handed-off') return null
+  if (['several', 'unreadable', 'rate-limited', 'handed-off'].includes(spec.reason)) return null
   return spec.offer === 'takeover' ? 'takeover' : spec.mode === 'local' ? 'takeover' : 'force'
 }
 
@@ -174,7 +212,7 @@ export function driverClient(api: AppApi) {
   return {
     status: (workspaceId: string, planId?: string) => run<DriverStatus>(workspaceId, 'driver.status', planId ? { planId } : {}),
     preview: (workspaceId: string, planId: string, withoutExport: boolean) => run<TakeoverPreview>(workspaceId, 'driver.takeover.preview', { planId, withoutExport }),
-    handoff: (workspaceId: string, planId: string, action: 'start' | 'export' | 'cancel', extra: { folder?: string; unfinished?: boolean } = {}) =>
+    handoff: (workspaceId: string, planId: string, action: 'start' | 'export' | 'cancel' | 'release', extra: { folder?: string; unfinished?: boolean } = {}) =>
       run<DriverStatus & { file?: string }>(workspaceId, 'driver.handoff', { planId, action, ...extra }),
     takeover: (workspaceId: string, planId: string, how: { file?: string }) =>
       run<DriverStatus & { won?: boolean }>(workspaceId, 'driver.takeover', {

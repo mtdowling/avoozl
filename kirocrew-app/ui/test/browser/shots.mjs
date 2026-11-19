@@ -49,3 +49,28 @@ export async function saveShot(page, out, name, width, theme) {
   await page.screenshot(file)
   console.log(file)
 }
+
+// Page helpers for the demo (?page=demo) shots: wait, click the element an
+// expression names, and the expression for a button by its leading text.
+export function demoHelpers(page) {
+  const wait = (ms = 300) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+  const press = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
+  const button = (text, scope = 'document') => `[...${scope}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+  // A fresh demo at `width`, on its Specs list.
+  const openDemoSpecs = async (url, width, dark) => {
+    await page.open(url, { width, height: 900, dark })
+    await page.evaluate('localStorage.clear()')
+    await page.open(url, { width, height: 900, dark })
+    await page.until(`Boolean(${button('Start demo')})`)
+    await press(button('Start demo'))
+    await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
+    if (width < 768) {
+      await press(`document.querySelector('[data-top-rail-bar]')`)
+      await wait(150)
+    }
+    await press(`document.querySelector('[data-nav-group="plans"]')`)
+    if (width < 768) await press(`document.querySelector('[data-top-rail-bar]')`)
+    await page.until(`Boolean(document.querySelector('[data-plans-list]'))`)
+  }
+  return { wait, click: press, button, openDemoSpecs }
+}

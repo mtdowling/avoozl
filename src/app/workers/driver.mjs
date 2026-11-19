@@ -1,14 +1,14 @@
 import { personOf } from "../github/github.mjs";
 import { remoteGitSetup } from "../git/git.mjs";
 // One driver per spec (design §6.10, Requirement 66). In a GitHub mode the
-// driver is named by the spec's plan issue: its one assignee says which
-// person, and the machine claim in Avoozl's marker says which of that
-// person's machines. In Local only mode it is a `drivers` row in this
-// workspace's SQLite. Every other workspace reads only for the spec
-// (driver-scope.mjs answers that from SQLite). Nothing here moves the role
-// because something is old: only a person's Take over, Hand off or Force
-// take over does, and the only assignee change Avoozl makes is Force take
-// over's.
+// driver is named by the spec's issue: its one assignee says which person,
+// and the machine claim in Avoozl's marker says which of that person's
+// machines. In Local only mode it is a `drivers` row in this workspace's
+// SQLite. Every other workspace reads only for the spec (driver-scope.mjs
+// answers that from SQLite). Nothing here moves the role because something
+// is old: only a person's Take over, Hand off, Release or Force take over
+// does. Take over assigns this login when nobody is assigned, Hand off and
+// Release remove it, and Force take over sets it (§4.44, Requirement 116).
 import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs";
@@ -16,6 +16,11 @@ import path from "node:path";
 import { digest, statusComplete } from "../../model.mjs";
 import { completionReached, taskKind } from "../../work-model.mjs";
 import { forgetDriverScope } from "./driver-scope.mjs";
+import {
+  assignSpecIssue,
+  assigneesOf as logins,
+  unassignSpecIssue,
+} from "./spec-assignee.mjs";
 import {
   MACHINE_ID,
   parseMarker,
@@ -29,7 +34,7 @@ import { declaredPlugins, readPluginSettings } from "../plugins/plugins.mjs";
 import { listSessionBindings } from "../sessions/session-bindings.mjs";
 import { epicOfPlan } from "../epics/epics.mjs";
 import { fail } from "../store/store.mjs";
-import { mirrorConfig, refusePrivateToSource } from "../mirror/mirror-sync.mjs";
+import { mirrorConfig } from "../mirror/mirror-sync.mjs";
 import { exportEvidence, importEvidence } from "../tasks/evidence.mjs";
 import { asJob } from "../github/github-jobs.mjs";
 
@@ -194,10 +199,6 @@ export function driverContext(store) {
 const iso = (ms) => new Date(ms).toISOString();
 const same = (a, b) =>
   String(a || "").toLowerCase() === String(b || "").toLowerCase();
-const logins = (issue) =>
-  (issue?.assignees || [])
-    .map((entry) => (typeof entry === "string" ? entry : entry?.login))
-    .filter(Boolean);
 
 function approvedPlans(store) {
   return store
@@ -370,7 +371,7 @@ async function findPlanIssue(github, config, namespace, planId) {
   );
   if (found.length > 1)
     fail(
-      `Issues ${found.map((issue) => "#" + issue.number).join(", ")} all claim to be the plan issue for ${planId}.`,
+      `Issues ${found.map((issue) => "#" + issue.number).join(", ")} all claim to be the spec issue for ${planId}.`,
       409,
     );
   return found[0] || null;
@@ -400,16 +401,18 @@ function newClaim(ctx, login, { from = null, forced = false } = {}) {
   };
 }
 
-// The verdict for one read (design §6.10's table).
+// The verdict for one read (design §6.10's table, changed by §4.44): no
+// assignee is free to take, two or more hold every machine.
 function verdictOf({ assignees, claim, login, machine, handoff }) {
   const forcedAway =
     claim?.forced &&
     claim.from?.machine === machine &&
     claim.machine !== machine;
-  if (assignees.length !== 1)
+  if (assignees.length > 1) return { state: "read-only", reason: "several" };
+  if (!assignees.length)
     return {
       state: "read-only",
-      reason: assignees.length ? "several" : "no-assignee",
+      reason: handoff?.state === "exported" ? "handed-off" : "no-assignee",
     };
   if (!same(assignees[0], login))
     return {
@@ -468,9 +471,8 @@ async function readGitHubDriver(
   login = login || (await currentLogin(github, config));
   const now = ctx.now();
   if (!issue) {
-    const projected = planTasks(store.read(), plan.id).some(
-      (task) => task.github?.number && task.github.origin === "design",
-    );
+    // No spec issue: nothing is shared, so this workspace drives the spec
+    // and says so (R116.8). Avoozl makes no issue for it.
     row = {
       ...row,
       id: plan.id,
@@ -483,11 +485,8 @@ async function readGitHubDriver(
       claim: null,
       login,
       machine: settings.machine,
-      state: "read-only",
-      // A spec projected before §6.10 has no plan issue: it reads only
-      // until a person presses Take over. One not yet projected waits for
-      // its first projection, which makes the plan issue.
-      reason: projected ? "no-plan-issue" : "not-projected",
+      state: "driver",
+      reason: "not-shared",
       readAt: iso(now),
     };
     return { row: putRow(store, row), notify, issue: null, config };
@@ -539,17 +538,18 @@ async function readGitHubDriver(
       ),
     });
   }
-  // Zero or several assignees: one decision naming the issue and what it
-  // found, closed by itself once the issue has one.
+  // Two or more assignees: one decision naming the issue and every
+  // assignee, closed by itself once one is left. None raises nothing: the
+  // spec is free to take (R116.4).
   let decision = row.decision || null;
-  if (assignees.length !== 1) {
-    const text = `${decidedBy === "epic" ? "The epic issue" : "Plan issue"} #${decidedBy === "epic" ? epic.number : issue.number} for ${specName(plan)} has ${assignees.length ? `${assignees.length} assignees (${assignees.join(", ")})` : "no assignee"}. Assign exactly one person to choose who drives it; until then every workspace reads only for this spec.`;
+  if (assignees.length > 1) {
+    const text = `${decidedBy === "epic" ? "The epic issue" : "Spec issue"} #${decidedBy === "epic" ? epic.number : issue.number} for ${specName(plan)} has ${assignees.length} assignees: ${assignees.join(", ")}. Remove all but one on GitHub; until then no machine starts new tasks for this spec.`;
     if (decision?.state !== "open" || decision.text !== text) {
       if (decision?.state !== "open")
         notify.push({
           channel: "decision",
           record: "driver:" + plan.id,
-          title: `No single driver for ${specName(plan)}`,
+          title: `${specName(plan)} has several assignees`,
           text,
         });
       decision = {
@@ -655,6 +655,8 @@ export async function driverStep(store, github, { script }) {
             .notify,
         );
       notify.push(...settleAway(store, ctx, plan));
+      if (result.issue?.state === "open" && landedInFull(store, plan.id))
+        notify.push(...(await closeLanded(store, github, plan, result)));
     } catch (error) {
       const row = store.get(TABLE, plan.id);
       putRow(store, {
@@ -674,6 +676,44 @@ export async function driverStep(store, github, { script }) {
     }
   }
   return { notify };
+}
+
+// Every leaf task of the spec is complete (R116.7).
+function landedInFull(store, planId) {
+  const data = store.read(),
+    complete = (status) => statusComplete(data, status),
+    leaves = planTasks(data, planId).filter(
+      (task) => taskKind(task) === "leaf" && task.status !== "superseded",
+    );
+  return (
+    leaves.length > 0 &&
+    leaves.every((task) => completionReached(task, null, complete))
+  );
+}
+
+// Close a fully landed spec's issue as completed, once: the next read sees
+// it closed. A failed close leaves the driver as it was, tries again next
+// tick, and says why once per distinct error.
+async function closeLanded(store, github, plan, { issue, config }) {
+  try {
+    await asJob("spec-issues", github).updateIssue(config, issue.number, {
+      state: "closed",
+      state_reason: "completed",
+    });
+    return [];
+  } catch (error) {
+    const row = store.get(TABLE, plan.id),
+      text = `Every task of ${specName(plan)} landed, but closing spec issue #${issue.number} failed: ${error.message}`;
+    if (row.closeError === text) return [];
+    putRow(store, { ...row, closeError: text });
+    return [
+      {
+        channel: "failure",
+        title: `Avoozl could not close the spec issue for ${specName(plan)}`,
+        text,
+      },
+    ];
+  }
 }
 
 // Right before a dispatch, a projection or an integrate for these specs:
@@ -709,46 +749,6 @@ export async function recheckDrivers(store, github, planIds) {
   return lost;
 }
 
-async function createPlanIssue(
-  store,
-  github,
-  ctx,
-  plan,
-  { config, claim, assignees },
-) {
-  const identity = ctx.identity(),
-    label = managedLabel(config, identity);
-  refusePrivateToSource(plan, identity.repositories, config.id);
-  const created = await asJob("spec-issues", github).createIssue(config, {
-    title: planTitle(plan),
-    body: withClaimBody(
-      planSection(plan),
-      planMarker(plan, requireNamespace(identity), claim, label),
-      identity,
-    ),
-    ...(label ? { labels: [label] } : {}),
-    ...(assignees.length ? { assignees } : {}),
-  });
-  // The receipt projection reads to find its plan issue again.
-  store.transaction(() =>
-    store.put("receipts", {
-      ...(store.get("receipts", planReceipt(plan)) || {}),
-      id: planReceipt(plan),
-      kind: "github-parent",
-      level: "plan",
-      parentId: plan.id,
-      planId: plan.id,
-      repository: config.id,
-      number: created.number,
-      nodeId: created.node_id ?? null,
-      databaseId: Number(created.id) || null,
-      url: created.html_url ?? null,
-      updatedAt: new Date().toISOString(),
-    }),
-  );
-  return created;
-}
-
 // Words for why a spec reads only here, shown in the banner and errors.
 function reasonText(row) {
   const who = row.claim
@@ -757,22 +757,20 @@ function reasonText(row) {
   switch (row.reason) {
     case "driver":
       return "This workspace drives it.";
+    case "not-shared":
+      return "Not shared: it has no spec issue, so other machines cannot see who drives it. avoozl spec publish makes one.";
     case "other-person":
-      return `It is assigned to ${row.assignees?.[0]} on GitHub.`;
+      return `Taken by ${row.assignees?.[0]}: its spec issue is assigned to them.`;
     case "other-machine":
       return `Your other machine drives it: ${who}.`;
     case "no-claim":
-      return "Its plan issue has no machine claim yet. Press Take over on the machine that should drive it.";
-    case "no-plan-issue":
-      return "It was projected before plan issues existed. Press Take over on the machine that should drive it.";
-    case "not-projected":
-      return "It has no plan issue yet; projecting it makes one.";
+      return "Its spec issue has no machine claim yet. Press Take over on the machine that should drive it.";
     case "no-assignee":
-      return "Its plan issue has no assignee.";
+      return "Nobody drives it. Take over assigns you on its spec issue.";
     case "several":
-      return `Its plan issue has several assignees: ${(row.assignees || []).join(", ")}.`;
+      return `Its spec issue has several assignees: ${(row.assignees || []).join(", ")}. Remove all but one on GitHub.`;
     case "handed-off":
-      return "You handed it off. Reassign the plan issue on GitHub.";
+      return "You handed it off and Avoozl unassigned you. Take over on the next machine assigns it there.";
     case "forced-away":
       return `${row.claim?.login} took it over by force on ${row.claim?.label || row.claim?.machine} at ${row.claim?.takenAt}.`;
     case "local-other-machine":
@@ -780,7 +778,7 @@ function reasonText(row) {
     case "rate-limited":
       return "GitHub's rate limit held this read back. It reads again once the limit resets.";
     case "unreadable":
-      return `Avoozl could not read its plan issue: ${row.error || "unknown error"}.`;
+      return `Avoozl could not read its spec issue: ${row.error || "unknown error"}.`;
     default:
       return "It is read-only here.";
   }
@@ -847,12 +845,11 @@ export function driverStatus(store, { planId } = {}) {
             offer:
               row.state === "driver"
                 ? "handoff"
-                : row.assignees?.length === 1 &&
-                    same(row.assignees[0], row.login)
+                : !row.assignees?.length ||
+                    (row.assignees.length === 1 &&
+                      same(row.assignees[0], row.login))
                   ? "takeover"
-                  : row.reason === "no-plan-issue"
-                    ? "takeover"
-                    : "force",
+                  : "force",
           }
         : {
             driver: { label: row.label ?? null, machine: row.machine },
@@ -926,6 +923,7 @@ export async function handOffDriver(store, github, input = {}) {
   }
   if (row?.state !== "driver")
     fail(`This workspace does not drive ${specName(plan)}.`, 409);
+  if (action === "release") return releaseDriver(store, github, ctx, plan, row);
   if (action === "start") {
     if (row.handoff) fail("This spec is already being handed off.", 409);
     putRow(store, {
@@ -957,7 +955,41 @@ export async function handOffDriver(store, github, input = {}) {
     });
     return { ...driverStatus(store, { planId: plan.id }), file: written.file };
   }
-  fail("Choose hand-off action start, export or cancel.");
+  fail("Choose hand-off action start, export, cancel or release.");
+}
+
+// Release (R116.6): stop driving and remove this login from the spec issue,
+// with no export. Running chats would be left with no driver, so it refuses
+// while any runs; Hand off drains them instead.
+async function releaseDriver(store, github, ctx, plan, row) {
+  if (row.mode !== "github" || !row.number)
+    fail(
+      row.mode === "github"
+        ? `${specName(plan)} has no spec issue, so nothing is shared to release.`
+        : "Local only mode has nothing shared to release. Hand off exports the spec instead.",
+      409,
+    );
+  const running = liveChats(store, plan.id);
+  if (running.length)
+    fail(
+      `${running.length} chat(s) still run for ${specName(plan)}: ${running.map((chat) => chat.taskId).join(", ")}. Wait for them, or Hand off driver, which lets them finish.`,
+      409,
+    );
+  const config = configById(store, row.repository, ctx.identity()),
+    assignees = await unassignSpecIssue(github, config, row.number, row.login);
+  const { handoff: _handoff, ...rest } = row;
+  putRow(store, {
+    ...rest,
+    assignees,
+    state: "read-only",
+    reason: !assignees.length
+      ? "no-assignee"
+      : assignees.length > 1
+        ? "several"
+        : "other-person",
+    readAt: iso(ctx.now()),
+  });
+  return driverStatus(store, { planId: plan.id });
 }
 
 // The machine-local items in use (R66.16), by name only.
@@ -1175,12 +1207,23 @@ async function writeExport(
       config = configById(store, row.repository, identity),
       issue = await github.issue(config, row.number),
       marker = planMarkerOf(issue, identity.namespace, plan.id);
-    if (!marker?.claim) fail("The plan issue lost its claim.", 409);
+    if (!marker?.claim) fail("The spec issue lost its claim.", 409);
     const claim = { ...marker.claim, export: sha256 };
     await asJob("spec-issues", github).updateIssue(config, row.number, {
       body: withClaimBody(issue.body, { ...marker, claim }, identity),
     });
     next = { ...next, claim, state: "read-only", reason: "handed-off" };
+    putRow(store, next);
+    // The hand-off reassigns: this login leaves, and the next machine's
+    // Take over assigns its own (R116.5). The export already counts if
+    // GitHub refuses this.
+    const assignees = await unassignSpecIssue(
+      github,
+      config,
+      row.number,
+      row.login,
+    );
+    next = { ...next, assignees };
   } else {
     next = {
       ...next,
@@ -1198,7 +1241,7 @@ async function writeExport(
           {
             channel: "decision",
             title: `${specName(plan)} is ready to hand off`,
-            text: `Every chat finished and the export is written. ${row.url ? "Reassign the plan issue on GitHub." : "Move the file to the other machine and press Take over there."}`,
+            text: `Every chat finished and the export is written. ${row.url ? "Avoozl unassigned you on the spec issue; Take over on the next machine assigns it there." : "Move the file to the other machine and press Take over there."}`,
           },
         ]
       : [],
@@ -1440,32 +1483,40 @@ export async function takeOver(store, github, input = {}) {
   const plan = requirePlan(store, input.planId);
   if (!githubModeOf(ctx)) return localTakeOver(store, ctx, plan, input);
   const login = await currentLogin(github);
-  let { row } = await readGitHubDriver(store, github, ctx, plan, { login });
-  if (row.state === "driver") fail(`You already drive ${specName(plan)}.`, 409);
-  const legacy = row.reason === "no-plan-issue";
-  if (!legacy && !(row.assignees.length === 1 && same(row.assignees[0], login)))
+  const { row, issue, config } = await readGitHubDriver(
+    store,
+    github,
+    ctx,
+    plan,
+    { login },
+  );
+  if (row.state === "driver")
     fail(
-      `${reasonText(row)} Take over needs the plan issue assigned to ${login}; use Force take over instead.`,
+      row.reason === "not-shared"
+        ? `${specName(plan)} has no spec issue, so this workspace drives it already. avoozl spec publish makes one to share.`
+        : `You already drive ${specName(plan)}.`,
+      409,
+    );
+  // Nobody assigned is free to take; someone else, or several, is not
+  // (R116.2). Force take over is the way past another person.
+  if (
+    row.assignees.length > 1 ||
+    (row.assignees.length === 1 && !same(row.assignees[0], login))
+  )
+    fail(
+      `${reasonText(row)} Nothing changed.${row.assignees.length === 1 ? " Force take over moves it to you." : ""}`,
       409,
     );
   const value = input.file
     ? verifyExport(ctx, plan, input.file, row.claim?.export ?? null)
     : null;
+  // Assign this login on the spec issue itself, also when the epic's
+  // assignee stood in for it, and read it back before anything else moves.
+  if (!logins(issue).some((name) => same(name, login)))
+    await assignSpecIssue(github, config, row.number, login);
   const away = value ? importExport(store, value, ctx.now()) : [];
   const claim = newClaim(ctx, login, { from: claimFrom(row.claim) });
-  if (legacy) {
-    const config = planIssueConfig(store, plan, ctx.identity()),
-      created = await createPlanIssue(store, github, ctx, plan, {
-        config,
-        claim,
-        assignees: [login],
-      });
-    row = putRow(store, {
-      ...row,
-      repository: config.id,
-      number: created.number,
-    });
-  } else await writeClaim(store, github, ctx, row, claim);
+  await writeClaim(store, github, ctx, row, claim);
   return settleTakeover(store, github, ctx, plan, {
     login,
     claim,
@@ -1569,7 +1620,7 @@ export async function forceTakeOver(store, github, input = {}, hooks = {}) {
     { login },
   );
   if (row.state === "driver") fail(`You already drive ${specName(plan)}.`, 409);
-  if (!row.number) fail("This spec has no plan issue to take over.", 409);
+  if (!row.number) fail("This spec has no spec issue to take over.", 409);
   if (input.confirm !== specName(plan))
     fail(`Type the spec name ${specName(plan)} to confirm.`, 409);
   const value = input.file ? verifyExport(ctx, plan, input.file) : null;
@@ -1588,7 +1639,7 @@ export async function forceTakeOver(store, github, input = {}, hooks = {}) {
     const kept = logins(await github.issue(config, row.number));
     if (!(kept.length === 1 && same(kept[0], login)))
       fail(
-        `GitHub kept the plan issue's assignees as ${kept.join(", ") || "nobody"}: this token likely has no push access to ${config.id}. Nothing else changed.`,
+        `GitHub kept the spec issue's assignees as ${kept.join(", ") || "nobody"}: this token likely has no push access to ${config.id}. Nothing else changed.`,
         409,
       );
   }
@@ -1707,7 +1758,7 @@ export function driverDecisions(store) {
         kind: "driver",
         id: "driver:" + row.id,
         planId: row.id,
-        title: `No single driver for ${row.id}`,
+        title: `${row.id} has several assignees`,
         detail: row.decision.text,
         link: row.url ?? null,
         openedAt: row.decision.openedAt,

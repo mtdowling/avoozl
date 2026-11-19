@@ -4,7 +4,8 @@
 // landing here may write for the spec. A held or concurrent journal refuses.
 //
 // The owner of a GitHub journal is the spec issue's single assignee; of a
-// local journal, this workspace's operator.
+// local journal, this workspace's operator. Take over assigns this login on
+// a spec issue nobody is assigned to (R116.2, design §4.44).
 //
 // shortcut: the epic issue's assignee does not stand in for a spec issue
 // with none; upgrade when epic journals are read here.
@@ -15,17 +16,21 @@ import {
 } from "../workers/driver-generations.mjs";
 import { replayJournal } from "./spec-journal.mjs";
 import { journalSources } from "../github/source-backlinks.mjs";
+import { assignSpecIssue, assigneesOf } from "../workers/spec-assignee.mjs";
 import { driverIdOf, journalOf, rememberDriver } from "./spec-scheduler.mjs";
 import { fail } from "../store/store.mjs";
 import { isFixSpec } from "../intake/fix.mjs";
 
 const LOCAL_OWNERS = "specLocalOwners";
 
-// The spec's writable journal, its replay options and its owner.
+// The spec's writable journal, its replay options and its owner. With
+// `assign`, a person's take over first assigns this login on a GitHub
+// journal's spec issue when nobody is assigned (R116.2).
 export async function specAuthority(
   store,
   { github, workspaceRoot, actor },
   planId,
+  { assign = false } = {},
 ) {
   if (!store.get("plans", planId) && !isFixSpec(store, planId))
     fail("Plan not found.", 404);
@@ -47,14 +52,15 @@ export async function specAuthority(
     login = journal.local
       ? actor || ""
       : String((await github.currentUser())?.login ?? ""),
-    owner = journal.local
-      ? { login, from: "local" }
-      : effectiveOwner({
-          spec: (
-            (await github.issue(journal.issue.repository, journal.issue.number))
-              ?.assignees ?? []
-          ).map((a) => a?.login ?? a),
-        });
+    { repository, number } = journal.issue ?? {};
+  let assignees = journal.local
+    ? []
+    : assigneesOf(await github.issue(repository, number));
+  if (assign && !journal.local && !assignees.length && login)
+    assignees = await assignSpecIssue(github, repository, number, login);
+  const owner = journal.local
+    ? { login, from: "local" }
+    : effectiveOwner({ spec: assignees });
   return { journal, options, login, owner };
 }
 
@@ -67,6 +73,7 @@ export async function takeOverSpec(
       store,
       { github, workspaceRoot, actor },
       planId,
+      { assign: true },
     ),
     state = driverState(
       await replayJournal(await journal.list(), {

@@ -1,6 +1,6 @@
-// The spec driver on the page (design §6.10, R66.17): the spec's chip, the
-// read-only banner with Take over or Force take over, the stepped Hand off
-// dialog, the loss list and confirm dialogs, and Settings › General › This
+// The spec driver on the page (design §6.10 and §4.44, R66.17, R116): the
+// spec's chip, the read-only banner with Take over or Force take over, the
+// stepped Hand off dialog with Release, the loss list and confirm dialogs, and Settings › General › This
 // computer. Nothing moves until a person presses the dialog's own button;
 // Cancel, Esc and a click outside change nothing.
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -106,7 +106,7 @@ export function DriverBanner(props: { workspaceId: string; spec: DriverSpec | nu
           <>
             {' '}
             <PlainLink href={safeHref(issueUrl) ?? undefined} target="_blank" rel="noreferrer" inlineFlex items="center" gap="1" underline>
-              Plan issue #{spec.issue?.number} <ExternalLink size={12} aria-hidden="true" />
+              Spec issue #{spec.issue?.number} <ExternalLink size={12} aria-hidden="true" />
             </PlainLink>
           </>
         )}
@@ -117,7 +117,7 @@ export function DriverBanner(props: { workspaceId: string; spec: DriverSpec | nu
         </IconLabel>
       )}
       {action === 'force' && (
-        <IconLabel icon={KeyRound} tooltip="Assign the plan issue to you and drive the spec here. You confirm first." onClick={() => setDialog('force')} variant="danger">
+        <IconLabel icon={KeyRound} tooltip="Assign the spec issue to you and drive the spec here. You confirm first." onClick={() => setDialog('force')} variant="danger">
           Force take over
         </IconLabel>
       )}
@@ -261,7 +261,7 @@ export function TakeOverDialog(props: { workspaceId: string; spec: DriverSpec; o
         </Box>
         {how === 'file' && <FileField id="avoozl-driver-file" value={file} onChange={setFile} />}
         <Hint as="p" size="xs">
-          Avoozl waits 10 seconds and reads the plan issue again; it drives only if its claim is still there.
+          When nobody is assigned, Avoozl assigns you on the spec issue. It then waits 10 seconds and reads the issue again, and drives only if you and its claim are still there.
         </Hint>
         {error && (
           <ErrorText role="alert" size="sm">
@@ -333,8 +333,8 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
           <dd>{spec.seenAt ? `${spec.seenAt} (${ago(spec.seenAt)})` : 'never'}</dd>
         </Box>
         <p>
-          That machine may still be running chats for this spec. Their local results will not come here; what they push to GitHub does. Avoozl sets the plan issue&apos;s assignee
-          to you, the one assignee change it ever makes.
+          That machine may still be running chats for this spec. Their local results will not come here; what they push to GitHub does. Avoozl sets the spec issue&apos;s assignee
+          to exactly you.
         </p>
         <FileField id="avoozl-driver-force-file" value={file} onChange={setFile} />
         {!file.trim() && (
@@ -365,14 +365,15 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
 }
 
 // Hand off driver, stepped: drain (running chats listed), export (folder),
-// reassign (the issue link). Avoozl never reassigns the plan issue.
+// reassign (Avoozl unassigns you; the next machine's Take over assigns
+// itself). Release, in the first step, stops driving with no export.
 export function HandOffButton(props: { workspaceId: string; spec: DriverSpec | null; onChanged: () => void }) {
   const [open, setOpen] = useState(false)
   const { spec } = props
   if (!spec?.you && spec?.handoff?.state !== 'exported') return null
   return (
     <>
-      <IconLabel icon={Send} tooltip="Stop new work for this spec, export its run state, then reassign it on GitHub" onClick={() => setOpen(true)}>
+      <IconLabel icon={Send} tooltip="Stop new work for this spec, export its run state, and unassign you on its spec issue" onClick={() => setOpen(true)}>
         {spec.handoff ? 'Hand off…' : 'Hand off driver'}
       </IconLabel>
       {open && (
@@ -399,11 +400,13 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const step = !spec.handoff ? 'start' : spec.handoff.state === 'draining' ? 'drain' : 'reassign'
-  const run = async (fn: () => Promise<DriverStatus & { file?: string }>) => {
+  // `after` runs once the call succeeds: Release closes the dialog.
+  const run = async (fn: () => Promise<DriverStatus & { file?: string }>, after?: () => void) => {
     setBusy(true)
     setError(null)
     try {
       const result = await fn()
+      if (after) return after()
       const next = result.specs.find((item) => item.planId === spec.planId)
       if (next) setSpec(next)
       if (result.file) setFile(result.file)
@@ -426,6 +429,20 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
             <Btn type="button" disabled={busy} onClick={() => void run(() => client.handoff(props.workspaceId, spec.planId, 'cancel'))}>
               Cancel hand-off
             </Btn>
+          )}
+          {step === 'start' && spec.mode === 'github' && spec.issue && (
+            <Tooltip text="Stop driving now with no export: Avoozl unassigns you on the spec issue. It refuses while chats run.">
+              {(describedBy) => (
+                <Btn
+                  type="button"
+                  aria-describedby={describedBy}
+                  disabled={busy}
+                  onClick={() => void run(() => client.handoff(props.workspaceId, spec.planId, 'release'), props.onClose)}
+                >
+                  Release
+                </Btn>
+              )}
+            </Tooltip>
           )}
           {step === 'start' && (
             <Btn
@@ -511,11 +528,11 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
           <Hint as="p">
             {spec.mode === 'local'
               ? 'Move the file to the other machine and press Take over there.'
-              : 'Assign the plan issue to the person who takes over. Avoozl does not reassign it. Your other machine needs no reassignment: press Take over there.'}
+              : 'Avoozl unassigns you on the spec issue once the export is written. Take over on the next machine assigns that person; on your other machine it assigns you again.'}
           </Hint>
           {step === 'reassign' && issueUrl && (
             <PlainLink href={safeHref(issueUrl) ?? undefined} target="_blank" rel="noreferrer" mt="1" inlineFlex items="center" gap="1" underline>
-              Reassign it on GitHub <ExternalLink size={12} aria-hidden="true" />
+              Open the spec issue <ExternalLink size={12} aria-hidden="true" />
             </PlainLink>
           )}
         </li>

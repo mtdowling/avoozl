@@ -21,9 +21,10 @@ that starts its tasks, writes to GitHub for it, and lands it. Give each spec
 to the person who runs that part, and their machine runs its lane. Every other
 Avoozl only reads that spec.
 
-In a GitHub mode, the spec's plan issue names the driver. Its one assignee is
-the person, and a machine claim on the issue says which of that person's
-machines. `avoozl driver status` says which machine drives each spec, and why
+In a GitHub mode, the spec issue's assignee says who works on the spec, and
+a machine claim on the issue says which of that person's machines drives it.
+**Take over** assigns you when nobody is assigned, and refuses when someone
+else is. `avoozl driver status` says which machine drives each spec, and why
 this one only reads:
 
 ```sh
@@ -42,18 +43,19 @@ spec's base branch, whoever drove that task. See
 ### Handing off a spec
 
 `avoozl driver handoff` stops new work on the spec, lets running sessions
-finish, and with `--folder` writes an export file. Reassign the plan issue to
-the new person, and on their machine `avoozl driver takeover` reads the
-export:
+finish, and with `--folder` writes an export file. Avoozl then removes you
+from the spec issue, and on the new person's machine `avoozl driver takeover`
+assigns them and reads the export:
 
 ```sh
 avoozl driver handoff recipe-box --folder ~/handoff
 avoozl driver takeover recipe-box --file ~/handoff/recipe-box.json
 ```
 
-When the old machine is gone, `driver takeover --force --confirm SPEC`
-assigns the plan issue to you and takes over without an export, after it
-lists what that loses. Nothing moves the role because a machine went quiet.
+`avoozl driver release` stops driving with no export and removes you from
+the spec issue. When the old machine is gone,
+`driver takeover --force --confirm SPEC` assigns the spec issue to you and
+takes over without an export, after it lists what that loses. Nothing moves the role because a machine went quiet.
 Hand off, take over and force take over are a person's commands. See
 [Drivers](drivers.md) for the export, what each machine sets up again, and the
 overlap a take over can leave.
@@ -70,6 +72,7 @@ database is a cache that every machine builds from the same commits:
 | Task done | The tick in `tasks.md` on the spec's base branch |
 | Landing record | `Avoozl-Task:` trailers on the landing commit |
 | Retro | `.kiro/retros/` |
+| Who works on a spec | The spec issue's assignee |
 | Driver and worker grants | The spec issue's journal on GitHub |
 
 A tick another person lands counts on your machine at your next tick, and so
@@ -221,12 +224,11 @@ for the roles and the ones that still run as Kiro Crew chats.
 
 ## Limits
 
-No shared record says who is working on a task right now. A task running on
-a driver's own lanes, or held with `avoozl take`, is known only to that
-machine's database until its tick reaches main. A grant branch says which
-worker was granted a task, not whether its session is still running. A
-coworker who wants to know whether a task is in progress asks its spec's
-driver.
+Who is working on what is shared per spec, not per task: the spec issue's
+assignee names the person who drives it, and the Specs list shows it on each
+row. Which of that spec's tasks are running is known only to the driver's own
+database until each tick reaches main. A grant branch says which worker was
+granted a task, not whether its session is still running.
 
 A quiet worker never loses its grant. After `workers.grantStaleAfter`
 (default 24 h) with no accepted result, **Needs you** on the driver shows the
@@ -238,6 +240,10 @@ avoozl spec grants release recipe-box 2.1 --grants acme/recipes
 
 Other limits:
 
+- Two people who press Take over at the same moment both end up assigned.
+  Both machines then read only, and Needs you asks a person to remove one.
+- A spec with no spec issue shows "Not shared": two machines that both hold
+  it both drive it.
 - In Local only mode the driver claim is a row in one database, so a spec
   cannot move between people's machines.
 - A worker task that lands writes no outcome record to the journal yet, so

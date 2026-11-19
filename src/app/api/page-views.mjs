@@ -1531,7 +1531,20 @@ export function plansTableView(
       ...archiveFields(plan),
     });
   }
-  for (const row of rows) delete row.changedAt;
+  // Each approved spec's driver, from the cache the tick's driver step
+  // writes (R116.11): no GitHub call.
+  const drivers = new Map(store.list("drivers").map((row) => [row.id, row]));
+  for (const row of rows) {
+    delete row.changedAt;
+    const driver = row.planId && drivers.get(row.planId);
+    if (driver && ["approved", "done", "changed"].includes(row.status))
+      row.driver = {
+        mode: driver.mode ?? null,
+        state: driver.state,
+        reason: driver.reason,
+        assignees: driver.assignees ?? [],
+      };
+  }
   return { revision: data.revision, items: rows };
 }
 

@@ -215,9 +215,20 @@ export class FakeGitHub {
     issue.labels = (issue.labels || []).filter((item) => item.name !== label);
     return Promise.resolve(null);
   }
+  // Adds, as GitHub's POST does; a login already assigned stays once.
   addAssignees(_repository, number, assignees) {
+    const issue = this.created.find((item) => item.number === number),
+      kept = (issue.assignees || []).map((entry) => entry.login);
+    issue.assignees = [...new Set([...kept, ...assignees])].map((login) => ({
+      login,
+    }));
+    return Promise.resolve({ assignees: issue.assignees });
+  }
+  removeAssignees(_repository, number, assignees) {
     const issue = this.created.find((item) => item.number === number);
-    issue.assignees = assignees.map((login) => ({ login }));
+    issue.assignees = (issue.assignees || []).filter(
+      (entry) => !assignees.includes(entry.login),
+    );
     return Promise.resolve({ assignees: issue.assignees });
   }
   addSubIssue(_repository, number, databaseId) {

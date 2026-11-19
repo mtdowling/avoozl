@@ -15,6 +15,7 @@ import NewFixDrawer from './NewFixDrawer.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
 import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
+import { rowDriverText } from './driver-api.ts'
 import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, usePages } from './ui/controls.tsx'
 import {
   Archive,
@@ -1141,6 +1142,14 @@ export function SpecList(props: {
                   {row.kind === 'epic' ? 'Epic' : (row.epicTitle ?? 'No epic')}
                 </Box>
                 <HomeBadge home={row.home} />
+                {rowDriverText(row.driver) && (
+                  <>
+                    <span>·</span>
+                    <Box as="span" truncate data-spec-driver={row.driver?.reason}>
+                      {rowDriverText(row.driver)}
+                    </Box>
+                  </>
+                )}
                 {row.pull && (
                   <Tooltip text={`A pull request proposes a change to this spec: #${row.pull.number}${row.pull.draft ? ' (draft)' : ''}`}>
                     <span data-spec-pr-chip="">

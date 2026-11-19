@@ -13,6 +13,7 @@ import { buildHarness, shotCss } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 import { demoReplies, demoScript } from './demo-replies.mjs'
 import { noLinksFixture, specLinksFixture } from './spec-links-fixture.mjs'
+import { demoHelpers } from './shots.mjs'
 
 const [out] = process.argv.slice(2)
 if (!out) {
@@ -29,9 +30,7 @@ const browser = await launch(chrome)
 const harnesses = []
 try {
   const page = await browser.page()
-  const wait = (ms = 300) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
-  const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
-  const button = (text, scope = 'document') => `[...${scope}.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+  const { wait, click, button, openDemoSpecs } = demoHelpers(page)
   for (const [name, links] of [
     ['links', specLinksFixture()],
     ['none', noLinksFixture()],
@@ -45,19 +44,7 @@ try {
       for (const theme of ['light', 'dark']) {
         const dark = theme === 'dark'
         const url = harness.url({ page: 'demo', theme })
-        await page.open(url, { width, height: 900, dark })
-        await page.evaluate('localStorage.clear()')
-        await page.open(url, { width, height: 900, dark })
-        await page.until(`Boolean(${button('Start demo')})`)
-        await click(button('Start demo'))
-        await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
-        if (width < 768) {
-          await click(`document.querySelector('[data-top-rail-bar]')`)
-          await wait(150)
-        }
-        await click(`document.querySelector('[data-nav-group="plans"]')`)
-        if (width < 768) await click(`document.querySelector('[data-top-rail-bar]')`)
-        await page.until(`Boolean(document.querySelector('[data-plans-list]'))`)
+        await openDemoSpecs(url, width, dark)
         await click(button('Meal planner', `document.querySelector('[data-plans-list]')`))
         await page.until(`Boolean(document.querySelector('[data-spec-rail] [data-state-count]'))`)
         await wait(800)

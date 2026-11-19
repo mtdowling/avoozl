@@ -4842,6 +4842,70 @@ and otherwise reports `task.ref-file-missing` naming the file.
 `.kiro/specs/`; with another path, draft with a process planner. Older task
 source references and the mirror's plans branch read the default path.
 
+### 4.44 The spec issue's assignee says who works on a spec
+
+**Why.** Two people on one repository could not see who was working on
+what. §6.10 already read the spec issue's assignee as the driver, but Avoozl
+never set it, so a person had to assign themselves on GitHub before Take over
+worked, and Hand off ended with "reassign it on GitHub". The owner wants
+Avoozl to set it (Requirement 116). The record is per spec: a spec has one
+driver, and that driver's own Avoozl already knows its running tasks.
+
+**Who may drive.** `verdictOf` in `driver.mjs` reads the spec issue's
+assignees (the epic issue's when the spec issue has none) and the claim:
+
+| Assignees            | Here                                                        |
+| -------------------- | ----------------------------------------------------------- |
+| None                 | Read only; **Take over** offered; no Needs you item          |
+| This login           | Driver when the claim names this machine (§6.10)             |
+| Another login        | Read only, "Taken by <login>"; **Force take over** offered   |
+| Two or more          | Read only on every machine; one Needs you item names them   |
+| No spec issue at all | Driver, "Not shared"                                         |
+
+**Writes.** `spec-assignee.mjs` holds the two writes, and each reads the
+issue back because GitHub ignores an assignee change from a token without
+push access:
+
+- `assignSpecIssue` adds this login (`POST .../assignees`) only when nobody
+  is assigned. It refuses, writing nothing, when someone else is. `takeOver`
+  calls it after the export check and before the import and the claim, and
+  `takeOverSpec` (the journal's take over) calls it before it reads the
+  owner. Adding, not setting, means two people who press at once both end up
+  assigned: each take over's read 10 seconds later then sees two assignees,
+  and both machines read only until a person removes one.
+- `unassignSpecIssue` removes this login (`DELETE .../assignees`). Hand off
+  calls it once the export is written. **Release** (`driver.handoff` action
+  `release`) calls it when no chat runs for the spec, and refuses otherwise.
+  Force take over keeps its own write, the assignees set to exactly this
+  login.
+
+**Closing.** In the tick's driver step, a spec this workspace drives whose
+leaf tasks are all complete has its open spec issue closed as completed,
+with one `PATCH`. The read already in hand says whether it is open, so the
+step adds no read.
+
+**Calls.** No new read. The driver step's `github.issue` is the conditional
+read it already made; the rechecks before dispatch and integrate hit the
+client's cache (`github.cacheSeconds`, default 60), and an unchanged issue
+answers 304, which does not count against the rate limit. Every write goes
+through the write pacer (`github-pacer.mjs`).
+
+**No spec issue.** A spec nobody published has no shared record, so it
+drives on the workspace that has it and the page says "Not shared". Avoozl
+makes no issue for it: `avoozl spec publish` stays the person's act, and
+landing still needs a journal (§4.32.7). The limit, in the docs: two
+machines that both hold an unpublished spec both drive it.
+
+**Privacy.** An assignee is a login on an issue the reader can already see,
+and it names no other item, so `source-backlinks.mjs` and the journal's
+opaque names are unchanged.
+
+**Page.** `plansTableView` adds each spec's `driver` (state, reason,
+assignees) from the `drivers` table. The Specs list shows it under the
+title, and the spec's chip uses the same words (`rowDriverText` and
+`chipText` in `driver-api.ts`). Hand off's last step says Avoozl unassigned
+you, and the dialog's first step has **Release**.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
@@ -5880,6 +5944,8 @@ headings).
 ### 6.10 Driver: one machine drives each spec
 
 **Status 2026-11-18.** The driver chat was removed (#382). The driver lock (the plan issue's assignee plus a machine claim) and the header driver chip stay.
+
+**Changed 2026-11-19** by §4.44 (Requirement 116): Avoozl now sets the assignee. Take over assigns this login when nobody is assigned, Hand off and Release remove it, no assignee raises no decision, and a spec with no spec issue drives here as "Not shared". Where this section says Avoozl never reassigns, §4.44 wins.
 
 **Proposed** 2026-11-13 (Requirement 66; the lock was changed the same day
 to the plan issue's assignee). Avoozl runs on one person's machine, the

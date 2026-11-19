@@ -3853,3 +3853,16 @@ Owner decision 2026-11-19 (Requirement FS1, design §FS1).
 - [x] `fs-1` specs.path, only tasks.md required, other Markdown as spec text [FS1] (§FS1)
   - $done: `specs.path` in `.avoozl.json` names the specs folder (default `.kiro/specs`) and is refused when absolute, with `.` or `..`, or through a symlink out of the checkout; only `tasks.md` is required; every other `.md` file in a spec folder is part of the revision hash and named to workers; a requirement or design ref is checked only when its file exists and otherwise names the missing file; Kiro's three-file layout hashes and lints as before.
   - `specs-path.mjs`, `readSpecFolder` and `revisionFiles` in `spec-plans.mjs`, `resolveRefs` in `spec-refs.mjs`, `git-approvals.mjs`, `src/app/specs/test/flexible-specs.test.mjs`.
+
+## Phase 68: The spec issue's assignee says who works on a spec
+
+Owner decision 2026-11-19 (Requirement 116, design §4.44).
+
+- [x] 68.1 Take over assigns the spec issue; Hand off and Release unassign it; a landed spec closes it, after 66.3 [R116.1, R116.2, R116.3, R116.4, R116.5, R116.6, R116.7, R116.8, R116.9, R116.10, R116.12] (§4.44)
+  - $done: Tests with a fake GitHub of two logins: Take over assigns this login and reads it back; it refuses and writes nothing when someone else is assigned; two assignees leave both machines read only with one Needs you item; Hand off unassigns and the other machine's Take over assigns; Release unassigns and refuses while a chat runs; a fully landed spec's issue closes once; a spec with no issue drives as Not shared; the tick adds no read.
+  - $after: 66.3
+  - `spec-assignee.mjs`, `verdictOf`, `takeOver`, `writeExport`, `handOffDriver` action `release` and `closeLanded` in `driver.mjs`, `takeOverSpec`, `avoozl driver release`.
+- [x] 68.2 The Specs list and the spec's chip show the driver from the assignee, after 68.1 [R116.11] (§4.44)
+  - $done: Each approved spec's row says You drive, Taken by <login>, Not shared, Nobody drives, Your other machine, Handed off or N assignees, from the cache; the chip says the same; Hand off's last step says Avoozl unassigned you and its first step has Release; phone and desktop, light and dark screenshots go to the owner.
+  - $after: 68.1
+  - `plansTableView` `driver`, `rowDriverText` and `chipText` in `driver-api.ts`, `SpecList`, `HandOffDialog`.

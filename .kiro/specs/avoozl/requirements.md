@@ -3046,6 +3046,11 @@ issue's assignee). Design §6.10. This makes Requirement 13.5 hold across
 machines: today two machines with the same planning repository both pass
 the namespace check and can both tick one spec.
 
+Changed 2026-11-19 by Requirement 116: Take over assigns this login when the
+spec issue has no assignee, Hand off and Release remove it, a spec with no
+assignee raises no decision, and a spec with no spec issue drives here as
+"Not shared". Criteria 2, 5, 8, 10 and 17 read with those changes.
+
 **User story:** As the owner, I want exactly one Avoozl to drive each spec
 at a time, named the way GitHub already names who owns an issue, and a
 safe way to move that role, so that two machines never dispatch, write
@@ -5835,3 +5840,75 @@ folders live and a spec to need only its task list, so that a spec can be one
 8. Tests SHALL show: a custom path; a `tasks.md`-only spec; an extra `.md`
    file changing the hash; refs with and without their files; Kiro's layout
    unchanged; and path validation.
+
+### Requirement 116: The spec issue's assignee says who works on a spec
+
+Added 2026-11-19 (owner decision). Design §4.44. Changes Requirement 66.2,
+66.5, 66.8, 66.10 and 66.17 and the owner check of Requirement 102.13: Avoozl
+now sets the spec issue's assignee itself when a person takes, hands off or
+releases a spec.
+
+**User story:** As one of several people on a repository, I want the spec
+issue's assignee to say who is working on each spec, set by Avoozl when a
+person takes the spec, so that GitHub shows who has it and no two people
+drive one spec.
+
+#### Acceptance criteria
+
+1. The shared record SHALL be per spec, not per task: a spec has one driver,
+   and the driver's own Avoozl knows the tasks it runs. The spec issue's one
+   assignee SHALL be the person who drives it, named by the `gh` login of
+   the machine that took it.
+2. **Take over** and `avoozl spec takeover` SHALL read the spec issue's
+   assignees first. WHEN nobody is assigned THEN Avoozl SHALL assign this
+   login, read the issue back, and go on only if this login is assigned.
+   WHEN this login is the one assignee THEN it SHALL change nothing. WHEN
+   someone else is THEN it SHALL refuse, write nothing, and name who has the
+   spec. GitHub ignores an assignee change from a token without push access,
+   so a read-back without this login SHALL refuse and say so.
+3. WHEN the spec issue, or the epic issue standing in for one with no
+   assignee, names another login THEN this workspace SHALL NOT drive the
+   spec, and the page SHALL say "Taken by <login>".
+4. WHEN the spec issue has two or more assignees (a race, or a person added
+   one) THEN every workspace SHALL read only for the spec, no machine SHALL
+   start new tasks for it, and Avoozl SHALL raise one Needs you item naming
+   every assignee, which closes by itself once one is left. WHEN it has none
+   THEN nobody drives it, the page SHALL offer Take over, and no Needs you
+   item SHALL be raised.
+5. **Hand off** SHALL remove this login from the spec issue once the export
+   is written, and Take over on the next machine SHALL assign that machine's
+   login, so a hand-off reassigns the issue. **Force take over** SHALL still
+   set the assignees to exactly this login.
+6. **Release** (`driver.handoff` with action `release`, CLI
+   `avoozl driver release SPEC`) SHALL remove this login from the spec issue
+   and leave the spec read-only here. It SHALL refuse while chats run for the
+   spec and name them; Hand off drains them instead. Avoozl SHALL add or
+   remove only this machine's login, never another person's, except in Force
+   take over.
+7. WHEN every leaf task of a spec this workspace drives is complete THEN the
+   driver SHALL close the spec issue as completed, once. A later revision
+   SHALL NOT reopen it.
+8. An approved spec with no spec issue SHALL drive on this workspace and show
+   "Not shared", because no other machine can see who drives it. Avoozl SHALL
+   create no issue for it: publishing stays a person's act (`avoozl spec
+   publish`, Requirement 102.2), and landing still needs the spec's journal
+   (Requirement 102.13).
+9. Reading the assignee SHALL add no GitHub call. The tick SHALL read each
+   spec issue with the conditional read it already makes, its rechecks SHALL
+   share the client's cache, and an unchanged issue SHALL answer 304. The
+   only new calls SHALL be writes through the write pacer: one assign and one
+   read-back per Take over, one unassign and one read-back per Hand off or
+   Release, and one close per spec.
+10. An assignee SHALL add no reference between items, so the privacy rules
+    of Requirement 92.10 and 102.12 SHALL hold unchanged: a public journal
+    still names nothing private, and a private spec issue's reference still
+    reaches no public item.
+11. Each approved spec's row on the Specs list SHALL show its driver from the
+    workspace cache, with no GitHub call: "You drive", "Taken by <login>",
+    "Not shared", "Nobody drives", "Your other machine", "Handed off" or "N
+    assignees". The chip on the spec's page SHALL use the same words.
+12. Tests with a fake GitHub SHALL show: Take over assigns this login;
+    Take over refuses when someone else is assigned and writes nothing; two
+    assignees hold both machines and raise one Needs you item; Hand off
+    unassigns and the other machine's Take over assigns; Release unassigns;
+    a fully landed spec closes its issue once.

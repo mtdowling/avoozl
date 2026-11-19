@@ -110,19 +110,23 @@ test("a GitHub journal is taken over only by the spec issue's single assignee", 
   github.login = "maintainer";
   github.permissions.set("maintainer", "admin");
   const w = await workspace(t, { github });
-  const published = await w.ops.execute("spec.publish", { planId: w.plan.id });
-  await assert.rejects(
-    w.ops.execute("spec.takeover", { planId: w.plan.id }),
-    /no assignee/,
-  );
+  const published = await w.ops.execute("spec.publish", { planId: w.plan.id }),
+    assignees = () =>
+      github.created
+        .find((issue) => issue.number === published.number)
+        .assignees.map((entry) => entry.login);
+  // Someone else assigned: refused, and nothing is written.
   await github.addAssignees(REPOSITORY, published.number, ["someone"]);
   await assert.rejects(
     w.ops.execute("spec.takeover", { planId: w.plan.id }),
     /Only someone/,
   );
-  await github.addAssignees(REPOSITORY, published.number, ["maintainer"]);
+  assert.deepEqual(assignees(), ["someone"]);
+  // Nobody assigned: take over assigns this login (R116.2).
+  await github.removeAssignees(REPOSITORY, published.number, ["someone"]);
   const result = await w.ops.execute("spec.takeover", { planId: w.plan.id });
   assert.equal(result.ok, true);
+  assert.deepEqual(assignees(), ["maintainer"]);
   assert.equal(driverIdOf(w.store, w.plan.id), result.driver);
   assert.equal(
     github.comments.filter((c) => c.number === published.number).length,
