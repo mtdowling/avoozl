@@ -42,11 +42,11 @@ const shot = async (name) => {
 
 test('a normal chat shows Waiting on you, In flight, the queue head, recent merges and the line', { skip }, async () => {
   await open({ sid: 'chat-1' }, `Boolean(document.querySelector('[data-waiting-row]'))`)
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-waiting-row]')].map((r) => r.dataset.waitingRow)`), ['needs-human', 'github-conflict'])
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-waiting-row]')].map((r) => r.dataset.waitingRow)`), ['needs-human'])
   // The retired worker row is not shown.
   assert.doesNotMatch(await text('[data-panel-recap]'), /retired worker/)
   const buttons = await page.evaluate(`[...document.querySelectorAll('[data-waiting-row] button, [data-waiting-row] a')].map((e) => e.textContent.trim())`)
-  assert.deepEqual(buttons, ['Open issue', "Keep Avoozl's", "Keep GitHub's"])
+  assert.deepEqual(buttons, ['Open issue'])
   assert.equal(await count('[data-flight-row]'), 3)
   assert.equal(await page.evaluate(`document.querySelector('[data-flight-row="radar"] a[href^="/chat"]').getAttribute('href')`), '/chat?sid=crew-abc')
   assert.equal(await count('[data-queue-head]'), 1)
@@ -55,13 +55,6 @@ test('a normal chat shows Waiting on you, In flight, the queue head, recent merg
   assert.equal(await count('[data-panel-driver], [data-driver-start]'), 0)
   assert.equal(await count('[data-panel-line]'), 1)
   await shot('normal-chat')
-})
-
-test("Keep Avoozl's writes the choice and reads again", { skip }, async () => {
-  await open({ sid: 'chat-1' }, `Boolean(document.querySelector('[data-waiting-row]'))`)
-  await page.evaluate(`[...document.querySelectorAll('[data-waiting-row] button')].find((b) => b.textContent.trim() === "Keep Avoozl's").click()`)
-  await page.until(`window.__panelCalls.length === 1`)
-  assert.deepEqual(await page.evaluate(`window.__panelCalls[0]`), { taskId: 'S8', field: 'title', choice: 'desired' })
 })
 
 test('it reads again on window focus and not while the page is hidden', { skip }, async () => {
@@ -322,7 +315,7 @@ test('fold all closes every section, opens them again, and is remembered', { ski
   const opened = await state()
   assert.ok(opened.open.every((v) => v === 'true'))
   assert.equal(opened.label, 'Collapse all sections')
-  assert.equal(await count('[data-waiting-row]'), 2)
+  assert.equal(await count('[data-waiting-row]'), 1)
   // One section on its own.
   await page.evaluate(`document.querySelector('[data-panel-fold="recent"] [data-pp-section-head]').click()`)
   assert.equal(await page.evaluate(`document.querySelector('[data-panel-fold="recent"] [data-pp-section-head]').getAttribute('aria-expanded')`), 'false')

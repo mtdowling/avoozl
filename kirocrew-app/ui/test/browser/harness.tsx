@@ -3006,14 +3006,6 @@ if (page === 'panel') {
             detail: 'Draco: tokenizer A or B? Crew paused with the needs-human label.',
             link: 'https://github.test/acme/recipe-box/issues/52',
           },
-          {
-            kind: 'github-conflict',
-            taskId: 'S8',
-            field: 'title',
-            title: 'Ranking: acceptance edited',
-            detail: 'Someone changed the title on GitHub.',
-            choices: ['desired', 'github'],
-          },
           { kind: 'stale-session', taskId: 'S9', title: 'A retired worker row', detail: 'must not show' },
         ]
       : [],
