@@ -305,9 +305,9 @@ async function fillSnapshot(store, row, request, github) {
 }
 
 // A new folder of a session's own, by its real path. The temp folder can be
-// a symlink (/var to /private/var on macOS); a harness that resolves its
-// folder would then see its own writes outside the relative paths its
-// permission rules name (Claude Code's Edit(.avoozl/output/*)) and refuse them.
+// a symlink (/var to /private/var on macOS), and a harness resolves the
+// paths it writes, so its rules (Claude Code's Edit(/{worktree}/...)) must
+// name the real one.
 export const scratchFolder = (prefix) =>
   fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
 

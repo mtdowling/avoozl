@@ -37,12 +37,16 @@ test("Claude Code's read class is dontAsk and may write only its result file", (
     JSON.parse(fs.readFileSync(CLAUDE, "utf8")),
   );
   assert.equal(definition.permission.read, "dontAsk");
-  assert.deepEqual(fillHarnessArgv(definition.resultAllow, {}), [
-    "--allowedTools",
-    "Edit(.avoozl/result.json)",
-    "--allowedTools",
-    "Edit(.avoozl/output/*)",
-  ]);
+  // Absolute from the session's folder: a relative rule moves with `cd`.
+  assert.deepEqual(
+    fillHarnessArgv(definition.resultAllow, { worktree: "/w" }),
+    [
+      "--allowedTools",
+      "Edit(//w/.avoozl/result.json)",
+      "--allowedTools",
+      "Edit(//w/.avoozl/output/*)",
+    ],
+  );
   const worktree = path.join(os.tmpdir(), "avoozl-read-worktree");
   const tmp = path.join(os.tmpdir(), "avoozl-read-tmp");
   assert.deepEqual(

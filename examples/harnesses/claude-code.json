@@ -28,9 +28,9 @@
   "allow": ["--allowedTools", "Bash({repository_allow_commands}:*)"],
   "resultAllow": [
     "--allowedTools",
-    "Edit(.avoozl/result.json)",
+    "Edit(/{worktree}/.avoozl/result.json)",
     "--allowedTools",
-    "Edit(.avoozl/output/*)"
+    "Edit(/{worktree}/.avoozl/output/*)"
   ],
   "servedModel": { "from": "output", "field": "modelUsage" },
   "cost": { "from": "output", "field": "total_cost_usd", "per": "session" },

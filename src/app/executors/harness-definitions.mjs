@@ -195,7 +195,7 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
   };
   // `resultAllow`: what a read-only session adds so its harness lets it
   // write its result file and nothing else (R96.1), such as Claude Code's
-  // `--allowedTools Edit(.avoozl/result.json)`.
+  // `--allowedTools Edit(/{worktree}/.avoozl/result.json)`.
   for (const key of ["writeRoots", "allow", "resultAllow"])
     if (value[key] !== undefined)
       definition[key] = argv(value[key], key, source, { command: false });
