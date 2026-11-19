@@ -11,24 +11,10 @@
 //   node test/browser/triage-agent-shots.mjs <out dir>
 //
 // AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
-import fs from 'node:fs'
 import path from 'node:path'
-import { buildHarness } from './build.mjs'
-import { findChrome, launch } from './chrome.mjs'
+import { startShots } from './build.mjs'
 
-const [out] = process.argv.slice(2)
-if (!out) {
-  console.error('Usage: triage-agent-shots.mjs <out dir>')
-  process.exit(2)
-}
-const chrome = findChrome()
-if (!chrome) {
-  console.error('No Chrome found; set AVOOZL_CHROME.')
-  process.exit(1)
-}
-fs.mkdirSync(out, { recursive: true })
-const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
-const browser = await launch(chrome)
+const { out, harness, browser } = await startShots('triage-agent-shots.mjs')
 const SIZE = { 1280: 900, 390: 844 }
 // Each screen: the nav item to press, what to wait for, and what to do there.
 const SCREENS = [

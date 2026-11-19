@@ -11,7 +11,7 @@ import { integrateVerified } from "../delivery.mjs";
 import { landingQueue } from "../landing-queue.mjs";
 import { landDirect } from "../direct-landing.mjs";
 import { takeOverSpec } from "../spec-takeover.mjs";
-import { snapshot } from "./fixtures.mjs";
+import { snapshot, verifiedTask } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
@@ -78,40 +78,7 @@ async function workspace(t) {
   return { root, origin, checkout: fs.realpathSync.native(checkout), store };
 }
 
-// A task worktree with one commit, a verified delivery and a worker chat.
-function verified(w, taskId, file = `${taskId}.txt`) {
-  const branch = `avoozl/${taskId}`,
-    wt = path.join(w.root, "wt", taskId);
-  git(w.checkout, "worktree", "add", "-q", "-b", branch, wt, "main");
-  fs.writeFileSync(path.join(wt, file), taskId + "\n");
-  git(wt, "add", ".");
-  git(wt, "commit", "-qm", "Do " + taskId);
-  const commit = git(wt, "rev-parse", "HEAD");
-  w.store.put("task_worktrees", {
-    id: taskId,
-    taskId,
-    path: wt,
-    branch,
-    repository: "app",
-  });
-  w.store.put("task_deliveries", {
-    id: taskId,
-    taskId,
-    state: "verified",
-    commit,
-    attempts: [],
-    verifications: [],
-  });
-  w.store.put("session_bindings", {
-    id: "slot-" + taskId,
-    slot: "slot-" + taskId,
-    taskId,
-    role: "worker",
-    attempt: 1,
-    status: "working",
-  });
-  return { commit, wt, branch };
-}
+const verified = verifiedTask;
 
 const step = (w) =>
   landDirect(w.store, { workspaceRoot: w.root, rounds: 2, machine: {} });

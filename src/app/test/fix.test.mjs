@@ -5,11 +5,9 @@
 // live.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { digest } from "../../model.mjs";
-import { Store } from "../store.mjs";
 import { integrateVerified } from "../delivery.mjs";
 import { landDirect } from "../direct-landing.mjs";
 import { queryTasks } from "../../query.mjs";
@@ -25,84 +23,31 @@ import {
   startFix,
 } from "../fix.mjs";
 import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
-import { snapshot } from "./fixtures.mjs";
+import { verifiedTask } from "./fixtures.mjs";
+import { REPO, triageWorkspace } from "./triage-fixture.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
 
-const REPOSITORY = "o/app";
-const git = (cwd, ...args) =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
-const CHECK = [
-  process.execPath,
-  "-e",
-  "process.exit(require('fs').existsSync('FAIL') ? 1 : 0)",
-];
+const REPOSITORY = REPO;
 
+// The triage fixture's workspace (a checkout, a bare origin, a `direct`
+// project), with the agent off and a fix's journal context.
 function workspace(t) {
-  const root = temporaryDirectory("avoozl-fix-"),
-    origin = path.join(root, "origin.git"),
-    checkout = path.join(root, "app");
-  git(root, "init", "--bare", "-b", "main", origin);
-  git(root, "clone", "-q", origin, checkout);
-  git(checkout, "config", "user.name", "Test");
-  git(checkout, "config", "user.email", "test@example.com");
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-qm", "Start");
-  git(checkout, "push", "-q", "origin", "main");
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
-  store.put("projects", {
-    id: "app",
-    root: fs.realpathSync.native(checkout),
-    repository: REPOSITORY,
-    baseBranch: "main",
-    landing: "direct",
-    checks: [CHECK],
-    worktreeRoot: path.join(root, "wt"),
-  });
-  const context = { workspaceRoot: root, actor: "Operator" };
+  const w = triageWorkspace(t, { triage: { agent: "off" } }),
+    context = { workspaceRoot: w.root, actor: "Operator" };
   return {
-    root,
-    origin,
-    checkout: fs.realpathSync.native(checkout),
-    store,
+    ...w,
+    origin: path.join(w.root, "origin.git"),
     context,
-    start: (input) => startFix(store, input, context),
+    start: (input) => startFix(w.store, input, context),
   };
 }
 
 const task = (store, id) => store.read().tasks.find((entry) => entry.id === id);
-
-// The worker's commit and the verifier's pass, as the tick records them.
-function verified(w, taskId) {
-  const branch = `avoozl/${taskId}`,
-    wt = path.join(w.root, "wt", taskId);
-  git(w.checkout, "worktree", "add", "-q", "-b", branch, wt, "main");
-  fs.writeFileSync(path.join(wt, `${taskId}.txt`), `${taskId}\n`);
-  git(wt, "add", ".");
-  git(wt, "commit", "-qm", `Do ${taskId}`);
-  const commit = git(wt, "rev-parse", "HEAD");
-  w.store.put("task_worktrees", {
-    id: taskId,
-    taskId,
-    path: wt,
-    branch,
-    repository: "app",
-  });
-  w.store.put("task_deliveries", {
-    id: taskId,
-    taskId,
-    state: "verified",
-    commit,
-    attempts: [],
-    verifications: [],
-  });
-  return commit;
-}
+const git = (cwd, ...args) =>
+  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
 async function lands(w, taskId) {
   const ready = queryTasks(w.store.read(), { scope: "all", q: "ready:true" });
@@ -110,7 +55,7 @@ async function lands(w, taskId) {
     ready.some((entry) => entry.id === taskId),
     `${taskId} is ready to start`,
   );
-  const commit = verified(w, taskId);
+  const { commit } = verifiedTask(w, taskId);
   await integrateVerified(w.store);
   await landDirect(w.store, { workspaceRoot: w.root, rounds: 2, machine: {} });
   const landed = git(w.origin, "rev-parse", "main");
