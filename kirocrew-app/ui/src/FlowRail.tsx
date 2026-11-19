@@ -5,6 +5,7 @@ import { NavSlotFor } from './nav-slot.tsx'
 import { RailBlock, RailChips, RailRow, RailSortList, RailStyle, type RailSort } from './NavRail.tsx'
 import { ArrowUpDown, CaseSensitive, Clock, Gauge, Layers, ListFilter, Tag, Workflow, X } from './icons.ts'
 import { FLOW_SORT_FIRST, WINDOW_OPTIONS, filterActive, flowChoices, type FlowFilter, type FlowOrder, type FlowSort } from './flow-api.ts'
+import { PlainButton } from './ui/Plain'
 
 const SORTS: RailSort<FlowSort>[] = [
   { key: 'recent', label: 'Newest', icon: Clock },
@@ -39,9 +40,9 @@ export function FlowRail(props: {
           title="Filters"
           action={
             filterActive(filter) && (
-              <button type="button" data-rail-icon onClick={() => props.onFilter({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+              <PlainButton type="button" data-rail-icon onClick={() => props.onFilter({})} css-gap="2" css-align-items="center" css-font-size="12">
                 <X size={11} aria-hidden="true" /> Clear
-              </button>
+              </PlainButton>
             )
           }
         >

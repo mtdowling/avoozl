@@ -282,7 +282,7 @@ test('the Reviews tab states the branch rule it found, or that reviewer chats ar
 test('the GitHub calls breakdown is its own section with a sortable real table', () => {
   assert.match(settings, /<Section title="GitHub calls"/)
   assert.match(settings, /<Box key=\{col\.key\} scope="col" aria-sort=[^\n]*as="th"/)
-  assert.match(settings, /<button type="button" data-sort=\{col\.key\}/)
+  assert.match(settings, /<PlainButton type="button" data-sort=\{col\.key\}/)
   assert.match(settings, /css-text-align="right" css-font-variant-numeric="tabular-nums"/)
 })
 

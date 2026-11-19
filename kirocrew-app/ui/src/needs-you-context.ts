@@ -115,7 +115,7 @@ export function reviewEvidence(title: string, context: ItemContext | undefined):
 }
 
 // Which evidence blocks an item has. An item with none says so on the page.
-export type Evidence = 'values' | 'investigation' | 'review' | 'links' | 'content' | 'resource' | 'escalation' | 'summary' | 'text'
+export type Evidence = 'values' | 'investigation' | 'review' | 'links' | 'checks' | 'content' | 'resource' | 'escalation' | 'summary' | 'text'
 export function evidenceOf(item: ConflictItem): Evidence[] {
   const out: Evidence[] = []
   if (item.expected !== undefined || item.actual !== undefined) out.push('values')
@@ -125,6 +125,7 @@ export function evidenceOf(item: ConflictItem): Evidence[] {
   if (item.context?.text && item.kind !== 'review' && item.context.text.summary) out.push('text')
   const links = item.context?.links
   if (links && (links.branch || links.pr || links.checks)) out.push('links')
+  if (item.context?.failedChecks?.checks.length) out.push('checks')
   if (item.kind === 'content-match' || item.kind === 'content-unavailable') out.push('content')
   if (item.runs?.length) out.push('resource')
   if (item.escalation) out.push('escalation')

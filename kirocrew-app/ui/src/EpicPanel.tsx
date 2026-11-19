@@ -12,6 +12,7 @@ import type { EpicView, viewsClient } from './views-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 const bar = (done: number, total: number) => (total ? Math.round((done / total) * 100) : 0)
 
@@ -32,9 +33,9 @@ export function EpicPanel(props: {
         title={value.title}
         actions={
           props.onOpenPlans && (
-            <button type="button" className="text-sm underline" onClick={props.onOpenPlans}>
+            <PlainButton type="button" size="sm" underline onClick={props.onOpenPlans}>
               Edit or discuss in Specs
-            </button>
+            </PlainButton>
           )
         }
       />
@@ -76,9 +77,9 @@ export function EpicPanel(props: {
           <Box as="ul" mt="1" flex flexCol gap="1">
             {value.members.map((member) => (
               <li key={member.plan}>
-                <button
+                <PlainButton
                   type="button"
-                  className="w-full rounded px-1 py-0.5 text-left hover:bg-accent/10"
+                  wFull rounded="base" px="1" py="0.5" align="left" hoverBgAccent10
                   onClick={() => props.onDrill({ kind: 'plan', id: member.plan, title: member.title })}
                 >
                   <Box as="span" flex justify="between" gap="2">
@@ -91,7 +92,7 @@ export function EpicPanel(props: {
                   <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
                     <span className="block h-full" style={{ width: `${bar(member.progress.done, member.progress.total)}%`, background: 'var(--ok)' }} />
                   </Box>
-                </button>
+                </PlainButton>
               </li>
             ))}
           </Box>

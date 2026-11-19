@@ -8,6 +8,7 @@ import { PanelLeftOpen, X } from './icons.ts'
 import { TOP_CARD } from './LeftNav.tsx'
 import { NavAccordion, type NavGroup } from './NavAccordion.tsx'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 // The current page's name and the open-the-list icon, for the phone's header row.
 export function RailButton(props: { groups: NavGroup[]; value: string; child?: string | null; open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -17,17 +18,17 @@ export function RailButton(props: { groups: NavGroup[]; value: string; child?: s
   // only its close button, at the right.
   if (props.open)
     return (
-      <button
+      <PlainButton
         type="button"
         data-top-rail-bar
         aria-expanded
         aria-controls="avoozl-top-rail-list"
         aria-label="Close the menu"
         onClick={() => props.onOpenChange(false)}
-        style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, padding: 0, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}
+        css-margin-left="auto" css-display="inline-flex" css-align-items="center" css-justify-content="center" css-width="28" css-height="28" css-padding="0" css-border-radius="6" css-border="1px-solid-border" css-background="transparent" css-color="muted" css-cursor="pointer"
       >
         <X size={16} aria-hidden="true" />
-      </button>
+      </PlainButton>
     )
   return (
     <button

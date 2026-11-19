@@ -16,6 +16,7 @@ import { safeHref } from './views-api.ts'
 import { baseTitle, holdVariant, holdWord, itemCount, itemLinks, landingNote, landingQueueClient, queueLine, type LandingItem } from './landing-queue-api.ts'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 const DOT: Record<string, string> = { pass: 'var(--ok)', fail: 'var(--danger)', pending: 'var(--warn, var(--accent))', stale: 'var(--muted)' }
 const DOT_TEXT: Record<string, string> = { pass: 'Checks passed', fail: 'Checks failed', pending: 'Checks running', stale: 'Checks are for an older head' }
@@ -44,10 +45,10 @@ function Row(props: { item: LandingItem; now: number }) {
           {item.position ?? '—'}
         </Box>
         {first ? (
-          <button type="button" className="min-w-0 flex-1 truncate text-left underline" onClick={() => drawer.openTask(first.id)} aria-label={item.tasks.map((t) => t.title).join(', ')}>
+          <PlainButton type="button" minW0 flex1 truncate align="left" underline onClick={() => drawer.openTask(first.id)} aria-label={item.tasks.map((t) => t.title).join(', ')}>
             {first.title}
             {item.tasks.length > 1 ? ` +${item.tasks.length - 1}` : ''}
-          </button>
+          </PlainButton>
         ) : (
           <Box as="span" minW0 flex1 truncate>{item.key}</Box>
         )}
@@ -60,12 +61,12 @@ function Row(props: { item: LandingItem; now: number }) {
           {item.hold.text}
         </Box>
         {links.map((link) => (
-          <a key={link.key} href={safeHref(link.href) ?? undefined} target="_blank" rel="noopener noreferrer" className="inline-flex min-w-0 items-center gap-1 underline" data-landing-link={link.key}>
+          <PlainLink key={link.key} href={safeHref(link.href) ?? undefined} target="_blank" rel="noopener noreferrer" inlineFlex minW0 items="center" gap="1" underline data-landing-link={link.key}>
             {link.key === 'pr' && <CheckDot checks={item.checks} />}
             <Box as="span" css-max-width="16rem" truncate>
               {link.label}
             </Box>
-          </a>
+          </PlainLink>
         ))}
         {!item.pr && item.checks && <CheckDot checks={item.checks} />}
         {item.since && <Box as="span" tabularNums>{duration(item.since, props.now)}</Box>}

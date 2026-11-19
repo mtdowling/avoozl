@@ -15,6 +15,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
+import { PlainInput } from './ui/Plain'
 
 type Client = ReturnType<typeof radarClient>
 
@@ -165,7 +166,7 @@ export function SendToRadar(props: {
                     key={entry.id}
                     as="label" css-border-color={entry.id === crewId ? 'accent' : 'border'} flex cursorPointer items="start" gap="2" rounded="md" border="all" p="2"
                   >
-                    <input type="radio" name="avoozl-radar-crew" checked={entry.id === crewId} onChange={() => setCrewId(entry.id)} style={{ marginTop: 3 }} />
+                    <PlainInput type="radio" name="avoozl-radar-crew" checked={entry.id === crewId} onChange={() => setCrewId(entry.id)} css-margin-top="3" />
                     <Box as="span" flex minW0 flexCol gap="0.5">
                       <Box as="span" flex flexWrap items="center" gap="1.5">
                         <Box as="span" weight="medium">{entry.name}</Box>

@@ -13,6 +13,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskId: string; entry: EvidenceEntry }) {
   const api = useAppApi()
@@ -41,9 +42,9 @@ function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskI
       <span>
         {file.type}, {sizeText(file.size)}
       </span>
-      <button type="button" className="underline" onClick={() => void show()}>
+      <PlainButton type="button" underline onClick={() => void show()}>
         Show {file.type.startsWith('video/') ? 'video' : 'image'}
-      </button>
+      </PlainButton>
       {error && (
         <ErrorText role="alert" as="span">
           {error}
