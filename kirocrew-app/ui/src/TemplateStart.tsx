@@ -116,7 +116,7 @@ function InputField(props: {
             value={String(props.value ?? '')}
             list={input.type === 'epic' ? `${id}-list` : undefined}
             onChange={(event: { target: { value: string } }) => props.onChange(event.target.value)}
-            style={{ maxWidth: '24rem' }}
+            css-max-width="24rem"
             aria-invalid={missing}
           />
           {input.type === 'epic' && (

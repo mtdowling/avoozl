@@ -75,13 +75,6 @@ function HelpLink({ children = 'How rules work' }: { children?: ReactNode }) {
   )
 }
 
-const panelStyle = {
-  border: '1px solid var(--border)',
-  borderRadius: 10,
-  padding: 12,
-  background: 'color-mix(in srgb, var(--text) 4%, var(--card, var(--bg)))',
-}
-
 // ---------------------------------------------------------------------------
 // The left panel: your sets, then the built-in ones.
 
@@ -119,7 +112,7 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
     </IconLabel>
   )
   return (
-    <PairedCard label="Rule sets" width="18rem" style={panelStyle}>
+    <PairedCard label="Rule sets" width="18rem" tinted>
       <Stack gap={3} data-rule-panel>
       <Box flex flexCol items="start" gap="2">
         <Box as="h3" size="sm" weight="semibold">Your rule sets</Box>

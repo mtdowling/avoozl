@@ -107,9 +107,10 @@ export function processExecutor({
 // child: its findings report is history (the investigation row keeps it) and its run is open again.
 function reopenAfterFindings(store, slot) {
   const binding = store.get("session_bindings", slot);
-  if (binding?.report?.kind !== "findings") return;
-  const { report, ...open } = binding;
+  if (binding?.report?.kind !== "findings" && !binding?.awaitingResume) return;
+  const { report, awaitingResume, ...open } = binding;
   void report;
+  void awaitingResume;
   store.put("session_bindings", {
     ...open,
     status: "working",
@@ -891,10 +892,10 @@ export async function drainProcessRequests(
         }
         // A child that exited with findings waits for Go ahead, as a chat
         // does: idle, not closed (WP3.2).
+        const now = store.get("session_bindings", binding.slot);
         const waiting =
           status.startsWith("exited ") &&
-          store.get("session_bindings", binding.slot)?.report?.kind ===
-            "findings";
+          (now?.report?.kind === "findings" || now?.awaitingResume === true);
         recordSessionStatus(store, {
           slot: binding.slot,
           status: waiting ? "idle" : bindingStatus(status),

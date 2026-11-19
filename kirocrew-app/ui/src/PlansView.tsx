@@ -14,7 +14,7 @@ import NewPlanDrawer from './NewPlanDrawer.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
 import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
-import { COMPACT_BTN, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './ui/controls.tsx'
+import { COMPACT, DANGER, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, useAskChat, usePages } from './ui/controls.tsx'
 import { Archive, ArchiveRestore, ArrowUpDown, CaseSensitive, Clock, Layers, ListChecks, ListFilter, Tag, X, ClipboardCheck, DetailsIcon, Download, ExternalLink, FileText, FolderOpen, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, type LucideIcon } from './icons.ts'
 import { MoreMenu } from './MoreMenu.tsx'
 import { useReveal } from './RepositoriesSettings.tsx'
@@ -380,7 +380,7 @@ function SpecDetail(props: {
         title="Summary"
         actions={
           plan && props.onReview ? (
-            <TipBtn style={COMPACT_BTN} tooltip="Read each review finding beside the spec text and decide it." onClick={props.onReview} data-open-review="">
+            <TipBtn {...COMPACT} tooltip="Read each review finding beside the spec text and decide it." onClick={props.onReview} data-open-review="">
               Open review{plan.review?.found ? ` (${plan.review.found})` : ''}
             </TipBtn>
           ) : undefined
@@ -761,7 +761,7 @@ export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
 function PlansActions(props: { onNewPlan: () => void; onRefresh: () => void; busy: boolean }) {
   return (
     <>
-      <IconLabel style={COMPACT_BTN} icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
+      <IconLabel look={COMPACT} icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
         New spec
       </IconLabel>
       <IconBtn icon={RefreshCw} label="Refresh specs" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
@@ -800,7 +800,7 @@ function RowButtons(props: {
         <IconBtn icon={ArchiveRestore} label={`Unarchive ${row.name}`} tooltip={UNARCHIVE_TIP} disabled={props.busy} onClick={props.onUnarchive} />
       )}
       {props.onDelete && actions.deletable && (
-        <IconBtn icon={Trash2} label={`Delete ${row.name}`} tooltip="Delete this spec. You confirm first; it stays in history." disabled={props.busy} onClick={props.onDelete} style={dangerStyle} />
+        <IconBtn icon={Trash2} label={`Delete ${row.name}`} tooltip="Delete this spec. You confirm first; it stays in history." disabled={props.busy} onClick={props.onDelete} look={DANGER} />
       )}
     </Box>
   )
@@ -1047,7 +1047,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
                 aria-describedby={describedBy}
                 disabled={props.busy || !primaryButton.onClick}
                 onClick={primaryButton.onClick}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: 0 }}
+                css-display="inline-flex" css-align-items="center" css-gap="4" css-padding="4px-10px" css-font-size="12" css-font-weight="500" css-border-radius="8" css-border="0"
               >
                 <PrimaryIcon size={13} aria-hidden="true" />
                 {primaryButton.label}
@@ -1266,7 +1266,7 @@ function SpecRail(props: {
                         </span>
                       </Box>
                       <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
-                        <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
+                        <Box as="span" css-width={`${percent}%`} css-background="ok" block hFull />
                       </Box>
                     </PlainButton>
                   </Tooltip>
@@ -1401,7 +1401,7 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
       onDismiss={() => props.onDone(null)}
       footer={
         <>
-          <Btn type="button" primary data-archive-confirm style={COMPACT_BTN} disabled={busy} onClick={() => void run()}>
+          <Btn type="button" primary data-archive-confirm {...COMPACT} disabled={busy} onClick={() => void run()}>
             Archive spec
           </Btn>
         </>
@@ -1435,7 +1435,7 @@ function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () =>
           do not start, and it is hidden unless Show archived is on.
         </Hint>
       </Box>
-      <IconLabel style={COMPACT_BTN} icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
+      <IconLabel look={COMPACT} icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
         Unarchive
       </IconLabel>
     </Box>
@@ -1486,7 +1486,7 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
       onDismiss={() => props.onDone(null)}
       footer={
         <>
-          <Button type="button" variant="danger" disabled={!preview || busy || blocked} onClick={() => void run()} style={COMPACT_BTN}>
+          <Button type="button" variant="danger" disabled={!preview || busy || blocked} onClick={() => void run()} {...COMPACT}>
             Delete spec
           </Button>
         </>

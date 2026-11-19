@@ -21,7 +21,6 @@ export const ROLES = [
   { key: 'reviewer', label: 'Reviewers', line: 'Each review role a spec adds reads the commit and reports a verdict.', agent: false, model: false },
   { key: 'responder', label: 'Responder', line: 'Answers a labeled GitHub issue or discussion.', agent: false, model: false },
   { key: 'taskSummary', label: 'Task summary', line: 'Writes the summary on a task’s Overview.', agent: false, model: false },
-  { key: 'issuePlanner', label: 'Issue planner', line: 'Breaks a labeled issue into a spec and critiques it.', agent: false, model: false },
   { key: 'planAnswer', label: 'Spec review answer', line: 'Answers a spec review’s findings in the spec folder.', agent: false, model: false },
   { key: 'prReview', label: 'Pull request review', line: 'Reviews a pull request a person asked about.', agent: false, model: false },
   { key: 'assist', label: 'Assistant', line: 'Answers from the page’s Open chat buttons when Kiro Crew is not running. Read-only.', agent: false, model: false },
@@ -35,7 +34,7 @@ export interface RoleRow {
 export type RoleTable = Partial<Record<Role, RoleRow>>
 // What each role may do to files: the worker writes code and the planner
 // writes spec files; the others only read.
-export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = { worker: 'write', falsifier: 'read', planner: 'write', planReviewer: 'read', retro: 'read', reviewDraft: 'read', verifier: 'read', reviewer: 'read', responder: 'read', taskSummary: 'read', issuePlanner: 'write', planAnswer: 'write', prReview: 'read', assist: 'read' }
+export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = { worker: 'write', falsifier: 'read', planner: 'write', planReviewer: 'read', retro: 'read', reviewDraft: 'read', verifier: 'read', reviewer: 'read', responder: 'read', taskSummary: 'read', planAnswer: 'write', prReview: 'read', assist: 'read' }
 // The Kiro Crew chat; any other harness is a supervisor child.
 export const KIROCREW_HARNESS = 'kirocrew'
 // The agent each agent role opens on when none is picked.

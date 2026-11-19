@@ -66,7 +66,7 @@ export const HELP_GROUPS = Object.freeze([
         "Dry run of the mirror setup; add --confirm --preview-hash HASH to apply",
       ),
       entry(
-        "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]\n[--methods merge,squash,rebase] [--landing pr|direct|train|off] [--yes]",
+        "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
         "Preview repository setup for landing; --yes applies it",
       ),
       entry(
@@ -286,27 +286,11 @@ export const HELP_GROUPS = Object.freeze([
   {
     id: "land",
     title: "Land",
-    summary: "Merge verified work through the integrator and its trains",
+    summary: "Merge verified work in merge batches",
     entries: [
       entry(
-        "integrator run",
-        "Run this workspace's integrator for landing: train (the supervisor starts it)",
-      ),
-      entry(
-        "integrator status [--json]",
-        "Per train target: lease holder, running train and its step",
-      ),
-      entry(
         "landing status [--json]",
-        "Queue depth, time in queue and the running train, from stored records",
-      ),
-      entry(
-        "landing submit TASK --branch NAME",
-        "Queue a pushed batch branch for the integrator (landing: train)",
-      ),
-      entry(
-        "landing review TASK",
-        "Open a review pull request for a queued batch branch (only when you ask)",
+        "Per base: who waits, the batch being tested, the last batches and the size limit, from stored records",
       ),
     ],
   },

@@ -10,7 +10,7 @@ import { Box } from './ui/Box'
 export default function SetupCard(props: { id: string; title: string; line: string; action?: ReactNode; children?: ReactNode }) {
   return (
     <Box data-setup-card={props.id} data-compact-card minW0>
-      <Card className="flex h-full min-w-0 flex-col gap-1" style={{ padding: '8px 12px' }}>
+      <Card css-padding="8px-12px" flex hFull minW0 flexCol gap="1">
         <Box as="h3" m0 truncate size="sm" weight="semibold">{props.title}</Box>
         <Tooltip text={props.line} display="block">
           {(describedBy) => (

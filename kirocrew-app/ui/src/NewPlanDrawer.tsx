@@ -310,11 +310,11 @@ export default function NewPlanDrawer(props: {
       footer={
         <>
           {tried && start === null && (
-            <span role="alert" className="mr-auto text-xs text-danger" style={{ order: -1 }} data-start-problem>
+            <Box role="alert" as="span" css-order={-1} mrAuto size="xs" tone="danger" data-start-problem>
               Pick Blank, From template or From a goal.
-            </span>
+            </Box>
           )}
-          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || start === null || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || start === null || repositories === null || steering !== null} css-display="inline-flex" css-align-items="center" css-gap="6">
             {start === 'template' || start === 'goal' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
             {busy ? 'Opening…' : start === 'template' || start === 'goal' ? 'Open a planner chat' : start === 'blank' ? 'Open in Spec Builder' : 'Pick how to start'}
           </Btn>
@@ -347,7 +347,7 @@ export default function NewPlanDrawer(props: {
               aria-describedby={nameIssue ? 'avoozl-new-plan-name-problem' : undefined}
               onChange={(event) => set({ name: event.target.value })}
               onBlur={() => setNameTouched(true)}
-              style={{ maxWidth: '24rem' }}
+              css-max-width="24rem"
             />
           </Field>
           <Field id="avoozl-new-plan-category" need="optional" label="Category" hint="Pick one, or New category to name one. Left blank, the spec is Uncategorized.">
@@ -365,7 +365,7 @@ export default function NewPlanDrawer(props: {
               }}
             />
             {newCategory && (
-              <Input id="avoozl-new-plan-category-new" aria-label="New category" value={form.category} placeholder="Platform" onChange={(event) => set({ category: event.target.value })} style={{ maxWidth: '18rem' }} />
+              <Input id="avoozl-new-plan-category-new" aria-label="New category" value={form.category} placeholder="Platform" onChange={(event) => set({ category: event.target.value })} css-max-width="18rem" />
             )}
           </Field>
           <Field
@@ -389,7 +389,7 @@ export default function NewPlanDrawer(props: {
               }}
             />
             {newEpic && (
-              <Input id="avoozl-new-plan-epic-new" aria-label="New epic folder name" value={form.epic} placeholder="rewrite" onChange={(event) => set({ epic: event.target.value })} style={{ maxWidth: '18rem' }} />
+              <Input id="avoozl-new-plan-epic-new" aria-label="New epic folder name" value={form.epic} placeholder="rewrite" onChange={(event) => set({ epic: event.target.value })} css-max-width="18rem" />
             )}
           </Field>
           <RadioFold<Start>
@@ -485,7 +485,7 @@ export default function NewPlanDrawer(props: {
           )}
           {fallback && (
             <div>
-              <Btn type="button" disabled={busy} onClick={() => void plannerChat()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Btn type="button" disabled={busy} onClick={() => void plannerChat()} css-display="inline-flex" css-align-items="center" css-gap="6">
                 <MessageSquare size={ICON} aria-hidden="true" />
                 Use an Avoozl planner chat instead
               </Btn>

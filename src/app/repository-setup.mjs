@@ -14,11 +14,10 @@
 import { git } from "./git.mjs";
 import { applyAccess, previewAccess } from "./setup-access.mjs";
 import { applyLanding, previewLanding } from "./setup-landing.mjs";
-import { batchBranchWorkflows } from "./setup-workflows.mjs";
 import { fail } from "./store.mjs";
 
 const ACCESS = (id) => `setupAccess:${id}`;
-const LANDINGS = ["direct", "pr", "train", "off"];
+const LANDINGS = ["direct", "pr", "off"];
 
 export async function repositorySetup(
   store,
@@ -28,9 +27,11 @@ export async function repositorySetup(
 ) {
   const project = store.get("projects", input.project);
   if (!project) fail(`Project ${input.project ?? ""} not found.`, 404);
-  const landing = input.landing ?? "pr";
+  // `train` is retired and sets up `direct`.
+  const landing =
+    input.landing === "train" ? "direct" : (input.landing ?? "pr");
   if (!LANDINGS.includes(landing))
-    fail("landing must be direct, pr, train or off.", 400);
+    fail("landing must be direct, pr or off.", 400);
   const base = input.base ?? project.baseBranch ?? "main",
     url = await git(project.root, ["remote", "get-url", "origin"]),
     login = String((await github.currentUser())?.login ?? "");
@@ -74,11 +75,6 @@ export async function repositorySetup(
     access: { changes: access.changes, access: access.access },
     settings: projectChanges,
     github: landingSteps?.steps ?? [],
-    // Under `train`: each workflow a batch branch would start, with the line
-    // to add. Listed, never edited (LT1.8).
-    ...(landing === "train"
-      ? { workflows: batchBranchWorkflows(project.root, input.branchPrefix) }
-      : {}),
     message: pending ? null : "Nothing to change",
   };
   if (!input.confirm || !pending) return { ...preview, applied: false };

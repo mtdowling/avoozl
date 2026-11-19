@@ -19,6 +19,13 @@ runs only the tests a change reaches, as CI does. The built page
 (`kirocrew-app/ui/dist`) is not in git; `npm run build` makes it. Do not add commit attribution
 or co-authors. Use short imperative commit messages.
 
+Run `npm run dup:changed` before opening or updating a pull request. It
+fails when the change adds a copy/paste clone or grows one. Remove the clone
+by sharing the code (a helper, a loop, a table); do not suppress it or add
+an ignore. `npm run dup` checks the whole repo against
+`scripts/dup-baseline.json`; when a cleanup lowers the count, run
+`npm run dup -- --update` and commit the lower baseline.
+
 Initialization creates an empty workspace. Example data is explicitly requested,
 transactional, and installed once. Preserve edits on retries. Never use example
 installation to approve drafts, start agents, or configure an execution repository.

@@ -1,0 +1,22 @@
+{
+  "minTokens": 70,
+  "format": ["javascript", "jsx", "typescript", "tsx"],
+  "formatsExts": {
+    "javascript": ["js", "mjs", "cjs"],
+    "jsx": ["jsx"],
+    "typescript": ["ts", "mts", "cts"],
+    "tsx": ["tsx"]
+  },
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "src/marked.mjs",
+    "docs/research/**",
+    "docs/evidence/**"
+  ],
+  "maxLines": 100000,
+  "maxSize": "5mb",
+  "gitignore": true,
+  "absolute": false
+}
