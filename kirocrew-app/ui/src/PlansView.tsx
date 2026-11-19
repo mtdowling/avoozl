@@ -3128,7 +3128,7 @@ export default function PlansView(props: {
           list={specList}
           detail={
             !row ? null : (
-              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop} style={phone ? undefined : { flex: '1 1 0%', minHeight: 0 }}>
+              <Box css-flex={phone ? undefined : '1-1-0%'} css-min-height={phone ? undefined : '0'} flex flexCol data-spec-detail={row.key} ref={detailTop}>
                 {reviewing && workspace ? (
                   <>
                     {specHeader}
@@ -3138,7 +3138,7 @@ export default function PlansView(props: {
                 ) : (
                   specContent
                 )}
-              </div>
+              </Box>
             )
           }
         />

@@ -280,6 +280,7 @@
       "card-bg-elevated": "var(--card, var(--bg-elevated))",
       "card-transparent": "var(--card, transparent)",
       "linear-gradient-90deg-mix-ok-70%-card-ok": "linear-gradient(90deg, color-mix(in srgb, var(--ok) 70%, var(--card)), var(--ok))",
+      "mix-accent-12%-transparent": "color-mix(in srgb, var(--accent) 12%, transparent)",
       "mix-bg-elevated-60%-transparent": "color-mix(in srgb, var(--bg-elevated) 60%, transparent)",
       "mix-border-75%-transparent": "color-mix(in srgb, var(--border) 75%, transparent)",
       "mix-danger-10%-card": "color-mix(in srgb, var(--danger) 10%, var(--card))",
@@ -289,6 +290,7 @@
       "mix-muted-10%-card-transparent": "color-mix(in srgb, var(--muted) 10%, var(--card, transparent))",
       "mix-muted-12%-transparent": "color-mix(in srgb, var(--muted) 12%, transparent)",
       "mix-muted-15%-transparent": "color-mix(in srgb, var(--muted) 15%, transparent)",
+      "mix-text-10%-transparent": "color-mix(in srgb, var(--text) 10%, transparent)",
       "mix-text-4%-card-bg": "color-mix(in srgb, var(--text) 4%, var(--card, var(--bg)))",
       "mix-text-5%-card-bg": "color-mix(in srgb, var(--text) 5%, var(--card, var(--bg)))",
       "mix-warning-muted-10%-card-transparent": "color-mix(in srgb, var(--warning, var(--muted)) 10%, var(--card, transparent))",
@@ -358,6 +360,7 @@
       "inset-0-0-0-1px-accent": "inset 0 0 0 1px var(--accent)",
       "inset-0-0-0-1px-mix-border-60%-transparent": "inset 0 0 0 1px color-mix(in srgb, var(--border) 60%, transparent)",
       "inset-0-0-0-2px-accent": "inset 0 0 0 2px var(--accent)",
+      "inset-3px-0-0-accent": "inset 3px 0 0 var(--accent)",
       "none": "none"
     },
     "box-sizing": {
@@ -380,6 +383,7 @@
       "ok": "var(--ok)",
       "ok-inherit": "var(--ok, inherit)",
       "ok-text-ok": "var(--ok-text, var(--ok))",
+      "success-text": "var(--success, var(--text))",
       "text": "var(--text)",
       "text-muted-muted": "var(--text-muted, var(--muted))",
       "text-strong-text": "var(--text-strong, var(--text))",
@@ -677,7 +681,8 @@
       "auto": "auto"
     },
     "overflow-y": {
-      "auto": "auto"
+      "auto": "auto",
+      "hidden": "hidden"
     },
     "overscroll-behavior": {
       "contain": "contain"
@@ -743,6 +748,7 @@
       "0": 0,
       "2": 2,
       "8": 8,
+      "12": 12,
       "20": 20
     },
     "position": {

@@ -26,12 +26,9 @@ function Step({ steps, index }: { steps: TaskStep[]; index: number }) {
       />
       <Box as="span" minW0 flex1>
         <Box as="span" flex flexWrap items="baseline" gapX="2">
-          <span
-            className="font-medium"
-            style={step.state === 'later' || step.state === 'skipped' ? { color: 'var(--muted)' } : step.failed ? { color: 'var(--danger)' } : undefined}
-          >
+          <Box as="span" css-color={step.state === 'later' || step.state === 'skipped' ? 'muted' : step.failed ? 'danger' : undefined} weight="medium">
             {step.label}
-          </span>
+          </Box>
           <Hint data-step-time size="xs">
             {step.at ? clock(step.at) : step.state === 'skipped' ? 'Skipped' : step.state === 'now' ? 'In progress' : ''}
           </Hint>
@@ -47,14 +44,9 @@ function Step({ steps, index }: { steps: TaskStep[]; index: number }) {
                   {group.phase}
                 </Box>
                 {group.items.map((item, at) => (
-                  <span
-                    key={at}
-                    data-step-build={item.failed ? 'failed' : 'ok'}
-                    className="block break-words text-muted"
-                    style={item.failed ? { color: 'var(--danger)' } : undefined}
-                  >
+                  <Box key={at} data-step-build={item.failed ? 'failed' : 'ok'} as="span" css-color={item.failed ? 'danger' : undefined} block breakWords tone="muted">
                     {[item.target, item.start, item.attempt > 1 && `attempt ${item.attempt}`, buildMedian(item.ms), item.failed && 'failed'].filter(Boolean).join(' · ')}
-                  </span>
+                  </Box>
                 ))}
               </li>
             ))}
