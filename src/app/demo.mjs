@@ -12,7 +12,7 @@ import { Store } from "./store.mjs";
 import { renderMarker } from "./github-marker.mjs";
 import { Operations } from "./operations.mjs";
 import { workspaceConfig } from "./config.mjs";
-import { classifyOperation } from "./operation-kinds.mjs";
+import { classifyOperation } from "./operation-table.mjs";
 import { recordActivity } from "./activity-log.mjs";
 import { emptySnapshot } from "./workspace.mjs";
 import { demoFixtures, radarOverlay, seedRadar } from "./demo-radar.mjs";

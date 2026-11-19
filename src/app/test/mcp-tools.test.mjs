@@ -2,33 +2,18 @@
 // reason it has none, and no MCP call performs a person-only operation by any
 // tool name, old or new.
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import test from "node:test";
 import { handleMcp, NARROW_TOOLS } from "../mcp.mjs";
 import { createAppMcp } from "../app-mcp.mjs";
 import { NOT_ON_MCP, PERSON_ONLY } from "../mcp-policy.mjs";
 import { GROUPED_TOOLS, groupedCall } from "../mcp-tools.mjs";
-import { classifyOperation } from "../operation-kinds.mjs";
+import { OPERATIONS, classifyOperation } from "../operation-table.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
-// Every operation name Operations.perform handles or operation-kinds.mjs
-// classifies, read from the sources so a new one cannot be missed.
-function allOperations() {
-  const read = (file) =>
-    fs.readFileSync(new URL("../" + file, import.meta.url), "utf8");
-  const names = new Set();
-  for (const [, name] of read("operations.mjs").matchAll(
-    /name === "([a-zA-Z.]+)"/g,
-  ))
-    names.add(name);
-  for (const [, name] of read("operation-kinds.mjs").matchAll(
-    /^\s+"([a-zA-Z.]+)",$/gm,
-  ))
-    names.add(name);
-  return [...names].sort();
-}
+// Every registered operation name (operation-table.mjs).
+const allOperations = () => [...OPERATIONS.keys()].sort();
 
 const routes = new Map(),
   grouped = new Map();

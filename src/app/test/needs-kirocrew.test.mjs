@@ -5,8 +5,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { workspaceConfig } from "../config.mjs";
+import { OPERATIONS } from "../operation-table.mjs";
 import { workspaceStatus } from "../workspace-status.mjs";
 import {
   approveHarnessDefinition,
@@ -207,24 +207,17 @@ test("Run on from a person moves the role, and the next tick starts it on that h
 });
 
 test("no module calls a Kiro Crew reader for an operation outside the table", () => {
-  const file = fileURLToPath(new URL("../operations.mjs", import.meta.url)),
-    lines = fs.readFileSync(file, "utf8").split("\n");
-  let operation = null;
   const seen = [];
-  for (const line of lines) {
-    const name = /name === "([a-z][\w.]*)"/.exec(line);
-    if (name) operation = name[1];
-    for (const [, reader] of line.matchAll(
+  for (const [operation, { handler }] of OPERATIONS)
+    for (const [, reader] of String(handler).matchAll(
       /this\.(crewReader|sessionStopper)\b/g,
     )) {
-      if (/^\s*this\.\w+ = \w+;/.test(line)) continue;
       seen.push(operation);
       assert.ok(
         KIROCREW_READERS[operation]?.includes(reader),
         `${operation} calls ${reader}, which needs-kirocrew.mjs does not list`,
       );
     }
-  }
   assert.ok(seen.length > 0, "the scan found the readers");
 });
 

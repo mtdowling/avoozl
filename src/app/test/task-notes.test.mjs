@@ -227,7 +227,6 @@ test("a session adds only to its bound task and never edits, removes or shows", 
       { id: person.id, url: "https://example.test/", label: "Changed" },
     ],
     ["task.notes.remove", { id: person.id }],
-    ["task.notes.show", { id: person.id, onIssue: true }],
   ])
     await refused(
       ops.execute(

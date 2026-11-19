@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
-import { classifyOperation } from "../operation-kinds.mjs";
+import { classifyOperation } from "../operation-table.mjs";
 import { APP_OPERATIONS } from "../app-backend.mjs";
 import { demoOperations, installDemo } from "../demo.mjs";
 import { epicsView } from "../epics-view.mjs";

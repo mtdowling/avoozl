@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { principalAllows } from "../app-backend.mjs";
-import { classifyOperation } from "../operation-kinds.mjs";
+import { classifyOperation } from "../operation-table.mjs";
 import { readyLeaves } from "../delivery.mjs";
 import { specOf } from "../page-views.mjs";
 import { tickLogEntry } from "../tick.mjs";

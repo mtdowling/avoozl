@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
-import { classifyOperation } from "../operation-kinds.mjs";
+import { classifyOperation } from "../operation-table.mjs";
 import { taskSummaryDispatches } from "../task-summary.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
 
