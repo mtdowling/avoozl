@@ -63,17 +63,23 @@ function ValueLine({ value, onJump }: { value: Value; onJump?: (jump: Jump) => v
 function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (jump: Jump) => void }) {
   const muted = off || Boolean(card.muted)
   return (
-    <li
-      className="flex min-w-0 flex-col gap-1 rounded border p-2 text-sm"
-      style={{
-        borderColor: TONE.border,
-        borderInlineStartColor: WHO_COLOR[card.who],
-        borderInlineStartWidth: 4,
-        background: TONE.cardTransparent,
-        opacity: muted ? 0.65 : 1,
-        flex: '1 1 11rem',
-        maxWidth: '16rem',
-      }}
+    <Box
+      as="li"
+      css-border-color="border"
+      css-border-inline-start-color={WHO_COLOR[card.who]}
+      css-border-inline-start-width="4"
+      css-background="card-transparent"
+      css-opacity={muted ? '0.65' : '1'}
+      css-flex="1-1-11rem"
+      css-max-width="16rem"
+      flex
+      minW0
+      flexCol
+      gap="1"
+      rounded="base"
+      border="all"
+      p="2"
+      size="sm"
       data-step={card.key}
       data-who={card.who}
       data-muted={muted ? 'true' : undefined}
@@ -100,7 +106,7 @@ function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (j
           Off: {card.muted}
         </Box>
       )}
-    </li>
+    </Box>
   )
 }
 
@@ -165,9 +171,15 @@ export default function WorkflowMap(props: { workspaceId: string; mode: string; 
               </Box>
               <thead>
                 <Box as="tr" tone="muted">
-                  <th className="pe-2 font-normal">Label</th>
-                  <th className="pe-2 font-normal">Name</th>
-                  <th className="pe-2 font-normal">Written by</th>
+                  <Box as="th" css-padding-inline-end="0.5rem" weight="normal">
+                    Label
+                  </Box>
+                  <Box as="th" css-padding-inline-end="0.5rem" weight="normal">
+                    Name
+                  </Box>
+                  <Box as="th" css-padding-inline-end="0.5rem" weight="normal">
+                    Written by
+                  </Box>
                   <Box as="th" weight="normal">
                     Setting
                   </Box>
@@ -176,16 +188,18 @@ export default function WorkflowMap(props: { workspaceId: string; mode: string; 
               <tbody>
                 {map.labels.map((row) => (
                   <tr key={row.key} data-label-row={row.key}>
-                    <td className="pe-2 align-top">{row.label}</td>
-                    <td className="pe-2 align-top">
+                    <Box as="td" css-padding-inline-end="0.5rem" alignTop>
+                      {row.label}
+                    </Box>
+                    <Box as="td" css-padding-inline-end="0.5rem" alignTop>
                       <Box as="code" css-overflow-wrap="anywhere">
                         {row.name}
                       </Box>
                       <Hint>{SOURCE_TEXT[row.source]}</Hint>
-                    </td>
-                    <td className="pe-2 align-top" style={{ color: WHO_COLOR[row.writer] }}>
+                    </Box>
+                    <Box as="td" css-padding-inline-end="0.5rem" alignTop css-color={WHO_COLOR[row.writer]}>
                       {WHO_TEXT[row.writer]}
-                    </td>
+                    </Box>
                     <Box as="td" alignTop>
                       {row.jump && props.onJump ? (
                         <PlainButton

@@ -299,11 +299,21 @@ export function DeliveryBoard(props: {
           const cards = drawnLane(lanes, lane.id)
           const shut = (single || narrow) && folded.has(lane.id)
           return (
-            <section
+            <Box
+              as="section"
               key={lane.id}
               aria-label={`${lane.label}: ${cards.length}`}
-              className={`flex min-w-0 flex-col gap-2 rounded-lg border ${compact ? 'py-2' : 'py-3'}`}
-              style={{ background: TONE.bg, borderColor: TONE.border, color: TONE.text, ['--lane-line' as string]: laneBackground(lane.tint) }}
+              flex
+              minW0
+              flexCol
+              gap="2"
+              rounded="lg"
+              border="all"
+              py={compact ? '2' : '3'}
+              css-background={TONE.bg}
+              css-border-color="border"
+              css-color="text"
+              css---lane-line={laneBackground(lane.tint)}
             >
               <PlainButton
                 type="button"
@@ -351,7 +361,7 @@ export function DeliveryBoard(props: {
                 ) : (
                   list(lane.id, cards)
                 ))}
-            </section>
+            </Box>
           )
         })}
       </Box>

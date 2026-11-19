@@ -120,16 +120,19 @@ export function Flow(props: { boxes: string[]; on?: number; note?: string }) {
         {props.boxes.map((box, i) => (
           <Box key={box} as="span" inlineFlex items="center" gap="1.5">
             {i > 0 && <Glyph icon={ArrowRight} size={14} css-color="muted" />}
-            <span
-              className="rounded-md px-2 py-1 text-xs font-medium"
-              style={{
-                border: `${i === props.on ? 2 : 1}px solid ${i === props.on ? TONE.accent : TONE.border}`,
-                background: i === props.on ? TONE.mixAccent12pctCard : TONE.card,
-                color: TONE.text,
-              }}
+            <Box
+              as="span"
+              css-border={`${i === props.on ? 2 : 1}px solid ${i === props.on ? TONE.accent : TONE.border}`}
+              css-background={i === props.on ? 'mix-accent-12%-card' : 'card'}
+              css-color="text"
+              rounded="md"
+              px="2"
+              py="1"
+              size="xs"
+              weight="medium"
             >
               {box}
-            </span>
+            </Box>
           </Box>
         ))}
       </Box>

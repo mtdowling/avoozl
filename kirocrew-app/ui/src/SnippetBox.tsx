@@ -7,6 +7,7 @@ import { ChevronDown, ChevronRight } from './icons.ts'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
 import { TONE } from './ui/tones.ts'
+import { Glyph } from './ui/Glyph'
 
 export function SnippetBox(props: {
   title: ReactNode
@@ -26,7 +27,7 @@ export function SnippetBox(props: {
     props.onToggle?.(!open)
   }
   return (
-    <div className="rounded border text-xs" style={{ borderColor: TONE.border }} data-snippet data-open={open ? 'true' : 'false'} {...(props.attr ? { [props.attr]: '' } : {})}>
+    <Box css-border-color="border" rounded="base" border="all" size="xs" data-snippet data-open={open ? 'true' : 'false'} {...(props.attr ? { [props.attr]: '' } : {})}>
       <Box flex flexWrap items="center" gap="2" px="2" py="1">
         <PlainButton
           type="button"
@@ -48,7 +49,7 @@ export function SnippetBox(props: {
           gap="1.5"
           align="left"
         >
-          <Chevron size={13} aria-hidden="true" className="shrink-0" />
+          <Glyph icon={Chevron} size={13} aria-hidden="true" shrink0 />
           <Box as="span" minW0>
             {props.title}
           </Box>
@@ -62,6 +63,6 @@ export function SnippetBox(props: {
       <div id={body} hidden={!open}>
         {open && props.children}
       </div>
-    </div>
+    </Box>
   )
 }

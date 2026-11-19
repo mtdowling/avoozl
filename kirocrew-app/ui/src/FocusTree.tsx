@@ -641,18 +641,18 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
           </PlainButton>
         )}
       </Box>
-      <div
+      <Box
         ref={box}
-        className="overflow-auto rounded border"
+        css-border-color="border"
+        css-background="bg"
+        css-overflow="auto"
+        css-max-height={phone ? undefined : '70vh'}
+        css-cursor={pan.panning ? 'grabbing' : 'grab'}
+        css-user-select={pan.panning ? 'none' : undefined}
+        overflow="auto"
+        rounded="base"
+        border="all"
         // overflow inline too: panning needs a real scroll box, host CSS or not.
-        style={{
-          borderColor: TONE.border,
-          background: TONE.bg,
-          overflow: 'auto',
-          maxHeight: phone ? undefined : '70vh',
-          cursor: pan.panning ? 'grabbing' : 'grab',
-          userSelect: pan.panning ? 'none' : undefined,
-        }}
         data-tree-scroll
         data-panning={pan.panning || undefined}
         {...pan.handlers}
@@ -864,7 +864,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
             })}
           </SvgRoot>
         )}
-      </div>
+      </Box>
       <TreeStyle />
     </Stack>
   )

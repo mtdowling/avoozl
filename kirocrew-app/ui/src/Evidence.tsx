@@ -13,7 +13,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
-import { PlainButton } from './ui/Plain'
+import { PlainButton, PlainImg, PlainVideo } from './ui/Plain'
 import { TONE } from './ui/tones.ts'
 
 function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskId: string; entry: EvidenceEntry }) {
@@ -34,9 +34,9 @@ function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskI
   }
   if (url)
     return file.type.startsWith('video/') ? (
-      <video controls src={url} className="mt-1 max-w-full rounded" aria-label={entry.text} />
+      <PlainVideo controls src={url} mt="1" maxWFull rounded="base" aria-label={entry.text} />
     ) : (
-      <img src={url} alt={entry.text} className="mt-1 max-w-full rounded border" style={{ borderColor: TONE.border }} />
+      <PlainImg src={url} alt={entry.text} css-border-color="border" mt="1" maxWFull rounded="base" border="all" />
     )
   return (
     <Box mt="1" flex flexWrap items="center" gap="2" size="xs" tone="muted">

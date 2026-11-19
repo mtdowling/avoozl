@@ -74,16 +74,6 @@ import { Box } from './ui/Box'
 import { PlainButton, PlainLink } from './ui/Plain'
 import { TONE } from './ui/tones.ts'
 
-const ROW: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }
-const LINK_BUTTON: CSSProperties = {
-  ...ROW,
-  padding: '4px 6px',
-  border: TONE.hairline,
-  borderRadius: 6,
-  color: TONE.text,
-  background: TONE.cardTransparent,
-}
-
 // A link styled as the page's icon button. Kiro Crew pages open in the
 // dashboard itself (target _top); GitHub opens in a new tab.
 function IconLink(props: { icon: LucideIcon; label: string; tooltip: string; href: string | undefined; external?: boolean; children?: ReactNode }) {
@@ -91,17 +81,25 @@ function IconLink(props: { icon: LucideIcon; label: string; tooltip: string; hre
   return (
     <Tooltip text={props.tooltip}>
       {(describedBy) => (
-        <a
+        <PlainLink
           href={linkHref(props.href)}
           aria-label={props.label}
           aria-describedby={describedBy}
           {...(props.external ? { target: '_blank', rel: 'noopener noreferrer' } : { target: '_top' })}
-          style={LINK_BUTTON}
-          className="text-sm"
+          css-display="inline-flex"
+          css-align-items="center"
+          css-justify-content="center"
+          css-gap="6"
+          css-padding="4px-6px"
+          css-border="1px-solid-border"
+          css-border-radius="6"
+          css-color="text"
+          css-background="card-transparent"
+          size="sm"
         >
           <Icon size={ICON} aria-hidden="true" />
           {props.children}
-        </a>
+        </PlainLink>
       )}
     </Tooltip>
   )

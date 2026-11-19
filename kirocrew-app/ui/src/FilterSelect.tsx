@@ -1,8 +1,6 @@
 import { Tooltip } from './ui/Tooltip.tsx'
 import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
-import { selectStyle } from './ui/looks/FilterSelect.ts'
-export { selectStyle }
 
 // The label column of an inline filter: wide enough for a one-word label.
 export const INLINE_LABEL = '4rem'

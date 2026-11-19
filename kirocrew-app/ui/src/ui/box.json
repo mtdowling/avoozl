@@ -18,6 +18,7 @@
     "flexCol": "flex-col",
     "flexColReverse": "flex-col-reverse",
     "flexNone": "flex-none",
+    "flexRow": "flex-row",
     "flexWrap": "flex-wrap",
     "fontMono": "font-mono",
     "grid": "grid",
@@ -286,6 +287,7 @@
       "card-bg-elevated": "var(--card, var(--bg-elevated))",
       "card-transparent": "var(--card, transparent)",
       "linear-gradient-90deg-mix-ok-70%-card-ok": "linear-gradient(90deg, color-mix(in srgb, var(--ok) 70%, var(--card)), var(--ok))",
+      "mix-accent-12%-card": "color-mix(in srgb, var(--accent) 12%, var(--card))",
       "mix-accent-12%-transparent": "color-mix(in srgb, var(--accent) 12%, transparent)",
       "mix-bg-elevated-60%-transparent": "color-mix(in srgb, var(--bg-elevated) 60%, transparent)",
       "mix-border-75%-transparent": "color-mix(in srgb, var(--border) 75%, transparent)",
@@ -328,6 +330,9 @@
       "transparent": "transparent",
       "warning-border": "var(--warning, var(--border))",
       "warning-c90": "var(--warning, #c90)"
+    },
+    "border-inline-start-width": {
+      "4": 4
     },
     "border-left": {
       "1px-solid-border": "1px solid var(--border)"
@@ -434,6 +439,7 @@
     "flex": {
       "1": 1,
       "0-0-11rem": "0 0 11rem",
+      "0-0-12px": "0 0 12px",
       "0-0-7.5rem": "0 0 7.5rem",
       "0-0-88px": "0 0 88px",
       "0-0-8px": "0 0 8px",
@@ -442,10 +448,12 @@
       "0-1-auto": "0 1 auto",
       "1-1-0": "1 1 0",
       "1-1-0%": "1 1 0%",
+      "1-1-11rem": "1 1 11rem",
       "1-1-12rem": "1 1 12rem",
       "1-1-160px": "1 1 160px",
       "1-1-220px": "1 1 220px",
       "1-1-6rem": "1 1 6rem",
+      "1-1-8rem": "1 1 8rem",
       "1-1-9rem": "1 1 9rem",
       "1-1-auto": "1 1 auto",
       "2-1-16rem": "2 1 16rem",
@@ -519,6 +527,7 @@
     },
     "grid-template-columns": {
       "13rem-minmax-0-1fr": "13rem minmax(0, 1fr)",
+      "15rem-minmax-0-1fr": "15rem minmax(0, 1fr)",
       "auto-1fr": "auto 1fr",
       "auto-minmax-0-1fr-auto": "auto minmax(0, 1fr) auto",
       "max-content-1fr": "max-content 1fr",
@@ -623,7 +632,8 @@
       "200": 200,
       "260": 260,
       "16rem": "16rem",
-      "7.5em": "7.5em"
+      "7.5em": "7.5em",
+      "70vh": "70vh"
     },
     "max-width": {
       "760": 760,
@@ -675,6 +685,7 @@
       "0.4": 0.4,
       "0.5": 0.5,
       "0.6": 0.6,
+      "0.65": 0.65,
       "0.7": 0.7,
       "0.8": 0.8,
       "0.9": 0.9
@@ -714,6 +725,7 @@
       "0-6px": "0 6px",
       "0-8px": "0 8px",
       "10px-0": "10px 0",
+      "10px-12px": "10px 12px",
       "12px-0": "12px 0",
       "12px-14px": "12px 14px",
       "16px-0": "16px 0",
@@ -749,6 +761,9 @@
     "padding-bottom": {
       "14": 14
     },
+    "padding-inline-end": {
+      "0.5rem": "0.5rem"
+    },
     "padding-left": {
       "0": 0,
       "12": 12,
@@ -762,6 +777,7 @@
     "padding-top": {
       "0": 0,
       "2": 2,
+      "6": 6,
       "8": 8,
       "12": 12,
       "20": 20
@@ -863,6 +879,7 @@
       "20ch": "20ch",
       "28ch": "28ch",
       "4.5rem": "4.5rem",
+      "8rem": "8rem",
       "fit-content": "fit-content"
     },
     "writing-mode": {
@@ -910,6 +927,13 @@
     "grid-row",
     "border-radius",
     "line-height",
-    "font-size"
+    "font-size",
+    "border",
+    "border-top",
+    "border-bottom",
+    "border-inline-start-color",
+    "border-inline-start-width",
+    "box-shadow",
+    "--lane-line"
   ]
 }

@@ -14,6 +14,7 @@ import { errorMessage } from './workspace-api.ts'
 import { MODE_TEXT, STATE_LABEL, capacityText, nextSteps, releaseClient, type QueueRepository, type QueueRow, type RowState } from './release-api.ts'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { ReleaseRowStyle } from './ui/PageStyles'
 
 const VARIANT: Record<RowState, BadgeVariant> = { released: 'success', claimed: 'info', next: 'wave', held: 'warning' }
 
@@ -32,10 +33,10 @@ function Row({ row, held }: { row: QueueRow; held?: string }) {
       css-padding="8px-0"
       css-list-style="none"
     >
-      <span className="flex flex-none items-center gap-2 sm:w-28" style={{ flex: '0 0 88px' }}>
+      <Box as="span" data-release-state flex flexNone items="center" gap="2" css-flex="0 0 88px">
         <Badge variant={VARIANT[row.state]}>{STATE_LABEL[row.state]}</Badge>
-      </span>
-      <span className="min-w-0 text-sm sm:w-1/3" style={{ overflowWrap: 'anywhere', flex: '1 1 220px' }}>
+      </Box>
+      <Box as="span" data-release-title minW0 size="sm" css-overflow-wrap="anywhere" css-flex="1 1 220px">
         <Box as="span" weight="medium">
           {row.title}
         </Box>{' '}
@@ -43,7 +44,7 @@ function Row({ row, held }: { row: QueueRow; held?: string }) {
         <Box as="span" css-display="block" size="xs" tone="muted">
           {row.phase}
         </Box>
-      </span>
+      </Box>
       <Box as="span" css-overflow-wrap="anywhere" css-flex="2-1-240px" minW0 flex1 size="sm" tone="muted" data-release-reason>
         {row.reason}
         {held && (
@@ -160,6 +161,7 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
   if (!value && !error) return null
   return (
     <Box data-release-queue hFull>
+      <ReleaseRowStyle />
       <Card css-display="flex" css-flex-direction="column" css-gap="12" flex hFull flexCol gap="3">
         <SectionHeading title="Release queue" mb="0" />
         <Hint as="p" size="xs">

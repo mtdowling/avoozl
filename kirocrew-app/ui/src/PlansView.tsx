@@ -202,7 +202,7 @@ export function SpecCard(props: { title: string; id?: string; actions?: ReactNod
 
 function RailSection(props: { title: string; edit?: { label: string; onClick: () => void }; children: ReactNode; attrs?: Record<string, string> }) {
   return (
-    <section data-rail-section={props.title} {...props.attrs} style={{ paddingBottom: 14, marginBottom: 14, borderBottom: TONE.hairline }}>
+    <Box data-rail-section={props.title} {...props.attrs} as="section" css-padding-bottom="14" css-margin-bottom="14" css-border-bottom="1px-solid-border">
       <Box css-display="flex" css-align-items="center" css-justify-content="space-between" css-gap="8" css-margin-bottom="8">
         <Box as="h4" css-margin="0" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase" css-color="muted">
           {props.title}
@@ -216,7 +216,7 @@ function RailSection(props: { title: string; edit?: { label: string; onClick: ()
         )}
       </Box>
       {props.children}
-    </section>
+    </Box>
   )
 }
 
@@ -263,12 +263,22 @@ function MenuItem(props: { icon: LucideIcon; label: string; tooltip?: string; on
 function StatePill(props: { status: string; archived?: boolean }) {
   const look = PILL[props.status] ?? { color: TONE.muted, background: TONE.bgHover }
   return (
-    <span
+    <Box
+      as="span"
       data-spec-state={props.status}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 500, lineHeight: '18.6px', ...look }}
+      css-display="inline-flex"
+      css-align-items="center"
+      css-gap={4}
+      css-padding="2px 8px"
+      css-border-radius={999}
+      css-font-size={12}
+      css-font-weight="500"
+      css-line-height="18.6px"
+      css-color={look.color}
+      css-background={look.background}
     >
       {props.archived ? 'Archived' : (STATUS_LABEL[props.status] ?? props.status)}
-    </span>
+    </Box>
   )
 }
 
@@ -1324,13 +1334,19 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
   return (
     <header data-spec-header>
       <Box css-padding={`20px ${pad}px 0`} css-margin-left={props.flush ? 0 : -12} css-padding-left={props.flush ? '0' : '24'}>
-        <h1
+        <Box
           id="avoozl-plan-title"
           ref={titleRef ?? undefined}
-          style={{ margin: 0, fontSize: 27, fontWeight: 700, lineHeight: 1.25, color: TONE.textStrongText, overflowWrap: 'anywhere' }}
+          as="h1"
+          css-margin="0"
+          css-font-size="27"
+          css-font-weight="700"
+          css-line-height="1.25"
+          css-color="text-strong-text"
+          css-overflow-wrap="anywhere"
         >
           {row.name}
-        </h1>
+        </Box>
         <Box
           data-spec-meta
           as="p"
@@ -1996,7 +2012,7 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
       <Box as="table" css-table-layout="fixed" css-border-collapse="collapse" css-min-width={props.phone ? undefined : '30rem'} wFull size="sm">
         <colgroup>
           {columns.map((width, at) => (
-            <col key={at} style={{ width }} />
+            <Box key={at} as="col" css-width={width} />
           ))}
         </colgroup>
         <thead>

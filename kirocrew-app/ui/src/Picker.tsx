@@ -2,10 +2,11 @@
 // a WAI-ARIA combobox with a listbox popup. Type to match on ID, title and
 // spec; Down, Up, Home and End move; Enter picks; Esc closes, then clears.
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { selectStyle } from './FilterSelect.tsx'
+import { selectStyle } from './ui/looks/FilterSelect.ts'
 import { pickIndex, pickKey, pickLabel, pickMatches, type PickItem } from './picker.ts'
 import { LAYER } from './layers.ts'
 import { Box } from './ui/Box'
+import { PlainInput } from './ui/Plain'
 
 export function Picker(props: {
   id?: string
@@ -69,15 +70,22 @@ export function Picker(props: {
   }
   const expanded = open && (shown.length > 0 || editing)
   return (
-    <div
-      className={`flex min-w-0 text-sm ${props.inline ? 'flex-row items-center gap-2' : 'flex-col gap-1'}`}
+    <Box
+      css-max-width={props.maxWidth ?? '100%'}
+      css-position="relative"
+      flex
+      minW0
+      size="sm"
+      flexRow={props.inline}
+      items={props.inline ? 'center' : undefined}
+      gap={props.inline ? '2' : '1'}
+      flexCol={!props.inline}
       data-picker-inline={props.inline ? '' : undefined}
-      style={{ maxWidth: props.maxWidth ?? '100%', position: 'relative' }}
     >
       <Box htmlFor={id} as="label" whitespace={props.inline ? 'nowrap' : undefined}>
         {props.label}
       </Box>
-      <input
+      <PlainInput
         id={id}
         type="text"
         role="combobox"
@@ -106,8 +114,12 @@ export function Picker(props: {
           setEditing(false)
         }}
         onKeyDown={onKey}
-        className="rounded border px-2 py-1 text-sm"
-        style={selectStyle}
+        {...selectStyle}
+        rounded="base"
+        border="all"
+        px="2"
+        py="1"
+        size="sm"
         data-picker
       />
       <Box
@@ -187,7 +199,7 @@ export function Picker(props: {
           </Box>
         )}
       </Box>
-    </div>
+    </Box>
   )
 }
 

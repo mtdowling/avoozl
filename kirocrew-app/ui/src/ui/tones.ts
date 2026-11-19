@@ -38,3 +38,8 @@ export const laneBackground = (tint: string) => `color-mix(in srgb, ${tint} 8%, 
 // An age's color: danger once it reaches 100, else danger mixed into muted
 // by the age.
 export const ageColor = (age: number) => (age >= 100 ? TONE.danger : `color-mix(in srgb, var(--danger) ${Math.round(Math.max(0, age) * 0.8)}%, var(--muted))`)
+
+// Soft pill colors, by place in a list: Kiro Crew's tile colors at a light
+// tint, the full mix while picked (the left nav's filter chips).
+const TILES = ['purple', 'blue', 'green', 'orange', 'teal', 'pink', 'indigo', 'red']
+export const tileTint = (at: number, picked: boolean) => `color-mix(in srgb, var(--tile-${TILES[at % TILES.length]}) ${picked ? 45 : 16}%, transparent)`
