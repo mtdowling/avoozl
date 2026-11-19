@@ -33,8 +33,8 @@ test('every Settings group and repository tab renders its blurb', () => {
 })
 
 test('a required field shows the shared Required marker', () => {
-  assert.match(source('FieldRow.tsx'), /data-marker="required"/)
-  assert.match(source('FieldRow.tsx'), /data-marker="optional"/)
+  assert.match(source('ui/Field.tsx'), /data-marker="required"/)
+  assert.match(source('ui/Field.tsx'), /data-marker="optional"/)
 })
 
 test('Save is blocked with a clear message while a required setting is missing', () => {
@@ -145,7 +145,7 @@ test('Repositories: one compact list with View, Edit and a trash Remove behind A
 })
 
 test('markers read (required) or (optional) in plain muted text, never red or bold', () => {
-  const row = source('FieldRow.tsx')
+  const row = source('ui/Field.tsx')
   const marker = row.slice(row.indexOf('export function Marker'), row.indexOf('// A `.avoozl.json` key'))
   assert.match(marker, /\(required\{rule\.when \? ` \$\{rule\.when\}` : ''\}\)/)
   assert.match(marker, /\(optional\)/)

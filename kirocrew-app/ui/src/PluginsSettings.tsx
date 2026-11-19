@@ -3,7 +3,7 @@ import AddPlugin from './AddPlugin.tsx'
 import IntakeSources from './IntakeSources.tsx'
 import { useAppApi, useChatLauncher } from './host.ts'
 import { EmptyState } from './ui/EmptyState'
-import { FormSection } from './FormSection.tsx'
+import { FieldGroup } from './ui/FieldGroup.tsx'
 import { PairedCard, PairedCards } from './ui/PairedCards.tsx'
 import Badge from './ui/Badge.tsx'
 import { CONTRACT_LABEL, canApprove, capabilityLine, runsAs, PLUGIN_PARTS, partsOf, pluginsClient, stateLabel, type PluginRow } from './plugins-api.ts'
@@ -93,7 +93,7 @@ function PluginCard(props: {
   const status = stateLabel(row)
   const id = row.id ?? ''
   return (
-    <FormSection
+    <FieldGroup
       level={4}
       title={row.id ?? 'Unnamed entry'}
       meta={
@@ -177,7 +177,7 @@ function PluginCard(props: {
           </Box>
         </Row>
       ) : null}
-    </FormSection>
+    </FieldGroup>
   )
 }
 

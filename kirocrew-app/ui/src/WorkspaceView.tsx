@@ -21,7 +21,7 @@ import {
 } from './workspace-api'
 import { SectionHeading } from './ui/controls.tsx'
 import { Button } from './ui/Button.tsx'
-import { FormSection } from './FormSection.tsx'
+import { FieldGroup } from './ui/FieldGroup.tsx'
 import { Modal } from './ui/Modal.tsx'
 import { Pencil, Plus, Trash2 } from './icons.ts'
 import { FolderField } from './FolderPicker.tsx'
@@ -366,21 +366,21 @@ export default function WorkspaceView(props: { selected?: string | null; onSelec
               saveEdit()
             }}
           >
-            <FormSection title="Workspace">
+            <FieldGroup title="Workspace">
               <Field id="avoozl-ws-edit-name" label="Name" value={edit.name} required onChange={(name) => setEdit({ ...edit, name })} />
               <FolderField id="avoozl-ws-edit-root" label="Folder" value={edit.root} required client={client} onChange={(root) => setEdit({ ...edit, root })} />
               <Hint as="p" size="xs">
                 Change it after you move the folder. The new folder must hold this workspace.
               </Hint>
-            </FormSection>
-            <FormSection title="Running">
+            </FieldGroup>
+            <FieldGroup title="Running">
               <Switch data-edit-enabled label="On" size="sm" checked={edit.enabled} onChange={(on) => setEdit({ ...edit, enabled: on })}>
                 On (ticks run and pages read it)
               </Switch>
               <Switch data-edit-default label="Default workspace" size="sm" checked={edit.default} disabled={isDefault} onChange={(on) => setEdit({ ...edit, default: on })}>
                 {isDefault ? 'The default workspace' : 'Make it the default workspace'}
               </Switch>
-            </FormSection>
+            </FieldGroup>
             {editCheck.error && (
               <ErrorText size="sm" data-edit-error>
                 {editCheck.error}

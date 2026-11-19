@@ -6,8 +6,7 @@
 // section; Save writes .avoozl.json like every other page.
 import { Input } from './ui/Input'
 import { Fold } from './ui/controls.tsx'
-import { FieldBox } from './FieldBox.tsx'
-import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
+import { Field, fieldDescribedBy } from './ui/Field.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { SHIP_CHOICES } from './delivery-api.ts'
 import { AVOOZL_LABELS, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, valueSource, type RepositoryForm } from './settings-api.ts'
@@ -15,11 +14,12 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { FieldGroup } from './ui/FieldGroup.tsx'
 
 function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string; help?: string }) {
   const note = valueSource(props.value, props.fallback, props.unit)
   return (
-    <FieldRow id={props.id} label={props.label} raw={props.raw} help={props.help} note={<span data-source>{note}</span>}>
+    <Field id={props.id} label={props.label} raw={props.raw} help={props.help} note={<span data-source>{note}</span>}>
       <Input
         id={props.id}
         type={props.type}
@@ -28,7 +28,7 @@ function Line(props: { id: string; label: string; value: string; fallback: strin
         aria-describedby={fieldDescribedBy(props.id, { help: props.help, note })}
         onChange={(event) => props.onChange(event.target.value)}
       />
-    </FieldRow>
+    </Field>
   )
 }
 
@@ -171,12 +171,12 @@ export function AvoozlLabelFields({ id, repository, set, note = true }: Part & {
 export function CrewsRulesSettings(props: Part) {
   return (
     <Stack gap={4} data-crews-rules>
-      <FieldBox title={CREW_PART_TEXT.conflicts.title} blurb={CREW_PART_TEXT.conflicts.blurb}>
+      <FieldGroup boxed title={CREW_PART_TEXT.conflicts.title} blurb={CREW_PART_TEXT.conflicts.blurb}>
         <ConflictFields {...props} />
-      </FieldBox>
-      <FieldBox title={CREW_PART_TEXT.merge.title} blurb={CREW_PART_TEXT.merge.blurb}>
+      </FieldGroup>
+      <FieldGroup boxed title={CREW_PART_TEXT.merge.title} blurb={CREW_PART_TEXT.merge.blurb}>
         <MergeMethodFields {...props} />
-      </FieldBox>
+      </FieldGroup>
       <Fold title="Avoozl labels" id={`${props.id}-crews-advanced`}>
         <AvoozlLabelFields {...props} />
       </Fold>
