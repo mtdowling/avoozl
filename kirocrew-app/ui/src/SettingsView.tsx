@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { CheckRow, FieldRow, Marker, RawKey, fieldDescribedBy, type FieldWidth } from './FieldRow.tsx'
+import { CheckRow, Field, Marker, RawKey, fieldDescribedBy, type FieldWidth } from './ui/Field.tsx'
 import { Tabs, TabPanel, useTabParam } from './ui/Tabs.tsx'
 import { dirtyTabs } from './tabs.ts'
 import { useAppApi } from './host.ts'
@@ -72,7 +72,7 @@ import SetupRepository from './Onboard.tsx'
 import { AddRepository, REPOSITORIES_LINE, RepositoryList, repositoryRows, useReveal, type AddedRole } from './RepositoriesSettings.tsx'
 import { EditRepository, ViewRepository, type EditSettings } from './RepositoryModals.tsx'
 import type { EditTab } from './repo-edit-tabs.ts'
-import { FormSection } from './FormSection.tsx'
+import { FieldGroup } from './ui/FieldGroup.tsx'
 import IsolationPanel from './IsolationPanel.tsx'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
 import PluginsSettings from './PluginsSettings.tsx'
@@ -163,14 +163,14 @@ const CREW_LABELS: Record<string, string> = {
   needsHuman: 'Escalation label',
 }
 
-// Every field here is the shared FieldRow (FieldRow.tsx).
+// Every field here is the shared Field (ui/Field.tsx).
 export { Marker }
 
-function Field(props: { id: string; label: string; raw?: string; rule?: FieldRule; width?: FieldWidth; help?: string; children: ReactNode }) {
+function SettingField(props: { id: string; label: string; raw?: string; rule?: FieldRule; width?: FieldWidth; help?: string; children: ReactNode }) {
   return (
-    <FieldRow id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width} help={props.help}>
+    <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width} help={props.help}>
       {props.children}
-    </FieldRow>
+    </Field>
   )
 }
 
@@ -187,7 +187,7 @@ function Text(props: {
   help?: string
 }) {
   return (
-    <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width} help={props.help}>
+    <SettingField id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width} help={props.help}>
       <Input
         id={props.id}
         type={props.type}
@@ -197,7 +197,7 @@ function Text(props: {
         aria-required={props.rule?.required || undefined}
         onChange={(event) => props.onChange(event.target.value)}
       />
-    </Field>
+    </SettingField>
   )
 }
 
@@ -213,7 +213,7 @@ function Choice(props: {
   width?: FieldWidth
 }) {
   return (
-    <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width}>
+    <SettingField id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width}>
       <SelectField id={props.id} value={props.value} aria-describedby={fieldDescribedBy(props.id, props)} onChange={(event) => props.onChange(event.target.value)} look="field">
         <option value="">{props.none}</option>
         {props.options.map((option) => (
@@ -222,7 +222,7 @@ function Choice(props: {
           </option>
         ))}
       </SelectField>
-    </Field>
+    </SettingField>
   )
 }
 
@@ -300,7 +300,7 @@ function MatchField(props: {
   const errorId = `${props.id}-error`
   return (
     <Box flex minW0 flexCol gap="1" size="sm">
-      <Field
+      <SettingField
         id={props.id}
         label={untriaged ? 'Untriaged filter' : 'Matches issues'}
         raw={untriaged ? 'untriaged.filter' : 'match'}
@@ -323,7 +323,7 @@ function MatchField(props: {
         <Box as="span" size="xs" tone="muted">
           {MATCH_HELP}
         </Box>
-      </Field>
+      </SettingField>
       {!line && (
         <Box as="span" size="xs" tone="muted">
           {untriaged
@@ -433,7 +433,7 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
   const toggle = (name: string, on: boolean) =>
     set({ triageLabels: on ? [...value.triageLabels, name] : value.triageLabels.filter((label) => label.toLocaleLowerCase() !== name.toLocaleLowerCase()) })
   return (
-    <FormSection level={4} title="Untriaged" blurb="What Needs you › Triage lists for this repository: open issues and pull requests no rule, triage label or task covers.">
+    <FieldGroup level={4} title="Untriaged" blurb="What Needs you › Triage lists for this repository: open issues and pull requests no rule, triage label or task covers.">
       <MatchField
         id={`${id}-untriaged-filter`}
         value={value.filter}
@@ -508,7 +508,7 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
           onChange={(notify) => set({ notify })}
         />
       </Row>
-    </FormSection>
+    </FieldGroup>
   )
 }
 
@@ -578,7 +578,7 @@ function ReviewRoles({ review, repository }: { review: ReviewSettings | undefine
   const own = review.repositories[repository]
   const roles = own ?? review.reviewers
   return (
-    <FormSection
+    <FieldGroup
       level={4}
       title="Avoozl reviewer chats"
       blurb="Fresh chats that review each local delivery's exact commit before it merges. Edit them under delivery.reviewers in .avoozl.json."
@@ -597,7 +597,7 @@ function ReviewRoles({ review, repository }: { review: ReviewSettings | undefine
           <Roles roles={roles} />
         </>
       )}
-    </FormSection>
+    </FieldGroup>
   )
 }
 
@@ -730,7 +730,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
   const { mirror, id } = props
   const set = (change: Partial<MirrorForm>) => props.onChange({ ...mirror, ...change })
   return (
-    <FormSection title="Private mirror" blurb="Crews work in a private copy. The mirror must be private. Leave both names blank for none.">
+    <FieldGroup title="Private mirror" blurb="Crews work in a private copy. The mirror must be private. Leave both names blank for none.">
       <Box {...grid()}>
         <Text id={`${id}-source`} label="Public repository" raw="mirror.source" placeholder="owner/name" value={mirror.source} onChange={(value) => set({ source: value })} />
         <Text id={`${id}-mirror`} label="Private mirror" raw="mirror.mirror" placeholder="owner/name-private" value={mirror.mirror} onChange={(value) => set({ mirror: value })} />
@@ -828,7 +828,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
         </Box>
         <CheckRow label="Squash into one commit" help="On by default." raw="mirror.squash" checked={mirror.squash} onChange={(squash) => set({ squash })} />
       </Fold>
-    </FormSection>
+    </FieldGroup>
   )
 }
 
@@ -891,11 +891,11 @@ export function RepositoryEditor(props: {
     }
   }, [tab, name, repository.baseBranch, props.workspaceId, inspectRepository])
   // Fragments: its sections are siblings of the dialog's own, so the shared
-  // FormSection rule draws the line between them.
+  // FieldGroup rule draws the line between them.
   return (
     <>
       {tab === 'general' && (
-        <FormSection title="GitHub repository" blurb={REPOSITORY_BLURBS.general}>
+        <FieldGroup title="GitHub repository" blurb={REPOSITORY_BLURBS.general}>
           <Box as="p" size="xs" tone="muted">
             Workspace mode:{' '}
             <Box as="span" css-color="text" weight="medium">
@@ -914,11 +914,11 @@ export function RepositoryEditor(props: {
               onChange={(value) => set({ name: value })}
             />
           </Box>
-        </FormSection>
+        </FieldGroup>
       )}
       {tab === 'landing' && (
         <>
-          <FormSection title="Where tasks land" blurb={REPOSITORY_BLURBS.landing}>
+          <FieldGroup title="Where tasks land" blurb={REPOSITORY_BLURBS.landing}>
             <Box {...grid()}>
               <Text
                 id={`${id}-base`}
@@ -943,8 +943,8 @@ export function RepositoryEditor(props: {
                 onChange={(value) => set({ releaseCapacity: value })}
               />
             </Box>
-          </FormSection>
-          <FormSection title={CREW_PART_TEXT.merge.title} blurb={CREW_PART_TEXT.merge.blurb}>
+          </FieldGroup>
+          <FieldGroup title={CREW_PART_TEXT.merge.title} blurb={CREW_PART_TEXT.merge.blurb}>
             <Box {...grid()}>
               <Choice
                 id={`${id}-landing-mode`}
@@ -959,17 +959,17 @@ export function RepositoryEditor(props: {
               />
             </Box>
             <AutoMergeFields id={id} repository={repository} set={set} inherited={inheritedShip} />
-          </FormSection>
-          <FormSection title="Merge method" blurb="How a pull request merges when auto-merge is armed.">
+          </FieldGroup>
+          <FieldGroup title="Merge method" blurb="How a pull request merges when auto-merge is armed.">
             <MergeMethodFields id={id} repository={repository} set={set} />
-          </FormSection>
-          <FormSection title={CREW_PART_TEXT.conflicts.title} blurb={CREW_PART_TEXT.conflicts.blurb}>
+          </FieldGroup>
+          <FieldGroup title={CREW_PART_TEXT.conflicts.title} blurb={CREW_PART_TEXT.conflicts.blurb}>
             <ConflictFields id={id} repository={repository} set={set} />
-          </FormSection>
-          <FormSection title="Required checks" blurb={REPOSITORY_BLURBS.checks}>
+          </FieldGroup>
+          <FieldGroup title="Required checks" blurb={REPOSITORY_BLURBS.checks}>
             <ChecksEditor id={id} value={repository.requiredChecks} inspect={inspect} repository={name} onChange={(value) => set({ requiredChecks: value })} />
-          </FormSection>
-          <FormSection title="Pull-request reviews" blurb={REPOSITORY_BLURBS.reviews}>
+          </FieldGroup>
+          <FieldGroup title="Pull-request reviews" blurb={REPOSITORY_BLURBS.reviews}>
             <ReviewRule
               inspect={inspect}
               repository={name}
@@ -977,13 +977,13 @@ export function RepositoryEditor(props: {
               approvals={repository.reviewApprovals}
               onDropDeprecated={() => set({ pullRequestReviews: false, reviewApprovals: '' })}
             />
-          </FormSection>
+          </FieldGroup>
           <ReviewRoles review={props.review} repository={name} />
         </>
       )}
       {tab === 'github' && (
         <>
-          <FormSection title="Sync" blurb="How long Avoozl keeps GitHub's answers about this repository before it asks again.">
+          <FieldGroup title="Sync" blurb="How long Avoozl keeps GitHub's answers about this repository before it asks again.">
             <Box {...grid()}>
               <Text
                 id={`${id}-cache`}
@@ -997,8 +997,8 @@ export function RepositoryEditor(props: {
                 onChange={(value) => set({ cacheSeconds: value })}
               />
             </Box>
-          </FormSection>
-          <FormSection title="Label rules" blurb={REPOSITORY_BLURBS.github}>
+          </FieldGroup>
+          <FieldGroup title="Label rules" blurb={REPOSITORY_BLURBS.github}>
             {repository.rules.length === 0 && (
               <Box as="p" flex flexWrap items="center" gapX="3" gapY="1" size="sm" tone="muted">
                 <span>No rules yet, so labels start nothing. Add one to let a label start work.</span>
@@ -1032,11 +1032,8 @@ export function RepositoryEditor(props: {
             <div>
               <Btn onClick={() => set({ rules: [...repository.rules, emptyRule()] })}>Add rule</Btn>
             </div>
-          </FormSection>
-          <FormSection
-            title="Managed labels"
-            blurb="Labels Avoozl itself adds and removes on issues to show their state. Don't edit them by hand: a hand edit shows as a conflict."
-          >
+          </FieldGroup>
+          <FieldGroup title="Managed labels" blurb="Labels Avoozl itself adds and removes on issues to show their state. Don't edit them by hand: a hand edit shows as a conflict.">
             <Box {...grid(200)}>
               {/* Ready is edited with Avoozl's other labels in Crews and rules. */}
               {choices.managedLabels
@@ -1053,9 +1050,9 @@ export function RepositoryEditor(props: {
                   />
                 ))}
             </Box>
-          </FormSection>
+          </FieldGroup>
           <UntriagedSettings id={id} value={repository.untriaged} repository={name} workspaceId={props.workspaceId} onChange={(untriaged) => set({ untriaged })} />
-          <FormSection
+          <FieldGroup
             title="Who counts"
             blurb="GitHub still decides who has access. This sets how much GitHub permission a person needs for a label, a board drag or a close to count."
           >
@@ -1082,8 +1079,8 @@ export function RepositoryEditor(props: {
                 onChange={(value) => set({ allowedActors: value })}
               />
             </Row>
-          </FormSection>
-          <FormSection title="Priority" blurb="Ready tasks carrying a higher label here start first.">
+          </FieldGroup>
+          <FieldGroup title="Priority" blurb="Ready tasks carrying a higher label here start first.">
             <Text
               id={`${id}-priority`}
               label="Priority labels, highest first"
@@ -1094,12 +1091,12 @@ export function RepositoryEditor(props: {
               value={repository.priority}
               onChange={(value) => set({ priority: value })}
             />
-          </FormSection>
+          </FieldGroup>
         </>
       )}
       {tab === 'mirror' && <MirrorBox id={`${id}-mirror`} mirror={repository.mirror} onChange={(mirror) => set({ mirror })} />}
       {tab === 'map' && (
-        <FormSection title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
+        <FieldGroup title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
           <WorkflowMap
             workspaceId={props.workspaceId}
             mode={props.mode}
@@ -1111,7 +1108,7 @@ export function RepositoryEditor(props: {
               setPending(jump)
             }}
           />
-        </FormSection>
+        </FieldGroup>
       )}
     </>
   )
@@ -1240,7 +1237,7 @@ function RepositoriesTab(props: {
       return {
         tabs: [],
         body: tab === 'general' && (
-          <FormSection title="Settings" blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
+          <FieldGroup title="Settings" blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
             <IconLabel
               icon={Plus}
               tooltip="Add an entry you can change; written when you press Save"
@@ -1248,18 +1245,18 @@ function RepositoriesTab(props: {
             >
               Add GitHub settings for {row.github}
             </IconLabel>
-          </FormSection>
+          </FieldGroup>
         ),
       }
     return {
       tabs: ['landing'],
       body: tab === 'landing' && (
-        <FormSection title="Checks" blurb="A local-only repository: no GitHub remote, so the GitHub settings do not apply.">
+        <FieldGroup title="Checks" blurb="A local-only repository: no GitHub remote, so the GitHub settings do not apply.">
           <Box as="p" size="sm" data-local-checks>
             Required checks apply only to GitHub pull requests. Here Avoozl runs this repository&apos;s checks for every task; a check with paths runs only when a change touches
             them.
           </Box>
-        </FormSection>
+        </FieldGroup>
       ),
     }
   }
@@ -1378,18 +1375,18 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
   const { row, tab } = props
   if (tab === 'general')
     return (
-      <FormSection title="Local only" blurb="Avoozl codes, checks and merges here on this Mac.">
+      <FieldGroup title="Local only" blurb="Avoozl codes, checks and merges here on this Mac.">
         {props.kept && (
           <Box as="p" size="xs" tone="muted">
             Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.
           </Box>
         )}
-      </FormSection>
+      </FieldGroup>
     )
   if (tab === 'landing')
     return (
       <>
-        <FormSection title="Where tasks land">
+        <FieldGroup title="Where tasks land">
           <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1" size="sm">
             <Box as="dt" tone="muted">
               Landing branch
@@ -1401,15 +1398,15 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
           <Box as="p" size="sm" data-local-checks>
             Avoozl runs this repository&apos;s checks for every task; a check with paths runs only when a change touches them.
           </Box>
-        </FormSection>
+        </FieldGroup>
         <ReviewRoles review={props.review} repository={row.github ?? row.name} />
       </>
     )
   if (tab === 'map')
     return (
-      <FormSection title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
+      <FieldGroup title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
         <WorkflowMap workspaceId={props.workspaceId} mode="local" repository={{ ...emptyRepository(row.name), baseBranch: row.branch }} />
-      </FormSection>
+      </FieldGroup>
     )
   return null
 }

@@ -8,7 +8,7 @@ import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
 import { SaveFooter } from './SaveFooter.tsx'
 import { Section } from './SettingsView.tsx'
-import { FieldRow } from './FieldRow.tsx'
+import { Field } from './ui/Field.tsx'
 import { AskForHelp, useConfirm } from './ui/controls.tsx'
 import { useRead } from './useRead.ts'
 import { COMMAND_PATH, errorMessage } from './workspace-api.ts'
@@ -22,12 +22,12 @@ import { SelectField } from './ui/SelectField'
 const OPTIONAL = { required: false } as const
 const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its investigate and pull request settings show here then.'
 
-// A field: the shared FieldRow, every Delivery value optional.
+// A field: the shared Field, every Delivery value optional.
 // `byDefault` is the value a blank field uses; `reset` shows when the field
 // holds another value and puts the default back.
 function Labeled(props: { id: string; label: string; raw: string; width: string; note?: string; byDefault?: string; reset?: () => void; children: React.ReactNode }) {
   return (
-    <FieldRow
+    <Field
       id={props.id}
       label={props.label}
       raw={props.raw}
@@ -39,7 +39,7 @@ function Labeled(props: { id: string; label: string; raw: string; width: string;
       defaultText={props.byDefault}
     >
       {props.children}
-    </FieldRow>
+    </Field>
   )
 }
 

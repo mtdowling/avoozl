@@ -10,7 +10,7 @@ import { EDIT_TABS, dirtyTabs, errorTabs, type EditTab } from './repo-edit-tabs.
 import { Btn } from './ui/Btn'
 import { Input } from './ui/Input'
 import { Modal } from './ui/Modal.tsx'
-import { FormSection } from './FormSection.tsx'
+import { FieldGroup } from './ui/FieldGroup.tsx'
 import MirrorSetup from './MirrorSetup.tsx'
 import { MIRROR_ROLE, MIRROR_ROLE_LABEL, MIRROR_ROLE_LINE, ROLE_OPTIONS, mirrorSourceProblem, type RepositoryEdit, type RepositoryForm } from './settings-api.ts'
 import type { RepositoryRow } from './repository-rows.ts'
@@ -145,7 +145,7 @@ export function ViewRepository(props: {
   }
   return (
     <Modal id="avoozl-repo-view" title={row.name} onDismiss={props.onClose} attrs={{ 'data-repository-view': row.key }} focusClose>
-      <FormSection title="Repository">
+      <FieldGroup title="Repository">
         <Facts facts={where} />
         {row.folder && (
           <div>
@@ -154,11 +154,11 @@ export function ViewRepository(props: {
             </Btn>
           </div>
         )}
-      </FormSection>
+      </FieldGroup>
       {facts.length > 0 && (
-        <FormSection title="Settings">
+        <FieldGroup title="Settings">
           <Facts facts={facts} />
-        </FormSection>
+        </FieldGroup>
       )}
     </Modal>
   )
@@ -246,7 +246,7 @@ export function EditRepository(props: {
       />
       <TabPanel id={`${id}-tabs`} current={tab}>
         {tab === 'general' && (
-          <FormSection title="Role">
+          <FieldGroup title="Role">
             <RoleChoice
               id={id}
               name={row.name}
@@ -271,11 +271,11 @@ export function EditRepository(props: {
                 {row.folder ? <code>{row.folder}</code> : 'No folder on this computer'}
               </Box>
             </Box>
-          </FormSection>
+          </FieldGroup>
         )}
         {tab === 'mirror' &&
           (mirror ? (
-            <FormSection title="Public repository" blurb="This repository is a private copy of a public one. Crews work here, in private.">
+            <FieldGroup title="Public repository" blurb="This repository is a private copy of a public one. Crews work here, in private.">
               <Box htmlFor={`${id}-source`} as="label" flex flexCol gap="1" size="sm">
                 <Box as="span" srOnly>
                   Public repository
@@ -295,15 +295,15 @@ export function EditRepository(props: {
                 )}
               </Box>
               {row.github && !problem && <MirrorSetup workspaceId={props.workspaceId} repository={row.github} source={source} onApplied={props.onApplied} />}
-            </FormSection>
+            </FieldGroup>
           ) : (
-            <FormSection title="Set up a mirror" blurb="Make this repository a private copy of a public one, so crews work in private.">
+            <FieldGroup title="Set up a mirror" blurb="Make this repository a private copy of a public one, so crews work in private.">
               <div>
                 <Btn type="button" onClick={() => setRole(MIRROR_ROLE)}>
                   Set up mirror
                 </Btn>
               </div>
-            </FormSection>
+            </FieldGroup>
           ))}
         {tab === 'mirror' && mirror ? null : settings.body}
       </TabPanel>
