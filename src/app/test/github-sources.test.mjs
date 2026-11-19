@@ -23,8 +23,6 @@ const FILE = {
         repository: "Example/App",
         project: "app",
         assignee: "bot",
-        label: "go",
-        allowedActors: ["sam"],
       },
     },
   },

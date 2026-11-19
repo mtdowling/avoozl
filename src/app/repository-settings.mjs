@@ -38,7 +38,7 @@ import { fail } from "./store.mjs";
 import { checksSetting } from "./repository-checks.mjs";
 import { isolationSetting } from "./check-isolation.mjs";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.mjs";
-import { deriveGitHubKeys, rolesNote, withRoles } from "./repository-roles.mjs";
+import { withRoles, withoutDerivedKeys } from "./repository-roles.mjs";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
 const APPLY_KEYS = Object.freeze(["projects", "github", "planningRepository"]);
@@ -299,10 +299,21 @@ function planningRepositoryInput(value, base) {
   };
 }
 
+// A repository's base branch is set once, on its GitHub settings (Edit
+// repository > Landing). The project that source runs in lands there, so the
+// project's own `baseBranch` is read only for a repository with no GitHub
+// settings.
 function desiredActions(value, base) {
+  const projects = projectsInput(value.projects, base),
+    github = githubInput(value.github, value);
+  for (const { repository, settings } of githubSources(value)) {
+    const branch = value.github?.repositories?.[repository]?.baseBranch;
+    if (branch && projects[settings.projectId])
+      projects[settings.projectId].baseBranch = branch;
+  }
   return {
-    projects: projectsInput(value.projects, base),
-    github: githubInput(value.github, value),
+    projects,
+    github,
     planningRepository: planningRepositoryInput(value.planningRepository, base),
   };
 }
@@ -343,14 +354,10 @@ function appliedActions(store) {
             ? { workspaceRepositoryId: entry.workspaceRepositoryId }
             : {}),
           assignee: entry.assignee,
-          label: entry.label || "avoozl:ready",
-          managedLabel: entry.managedLabel || "avoozl:managed",
           enabled: true,
           autoStart: Boolean(entry.autoStart),
           provider: entry.provider || null,
           model: entry.model || null,
-          allowedActors: [...new Set(entry.allowedActors || [])].sort(),
-          minimumPermission: entry.minimumPermission || "write",
         },
       ]),
     ),
@@ -794,14 +801,13 @@ export class RepositorySettings {
           ),
         ),
       ),
-      rolesNote: rolesNote(github),
     };
   }
 
   // Replaces the policy keys of `github` and keeps every other key. The
   // whole block is validated before the file is written.
   updateGitHubSettings({ github, expectedHash } = {}) {
-    const section = deriveGitHubKeys(policySection(github)),
+    const section = withoutDerivedKeys(policySection(github)),
       before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);

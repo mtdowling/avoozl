@@ -219,7 +219,7 @@
       "$ref": "#/$defs/planningRepository"
     },
     "plugins": {
-      "description": "Plugins this repository declares (design \u00a74.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
+      "description": "Plugins this repository declares (design §4.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
       "type": "array",
       "items": {
         "type": "object",
@@ -274,7 +274,7 @@
       }
     },
     "intake": {
-      "description": "Every source that brings work in (design \u00a74.12, \u00a74.39): GitHub repositories (via github, set in Repository setup), intake plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
+      "description": "Every source that brings work in (design §4.12, §4.39): GitHub repositories (via github, set in Repository setup), intake plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -308,15 +308,6 @@
                 "type": "string",
                 "description": "GitHub sources only: the workspace repository, when it is not the project."
               },
-              "label": {
-                "type": "string",
-                "default": "avoozl:ready",
-                "description": "GitHub sources only: the ready label used when the repository has no trigger rules."
-              },
-              "managedLabel": {
-                "type": "string",
-                "default": "avoozl:managed"
-              },
               "assignee": {
                 "type": "string",
                 "description": "GitHub sources only: who the issue must be assigned to."
@@ -340,16 +331,6 @@
               "assigneeField": {
                 "type": "string",
                 "minLength": 1
-              },
-              "allowedActors": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "minimumPermission": {
-                "enum": ["read", "triage", "write", "maintain", "admin"]
               }
             }
           }
@@ -518,11 +499,11 @@
       }
     },
     "workers": {
-      "description": "Worker mode claims (design 4.28).",
+      "description": "Worker mode grants (design 4.28).",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "claimStaleAfter": {
+        "grantStaleAfter": {
           "description": "When a worker's claim shows in Needs you: like \"90m\", \"24h\" or \"2d\", or a number of seconds.",
           "type": ["string", "number"],
           "pattern": "^\\d{1,6}[mhd]$",
@@ -799,7 +780,7 @@
                 "type": "string",
                 "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
               },
-              "claims": {
+              "grants": {
                 "type": "string",
                 "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
               },
@@ -1146,19 +1127,28 @@
             "readable": {
               "type": "array",
               "maxItems": 50,
-              "items": { "type": "string", "minLength": 1 },
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
               "description": "Absolute paths a check may also read."
             },
             "writable": {
               "type": "array",
               "maxItems": 50,
-              "items": { "type": "string", "minLength": 1 },
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
               "description": "Absolute paths a check may also write."
             },
             "prepare": {
               "type": "array",
               "minItems": 1,
-              "items": { "type": "string", "minLength": 1 },
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
               "description": "A command run once per worktree and commit before its checks, outside isolation, such as npm ci."
             }
           }
@@ -1310,16 +1300,6 @@
               "minLength": 1,
               "default": "avoozl:plan"
             },
-            "conflictLabel": {
-              "type": "string",
-              "minLength": 1,
-              "default": "avoozl:merge-conflict"
-            },
-            "approvalLabel": {
-              "type": "string",
-              "minLength": 1,
-              "default": "avoozl:plan-approved"
-            },
             "reviewLabel": {
               "type": "string",
               "minLength": 1,
@@ -1330,18 +1310,10 @@
               "minLength": 1,
               "default": "avoozl:drafted"
             },
-            "clearPlanLabel": {
-              "type": "boolean",
-              "default": false
-            },
             "escalationDraft": {
               "type": "boolean",
               "default": false,
               "description": "Draft a trusted Issue Radar escalation's bounded-fix acceptance locally when the needs-human label appears. Writes nothing to GitHub; a person still starts it."
-            },
-            "showPlansRepo": {
-              "type": "boolean",
-              "description": "Show the plans repository name in issues. Unset: on for a private code repository, off for a public one."
             }
           },
           "additionalProperties": false
@@ -1439,12 +1411,6 @@
             }
           }
         },
-        "cacheSeconds": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 3600,
-          "description": "This repository's GitHub cache time in seconds, instead of github.cacheSeconds."
-        },
         "release": {
           "description": "Ready-label capacity: N at once per repository, and per crew label scope. N defaults to 1; 0 releases nothing. With lanes, the only concurrency setting.",
           "type": "object",
@@ -1502,14 +1468,6 @@
           "type": "boolean",
           "default": false
         },
-        "priority": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
         "priorityLabels": {
           "type": "array",
           "description": "Labels in priority order. They order tasks inside Ready and Up next, never the lane. The newer name for priority; set only one of the two.",
@@ -1540,19 +1498,7 @@
               "type": "string",
               "minLength": 1
             },
-            "planning": {
-              "type": "string",
-              "minLength": 1
-            },
             "ready": {
-              "type": "string",
-              "minLength": 1
-            },
-            "stale": {
-              "type": "string",
-              "minLength": 1
-            },
-            "decision": {
               "type": "string",
               "minLength": 1
             }
@@ -1564,7 +1510,7 @@
           "description": "Issue Radar's own labels, which Avoozl reads and never writes.",
           "additionalProperties": false,
           "properties": {
-            "claim": {
+            "inProgress": {
               "type": "string",
               "minLength": 1,
               "default": "crew: in progress"
@@ -1804,33 +1750,6 @@
             "maxLength": 200
           }
         }
-      }
-    },
-    "githubLabelBehaviors": {
-      "type": "object",
-      "description": "Repository-specific GitHub labels mapped to normalized Avoozl Queue states. Omitted behaviors use the avoozl:* defaults.",
-      "properties": {
-        "ready": {
-          "$ref": "#/$defs/githubLabelList"
-        },
-        "blocked": {
-          "$ref": "#/$defs/githubLabelList"
-        },
-        "review": {
-          "$ref": "#/$defs/githubLabelList"
-        },
-        "quarantined": {
-          "$ref": "#/$defs/githubLabelList"
-        }
-      },
-      "additionalProperties": false
-    },
-    "githubLabelList": {
-      "type": "array",
-      "uniqueItems": true,
-      "items": {
-        "type": "string",
-        "minLength": 1
       }
     },
     "planningRepository": {

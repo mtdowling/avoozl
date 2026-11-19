@@ -27,7 +27,6 @@ import {
   REVIEWER_KEYS,
 } from "../delivery.mjs";
 import { FLOW_PATHS } from "../flow.mjs";
-import { BEHAVIOR_NAMES } from "../github-label-behaviors.mjs";
 import {
   CREW_LABEL_KEYS,
   GITHUB_BLOCK_KEYS,
@@ -117,7 +116,6 @@ const PAIRS = [
   ["#/$defs/planningRepository", PLANNING_REPOSITORY_KEYS],
   ["#/$defs/github", POLICY_KEYS],
   ["#/$defs/githubRule", GITHUB_BLOCK_KEYS.rule],
-  ["#/$defs/githubLabelBehaviors", BEHAVIOR_NAMES],
   ["#/$defs/githubMirror", MIRROR_KEYS],
   ["#/$defs/githubRepositoryPolicy", GITHUB_BLOCK_KEYS.repository],
   [`${REPOSITORY}/radar`, RADAR_KEYS],
@@ -150,7 +148,7 @@ const UNPAIRED = new Map([
   ["#/properties/intake", "sourceDeclarations in intake.mjs reads sources"],
   ["#/properties/activity", "validateActivitySettings in activity-log.mjs"],
   ["#/$defs/agentInstructions", "agent-instructions.mjs accepts only rules"],
-  ["#/properties/workers", "claimStaleMs in worker-release.mjs"],
+  ["#/properties/workers", "grantStaleMs in worker-release.mjs"],
 ]);
 
 // Open schema objects (unknown keys pass) and the keys their readers read.
@@ -223,7 +221,7 @@ const OPEN = new Map([
   ["#/$defs/runner/properties/checks/additionalProperties", ["argv"]],
   [
     "#/$defs/runner/properties/pools/items",
-    ["spec", "repository", "target", "claims", "issue", "base", "visibility"],
+    ["spec", "repository", "target", "grants", "issue", "base", "visibility"],
   ],
   ["#/$defs/runner/properties/sources/additionalProperties", ["url", "parent"]],
 ]);

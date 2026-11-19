@@ -35,7 +35,7 @@ export interface ReviewFinding {
     revisionHash: string
     note: string
   }[]
-  claim: string
+  statement: string
   evidence: string
   answer: {
     action: 'fixed' | 'answered'

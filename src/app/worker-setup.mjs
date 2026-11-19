@@ -4,7 +4,7 @@
 //
 // It shows the GitHub login, whether each pool's target is readable, which
 // registered source repositories (this machine's forks) the login can push
-// to, what the login may do in each spec's canonical claim repository, and
+// to, what the login may do in each spec's canonical grant repository, and
 // whether the configured executor can run here. Kiro Crew is required only
 // for the `kirocrew` executor; a `process` worker is headless. An SSH
 // envelope stays for a machine with no GitHub access (runner mode).
@@ -37,7 +37,7 @@ export async function previewWorker({
       },
       targets: [],
       sources: [],
-      claims: [],
+      grants: [],
       problems,
     };
   if (!ready)
@@ -82,21 +82,21 @@ export async function previewWorker({
       "This login can push to no registered source or target, so it cannot publish checkpoints.",
     );
   for (const pool of config.pools) {
-    const found = await role(pool.claims),
+    const found = await role(pool.grants),
       mode = WRITE.has(found)
         ? "reserve"
         : READ.has(found)
           ? "request"
           : "none";
-    result.claims.push({
+    result.grants.push({
       spec: pool.spec,
-      repository: pool.claims,
+      repository: pool.grants,
       role: found,
       mode,
     });
     if (mode === "none")
       problems.push(
-        `${pool.claims} (claims for ${pool.spec}) is not readable.`,
+        `${pool.grants} (grants for ${pool.spec}) is not readable.`,
       );
   }
   return { ...result, ok: problems.length === 0 };

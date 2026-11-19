@@ -271,12 +271,12 @@ export function RevisionChanged(props: { change: RevisionChange }) {
       )}
       {change.fixed.length > 0 && (
         <Box as="p" m0 data-revision-moved-fixed>
-          Now fixed: {change.fixed.map((finding) => finding.claim).join(' · ')}
+          Now fixed: {change.fixed.map((finding) => finding.statement).join(' · ')}
         </Box>
       )}
       {change.moved.length > 0 && (
         <Box as="p" m0 data-revision-moved-anchors>
-          Moved or removed: {change.moved.map((finding) => finding.claim).join(' · ')}
+          Moved or removed: {change.moved.map((finding) => finding.statement).join(' · ')}
         </Box>
       )}
       <Hint as="p" flush>

@@ -8,6 +8,8 @@ import {
   evaluateRules,
   legacyRepositoryPolicy,
   matchingRules,
+  MANAGED_LABEL_DEFAULT,
+  READY_LABEL_DEFAULT,
   requireDefaultBranch,
 } from "./github-policy.mjs";
 import { mirrorGitHubIssue } from "./intake.mjs";
@@ -73,8 +75,8 @@ export async function prepareGitHubRepository(store, github, input) {
     github.repository(repository),
     github.currentUser(),
   ]);
-  const label = input.label || "avoozl:ready",
-    managedLabel = input.managedLabel || "avoozl:managed";
+  const label = READY_LABEL_DEFAULT,
+    managedLabel = MANAGED_LABEL_DEFAULT;
   await github.ensureLabel(repository, {
     name: label,
     description: "Authorized for Avoozl execution",
@@ -95,8 +97,6 @@ export async function prepareGitHubRepository(store, github, input) {
     label,
     managedLabel,
     assignee: input.assignee || user.login,
-    allowedActors: [...new Set(input.allowedActors || [])],
-    minimumPermission: input.minimumPermission || "write",
     provider: input.provider || null,
     model: input.model || null,
     autoStart: Boolean(input.autoStart),
@@ -104,8 +104,6 @@ export async function prepareGitHubRepository(store, github, input) {
     configuredBy: user.login,
     configuredAt: new Date().toISOString(),
   };
-  if (!["write", "maintain", "admin"].includes(record.minimumPermission))
-    fail("Minimum label permission must be write, maintain, or admin.");
   return record;
 }
 

@@ -451,7 +451,7 @@ export class GitHubClient {
             )
           : null,
       stored = key ? this.cache.get(key) : null,
-      fresh = (this.cacheSeconds(repoId) || 0) * 1000,
+      fresh = (this.cacheSeconds() || 0) * 1000,
       reply = (entry) => {
         const value = entry.body ? JSON.parse(entry.body) : null;
         return headers

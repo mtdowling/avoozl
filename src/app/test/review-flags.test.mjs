@@ -227,11 +227,8 @@ test("review shows once per plan, with a badge, and not as needs-you", async (t)
       ["review", null, ["b1"]],
     ],
   );
-  assert.equal(
-    items[1].title,
-    "Review 2 tasks in Plan A: their design text changed",
-  );
-  assert.equal(items[2].title, "Review 1 task in b: their design text changed");
+  assert.equal(items[1].title, "2 tasks in Plan A changed: check them");
+  assert.equal(items[2].title, "1 task in b changed: check it");
   // Mark reviewed settles a whole group in one call.
   const result = await ops.execute(
     "conflicts.settle",

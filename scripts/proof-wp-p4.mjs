@@ -35,8 +35,8 @@ const count = (name) =>
   Number(tests.stdout.match(new RegExp(`^ℹ ${name} (\\d+)`, "m"))?.[1] ?? -1);
 
 // 2. Every module whose source writes a session request with role worker,
-// as the source test reads them, and the manual claim, which binds a
-// person's claim without a request.
+// as the source test reads them, and the manual take, which binds a
+// person's take without a request.
 const REQUEST = /\b(kirocrewRequest|startRequest|enqueueSessionRequests)\(/g;
 const sources = [
   ...fs.readdirSync(APP).map((name) => [name, path.join(APP, name)]),
@@ -60,8 +60,8 @@ for (const [name, file] of sources) {
     }
   }
 }
-const claimBinds = /role:\s*"worker"/.test(
-  fs.readFileSync(path.join(APP, "manual-claim.mjs"), "utf8"),
+const takeBinds = /role:\s*"worker"/.test(
+  fs.readFileSync(path.join(APP, "manual-take.mjs"), "utf8"),
 );
 
 // 3. Every worker brief the pair table builds, searched for the words.
@@ -148,7 +148,7 @@ const result = {
   before,
   tests: { status: tests.status, pass: count("pass"), fail: count("fail") },
   workerRequestWriters: writers,
-  manualClaimBinds: claimBinds,
+  manualTakeBinds: takeBinds,
   briefs,
   found,
   forbidding,
@@ -163,7 +163,7 @@ const verdict = {
       ["delivery.mjs", "remote-runner.mjs"].includes(name),
     ) &&
     writers.includes("delivery.mjs") &&
-    claimBinds,
+    takeBinds,
   noPushInBriefs: briefs.length > 0 && found.length === 0,
 };
 console.log(JSON.stringify({ verdict, result }, null, 2));

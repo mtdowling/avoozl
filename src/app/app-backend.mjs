@@ -1,7 +1,7 @@
 // Avoozl's Kiro Crew app backend. Kiro Crew's gateway proxies the app page's
-// API here and signs each request with a principal claim (`signedPrincipal`).
+// API here and signs each request with a principal (`signedPrincipal`).
 // The backend binds loopback only. Any local process can reach that socket,
-// so every route except the gateway's unsigned health probe verifies the claim
+// so every route except the gateway's unsigned health probe verifies the principal
 // and refuses with 401 when it is missing, stale, replayed, or forged.
 import fs from "node:fs";
 import http from "node:http";
@@ -58,7 +58,7 @@ const MAX_BODY_BYTES = 1024 * 1024;
 // connections outlive the pool, so the gateway is always the side that closes.
 const KEEP_ALIVE_MS = 65_000;
 const KINDS = new Set(["owner-session", "app-token", "agent-tool", "none"]);
-const CLAIM_KEYS = ["issuedAt", "kind", "ownerId", "requestId", "version"];
+const PRINCIPAL_KEYS = ["issuedAt", "kind", "ownerId", "requestId", "version"];
 const REQUEST_ID = /^[0-9a-f]{32}$/;
 
 // One cache per backend process: each accepted request ID is refused again
@@ -79,17 +79,19 @@ class ReplayCache {
   }
 }
 
-function decodeClaim(encoded) {
-  let claim;
+function decodePrincipal(encoded) {
+  let principal;
   try {
     if (!/^[A-Za-z0-9_-]+$/.test(encoded)) return null;
-    claim = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+    principal = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
   } catch {
     return null;
   }
-  if (!claim || typeof claim !== "object" || Array.isArray(claim)) return null;
-  if (Object.keys(claim).sort().join() !== CLAIM_KEYS.join()) return null;
-  const { version, kind, ownerId, issuedAt, requestId } = claim;
+  if (!principal || typeof principal !== "object" || Array.isArray(principal))
+    return null;
+  if (Object.keys(principal).sort().join() !== PRINCIPAL_KEYS.join())
+    return null;
+  const { version, kind, ownerId, issuedAt, requestId } = principal;
   if (version !== 1 || typeof kind !== "string" || !KINDS.has(kind))
     return null;
   if (!Number.isSafeInteger(issuedAt)) return null;
@@ -102,14 +104,14 @@ function decodeClaim(encoded) {
   // Only an owner session names an owner.
   if ((kind === "owner-session") !== Boolean(ownerId)) return null;
   if (typeof requestId !== "string" || !REQUEST_ID.test(requestId)) return null;
-  return claim;
+  return principal;
 }
 
 // Verify one X-KiroCrew-Principal value against Kiro Crew's contract
 // (kiro_crew/apps/proxy_auth.py `verify_proxy_principal_claim`): base64url
-// canonical JSON claim, a period, and an HMAC-SHA256 over the domain tag, issue
-// time, method, request-target, body digest, and encoded claim. Returns the
-// claim or null. Fails closed without a secret.
+// canonical JSON principal, a period, and an HMAC-SHA256 over the domain tag, issue
+// time, method, request-target, body digest, and encoded principal. Returns the
+// principal or null. Fails closed without a secret.
 export function verifyPrincipal(
   header,
   { method, target, body = Buffer.alloc(0), secret, replay, now = Date.now() },
@@ -120,15 +122,15 @@ export function verifyPrincipal(
   if (dot <= 0 || dot === header.length - 1) return null;
   const encoded = header.slice(0, dot),
     signature = header.slice(dot + 1),
-    claim = decodeClaim(encoded);
-  if (!claim) return null;
+    principal = decodePrincipal(encoded);
+  if (!principal) return null;
   const clock = now / 1000;
-  if (Math.abs(clock - claim.issuedAt) > MAX_SKEW_SECONDS) return null;
+  if (Math.abs(clock - principal.issuedAt) > MAX_SKEW_SECONDS) return null;
   const expected = createHmac("sha256", secret)
     .update(
       [
         DOMAIN,
-        String(claim.issuedAt),
+        String(principal.issuedAt),
         method,
         target,
         createHash("sha256").update(body).digest("hex"),
@@ -140,9 +142,15 @@ export function verifyPrincipal(
     wanted = Buffer.from(expected, "utf8");
   if (given.length !== wanted.length || !timingSafeEqual(given, wanted))
     return null;
-  if (!replay.accept(claim.requestId, claim.issuedAt + MAX_SKEW_SECONDS, clock))
+  if (
+    !replay.accept(
+      principal.requestId,
+      principal.issuedAt + MAX_SKEW_SECONDS,
+      clock,
+    )
+  )
     return null;
-  return claim;
+  return principal;
 }
 
 function send(res, status, value) {
@@ -241,7 +249,7 @@ export function startAppBackend({
       }
       const body = await readBody(req);
       if (body === null) return send(res, 413, { error: "Request too large." });
-      const claim = verifyPrincipal(req.headers[PRINCIPAL_HEADER], {
+      const principal = verifyPrincipal(req.headers[PRINCIPAL_HEADER], {
         method: req.method,
         target,
         body,
@@ -249,7 +257,7 @@ export function startAppBackend({
         replay,
         now: now(),
       });
-      if (!claim || claim.kind === "none")
+      if (!principal || principal.kind === "none")
         return send(res, 401, {
           error: "A valid Kiro Crew gateway-signed principal is required.",
         });
@@ -264,7 +272,7 @@ export function startAppBackend({
         return send(res, 400, { error: "Send a JSON object." });
       }
       const { status, body: reply } = await dispatchCommand({
-        claim,
+        principal,
         request,
         context,
       });

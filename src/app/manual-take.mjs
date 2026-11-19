@@ -1,13 +1,13 @@
 // A person takes one ready task by hand (worker-paths WP2, design D6):
-// `avoozl claim TASK` binds it to a manual claim and prepares its worktree;
+// `avoozl take TASK` binds it to the person and prepares its worktree;
 // `avoozl runner report TASK done` from that worktree finishes it, and Avoozl
 // reads the commit and runs the checks. The tick stays the one dispatcher: it
-// leaves a claimed task alone because the ready query skips every task with a
-// live worker session (claimedTaskIds), and a claim is one.
+// leaves a taken task alone because the ready query skips every task with a
+// live worker session (busyTaskIds), and a take is one.
 import { fail } from "./store.mjs";
 import { cliCommand } from "./report-command.mjs";
 import {
-  claimedTaskIds,
+  busyTaskIds,
   liveAttempt,
   prepareWorktree,
   readyCandidates,
@@ -18,12 +18,12 @@ import { sessionUrl } from "./notifications.mjs";
 import { bindSession, listSessionBindings } from "./session-bindings.mjs";
 import { scheduleHolds } from "./spec-scheduler.mjs";
 
-// Why `task` cannot be claimed now, or null when it may be.
+// Why `task` cannot be taken now, or null when it may be.
 function refusal(store, task, github) {
   const data = store.read(),
     why = (reason) =>
       `${task.id} is not ready to start: ${reason}. Run avoozl next to see what is ready.`;
-  if (claimedTaskIds(store).has(task.id))
+  if (busyTaskIds(store).has(task.id))
     return why("it has a session running or a delivery under way");
   if (linePausedTaskIds(store, data).has(task.id))
     return why("Stop the line holds it");
@@ -34,12 +34,12 @@ function refusal(store, task, github) {
   return null;
 }
 
-// runner.claim / `avoozl claim TASK`: the caller is the person at this
+// runner.take / `avoozl take TASK`: the caller is the person at this
 // machine's command line (the operation refuses any other).
-export async function manualClaim(store, input = {}, { github = null } = {}) {
+export async function manualTake(store, input = {}, { github = null } = {}) {
   const task = store.read().tasks.find((t) => t.id === input.taskId);
   if (!task) fail(`Task ${input.taskId} not found.`, 404);
-  if (input.release === true) return releaseClaim(store, task, input);
+  if (input.release === true) return giveBack(store, task, input);
   const attempt =
     listSessionBindings(store).filter(
       (b) => b.taskId === task.id && b.role === "worker",
@@ -81,10 +81,10 @@ export async function manualClaim(store, input = {}, { github = null } = {}) {
   };
 }
 
-// `avoozl claim TASK --release`: give the task back. The claim must still be
+// `avoozl take TASK --release`: give the task back. The take must still be
 // open (no done or blocked report), and a worktree with uncommitted changes
 // keeps them unless the person says `--discard`, which drops them.
-async function releaseClaim(store, task, input) {
+async function giveBack(store, task, input) {
   const binding = listSessionBindings(store)
     .filter(
       (b) =>
@@ -92,7 +92,10 @@ async function releaseClaim(store, task, input) {
     )
     .sort((a, b) => b.attempt - a.attempt)[0];
   if (!binding || !liveAttempt(binding))
-    fail(`${task.id} has no open manual claim to release.`, 409);
+    fail(
+      `${task.id} has not been taken by hand, so there is nothing to give back.`,
+      409,
+    );
   const worktree = store.get("task_worktrees", task.id)?.path;
   let dirty = "";
   if (worktree) dirty = await worktreeChanges(worktree).catch(() => "");

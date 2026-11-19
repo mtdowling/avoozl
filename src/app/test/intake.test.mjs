@@ -90,8 +90,6 @@ test("an intake source is checked like a plugins entry", () => {
       repository: "o/app",
       labelFields: [],
       assigneeField: null,
-      allowedActors: [],
-      minimumPermission: "write",
     },
   );
   // A GitHub source (R110.1) carries the old issue intake keys.
@@ -103,14 +101,10 @@ test("an intake source is checked like a plugins entry", () => {
     github: "o/app",
     projectId: "app",
     assignee: "bot",
-    label: "avoozl:ready",
-    managedLabel: "avoozl:managed",
     enabled: true,
     autoStart: false,
     provider: null,
     model: null,
-    allowedActors: [],
-    minimumPermission: "write",
   });
   for (const [id, entry, pattern] of [
     ["github", { via: "mcp", repository: "o/app" }, /built in/],
@@ -136,7 +130,7 @@ test("an intake source is checked like a plugins entry", () => {
     [
       "x",
       { ...GITHUB_ENTRY, minimumPermission: "read" },
-      /write, maintain or admin/,
+      /minimumPermission is not a GitHub source setting/,
     ],
     [
       "x",
@@ -146,7 +140,7 @@ test("an intake source is checked like a plugins entry", () => {
     [
       "x",
       { via: "mcp", repository: "o/app", minimumPermission: "owner" },
-      /minimumPermission/,
+      /minimumPermission is not an intake source setting/,
     ],
   ])
     assert.throws(() => validateSource(id, entry), pattern, id);
@@ -265,8 +259,8 @@ test("waitingLabels and priorityLabels are pack settings; absent changes nothing
     /waitingLabels/,
   );
   assert.throws(
-    () => policy({ priority: ["p0"], priorityLabels: ["p1"] }),
-    /both priority and priorityLabels/,
+    () => policy({ priority: ["p0"] }),
+    /Unknown setting .*priority/,
   );
   const set = policy({
     waitingLabels: ["response-requested"],
@@ -307,8 +301,6 @@ test("a title edit after the trigger holds the item's task and keeps its title",
       via: "plugin:fake-intake",
       plugin: "fake-intake",
       repository: "o/app",
-      allowedActors: [],
-      minimumPermission: "write",
       policy: policy({
         rules: [
           { id: "go", action: "deliver", match: "label:go source:tickets" },
@@ -384,8 +376,6 @@ test("a person confirms an item's new text, and a later edit holds it again", as
       via: "plugin:fake-intake",
       plugin: "fake-intake",
       repository: "o/app",
-      allowedActors: [],
-      minimumPermission: "write",
       policy: policy({
         rules: [
           { id: "go", action: "deliver", match: "label:go source:tickets" },

@@ -1,15 +1,15 @@
 // The driver's tick offers work to worker machines and acknowledges their
-// claims (worker-paths WP5, proof wp-p3). With `workers.offerTo` naming one
+// grants (worker-paths WP5, proof wp-p3). With `workers.offerTo` naming one
 // or more GitHub logins, each tick, for every spec this machine drives:
 //
 // - each ready leaf of the spec is offered once to each named login, at the
 //   base branch's head, and from then on the tick does not start it here
 //   (`offeredTaskIds`);
-// - each pending claim request is answered as `spec claims` answers it: the
-//   claim branch is made, then the acknowledgment is written.
+// - each pending grant request is answered as `spec grants` answers it: the
+//   grant branch is made, then the acknowledgment is written.
 //
 // Without `workers.offerTo` this step does nothing, and `spec offer` and
-// `spec claims` stay a person's commands. A worker's pushed result is
+// `spec grants` stay a person's commands. A worker's pushed result is
 // fetched and checked by worker-result-step.mjs.
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -18,7 +18,7 @@ import { readyCandidates } from "./delivery.mjs";
 import { driverState } from "./driver-generations.mjs";
 import { replayJournal } from "./spec-journal.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
-import { publishOffer, reserveClaims } from "./worker-claims.mjs";
+import { publishOffer, reserveGrants } from "./worker-grants.mjs";
 import { workerId } from "./worker-offers.mjs";
 
 const run = promisify(execFile);
@@ -68,14 +68,14 @@ export async function workerOffersStep(
       leaves = readyCandidates(store).filter(
         (task) => (task.planId ?? null) === spec,
       );
-    let claims = null,
+    let grants = null,
       baseBranch = null;
     for (const task of leaves) {
       const project = store.get("projects", taskRepository(task));
       if (!project?.root) continue;
       const repository = project.repository || project.id;
       baseBranch = project.baseBranch || "main";
-      claims ??= repository;
+      grants ??= repository;
       const base = (
           await run("git", ["rev-parse", `refs/heads/${baseBranch}`], {
             cwd: project.root,
@@ -113,18 +113,18 @@ export async function workerOffersStep(
       }
       offered[task.id] = { spec, at: offered[task.id]?.at ?? now() };
     }
-    claims ??= firstRepository(store, spec);
-    if (!claims) continue;
-    const answered = await reserveClaims({
+    grants ??= firstRepository(store, spec);
+    if (!grants) continue;
+    const answered = await reserveGrants({
       github: authority.github,
       journal,
       options,
       ...driving,
-      claims,
+      grants,
       base: baseBranch ?? "main",
       // A worker asks only for its free lanes, so the driver caps nothing.
       // shortcut: a landed worker task writes no outcome record yet, so its
-      // claim would count against a cap forever; record one through
+      // grant would count against a cap forever; record one through
       // landIntent when worker results land by the journal's protocol.
       cap: Number.MAX_SAFE_INTEGER,
     });

@@ -174,7 +174,7 @@ function FindingCard(props: {
       <Box css-display="flex" css-align-items="center" css-gap="8" css-min-width="0">
         <Glyph icon={Icon} size={14} aria-hidden="true" css-flex="none" css-color={ink} />
         <Box css-flex="1-1-auto" css-min-width="0">
-          <Tooltip text={finding.claim} display="block">
+          <Tooltip text={finding.statement} display="block">
             <Box
               data-finding-title
               as="h4"
@@ -188,7 +188,7 @@ function FindingCard(props: {
               css-white-space="nowrap"
               m0
             >
-              {finding.claim}
+              {finding.statement}
             </Box>
           </Tooltip>
         </Box>
@@ -550,7 +550,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
         els[at].setAttribute('role', 'button')
         els[at].setAttribute('data-review-role', '')
       }
-      els[at].setAttribute('aria-label', `${list.length} review ${list.length === 1 ? 'comment' : 'comments'} on this text. Open ${worst.claim}`)
+      els[at].setAttribute('aria-label', `${list.length} review ${list.length === 1 ? 'comment' : 'comments'} on this text. Open ${worst.statement}`)
     }
     const finding = placed.find((f) => f.id === selected)
     if (!finding) return

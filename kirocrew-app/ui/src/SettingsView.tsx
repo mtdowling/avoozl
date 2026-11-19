@@ -42,7 +42,6 @@ import {
   type SettingsChoices,
   type SettingsForm,
   LOCAL_HIDDEN_LINE,
-  OLD_LABEL_NOTE,
   isGitHubMode,
   rateLines,
   usageRows,
@@ -135,7 +134,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   github: 'The GitHub settings of the selected workspace, for every repository in it. Each tab is one group; one Save writes them all to .avoozl.json.',
   radar: 'The labels Avoozl reads from Issue Radar crews and the handoff they use to pass issues to Avoozl, one repository at a time. Save only writes .avoozl.json.',
   repositories:
-    "Each repository's role says where its tasks live. Its labels, Workflow map, checks and reviews are tabs under its name. Issue Radar settings have their own page. Save only writes .avoozl.json.",
+    "Each repository's role says where its tasks live. Its labels, Workflow map, checks and code review rule are tabs under its name. Issue Radar settings have their own page. Save only writes .avoozl.json.",
   plugins: 'A plugin can bring a team’s settings pack, content rules, an intake source or workflow templates. Each one runs or imports only after you approve it on this machine.',
   content: 'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
@@ -157,9 +156,9 @@ export const REPOSITORY_BLURBS = {
 // adds it when it gives an issue up, and Avoozl takes such an issue in, so
 // the name Avoozl recommends does not say a person is needed.
 export const RECOMMENDED_ESCALATION_LABEL = 'crew: needs avoozl'
-const RADAR_LABELS_BLURB = `Labels Issue Radar puts on issues it claims or gives up. Avoozl only reads them. Recommended escalation label: ${RECOMMENDED_ESCALATION_LABEL}. Give Issue Radar's needs-human label for this repository the same name, and keep the crew: prefix so other crews skip the issue.`
+const RADAR_LABELS_BLURB = `Labels Issue Radar puts on issues it works on or gives up. Avoozl only reads them. Recommended escalation label: ${RECOMMENDED_ESCALATION_LABEL}. Give Issue Radar's needs-human label for this repository the same name, and keep the crew: prefix so other crews skip the issue.`
 const CREW_LABELS: Record<string, string> = {
-  claim: 'Claim label',
+  inProgress: 'In-progress label',
   needsHuman: 'Escalation label',
 }
 
@@ -580,7 +579,7 @@ function ReviewRoles({ review, repository }: { review: ReviewSettings | undefine
   return (
     <FieldGroup
       level={4}
-      title="Avoozl reviewer chats"
+      title="Code review chats"
       blurb="Fresh chats that review each local delivery's exact commit before it merges. Edit them under delivery.reviewers in .avoozl.json."
     >
       {review.error ? (
@@ -983,21 +982,6 @@ export function RepositoryEditor(props: {
       )}
       {tab === 'github' && (
         <>
-          <FieldGroup title="Sync" blurb="How long Avoozl keeps GitHub's answers about this repository before it asks again.">
-            <Box {...grid()}>
-              <Text
-                id={`${id}-cache`}
-                label="Keep GitHub answers (seconds)"
-                raw="cacheSeconds"
-                rule={REPOSITORY_FIELD_RULES.cacheSeconds}
-                placeholder="workspace value"
-                type="number"
-                width="sm"
-                value={repository.cacheSeconds}
-                onChange={(value) => set({ cacheSeconds: value })}
-              />
-            </Box>
-          </FieldGroup>
           <FieldGroup title="Label rules" blurb={REPOSITORY_BLURBS.github}>
             {repository.rules.length === 0 && (
               <Box as="p" flex flexWrap items="center" gapX="3" gapY="1" size="sm" tone="muted">
@@ -1084,7 +1068,7 @@ export function RepositoryEditor(props: {
             <Text
               id={`${id}-priority`}
               label="Priority labels, highest first"
-              raw="priority"
+              raw="priorityLabels"
               rule={{ required: false, blank: 'blank: graph order only' }}
               placeholder="p0, p1, p2"
               width="lg"
@@ -1130,11 +1114,9 @@ function RepositoriesTab(props: {
   // The registry change rewrote .avoozl.json; read the form again.
   onRegistryChanged: () => Promise<unknown>
   onOpenPlans?: () => void
-  // The file's own mode when the roles disagree (R105.8).
-  rolesNote?: string | null
   onOpenRadar?: (jump: RadarJump) => void
 }) {
-  const { form, choices, rolesNote } = props
+  const { form, choices } = props
   const api = useAppApi()
   const workspaces = useMemo(() => workspaceClient(api), [api])
   const reveal = useReveal()
@@ -1304,11 +1286,6 @@ function RepositoriesTab(props: {
           {rows.length > 0 && (
             <Box as="p" mt="2" size="sm" data-tasks-live>
               {tasksLiveLine(form.mode, form.planningRepository)}
-            </Box>
-          )}
-          {rolesNote && (
-            <Box as="p" mt="1" size="xs" tone="muted" data-roles-note>
-              {rolesNote}
             </Box>
           )}
           <Box mt="2">
@@ -1611,7 +1588,7 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
         </Card>
       )}
       <Card>
-        <Section title="Handoff to Avoozl" blurb={`${AVOOZL_LABELS_LINE} ${OLD_LABEL_NOTE}`}>
+        <Section title="Handoff to Avoozl" blurb={AVOOZL_LABELS_LINE}>
           <AvoozlLabelFields {...part} note={false} />
         </Section>
       </Card>
@@ -1735,7 +1712,6 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           onCommit={commit}
           onRegistryChanged={reload}
           onOpenPlans={props.onOpenPlans}
-          rolesNote={settings.rolesNote}
           onOpenRadar={(jump) => {
             radarJump = jump
             props.onTab?.('radar')

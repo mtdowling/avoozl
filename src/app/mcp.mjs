@@ -82,9 +82,9 @@ export const NARROW_TOOLS = {
     "flow.checks.run",
     "Narrow tool for worker chats. Local checks first: run your task's declared checks at HEAD of your worktree before each push, and record the pass the pre-push hook reads: {taskId, cwd: <absolute worktree path>}. Commit first. Returns {commit, checks: [{command, exitCode, durationMs, commit}], passed}; put that checks list in your done report.",
   ],
-  plans_claim_task: [
-    "runner.claim",
-    "Refused over MCP: a manual claim is a person's, with avoozl claim TASK at the command line. The tick starts every other task.",
+  plans_take_task: [
+    "runner.take",
+    "Refused over MCP: taking a task by hand is a person's, with avoozl take TASK at the command line. The tick starts every other task.",
   ],
   plans_plan_review: [
     "plan.review.findings",

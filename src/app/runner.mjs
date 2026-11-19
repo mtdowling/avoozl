@@ -1,8 +1,8 @@
 // `avoozl next` (worker-paths WP2.5): a read of the ready, running, waiting,
 // Needs you and done lists. The tick starts the work; a person takes one task
-// with `avoozl claim` (manual-claim.mjs).
+// with `avoozl take` (manual-take.mjs).
 import {
-  claimedTaskIds,
+  busyTaskIds,
   DELIVERY_DEFAULTS,
   liveAttempt,
   readyLeaves,
@@ -57,7 +57,7 @@ export function nextView(store, { policy, github = null }) {
     delivery = effective(policy),
     bindings = listSessionBindings(store),
     newest = newestWorkers(bindings),
-    claimed = claimedTaskIds(store, bindings),
+    claimed = busyTaskIds(store, bindings),
     deliveries = new Map(
       store.list("task_deliveries").map((d) => [d.taskId, d]),
     ),

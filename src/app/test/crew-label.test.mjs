@@ -203,7 +203,7 @@ test("Settings refuses crew:avoozl as the name of any other label", () => {
     { managedLabels: { ready: "crew:avoozl" } },
     { managedLabels: { managed: "crew:avoozl" } },
     { radar: { planLabel: "crew:avoozl" } },
-    { crewLabels: { claim: "crew:avoozl" } },
+    { crewLabels: { inProgress: "crew:avoozl" } },
     { crewLabels: { needsHuman: "CREW:AVOOZL" } },
     {
       rules: [{ id: "go", labelsAll: ["crew:avoozl"], action: "pause" }],

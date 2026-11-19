@@ -171,15 +171,15 @@ const EXECUTE = new Set([
   "flow.retro.again",
   "prompt.override.revert",
   "prompt.override.rebase",
-  "runner.claim",
+  "runner.take",
   "instance.rename",
   "remote.report",
   "worker.pull",
-  "worker.claim",
+  "worker.accept",
   "spec.offer",
-  "spec.claims",
-  "spec.claims.release",
-  "spec.claims.status",
+  "spec.grants",
+  "spec.grants.release",
+  "spec.grants.status",
   "worker.setup",
   "notifications.deliver",
   "plan.extract",
@@ -278,7 +278,6 @@ const PROTECT = new Set([
   "visualization.delete",
   "agent.instructions.toggle",
   "legacy.mcp",
-  "work.release",
 ]);
 
 const INCIDENT = new Set([]);

@@ -1,6 +1,6 @@
 ---
 name: avoozl
-description: Find, claim, plan and maintain work in the Avoozl workspace through its shared CLI or MCP. Use for tracked tasks, design documents and work extraction, plan drafting and approval, progress updates, evidence and agent handoffs.
+description: Find, pick up, plan and maintain work in the Avoozl workspace through its shared CLI or MCP. Use for tracked tasks, design documents and work extraction, plan drafting and approval, progress updates, evidence and agent handoffs.
 ---
 
 # Avoozl workflow
@@ -45,7 +45,7 @@ an unrelated stale artifact discovered along the way. It reports these only
 when a consequence remains: changed product state, incomplete validation,
 material risk, an unresolved blocker, or a decision the user must make.
 
-## Find and claim work
+## Find and pick up work
 
 The workspace is `{{PLANS_ROOT}}`; the site is {{BASE}}/ and MCP is {{BASE}}/mcp. Commands below work from any directory. MCP is optional; the CLI reaches the same operations.
 

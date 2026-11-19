@@ -71,13 +71,13 @@ of the other specs.
   - Facts:
     - done:
       - Tests with the tick on: a claimed task stays unstarted across three ticks; `runner report` from its worktree with no token finishes it and Avoozl runs the checks; a claim is refused for a task that is not ready, has a running session or is held by Stop the line, each with its reason; a claim over MCP and from a child of the supervisor is refused; release refuses a dirty worktree without `--discard`.
-  - `src/app/manual-claim.mjs` from `claimTask`, with no Crew Mode test and no conductor branch; a test that the ready query's existing rule keeps the tick off a claimed task; `avoozl claim TASK --release` and `--discard`.
+  - `src/app/manual-take.mjs` from `claimTask` (now `manualTake`), with no Crew Mode test and no conductor branch; a test that the ready query's existing rule keeps the tick off a claimed task; `avoozl take TASK --release` and `--discard`.
 - [x] wp-2.2 Remove Crew Mode dispatch, and hold the workspaces that used it, after wp-2.1, wp-p1 [WP1.1, WP1.2, WP1.3, WP1.4, WP2.6, WP7.4, WP7.5] (§D7)
   - Facts:
     - done:
       - Tests: a `crew-mode` workspace starts nothing across three ticks and shows one Needs you item; the operation is refused from MCP and from an agent session, and from a person it removes the key and the next tick starts work; `"runner": "tick"` loads and is ignored; the source test of WP1.4 passes and fails on a planted second dispatcher; the pull request lists what each moved or deleted test covered and where it is covered now; the schema parity test passes.
     - after: wp-2.1, wp-p1
-  - `delivery.runner` leaves the validators and the schema; a file with `crew-mode` reads as held with one Needs you item and the person-only **Let the tick run it**; `runner.mjs` keeps `nextView`; the hook file, the runner prompt, the relay branches and the `--slot` forms go; the app entry point lists the commands it still runs; the seven test files that name `crew-mode` move to the manual claim or the tick.
+  - `delivery.runner` leaves the validators and the schema; a file with `crew-mode` reads as held with one Needs you item and the person-only **Let the tick run it**; `runner.mjs` keeps `nextView`; the hook file, the runner prompt, the relay branches and the `--slot` forms go; the app entry point lists the commands it still runs; the seven test files that name `crew-mode` move to the manual take or the tick.
 
 - [x] wp-p2 Proof: a person finishes a task by hand while the tick runs the rest, after wp-2.2 [WP1, WP2] (§D6, §D7)
   - Facts:
@@ -98,7 +98,7 @@ of the other specs.
     - done:
       - Tests with a fake GitHub and a fake driver: a worker with two free lanes and three offers claims two and starts two with no command run by hand; a request with no acknowledgment starts nothing; a tick with no GitHub records one line and starts nothing; the hand-run commands give the same result as one tick.
     - after: wp-1.1
-  - On `runner.role: "worker"` the tick pulls offers, requests claims for its free lanes and starts acknowledged tasks, before `runnerTick`; `avoozl worker pull` and `avoozl worker claim` call the same functions.
+  - On `runner.role: "worker"` the tick pulls offers, requests claims for its free lanes and starts acknowledged tasks, before `runnerTick`; `avoozl worker pull` and `avoozl worker accept` call the same functions.
 - [x] wp-3.2 The driver checks a pulled result on its tick, after wp-3.1 [WP5.3] (§D8)
   - Facts:
     - done:
@@ -159,11 +159,11 @@ of the other specs.
 - [x] wp-p4 Proof: one dispatcher, two executors, one remote route, after wp-p1, wp-p2, wp-p3, wp-4.2, wp-5.2 [WP1 to WP9] (§D1)
   - Facts:
     - done:
-      - Expected: (1) both pass; (2) the list is the tick's planner and the manual claim; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
+      - Expected: (1) both pass; (2) the list is the tick's planner and the manual take; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
       - Expected result observed; receipt under `docs/evidence/`.
     - after: wp-p1, wp-p2, wp-p3, wp-4.2, wp-5.2
   - Setup: the repository at the commit that lands wp-5.2.
   - Action: (1) run the source test of WP1.4 and the pair table's test; (2) list every operation that writes a session request with role `worker`; (3) search every worker brief the pair table builds for "push", "pull request" and "auto-merge"; (4) count the lines of `src/app` before Phase 2 and now.
-  - Expected: (1) both pass; (2) the list is the tick's planner and the manual claim; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
+  - Expected: (1) both pass; (2) the list is the tick's planner and the manual take; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
   - Failure means: a second route to an agent is still in the code.
   - Next decision: whether the settings that pick a worker's executor become one table (simplification audit, F7).

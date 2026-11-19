@@ -10,7 +10,7 @@ const APP = " Do it in the Avoozl app.";
 const person = (reason, when) => ({ reason: reason + APP, when });
 
 export const PERSON_ONLY = new Map([
-  ["runner.claim", person("Only a person claims a task by hand.")],
+  ["runner.take", person("Only a person takes a task by hand.")],
   [
     "delivery.runner.release",
     person("Only a person lets the tick run this workspace."),
@@ -37,9 +37,9 @@ export const PERSON_ONLY = new Map([
   ["spec.publish", person("Only a person publishes a spec issue.")],
   ["spec.takeover", person("Only a person takes over a spec.")],
   ["spec.offer", person("Only a person offers a task to a worker.")],
-  ["spec.claims", person("Only a person reserves worker claims.")],
-  ["spec.claims.release", person("Only a person releases a worker claim.")],
-  ["spec.claims.status", person("Only a person reads worker claims.")],
+  ["spec.grants", person("Only a person reserves worker accepts.")],
+  ["spec.grants.release", person("Only a person releases a worker accept.")],
+  ["spec.grants.status", person("Only a person reads worker accepts.")],
   [
     "repository.setup",
     person("Only a person applies repository setup.", (input) =>
@@ -265,7 +265,7 @@ export const NOT_ON_MCP = new Map([
     "remote.report",
     "remote.view",
     "worker.pull",
-    "worker.claim",
+    "worker.accept",
     "worker.setup",
   ].map((name) => [name, remote]),
   ...["instance.view", "instance.rename"].map((name) => [

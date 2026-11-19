@@ -192,7 +192,8 @@ export async function startGitHubItem(store, github, policy, input = {}) {
   // A live crew claim (R103.10): the person confirms taking it over. The
   // claim and needs-human labels stay; Avoozl only adds crew:avoozl.
   const claim =
-    policy.repositories[name]?.crewLabels?.claim ?? CREW_LABEL_DEFAULTS.claim;
+    policy.repositories[name]?.crewLabels?.inProgress ??
+    CREW_LABEL_DEFAULTS.inProgress;
   if (
     input.confirmClaim !== true &&
     labelNames(issue).some((label) => lower(label) === lower(claim))

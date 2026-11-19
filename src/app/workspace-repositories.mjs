@@ -1,4 +1,3 @@
-import { normalizeGitHubLabelBehaviors } from "./github-label-behaviors.mjs";
 import { fail } from "./store.mjs";
 
 export function workspaceRepositories(store) {
@@ -27,7 +26,6 @@ export function workspaceRepositories(store) {
         visibility: null,
       },
       issueAuthorization: { enabled: false },
-      labels: normalizeGitHubLabelBehaviors(),
     });
 
   const ensure = (repository, projectId) => {
@@ -53,7 +51,6 @@ export function workspaceRepositories(store) {
           visibility: null,
         },
         issueAuthorization: { enabled: false },
-        labels: normalizeGitHubLabelBehaviors(),
       });
     return byId.get(id);
   };
@@ -67,17 +64,10 @@ export function workspaceRepositories(store) {
     item.issueAuthorization = {
       enabled: true,
       assignee: entry.assignee || "",
-      readyLabel: entry.label || "avoozl:ready",
-      allowedActors: structuredClone(entry.allowedActors || []),
-      minimumPermission: entry.minimumPermission || "write",
       autoStart: Boolean(entry.autoStart),
       provider: entry.provider || null,
       model: entry.model || null,
     };
-    item.labels = normalizeGitHubLabelBehaviors(
-      { ...item.labels, ready: [entry.label || "avoozl:ready"] },
-      item.labels,
-    );
   }
   return [...byId.values()].sort((left, right) =>
     left.name.localeCompare(right.name),

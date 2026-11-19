@@ -875,7 +875,7 @@ if (query.get('page') === 'app') {
     const base = replyFor('github.settings.get')!({}) as Record<string, unknown>
     answer('github.settings.get', () => ({
       ...base,
-      choices: { ...(base.choices as object), crewLabels: ['claim', 'needsHuman'] },
+      choices: { ...(base.choices as object), crewLabels: ['inProgress', 'needsHuman'] },
       crews: [
         { repository: 'acme/recipe-box', label: 'ready', link: '/issue-radar' },
         { repository: 'acme/recipe-api', label: null, link: '/issue-radar' },
@@ -2089,7 +2089,7 @@ if (query.get('page') === 'github-flow' || (query.get('page') === 'app' && query
     median: buildsOnly ? null : [15 * 60000, 45 * 60000, 35 * 60000, 10 * 60000],
     medianLead: buildsOnly ? null : 105 * 60000,
     efficiency: buildsOnly ? null : 90 / 210,
-    bottleneck: buildsOnly ? null : 'Claim to PR',
+    bottleneck: buildsOnly ? null : 'Start to PR',
     errors: [],
     repositories: buildsOnly ? [] : ['acme/recipe-box'],
     ...(query.get('receipt')
@@ -2481,7 +2481,7 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
           severity: f.severity,
           file: f.anchor.file,
           line: f.anchor.lineStart,
-          claim: f.claim,
+          statement: f.statement,
           evidence: f.evidence,
           answer: f.answer,
           state: now && f.id === 'f-blocker' ? 'fixed' : f.state,
@@ -3081,8 +3081,8 @@ const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, u
           allowedActors: ['sam', 'lee'],
           release: { capacity: 3, mode: 'step' },
           managedLabels: { ready: 'go-crew' },
-          crewLabels: { claim: 'taken', needsHuman: 'wants-person' },
-          radar: { planLabel: 'shape-it', approvalLabel: 'ship-it', conflictLabel: 'rebase-me' },
+          crewLabels: { inProgress: 'taken', needsHuman: 'wants-person' },
+          radar: { planLabel: 'shape-it' },
         },
       },
     },

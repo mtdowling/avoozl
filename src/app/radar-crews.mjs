@@ -140,7 +140,7 @@ export function isStale(marker, now = Date.now()) {
 // flagged stale: Radar's own protocol says such a label blocks every other
 // crew until someone clears it.
 export async function readClaims(github, repository, settings, now) {
-  const label = settings.crewLabels?.claim,
+  const label = settings.crewLabels?.inProgress,
     issues = (
       await github.listIssues(repository, { state: "open", label })
     ).filter((issue) =>
@@ -199,15 +199,15 @@ export const RADAR_INTERVAL_MS = 2 * 60 * 1000;
 const META = "radarClaims";
 
 // True while the cached claims are younger than the interval, so
-// `refreshClaims` would make no call.
-export function claimsFresh(store, now = Date.now()) {
+// `refreshCrews` would make no call.
+export function crewsFresh(store, now = Date.now()) {
   const readAt = store.getMeta(META)?.readAt;
   return Boolean(readAt) && now - Date.parse(readAt) < RADAR_INTERVAL_MS;
 }
 
 // The tick's read, at most once per interval unless `force`. A repository
 // that fails keeps its last rows and shows its error.
-export async function refreshClaims(
+export async function refreshCrews(
   store,
   github,
   policy,
@@ -247,7 +247,7 @@ export async function refreshClaims(
 
 // `radar.crews`: the cached rows, flat, newest update first, with what a
 // GitHub-only read cannot show.
-export function claimsView(store, now = Date.now()) {
+export function crewsView(store, now = Date.now()) {
   const cache = store.getMeta(META) ?? { readAt: null, repositories: {} },
     rows = Object.values(cache.repositories)
       .flatMap((entry) => entry.rows)

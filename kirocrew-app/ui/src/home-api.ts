@@ -111,7 +111,7 @@ export function stuckRows(summary: DashboardSummary | null, now: number, session
         key: `claim:${claim.repository}#${claim.number}`,
         taskId: null,
         title: `#${claim.number} ${claim.title}`,
-        why: 'Issue Radar claim is stale.',
+        why: 'Issue Radar crew has not updated this in a while.',
         href: safeHref(claim.url),
         external: true,
         quiet: Infinity,

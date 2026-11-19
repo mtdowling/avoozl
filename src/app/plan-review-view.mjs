@@ -59,7 +59,7 @@ export function planReviewView(store, { planId, revisionHash } = {}) {
         roundId: thread.roundId,
         revisionHash: thread.revisionHash,
         ...fields,
-        claim: thread.claim,
+        statement: thread.statement,
         evidence: thread.evidence,
         answer: thread.answer || null,
       };

@@ -149,7 +149,7 @@ test("the built package carries no path of the machine that built it", () => {
 
 test("packaged launcher serves only the backend and MCP", () => {
   const dir = temporaryDirectory();
-  for (const command of ["serve", "next", "claim", "report", "retry"])
+  for (const command of ["serve", "next", "take", "report", "retry"])
     assert.throws(
       () =>
         execFileSync(process.execPath, [launcher, command], {

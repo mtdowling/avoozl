@@ -21,8 +21,6 @@ import { RadioFold } from './ui/RadioFold.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { CircleAlert, Plus, Settings, Trash2 } from './icons.ts'
 import {
-  DEFAULT_PERMISSION,
-  PERMISSIONS,
   emptySourceForm,
   intakeClient,
   isGitHubSource,
@@ -221,7 +219,7 @@ function SourceRow({
       actions={
         github ? (
           onOpenRepositories ? (
-            <IconLabel icon={Settings} onClick={onOpenRepositories} tooltip="Its label, assignee and who counts are set there">
+            <IconLabel icon={Settings} onClick={onOpenRepositories} tooltip="Its labels and who counts are set there">
               Open Repository setup
             </IconLabel>
           ) : undefined
@@ -254,9 +252,6 @@ function SourceRow({
             <Fact label="Work runs in" raw="project">
               {String(entry.project ?? '')}
             </Fact>
-            <Fact label="Ready label" raw="label">
-              {String(entry.label ?? 'avoozl:ready')}
-            </Fact>
             <Fact label="Assigned to" raw="assignee">
               {String(entry.assignee ?? '')}
             </Fact>
@@ -271,9 +266,7 @@ function SourceRow({
           </Box>{' '}
           {triggers.line}
         </Fact>
-        <Fact label="Who counts" raw={entry.via === 'mcp' ? undefined : entry.allowedActors ? 'allowedActors' : 'minimumPermission'}>
-          {whoCounts(row.entry)}
-        </Fact>
+        <Fact label="Who counts">{whoCounts(row)}</Fact>
         {listText(entry.labelFields) && (
           <Fact label="Fields as labels" raw="labelFields">
             {listText(entry.labelFields)}
@@ -351,7 +344,6 @@ function AddSourceDialog(props: {
   const [problem, setProblem] = useState<{ text: string; field?: keyof SourceForm } | null>(null)
   const set = (patch: Partial<SourceForm>) => setForm({ ...form, ...patch })
   const pollers = props.plugins.filter((row) => row.id && row.provides?.includes('intake'))
-  const plugin = form.via !== 'mcp'
   const dirty = JSON.stringify(form) !== JSON.stringify(emptySourceForm())
   const invalid = (field: keyof SourceForm) => (problem?.field === field ? true : undefined)
   const add = () => {
@@ -503,67 +495,6 @@ function AddSourceDialog(props: {
             )}
           </Field>
         </Group>
-        {plugin && (
-          <Group legend="Who counts (optional)">
-            <RadioFold
-              name="intake-who"
-              label="Who counts"
-              value={form.who}
-              onChange={(who) => set({ who })}
-              sections={[
-                {
-                  key: 'permission',
-                  title: 'People with a permission',
-                  line: 'The standing the plugin reports for the person who acted.',
-                  fields: (
-                    <Field id="intake-minimumPermission" label="At least" marker="optional" raw="minimumPermission">
-                      {(described) => (
-                        <SelectField
-                          id="intake-minimumPermission"
-                          look="field"
-                          round="md"
-                          maxWidth="100%"
-                          width="fit-content"
-                          value={form.minimumPermission}
-                          onChange={(event: Change) => set({ minimumPermission: event.target.value })}
-                          aria-describedby={described}
-                        >
-                          <option value="">{DEFAULT_PERMISSION} (default)</option>
-                          {PERMISSIONS.map((p) => (
-                            <option key={p} value={p}>
-                              {p}
-                            </option>
-                          ))}
-                        </SelectField>
-                      )}
-                    </Field>
-                  ),
-                },
-                {
-                  key: 'people',
-                  title: 'Only named people',
-                  line: 'Only these people can set off a rule.',
-                  fields: (
-                    <Field id="intake-allowedActors" label="People" marker="required" raw="allowedActors" hint="Comma list of names, as the plugin reports them.">
-                      {(described) => (
-                        <Input
-                          id="intake-allowedActors"
-                          value={form.allowedActors}
-                          onChange={(event: Change) => set({ allowedActors: event.target.value })}
-                          placeholder="e.g. sam, riley"
-                          aria-describedby={described}
-                          aria-invalid={invalid('allowedActors')}
-                          css-width="28ch"
-                          css-max-width="100%"
-                        />
-                      )}
-                    </Field>
-                  ),
-                },
-              ]}
-            />
-          </Group>
-        )}
         <Group legend="Saved in (required)">
           <RadioFold
             name="intake-scope"

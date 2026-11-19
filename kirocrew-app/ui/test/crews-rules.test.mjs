@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { after, before, test } from 'node:test'
-import { AVOOZL_LABELS, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, emptyRepository, toForm, toPolicy, valueSource } from '../src/settings-api.ts'
+import { AVOOZL_LABELS, RADAR_DEFAULTS_SHOWN, emptyRepository, toForm, toPolicy, valueSource } from '../src/settings-api.ts'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 
@@ -41,20 +41,17 @@ test('Crews and rules modes are radio fold-outs, not selects', () => {
     assert.equal((view.match(new RegExp(`<${part} id=\\{id\\} repository=\\{repository\\} set=\\{set\\}[ />]`, 'g')) ?? []).length, 1, part)
 })
 
-test('the six Avoozl labels show with their job, writer and avoozl: default (RC21.4)', () => {
+test('the four Avoozl labels show with their job, writer and avoozl: default (RC21.4)', () => {
   assert.deepEqual(
     AVOOZL_LABELS.map((entry) => [entry.raw, RADAR_DEFAULTS_SHOWN[entry.key]]),
     [
       ['radar.planLabel', 'avoozl:plan'],
       ['managedLabels.ready', 'avoozl:ready'],
-      ['radar.approvalLabel', 'avoozl:plan-approved'],
-      ['radar.conflictLabel', 'avoozl:merge-conflict'],
       ['radar.reviewLabel', 'avoozl:review'],
       ['radar.draftedLabel', 'avoozl:drafted'],
     ],
   )
   for (const entry of AVOOZL_LABELS) assert.ok(entry.job && entry.writer, entry.key)
-  assert.match(OLD_LABEL_NOTE, /to plan, ready, plan approved, merge conflict/)
   // One place per setting: the approval and ready fields left the other tabs.
   const view = readFileSync(new URL('../src/SettingsView.tsx', import.meta.url), 'utf8')
   assert.doesNotMatch(view, /raw="radar\.approvalLabel"/)

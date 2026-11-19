@@ -140,7 +140,7 @@ export function planReviewSummary(store, planId) {
         line: thread.line,
         // Severity, state, and its lines in the current revision, or moved.
         ...findingFields(thread, plan, context, plan.hash),
-        claim: thread.claim,
+        statement: thread.statement,
         evidence: thread.evidence,
         answer: thread.answer || null,
       })),

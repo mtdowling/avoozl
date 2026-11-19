@@ -20,7 +20,7 @@ import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { draftGraph } from "./graph-drafts.mjs";
 import { FINAL_STATUSES } from "./session-bindings.mjs";
 import {
-  claimedTaskIds,
+  busyTaskIds,
   deliveryFindings,
   dispatchOrder,
   startNowIds,
@@ -66,7 +66,7 @@ function optionalGet(store, table, id) {
 
 function claimedLeaves(store) {
   try {
-    return claimedTaskIds(store);
+    return busyTaskIds(store);
   } catch {
     return new Set();
   }
@@ -215,7 +215,7 @@ function reviewGroups(store, data) {
       id: `review:${group.key}`,
       taskId: null,
       plan: group.name,
-      title: `Review ${group.tasks.length} ${group.tasks.length === 1 ? "task" : "tasks"} in ${group.name}: their design text changed`,
+      title: `${group.tasks.length} ${group.tasks.length === 1 ? "task" : "tasks"} in ${group.name} changed: check ${group.tasks.length === 1 ? "it" : "them"}`,
       detail:
         "Each is new, or its own text in the plan changed since it was last reviewed. None starts until you mark it reviewed.",
       tasks: group.tasks,
@@ -914,7 +914,7 @@ function crewHoldText(task) {
   if (!hold || !String(task.decision || "").startsWith("crew-")) return null;
   return hold.kind === "needs-human"
     ? `An Issue Radar crew added "${hold.label}" to issue #${hold.number}: it needs a person. Answer it on GitHub; dependents wait until the label comes off.`
-    : `Issue #${hold.number} has Issue Radar's claim "${hold.label}" but is no longer ready. Avoozl does not stop the crew; dependents wait until the claim comes off or the task is ready again.`;
+    : `Issue #${hold.number} has Issue Radar's in-progress label "${hold.label}" but is no longer ready. Avoozl does not stop the crew; dependents wait until the label comes off or the task is ready again.`;
 }
 
 export function conflictsView(store, data) {

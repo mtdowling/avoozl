@@ -235,7 +235,7 @@ const roleLabel = (row: InFlight) => ROLE_LABEL[row.role] ?? (row.role === 'work
 // How often the Dashboard reads again while it is on screen, so In flight
 // stays current. Paused while the page is hidden.
 
-// A live Issue Radar claim, read from GitHub: any machine's crew. GitHub
+// A crew working on an issue (Issue Radar's in-progress label and comment), read from GitHub: any machine's crew. GitHub
 // does not show whether the crew is paused, which machine it runs on, or
 // its chat, so there is no Session here.
 export function RadarFlightRow({ row, now }: { row: RadarClaim; now: number }) {
@@ -280,7 +280,7 @@ export function RadarFlightRow({ row, now }: { row: RadarClaim; now: number }) {
           ))}
         </Box>
         <Hint size="xs" block>
-          {row.crewName ?? row.crewId ?? 'no crew named'} · {row.phase ?? 'claim label, no claim comment'}
+          {row.crewName ?? row.crewId ?? 'no crew named'} · {row.phase ?? 'in-progress label, no crew comment'}
           {row.updated ? ` · updated ${relativeTime(row.updated, now)}` : ''}
         </Hint>
       </Box>
@@ -772,7 +772,7 @@ export default function DashboardView(props: {
               <Empty>Loading…</Empty>
             ) : summary.inFlight.length + summary.radarFlight.length === 0 ? (
               <>
-                <Empty>No crew or chat is working right now. Released issues show here once a crew claims them.</Empty>
+                <Empty>No crew or chat is working right now. Released issues show here once a crew picks them up.</Empty>
                 {/* Only while nothing has ever run. */}
                 {summary.neverRan && (
                   <Box mb="2">
@@ -803,7 +803,7 @@ export default function DashboardView(props: {
                 {summary.radarFlight.length > 0 && (
                   <>
                     <Box data-on-the-line as="h4" mt="2" size="xs" weight="semibold" tone="muted">
-                      On the line ({summary.radarFlight.length}): Ready, Claimed, PR, CI, Merge
+                      On the line ({summary.radarFlight.length}): Ready, In progress, PR, CI, Merge
                     </Box>
                     {summary.radarGroups.length > 0 ? (
                       <RadarFlightGroups groups={summary.radarGroups} now={now} />

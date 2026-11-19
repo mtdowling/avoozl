@@ -358,7 +358,7 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
     - done:
       - Stage times computed from fixture events match hand-computed values.
     - after: rc-8.1
-  - Ready to Claim, Claim to PR, PR to green, green to merge, flow efficiency; Stop the line keeps its meaning; mockup `07-flow-retro.html`.
+  - Ready to start, Start to PR, PR to green, green to merge, flow efficiency; Stop the line keeps its meaning; mockup `07-flow-retro.html`.
 - [x] rc-8.5 Retro rule targets: AGENTS.md, steering, Additional prompt text, after rc-8.4, rc-3.5 [RC8.6] (§D10)
   - Facts:
     - done:

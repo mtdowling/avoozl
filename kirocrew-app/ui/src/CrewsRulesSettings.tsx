@@ -9,7 +9,7 @@ import { Fold } from './ui/controls.tsx'
 import { Field, fieldDescribedBy } from './ui/Field.tsx'
 import { RadioFold } from './ui/RadioFold.tsx'
 import { SHIP_CHOICES } from './delivery-api.ts'
-import { AVOOZL_LABELS, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, valueSource, type RepositoryForm } from './settings-api.ts'
+import { AVOOZL_LABELS, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, RADAR_DEFAULTS_SHOWN, valueSource, type RepositoryForm } from './settings-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
@@ -32,7 +32,7 @@ function Line(props: { id: string; label: string; value: string; fallback: strin
   )
 }
 
-// The value and setter for one of the six labels: ready lives in
+// The value and setter for one of the four labels: ready lives in
 // managedLabels, the rest in radar.
 function labelValue(repository: RepositoryForm, key: (typeof AVOOZL_LABELS)[number]['key']): string {
   return key === 'ready' ? (repository.managedLabels.ready ?? '') : repository[key]
@@ -149,7 +149,7 @@ export function AvoozlLabelFields({ id, repository, set, note = true }: Part & {
     <Stack gap={3} data-avoozl-labels>
       {note && (
         <Hint as="p" size="xs">
-          {AVOOZL_LABELS_LINE} {OLD_LABEL_NOTE}
+          {AVOOZL_LABELS_LINE}
         </Hint>
       )}
       {AVOOZL_LABELS.map((entry) => (

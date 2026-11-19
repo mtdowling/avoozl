@@ -33,7 +33,7 @@ that worked before the phase without a route after it.
 | Phase | Adds                                                | Removes                                  |
 | ----- | --------------------------------------------------- | ---------------------------------------- |
 | 1     | The pair table; findings on both executors; briefs by executor | Nothing                       |
-| 2     | Manual claim under the tick                         | Crew Mode dispatch and relay             |
+| 2     | Manual take under the tick                         | Crew Mode dispatch and relay             |
 | 3     | Worker pull on the tick; results on the driver      | Runner mode over SSH                     |
 | 4     | Sessions run on this machine                        | Remote crews, hand-back                  |
 | 5     | The word test; spec edits                           | Dead commands; old words in docs         |
@@ -104,18 +104,18 @@ builds from the running CLI's path (V: `src/app/remote-runner.mjs:388` and
 Whether a Kiro Crew chat has `avoozl` on its `PATH` today was not tested
 (A). The change makes the answer not matter.
 
-## D6. Manual claim (WP2)
+## D6. Manual take (WP2)
 
 `claimTask` (V: `src/app/runner.mjs:282`) moves to
-`src/app/manual-claim.mjs` and loses its Crew Mode test (`:293`) and its
+`src/app/manual-take.mjs` and loses its Crew Mode test (`:293`) and its
 conductor branch: the only caller left is the local command line, so the
-binding's `conductor` is always `cli`, which `matchClaimReport` already
+binding's `conductor` is always `cli`, which `matchTakeReport` already
 requires (V: `src/app/report-match.mjs:81`).
 
 The tick must then leave a claimed task alone. It already does: the
 ready query is given every task that has a session binding and leaves those
-out (V: `claimed: claimedTaskIds(store, bindings)` in `readyCandidates`,
-`src/app/delivery.mjs:2132`). No test shows it for a manual claim with the
+out (V: `claimed: busyTaskIds(store, bindings)` in `readyCandidates`,
+`src/app/delivery.mjs:2132`). No test shows it for a manual take with the
 tick on, because the tick starts nothing under Crew Mode today (V:
 `src/app/tick.mjs:1325`). A test claims a task and runs three ticks.
 
@@ -152,7 +152,7 @@ The worker side reuses the plan-less runner role, which stays (V:
 `session-bindings.mjs` and `session-request-eligibility.mjs`). On a machine
 whose `runner.role` is `worker`, the tick runs, in order: pull offers,
 request claims for free lanes, start acknowledged tasks, report finished
-ones. These are the bodies of `avoozl worker pull` and `avoozl worker claim`
+ones. These are the bodies of `avoozl worker pull` and `avoozl worker accept`
 today; the commands call the same functions.
 
 On the driver, the tick calls `worker-results.mjs` for each task whose claim
@@ -164,7 +164,7 @@ driver, not on the worker machine.
 With `workers.offerTo` set (WP5.7), the driver's tick first offers
 (`src/app/worker-offer-step.mjs`): each ready task of a driven spec goes to
 each named login once, at the base branch's head, and is held from local
-dispatch. The same step answers claim requests as `spec claims` does. After
+dispatch. The same step answers claim requests as `spec grants` does. After
 a result is checked into the working branch, the tick lands that branch on
 the base branch in the driver's checkout: a fast-forward, after merging a
 moved base in, never a rebase.
@@ -198,7 +198,7 @@ with them; `requirements.md` records the approval.
 | #   | Decision                                             | Default                                                                 | The other choice                                                              |
 | --- | ---------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | 1   | A machine with no GitHub access (R90.7)              | Not a worker machine. Runner mode over SSH goes                         | Keep the SSH transport and its three commands, which is one more route        |
-| 2   | The manual path (R96.5)                              | Keep `claim`, `next` and the report, without Crew Mode                  | Drop the manual path too; a person edits in any checkout and Avoozl never sees it |
+| 2   | The manual path (R96.5)                              | Keep `take`, `next` and the report, without Crew Mode                  | Drop the manual path too; a person edits in any checkout and Avoozl never sees it |
 | 3   | A workspace with `runner: "crew-mode"`               | Held until a person chooses Let the tick run it                         | Switch to the tick at once, which may start chats the same minute             |
 | 4   | Investigate first on a harness with no `resume`      | Skip that step for the task and say why                                 | Refuse to start the task until the definition has `resume`                    |
 | 5   | A batch on `process`                                 | Run its tasks singly                                                    | Have the child mark each task's files and Avoozl make the commits, a new protocol |

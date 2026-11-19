@@ -104,9 +104,9 @@ test('each mode shows only the settings it reads, and Local only keeps the rest'
   assert.ok(plans.has('planningRepository') && !plans.has('issueRadarCrews'))
   assert.equal(LOCAL_HIDDEN_LINE, 'Labels, checks and reviews only apply to GitHub modes.')
   const form = toForm({ mode: 'local', planningRepository: 'o/plans', project: { owner: 'o', number: 2 }, repositories: { 'o/app': {} } })
-  // Kept, not deleted: the stored values stay in the form and the policy.
+  // The mode and planning repository are shown but never written back.
   assert.equal(form.planningRepository, 'o/plans')
-  assert.equal(toPolicy(form).planningRepository, 'o/plans')
+  assert.equal('planningRepository' in toPolicy(form), false)
   assert.deepEqual(unusedInLocal(form), ['planning repository', '1 repository GitHub setting'])
   // Local only needs no base branch.
   assert.equal(missingRequired(form), null)
