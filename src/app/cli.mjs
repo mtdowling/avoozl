@@ -932,7 +932,7 @@ try {
           taskId: positionals[1],
           state,
         });
-    } else throw Error("Use runner accept|status|report|handoff|pull.");
+    } else throw Error("Use runner status|report.");
     console.log(JSON.stringify(result, null, 2));
   } else if (command === "worker") {
     // Worker mode (R90): this machine pulls offers from spec journals.

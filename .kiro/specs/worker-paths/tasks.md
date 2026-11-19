@@ -143,7 +143,7 @@ of the other specs.
 
 ## Phase 5: Names
 
-- [ ] wp-5.1 Removed commands answer with their replacement, after wp-2.2, wp-3.3, wp-4.2 [WP7.1, WP7.2, WP7.3] (§D7, §D8, §D9)
+- [x] wp-5.1 Removed commands answer with their replacement, after wp-2.2, wp-3.3, wp-4.2 [WP7.1, WP7.2, WP7.3] (§D7, §D8, §D9)
   - Facts:
     - done:
       - A test calls each removed command and operation and gets one line naming its replacement and no change to the workspace; the help test passes; the `plans_*` tool names, the environment aliases and the `aicommander` command pass their existing tests.
