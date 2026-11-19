@@ -35,6 +35,6 @@ Run k4, 2026-11-19 02:22 to 03:51 UTC, on linux with node v24.22.3 and git 2.50.
 - The test crew was stopped mid-run once, when the host ran short of memory. After the restart, the `inv` chat showed as interrupted and the Go ahead sat in Kiro Crew's queue without being delivered. Acting as the person, I cancelled the queued card and sent its exact text again (03:45). Avoozl had sent it once (`sentAt` 02:56:27).
 - After that restart, the script's watch committed the `notes/land.txt` change to main a second time (`85c52be`, after `land` had landed). The script now commits it once per run.
 
-## Still open
+## The `process` half
 
-The `process` half (`--executor process`) needs Claude Code, which this machine does not have. It runs from the owner's terminal.
+The `process` half (`--executor process`) needs Claude Code, which the machine above does not have. The owner ran it from his own terminal on his Mac on 2026-11-19, with `node scripts/proof-wp-p1-live.mjs --executor process --root /tmp/wp-p1-run/p1`, and reported that it passed. The run folder was not kept, so no run file is recorded here.

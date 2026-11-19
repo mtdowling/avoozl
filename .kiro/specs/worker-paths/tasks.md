@@ -52,7 +52,7 @@ of the other specs.
     - after: wp-1.1, wp-1.2
   - One helper gives the brief the Node binary and the running CLI's path, quoted for a shell; the batch brief and the investigate lines use the command-line report; the README says a worker needs no MCP sharing.
 
-- [ ] wp-p1 Proof: every pair of executor and task kind reaches a result, after wp-1.1, wp-1.2, wp-1.3, wp-1.4 [WP3, WP4] (§D3, §D4, §D5)
+- [x] wp-p1 Proof: every pair of executor and task kind reaches a result, after wp-1.1, wp-1.2, wp-1.3, wp-1.4 [WP3, WP4] (§D3, §D4, §D5)
   - Facts:
     - done:
       - Expected: (1) every task lands on both executors, the batch as one chat on `kirocrew` and as three children on `process`; (2) each investigated task codes only after Go ahead, in the same session it investigated in; (3) no brief names an MCP tool or a bare `avoozl`, and no `process` brief asks for a commit; MCP sharing for `avoozl:avoozl` is off for the whole `kirocrew` run.
@@ -156,7 +156,7 @@ of the other specs.
     - after: wp-5.1
   - The word test over the page's strings, the help table, `README.md` and `docs/*.md`; the edits to Requirements 41, 84, 90.7 and 96.5, to design §4.10, §5.1 and §6.13, and to tasks 11.1, 11.10, 16.7 and `avoozl-p29` of the avoozl spec.
 
-- [ ] wp-p4 Proof: one dispatcher, two executors, one remote route, after wp-p1, wp-p2, wp-p3, wp-4.2, wp-5.2 [WP1 to WP9] (§D1)
+- [x] wp-p4 Proof: one dispatcher, two executors, one remote route, after wp-p1, wp-p2, wp-p3, wp-4.2, wp-5.2 [WP1 to WP9] (§D1)
   - Facts:
     - done:
       - Expected: (1) both pass; (2) the list is the tick's planner and the manual claim; (3) nothing is found, which holds only once task 45.4 of the avoozl spec has landed; (4) the receipt records the two counts and the modules that went.
