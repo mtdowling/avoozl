@@ -1,23 +1,65 @@
 # Avoozl
 
-Approve a spec; Avoozl lands it. It turns the approved revision into ordered
-tasks, runs each one with a coding agent in its own worktree, runs the checks
-itself on the exact commit, and merges it.
+Avoozl turns a spec you approve into merged code. It splits the spec into
+tasks, gives each task to a coding agent in its own worktree, runs your checks
+on the exact commit the agent made, and lands the work once they pass.
 
-Specs can be any size. A light spec with one task becomes one pull request. A large one becomes ordered tasks across repositories, each checked on its exact commit before it lands. Every change starts from a spec you approved, so no agent's work lands without a plan a person agreed to.
+Each task in a spec says what it waits on and what done means:
 
-Avoozl runs as a [Kiro Crew](kirocrew-app/README.md) app: a page, a loopback
-backend, an MCP server, and a one-minute tick. A spec is a Kiro spec folder.
-Git is the source of truth: specs, approvals (a person's commit on main) and
-landings (each landing commit's trailers) live there, and GitHub holds the
-issues. The local SQLite workspace is a cache that `avoozl rebuild` makes
-again. GitHub is optional.
+```markdown
+- [ ] 1.2 Validate config
+  - Facts:
+    - after: 1.1
+    - done:
+      - An unknown key is reported with its path
+  - Report each key the schema does not name, with its JSON path.
+```
+
+Avoozl starts task 1.2 once 1.1 has landed. The commit that lands 1.2 ticks
+its box on main, so anyone who reads the branch sees it done.
+
+## How it works
+
+1. You write a spec: requirements, a design, and a list of tasks. You can
+   write it by hand or have an agent draft it for you to review.
+2. You approve it. An approval is a commit on main that you authored, so every
+   plan an agent works from is one a person agreed to.
+3. Avoozl starts a coding agent on each task whose dependencies are done. The
+   agent runs as a Kiro Crew chat or as a process such as Claude Code or Codex.
+4. When the agent reports done, Avoozl runs the repository's checks itself on
+   that commit, in a clean worktree, with no model involved.
+5. Work that passes lands the way the repository is set up: as a pull request,
+   as a push to the base branch, or held until you decide.
+
+A spec can be one task that becomes one pull request, or ordered tasks across
+several repositories. GitHub is optional; a Local only workspace needs only
+Git.
+
+Git holds the state that matters: specs, approvals, and what landed. The local
+SQLite database is a cache, and `avoozl rebuild` makes it again on a new
+machine.
+
+## Agent limits
+
+Agents write the code, and people keep the decisions.
+
+- An agent cannot approve a spec unless you grant it that from your own
+  terminal, and it cannot change a repository's checks.
+- Avoozl never force pushes, merges with `--admin`, or skips a required check
+  or review.
+- Checks run in a sandbox with the network off by default, and never see a
+  push or GitHub token.
+- Anyone, agent or person, can stop new work with **Stop the line**. Only a
+  person can resume it.
+
+## Requirements
+
+- Node 22.13 or later, for its built-in SQLite
+- Git
+- Kiro Crew 0.12.2 or later, to run Avoozl as a Kiro Crew app (optional)
+- `gh` signed in, or a token, for the GitHub features (optional)
 
 ## Install
-
-You need Kiro Crew 0.12.2 or later, as installed (no custom build), Node
-22.13 or later (for built-in SQLite), and Git. The GitHub features also need
-`gh` signed in, or a token.
 
 ```sh
 git clone https://github.com/mtdowling/avoozl.git
@@ -27,631 +69,128 @@ npm run build:kirocrew-app
 kirocrew app install "$PWD/kirocrew-app"
 ```
 
-The build writes the page bundle and copies the CLI into
-`kirocrew-app/bin/lib`, so the installed app does not depend on this checkout.
-Then open Kiro Crew's App Store, review Avoozl's trust request, and enable it.
-The trust request asks for these API grants:
+Open Kiro Crew's App Store, review Avoozl's trust request, and enable it. The
+**Avoozl** page appears in the sidebar. To update, pull and run
+`npm run build && kirocrew app update avoozl` in the checkout.
 
-| Grant                          | Used for                                                   |
-| ------------------------------ | ---------------------------------------------------------- |
-| `/apps/avoozl/api/*`           | The app's own backend                                      |
-| `/api/chat/slots/avoozl_*`     | Status of the sessions the tick opened, and no others      |
-| `/api/usage/turns`             | Token and credit counts per flow stage, for those sessions |
-| `/api/models`                  | The model lists in Settings                                |
-| `/api/apps/spec-builder/specs` | Handing a new spec to Spec Builder                         |
-| `/api/reveal`                  | Showing a spec file in the file browser                    |
+To run Avoozl without Kiro Crew, build it with `npm run build` and start the
+page with `node cli.mjs serve --workspace ~/plans`. It listens on `127.0.0.1`
+only and prints a one-time link that signs your browser in.
 
-An update that adds a grant waits until you approve it. The **Avoozl** page
-appears in the sidebar.
+In a checkout the CLI is `node cli.mjs`. Help and error text call it `avoozl`.
 
-To update, pull, then run this in the checkout:
+## Trying it out
 
-```sh
-npm run build && kirocrew app update avoozl
-```
+To look around before you set anything up, choose **Start demo** on the
+Avoozl page. It opens a made-up workspace in which nothing starts an agent or
+writes to GitHub, and **Exit demo** returns to your own.
 
-`kirocrew app update` copies `kirocrew-app` as it is and does not build. A
-page left from an older build makes the installed app refuse every request
-and say to run that command. A second `kirocrew app install` is refused once
-the app is installed.
-
-## Create a workspace
-
-On the Avoozl page, under **Add or initialize a workspace**, enter an ID and
-an absolute directory, then choose **Initialize new**. Choose **Add existing**
-for a directory that already holds a workspace. The CLI does the same:
+A workspace is a directory you own, separate from this checkout. Create one
+on the page under **Add or initialize a workspace**, or from the CLI:
 
 ```sh
 node cli.mjs init ~/plans --name "My plans"
 ```
 
-A workspace is a directory you own, separate from this checkout:
+It holds `.avoozl.json` for settings you can commit, `.kiro/specs/` for specs,
+and a local database that is not committed. A new workspace is empty.
+`node cli.mjs seed --workspace ~/plans` adds an example as draft specs, and
+does not approve them.
 
-```text
-my-plans/
-  .avoozl.json                     portable, reviewable policy
-  .avoozl/local/workspace.sqlite   execution state (not committed)
-  .kiro/specs/<name>/              specs
-```
+## Delivering a spec
 
-A new workspace has no tasks and no repositories, and the triage agent is off. To add a
-made-up example, run `node cli.mjs seed --workspace ~/plans`. It writes the
-Recipe Box epic and its three specs to `.kiro/specs/` as drafts.
-`node cli.mjs plan batches --workspace ~/plans` lists them in approval order,
-and `node cli.mjs epics --workspace ~/plans` shows the epic. Loading examples
-never approves a plan, starts a session, or configures a repository.
+Choose **New spec** on the Specs page, review the lint results and the task
+graph, then choose **Approve revision**. Editing the spec later makes it read
+as unapproved until you approve it again.
 
-## Demo mode
-
-To show Avoozl to someone without touching your work, choose **Start demo**
-in the empty In flight box on Home. It shows only while nothing is in
-flight and the workspace has never run a task. It is also on the empty page
-when you have no workspace yet. It opens a made-up workspace, Recipe Box, to look
-around in. **Exit demo** returns to your own workspace.
-
-While the demo is on, a **Demo** badge shows in the header. Reads work.
-Every change only says what it would do, no agent or chat starts, and GitHub
-is a fake that writes nothing. **Exit demo** returns to your own workspace,
-which the demo never opens. The sample is built once in a folder under your
-system temp folder and kept, with any edits, for the next demo.
-
-## Where tasks live
-
-Each repository has a role, chosen in **Settings > Repository setup** (in
-**Edit**, or in **Add repository**). The workspace's GitHub mode follows from
-the roles and nothing else sets it (Avoozl never writes `github.mode` or
-`github.planningRepository`):
-
-| Role       | Issues live in          | Pull requests land in | Needs a GitHub remote |
-| ---------- | ----------------------- | --------------------- | --------------------- |
-| `local`    | The workspace database  | The repository        | No                    |
-| `code`     | The planning repository | The repository        | Yes                   |
-| `planning` | The repository itself   | None                  | Yes                   |
-| `both`     | The repository itself   | The repository        | Yes                   |
-
-**Edit** and **Add repository** also offer **Private mirror of a public
-repository**, a private copy that the work happens in.
-
-That gives three modes:
-
-| Mode              | `github.mode` | Spec issues live in        | Pull requests     |
-| ----------------- | ------------- | -------------------------- | ----------------- |
-| Local only        | `local`       | No issues                  | None; local merge |
-| Plans repository  | `plans-repo`  | The planning repository    | Code repositories |
-| Single repository | `single-repo` | The code repository        | The same repo     |
-
-Tasks always live in the workspace database. A task never gets a GitHub
-issue; it completes when its work lands.
-
-Local only is the default. Only a repository with a GitHub remote can take a
-role other than `local`. Switching to Local only keeps your GitHub settings
-in the file, unused, so switching back restores them. In plans-repo mode a
-leak screen keeps the planning repository's name out of branches, pull
-requests, and comments in the code repositories.
-
-## Specs
-
-Every spec is a Kiro spec folder. Inside Avoozl and in its interfaces
-(`plan.*` operations, `plans_*` MCP tools, CLI commands) a spec is stored as a
-plan, so those names stay.
-
-```text
-.kiro/specs/<name>/
-  requirements.md (or bugfix.md)
-  design.md
-  tasks.md
-```
-
-Each checkbox in `tasks.md` has a task ID and a title, and a `Facts:` bullet
-as its first child gives the task its kind, acceptance (`done`), dependencies
-(`after`) and completion level. A task never names checks: every task runs
-its repository's checks. The item's other bullets are its
-summary: what it delivers and how, which its worker reads after the title.
-Write one only when it adds to the title; lint refuses one that repeats it.
-Front-matter at the top of `tasks.md`
-holds defaults for every task, such as `repo`:
-
-```markdown
----
-repo: app
----
-
-- [ ] 1.2 Validate config
-  - Facts:
-    - after: 1.1
-    - done:
-      - An unknown key is reported with its path
-  - Report each key the schema does not name, with its JSON path.
-```
-
-Avoozl refuses a folder that is missing a file, a `tasks.md` with a missing
-or repeated ID, an unknown fact, or a leftover `avoozl/manifest.json`.
-
-On the Specs page, choose **New spec** in the Specs heading. Name it, pick
-the repositories in scope, and pick how to start:
-
-- **Blank**: Kiro Crew's Spec Builder writes the spec with you, requirements,
-  then design, then tasks, each for you to review. Avoozl offers to add
-  `.kiro/steering/avoozl-specs.md` to the repository first, showing its text;
-  it holds Avoozl's spec rules, and it is never written over a changed copy.
-  Spec Builder must be turned on in Kiro Crew's Apps; when it is off, the
-  drawer says so and offers an `avoozl-planner` chat instead.
-- **From a goal**: type the goal, and an Avoozl planner chat writes the draft
-  spec.
-- **From template**: start from a workflow template in an approved plugin.
-
-Once the folder lints clean, Avoozl stores it as a draft spec. Nothing is approved or started. Select the
-spec, review the lint results and the graph, then choose **Approve
-revision**. Approval records the exact revision hash, so a later edit reads
-as unapproved until you approve again.
-
-From the CLI, `node cli.mjs plan.create --json '{"spec":"NAME"}' --workspace ~/plans`
-stores the folder as a draft, and `node cli.mjs plan approve NAME` previews
-approving it.
-
-A spec can be as small as one task. With the repository's `landing` set to
-`pr` (see [Landing](#landing)), approving a one-task spec sends one pull
-request, checked and merged like any other task.
-
-For dependencies across specs, load each referenced spec as a stored draft
-first. Preview distinguishes a declared task from an existing approved task.
-You approve each spec separately; approval creates only that spec's tasks.
-A dependency on a draft owner stays pending and blocks delivery until the
-owning spec is actually approved. An unrelated newer draft does not erase its
-last real approval. Retiring an owner restores the hold.
-
-`plan approve NAME...` approves exactly the specs it names. A draft spec one of
-their tasks waits on is not pulled in: the preview counts the tasks that wait,
-and they start once that spec is approved too. Only a `[x]` task, which starts
-as done, needs its owners approved in the same batch.
-
-A tick later is read too: when a commit on the spec's base branch ticks a
-task `[x]` in `tasks.md`, Avoozl marks that task done on its next tick, with
-no new approval, and closes any worker session it had on it. Ticks on other
-branches, unsaved edits, and `[~]` or `[-]` marks do nothing. If a tick is
-taken out of a done task, the task stays done and Needs you offers Reopen or
-Keep done.
-
-The tick works the other way too, and it is how coworkers share task state:
-the commit that lands a task ticks its box in `tasks.md` on the base branch
-(a spec kept in a separate plans repository gets its own commit there). Another
-machine that reads the branch marks the task done on its own database.
-
-To let an agent approve for you, name it once from your own terminal:
-
-```sh
-node cli.mjs approval delegate claude --workspace ~/plans
-```
-
-The agent then approves with `plan approve NAME... --delegate claude` (or
-`delegate` on `plan.approve` over MCP), only as you, and each receipt records
-the delegate, you, the grant and the exact revision hash. `approval delegates`
-lists grants and `approval revoke claude` ends one. The grant lives in the
-workspace database, not in Git, and an agent cannot grant or revoke over MCP.
-
-## Deliver locally
-
-Register the Git checkout the work changes, with its base branch, a worktree
-directory, and its named checks:
+Register the checkout the work changes, with its base branch, a folder for
+worktrees, and the checks every task must pass:
 
 ```sh
 node cli.mjs repository configure code --workspace ~/plans \
-  --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":{"test":["npm","test"],"diff":["git","diff","--check"],"ui":{"run":["npm","run","test:ui"],"paths":["src/ui/**"]}}}'
+  --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":{"test":["npm","test"]}}'
 ```
 
-Each check is a name (lowercase letters, digits and dashes) and its command
-arguments, run with no shell. A check with `paths` runs only when a commit's
-diff touches one of them; the others run for every commit. These are the
-only checks there are: every task runs them, and setting them is a
-person's, never an agent's. A check sees only the environment a process
-needs to start plus the names in `checksEnv`, and never a push or GitHub
-token.
-
-Checks run in the repository's isolation. By default each runs in the
-process sandbox (sandbox-exec on macOS, bubblewrap on Linux): it writes only
-its folder, its own temp folder, a cache folder and the paths you list, and
-the network is off. Set it in Settings › Repository setup › Landing, or with
-`repository configure`:
-
-```sh
-node cli.mjs repository configure code --workspace ~/plans \
-  --json '{"isolation":{"run":"sandbox","network":"on","prepare":["npm","ci"]}}'
-```
-
-`run` is `sandbox`, `container` (with `image`, run by docker or podman
-with no network unless it is on and no home folder) or `unconfined`, which
-needs this machine's opt-in; a machine with no sandbox runs checks
-unconfined, and the Landing page and the task's timeline then say "not
-sandboxed". `prepare` runs once per worktree and commit, before the
-checks and outside isolation. As an example, a repository whose checks
-drive Linux and Windows VMs, such as Nupp's, would use the sandbox with the
-network on.
-
-Checkout paths are per machine, so they are kept out of `.avoozl.json`. Then
-turn on Autopilot, Avoozl's name for delivery, with the `delivery` block in
-`.avoozl.json`:
-
-```json
-{ "delivery": {} }
-```
-
-A task lands only from the workspace that drives its spec (see
-[One driver per spec](#one-driver-per-spec)). With no GitHub, make this
-workspace the driver once per approved spec:
+Each check is a name and a command, run without a shell. Turn delivery on by
+adding `{ "delivery": {} }` to `.avoozl.json`. With no GitHub, also make this
+workspace the one that drives the spec:
 
 ```sh
 node cli.mjs spec publish NAME --workspace ~/plans
 node cli.mjs spec takeover NAME --workspace ~/plans
 ```
 
-How many worker chats run at once is this machine's `lanes.local` (default
-3), set in `~/.config/avoozl/config.json`:
+The repository's `landing` setting decides what happens to work that passes:
 
-```json
-{ "version": 1, "lanes": { "local": 1 } }
-```
+- `off`, the default, holds the verified commit in **Needs you**.
+- `direct` stacks verified tasks on the base branch, checks the result, and
+  fast-forwards the remote.
+- `pr` opens a pull request, waits for its required checks and reviews, and
+  merges it.
 
-A local worker needs nothing more: it prepares its worktree and reports with
-the command in its brief, which names this Avoozl's Node binary and CLI file
-and needs neither `avoozl` on its `PATH` nor MCP sharing. Two Kiro Crew steps,
-each done once, are for the other chats:
+In Kiro Crew, two one-time steps finish the setup. Share the `avoozl:avoozl`
+server in **MCP Management** and restart the gateway, so agent chats can
+report back. After the first tick, set the project directory of the
+**Avoozl** › _repository_ chat folder to the checkout.
 
-1. Let Kiro Crew tell Avoozl which chat is calling. A worker that opens a
-   pull request, and every verifier, reviewer and investigation chat, reports
-   with `plans_report`, and Kiro Crew names the caller only to MCP servers
-   it shares. Open **MCP Management**, find `avoozl:avoozl`, turn on
-   sharing, and press **Approve sharing**. Then restart the gateway
-   (**Settings › About › Restart gateway**). Without this, such a chat can do
-   its work but `plans_report` refuses it. A shared server runs outside the
-   chat sandbox, with your access.
+See [delivery.md](docs/delivery.md) for workers, merge batches, conflicts,
+and who merges.
 
-2. After the first tick, open the chat folder **Avoozl** › _repository ID_
-   in the sidebar and set its project directory to the checkout. The planner,
-   responder and retro chats open there, and the tick opens none of them
-   until it is set.
+## Other agents
 
-The Avoozl worker codes every task. It runs as a Kiro Crew chat or as a
-process harness such as Claude Code or Codex, chosen per role in **Settings >
-Models**. Each minute the tick starts a worker session for each ready leaf,
-in its own worktree. Every session runs on this machine unless a worker
-machine pulls the work (`avoozl worker setup`). When a session reports done, Avoozl runs the checks itself on
-the exact commit in a clean worktree, with no model call, then integrates
-it and releases the leaf's dependents. A verifier session opens only when a
-task's bar needs judgment: a repository with no checks, or
-`verify: "agent"`. Implementation, integration, and acceptance stay
-separate steps, each with its own record.
-
-### Landing
-
-Avoozl pushes and merges, but only after the checks pass on the exact head
-it lands, and it never force pushes, uses `--admin`, or bypasses a required
-check or review. Each repository has a `landing` setting:
-
-- `off` (the default until setup writes another): Avoozl pushes nothing. The
-  verified commit waits in Needs you.
-- `direct`: Avoozl lands verified work in merge batches. It stacks up to a
-  size limit of waiting tasks on the current base in a landing worktree,
-  checks that exact candidate, and fast-forwards the base on the remote. When
-  the checks fail it runs them again, finds the one task that broke the
-  batch, lands the tasks before it and sends it back. The limit starts at 1,
-  grows while batches land and halves after a failure; `landing.mergeBatch`
-  can set it from 1 to 16. Waiting tasks are local refs, and only the base
-  branch is pushed. A moved base means a new candidate and new checks. The
-  Landing queue page shows who waits, the batch under test, the last batches
-  and the limit.
-- `pr`: Avoozl pushes the task branch, opens or reuses one pull request,
-  waits for its required checks and reviews on that exact head, and merges.
-  Without merge permission it waits for an authorized person to merge.
-
-When the base moves and a merge conflicts, or the checks fail, the task goes
-back to its worker chat, for at most the repository's
-`conflicts.maxAttempts` rounds (default 2); after that it goes to Needs you. Stop the line pauses the queue.
-`avoozl setup OWNER/REPO --repo ID --landing pr|direct|off`
-previews the repository setup and `--yes` applies it. It requires the
-GitHub checks named in the repository's Required checks setting (Edit
-repository > Landing), not the repository's own checks above.
-
-To take one task by hand while the tick runs the rest, run
-`avoozl take TASK`. It prints the task's worktree and the report command;
-commit there and run `avoozl runner report TASK done`, and Avoozl runs the
-checks. `avoozl take TASK --release` gives it back. A workspace whose
-`.avoozl.json` still says `"runner": "crew-mode"` starts nothing until a
-person chooses **Let the tick run it** in Needs you.
-
-Avoozl never replaces a worker only because its activity went quiet. It
-checks durable session and delivery records first.
-
-## Deliver through GitHub
-
-Give each repository a role in **Settings > Repository setup**, then use
-**Set up GitHub** under **Settings > GitHub**, or **Add repository** and then
-**Set up GitHub and import specs** for a new folder. Both
-read GitHub first and preview every write (the epic issue type); nothing
-is written until you confirm. **Publish issue** gives a spec one issue, its
-journal; its tasks get none. Public and private repositories both work.
-
-For a mirror, private specs live on its orphan plans branch. Approval pull
-requests target that branch.
-
-No label is an order. With the triage agent on for a repository
-(`triage.agent`, off by default), each new issue and pull request gets one
-short run with no network: it answers a question from the docs with a
-citation, reproduces a bug and starts a fix, reviews someone else's pull
-request (partial past `triage.fullReviewMaxLines`, and it says so), or hands
-the item to you with a reason. The agent never closes, approves or requests
-changes. Fixes for a collaborator's issue land by the repository's
-`landing`; anyone else's wait as **Fix ready**. **GitHub › Issues** and
-**GitHub › Pull requests** show each item, what the agent did and the
-actions left; **GitHub › Triage agent** shows every run and has Pause and
-Stop all; **Needs you › From the agent** is the owner queue.
-
-A fix is one task with no spec files. Start one with **Fix** on an issue,
-**New fix**, or `avoozl fix "TEXT" --repo ID`; starting it is the approval.
-See [the triage agent and example policies](docs/policies.md). Words that look alike (claim, take, grant, review) are set apart in the [glossary](docs/glossary.md).
-
-Intake sources, content rules, settings packs and workflow templates plug
-in as separate packages that you approve on each machine. See [writing a plugin](docs/plugins.md).
-
-## One driver per spec
-
-Only one Avoozl drives each approved spec: it alone starts work, writes
-GitHub, and merges for it. Every other workspace reads only for that spec
-and says why.
-
-- In a GitHub mode, the spec's plan issue names the driver. Its one
-  assignee says which person, and a machine claim in Avoozl's marker says
-  which of that person's machines. With no assignee, the epic issue's
-  assignee counts. With none or several, every workspace reads only and
-  one decision opens.
-- **Hand off driver** on the spec's page stops new work, lets running chats
-  finish, writes an export file to a folder you pick, and links the plan
-  issue for you to reassign. Avoozl never reassigns it. The file may hold
-  private notes; Avoozl never uploads, commits, or pushes it.
-- **Take over** on the other machine takes the export. When the old
-  machine is gone it takes over without one, and lists what that loses
-  first. **Force take over** assigns the plan issue to you, and asks you to
-  type the spec name first. An old driver that comes back reads only.
-- Nothing moves the role because a machine went quiet. A task that was
-  running on the old driver is "away": it waits for you to start it here,
-  or completes if its work lands.
-- Plugin approvals, terms files, retro instructions, crews and
-  SSH host keys stay on each machine. After a take-over the page lists
-  what to set up again.
-
-Limits: assignment is not atomic, so work the old driver started after its
-last check, at most one tick's worth, can overlap; it shows as away on the
-new driver. In Local only mode the lock is a row in the workspace database:
-it guards only instances that open that file or a copy, cannot see another
-machine, and has no forced take-over. CLI: `avoozl driver status`,
-`avoozl driver handoff`, `avoozl driver takeover [--file PATH]`, and
-`--force --confirm SPEC [--yes]`.
-
-## Flow
-
-**Settings > Flow** holds these, in `.avoozl.json` under `flow` (a repository
-can override them). The Flow page shows where the time went. Retros and
-Proposals are pages of the **Retros** entry in the nav.
-
-- **Timing** is always on. It records each task's time per stage, and token
-  and credit counts per stage. It keeps no prompts or text.
-- **Stop the line** (`stopTheLine.scope`, default `dependents`; or `repo`,
-  `all`): when a check that passed on the base branch fails on a later commit
-  and again on one rerun, new dispatch in scope waits and a fix task goes
-  first. Running sessions keep going. It resumes when the check passes, or
-  when a person presses **Run anyway**.
-- **Local checks first** (`localChecksFirst`, default `true`): a session that
-  pushes runs the repository's checks in its worktree before each push.
-- **Batching** has no setting. The planner groups small related leaves in
-  `tasks.md`: each member's facts say `batch: <group>`, and the front-matter
-  gives the group's one-line reason as `batch-<group>: <reason>`. A group runs in one
-  session and one worktree, one commit per task, once every task in it is
-  ready. Avoozl checks the rules in code (one plan and repository, no edge
-  between members, at most 5, an approved revision); a group that breaks one
-  runs as single tasks and says why. A failing batch splits.
-- **Retro** (`retro.everyTasks`, default `10`; `retro.slowFactor`, default
-  `3`): a tool-less `avoozl-retro` session names the biggest slowdown and
-  proposes up to three changes. You approve or reject each, and an approved
-  change is measured afterward.
-
-**Settings > Models** is the one place that picks each role's harness,
-agent and model: the worker, the falsifier (investigate first), the
-planner, the plan reviewer and the retro. It is saved as
-one `roles` table in `.avoozl.json`, for example
-`{"roles": {"worker": {"harness": "claude-code", "model": "<model>"}, "retro": {"model": "<model>"}}}`.
-A row's `harness` is `kirocrew` for a Kiro Crew chat, or the name of a
-harness definition in this machine's config; only the worker and the
-falsifier take an `agent`. A field left out, or `auto`, keeps the role's
-default: its agent's own model and its repository's executor. A task's
-`session` pin wins over its role's row. The worker, planner and retro
-follow the harness; the falsifier and plan reviewer still
-run as Kiro Crew chats. Avoozl moves no running chat to another model.
-
-A role's agent and model live only in `roles`. A file that still sets
-`delivery.agent`, `delivery.model`, `delivery.investigate.agent` or
-`.model`, or `flow.retro.model` does not load: the error names the file and
-the key.
-
-The red **Stop the line** pause icon, in the heading of **Dashboards >
-Delivery**, is the Andon cord: a
-person, or an agent through MCP, stops new work for everything, one
-repository, one spec, or one task, with a one-line reason. Running sessions
-keep going. Only a person presses **Resume**.
-
-## Investigate first, evidence, and who merges
-
-- **Investigate first** (`delivery.investigate`): before it changes a file,
-  a worker reports what it read, the cause it believes, the change it plans,
-  how it will check it, and how sure it is. A second, read-only chat tries
-  to prove that wrong. Coding starts only when both are sure enough
-  (`minConfidence`, default `high`) and the findings stand; otherwise the
-  task waits in Needs you with **Go ahead**, **Investigate again** and
-  **Stop**. `mode` is `not-small` (default), `all` or `off`; a task's facts
-  may set `investigate: true` or `false`.
-- **Evidence**: each task keeps one bundle under `.avoozl/local/evidence/`
-  with its findings, decisions, review verdicts, check results and the
-  images or videos (at most 20 MB) the worker attaches. The task drawer shows
-  it, and one comment on the pull request holds its text summary.
-- **Who merges** (each GitHub repository's `landing.autoMerge`): `true`
-  (default) has the writer turn on GitHub auto-merge. `false` keeps it off
-  and shows **Ready to merge** in Needs you when checks and reviews pass; you
-  merge on GitHub, or press **Integrate** for a local task. A spec (`ship` in
-  `tasks.md` front-matter) or task may pin `auto-merge` or `manual`. Landing
-  (above) is how Avoozl itself merges.
-- **Rules from corrections**: changes requested, work sent back with a
-  reason, and a revert of an agent's commit are
-  recorded. When the retro sees the same correction on two tasks it may
-  propose a rule; once you approve it, it lands as one task that edits
-  `.kiro/steering/avoozl-rules.md` in that repository and makes `AGENTS.md`
-  point to it, so every chat reads the rules. Avoozl keeps no lessons store of
-  its own.
-- Flow shows the share of finished tasks that were bug fixes, and
-  corrections per week.
-
-## Agents and the CLI
-
-Agent sessions in Kiro Crew reach Avoozl through the app's `avoozl` MCP
-server. Any other stdio MCP client can run it directly:
+The page, the CLI, and the MCP server call the same operations and see the
+same state. Any stdio MCP client can run the server:
 
 ```json
 {
   "mcpServers": {
     "avoozl": {
       "command": "node",
-      "args": [
-        "/path/to/avoozl/cli.mjs",
-        "mcp",
-        "--workspace",
-        "/path/to/my-plans"
-      ]
+      "args": ["/path/to/avoozl/cli.mjs", "mcp", "--workspace", "/path/to/plans"]
     }
   }
 }
 ```
 
-The page, the CLI, and MCP call the same operations, so each one sees the
-same state. `node cli.mjs help` shows the commands by job; `help GROUP`,
-`help COMMAND` and `help all` give the usage lines. Help and error text
-call the program `avoozl`; in a checkout that is `node cli.mjs`.
+Actions that belong to a person, such as approving a spec or changing
+settings, are refused over MCP. `node cli.mjs help` lists the CLI commands.
 
-### MCP tools
+## Documentation
 
-MCP has one tool per thing, each with an `action` field that names one
-operation: `plans_workspace` (read only), `plans_maintain`, `plans_view`,
-`plans_plan`, `plans_review`, `plans_task`, `plans_session`,
-`plans_conflicts`, `plans_intake`, `plans_document`, `plans_github`,
-`plans_repos` (read only), `plans_plugins` (read only), and `plans_content`.
-Each tool's description lists its actions. A call looks like
-`{"action": "get", "input": {"id": "TASK_ID"}}`.
+See the [documentation site](https://mtdowling.com/avoozl/) for the rest:
 
-Some actions belong to a person and are refused over MCP under any tool
-name: approving or starting a spec, deletes, plugin changes, Allow
-once and content-rule terms, choosing a conflict winner, GitHub setup writes
-and settings (including Who counts), adding or removing repositories or
-intake sources, workspace, flow, and delivery settings,
-Run anyway, resuming a pulled stop, starting or deciding a retro, Deliver
-this and Plan this on an incoming item, acting on an issue or pull request
-from the GitHub pages, and
-opening a code review chat. Do these in the Avoozl app. An agent may pull
-the Andon cord (`plans_session`, action `stop_line`), but not resume it.
+- [Getting started](docs/getting-started.md) for setup in more detail
+- [Overview](docs/overview.md) for where state lives and what each page shows
+- [Workspaces](docs/workspaces.md) for settings files, the standalone server,
+  backup, and rebuilding
+- [Specs](docs/specs.md) for the task list format, approvals, and dependencies
+  across specs
+- [Delivery](docs/delivery.md) for workers, checks, landing, and merge batches
+- [Drivers](docs/drivers.md) for which machine drives a spec, and handing off
+- [GitHub](docs/github.md) for repository roles and GitHub modes
+- [Flow](docs/flow.md) for Stop the line, retros, and rules from corrections
+- [Agents and the CLI](docs/agents.md) for roles and models, MCP tools, and
+  person-only actions
+- [Triage agent and policies](docs/policies.md) for issue and pull request
+  triage on GitHub
+- [Writing a plugin](docs/plugins.md) for intake sources, content rules, and
+  workflow templates
+- [Glossary](docs/glossary.md) for terms that look alike
 
-```sh
-node cli.mjs query --workspace ~/plans --q 'ready:true'
-node cli.mjs show TASK_ID --workspace ~/plans
-node cli.mjs tick --workspace ~/plans
-```
+## Development
 
-Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`;
-`node cli.mjs status --workspace ~/plans` reports on it. Each task shows its
-stored `status` and the state the page shows (`stateLabel`: Ready, Running,
-Waiting, Needs you, Done or Deferred). The example's tasks name repository
-`app` and read Waiting until a checkout is registered under that ID.
-
-## Configuration and secrets
-
-`.avoozl.json` holds portable policy: repositories, GitHub mode and rules,
-delivery limits, and agent instructions. It is meant to be committed.
-Paths in it are relative to the file. The loader rejects absolute paths and
-fields that look like secrets. Keep GitHub credentials in `gh` or your
-credential store.
-
-The app backend binds 127.0.0.1 and accepts only requests that the Kiro Crew
-gateway signed. Do not expose it.
-
-## Back up
+Application operations and storage live in `src/app/`, shared models in
+`src/`, and the Kiro Crew page in `kirocrew-app/ui/`. See
+[AGENTS.md](AGENTS.md) for the rules a change follows.
 
 ```sh
-node cli.mjs backup --workspace ~/plans --output ~/plans-backup.sqlite
+npm test
+npm run format
+npm run docs:dev
 ```
 
-Back up the spec folders and `.avoozl.json` with it. Use the backup command
-rather than copying the database file: SQLite also keeps a WAL file.
-
-The database is a cache. On a fresh machine, clone the repository, move any
-old `workspace.sqlite` aside, and run `avoozl rebuild`: it reads every spec
-folder, approves again each spec whose current text an approver committed on
-main, lists what landed from the landing commits' trailers with each
-task's Flow spans, and reads the retros committed under `.kiro/retros/`.
-
-## Approvals and git authors
-
-An approval is a commit on the spec repository's main branch that changes
-the spec's files and whose **author** email is on the repository's approvers
-list (`github.repositories.<repo>.allowedActors`, or people with write
-access when it names nobody; in local mode, this checkout's `user.email`).
-The commit message carries nothing. The committer neither grants nor blocks
-an approval, so a squash merge or a commit someone made for the author counts
-the same.
-
-Avoozl's own commits and its agents' commits are authored by
-`Avoozl agent <agent@avoozl.invalid>`, which is never an approver, with you
-as committer. Spec drafts stay on a spec branch. **Approve** writes one
-commit on main, authored by you, with the spec as you reviewed it, and pushes
-it without force. If main already holds that exact text from someone who is
-not an approver, Approve refuses: edit it through a spec branch.
-
-## Compatibility
-
-Only `AVOOZL_*` variables and the `avoozl` command work. A configuration
-file with an unknown top-level key fails to load, naming the file and the key.
-Two older inputs still read:
-
-- Older fenced-`task` plan files, so their work can move to spec folders.
-- An `.avoozl.json` with no `role` keys, which is read through its stored
-  `github.mode`.
-
-## Develop
-
-Application operations and SQLite storage live in `src/app/`, shared models
-in `src/`, and the Kiro Crew page in `kirocrew-app/ui/`. Run `npm test` before
-sharing a change; `npm run test:changed` runs only the tests a change reaches, and CI
-does the same. The built page is not committed: `npm run build` makes it. Tests use disposable workspaces and make no network or paid
-agent calls. `node scripts/release-scan.mjs` checks what the npm and app
-packages would contain.
-
-The docs in `docs/` are also a site: `npm run docs:dev` serves it and
-`npm run docs:build` builds it to `docs/.vitepress/dist` (not in git).
-It is published at https://mtdowling.com/avoozl/ by a workflow on
-pushes to main that touch `docs/`.
-
-`npm run build` also builds a standalone copy of the page into
-`kirocrew-app/ui/dist/standalone/`, from Kiro Crew's own source at a pinned
-release: v0.12.2 (`kirocrew-app/ui/kirocrew-pin.json`), the same release as the
-Kiro Crew version this app asks for. The build fetches that source into a cache
-outside git, checks its digest, and edits none of it. The standalone page and the
-page inside Kiro Crew match when the installed Kiro Crew is the pinned release.
-`avoozl serve [--workspace PATH] [--port N]` serves it on `127.0.0.1` only (no host
-or bind option; `--host`, `--bind` and `AVOOZL_HOST` refuse to start) and prints a
-one-time owner link that signs one browser in; `avoozl serve link` prints another
-for the running server. The page works with the Kiro Crew parts it was built on;
-Without Kiro Crew, a button that opens a chat opens a Start a session dialog instead: Start runs the
-message as a read-only `assist` session on a harness approved on this machine, and the dialog then shows
-its log, cost, a Send message box and an attach command. Features that need Kiro Crew say "Needs Kiro Crew".
-Settings › Workspaces has a Notifications box (browser notices for new Needs you items, off until you turn
-them on).
-On a headless machine, set `serve.enabled` (and optionally a fixed `serve.port`) in the
-machine file `config.json`: the supervisor then runs the server as a child, restarts it
-on the same port, and prints no link (run `avoozl serve link` at that machine's shell).
-`avoozl status` shows the server's origin. A repository's `.avoozl.json` may not set `serve`.
+`npm run test:changed` runs only the tests a change reaches, as CI does. Tests
+use temporary workspaces and make no network or paid agent calls.
 
 ## License
 

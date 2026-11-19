@@ -115,6 +115,5 @@ an approver, so a later edit reads as unapproved until you approve again.
 Register the checkout the work changes, with its base branch and its named
 checks, then set the repository's `landing` to `off`, `direct` or `pr`.
 Avoozl pushes and merges only after the checks pass on the exact head it
-lands, and it never force pushes. The
-[README](https://github.com/mtdowling/avoozl#deliver-locally) has the
-commands, and the [overview](overview) shows what each page does.
+lands, and it never force pushes. See [delivery.md](delivery.md) for the
+commands, and [overview.md](overview.md) for what each page shows.

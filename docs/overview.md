@@ -1,10 +1,12 @@
 # Avoozl overview
 
 Checked against the code on `main`. This page says what the app is and what
-it shows. The rest of these pages are the [triage agent and policies](policies.md),
-[plugins](plugins.md), [epic types](epic-types.md), the
-[content hook](content-hook.md), the [build report](build-report.md) and the
-[glossary](glossary.md).
+it shows. The rest of these pages are [workspaces](workspaces.md),
+[specs](specs.md), [delivery](delivery.md), [drivers](drivers.md),
+[GitHub](github.md), [flow](flow.md), [agents and the CLI](agents.md), the
+[triage agent and policies](policies.md), [plugins](plugins.md),
+[epic types](epic-types.md), the [content hook](content-hook.md), the
+[build report](build-report.md) and the [glossary](glossary.md).
 
 ## What Avoozl is
 
