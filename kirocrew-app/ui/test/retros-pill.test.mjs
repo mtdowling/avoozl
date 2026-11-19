@@ -66,7 +66,7 @@ test('Flow keeps its charts and draws its filters as nav rows and chips, with no
     rail = source('FlowRail.tsx')
   assert.match(rail, /<NavSlotFor section="flow">\s*<div role="search" aria-label="Filter flow timing" data-nav-filters="avoozl-flow" data-filter-panel="avoozl-flow"/)
   assert.match(rail, /<RailSortList/)
-  assert.match(rail, /<RailChips id="repositories"[\s\S]*<RailChips id="plans"[\s\S]*<RailChips id="stages"[\s\S]*<RailChips id="epics"/)
+  assert.match(rail, /<RailChips\s+id="repositories"[\s\S]*<RailChips\s+id="plans"[\s\S]*<RailChips\s+id="stages"[\s\S]*<RailChips\s+id="epics"/)
   assert.doesNotMatch(rail + flow, /<select|<FilterPanel|FilterSelect/)
   assert.match(flow, /<FlowCharts view=\{view\} unit=\{unit\} onUnit=\{setUnit\} \/>/)
   assert.match(source('App.tsx'), /t\.key === 'flow'/)
