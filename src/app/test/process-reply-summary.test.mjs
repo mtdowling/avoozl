@@ -245,3 +245,35 @@ test("neither child gets a network path, whatever its repository allows", async 
   // A verifier still gets its repository's network.
   assert.notEqual((await settings("verifier")).network, "off");
 });
+
+test("every child reaches the model proxy; only an online one the network too", async (t) => {
+  const state = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-proxy-"));
+  t.after(() => fs.rmSync(state, { recursive: true, force: true }));
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-proxy-w-"));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const executor = processExecutor({
+    stateDirectory: state,
+    repositoryFor: () => ({
+      harness: "fake-cli",
+      sandbox: {
+        network: ["localhost:8080"],
+        modelProxy: ["localhost:18471"],
+      },
+    }),
+  });
+  const network = async (role) => {
+    const id = await executor.start(role, "t", folder, "Brief.", null, "read");
+    const db = openSupervisorDatabase(state);
+    try {
+      return JSON.parse(childRecord(db, id).settings).network;
+    } finally {
+      db.close();
+    }
+  };
+  // The triage agent reads only its snapshot: its model and nothing else.
+  assert.deepEqual(await network("triage"), ["localhost:18471"]);
+  assert.deepEqual(await network("verifier"), [
+    "localhost:18471",
+    "localhost:8080",
+  ]);
+});

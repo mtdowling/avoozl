@@ -72,7 +72,7 @@ avoozl task links TASK add --link https://example.test/review --label Review
 
 Manual tasks and links are tested with a fake GitHub and have not run live.
 
-::: info See also
+## See also
+
 - [Specs](specs.md) for the `Facts:` bullets
 - [Content rules](content-rules.md) for the check on each link
-:::

@@ -56,7 +56,10 @@ sandbox the supervisor wraps it in:
 - It writes only to its task folder, its own temp folder and the repository's
   cache folders. Read-only roles write nowhere.
 - Its network is off. On macOS a repository can name loopback ports instead
-  (`localhost:PORT`, for a proxy).
+  (`localhost:PORT`, for a proxy): `sandbox.network` for roles that may use
+  the network, and `sandbox.modelProxy` for the proxy the agent reaches its
+  model through. Every role gets `modelProxy`, even one that reads only its
+  folder, such as the triage agent; only `network` is withheld from those.
 - Token, key, secret and password variables, `GH_*`, `GITHUB_*`, `AWS_*`,
   `KIROCREW_*` and `SSH_AUTH_SOCK` are removed from its environment, and git
   gets no credential helper.
@@ -82,8 +85,8 @@ On Windows, Node cannot set these modes, so the files keep the access of the
 folder they are in, which in a user profile is you, the system and
 administrators. Move the workspace out of a shared folder if that matters.
 
-::: info See also
+## See also
+
 - [Agents and the CLI](agents.md#person-only-actions) for the actions MCP
   refuses
 - [Repository checks and isolation](checks.md) for the sandbox around checks
-:::

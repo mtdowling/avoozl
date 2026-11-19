@@ -73,6 +73,6 @@ decide.
 Avoozl writes nothing back to these sources. It deletes a closed item that no
 task holds 30 days after it closed.
 
-::: info See also
+## See also
+
 - [Writing a plugin](plugins.md#intake-part) for a plugin that polls a tracker
-:::

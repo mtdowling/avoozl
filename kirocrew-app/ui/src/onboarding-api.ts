@@ -187,7 +187,11 @@ export function setupWrites(form: OnboardForm, found: FolderFacts, settings: Git
   steps.push({
     key: 'settings',
     title: settingsChange ? `Save the mode${githubMode(form.mode) ? ' and GitHub names' : ''} to .avoozl.json` : '.avoozl.json already matches',
-    detail: githubMode(form.mode) ? 'The settings Set up GitHub proposed, shown in Check GitHub.' : 'Local only. Kept GitHub settings stay in the file, unused.',
+    detail: githubMode(form.mode)
+      ? 'The settings Set up GitHub proposed, shown in Check GitHub.'
+      : Object.keys(github).some((key) => key !== 'mode')
+        ? 'Local only. Kept GitHub settings stay in the file, unused.'
+        : 'Local only. Nothing goes to GitHub.',
     done: !settingsChange,
     confirm: null,
   })
@@ -209,9 +213,15 @@ export function registerInput(form: OnboardForm, found: FolderFacts, planningReg
     localCheckout: found.root,
     baseBranch: form.baseBranch.trim(),
     ...(repo ? { github: repo } : {}),
-    // Local only and plans-repo mode read specs from the planning checkout.
-    planning: form.mode === 'plans-repo' ? form.isPlanning : form.mode === 'local' && found.specs.length > 0 && !planningRegistered,
+    planning: holdsSpecs(form.mode, form.isPlanning, found.specs.length, planningRegistered),
   }
+}
+
+// Whether a checkout is added as the planning checkout. Local only and
+// plans-repo mode read specs from it: the planning repository in plans-repo,
+// and in Local only a checkout with specs when no other one is planning.
+export function holdsSpecs(mode: string, isPlanning: boolean, specs: number, planningRegistered: boolean): boolean {
+  return mode === 'plans-repo' ? isPlanning : mode === 'local' && specs > 0 && !planningRegistered
 }
 
 // The specs this folder holds, as Avoozl reads them for the mode.

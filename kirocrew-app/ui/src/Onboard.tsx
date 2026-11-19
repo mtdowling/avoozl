@@ -271,9 +271,12 @@ function OnboardDialog(props: {
   const at = steps.indexOf(step)
   const text = ONBOARD_STEPS.find((s) => s.key === step)!
   const wrote = written.length > 0
+  const finished = step === 'finish'
+  // Closing at Finish is not a stop: the flow is done.
   const cancel = useCallback(() => {
-    onClose(wrote ? `Stopped. Done so far: ${written.join('; ')}.` : 'Cancelled. Nothing was written.')
-  }, [onClose, wrote, written])
+    if (finished) onClose(wrote ? `Onboarded: ${written.join('; ')}.` : undefined)
+    else onClose(wrote ? `Stopped. Done so far: ${written.join('; ')}.` : 'Cancelled. Nothing was written.')
+  }, [onClose, wrote, written, finished])
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('input:not([disabled]), button')?.focus()
   }, [step])
@@ -362,6 +365,14 @@ function OnboardDialog(props: {
       next()
     })
   const shown = found ? folderSpecs(specs, found) : []
+  // Set up may have had nothing to write, so the spec list is read here too.
+  useEffect(() => {
+    if (step === 'import' && !specs)
+      void call(async () => {
+        setSpecs(await client.specs(workspaceId))
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step])
   useEffect(() => {
     if (step === 'import') setPicked(new Set(shown.filter((s) => !imported(s)).map((s) => s.name)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -425,7 +436,7 @@ function OnboardDialog(props: {
       id="avoozl-onboard"
       width="44rem"
       backLabel="Cancel"
-      dismissLabel="Cancel"
+      dismissLabel={finished ? 'Close' : 'Cancel'}
       describedBy="avoozl-onboard-line"
       boxRef={box}
       attrs={{ 'data-onboard-dialog': step }}
@@ -561,7 +572,7 @@ function OnboardDialog(props: {
           {authors && authors.length === 0 && <Hint as="p">No commit authors found on {found?.baseBranch}.</Hint>}
           <Box as="ul" flex flexCol gap="1.5">
             {(authors ?? []).map((author) => (
-              <Box key={author.email} as="li" flex flexWrap items="center" gap="2" data-onboard-author={author.email}>
+              <Box key={author.email} as="li" flex items="start" gap="2" data-onboard-author={author.email}>
                 <Switch
                   label={`Approver ${author.email}`}
                   checked={approvers.has(author.email)}
@@ -572,11 +583,18 @@ function OnboardDialog(props: {
                     setApprovers(nextApprovers)
                   }}
                 />
-                <span>{author.name}</span>
-                <code>{author.email}</code>
-                <Hint size="xs">
-                  {author.commits} commit{author.commits === 1 ? '' : 's'}
-                </Hint>
+                {/* Name and count on one line, the email under them, so a phone row does not wrap raggedly. */}
+                <Box flex flexCol minW0>
+                  <span>
+                    {author.name}{' '}
+                    <Hint as="span" size="xs">
+                      {author.commits} commit{author.commits === 1 ? '' : 's'}
+                    </Hint>
+                  </span>
+                  <Box as="code" size="xs" css-overflow-wrap="anywhere">
+                    {author.email}
+                  </Box>
+                </Box>
               </Box>
             ))}
           </Box>
@@ -587,7 +605,8 @@ function OnboardDialog(props: {
       )}
       {step === 'import' && (
         <Box flex flexCol gap="2" size="sm" data-onboard-import>
-          {shown.length === 0 && <Hint as="p">No spec folders here for this mode. Write one with Plan a goal, or add one under .kiro/specs/ and come back.</Hint>}
+          {!specs && <Hint as="p">Reading the spec folders…</Hint>}
+          {specs && shown.length === 0 && <Hint as="p">No spec folders here for this mode. Write one with Plan a goal, or add one under .kiro/specs/ and come back.</Hint>}
           {shown.length > 0 && shown.every(imported) && <Done>Every spec here is imported.</Done>}
           <Box as="ul" flex flexCol gap="1.5">
             {shown.map((spec) => (

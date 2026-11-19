@@ -95,7 +95,7 @@ neither) decide whose pull-request reviews count as the
 [review gate](github.md#pull-request-reviews) and whose discussions get a reply.
 They never turn a label into an order.
 
-::: info See also
+## See also
+
 - [GitHub](github.md) for repository roles and modes
 - [Content rules](content-rules.md) for the check on every write
-:::

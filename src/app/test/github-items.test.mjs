@@ -191,3 +191,15 @@ test("a write through the content-rules and driver guards is still counted", asy
   assert.equal(triageCalls(w.store, now()).writes, 2);
   assert.equal(w.fake.calls.writes, 2);
 });
+
+test("the fake answers the open pull requests read the tick makes", async (t) => {
+  const w = setup(t);
+  w.fake.add(1);
+  w.fake.add(2, { pr: true });
+  const { open, recent } = await w.github.readOpenPullRequests(REPO);
+  assert.deepEqual(
+    open.map((pull) => pull.number),
+    [2],
+  );
+  assert.deepEqual(recent, []);
+});

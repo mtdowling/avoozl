@@ -23,6 +23,7 @@ import { Box } from './ui/Box'
 import { PlainButton, PlainLink } from './ui/Plain'
 import { Modal } from './ui/Modal.tsx'
 import { FolderField } from './FolderPicker.tsx'
+import { holdsSpecs } from './onboarding-api.ts'
 export { repositoryRows, type RepositoryRow } from './repository-rows.ts'
 
 export const REPOSITORIES_LINE =
@@ -76,9 +77,6 @@ export function RepositoryList(props: {
         <Box as="p" size="sm">
           No repositories yet.
         </Box>
-        <Hint as="p" size="sm">
-          {REPOSITORIES_LINE}
-        </Hint>
         <span data-add-repository-open>
           <IconLabel icon={Plus} primary onClick={props.onAdd} disabled={Boolean(props.addBlocked)} tooltip={props.addBlocked ?? undefined}>
             Add repository
@@ -100,14 +98,17 @@ export function RepositoryList(props: {
               <span data-role-badge>
                 <Badge>{props.roleText(row)}</Badge>
               </span>
+              {/* A checkout with no GitHub remote: its role badge already says Local only. */}
               {githubHref(row.github) ? (
                 <PlainLink href={linkHref(githubHref(row.github)!)} target="_blank" rel="noopener noreferrer" minW0 truncate size="xs" underline data-github-link>
                   {row.github}
                 </PlainLink>
               ) : (
-                <Hint size="xs" data-github-link>
-                  {row.github ?? 'Local only'}
-                </Hint>
+                row.github && (
+                  <Hint size="xs" data-github-link>
+                    {row.github}
+                  </Hint>
+                )
               )}
             </>
           }
@@ -184,7 +185,8 @@ export function kindCopy(role: string, source: string): { label: string; line: s
   return { label: option.label, line: option.line }
 }
 
-export function AddRepositoryModal(props: { workspaceId: string; mode: string; onClose: () => void; onAdded: (id: string, added: AddedRole) => void }) {
+// `planningTaken`: another checkout is already the one specs are read from.
+export function AddRepositoryModal(props: { workspaceId: string; mode: string; planningTaken: boolean; onClose: () => void; onAdded: (id: string, added: AddedRole) => void }) {
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
   const [step, setStep] = useState<AddStep>('folder')
@@ -219,7 +221,9 @@ export function AddRepositoryModal(props: { workspaceId: string; mode: string; o
     setError(null)
     try {
       const landing = branch.trim() || found.baseBranch
-      const saved = await client.registerRepository(props.workspaceId, { id: id.trim(), localCheckout: found.root, baseBranch: landing })
+      // The checkout specs are read from, as Set up would add it.
+      const planning = holdsSpecs(props.mode, role === 'planning', found.kind.specs, props.planningTaken)
+      const saved = await client.registerRepository(props.workspaceId, { id: id.trim(), localCheckout: found.root, baseBranch: landing, planning })
       const given = roleFromMode(props.mode, found.github, '')
       props.onAdded(saved.id, {
         folder: found.root,

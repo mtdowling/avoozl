@@ -31,9 +31,11 @@ its box on main, so anyone who reads the branch sees it done.
 5. Work that passes lands the way the repository is set up: as a pull request,
    as a push to the base branch, or held until you decide.
 
-A spec can be one task that becomes one pull request, or ordered tasks across
-several repositories. GitHub is optional; a Local only workspace needs only
-Git.
+Specs can be any size. A light spec with one task becomes one pull request. A
+large one becomes ordered tasks across repositories, each checked on its exact
+commit before it lands. Every change starts from a spec you approved, so no
+agent's work lands without a plan a person agreed to. GitHub is optional; a
+Local only workspace needs only Git.
 
 Git holds the state that matters: specs, approvals, and what landed. The local
 SQLite database is a cache, and `avoozl rebuild` makes it again on a new
@@ -157,7 +159,7 @@ settings, are refused over MCP. `node cli.mjs help` lists the CLI commands.
 
 ## Documentation
 
-See the [documentation site](https://mtdowling.com/avoozl/) for the rest:
+The [docs](docs/README.md) cover the rest:
 
 - [Getting started](docs/getting-started.md) for setup in more detail
 - [Overview](docs/overview.md) for where state lives and what each page shows
@@ -196,7 +198,6 @@ Application operations and storage live in `src/app/`, shared models in
 ```sh
 npm test
 npm run format
-npm run docs:dev
 ```
 
 `npm run test:changed` runs only the tests a change reaches, as CI does. Tests

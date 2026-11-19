@@ -10,6 +10,7 @@ import {
   ONBOARD_READS,
   ONBOARD_WRITES,
   withApprovers,
+  holdsSpecs,
   modeProblem,
   onboardClient,
   onboardForm,
@@ -102,6 +103,17 @@ test('Set up lists its writes in order; each GitHub write asks first, and done o
     ['settings', 'register'],
   )
   assert.ok(local.every((s) => !s.confirm))
+  // With no GitHub settings in the file there is nothing to keep.
+  assert.match(setupWrites({ ...form, mode: 'local' }, folder(), settings({ mode: 'local' }), null)[0].detail, /Nothing goes to GitHub/)
+  assert.match(setupWrites({ ...form, mode: 'local' }, folder(), settings({ mode: 'single-repo', repositories: { 'acme/app': {} } }), null)[0].detail, /Kept GitHub settings/)
+})
+
+test('a checkout added in Local only with specs is the one specs are read from', () => {
+  assert.equal(holdsSpecs('local', false, 2, false), true)
+  assert.equal(holdsSpecs('local', false, 2, true), false)
+  assert.equal(holdsSpecs('local', false, 0, false), false)
+  assert.equal(holdsSpecs('plans-repo', true, 0, false), true)
+  assert.equal(holdsSpecs('single-repo', false, 2, false), false)
 })
 
 test('the requests name the right repositories and checkout', () => {

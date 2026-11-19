@@ -79,8 +79,8 @@ an agent session, goes out as written. Its mentions notify, and it has no
 marker. Content rules check every write either way, and a write whose caller
 Avoozl cannot tell is marked.
 
-::: info See also
+## See also
+
 - [Content hook](content-hook.md) for the same rules on an agent's own GitHub
   writes
 - [Triage agent](triage.md) for the agent whose writes pass these rules
-:::

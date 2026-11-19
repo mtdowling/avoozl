@@ -102,8 +102,8 @@ landing queue holds, a session start is tried again, and Needs you shows one row
 naming the folder and its free space. The row clears once there is room. The
 2 GiB floor is fixed.
 
-::: info See also
+## See also
+
 - [Person-only operations](person-only.md) for the sandbox around unattended
   sessions
 - [Delivery](delivery.md) for registering a repository and its checks
-:::

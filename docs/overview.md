@@ -112,6 +112,6 @@ a supervisor child, and says so when it runs inside an agent session.
 ## Agent prompts
 
 Each agent role's standing instructions are Markdown files in
-[`prompts/`](https://github.com/mtdowling/avoozl/tree/main/prompts). See the
+[`prompts/`](../prompts/README.md). See the
 README there for which role reads which file, how the Kiro Crew agents are
 generated from them, and how a retro proposes a change.
