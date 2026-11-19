@@ -21,7 +21,6 @@ test("the Radar labels default to avoozl:plan, avoozl:ready, crew: in progress, 
       approvalLabel: "avoozl:plan-approved",
       reviewLabel: "avoozl:review",
       draftedLabel: "avoozl:drafted",
-      trackerLabel: "avoozl:waiting-on-tracker",
       clearPlanLabel: false,
     });
     assert.equal(entry.crewLabels.claim, "crew: in progress");
@@ -51,7 +50,6 @@ test("radar settings are read, and bad ones refused", () => {
     approvalLabel: "avoozl:plan-approved",
     reviewLabel: "avoozl:review",
     draftedLabel: "avoozl:drafted",
-    trackerLabel: "avoozl:waiting-on-tracker",
     clearPlanLabel: true,
   });
   for (const radar of [

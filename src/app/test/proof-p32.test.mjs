@@ -1,7 +1,7 @@
 // Proof P32: incoming items from a fake plugin source and a fake MCP caller
 // (tasks.md Phase 14, design §4.12, §8.5, Requirement 50). An isolated
 // temporary workspace in single-repo mode with repository o/app, the real
-// `.avoozl.json` policy, the fake tracker plugin from the test tree as source
+// `.avoozl.json` policy, the fake intake plugin from the test tree as source
 // `tickets` (its `poll` reads a JSON file this test edits), source `script`
 // with `via: mcp`, a content rule set on the `intake` boundary with one fake
 // term, and a fake GitHub for issues 1 and 2 that refuses every write. Ticks
@@ -172,8 +172,8 @@ function workspace(t) {
     settingsFile = path.join(root, "machine", "plugins.json"),
     github = fakeGitHub();
   fs.cpSync(
-    path.join(FIXTURE, "fake-tracker"),
-    path.join(plugins, "fake-tracker"),
+    path.join(FIXTURE, "fake-intake"),
+    path.join(plugins, "fake-intake"),
     {
       recursive: true,
     },
@@ -181,10 +181,10 @@ function workspace(t) {
   writePluginSettings(settingsFile, {
     plugins: [
       {
-        id: "fake-tracker",
-        path: path.join(plugins, "fake-tracker"),
+        id: "fake-intake",
+        path: path.join(plugins, "fake-intake"),
         contract: 1,
-        config: { stateFile: path.join(root, "records.json"), intakeFile },
+        config: { intakeFile },
       },
     ],
   });
@@ -228,7 +228,7 @@ function workspace(t) {
       intake: {
         sources: {
           tickets: {
-            via: "plugin:fake-tracker",
+            via: "plugin:fake-intake",
             repository: REPO,
             labelFields: ["component"],
             minimumPermission: "write",
@@ -316,10 +316,10 @@ test("P32: incoming items from a fake plugin source and a fake MCP caller", asyn
   t.mock.timers.enable({ apis: ["Date"], now: NOW });
   const w = workspace(t);
   const listed = (await w.ops.execute("plugins.list", {})).plugins.find(
-    (p) => p.id === "fake-tracker",
+    (p) => p.id === "fake-intake",
   );
   await w.ops.execute("plugin.approve", {
-    id: "fake-tracker",
+    id: "fake-intake",
     hash: listed.hash,
   });
 
