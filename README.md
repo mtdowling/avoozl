@@ -79,10 +79,8 @@ Open Kiro Crew's App Store, review Avoozl's trust request, and enable it. The
 `npm run build && kirocrew app update avoozl` in the checkout.
 
 To run Avoozl without Kiro Crew, build it with `npm run build` and start the
-standalone page with `avoozl serve --workspace ~/plans`. It listens on
-`127.0.0.1` only and prints a one-time link that signs your browser in. The
-build makes the standalone page from Kiro Crew's own source at release
-v0.12.2, the release this app asks for.
+page with `avoozl serve --workspace ~/plans`. It listens on `127.0.0.1` only
+and prints a one-time link that signs your browser in.
 
 ## Trying it out
 
