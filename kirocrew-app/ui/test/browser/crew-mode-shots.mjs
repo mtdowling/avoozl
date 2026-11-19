@@ -36,14 +36,22 @@ try {
       await page.open(harness.url({ page: 'app', theme, crewmode: '1' }), { width, height, dark: theme === 'dark' })
       await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
       await wait(page, 1200)
-      if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+      if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
       await wait(page, 200)
-      await page.evaluate(`(() => { const h = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Needs you')); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`)
+      await page.evaluate(
+        `(() => { const h = [...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes('Needs you')); if (h && !h.hasAttribute('data-open')) h.click(); return true })()`,
+      )
       await wait(page, 200)
-      await page.evaluate(`[...document.querySelectorAll('${scope(width)} [data-nav-item]:not([data-nav-head])')].find((b) => b.textContent.trim().startsWith('Decisions'))?.click()`)
+      await page.evaluate(
+        `[...document.querySelectorAll('${scope(width)} [data-nav-item]:not([data-nav-head])')].find((b) => b.textContent.trim().startsWith('Decisions'))?.click()`,
+      )
       await wait(page, 300)
-      if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-      await page.evaluate(`[...document.querySelectorAll('[data-shell-main] *')].filter((el) => el.children.length === 0 && el.textContent.includes('Crew Mode dispatch is gone')).at(0)?.click()`)
+      if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`)))
+        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+      await page.evaluate(
+        `[...document.querySelectorAll('[data-shell-main] *')].filter((el) => el.children.length === 0 && el.textContent.includes('Crew Mode dispatch is gone')).at(0)?.click()`,
+      )
       await wait(page, 600)
       const shot = async (name) => {
         const file = path.join(out, `${name}-${width}-${theme}.png`)

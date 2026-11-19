@@ -226,7 +226,17 @@ test("the removed Crew Mode report command is refused as unknown and changes not
   try {
     execFileSync(
       process.execPath,
-      [cli, "report", "a", "--slot", "s", "--kind", "done", "--workspace", root],
+      [
+        cli,
+        "report",
+        "a",
+        "--slot",
+        "s",
+        "--kind",
+        "done",
+        "--workspace",
+        root,
+      ],
       { encoding: "utf8", env: isolatedEnv(root) },
     );
   } catch (error) {
