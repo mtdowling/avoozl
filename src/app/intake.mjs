@@ -38,10 +38,10 @@ import {
 
 // `retro` holds the skill changes a person approved from a retrospective
 // (design §4.18).
-export const RESERVED_SOURCES = Object.freeze(["github", "local", "retro"]);
-export const POLL_LIMIT = 500;
-export const SUBMIT_LIMIT = 100;
-export const KEEP_CLOSED_MS = 30 * 24 * 60 * 60 * 1000;
+const RESERVED_SOURCES = Object.freeze(["github", "local", "retro"]);
+const POLL_LIMIT = 500;
+const SUBMIT_LIMIT = 100;
+const KEEP_CLOSED_MS = 30 * 24 * 60 * 60 * 1000;
 export const WAITING_REASON = "Waiting on the author";
 const SOURCE_ID = /^[a-z][a-z0-9-]{0,60}$/;
 const PLUGIN_ID = /^[a-z][a-z0-9-]{0,60}$/;
@@ -409,7 +409,7 @@ export function sourceRow(store, id) {
   }
 }
 
-export function saveSourceRow(store, row) {
+function saveSourceRow(store, row) {
   return putIfChanged(store, "intake_sources", row);
 }
 
@@ -1131,8 +1131,7 @@ export function viewItem(store, input = {}) {
 }
 
 // The text a person confirms: the item's title and body as they read them.
-export const snapshotDigest = (item) =>
-  digest(`${item.title}\n\n${item.body || ""}`);
+const snapshotDigest = (item) => digest(`${item.title}\n\n${item.body || ""}`);
 
 // intake.confirm (R50.17): a person confirms the changed title and body of
 // an item whose task is held for it, naming the snapshotHash intake.view

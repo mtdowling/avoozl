@@ -70,6 +70,30 @@ function tightenWorkspace(filename) {
       } catch {}
 }
 
+const DROPPED_TABLES = [
+  "runs",
+  "run_capabilities",
+  "surface_capabilities",
+  "provider_events",
+  "usage_counters",
+  "usage_samples",
+  "deliveries",
+  "requests",
+  "execution_targets",
+  "execution_jobs",
+  "team_checkpoints",
+  "review_requests",
+  "safety_incidents",
+  "safety_permits",
+  "safety_submissions",
+  "github_intake_capabilities",
+  "github_intake_generations",
+  "github_intake_deliveries",
+  "github_queue_repositories",
+  "github_queue_items",
+  "github_queue_associations",
+];
+
 export class Store {
   constructor(filename) {
     if (filename !== ":memory:") {
@@ -111,12 +135,8 @@ export class Store {
    CREATE TABLE IF NOT EXISTS baseline(kind TEXT NOT NULL,id TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(kind,id));
    CREATE TABLE IF NOT EXISTS plans(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS approvals(id TEXT PRIMARY KEY,plan_id TEXT NOT NULL,hash TEXT NOT NULL,body TEXT NOT NULL,UNIQUE(plan_id,hash));
-   CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,state TEXT NOT NULL,body TEXT NOT NULL);
-   CREATE INDEX IF NOT EXISTS runs_task ON runs(task_id,state);
    CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY AUTOINCREMENT,run_id TEXT,kind TEXT NOT NULL,at TEXT NOT NULL,body TEXT NOT NULL);
    CREATE INDEX IF NOT EXISTS events_run ON events(run_id,seq);
-   CREATE TABLE IF NOT EXISTS requests(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS deliveries(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY,path TEXT NOT NULL,text TEXT NOT NULL,expected_hash TEXT,state TEXT NOT NULL DEFAULT 'pending');
    CREATE TABLE IF NOT EXISTS evidence(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS integration(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,state TEXT NOT NULL,body TEXT NOT NULL);
@@ -124,35 +144,11 @@ export class Store {
    CREATE TABLE IF NOT EXISTS work_locks(id TEXT PRIMARY KEY,project_id TEXT NOT NULL,kind TEXT NOT NULL,pid INTEGER NOT NULL,token TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS batches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS usage_counters(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS usage_samples(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,task_id TEXT NOT NULL,at TEXT NOT NULL,body TEXT NOT NULL);
-   CREATE INDEX IF NOT EXISTS usage_samples_task ON usage_samples(task_id,at);
-   CREATE TABLE IF NOT EXISTS run_capabilities(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,token_hash BLOB NOT NULL,expires_at TEXT NOT NULL,revoked_at TEXT,body TEXT NOT NULL);
-   CREATE INDEX IF NOT EXISTS run_capabilities_run ON run_capabilities(run_id,revoked_at);
-   CREATE TABLE IF NOT EXISTS provider_events(run_id TEXT NOT NULL,provider_event_id TEXT NOT NULL,at TEXT NOT NULL,PRIMARY KEY(run_id,provider_event_id));
-   CREATE TABLE IF NOT EXISTS surface_capabilities(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,conversation_id TEXT NOT NULL,token_hash BLOB NOT NULL,expires_at TEXT NOT NULL,body TEXT NOT NULL);
-   CREATE INDEX IF NOT EXISTS surface_capabilities_run ON surface_capabilities(run_id,expires_at);
    CREATE TABLE IF NOT EXISTS github_repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_issues(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS github_queue_repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS github_queue_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS github_queue_associations(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS github_intake_capabilities(id TEXT PRIMARY KEY,repository TEXT NOT NULL,token_hash BLOB NOT NULL,expires_at TEXT NOT NULL,revoked_at TEXT,body TEXT NOT NULL);
-   CREATE INDEX IF NOT EXISTS github_intake_capabilities_repository ON github_intake_capabilities(repository,revoked_at,expires_at);
-   CREATE TABLE IF NOT EXISTS github_intake_generations(id TEXT PRIMARY KEY,capability_id TEXT NOT NULL,repository TEXT NOT NULL,state TEXT NOT NULL,started_at TEXT NOT NULL,body TEXT NOT NULL);
-   CREATE INDEX IF NOT EXISTS github_intake_generations_repository ON github_intake_generations(repository,started_at);
-   CREATE TABLE IF NOT EXISTS github_intake_deliveries(id TEXT PRIMARY KEY,capability_id TEXT NOT NULL,repository TEXT NOT NULL,state TEXT NOT NULL,received_at TEXT NOT NULL,body TEXT NOT NULL);
-   CREATE INDEX IF NOT EXISTS github_intake_deliveries_repository ON github_intake_deliveries(repository,received_at);
    CREATE TABLE IF NOT EXISTS review_threads(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS review_rounds(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS execution_targets(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS execution_jobs(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS team_checkpoints(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS review_requests(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS review_followups(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS safety_incidents(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS safety_permits(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS safety_submissions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS extractions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS plan_facts(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS session_bindings(id TEXT PRIMARY KEY,body TEXT NOT NULL);
@@ -201,6 +197,22 @@ export class Store {
       this.db.exec("COMMIT");
       if (!activityLog && this.initialized())
         this.setMeta("activity.upgrade", true);
+      // Tables nothing writes to any more (past runs, teams, the safety gate,
+      // execution jobs, the GitHub queue and intake). Dropped once, when an
+      // older database still has one; a plain open stays read-only.
+      const present = new Set(
+        this.db
+          .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+          .all()
+          .map((row) => row.name),
+      );
+      const stale = DROPPED_TABLES.filter((name) => present.has(name));
+      if (stale.length) {
+        this.db.exec("BEGIN IMMEDIATE");
+        for (const name of stale) this.db.exec(`DROP TABLE IF EXISTS ${name}`);
+        this.db.exec("DELETE FROM meta WHERE key LIKE 'runArchive:%'");
+        this.db.exec("COMMIT");
+      }
       // Ideas were removed (RC30.3): drop any stored idea. It writes only
       // when one is left, so a plain open stays read-only.
       const idea =
@@ -514,9 +526,6 @@ export class Store {
       ![
         "plans",
         "approvals",
-        "runs",
-        "requests",
-        "deliveries",
         "evidence",
         "integration",
         "projects",
@@ -524,19 +533,9 @@ export class Store {
         "batches",
         "github_repositories",
         "github_issues",
-        "github_queue_repositories",
-        "github_queue_items",
-        "github_queue_associations",
         "review_threads",
         "review_rounds",
-        "execution_targets",
-        "execution_jobs",
-        "team_checkpoints",
-        "review_requests",
         "review_followups",
-        "safety_incidents",
-        "safety_permits",
-        "safety_submissions",
         "extractions",
         "plan_facts",
         "session_bindings",
@@ -582,9 +581,6 @@ export class Store {
       ![
         "plans",
         "approvals",
-        "runs",
-        "requests",
-        "deliveries",
         "evidence",
         "integration",
         "projects",
@@ -592,19 +588,9 @@ export class Store {
         "batches",
         "github_repositories",
         "github_issues",
-        "github_queue_repositories",
-        "github_queue_items",
-        "github_queue_associations",
         "review_threads",
         "review_rounds",
-        "execution_targets",
-        "execution_jobs",
-        "team_checkpoints",
-        "review_requests",
         "review_followups",
-        "safety_incidents",
-        "safety_permits",
-        "safety_submissions",
         "extractions",
         "plan_facts",
         "session_bindings",
@@ -650,25 +636,14 @@ export class Store {
     if (
       [
         "plans",
-        "requests",
         "projects",
         "receipts",
         "batches",
         "github_repositories",
         "github_issues",
-        "github_queue_repositories",
-        "github_queue_items",
-        "github_queue_associations",
         "review_threads",
         "review_rounds",
-        "execution_targets",
-        "execution_jobs",
-        "team_checkpoints",
-        "review_requests",
         "review_followups",
-        "safety_incidents",
-        "safety_permits",
-        "safety_submissions",
         "extractions",
         "plan_facts",
         "session_bindings",
@@ -708,7 +683,7 @@ export class Store {
           `INSERT INTO ${table} VALUES (?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body`,
         )
         .run(item.id, body);
-    else if (table === "runs" || table === "integration")
+    else if (table === "integration")
       this.db
         .prepare(
           `INSERT INTO ${table} VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,body=excluded.body`,
@@ -718,12 +693,6 @@ export class Store {
       this.db
         .prepare("INSERT INTO approvals VALUES (?,?,?,?)")
         .run(item.id, item.planId, item.hash, body);
-    else if (table === "deliveries")
-      this.db
-        .prepare(
-          "INSERT INTO deliveries VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body",
-        )
-        .run(item.id, item.runId, body);
     else if (table === "evidence")
       this.db
         .prepare("INSERT INTO evidence VALUES (?,?,?)")
@@ -740,19 +709,9 @@ export class Store {
         "batches",
         "github_repositories",
         "github_issues",
-        "github_queue_repositories",
-        "github_queue_items",
-        "github_queue_associations",
         "review_threads",
         "review_rounds",
-        "execution_targets",
-        "execution_jobs",
-        "team_checkpoints",
-        "review_requests",
         "review_followups",
-        "safety_incidents",
-        "safety_permits",
-        "safety_submissions",
         "extractions",
         "plan_facts",
         "session_bindings",

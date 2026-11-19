@@ -7,7 +7,7 @@
 import { workspaceIdentity } from "./identity.mjs";
 import { fail } from "./store.mjs";
 
-export const CLIENT_API_VERSION = "1.0.0";
+const CLIENT_API_VERSION = "1.0.0";
 
 // Operations a client may invoke. Anything absent is refused by name instead
 // of being forwarded, so a client cannot reach an unreviewed operation.
@@ -81,13 +81,9 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "plan.review.apply",
   "plan.review.pipeline",
   "plan.review.pipeline.get",
-  "driver.list",
   "driver.open",
   "driver.context",
-  "run.list",
-  "run.get",
   "run.context",
-  "run.event",
   "run.start",
   "run.send",
   "run.answer",
@@ -97,10 +93,6 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "run.model",
   "run.unsend",
   "run.queue",
-  "run.changes",
-  "run.validate",
-  "run.archive",
-  "run.unarchive",
   "integration.merge",
   "intent.submit",
   "intent.get",
@@ -132,7 +124,7 @@ export const CLIENT_OPERATIONS = Object.freeze([
 
 // Rules a client must follow. Published through `client.describe` so a client
 // cannot be written against guesses about them.
-export const CLIENT_CONTRACT = Object.freeze({
+const CLIENT_CONTRACT = Object.freeze({
   idempotency: Object.freeze({
     "intent.submit":
       "Reuse submissionId to retry. A different prompt under the same submissionId is rejected with 409.",
@@ -185,7 +177,7 @@ export function describeWorkspace(store) {
 }
 
 // Transport over an in-process `Operations` instance.
-export function localTransport(ops) {
+function localTransport(ops) {
   return {
     kind: "local",
     async call(operation, input, expectedRevision) {
@@ -195,7 +187,7 @@ export function localTransport(ops) {
 }
 
 // Transport over a running workspace server's shared command endpoint.
-export function httpTransport({
+function httpTransport({
   endpoint,
   workspaceId,
   fetch: fetchImpl = globalThis.fetch,
@@ -355,27 +347,14 @@ export class WorkspaceClient {
       retitled,
     });
   }
-  runs(input = {}) {
-    return this.call("run.list", input);
-  }
-  drivers() {
-    return this.call("driver.list");
-  }
   openDriver(input = {}) {
     return this.call("driver.open", input);
   }
   updateDriverContext(input) {
     return this.call("driver.context", input);
   }
-  run(id, options = {}) {
-    return this.call("run.get", { id, ...options });
-  }
   runContext(runId) {
     return this.call("run.context", { runId });
-  }
-  // Durable sequence cursors, never arrival timestamps.
-  history(id, { before, after, limit = 200, compact = false } = {}) {
-    return this.call("run.get", { id, before, after, limit, compact });
   }
   events(input = {}) {
     if (this.transport.events) return this.transport.events(input);
@@ -417,13 +396,6 @@ export class WorkspaceClient {
   reorderQueue({ id, order }) {
     return this.call("run.queue", { id, order });
   }
-  // Read-only view of what a conversation changed in its own worktree.
-  changes({ id, path }) {
-    return this.call("run.changes", { id, path });
-  }
-  validate(id) {
-    return this.call("run.validate", { id });
-  }
   integrate({ id, expectedCommit }) {
     return this.call("integration.merge", { id, expectedCommit });
   }
@@ -439,11 +411,4 @@ export class WorkspaceClient {
   handoff(id) {
     return this.call("handoff", { id });
   }
-}
-
-export function localClient(ops) {
-  return new WorkspaceClient(localTransport(ops));
-}
-export function remoteClient(options) {
-  return new WorkspaceClient(httpTransport(options));
 }

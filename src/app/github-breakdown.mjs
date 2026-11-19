@@ -313,7 +313,7 @@ function saveSpec(store, row, breakdown, spec) {
 
 // The spec's one top-level package stands for the source issue, which
 // already exists. Its children become top-level children of that issue.
-export function childGraph(proposals = []) {
+function childGraph(proposals = []) {
   const roots = proposals.filter((proposal) => !proposal.parent);
   if (roots.length !== 1 || roots[0].kind !== "package")
     return {

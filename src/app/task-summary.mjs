@@ -16,16 +16,16 @@ import { taskRepository } from "../work-model.mjs";
 // a changed one queues a new write. A bound chat (role task-summary) submits
 // the text with plans_submit_task_summary. It reads only stored records and
 // makes no GitHub call.
-export const SUMMARY_KIND = "task-summary";
-export const SUMMARY_ROLE = "task-summary";
-export const SUMMARY_AGENT = "avoozl-task-summary";
+const SUMMARY_KIND = "task-summary";
+const SUMMARY_ROLE = "task-summary";
+const SUMMARY_AGENT = "avoozl-task-summary";
 const MAX_TEXT = 800;
 // A queued summary no chat picked up in this long counts as failed, so the
 // page offers Retry instead of waiting forever.
 const QUEUE_LIMIT_MS = 10 * 60_000;
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 
-export const summaryId = (taskId) => `${SUMMARY_KIND}:${taskId}`;
+const summaryId = (taskId) => `${SUMMARY_KIND}:${taskId}`;
 const slotKey = (slot) =>
   slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;
 
@@ -54,7 +54,7 @@ export function summaryFacts(view) {
   };
 }
 
-export const factsHash = (facts) => digest(JSON.stringify(facts));
+const factsHash = (facts) => digest(JSON.stringify(facts));
 
 // What the page shows: none (not written for these inputs; the page asks for
 // it), working, ready or failed.

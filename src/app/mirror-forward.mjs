@@ -167,12 +167,3 @@ export function mirrorForwardRows(store, policy) {
       openedAt: record.mirrorMergedAt,
     }));
 }
-
-// The Trace times of one record, matched by the mirror pull request number.
-export function mirrorRecordFor(store, mirror, pullNumber) {
-  return (
-    mirrorForwards(store).find(
-      (record) => record.mirror === mirror && record.mirrorPr === pullNumber,
-    ) ?? null
-  );
-}

@@ -52,9 +52,9 @@ const LETTERED = /^[A-Z]\d+[a-z]?$/;
 const CHECKBOX = /^\s*[-*+] \[([ xX~-])\]\*?[ \t]+(.*)$/;
 // A "Built:" line under a checked item names the work that already landed.
 const BUILT = /^\s+(?:[-*+]\s+)?Built:\s*(.+?)\s*$/;
-export const TITLE_LIMIT = 240;
+const TITLE_LIMIT = 240;
 // An epic row's lifecycle step (Requirement 59.1, design §4.32.6).
-export const EPIC_STEPS = ["design", "review", "implement"];
+const EPIC_STEPS = ["design", "review", "implement"];
 const FENCE = /^\s*(```|~~~)/;
 
 export function specName(value) {
@@ -376,7 +376,7 @@ export function checkedItems(name, text) {
 // An item longer than the title limit keeps its first clause as the title,
 // ending at the first ". ", "; ", ": ", ", " or " — " outside backticks; the
 // whole line becomes the summary (spec-plans parseSpec).
-export function shortTitle(text) {
+function shortTitle(text) {
   if (text.length <= TITLE_LIMIT) return text;
   let code = false;
   for (let at = 0; at < text.length - 1; at++) {
@@ -397,7 +397,7 @@ export function shortTitle(text) {
 
 // The clauses under bugfix.md's "Unchanged Behavior" heading, Kiro's
 // regression-prevention list, without their numbering or list markers.
-export function unchangedClauses(text) {
+function unchangedClauses(text) {
   const clauses = [];
   let inside = false,
     fenced = false;

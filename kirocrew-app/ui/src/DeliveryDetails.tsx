@@ -319,9 +319,6 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
           {item.supersededBy && `Superseded by ${item.supersededBy}.`}
         </Box>
       )}
-      {item.runs.length > 0 && (
-        <Box as="p" mt="2" size="xs" tone="muted">Runs: {item.runs.map((run) => `${run.id} (${run.state})`).join(', ')}</Box>
-      )}
       {item.integration && (
         <Box as="p" mt="2" size="xs">
           Integrated <code>{item.integration.commit?.slice(0, 12) ?? 'unknown commit'}</code>

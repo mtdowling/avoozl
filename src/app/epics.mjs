@@ -11,7 +11,7 @@
 // A row an approved epic folder wrote. Rows from before Requirement 59 (an
 // Inbox, per-plan W1-W7 groups, `doc:` groups) have no planId and are read
 // by nothing.
-export const isCrossPlanEpic = (epic) =>
+const isCrossPlanEpic = (epic) =>
   Boolean(
     epic && typeof epic.planId === "string" && Array.isArray(epic.listed),
   );

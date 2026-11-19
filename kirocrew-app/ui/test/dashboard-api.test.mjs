@@ -29,7 +29,6 @@ const delivery = (id, extra = {}) => ({
   complete: false,
   repository: null,
   sessions: [],
-  runs: [],
   evidence: [],
   integration: null,
   pullRequests: [],
@@ -155,7 +154,7 @@ test('Up next follows the tick dispatch order, and epics count their running cha
     edges: [],
   }
   const session = (slot, role) => ({ slot, role, attempt: 1, title: null, status: 'working', statusAt: null, boundAt: null })
-  const item = (id, sessions) => ({ id, title: id, status: null, complete: false, repository: null, sessions, runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [] })
+  const item = (id, sessions) => ({ id, title: id, status: null, complete: false, repository: null, sessions, evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [] })
   const summary = summarize({ graph, delivery: [item('z', [session('a', 'worker'), session('b', 'checks')])], conflicts: [], plans: null })
   assert.deepEqual(summary.readyNext.map((t) => t.id), ['y', 'x'])
   assert.equal(summary.progress[0].running, 2)
