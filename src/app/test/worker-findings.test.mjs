@@ -205,6 +205,11 @@ async function chatFindings(t, { size = null } = {}) {
   assert.equal(request.investigate, true);
   const token = issueReportToken(w.store, { taskId: "a", attempt: 1 });
   assert.match(request.brief, /findings --file <that file>/);
+  // The worktree is made before the findings, which are matched by it.
+  assert.ok(
+    request.brief.indexOf("worktree prepare a") <
+      request.brief.indexOf("findings --file"),
+  );
   assert.ok(request.brief.includes(`--token ${token}`));
   assert.doesNotMatch(request.brief, /plans_report/);
   await w.ops.execute("session.bind", {

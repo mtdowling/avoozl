@@ -199,10 +199,18 @@ export function investigateLines(
       ? ` --workspace ${JSON.stringify(cliReport.workspace)}`
       : "",
     report = cliReport
-      ? `write your findings as {${FINDINGS_SHAPE}} to a file outside the worktree, then run exactly: ${cliCommand()} runner report ${task.id} findings --file <that file> --token ${cliReport.token}${where}`
+      ? `write your findings as {${FINDINGS_SHAPE}} to a file outside the worktree, then run exactly, from inside the worktree: ${cliCommand()} runner report ${task.id} findings --file <that file> --token ${cliReport.token}${where}`
       : `call plans_report with {"input": {"taskId": "${task.id}", "kind": "findings", "findings": {${FINDINGS_SHAPE}}}}`;
   return [
     "Investigate first. Before you change any file:",
+    // The report is matched by the worktree it runs in, so the worktree
+    // exists before the findings (found by wp-p1: it was made only after
+    // Go ahead, and the findings report was refused).
+    ...(cliReport
+      ? [
+          `- Run \`${cliCommand()} worktree prepare ${task.id}${where}\` and read in the worktree it prints.`,
+        ]
+      : []),
     `- Read what the task touches, then ${report}.`,
     "- Change, commit and push nothing in this step. A second chat tries to prove your findings wrong.",
     wait,
