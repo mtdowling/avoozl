@@ -33,6 +33,13 @@ export default defineConfig({
       {
         text: "Guides",
         items: [
+          { text: "Workspaces", link: "/workspaces" },
+          { text: "Specs", link: "/specs" },
+          { text: "Delivery", link: "/delivery" },
+          { text: "Drivers", link: "/drivers" },
+          { text: "GitHub", link: "/github" },
+          { text: "Flow", link: "/flow" },
+          { text: "Agents and the CLI", link: "/agents" },
           { text: "Triage agent and policies", link: "/policies" },
           { text: "Epic types", link: "/epic-types" },
           { text: "Writing a plugin", link: "/plugins" },
