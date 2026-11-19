@@ -54,7 +54,7 @@ import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 import { LaneStyle } from './ui/PageStyles'
-import { PlainButton, PlainInput, PlainLink } from './ui/Plain'
+import { PlainButton, PlainInput, PlainLink, SvgRoot } from './ui/Plain'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -207,7 +207,7 @@ export function StateIcon({ phase }: { phase: 'running' | 'reviewing' }) {
   const label = phase === 'running' ? 'Running: a worker is coding' : 'Reviewing: a reviewer or checks chat is reading'
   const color = phase === 'running' ? 'var(--tile-purple, var(--accent))' : 'var(--accent)'
   return (
-    <svg width={18} height={18} viewBox="0 0 24 24" role="img" aria-label={label} style={{ flex: 'none', marginTop: 2, color }}>
+    <SvgRoot width={18} height={18} viewBox="0 0 24 24" role="img" aria-label={label} css-flex="none" css-margin-top="2" css-color={color}>
       <title>{label}</title>
       {phase === 'running' ? (
         <g>
@@ -224,7 +224,7 @@ export function StateIcon({ phase }: { phase: 'running' | 'reviewing' }) {
           {!still && <animateTransform attributeName="transform" type="translate" values="-2 0; 2 0; -2 0" dur="2.4s" repeatCount="indefinite" />}
         </g>
       )}
-    </svg>
+    </SvgRoot>
   )
 }
 
