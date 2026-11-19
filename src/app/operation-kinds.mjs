@@ -13,17 +13,9 @@ const OBSERVE = new Set([
   "state",
   "query",
   "queue",
-  "queue.items",
-  "queue.comments",
-  "queue.diff",
-  "github.intake.capabilities",
   "github.repositories",
   "github.issues",
   "conversations.settings.get",
-  "openhands.automations.capabilities",
-  "openhands.automations.recommendations",
-  "openhands.automations.coverage",
-  "openhands.automations.intake.preflight",
   "task.get",
   "task.sessions",
   "task.duplicates",
@@ -38,6 +30,7 @@ const OBSERVE = new Set([
   "plan.approvalBatches",
   "approval.delegates",
   "github.project.preview",
+  "github.project.detect",
   "plan.extract.get",
   "plan.review.get",
   "plan.review.list",
@@ -261,7 +254,6 @@ const EXECUTE = new Set([
   "activity",
   "jobs.dispatch",
   "jobs.redispatch",
-  "work.take",
   "task.notes.add",
 ]);
 
@@ -311,9 +303,6 @@ const PROTECT = new Set([
   "radar.retro.apply",
   "local.ignore.fix",
   "conversations.settings.update",
-  "openhands.automations.intake.prepare",
-  "openhands.automations.intake.state",
-  "openhands.automations.setup",
   "task.update",
   "task.archive",
   "task.unarchive",
@@ -354,10 +343,7 @@ const PROTECT = new Set([
   "project.configure",
   "project.remove",
   "github.configure",
-  "github.queue.configure",
-  "github.queue.remove",
-  "github.intake.capability.create",
-  "github.intake.capability.revoke",
+  "github.project.connect",
   "github.sync",
   "github.breakdown.advance",
   "github.authorize",
@@ -366,10 +352,6 @@ const PROTECT = new Set([
   "github.rebuild",
   "github.conflict.resolve",
   "conflicts.settle",
-  "queue.sync",
-  "queue.claim",
-  "queue.createTask",
-  "queue.confirmLink",
   "repositories.configure",
   "repositories.remove",
   "workspace.repository.configure",
@@ -391,6 +373,16 @@ const PROTECT = new Set([
 ]);
 
 const INCIDENT = new Set(["jobs.stop"]);
+
+// Every classified operation name, for the test that keeps this list, the
+// handlers and the MCP policy from drifting apart.
+export const OPERATION_NAMES = new Set([
+  ...OBSERVE,
+  ...DRAFT,
+  ...EXECUTE,
+  ...PROTECT,
+  ...INCIDENT,
+]);
 
 export function classifyOperation(name) {
   if (typeof name !== "string" || !name) return null;
