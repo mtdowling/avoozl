@@ -65,7 +65,7 @@ export function RoleChoice(props: {
       {role === MIRROR_ROLE && props.withSource !== false && (
         <Box htmlFor={`${props.id}-source`} as="label" flex flexCol gap="1" size="sm">
           <Box as="span" weight="medium">Public repository</Box>
-          <Input id={`${props.id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => props.onChange(role, event.target.value)} style={{ maxWidth: '24rem' }} />
+          <Input id={`${props.id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => props.onChange(role, event.target.value)} css-max-width="24rem" />
           {problem && (
             <ErrorText role="alert" as="span" size="xs">
               {problem}
@@ -200,9 +200,9 @@ export function EditRepository(props: {
       footer={
         <>
           {error && (
-            <span role="alert" className="mr-auto text-sm text-danger" style={{ order: -1 }}>
+            <Box role="alert" as="span" css-order={-1} mrAuto size="sm" tone="danger">
               {error}
-            </span>
+            </Box>
           )}
           <Btn type="button" primary disabled={busy || !changed || Boolean(problem)} onClick={() => void save()}>
             Save
@@ -241,7 +241,7 @@ export function EditRepository(props: {
             <FormSection title="Public repository" blurb="This repository is a private copy of a public one. Crews work here, in private.">
               <Box htmlFor={`${id}-source`} as="label" flex flexCol gap="1" size="sm">
                 <Box as="span" srOnly>Public repository</Box>
-                <Input id={`${id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => setSource(event.target.value)} style={{ maxWidth: '24rem' }} />
+                <Input id={`${id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => setSource(event.target.value)} css-max-width="24rem" />
                 {problem && (
                   <ErrorText role="alert" as="span" size="xs">
                     {problem}

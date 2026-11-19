@@ -50,7 +50,7 @@ export const CREW_PART_TEXT = {
 } as const
 
 // The landing block's mode values (landing.mode).
-export const LANDING_MODES = ['direct', 'pr', 'train', 'off'] as const
+export const LANDING_MODES = ['direct', 'pr', 'off'] as const
 
 // Who merges (landing.autoMerge): one radio fold-out, the writer, Avoozl
 // and the person for each. Blank follows `inherited`, the older workspace

@@ -263,7 +263,7 @@ export function CopyAttach({ command, title }: { command: string; title: string 
           aria-label={`Copy the attach command for ${title}`}
           aria-describedby={describedBy}
           data-copy-attach
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 6px', minHeight: 0 }}
+          css-display="inline-flex" css-align-items="center" css-gap="4" css-padding="3px-6px" css-min-height="0"
           onClick={() =>
             void navigator.clipboard?.writeText(command).then(
               () => {
@@ -748,7 +748,7 @@ export default function DashboardView(props: {
                             </Box>
                           </Box>
                           <Box role="progressbar" aria-label={`${title} progress`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} as="span" css-background="border" mt="1" block h15 overflow="hidden" rounded="base">
-                            <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
+                            <Box as="span" css-width={`${percent}%`} css-background="ok" block hFull />
                           </Box>
                         </PlainButton>
                       </Tooltip>

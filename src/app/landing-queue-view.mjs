@@ -16,8 +16,14 @@
 //   before it.
 import { linkSets } from "./scm-links.mjs";
 import { pausedBy, taskIds } from "./landing-queue.mjs";
-import { readyEntries, runningTrain } from "./integrator-trains.mjs";
 import { taskRepository } from "../work-model.mjs";
+import { landingSettings } from "./landing-config.mjs";
+import {
+  failureRate,
+  sizeLimit,
+  sizeRecord,
+  testingNow,
+} from "./merge-batch-size.mjs";
 
 const TABLE = "landing_queue";
 const BACK = new Set(["conflict", "failed"]);
@@ -78,31 +84,6 @@ function queuedHold(store, entry, position, project, checks) {
   return { kind: "next", text: "Next to land." };
 }
 
-// Why an entry of an integrator train target waits (landing-trains LT14.1):
-// in a train and its step, held with the reason, or waiting for a train.
-function trainHold(store, entry, { running, held }) {
-  if (entry.state === "in-train") {
-    const step =
-      running?.id === entry.train
-        ? (running.current ?? running.steps.at(-1)?.name)
-        : null;
-    return {
-      kind: "train",
-      text: `In ${entry.train}${step ? `, step ${step}` : ""}.`,
-    };
-  }
-  const stop = pausedBy(store, entry);
-  if (stop) return stopHold(stop);
-  const reason = held.get(entry.key);
-  if (reason) return { kind: "held", text: `Held: ${reason}.` };
-  return {
-    kind: "waiting",
-    text: running
-      ? `Waiting for the next train; ${running.id} is running.`
-      : "Waiting for the next train.",
-  };
-}
-
 // Why a task that left the queue waits: back with its worker, or a person.
 function backHold(entry, delivery) {
   const conflict = entry.state === "conflict",
@@ -131,7 +112,11 @@ function pathHeld(delivery) {
   return held && held.commit === delivery.commit ? held : null;
 }
 
-export function landingQueueView(store, data, { now = Date.now() } = {}) {
+export function landingQueueView(
+  store,
+  data,
+  { now = Date.now(), config = null } = {},
+) {
   const tasks = new Map((data?.tasks ?? []).map((t) => [t.id, t])),
     projects = new Map(listOr(store, "projects").map((p) => [p.id, p])),
     deliveries = new Map(
@@ -157,6 +142,11 @@ export function landingQueueView(store, data, { now = Date.now() } = {}) {
     }
     return groups.get(key);
   };
+  // Every `direct` base shows its size and its last merge batches, even
+  // while nothing waits.
+  for (const project of projects.values())
+    if (project.landing === "direct")
+      group(project.id, project.baseBranch || "main");
   const item = (entry, ids, extra) => {
     const first = links[ids[0]] ?? null;
     return {
@@ -170,26 +160,10 @@ export function landingQueueView(store, data, { now = Date.now() } = {}) {
       ...extra,
     };
   };
-  // Per train target: the running train and why each queued entry is held.
-  const trainFor = (entry) => {
-    const key = `${entry.projectId}\0${entry.base}`;
-    if (!trainState.has(key))
-      trainState.set(key, {
-        running: runningTrain(store, entry.projectId, entry.base),
-        held: new Map(
-          readyEntries(store, {
-            projectId: entry.projectId,
-            base: entry.base,
-          }).held.map((h) => [h.key, h.reason]),
-        ),
-      });
-    return trainState.get(key);
-  };
   const entries = listOr(store, TABLE),
     queued = entries
-      .filter((e) => e.state === "queued" || e.state === "in-train")
+      .filter((e) => e.state === "queued")
       .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)),
-    trainState = new Map(),
     positions = new Map(),
     shown = new Set();
   for (const entry of queued) {
@@ -203,16 +177,16 @@ export function landingQueueView(store, data, { now = Date.now() } = {}) {
       item(entry, ids, {
         position: position + 1,
         since: entry.queuedAt ?? null,
-        hold:
-          projects.get(entry.projectId)?.landing === "train"
-            ? trainHold(store, entry, trainFor(entry))
-            : queuedHold(
-                store,
-                entry,
-                position,
-                projects.get(entry.projectId),
-                first?.checks,
-              ),
+        waitedMinutes: entry.queuedAt
+          ? Math.max(0, Math.floor((now - Date.parse(entry.queuedAt)) / 60000))
+          : null,
+        hold: queuedHold(
+          store,
+          entry,
+          position,
+          projects.get(entry.projectId),
+          first?.checks,
+        ),
       }),
     );
   }
@@ -267,21 +241,24 @@ export function landingQueueView(store, data, { now = Date.now() } = {}) {
   later
     .sort((a, b) => String(a.at ?? "").localeCompare(String(b.at ?? "")))
     .forEach(({ line, row }) => line.items.push(row));
-  // A train target also reports its queue depth and the running train.
+  // The merge batch being tested, the last ones and the size limit, from
+  // stored records (MB7.1).
   for (const line of groups.values()) {
-    if (line.landing !== "train") continue;
-    const running = runningTrain(store, line.projectId, line.base);
-    line.queue = {
-      depth: line.items.filter((i) => i.position != null).length,
-      train: running
-        ? {
-            id: running.id,
-            policy: running.policy,
-            step: running.current ?? running.steps.at(-1)?.name ?? "starting",
-            members: running.members.length,
-            startedAt: running.startedAt,
-          }
-        : null,
+    if (line.landing !== "direct") continue;
+    const at = { projectId: line.projectId, base: line.base },
+      record = sizeRecord(store, at),
+      setting = landingSettings(
+        config,
+        line.repository,
+        projects.get(line.projectId),
+      ).mergeBatch;
+    line.testing = testingNow(store, at);
+    line.last = [...record.last].reverse();
+    line.size = {
+      limit: sizeLimit(record, setting),
+      fixed: Number.isInteger(setting),
+      failureRate: failureRate(record.results),
+      results: record.results.length,
     };
   }
   return {
@@ -293,4 +270,32 @@ export function landingQueueView(store, data, { now = Date.now() } = {}) {
     ),
     readAt: new Date(now).toISOString(),
   };
+}
+
+// A member that has waited more than 60 minutes is one Needs you row naming
+// why it waits (MB7.3). The row's id is the entry's, so reading twice shows
+// one row, and it goes when the member leaves the queue.
+export const LONG_WAIT_MINUTES = 60;
+export function landingWaitNeedsYou(
+  store,
+  data,
+  { now = Date.now(), config } = {},
+) {
+  const view = landingQueueView(store, data, { now, config });
+  return view.bases.flatMap((line) =>
+    line.items
+      .filter((i) => i.position != null && i.waitedMinutes > LONG_WAIT_MINUTES)
+      .map((i) => ({
+        kind: "needs-human",
+        reason: "approval",
+        id: `landing-wait:${line.projectId}:${line.base}:${i.key}`,
+        taskId: i.tasks[0]?.id ?? null,
+        authority: "avoozl",
+        title: `${i.tasks[0]?.id ?? i.key} has waited ${i.waitedMinutes} minutes to land on ${line.base}`,
+        detail: i.hold.text,
+        openedAt: new Date(
+          Date.parse(i.since) + LONG_WAIT_MINUTES * 60000,
+        ).toISOString(),
+      })),
+  );
 }

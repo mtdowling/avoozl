@@ -212,7 +212,7 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
             <Box htmlFor="avoozl-repo-folder" as="label" srOnly>
               Folder
             </Box>
-            <Input id="avoozl-repo-folder" value={folder} placeholder="/path/to/my-service" onChange={(event) => setFolder(event.target.value)} style={{ minWidth: '18rem' }} />
+            <Input id="avoozl-repo-folder" value={folder} placeholder="/path/to/my-service" onChange={(event) => setFolder(event.target.value)} css-min-width="18rem" />
             <TipBtn tooltip="Read the folder's branch and GitHub remote. Changes nothing." onClick={() => void detect()} disabled={busy || !folder.trim() || Boolean(props.disabled)}>
               Check folder
             </TipBtn>

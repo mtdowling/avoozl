@@ -2,15 +2,16 @@
 // repository, as lanes of step cards built from its settings. Pure: the page
 // draws what this returns, and no card holds text the settings do not give.
 import { isGitHubMode, modeKey, type RepositoryForm } from './settings-api.ts'
+import { TONE } from './ui/tones.ts'
 
 export type Who = 'you' | 'radar' | 'avoozl' | 'github'
 export const WHO_TEXT: Record<Who, string> = { you: 'You', radar: 'Radar crew', avoozl: 'Avoozl', github: 'GitHub' }
 // Theme variables only, each with another existing variable as fallback.
 export const WHO_COLOR: Record<Who, string> = {
-  you: 'var(--accent)',
-  radar: 'var(--tile-purple, var(--aim))',
-  avoozl: 'var(--ok)',
-  github: 'var(--tile-orange, var(--warning))',
+  you: TONE.accent,
+  radar: TONE.purpleOrAim,
+  avoozl: TONE.ok,
+  github: TONE.orangeOrWarning,
 }
 
 // The one place a step's build state is written. A step missing here has no

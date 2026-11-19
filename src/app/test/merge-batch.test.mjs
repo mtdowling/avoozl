@@ -1,5 +1,6 @@
-// Direct portions and bounded trains (task 41.3). Journals are in memory;
-// repositories are local scratch repositories with a bare remote.
+// Direct landing in merge batches (tasks 41.3, mb-1.2 to mb-1.4). Journals
+// are in memory; repositories are local scratch repositories with a bare
+// remote.
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -10,11 +11,12 @@ import { git } from "../git.mjs";
 import { journalOutcomes, replayJournal } from "../spec-journal.mjs";
 import { taskOutcome } from "../task-outcomes.mjs";
 import { driverState, takeOver } from "../driver-generations.mjs";
-import { landNext, landingQueue } from "../landing-queue.mjs";
-import { TRAIN_TASKS, directSteps, queuePortion } from "../landing-trains.mjs";
+import { batchOf, landNext, landingQueue } from "../landing-queue.mjs";
+import { directSteps, memberRef, queuePortion } from "../merge-batch.mjs";
 import { workingBranch } from "../working-heads.mjs";
 
 const Q = { projectId: "fixture", base: "main" };
+const BATCH = { limit: 4, bisect: true };
 const owner = { login: "owner", from: "spec" };
 const person = { kind: "person", login: "owner" };
 const REVISION = digest("revision");
@@ -147,6 +149,7 @@ async function setup(t) {
     head,
     base,
     portion,
+    journalOf,
     steps,
     journals,
     tree,
@@ -197,7 +200,7 @@ test("only verified portions with task definitions are queued", async (t) => {
   );
 });
 
-test("a train of one driver's portions across specs lands in one guarded push, at most four tasks", async (t) => {
+test("a merge batch across specs lands in one guarded push, up to the limit", async (t) => {
   const x = await setup(t);
   await x.portion("spec-a", "t1", { "one.txt": "1\n" });
   await x.portion("spec-b", "t2", { "two.txt": "2\n" });
@@ -205,7 +208,7 @@ test("a train of one driver's portions across specs lands in one guarded push, a
   await x.portion("spec-b", "t4", { "four.txt": "4\n" });
   await x.portion("spec-a", "t5", { "five.txt": "5\n" });
   const s = x.steps(),
-    result = await landNext(x.store, Q, s, { maxTasks: TRAIN_TASKS });
+    result = await landNext(x.store, Q, s, BATCH);
   assert.equal(result.state, "landed");
   assert.deepEqual(
     result.entries.map((e) => e.key),
@@ -260,77 +263,251 @@ test("a train of one driver's portions across specs lands in one guarded push, a
     assert.match(log, new RegExp(`Avoozl-Task: ${task}@${def(task)}`));
 });
 
-test("another driver's portion does not join the train", async (t) => {
+test("members of two drivers land in one fast-forward, each intent read back first", async (t) => {
   const x = await setup(t);
   await x.portion("spec-a", "t1", { "one.txt": "1\n" });
   await x.portion("spec-b", "t2", { "two.txt": "2\n" }, { driver: "d2" });
-  const result = await landNext(x.store, Q, x.steps(), {
-    maxTasks: TRAIN_TASKS,
+  await x.portion("spec-b", "t3", { "three.txt": "3\n" }, { driver: "d2" });
+  const s = x.steps(),
+    result = await landNext(x.store, Q, s, { ...BATCH, limit: 3 });
+  assert.equal(result.state, "landed");
+  assert.deepEqual(
+    result.entries.map((e) => e.key),
+    ["spec-a.t1", "spec-b.t2", "spec-b.t3"],
+  );
+  assert.equal(await x.head(), result.candidate);
+  assert.equal(s.log.results[0].length, 2);
+  for (const r of s.log.results[0]) assert.equal(r.state, "landed");
+});
+
+test("a batch of one lands as direct landing did, and a base that moved gets new checks", async (t) => {
+  const x = await setup(t);
+  await x.portion("spec-a", "t1", { "one.txt": "1\n" });
+  const ran = [];
+  let moved = false;
+  const s = x.steps({
+    run: async (project, commit, argv) => {
+      const { runCheckAt } = await import("../flow-line.mjs");
+      ran.push(commit);
+      if (!moved) {
+        // Someone else pushes to the base while the checks run.
+        moved = true;
+        const other = path.join(x.root, "other");
+        await git(x.root, ["clone", "-q", x.upstream, other]);
+        await git(other, ["config", "user.name", "Other"]);
+        await git(other, ["config", "user.email", "other@example.invalid"]);
+        fs.writeFileSync(path.join(other, "other.txt"), "o\n");
+        await git(other, ["add", "."]);
+        await git(other, ["commit", "-q", "-m", "Other work"]);
+        await git(other, ["push", "-q", "origin", "main"]);
+      }
+      return runCheckAt(project, commit, argv);
+    },
   });
+  const first = await landNext(x.store, Q, s);
+  assert.equal(first.state, "base-moved");
+  assert.equal(landingQueue(x.store, Q).length, 1);
+  const second = await landNext(x.store, Q, s);
+  assert.equal(second.state, "landed");
+  assert.equal(second.entries.length, 1);
+  // A new candidate on the new base, checked again.
+  assert.equal(ran.length, 2);
+  assert.notEqual(ran[0], ran[1]);
+  assert.equal(await x.head(), second.candidate);
+});
+
+test("a push never forces", async (t) => {
+  const x = await setup(t);
+  await x.portion("spec-a", "t1", { "one.txt": "1\n" });
+  await x.portion("spec-b", "t2", { "two.txt": "2\n" });
+  const trace = path.join(x.root, "trace.log");
+  const s = x.steps({ env: { ...process.env, GIT_TRACE: trace } });
+  const result = await landNext(x.store, Q, s, BATCH);
+  assert.equal(result.state, "landed");
+  const pushes = fs
+    .readFileSync(trace, "utf8")
+    .split("\n")
+    .filter((line) => /\bgit\b.*\bpush\b/.test(line));
+  assert.ok(pushes.length > 0);
+  for (const line of pushes) assert.doesNotMatch(line, /--force|\s-f\b|\s\+/);
+});
+
+// The check runner for the next tests: bad.txt fails alone, pair-a.txt and
+// pair-b.txt fail only together, and flaky.txt fails the first time a head
+// is checked and passes the second.
+function fakeRunner() {
+  const seen = new Map();
+  return async (project, commit, argv) => {
+    const files = (
+      await git(project.root, ["ls-tree", "-r", "--name-only", commit])
+    ).split("\n");
+    const key = `${commit}:${argv.join(" ")}`;
+    seen.set(key, (seen.get(key) ?? 0) + 1);
+    const bad =
+      files.includes("bad.txt") ||
+      (files.includes("pair-a.txt") && files.includes("pair-b.txt")) ||
+      (files.includes("flaky.txt") && seen.get(key) === 1);
+    return {
+      exitCode: bad ? 1 : 0,
+      durationMs: 1,
+      tail: bad ? "FAILED\n".repeat(5000) : "",
+    };
+  };
+}
+
+test("a flaky failure lands the batch and is recorded as flaky", async (t) => {
+  const x = await setup(t);
+  await x.portion("spec-a", "t1", { "one.txt": "1\n" });
+  await x.portion("spec-a", "t2", { "flaky.txt": "f\n" });
+  const result = await landNext(
+    x.store,
+    Q,
+    x.steps({ run: fakeRunner() }),
+    BATCH,
+  );
+  assert.equal(result.state, "landed");
+  assert.equal(result.entries.length, 2);
+  assert.ok(result.entries.every((e) => e.flaky === true));
+  assert.deepEqual(result.sentBack, []);
+});
+
+test("with member 5 of 8 bad, 1 to 4 land, 5 goes back with its failing check and 6 to 8 are next", async (t) => {
+  const x = await setup(t);
+  for (let n = 1; n <= 8; n += 1)
+    await x.portion(
+      "spec-a",
+      `t${n}`,
+      n === 5 ? { "bad.txt": "x\n" } : { [`f${n}.txt`]: `${n}\n` },
+    );
+  const result = await landNext(x.store, Q, x.steps({ run: fakeRunner() }), {
+    limit: 8,
+    bisect: true,
+  });
+  assert.equal(result.state, "landed");
+  assert.deepEqual(
+    result.entries.map((e) => e.key),
+    ["spec-a.t1", "spec-a.t2", "spec-a.t3", "spec-a.t4"],
+  );
+  const [sent] = result.sentBack;
+  assert.equal(sent.state, "failed");
+  assert.equal(sent.entry.key, "spec-a.t5");
+  assert.match(sent.entry.checks[0].command, /check\.mjs/);
+  assert.ok(sent.entry.excerpt.length > 0);
+  assert.ok(Buffer.byteLength(sent.entry.excerpt) <= 8192);
+  assert.equal(sent.entry.checks[0].tail, undefined);
+  assert.deepEqual(
+    landingQueue(x.store, Q).map((e) => e.key),
+    ["spec-a.t6", "spec-a.t7", "spec-a.t8"],
+  );
+  assert.deepEqual(result.batch.culprits, ["spec-a.t5"]);
+  assert.equal(await x.tree("bad.txt"), null);
+  assert.equal(await x.head(), result.candidate);
+});
+
+test("a pair that fails only together sends back the later one naming the earlier, which lands", async (t) => {
+  const x = await setup(t);
+  await x.portion("spec-a", "t1", { "pair-a.txt": "a\n" });
+  await x.portion("spec-a", "t2", { "pair-b.txt": "b\n" });
+  const result = await landNext(
+    x.store,
+    Q,
+    x.steps({ run: fakeRunner() }),
+    BATCH,
+  );
+  assert.equal(result.state, "landed");
   assert.deepEqual(
     result.entries.map((e) => e.key),
     ["spec-a.t1"],
   );
+  const [sent] = result.sentBack;
+  assert.equal(sent.entry.key, "spec-a.t2");
+  assert.deepEqual(sent.entry.with, ["spec-a.t1"]);
 });
 
-test("a failed train is halved until one task is left; no landed head failed its checks", async (t) => {
-  const x = await setup(t);
-  await x.portion("spec-a", "t1", { "one.txt": "1\n" });
-  await x.portion("spec-a", "t2", { "two.txt": "2\n" });
-  await x.portion("spec-a", "t3", { "bad.txt": "x\n" });
-  await x.portion("spec-a", "t4", { "four.txt": "4\n" });
-  const ran = [];
-  const s = x.steps({
-    run: async (project, commit, argv) => {
-      const { runCheckAt } = await import("../flow-line.mjs");
-      const result = await runCheckAt(project, commit, argv);
-      ran.push({ commit, exitCode: result.exitCode });
-      return result;
-    },
-  });
-  const go = () => landNext(x.store, Q, s, { maxTasks: TRAIN_TASKS });
-  const first = await go();
-  assert.equal(first.state, "landed");
-  assert.deepEqual(
-    first.entries.map((e) => e.key),
-    ["spec-a.t1", "spec-a.t2"],
-  );
-  const second = await go();
-  assert.equal(second.state, "failed");
-  assert.equal(second.entry.key, "spec-a.t3");
-  const third = await go();
-  assert.equal(third.state, "landed");
-  assert.deepEqual(
-    third.entries.map((e) => e.key),
-    ["spec-a.t4"],
-  );
-  assert.equal(await x.tree("bad.txt"), null);
-  // Every head pushed was a candidate whose checks passed.
-  const passed = new Set(
-    ran.filter((r) => r.exitCode === 0).map((r) => r.commit),
-  );
-  assert.ok(passed.has(first.candidate) && passed.has(third.candidate));
-  assert.equal(await x.head(), third.candidate);
-});
-
-test("declared union paths merge in the landing worktree; other conflicts refuse the portion", async (t) => {
+test("a member that conflicts with an earlier one goes back with its files and the rest land", async (t) => {
   const x = await setup(t);
   await x.portion("spec-a", "t1", { "CHANGELOG.md": "from t1\n" });
   await x.portion("spec-a", "t2", { "CHANGELOG.md": "from t2\n" });
-  // Without union paths the second conflicts: the train narrows to the first.
-  const plain = await landNext(x.store, Q, x.steps(), {
-    maxTasks: TRAIN_TASKS,
+  await x.portion("spec-b", "t3", { "three.txt": "3\n" });
+  const result = await landNext(x.store, Q, x.steps(), BATCH);
+  assert.equal(result.state, "landed");
+  assert.deepEqual(
+    result.entries.map((e) => e.key),
+    ["spec-a.t1", "spec-b.t3"],
+  );
+  assert.equal(result.sentBack[0].state, "conflict");
+  assert.equal(result.sentBack[0].entry.key, "spec-a.t2");
+  assert.deepEqual(result.sentBack[0].entry.files, ["CHANGELOG.md"]);
+});
+
+test("a member marked alone lands alone", async (t) => {
+  const x = await setup(t);
+  await x.portion("spec-a", "t1", { "one.txt": "1\n" });
+  await x.portion("spec-a", "t2", { "two.txt": "2\n" });
+  await x.portion("spec-a", "t3", { "three.txt": "3\n" });
+  const queue = landingQueue(x.store, Q),
+    isAlone = (entry) => entry.key === "spec-a.t2",
+    keys = (list) => list.map((e) => e.key);
+  // It ends the batch before it, and when it is first it takes the batch.
+  assert.deepEqual(keys(batchOf(x.store, queue, { limit: 3, isAlone })), [
+    "spec-a.t1",
+  ]);
+  assert.deepEqual(
+    keys(batchOf(x.store, queue.slice(1), { limit: 3, isAlone })),
+    ["spec-a.t2"],
+  );
+});
+
+test("a worker machine's result lands from its fetched ref, and the remote holds only the base", async (t) => {
+  const x = await setup(t);
+  // The result's commit exists only in another clone and arrives by fetch
+  // into the member's ref.
+  const worker = path.join(x.root, "worker");
+  await git(x.root, ["clone", "-q", x.upstream, worker]);
+  await git(worker, ["config", "user.name", "Worker"]);
+  await git(worker, ["config", "user.email", "worker@example.invalid"]);
+  fs.writeFileSync(path.join(worker, "remote.txt"), "r\n");
+  await git(worker, ["add", "."]);
+  await git(worker, ["commit", "-q", "-m", "Work on t1"]);
+  const commit = await git(worker, ["rev-parse", "HEAD"]);
+  await git(x.landing, [
+    "fetch",
+    "-q",
+    worker,
+    `${commit}:${memberRef("spec-a.t1")}`,
+  ]);
+  await x.journalOf("spec-a");
+  queuePortion(x.store, {
+    ...Q,
+    spec: "spec-a",
+    driver: "d1",
+    commit,
+    tasks: [{ task: "t1", definition: def("t1") }],
+    evidence: { commit, checks: [{ command: "npm test", exitCode: 0 }] },
+    key: "spec-a.t1",
   });
+  const result = await landNext(x.store, Q, x.steps(), BATCH);
+  assert.equal(result.state, "landed");
+  assert.equal(await x.tree("remote.txt"), "r");
+  const refs = (await git(x.upstream, ["for-each-ref", "--format=%(refname)"]))
+    .split("\n")
+    .filter(Boolean);
+  assert.deepEqual(refs, ["refs/heads/main"]);
+});
+
+test("declared union paths merge in the landing worktree; other conflicts send the later member back", async (t) => {
+  const x = await setup(t);
+  await x.portion("spec-a", "t1", { "CHANGELOG.md": "from t1\n" });
+  await x.portion("spec-a", "t2", { "CHANGELOG.md": "from t2\n" });
+  // Without union paths the second conflicts: it goes back and the first lands.
+  const plain = await landNext(x.store, Q, x.steps(), BATCH);
   assert.equal(plain.state, "landed");
   assert.deepEqual(
     plain.entries.map((e) => e.key),
     ["spec-a.t1"],
   );
-  const conflict = await landNext(x.store, Q, x.steps(), {
-    maxTasks: TRAIN_TASKS,
-  });
-  assert.equal(conflict.state, "conflict");
-  assert.deepEqual(conflict.entry.files, ["CHANGELOG.md"]);
+  assert.equal(plain.sentBack[0].state, "conflict");
+  assert.deepEqual(plain.sentBack[0].entry.files, ["CHANGELOG.md"]);
 
   // With CHANGELOG.md declared append-only, both lines land together.
   await x.portion("spec-b", "t3", { "CHANGELOG.md": "from t3\n" });
@@ -339,7 +516,7 @@ test("declared union paths merge in the landing worktree; other conflicts refuse
     x.store,
     Q,
     x.steps({ unionPaths: ["CHANGELOG.md"] }),
-    { maxTasks: TRAIN_TASKS },
+    BATCH,
   );
   assert.equal(union.state, "landed");
   const text = await x.tree("CHANGELOG.md");
@@ -359,7 +536,7 @@ test("a content scan hit pushes nothing", async (t) => {
       return [{ target: "file:one.txt", line: 1, rule: "hostname" }];
     },
   });
-  const result = await landNext(x.store, Q, s, { maxTasks: TRAIN_TASKS });
+  const result = await landNext(x.store, Q, s, BATCH);
   assert.equal(result.state, "failed");
   assert.equal(result.entry.checks[0].command, "content scan");
   assert.equal(seen[0].base, x.base);
@@ -376,7 +553,7 @@ test("a displaced driver's intent stops before the push", async (t) => {
     x.options,
   );
   const s = x.steps(),
-    result = await landNext(x.store, Q, s, { maxTasks: TRAIN_TASKS });
+    result = await landNext(x.store, Q, s, BATCH);
   assert.equal(result.state, "not-landed");
   assert.equal(s.log.results[0][0].state, "refused");
   assert.equal(await x.head(), x.base);

@@ -6,7 +6,7 @@ import { COMMAND_PATH } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
 import type { BadgeVariant } from './ui/Badge.tsx'
 
-export type HoldKind = 'stopped' | 'off' | 'review' | 'failing' | 'pending' | 'conflict' | 'path' | 'behind' | 'next' | 'train' | 'held' | 'waiting'
+export type HoldKind = 'stopped' | 'off' | 'review' | 'failing' | 'pending' | 'conflict' | 'path' | 'behind' | 'next' | 'held' | 'waiting'
 
 export interface LandingLink {
   kind: string
@@ -27,13 +27,36 @@ export interface LandingItem {
   // Place in its queue from 1; null for a task out of the queue that comes back.
   position: number | null
   since: string | null
+  // Whole minutes since it was queued; null for a task out of the queue.
+  waitedMinutes: number | null
   hold: { kind: HoldKind; text: string }
 }
 
-// An integrator train target's queue depth and running train with its step.
-export interface TrainQueue {
-  depth: number
-  train: { id: string; policy: string; step: string; members: number; startedAt: string } | null
+export type BatchStep = 'testing' | 'rerun' | 'bisect' | 'push'
+
+// The merge batch being tested now: its members and its step.
+export interface TestingBatch {
+  members: string[]
+  step: BatchStep
+  since: string
+}
+
+// One finished merge batch.
+export interface FinishedBatch {
+  at: string
+  size: number
+  landed: number
+  culprits: number
+  seconds: number | null
+  outcome: 'landed' | 'partly landed' | 'culprit sent back'
+}
+
+// The size limit and the failure rate it comes from.
+export interface BatchSize {
+  limit: number
+  fixed: boolean
+  failureRate: number
+  results: number
 }
 
 export interface LandingBase {
@@ -42,8 +65,11 @@ export interface LandingBase {
   repository: string | null
   base: string
   landing: string | null
-  queue?: TrainQueue
   items: LandingItem[]
+  // Only for a base that lands directly, in merge batches.
+  testing?: TestingBatch | null
+  last?: FinishedBatch[]
+  size?: BatchSize
 }
 
 export interface LandingQueue {
@@ -68,7 +94,6 @@ const VARIANT: Partial<Record<HoldKind, BadgeVariant>> = {
   path: 'warning',
   next: 'success',
   pending: 'info',
-  train: 'info',
   held: 'warning',
 }
 export const holdVariant = (kind: HoldKind): BadgeVariant | undefined => VARIANT[kind]
@@ -84,7 +109,6 @@ const WORD: Record<HoldKind, string> = {
   path: 'Path hold',
   behind: 'Waiting',
   next: 'Next',
-  train: 'In a train',
   held: 'Held',
   waiting: 'Waiting',
 }
@@ -95,7 +119,7 @@ export const baseTitle = (base: LandingBase) => `${base.repository ?? base.proje
 
 // How the group lands, for its heading's side note.
 export const landingNote = (base: LandingBase) =>
-  base.landing === 'pr' ? 'by pull request' : base.landing === 'direct' ? 'direct' : base.landing === 'train' ? 'by integrator train' : base.landing === 'off' ? 'landing off' : 'local'
+  base.landing === 'pr' ? 'by pull request' : base.landing === 'direct' ? 'in merge batches' : base.landing === 'off' ? 'landing off' : 'local'
 
 // The item's links: only http(s), each opening a new tab.
 export function itemLinks(item: LandingItem): { key: string; label: string; href: string }[] {
@@ -109,11 +133,25 @@ export function itemLinks(item: LandingItem): { key: string; label: string; href
 
 export const itemCount = (view: LandingQueue | null) => (view ? view.bases.reduce((n, b) => n + b.items.length, 0) : 0)
 
-// A train target's line under its heading: how many wait, and the running
-// train with its step. Empty for a base that does not land in trains.
-export function queueLine(base: LandingBase): string | null {
-  if (!base.queue) return null
-  const waiting = `${base.queue.depth} in the queue`
-  const train = base.queue.train
-  return train ? `${waiting}. ${train.id} (${train.policy}, ${train.members} branches) is at ${train.step}.` : `${waiting}. No train is running.`
+const STEP: Record<BatchStep, string> = {
+  testing: 'running the checks',
+  rerun: 'running a failed check again',
+  bisect: 'looking for the member that broke it',
+  push: 'pushing',
+}
+
+// What the merge batch under test is doing.
+export const testingLine = (batch: TestingBatch) => `${batch.members.length} ${batch.members.length === 1 ? 'member' : 'members'}, ${STEP[batch.step] ?? batch.step}`
+
+// A duration in seconds as minutes and seconds.
+export function batchTime(seconds: number | null): string {
+  if (seconds == null) return ''
+  return seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min ${seconds % 60} s`
+}
+
+// The size line: the limit, whether a person set it, and the failure rate.
+export function sizeLine(size: BatchSize): string {
+  const rate = `${Math.round(size.failureRate * 100)}%`
+  const basis = size.results < 5 ? 'assumed until 5 results are in' : `over the last ${size.results} results`
+  return `Up to ${size.limit} ${size.limit === 1 ? 'task' : 'tasks'} per batch${size.fixed ? ' (set in the repository settings)' : ''}. Failure rate ${rate}, ${basis}.`
 }

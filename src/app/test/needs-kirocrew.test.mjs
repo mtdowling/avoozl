@@ -244,4 +244,7 @@ test("the table holds the four parts, then each role that is still a chat", () =
       .map((row) => row.setting),
   );
   for (const row of NEEDS_KIROCREW) assert.ok(row.reason, row.id);
+  // NK8.4: with nk-2.1 to nk-4.3 landed, every role runs as a child, so the
+  // table holds only the four parts.
+  assert.deepEqual(roles, []);
 });

@@ -1,5 +1,5 @@
 import { kirocrewSessionSettings } from "./executors/kirocrew.mjs";
-import { LANDING_MODES } from "./landing-config.mjs";
+import { LANDING_MODES, landingMode } from "./landing-config.mjs";
 // Repository policy in `.avoozl.json` (design §4.4): GitHub mode, task
 // authority, the Project, and per-repository rules that map labels to fixed
 // actions. No label name is built in. Validation is deterministic; the one
@@ -177,7 +177,7 @@ export const GITHUB_BLOCK_KEYS = Object.freeze({
   approval: ["decisionRecord"],
   conflicts: ["maxAttempts"],
   merge: ["method"],
-  landing: ["mode", "autoMerge", "method"],
+  landing: ["mode", "autoMerge", "method", "mergeBatch"],
   untriaged: ["filter", "triageLabels", "ignoreOlderThanDays", "notify"],
 });
 // Who may give Avoozl orders when a repository names nobody.
@@ -760,8 +760,8 @@ export const MERGE_METHOD_SETTING = Object.freeze({
   squash: { key: "allow_squash_merge", name: "Allow squash merging" },
   merge: { key: "allow_merge_commit", name: "Allow merge commits" },
 });
-// `landing` {mode, autoMerge, method} and the older `merge` {method}:
-// {landing: {mode, autoMerge}, merge: {method}}, unset values null. Null
+// `landing` {mode, autoMerge, method, mergeBatch} and the older `merge` {method}:
+// {landing: {mode, autoMerge, mergeBatch}, merge: {method}}, unset values null. Null
 // reads as unset, so a normalized policy normalizes to itself.
 function landingInput(value, merge, label) {
   const block = onlyKeys(
@@ -770,10 +770,20 @@ function landingInput(value, merge, label) {
       `${label}.landing`,
     ),
     old = onlyKeys(merge ?? {}, GITHUB_BLOCK_KEYS.merge, `${label}.merge`);
-  if (block.mode != null && !LANDING_MODES.includes(block.mode))
-    fail(`${label}.landing.mode must be direct, pr, train or off.`);
+  if (block.mode != null && !LANDING_MODES.includes(landingMode(block.mode)))
+    fail(`${label}.landing.mode must be direct, pr or off.`);
   if (block.autoMerge != null && typeof block.autoMerge !== "boolean")
     fail(`${label}.landing.autoMerge must be true or false.`);
+  if (
+    block.mergeBatch != null &&
+    block.mergeBatch !== "auto" &&
+    !(
+      Number.isInteger(block.mergeBatch) &&
+      block.mergeBatch >= 1 &&
+      block.mergeBatch <= 16
+    )
+  )
+    fail(`${label}.landing.mergeBatch must be "auto" or a whole number 1-16.`);
   for (const [at, method] of [
     ["landing.method", block.method],
     ["merge.method", old.method],
@@ -781,7 +791,11 @@ function landingInput(value, merge, label) {
     if (method != null && !MERGE_METHODS.includes(method))
       fail(`${label}.${at} must be squash or merge.`);
   return {
-    landing: { mode: block.mode ?? null, autoMerge: block.autoMerge ?? null },
+    landing: {
+      mode: landingMode(block.mode) ?? null,
+      autoMerge: block.autoMerge ?? null,
+      mergeBatch: block.mergeBatch ?? null,
+    },
     merge: { method: block.method ?? old.method ?? MERGE_METHOD_DEFAULT },
   };
 }

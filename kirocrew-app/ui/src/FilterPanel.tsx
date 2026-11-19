@@ -141,7 +141,7 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
       {props.fields.map((field) => (
         <Field key={field.key} id={props.id} field={field} />
       ))}
-      <TipBtn tooltip="Clear every filter on this tab" type="button" onClick={props.onClear} disabled={!props.active} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <TipBtn tooltip="Clear every filter on this tab" type="button" onClick={props.onClear} disabled={!props.active} css-display="inline-flex" css-align-items="center" css-gap="6">
         <X size={ICON} aria-hidden="true" />
         Clear
       </TipBtn>
@@ -215,7 +215,7 @@ export function NavFilters(props: { id: string; label: string; fields: FilterFie
         <Field key={field.key} id={props.id} field={field} inline={props.inline} />
       ))}
       <span>
-        <TipBtn tooltip="Clear every filter on this page" type="button" onClick={props.onClear} disabled={!props.active} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <TipBtn tooltip="Clear every filter on this page" type="button" onClick={props.onClear} disabled={!props.active} css-display="inline-flex" css-align-items="center" css-gap="6">
           <X size={ICON} aria-hidden="true" />
           Clear
         </TipBtn>

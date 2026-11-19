@@ -335,7 +335,7 @@ export interface RepositoryForm {
   conflictLabel: string
   // conflicts.maxAttempts; blank is the default.
   maxAttempts: string
-  // The landing block (design §4.25): landing.mode (direct, pr, train,
+  // The landing block (design §4.25): landing.mode (direct, pr,
   // off), landing.autoMerge ('on', 'off') and landing.method (squash or
   // merge, older key merge.method). Blank reads the older key or default.
   landingMode: string

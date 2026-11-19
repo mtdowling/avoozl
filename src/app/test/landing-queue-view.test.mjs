@@ -3,7 +3,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { enqueueLanding, landNext } from "../landing-queue.mjs";
-import { landingQueueView } from "../landing-queue-view.mjs";
+import {
+  landingQueueView,
+  landingWaitNeedsYou,
+} from "../landing-queue-view.mjs";
+import { recordBatch, setTesting } from "../merge-batch-size.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
@@ -261,83 +265,108 @@ test("landNext keeps why the head waits, once per change, never on a withdrawn e
   assert.equal(store.get("landing_queue", "p\0main\0k").state, "withdrawn");
 });
 
-// ---- integrator train targets (lt-7.1) ----
+// ---- merge batches (mb-2.2) ----
 
-test("a train target shows queue depth, each entry's time in queue and hold, and the running train's step, from the store alone", async (t) => {
+test("a direct base shows waiting, testing, last merge batches and size from stored records", (t) => {
   const { store } = fixture(t),
     now = Date.parse("2026-01-01T01:00:00.000Z"),
-    at = (minutes) => new Date(now - minutes * 60000).toISOString();
+    at = (minutes) => new Date(now - minutes * 60000).toISOString(),
+    Q = { projectId: "app", base: "main" };
   store.put("projects", {
     id: "app",
     root: "/x",
-    baseBranch: "core-dev",
-    landing: "train",
+    baseBranch: "main",
+    landing: "direct",
     repository: "acme/app",
   });
-  const sha = (n) => String(n).padStart(40, "0"),
-    entry = (key, seq, extra) =>
-      store.put("landing_queue", {
-        id: `app\0core-dev\0${key}`,
-        projectId: "app",
-        base: "core-dev",
-        key,
-        commit: sha(seq),
-        tasks: [{ task: key, definition: "d" }],
-        spec: "s",
-        seq,
-        state: "queued",
-        queuedAt: at(30 - seq * 5),
-        branch: `avoozl-batch/${key}`,
-        builtOn: [],
-        cheap: { commit: sha(seq) },
-        ...extra,
-      });
-  entry("a", 1, { state: "in-train", train: "train-1" });
-  entry("b", 2, { state: "in-train", train: "train-1" });
-  entry("c", 3);
-  entry("d", 4, { builtOn: ["e"] });
-  entry("e", 5, { cheap: null });
-  store.put("landing_trains", {
-    id: "train-1",
-    projectId: "app",
-    target: "core-dev",
-    policy: "gated",
-    startedAt: at(8),
-    members: [{ key: "a" }, { key: "b" }],
-    steps: [{ name: "stack" }, { name: "cheap" }],
-    current: "full on the stack",
-    outcome: null,
+  const sha = (n) => String(n).padStart(40, "0");
+  for (const [n, key] of ["a", "b", "c"].entries())
+    enqueueLanding(
+      store,
+      { ...Q, key, commit: sha(n + 1), tasks: [key], spec: "s", driver: "d" },
+      { now: now - (30 - n * 10) * 60000 },
+    );
+  setTesting(store, Q, { members: ["a", "b"], step: "bisect", since: at(2) });
+  recordBatch(store, Q, {
+    landed: ["x", "y"],
+    culprits: ["z"],
+    held: 3,
+    waiting: 5,
+    at: at(20),
+    seconds: 95,
   });
-  const view = landingQueueView(store, { tasks: [] }, { now }),
-    [base] = view.bases;
-  assert.equal(base.landing, "train");
-  assert.deepEqual(base.queue, {
-    depth: 5,
-    train: {
-      id: "train-1",
-      policy: "gated",
-      step: "full on the stack",
-      members: 2,
-      startedAt: at(8),
+  recordBatch(store, Q, {
+    landed: ["w"],
+    held: 1,
+    waiting: 4,
+    at: at(10),
+    seconds: 40,
+  });
+  const [base] = landingQueueView(store, { tasks: [] }, { now }).bases;
+  assert.equal(base.landing, "direct");
+  assert.deepEqual(
+    base.items.map((i) => [i.key, i.waitedMinutes]),
+    [
+      ["a", 30],
+      ["b", 20],
+      ["c", 10],
+    ],
+  );
+  assert.deepEqual(base.testing, {
+    members: ["a", "b"],
+    step: "bisect",
+    since: at(2),
+  });
+  assert.deepEqual(
+    base.last.map((l) => [l.outcome, l.size, l.seconds]),
+    [
+      ["landed", 1, 40],
+      ["partly landed", 3, 95],
+    ],
+  );
+  assert.equal(base.size.limit, 2);
+  assert.equal(base.size.fixed, false);
+  assert.equal(base.size.results, 4);
+  assert.equal(base.size.failureRate, 0.1);
+  // A fixed setting replaces the limit on the page.
+  const config = {
+      github: {
+        repositories: { "acme/app": { landing: { mergeBatch: 5 } } },
+      },
     },
+    fixed = landingQueueView(store, { tasks: [] }, { now, config }).bases[0];
+  assert.deepEqual([fixed.size.limit, fixed.size.fixed], [5, true]);
+});
+
+test("a member that waited 61 minutes opens one Needs you row, and a second read opens no more", (t) => {
+  const { store } = fixture(t),
+    now = Date.parse("2026-01-01T03:00:00.000Z"),
+    Q = { projectId: "app", base: "main" };
+  store.put("projects", {
+    id: "app",
+    root: "/x",
+    baseBranch: "main",
+    landing: "direct",
+    repository: "acme/app",
   });
-  const byKey = Object.fromEntries(base.items.map((i) => [i.key, i]));
-  assert.equal(byKey.a.hold.kind, "train");
-  assert.match(byKey.a.hold.text, /In train-1, step full on the stack/);
-  assert.equal(byKey.c.hold.kind, "waiting");
-  assert.match(byKey.c.hold.text, /train-1 is running/);
-  assert.equal(byKey.d.hold.kind, "held");
-  assert.match(byKey.d.hold.text, /built on e/);
-  assert.equal(byKey.e.hold.kind, "held");
-  assert.match(byKey.e.hold.text, /cheap checks/);
-  // Time in queue: since each entry's queuedAt.
-  assert.equal(byKey.a.since, at(25));
-  assert.equal(byKey.c.since, at(15));
-  // With the train over, the step and the waiting reason change.
-  store.put("landing_trains", {
-    ...store.get("landing_trains", "train-1"),
-    outcome: "landed",
-  });
-  const after = landingQueueView(store, { tasks: [] }, { now }).bases[0];
-  assert.equal(after.queue.train, null);
+  const sha = (n) => String(n).padStart(40, "0");
+  enqueueLanding(
+    store,
+    { ...Q, key: "old", commit: sha(1), tasks: ["old"] },
+    { now: now - 61 * 60000 },
+  );
+  enqueueLanding(
+    store,
+    { ...Q, key: "new", commit: sha(2), tasks: ["new"] },
+    { now: now - 59 * 60000 },
+  );
+  const first = landingWaitNeedsYou(store, { tasks: [] }, { now }),
+    again = landingWaitNeedsYou(store, { tasks: [] }, { now: now + 1000 });
+  assert.equal(first.length, 1);
+  assert.equal(first[0].id, "landing-wait:app:main:old");
+  assert.match(first[0].detail, /Next to land|Behind|Landing is off/);
+  assert.deepEqual(
+    again.map((r) => r.id),
+    [first[0].id],
+  );
 });
