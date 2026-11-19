@@ -1,7 +1,7 @@
 import { resolveTaskId, taskSourceRefs } from "./task-identity.mjs";
 import { queryTasks, statusComplete } from "./query.mjs";
 import { frontMatterCategory } from "./front-matter.mjs";
-export const PLAN_STATUSES = {
+const PLAN_STATUSES = {
   done: "DONE",
   "not-started": "NOT STARTED",
   started: "STARTED",

@@ -10,7 +10,7 @@ import { fail } from "./store.mjs";
 
 // Protected by default in every repository (R86.6): CI workflows and the
 // worktree helper a person approved by hash (R83.4).
-export const DEFAULT_PROTECTED_PATHS = Object.freeze([
+const DEFAULT_PROTECTED_PATHS = Object.freeze([
   ".github/workflows/**",
   "scripts/worktree",
 ]);
@@ -239,7 +239,7 @@ export async function warmWorktree(store, taskId, commit) {
   }
 }
 
-export function protectedAllowance(store, taskId, commit) {
+function protectedAllowance(store, taskId, commit) {
   try {
     return store.get("flow_records", `${ALLOW}:${taskId}:${commit}`) || null;
   } catch {

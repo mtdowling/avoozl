@@ -312,7 +312,7 @@ function recordRun(store, run) {
 // for the page's Tick health card. The file keeps the newest TICK_LOG_KEEP
 // lines. shortcut: the trim rewrites the whole file each tick, which is fine
 // at this size; switch to rotation if TICK_LOG_KEEP grows large.
-export const TICK_LOG_KEEP = 200;
+const TICK_LOG_KEEP = 200;
 
 const tickLogPath = (healthFile) =>
   path.join(path.dirname(healthFile), "tick-log.jsonl");

@@ -87,7 +87,7 @@ const ITEMS = "needs-kirocrew.items";
 const RECENT_MS = 10 * 60_000;
 export const markKirocrewSeen = (store, now = Date.now()) =>
   store.setMeta(SEEN, new Date(now).toISOString());
-export function kirocrewReachable(store, now = Date.now()) {
+function kirocrewReachable(store, now = Date.now()) {
   const at = store.getMeta(SEEN);
   return {
     reachable: Boolean(at) && now - Date.parse(at) < RECENT_MS,

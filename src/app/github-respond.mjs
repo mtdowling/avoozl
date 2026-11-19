@@ -21,7 +21,7 @@ import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { fail } from "./store.mjs";
 import { enforce as enforceContent, screenReply } from "./content-rules.mjs";
 
-export const RESPONDER_AGENT = "avoozl-responder";
+const RESPONDER_AGENT = "avoozl-responder";
 // GitHub refuses comments longer than 65,536 characters.
 const MAX_REPLY = 65536;
 
@@ -108,7 +108,7 @@ async function foundIn(root, candidates, { tracked = false } = {}) {
   return new Set(candidates.filter((line) => text.includes(line)));
 }
 
-export async function privateQuotes(store, github, config, body) {
+async function privateQuotes(store, github, config, body) {
   let visibility = "public";
   try {
     const remote = await github.repository(config);

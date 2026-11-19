@@ -16,6 +16,7 @@ import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 import { PlainInput } from './ui/Plain'
+import { Glyph } from './ui/Glyph'
 
 type Client = ReturnType<typeof radarClient>
 
@@ -197,7 +198,7 @@ export function SendToRadar(props: {
           )}
           {crew?.emptyScope && (
             <Box role="alert" as="p" css-color="danger" flex items="start" gap="1.5" size="sm" data-radar-empty-scope>
-              <CircleAlert size={ICON} aria-hidden="true" style={{ marginTop: 3, flex: 'none' }} />
+              <Glyph icon={CircleAlert} size={ICON} aria-hidden="true" css-margin-top="3" css-flex="none" />
               {crew.name} has an empty scope, so it takes every open issue in {repository}, labeled or not. Avoozl writes no label; these move to With Issue Radar.
             </Box>
           )}
@@ -234,7 +235,7 @@ export function SendToRadar(props: {
         <Box as="ul" flex flexCol gap="1" size="sm" data-radar-results>
           {(result.results ?? []).map((row) => (
             <Box key={row.number} as="li" flex items="start" gap="1.5">
-              {row.ok ? <Check size={ICON} aria-hidden="true" style={{ color: 'var(--ok)', marginTop: 3 }} /> : <X size={ICON} aria-hidden="true" style={{ color: 'var(--danger)', marginTop: 3 }} />}
+              {row.ok ? <Glyph icon={Check} size={ICON} aria-hidden="true" css-color="ok" css-margin-top="3" /> : <Glyph icon={X} size={ICON} aria-hidden="true" css-color="danger" css-margin-top="3" />}
               <span>
                 #{row.number} {row.ok ? (result.label ? `labeled ${result.label}` : 'recorded') : `not sent: ${row.error}`}
               </span>

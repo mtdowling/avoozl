@@ -26,7 +26,7 @@ import { INTERRUPTED, liveAttempt, rebaseForIntegration } from "./delivery.mjs";
 import { fence } from "./github-respond.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 
-export const BISECT_RUNS = 8;
+const BISECT_RUNS = 8;
 const TAIL_LINES = 20;
 
 const landingOf = (project) =>

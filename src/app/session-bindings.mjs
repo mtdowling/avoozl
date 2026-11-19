@@ -31,7 +31,7 @@ const ROLES = new Set([
 // A review role's session (§5.2): `review:<role id>`, so each role numbers its
 // own attempts.
 const REVIEW_ROLE = /^review:[a-z0-9][a-z0-9-]{0,39}$/;
-export const isRole = (role) => ROLES.has(role) || REVIEW_ROLE.test(role);
+const isRole = (role) => ROLES.has(role) || REVIEW_ROLE.test(role);
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const TITLE = /^avoozl:(\S+)(?:\s|$)/;

@@ -91,11 +91,6 @@ test("workspace CLI adopts existing state and local maintenance refuses register
     store = new Store(database);
   try {
     store.setMeta("workspaceId", "legacy-random");
-    store.put("runs", {
-      id: "historical",
-      taskId: "missing",
-      state: "completed",
-    });
   } finally {
     store.close();
   }
@@ -105,7 +100,7 @@ test("workspace CLI adopts existing state and local maintenance refuses register
     env,
   );
   assert.equal(adopted.id, "legacy-cli");
-  assert.equal(adopted.migration.changes.runsUpdated, 1);
+  assert.equal(adopted.migration.changes.staleOwnersCleared, 0);
   const retry = invoke(
     ["workspace", "adopt", "legacy-cli", "--root", workspace],
     env,

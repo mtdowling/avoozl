@@ -44,7 +44,7 @@ import { launchSupervisor } from "./supervisor.mjs";
 import { uiBundleProblem } from "./ui-bundle.mjs";
 import { defaultDemoRoot } from "./demo.mjs";
 
-export const PRINCIPAL_HEADER = "x-kirocrew-principal";
+const PRINCIPAL_HEADER = "x-kirocrew-principal";
 const HOST = "127.0.0.1";
 const DOMAIN = "kirocrew-proxy-principal-v1";
 const MAX_SKEW_SECONDS = 60;
@@ -55,7 +55,7 @@ const MAX_BODY_BYTES = 1024 * 1024;
 // Node closes an idle connection after 5 s, so a request sent as that close
 // lands reads as a reset, and the page shows "backend unreachable". Idle
 // connections outlive the pool, so the gateway is always the side that closes.
-export const KEEP_ALIVE_MS = 65_000;
+const KEEP_ALIVE_MS = 65_000;
 const KINDS = new Set(["owner-session", "app-token", "agent-tool", "none"]);
 const CLAIM_KEYS = ["issuedAt", "kind", "ownerId", "requestId", "version"];
 const REQUEST_ID = /^[0-9a-f]{32}$/;
@@ -63,7 +63,7 @@ const REQUEST_ID = /^[0-9a-f]{32}$/;
 // One cache per backend process: each accepted request ID is refused again
 // until its freshness window closes. A full cache refuses rather than evicting
 // a live ID, because eviction would make that request replayable.
-export class ReplayCache {
+class ReplayCache {
   constructor(maxEntries = 4096) {
     this.maxEntries = maxEntries;
     this.seen = new Map();

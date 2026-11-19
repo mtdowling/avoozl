@@ -225,7 +225,7 @@ export default function WorkspaceView(
 
       <Card>
         <Row gap={2}>
-          <SectionHeading title={`Your workspaces (${list?.items.length ?? 0})`} className="mb-0" />
+          <SectionHeading title={`Your workspaces (${list?.items.length ?? 0})`} mb="0" />
           <Box as="span" flex1 />
           <Btn type="button" primary data-add-workspace onClick={() => setDialog('add')}>
             <Plus size={14} aria-hidden="true" /> Add a workspace

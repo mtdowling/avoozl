@@ -345,12 +345,3 @@ export function saveKirocrewIntent(store, id, input) {
     store.setMeta(`executor.kirocrew.intent.${id}`, { agent: input.agent });
   return { agent: input.agent };
 }
-
-export function kirocrewAgentNames(list, files) {
-  const materialized = /^[^/\\]+--(.+)\.json$/;
-  return Array.isArray(list)
-    ? list
-    : Array.isArray(files)
-      ? files.map((file) => materialized.exec(String(file))?.[1] ?? null)
-      : null;
-}

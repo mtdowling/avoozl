@@ -1,7 +1,7 @@
 import path from "node:path";
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
-import { createWorktree } from "../git.mjs";
+import { createWorktree, validateUnlocked, withWorkLock } from "../git.mjs";
 export function snapshot() {
   return {
     schemaVersion: 1,
@@ -169,25 +169,28 @@ export function workspaceFixture(t, shape = "local") {
   });
   return { root, store, shape, localIds, githubIds };
 }
-// A run row as the removed agent host left it: an isolated worktree on branch
-// plans/<id> and the run's state. Old workspaces hold these as read-only
-// history, and validation and integration still read them.
+// An isolated worktree on branch plans/<id> for a task, as validation and
+// integration read it.
 export async function recordedRun(
   store,
-  { id, taskId = "sample-task", projectId, provider = "codex", state },
+  { id, taskId = "sample-task", projectId },
 ) {
   const project = store.get("projects", projectId),
     worktree = await createWorktree(store, project, id);
-  return store.put("runs", {
-    id,
-    taskId,
-    projectId,
-    provider,
-    mode: "implement",
-    state,
-    ...worktree,
-    createdAt: new Date().toISOString(),
-  });
+  return { id, taskId, projectId, ...worktree };
+}
+// Record acceptance checks for a worktree from recordedRun and a ready
+// integration entry, under the project work lock.
+export function validateRun(store, run) {
+  return withWorkLock(
+    store,
+    {
+      id: "validation:" + run.id,
+      projectId: run.projectId,
+      kind: "validation",
+    },
+    () => validateUnlocked(store, run.id, { source: run }),
+  );
 }
 // Wait for a condition rather than for a duration. A fixed sleep turns a
 // slower machine, or a busier test run, into a failure that says nothing

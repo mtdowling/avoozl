@@ -137,7 +137,7 @@ function pluginFolders(store) {
 // registered repository or the task's worktree, `external:<plugin>:<path>`
 // inside a plugin folder, else `external:local:<folder>/<file>`. The full
 // path stays in this workspace's database, never in a proposal.
-export function skillTarget(store, file, taskId = null) {
+function skillTarget(store, file, taskId = null) {
   if (!isSkillPath(file) || !path.isAbsolute(file)) return null;
   const projects = store.list("projects").filter((p) => p.root),
     worktree = taskId ? store.get("task_worktrees", taskId) : null;

@@ -2,17 +2,11 @@
 // docs/build-report.md). A repository writes them; Avoozl only reads,
 // stores, shows and compares them. No budget, limit or profiler lives here.
 
-export const REPORT_FORMAT = "avoozl.build-report";
-export const REPORT_VERSION = 1;
-export const COSTS = ["build", "provisioning", "cache", "test"];
+const REPORT_FORMAT = "avoozl.build-report";
+const REPORT_VERSION = 1;
+const COSTS = ["build", "provisioning", "cache", "test"];
 // The comparison key, in order.
-export const KEY_FIELDS = [
-  "workload",
-  "engine",
-  "target",
-  "toolchain",
-  "cache",
-];
+const KEY_FIELDS = ["workload", "engine", "target", "toolchain", "cache"];
 const LIMITS = {
   workload: 80,
   engine: 80,
