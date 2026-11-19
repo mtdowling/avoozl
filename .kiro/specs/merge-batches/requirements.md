@@ -4,8 +4,6 @@ category: Planning
 
 # Requirements: merge batches
 
-Status: Draft
-
 ## Introduction
 
 When several verified tasks wait to land on one branch, Avoozl tests them
@@ -19,8 +17,8 @@ This spec replaces `.kiro/specs/landing-trains/`, which was deleted on
 comments that cite its `LT` numbers refer to that history until the tasks
 here remove or rewrite the code.
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts that a person does later. Nothing in it changes code until its
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts that a person does later. Nothing in it changes code until its
 tasks run.
 
 Claims about today's code carry one label: **V**, read in the file cited at

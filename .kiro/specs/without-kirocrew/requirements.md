@@ -4,8 +4,6 @@ category: Planning
 
 # Requirements: everything runs without Kiro Crew
 
-Status: Approved
-
 ## Introduction
 
 A machine with no Kiro Crew can already run a worker, verify and land its
@@ -14,8 +12,8 @@ still cannot do: the roles that only run as Kiro Crew chats, and
 notifications. With the two specs named below, a person who never installs
 Kiro Crew can use all of Avoozl.
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts that a person does later. Nothing in it changes code, GitHub
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts that a person does later. Nothing in it changes code, GitHub
 repositories or settings until its tasks run.
 
 Every claim about today's code carries one label: **V**, read in the file

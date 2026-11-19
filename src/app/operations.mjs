@@ -43,6 +43,7 @@ import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { applicationRoot } from "./config.mjs";
 import { mcpRefusal } from "./mcp-policy.mjs";
+import { asActor, currentActor } from "./github-posted.mjs";
 import { taskDiff, taskFiles } from "./task-files.mjs";
 import {
   bindDriver,
@@ -179,6 +180,7 @@ import {
   withSource,
 } from "./github-rate.mjs";
 import { syncNeedsYou } from "./integration-sync.mjs";
+import { diskNeedsYou } from "./disk-space.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
   CREW_LABEL_KEYS,
@@ -922,6 +924,19 @@ function reviewSettings({ delivery, error = null } = {}) {
         .map(([id, entry]) => [id, entry.reviewers.map(role)]),
     ),
   };
+}
+
+// Who an operation's GitHub posts are for (github-posted.mjs), or null when
+// the context does not say and an enclosing operation's actor holds. An
+// agent, a plugin and the tick are marked; so is a caller nobody named. A
+// review draft is the person's: it is a pending review under their login
+// that GitHub publishes only when they submit it.
+const AUTOMATION = new Set(["workspace.tick"]);
+export function postingActor(name, context) {
+  if (name === "reviewdraft.post") return "person";
+  if (context.caller || context.mcp || context.plugin) return "agent";
+  if (AUTOMATION.has(name)) return "avoozl";
+  return context.person === true ? "person" : null;
 }
 
 export class Operations {
@@ -2496,9 +2511,14 @@ export class Operations {
   // only to open it, read it, or close it.
   // `context.caller` is the gateway-attested Kiro Crew session calling through
   // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
+  // `context.person` is a person's own call: the page's owner session or a
+  // CLI command outside any agent. Their GitHub posts go out as written.
   async execute(name, input = {}, expectedRevision, context = {}) {
-    const result = await withSource(sourceOfOperation(name), () =>
-      this.perform(name, input, expectedRevision, context),
+    const actor = postingActor(name, context) ?? currentActor() ?? "unknown";
+    const result = await asActor(actor, () =>
+      withSource(sourceOfOperation(name), () =>
+        this.perform(name, input, expectedRevision, context),
+      ),
     );
     // One activity row for a listed local action (§4.19); never fails it.
     recordOperation(this.store, name, input, result, {
@@ -3225,6 +3245,7 @@ export class Operations {
       view.items.push(...landingNeedsYou(store));
       view.items.push(...landingWaitNeedsYou(store, this.read()));
       view.items.push(...syncNeedsYou(store));
+      view.items.push(...diskNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));

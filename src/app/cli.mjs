@@ -12,7 +12,7 @@ import { initializeWorkspace } from "./workspace.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
 import { handleMcp } from "./mcp.mjs";
-import { agentSessionNote, cliRefusal } from "./mcp-policy.mjs";
+import { agentSession, agentSessionNote, cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
 import { startServe } from "./serve-server.mjs";
@@ -254,7 +254,12 @@ try {
         operation,
         input,
         expectedRevision,
-        { local: true },
+        // A command a person types; never one an agent or a supervisor
+        // child runs.
+        {
+          local: true,
+          person: !process.env.AVOOZL_CHILD && !agentSession(process.env),
+        },
       );
     } finally {
       store.close();

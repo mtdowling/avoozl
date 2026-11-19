@@ -4,8 +4,6 @@ category: Planning
 
 # Requirements: the page draws with components, not class strings
 
-Status: Approved
-
 ## Introduction
 
 The Avoozl page uses six of the 27 components Kiro Crew documents for apps,
@@ -15,8 +13,8 @@ Kiro Crew's components wherever one exists, and onto a small set of
 Avoozl's own components everywhere else, so that class names and CSS
 variables are written in one folder.
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts that a person does later. Nothing in it changes code until its
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts that a person does later. Nothing in it changes code until its
 tasks run.
 
 Every claim about today's code carries one label: **V**, read in the file

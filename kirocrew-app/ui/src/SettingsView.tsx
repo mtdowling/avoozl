@@ -106,16 +106,17 @@ import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
-import { Box } from './ui/Box'
+import { Box, type LookProps } from './ui/Box'
 import { PlainButton, PlainLink } from './ui/Plain'
 
 // Fields share a row and wrap; each keeps a readable width.
-const grid = (min = 220): CSSProperties => ({
-  display: 'grid',
-  gap: 12,
-  gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${min}px), 1fr))`,
-  alignItems: 'start',
-})
+const grid = (min = 220) =>
+  ({
+    'css-display': 'grid',
+    'css-gap': 12,
+    'css-grid-template-columns': `repeat(auto-fill, minmax(min(100%, ${min}px), 1fr))`,
+    'css-align-items': 'start',
+  }) as const satisfies LookProps
 
 // Release N (release.capacity): how many issues get the ready label at once.
 export const RELEASE_N_HELP = 'How many ready tasks are released at once.'
@@ -525,7 +526,7 @@ function RuleEditor(props: { id: string; rule: RuleForm; actions: string[]; repo
   const set = (change: Partial<RuleForm>) => props.onChange({ ...rule, ...change })
   return (
     <Box css-border-color="border" flex flexCol gap="2" border="t" pt="3">
-      <div style={grid(180)}>
+      <Box {...grid(180)}>
         <Text id={`${id}-id`} label="Rule name" raw="id" rule={{ required: true }} placeholder="deliver-ready" value={rule.id} onChange={(value) => set({ id: value })} />
         <Choice
           id={`${id}-action`}
@@ -538,7 +539,7 @@ function RuleEditor(props: { id: string; rule: RuleForm; actions: string[]; repo
           onChange={(value) => set({ action: value })}
         />
         <Text id={`${id}-author`} label="Opened by" raw="author" placeholder="anyone" value={rule.author} onChange={(value) => set({ author: value })} />
-      </div>
+      </Box>
       <MatchField id={`${id}-match`} value={rule.match} repository={props.repository} workspaceId={props.workspaceId} onChange={(value) => set({ match: value })} />
       <Row gap={3}>
         <Box as="span" ml="auto">
@@ -739,7 +740,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
   const set = (change: Partial<MirrorForm>) => props.onChange({ ...mirror, ...change })
   return (
     <FormSection title="Private mirror" blurb="Crews work in a private copy. The mirror must be private. Leave both names blank for none.">
-      <div style={grid()}>
+      <Box {...grid()}>
         <Text id={`${id}-source`} label="Public repository" raw="mirror.source" placeholder="owner/name" value={mirror.source} onChange={(value) => set({ source: value })} />
         <Text id={`${id}-mirror`} label="Private mirror" raw="mirror.mirror" placeholder="owner/name-private" value={mirror.mirror} onChange={(value) => set({ mirror: value })} />
         <Choice
@@ -770,13 +771,13 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
           value={mirror.publicBranch}
           onChange={(value) => set({ publicBranch: value })}
         />
-      </div>
+      </Box>
       <Box as="p" size="xs" tone="muted">
         each: one public pull request per merged change. branch: the same, into the public branch. batch: one public pull request when the epic is done. An epic's tasks.md
         front-matter can set its own forwardTarget and publicBranch.
       </Box>
       <Fold id={`${id}-more`} title="Advanced: mirror">
-        <div style={grid()}>
+        <Box {...grid()}>
           <Text
             id={`${id}-forward-to`}
             label="Forward to"
@@ -833,7 +834,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
             value={mirror.trustedPersons}
             onChange={(value) => set({ trustedPersons: value })}
           />
-        </div>
+        </Box>
         <CheckRow label="Squash into one commit" help="On by default." raw="mirror.squash" checked={mirror.squash} onChange={(squash) => set({ squash })} />
       </Fold>
     </FormSection>
@@ -911,7 +912,7 @@ export function RepositoryEditor(props: {
             </Box>
             . It follows from each repository&apos;s role in Repository setup.
           </Box>
-          <div style={grid()}>
+          <Box {...grid()}>
             <Text
               id={`${id}-name`}
               label="Repository"
@@ -921,13 +922,13 @@ export function RepositoryEditor(props: {
               value={repository.name}
               onChange={(value) => set({ name: value })}
             />
-          </div>
+          </Box>
         </FormSection>
       )}
       {tab === 'landing' && (
         <>
           <FormSection title="Where tasks land" blurb={REPOSITORY_BLURBS.landing}>
-            <div style={grid()}>
+            <Box {...grid()}>
               <Text
                 id={`${id}-base`}
                 label="Default branch"
@@ -950,10 +951,10 @@ export function RepositoryEditor(props: {
                 value={repository.releaseCapacity}
                 onChange={(value) => set({ releaseCapacity: value })}
               />
-            </div>
+            </Box>
           </FormSection>
           <FormSection title={CREW_PART_TEXT.merge.title} blurb={CREW_PART_TEXT.merge.blurb}>
-            <div style={grid()}>
+            <Box {...grid()}>
               <Choice
                 id={`${id}-landing-mode`}
                 label="Landing mode"
@@ -965,7 +966,7 @@ export function RepositoryEditor(props: {
                 width="md"
                 onChange={(value) => set({ landingMode: value })}
               />
-            </div>
+            </Box>
             <AutoMergeFields id={id} repository={repository} set={set} inherited={inheritedShip} />
           </FormSection>
           <FormSection title="Merge method" blurb="How a pull request merges when auto-merge is armed.">
@@ -992,7 +993,7 @@ export function RepositoryEditor(props: {
       {tab === 'github' && (
         <>
           <FormSection title="Sync" blurb="How long Avoozl keeps GitHub's answers about this repository before it asks again.">
-            <div style={grid()}>
+            <Box {...grid()}>
               <Text
                 id={`${id}-cache`}
                 label="Keep GitHub answers (seconds)"
@@ -1004,7 +1005,7 @@ export function RepositoryEditor(props: {
                 value={repository.cacheSeconds}
                 onChange={(value) => set({ cacheSeconds: value })}
               />
-            </div>
+            </Box>
           </FormSection>
           <FormSection title="Label rules" blurb={REPOSITORY_BLURBS.github}>
             {repository.rules.length === 0 && (
@@ -1045,7 +1046,7 @@ export function RepositoryEditor(props: {
             title="Managed labels"
             blurb="Labels Avoozl itself adds and removes on issues to show their state. Don't edit them by hand: a hand edit shows as a conflict."
           >
-            <div style={grid(200)}>
+            <Box {...grid(200)}>
               {/* Ready is edited with Avoozl's other labels in Crews and rules. */}
               {choices.managedLabels
                 .filter((key) => key !== 'ready')
@@ -1060,7 +1061,7 @@ export function RepositoryEditor(props: {
                     onChange={(value) => set({ managedLabels: { ...repository.managedLabels, [key]: value } })}
                   />
                 ))}
-            </div>
+            </Box>
           </FormSection>
           <UntriagedSettings id={id} value={repository.untriaged} repository={name} workspaceId={props.workspaceId} onChange={(untriaged) => set({ untriaged })} />
           <FormSection
@@ -1483,7 +1484,7 @@ function WorkspaceGitHub(props: {
         {tab === 'issues' && (
           <Card>
             <Section title="Epic issues" blurb="The issue type a published epic issue gets. For every repository in this workspace.">
-              <div style={grid()}>
+              <Box {...grid()}>
                 <Text
                   id="avoozl-settings-epic"
                   label="Epic issue type"
@@ -1494,14 +1495,14 @@ function WorkspaceGitHub(props: {
                   value={form.epicIssueType}
                   onChange={(value) => set({ epicIssueType: value })}
                 />
-              </div>
+              </Box>
             </Section>
           </Card>
         )}
         {tab === 'sync' && (
           <Card>
             <Section title="Sync pace" blurb="How long Avoozl keeps GitHub's answers, and how fast it writes. Every write from the app, CLI and tick shares these limits.">
-              <div style={grid()}>
+              <Box {...grid()}>
                 <Text
                   id="avoozl-settings-cache"
                   label="Keep GitHub answers (seconds)"
@@ -1535,7 +1536,7 @@ function WorkspaceGitHub(props: {
                   value={form.writesPerHour}
                   onChange={(value) => set({ writesPerHour: value })}
                 />
-              </div>
+              </Box>
             </Section>
           </Card>
         )}
@@ -1628,7 +1629,7 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
       </Card>
       <Card>
         <Section title="Labels Radar uses" blurb={RADAR_LABELS_BLURB}>
-          <div style={grid(200)}>
+          <Box {...grid(200)}>
             {settings.choices.crewLabels.map((key) => (
               <Text
                 key={key}
@@ -1640,7 +1641,7 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
                 onChange={(value) => setRepository({ crewLabels: { ...repository.crewLabels, [key]: value } })}
               />
             ))}
-          </div>
+          </Box>
         </Section>
       </Card>
       <Card>

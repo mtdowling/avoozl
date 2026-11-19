@@ -4,8 +4,6 @@ completion: integrated
 
 # Tasks
 
-Status: Draft
-
 - [ ] migration-tool Build the tool or compatibility layer
   - Facts:
     - done:

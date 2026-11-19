@@ -1,7 +1,5 @@
 # Design: one way to run a worker
 
-Status: Approved
-
 `WP` numbers are in this spec's `requirements.md`; `R` numbers and `§`
 sections without a `D` are in `.kiro/specs/avoozl/`. Labels are as in the
 requirements: **V** read in the file cited at `deca253`, **A** assumed.
