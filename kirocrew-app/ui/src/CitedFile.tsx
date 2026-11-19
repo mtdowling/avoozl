@@ -8,6 +8,7 @@ import { Markdown } from './ui/Markdown.tsx'
 import { useMedia } from './use-media.ts'
 import { citedNodes } from './task-api.ts'
 import { CitedStyle } from './ui/PageStyles'
+import { Box } from './ui/Box'
 
 export const CITED_CLASS = 'avoozl-cited'
 
@@ -53,9 +54,9 @@ export function CitedFile(props: { text: string; lineStart: number | null; lineE
     return () => cancelAnimationFrame(frame)
   }, [text, lineStart, lineEnd, still])
   return (
-    <div ref={box} data-cited-file aria-label={props.label} className="px-3 py-2" style={{ maxHeight: props.maxHeight ?? 420, overflowY: 'auto', overscrollBehavior: 'contain' }}>
+    <Box ref={box} data-cited-file aria-label={props.label} css-max-height={props.maxHeight ?? 420} css-overflow-y="auto" css-overscroll-behavior="contain" px="3" py="2">
       <CitedStyle />
       <Markdown text={text} idPrefix={props.idPrefix} />
-    </div>
+    </Box>
   )
 }

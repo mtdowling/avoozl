@@ -207,9 +207,9 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
           ))}
       </Box>
       {origin.prompt && (
-        <blockquote className="border-l-2 pl-2 text-xs text-muted" style={{ borderColor: 'var(--border)' }}>
+        <Box as="blockquote" css-border-color="border" borderL2 pl="2" size="xs" tone="muted">
           {origin.prompt}
-        </blockquote>
+        </Box>
       )}
       {origin.sources
         .filter((source) => source.readable)

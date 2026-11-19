@@ -1981,7 +1981,6 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
   )
 }
 
-const CELL: CSSProperties = { padding: '4px 8px' }
 const USAGE_COLUMNS: { key: UsageKey; label: string }[] = [
   { key: 'source', label: 'Source' },
   { key: 'calls', label: 'Calls' },

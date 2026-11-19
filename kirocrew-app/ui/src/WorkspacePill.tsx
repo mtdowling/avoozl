@@ -38,7 +38,7 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
     if (id !== props.value) props.onChange(id)
   }
   return (
-    <div ref={root} data-workspace-switcher style={{ minWidth: 0, flexShrink: 0 }}>
+    <Box ref={root} data-workspace-switcher css-min-width="0" css-flex-shrink="0">
       <PlainButton
         type="button"
         data-workspace-pill
@@ -175,6 +175,6 @@ export function WorkspacePill(props: { list: WorkspaceList | null; value: string
           </PlainButton>
         </Box>
       )}
-    </div>
+    </Box>
   )
 }
