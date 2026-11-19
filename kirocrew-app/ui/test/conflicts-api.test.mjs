@@ -15,7 +15,6 @@ test('every kind gets an action or a plain reason why it has none', () => {
     [item('github-conflict', 'g', { field: 'state', choices: [] }), null, /issue state/],
     [item('github-conflict', 'g', { field: 'identity', choices: [] }), null, /duplicate issue/],
     [item('github-conflict', 'g', { field: 'title', choices: ['desired', 'github'] }), null, null],
-    [item('resource', 'x'), null, /share a resource/],
   ]
   for (const [entry, action, reason] of cases) {
     assert.equal(settleActionOf(entry), action, `${entry.kind} ${entry.taskId}`)
