@@ -29,6 +29,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import {
+  installHarness,
+  isolatedMachine,
+  stopMachine,
+} from "./live-proofs/machine.mjs";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -109,10 +114,7 @@ const P = {
   proxyLog: path.join(ROOT, "proxy.log"),
 };
 const DB = path.join(P.ws, ".avoozl", "local", "workspace.sqlite");
-const { machineAvoozlPaths } = await import("../src/app/host-config.mjs");
-const MACHINE = machineAvoozlPaths();
-for (const dir of [MACHINE.configDirectory, MACHINE.stateDirectory])
-  if (!dir.startsWith(HOME + path.sep)) throw Error(`Not isolated: ${dir}`);
+const MACHINE = await isolatedMachine(HOME);
 
 const event = (kind, data = {}) => {
   fs.mkdirSync(ROOT, { recursive: true });
@@ -289,29 +291,12 @@ async function setup() {
   fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + "\n");
 
   // This machine's harness and its one sink, in the machine file.
-  const { approveHarnessDefinition, harnessDefinitionHash } = await import(
-    "../src/app/harness-definitions.mjs"
+  const hash = await installHarness(
+    MACHINE.configDirectory,
+    HARNESS,
+    definitionBytes(),
+    { unconfined: AGENT === "fake" },
   );
-  fs.mkdirSync(path.join(MACHINE.configDirectory, "harnesses"), {
-    recursive: true,
-  });
-  const bytes = definitionBytes();
-  fs.writeFileSync(
-    path.join(MACHINE.configDirectory, "harnesses", `${HARNESS}.json`),
-    bytes,
-  );
-  const hash = harnessDefinitionHash(Buffer.from(bytes));
-  approveHarnessDefinition({
-    configDirectory: MACHINE.configDirectory,
-    name: HARNESS,
-    hash,
-  });
-  const { sandboxKind } = await import("../src/app/sandbox.mjs");
-  if (AGENT === "fake" && !sandboxKind())
-    fs.writeFileSync(
-      path.join(MACHINE.configDirectory, "harness-unconfined.json"),
-      JSON.stringify({ [HARNESS]: hash }),
-    );
   fs.writeFileSync(path.join(ROOT, "sink.mjs"), SINK);
   const machineFile = path.join(MACHINE.configDirectory, "config.json");
   const machine = fs.existsSync(machineFile)
@@ -742,15 +727,12 @@ async function prove() {
       `nk-p2 ${report.pass ? "PASS" : "FAIL"} on ${AGENT}${AGENT === "fake" ? " (fake agent: plumbing only, not the proof)" : ""}`,
     );
   } finally {
-    fs.writeFileSync(path.join(ROOT, "stop-backend"), "");
-    await sleep(5000);
-    backendProcess.kill("SIGTERM");
-    if (proxy) proxy.kill("SIGTERM");
-    try {
-      const { runningSupervisor } = await import("../src/app/supervisor.mjs");
-      const sup = runningSupervisor(MACHINE.stateDirectory, {});
-      if (sup?.pid) process.kill(sup.pid, "SIGTERM");
-    } catch {}
+    await stopMachine({
+      root: ROOT,
+      backend: backendProcess,
+      proxy,
+      stateDirectory: MACHINE.stateDirectory,
+    });
   }
 }
 
