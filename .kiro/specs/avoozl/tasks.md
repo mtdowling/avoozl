@@ -2468,9 +2468,9 @@ move.
   - Facts:
     - done:
       - Onboard reads, after 3.18
-      - Folder inspect, leak scan and issue preview are read-only operations; the preview approves only a scratch copy.
+      - Folder inspect, commit authors and leak scan are read-only operations.
     - after: 3.18
-  - `onboarding.inspect`, `onboarding.scan` and `plan.issues.preview`, all `observe`; the public secret and path rules move beside the content-rules matcher so the release scan and the leak scan share them.
+  - `onboarding.inspect`, `onboarding.scan` and `onboarding.authors`, all `observe` (the issue preview was removed with per-task issues); the public secret and path rules move beside the content-rules matcher so the release scan and the leak scan share them.
   - Built: see the commit that adds `src/app/onboarding.mjs`.
 - [x] 20.2 Onboard dialog, after 20.1 and 16.5 [R58] (§4.15, §8)
   - Facts:
@@ -2479,7 +2479,8 @@ move.
       - Cancel before Set up writes nothing; each GitHub write asks first; the flow never approves, dispatches or pushes.
     - after: 20.1, 16.5
   - Merged 2026-11-17 (#515): there is no separate Onboard dialog. Settings › Repository setup has one **Add repository** entry that runs the same steps as follow-up setup. `Onboard.tsx` remains the step list behind it.
-  - Eight steps with Cancel on each; steps that do not apply are left out and satisfied ones show done; one confirm per GitHub write; nothing written before Set up; never approves, starts or pushes.
+  - Adopt from git: Pick approvers lists the commit authors, and Import specs calls `onboarding.adopt`, which runs `readFromGit`, the reader `avoozl rebuild` uses. The issue preview step and the per-task issue text are gone.
+  - Steps with Cancel on each; steps that do not apply are left out and satisfied ones show done; one confirm per GitHub write; nothing written before Set up; never approves, starts or pushes.
   - Built: see the commit that adds `kirocrew-app/ui/src/Onboard.tsx`.
 
 ## Phase 21: Epics and phases

@@ -142,6 +142,7 @@ import {
 } from "./spec-pull-requests.mjs";
 import { driverIdOf } from "./spec-scheduler.mjs";
 import { specAuthority } from "./spec-takeover.mjs";
+import { sameFolder } from "./onboarding.mjs";
 import { applyTicks, baseTasks, tickCommits } from "./spec-ticks.mjs";
 import { canonical, fail } from "./store.mjs";
 import {
@@ -538,7 +539,9 @@ export class Operations {
   }
   // A tick on a spec's base branch completes its task (spec-ticks.mjs). Read
   // again only when the branch head or the approved revision moved.
-  async applyBaseTicks() {
+  // With `land`, a task that is done and ticked on the branch, and has no
+  // landing yet, lands at the commit that ticked it (adopting a repository).
+  async applyBaseTicks({ land = false } = {}) {
     this.ticksSeen ??= new Map();
     this.ticksFetched = new Set();
     const repositories = this.store.list("repositories");
@@ -570,6 +573,7 @@ export class Operations {
         await applyTicks(this.store, plan, {
           ...read,
           branch,
+          land,
           // shortcut: the plans branch is cached with no history, so a tick
           // there names the branch head it was first read at; use the
           // contents API's commit list for the exact commit if that matters.
@@ -1473,13 +1477,27 @@ export class Operations {
     return root ? writeRetroFiles(this.store, root) : null;
   }
   async rebuild() {
-    const store = this.store;
-    if (store.list("plans").length)
+    if (this.store.list("plans").length)
       fail(
         "Rebuild starts from an empty database. Move workspace.sqlite aside, then run it again.",
         409,
       );
-    const names = this.specList().items.map((item) => item.name);
+    return this.readFromGit();
+  }
+  // The one reader behind `avoozl rebuild` and adopting a repository in
+  // Settings > Repository setup (onboarding.adopt): the same steps over the
+  // named specs, with `allowed` (an approverCheck) in place of the
+  // repository's own approvers list and `root` limiting landings and retros
+  // to one checkout. A spec that already has a plan is left alone.
+  async readFromGit({
+    names: only = null,
+    allowed: given = null,
+    root: only_root = null,
+  } = {}) {
+    const store = this.store,
+      names = (only ?? this.specList().items.map((item) => item.name)).filter(
+        (name) => !store.get("plans", name),
+      );
     for (const name of names)
       createSpecPlan(store, { id: name }, this.readSpec(name));
     const approvers = new Map(),
@@ -1491,7 +1509,7 @@ export class Operations {
       if (!approvers.has(root)) {
         const base = await approvalBase(root).catch(() => null);
         approvers.set(root, {
-          allowed: await this.approverOf(root),
+          allowed: given ?? (await this.approverOf(root)),
           ref: base?.head ?? "HEAD",
         });
       }
@@ -1539,8 +1557,12 @@ export class Operations {
         } catch {}
       }
     }
+    // Ticked tasks keep their tick commit as the landing commit.
+    await this.applyBaseTicks({ land: true });
     const landed = [];
-    for (const project of store.list("repositories").filter((p) => p.root))
+    for (const project of store
+      .list("repositories")
+      .filter((p) => p.root && (!only_root || sameFolder(p.root, only_root))))
       for (const landing of await landingsFromGit(
         project.root,
         project.baseBranch || "HEAD",
@@ -1563,10 +1585,13 @@ export class Operations {
         }
     // Retros, from their committed files.
     const retros = [],
-      root = await this.retroRoot();
-    if (root) {
-      const base = await approvalBase(root).catch(() => null);
-      for (const retro of await readRetroFiles(root, base?.head ?? "HEAD")) {
+      retroRoot = only_root ?? (await this.retroRoot());
+    if (retroRoot) {
+      const base = await approvalBase(retroRoot).catch(() => null);
+      for (const retro of await readRetroFiles(
+        retroRoot,
+        base?.head ?? "HEAD",
+      )) {
         if (store.get("flow_retros", retro.id)) continue;
         store.put("flow_retros", retro);
         retros.push(retro.id);

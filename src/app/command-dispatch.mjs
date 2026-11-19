@@ -161,6 +161,8 @@ export const APP_OPERATIONS = new Set([
   // The Onboard flow's reads; its writes are the operations above.
   "onboarding.inspect",
   "onboarding.scan",
+  "onboarding.authors",
+  "onboarding.adopt",
   "plan.delete",
   "plan.delete.preview",
   "plan.archive",

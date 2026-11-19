@@ -1,9 +1,10 @@
 // The Onboard flow's reads (Settings > Repository setup > Set up GitHub and import specs). Adding a
 // repository walks: pick the folder, pick the mode, check GitHub, set up
-// GitHub, import specs, leak scan, preview issues, finish. Every write in
+// GitHub, import specs, pick approvers, leak scan, finish. Every write in
 // that flow is an existing operation (repositories.configure,
-// github.settings.update, github.setup with confirm, plan.create); this
-// module only reads, so a flow cancelled before Set up GitHub writes nothing.
+// github.settings.update, github.setup with confirm, plan.create) or
+// adoptRepository below; the rest of this module only reads, so a flow
+// cancelled before Set up GitHub writes nothing.
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -11,7 +12,8 @@ import {
   matchLine,
   specContentDiagnostics,
 } from "./content-rules.mjs";
-import { detectCheckout } from "./git.mjs";
+import { AGENT_AUTHOR, detectCheckout, git } from "./git.mjs";
+import { approvalBase, approverCheck, gitTop } from "./git-approvals.mjs";
 import { listSpecFolders } from "./spec-plans.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { fail } from "./store.mjs";
@@ -23,6 +25,7 @@ const realpath = (value) => {
     return value;
   }
 };
+export const sameFolder = (a, b) => realpath(a) === realpath(b);
 
 // Step 1: what the folder already has. `registered` is the workspace entry
 // for the same checkout or the same GitHub repository; `visibility` is
@@ -95,10 +98,68 @@ export function scanSpecs(store, readSpec, names) {
                 line: index + 1,
                 set: "builtin:publish",
                 rule: hit.rule,
-                message: `${file} line ${index + 1} holds a ${hit.category === "secret" ? "secret" : "path on this computer"} (${hit.rule}). Remove it before the repository's issues show it.`,
+                message: `${file} line ${index + 1} holds a ${hit.category === "secret" ? "secret" : "path on this computer"} (${hit.rule}). Remove it before the specs are approved.`,
               });
           });
       return { name, findings, missing: false };
     }),
   };
+}
+
+// The people who authored commits on the repository's main branch, most
+// commits first, for the person to pick the approvers list from. Avoozl's
+// own author is left out: its commits never approve anything.
+export async function commitAuthors(folder, { limit = 50 } = {}) {
+  const root = await gitTop(folder);
+  if (!root) fail("That folder is not a Git checkout.");
+  const base = await approvalBase(root).catch(() => null),
+    out = await git(root, [
+      "log",
+      "--format=%ae%x1f%an%x1f%aI",
+      base?.head ?? "HEAD",
+    ]).catch(() => ""),
+    people = new Map();
+  for (const row of out.split("\n").filter(Boolean)) {
+    const [email, name, at] = row.split("\x1f"),
+      key = email.toLowerCase();
+    if (!key || key === AGENT_AUTHOR.email.toLowerCase()) continue;
+    const entry = people.get(key) ?? { email, name, commits: 0, last: at };
+    entry.commits += 1;
+    people.set(key, entry);
+  }
+  return {
+    items: [...people.values()]
+      .sort((a, b) => b.commits - a.commits)
+      .slice(0, limit),
+  };
+}
+
+// Adopts the specs of a repository already added to the workspace, from git
+// alone, with the same reader as `avoozl rebuild` (Operations.readFromGit):
+// a spec an approver committed on main comes in approved, its [x] tasks done
+// at the commit that ticked them, and landing trailers and retros are read
+// back. `approvers` is the list the person confirmed; with none, specs come
+// in as drafts. Returns the reader's result.
+export async function adoptRepository(ops, { folder, specs, approvers }) {
+  const emails = Array.isArray(approvers) ? approvers : null;
+  if (!emails || emails.some((email) => typeof email !== "string"))
+    fail("Confirm the approvers list: emails, or an empty list.");
+  if (!Array.isArray(specs) || specs.some((name) => typeof name !== "string"))
+    fail("Name the spec folders to adopt.");
+  const root = await gitTop(folder);
+  if (!root) fail("That folder is not a Git checkout.");
+  if (
+    !workspaceRepositories(ops.store).some(
+      (entry) => entry.localCheckout && sameFolder(entry.localCheckout, root),
+    )
+  )
+    fail("Add the repository to this workspace first.", 409);
+  const here = new Set(listSpecFolders(root)),
+    missing = specs.find((name) => !here.has(name));
+  if (missing) fail(`${missing} is not a spec folder in ${root}.`);
+  return ops.readFromGit({
+    names: specs,
+    root,
+    allowed: approverCheck({ repository: { allowedActors: emails } }),
+  });
 }

@@ -9,6 +9,7 @@ import test from 'node:test'
 import {
   ONBOARD_READS,
   ONBOARD_WRITES,
+  withApprovers,
   modeProblem,
   onboardClient,
   onboardForm,
@@ -51,8 +52,9 @@ test('the steps follow the mode and the repository', () => {
   assert.deepEqual(onboardSteps(local, folder({ github: null })), ['folder', 'mode', 'setup', 'import', 'finish'])
   const single = { ...onboardForm(folder(), settings()), mode: 'single-repo' }
   assert.deepEqual(onboardSteps(single, folder()), ['folder', 'mode', 'check', 'setup', 'import', 'finish'])
+  assert.deepEqual(onboardSteps(single, folder({ specs: ['a'] })), ['folder', 'mode', 'check', 'setup', 'approvers', 'import', 'finish'])
   assert.deepEqual(onboardSteps(single, folder({ visibility: 'public' })), ['folder', 'mode', 'check', 'setup', 'import', 'scan', 'finish'])
-  // A public code repository in plans-repo mode: its issues live elsewhere.
+  // A public code repository in plans-repo mode: its specs live elsewhere.
   const code = { ...single, mode: 'plans-repo', isPlanning: false, planningRepository: 'acme/plans' }
   assert.ok(!onboardSteps(code, folder({ visibility: 'public' })).includes('scan'))
   // The saved mode is picked first.
@@ -78,7 +80,7 @@ test('Set up lists its writes in order; each GitHub write asks first, and done o
     [
       ['github', false, true],
       ['settings', false, false],
-      ['register', false, true],
+      ['register', false, false],
     ],
   )
   assert.match(steps[0].confirm.title, /Make 2 changes on GitHub/)
@@ -111,7 +113,6 @@ test('the requests name the right repositories and checkout', () => {
     localCheckout: '/work/app',
     baseBranch: 'main',
     github: 'acme/app',
-    issueAuthorization: true,
     planning: false,
   })
   assert.deepEqual(registerInput({ ...form, mode: 'local' }, folder({ specs: ['a'] }), false), { id: 'app', localCheckout: '/work/app', baseBranch: 'main', planning: true })
@@ -125,6 +126,9 @@ test('the client calls only the flow operations, and none approves, starts or pu
   const names = new Set(seen.map((body) => body.operation))
   for (const name of names) assert.ok([...ONBOARD_READS, ...ONBOARD_WRITES].includes(name), name)
   for (const name of names) assert.doesNotMatch(name, /approve|run\.|jobs\.|batch\.|task\.start|push|publish|dispatch/)
+  // Approving is only onboarding.adopt, with the confirmed approvers.
+  const adopts = seen.filter((body) => body.operation === 'onboarding.adopt')
+  assert.equal(adopts.length, 1)
   // github.setup only writes with confirm, and only from applyGitHub.
   const confirmed = seen.filter((body) => body.input.confirm === true)
   assert.equal(confirmed.length, 1)
@@ -135,10 +139,18 @@ test('the dialog calls no write before Set up, and every GitHub write goes throu
   const source = readFileSync(new URL('../src/Onboard.tsx', import.meta.url), 'utf8')
   const dialog = source.slice(source.indexOf('function OnboardDialog'))
   const beforeSetUp = dialog.slice(0, dialog.indexOf('const setUp ='))
-  for (const writeCall of ['applyGitHub', 'saveSettings', 'register(', 'importSpec']) assert.ok(!beforeSetUp.includes(writeCall), `${writeCall} is called before Set up`)
+  for (const writeCall of ['applyGitHub', 'saveSettings', 'register(', 'adopt(']) assert.ok(!beforeSetUp.includes(writeCall), `${writeCall} is called before Set up`)
   const setUp = dialog.slice(dialog.indexOf('const setUp ='), dialog.indexOf('const shown ='))
   assert.match(setUp, /if \(write\.confirm && !\(await ask\(write\.confirm\)\)\)/)
   assert.ok(setUp.indexOf('ask(write.confirm)') < setUp.indexOf('client.applyGitHub'))
   assert.match(dialog, /Cancelled\. Nothing was written\./)
   assert.doesNotMatch(source, /'plan\.approve'|approvePlan|'run\.start'|'jobs\.dispatch'/)
+})
+
+test('the approvers list is saved on the repository the policy already names, once', () => {
+  const github = { repositories: { 'Acme/App': { allowedActors: ['a@x.com'] } } }
+  assert.deepEqual(withApprovers(github, 'acme/app', ['b@x.com', 'a@x.com']).repositories['Acme/App'].allowedActors, ['a@x.com', 'b@x.com'])
+  assert.equal(withApprovers(github, 'acme/app', ['a@x.com']), null)
+  assert.equal(withApprovers(github, 'acme/other', ['b@x.com']), null)
+  assert.equal(withApprovers(github, 'acme/app', []), null)
 })

@@ -1859,8 +1859,9 @@ gets 403), like approval. The tick never imports. The CLI has
 
 **Built** 2026-11-13, owner request (Requirement 58). Settings >
 Repositories gets **Onboard** beside Add repository: one stepped dialog,
-styled like Add plugin, that walks a folder to draft plans ready to approve.
-Every step reuses an operation that already exists; three reads are new.
+styled like Add plugin, that walks a folder to plans read from git (Requirement 58).
+Every step reuses an operation that already exists, except two new reads and
+one adopt write.
 
 | Step           | Operation                                                                                                 | Writes                       |
 | -------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------- |
@@ -1868,17 +1869,30 @@ Every step reuses an operation that already exists; three reads are new.
 | Pick mode      | the mode cards, in the shared radio fold-out                                                              | none                         |
 | Check GitHub   | `github.setup` without `confirm`                                                                          | none                         |
 | Set up         | `github.setup` with `confirm`, `github.settings.update`, `repositories.configure`                         | each GitHub write asks first |
-| Import specs   | `plan.specs`, `plan.create {spec}`                                                                        | drafts only                  |
+| Pick approvers | `onboarding.authors`: the base branch's commit authors, most commits first, without the agent author     | none                         |
+| Import specs   | `plan.specs`, `onboarding.adopt {folder, specs, approvers}`                                               | plans, approvals, ticks      |
 | Leak scan      | `onboarding.scan`: content rules plus the public secret and path rules the release scan uses              | none                         |
-| Preview issues | `plan.issues.preview`: approval runs on a scratch copy of the store, then the projection preview reads it | none                         |
-| Finish         | a summary and Approve in Plans                                                                            | none                         |
+| Finish         | a summary and Approve in Plans for the drafts                                                             | none                         |
 
-The three new reads are `observe`. The leak scan runs only when the
-repository that holds the issues is public (single-repo mode, or this folder
-as the planning repository), and it names file, line, set and rule, never
-the matched text. With one GitHub repository registered, the issue preview
-uses it for every leaf, as lint already does. The flow approves nothing,
-starts no agent and pushes nothing.
+`onboarding.authors` and `onboarding.scan` are `observe`. The leak scan runs
+only when the repository that holds the specs is public (single-repo mode,
+or this folder as the planning repository), and it names file, line, set and
+rule, never the matched text.
+
+`onboarding.adopt` is `protect`, a person's call from the app page. It
+checks that the folder is an added repository, then calls
+`Operations.readFromGit`, the one reader behind `workspace.rebuild`
+(§4.42), with the named specs, that folder as the only checkout, and
+`approverCheck` over the emails the person confirmed instead of the
+repository's own list. A spec that has a plan is skipped. The reader makes a
+plan per spec, approves it again as the author of the approver's commit,
+runs `applyBaseTicks` with `land`, which sets each done ticked task's
+`integration.commit` to its tick commit when it has no landing, then records
+landing trailers, Flow spans and retros. In a GitHub mode the dialog first
+adds the confirmed emails to that repository's `allowedActors` with
+`github.settings.update`, so later approvals check the same list. The flow
+makes no per-task issues and no per-task issue text. It starts no agent and
+pushes nothing.
 
 ### 4.16 Workflow templates, manual tasks, and task links and notes
 
@@ -4909,9 +4923,12 @@ issue per item in the source's GitHub repository with no labels
 SQLite and its words never trigger a rule.
 
 **Rebuild.** `workspace.rebuild` (CLI `avoozl rebuild`) refuses a database
-with plans, creates a plan per spec folder, approves each one whose current
+with plans, then runs `Operations.readFromGit` over every spec folder. The
+Onboard flow's adopt step (§4.15) runs the same function over one added
+repository's specs. It creates a plan per spec folder, approves each one whose current
 text matches an approver's commit (exact hash, or `sameSpecContent`) in
-dependency passes with `baseline` so ticked tasks start done, records one `task.landed` Activity row per landing trailer,
+dependency passes with `baseline` so ticked tasks start done (each at its
+tick commit as its landing commit), records one `task.landed` Activity row per landing trailer,
 puts back each trailer's Flow spans, and reads every retro file on main.
 
 **Dismiss.** Removed 2026-11-19 with Triage (triage-agent TA8.7): the
