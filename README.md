@@ -630,7 +630,7 @@ packages would contain.
 
 The docs in `docs/` are also a site: `npm run docs:dev` serves it and
 `npm run docs:build` builds it to `docs/.vitepress/dist` (not in git).
-It is published at https://mtdowling.github.io/avoozl/ by a workflow on
+It is published at https://mtdowling.com/avoozl/ by a workflow on
 pushes to main that touch `docs/`.
 
 `npm run build` also builds a standalone copy of the page into
