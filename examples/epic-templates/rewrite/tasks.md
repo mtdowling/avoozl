@@ -6,8 +6,6 @@ integrationSync: weekly
 
 # Tasks
 
-Status: Draft
-
 - [ ] port-module-a Port the first module behind the new interface
   - Facts:
     - done:

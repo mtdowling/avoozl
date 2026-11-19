@@ -1,7 +1,5 @@
 # Design: the triage agent and the GitHub pages
 
-Status: Draft
-
 `TA` numbers are in this spec's `requirements.md`; `R` numbers and `§`
 sections without a `D` are in `.kiro/specs/avoozl/`; `NK` numbers are in
 `.kiro/specs/without-kirocrew/`. Labels are as in the requirements: **V**
