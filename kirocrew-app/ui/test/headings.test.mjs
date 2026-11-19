@@ -18,7 +18,7 @@ test('one section heading: title and buttons on one centered row, buttons right 
   assert.match(part, /className=\{`m-0 flex min-w-0 items-center gap-2 font-semibold/)
   assert.match(part, /<div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2"/)
   // View headings are the same part at level 2.
-  assert.match(controls, /export function ViewHeading[\s\S]*?<SectionHeading level=\{props\.level \?\? 2\}/)
+  assert.match(controls, /export function ViewHeading[\s\S]*?<SectionHeading\s+level=\{props\.level \?\? 2\}/)
 })
 
 test('no view uses the host CardTitle, whose bottom margin lifts a title above its buttons', () => {
@@ -70,7 +70,7 @@ test('Flow shows Tokens and credits once, with one message when there is nothing
   assert.match(usageMessage(undefined), /^Not available:/)
   assert.equal(usageMessage({ available: true, total: { turns: 0 } }), 'No turns recorded for these tasks yet.')
   assert.equal(usageMessage({ available: true, total: { turns: 3 } }), null)
-  assert.match(charts, /\{message \|\| !usage \? \(\s*<Hint as="p" size="sm">\{message\}<\/Hint>/)
+  assert.match(charts, /\{message \|\| !usage \? \(\s*<Hint as="p" size="sm">\s*\{message\}\s*<\/Hint>/)
 })
 
 test('a Needs you title opens what it is about', () => {

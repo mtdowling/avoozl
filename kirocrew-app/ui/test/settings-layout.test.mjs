@@ -137,7 +137,7 @@ test('Repositories: one compact list with View, Edit and a trash Remove behind A
   const repos = source('RepositoriesSettings.tsx')
   assert.match(repos, /REPOSITORIES_LINE =/)
   assert.match(repos, /<IconBtn icon=\{Eye\} label=\{`View \$\{row\.name\}`\}/)
-  assert.match(repos, /<IconBtn icon=\{Pencil\} label=\{`Edit \$\{row\.name\}`\}/)
+  assert.match(repos, /<IconBtn\s+icon=\{Pencil\}\s+label=\{`Edit \$\{row\.name\}`\}/)
   assert.match(repos, /<DangerBtn icon=\{Trash2\} label=\{`Remove \$\{row\.name\}`\}/)
   assert.match(repos, /Are you sure\?[\s\S]*are not touched/)
   assert.match(repos, /data-repositories-empty/)
@@ -249,7 +249,7 @@ test('checks list what GitHub shows, keep unseen saved names, and toggle in plac
 
 test('the Checks tab: listed, reading, typed with a reason, or not named yet', () => {
   const editor = settings.slice(settings.indexOf('function ChecksEditor('), settings.indexOf('function ReviewRule('))
-  assert.match(settings, /checks:\n    "Names of GitHub checks \(CI jobs\) that must pass on a task's PR before Avoozl counts it as done\.",/)
+  assert.match(settings, /checks:\s+"Names of GitHub checks \(CI jobs\) that must pass on a task's PR before Avoozl counts it as done\.",/)
   for (const state of ['typed', 'reading', 'listed']) assert.match(editor, new RegExp(`data-checks="${state}"`), state)
   assert.match(editor, /Type the names instead\./)
   assert.match(editor, /Names are exact and case-sensitive, separated by commas\./)
@@ -281,8 +281,8 @@ test('the Reviews tab states the branch rule it found, or that reviewer chats ar
 
 test('the GitHub calls breakdown is its own section with a sortable real table', () => {
   assert.match(settings, /<Section title="GitHub calls"/)
-  assert.match(settings, /<Box key=\{col\.key\} scope="col" aria-sort=[^\n]*as="th"/)
-  assert.match(settings, /<PlainButton type="button" data-sort=\{col\.key\}/)
+  assert.match(settings, /<Box\s+key=\{col\.key\}\s+scope="col"\s+aria-sort=[^\n]*\s+as="th"/)
+  assert.match(settings, /<PlainButton\s+type="button"\s+data-sort=\{col\.key\}/)
   assert.match(settings, /css-text-align="right" css-font-variant-numeric="tabular-nums"/)
 })
 
@@ -294,10 +294,10 @@ const body = (start) => {
 
 test('Settings › Issue Radar holds every Radar intake setting, each in its own section box with one line', () => {
   const page = body('function RadarSettings(')
-  const titles = [...page.matchAll(/<Section title=\{?["']?([^"'}]+)/g)].map((m) => m[1])
+  const titles = [...page.matchAll(/<Section\s+title=\{?["']?([^"'}]+)/g)].map((m) => m[1])
   // Conflicts and the merge method are on the repository's Landing tab (§4.25).
   assert.deepEqual(titles, ['Issue Radar', 'Repository', 'Handoff to Avoozl', 'Labels Radar uses', 'Crew review rules'])
-  assert.equal((page.match(/<Section title=/g) ?? []).length, (page.match(/<Section title=[^>]*blurb=/g) ?? []).length)
+  assert.equal((page.match(/<Section\s+title=/g) ?? []).length, (page.match(/<Section\s+title=[^>]*blurb=/g) ?? []).length)
   for (const part of ['<AvoozlLabelFields', 'crewLabels.${key}', '<ReviewRulesFields'])
     assert.ok(page.includes(part), part)
   // Each section box is a Card around one Section; nothing loose between them.

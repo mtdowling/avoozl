@@ -69,6 +69,20 @@
   "linter": {
     "enabled": false
   },
+  "overrides": [
+    {
+      "includes": ["kirocrew-app/ui/**"],
+      "formatter": {
+        "lineWidth": 180
+      },
+      "javascript": {
+        "formatter": {
+          "quoteStyle": "single",
+          "semicolons": "asNeeded"
+        }
+      }
+    }
+  ],
   "assist": {
     "enabled": false
   }
