@@ -15,10 +15,9 @@ on:
   pull_request:
   schedule:
     - cron: "23 5 * * *"
-  # A landing train validates platforms this machine lacks with one dispatch
-  # run on a candidate ref (landing-trains LT7.7). `platforms` names the
-  # systems to run: linux-x64, windows-x64, macos-arm64, comma separated.
-  # Empty runs all three, as a plain dispatch always did.
+  # A manual run can limit the platforms: `platforms` names the systems to
+  # run (linux-x64, windows-x64, macos-arm64, comma separated). Empty runs
+  # all three, as a plain dispatch always did.
   workflow_dispatch:
     inputs:
       platforms:

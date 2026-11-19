@@ -1367,54 +1367,6 @@ export class GitHubClient {
     );
   }
 
-  // The jobs of one workflow run: [{id, name, status, conclusion}].
-  // shortcut: first page of 100 jobs.
-  async runJobs(value, runId) {
-    const { owner, repo } =
-        typeof value === "string" ? parseRepository(value) : value,
-      page = await this.request(
-        "GET",
-        `/repos/${owner}/${repo}/actions/runs/${Number(runId)}/jobs`,
-        { query: { filter: "latest", per_page: 100 } },
-      );
-    return (page?.jobs ?? []).map((job) => ({
-      id: job.id,
-      name: job.name,
-      status: job.status,
-      conclusion: job.conclusion,
-    }));
-  }
-
-  // The queued, waiting and running jobs of `workflow`: [{id, name, status}].
-  // The runs with those statuses first, then each run's jobs. Every request
-  // goes through the client's pacer.
-  // shortcut: first page of each list (100 runs, 100 jobs per run); more
-  // queued work than that undercounts, so read more pages if it shows up.
-  async activeJobs(value, workflow) {
-    const { owner, repo } =
-        typeof value === "string" ? parseRepository(value) : value,
-      base = `/repos/${owner}/${repo}/actions`,
-      runs = new Map();
-    for (const status of ["queued", "in_progress"]) {
-      const page = await this.request(
-        "GET",
-        `${base}/workflows/${encodeURIComponent(workflow)}/runs`,
-        { query: { status, per_page: 100 } },
-      );
-      for (const run of page?.workflow_runs ?? []) runs.set(run.id, run);
-    }
-    const jobs = [];
-    for (const id of runs.keys()) {
-      const page = await this.request("GET", `${base}/runs/${id}/jobs`, {
-        query: { filter: "latest", per_page: 100 },
-      });
-      for (const job of page?.jobs ?? [])
-        if (["queued", "waiting", "in_progress"].includes(job.status))
-          jobs.push({ id: job.id, name: job.name, status: job.status });
-    }
-    return jobs;
-  }
-
   // Pull request feedback, first read (task 15.1, R54.2): for each branch,
   // its open pull request's cheap fields. {branch: {number, url, updatedAt,
   // head, base, mergeable, autoMerge, ...} | null}. Read from the one
@@ -1797,15 +1749,6 @@ export class GitHubClient {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
     return this.request("GET", `/repos/${owner}/${repo}/pulls/${number}`);
-  }
-
-  // Closes a pull request without merging it; the head branch is untouched.
-  closePullRequest(value, number) {
-    const { owner, repo } =
-      typeof value === "string" ? parseRepository(value) : value;
-    return this.request("PATCH", `/repos/${owner}/${repo}/pulls/${number}`, {
-      body: { state: "closed" },
-    });
   }
 
   // Merges one pull request only while its head is still `sha`: GitHub
