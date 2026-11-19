@@ -84,7 +84,7 @@ test("supersede moves dependents to the new task, and re-approval leaves the cha
   assert.equal(old.supersededBy, "config-load");
   assert.equal(replacement.supersedes, "config.1.1");
   assert.equal(replacement.planId, undefined);
-  assert.deepEqual(replacement.checks, ["npm test"]);
+  assert.equal(replacement.checks, undefined, "a task never names checks");
   // Not complete, never ready, hidden by default.
   const status = ops.read().statuses.find((s) => s.id === "superseded");
   assert.equal(status.complete, false);
@@ -199,9 +199,14 @@ test("supersede is refused for GitHub tasks", async (t) => {
 test("a superseded task gets no new verifier or check run; its running session is left alone", async (t) => {
   const checkout = temporaryDirectory("avoozl-checkout-"),
     { store, ops } = workspace(t, {
-      tasks: [leaf("a", { repository: "app", checks: ["npm test"] })],
+      tasks: [leaf("a", { repository: "app" })],
     });
-  store.put("projects", { id: "app", root: checkout, baseBranch: "main" });
+  store.put("projects", {
+    id: "app",
+    root: checkout,
+    baseBranch: "main",
+    checks: { test: ["npm", "test"] },
+  });
   store.put("task_deliveries", {
     id: "a",
     taskId: "a",
@@ -269,16 +274,12 @@ const receipt = (commit) => ({
 
 test("task.update cannot type its way past acceptFrom", async (t) => {
   const { ops } = workspace(t, {
-    tasks: [leaf("w", { acceptFrom: "validation", checks: ["npm test"] })],
+    tasks: [leaf("w", { acceptFrom: "validation" })],
   });
   await refused(
     ops.execute("task.update", { id: "w", integration: receipt(SHA("1")) }),
   );
   await refused(ops.execute("task.update", { id: "w", status: "accepted" }));
-  await refused(
-    ops.execute("task.update", { id: "w", checks: ["true"] }),
-    /approved plan/,
-  );
   await refused(
     ops.execute("task.update", { id: "w", acceptFrom: undefined }),
     /plan approval/,
@@ -290,11 +291,10 @@ test("task.update cannot type its way past acceptFrom", async (t) => {
       acceptFrom: "validation",
     }),
   );
-  // Other edits, and resending the same checks, still work.
+  // Other edits still work.
   await ops.execute("task.update", {
     id: "w",
     notes: "Still going.",
-    checks: ["npm test"],
     status: "partial",
   });
   assert.equal(task(ops, "w").notes, "Still going.");
@@ -329,12 +329,13 @@ function integrate(store, id, commit) {
 
 test("task.accept on an acceptFrom leaf takes only Avoozl's validation at the integrated commit", async (t) => {
   const { store, ops } = workspace(t, {
-    tasks: [
-      leaf("w", {
-        acceptFrom: "validation",
-        checks: ["npm test", "scripts/validate.sh"],
-      }),
-    ],
+    tasks: [leaf("w", { acceptFrom: "validation", repository: "app" })],
+  });
+  store.put("projects", {
+    id: "app",
+    root: "/tmp/app",
+    baseBranch: "main",
+    checks: [["npm", "test"], ["scripts/validate.sh"]],
   });
   await refused(
     ops.execute("task.accept", { id: "w", evidence: "Looks right." }),
@@ -404,7 +405,13 @@ test("task.accept on an acceptFrom leaf takes only Avoozl's validation at the in
 
 test("derived acceptance evidence is for the current commit and every declared check", async (t) => {
   const { store, ops } = workspace(t, {
-    tasks: [leaf("p", { checks: ["npm test", "npm run lint"] })],
+    tasks: [leaf("p", { repository: "app" })],
+  });
+  store.put("projects", {
+    id: "app",
+    root: "/tmp/app",
+    baseBranch: "main",
+    checks: { test: ["npm", "test"], lint: ["npm", "run", "lint"] },
   });
   const old = SHA("1"),
     current = SHA("2");

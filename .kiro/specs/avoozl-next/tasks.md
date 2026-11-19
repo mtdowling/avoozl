@@ -1,7 +1,6 @@
 ---
 repo: avoozl
 completion: integrated
-checks: npm test, git diff --check
 ---
 # Tasks: the remaining Avoozl work
 
@@ -21,10 +20,10 @@ numbers refer to the other two specs); `D` sections refer to
 `.kiro/specs/avoozl/design.md`.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
-workspaces and a fake GitHub; run `npm test` and `git diff --check` before
-landing; no real workspace data, credentials or personal plans in the
-repository (AGENTS.md); no force push; land by task branch, pull request and
-`gh pr merge --merge` once Linux, macOS and Windows pass.
+workspaces and a fake GitHub; Avoozl runs the repository's checks; no real
+workspace data, credentials or personal plans in the repository (AGENTS.md);
+no force push; land by task branch, pull request and `gh pr merge --merge`
+once Linux, macOS and Windows pass.
 
 This spec is a draft. Approving it, creating issues and starting agents are
 separate acts. Task IDs start with `an-` so they never collide with `rc-` or

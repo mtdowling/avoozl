@@ -112,6 +112,9 @@ export async function verifyPaths(store, { task, project, commit, flow }) {
     ...(allowed && verdict.protected.length
       ? { protected: [], allowed: verdict.protected }
       : {}),
+    // Every changed path, which picks the checks a change runs; a record
+    // keeps the verdict without it.
+    files: paths,
   };
 }
 
@@ -133,10 +136,12 @@ export function pathOutcome(run) {
   return null;
 }
 
-// A check's own timeout in ms: `verify.checkTimeouts[command]`, else the
-// caller's, else `verify.checkTimeoutSeconds`.
-export function checkTimeout(command, flow, fallbackMs) {
-  const own = flow?.verify?.checkTimeouts?.[command];
+// A check's own timeout in ms: `verify.checkTimeouts` by the check's name
+// (a key written as its command text still matches), else the caller's,
+// else `verify.checkTimeoutSeconds`.
+export function checkTimeout(name, flow, fallbackMs, command = name) {
+  const timeouts = flow?.verify?.checkTimeouts,
+    own = timeouts?.[name] ?? timeouts?.[command];
   if (Number.isInteger(own)) return own * 1000;
   if (Number.isInteger(fallbackMs)) return fallbackMs;
   return (flow?.verify?.checkTimeoutSeconds ?? 1200) * 1000;
@@ -204,16 +209,20 @@ export function notRunCause(result, elapsed, timeoutMs) {
   );
 }
 
-// Run each check in `dir`, one at a time, each with its own timeout.
+// Run each check in `dir`, one at a time, each with its own timeout. A
+// check is {name, argv}, or a bare argv named by its command. Each result
+// carries the check's name and, for display, its command.
 export async function runEach(
   dir,
-  argvs,
+  checks,
   { timeoutFor, run = commandEvidence, env } = {},
 ) {
-  const checks = [];
-  for (const argv of argvs) {
-    const command = argv.join(" "),
-      timeoutMs = timeoutFor(command),
+  const out = [];
+  for (const check of checks) {
+    const argv = Array.isArray(check) ? check : check.argv,
+      command = argv.join(" "),
+      name = Array.isArray(check) ? command : check.name,
+      timeoutMs = timeoutFor(name, command),
       started = Date.now(),
       result = await run(dir, argv, { timeoutMs, env }),
       elapsed = Date.now() - started,
@@ -221,7 +230,8 @@ export async function runEach(
         (result.stdout || "") + "\n" + (result.stderr || ""),
         dir,
       );
-    checks.push({
+    out.push({
+      name,
       command,
       exitCode: Number.isInteger(result.exitCode) ? result.exitCode : null,
       ...(Number.isInteger(result.exitCode)
@@ -231,7 +241,7 @@ export async function runEach(
       ...(tail ? { tail } : {}),
     });
   }
-  return checks;
+  return out;
 }
 
 // The task worktree, when checks may run warm in it: it is at `commit` and

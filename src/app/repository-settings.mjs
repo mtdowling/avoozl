@@ -35,6 +35,7 @@ import {
   validateActivitySettings,
 } from "./activity-log.mjs";
 import { fail } from "./store.mjs";
+import { checksSetting } from "./repository-checks.mjs";
 import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.mjs";
 import { deriveGitHubKeys, rolesNote, withRoles } from "./repository-roles.mjs";
 
@@ -147,17 +148,8 @@ function projectInput(value, id, base) {
   for (const key of Object.keys(value))
     if (!PROJECT_KEYS.includes(key))
       fail(`Unknown project setting projects.${id}.${key}.`);
-  const checks = value.checks ?? [];
-  if (
-    !Array.isArray(checks) ||
-    checks.some(
-      (command) =>
-        !Array.isArray(command) ||
-        !command.length ||
-        command.some((part) => typeof part !== "string"),
-    )
-  )
-    fail(`Project ${id} checks must be arrays of command arguments.`);
+  // The repository's named checks; the older list of argv arrays loads too.
+  const checks = checksSetting(value.checks, `Project ${id} checks`);
   const resolve = (candidate) =>
     path.isAbsolute(candidate) ? candidate : path.resolve(base, candidate);
   // Branches reach git as positional arguments; a leading dash is an option.

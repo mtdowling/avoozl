@@ -341,7 +341,13 @@ import {
   resumeStop,
   runAnyway,
 } from "./flow-line.mjs";
-import { localCheckList, localPass, runLocalChecks } from "./flow-checks.mjs";
+import {
+  commitChecks,
+  localCheckList,
+  localPass,
+  runLocalChecks,
+} from "./flow-checks.mjs";
+import { checkCommand, checksSetting } from "./repository-checks.mjs";
 import { queueNotifications } from "./notifications.mjs";
 
 import {
@@ -690,7 +696,7 @@ function validationAt(store, data, task) {
   const declared = declaredChecks(
       task,
       store.get("projects", taskRepository(task) || ""),
-    ),
+    ).map(checkCommand),
     checks = declared.length ? declared : [...latest.keys()];
   if (!checks.length || checks.some((c) => latest.get(c)?.exitCode !== 0))
     return null;
@@ -809,14 +815,6 @@ function refuseGateBypass(data, task, input, hasReviewers) {
     if (typedIntegration || completes)
       fail(
         `Task ${task.id} completes only through Avoozl's validation and integration; a typed integration or complete status is refused.`,
-        409,
-      );
-    if (
-      Object.hasOwn(input, "checks") &&
-      JSON.stringify(input.checks) !== JSON.stringify(task.checks)
-    )
-      fail(
-        `Task ${task.id} takes its checks from its approved plan; change them there.`,
         409,
       );
   }
@@ -2087,7 +2085,7 @@ export class Operations {
     const authority = taskAuthority(task),
       plan = task.planId ? this.store.get("plans", task.planId) : null,
       change = {};
-    for (const key of ["title", "summary", "acceptance", "checks", "requires"])
+    for (const key of ["title", "summary", "acceptance", "requires"])
       if (Object.hasOwn(input, key)) change[key] = input[key];
     if (typeof change.title === "string" && /[\r\n]/.test(change.title))
       fail("A title is one line.");
@@ -2234,7 +2232,7 @@ export class Operations {
         const pass = await localPass(
           project.root,
           sha,
-          localCheckList(project),
+          await commitChecks(project, sha),
         );
         if (!pass.ok)
           fail(
@@ -2947,11 +2945,8 @@ export class Operations {
       return runLocalChecks({
         cwd: input.cwd,
         root: project.root,
+        project,
         env: project.checksEnv,
-        checks:
-          taskRoute(task) === "github"
-            ? localCheckList(project)
-            : declaredChecks(task, project),
       });
     }
     // Runner mode over SSH (R84): off unless .avoozl.json has `runner`.
@@ -5162,7 +5157,6 @@ export class Operations {
             "route",
             "completion",
             "repository",
-            "checks",
             "parent",
           ])
             if (Object.hasOwn(input, key)) task[key] = input[key];
@@ -5214,13 +5208,7 @@ export class Operations {
           ])
             if (task[key] !== undefined && typeof task[key] !== "string")
               fail(key + " must be text.");
-          for (const key of [
-            "tags",
-            "acceptance",
-            "evidence",
-            "resources",
-            "checks",
-          ])
+          for (const key of ["tags", "acceptance", "evidence", "resources"])
             if (
               task[key] !== undefined &&
               (!Array.isArray(task[key]) ||
@@ -5883,7 +5871,7 @@ export class Operations {
           root: localCheckout,
           baseBranch: String(input.baseBranch || "main").trim() || "main",
           worktreeRoot: input.worktreeRoot || undefined,
-          checks: Array.isArray(input.checks) ? input.checks : [],
+          checks: input.checks ?? [],
         });
         project = {
           ...project,

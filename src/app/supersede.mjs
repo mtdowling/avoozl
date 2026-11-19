@@ -28,7 +28,6 @@ const COPIED = [
   "summary",
   "nextAction",
   "acceptance",
-  "checks",
   "acceptFrom",
   "verify",
   "completion",
@@ -48,7 +47,6 @@ const SETTABLE = {
   nextAction: "text",
   notes: "text",
   acceptance: "list",
-  checks: "list",
   tags: "list",
 };
 

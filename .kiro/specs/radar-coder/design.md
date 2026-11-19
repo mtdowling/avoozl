@@ -1242,7 +1242,7 @@ the one-full-read rule), `asked` (rows), `held` (Resolve myself or Dismiss at a
 head) and `ours` (merge commits Avoozl's chats pushed, which never count as
 human commits). The chat is dispatched like the review draft chat (role
 `conflict-fix`, agent `avoozl-conflict-fix`), in the repository's project
-folder, with the checkout path and the declared checks in its brief.
+folder, with the checkout path and the repository's checks in its brief.
 
 ### D33.1 The drop check
 

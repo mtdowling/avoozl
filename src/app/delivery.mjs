@@ -36,7 +36,17 @@ import { heldByStop } from "./flow-line.mjs";
 import { needsJudgment, taskCheckRuns } from "./check-runs.mjs";
 import { pathOutcome } from "./verify.mjs";
 import { summaryLine } from "./title-repeat.mjs";
-import { checkDoneList, localCheckList, localPass } from "./flow-checks.mjs";
+import {
+  checkCommand,
+  resultFor,
+  selectedChecks,
+} from "./repository-checks.mjs";
+import {
+  checkDoneList,
+  commitChecks,
+  localCheckList,
+  localPass,
+} from "./flow-checks.mjs";
 import {
   batchBrief,
   planBatches,
@@ -579,8 +589,15 @@ function checkResults(value) {
     // The tail of a failing check's log, for the evidence bundle (R76.1).
     (entry.logTail === undefined ||
       (typeof entry.logTail === "string" && entry.logTail.length <= 4000)) &&
+    // The repository check's name, when the report gives it.
+    (entry.name === undefined ||
+      (typeof entry.name === "string" &&
+        entry.name.trim() &&
+        entry.name.length <= 200 &&
+        !/[\u0000-\u001f\u007f]/.test(entry.name))) &&
     Object.keys(entry).every((key) =>
       [
+        "name",
         "command",
         "exitCode",
         "notRun",
@@ -599,7 +616,8 @@ function checkResults(value) {
       'Report checks as 1–50 {command, exitCode, durationMs?} entries, one per check run; a check that could not run is {command, exitCode: null, notRun: "<reason>"}.',
     );
   return value.map(
-    ({ command, exitCode, notRun, durationMs, commit, logTail }) => ({
+    ({ name, command, exitCode, notRun, durationMs, commit, logTail }) => ({
+      ...(name !== undefined ? { name } : {}),
       command: command.trim(),
       exitCode,
       ...(notRun !== undefined ? { notRun: notRun.trim() } : {}),
@@ -998,7 +1016,7 @@ export async function reportSession(
   const declaredHere = pushing ? localCheckList(taskProject(store, task)) : [];
   if (pushing && declaredHere.length) {
     const project = taskProject(store, task),
-      declared = declaredHere,
+      declared = await commitChecks(project, commit),
       pushed = checkDoneList(checks, declared);
     if (pushed !== commit)
       fail(
@@ -1891,7 +1909,6 @@ export function plansRepoBrief(
     id: task.id,
     title: task.title,
     acceptance: task.acceptance,
-    checks: task.checks,
   };
   return workerBrief(
     own,
@@ -1967,9 +1984,7 @@ export function workerBrief(
   },
 ) {
   const own = taskLines(task, `Avoozl task ${task.id}`, outside);
-  const checks = task.checks?.length
-    ? `Checks: ${task.checks.join("; ")}`
-    : null;
+  const checks = checksLine(project);
   const lines = [
     own.heading,
     "",
@@ -2418,11 +2433,24 @@ export function planReadyDispatches(store, policy, options = {}) {
 // the cron's open_session makes) resolves only the declared name.
 const VERIFIER_AGENT = "avoozl-verifier";
 
-// The checks a verifier must run: the leaf's own, else its repository's.
-export function declaredChecks(task, project) {
-  if (task.checks?.length) return task.checks;
-  return (project?.checks || []).map((argv) => argv.join(" "));
+// The repository's checks as one brief line, each with the paths that pick
+// it, or null when it has none.
+export function checksLine(project) {
+  const checks = selectedChecks(project);
+  if (!checks.length) return null;
+  return `Checks: ${checks
+    .map(
+      (check) =>
+        `${check.name} (\`${checkCommand(check)}\`${check.paths ? `, when a change touches ${check.paths.join(", ")}` : ""})`,
+    )
+    .join("; ")}`;
 }
+
+// The checks a commit runs, as [{name, argv, paths}]: the repository's,
+// keeping a check with paths only when `files` touches one (every check
+// without a file list). Tasks never name checks.
+export const declaredChecks = (_task, project, files = null) =>
+  selectedChecks(project, files);
 
 // Not run (R38.1): the check could not start, timed out, or was not
 // reported. Exit codes 126 and 127 are the shell's "cannot run" codes.
@@ -2438,24 +2466,32 @@ const notRun = (result) =>
 // check that did not run is the checking session's failure, not the writer's.
 // A bar that needs judgment (needsJudgment) also needs the verifier's
 // verdict "approved"; one with no verdict fails the verifier, not the writer.
-export function verdictCause(task, project, commit, report) {
+// `expected` is the checks the commit had to run: a check run's own
+// selection, else every repository check.
+export function verdictCause(
+  task,
+  project,
+  commit,
+  report,
+  expected = declaredChecks(task, project),
+) {
   if (report.commit !== commit)
     return {
       cause: `verified ${report.commit}, but the worker reported ${commit}`,
     };
-  const checks = declaredChecks(task, project),
+  const checks = expected,
     judged = report.judged === true;
   if (!checks.length && !judged)
-    return { cause: "the task declares no checks" };
+    return { cause: "the repository has no checks" };
   for (const check of checks) {
-    const result = report.checks?.find((entry) => entry.command === check);
+    const result = resultFor(report.checks, check);
     if (notRun(result))
       return {
         notRun: true,
-        cause: `check \`${check}\` was not run${result?.notRun ? ": " + result.notRun : result ? ` (exit ${result.exitCode})` : ""}`,
+        cause: `check \`${check.name}\` was not run${result?.notRun ? ": " + result.notRun : result ? ` (exit ${result.exitCode})` : ""}`,
       };
     if (result.exitCode !== 0)
-      return { cause: `check \`${check}\` exited ${result.exitCode}` };
+      return { cause: `check \`${check.name}\` exited ${result.exitCode}` };
   }
   if (judged && !VERDICTS.includes(report.verdict))
     return {
@@ -2475,10 +2511,18 @@ export function verdictCause(task, project, commit, report) {
 function runRecord(task, project, run) {
   const held = pathOutcome(run);
   if (held) return { ...held, checks: run.checks };
-  const verdict = verdictCause(task, project, run.commit, {
-    commit: run.commit,
-    checks: run.checks,
-  });
+  // The run's own selection: the checks its diff picked.
+  const all = declaredChecks(task, project),
+    expected = Array.isArray(run.selected)
+      ? all.filter((check) => run.selected.includes(check.name))
+      : all,
+    verdict = verdictCause(
+      task,
+      project,
+      run.commit,
+      { commit: run.commit, checks: run.checks },
+      expected,
+    );
   return {
     ...(verdict
       ? verdict.notRun
@@ -2942,7 +2986,7 @@ export function verifierBrief(task, project, commit, attempt) {
     // Every verifier chat now judges a bar in prose (§5.2 Checks); plain
     // command bars are run by Avoozl itself.
     checkList = checks.length
-      ? `"checks": [{"command": "<check exactly as listed>", "exitCode": <code>}], `
+      ? `"checks": [{"name": "<check name as listed>", "command": "<its command>", "exitCode": <code>}], `
       : "";
   return [
     own.heading,
@@ -2950,7 +2994,7 @@ export function verifierBrief(task, project, commit, attempt) {
     `Repository: ${project.id}, checkout ${project.root}.`,
     `Commit: ${commit}`,
     ...own.text,
-    `Declared checks: ${checks.length ? checks.join("; ") : "none"}`,
+    `Repository checks: ${checks.length ? checks.map((check) => `${check.name}: ${checkCommand(check)}`).join("; ") : "none"}`,
     "",
     `1. Run \`git -C ${project.root} worktree add --detach ${worktree} ${commit}\`, and work only there.`,
     checks.length
@@ -2989,7 +3033,7 @@ export function reviewBrief(task, project, commit, attempt, role, open) {
     `Commit: ${commit}`,
     `Focus: ${role.focus}`,
     ...own.text,
-    task.checks?.length ? `Checks: ${task.checks.join("; ")}` : null,
+    checksLine(project),
     "",
     `1. Run \`git -C ${project.root} worktree add --detach ${worktree} ${commit}\`, and work only there. Confirm \`git rev-parse HEAD\` prints ${commit}.`,
     `2. Review the task's change (\`git diff $(git merge-base ${base} HEAD) HEAD\`) for your focus. Read and run what you need; edit, commit, merge, and push nothing.`,

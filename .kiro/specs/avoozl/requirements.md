@@ -352,8 +352,10 @@ before dependents start, so that later tasks build on accepted code.
 
 #### Acceptance criteria
 
-1. WHEN a worker reports done THEN Avoozl SHALL run the leaf's declared checks
-   against the exact commit and record the result. Avoozl SHALL run them
+1. WHEN a worker reports done THEN Avoozl SHALL run the repository's checks
+   against the exact commit and record the result. A check that names paths
+   SHALL run only when the commit's diff against the base touches one of
+   them; every other check SHALL run. Avoozl SHALL run them
    itself, with no model call: in a clean detached worktree at that commit,
    each check as an argument list with no shell, each with its own time
    limit, recording the exit code and a short redacted output tail, and
@@ -362,8 +364,10 @@ before dependents start, so that later tasks build on accepted code.
    stopped or while a stopped line holds the commit. A check that is not
    run, cannot start (exit 126 or 127), or times out SHALL fail the
    checking, not the writer's attempt. A verifier session SHALL open only
-   for a bar that needs judgment: a prose acceptance with no declared
-   check, or `verify: agent` on the task.
+   for a bar that needs judgment: a repository with no checks, or
+   `verify: agent` on the task. (Changed 2026-11-18: a task no longer
+   declares checks; every task runs its repository's checks, each named in
+   the repository's settings.)
 2. WHEN checks pass THEN Avoozl SHALL integrate the commit into the configured
    local integration branch and record the integrated commit.
 3. WHEN integration succeeds THEN Avoozl SHALL recompute readiness and dispatch
@@ -1425,8 +1429,9 @@ between attempts.
    why.
 7. Rules about a domain's own artifacts (for example, what a multi-step
    rewrite flow in another repository must leave in its run folder) SHALL
-   stay in that repository's validation script, run as one of the leaf's
-   declared checks. Avoozl SHALL NOT encode them.
+   stay in that repository's validation script, run as one of the
+   repository's checks. Avoozl SHALL NOT encode them. (Changed 2026-11-18:
+   the script is a repository check, not a leaf's own.)
 
 ### Requirement 38: Checks that cannot run keep the gate shut
 
@@ -1440,21 +1445,23 @@ acceptance, so that a broken tool never reads as a pass.
 1. A check SHALL have one of three results: passed (exit 0), failed (any
    other exit), or not run (the command could not start, timed out, or was
    not reported). Exit codes 126 and 127 SHALL read as not run.
-2. WHEN any declared check is not run THEN the gate SHALL stay shut: the
-   commit SHALL NOT be verified, accepted, or integrated.
+2. WHEN any of the repository's checks the commit runs is not run THEN the
+   gate SHALL stay shut: the commit SHALL NOT be verified, accepted, or
+   integrated.
 3. A not-run check SHALL fail the checking session, not the writer's
    attempt, because the writer did nothing wrong; the check SHALL be retried
    within the retry bound and then open a decision.
 4. A leaf MAY set `acceptFrom: "validation"`. Such a leaf SHALL be accepted
-   only from validation evidence Avoozl recorded itself: every declared check
-   passed at the leaf's integrated commit. `task.accept` SHALL refuse typed
-   evidence and `componentOnly` for it, and `task.update` SHALL refuse a
-   typed `integration` receipt, a complete status, and a change to its
-   `checks` or `acceptFrom`, which change only through plan approval. This
-   closes the path where a caller types evidence instead of running checks.
+   only from validation evidence Avoozl recorded itself: every repository
+   check passed at the leaf's integrated commit. `task.accept` SHALL refuse
+   typed evidence and `componentOnly` for it, and `task.update` SHALL
+   refuse a typed `integration` receipt, a complete status, and a change to
+   its `acceptFrom`, which changes only through plan approval. This closes
+   the path where a caller types evidence instead of running checks.
 5. Validation evidence used for acceptance SHALL be for the task's current
-   commit and SHALL cover every declared check, not the earliest validation
-   on record or a subset of checks.
+   commit and SHALL cover every repository check, not the earliest
+   validation on record or a subset of checks. (Changed 2026-11-18: the
+   checks are the repository's; a task carries none.)
 
 ### Requirement 39: Replacing a task by hand
 
@@ -1635,7 +1642,7 @@ reconstruct it.
 4. WHERE Kiro Crew lets the app read a session's tool calls (design F90,
    F91) THEN Avoozl SHALL split worker time into `coding`, `tests`, and
    `commands` from them: a shell call that runs one of the repository's
-   declared checks SHALL count as `tests`, any other shell call as
+   checks SHALL count as `tests`, any other shell call as
    `commands`, and the rest as `coding`.
 5. WHERE tool calls cannot be read (a Crew Mode worker, a remote session, or
    a Kiro Crew without that read) THEN Avoozl SHALL use the phase markers a
@@ -1671,7 +1678,7 @@ of every later task building on it.
 
 #### Acceptance criteria
 
-1. Avoozl SHALL stop the line WHEN a declared check that passed on a
+1. Avoozl SHALL stop the line WHEN a repository check that passed on a
    repository's landing branch (the integration branch in local delivery,
    the base branch in GitHub modes) fails on a later commit of that branch,
    and it still fails when Avoozl runs it once more on the same commit.
@@ -1730,16 +1737,18 @@ and nobody waits on CI to learn about a failure.
 
 1. The setting `flow.localChecksFirst` SHALL default to `true`.
 2. WHILE it is on THEN every brief for a session that may push SHALL tell
-   the worker to run the repository's declared checks in its worktree
-   before each push, and a `done` report for a pushed commit SHALL list
-   each check's command, exit code, and duration for that commit.
+   the worker to run the repository's checks in its worktree before each
+   push, and a `done` report for a pushed commit SHALL list each check's
+   name, command, exit code, and duration for that commit. The checks are
+   the ones the commit's diff picks, as in Requirement 7.1. (Changed
+   2026-11-18: checks are named and may name paths.)
 3. WHILE it is on THEN Avoozl SHALL refuse a `done` report for a pushed
    commit whose check list is missing, names another commit, or has a
    failed check. A not-run check SHALL keep the gate shut as in
    Requirement 38.
 4. WHILE it is on THEN the pre-push hook Avoozl installs in its worktrees
    (task 10.4) SHALL refuse a push whose commit has no recorded local pass
-   of every declared check. It SHALL NOT run the checks a second time.
+   of every repository check the commit runs. It SHALL NOT run the checks a second time.
 5. WHEN CI fails on a commit that passed locally THEN Avoozl SHALL record a
    "CI only" failure with the check names, so that a difference between the
    two environments shows in the Flow tab.
@@ -1826,7 +1835,7 @@ process improves without my asking and without changing on its own.
 5. A settings proposal SHALL be limited to keys the Settings page can edit.
    Avoozl SHALL refuse proposals to change content rules, plugin trust or
    approvals, trigger actors or minimum permission, crew trust, and tokens.
-   A proposal that removes a review role or a declared check SHALL be marked
+   A proposal that removes a review role or a repository check SHALL be marked
    "removes a check" and SHALL need a second confirmation.
 6. A retrospective SHALL never apply anything. Each proposal SHALL wait for
    the owner's **Approve** or **Reject**. Approving a settings change SHALL
@@ -3965,7 +3974,7 @@ second system deciding what to claim, push or merge.
    | Pick    | Avoozl | Ranks ready tasks by how many they unblock; holds a task whose declared paths overlap a running task anywhere in the repository |
    | Prepare | Avoozl | Adds the task worktree with the approved `scripts/worktree` helper or `git worktree add` |
    | Work    | Chat   | Edits in that worktree, then reports; Avoozl commits sandboxed child changes               |
-   | Verify  | Avoozl | Runs checks in the task worktree, checks the diff against declared paths    |
+   | Verify  | Avoozl | Runs the repository's checks in the task worktree, checks the diff against declared paths |
    | Land    | Avoozl | Lands through the per-base-branch queue (Requirement 87)                   |
    | Accept  | Avoozl | Stop the line (Requirement 64) watches every head Avoozl landed             |
 
@@ -3989,11 +3998,17 @@ second system deciding what to claim, push or merge.
    declared paths, and SHALL send a diff that touches a protected path
    (the repository's `protectedPaths`, plus CI workflows and the
    `scripts/worktree` helper by default) to the owner in Needs you before
-   it lands.
-7. Checks SHALL run in the task worktree, warm (the worktree keeps its
-   dependencies and build output between attempts), in their own job off
-   the tick, with a timeout per check. A check that times out SHALL fail
-   with the reason "timed out after N s".
+   it lands. The same diff SHALL pick which of the repository's checks
+   run: a check that names paths runs only when the diff touches one.
+7. The repository's checks SHALL run in the task worktree, warm (the
+   worktree keeps its dependencies and build output between attempts), in
+   their own job off the tick, with a timeout per check, keyed by the
+   check's name in `verify.checkTimeouts`. A check SHALL see only the
+   environment a process needs to start and the names the repository lists
+   in `checksEnv`, and never the push or GitHub credentials, even when
+   listed. A check that times out SHALL fail with the reason "timed out
+   after N s". (Changed 2026-11-18: checks are the repository's, named, and
+   picked by the diff; a task never names them.)
 8. Approval SHALL be the local hash receipt (Requirement 4.8). The approval
    pull request of RC3.6 SHALL be used only for a spec whose home branch is
    protected, so a commit can reach it only by pull request.
@@ -5631,7 +5646,7 @@ owner's words, in short: remove `avoozl/manifest.json`; every per-task fact
 moves into `tasks.md`, one `Facts:` bullet per task.
 
 **User story:** As the owner, I want one file per spec to read and review
-the tasks, so that a task's title, its checks and its acceptance sit
+the tasks, so that a task's title and its acceptance sit
 together and a Kiro chat, Claude Code or Codex writes them in one place.
 
 #### Acceptance criteria
@@ -5648,13 +5663,17 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
    under an item stay free notes.
 3. The known keys SHALL cover everything the manifest held: `kind`, `repo`
    (the repository), `summary`, `done` (the acceptance), `completion`,
-   `checks`, `after`, `sequence`, `supports`, `manual`, `phase`, `batch`,
+   `after`, `sequence`, `supports`, `manual`, `phase`, `batch`,
    and the other task keys `validateProposal` accepts, plus `plan` and
    `step` on an epic's rows. `after` names the tasks that must finish
    first, each with an optional `:<completion>`. A list SHALL be written
-   inline, comma separated, or as nested bullets.
-4. `tasks.md` MAY start with front-matter that holds spec-wide values: `repo`,
-   `checks` and `completion` as defaults for every leaf; `ship`,
+   inline, comma separated, or as nested bullets. A task SHALL NOT name
+   checks: every task runs its repository's checks (Requirement 7.1), and
+   a `checks` fact or front-matter line SHALL be a lint error that says
+   "Every task runs the repository's checks; delete this line." (Changed
+   2026-11-18: the `checks` fact and default are removed.)
+4. `tasks.md` MAY start with front-matter that holds spec-wide values:
+   `repo` and `completion` as defaults for every leaf; `ship`,
    `integrationBranch`, `integrationSync`, `forwardTarget`, `publicBranch`
    and `kind: epic` for the spec; `phase-<id>: <title>` for a named phase;
    and `batch-<id>: <reason>` for a planner batch group, whose members

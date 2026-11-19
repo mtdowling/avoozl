@@ -67,7 +67,7 @@ export const HELP_GROUPS = Object.freeze([
       ),
       entry(
         "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
-        "Preview repository setup for landing; --yes applies it",
+        "Preview repository setup for landing; --checks names the required GitHub checks, not the repository's own checks; --yes applies it",
       ),
       entry(
         "workspace-repo configure PATH [--branch avoozl-workspace] [--directory .avoozl]",

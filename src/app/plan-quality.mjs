@@ -4,6 +4,7 @@ import {
   titleIndex,
 } from "../task-identity.mjs";
 import { extractPlan } from "./plans.mjs";
+import { repositoryChecks } from "./repository-checks.mjs";
 import {
   isManual,
   taskCompletion,
@@ -152,14 +153,21 @@ function boundednessDiagnostics(task, projectId, projects) {
       `Completion "${completion}" cannot be observed on route "${taskRoute(task)}".`,
     );
   // An unregistered repository is reported as task.unknown-project.
-  const unknown = projectId && projects.size && !projects.has(projectId),
-    checks = task.checks?.length
-      ? task.checks
-      : projects.get(projectId)?.checks || [];
-  if (completion !== "answered" && !checks.length && !unknown)
-    add(
-      "leaf.checks",
-      `Name the checks that prove leaf "${task.id}", or configure checks on its repository.`,
+  // Every leaf runs its repository's checks; tasks never name them. Only a
+  // registered repository's are known here.
+  const known = Boolean(projectId) && projects.has(projectId),
+    checks = repositoryChecks(projects.get(projectId));
+  // A repository with no checks is judged by a verifier chat instead.
+  if (completion !== "answered" && !checks.length && known)
+    found.push(
+      diagnostic(
+        "leaf.checks",
+        "warning",
+        `Repository ${projectId} has no checks, so a verifier chat judges leaf "${task.id}". Configure the repository's checks to have Avoozl run them.`,
+        at.lineStart,
+        at.lineEnd,
+        { taskId: task.id },
+      ),
     );
   return found;
 }

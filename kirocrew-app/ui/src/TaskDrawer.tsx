@@ -712,7 +712,7 @@ function TaskPanel(props: {
                   {task.checks.length > 0 && (
                     <div>
                       <Box as="h4" size="sm" weight="semibold">
-                        Checks
+                        Repository checks
                       </Box>
                       <Box as="ul" mt="1" flex flexCol gap="1" size="sm">
                         {task.checks.map((line, i) => (

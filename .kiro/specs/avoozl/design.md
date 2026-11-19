@@ -370,7 +370,7 @@ be missing; the tick rediscovers them from session titles (`avoozl:<task-id>`).
 | `route`      | `local`, `github`                                                                           | How a leaf is delivered                                                                                                                               |
 | `repository` | registered repository ID                                                                     | Required for leaves; exactly one                                                                                                                      |
 | `acceptance` | list of observable statements                                                                | Required for leaves                                                                                                                                   |
-| `checks`     | named commands (local) or check names (GitHub)                                               | Required for code leaves                                                                                                                              |
+| `checks`     | none: not a task field                                                                       | Changed 2026-11-18: every leaf runs its repository's named checks (§5.2); a stored task's list is ignored                                             |
 | `completion` | `merged-pr`, `integrated`, `released`, `answered`, `person`                                  | `answered` only for `respond`; `person` only, and always, for a `manual` leaf (§4.16)                                                                 |
 | `manual`     | `true` or absent                                                                             | A leaf only a person does: never dispatched, waits in Needs you, marked done by a person (§4.16)                                                      |
 | `status`     | `draft`, `approved`, `running`, `review`, `done`, `failed`, `blocked`, `deferred`, `partial` | `partial` exists only for migrated tasks (§10)                                                                                                        |
@@ -1125,7 +1125,7 @@ after the content rules), never output. Stages and where each comes from:
 | ---------- | ------------------------------------------------------------------ | ------------------------------------------ | -------------------------------------------------- |
 | `queued`   | Task becomes ready                                                 | Its worker session is bound                | events                                             |
 | `coding`   | Worker bound, or a phase marker `coding`                           | Next span in the attempt, or `done`        | tool calls, markers, or events                     |
-| `tests`    | A shell call running a declared check, or marker `tests`           | Next tool row or marker                    | tool calls or markers; verifier sessions as events |
+| `tests`    | A shell call running a repository check, or marker `tests`         | Next tool row or marker                    | tool calls or markers; verifier sessions as events |
 | `commands` | Any other shell call, or marker `commands`                         | Next tool row or marker                    | tool calls or markers                              |
 | `ci-wait`  | First check run requested on the pushed head                       | Last required check run completed (F95)    | GitHub check runs                                  |
 | `review`   | Review role bound, or review requested on GitHub                   | Verdict reported, or review `submitted_at` | events, GitHub reviews                             |
@@ -1301,8 +1301,9 @@ Resume ─▶ flow.resume ─▶ each `interrupted` delivery of this stop ─▶
 
 Default on. It applies wherever a session Avoozl opens pushes: plans-repo
 workers (§6.6) and remote workers (§4.10). The brief tells the worker to run
-the declared checks before each push; the `done` report lists each check's
-command, exit code, and duration for the pushed commit; Avoozl refuses a
+the repository's checks before each push; the `done` report lists each
+check's name, command, exit code, and duration for the pushed commit, for
+the checks that commit's diff picks (§5.2); Avoozl refuses a
 `done` without them. The pre-push hook Avoozl installs in each worktree
 (task 10.4) also refuses a push whose commit has no recorded local pass. It
 reads the record the worker's check run left in the worktree's git
@@ -1397,7 +1398,7 @@ Reply:
   Settings proposals may touch only keys the Settings page edits, and never
   content rules, plugin trust or approvals, trigger actors or minimum
   permission, crew trust, or tokens: those guard safety, not speed. Removing
-  a review role or a declared check is allowed, because ceremony was one of
+  a review role or a repository check is allowed, because ceremony was one of
   the original causes, but it is marked "removes a check" and needs a second
   confirmation.
 - **Never applied by the agent.** Approve on a settings proposal writes it
@@ -3604,7 +3605,7 @@ the plan is private). A trailer is only a pointer. Reconcile writes `landed` onl
 3. Acceptance evidence exists: an authorized landing intent carrying verified check,
    path and review evidence for the exact candidate and its actual landing (4.32.7),
    or re-verification at that commit — the diff stays inside declared paths, no
-   protected path is touched, the declared checks pass (`runCheckAt`,
+   protected path is touched, the repository's checks pass (`runCheckAt`,
    `src/app/flow-line.mjs:38`), and the repository's review rule was satisfied
    (`reviewVerdict`, `src/app/github-reviews.mjs:26`).
 
@@ -4657,12 +4658,10 @@ follow it. Spec-wide defaults are front-matter at the top of `tasks.md`:
 ```markdown
 ---
 repo: avoozl
-checks: npm test, git diff --check
 ---
 - [ ] lt-1.2 Queue table and records
   - Facts:
     - after: lt-1.1
-    - checks: npm test
     - done:
       - Tests load a valid file and get every default
       - An unknown key is refused, and the message names the key
@@ -4679,7 +4678,7 @@ checks: npm test, git diff --check
 | `repo` | `repository` | one text |
 | `summary`, `completion`, `phase`, `batch`, `authority`, `route`, `type`, `milestone`, `iteration`, `scope`, `track`, `projectId`, `taskId`, `nextAction`, `distinctReason`, `acceptFrom`, `verify`, `ship` | the same name | one text |
 | `done` | `acceptance` | list |
-| `checks`, `sequence`, `supports`, `unblocks`, `tags`, `resources`, `paths`, `labels`, `needs` | the same name | list |
+| `sequence`, `supports`, `unblocks`, `tags`, `resources`, `paths`, `labels`, `needs` | the same name | list |
 | `after` | `requires` | list; an entry may end `:<completion>` |
 | `manual`, `investigate` | the same name | `true` or `false` |
 | `session`, `tracker` | the same name | one line of JSON |
@@ -4688,7 +4687,13 @@ checks: npm test, git diff --check
 A list is `key: a, b` or `key:` with nested bullets. Nested bullets keep a
 comma inside an item, and the converter writes them for `done` always.
 
-**Front-matter keys.** `repo`, `checks`, `completion` (defaults for leaves);
+Changed 2026-11-18: there is no `checks` fact and no `checks` default.
+Every task runs its repository's checks (§5.2); a `checks` line in
+`Facts:` or front-matter is the error `facts.removed-key`, "Every task runs
+the repository's checks; delete this line." A stored record's task list is
+dropped when it is read.
+
+**Front-matter keys.** `repo`, `completion` (defaults for leaves);
 `ship`, `integrationBranch`, `integrationSync`, `forwardTarget`,
 `publicBranch`, `kind: epic` (the spec); `phase-<id>: <title>` and
 `batch-<id>: <reason>`. A batch group's members each write `batch: <id>`, so
@@ -4701,7 +4706,7 @@ already read from the manifest, `{tasks, ship, phases, batches, ...}`, plus
 the line of each bullet. `parseSpec`, `lintSpec`, `proposeSpecWork`, the
 spec page, review tabs, graph, spec pull request adoption, import and the
 plan-review view take the facts from it. A default fills a leaf's missing
-`repo`, `checks` and `completion`; a package takes none. Diagnostics name
+`repo` and `completion`; a package takes none. Diagnostics name
 `tasks.md` and the bullet's line. A leftover `avoozl/manifest.json` is one
 error, `spec.manifest-left`, and nothing reads the file.
 
@@ -4756,7 +4761,7 @@ defaults and packages, an epic folder, a batch group, a leftover manifest.
 `spec-plans.test.mjs` and the fixtures write `Facts:`. A hash test: the same
 spec in old layout (built in the test) and new layout hashes the same, and a
 changed fact changes it. `spec-carry.test.mjs`: the same content carries;
-one character changed in prose, `after`, `checks` or `done` does not.
+one character changed in prose, `after` or `done` does not.
 `spec-conversion.test.mjs` as above. `kirocrew-planner.test.mjs`: the
 planner prompt's example folder lints clean.
 
@@ -4775,7 +4780,7 @@ planner prompt's example folder lints clean.
 | 7. Dispatch      | Crew Mode conductor (preferred, §5.1); tick and script cron as fallback                                                                                                                   | The conductor asks Avoozl for ready leaves and opens one worker session per leaf, up to capacity; the fallback opens `kirocrew-worker` sessions from the tick. The brief names the task ID, acceptance, checks, and the worktree tool                     |                                           |
 | 8. Work          | Worker session                                                                                                                                                                            | Calls `plans_prepare_worktree` (branch `avoozl/<task-id>`), implements, commits, reports `done` with the commit SHA through `plans_report`                                                                                                                | Worker reports `question`                 |
 | 9. Complex leaf  | Worker session                                                                                                                                                                            | May call `task_run` on a spec it writes for the leaf; Task Runner steps stay inside that run (F5, F6)                                                                                                                                                     |                                           |
-| 10. Verify       | Tick queues a check run that Avoozl makes itself (an `avoozl-verifier` session only for a bar that needs judgment), plus one session per review role when the repository names any (§5.2) | Runs the leaf's declared checks as argv on the exact SHA in a clean worktree and records exit codes and output tails; review roles report verdicts and findings on the same SHA                                                                           | Checks fail after the retry bound         |
+| 10. Verify       | Tick queues a check run that Avoozl makes itself (an `avoozl-verifier` session only for a bar that needs judgment), plus one session per review role when the repository names any (§5.2) | Runs the repository's checks the diff picks as argv on the exact SHA in a clean worktree and records exit codes and output tails; review roles report verdicts and findings                                                                               | Checks fail after the retry bound         |
 | 11. Integrate    | Tick (`integrateRun`)                                                                                                                                                                     | Rebases and merges into the local integration branch                                                                                                                                                                                                      | Rebase conflict the worker cannot resolve |
 | 12. Release      | Tick                                                                                                                                                                                      | Recomputes readiness; dispatches newly ready leaves                                                                                                                                                                                                       |                                           |
 | 13. Close parent | Tick                                                                                                                                                                                      | Marks packages and the epic done when all required children are done; whole-head acceptance stays a separate, explicit action                                                                                                                             | Whole-head acceptance                     |
@@ -4850,7 +4855,7 @@ below read `kirocrew-native` at `dd8b28b`.
 
 | #   | Fact                                                                                                                                                                                                                                                                                                                                                                                                      | Evidence                                                                                                                    |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| F56 | **Verified.** A worker's `done` report queues one check run that Avoozl makes itself on the leaf's declared checks (else the repository's) in a detached worktree at the reported commit; an `avoozl-verifier` session opens only for a bar that needs judgment (§5.2 Checks in code). `verdictCause` refuses a report for another commit, a declared check missing from the report, and a non-zero exit. | `src/app/delivery.mjs` `planVerifierDispatches`, `planCheckRuns`, `verifierBrief`, `verdictCause`; `src/app/check-runs.mjs` |
+| F56 | **Verified.** A worker's `done` report queues one check run that Avoozl makes itself on the repository's checks the commit's diff picks (changed 2026-11-18: a leaf names none) in a detached worktree at the reported commit; an `avoozl-verifier` session opens only for a bar that needs judgment (§5.2 Checks in code). `verdictCause` refuses a report for another commit, a picked check missing from the report, and a non-zero exit. | `src/app/delivery.mjs` `planVerifierDispatches`, `planCheckRuns`, `verifierBrief`, `verdictCause`; `src/app/check-runs.mjs` |
 | F57 | **Verified.** A rejected verdict marks the worker's attempt failed; the retry path opens a new worker attempt on the same worktree with the earlier cause quoted as data, up to `retries`, then a decision. A blocked or quiet verifier fails only the verification and is retried. Attempts and verifications stay on the `task_deliveries` row.                                                         | `delivery.mjs` `reconcileVerifications`, `reconcileDeliveries`, `workerBrief`                                               |
 | F58 | **Verified.** Only a `verified` delivery is integrated, and a local leaf's `integrated` completion is reached from `task.integration.commit`, so dependents already wait for the verifier and integration.                                                                                                                                                                                                | `delivery.mjs` `integrateVerified`; `src/work-model.mjs` `completionReached`; `src/query.mjs` `ready`                       |
 | F59 | **Verified.** Per-repository and workspace concurrency count only live worker attempts; verifier sessions do not count. The default workspace concurrency is 1.                                                                                                                                                                                                                                           | `delivery.mjs` `readyLeaves`, `DELIVERY_DEFAULTS`                                                                           |
@@ -4915,6 +4920,32 @@ entry may replace the workspace's list.
 The checks role makes no model call when the bar is commands. Owner
 decision 2026-11-13.
 
+**Repository checks** (changed 2026-11-18). The checks are the
+repository's, set in its workspace project config and only by a person
+(`project.configure`). `checks` maps a name (`^[a-z][a-z0-9-]{0,39}$`) to
+argv, or to `{"run": [argv], "paths": [glob, ...]}`:
+
+```json
+{
+  "test": ["npm", "test"],
+  "diff": ["git", "diff", "--check"],
+  "ui": { "run": ["npm", "run", "test:ui"], "paths": ["src/ui/**"] }
+}
+```
+
+A check with `paths` runs only when the commit's diff against the base
+touches a match; every other check always runs. Tasks never name checks:
+there is no `checks` fact or default (§4.40), and a stored task's list is
+ignored. The older form, a list of argv arrays, still loads, each check
+named by its argv joined with spaces and with no paths. Records, reruns,
+bisect steps and journal entries are keyed by check name; each still keeps
+`command` for display. A check runs with only the environment a process
+needs to start plus the names in `checksEnv`, whether or not it lists any;
+push and GitHub credentials never reach a check, even when listed.
+`verify.checkTimeouts` is keyed by check name (a key written as the
+command text still matches), with `verify.checkTimeoutSeconds` the
+default.
+
 - **Queue.** The tick queues one `check-run` record (in `flow_records`)
   per reported commit, after fetching remote hand-back branches, so a
   remote commit is checked here too. The app backend drain runs the queue
@@ -4923,8 +4954,7 @@ decision 2026-11-13.
   stopped line holds is not queued until the line is green. A run left
   `running` by a process that is gone goes back in the queue.
 - **Run.** A clean detached worktree at the exact reported commit. Each
-  declared check (`task.checks`, else the repository's `checks`) runs as
-  argv with no shell, with its own time limit (20 minutes), and records
+  repository check the commit's diff picks runs as argv with no shell, with its own time limit (20 minutes), and records
   its exit code and the last lines of its output, redacted by the content
   rules and with the worktree path removed. The worktree is removed
   afterwards. If HEAD is not the reported commit, nothing runs.
@@ -4934,11 +4964,10 @@ decision 2026-11-13.
   A non-zero exit fails the writer's attempt; the tail is kept beside
   that check on the verification. A run for an older commit judges nothing.
 - **Receipts.** The verification keeps role id `checks` and the same entry
-  shape (`command`, `exitCode`, `durationMs`), so receipts and gates read
+  shape (`name`, `command`, `exitCode`, `durationMs`), so receipts and gates read
   the same. Flow timing records the run as stage `checks`.
 - **Judgment.** A verifier session on `avoozl-verifier` opens only when
-  the task says `verify: "agent"`, or its acceptance is prose with no
-  declared check. Its report carries a `verdict` like a reviewer's.
+  the task says `verify: "agent"`, or its repository has no checks. Its report carries a `verdict` like a reviewer's.
 
 #### Flow
 
@@ -5003,16 +5032,17 @@ defect closed `unchanged` stays open. A person retrying a stopped delivery
 
 **Not run.** A checks report entry may be `{command, exitCode: null,
 notRun: "<reason>"}`. Avoozl reads `notRun`, a null exit code, 126, 127, and
-a declared check missing from the report as not run (Requirement 38.1).
-`validateRun` evidence with `exitCode: null` already fails; acceptance now
-also needs every declared check present at the current commit.
+a picked repository check missing from the report as not run (Requirement
+38.1). `validateRun` evidence with `exitCode: null` already fails;
+acceptance now also needs every repository check present at the current
+commit.
 
 **`acceptFrom: validation`.** A fact on a leaf, linted like
 `completion`. It changes `task.accept` and `task.update` as Requirement 38.4
 says. A leaf whose repository has review roles gets the same `task.update`
 refusals (Requirement 36.11) whether or not it sets the flag. The
 multi-step rewrite flow sets it on each writer leaf and lists that
-repository's validation script as a declared check, so the checks role runs
+repository's validation script as one of its checks, so the checks role runs
 it on the exact commit and acceptance can only come from its pass.
 
 **Supersede by hand.** `task.supersede` (`avoozl task supersede`,
@@ -5047,7 +5077,7 @@ the head moves. It is not part of the first cut (Requirement 36.13).
 | Verdicts name their commit; a moved head makes them stale          | Rule 3: the review judges what merges. Comparing the stored commit is enough; no timer or invalidation step is needed                                                                                                                                                                                                                   |
 | Re-review after a rebase that changes the commit                   | A rebase can change behavior. With one writer per repository the base rarely moves, so the extra round is rare                                                                                                                                                                                                                          |
 | Rework is a new attempt, not a superseded task                     | The retry path already keeps the worktree, quotes the cause, bounds retries, and keeps history (F57). Superseding for each rework would grow the graph and need edge tricks                                                                                                                                                             |
-| Closure checked in Avoozl, domain rules in the repository's script | The fixed-or-unchanged check is generic: paths and diffs. What a rewrite run must contain is that repository's business, so its validation script runs as a declared check, and Avoozl gains only `acceptFrom`                                                                                                                          |
+| Closure checked in Avoozl, domain rules in the repository's script | The fixed-or-unchanged check is generic: paths and diffs. What a rewrite run must contain is that repository's business, so its validation script runs as a repository check, and Avoozl gains only `acceptFrom`                                                                                                                        |
 | Task's own diff via patch-id                                       | A plain diff between two commits also shows base changes after a rebase, which would let `fixed` pass on someone else's edit                                                                                                                                                                                                            |
 | Not-run fails the checking session, not the writer                 | A missing tool is not the writer's fault; today it costs a worker retry (F62). It still never passes                                                                                                                                                                                                                                    |
 | `acceptFrom`, not `acceptance`                                     | `acceptance` already holds criteria text on every task (F66)                                                                                                                                                                                                                                                                            |
@@ -6101,14 +6131,16 @@ local folder just before `PluginProcess` spawns.
 
 **S8, checks env.** `projectConfig` and project settings take `checksEnv`.
 `commandEvidence`, `runChecksAt`, `runCheckAt` and `runLocalChecks` pass it to
-`repositoryEnvironment(env, allow)`. The setting is named `checksEnv`, not
-`checks.env`, because `checks` is a list.
+`checkEnvironment(env, allow)`. The setting is named `checksEnv`, not
+`checks.env`, because `checks` was a list. Changed 2026-11-18: a check
+always gets the allowlist, the start-up names plus `checksEnv`, even when
+`checksEnv` is absent, and never the push or GitHub credentials.
 
 | Choice                           | Why                                                        |
 | -------------------------------- | ---------------------------------------------------------- |
 | Gate on Kiro Crew's own markers  | Nothing for the person to set up; a terminal is unaffected |
 | Approval stored with the project | Whoever edits `checks` already runs code there             |
-| `checksEnv` off by default       | No existing check breaks                                   |
+| Allowlist always on              | A check never holds a token it was not given               |
 
 shortcut: S4 is a speed bump and S7 leaves a small window between the hash and
 the child's read; upgrade S4 with the upstream request, S7 by copying first.

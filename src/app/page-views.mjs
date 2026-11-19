@@ -43,6 +43,7 @@ import { epicRows } from "./epic-rows.mjs";
 import { taskLinks } from "./scm-links.mjs";
 import { approvals, batchRules } from "./flow-batch.mjs";
 import { ownSummary } from "./title-repeat.mjs";
+import { checkCommand, repositoryChecks } from "./repository-checks.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const DELIVERY_STATUSES = new Set(["running", "review", "failed"]);
@@ -1329,7 +1330,14 @@ export function taskDetailView(
       title: detail.title ?? id,
       summary: ownSummary(detail) ?? "",
       acceptance: detail.acceptance || [],
-      checks: detail.checks || [],
+      // The repository's checks, which every task runs.
+      checks: repositoryChecks(
+        store.get("projects", taskRepository(detail) || ""),
+      ).map((check) =>
+        check.name === checkCommand(check)
+          ? check.name
+          : `${check.name}: ${checkCommand(check)}${check.paths ? ` (for ${check.paths.join(", ")})` : ""}`,
+      ),
       // Its plan's epic and its phase inside the plan (Requirement 59).
       epic: taskEpic(data, detail),
       epicTitle: epicOfPlan(data, detail.planId)?.title ?? null,

@@ -232,7 +232,6 @@ export function batchBrief(store, data, leaf, brief) {
         task.acceptance?.length
           ? `   Acceptance: ${[].concat(task.acceptance).join("; ")}`
           : null,
-        task.checks?.length ? `   Checks: ${task.checks.join("; ")}` : null,
       ]),
       "",
       ...run,

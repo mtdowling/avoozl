@@ -505,7 +505,7 @@ test("P30: flow with fake workers and scripted timings", {
   const local = await runLocalChecks({
     cwd: gWt,
     root: w.checkout,
-    checks: [CHECK],
+    project: w.store.get("projects", "app"),
   });
   await ops.execute("content.check", {
     taskId: "g1",

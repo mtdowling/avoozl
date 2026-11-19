@@ -131,11 +131,12 @@ test("task.update writes work-model fields but never authority", async (t) => {
       route: "github",
       completion: "released",
       repository: "code",
+      // A task never names checks: a sent list is not stored.
       checks: ["unit"],
     });
   assert.deepEqual(
     [task.route, task.completion, task.repository, task.checks],
-    ["github", "released", "code", ["unit"]],
+    ["github", "released", "code", undefined],
   );
   await assert.rejects(
     ops.execute("task.update", { id: "sample-task", authority: "github" }),
@@ -204,7 +205,7 @@ test("plan blocks carry work-model fields and edge conditions into approval", as
       data.tasks.find((task) => task.id === receipt.mapping[id]);
   assert.equal(byLocal("parent").kind, "package");
   assert.equal(byLocal("base").completion, "released");
-  assert.deepEqual(byLocal("base").checks, ["npm test"]);
+  assert.equal(byLocal("base").checks, undefined, "a task never names checks");
   assert.equal(
     data.edges.find((edge) => edge.to === receipt.mapping.user).condition,
     "integrated",
@@ -242,11 +243,13 @@ test("a leaf names exactly one repository", () => {
   assert.equal(lint(block(leaf("alpha")), [{ id: "x" }]).canApprove, true);
 });
 
-test("a leaf needs checks unless it is answered", () => {
+test("a leaf whose repository has no checks is judged, with a warning", () => {
   const bare = leaf("alpha", { checks: undefined }),
     result = lint(block(bare), [{ id: "x", checks: [] }]),
     diagnostic = result.diagnostics.find((item) => item.code === "leaf.checks");
   assert.equal(diagnostic.lineStart, 1);
+  assert.equal(diagnostic.severity, "warning");
+  assert.equal(result.canApprove, true);
   assert.equal(
     lint(block(bare), [{ id: "x", checks: [["npm", "test"]] }]).canApprove,
     true,

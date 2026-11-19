@@ -131,6 +131,9 @@ export function validateProposal(item) {
         item[field].some((x) => typeof x !== "string"))
     )
       fail(field + " must be a list of strings.");
+  // Every task runs its repository's checks: a stored proposal's own list
+  // is ignored.
+  delete item.checks;
   // A proposal stored while the field was named `prose` loads as summary.
   if (item.prose !== undefined) {
     item.summary ??= item.prose;
@@ -588,7 +591,6 @@ export function approvePlan(
             "route",
             "completion",
             "repository",
-            "checks",
             "acceptFrom",
             "verify",
             "milestone",
@@ -701,7 +703,6 @@ export function approvePlan(
               "route",
               "completion",
               "repository",
-              "checks",
               "acceptFrom",
               "verify",
               "milestone",

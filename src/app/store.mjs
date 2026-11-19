@@ -304,6 +304,8 @@ export class Store {
           value.summary ??= value.prose;
           delete value.prose;
         }
+        // Every task runs its repository's checks; a row's own is ignored.
+        delete value.checks;
         data.tasks.push(value);
       } else if (row.kind === "document") data.documents[row.id] = value;
       else if (row.kind === "edge") data.edges.push(value);
