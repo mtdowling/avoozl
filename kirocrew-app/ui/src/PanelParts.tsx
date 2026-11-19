@@ -20,6 +20,7 @@ import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref } from './views-api.ts'
 import { Box } from './ui/Box'
 import { PanelCss } from './ui/PageStyles'
+import { PlainLink } from './ui/Plain'
 
 export type Tone = 'ok' | 'warn' | 'danger' | 'info' | 'muted'
 
@@ -94,9 +95,9 @@ export function PanelChip(props: { tone?: Tone; tip?: string; href?: string | nu
   return (
     <Tooltip text={tip}>
       {href ? (
-        <a data-pp-chip data-tone={tone} href={linkHref(href)} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }} {...rest}>
+        <PlainLink data-pp-chip data-tone={tone} href={linkHref(href)} target="_blank" rel="noreferrer" css-text-decoration="none" {...rest}>
           {children}
-        </a>
+        </PlainLink>
       ) : (
         <span data-pp-chip data-tone={tone} {...rest}>
           {children}

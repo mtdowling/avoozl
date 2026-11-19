@@ -91,15 +91,18 @@ export function ListDetailLayout(props: {
     )
   if (props.detail === null)
     return (
-      <div
+      <Box
         ref={fillRef}
         data-list-pane={props.id}
         data-list-only
         data-list-fill={fillHeight !== null ? '' : undefined}
-        style={fillHeight !== null ? { height: fillHeight, minHeight: 0, overflowY: 'auto', position: 'relative' } : undefined}
+        css-height={fillHeight ?? undefined}
+        css-min-height={fillHeight !== null ? 0 : undefined}
+        css-overflow-y={fillHeight !== null ? 'auto' : undefined}
+        css-position={fillHeight !== null ? 'relative' : undefined}
       >
         {props.list}
-      </div>
+      </Box>
     )
   // One tree whether the list is folded or not, so the detail stays
   // mounted when the list folds. A folded list is hidden, not unmounted:

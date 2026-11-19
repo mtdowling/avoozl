@@ -8,6 +8,7 @@ import { type RateView, settingsClient } from './settings-api.ts'
 import { useAppApi } from './host.ts'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { NAV_ICON, SQUARE } from './LeftNav.tsx'
+import { PlainButton } from './ui/Plain'
 
 export interface RefreshState {
   refresh: () => void
@@ -82,13 +83,13 @@ export function RefreshIcon({ state, look = 'square' }: { state: RefreshState; l
   const age = limited > 0 ? 100 : Math.round(Math.min(1, Math.max(0, 1 - left / period)) * 100)
   const color = refreshColor(age)
   const looks = {
-    bare: { attrs: { 'data-pp-icon': '', 'data-bare': '' }, style: { color } },
-    nav: { attrs: { 'data-nav-refresh': '' }, style: { ...NAV_ICON, color } },
-    square: { attrs: { 'data-refresh-square': '' }, style: { ...SQUARE, color } },
+    bare: { attrs: { 'data-pp-icon': '', 'data-bare': '' }, look: { 'css-color': color } },
+    nav: { attrs: { 'data-nav-refresh': '' }, look: { ...NAV_ICON, 'css-color': color } },
+    square: { attrs: { 'data-refresh-square': '' }, look: { ...SQUARE, 'css-color': color } },
   }[look]
   return (
     <Tooltip text={state.tip}>
-      <button
+      <PlainButton
         type="button"
         {...looks.attrs}
         data-refresh
@@ -97,10 +98,10 @@ export function RefreshIcon({ state, look = 'square' }: { state: RefreshState; l
         onClick={refresh}
         disabled={busy}
         aria-label={label}
-        style={looks.style}
+        {...looks.look}
       >
         <RefreshCw size={look === 'bare' ? 13 : 14} aria-hidden="true" />
-      </button>
+      </PlainButton>
     </Tooltip>
   )
 }

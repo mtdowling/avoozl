@@ -1322,7 +1322,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
   const divider = { borderBottom: '1px solid var(--border)', marginLeft: props.flush ? 0 : -12, paddingLeft: props.flush ? 0 : 24, paddingRight: pad }
   return (
     <header data-spec-header>
-      <div style={{ padding: `20px ${pad}px 0`, marginLeft: props.flush ? 0 : -12, paddingLeft: props.flush ? 0 : 24 }}>
+      <Box css-padding={`20px ${pad}px 0`} css-margin-left={props.flush ? 0 : -12} css-padding-left={props.flush ? '0' : '24'}>
         <h1
           id="avoozl-plan-title"
           ref={titleRef ?? undefined}
@@ -1350,8 +1350,19 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
           ))}
           {props.driver}
         </Box>
-      </div>
-      <div data-spec-actions style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: `16px ${pad}px 16px`, ...divider }}>
+      </Box>
+      <Box
+        data-spec-actions
+        css-display="flex"
+        css-flex-wrap="wrap"
+        css-align-items="center"
+        css-gap="8"
+        css-padding={`16px ${pad}px 16px`}
+        css-border-bottom="1px-solid-border"
+        css-margin-left={props.flush ? 0 : -12}
+        css-padding-left={props.flush ? '0' : '24'}
+        css-padding-right={pad}
+      >
         <StatePill status={row.status} archived={Boolean(row.archived)} />
         <Box data-spec-id as="span" css-font-size="12.5" css-color="muted" css-font-family="font-mono-ui-monospace-monospace" css-overflow-wrap="anywhere">
           {id}
@@ -1419,7 +1430,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
             </Box>
           </MoreMenu>
         </Box>
-      </div>
+      </Box>
     </header>
   )
 }
