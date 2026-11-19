@@ -23,10 +23,16 @@ test("publiccrews.signoff records the sign-off, owner only", async (t) => {
   );
   const w = await setup(t, { release: { capacity: 2 } }, [leaf("leaf-a")]);
   visibility(w, false);
-  await assert.rejects(w.ops.execute("publiccrews.signoff", { repository: "x/y" }), {
-    status: 404,
+  await assert.rejects(
+    w.ops.execute("publiccrews.signoff", { repository: "x/y" }),
+    {
+      status: 404,
+    },
+  );
+  await w.ops.execute("publiccrews.signoff", {
+    repository: REPO,
+    complete: false,
   });
-  await w.ops.execute("publiccrews.signoff", { repository: REPO, complete: false });
   // The checklist is not met yet, so the sign-off is refused.
   await assert.rejects(
     w.ops.execute("publiccrews.signoff", { repository: REPO, complete: true }),

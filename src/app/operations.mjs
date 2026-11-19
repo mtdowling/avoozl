@@ -140,11 +140,7 @@ import {
   planningIdentity,
   requireNamespace,
 } from "./github-marker.mjs";
-import {
-  claimsFresh,
-  claimsView,
-  refreshClaims,
-} from "./radar-claims.mjs";
+import { claimsFresh, claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { instanceIdentity } from "./instance.mjs";
 import { mirrorEntryKey, mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
@@ -1427,10 +1423,7 @@ export class Operations {
   screenPack(pack) {
     const crews = pack?.settings?.crews;
     if (!crews) return;
-    const text = [
-        pack.description,
-        Object.values(crews.labels ?? {}),
-      ]
+    const text = [pack.description, Object.values(crews.labels ?? {})]
         .flat()
         .filter((entry) => typeof entry === "string")
         .join("\n"),
