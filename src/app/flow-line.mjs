@@ -25,6 +25,7 @@ import { taskRepository } from "../work-model.mjs";
 import { INTERRUPTED, liveAttempt, rebaseForIntegration } from "./delivery.mjs";
 import { fence } from "./github-respond.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
+import { checkOptions, prepareChecks } from "./check-isolation.mjs";
 import {
   checkCommand,
   checkKey,
@@ -43,10 +44,20 @@ export async function runCheckAt(project, commit, argv) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-line-"));
   try {
     await git(project.root, ["worktree", "add", "--detach", dir, commit]);
+    const ready = await prepareChecks(project, dir);
+    if (ready && ready.exitCode !== 0)
+      return {
+        exitCode: null,
+        durationMs: 0,
+        tail: `prepare failed: ${String(ready.stderr || "").split("\n")[0]}`,
+      };
     const started = Date.now(),
-      result = await commandEvidence(dir, argv, { env: project.checksEnv });
+      result = await commandEvidence(dir, argv, checkOptions(project, dir));
     return {
       exitCode: result.exitCode,
+      ...(result.isolation !== undefined
+        ? { isolation: result.isolation }
+        : {}),
       durationMs: Date.now() - started,
       tail: String((result.stdout || "") + (result.stderr || ""))
         .split("\n")

@@ -6,6 +6,7 @@
 // off the tick; delivery judges the record they leave.
 import { PUBLISH_RULES, secretReason } from "./content-rules.mjs";
 import { commandEvidence, git } from "./git.mjs";
+import { checkOptions, prepareChecks } from "./check-isolation.mjs";
 import { fail } from "./store.mjs";
 
 // Protected by default in every repository (R86.6): CI workflows and the
@@ -211,20 +212,43 @@ export function notRunCause(result, elapsed, timeoutMs) {
 
 // Run each check in `dir`, one at a time, each with its own timeout. A
 // check is {name, argv}, or a bare argv named by its command. Each result
-// carries the check's name and, for display, its command.
+// carries the check's name, for display its command, and the isolation it
+// ran under. With `project`, its `prepare` runs first and each check runs
+// in the project's isolation (check-isolation.mjs); a failed prepare runs
+// no check.
 export async function runEach(
   dir,
   checks,
-  { timeoutFor, run = commandEvidence, env } = {},
+  { timeoutFor, run = commandEvidence, env, project } = {},
 ) {
   const out = [];
+  if (project && checks.length) {
+    const ready = await prepareChecks(project, dir, {
+      run: run === commandEvidence ? undefined : run,
+    });
+    if (ready && ready.exitCode !== 0)
+      return checks.map((check) => {
+        const argv = Array.isArray(check) ? check : check.argv;
+        return {
+          name: Array.isArray(check) ? argv.join(" ") : check.name,
+          command: argv.join(" "),
+          exitCode: null,
+          notRun:
+            `prepare failed: ${notRunCause(ready, 0, 1) || "exit " + ready.exitCode}`.slice(
+              0,
+              300,
+            ),
+        };
+      });
+  }
+  const isolate = project ? checkOptions(project, dir).isolate : undefined;
   for (const check of checks) {
     const argv = Array.isArray(check) ? check : check.argv,
       command = argv.join(" "),
       name = Array.isArray(check) ? command : check.name,
       timeoutMs = timeoutFor(name, command),
       started = Date.now(),
-      result = await run(dir, argv, { timeoutMs, env }),
+      result = await run(dir, argv, { timeoutMs, env, isolate }),
       elapsed = Date.now() - started,
       tail = outputTail(
         (result.stdout || "") + "\n" + (result.stderr || ""),
@@ -233,6 +257,9 @@ export async function runEach(
     out.push({
       name,
       command,
+      ...(result.isolation !== undefined
+        ? { isolation: result.isolation }
+        : {}),
       exitCode: Number.isInteger(result.exitCode) ? result.exitCode : null,
       ...(Number.isInteger(result.exitCode)
         ? {}

@@ -97,6 +97,9 @@ if (fs.existsSync("breaks-main") && path.basename(process.cwd()).startsWith("avo
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
     checks: [["node", "test/check.mjs"]],
+    // The flaky file sits beside the checkout; a sandboxed check writes it
+    // only because it is listed.
+    isolation: { writable: [fs.realpathSync.native(root)] },
   });
   const config = {
     version: 1,

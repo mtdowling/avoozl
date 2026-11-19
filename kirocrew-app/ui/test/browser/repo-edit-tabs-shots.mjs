@@ -48,6 +48,8 @@ try {
     ['mirror', [tab('mirror')]],
     ['mirror-role', [tab('mirror'), click('[data-repository-edit] [role=tabpanel] button', 'Set up mirror')]],
     ['map', [tab('map')]],
+    // The Isolation panel under Landing, scrolled into view.
+    ['isolation', [tab('landing')]],
   ].filter(([name]) => (only.length ? only.includes(name) : name !== 'before'))
   for (const theme of ['light', 'dark'])
     for (const width of [1280, 390])
@@ -60,7 +62,11 @@ try {
           await page.evaluate(step)
         }
         await settle()
-        await page.evaluate(`document.querySelectorAll('[data-modal-body]').forEach((x) => x.scrollTo(0, 0))`)
+        await page.evaluate(
+          name === 'isolation'
+            ? `document.querySelector('[data-isolation]')?.scrollIntoView({ block: 'center' })`
+            : `document.querySelectorAll('[data-modal-body]').forEach((x) => x.scrollTo(0, 0))`,
+        )
         const file = path.join(out, `${name}-${width}-${theme}.png`)
         await page.screenshot(file)
         console.log(file)

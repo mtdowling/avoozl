@@ -1114,6 +1114,46 @@
           "$ref": "#/$defs/harnessName",
           "description": "The harness definition a process session uses."
         },
+        "isolation": {
+          "type": "object",
+          "description": "How the repository's checks run. A person sets it in Settings > Repository setup.",
+          "additionalProperties": false,
+          "properties": {
+            "run": {
+              "enum": ["sandbox", "container", "unconfined"],
+              "default": "sandbox",
+              "description": "sandbox: the process sandbox, writing only the check's folder, its temp and cache folders and the writable paths. container: docker or podman with image. unconfined: no isolation, only with this machine's opt-in."
+            },
+            "image": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The container image, needed when run is container."
+            },
+            "network": {
+              "enum": ["off", "on"],
+              "default": "off",
+              "description": "Whether a check reaches the network."
+            },
+            "readable": {
+              "type": "array",
+              "maxItems": 50,
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Absolute paths a check may also read."
+            },
+            "writable": {
+              "type": "array",
+              "maxItems": 50,
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Absolute paths a check may also write."
+            },
+            "prepare": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 },
+              "description": "A command run once per worktree and commit before its checks, outside isolation, such as npm ci."
+            }
+          }
+        },
         "sandbox": {
           "type": "object",
           "description": "What a process session may write, run and reach.",

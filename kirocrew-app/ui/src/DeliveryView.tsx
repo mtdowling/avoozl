@@ -286,11 +286,14 @@ export function DeliveryBoard(props: {
   return (
     <>
       <LaneStyle />
-      <div
+      <Box
         ref={ref}
         data-lane-columns={columns}
         data-lane-compact={compact || undefined}
-        style={{ display: 'grid', gap: LANE_GAP, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, alignItems: 'start' }}
+        css-display="grid"
+        css-gap="16"
+        css-grid-template-columns={`repeat(${columns}, minmax(0, 1fr))`}
+        css-align-items="start"
       >
         {drawn.map((lane) => {
           const cards = drawnLane(lanes, lane.id)
@@ -351,7 +354,7 @@ export function DeliveryBoard(props: {
             </section>
           )
         })}
-      </div>
+      </Box>
     </>
   )
 }

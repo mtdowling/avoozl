@@ -634,16 +634,15 @@ export default function AvoozlPanel() {
                         css-gap="3"
                       >
                         {railFor(crewRow).map((step) => (
-                          <i
+                          <Box
                             key={step.label}
                             data-rail-step={step.state}
-                            style={{
-                              display: 'block',
-                              width: 16,
-                              height: 8,
-                              borderRadius: 3,
-                              background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)',
-                            }}
+                            as="i"
+                            css-display="block"
+                            css-width="16"
+                            css-height="8"
+                            css-border-radius="3"
+                            css-background={step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)'}
                           />
                         ))}
                       </Box>

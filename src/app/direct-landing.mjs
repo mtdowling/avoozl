@@ -124,6 +124,8 @@ export async function landDirect(
           repository: project.repository || `local/${project.id}`,
           checks: repositoryChecks(project),
           checksEnv: project.checksEnv,
+          projectId: project.id,
+          isolation: project.isolation,
           unionPaths: config?.landing?.unionPaths ?? [],
           env,
           machine,

@@ -736,11 +736,11 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                         <Box as="span" size="10" tone="muted">
                           waits on{' '}
                           {waits.map((e, i) => (
-                            <span key={e.from} style={e.satisfied ? { textDecoration: 'line-through' } : undefined}>
+                            <Box key={e.from} as="span" css-text-decoration={e.satisfied ? 'line-through' : undefined}>
                               {i > 0 && ' · '}
                               {e.from}
                               {e.kind === 'sequence' ? ' (sequence)' : ''}
-                            </span>
+                            </Box>
                           ))}
                         </Box>
                       )}
