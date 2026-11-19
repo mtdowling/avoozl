@@ -18,7 +18,7 @@ export const leaf = (id, extra = {}) => ({
   id,
   title: "Task " + id,
   acceptance: [id + " passes"],
-  projectId: "code",
+  repositoryId: "code",
   ...extra,
 });
 
@@ -48,7 +48,7 @@ export async function setup(t, repository = {}, tasks = []) {
     operator: "Operator",
     workspaceRoot: root,
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: "/tmp/code",
     baseBranch: "main",
@@ -57,7 +57,7 @@ export async function setup(t, repository = {}, tasks = []) {
   });
   await ops.execute("github.configure", {
     repository: "example/code",
-    projectId: "code",
+    repositoryId: "code",
     allowedActors: ["maintainer"],
   });
   const plan = await ops.execute("plan.create", {
@@ -82,6 +82,6 @@ export async function setup(t, repository = {}, tasks = []) {
       ),
     readyIds = () =>
       approved.taskIds.filter((id) => labelsOf(issueOf(id)).includes(READY)),
-    tick = () => ops.execute("github.project", { planId: plan.id });
+    tick = () => ops.execute("github.repository", { planId: plan.id });
   return { store, github, ops, approved, issueOf, readyIds, tick, root };
 }

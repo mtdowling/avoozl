@@ -42,7 +42,7 @@ test('each hold kind has a word; problems are red and the next is green', () => 
 })
 
 test('a group names its repository and base, and counts its items', () => {
-  const base = { key: 'p\0main', projectId: 'p', repository: null, base: 'main', landing: 'pr', items: [item(), item({ key: 'j' })] }
+  const base = { key: 'p\0main', repositoryId: 'p', repository: null, base: 'main', landing: 'pr', items: [item(), item({ key: 'j' })] }
   assert.equal(baseTitle(base), 'p → main')
   assert.equal(landingNote(base), 'by pull request')
   assert.equal(itemCount({ bases: [base], readAt: '' }), 2)
@@ -50,7 +50,7 @@ test('a group names its repository and base, and counts its items', () => {
 })
 
 test('a direct base reads as merge batches, with its testing, size and timing lines', () => {
-  const base = { key: 'p\0core-dev', projectId: 'p', repository: 'a/b', base: 'core-dev', landing: 'direct', items: [] }
+  const base = { key: 'p\0core-dev', repositoryId: 'p', repository: 'a/b', base: 'core-dev', landing: 'direct', items: [] }
   assert.equal(landingNote(base), 'in merge batches')
   assert.equal(testingLine({ members: ['a', 'b'], step: 'bisect', since: '' }), '2 members, looking for the member that broke it')
   assert.equal(testingLine({ members: ['a'], step: 'testing', since: '' }), '1 member, running the checks')

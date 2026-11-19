@@ -1,5 +1,5 @@
 // `avoozl setup REPO` (task 42.7, Requirement 89.1-89.3, design §4.26): one
-// preview of what setup changes in the project and on GitHub, applied only
+// preview of what setup changes in the repository and on GitHub, applied only
 // on a person's `--yes`. A second run with nothing to change says "Nothing
 // to change" and writes nothing.
 //
@@ -10,7 +10,7 @@
 // `github setup` is separate and unchanged.
 //
 // shortcut: the access settings are kept in workspace metadata, not in
-// .avoozl.json; upgrade when the project file carries the target and sources.
+// .avoozl.json; upgrade when the repository file carries the target and sources.
 import { git } from "./git.mjs";
 import { applyAccess, previewAccess } from "./setup-access.mjs";
 import { applyLanding, previewLanding } from "./setup-landing.mjs";
@@ -23,26 +23,27 @@ export async function repositorySetup(
   store,
   github,
   input = {},
-  { writeProject, writeLanding } = {},
+  { writeRepository, writeLanding } = {},
 ) {
-  const project = store.get("projects", input.project);
-  if (!project) fail(`Project ${input.project ?? ""} not found.`, 404);
+  const repository = store.get("repositories", input.repositoryId);
+  if (!repository)
+    fail(`Repository ${input.repositoryId ?? ""} not found.`, 404);
   // `train` is retired and sets up `direct`.
   const landing =
     input.landing === "train" ? "direct" : (input.landing ?? "pr");
   if (!LANDINGS.includes(landing))
     fail("landing must be direct, pr or off.", 400);
-  const base = input.base ?? project.baseBranch ?? "main",
-    url = await git(project.root, ["remote", "get-url", "origin"]),
+  const base = input.base ?? repository.baseBranch ?? "main",
+    url = await git(repository.root, ["remote", "get-url", "origin"]),
     login = String((await github.currentUser())?.login ?? "");
   const access = await previewAccess(github, {
     wanted: {
       target: input.repository,
       base,
-      roots: { code: project.root },
+      roots: { code: repository.root },
       sources: { [input.repository]: { url } },
     },
-    current: store.getMeta(ACCESS(project.id)) ?? null,
+    current: store.getMeta(ACCESS(repository.id)) ?? null,
     login,
   });
   const landingSteps =
@@ -54,26 +55,30 @@ export async function repositorySetup(
             methods: input.methods ?? ["merge"],
           })
         : null,
-    projectChanges = [
-      ...(project.landing === landing
+    repositoryChanges = [
+      ...(repository.landing === landing
         ? []
         : [
-            { key: "landing", before: project.landing ?? null, after: landing },
+            {
+              key: "landing",
+              before: repository.landing ?? null,
+              after: landing,
+            },
           ]),
-      ...(project.baseBranch === base
+      ...(repository.baseBranch === base
         ? []
-        : [{ key: "baseBranch", before: project.baseBranch, after: base }]),
+        : [{ key: "baseBranch", before: repository.baseBranch, after: base }]),
     ],
     pending =
       access.changes.length +
-      projectChanges.length +
+      repositoryChanges.length +
       (landingSteps?.steps.filter((s) => s.status !== "ok").length ?? 0);
   const preview = {
-    project: project.id,
+    repositoryId: repository.id,
     repository: input.repository,
     login,
     access: { changes: access.changes, access: access.access },
-    settings: projectChanges,
+    settings: repositoryChanges,
     github: landingSteps?.steps ?? [],
     message: pending ? null : "Nothing to change",
   };
@@ -84,16 +89,17 @@ export async function repositorySetup(
     (s) => s.status === "blocked",
   );
   await applyAccess(access, (settings) =>
-    store.setMeta(ACCESS(project.id), settings),
+    store.setMeta(ACCESS(repository.id), settings),
   );
   const written = landingSteps
     ? (await applyLanding(github, landingSteps)).written
     : [];
-  if (projectChanges.length) {
-    const next = { ...project, landing, baseBranch: base };
-    store.put("projects", next);
-    if (project.landing !== landing) writeLanding?.(input.repository, landing);
-    if (project.baseBranch !== base) writeProject?.(next);
+  if (repositoryChanges.length) {
+    const next = { ...repository, landing, baseBranch: base };
+    store.put("repositories", next);
+    if (repository.landing !== landing)
+      writeLanding?.(input.repository, landing);
+    if (repository.baseBranch !== base) writeRepository?.(next);
   }
   return {
     ...preview,

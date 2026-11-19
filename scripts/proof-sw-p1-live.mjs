@@ -273,7 +273,7 @@ async function setup(port) {
       resume: [process.execPath, path.join(ROOT, "fake-agent.mjs")],
       promptFrom: "stdin",
       permission: { write: "workspace-write", read: "read-only" },
-      writeRoots: ["{worktree}", "{tmp}", "{project_cache_dirs}"],
+      writeRoots: ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
     });
   }
   fs.writeFileSync(path.join(harnesses, `${name}.json`), bytes);
@@ -325,7 +325,7 @@ async function setup(port) {
       ],
       edges: [],
     });
-    store.put("projects", {
+    store.put("repositories", {
       id: "app",
       root: fs.realpathSync.native(P.checkout),
       baseBranch: "main",

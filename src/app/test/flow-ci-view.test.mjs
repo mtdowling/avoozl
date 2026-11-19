@@ -11,7 +11,7 @@ test("CI view splits stored class minutes and aggregates repeated commits per wo
     now = Date.parse("2026-11-15T12:00:00Z"),
     iso = (minutes) => new Date(now - minutes * 60000).toISOString(),
     repository = "example/code";
-  store.put("github_repositories", { id: repository, projectId: "code" });
+  store.put("github_repositories", { id: repository, repositoryId: "code" });
   for (const [number, taskId, classes] of [
     [1, "task-1", ["code"]],
     [2, null, ["docs"]],
@@ -50,7 +50,9 @@ test("CI view splits stored class minutes and aggregates repeated commits per wo
     store,
     {
       flow: { ci: { waitShare: 0.4 } },
-      projects: { code: { flow: { ci: { windowDays: 3, waitShare: 0.6 } } } },
+      repositories: {
+        code: { flow: { ci: { windowDays: 3, waitShare: 0.6 } } },
+      },
     },
     { mode: "single-repo", repositories: { [repository]: {} } },
     {},
@@ -143,7 +145,7 @@ test("read-only class globs preserve effective overrides and matching order", ()
   assert.deepEqual(globs.docs, ["guides/"]);
 });
 
-test("Flow repository selections retain CI for project IDs, GitHub names and CI-only repositories", async (t) => {
+test("Flow repository selections retain CI for repository IDs, GitHub names and CI-only repositories", async (t) => {
   const { root, store } = fixture(t),
     calls = [],
     github = new Proxy(
@@ -161,11 +163,11 @@ test("Flow repository selections retain CI for project IDs, GitHub names and CI-
     ...data,
     tasks: [{ ...data.tasks[0], repository: "app" }],
   });
-  store.put("projects", { id: "app", repository: "EXAMPLE/App" });
-  store.put("projects", { id: "empty", repository: "example/empty" });
+  store.put("repositories", { id: "app", github: "EXAMPLE/App" });
+  store.put("repositories", { id: "empty", github: "example/empty" });
   store.put("github_repositories", {
     id: "example/legacy",
-    projectId: "legacy",
+    repositoryId: "legacy",
   });
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
@@ -178,7 +180,7 @@ test("Flow repository selections retain CI for project IDs, GitHub names and CI-
             "example/app",
             "example/empty",
             "example/legacy",
-            "example/without-project",
+            "example/without-repository",
           ].map((name) => [name, { baseBranch: "main" }]),
         ),
       },
@@ -188,7 +190,7 @@ test("Flow repository selections retain CI for project IDs, GitHub names and CI-
   assert.deepEqual(initial.repositories, [
     "app",
     "empty",
-    "example/without-project",
+    "example/without-repository",
     "legacy",
   ]);
   assert.deepEqual(
@@ -197,7 +199,7 @@ test("Flow repository selections retain CI for project IDs, GitHub names and CI-
       "example/app",
       "example/empty",
       "example/legacy",
-      "example/without-project",
+      "example/without-repository",
     ],
   );
   for (const [filter, repository] of [
@@ -206,7 +208,7 @@ test("Flow repository selections retain CI for project IDs, GitHub names and CI-
     ["EXAMPLE/APP", "example/app"],
     ["empty", "example/empty"],
     ["legacy", "example/legacy"],
-    ["example/without-project", "example/without-project"],
+    ["example/without-repository", "example/without-repository"],
   ]) {
     const view = await ops.execute("flow.view", { repository: filter });
     assert.deepEqual(
@@ -237,12 +239,12 @@ test("Flow repository selections retain CI for project IDs, GitHub names and CI-
   assert.deepEqual((await ops.execute("flow.view")).repositories, [
     "EXAMPLE/APP",
     "empty",
-    "example/without-project",
+    "example/without-repository",
     "legacy",
   ]);
   store.importSnapshot({
     ...data,
-    tasks: [{ ...data.tasks[0], projectId: "app" }],
+    tasks: [{ ...data.tasks[0], repositoryId: "app" }],
   });
   assert.deepEqual(
     (await ops.execute("flow.view", { repository: "app" })).ci.repositories.map(
@@ -252,7 +254,7 @@ test("Flow repository selections retain CI for project IDs, GitHub names and CI-
   );
 });
 
-test("a project without a repository retains its legacy GitHub mapping until explicitly replaced", async (t) => {
+test("a repository without a repository retains its legacy GitHub mapping until explicitly replaced", async (t) => {
   const { root, store } = fixture(t),
     ops = new Operations(store, {
       workspaceRoot: root,
@@ -268,10 +270,10 @@ test("a project without a repository retains its legacy GitHub mapping until exp
     data = store.read();
   store.importSnapshot({
     ...data,
-    tasks: [{ ...data.tasks[0], projectId: "app" }],
+    tasks: [{ ...data.tasks[0], repositoryId: "app" }],
   });
-  store.put("projects", { id: "app" });
-  store.put("github_repositories", { id: "example/app", projectId: "app" });
+  store.put("repositories", { id: "app" });
+  store.put("github_repositories", { id: "example/app", repositoryId: "app" });
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
@@ -297,12 +299,12 @@ test("a project without a repository retains its legacy GitHub mapping until exp
     "legacy mapping remains selectable without a task",
   );
 
-  store.put("projects", { id: "app", repository: "example/replacement" });
+  store.put("repositories", { id: "app", github: "example/replacement" });
   view = await ops.execute("flow.view", { repository: "app" });
   assert.deepEqual(
     view.ci.repositories,
     [],
-    "an explicit project target overrides stale authorization",
+    "an explicit repository target overrides stale authorization",
   );
   assert.deepEqual(
     view.repositories,

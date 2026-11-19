@@ -499,11 +499,11 @@ does not start.
 Some code Avoozl runs is owned by the repository, not by you. Read it before
 you point Avoozl at a repository you do not trust, public ones included.
 
-| Code                              | When it runs                                  | What guards it                                                                                                                                      |
-| --------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts/worktree` in the project | Every time Avoozl adds a worktree             | A person approves its SHA-256 hash first. The refusal prints the hash; set `worktreeHelper` on the project to that hash. A changed file asks again. |
-| The project's `checks`            | On worker commits and on commits Avoozl lands | They are in the project settings a person edits. Checks never see the gateway, push or GitHub credentials.                                          |
-| A local-folder plugin             | When the tick uses it                         | A person approves its hash. Avoozl hashes it again just before it starts and refuses if it changed.                                                 |
+| Code                                 | When it runs                                  | What guards it                                                                                                                                         |
+| ------------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `scripts/worktree` in the repository | Every time Avoozl adds a worktree             | A person approves its SHA-256 hash first. The refusal prints the hash; set `worktreeHelper` on the repository to that hash. A changed file asks again. |
+| The repository's `checks`            | On worker commits and on commits Avoozl lands | They are in the repository settings a person edits. Checks never see the gateway, push or GitHub credentials.                                          |
+| A local-folder plugin                | When the tick uses it                         | A person approves its hash. Avoozl hashes it again just before it starts and refuses if it changed.                                                    |
 
 A repository's checks are the only checks there are. Every task runs them;
 a task never names its own. Each has a name and its command arguments, and
@@ -511,7 +511,7 @@ one with `paths` runs only when a commit's diff touches one of them:
 
 ```json
 {
-  "projects": {
+  "repositories": {
     "code": {
       "checks": {
         "test": ["npm", "test"],
@@ -529,10 +529,10 @@ its name, and `verify.checkTimeouts` sets a check's own timeout by its name.
 An older list of commands still loads, each check named by its command.
 
 A check sees only the basics a process needs to start (`PATH`, `HOME`, temp
-folders) plus the names a project lists in `checksEnv`:
+folders) plus the names a repository lists in `checksEnv`:
 
 ```json
-{ "projects": { "code": { "checksEnv": ["NODE_OPTIONS"] } } }
+{ "repositories": { "code": { "checksEnv": ["NODE_OPTIONS"] } } }
 ```
 
 Push and GitHub credentials (`GH_TOKEN`, `GITHUB_TOKEN`, `SSH_AUTH_SOCK`
@@ -542,7 +542,7 @@ Every check runs in the repository's `isolation`:
 
 ```json
 {
-  "projects": {
+  "repositories": {
     "code": {
       "isolation": {
         "run": "sandbox",
@@ -627,11 +627,11 @@ a person-only act is the sandbox the supervisor wraps it in:
   folders, the repository's git directory, the harness's own config (the
   definition's `reads`, such as `~/.claude` and `~/.claude.json` for
   Claude Code), `~/.gitconfig`, `~/.config/git` and the repository's
-  `isolation.readable` paths. Your other projects and documents are not
+  `isolation.readable` paths. Your other repositories and documents are not
   readable. System and toolchain folders outside home stay readable.
-- It writes only to its task folder, its own temp folder and the project's
+- It writes only to its task folder, its own temp folder and the repository's
   cache folders. Read-only roles write nowhere.
-- Its network is off. On macOS a project can name loopback ports instead
+- Its network is off. On macOS a repository can name loopback ports instead
   (`localhost:PORT`, for a proxy).
 - Token, key, secret and password variables, `GH_*`, `GITHUB_*`, `AWS_*`,
   `KIROCREW_*` and `SSH_AUTH_SOCK` are removed from its environment, and git

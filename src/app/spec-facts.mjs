@@ -46,7 +46,7 @@ const KEYS = {
   iteration: { as: "iteration", type: "text" },
   scope: { as: "scope", type: "text" },
   track: { as: "track", type: "text" },
-  projectId: { as: "projectId", type: "text" },
+  repositoryId: { as: "repositoryId", type: "text" },
   taskId: { as: "taskId", type: "text" },
   nextAction: { as: "nextAction", type: "text" },
   distinctReason: { as: "distinctReason", type: "text" },

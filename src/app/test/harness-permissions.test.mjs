@@ -22,7 +22,7 @@ const example = (patch = {}) => ({
   start: ["example-cli", "--cwd", "{worktree}", "--sandbox", "{permission}"],
   resume: ["example-cli", "--resume", "{session}"],
   permission: { write: "workspace-write", read: "read-only" },
-  writeRoots: ["{worktree}", "{tmp}", "{project_cache_dirs}"],
+  writeRoots: ["{worktree}", "{tmp}", "{repository_cache_dirs}"],
   ...patch,
 });
 
@@ -142,7 +142,7 @@ test("a read class writes nowhere; a write class writes the task, temp and cache
   );
 });
 
-test("project cache folders cannot reach the git directory, home or root", () => {
+test("repository cache folders cannot reach the git directory, home or root", () => {
   const home = at("home", "me");
   const gitCommonDir = at("repo", ".git");
   for (const [value, pattern] of [

@@ -13,10 +13,10 @@ import {
   prepareChecks,
 } from "./check-isolation.mjs";
 const exec = promisify(execFile);
-function liveLocks(store, projectId) {
+function liveLocks(store, repositoryId) {
   const rows = store.db
-    .prepare("SELECT * FROM work_locks WHERE project_id=?")
-    .all(projectId);
+    .prepare("SELECT * FROM work_locks WHERE repository_id=?")
+    .all(repositoryId);
   return rows.filter((row) => {
     try {
       process.kill(row.pid, 0);
@@ -30,15 +30,15 @@ function liveLocks(store, projectId) {
     }
   });
 }
-export function assertProjectAvailable(store, projectId) {
-  if (liveLocks(store, projectId).some((row) => row.kind === "integration"))
-    fail("This project is integrating. Retry after it finishes.", 409);
+export function assertRepositoryAvailable(store, repositoryId) {
+  if (liveLocks(store, repositoryId).some((row) => row.kind === "integration"))
+    fail("This repository is integrating. Retry after it finishes.", 409);
 }
-export async function withWorkLock(store, { id, projectId, kind }, fn) {
+export async function withWorkLock(store, { id, repositoryId, kind }, fn) {
   const token = crypto.randomUUID();
   store.transaction(() => {
     if (
-      liveLocks(store, projectId).some(
+      liveLocks(store, repositoryId).some(
         (row) =>
           row.id === id || row.kind === "integration" || kind === "integration",
       )
@@ -54,7 +54,7 @@ export async function withWorkLock(store, { id, projectId, kind }, fn) {
     }
     store.db
       .prepare("INSERT INTO work_locks VALUES (?,?,?,?,?)")
-      .run(id, projectId, kind, process.pid, token);
+      .run(id, repositoryId, kind, process.pid, token);
   });
   try {
     return await fn();
@@ -162,27 +162,27 @@ export function originRepositorySync(root) {
     return null;
   }
 }
-export async function projectGitHubRepository(store, input = {}) {
-  const project = store.get("projects", input.projectId);
-  if (!project) fail("Choose a configured execution project.");
+export async function repositoryGitHubRemote(store, input = {}) {
+  const repository = store.get("repositories", input.repositoryId);
+  if (!repository) fail("Choose a registered repository.");
   const remote = input.remote || "origin";
   let remoteUrl;
   try {
-    remoteUrl = await git(project.root, ["remote", "get-url", remote]);
+    remoteUrl = await git(repository.root, ["remote", "get-url", remote]);
   } catch {
-    fail(`Project ${project.id} has no ${remote} Git remote.`);
+    fail(`Repository ${repository.id} has no ${remote} Git remote.`);
   }
-  const repository = githubRepositoryFromRemote(remoteUrl);
-  if (!repository)
+  const github = githubRepositoryFromRemote(remoteUrl);
+  if (!github)
     fail(
-      `Project ${project.id}'s ${remote} remote is not a GitHub repository.`,
+      `Repository ${repository.id}'s ${remote} remote is not a GitHub repository.`,
     );
   return {
-    projectId: project.id,
-    projectRoot: project.root,
+    repositoryId: repository.id,
+    repositoryRoot: repository.root,
     remote,
     remoteUrl,
-    repository,
+    repository: github,
   };
 }
 async function remoteRepository(root, remote = "origin") {
@@ -215,12 +215,12 @@ async function configureWorktreeIdentity(root, worktree) {
   await git(worktree, ["config", "--worktree", "user.name", identity.name]);
   await git(worktree, ["config", "--worktree", "user.email", identity.email]);
 }
-// How a project lands verified work (R87.1). Unset keeps the local
+// How a repository lands verified work (R87.1). Unset keeps the local
 // fast-forward. shortcut: R87.1's default `off` until setup writes another
 // is not applied, so existing workspaces keep landing; upgrade with 42.7.
 // `train` is retired and loads as `direct` (merge batches spec).
 export const LANDINGS = Object.freeze(["direct", "pr", "off"]);
-export async function projectConfig({
+export async function repositoryConfig({
   id,
   root,
   baseBranch = "main",
@@ -233,11 +233,11 @@ export async function projectConfig({
   isolation,
 }) {
   if (!/^[a-z][a-z0-9-]{1,60}$/.test(id || ""))
-    fail("Choose a stable project ID.");
+    fail("Choose a stable repository ID.");
   if (landing === "train") landing = "direct";
   if (landing !== undefined && !LANDINGS.includes(landing))
     fail("landing must be direct, pr or off.");
-  root = await checkoutRoot(root, "project root");
+  root = await checkoutRoot(root, "repository root");
   // A leading dash would reach git as an option.
   if (typeof baseBranch !== "string" || baseBranch.startsWith("-"))
     fail("Name a valid base branch.");
@@ -273,7 +273,7 @@ export async function projectConfig({
     worktreeRoot || path.join(path.dirname(root), ".avoozl-worktrees"),
   );
   if (worktreeRoot === root || worktreeRoot.startsWith(root + path.sep))
-    fail("Place worktrees outside the project checkout.");
+    fail("Place worktrees outside the repository checkout.");
   if (integrationBranch !== undefined) {
     if (
       typeof integrationBranch !== "string" ||
@@ -297,63 +297,63 @@ export async function projectConfig({
     ...(worktreeHelper === undefined ? {} : { worktreeHelper }),
     ...(landing === undefined ? {} : { landing }),
     ...(isolation === undefined ? {} : { isolation }),
-    repository: await remoteRepository(root),
+    github: await remoteRepository(root),
     createdAt: new Date().toISOString(),
   };
 }
-// `git worktree add` writes refs and administrative files in project.root, the
+// `git worktree add` writes refs and administrative files in repository.root, the
 // same checkout integration fast-forwards. Hold a lock that excludes
 // integration, and that integration excludes, for the duration of the add.
 // Worktree adds for different runs still proceed concurrently.
 // A task passes `branch`, `worktree` and `start` to cut its own branch; a
 // task that already has the branch passes `existing` and gets a plain add.
-export async function createWorktree(store, project, runId, task = {}) {
+export async function createWorktree(store, repository, runId, task = {}) {
   return withWorkLock(
     store,
-    { id: "worktree:" + runId, projectId: project.id, kind: "worktree" },
+    { id: "worktree:" + runId, repositoryId: repository.id, kind: "worktree" },
     async () => {
       const branch = task.branch || "plans/" + runId,
-        worktree = task.worktree || path.join(project.worktreeRoot, runId);
+        worktree = task.worktree || path.join(repository.worktreeRoot, runId);
       fs.mkdirSync(path.dirname(worktree), { recursive: true });
       if (fs.existsSync(worktree)) fail("Run worktree already exists.", 409);
       // Room first: a full volume holds the work instead of a half-made add.
       requireDiskSpace(store, path.dirname(worktree), `The worktree ${runId}`);
-      const helper = path.join(project.root, "scripts/worktree");
+      const helper = path.join(repository.root, "scripts/worktree");
       if (task.existing)
-        await git(project.root, ["worktree", "add", worktree, branch]);
+        await git(repository.root, ["worktree", "add", worktree, branch]);
       else if (fs.existsSync(helper)) {
         // Repository-owned code that runs on every worktree add: a person
         // approves this exact content first (R83.4).
         const seen = helperHash(helper);
-        if (project.worktreeHelper !== seen)
+        if (repository.worktreeHelper !== seen)
           fail(
             `${helper} runs every time a worktree is added. Read it, then approve ` +
-              `this exact version by setting worktreeHelper to ${seen} for project ` +
-              `${project.id}` +
-              (project.worktreeHelper
+              `this exact version by setting worktreeHelper to ${seen} for repository ` +
+              `${repository.id}` +
+              (repository.worktreeHelper
                 ? " (the approved version differs)."
                 : "."),
             409,
           );
         await exec(
           helper,
-          [branch, worktree, task.start || project.baseBranch],
+          [branch, worktree, task.start || repository.baseBranch],
           {
-            cwd: project.root,
+            cwd: repository.root,
             env: repositoryEnvironment(),
             maxBuffer: 8 * 1024 * 1024,
           },
         );
       } else
-        await git(project.root, [
+        await git(repository.root, [
           "worktree",
           "add",
           "-b",
           branch,
           worktree,
-          task.start || project.baseBranch,
+          task.start || repository.baseBranch,
         ]);
-      await configureWorktreeIdentity(project.root, worktree);
+      await configureWorktreeIdentity(repository.root, worktree);
       return {
         branch,
         worktree,
@@ -387,22 +387,22 @@ async function listWorktrees(root) {
 // ever removed or reset here.
 export async function prepareTaskWorktree(
   store,
-  project,
+  repository,
   { branch, name, start: chosen = null },
 ) {
   return withWorkLock(
     store,
-    { id: "prepare:" + name, projectId: project.id, kind: "worktree" },
+    { id: "prepare:" + name, repositoryId: repository.id, kind: "worktree" },
     async () => {
       const base = path.resolve(
-        project.worktreeRoot ||
-          path.join(path.dirname(project.root), ".avoozl-worktrees"),
+        repository.worktreeRoot ||
+          path.join(path.dirname(repository.root), ".avoozl-worktrees"),
       );
       fs.mkdirSync(base, { recursive: true });
       // git prints real paths, so a linked temporary directory must compare equal.
       const worktree = path.join(fs.realpathSync.native(base), name),
         ref = "refs/heads/" + branch;
-      const listed = await listWorktrees(project.root),
+      const listed = await listWorktrees(repository.root),
         holder = [...listed].find(([, value]) => value === ref)?.[0];
       let created = false,
         started = null;
@@ -411,7 +411,7 @@ export async function prepareTaskWorktree(
           fail(`Worktree ${worktree} is not on branch ${branch}.`, 409);
         if (!fs.existsSync(worktree))
           fail(
-            `Worktree ${worktree} is registered but missing. Run git worktree prune in ${project.root}.`,
+            `Worktree ${worktree} is registered but missing. Run git worktree prune in ${repository.root}.`,
             409,
           );
       } else if (holder)
@@ -421,27 +421,27 @@ export async function prepareTaskWorktree(
       else {
         let exists = true;
         try {
-          await git(project.root, ["rev-parse", "--verify", "--quiet", ref]);
+          await git(repository.root, ["rev-parse", "--verify", "--quiet", ref]);
         } catch {
           exists = false;
         }
         // A dependent starts from the work already integrated: the spec base
         // the caller resolved (spec-base.mjs), else the integration branch
-        // when the project has one and it exists, else the base branch.
-        let start = chosen || project.baseBranch || "main";
-        if (!chosen && project.integrationBranch)
+        // when the repository has one and it exists, else the base branch.
+        let start = chosen || repository.baseBranch || "main";
+        if (!chosen && repository.integrationBranch)
           try {
-            await git(project.root, [
+            await git(repository.root, [
               "rev-parse",
               "--verify",
               "--quiet",
-              "refs/heads/" + project.integrationBranch,
+              "refs/heads/" + repository.integrationBranch,
             ]);
-            start = project.integrationBranch;
+            start = repository.integrationBranch;
           } catch {
             // Not created yet: the first integration creates it from the base.
           }
-        const made = await createWorktree(store, project, "task-" + name, {
+        const made = await createWorktree(store, repository, "task-" + name, {
           branch,
           worktree,
           start,
@@ -622,8 +622,8 @@ export async function validateUnlocked(
 ) {
   const run = source;
   if (!run?.worktree) fail("Run has no worktree.");
-  const project = store.get("projects", run.projectId);
-  if (!project) fail("Project configuration is missing.");
+  const repository = store.get("repositories", run.repositoryId);
+  if (!repository) fail("Repository configuration is missing.");
   const head = await git(run.worktree, ["rev-parse", "HEAD"]),
     dirty = await worktreeChanges(run.worktree);
   if (dirty)
@@ -631,25 +631,25 @@ export async function validateUnlocked(
       "Commit the worktree changes before recording acceptance checks.",
       409,
     );
-  const checks = repositoryChecks(project);
+  const checks = repositoryChecks(repository);
   if (!checks.length)
     fail("Configure the repository's checks before validation.");
   const results = [];
-  const ready = await prepareChecks(project, run.worktree);
+  const ready = await prepareChecks(repository, run.worktree);
   if (ready && ready.exitCode !== 0)
     fail(
       `The repository's prepare step failed: ${String(ready.stderr || "")
         .split("\n")[0]
         .slice(0, 200)}`,
     );
-  const blind = await containerBlindness(project, run.worktree);
+  const blind = await containerBlindness(repository, run.worktree);
   if (blind) fail(blind, 409);
   for (const { name, argv } of checks) {
     store.event(runId, "validation.started", { argv, name, phase });
     const record = await commandEvidence(
       run.worktree,
       argv,
-      checkOptions(project, run.worktree),
+      checkOptions(repository, run.worktree),
     );
     // Each record names the commit and the phase it ran in, so the checks that
     // ran on the rebased base are distinguishable from the earlier ones rather
@@ -697,7 +697,7 @@ export async function validateUnlocked(
       id: runId,
       runId,
       taskId: run.taskId,
-      projectId: project.id,
+      repositoryId: repository.id,
       branch: run.branch,
       worktree: run.worktree,
       commit: head,
@@ -750,8 +750,8 @@ export async function integrateRun(store, { id, expectedCommit }) {
   return withWorkLock(
     store,
     {
-      id: "integration:" + entry.projectId,
-      projectId: entry.projectId,
+      id: "integration:" + entry.repositoryId,
+      repositoryId: entry.repositoryId,
       kind: "integration",
     },
     () => integrateUnlocked(store, { id, expectedCommit }),
@@ -760,32 +760,32 @@ export async function integrateRun(store, { id, expectedCommit }) {
 async function integrateUnlocked(store, { id, expectedCommit }) {
   const entry = store.get("integration", id);
   if (!entry || entry.state !== "ready") fail("Integration is not ready.", 409);
-  const project = store.get("projects", entry.projectId);
+  const repository = store.get("repositories", entry.repositoryId);
   if (entry.commit !== expectedCommit)
     fail("Review the current integration head.", 409);
   // An integration branch keeps the user's checkout untouched: the work lands
   // by moving that branch's ref. When a worktree has the branch checked out,
   // the work lands there with merge --ff-only, and only while that worktree
   // has nothing the fast-forward could touch; it is never stashed or reset.
-  const target = project.integrationBranch || project.baseBranch,
-    separate = Boolean(project.integrationBranch);
+  const target = repository.integrationBranch || repository.baseBranch,
+    separate = Boolean(repository.integrationBranch);
   let holder = null;
   if (separate) {
     const ref = "refs/heads/" + target;
     holder =
-      [...(await listWorktrees(project.root))].find(
+      [...(await listWorktrees(repository.root))].find(
         ([, branch]) => branch === ref,
       )?.[0] || null;
     if (holder) await refuseBusyHolder(holder, target);
     try {
-      await git(project.root, ["rev-parse", "--verify", "--quiet", ref]);
+      await git(repository.root, ["rev-parse", "--verify", "--quiet", ref]);
     } catch {
-      await git(project.root, ["branch", target, project.baseBranch]);
+      await git(repository.root, ["branch", target, repository.baseBranch]);
     }
   } else {
     if (
-      (await git(project.root, ["branch", "--show-current"])) !==
-      project.baseBranch
+      (await git(repository.root, ["branch", "--show-current"])) !==
+      repository.baseBranch
     )
       fail(
         "The originating checkout is not on its configured base branch.",
@@ -795,7 +795,11 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
     // session's project directory, and `merge --ff-only` still refuses to
     // overwrite an untracked file.
     if (
-      await git(project.root, ["status", "--porcelain", "--untracked-files=no"])
+      await git(repository.root, [
+        "status",
+        "--porcelain",
+        "--untracked-files=no",
+      ])
     )
       fail(
         "The originating checkout has changes; integration is left queued.",
@@ -807,12 +811,12 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   if ((await git(entry.worktree, ["rev-parse", "HEAD"])) !== expectedCommit)
     fail("Run branch changed after validation.", 409);
   store.event(id, "integration.started", { commit: entry.commit });
-  // Other runs on this project may be working while this merge proceeds. What
+  // Other runs on this repository may be working while this merge proceeds. What
   // makes that safe is here: the work is rebased onto the branch it is about to
   // land on and revalidated at that exact base, and a failure refuses the
   // merge. `entry.state === "ready"` records an older validation against an
   // older base; never skip this step by trusting it.
-  const before = await git(project.root, ["rev-parse", target]);
+  const before = await git(repository.root, ["rev-parse", target]);
   // Work already merged forward onto the target (R77.5) keeps its merge;
   // anything else is rebased here as before.
   const forward = await git(entry.worktree, [
@@ -845,13 +849,13 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
     await git(holder, ["merge", "--ff-only", head]);
   } else if (separate)
     // Fast-forward only, and only from the value read before the rebase.
-    await git(project.root, [
+    await git(repository.root, [
       "update-ref",
       "refs/heads/" + target,
       head,
       before,
     ]);
-  else await git(project.root, ["merge", "--ff-only", entry.branch]);
+  else await git(repository.root, ["merge", "--ff-only", entry.branch]);
   entry.state = "integrated";
   entry.integratedCommit = head;
   entry.into = target;
@@ -869,20 +873,20 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
       };
   });
   store.event(id, "integration.completed", { entry });
-  store.event(null, "project.base.moved", {
-    projectId: project.id,
+  store.event(null, "repository.base.moved", {
+    repositoryId: repository.id,
     baseBranch: target,
     commit: head,
   });
   // Remove only the exact worktree created for this run, after its branch landed.
   if (
-    path.dirname(entry.worktree) === project.worktreeRoot &&
+    path.dirname(entry.worktree) === repository.worktreeRoot &&
     path.basename(entry.worktree) === id
   ) {
     // Avoozl's own files (a child's result file) go with the worktree.
     await git(entry.worktree, ["clean", "-fdq", "--", AVOOZL_FILES]);
-    await git(project.root, ["worktree", "remove", entry.worktree]);
-  } else await removeLandedTaskWorktree(store, project, entry, target, head);
+    await git(repository.root, ["worktree", "remove", entry.worktree]);
+  } else await removeLandedTaskWorktree(store, repository, entry, target, head);
   return entry;
 }
 
@@ -890,24 +894,24 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
 // The work is already on the target, so a failure here only leaves them kept.
 export async function removeLandedTaskWorktree(
   store,
-  project,
+  repository,
   entry,
   target,
   head,
 ) {
   const records = store
     .list("task_worktrees")
-    .filter((r) => r.path === entry.worktree && r.repository === project.id);
+    .filter((r) => r.path === entry.worktree && r.repository === repository.id);
   if (!records.length) return;
   try {
     await git(entry.worktree, ["clean", "-fdq", "--", AVOOZL_FILES]);
-    await git(project.root, ["worktree", "remove", entry.worktree]);
+    await git(repository.root, ["worktree", "remove", entry.worktree]);
     store.transaction(() => {
       for (const r of records) store.remove("task_worktrees", r.id);
     });
     // The head is on the target, so the branch has nothing the target lacks.
-    await git(project.root, ["merge-base", "--is-ancestor", head, target]);
-    await git(project.root, ["branch", "-D", entry.branch]);
+    await git(repository.root, ["merge-base", "--is-ancestor", head, target]);
+    await git(repository.root, ["branch", "-D", entry.branch]);
   } catch {}
 }
 

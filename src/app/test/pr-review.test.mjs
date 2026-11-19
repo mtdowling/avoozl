@@ -107,7 +107,7 @@ function workspace(t, { contentRules = null } = {}) {
     id: REPO,
     owner: "o",
     repo: "app",
-    projectId: "code",
+    repositoryId: "code",
     activeMachine: machineIdentity(store).id,
   });
   const ops = new Operations(store, {

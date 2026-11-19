@@ -121,7 +121,7 @@ function open(t) {
     }),
   );
   store.importSnapshot(snapshot());
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: code,
     baseBranch: "main",

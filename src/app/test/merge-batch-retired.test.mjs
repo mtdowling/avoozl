@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { projectConfig } from "../git.mjs";
+import { repositoryConfig } from "../git.mjs";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { applyLandingModes, landingSettings } from "../landing-config.mjs";
 import {
@@ -39,7 +39,7 @@ test("landing mode train loads as direct, so the repository lands in merge batch
     "direct",
   );
   assert.equal(landingSettings(config, "o/app").mode, "direct");
-  const rows = new Map([["app", { id: "app", repository: "o/app" }]]),
+  const rows = new Map([["app", { id: "app", github: "o/app" }]]),
     store = {
       list: () => [...rows.values()],
       put: (_, row) => rows.set(row.id, row),
@@ -47,7 +47,7 @@ test("landing mode train loads as direct, so the repository lands in merge batch
   applyLandingModes(store, config);
   assert.equal(rows.get("app").landing, "direct");
   assert.ok(isDirectLanding(rows.get("app")));
-  // A project row that still says train loads as direct too.
+  // A repository row that still says train loads as direct too.
   const root = temporaryDirectory("avoozl-retired-repo-"),
     git = (...args) => execFileSync("git", args, { cwd: root });
   git("init", "-q", "-b", "main");
@@ -63,7 +63,7 @@ test("landing mode train loads as direct, so the repository lands in merge batch
     "Start",
   );
   assert.equal(
-    (await projectConfig({ id: "app", root, landing: "train" })).landing,
+    (await repositoryConfig({ id: "app", root, landing: "train" })).landing,
     "direct",
   );
 });

@@ -116,7 +116,7 @@ test("a cross-repository requires on a missing ID is refused naming it, and pass
 test("two sub-specs approve separately", async (t) => {
   const { root, store, ops } = workspace(t);
   for (const id of ["code", "repo-a", "repo-b"])
-    store.put("projects", {
+    store.put("repositories", {
       id,
       root,
       baseBranch: "main",
@@ -128,7 +128,7 @@ test("two sub-specs approve separately", async (t) => {
   for (const spec of ["repo-a", "repo-b"]) {
     const plan = await ops.execute("plan.create", {
       spec,
-      context: { projectId: "code" },
+      context: { repositoryId: "code" },
     });
     await ops.execute("plan.approve", {
       id: plan.id,
@@ -202,7 +202,7 @@ test("an unreadable line is refused naming its number, and a repository with no 
 test("preview shows the table and proposals and writes nothing; accepting adds draft tasks; an agent cannot accept", async (t) => {
   const { root, store, ops } = workspace(t);
   for (const id of ["code", "repo-a", "repo-b"])
-    store.put("projects", {
+    store.put("repositories", {
       id,
       root,
       baseBranch: "main",
@@ -212,7 +212,10 @@ test("preview shows the table and proposals and writes nothing; accepting adds d
   sub(root, "repo-b", "repo-b", { "b-1": leaf({ repository: "repo-b" }) });
   parent(root, ["repo-a", "repo-b"]);
   for (const spec of ["repo-a", "repo-b"])
-    await ops.execute("plan.create", { spec, context: { projectId: "code" } });
+    await ops.execute("plan.create", {
+      spec,
+      context: { repositoryId: "code" },
+    });
   const file = path.join(root, "gap.md");
   fs.writeFileSync(file, REPORT);
   const before = fs.readFileSync(

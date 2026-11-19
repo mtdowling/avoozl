@@ -28,10 +28,10 @@ function setup(t, { checkout = true } = {}) {
       repositories: { [REPOSITORY]: { baseBranch: "main" } },
     });
   if (checkout)
-    store.put("projects", {
+    store.put("repositories", {
       id: "app",
       root: temporaryDirectory(),
-      repository: REPOSITORY,
+      github: REPOSITORY,
       baseBranch: "main",
       checks: [["npm", "test"]],
     });

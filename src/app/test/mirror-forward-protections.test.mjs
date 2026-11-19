@@ -613,7 +613,7 @@ test("an open Stop the line stops forwarding in every mode and the button says w
   made.store.put("flow_stops", {
     ...made.store.get("flow_stops", "stop:1"),
     scope: "repo",
-    projectId: "example/other",
+    repositoryId: "example/other",
   });
   assert.equal(
     (
@@ -771,7 +771,7 @@ test("an extra file, another author or a plans-branch ref gives one row and a st
     assert.equal(rows.length, 1, rule);
     assert.match(rows[0].detail, new RegExp(rule));
     assert.equal(openStops(x.store).length, 1, rule);
-    assert.equal(openStops(x.store)[0].projectId, "example/code");
+    assert.equal(openStops(x.store)[0].repositoryId, "example/code");
   }
   // A ref named for the plans branch, with the head unchanged.
   const x = await forwarded(t, {

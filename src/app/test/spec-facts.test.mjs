@@ -281,13 +281,17 @@ test("a summary that repeats the title is refused and never reaches the brief", 
         "    - Read the config file.",
       ),
     ),
-    project = { id: "app", root: "/repo", baseBranch: "main" },
+    repository = { id: "app", root: "/repo", baseBranch: "main" },
     brief = (proposal) =>
-      workerBrief({ ...proposal, id: `config.${proposal.specKey}` }, project, {
-        attempt: 1,
-        worktree: "/wt",
-        steps: [],
-      });
+      workerBrief(
+        { ...proposal, id: `config.${proposal.specKey}` },
+        repository,
+        {
+          attempt: 1,
+          worktree: "/wt",
+          steps: [],
+        },
+      );
   assert.deepEqual(codes(repeating), [
     "task.summary-repeats-title tasks.md:18",
   ]);

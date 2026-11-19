@@ -65,10 +65,10 @@ export function issueRecordId(repository, issue) {
 export async function prepareGitHubRepository(store, github, input) {
   const repository = parseRepository(input.repository || input.id);
   if (
-    !store.get("projects", input.projectId) &&
-    input.project?.id !== input.projectId
+    !store.get("repositories", input.repositoryId) &&
+    input.registering?.id !== input.repositoryId
   )
-    fail("Configure the execution project before its GitHub repository.");
+    fail("Configure the execution repository before its GitHub repository.");
   const [remote, user] = await Promise.all([
     github.repository(repository),
     github.currentUser(),
@@ -88,7 +88,7 @@ export async function prepareGitHubRepository(store, github, input) {
     id: repository.id,
     nodeId: remote.node_id,
     private: Boolean(remote.private),
-    projectId: input.projectId,
+    repositoryId: input.repositoryId,
     ...(input.workspaceRepositoryId
       ? { workspaceRepositoryId: input.workspaceRepositoryId }
       : {}),
@@ -114,7 +114,7 @@ export async function configureGitHubRepository(store, github, input) {
   store.put("github_repositories", record);
   store.event(null, "github.repository.configured", {
     repository: record.id,
-    projectId: record.projectId,
+    repositoryId: record.repositoryId,
     assignee: record.assignee,
   });
   return record;

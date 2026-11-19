@@ -117,7 +117,7 @@ test("same-database upgrade and SQLite backup preserve durable workspace history
 
   store.put("github_repositories", {
     id: "example/private",
-    projectId: "code",
+    repositoryId: "code",
     private: true,
   });
   store.put("github_issues", {
@@ -243,5 +243,79 @@ test("a new database never creates the dropped tables", () => {
         .map((row) => row.name),
     );
   for (const name of DROPPED) assert.ok(!present.has(name), name);
+  store.close();
+});
+
+test("an older database's projects become repositories once, with no old name left", () => {
+  const root = temporaryDirectory("avoozl-repositories-"),
+    database = path.join(root, "older.sqlite");
+  // The older shape: a `projects` table, a `project_id` lock column, and
+  // `projectId` fields and `project.*` events in stored rows.
+  let store = new Store(database);
+  store.importSnapshot(snapshot());
+  store.mutate("Name the task's repository", (data) => {
+    data.tasks[0].projectId = "app";
+  });
+  store.db.exec(`
+    ALTER TABLE repositories RENAME TO projects;
+    ALTER TABLE work_locks RENAME COLUMN repository_id TO project_id;
+  `);
+  store.db
+    .prepare("INSERT INTO projects VALUES (?,?)")
+    .run(
+      "app",
+      JSON.stringify({ id: "app", root: "/src/app", repository: "o/app" }),
+    );
+  store.db
+    .prepare("INSERT INTO work_locks VALUES (?,?,?,?,?)")
+    .run("checks:app", "app", "checks", 1, "token");
+  for (const [table, body] of [
+    ["github_repositories", { id: "o/app", projectId: "app" }],
+    ["landing_queue", { id: "q", projectId: "app", base: "main" }],
+    ["flow_stops", { id: "s", projectId: "app", by: { projectId: "app" } }],
+  ])
+    store.db
+      .prepare(`INSERT INTO ${table} VALUES (?,?)`)
+      .run(body.id, JSON.stringify(body));
+  store.event(null, "project.removed", { projectId: "app" });
+  store.setMeta("context", { projectId: "app" });
+  store.close();
+
+  store = new Store(database);
+  const tables = store.db
+    .prepare("SELECT name, sql FROM sqlite_master WHERE type='table'")
+    .all();
+  assert.ok(tables.some((row) => row.name === "repositories"));
+  for (const row of tables) assert.doesNotMatch(row.sql, /project/i, row.name);
+  assert.deepEqual(store.get("repositories", "app"), {
+    id: "app",
+    root: "/src/app",
+    github: "o/app",
+  });
+  assert.equal(
+    store.db.prepare("SELECT repository_id FROM work_locks").get()
+      .repository_id,
+    "app",
+  );
+  assert.equal(store.read().tasks[0].repositoryId, "app");
+  assert.equal(store.get("github_repositories", "o/app").repositoryId, "app");
+  assert.deepEqual(store.getMeta("context"), { repositoryId: "app" });
+  assert.deepEqual(
+    store
+      .events()
+      .filter((event) => event.repositoryId === "app")
+      .map((event) => event.kind),
+    ["repository.removed"],
+  );
+  // No stored row keeps the old names.
+  for (const { name } of tables) {
+    const rows = store.db.prepare(`SELECT * FROM "${name}"`).all();
+    assert.doesNotMatch(JSON.stringify(rows), /projectId|"project\./, name);
+  }
+  store.close();
+
+  // A second open has nothing to rename and keeps the rows.
+  store = new Store(database);
+  assert.equal(store.get("repositories", "app").github, "o/app");
   store.close();
 });

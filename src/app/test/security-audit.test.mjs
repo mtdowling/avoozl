@@ -76,7 +76,7 @@ test("checks run without the Kiro Crew gateway credentials", async () => {
   }
 });
 
-test("a project branch that starts with a dash is refused", (t) => {
+test("a repository branch that starts with a dash is refused", (t) => {
   const { root, store } = fixture(t);
   for (const key of ["baseBranch", "integrationBranch"]) {
     const filename = path.join(root, `.avoozl-${key}.json`);
@@ -84,7 +84,7 @@ test("a project branch that starts with a dash is refused", (t) => {
       filename,
       JSON.stringify({
         version: 1,
-        projects: { code: { root: "../code", [key]: "--upload-pack=x" } },
+        repositories: { code: { root: "../code", [key]: "--upload-pack=x" } },
       }),
     );
     const configuration = new RepositorySettings(store, {
@@ -168,7 +168,7 @@ test("backup and export --output write 0600 files", {
 test("scripts/worktree runs only after a person approves its hash", {
   skip: process.platform === "win32" && "the helper is a shell script",
 }, async (t) => {
-  const { createWorktree, helperHash, projectConfig } = await import(
+  const { createWorktree, helperHash, repositoryConfig } = await import(
     "../git.mjs"
   );
   const { store } = fixture(t),
@@ -185,7 +185,7 @@ test("scripts/worktree runs only after a person approves its hash", {
     root,
     worktreeRoot: path.join(temporaryDirectory("avoozl-wt-"), "wt"),
   };
-  const unapproved = await projectConfig(base);
+  const unapproved = await repositoryConfig(base);
   await assert.rejects(
     createWorktree(store, unapproved, "r1"),
     (error) =>
@@ -194,12 +194,12 @@ test("scripts/worktree runs only after a person approves its hash", {
       !fs.existsSync(path.join(unapproved.worktreeRoot, "r1.ran")),
   );
   // Another hash is not an approval of this file.
-  const wrong = await projectConfig({
+  const wrong = await repositoryConfig({
     ...base,
     worktreeHelper: "0".repeat(64),
   });
   await assert.rejects(createWorktree(store, wrong, "r1"), /differs/);
-  const approved = await projectConfig({
+  const approved = await repositoryConfig({
     ...base,
     worktreeHelper: helperHash(helper),
   });
@@ -215,7 +215,7 @@ test("scripts/worktree runs only after a person approves its hash", {
 });
 
 test("a check sees only the basics and checksEnv; credentials never, even when listed", async () => {
-  const { projectConfig } = await import("../git.mjs");
+  const { repositoryConfig } = await import("../git.mjs");
   const env = {
     PATH: "/bin",
     HOME: "/h",
@@ -268,25 +268,28 @@ test("a check sees only the basics and checksEnv; credentials never, even when l
   }
   const root = repository();
   assert.deepEqual(
-    (await projectConfig({ id: "pj", root, checksEnv: ["A_B"] })).checksEnv,
+    (await repositoryConfig({ id: "pj", root, checksEnv: ["A_B"] })).checksEnv,
     ["A_B"],
   );
   await assert.rejects(
-    projectConfig({ id: "pj", root, checksEnv: ["A B"] }),
+    repositoryConfig({ id: "pj", root, checksEnv: ["A B"] }),
     /environment variable names/,
   );
-  assert.equal((await projectConfig({ id: "pj", root })).checksEnv, undefined);
+  assert.equal(
+    (await repositoryConfig({ id: "pj", root })).checksEnv,
+    undefined,
+  );
 });
 
-test("project settings take checksEnv and worktreeHelper and refuse bad ones", (t) => {
+test("repository settings take checksEnv and worktreeHelper and refuse bad ones", (t) => {
   const { root, store } = fixture(t);
-  const load = (project) => {
+  const load = (repository) => {
     const filename = path.join(root, `.avoozl-${Math.random()}.json`);
     fs.writeFileSync(
       filename,
       JSON.stringify({
         version: 1,
-        projects: { code: { root: "../code", ...project } },
+        repositories: { code: { root: "../code", ...repository } },
       }),
     );
     const configuration = new RepositorySettings(store, {

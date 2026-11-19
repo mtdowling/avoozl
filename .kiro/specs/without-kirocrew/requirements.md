@@ -111,7 +111,7 @@ the harness that runs it, so that no role quietly needs Kiro Crew.
 
 1. Every role Avoozl starts SHALL take its executor from, in order: the
    task's `session.harness` pin where the role has a task, the role's entry
-   in `harnesses`, and the project's `executor`.
+   in `harnesses`, and the repository's `executor`.
 2. No module outside `src/app/executors/kirocrew.mjs` SHALL default a
    request to `kirocrew`. A source test SHALL fail on one that does.
 3. Settings › Models SHALL list every role of this spec, and a harness

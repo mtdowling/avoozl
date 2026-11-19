@@ -47,7 +47,7 @@ test('a stacked bar keeps stage order and shares', () => {
 test('the banner names the check, branch, culprit, fix task and paused count', () => {
   const stop = {
     id: 's',
-    projectId: 'app',
+    repositoryId: 'app',
     check: 'npm test',
     branch: 'main',
     culprit: '3.2',

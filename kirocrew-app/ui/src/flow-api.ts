@@ -74,7 +74,7 @@ export interface Metrics {
 
 export interface LineStop {
   id: string
-  projectId: string
+  repositoryId: string
   check: string | null
   branch: string
   culprit: string | null
@@ -550,8 +550,8 @@ export function pdcaText(p: Proposal): string | null {
 }
 
 // What a pulled stop covers, in words.
-export function scopeText(stop: Pick<LineStop, 'scope' | 'projectId' | 'planId' | 'taskId'>): string {
-  if (stop.scope === 'repo') return `repository ${stop.projectId}`
+export function scopeText(stop: Pick<LineStop, 'scope' | 'repositoryId' | 'planId' | 'taskId'>): string {
+  if (stop.scope === 'repo') return `repository ${stop.repositoryId}`
   if (stop.scope === 'spec') return `spec ${stop.planId}`
   if (stop.scope === 'task') return `task ${stop.taskId} and its dependents`
   return 'everything in this workspace'

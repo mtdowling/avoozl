@@ -130,7 +130,7 @@ export function controlTriage(
   return setControl(store, { paused });
 }
 
-const projectOf = (store, repository) =>
+const registeredOf = (store, repository) =>
   workspaceRepositories(store).find(
     (entry) => entry.github && lower(entry.github) === lower(repository),
   ) ?? null;
@@ -144,12 +144,14 @@ export function triageHold(store, repository) {
     (entry) => lower(entry) === lower(repository),
   );
   if (paused) return `Triage is paused for ${repository}.`;
-  const project = projectOf(store, repository)?.id ?? null;
+  const registered = registeredOf(store, repository)?.id ?? null;
   const stop = openStops(store).find(
     (entry) =>
       !entry.runAnyway &&
       (entry.scope === "all" ||
-        (entry.scope === "repo" && project && entry.projectId === project)),
+        (entry.scope === "repo" &&
+          registered &&
+          entry.repositoryId === registered)),
   );
   return stop ? `The line is stopped: ${stop.reason}` : null;
 }
@@ -228,11 +230,11 @@ function avoozlPull(store, row) {
 // ---- The tick (§D2) -------------------------------------------------------------
 
 const othersWaiting = (store) =>
-  store.list("projects").some(
-    (project) =>
+  store.list("repositories").some(
+    (repository) =>
       landingQueue(store, {
-        projectId: project.id,
-        base: project.baseBranch || "main",
+        repositoryId: repository.id,
+        base: repository.baseBranch || "main",
       }).length,
   ) ||
   store
@@ -443,7 +445,7 @@ export function triageDispatches(store, { config } = {}) {
     .filter((run) => run.state === "queued" && !bound.has(run.id))
     .map((run) => {
       const executor = roleRun("triage", { config }),
-        project = projectOf(store, run.repository);
+        registered = registeredOf(store, run.repository);
       return kirocrewRequest(store, {
         task: run.id,
         role: TRIAGE_ROLE,
@@ -454,7 +456,7 @@ export function triageDispatches(store, { config } = {}) {
         agent: "avoozl-triage",
         brief: triageBrief(store, run, {
           checkout:
-            executor.executor === "kirocrew" ? project?.localCheckout : null,
+            executor.executor === "kirocrew" ? registered?.localCheckout : null,
         }),
       });
     });
@@ -552,12 +554,12 @@ const REPO_TOTAL_LIMIT = 4_194_304;
 
 // The repository's text files at its base branch, from the local checkout:
 // none over 64 KB, at most 4 MB in all.
-export function repositoryFiles(project) {
-  if (!project?.localCheckout) return {};
-  const ref = `origin/${project.baseBranch || "main"}`,
+export function repositoryFiles(repository) {
+  if (!repository?.localCheckout) return {};
+  const ref = `origin/${repository.baseBranch || "main"}`,
     run = (args) =>
       execFileSync("git", args, {
-        cwd: project.localCheckout,
+        cwd: repository.localCheckout,
         encoding: "utf8",
         maxBuffer: 64 * 1024 * 1024,
       });
@@ -565,7 +567,7 @@ export function repositoryFiles(project) {
   try {
     run(["rev-parse", "--verify", `${ref}^{commit}`]);
   } catch {
-    base = project.baseBranch || "main";
+    base = repository.baseBranch || "main";
   }
   const out = {};
   let total = 0;
@@ -618,7 +620,7 @@ export async function triageSnapshot(store, request, { github }) {
         null,
         2,
       ),
-      ...repositoryFiles(projectOf(store, run.repository)),
+      ...repositoryFiles(registeredOf(store, run.repository)),
     };
   store.put(RUNS, { ...store.get(RUNS, run.id), authorPermission: permission });
   if (run.kind === "pr") {
@@ -753,14 +755,14 @@ function toOwner(store, row, run, owner, notify, now) {
 }
 
 // Whether a cited file exists in the repository at its base branch.
-function citesRepository(project, citations) {
-  if (!project?.localCheckout) return false;
-  const ref = `origin/${project.baseBranch || "main"}`;
+function citesRepository(repository, citations) {
+  if (!repository?.localCheckout) return false;
+  const ref = `origin/${repository.baseBranch || "main"}`;
   return citations.some((file) => {
-    for (const base of [ref, project.baseBranch || "main"])
+    for (const base of [ref, repository.baseBranch || "main"])
       try {
         execFileSync("git", ["cat-file", "-e", `${base}:${file}`], {
-          cwd: project.localCheckout,
+          cwd: repository.localCheckout,
           stdio: "ignore",
         });
         return true;
@@ -820,7 +822,7 @@ export function reviewBody(review, scope) {
 
 async function carryOut(store, github, run, row, settings, context, notify) {
   const result = run.result,
-    project = projectOf(store, run.repository),
+    registered = registeredOf(store, run.repository),
     writes = [];
   // Labels the repository has: added or suggested (TA7.6).
   const have = new Set(repositoryLabels(store, run.repository).map(lower)),
@@ -837,7 +839,7 @@ async function carryOut(store, github, run, row, settings, context, notify) {
     );
   else if (labels.length) putItem(store, row, { suggested: labels });
   if (result.class === "question" && result.answer) {
-    if (citesRepository(project, result.answer.citations))
+    if (citesRepository(registered, result.answer.citations))
       writes.push(
         await write(
           store,
@@ -871,7 +873,7 @@ async function carryOut(store, github, run, row, settings, context, notify) {
       ...(await reproduceStep(store, github, run, row, {
         ...context,
         settings,
-        project,
+        repository: registered,
         write: (entry, send) => write(store, run, entry, send),
         toOwner: (owner) =>
           toOwner(store, row, run, owner, notify, context.now),

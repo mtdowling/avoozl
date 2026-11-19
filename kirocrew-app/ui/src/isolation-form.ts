@@ -1,6 +1,6 @@
 // The Isolation panel's form (Settings > Repository setup): how a
 // repository's checks run. It mirrors the `isolation` setting the backend
-// validates (check-isolation.mjs) and writes it with project.configure.
+// validates (check-isolation.mjs) and writes it with repository.configure.
 
 export interface Isolation {
   run: 'sandbox' | 'container' | 'unconfined'

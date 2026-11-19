@@ -132,10 +132,10 @@ async function workspace(t) {
   );
   // The planning checkout holds the spec folders (Requirement 30.3).
   for (const id of ["plans", "code"])
-    store.put("projects", {
+    store.put("repositories", {
       id,
       root: id === "plans" ? root : `/tmp/p36-${id}`,
-      ...(id === "plans" ? { planning: true } : { repository: "example/code" }),
+      ...(id === "plans" ? { planning: true } : { github: "example/code" }),
       baseBranch: "main",
       worktreeRoot: `/tmp/p36-${id}-worktrees`,
       checks: [["npm", "test"]],
@@ -147,7 +147,7 @@ async function workspace(t) {
   });
   await ops.execute("github.configure", {
     repository: PLANS,
-    projectId: "plans",
+    repositoryId: "plans",
     allowedActors: ["maintainer"],
   });
   return { root, store, github, ops };
@@ -163,7 +163,7 @@ async function approve(ops, name) {
     ops.store.get("plans", name) ||
     (await ops.execute("plan.create", {
       spec: name,
-      context: { projectId: "plans" },
+      context: { repositoryId: "plans" },
     }));
   const preview = await ops.execute("plan.preview", { id: plan.id });
   return ops.execute("plan.approve", {
@@ -212,7 +212,7 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
     id: (
       await ops.execute("plan.create", {
         spec: "gamma",
-        context: { projectId: "plans" },
+        context: { repositoryId: "plans" },
       })
     ).id,
   });
@@ -412,7 +412,7 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
       id: (
         await ops.execute("plan.create", {
           spec: name,
-          context: { projectId: "plans" },
+          context: { repositoryId: "plans" },
         })
       ).id,
     });

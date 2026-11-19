@@ -52,10 +52,10 @@ export const HELP_GROUPS = Object.freeze([
       entry("workspace remove|start|drain|resume|stop|set-default ID"),
       entry("workspace rebuild", "Rebuild the catalog from configuration"),
       entry(
-        "project configure ID --root PATH [--branch main] [--worktrees PATH] [--json CONFIG]",
+        "repository configure ID --root PATH [--branch main] [--worktrees PATH] [--json CONFIG]",
       ),
       entry(
-        "github configure OWNER/REPO --project ID [--assignee LOGIN] [--allowed-actors LOGINS]",
+        "github configure OWNER/REPO --repo ID [--assignee LOGIN] [--allowed-actors LOGINS]",
       ),
       entry(
         "github setup --mode plans-repo|single-repo [--planning-repository OWNER/REPO]\n[--repositories A,B] [--no-epic]",
@@ -66,7 +66,7 @@ export const HELP_GROUPS = Object.freeze([
         "Dry run of the mirror setup; add --confirm --preview-hash HASH to apply",
       ),
       entry(
-        "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+        "setup OWNER/REPO --repo ID --checks NAME[,NAME] [--base BRANCH]\n[--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
         "Preview repository setup for landing; --checks names the required GitHub checks, not the repository's own checks; --yes applies it",
       ),
       entry(
@@ -95,11 +95,11 @@ export const HELP_GROUPS = Object.freeze([
         "Stop, restart, or remove a plugin; its tasks park as needs you",
       ),
       entry(
-        "plugins pack-preview ID [--repo OWNER/REPO]",
+        "plugins pack-preview ID [--github OWNER/REPO]",
         "What importing a plugin's pack would create, change, or keep",
       ),
       entry(
-        "plugins pack-import ID --preview HASH [--repo OWNER/REPO] [--accept-lowered] [--confirm-public]",
+        "plugins pack-import ID --preview HASH [--github OWNER/REPO] [--accept-lowered] [--confirm-public]",
         "Import the exact preview",
       ),
       entry("skill --workspace PATH", "Print the portable workflow skill"),

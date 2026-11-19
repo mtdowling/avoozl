@@ -1,4 +1,4 @@
-// The per-project allow-list for unattended children; git push is never
+// The per-repository allow-list for unattended children; git push is never
 // allowed (R94.4c, §4.28).
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -28,7 +28,7 @@ test("build and test commands pass to the harness, one argument each", () => {
   ];
   assert.deepEqual(sandboxAllowCommands(commands), commands);
   assert.deepEqual(
-    harnessAllow(definition(["{project_allow_commands}"]), commands),
+    harnessAllow(definition(["{repository_allow_commands}"]), commands),
     ["npm test", "cargo build --release", "git status", "git diff --check"],
   );
   assert.deepEqual(harnessAllow(definition(), commands), []);
@@ -64,7 +64,9 @@ test("git push is refused in every spelling, even when listed", () => {
   );
   assert.throws(
     () =>
-      harnessAllow(definition(["{project_allow_commands}"]), [["git", "push"]]),
+      harnessAllow(definition(["{repository_allow_commands}"]), [
+        ["git", "push"],
+      ]),
     /never allowed/,
   );
 });

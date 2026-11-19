@@ -41,7 +41,11 @@ import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.mjs";
 import { deriveGitHubKeys, rolesNote, withRoles } from "./repository-roles.mjs";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
-const APPLY_KEYS = Object.freeze(["projects", "github", "planningRepository"]);
+const APPLY_KEYS = Object.freeze([
+  "repositories",
+  "github",
+  "planningRepository",
+]);
 
 function hash(text) {
   return createHash("sha256").update(text).digest("hex");
@@ -92,14 +96,14 @@ function envNames(value, id) {
     )
   )
     fail(
-      `Project ${id} checksEnv must be a list of environment variable names.`,
+      `Repository ${id} checksEnv must be a list of environment variable names.`,
     );
   return [...value];
 }
 
 function helperHash(value, id) {
   if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value))
-    fail(`Project ${id} worktreeHelper must be a SHA-256 hash.`);
+    fail(`Repository ${id} worktreeHelper must be a SHA-256 hash.`);
   return value;
 }
 
@@ -107,14 +111,14 @@ function landingOf(value, id) {
   // `train` is retired and loads as `direct`.
   if (value === "train") return "direct";
   if (!["direct", "pr", "off"].includes(value))
-    fail(`Project ${id} landing must be direct, pr or off.`);
+    fail(`Repository ${id} landing must be direct, pr or off.`);
   return value;
 }
 
-// Every key one `projects` entry, its sandbox, a legacy issue intake entry
+// Every key one `repositories` entry, its sandbox, a legacy issue intake entry
 // and a legacy Queue entry accept. A test holds
 // src/avoozl-config.schema.json to these lists.
-export const PROJECT_KEYS = Object.freeze([
+export const REPOSITORY_KEYS = Object.freeze([
   "name",
   "root",
   "baseBranch",
@@ -146,13 +150,13 @@ export const PLANNING_REPOSITORY_KEYS = Object.freeze([
   "branch",
   "directory",
 ]);
-function projectInput(value, id, base) {
-  if (!record(value)) fail(`Project ${id} must contain a JSON object.`);
+function repositoryInput(value, id, base) {
+  if (!record(value)) fail(`Repository ${id} must contain a JSON object.`);
   for (const key of Object.keys(value))
-    if (!PROJECT_KEYS.includes(key))
-      fail(`Unknown project setting projects.${id}.${key}.`);
+    if (!REPOSITORY_KEYS.includes(key))
+      fail(`Unknown repository setting repositories.${id}.${key}.`);
   // The repository's named checks; the older list of argv arrays loads too.
-  const checks = checksSetting(value.checks, `Project ${id} checks`);
+  const checks = checksSetting(value.checks, `Repository ${id} checks`);
   const resolve = (candidate) =>
     path.isAbsolute(candidate) ? candidate : path.resolve(base, candidate);
   // Branches reach git as positional arguments; a leading dash is an option.
@@ -164,22 +168,25 @@ function projectInput(value, id, base) {
   return {
     ...(value.name === undefined
       ? {}
-      : { name: text(value.name, `Project ${id} name`) }),
-    root: resolve(text(value.root, `Project ${id} root`)),
-    baseBranch: branch(value.baseBranch || "main", `Project ${id} base branch`),
+      : { name: text(value.name, `Repository ${id} name`) }),
+    root: resolve(text(value.root, `Repository ${id} root`)),
+    baseBranch: branch(
+      value.baseBranch || "main",
+      `Repository ${id} base branch`,
+    ),
     ...(value.integrationBranch === undefined
       ? {}
       : {
           integrationBranch: branch(
             value.integrationBranch,
-            `Project ${id} integration branch`,
+            `Repository ${id} integration branch`,
           ),
         }),
     ...(value.worktreeRoot === undefined
       ? {}
       : {
           worktreeRoot: resolve(
-            text(value.worktreeRoot, `Project ${id} worktree root`),
+            text(value.worktreeRoot, `Repository ${id} worktree root`),
           ),
         }),
     checks: structuredClone(checks),
@@ -198,13 +205,13 @@ function projectInput(value, id, base) {
   };
 }
 
-// Which executor runs the project's sessions (R93.5), the harness a
+// Which executor runs the repository's sessions (R93.5), the harness a
 // `process` session uses, and its sandbox (R94.4, R94.4c, R95.6).
 function executorInput(value, id) {
   const out = {};
   if (value.executor !== undefined) {
     if (!["kirocrew", "process"].includes(value.executor))
-      fail(`Project ${id} executor must be kirocrew or process.`);
+      fail(`Repository ${id} executor must be kirocrew or process.`);
     out.executor = value.executor;
   }
   if (value.harness !== undefined) {
@@ -212,19 +219,19 @@ function executorInput(value, id) {
       typeof value.harness !== "string" ||
       !/^[a-z][a-z0-9-]{0,60}$/.test(value.harness)
     )
-      fail(`Project ${id} harness must name a harness definition.`);
+      fail(`Repository ${id} harness must name a harness definition.`);
     out.harness = value.harness;
   }
   if (value.sandbox !== undefined) {
     if (!record(value.sandbox))
-      fail(`Project ${id} sandbox must be an object.`);
+      fail(`Repository ${id} sandbox must be an object.`);
     for (const key of Object.keys(value.sandbox))
       if (!SANDBOX_KEYS.includes(key))
-        fail(`Unknown project setting projects.${id}.sandbox.${key}.`);
+        fail(`Unknown repository setting repositories.${id}.sandbox.${key}.`);
     const { writeRoots, allowCommands, network } = value.sandbox;
     sandboxWriteRoots(writeRoots);
     sandboxAllowCommands(allowCommands, {
-      source: `projects.${id}.sandbox.allowCommands`,
+      source: `repositories.${id}.sandbox.allowCommands`,
     });
     sandboxNetwork(network);
     out.sandbox = structuredClone(value.sandbox);
@@ -232,29 +239,32 @@ function executorInput(value, id) {
   if (value.isolation !== undefined)
     out.isolation = isolationSetting(
       value.isolation,
-      `projects.${id}.isolation`,
+      `repositories.${id}.isolation`,
     );
   return out;
 }
 
-// The executor settings of a stored project, as saved.
-const executorSettings = (project) => ({
-  ...(project.executor ? { executor: project.executor } : {}),
-  ...(project.harness ? { harness: project.harness } : {}),
-  ...(project.sandbox ? { sandbox: structuredClone(project.sandbox) } : {}),
-  ...(project.isolation
-    ? { isolation: structuredClone(project.isolation) }
+// The executor settings of a stored repository, as saved.
+const executorSettings = (repository) => ({
+  ...(repository.executor ? { executor: repository.executor } : {}),
+  ...(repository.harness ? { harness: repository.harness } : {}),
+  ...(repository.sandbox
+    ? { sandbox: structuredClone(repository.sandbox) }
+    : {}),
+  ...(repository.isolation
+    ? { isolation: structuredClone(repository.isolation) }
     : {}),
 });
 
-function projectsInput(value, base) {
+function repositoriesInput(value, base) {
   if (value === undefined) return {};
   if (!record(value))
-    fail("Projects configuration must contain a JSON object.");
+    fail("Repositories configuration must contain a JSON object.");
   const result = {};
-  for (const [id, project] of Object.entries(value)) {
-    if (!/^[a-z][a-z0-9-]{1,60}$/.test(id)) fail(`Invalid project ID ${id}.`);
-    result[id] = projectInput(project, id, base);
+  for (const [id, repository] of Object.entries(value)) {
+    if (!/^[a-z][a-z0-9-]{1,60}$/.test(id))
+      fail(`Invalid repository ID ${id}.`);
+    result[id] = repositoryInput(repository, id, base);
   }
   return sortedRecord(result);
 }
@@ -301,35 +311,37 @@ function planningRepositoryInput(value, base) {
 
 function desiredActions(value, base) {
   return {
-    projects: projectsInput(value.projects, base),
+    repositories: repositoriesInput(value.repositories, base),
     github: githubInput(value.github, value),
     planningRepository: planningRepositoryInput(value.planningRepository, base),
   };
 }
 
 function appliedActions(store) {
-  const projects = Object.fromEntries(
-      store.list("projects").map((project) => [
-        project.id,
+  const repositories = Object.fromEntries(
+      store.list("repositories").map((repository) => [
+        repository.id,
         {
-          ...(project.name === undefined ? {} : { name: project.name }),
-          root: project.root,
-          baseBranch: project.baseBranch || "main",
-          ...(project.integrationBranch
-            ? { integrationBranch: project.integrationBranch }
+          ...(repository.name === undefined ? {} : { name: repository.name }),
+          root: repository.root,
+          baseBranch: repository.baseBranch || "main",
+          ...(repository.integrationBranch
+            ? { integrationBranch: repository.integrationBranch }
             : {}),
-          ...(project.worktreeRoot
-            ? { worktreeRoot: project.worktreeRoot }
+          ...(repository.worktreeRoot
+            ? { worktreeRoot: repository.worktreeRoot }
             : {}),
-          checks: structuredClone(project.checks || []),
-          ...(project.checksEnv ? { checksEnv: [...project.checksEnv] } : {}),
-          ...(project.worktreeHelper
-            ? { worktreeHelper: project.worktreeHelper }
+          checks: structuredClone(repository.checks || []),
+          ...(repository.checksEnv
+            ? { checksEnv: [...repository.checksEnv] }
             : {}),
-          ...(project.landing ? { landing: project.landing } : {}),
-          planning: Boolean(project.planning),
-          editable: project.editable !== false,
-          ...executorSettings(project),
+          ...(repository.worktreeHelper
+            ? { worktreeHelper: repository.worktreeHelper }
+            : {}),
+          ...(repository.landing ? { landing: repository.landing } : {}),
+          planning: Boolean(repository.planning),
+          editable: repository.editable !== false,
+          ...executorSettings(repository),
         },
       ]),
     ),
@@ -337,9 +349,9 @@ function appliedActions(store) {
       store.list("github_repositories").map((entry) => [
         entry.id,
         {
-          projectId: entry.projectId,
+          repositoryId: entry.repositoryId,
           ...(entry.workspaceRepositoryId &&
-          entry.workspaceRepositoryId !== entry.projectId
+          entry.workspaceRepositoryId !== entry.repositoryId
             ? { workspaceRepositoryId: entry.workspaceRepositoryId }
             : {}),
           assignee: entry.assignee,
@@ -356,7 +368,7 @@ function appliedActions(store) {
     ),
     planning = store.getMeta("workspaceRepository");
   return {
-    projects: sortedRecord(projects),
+    repositories: sortedRecord(repositories),
     github: { issueIntake: sortedRecord(issueIntake) },
     planningRepository: planning
       ? {
@@ -820,17 +832,19 @@ export class RepositorySettings {
   }
 
   // Settings > Flow (§8.4): the workspace's `flow` and each repository's
-  // override (`projects.<id>.flow`).
+  // override (`repositories.<id>.flow`).
   readFlowSettings() {
     const file = this.readFile(),
-      projects = record(file.value.projects) ? file.value.projects : {};
+      repositories = record(file.value.repositories)
+        ? file.value.repositories
+        : {};
     return {
       filename: this.filename,
       exists: file.exists,
       hash: file.hash,
       flow: record(file.value.flow) ? structuredClone(file.value.flow) : {},
       repositories: Object.fromEntries(
-        Object.entries(projects)
+        Object.entries(repositories)
           .filter(([, p]) => record(p) && record(p.flow))
           .map(([id, p]) => [id, structuredClone(p.flow)]),
       ),
@@ -852,11 +866,14 @@ export class RepositorySettings {
         ? { ...flow, verify: old.verify }
         : flow;
     if (repository) {
-      if (!record(value.projects?.[repository]))
-        fail(`Repository ${repository} is not in .avoozl.json projects.`, 404);
-      flow = kept(value.projects[repository].flow);
-      if (Object.keys(flow).length) value.projects[repository].flow = flow;
-      else delete value.projects[repository].flow;
+      if (!record(value.repositories?.[repository]))
+        fail(
+          `Repository ${repository} is not in .avoozl.json repositories.`,
+          404,
+        );
+      flow = kept(value.repositories[repository].flow);
+      if (Object.keys(flow).length) value.repositories[repository].flow = flow;
+      else delete value.repositories[repository].flow;
     } else if (Object.keys((flow = kept(value.flow))).length) value.flow = flow;
     else delete value.flow;
     this.write(value, { expectedHash: before.hash });
@@ -1066,46 +1083,46 @@ export class RepositorySettings {
     };
   }
 
-  updateExecutionProject(project) {
+  updateExecutionRepository(repository) {
     const before = this.readFile(),
       value = this.updateValue(before);
     value.version = 1;
-    value.projects = record(value.projects) ? value.projects : {};
+    value.repositories = record(value.repositories) ? value.repositories : {};
     // `landing` here is the older key of the repository's `landing.mode`
     // (§4.25): kept as the file has it, never written from the row.
-    const old = value.projects[project.id]?.landing;
-    value.projects[project.id] = {
-      ...(project.name ? { name: project.name } : {}),
-      root: this.portablePath(project.root),
-      baseBranch: project.baseBranch || "main",
-      ...(project.integrationBranch
-        ? { integrationBranch: project.integrationBranch }
+    const old = value.repositories[repository.id]?.landing;
+    value.repositories[repository.id] = {
+      ...(repository.name ? { name: repository.name } : {}),
+      root: this.portablePath(repository.root),
+      baseBranch: repository.baseBranch || "main",
+      ...(repository.integrationBranch
+        ? { integrationBranch: repository.integrationBranch }
         : {}),
-      ...(project.worktreeRoot
-        ? { worktreeRoot: this.portablePath(project.worktreeRoot) }
+      ...(repository.worktreeRoot
+        ? { worktreeRoot: this.portablePath(repository.worktreeRoot) }
         : {}),
-      checks: structuredClone(project.checks || []),
-      ...(project.checksEnv ? { checksEnv: [...project.checksEnv] } : {}),
-      ...(project.worktreeHelper
-        ? { worktreeHelper: project.worktreeHelper }
+      checks: structuredClone(repository.checks || []),
+      ...(repository.checksEnv ? { checksEnv: [...repository.checksEnv] } : {}),
+      ...(repository.worktreeHelper
+        ? { worktreeHelper: repository.worktreeHelper }
         : {}),
       ...(old === undefined ? {} : { landing: old }),
-      planning: Boolean(project.planning),
-      editable: project.editable !== false,
-      ...executorSettings(project),
+      planning: Boolean(repository.planning),
+      editable: repository.editable !== false,
+      ...executorSettings(repository),
     };
-    return this.writeApplied(value, before.hash, ["projects"]);
+    return this.writeApplied(value, before.hash, ["repositories"]);
   }
 
-  removeExecutionProject(id) {
+  removeExecutionRepository(id) {
     const before = this.readFile(),
       value = this.updateValue(before);
     value.version = 1;
-    if (record(value.projects)) {
-      delete value.projects[id];
-      if (!Object.keys(value.projects).length) delete value.projects;
+    if (record(value.repositories)) {
+      delete value.repositories[id];
+      if (!Object.keys(value.repositories).length) delete value.repositories;
     }
-    return this.writeApplied(value, before.hash, ["projects"]);
+    return this.writeApplied(value, before.hash, ["repositories"]);
   }
 
   // A GitHub source for `entry`, a github_repositories record (§4.39).
@@ -1119,31 +1136,33 @@ export class RepositorySettings {
     return this.writeApplied(value, before.hash, ["github"]);
   }
 
-  updateUnifiedRepository({ id, previousRepository, project, issueIntake }) {
+  updateUnifiedRepository({ id, previousRepository, repository, issueIntake }) {
     const before = this.readFile(),
       value = this.updateValue(before);
     value.version = 1;
-    if (record(value.projects)) delete value.projects[id];
-    if (project) {
-      value.projects = record(value.projects) ? value.projects : {};
-      value.projects[id] = {
-        ...(project.name ? { name: project.name } : {}),
-        root: this.portablePath(project.root),
-        baseBranch: project.baseBranch || "main",
-        ...(project.integrationBranch
-          ? { integrationBranch: project.integrationBranch }
+    if (record(value.repositories)) delete value.repositories[id];
+    if (repository) {
+      value.repositories = record(value.repositories) ? value.repositories : {};
+      value.repositories[id] = {
+        ...(repository.name ? { name: repository.name } : {}),
+        root: this.portablePath(repository.root),
+        baseBranch: repository.baseBranch || "main",
+        ...(repository.integrationBranch
+          ? { integrationBranch: repository.integrationBranch }
           : {}),
-        ...(project.worktreeRoot
-          ? { worktreeRoot: this.portablePath(project.worktreeRoot) }
+        ...(repository.worktreeRoot
+          ? { worktreeRoot: this.portablePath(repository.worktreeRoot) }
           : {}),
-        checks: structuredClone(project.checks || []),
-        ...(project.checksEnv ? { checksEnv: [...project.checksEnv] } : {}),
-        ...(project.worktreeHelper
-          ? { worktreeHelper: project.worktreeHelper }
+        checks: structuredClone(repository.checks || []),
+        ...(repository.checksEnv
+          ? { checksEnv: [...repository.checksEnv] }
           : {}),
-        planning: Boolean(project.planning),
-        editable: project.editable !== false,
-        ...executorSettings(project),
+        ...(repository.worktreeHelper
+          ? { worktreeHelper: repository.worktreeHelper }
+          : {}),
+        planning: Boolean(repository.planning),
+        editable: repository.editable !== false,
+        ...executorSettings(repository),
       };
     }
     writeGitHubSources(value, {
@@ -1152,15 +1171,16 @@ export class RepositorySettings {
         : null,
       remove: [previousRepository],
     });
-    if (!Object.keys(value.projects || {}).length) delete value.projects;
-    return this.writeApplied(value, before.hash, ["projects", "github"]);
+    if (!Object.keys(value.repositories || {}).length)
+      delete value.repositories;
+    return this.writeApplied(value, before.hash, ["repositories", "github"]);
   }
 
   removeUnifiedRepository(repository) {
     return this.updateUnifiedRepository({
       id: repository.id,
       previousRepository: repository.github,
-      project: null,
+      repository: null,
       issueIntake: null,
     });
   }
@@ -1224,15 +1244,15 @@ export class RepositorySettings {
     value.$schema = REPOSITORY_CONFIG_SCHEMA_URL;
     if (before.exists) return value;
     const applied = appliedActions(this.store);
-    if (Object.keys(applied.projects).length)
-      value.projects = Object.fromEntries(
-        Object.entries(applied.projects).map(([id, project]) => [
+    if (Object.keys(applied.repositories).length)
+      value.repositories = Object.fromEntries(
+        Object.entries(applied.repositories).map(([id, repository]) => [
           id,
           {
-            ...project,
-            root: this.portablePath(project.root),
-            ...(project.worktreeRoot
-              ? { worktreeRoot: this.portablePath(project.worktreeRoot) }
+            ...repository,
+            root: this.portablePath(repository.root),
+            ...(repository.worktreeRoot
+              ? { worktreeRoot: this.portablePath(repository.worktreeRoot) }
               : {}),
           },
         ]),

@@ -44,7 +44,7 @@ function workspace(t, { managedLabels = { responding: LABEL } } = {}) {
       },
     }),
   );
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
     root: checkout,
     baseBranch: "main",
@@ -54,7 +54,7 @@ function workspace(t, { managedLabels = { responding: LABEL } } = {}) {
     id: REPO,
     owner: "example",
     repo: "code",
-    projectId: "code",
+    repositoryId: "code",
   });
   // GitHub holds the issue and the allowed actor's label event; the tick's
   // intake turns them into the authorized row.
@@ -194,7 +194,8 @@ test("a reply with a secret or a machine path is refused and nothing is posted",
     "bearer header": "Authorization: Bearer " + "e".repeat(32),
     "URL with credentials": "Clone https://bot:hunter2secret@github.com/x/y",
     "credential assignment": 'password = "correct-horse-battery"',
-    "absolute macOS path": "It is in /Users/someone/projects/code/README.md",
+    "absolute macOS path":
+      "It is in /Users/someone/repositories/code/README.md",
     "absolute Linux path": "Logs go to /home/ci/build.log",
     "temporary path": "See `/private/tmp/run-1/out.txt`.",
     "home-relative path": "Edit ~/.config/avoozl/settings.json",
@@ -368,7 +369,7 @@ test("a public reply may not quote another repository on this machine", async (t
   fs.writeFileSync(path.join(w.checkout, "notes.txt"), `${secret}\n`);
   execFileSync("git", ["init", "-q"], { cwd: w.checkout });
   execFileSync("git", ["add", "index.mjs"], { cwd: w.checkout });
-  w.store.put("projects", {
+  w.store.put("repositories", {
     id: "plans",
     root: plans,
     planning: true,
@@ -408,7 +409,7 @@ test("a private repository's reply may quote another checkout", async (t) => {
     other = temporaryDirectory(),
     line = "const signingKeyRotation = rotateEveryHours(36);";
   fs.writeFileSync(path.join(other, "a.mjs"), line + "\n");
-  w.store.put("projects", {
+  w.store.put("repositories", {
     id: "other",
     root: other,
     baseBranch: "main",

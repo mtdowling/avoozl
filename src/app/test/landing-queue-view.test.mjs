@@ -35,17 +35,17 @@ function seed(t) {
       task(id, { repository: id === "g" ? "lib" : "code" }),
     ),
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "code",
-    repository: "example/code",
+    github: "example/code",
     landing: "pr",
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "lib",
-    repository: "example/lib",
+    github: "example/lib",
     landing: "off",
   });
-  const Q = { projectId: "code", base: "main" };
+  const Q = { repositoryId: "code", base: "main" };
   for (const [key, c, pr] of [
     ["a", "a", 11],
     ["b", "b", 12],
@@ -56,7 +56,7 @@ function seed(t) {
       { now: NOW - 60000 },
     );
   enqueueLanding(store, {
-    projectId: "lib",
+    repositoryId: "lib",
     base: "main",
     key: "g",
     commit: sha("9"),
@@ -222,7 +222,7 @@ test("landing.queue makes no GitHub call, and Refresh reads the same", async (t)
 
 test("landNext keeps why the head waits, once per change, never on a withdrawn entry", async (t) => {
   const { store } = fixture(t),
-    Q = { projectId: "p", base: "main" };
+    Q = { repositoryId: "p", base: "main" };
   enqueueLanding(store, { ...Q, key: "k", commit: sha("a"), tasks: ["k"] });
   let reason = "review";
   const steps = {
@@ -271,13 +271,13 @@ test("a direct base shows waiting, testing, last merge batches and size from sto
   const { store } = fixture(t),
     now = Date.parse("2026-01-01T01:00:00.000Z"),
     at = (minutes) => new Date(now - minutes * 60000).toISOString(),
-    Q = { projectId: "app", base: "main" };
-  store.put("projects", {
+    Q = { repositoryId: "app", base: "main" };
+  store.put("repositories", {
     id: "app",
     root: "/x",
     baseBranch: "main",
     landing: "direct",
-    repository: "acme/app",
+    github: "acme/app",
   });
   const sha = (n) => String(n).padStart(40, "0");
   for (const [n, key] of ["a", "b", "c"].entries())
@@ -341,13 +341,13 @@ test("a direct base shows waiting, testing, last merge batches and size from sto
 test("a member that waited 61 minutes opens one Needs you row, and a second read opens no more", (t) => {
   const { store } = fixture(t),
     now = Date.parse("2026-01-01T03:00:00.000Z"),
-    Q = { projectId: "app", base: "main" };
-  store.put("projects", {
+    Q = { repositoryId: "app", base: "main" };
+  store.put("repositories", {
     id: "app",
     root: "/x",
     baseBranch: "main",
     landing: "direct",
-    repository: "acme/app",
+    github: "acme/app",
   });
   const sha = (n) => String(n).padStart(40, "0");
   enqueueLanding(

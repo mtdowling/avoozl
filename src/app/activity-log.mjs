@@ -307,7 +307,7 @@ const scopeText = (stop) =>
     : stop.scope === "task"
       ? `task ${stop.taskId}`
       : stop.scope === "repo"
-        ? `repository ${stop.projectId ?? stop.repository}`
+        ? `repository ${stop.repositoryId ?? stop.repository}`
         : stop.scope === "spec"
           ? `spec ${stop.planId ?? stop.spec}`
           : "the workspace";

@@ -49,7 +49,7 @@ function workspace(t, tasks, tracked = {}) {
   t.after(() => store.close());
   store.importSnapshot({ ...snapshot(), tasks, edges: [] });
   store.put("approvals", { id: "approval-1", planId: "p1", hash: "h1" });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",

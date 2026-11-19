@@ -45,13 +45,13 @@ function taskLine(task) {
   };
 }
 
-function effectiveProject(plan, task, existing) {
+function effectiveRepository(plan, task, existing) {
   return (
     task.repository ||
-    task.projectId ||
-    plan?.context?.projectId ||
+    task.repositoryId ||
+    plan?.context?.repositoryId ||
     existing?.repository ||
-    existing?.projectId ||
+    existing?.repositoryId ||
     null
   );
 }
@@ -74,7 +74,7 @@ const MANUAL_REFUSED = [
 
 // A manual leaf: acceptance, a repository for its issue, and nothing an
 // agent would use. It completes by a person; `manual: true` says so.
-function manualDiagnostics(task, projectId, add) {
+function manualDiagnostics(task, repositoryId, add) {
   if (task.manual !== true) {
     if (task.completion === "person")
       add(
@@ -99,7 +99,7 @@ function manualDiagnostics(task, projectId, add) {
         "spec.manual-field",
         `Manual task "${task.id}" has "${key}"; nothing runs a manual task, so remove it.`,
       );
-  if (!projectId)
+  if (!repositoryId)
     add(
       "spec.manual-field",
       `Manual task "${task.id}" needs a "repository": where its issue lives.`,
@@ -108,7 +108,7 @@ function manualDiagnostics(task, projectId, add) {
 
 // A leaf is bounded: one repository, acceptance, checks and a completion
 // its route can observe. Acceptance is enforced by extractPlan.
-function boundednessDiagnostics(task, projectId, projects) {
+function boundednessDiagnostics(task, repositoryId, repositories) {
   const at = taskLine(task),
     found = [],
     add = (code, message) =>
@@ -129,18 +129,22 @@ function boundednessDiagnostics(task, projectId, projects) {
       "leaf.accept-from",
       `acceptFrom on "${task.id}" needs a local leaf that completes by integration.`,
     );
-  manualDiagnostics(task, projectId, add);
+  manualDiagnostics(task, repositoryId, add);
   if (taskKind(task) !== "leaf") return found;
   // A manual leaf runs nothing: no route completion or checks to prove.
   if (isManual(task)) return found;
-  if (task.repository && task.projectId && task.repository !== task.projectId)
+  if (
+    task.repository &&
+    task.repositoryId &&
+    task.repository !== task.repositoryId
+  )
     add(
       "leaf.repository",
       `Leaf "${task.id}" names two repositories; a leaf changes exactly one.`,
     );
   // With one registered repository or none (the workspace checkout), the
   // target is implied; with several the leaf must name one.
-  else if (!projectId && projects.size > 1)
+  else if (!repositoryId && repositories.size > 1)
     add(
       "leaf.repository",
       `Name the one repository leaf "${task.id}" changes; this workspace has several.`,
@@ -152,18 +156,18 @@ function boundednessDiagnostics(task, projectId, projects) {
       "leaf.completion",
       `Completion "${completion}" cannot be observed on route "${taskRoute(task)}".`,
     );
-  // An unregistered repository is reported as task.unknown-project.
+  // An unregistered repository is reported as task.unknown-repository.
   // Every leaf runs its repository's checks; tasks never name them. Only a
   // registered repository's are known here.
-  const known = Boolean(projectId) && projects.has(projectId),
-    checks = repositoryChecks(projects.get(projectId));
+  const known = Boolean(repositoryId) && repositories.has(repositoryId),
+    checks = repositoryChecks(repositories.get(repositoryId));
   // A repository with no checks is judged by a verifier chat instead.
   if (completion !== "answered" && !checks.length && known)
     found.push(
       diagnostic(
         "leaf.checks",
         "warning",
-        `Repository ${projectId} has no checks, so a verifier chat judges leaf "${task.id}". Configure the repository's checks to have Avoozl run them.`,
+        `Repository ${repositoryId} has no checks, so a verifier chat judges leaf "${task.id}". Configure the repository's checks to have Avoozl run them.`,
         at.lineStart,
         at.lineEnd,
         { taskId: task.id },
@@ -297,8 +301,8 @@ export function lintPlan({
     return summarize(diagnostics, []);
   }
 
-  const projects = new Map(
-    (data.projects || []).map((project) => [project.id, project]),
+  const repositories = new Map(
+    (data.repositories || []).map((repository) => [repository.id, repository]),
   );
   const existingTasks = new Map(
     (data.tasks || []).map((task) => [task.id, task]),
@@ -343,7 +347,7 @@ export function lintPlan({
 
     const canonical = task.taskId ? resolveTaskId(data, task.taskId) : null;
     const existing = canonical ? existingTasks.get(canonical) : null;
-    let projectId = effectiveProject(plan, task, existing);
+    let repositoryId = effectiveRepository(plan, task, existing);
     if (task.taskId && !existing)
       diagnostics.push(
         diagnostic(
@@ -377,32 +381,42 @@ export function lintPlan({
           ),
         );
     }
-    if (projectId && projects.size && !projects.has(projectId))
+    if (repositoryId && repositories.size && !repositories.has(repositoryId))
       diagnostics.push(
         diagnostic(
-          "task.unknown-project",
+          "task.unknown-repository",
           "error",
-          `Execution project "${projectId}" is not registered in this workspace.`,
+          `Execution repository "${repositoryId}" is not registered in this workspace.`,
           at.lineStart,
           at.lineEnd,
           { taskId: task.id },
         ),
       );
-    else if (!projectId && projects.size === 1 && taskKind(task) === "leaf")
-      projectId = projects.keys().next().value;
-    else if (!projectId && projects.size > 1 && taskKind(task) !== "leaf")
+    else if (
+      !repositoryId &&
+      repositories.size === 1 &&
+      taskKind(task) === "leaf"
+    )
+      repositoryId = repositories.keys().next().value;
+    else if (
+      !repositoryId &&
+      repositories.size > 1 &&
+      taskKind(task) !== "leaf"
+    )
       diagnostics.push(
         diagnostic(
-          "task.project-ambiguous",
+          "task.repository-ambiguous",
           "warning",
-          "Choose an execution project because this workspace has multiple code repositories.",
+          "Choose an execution repository because this workspace has multiple code repositories.",
           at.lineStart,
           at.lineEnd,
           { taskId: task.id },
         ),
       );
 
-    diagnostics.push(...boundednessDiagnostics(task, projectId, projects));
+    diagnostics.push(
+      ...boundednessDiagnostics(task, repositoryId, repositories),
+    );
 
     for (const field of ["requires", "sequence", "supports"]) {
       const seen = new Set();
@@ -448,20 +462,20 @@ export function lintPlan({
               { taskId: task.id },
             ),
           );
-        const dependencyProject = local
-          ? effectiveProject(plan, local, null)
-          : existingReference?.projectId || null;
+        const dependencyRepository = local
+          ? effectiveRepository(plan, local, null)
+          : existingReference?.repositoryId || null;
         if (
           ["requires", "sequence"].includes(field) &&
-          projectId &&
-          dependencyProject &&
-          projectId !== dependencyProject
+          repositoryId &&
+          dependencyRepository &&
+          repositoryId !== dependencyRepository
         )
           diagnostics.push(
             diagnostic(
-              "task.cross-project-dependency",
+              "task.cross-repository-dependency",
               "info",
-              `"${task.id}" waits on "${reference}" across projects ${dependencyProject} → ${projectId}.`,
+              `"${task.id}" waits on "${reference}" across repositories ${dependencyRepository} → ${repositoryId}.`,
               at.lineStart,
               at.lineEnd,
               { taskId: task.id, relatedTaskId: reference },

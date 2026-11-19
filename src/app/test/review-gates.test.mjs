@@ -65,7 +65,7 @@ function setup(t, { delivery = {}, tasks, edges } = {}) {
       { from: "w2", to: "d2", kind: "requires" },
     ],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",

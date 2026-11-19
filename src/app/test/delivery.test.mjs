@@ -56,7 +56,7 @@ function setup(t, { tasks = [leaf("a")], edges = [], delivery } = {}) {
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   store.importSnapshot({ ...snapshot(), tasks, edges });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
@@ -348,7 +348,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
       folder: "Avoozl/app",
       project: false,
       agent: "kirocrew-worker",
-      checkout: store.get("projects", "app").root,
+      checkout: store.get("repositories", "app").root,
       brief: undefined,
     },
   );

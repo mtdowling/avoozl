@@ -26,7 +26,7 @@ function setup(t) {
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   store.importSnapshot({ ...snapshot(), tasks: [leaf], edges: [] });
-  store.put("projects", { id: "app", root, baseBranch: "main" });
+  store.put("repositories", { id: "app", root, baseBranch: "main" });
   const at = new Date(0).toISOString();
   for (const [slot, role, extra] of [
     ["w-a", "worker", { investigate: true, report: { kind: "findings", at } }],

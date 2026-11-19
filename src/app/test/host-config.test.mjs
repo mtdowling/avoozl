@@ -200,7 +200,7 @@ test("workspace registration ignores .avoozl/config.json", () => {
       {
         ...saved,
         dbPath: database,
-        projects: {
+        repositories: {
           machine: {
             root: "/machine/checkout",
             checks: [],
@@ -218,7 +218,7 @@ test("workspace registration ignores .avoozl/config.json", () => {
     const portable = JSON.parse(fs.readFileSync(current, "utf8"));
     assert.equal(portable.workspaceId, "legacy-paths");
     assert.equal(portable.dbPath, undefined);
-    assert.equal(portable.projects, undefined);
+    assert.equal(portable.repositories, undefined);
     assert.equal(JSON.parse(fs.readFileSync(legacy, "utf8")).dbPath, database);
     assert.equal(workspaceConfig({ workspace }).dbPath, database);
   } finally {

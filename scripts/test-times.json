@@ -214,7 +214,6 @@
     "src/app/test/github-planner.test.mjs": 2076,
     "src/app/test/github-policy.test.mjs": 1543,
     "src/app/test/github-preview.test.mjs": 1149,
-    "src/app/test/github-project.test.mjs": 1964,
     "src/app/test/github-rate.test.mjs": 1963,
     "src/app/test/github-read-budget.test.mjs": 782,
     "src/app/test/github-rebuild.test.mjs": 2611,

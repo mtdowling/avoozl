@@ -1,4 +1,4 @@
-// The tick lands `direct` projects on their remote (task 41.9). Real git (a
+// The tick lands `direct` repositories on their remote (task 41.9). Real git (a
 // bare "origin" and a checkout) and real checks; nothing live.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -60,7 +60,7 @@ async function workspace(t) {
     tasks: [leaf("t1"), leaf("t2")],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
@@ -92,7 +92,7 @@ test("a verified task is queued, checked at the candidate and pushed by the tick
   // Queued, not pushed.
   assert.equal(git(w.origin, "rev-parse", "main"), start);
   assert.equal(
-    landingQueue(w.store, { projectId: "app", base: "main" }).length,
+    landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
     1,
   );
   const result = await step(w);
@@ -187,7 +187,7 @@ test("without a take over nothing is queued or pushed", async (t) => {
   assert.match(notify[0].text, /spec takeover/);
   assert.equal(w.store.get("task_deliveries", "t2").state, "decision");
   assert.equal(
-    landingQueue(w.store, { projectId: "app", base: "main" }).length,
+    landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
     0,
   );
   assert.equal(git(w.origin, "rev-parse", "main"), start);
@@ -195,9 +195,9 @@ test("without a take over nothing is queued or pushed", async (t) => {
 
 test("the tick lands a merge batch, then each landed member's ref is gone and the remote holds only main", async (t) => {
   const w = await workspace(t);
-  w.store.put("projects", {
-    ...w.store.get("projects", "app"),
-    repository: "acme/app",
+  w.store.put("repositories", {
+    ...w.store.get("repositories", "app"),
+    github: "acme/app",
   });
   const config = {
     github: {

@@ -1,7 +1,7 @@
-// The per-project command allow-list for unattended children (R94.4c,
-// design §4.28). Project config names its build and test commands
+// The per-repository command allow-list for unattended children (R94.4c,
+// design §4.28). Repository config names its build and test commands
 // (`sandbox.allowCommands`, each an argv list); they reach the harness's
-// allow setting through `{project_allow_commands}` so a child does not stall
+// allow setting through `{repository_allow_commands}` so a child does not stall
 // on a prompt. `git push` is never allowed, in any spelling or through any
 // wrapper, and listing it is refused.
 import path from "node:path";
@@ -49,7 +49,7 @@ const program = (token) =>
     .toLowerCase()
     .replace(/\.(exe|cmd|bat|ps1)$/, "");
 
-// shortcut: a listed project script (`npm run x`, `make y`) that pushes on
+// shortcut: a listed repository script (`npm run x`, `make y`) that pushes on
 // its own is not seen here; the sandbox (47.10) and Avoozl's own commit
 // after exit are the real guard, as a child's git directory is out of reach.
 // Why one argv list cannot be allowed, or null when it can.
@@ -80,7 +80,7 @@ export function allowCommandRefusal(command) {
   return null;
 }
 
-// Validate a project's `sandbox.allowCommands`.
+// Validate a repository's `sandbox.allowCommands`.
 export function sandboxAllowCommands(
   value,
   { source = "sandbox.allowCommands" } = {},
@@ -95,13 +95,13 @@ export function sandboxAllowCommands(
 }
 
 // The harness's allow argv for one session: the definition's `allow`
-// template with each project command as one argument, words joined by a
+// template with each repository command as one argument, words joined by a
 // space. Checked again here so no path around the config check can pass a
 // push through.
 export function harnessAllow(definition, commands) {
   if (!definition.allow) return [];
   const allowed = sandboxAllowCommands(commands);
   return fillHarnessArgv(definition.allow, {
-    project_allow_commands: allowed.map((command) => command.join(" ")),
+    repository_allow_commands: allowed.map((command) => command.join(" ")),
   });
 }

@@ -13,7 +13,7 @@ export async function preparePlanReviewWorktrees(
   store,
   plan,
   round,
-  { workspaceRoot, planningRoot, projects = store.list("projects") } = {},
+  { workspaceRoot, planningRoot, checkouts = store.list("repositories") } = {},
 ) {
   if (!workspaceRoot || !planningRoot)
     fail("The planning checkout is unavailable.", 409);
@@ -57,25 +57,25 @@ export async function preparePlanReviewWorktrees(
         fs.writeFileSync(target, plan.files[file], { flag: "wx", mode: 0o400 });
       }
     for (const repository of repositories) {
-      const project = projects.find(
-        (entry) => entry.id === repository || entry.repository === repository,
+      const checkout = checkouts.find(
+        (entry) => entry.id === repository || entry.github === repository,
       );
-      if (!project?.root)
+      if (!checkout?.root)
         fail(`No local checkout is registered for ${repository}.`, 409);
       const view = path.join(
-        project.worktreeRoot ||
-          path.join(path.dirname(project.root), ".avoozl-worktrees"),
+        checkout.worktreeRoot ||
+          path.join(path.dirname(checkout.root), ".avoozl-worktrees"),
         `plan-review-${round.id}-${digest(repository).slice(0, 12)}`,
       );
       await withWorkLock(
         store,
         {
-          id: `review:${round.id}:${project.id}`,
-          projectId: project.id,
+          id: `review:${round.id}:${checkout.id}`,
+          repositoryId: checkout.id,
           kind: "review",
         },
         async () => {
-          const remote = await git(project.root, [
+          const remote = await git(checkout.root, [
               "ls-remote",
               "--symref",
               "origin",
@@ -84,20 +84,20 @@ export async function preparePlanReviewWorktrees(
             branch = /^ref: refs\/heads\/(.+)\s+HEAD$/m.exec(remote)?.[1];
           if (!branch || branch.startsWith("-"))
             fail(`Cannot read the default branch of ${repository}.`, 409);
-          await git(project.root, [
+          await git(checkout.root, [
             "fetch",
             "--no-tags",
             "origin",
             "refs/heads/" + branch,
           ]);
-          const commit = await git(project.root, [
+          const commit = await git(checkout.root, [
             "rev-parse",
             "FETCH_HEAD^{commit}",
           ]);
           if (!SHA.test(commit))
             fail(`Cannot read a commit for ${repository}.`, 409);
           fs.mkdirSync(path.dirname(view), { recursive: true });
-          await git(project.root, [
+          await git(checkout.root, [
             "worktree",
             "add",
             "--detach",
@@ -106,8 +106,8 @@ export async function preparePlanReviewWorktrees(
           ]);
           views.push({
             repository,
-            projectId: project.id,
-            root: project.root,
+            repositoryId: checkout.id,
+            root: checkout.root,
             path: view,
             commit,
           });
@@ -137,7 +137,7 @@ export async function removePlanReviewWorktrees(store, resources) {
       store,
       {
         id: `review-clean:${digest(view.path)}`,
-        projectId: view.projectId,
+        repositoryId: view.repositoryId,
         kind: "review",
       },
       () => git(view.root, ["worktree", "remove", "--force", view.path]),

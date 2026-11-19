@@ -51,7 +51,7 @@ export function chatModel(config, role) {
 // Settings › Models also picks the harness each role runs on (R98.3),
 // saved as `harnesses` in .avoozl.json: `kirocrew` for a Kiro Crew chat, or
 // a harness definition's name for a supervisor child. A role left out, or
-// "auto", runs on its project's executor. A task's `session.harness` pin
+// "auto", runs on its repository's executor. A task's `session.harness` pin
 // wins over both (R98.4).
 export const KIROCREW_HARNESS = "kirocrew";
 export const HARNESS_ROLES = Object.freeze(["worker", ...MODEL_ROLES]);
@@ -59,7 +59,7 @@ const HARNESS = /^[a-z][a-z0-9-]{0,60}$/;
 export const isHarnessName = (value) =>
   typeof value === "string" && HARNESS.test(value);
 
-// The harness a role's saved setting names, or null for its project's.
+// The harness a role's saved setting names, or null for its repository's.
 export function roleHarness(config, role) {
   const harness = resolveRoles(config)[role]?.harness;
   return isHarnessName(harness) && harness !== "auto" ? harness : null;

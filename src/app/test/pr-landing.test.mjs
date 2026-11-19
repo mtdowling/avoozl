@@ -1,4 +1,4 @@
-// The tick lands `pr` projects through pull requests (task 42.6). Real git
+// The tick lands `pr` repositories through pull requests (task 42.6). Real git
 // (a bare "origin" and a checkout), a fake GitHub; nothing live.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -60,12 +60,12 @@ async function workspace(t) {
     tasks: [leaf("t1"), leaf("t2"), leaf("t3")],
     edges: [],
   });
-  store.put("projects", {
+  store.put("repositories", {
     id: "app",
     root: fs.realpathSync.native(checkout),
     baseBranch: "main",
     landing: "pr",
-    repository: "acme/app",
+    github: "acme/app",
     worktreeRoot: path.join(root, "wt"),
   });
   store.put("plans", { id: "s", spec: "s", hash: digest("plan s") });
@@ -190,7 +190,7 @@ test("a verified task is pushed, waits for its check on the exact head, then mer
   assert.equal(git(w.origin, "rev-parse", "avoozl/t1"), commit);
   assert.equal(w.store.get("task_deliveries", "t1").state, "verified");
   assert.equal(
-    landingQueue(w.store, { projectId: "app", base: "main" }).length,
+    landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
     1,
   );
   // Nothing lands locally or on GitHub before the check passes.
@@ -236,7 +236,7 @@ test("a private plan's task goes by an opaque name on a public repository", asyn
   w.store.put("github_repositories", { id: "acme/app", private: false });
   const commit = verified(w, "t1");
   await integrateVerified(w.store);
-  const [entry] = landingQueue(w.store, { projectId: "app", base: "main" }),
+  const [entry] = landingQueue(w.store, { repositoryId: "app", base: "main" }),
     named = entry.tasks[0].public;
   assert.match(named, /^t-[0-9a-f]{24}$/);
   assert.equal(entry.source.branch, `avoozl/${named}`);
@@ -360,7 +360,7 @@ test("a queued task whose base moved is withdrawn, merged with the base and veri
   assert.equal(delivery.state, "done", "back to verification");
   assert.notEqual(delivery.commit, first);
   assert.equal(
-    landingQueue(w.store, { projectId: "app", base: "main" }).length,
+    landingQueue(w.store, { repositoryId: "app", base: "main" }).length,
     0,
   );
 });
