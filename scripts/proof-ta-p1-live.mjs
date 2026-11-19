@@ -716,6 +716,11 @@ async function prove() {
       // Every run failed: nothing more will happen (see each child's log).
       if (settled(state) && state.runs.every((run) => run.state === "failed"))
         break;
+      // The collaborator's fix stopped for a person: it will not land alone.
+      if (settled(state) && fix === "decision") {
+        event("fix.stopped", { number: 2 });
+        break;
+      }
       if (Date.now() > end) break;
       await sleep(5000);
     }
