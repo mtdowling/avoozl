@@ -6,7 +6,6 @@ import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { fixRecord } from "../fix.mjs";
 import {
   INTAKE_MARKER,
-  closingLine,
   initialWrites,
   reusableInput,
   startGitHubItem,
@@ -200,29 +199,6 @@ test("pull requests, closed issues, unknown repositories and no checkout are ref
   await assert.rejects(start(`${REPOSITORY}#3`), /no local checkout/);
   await assert.rejects(start("not-an-id"), /owner\/repository#number/);
   assert.equal(w.writes(), 0);
-});
-
-test("only a person's same-repository Deliver this says Fixes", async (t) => {
-  const w = setup(t);
-  w.open(4);
-  w.open(6);
-  const deliver = await startGitHubItem(w.store, w.github, w.policy, {
-      id: `${REPOSITORY}#4`,
-      action: "deliver",
-    }),
-    plan = await startGitHubItem(w.store, w.github, w.policy, {
-      id: `${REPOSITORY}#6`,
-      action: "plan",
-    }),
-    fix = task(w.store, deliver.taskId);
-  assert.equal(closingLine(fix, REPOSITORY), "Fixes #4");
-  assert.equal(closingLine(fix, "O/APP"), "Fixes #4");
-  assert.equal(closingLine(fix, "o/other"), null);
-  assert.equal(closingLine(task(w.store, plan.taskId), REPOSITORY), null);
-  assert.equal(
-    closingLine({ ...fix, intake: { ...fix.intake, by: "rule" } }, REPOSITORY),
-    null,
-  );
 });
 
 test("closing the input issue withdraws the task and never completes it", async (t) => {

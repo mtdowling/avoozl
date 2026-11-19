@@ -13,8 +13,7 @@ import {
   enforceDiff,
   guardGitHub,
 } from "../content-rules.mjs";
-import { aliasProblem, machineAlias, setMachineAlias } from "../privacy.mjs";
-import { appendRecord, validateRecord } from "../spec-journal.mjs";
+
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -304,79 +303,4 @@ test("an outgoing range is refused for its ref name, commit message or added lin
       }),
     /refused/,
   );
-});
-
-test("a journal record names a machine only by its alias, and the scan refuses one that names it", async (t) => {
-  const { configFile } = workspace(t),
-    entries = [],
-    journal = {
-      list: async () => entries,
-      create: async (body) => (entries.push(body), { id: 1 }),
-      permission: async () => "admin",
-    },
-    options = {
-      visibility: "public",
-      publicRepositories: ["example/code"],
-      machine: MACHINE,
-      configFile,
-    },
-    fields = {
-      op: "op-1",
-      kind: "control",
-      spec: "a1b2c3d4e5f60718",
-      controls: [{ flag: "hold", id: "h1" }],
-    };
-  assert.throws(
-    () =>
-      validateRecord(
-        { v: 1, generation: 0, prev: null, ...fields, hostname: "x" },
-        options,
-      ),
-    /may not carry: hostname/,
-  );
-  for (const alias of ["Velvetbox-Q7", "pemberly", "Pemberly-2"])
-    await assert.rejects(
-      appendRecord(journal, fields, { ...options, alias }),
-      /privacy scan refused/,
-      alias,
-    );
-  await assert.rejects(
-    appendRecord(journal, { ...fields, alias: "Velvetbox-Q7" }, options),
-    /privacy scan refused/,
-  );
-  assert.deepEqual(entries, []);
-  const alias = machineAlias({ configFile, machine: MACHINE });
-  await appendRecord(journal, fields, { ...options, alias });
-  assert.equal(entries.length, 1);
-  assert.ok(entries[0].includes(`"alias":"${alias}"`));
-});
-
-test("an unset alias is a neutral generated name, stored once; Settings refuses one naming this machine", (t) => {
-  const { configFile } = workspace(t);
-  const first = machineAlias({ configFile, machine: MACHINE });
-  assert.match(first, /^[A-Z][a-z]+-[A-Z][a-z]+$/);
-  assert.equal(aliasProblem(first, MACHINE), null);
-  assert.equal(machineAlias({ configFile, machine: MACHINE }), first);
-  const saved = JSON.parse(fs.readFileSync(configFile, "utf8"));
-  assert.equal(saved.machine.alias, first);
-  assert.deepEqual(saved.privacy.internalDomains, ["intra.example"]);
-  assert.throws(
-    () =>
-      setMachineAlias({ configFile, alias: "Pemberly-Box", machine: MACHINE }),
-    /hostname or username/,
-  );
-  assert.throws(
-    () =>
-      setMachineAlias({
-        configFile,
-        alias: "velvetbox-q7-2",
-        machine: MACHINE,
-      }),
-    /hostname or username/,
-  );
-  assert.equal(
-    setMachineAlias({ configFile, alias: "Draco", machine: MACHINE }),
-    "Draco",
-  );
-  assert.equal(machineAlias({ configFile, machine: MACHINE }), "Draco");
 });

@@ -32,10 +32,6 @@ function liveLocks(store, repositoryId) {
     }
   });
 }
-export function assertRepositoryAvailable(store, repositoryId) {
-  if (liveLocks(store, repositoryId).some((row) => row.kind === "integration"))
-    fail("This repository is integrating. Retry after it finishes.", 409);
-}
 export async function withWorkLock(store, { id, repositoryId, kind }, fn) {
   const token = crypto.randomUUID();
   store.transaction(() => {

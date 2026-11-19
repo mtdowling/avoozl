@@ -7,15 +7,7 @@ third-party code copied into this repository or its packages.
 
 | Component | Version | License                                        | File                                  | npm package | App package |
 | --------- | ------- | ---------------------------------------------- | ------------------------------------- | ----------- | ----------- |
-| Marked    | 18.1.3  | MIT; includes the Markdown BSD-3-Clause notice | `src/marked.mjs`                      | Yes         | No          |
 | Prism     | 1.30.0  | MIT                                            | `kirocrew-app/ui/dist/` (page bundle) | Yes         | Yes         |
-
-`src/marked.mjs` is byte-identical to `lib/marked.esm.js` in
-`https://registry.npmjs.org/marked/-/marked-18.1.3.tgz` (integrity
-`sha512-9ChMH8EVVgjgID49nsL6IWxWk5c6GtAsq/xw7U1ggkjkU5AGuv68oLTVlFRtvcUYZtpbNyjyvGo3YDu0fGapiw==`).
-Its full license text, including the Markdown notice, is in
-[src/MARKED-LICENSE.md](src/MARKED-LICENSE.md). That file differs from the
-upstream `LICENSE` only in list markers.
 
 The Kiro Crew app page bundles Prism's core and the language grammars listed
 in `kirocrew-app/ui/src/prism/languages.ts`, taken unchanged from

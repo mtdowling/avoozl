@@ -22,17 +22,6 @@ export function planPage(store, { offset = 0, limit = 40 } = {}) {
     limit,
   };
 }
-export function viewSnapshot(data) {
-  return {
-    ...data,
-    documents: Object.fromEntries(
-      Object.entries(data.documents).map(([id, { text, ...doc }]) => [
-        id,
-        { ...doc, textLength: text?.length || 0 },
-      ]),
-    ),
-  };
-}
 export function recentIntegrations(store) {
   return store.db
     .prepare(

@@ -13,8 +13,3 @@ export function isHistoricalTask(data, task) {
       doc?.plan?.status === "abandoned",
   );
 }
-export function browseRows(data, tasks, { historical = false } = {}) {
-  return historical
-    ? tasks
-    : tasks.filter((task) => !isHistoricalTask(data, task));
-}

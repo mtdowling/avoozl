@@ -2,7 +2,6 @@
  "files": {
   "cli.mjs": [],
   "src/activity.mjs": [
-   "src/agent-pins.test.mjs",
    "src/app/test/activity-log.test.mjs",
    "src/app/test/agent-instructions.test.mjs",
    "src/app/test/agent-tool-scope.test.mjs",
@@ -198,10 +197,6 @@
    "src/app/test/workspace.test.mjs",
    "src/report.test.mjs",
    "src/workbench.test.mjs"
-  ],
-  "src/agent-pins.mjs": [
-   "src/agent-pins.test.mjs",
-   "src/app/test/hub.test.mjs"
   ],
   "src/app/activity-log.mjs": [
    "src/app/test/activity-log.test.mjs",
@@ -1171,7 +1166,6 @@
    "src/app/test/cli-smoke.test.mjs",
    "src/app/test/workspace.test.mjs"
   ],
-  "src/app/compat-cli.mjs": [],
   "src/app/config-schema.mjs": [
    "src/app/test/app-mcp.test.mjs",
    "src/app/test/cli-help.test.mjs",
@@ -1509,8 +1503,6 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
-   "src/app/test/spec-refresh.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
@@ -1981,8 +1973,6 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
-   "src/app/test/spec-refresh.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/spec-ticks-landing.test.mjs",
@@ -2917,7 +2907,6 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
@@ -3253,7 +3242,6 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
@@ -3439,7 +3427,6 @@
    "src/app/test/spec-homes.test.mjs",
    "src/app/test/spec-plans.test.mjs",
    "src/app/test/spec-publication.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-ticks-landing.test.mjs",
    "src/app/test/spec-ticks.test.mjs",
@@ -3959,7 +3946,6 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
@@ -5156,7 +5142,6 @@
    "src/app/test/spec-plans.test.mjs",
    "src/app/test/spec-publication.test.mjs",
    "src/app/test/spec-pull-requests-ops.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/spec-ticks.test.mjs",
    "src/app/test/supersede-accept.test.mjs",
@@ -5905,8 +5890,6 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
-   "src/app/test/spec-refresh.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
@@ -8459,7 +8442,6 @@
    "src/app/test/demo.test.mjs",
    "src/app/test/panel-view.test.mjs"
   ],
-  "src/app/path-glob.mjs": [],
   "src/app/plan-archive.mjs": [
    "src/app/test/cross-spec-dependencies.test.mjs",
    "src/app/test/plan-archive.test.mjs",
@@ -9312,8 +9294,6 @@
    "src/app/test/spec-journal.test.mjs",
    "src/app/test/spec-publication.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
-   "src/app/test/spec-refresh.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/spec-ticks-landing.test.mjs",
@@ -9520,7 +9500,6 @@
    "src/app/test/mirror-forward.test.mjs",
    "src/app/test/panel-view.test.mjs"
   ],
-  "src/app/release-ranking-step.mjs": [],
   "src/app/release-ranking.mjs": [
    "src/app/test/check-runs.test.mjs",
    "src/app/test/cli-plan-delete.test.mjs",
@@ -10566,7 +10545,6 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
@@ -11272,7 +11250,6 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
@@ -11392,8 +11369,6 @@
    "src/app/test/spec-journal.test.mjs",
    "src/app/test/spec-publication.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
-   "src/app/test/spec-refresh.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
    "src/app/test/spec-ticks-landing.test.mjs",
@@ -11635,12 +11610,6 @@
   ],
   "src/app/spec-reanchor.mjs": [
    "src/app/test/spec-reanchor.test.mjs"
-  ],
-  "src/app/spec-rebuild.mjs": [
-   "src/app/test/spec-rebuild.test.mjs"
-  ],
-  "src/app/spec-refresh.mjs": [
-   "src/app/test/spec-refresh.test.mjs"
   ],
   "src/app/spec-scheduler.mjs": [
    "src/app/test/activity-log.test.mjs",
@@ -11981,8 +11950,6 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
-   "src/app/test/spec-refresh.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
@@ -12114,8 +12081,6 @@
    "src/app/test/pr-landing.test.mjs",
    "src/app/test/proof-nk-p1.test.mjs",
    "src/app/test/spec-journal.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
-   "src/app/test/spec-refresh.test.mjs",
    "src/app/test/spec-ticks-landing.test.mjs",
    "src/app/test/task-outcomes.test.mjs",
    "src/app/test/triage-reproduce.test.mjs",
@@ -12901,7 +12866,6 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
@@ -13031,7 +12995,6 @@
    "src/app/test/spec-base.test.mjs",
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
    "src/app/test/spec-ticks-landing.test.mjs",
    "src/app/test/triage-reproduce.test.mjs",
    "src/app/test/worker-grants.test.mjs",
@@ -13176,9 +13139,6 @@
    "src/app/test/workspace-status.test.mjs",
    "src/app/test/workspace.test.mjs"
   ],
-  "src/band-paint.mjs": [
-   "src/app/test/scaling.test.mjs"
-  ],
   "src/browse-model.mjs": [
    "src/app/test/check-runs.test.mjs",
    "src/app/test/cross-spec-dependencies.test.mjs",
@@ -13228,7 +13188,6 @@
    "src/app/test/review-gates.test.mjs",
    "src/app/test/review-state.test.mjs",
    "src/app/test/role-harness.test.mjs",
-   "src/app/test/scaling.test.mjs",
    "src/app/test/scm-links.test.mjs",
    "src/app/test/served-model-gate.test.mjs",
    "src/app/test/session-spec-holds.test.mjs",
@@ -13267,10 +13226,6 @@
    "src/report.test.mjs"
   ],
   "src/delivery-lanes.mjs": [],
-  "src/document-pages.mjs": [
-   "src/app/test/document-headings.test.mjs",
-   "src/app/test/scaling.test.mjs"
-  ],
   "src/front-matter.mjs": [
    "src/app/test/approval-batches.test.mjs",
    "src/app/test/approval-delegation.test.mjs",
@@ -13342,32 +13297,11 @@
    "src/app/test/workspace.test.mjs",
    "src/report.test.mjs"
   ],
-  "src/graph-layout.mjs": [
-   "src/graph-layout.test.mjs"
-  ],
-  "src/highlight.mjs": [
-   "src/app/test/document-headings.test.mjs",
-   "src/app/test/hub.test.mjs",
-   "src/report.test.mjs"
-  ],
   "src/lease.mjs": [
-   "src/agent-pins.test.mjs",
    "src/app/test/task-dedup.test.mjs",
    "src/lease.test.mjs",
    "src/report.test.mjs",
    "src/workbench.test.mjs"
-  ],
-  "src/markdown.mjs": [
-   "src/app/test/document-headings.test.mjs",
-   "src/app/test/hub.test.mjs",
-   "src/app/test/scaling.test.mjs",
-   "src/report.test.mjs"
-  ],
-  "src/marked.mjs": [
-   "src/app/test/document-headings.test.mjs",
-   "src/app/test/hub.test.mjs",
-   "src/app/test/scaling.test.mjs",
-   "src/report.test.mjs"
   ],
   "src/mcp.mjs": [
    "src/app/test/agent-tool-scope.test.mjs",
@@ -13585,8 +13519,6 @@
    "src/app/test/spec-pull-requests-ops.test.mjs",
    "src/app/test/spec-pull-requests.test.mjs",
    "src/app/test/spec-reanchor.test.mjs",
-   "src/app/test/spec-rebuild.test.mjs",
-   "src/app/test/spec-refresh.test.mjs",
    "src/app/test/spec-review-findings.test.mjs",
    "src/app/test/spec-scheduler.test.mjs",
    "src/app/test/spec-takeover.test.mjs",
@@ -13627,16 +13559,10 @@
    "src/app/test/workspace.test.mjs",
    "src/report.test.mjs"
   ],
-  "src/pan-momentum.mjs": [
-   "src/pan-momentum.test.mjs"
-  ],
   "src/plan-model.mjs": [
    "src/app/test/mcp-tools.test.mjs",
    "src/app/test/plan-category.test.mjs",
    "src/app/test/task-dedup.test.mjs",
-   "src/report.test.mjs"
-  ],
-  "src/progress-model.mjs": [
    "src/report.test.mjs"
   ],
   "src/query.mjs": [
@@ -13699,7 +13625,6 @@
    "src/app/test/review-gates.test.mjs",
    "src/app/test/review-state.test.mjs",
    "src/app/test/role-harness.test.mjs",
-   "src/app/test/scaling.test.mjs",
    "src/app/test/scm-links.test.mjs",
    "src/app/test/served-model-gate.test.mjs",
    "src/app/test/session-spec-holds.test.mjs",
@@ -13813,7 +13738,6 @@
    "src/app/test/review-gates.test.mjs",
    "src/app/test/review-state.test.mjs",
    "src/app/test/role-harness.test.mjs",
-   "src/app/test/scaling.test.mjs",
    "src/app/test/scm-links.test.mjs",
    "src/app/test/served-model-gate.test.mjs",
    "src/app/test/session-open.test.mjs",
@@ -13849,9 +13773,6 @@
    "src/app/test/workspace.test.mjs",
    "src/report.test.mjs",
    "src/workbench.test.mjs"
-  ],
-  "src/strip-model.mjs": [
-   "src/report.test.mjs"
   ],
   "src/task-identity.mjs": [
    "src/app/test/activity-log.test.mjs",
@@ -14004,7 +13925,6 @@
    "src/app/test/review-gates.test.mjs",
    "src/app/test/review-state.test.mjs",
    "src/app/test/role-harness.test.mjs",
-   "src/app/test/scaling.test.mjs",
    "src/app/test/scm-links.test.mjs",
    "src/app/test/security-audit.test.mjs",
    "src/app/test/served-model-gate.test.mjs",
@@ -14210,7 +14130,6 @@
    "src/app/test/review-gates.test.mjs",
    "src/app/test/review-state.test.mjs",
    "src/app/test/role-harness.test.mjs",
-   "src/app/test/scaling.test.mjs",
    "src/app/test/scm-links.test.mjs",
    "src/app/test/security-audit.test.mjs",
    "src/app/test/served-model-gate.test.mjs",
@@ -14267,7 +14186,6 @@
   ],
   "src/work-split.mjs": [],
   "src/workbench-model.mjs": [
-   "src/agent-pins.test.mjs",
    "src/app/test/cross-spec-dependencies.test.mjs",
    "src/app/test/demo.test.mjs",
    "src/app/test/graph-drafts.test.mjs",
@@ -14277,12 +14195,9 @@
   ]
  },
  "osNeutral": [
-  "src/agent-pins.test.mjs",
   "src/app/test/browser-identity.test.mjs",
   "src/app/test/release-ranking.test.mjs",
-  "src/app/test/scaling.test.mjs",
   "src/app/test/text-diff.test.mjs",
-  "src/pan-momentum.test.mjs",
   "src/workbench.test.mjs",
   "kirocrew-app/ui/test/conflicts-api.test.mjs",
   "kirocrew-app/ui/test/content-api.test.mjs",

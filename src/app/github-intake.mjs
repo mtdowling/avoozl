@@ -12,7 +12,7 @@
 // - Closing the input issue withdraws the request. It never completes the
 //   task (watchInputs).
 import { fail } from "./store.mjs";
-import { fixIssue, fixRecord } from "./fix.mjs";
+import { fixRecord } from "./fix.mjs";
 import { enforce } from "./content-rules.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { intakeSpecIssue, reference } from "./source-backlinks.mjs";
@@ -59,17 +59,6 @@ export const reusableInput = (input, home) =>
   Boolean(input?.repository && home) &&
   Number.isInteger(input.number) &&
   lower(input.repository) === lower(home);
-
-// The closing line a pull request body may carry: only for a person's
-// Deliver this, and only in the issue's own repository. Plan this, another
-// repository and every other task get none.
-export function closingLine(task, repository) {
-  const issue = fixIssue(task);
-  if (task?.intake?.by !== "person" || !issue) return null;
-  return lower(issue.repository) === lower(repository)
-    ? `Fixes #${issue.number}`
-    : null;
-}
 
 const labelNames = (issue) =>
   (issue?.labels || [])

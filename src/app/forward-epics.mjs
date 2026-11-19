@@ -70,20 +70,4 @@ export function epicDone(store, plan) {
   return tasks.length > 0 && tasks.every((t) => done.has(t.status));
 }
 
-// True for a task whose epic forwards as one batch: it counts as done on its
-// mirror merge, so dependents inside the epic can start (RC26.3).
-export function inBatchEpic(store, mirror, task) {
-  if (!mirror || !task?.planId) return false;
-  try {
-    return (
-      forwardTargetOf(
-        mirror,
-        planManifest(store, store.get("plans", task.planId)),
-      ).forwardTarget === "batch"
-    );
-  } catch {
-    return false;
-  }
-}
-
 export const batchId = (plan) => `batch:${plan.id}`;

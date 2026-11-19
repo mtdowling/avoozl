@@ -100,14 +100,6 @@ export const workingBranch = (spec) =>
 export const checkpointBranch = (spec, task) =>
   `avoozl/${segmentOf(spec, "spec id")}/task/${segmentOf(task, "task id")}`;
 
-// A legacy epic integration branch (RC16) or a spec home as a qualified
-// reference: the same shape for every working head.
-export const integrationRef = ({ repository, branch, commit, base }) =>
-  qualifiedRef({
-    source: { repository, branch, commit },
-    target: { repository, base },
-  });
-
 // The trusted registry of fetchable repositories, from repository setup only:
 // {"owner/name": {url, parent?}}. `parent` names the target a fork belongs
 // to when GitHub cannot be asked. Returns a lookup by repository identity.
@@ -137,53 +129,6 @@ export function sourceRegistry(sources = {}) {
     },
     has: (repository) => entries.has(lower(repository)),
   };
-}
-
-// A pull request's head as a qualified reference, from GitHub's own head
-// repository, ref and SHA. A deleted fork has no head repository: that is
-// `unavailable`, never done.
-export async function discoverFromPullRequest(github, target, number) {
-  const pr = await github.pullRequest(target, number),
-    head = pr?.head,
-    source = head?.repo?.full_name;
-  if (!source)
-    return { state: "unavailable", pr: number, reason: "head-repository-gone" };
-  return {
-    state: "found",
-    ref: qualifiedRef({
-      source: { repository: source, branch: head.ref, commit: head.sha },
-      target: {
-        repository: pr.base?.repo?.full_name ?? target,
-        base: pr.base?.ref,
-      },
-      pr: number,
-    }),
-  };
-}
-
-// Pre-PR working heads from a replayed journal (spec-journal.mjs). Replay
-// keeps only records by authenticated writers; a held journal yields none.
-// The newest checkpoint record wins for each reference identity. Repository
-// names come from the record's validated fields only, never from prose.
-export function discoverFromJournal(replay, { target, base }) {
-  if (replay.held) return { held: true, refs: [] };
-  const latest = new Map();
-  for (const { id, record } of replay.records)
-    if (record.kind === "checkpoint")
-      for (const entry of record.refs) {
-        if (!entry.branch || !SHA.test(entry.commit)) continue;
-        const ref = qualifiedRef({
-          source: {
-            repository: entry.repository,
-            branch: entry.branch,
-            commit: entry.commit,
-          },
-          target: { repository: target, base },
-          ...(entry.pr ? { pr: entry.pr } : {}),
-        });
-        latest.set(refKey(ref), { ...ref, record: id });
-      }
-  return { held: false, refs: [...latest.values()] };
 }
 
 // Whether the source may land in the target: the same repository, a fork
@@ -358,23 +303,6 @@ export async function ensureWorkingBranch(
       target,
     }),
   };
-}
-
-// Records a task's unfinished work on its own checkpoint ref. Only forward
-// moves: Avoozl never rewrites a checkpoint. The working branch is untouched.
-export async function checkpointTask(root, { spec, task, commit }) {
-  if (!SHA.test(commit ?? "")) fail("Name the exact checkpoint commit.", 400);
-  const branch = checkpointBranch(spec, task),
-    name = `refs/heads/${branch}`,
-    current = await revParse(root, name);
-  if (current === commit) return { branch, commit, moved: false };
-  if (current && !(await isAncestor(root, current, commit)))
-    fail(
-      `Checkpoint ${commit.slice(0, 7)} does not build on ${current.slice(0, 7)}; Avoozl never rewrites a checkpoint.`,
-      409,
-    );
-  await moveRef(root, name, commit, current);
-  return { branch, commit, moved: true };
 }
 
 // One integration at a time per checkout and working branch, in this
@@ -582,25 +510,4 @@ export async function landingRights(github, ref, login) {
     checkpoint: WRITE.includes(source),
     land: WRITE.includes(targetRole) ? "merge" : "observe",
   };
-}
-
-// Rebuild after the database is lost: the working heads come back from the
-// journal's checkpoint records and this checkout's retained verified refs.
-// Every head returns held until a person resumes (§4.32.10).
-export async function recoverWorkingHeads(
-  root,
-  replay,
-  { spec, target, base },
-) {
-  const found = discoverFromJournal(replay, { target, base });
-  if (found.held) return { held: true, journalHeld: true, heads: [] };
-  const heads = [];
-  for (const ref of found.refs)
-    heads.push({
-      ...ref,
-      retained:
-        (await revParse(root, verifiedRef(spec, ref))) === ref.source.commit ||
-        (await hasCommit(root, ref.source.commit)),
-    });
-  return { held: true, journalHeld: false, heads };
 }

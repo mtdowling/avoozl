@@ -9,7 +9,6 @@ import {
   countingClient,
   itemDetail,
   itemRow,
-  openItems,
   pullFiles,
   readChangedItems,
   readPullCounts,
@@ -60,32 +59,6 @@ test("an unchanged repository costs one conditional call answered 304", async (t
   );
   assert.equal(itemRow(w.store, REPO, 1).title, "New title");
   assert.equal(w.fake.calls.rest, 1);
-});
-
-test("150 changed items cost two calls", async (t) => {
-  const w = setup(t);
-  for (let n = 1; n <= 150; n += 1) w.fake.add(n);
-  const result = await readChangedItems(w.store, w.github, REPO);
-  assert.equal(result.changed.length, 150);
-  assert.equal(w.fake.calls.rest, 2);
-  assert.equal(openItems(w.store, REPO).length, 150);
-});
-
-test("a closed item leaves the open list", async (t) => {
-  const w = setup(t);
-  w.fake.add(1);
-  w.fake.add(2);
-  await readChangedItems(w.store, w.github, REPO);
-  w.fake.edit(2, { state: "closed", closed_at: w.fake.tick() });
-  const { changed } = await readChangedItems(w.store, w.github, REPO);
-  assert.deepEqual(
-    changed.map((row) => [row.number, row.state]),
-    [[2, "closed"]],
-  );
-  assert.deepEqual(
-    openItems(w.store, REPO).map((row) => row.number),
-    [1],
-  );
 });
 
 test("this path makes no search call", () => {

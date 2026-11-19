@@ -4,22 +4,14 @@ import path from "node:path";
 import test from "node:test";
 import {
   OUTCOME_KINDS,
-  carryForward,
-  completingOutcome,
   isComplete,
-  landsThroughQueue,
   releases,
   taskDefinition,
   taskOutcome,
 } from "../task-outcomes.mjs";
-import { createSpecPlan, readSpecFolder, specHash } from "../spec-plans.mjs";
+import { specHash } from "../spec-plans.mjs";
 import { fixture } from "./fixtures.mjs";
-import {
-  legacySpecFiles,
-  specFiles,
-  withFacts,
-  writeSpec,
-} from "./spec-fixture.mjs";
+import { specFiles } from "./spec-fixture.mjs";
 
 const entry = {
   kind: "leaf",
@@ -115,32 +107,6 @@ test("an outcome on a changed definition or older revision is stale", () => {
   );
 });
 
-test("a new approval carries forward only unchanged completed definitions", () => {
-  const other = { ...entry, summary: "Report unknown keys." };
-  const outcomes = [
-    outcome("landed", { revision: "rev-1" }),
-    outcome("refused", {
-      task: "1.2",
-      revision: "rev-1",
-      definition: taskDefinition(other),
-    }),
-    outcome("done", {
-      task: "1.3",
-      revision: "rev-1",
-      definition: taskDefinition(other),
-    }),
-  ];
-  const tasks = {
-    1.1: entry,
-    1.2: other,
-    1.3: { ...other, summary: "Changed." },
-  };
-  assert.deepEqual(
-    carryForward(outcomes, { spec: "config", previous: "rev-1", tasks }),
-    [{ task: "1.1", definition }],
-  );
-});
-
 test("verified branch work releases only same-spec successors with the code", () => {
   const complete = taskOutcome([outcome("done")], at),
     open = taskOutcome([], at),
@@ -200,39 +166,4 @@ test("branch checkmarks stay outside the revision hash", () => {
     };
   assert.notEqual(checked["tasks.md"], files["tasks.md"]);
   assert.equal(specHash(checked), specHash(files));
-});
-
-test("legacy route github and merged-pr are read without rewriting the spec", (t) => {
-  const { root, store } = fixture(t);
-  const files = legacySpecFiles(),
-    manifest = JSON.parse(files["avoozl/manifest.json"]);
-  manifest.tasks["1.1"] = {
-    ...manifest.tasks["1.1"],
-    route: "github",
-    completion: "merged-pr",
-  };
-  files["avoozl/manifest.json"] = JSON.stringify(manifest, null, 2) + "\n";
-  const folded = withFacts(files);
-  writeSpec(root, "legacy", folded);
-  const folder = path.join(root, ".kiro", "specs", "legacy");
-  const before = Object.fromEntries(
-    Object.keys(folded).map((file) => [
-      file,
-      fs.readFileSync(path.join(folder, file), "utf8"),
-    ]),
-  );
-  const spec = readSpecFolder(root, "legacy");
-  const plan = createSpecPlan(store, { id: "legacy" }, spec);
-  assert.equal(plan.hash, specHash(before));
-  for (const file of Object.keys(folded))
-    assert.equal(
-      fs.readFileSync(path.join(folder, file), "utf8"),
-      before[file],
-      file,
-    );
-  const task = manifest.tasks["1.1"];
-  assert.equal(landsThroughQueue(task), true);
-  assert.equal(completingOutcome(task), "landed");
-  assert.equal(landsThroughQueue(manifest.tasks["1.2"]), false);
-  assert.equal(completingOutcome(manifest.tasks["1.2"]), null);
 });

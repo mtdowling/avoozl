@@ -13,7 +13,7 @@
 //   forced here.
 import { git } from "./git.mjs";
 import { branchNameProblem } from "./integration-branch.mjs";
-import { qualifiedRef, workingBranch } from "./working-heads.mjs";
+import { workingBranch } from "./working-heads.mjs";
 import { fail } from "./store.mjs";
 
 const SHA = /^[0-9a-f]{40}$/;
@@ -50,19 +50,6 @@ export async function specBase(root, { spec, base, legacy = [] }) {
     if (commit) return { ...candidate, commit };
   }
   fail(`The base branch ${base} does not exist in ${root}.`, 409);
-}
-
-// The same base as a qualified reference: source is the checkout's
-// repository at the resolved branch and commit, target is the landing base.
-export async function specBaseRef(root, { spec, repository, base, legacy }) {
-  const found = await specBase(root, { spec, base, legacy });
-  return {
-    ...found,
-    ref: qualifiedRef({
-      source: { repository, branch: found.branch, commit: found.commit },
-      target: { repository, base },
-    }),
-  };
 }
 
 // Merges the landed target base into the spec's working branch with a merge

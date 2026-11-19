@@ -3,11 +3,10 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { normalizeGitHubPolicy } from "../github-policy.mjs";
+
 import { Operations } from "../operations.mjs";
 import {
   mergeHomes,
-  newSpecHome,
   privateDependencies,
   readPrivateSpecs,
 } from "../spec-homes.mjs";
@@ -83,16 +82,6 @@ test("a task ID in both homes is refused naming both", () => {
   assert.match(clash.errors[0], /Task ab-1 .*pub on main.*priv on plansBranch/);
   assert.equal(clash.specs.length, 0);
   assert.equal(mergeHomes([read("pub")], [read("other")]).errors.length, 0);
-});
-
-test("a new spec starts private when a mirror is set", () => {
-  const policy = (extra) =>
-    normalizeGitHubPolicy({
-      mode: "single-repo",
-      repositories: { "acme/app-private": { baseBranch: "main", ...extra } },
-    });
-  assert.equal(newSpecHome(policy({ mirror })), "plansBranch");
-  assert.equal(newSpecHome(policy({})), "main");
 });
 
 test("the Specs list carries each home after a tick reads the plans branch", async (t) => {

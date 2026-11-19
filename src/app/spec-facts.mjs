@@ -573,15 +573,6 @@ export function itemBullets(text, items) {
   return out;
 }
 
-// Each item's summary: its description bullets joined, as written.
-export const itemSummaries = (text, items) =>
-  new Map(
-    [...itemBullets(text, items)].map(([line, bullets]) => [
-      line,
-      bullets.map((bullet) => bullet.text).join("\n"),
-    ]),
-  );
-
 // A task's summary as bullets under its item at column `indent`: lines that
 // are already bullets stay as written, and other text becomes one bullet.
 export function summaryLines(summary, { indent = 2 } = {}) {

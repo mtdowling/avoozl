@@ -3,12 +3,7 @@
 // network and no git runs.
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  mirrorConfig,
-  mirrorNeedsYou,
-  mirrorSyncStep,
-  writeRepo,
-} from "../mirror-sync.mjs";
+import { mirrorNeedsYou, mirrorSyncStep } from "../mirror-sync.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const SOURCE = "example/code";
@@ -249,23 +244,6 @@ test("a failed copy gives one row and is tried again", async (t) => {
   await mirrorSyncStep(store, github, { policy, copy });
   assert.deepEqual(mirrorNeedsYou(store), []);
   assert.equal(github.copies.length, 1);
-});
-
-test("writeRepo and mirrorConfig send writes to the mirror and leave other repositories alone", () => {
-  assert.equal(writeRepo(policy.repositories[SOURCE], SOURCE), MIRROR);
-  assert.equal(
-    writeRepo(policy.repositories["example/other"], "example/other"),
-    "example/other",
-  );
-  assert.equal(writeRepo(undefined, "example/x"), "example/x");
-  const config = { id: SOURCE, owner: "example", repo: "code", label: "l" };
-  const moved = mirrorConfig(config, policy.repositories);
-  assert.equal(moved.id, MIRROR);
-  assert.equal(moved.owner, "example");
-  assert.equal(moved.repo, "code-private");
-  assert.equal(moved.label, "l");
-  const same = { id: "example/other", owner: "example", repo: "other" };
-  assert.equal(mirrorConfig(same, policy.repositories), same);
 });
 
 test("no step of the sync writes to the source", async (t) => {

@@ -7,25 +7,22 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
-import { digest } from "../../model.mjs";
+
 import { integrateVerified } from "../delivery.mjs";
 import { landDirect } from "../direct-landing.mjs";
 import { queryTasks } from "../../query.mjs";
-import { normalizeGitHubPolicy } from "../github-policy.mjs";
-import { startGitHubItem, closingLine } from "../github-intake.mjs";
+
 import {
   FIX_ACCEPTANCE,
   fixIssue,
   fixRecord,
   fixToSpec,
-  loadFix,
-  openFixJournal,
   startFix,
 } from "../fix.mjs";
 import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
 import { verifiedTask } from "./fixtures.mjs";
 import { REPO, triageWorkspace } from "./triage-fixture.mjs";
-import { FakeGitHub } from "./fake-github.mjs";
+
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME ??= temporaryDirectory("avoozl-xdg-");
@@ -86,82 +83,6 @@ test("a fix from text is a ready leaf that verifies and lands", async (t) => {
     (await w.start({ text: "Another", repository: REPOSITORY })).taskId,
     "fix-2",
   );
-});
-
-test("a fix from an issue keeps the issue and lands with the same lines", async (t) => {
-  const w = workspace(t),
-    github = new FakeGitHub(),
-    policy = normalizeGitHubPolicy({
-      mode: "single-repo",
-      repositories: { [REPOSITORY]: { baseBranch: "main" } },
-    });
-  github.created.push({
-    id: 5,
-    node_id: "issue-5",
-    number: 5,
-    state: "open",
-    title: "Greeting has a space",
-    body: "There is a trailing space.",
-    labels: [],
-    html_url: `https://example.test/${REPOSITORY}/issues/5`,
-    user: { login: "reporter" },
-    assignees: [],
-  });
-  const { taskId } = await startGitHubItem(w.store, github, policy, {
-      id: `${REPOSITORY}#5`,
-      action: "deliver",
-    }),
-    made = task(w.store, taskId);
-  await openFixJournal(w.store, w.context, taskId);
-  assert.deepEqual(made.acceptance, [...FIX_ACCEPTANCE]);
-  assert.deepEqual(fixIssue(made), { repository: REPOSITORY, number: 5 });
-  assert.equal(closingLine(made, REPOSITORY), "Fixes #5");
-  await lands(w, taskId);
-});
-
-test("a version 1 record loads as version 2 and its task still lands", async (t) => {
-  const w = workspace(t),
-    v1 = {
-      v: 1,
-      kind: "bounded-fix",
-      issue: { repository: REPOSITORY, number: 9 },
-      snapshot: "s",
-      acceptance: ["The change does what o/app#9 asks.", "Checks pass."],
-      definition: digest("old fix"),
-      journal: { repository: REPOSITORY, number: 9 },
-    };
-  const loaded = loadFix(v1);
-  assert.equal(loaded.v, 2);
-  assert.deepEqual(loaded.source, {
-    issue: { repository: REPOSITORY, number: 9 },
-  });
-  assert.equal(loaded.kind, undefined);
-  assert.equal(loaded.definition, digest("old fix"));
-  assert.equal(loadFix({ v: 7 }), null);
-  w.store.mutate("Old fix", (data) => {
-    data.tasks.push({
-      id: "intake-old",
-      title: "Old fix",
-      summary: "x",
-      acceptance: v1.acceptance,
-      status: "planned",
-      scope: "runtime",
-      kind: "leaf",
-      authority: "local",
-      repository: "app",
-      track: "catalog",
-      tags: [],
-      fix: v1,
-      intake: { source: "github", by: "person" },
-      dispatch: { ready: true, state: "authorized", reason: "" },
-    });
-  });
-  assert.equal(
-    closingLine(task(w.store, "intake-old"), REPOSITORY),
-    "Fixes #9",
-  );
-  await openFixJournal(w.store, w.context, "intake-old");
-  await lands(w, "intake-old");
 });
 
 test("the definition hash changes when the text changes", () => {

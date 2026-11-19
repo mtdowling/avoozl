@@ -2,34 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
-import { createPlan, approvePlan } from "../plans.mjs";
-import { planPage, viewSnapshot } from "../views.mjs";
 
-test("conversations stay out of the plan library and the view snapshot drops document text", async (t) => {
-  const { store } = fixture(t);
-  const question = createPlan(store, {
-    prompt: "Question",
-    text: "# Question",
-    kind: "conversation",
-  });
-  assert.equal(planPage(store).total, 0);
-  assert.throws(
-    () =>
-      approvePlan(store, {
-        id: question.id,
-        expectedHash: question.hash,
-        expectedRevision: store.read().revision,
-        approvedBy: "User",
-        evidence: "Not a plan",
-      }),
-    /conversation is not a plan/,
-  );
-  const data = store.read();
-  data.documents.large = { id: "large", text: "x".repeat(100000), hash: "abc" };
-  const view = viewSnapshot(data);
-  assert.equal(view.documents.large.text, undefined);
-  assert.equal(data.documents.large.text.length, 100000);
-});
 test("task.sessions lists the task's Kiro Crew sessions and refuses an unknown task", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);

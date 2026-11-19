@@ -9,18 +9,11 @@ import {
   reviewSettled,
 } from "../model.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
-import { synchronizeAgentInstructions } from "./agent-instructions.mjs";
+
 import {
   assertPortableRepositoryConfig,
   assertSafeConfig,
 } from "./layered-config.mjs";
-
-function policyFilename(rootOrFilename) {
-  const selected = path.resolve(rootOrFilename);
-  return selected.endsWith(".json")
-    ? selected
-    : path.join(selected, ".avoozl.json");
-}
 
 function readPolicy(filename, repositoryId = null) {
   if (!fs.existsSync(filename)) return null;
@@ -77,75 +70,6 @@ export function configuredRepositoryInstructionSources(
     if (source) sources.push({ ...source, primary: candidate.primary });
   }
   return sources;
-}
-
-function instructionSources(store, primary) {
-  const filename = policyFilename(primary),
-    source = readPolicy(filename);
-  return [
-    ...(source ? [{ ...source, primary: true }] : []),
-    ...configuredRepositoryInstructionSources(store, {
-      exclude: [filename],
-    }),
-  ];
-}
-
-export function reconcileAgentInstructions(store, rootOrFilename) {
-  const sources = instructionSources(store, rootOrFilename),
-    sourceRecords = sources.map(({ path, repositoryId, hash, revision }) => ({
-      path,
-      repositoryId,
-      hash,
-      revision,
-    })),
-    hash = digest(JSON.stringify(sourceRecords)),
-    current = store.read().agentInstructionSource,
-    snapshot = store.getMeta("agentInstructionSourceSnapshot");
-  if (current?.hash === hash && snapshot?.hash === hash)
-    return { changed: false };
-  if (
-    !sources.length &&
-    !current &&
-    !(store.read().agentInstructions || []).length
-  )
-    return { changed: false };
-  store.mutate("Synchronize Avoozl policy from .avoozl.json", (data) => {
-    synchronizeAgentInstructions(data, null, {
-      sources: sources.map((source) => ({
-        value: source.value,
-        path: source.path,
-        repositoryId: source.repositoryId,
-        revision: source.revision,
-      })),
-    });
-    for (const name of Object.keys(data.documents))
-      if (path.basename(name).toLowerCase() === "agents.md")
-        delete data.documents[name];
-    data.agentInstructionSource.hash = hash;
-  });
-  const primary = sources.find((source) => source.primary) || sources[0];
-  store.setMeta("agentInstructionSourceSnapshot", {
-    path: primary?.path || policyFilename(rootOrFilename),
-    hash,
-    revision: primary?.revision || null,
-    text: primary?.text || "",
-    sources: sources.map(
-      ({ path, repositoryId, hash, revision, text, value }) => ({
-        path,
-        repositoryId,
-        hash,
-        revision,
-        text,
-        value,
-      }),
-    ),
-  });
-  return {
-    changed: true,
-    instructions: store.read().agentInstructions?.length || 0,
-    removed: !sources.length,
-    sources: sources.length,
-  };
 }
 
 export function reconcileSource(store, root, relative) {

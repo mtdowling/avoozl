@@ -285,12 +285,6 @@ function startRunner() {
   return { worker, port: port1, flag: view };
 }
 
-// [{line index, set, rule}] for every rule that matches a line, or throws
-// {timeout: true} past the time limit (the worker is then replaced).
-export function matchInWorker(rules, lines, options) {
-  return matchLinesInWorker(rules, lines, options).hits;
-}
-
 // {hits: [{index, set, rule}], allowed: [{set, rule, count}]}: a rule with
 // `allow` sources drops a match when one of them matches the same line, and
 // only the count is kept (R40.15).

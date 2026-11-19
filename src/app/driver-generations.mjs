@@ -37,7 +37,6 @@ import { fail } from "./store.mjs";
 const SHA = /^[0-9a-f]{40}$/;
 const DIGEST = /^[0-9a-f]{64}$/;
 const STOPPING = new Set(["hold", "stop"]);
-const RELEASING = new Set(["resume", "release"]);
 
 const same = (a, b) =>
   String(a ?? "").toLowerCase() === String(b ?? "").toLowerCase();
@@ -344,68 +343,6 @@ async function isAncestor(root, older, newer) {
   }
 }
 
-// After a takeover: each outstanding intent, by what the base shows now.
-// - landed: the candidate is on the base; its outcome is written once from
-//   the intent's evidence.
-// - void-allowed: the base moved past the intent's base without it.
-// - wait: the base is unchanged; the old driver may still land it. A
-//   person may void it after confirming the old driver stopped.
-// `baseHead` is the base head now; `root` a checkout that has fetched it.
-export async function reconcileIntents(
-  journal,
-  { driver, owner, login, spec, root, baseHead },
-  options = {},
-) {
-  const check = await revalidate(journal, { driver, owner, login }, options);
-  if (!check.ok) return { ok: false, reason: check.reason, intents: [] };
-  const results = [];
-  for (const intent of outstandingIntents(check.state)) {
-    const candidate = candidateOf(intent);
-    if (await isAncestor(root, candidate, baseHead)) {
-      await recordLanding(journal, intent, { spec, driver }, options);
-      results.push({ op: intent.op, state: "landed" });
-    } else if (baseHead !== intent.base)
-      results.push({ op: intent.op, state: "void-allowed" });
-    else results.push({ op: intent.op, state: "wait" });
-  }
-  return { ok: true, intents: results };
-}
-
-// A person voids an outstanding intent: allowed when the base moved past
-// the intent's base without the candidate, or when they confirm the old
-// driver is stopped.
-export async function voidIntent(
-  journal,
-  { by, driver, owner, spec, op, root, baseHead, confirmedStopped = false },
-  options = {},
-) {
-  if (by?.kind !== "person")
-    fail("Voiding an intent is a person's action.", 403);
-  const check = await revalidate(
-    journal,
-    { driver, owner, login: by.login },
-    options,
-  );
-  if (!check.ok) fail(`This driver cannot void now: ${check.reason}.`, 409);
-  const intent = outstandingIntents(check.state).find(
-    (entry) => entry.op === op,
-  );
-  if (!intent) fail("That intent is not outstanding.", 404);
-  const candidate = candidateOf(intent);
-  if (await isAncestor(root, candidate, baseHead))
-    fail("That intent's candidate is on the base; reconcile it instead.", 409);
-  if (baseHead === intent.base && !confirmedStopped)
-    fail(
-      "The base has not moved; confirm the old driver is stopped before voiding.",
-      409,
-    );
-  return appendRecord(
-    journal,
-    { op: `void.${op}`.slice(0, 80), kind: "void", spec, driver, voids: op },
-    options,
-  );
-}
-
 // Guarded fast-forward of `branch` in a registered remote from exactly
 // `base` to `candidate`. Refuses unless the remote is at `base` and the
 // candidate descends from it; the push itself is fast-forward only, so a
@@ -458,51 +395,4 @@ export async function headGuardedMerge(
     if (error.status === 409 || error.status === 405) return false;
     throw error;
   }
-}
-
-const TRAILER =
-  /^Avoozl-Task:\s*([A-Za-z0-9][A-Za-z0-9._-]{0,79})@([0-9a-f]{64})\s*$/gm;
-
-// Every `Avoozl-Task: <task>@<definition>` trailer in a commit message.
-export function parseTrailers(message) {
-  return [...String(message ?? "").matchAll(TRAILER)].map((m) => ({
-    task: m[1],
-    definition: m[2],
-  }));
-}
-
-// What one trailer on a landing commit means (§4.32.2):
-// - skip: a completing outcome for that definition already exists.
-// - landed: the task is in the approved revision with that definition, and
-//   an intent covers this exact commit with evidence, or `reverified` says
-//   the commit passed its paths, checks and review now.
-// - landed-unverified: anything else (a copied or stale trailer, a changed
-//   definition, no evidence). A person decides; it never becomes landed.
-export function trailerOutcome(
-  { task, definition, commit },
-  { approved, state, reverified = false },
-) {
-  if (
-    state.outcomes.some(
-      (o) =>
-        o.task === task &&
-        o.definition === definition &&
-        ["landed", "done", "skipped"].includes(o.kind),
-    )
-  )
-    return { kind: "skip", reason: "already-complete" };
-  if (approved.get(task) !== definition)
-    return {
-      kind: "landed-unverified",
-      reason: approved.has(task) ? "stale-definition" : "unknown-task",
-    };
-  const covered = [...state.intents.values()].some(
-    (intent) =>
-      intent.checks?.length &&
-      intent.refs.some((ref) => ref.commit === commit) &&
-      intent.tasks.some((t) => t.task === task && t.definition === definition),
-  );
-  if (covered) return { kind: "landed", reason: "intent-evidence" };
-  if (reverified) return { kind: "landed", reason: "reverified" };
-  return { kind: "landed-unverified", reason: "no-evidence" };
 }

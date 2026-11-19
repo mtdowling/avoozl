@@ -68,41 +68,6 @@ export function diffLines(patch) {
   return lines;
 }
 
-// The line comments that fall inside the snapshot's diffs, and how many did
-// not: GitHub refuses a whole draft for one line outside the diff.
-export function commentsInDiff(folder, comments = []) {
-  let listed = [];
-  try {
-    listed = JSON.parse(
-      fs.readFileSync(path.join(folder, FOLDER, "files.json"), "utf8"),
-    );
-  } catch {
-    return { kept: [], dropped: comments.length };
-  }
-  const byPath = new Map();
-  for (const file of listed) {
-    if (file.omitted) continue;
-    let patch = "";
-    try {
-      patch = fs.readFileSync(
-        path.join(folder, FOLDER, "diff", `${file.n}.patch`),
-        "utf8",
-      );
-    } catch {
-      continue;
-    }
-    byPath.set(file.path, diffLines(patch));
-  }
-  const kept = comments.filter((comment) => {
-    const lines = byPath.get(comment?.path)?.[comment?.side ?? "RIGHT"];
-    return (
-      lines?.has(comment.line) &&
-      (comment.start_line === undefined || lines.has(comment.start_line))
-    );
-  });
-  return { kept, dropped: comments.length - kept.length };
-}
-
 // Read the pull request `pull` ({number, title, body, author, base, labels})
 // of `repository` and return the snapshot's files as {path: text}, with the
 // head SHA it was read at and the diffs left out.

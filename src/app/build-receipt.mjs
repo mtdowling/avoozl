@@ -250,7 +250,3 @@ export function parseReceipts(text) {
   }
   return { records, skipped };
 }
-
-// The last record of a receipt file, or null.
-export const parseReceipt = (text) =>
-  parseReceipts(text).records.at(-1) ?? null;

@@ -10,9 +10,7 @@ import { publishInstanceStep } from "../instance-publish.mjs";
 import {
   assertNoInstance,
   instanceIdentity,
-  instanceOfVariable,
   instanceVariableName,
-  instanceView,
   renameInstance,
   stripInstance,
 } from "../instance.mjs";
@@ -52,18 +50,6 @@ test("a public forward strips the instance field and refuses text that carries i
     () => assertNoInstance(body, { id: MIRA, name: "Mira" }),
     /must not carry the instance/,
   );
-});
-
-test("variable names round trip to the instance ID", () => {
-  assert.equal(
-    instanceVariableName("inst-0123456789ab"),
-    "AVOOZL_INSTANCE_INST_0123456789AB",
-  );
-  assert.equal(
-    instanceOfVariable("AVOOZL_INSTANCE_INST_0123456789AB"),
-    "inst-0123456789ab",
-  );
-  assert.equal(instanceOfVariable("OTHER"), null);
 });
 
 function storeOf(t) {

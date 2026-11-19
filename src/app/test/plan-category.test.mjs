@@ -10,7 +10,6 @@ import {
   frontMatterCategory,
   withoutFrontMatter,
 } from "../../front-matter.mjs";
-import { planCategory } from "../../plan-model.mjs";
 import {
   lintSpec,
   readSpecFolder,
@@ -115,22 +114,6 @@ test("front-matter is part of the revision, like any other text", () => {
     tagged = { ...files, "requirements.md": withFront("category: Runtime") };
   assert.notEqual(specHash(files), specHash(tagged));
   assert.equal(specHash(tagged), specHash({ ...tagged }));
-});
-
-test("no category is guessed, and Avoozl's old written values do not count", () => {
-  assert.equal(planCategory({ title: "Coroutine scheduler", text: "" }), null);
-  assert.equal(
-    planCategory({ text: withFront("category: Runtime") }),
-    "Runtime",
-  );
-  assert.equal(
-    planCategory({ plan: { category: "Authored" }, text: "" }),
-    "Authored",
-  );
-  assert.equal(
-    planCategory({ virtual: true, plan: { category: "Kiro specs" }, text: "" }),
-    null,
-  );
 });
 
 test("approval records the front-matter category and never invents one", async (t) => {

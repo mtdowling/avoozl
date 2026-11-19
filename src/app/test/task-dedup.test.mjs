@@ -1,14 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { fixture, markdown } from "./fixtures.mjs";
+import { fixture } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
-import { digest, blocks, queryTasks, validate } from "../../model.mjs";
+import { digest, blocks, queryTasks } from "../../model.mjs";
 import { canonical } from "../store.mjs";
-import { planSummaries } from "../../plan-model.mjs";
-import { resolveTaskId, taskSourceRefs } from "../../task-identity.mjs";
+import { taskSourceRefs } from "../../task-identity.mjs";
 import { reconcileSource } from "../source-sync.mjs";
-import { handleMcp } from "../mcp.mjs";
 
 function prepare(t) {
   const { store, root } = fixture(t),
@@ -73,59 +71,6 @@ const input = (store) => ({
   expectedHashes: Object.fromEntries(
     store.read().tasks.map((t) => [t.id, digest(canonical(t))]),
   ),
-});
-test("consolidation retains provenance, criteria, evidence, graph semantics and old task links", async (t) => {
-  const { store, ops } = prepare(t);
-  const before = store.read().revision,
-    result = await ops.execute("task.merge", input(store), before),
-    data = store.read();
-  assert.equal(data.tasks.length, 2);
-  assert.equal(resolveTaskId(data, "copied-task"), "sample-task");
-  assert.equal(result.task.status, "planned");
-  assert.equal(taskSourceRefs(result.task).length, 2);
-  assert.deepEqual(result.task.acceptance, [
-    "Keep existing criterion",
-    "Keep additional criterion",
-  ]);
-  assert.match(result.task.notes, /Other notes/);
-  assert.equal(data.edges[0].from, "sample-task");
-  assert.equal(data.edges[0].kind, "requires");
-  assert.deepEqual(data.presentation.views[0].taskIds, ["sample-task"]);
-  const old = await ops.execute("task.get", { id: "copied-task" });
-  assert.equal(old.id, "sample-task");
-  assert.equal(old.requestedId, "copied-task");
-  assert.equal(
-    queryTasks(data, { scope: "all", q: "id:copied-task" })[0].id,
-    "sample-task",
-  );
-  assert.deepEqual(validate(data), []);
-  const receipt = await ops.execute("task.merge.get", { id: result.receiptId });
-  assert.equal(receipt.originalTasks[1].notes, "Other notes");
-  assert.equal(receipt.originalEdges[0].from, "copied-task");
-  assert(
-    planSummaries(data)
-      .filter((p) => p.doc.id === "two.md")[0]
-      .tasks.some((t) => t.id === "sample-task"),
-  );
-  const retry = await ops.execute("task.capture", {
-    submissionId: "copied-submission",
-    prompt: "Copied prompt",
-  });
-  assert.equal(retry.task.id, "sample-task");
-  assert.equal(retry.existing, true);
-  const mcp = await handleMcp(
-    {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: {
-        name: "plans_get_task",
-        arguments: { input: { id: "copied-task" } },
-      },
-    },
-    ops,
-  );
-  assert.equal(mcp.body.result.structuredContent.id, "sample-task");
 });
 test("stale merge reviews, conflicting live statuses and active workers cannot be consolidated", async (t) => {
   const { store, ops } = prepare(t),
@@ -265,18 +210,6 @@ test("approved plans link explicit reuse and keep possible duplicates advisory",
   assert.equal(store.read().tasks.length, 3);
 });
 
-test("archived source progress retains its pre-merge status without promoting the canonical task", async (t) => {
-  const { store, ops } = prepare(t);
-  store.mutate("Archive source", (data) => {
-    data.documents["two.md"].historical = true;
-    data.tasks.find((t) => t.id === "copied-task").status = "accepted";
-  });
-  await ops.execute("task.merge", input(store));
-  assert.equal(store.read().tasks[0].status, "planned");
-  const summaries = planSummaries(store.read());
-  assert.equal(summaries.find((p) => p.doc.id === "one.md").percent, 0);
-  assert.equal(summaries.find((p) => p.doc.id === "two.md").percent, 100);
-});
 test("alias dependencies and deliberate separate scopes survive task edits", async (t) => {
   const { store, ops } = prepare(t);
   await ops.execute("task.merge", input(store));

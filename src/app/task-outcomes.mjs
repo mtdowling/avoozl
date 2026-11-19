@@ -81,22 +81,6 @@ export function taskOutcome(
 
 export const isComplete = (result) => result?.state === "complete";
 
-// What a new approval may carry forward: tasks whose definition is unchanged
-// and whose latest valid outcome on the previous revision completes them.
-// The approval records this list explicitly; nothing carries by default.
-export function carryForward(outcomes, { spec, previous, tasks }) {
-  return Object.entries(tasks ?? {}).flatMap(([task, entry]) => {
-    const definition = taskDefinition(entry),
-      result = taskOutcome(outcomes, {
-        spec,
-        task,
-        revision: previous,
-        definition,
-      });
-    return isComplete(result) ? [{ task, definition }] : [];
-  });
-}
-
 // Whether a prerequisite lets a successor start (R102.4).
 // - An accepted outcome releases successors in any spec.
 // - A verified integration on the spec's working branch releases only
@@ -117,10 +101,3 @@ export function releases({
     (available[repository] ?? []).includes(branch.commit),
   );
 }
-
-// Old manifest values keep their source syntax and gain a meaning
-// (R102.20, §4.32.12): `route: github` lands through the queue and
-// `completion: merged-pr` means landed. Nothing rewrites approved files.
-export const landsThroughQueue = (task) => task?.route === "github";
-export const completingOutcome = (task) =>
-  task?.completion === "merged-pr" ? "landed" : null;

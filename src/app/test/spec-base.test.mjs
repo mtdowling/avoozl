@@ -5,11 +5,10 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
-import { mergeBaseBack, specBase, specBaseRef } from "../spec-base.mjs";
+
+import { mergeBaseBack } from "../spec-base.mjs";
 import { checkpointBranch, workingBranch } from "../working-heads.mjs";
-import { snapshot } from "./fixtures.mjs";
+
 import { temporaryDirectory } from "./temporary.mjs";
 
 const git = (cwd, ...args) =>
@@ -39,89 +38,6 @@ function commitOn(checkout, branch, from, files) {
   git(checkout, "checkout", "-q", "main");
   return commit;
 }
-
-test("the spec base is the working branch, then a legacy integration branch, then the base", async () => {
-  const { checkout } = repo(),
-    main = git(checkout, "rev-parse", "main"),
-    options = {
-      spec: "reader",
-      base: "main",
-      legacy: [null, "bad..name", "epic"],
-    };
-  assert.deepEqual(await specBase(checkout, options), {
-    branch: "main",
-    kind: "base",
-    commit: main,
-  });
-  const epic = commitOn(checkout, "epic", "main", { "e.txt": "e\n" });
-  assert.deepEqual(await specBase(checkout, options), {
-    branch: "epic",
-    kind: "integration",
-    commit: epic,
-  });
-  const work = commitOn(checkout, workingBranch("reader"), "main", {
-    "w.txt": "w\n",
-  });
-  const found = await specBaseRef(checkout, {
-    ...options,
-    repository: "acme/app",
-  });
-  assert.deepEqual(
-    [found.kind, found.ref.source.branch, found.ref.source.commit],
-    ["working", workingBranch("reader"), work],
-  );
-  assert.deepEqual(found.ref.target, { repository: "acme/app", base: "main" });
-  assert.equal(
-    (await specBase(checkout, { ...options, spec: "../x" })).kind,
-    "integration",
-    "a spec id that cannot name a branch has no working branch",
-  );
-});
-
-test("Prepare starts a task from its spec's working head and records the exact base", async (t) => {
-  const { root, checkout } = repo(),
-    store = new Store(path.join(root, "workspace.sqlite"));
-  t.after(() => store.close());
-  const leaf = (id, extra) => ({
-    id,
-    title: "Task " + id,
-    scope: "catalog",
-    status: "planned",
-    epic: "sample",
-    track: "catalog",
-    tags: [],
-    acceptance: ["Works."],
-    repository: "app",
-    ...extra,
-  });
-  store.importSnapshot({
-    ...snapshot(),
-    tasks: [leaf("a", { planId: "reader" }), leaf("b")],
-    edges: [],
-  });
-  store.put("repositories", { id: "app", root: checkout, baseBranch: "main" });
-  store.put("plans", { id: "reader", spec: "reader", state: "approved" });
-  const work = commitOn(checkout, workingBranch("reader"), "main", {
-      "w.txt": "verified\n",
-    }),
-    ops = new Operations(store, { workspaceRoot: root });
-  const prepared = await ops.execute("worktree.prepare", { taskId: "a" });
-  assert.equal(prepared.head, work);
-  const ref = await specBaseRef(checkout, {
-    spec: "reader",
-    repository: "acme/app",
-    base: "main",
-  });
-  assert.deepEqual(store.get("task_worktrees", "a").base, {
-    branch: workingBranch("reader"),
-    commit: ref.ref.source.commit,
-    kind: "working",
-  });
-  // A task with no spec keeps the repository's base branch.
-  const plain = await ops.execute("worktree.prepare", { taskId: "b" });
-  assert.equal(plain.head, git(checkout, "rev-parse", "main"));
-  assert.equal(store.get("task_worktrees", "b").base.kind, "base");
-});
 
 test("a landed base merges back with a merge commit, keeping unlanded work and checkpoints", async () => {
   const { checkout } = repo(),

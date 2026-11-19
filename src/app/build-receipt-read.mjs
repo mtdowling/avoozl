@@ -429,23 +429,6 @@ export function buildRows(store) {
   return out;
 }
 
-// `readerFor(repository)` returns `async (pull) => observations | null`: every
-// stored observation of the pull request's head commit, or null. It makes no
-// call; the tick's CI step does the reading.
-export function receiptReader(store) {
-  return (repository) => async (pull) => {
-    migrateReceiptMeta(store);
-    if (!pull?.merged_at) return null;
-    const rows = observationsFor(
-      store,
-      repository,
-      pull.head?.sha,
-      pull.number,
-    );
-    return rows.length ? rows : null;
-  };
-}
-
 const median = (values) => {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b),

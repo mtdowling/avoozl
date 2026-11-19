@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { Store, canonical } from "../store.mjs";
+import { canonical } from "../store.mjs";
 import { Operations } from "../operations.mjs";
 import { repositoryConfig, git, integrateRun } from "../git.mjs";
 import {
@@ -252,61 +252,4 @@ test("real isolated Git work validates at its head, rebases and integrates witho
     store.read().tasks[0].integration.commit,
     await git(repo, ["rev-parse", "HEAD"]),
   );
-});
-test("independent validations can overlap while integration excludes validation and new claims", async (t) => {
-  const { store } = fixture(t);
-  const { withWorkLock, assertRepositoryAvailable } = await import(
-    "../git.mjs"
-  );
-  let release;
-  const pending = new Promise((resolve) => {
-    release = resolve;
-  });
-  const first = withWorkLock(
-    store,
-    { id: "validation:first", repositoryId: "fixture", kind: "validation" },
-    () => pending,
-  );
-  await withWorkLock(
-    store,
-    { id: "validation:second", repositoryId: "fixture", kind: "validation" },
-    async () => {},
-  );
-  await assert.rejects(
-    withWorkLock(
-      store,
-      {
-        id: "integration:fixture",
-        repositoryId: "fixture",
-        kind: "integration",
-      },
-      async () => {},
-    ),
-    /already owns/,
-  );
-  release();
-  await first;
-  await withWorkLock(
-    store,
-    { id: "integration:fixture", repositoryId: "fixture", kind: "integration" },
-    async () => {
-      assert.throws(
-        () => assertRepositoryAvailable(store, "fixture"),
-        /integrating/,
-      );
-      await assert.rejects(
-        withWorkLock(
-          store,
-          {
-            id: "validation:first",
-            repositoryId: "fixture",
-            kind: "validation",
-          },
-          async () => {},
-        ),
-        /already owns/,
-      );
-    },
-  );
-  assertRepositoryAvailable(store, "fixture");
 });

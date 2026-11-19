@@ -5,10 +5,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fixture } from "./fixtures.mjs";
-import { listActivity } from "../activity-log.mjs";
+
 import {
-  allowUnconfinedWrites,
   approveHarnessDefinition,
   harnessDefinitionHash,
   harnessPermission,
@@ -169,65 +167,4 @@ test("repository cache folders cannot reach the git directory, home or root", ()
     }),
     [at("home", "me", ".cache", "sccache")],
   );
-});
-
-test("an unconfined harness runs write roles only after a person opts in at its hash", (t) => {
-  const { store } = fixture(t);
-  const { configDirectory, install } = machine(t);
-  const loose = example({ name: "loose-cli", writeRoots: undefined });
-  const hash = install(loose);
-  const load = () =>
-    loadHarnessDefinition({ configDirectory, name: "loose-cli" });
-  const write = () => harnessPermission(load(), session({ configDirectory }));
-  assert.equal(
-    harnessPermission(load(), { permissionClass: "read" }).permission,
-    "read-only",
-  );
-  assert.throws(write, /runs read-only roles only/);
-
-  for (const [actor, env] of [
-    ["agent", {}],
-    [undefined, {}],
-    ["person", { AVOOZL_CHILD: "1" }],
-  ])
-    assert.throws(
-      () =>
-        allowUnconfinedWrites({
-          store,
-          configDirectory,
-          name: "loose-cli",
-          hash,
-          actor,
-          env,
-        }),
-      (error) => error.status === 403 && /Only a person/.test(error.message),
-    );
-  assert.equal(
-    listActivity(store, { kind: "harness.unconfined.allow" }).total,
-    0,
-  );
-  assert.throws(write, /runs read-only roles only/);
-
-  allowUnconfinedWrites({
-    store,
-    configDirectory,
-    name: "loose-cli",
-    hash,
-    actor: "person",
-    env: {},
-  });
-  assert.deepEqual(write(), {
-    permissionClass: "write",
-    permission: "workspace-write",
-    writeRoots: null,
-    unconfined: true,
-  });
-  const rows = listActivity(store, { kind: "harness.unconfined.allow" });
-  assert.equal(rows.total, 1);
-  assert.equal(rows.items[0].actor, "person");
-
-  // A changed file needs a new hash approval and a new opt-in.
-  const changed = install({ ...loose, resume: ["loose-cli", "--continue"] });
-  assert.notEqual(changed, hash);
-  assert.throws(write, /runs read-only roles only/);
 });

@@ -17,14 +17,12 @@
 // machine's hostname and username are read at scan time. A machine is named
 // in records only by its public alias (`machine.alias` in machine config);
 // unset, a neutral two-word name is generated once and stored.
-import { randomInt } from "node:crypto";
+
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fail } from "./store.mjs";
 
 export const PRIVACY_SET = "builtin:privacy";
-const ALIAS = /^[A-Za-z][A-Za-z0-9-]{0,39}$/;
 const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 // Account and host names that identify nobody (CI runners, defaults).
 // shortcut: a fixed list; extend it when a shared default causes false hits.
@@ -147,97 +145,4 @@ export function privacyHits(lines, rules, decode = (value) => value) {
         hits.push({ index, rule });
   });
   return hits;
-}
-
-// Whether `alias` may name this machine in public records.
-export function aliasProblem(alias, machine) {
-  if (typeof alias !== "string" || !ALIAS.test(alias))
-    return "An alias is a letter, then up to 39 letters, digits or dashes.";
-  const lower = alias.toLowerCase();
-  if (
-    ownNames(machineFacts(machine)).some((n) => lower.includes(n.toLowerCase()))
-  )
-    return "An alias may not contain this machine's hostname or username.";
-  return null;
-}
-
-const ADJECTIVES = [
-  "amber",
-  "brisk",
-  "calm",
-  "clear",
-  "dawn",
-  "deep",
-  "early",
-  "fair",
-  "gentle",
-  "green",
-  "keen",
-  "light",
-  "lucky",
-  "mild",
-  "noble",
-  "quiet",
-  "rapid",
-  "silver",
-  "steady",
-  "swift",
-  "tidy",
-  "warm",
-  "wise",
-  "young",
-];
-const NOUNS = [
-  "badger",
-  "beacon",
-  "cedar",
-  "comet",
-  "falcon",
-  "fern",
-  "harbor",
-  "heron",
-  "lantern",
-  "maple",
-  "meadow",
-  "otter",
-  "pebble",
-  "pine",
-  "raven",
-  "river",
-  "robin",
-  "sparrow",
-  "summit",
-  "thistle",
-  "willow",
-  "wren",
-  "yarrow",
-  "zephyr",
-];
-const pick = (list) => list[randomInt(list.length)];
-const titled = (word) => word[0].toUpperCase() + word.slice(1);
-
-// This machine's public alias: `machine.alias` in machine config, else a
-// neutral two-word name generated once and stored there. Never derived from
-// the hostname or username.
-export function machineAlias({ configFile, machine = null } = {}) {
-  if (!configFile) fail("Name the machine config file.", 400);
-  const config = readConfig(configFile),
-    stored = config?.machine?.alias;
-  if (typeof stored === "string" && !aliasProblem(stored, machine))
-    return stored;
-  let alias;
-  do alias = `${titled(pick(ADJECTIVES))}-${titled(pick(NOUNS))}`;
-  while (aliasProblem(alias, machine));
-  return setMachineAlias({ configFile, alias, machine });
-}
-
-// Saves the owner's pick; refuses one that names this machine.
-export function setMachineAlias({ configFile, alias, machine = null }) {
-  const problem = aliasProblem(alias, machine);
-  if (problem) fail(problem, 400);
-  const config = readConfig(configFile);
-  config.machine = { ...(config.machine || {}), alias };
-  fs.mkdirSync(path.dirname(configFile), { recursive: true });
-  fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + "\n");
-  return alias;
 }

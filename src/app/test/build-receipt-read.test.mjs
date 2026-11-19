@@ -7,7 +7,6 @@ import { deflateRawSync } from "node:zlib";
 import {
   firstZipFile,
   receiptLine,
-  receiptReader,
   buildRows,
   buildView,
   observationsForTask,
@@ -370,37 +369,6 @@ test("a failed list keeps nothing and is tried again", async (t) => {
   assert.equal(rows(store).length, 0);
   await check(store, gh, NOW + 60_000);
   assert.equal(rows(store).length, 2);
-});
-
-test("the old metadata value moves once into observations", async (t) => {
-  const { store } = fixture(t);
-  store.setMeta("buildReceipts", {
-    [`${REPO}#51`]: {
-      v: 1,
-      commit: "sha51",
-      command: "npm test",
-      target: "linux",
-      start: "warm",
-      ms: 7000,
-      exit: 0,
-      counters: {},
-    },
-    [`${REPO}#52`]: null,
-  });
-  const read = await receiptReader(store)(REPO)({
-    number: 51,
-    merged_at: at(1),
-    head: { sha: "sha51" },
-  });
-  assert.equal(read[0].ms, 7000);
-  assert.equal(store.getMeta("buildReceipts"), null);
-  assert.equal(rows(store).length, 1);
-  assert.equal(
-    store.db
-      .prepare("SELECT COUNT(*) AS n FROM meta WHERE key='buildReceipts'")
-      .get().n,
-    0,
-  );
 });
 
 test("the reader's calls count under the receipt source", async (t) => {

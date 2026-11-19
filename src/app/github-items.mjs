@@ -103,12 +103,6 @@ export const itemRows = (store) => {
 };
 export const itemRow = (store, repository, number) =>
   store.get(ITEMS, itemId(repository, number));
-export const openItems = (store, repository) =>
-  itemRows(store).filter(
-    (row) =>
-      row.state === "open" &&
-      (!repository || lower(row.repository) === lower(repository)),
-  );
 
 const labelNames = (labels) =>
   (labels || [])

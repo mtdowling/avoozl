@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import { GitHubClient } from "../github.mjs";
-import { WritePacer, clampLimits, paceEstimate } from "../github-pacer.mjs";
+import { WritePacer, clampLimits } from "../github-pacer.mjs";
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -147,19 +147,6 @@ test("a write cut off before it was recorded is found again on restart", (t) => 
     onInterrupted: () => (interrupted += 1),
   }).history();
   assert.equal(interrupted, 1);
-});
-
-test("the estimate for 927 issues replays the pace and respects both caps", () => {
-  const start = Date.parse("2026-11-15T10:00:00Z"),
-    // 927 creates (each under its parent), 75 blocked-by links and the
-    // marker rewrite each of those issues needs.
-    writes = 927 + 75 + 75,
-    estimate = paceEstimate(writes, [], start, {}),
-    finish = Date.parse(estimate.finishAt);
-  assert.equal(estimate.writes, 1077);
-  // 400 an hour: 1,077 writes need two full waits and part of a third hour.
-  assert.ok(finish - start > 2 * HOUR && finish - start < 3 * HOUR);
-  assert.equal(estimate.minutes, Math.ceil((finish - start) / MINUTE));
 });
 
 // ---- A projection that stops at the cap and carries on ----------------

@@ -19,12 +19,6 @@ const run = promisify(execFile);
 const META = "mirrorSync";
 const short = (sha) => String(sha || "").slice(0, 12);
 
-// The repository that receives Avoozl's writes for `repository`: its mirror
-// when the policy entry names one, else the repository itself (D29.3).
-export function writeRepo(entry, repository) {
-  return entry?.mirror?.mirror ?? repository;
-}
-
 // `config` (a github_repositories record) pointed at the write repository.
 // The node ID belongs to the source, so it is dropped for a mirror.
 export function mirrorConfig(config, repositories) {

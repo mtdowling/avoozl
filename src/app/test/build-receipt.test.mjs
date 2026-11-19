@@ -3,12 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Writable } from "node:stream";
-import {
-  parseArguments,
-  parseReceipt,
-  parseReceipts,
-  wrap,
-} from "../build-receipt.mjs";
+import { parseReceipts, wrap } from "../build-receipt.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const sink = () => {
@@ -145,17 +140,6 @@ test("a command that cannot start exits 127 and still leaves a receipt", async (
   });
   assert.notEqual(code, 0);
   assert.equal(lines(cwd).length, 1);
-});
-
-test("arguments: unknown options are refused; parseReceipt keeps only a valid line", () => {
-  assert.throws(() => parseArguments(["--nope", "1", "--", "x"]));
-  assert.equal(parseReceipt("not json"), null);
-  assert.equal(parseReceipt('{"v":2,"command":"x","ms":1}'), null);
-  const kept = parseReceipt(
-    '{"v":1,"command":"npm test","ms":5,"start":"warm","exit":0,"target":"t","counters":{"a":1,"b":"x"}}',
-  );
-  assert.deepEqual(kept.counters, { a: 1 });
-  assert.equal(kept.start, "warm");
 });
 
 test("parseReceipts keeps every line and counts the ones it skips", () => {

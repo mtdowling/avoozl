@@ -108,12 +108,6 @@ export function recordSeenInstance(store, id) {
 export const instanceVariableName = (id) =>
   `AVOOZL_INSTANCE_${String(id).replace("-", "_").toUpperCase()}`;
 
-// The instance ID a variable name stands for, or null for any other name.
-export function instanceOfVariable(name) {
-  const match = /^AVOOZL_INSTANCE_INST_([0-9A-F]{12})$/i.exec(String(name));
-  return match ? `inst-${match[1].toLowerCase()}` : null;
-}
-
 // `shared` is true once another instance was seen; until then the name shows
 // in the header only.
 export function instanceView(store) {

@@ -7,15 +7,10 @@ import path from "node:path";
 import { fail } from "./store.mjs";
 import { globalAvoozlConfigPath } from "./layered-config.mjs";
 
-export const LOCAL = "local";
-const CREW_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 const SNAPSHOT = "crews.snapshot";
 
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
-
-export const isCrewId = (value) =>
-  typeof value === "string" && CREW_ID.test(value);
 
 // ---------------------------------------------------------------------------
 // Machine-local settings: one JSON file this machine owns.
@@ -68,38 +63,3 @@ export function writeMachineFile(file, mutate, expectedHash) {
 // diskGb}, mc10, readAt}. Absent on a
 // Kiro Crew that grants the app no instance read: then only `local` exists.
 export const crewSnapshot = (store) => store.getMeta(SNAPSHOT);
-
-export function recordCrewSnapshot(store, input = {}) {
-  if (!record(input)) fail("Give the crew snapshot as an object.");
-  const instances = Array.isArray(input.instances) ? input.instances : [];
-  if (instances.length > 50) fail("At most 50 crews.");
-  for (const entry of instances)
-    if (!record(entry) || !isCrewId(entry.id) || entry.id === LOCAL)
-      fail("Each instance needs a crew id other than local.");
-  const snapshot = {
-    instances: instances.map((e) => ({
-      id: e.id,
-      name: typeof e.name === "string" ? e.name.slice(0, 80) : e.id,
-      ...(e.reachable === false ? { reachable: false } : {}),
-    })),
-    headroom: record(input.headroom) ? structuredClone(input.headroom) : {},
-    agents: record(input.agents) ? structuredClone(input.agents) : {},
-    ready: record(input.ready)
-      ? Object.fromEntries(
-          Object.entries(input.ready).filter(([, v]) => typeof v === "boolean"),
-        )
-      : {},
-    remoteDispatch: input.remoteDispatch === true,
-    limits: record(input.limits) ? structuredClone(input.limits) : {},
-    mc10: input.mc10 === true,
-    // MC-10's attach link pattern, `/…{crew}…{slot}` (Inferred contract).
-    ...(typeof input.attach === "string" &&
-    input.attach.startsWith("/") &&
-    input.attach.length < 200
-      ? { attach: input.attach }
-      : {}),
-    readAt: new Date().toISOString(),
-  };
-  store.setMeta(SNAPSHOT, snapshot);
-  return snapshot;
-}

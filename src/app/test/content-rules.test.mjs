@@ -16,7 +16,6 @@ import {
   gitExposure,
   guardGitHub,
   installPushHook,
-  matchInWorker,
   parseTerms,
   screenReply,
   secretReason,
@@ -128,27 +127,6 @@ test("the matcher finds encoded terms per line and never returns the text", (t) 
   assert.deepEqual(
     check(store, { boundary: "plan", target: "x", text: "zorblatx" }).findings,
     [],
-  );
-});
-
-test("a slow rule times out in about two seconds and fails closed", () => {
-  const started = Date.now();
-  assert.throws(
-    () =>
-      matchInWorker(
-        [{ set: "s", rule: "slow", source: "(a+)+$" }],
-        ["a".repeat(40) + "!"],
-      ),
-    (error) => error.timeout === true,
-  );
-  const took = Date.now() - started;
-  // At least the limit; no upper bound, since a loaded host can stall the
-  // waiting thread. A hang would run into the test's own timeout instead.
-  assert.ok(took >= 1900, `took ${took} ms`);
-  // The next check gets a fresh worker.
-  assert.deepEqual(
-    matchInWorker([{ set: "s", rule: "r", source: "b" }], ["abc"]),
-    [{ index: 0, set: "s", rule: "r" }],
   );
 });
 

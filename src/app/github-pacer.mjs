@@ -7,7 +7,6 @@
 // and the tick carries on when the window opens (the projection finds what
 // it already wrote by the marker in each issue).
 import { AsyncLocalStorage } from "node:async_hooks";
-import { fail } from "./store.mjs";
 
 const WRITES_PER_MINUTE = 60;
 const WRITES_PER_HOUR = 400;
@@ -47,32 +46,6 @@ function nextSlot(times, now, { perMinute, perHour }) {
   return at;
 }
 
-// When `count` more writes would all be done, as a time in ms, and the first
-// time the pace stops to wait on the hour cap.
-function finishTime(count, history, now, limits) {
-  const times = history.filter((time) => time > now - HOUR);
-  let at = now;
-  for (let index = 0; index < count; index += 1) {
-    at = nextSlot(
-      times.filter((time) => time > at - HOUR),
-      at,
-      limits,
-    );
-    times.push(at);
-  }
-  return count ? at : now;
-}
-
-export function paceEstimate(count, history, now, limits) {
-  const finish = finishTime(count, history, now, clampLimits(limits));
-  return {
-    writes: count,
-    ...clampLimits(limits),
-    finishAt: iso(finish),
-    minutes: Math.ceil((finish - now) / MINUTE),
-  };
-}
-
 function pacedError({ until, reason }) {
   const error = Error(
     `GitHub writes are paced (${reason}); they resume at ${iso(until)}.`,
@@ -90,7 +63,6 @@ function pacedError({ until, reason }) {
 
 // Which projection a write belongs to, so the run's count is its own.
 const runs = new AsyncLocalStorage();
-export const withRun = (planId, fn) => runs.run(planId, fn);
 
 export class WritePacer {
   constructor(store, { now, sleep, limits, primary, onInterrupted } = {}) {
@@ -226,81 +198,6 @@ const doneOf = (store, run) => {
     return 0;
   }
 };
-
-// A projection stopped before it finished: keep where it was, so the tick
-// resumes it.
-export function pauseRun(
-  store,
-  { planId, repository, error, now = Date.now() },
-) {
-  const until = error.rateLimited?.until ?? now + MINUTE,
-    run = readRun(store),
-    same = run?.planId === planId && run.state !== "done";
-  store.setMeta(RUN, {
-    planId,
-    repository: repository ?? (same ? run.repository : undefined),
-    startedAt: same ? run.startedAt : now,
-    state: "paused",
-    resumeAt: until,
-    reason: error.rateLimited?.reason === "paced" ? "paced" : "limited",
-    total: same ? run.total : null,
-  });
-}
-
-// What this run has to write in all: the writes it has made plus the
-// `remaining` it sees to do now (an estimate, read before it writes).
-export function noteRemaining(
-  store,
-  { planId, repository, remaining, now = Date.now() },
-) {
-  const run = readRun(store);
-  if (run?.planId === planId && run.state !== "done")
-    store.setMeta(RUN, { ...run, total: doneOf(store, run) + remaining });
-  else if (remaining > 0) {
-    // A new run counts its own writes: the last run's rows stay only for the
-    // window counts, with no run to belong to.
-    try {
-      store.db
-        .prepare("UPDATE github_write_journal SET tag=NULL WHERE tag=?")
-        .run(planId);
-    } catch {
-      // No journal yet: nothing to release.
-    }
-    store.setMeta(RUN, {
-      planId,
-      repository,
-      startedAt: now,
-      state: "running",
-      resumeAt: 0,
-      total: remaining,
-    });
-  }
-}
-
-export function finishRun(store, planId) {
-  const run = readRun(store);
-  if (run?.planId === planId && run.state !== "done")
-    store.setMeta(RUN, { ...run, state: "done" });
-}
-
-// A person's projection of `planId` while another plan's run is paused or
-// running would replace that run's record, and its resume with it. Refuse it;
-// the tick carries the other run on by itself.
-export function refuseOtherRun(store, planId) {
-  const run = readRun(store);
-  if (run && run.state !== "done" && run.planId !== planId)
-    fail(
-      `GitHub is still projecting ${run.planId} (${run.state}). Avoozl carries it on by itself; project ${planId} once it finishes.`,
-      409,
-    );
-}
-
-// The plan to carry on with, once its wait is over. A run still marked
-// running was cut off (a crash or a kill), and carries on the same way.
-export function dueRun(store, now = Date.now()) {
-  const run = readRun(store);
-  return run && run.state !== "done" && (run.resumeAt ?? 0) <= now ? run : null;
-}
 
 const runLine = (done, total, resumeAt) =>
   `${done.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} writes` +

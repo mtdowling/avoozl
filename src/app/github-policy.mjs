@@ -272,9 +272,6 @@ function landingInput(value, label) {
 // The method a repository's settings merge a pull request with.
 export const mergeMethod = (settings) =>
   settings?.landing?.method ?? MERGE_METHOD_DEFAULT;
-// The GitHub GraphQL merge method for a repository's settings.
-export const mergeMethodOf = (settings) =>
-  mergeMethod(settings) === "merge" ? "MERGE" : "SQUASH";
 
 // The triage agent's settings (triage-agent TA1.1, TA4.2, TA7.4, design
 // §D3, §D6). Only the keys a repository sets are kept; triage.mjs fills in

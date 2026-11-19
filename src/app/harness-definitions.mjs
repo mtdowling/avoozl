@@ -9,7 +9,6 @@ import { createHash } from "node:crypto";
 import os from "node:os";
 import { fail } from "./store.mjs";
 import { EXECUTOR_CONTRACT } from "./executors.mjs";
-import { recordActivity } from "./activity-log.mjs";
 
 const HARNESS_DIRECTORY = "harnesses";
 const HARNESS_APPROVALS = "harness-approvals.json";
@@ -498,46 +497,6 @@ function readUnconfined(configDirectory) {
   const value = JSON.parse(fs.readFileSync(file, "utf8"));
   if (!record(value)) fail(`${file} must hold a JSON object.`);
   return value;
-}
-
-// The per-machine opt-in for a harness that cannot confine writes (R94.5).
-// Person only: refused for any other actor and inside a worker child, and
-// recorded in Activity. It names the approved hash, so a changed file needs
-// a new opt-in. shortcut: callers pass the actor; once an operation exposes
-// this, give its entry a person() policy (operation-table.mjs) so MCP can never reach it.
-export function allowUnconfinedWrites({
-  store,
-  configDirectory,
-  name,
-  hash,
-  actor,
-  env = process.env,
-}) {
-  if (actor !== "person" || env.AVOOZL_CHILD)
-    fail(
-      "Only a person lets a harness write outside the task folder on this machine.",
-      403,
-    );
-  if (!store) fail("Recording the opt-in in Activity needs the store.");
-  const definition = loadHarnessDefinition({ configDirectory, name });
-  if (definition.hash !== hash)
-    fail(
-      `Harness ${name} is approved at ${definition.hash}, not ${hash}.`,
-      409,
-    );
-  const allowed = { ...readUnconfined(configDirectory), [name]: hash };
-  const file = path.join(path.resolve(configDirectory), HARNESS_UNCONFINED);
-  const temporary = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, JSON.stringify(allowed, null, 2) + "\n");
-  fs.renameSync(temporary, file);
-  recordActivity(store, {
-    source: "local",
-    actor: "person",
-    kind: "harness.unconfined.allow",
-    summary: `Let harness ${name} write outside the task folder on this machine (hash ${hash.slice(0, 12)}).`,
-    targetId: name,
-  });
-  return allowed;
 }
 
 // What one session may do (R94.4, R94.5): the definition's value for the

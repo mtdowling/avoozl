@@ -5,11 +5,6 @@ import { randomUUID } from "node:crypto";
 import os from "node:os";
 import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
-import { parseMarker } from "./github-marker.mjs";
-
-export function projectedMarker(body) {
-  return parseMarker(body);
-}
 
 export function machineIdentity(store) {
   let identity = store.getMeta("machineIdentity");

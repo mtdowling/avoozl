@@ -4,7 +4,7 @@
 // homes is refused, naming both.
 import { execFileSync } from "node:child_process";
 import { originRepositorySync } from "./git.mjs";
-import { fail } from "./store.mjs";
+
 import { repoFilesOf } from "./repo-files.mjs";
 import {
   CRITIQUE,
@@ -15,7 +15,6 @@ import {
   specItems,
 } from "./spec-plans.mjs";
 
-const HOMES = Object.freeze(["main", "plansBranch"]);
 const NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const FILES = [
   "requirements.md",
@@ -31,10 +30,6 @@ export function mirrorOf(policy) {
     if (entry.mirror) return entry.mirror;
   return null;
 }
-
-// Where a new spec starts: private when a mirror is set (RC25.2).
-export const newSpecHome = (policy) =>
-  mirrorOf(policy) ? "plansBranch" : "main";
 
 // Every spec folder on the plans branch, in the shape readSpecFolder gives.
 // The files come from `files` (a RepoFiles: a git cache, or one tree listing
