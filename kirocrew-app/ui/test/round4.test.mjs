@@ -73,10 +73,7 @@ const graph = {
 const now = Date.parse('2026-11-12T12:00:00Z')
 
 test('Conflicts filter: kind with counts, plan, epic, repository and age', () => {
-  const items = [
-    item('needs-human', 'a', { reason: 'review', openedAt: '2026-11-12T11:00:00Z' }),
-    item('tracker-conflict', 'g', { field: 'title', openedAt: '2026-11-01T00:00:00Z' }),
-  ]
+  const items = [item('needs-human', 'a', { reason: 'review', openedAt: '2026-11-12T11:00:00Z' }), item('stale-session', 'g', { openedAt: '2026-11-01T00:00:00Z' })]
   const choices = conflictChoices(items, graph)
   assert.deepEqual(
     choices.kinds.map((k) => k.label),

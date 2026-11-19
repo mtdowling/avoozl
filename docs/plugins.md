@@ -12,7 +12,7 @@ its content rules and its intake source together:
 | `template` | A workflow template that starts a new spec from a reusable folder | No        |
 
 Avoozl's own worker paths deliver every task, and each task's record is
-local or a GitHub issue. A plugin cannot add a delivery route or a task
+local. A plugin cannot add a delivery route or a task
 tracker. A manifest that lists `route`, `tracker` or `gate` is refused when
 it loads.
 
