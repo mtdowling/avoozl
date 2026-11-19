@@ -20,8 +20,8 @@ test(
   {
     timeout: 6 * 60_000,
     skip:
-      process.platform === "win32" &&
-      "the proof runs from the owner's macOS terminal",
+      process.platform !== "darwin" &&
+      "the proof runs from the owner's macOS terminal, under sandbox-exec",
   },
   (t) => {
     const parent = fs.mkdtempSync(path.join(os.tmpdir(), "nkp1-"));
@@ -37,7 +37,13 @@ test(
     const report = JSON.parse(
       fs.readFileSync(path.join(root, "report.json"), "utf8"),
     );
-    assert.equal(report.pass, true, JSON.stringify(report.expected));
+    assert.equal(
+      report.pass,
+      true,
+      JSON.stringify(report.expected) +
+        "\n" +
+        fs.readFileSync(path.join(root, "backend.log"), "utf8").slice(-4000),
+    );
     const { tasks, decided, held } = report.state;
     assert.deepEqual(decided, {
       "nkp1-go": ["go"],
