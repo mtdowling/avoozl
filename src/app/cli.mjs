@@ -1655,7 +1655,7 @@ try {
       for (const entry of selection.specs) console.log("  " + batchLine(entry));
       const tasks = selection.specs.reduce((sum, e) => sum + e.tasks, 0);
       console.log(
-        `${selection.specs.length} specs, ${tasks} tasks, ${selection.writes} GitHub issue writes when projected.`,
+        `${selection.specs.length} specs, ${tasks} tasks.`,
       );
       if (selection.pullRequest)
         console.log(

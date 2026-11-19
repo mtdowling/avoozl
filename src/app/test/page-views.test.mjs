@@ -307,7 +307,6 @@ test("the views are observe operations any app principal may read", () => {
 
 test("the page's resolution actions are the owner's alone", () => {
   for (const operation of [
-    "github.conflict.resolve",
     "delivery.retry",
     "task.update",
   ]) {

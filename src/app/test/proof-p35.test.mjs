@@ -41,7 +41,6 @@ function setup(t, { github } = {}) {
     namespace: "avz_p35bundlesxxxxxx",
     github: github ?? {
       mode: "single-repo",
-      project: { owner: "o", number: 1 },
       repositories: { [REPO]: { baseBranch: "main" } },
     },
   });
@@ -175,7 +174,6 @@ test("P35: the sdk-team plugin installs, previews, imports, approves and polls",
   assert.deepEqual(row.provides, ["pack", "rules", "tracker", "intake"]);
   assert.deepEqual(row.pack.groups, [
     "repositories",
-    "project",
     "contentRules",
     "delivery",
     "flow",
@@ -196,7 +194,6 @@ test("P35: the sdk-team plugin installs, previews, imports, approves and polls",
     byName.get(`github.repositories.${REPO}.untriaged`).to.filter,
     "label:needs-triage",
   );
-  assert.equal(byName.get("github.project.fields.status").action, "create");
   assert.equal(byName.get("contentRules.sets.team-terms").action, "create");
   assert.equal(byName.get("flow.retro.everyTasks").to, 20);
   assert.deepEqual(preview.warnings, []);
@@ -257,14 +254,9 @@ test("P35: the sdk-team plugin installs, previews, imports, approves and polls",
   const policy = readGitHubPolicy(env.root);
   assert.deepEqual(
     policy.repositories[REPO].rules.map((r) => r.id),
-    ["plan", "deliver", "pause", "quarantine"],
+    ["pause", "quarantine"],
   );
   assert.equal(policy.repositories[REPO].minimumPermission, "write");
-  assert.deepEqual(policy.project.fields, {
-    status: "Status",
-    release: "Release",
-    wave: "Wave",
-  });
   assert.equal(file.contentRules.sets[0].plugin, "sdk-team");
   // The pack holds no rule text, so none reached .avoozl.json.
   assert.doesNotMatch(JSON.stringify(file), /zebra/);
@@ -412,10 +404,7 @@ test("P35: a pack is refused by name for an unknown key and never runs code", as
       { settings: { repositories: { untriaged: { scope: "org" } } } },
       /settings\.repositories\.untriaged\.scope/,
     ],
-    [
-      { settings: { project: { owner: "o", fields: {} } } },
-      /settings\.project\.owner is not/,
-    ],
+    [{ settings: { project: {} } }, /settings\.project is not/],
     [
       { settings: { delivery: { runner: "tick", hooks: [] } } },
       /settings\.delivery\.hooks is not/,
@@ -560,7 +549,6 @@ test("P35: settings that cannot apply here are shown as skip", async (t) => {
   const preview = await env.run("plugin.pack.preview", { id: "sdk-team" });
   const skips = preview.changes.filter((c) => c.action === "skip");
   assert.ok(skips.some((c) => /No GitHub repository/.test(c.reason)));
-  assert.ok(skips.some((c) => /No GitHub Project/.test(c.reason)));
   await assert.rejects(
     env.run("plugin.pack.preview", {
       id: "sdk-team",

@@ -287,7 +287,7 @@ test("the caller identity is read only on the app's stdio MCP transport", async 
 });
 
 test("the tick dispatches ready local leaves by rank, then graph order, within limits", async (t) => {
-  // Nearby inputs: no delivery policy, a GitHub-routed leaf, a blocked
+  // Nearby inputs: no delivery policy, a blocked
   // dependent, an unregistered repository, an ignored repository limit of 0,
   // the old delivery.concurrency and the machine's lanes. Planning writes
   // nothing.
@@ -297,7 +297,6 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
     leaf("prior", { status: "accepted" }),
     leaf("shallow"),
     leaf("after-shallow"),
-    leaf("remote", { route: "github" }),
     leaf("elsewhere", { repository: "other" }),
     leaf("urgent", { rank: 1 }),
   ];

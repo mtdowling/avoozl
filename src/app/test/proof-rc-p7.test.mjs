@@ -100,7 +100,6 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
       namespace: "avz_proofrcp70000001",
       github: {
         mode: "single-repo",
-        project: { owner: "o", number: 1 },
         repositories: {
           [REPO]: {
             baseBranch: "main",
@@ -187,7 +186,6 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
       ["auto-merge", "change"],
       ["merge-method", "ok"],
       ["agents-pr", "change"],
-      ["project", "ok"],
     ],
   );
   assert.equal(github.state.writes.length, 0, "a preview writes nothing");

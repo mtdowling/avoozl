@@ -14,7 +14,7 @@ local or GitHub work.
 - Treat reviewed Markdown as design truth.
 - Keep local mutable task state in the selected Avoozl workspace.
 - Use stable task IDs and explicit dependency edges.
-- Use Avoozl's CLI for deterministic validation and GitHub projection.
+- Use Avoozl's CLI for deterministic validation.
 - Use Kiro Crew sessions for planning, implementation, tests, and review.
 - Never start blocked work.
 - Never approve a spec for the user. Approval is the user's, on the exact revision.
@@ -37,8 +37,7 @@ local or GitHub work.
 3. Draft one Kiro spec folder with stable task IDs and acceptance checks.
 4. Review task coverage against the source prose.
 5. Run deterministic validation.
-6. Show the user the graph before its first remote write. For GitHub, run
-   `plans_project_preview` with the approved plan ID and show its writes.
+6. Show the user the graph before its first remote write.
 7. Deliver only ready leaves through Kiro Crew.
 8. Record commits, checks, pull requests, and conflicts.
 9. Release dependents only after their configured completion facts hold.

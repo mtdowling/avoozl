@@ -103,38 +103,6 @@ test("a write after another writer's commit keeps that writer's change", () => {
   }
 });
 
-test("the Delivery view reads pull request feedback once", () => {
-  const { store } = built,
-    data = store.read(),
-    leaves = data.tasks.filter((t) => t.kind === "leaf"),
-    covered = leaves.slice(0, 3).map((t) => t.id);
-  store.transaction(() => {
-    for (const taskId of covered)
-      store.put("pr_feedback", {
-        id: taskId,
-        taskId,
-        repository: "app",
-        rounds: 2,
-        roundsFrom: 0,
-        strangers: {},
-        pull: { url: `https://example.test/app/pull/${taskId}` },
-      });
-  });
-  const { result, seen } = statements(() => deliveryView(store, store.read())),
-    reads = seen.filter((sql) => sql.includes("FROM pr_feedback")).length;
-  // The old view ran one lookup per leaf.
-  assert.equal(reads, 1);
-  assert.ok(reads < leaves.length);
-  for (const taskId of covered) {
-    const item = result.items.find((i) => i.id === taskId);
-    assert.equal(item.prFeedback.rounds, 2);
-    assert.equal(
-      item.prFeedback.pullRequest,
-      `https://example.test/app/pull/${taskId}`,
-    );
-  }
-});
-
 test("the title index finds the same duplicates as a full scan", () => {
   const data = structuredClone(built.store.read());
   // Two tasks with the same title as an existing one.
