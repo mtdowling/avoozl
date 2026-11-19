@@ -234,6 +234,11 @@ export function ConflictActions(props: {
             {ACTION_LABELS[action]}
           </IconLabel>
         )}
+        {item.kind === 'untick' && (
+          <IconLabel icon={Check} tooltip={ACTION_TIPS.keep} disabled={busy} onClick={() => settle('keep')}>
+            {ACTION_LABELS.keep}
+          </IconLabel>
+        )}
         {item.kind === 'stale-session' && item.deliveryState === 'decision' && (
           <IconLabel
             icon={RotateCcw}

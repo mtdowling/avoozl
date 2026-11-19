@@ -5666,3 +5666,82 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
 11. Tests SHALL cover: each key and each refusal in 5, the leftover manifest,
     default and package rules, an epic folder, a batch group, the hash in 6,
     proposed work writing a `Facts:` bullet, and the planner text.
+
+### Requirement 112: A repository's checks run in its isolation
+
+Added 2026-11-18 (owner decision). Design §5.2. Changes Requirements 7.1
+and 86.7: a check no longer runs as the person with nothing between it and
+the machine.
+
+**User story:** As the owner, I want every check Avoozl runs to run in a
+sandbox or a container with the network off by default, so that a worker's
+commit cannot read my credentials or reach the network through its checks.
+
+#### Acceptance criteria
+
+1. A project SHALL have one `isolation` setting, `{run, image, network,
+   readable, writable, prepare}`, kept in its project settings. `run` SHALL
+   be `sandbox` (the default), `container` or `unconfined`; `network` SHALL
+   be `off` (the default) or `on`; `image` SHALL be required with
+   `container`; `readable` and `writable` SHALL be absolute paths; `prepare`
+   SHALL be command arguments. Only a person SHALL set it, with
+   `project.configure` or Settings › Repository setup › Landing.
+2. With `sandbox`, every check (Avoozl's own check runs, integration's and
+   landing's candidate runs) SHALL run in the process sandbox, writing only
+   the check's folder, its own temp folder, a per-repository cache folder
+   outside every secret path, and `writable`; reading no secret path; with
+   the network as set; and with only the checks' environment allowlist
+   (Requirement 7.1).
+3. With `container`, a check SHALL run in `docker` or `podman`, whichever
+   is installed, with the folder mounted at the same path, `--network none`
+   unless the network is on, the same environment allowlist, and no home
+   folder mounted.
+4. `unconfined` SHALL be accepted only with the machine's opt-in. A machine
+   with no sandbox SHALL run a `sandbox` check unconfined. Either way the
+   check's record SHALL say `isolation: "unconfined"`, and the Landing page
+   and the task's timeline SHALL show "not sandboxed".
+5. `prepare` SHALL run once per worktree and commit before its checks,
+   outside isolation, with the environment allowlist. A failed prepare SHALL
+   run no check and SHALL say why.
+6. Every check record SHALL name the isolation it ran under.
+7. Tests SHALL show that, in a sandboxed check, a TCP connection to a public
+   host fails with the network off, a write outside the roots fails, and
+   `GH_TOKEN` is absent; container tests SHALL be skipped, saying so, where
+   no runtime is installed.
+
+### Requirement 113: A tick on the base branch completes the task
+
+Added 2026-11-19 (owner request). Design §4.41. Changes Requirement 30.6 and
+111.7: a tick in `tasks.md` is no longer read only when a revision is
+approved.
+
+**User story:** As the owner, I want Avoozl to notice a commit that ticks off
+a task and know it is complete, so that I do not approve the spec again for a
+box someone checked.
+
+#### Acceptance criteria
+
+1. When Avoozl reads an approved spec's `tasks.md` as the spec's base branch
+   holds it, in single-repository and plans-repository mode, a task whose
+   item is ticked `[x]` and that is not done SHALL become done at once, with
+   no approval and no new revision. Its evidence SHALL name the base branch,
+   the `tasks.md` line and the commit that ticked it, and the task's
+   integration SHALL carry that commit as its landing commit. One Activity
+   line SHALL say so.
+2. Only the base branch SHALL count. A tick on a working or worker branch, or
+   an edit not committed, SHALL do nothing. Only `[x]` SHALL count: `[~]` and
+   `[-]` stay Kiro's queued and running marks.
+3. A tick on a task an Avoozl worker session is running SHALL make the task
+   done and SHALL close that worker's session binding, with one Activity
+   line saying the session was released.
+4. A tick taken out of a done task SHALL NOT reopen it. It SHALL show in
+   Needs you with Reopen and Keep done, and stay done until a person chooses.
+5. A ticked item with no task ID SHALL be a lint error naming `tasks.md` and
+   its line.
+6. A ticked parent SHALL count as done with its open sub-tasks.
+7. A task gated on Avoozl's own recorded validation (Requirement 38.4) SHALL
+   not be completed by a tick.
+8. Ticks SHALL stay outside the revision hash (Requirement 111.7). Tests SHALL
+   show: a tick on the base branch completes a task with no approval, a tick
+   on another branch does nothing, a tick of an in-flight task releases its
+   worker, an untick lands in Needs you, and the hash does not change.

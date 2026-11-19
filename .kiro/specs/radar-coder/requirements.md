@@ -4,7 +4,9 @@ category: Planning
 
 # Requirements: Avoozl plans and gates, Issue Radar crews code
 
-Status: Approved
+**Superseded 2026-11-18** by `.kiro/specs/triage-agent/`, whose task ta-5.3
+deletes this spec (TA11.5). No task here is to be built. Until ta-5.3 lands,
+the items listed below as still in force stay citable.
 
 **Superseded 2026-11-15** by Requirements 86–91 and design §4.26 of
 `.kiro/specs/avoozl/`: Avoozl owns the coding loop with its own workers,

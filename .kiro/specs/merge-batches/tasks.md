@@ -4,8 +4,6 @@ completion: integrated
 ---
 # Tasks: merge batches
 
-Status: Draft
-
 Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
 brackets (`MB1` to `MB9`, in `requirements.md`); `D` sections refer to this
@@ -24,8 +22,8 @@ afterward. Screen changes need phone and desktop, light and dark screenshots
 for owner approval before merge (R92.12); screenshots are shown to the owner
 and never committed (AGENTS.md).
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts. Task IDs start with `mb-` so they never collide with the IDs
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts. Task IDs start with `mb-` so they never collide with the IDs
 of the other specs.
 
 ## Phase 1: Merge batches in direct landing

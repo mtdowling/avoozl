@@ -4,8 +4,6 @@ completion: integrated
 
 # Tasks
 
-Status: Draft
-
 - [ ] change-generator Change the generator and its tests
   - Facts:
     - done:

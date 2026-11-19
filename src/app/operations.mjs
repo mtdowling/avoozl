@@ -43,6 +43,7 @@ import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { applicationRoot } from "./config.mjs";
 import { mcpRefusal } from "./mcp-policy.mjs";
+import { asActor, currentActor } from "./github-posted.mjs";
 import { taskDiff, taskFiles } from "./task-files.mjs";
 import {
   bindDriver,
@@ -163,6 +164,7 @@ import {
   withSource,
 } from "./github-rate.mjs";
 import { syncNeedsYou } from "./integration-sync.mjs";
+import { diskNeedsYou } from "./disk-space.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
   CREW_LABEL_KEYS,
@@ -243,6 +245,12 @@ import { queueSessionSend } from "./session-send.mjs";
 import { openSession, viewOpened } from "./session-open.mjs";
 import { kirocrewPinNeedsYou } from "./kirocrew-pin.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
+import {
+  CHECKS_UNCONFINED,
+  checksUnconfinedAllowed,
+  isolationSetting,
+} from "./check-isolation.mjs";
+import { HARNESS_UNCONFINED } from "./harness-definitions.mjs";
 import { SUPPORTED_CONTRACTS } from "./plugin-contract.mjs";
 import {
   allowOnce,
@@ -417,6 +425,7 @@ import {
   seenCheckNames,
 } from "./github-branch-rules.mjs";
 import { settleConflicts } from "./conflict-actions.mjs";
+import { applyTicks, baseTasks, tickCommit } from "./spec-ticks.mjs";
 import {
   declaredSources,
   editSource,
@@ -934,6 +943,19 @@ function reviewSettings({ delivery, error = null } = {}) {
   };
 }
 
+// Who an operation's GitHub posts are for (github-posted.mjs), or null when
+// the context does not say and an enclosing operation's actor holds. An
+// agent, a plugin and the tick are marked; so is a caller nobody named. A
+// review draft is the person's: it is a pending review under their login
+// that GitHub publishes only when they submit it.
+const AUTOMATION = new Set(["workspace.tick"]);
+export function postingActor(name, context) {
+  if (name === "reviewdraft.post") return "person";
+  if (context.caller || context.mcp || context.plugin) return "agent";
+  if (AUTOMATION.has(name)) return "avoozl";
+  return context.person === true ? "person" : null;
+}
+
 export class Operations {
   constructor(
     store,
@@ -1298,6 +1320,49 @@ export class Operations {
       this.privateSpecsAt = now;
     } catch {
       // Keep the last list.
+    }
+  }
+  // A tick on a spec's base branch completes its task (spec-ticks.mjs). Read
+  // again only when the branch head or the approved revision moved.
+  async applyBaseTicks() {
+    this.ticksSeen ??= new Map();
+    const projects = this.store.list("projects");
+    for (const plan of this.store.list("plans")) {
+      if (
+        !plan.spec ||
+        plan.deletedAt ||
+        !Object.keys(plan.mapping ?? {}).length
+      )
+        continue;
+      try {
+        if (pullFor(this.store, plan.spec)) continue;
+        const spec = this.readSpec(plan.spec);
+        if (!spec.exists) continue;
+        const branch = spec.root
+            ? spec.home === "plansBranch"
+              ? spec.ref
+              : projects.find((p) => p.root === spec.root)?.baseBranch || "main"
+            : spec.ref,
+          read = spec.root
+            ? await baseTasks(spec.root, branch, plan.spec)
+            : { head: this.privateSpecsHead, text: spec.files["tasks.md"] };
+        if (!read?.text) continue;
+        const seen = `${read.head}:${plan.approvalId}`;
+        if (read.head && this.ticksSeen.get(plan.id) === seen) continue;
+        await applyTicks(this.store, plan, {
+          ...read,
+          branch,
+          // shortcut: the plans branch is cached with no history, so a tick
+          // there names the branch head it was first read at; use the
+          // contents API's commit list for the exact commit if that matters.
+          find: spec.root
+            ? (key) => tickCommit(spec.root, branch, plan.spec, key)
+            : async () => null,
+        });
+        this.ticksSeen.set(plan.id, seen);
+      } catch {
+        // Read again on the next tick.
+      }
     }
   }
   // Every spec folder the mode reads, in both homes (RC25.2), each with its
@@ -2643,9 +2708,14 @@ export class Operations {
   // only to open it, read it, or close it.
   // `context.caller` is the gateway-attested Kiro Crew session calling through
   // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
+  // `context.person` is a person's own call: the page's owner session or a
+  // CLI command outside any agent. Their GitHub posts go out as written.
   async execute(name, input = {}, expectedRevision, context = {}) {
-    const result = await withSource(sourceOfOperation(name), () =>
-      this.perform(name, input, expectedRevision, context),
+    const actor = postingActor(name, context) ?? currentActor() ?? "unknown";
+    const result = await asActor(actor, () =>
+      withSource(sourceOfOperation(name), () =>
+        this.perform(name, input, expectedRevision, context),
+      ),
     );
     // One activity row for a listed local action (§4.19); never fails it.
     recordOperation(this.store, name, input, result, {
@@ -3070,6 +3140,7 @@ export class Operations {
       });
       if (remote) return remote;
       await this.refreshPrivateSpecs();
+      await this.applyBaseTicks();
       if (input.cron === true) {
         const driving = Object.keys(store.getMeta("specDrivers") ?? {}),
           journalFor = async (planId) => {
@@ -3372,6 +3443,7 @@ export class Operations {
       view.items.push(...landingNeedsYou(store));
       view.items.push(...landingWaitNeedsYou(store, this.read()));
       view.items.push(...syncNeedsYou(store));
+      view.items.push(...diskNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));
@@ -6302,7 +6374,37 @@ export class Operations {
     if (name === "planning.reconcile")
       return this.reconcilePlanningPullRequests();
     if (name === "project.configure") {
+      // Unconfined checks need this machine's opt-in.
+      const allowIsolation = (isolation) => {
+        if (
+          isolation?.run === "unconfined" &&
+          !checksUnconfinedAllowed(machineAvoozlPaths().configDirectory)
+        )
+          fail(
+            `Unconfined checks need this machine's opt-in: "${CHECKS_UNCONFINED}": true in ${HARNESS_UNCONFINED}.`,
+            409,
+          );
+        return isolation;
+      };
+      // {id, isolation} alone changes only how a registered repository's
+      // checks run (Settings > Repository setup > Landing).
+      const keys = Object.keys(input).filter((key) => input[key] !== undefined);
+      if (
+        keys.includes("isolation") &&
+        keys.every((key) => ["id", "isolation"].includes(key))
+      ) {
+        const existing = store.get("projects", String(input.id || ""));
+        if (!existing) fail("Project not found.", 404);
+        const isolation = allowIsolation(
+          isolationSetting(input.isolation, "isolation"),
+        );
+        this.configuration?.assertWritable();
+        const configured = store.put("projects", { ...existing, isolation });
+        this.configuration?.updateExecutionProject(configured);
+        return configured;
+      }
       const project = await projectConfig(input);
+      allowIsolation(project.isolation);
       this.configuration?.assertWritable();
       const configured = store.put("projects", project);
       this.configuration?.updateExecutionProject(configured);

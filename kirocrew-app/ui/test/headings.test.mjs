@@ -97,10 +97,10 @@ test('a Needs you title opens what it is about', () => {
 
 test('Settings > Flow puts each sub-section in its own titled box', () => {
   const flow = source('FlowSettings.tsx')
-  assert.match(flow, /function Box\(\{ children \}[\s\S]*?<Card flex flexCol gap="4" data-flow-box>/)
-  const titles = [...flow.matchAll(/<Box>\s*<Section title="([^"]+)" blurb="[^"]+"/g)].map((m) => m[1])
+  assert.match(flow, /function FlowBox\(\{ children \}[\s\S]*?<Card flex flexCol gap="4" data-flow-box>/)
+  const titles = [...flow.matchAll(/<FlowBox>\s*<Section title="([^"]+)" blurb="[^"]+"/g)].map((m) => m[1])
   assert.deepEqual(titles, ['Timing', 'Pause on a broken check', 'Local checks first', 'CI', 'Retro'])
-  assert.equal(flow.match(/<Box>/g).length, titles.length)
+  assert.equal(flow.match(/<FlowBox>/g).length, titles.length)
   // Retro: when it runs, then the built-in prompt and your instructions.
   // Its model is under Settings › Models.
   const retro = flow.slice(flow.indexOf('title="Retro"'))

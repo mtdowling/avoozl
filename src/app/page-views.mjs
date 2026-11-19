@@ -1090,6 +1090,17 @@ export function conflictsView(store, data) {
         choices: [],
         resolution: null,
       });
+    // A tick taken out of tasks.md on the base branch, on a done task: it
+    // stays done until a person says (spec-ticks.mjs).
+    if (task.untick && complete(task.status))
+      items.push({
+        kind: "untick",
+        taskId: task.id,
+        ...ownership(task),
+        title: task.title ?? task.id,
+        detail: `Its tick was taken out of tasks.md on ${task.untick.branch}, but the task is done. Reopen it, or keep it done.`,
+        openedAt: task.untick.at,
+      });
     if (!complete(task.status) && task.status === "blocked")
       items.push({
         kind: "needs-human",
@@ -1482,6 +1493,8 @@ export function taskOrigin(task, data, plan = null) {
 // One task's events, newest first, from the rows' own times: the task row,
 // its sessions, evidence, deliveries and integration. Avoozl keeps no
 // separate task event log, so this is what "history" means on the page.
+const unsandboxed = (check) => check?.isolation === "unconfined";
+
 function taskTimeline(task, delivery) {
   return [
     task.updatedAt && { at: task.updatedAt, text: "Task row changed" },
@@ -1509,6 +1522,15 @@ function taskTimeline(task, delivery) {
       at: delivery.integration.at,
       text: `Integrated ${String(delivery.integration.commit || "").slice(0, 12)}`,
     },
+    // Checks that ran with no isolation say so.
+    ...(delivery?.deliveries || []).flatMap((d) =>
+      (d.verifications || [])
+        .filter((v) => (v.checks || []).some(unsandboxed))
+        .map((v) => ({
+          at: v.at,
+          text: `Checks at ${String(v.commit || d.commit || "").slice(0, 12)} ran not sandboxed`,
+        })),
+    ),
   ]
     .filter((entry) => entry && typeof entry.at === "string")
     .sort((a, b) => b.at.localeCompare(a.at));

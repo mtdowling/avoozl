@@ -38,7 +38,7 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
     }
   }, [open])
   return (
-    <div ref={root} style={{ position: 'relative', flexShrink: 0 }} {...props.attrs}>
+    <Box ref={root} css-position="relative" css-flex-shrink="0" {...props.attrs}>
       <PlainButton
         type="button"
         aria-label={props.label}
@@ -94,6 +94,6 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
           {props.children}
         </Box>
       )}
-    </div>
+    </Box>
   )
 }

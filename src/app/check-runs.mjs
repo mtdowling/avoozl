@@ -13,6 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import { commandEvidence, git, withWorkLock } from "./git.mjs";
 import { selectedChecks } from "./repository-checks.mjs";
+import { requireDiskSpace } from "./disk-space.mjs";
 import { openStops, putSpan, readFlowPolicy } from "./flow.mjs";
 import { contentBinding } from "./content-rules.mjs";
 import {
@@ -115,6 +116,7 @@ export async function runChecksAt(
       timeoutFor: timeoutFor || (() => timeoutMs),
       run,
       env: project.checksEnv,
+      project,
     });
     return { head, checks: results };
   } finally {
@@ -194,7 +196,7 @@ async function drainProject(store, projectId, options) {
             .filter((r) => r.state === "queued" && r.projectId === projectId)
             .sort((a, b) => (a.queuedAt < b.queuedAt ? -1 : 1))[0];
           if (!next) return;
-          await runOne(store, project, next, options);
+          if ((await runOne(store, project, next, options))?.held) return;
         }
       },
     );
@@ -207,6 +209,17 @@ async function drainProject(store, projectId, options) {
 async function runOne(store, project, record, options) {
   const task = store.read().tasks.find((t) => t.id === record.taskId),
     startedAt = new Date().toISOString();
+  // A run that will make a worktree waits, queued, while its volume is full.
+  if (!(await warmWorktree(store, record.taskId, record.commit)))
+    try {
+      requireDiskSpace(store, os.tmpdir(), `The check run of ${record.taskId}`);
+    } catch (error) {
+      if (!error.lowDisk) throw error;
+      store.transaction(() =>
+        store.put("flow_records", { ...record, waiting: "low disk" }),
+      );
+      return { held: true };
+    }
   store.transaction(() =>
     store.put("flow_records", {
       ...record,
@@ -244,6 +257,7 @@ async function runOne(store, project, record, options) {
               timeoutFor,
               run: options.run,
               env: project.checksEnv,
+              project,
             }),
           }
         : await runChecksAt(project, record.commit, argvs, {

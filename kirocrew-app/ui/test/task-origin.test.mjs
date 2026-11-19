@@ -156,5 +156,5 @@ test('the cited file renders the whole text, marks with a class, and skips anima
   assert.match(cited, /box-shadow: inset 3px 0 0 var\(--accent\)/)
   assert.match(cited, /behavior: still \? 'auto' : 'smooth'/)
   assert.match(cited, /prefers-reduced-motion: reduce/)
-  assert.match(cited, /maxHeight: props\.maxHeight \?\? 420, overflowY: 'auto'/)
+  assert.match(cited, /css-max-height=\{props\.maxHeight \?\? 420\} css-overflow-y="auto"/)
 })

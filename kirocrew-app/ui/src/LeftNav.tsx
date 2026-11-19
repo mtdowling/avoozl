@@ -12,44 +12,50 @@ import { ChevronRight } from './icons.ts'
 import { ResizeHandle } from './ResizeHandle.tsx'
 import { Box } from './ui/Box'
 import { PlainButton } from './ui/Plain'
+import type { LookProps } from './ui/Box'
 
 // Issue Radar's sidebar cards, measured on the host: 12px corners, the
 // elevated surface, a hairline border and a small shadow. The top card's
 // border is the stronger one. Buttons in them keep Kiro Crew's compact size
 // (28px at most) on every screen: there is no tall tap size.
-export const NAV_CARD = { border: '1px solid var(--border)', borderRadius: 12, background: 'var(--bg-elevated)', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)' } as const
-export const TOP_CARD = { ...NAV_CARD, border: '1px solid var(--border-strong, var(--border))' } as const
+export const NAV_CARD = {
+  'css-border': '1px-solid-border',
+  'css-border-radius': '12',
+  'css-background': 'bg-elevated',
+  'css-box-shadow': '0-1px-2px-rgba-0-0-0-0.05',
+} as const satisfies LookProps
+export const TOP_CARD = { ...NAV_CARD, 'css-border': '1px-solid-border-strong-border' } as const satisfies LookProps
 export { NAV_ROW }
 // The nav's small icon buttons (Stop the line, Refresh): 28px, icon only.
 export const NAV_ICON = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 28,
-  height: 28,
-  padding: 0,
-  borderRadius: 6,
-  border: '1px solid var(--border)',
-  background: 'transparent',
-  cursor: 'pointer',
-} as const
+  'css-display': 'inline-flex',
+  'css-align-items': 'center',
+  'css-justify-content': 'center',
+  'css-width': '28',
+  'css-height': '28',
+  'css-padding': '0',
+  'css-border-radius': '6',
+  'css-border': '1px-solid-border',
+  'css-background': 'transparent',
+  'css-cursor': 'pointer',
+} as const satisfies LookProps
 // The same icons on the page's top line: square, as tall as the row (the
 // Plan a goal button beside them), never over 28px.
 export const SQUARE = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  alignSelf: 'stretch',
-  aspectRatio: '1 / 1',
-  minWidth: 24,
-  maxHeight: 28,
-  padding: 0,
-  boxSizing: 'border-box',
-  borderRadius: 6,
-  border: '1px solid var(--border)',
-  background: 'transparent',
-  cursor: 'pointer',
-} as const
+  'css-display': 'inline-flex',
+  'css-align-items': 'center',
+  'css-justify-content': 'center',
+  'css-align-self': 'stretch',
+  'css-aspect-ratio': '1-1',
+  'css-min-width': '24',
+  'css-max-height': '28',
+  'css-padding': '0',
+  'css-box-sizing': 'border-box',
+  'css-border-radius': '6',
+  'css-border': '1px-solid-border',
+  'css-background': 'transparent',
+  'css-cursor': 'pointer',
+} as const satisfies LookProps
 // The small section under the nav card that holds those icons, drawn only
 // when there is something to put in it.
 export function NavLine(props: { children: ReactNode }) {
@@ -105,24 +111,23 @@ export function LeftNav(props: {
   }, [])
   if (collapsed)
     return (
-      <nav
+      <Box
         ref={root}
         aria-label="Avoozl pages"
         data-left-nav="collapsed"
         data-top-row
-        style={{
-          flex: `0 0 ${NAV_COLLAPSED_WIDTH}px`,
-          width: NAV_COLLAPSED_WIDTH,
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'stretch',
-          gap: 4,
-          padding: '4px 2px',
-          borderRight: '1px solid var(--border)',
-          minHeight: 0,
-          overflowY: 'auto',
-        }}
+        as="nav"
+        css-flex={`0 0 ${NAV_COLLAPSED_WIDTH}px`}
+        css-width={NAV_COLLAPSED_WIDTH}
+        css-box-sizing="border-box"
+        css-display="flex"
+        css-flex-direction="column"
+        css-align-items="stretch"
+        css-gap="4"
+        css-padding="4px-2px"
+        css-border-right="1px-solid-border"
+        css-min-height="0"
+        css-overflow-y="auto"
       >
         <PlainButton
           type="button"
@@ -168,26 +173,25 @@ export function LeftNav(props: {
             )
           })}
         </Box>
-      </nav>
+      </Box>
     )
   return (
     <>
-      <nav
+      <Box
         ref={root}
         aria-label="Avoozl pages"
         data-left-nav="open"
         data-top-row
-        style={{
-          flex: `0 0 ${width}px`,
-          width,
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          padding: '8px 8px 4px 0',
-          minHeight: 0,
-          overflowY: 'auto',
-        }}
+        as="nav"
+        css-flex={`0 0 ${width}px`}
+        css-width={width}
+        css-box-sizing="border-box"
+        css-display="flex"
+        css-flex-direction="column"
+        css-gap="8"
+        css-padding="8px-8px-4px-0"
+        css-min-height="0"
+        css-overflow-y="auto"
       >
         {props.top}
         <NavAccordion groups={props.groups} value={props.value} child={props.child} onPick={props.onPick} />
@@ -214,7 +218,7 @@ export function LeftNav(props: {
           Collapse
         </PlainButton>
         {props.brand}
-      </nav>
+      </Box>
       <ResizeHandle
         label="Resize the nav"
         width={width}

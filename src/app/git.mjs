@@ -5,6 +5,12 @@ import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { fail } from "./store.mjs";
 import { checksSetting, repositoryChecks } from "./repository-checks.mjs";
+import { requireDiskSpace } from "./disk-space.mjs";
+import {
+  checkOptions,
+  isolationSetting,
+  prepareChecks,
+} from "./check-isolation.mjs";
 const exec = promisify(execFile);
 function liveLocks(store, projectId) {
   const rows = store.db
@@ -223,6 +229,7 @@ export async function projectConfig({
   checksEnv,
   worktreeHelper,
   landing,
+  isolation,
 }) {
   if (!/^[a-z][a-z0-9-]{1,60}$/.test(id || ""))
     fail("Choose a stable project ID.");
@@ -242,6 +249,8 @@ export async function projectConfig({
   }
   // The repository's named checks; the older list of argv arrays loads too.
   checks = checksSetting(checks, "checks");
+  // The isolation its checks run under; a person sets it here.
+  isolation = isolationSetting(isolation, "isolation");
   // An opt-in allowlist of environment variable names for check processes
   // (R83.5) and the hash of the scripts/worktree helper a person approved
   // (R83.4).
@@ -286,6 +295,7 @@ export async function projectConfig({
     ...(checksEnv === undefined ? {} : { checksEnv: [...checksEnv] }),
     ...(worktreeHelper === undefined ? {} : { worktreeHelper }),
     ...(landing === undefined ? {} : { landing }),
+    ...(isolation === undefined ? {} : { isolation }),
     repository: await remoteRepository(root),
     createdAt: new Date().toISOString(),
   };
@@ -305,6 +315,8 @@ export async function createWorktree(store, project, runId, task = {}) {
         worktree = task.worktree || path.join(project.worktreeRoot, runId);
       fs.mkdirSync(path.dirname(worktree), { recursive: true });
       if (fs.existsSync(worktree)) fail("Run worktree already exists.", 409);
+      // Room first: a full volume holds the work instead of a half-made add.
+      requireDiskSpace(store, path.dirname(worktree), `The worktree ${runId}`);
       const helper = path.join(project.root, "scripts/worktree");
       if (task.existing)
         await git(project.root, ["worktree", "add", worktree, branch]);
@@ -533,10 +545,13 @@ export function checkEnvironment(env = process.env, allow = []) {
 export const helperHash = (file) =>
   createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 
+// `isolate(argv, env)` (check-isolation.mjs) wraps a repository check in its
+// repository's isolation: {argv, env, isolation, cleanup?}, or {refused}.
+// The record names the isolation it ran under.
 export async function commandEvidence(
   cwd,
   argv,
-  { timeoutMs = 120000, onStart, env: allow } = {},
+  { timeoutMs = 120000, onStart, env: allow, isolate } = {},
 ) {
   if (
     !Array.isArray(argv) ||
@@ -544,12 +559,26 @@ export async function commandEvidence(
     argv.some((x) => typeof x !== "string")
   )
     fail("Use a command argument array.");
-  const startedAt = new Date().toISOString();
+  const startedAt = new Date().toISOString(),
+    environment = checkEnvironment(process.env, allow),
+    wrapped = isolate ? isolate(argv, environment) : null;
+  if (wrapped?.refused)
+    return {
+      argv,
+      startedAt,
+      endedAt: startedAt,
+      exitCode: null,
+      stdout: "",
+      stderr: wrapped.refused,
+      isolation: null,
+    };
+  const run = wrapped?.argv ?? argv,
+    shown = wrapped ? { isolation: wrapped.isolation } : {};
   onStart?.();
   try {
-    const { stdout, stderr } = await exec(argv[0], argv.slice(1), {
+    const { stdout, stderr } = await exec(run[0], run.slice(1), {
       cwd,
-      env: checkEnvironment(process.env, allow),
+      env: wrapped?.env ?? environment,
       timeout: timeoutMs,
       maxBuffer: 8 * 1024 * 1024,
     });
@@ -560,17 +589,28 @@ export async function commandEvidence(
       exitCode: 0,
       stdout,
       stderr,
+      ...shown,
     };
   } catch (error) {
+    // A sandbox that could not start the command says so on its first line
+    // and exits; that is a check that did not start, not one that failed.
+    const unstarted =
+      wrapped &&
+      /^(?:sandbox-exec: execvp\(\)|bwrap: execvp)/.test(
+        String(error.stderr || ""),
+      );
     return {
       argv,
       startedAt,
       endedAt: new Date().toISOString(),
-      exitCode: Number.isInteger(error.code) ? error.code : null,
+      exitCode: Number.isInteger(error.code) && !unstarted ? error.code : null,
       signal: error.signal || null,
       stdout: error.stdout || "",
       stderr: error.stderr || error.message,
+      ...shown,
     };
+  } finally {
+    wrapped?.cleanup?.();
   }
 }
 // `source` is the integration entry of a Kiro Crew delivery (delivery.mjs).
@@ -594,11 +634,20 @@ export async function validateUnlocked(
   if (!checks.length)
     fail("Configure the repository's checks before validation.");
   const results = [];
+  const ready = await prepareChecks(project, run.worktree);
+  if (ready && ready.exitCode !== 0)
+    fail(
+      `The repository's prepare step failed: ${String(ready.stderr || "")
+        .split("\n")[0]
+        .slice(0, 200)}`,
+    );
   for (const { name, argv } of checks) {
     store.event(runId, "validation.started", { argv, name, phase });
-    const record = await commandEvidence(run.worktree, argv, {
-      env: project.checksEnv,
-    });
+    const record = await commandEvidence(
+      run.worktree,
+      argv,
+      checkOptions(project, run.worktree),
+    );
     // Each record names the commit and the phase it ran in, so the checks that
     // ran on the rebased base are distinguishable from the earlier ones rather
     // than reading as duplicates of the same work.

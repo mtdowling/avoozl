@@ -4,8 +4,6 @@ category: Planning
 
 # Requirements: the remaining Avoozl work
 
-Status: Draft
-
 Status 2026-11-18: AN1 to AN3 are built (see `tasks.md`). AN4.1 for P38 and
 AN4.2 are superseded because Ideas and the lessons store were removed.
 
@@ -20,8 +18,8 @@ criteria in `.kiro/specs/radar-coder/requirements.md` (RC) or
 `.kiro/specs/avoozl/requirements.md` (R) that stay the source of truth for
 what the behavior is. This file says only what this plan delivers.
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts that a person does later.
+Approval lives in Avoozl, not in these files. Approving the spec, creating
+issues and starting agents are separate acts that a person does later.
 
 ### Out of scope
 
@@ -65,6 +63,10 @@ public repository.
    and a planted plans-branch name that blocks a forward, with a receipt.
 
 ### Requirement AN3: Crews on public repositories
+
+Superseded 2026-11-18 (owner decision): public crews are removed except the
+content hook, which becomes a general pre-tool-use command (triage-agent
+TA11.3, task ta-5.2). Until ta-5.2 lands the code below still runs.
 
 **User story:** As the owner of a machine with private names and notes, I want
 a crew on a public repository fenced by a scan before send, an audit and a

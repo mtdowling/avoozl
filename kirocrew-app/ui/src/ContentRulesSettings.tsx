@@ -82,15 +82,20 @@ function HelpLink({ children = 'How rules work' }: { children?: ReactNode }) {
 function SetRow(props: { selected: boolean; onClick: () => void; title: string; raw?: string; locked?: boolean; note?: ReactNode }) {
   return (
     <li>
-      <button
+      <PlainButton
         type="button"
         onClick={props.onClick}
         aria-current={props.selected ? 'true' : undefined}
-        className="flex w-full flex-col items-start rounded-md px-2 py-1.5 text-left"
-        style={{
-          background: props.selected ? 'var(--card, var(--bg))' : 'transparent',
-          border: `1px solid ${props.selected ? 'var(--accent)' : 'transparent'}`,
-        }}
+        css-background={props.selected ? 'card-bg' : 'transparent'}
+        css-border={props.selected ? '1px-solid-accent' : '1px-solid-transparent'}
+        flex
+        wFull
+        flexCol
+        items="start"
+        rounded="md"
+        px="2"
+        py="1.5"
+        align="left"
       >
         <Box as="span" flex wFull items="center" gap="1.5" size="sm" weight="medium">
           {props.locked && <Glyph icon={Lock} size={12} aria-label="Built in" css-color="muted" css-flex-shrink="0" />}
@@ -108,7 +113,7 @@ function SetRow(props: { selected: boolean; onClick: () => void; title: string; 
             {props.raw}
           </Box>
         )}
-      </button>
+      </PlainButton>
     </li>
   )
 }
@@ -361,9 +366,6 @@ function SetFormView(props: { form: SetForm; set: (patch: Partial<SetForm>) => v
 // ---------------------------------------------------------------------------
 // The terms editor: Rule builder and File view over one text.
 
-const rowGrid = { display: 'grid', gridTemplateColumns: 'minmax(6rem, 9rem) minmax(8rem, 10rem) minmax(0, 1fr) auto', gap: 8, alignItems: 'center' }
-const rowGridNarrow = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) auto', gap: 6, alignItems: 'center' }
-
 // The kind picker: a rule (word or pattern) or an Allow row (word or pattern).
 type RowKind = 'word' | 'pattern' | 'allow-word' | 'allow-pattern'
 
@@ -371,7 +373,6 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
   const { row, index } = props
   const error = rowError(row, props.rows)
   const errorId = `avoozl-term-error-${index}`
-  const grid = props.narrow ? rowGridNarrow : rowGrid
   if (row.kind === 'blank') return null
   if (row.kind === 'note' || row.kind === 'raw')
     return (
@@ -477,20 +478,30 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
   return (
     <Box as="li" flex flexCol gap="1" data-term-row={index + 1}>
       {props.narrow ? (
-        <div style={grid}>
+        <Box
+          css-display="grid"
+          css-grid-template-columns={props.narrow ? 'minmax-0-1fr-minmax-0-1fr-auto' : 'minmax-6rem-9rem-minmax-8rem-10rem-minmax-0-1fr-auto'}
+          css-gap={props.narrow ? '6' : '8'}
+          css-align-items="center"
+        >
           {name}
           {kind}
           <span />
           {value}
           {drop}
-        </div>
+        </Box>
       ) : (
-        <div style={grid}>
+        <Box
+          css-display="grid"
+          css-grid-template-columns={props.narrow ? 'minmax-0-1fr-minmax-0-1fr-auto' : 'minmax-6rem-9rem-minmax-8rem-10rem-minmax-0-1fr-auto'}
+          css-gap={props.narrow ? '6' : '8'}
+          css-align-items="center"
+        >
           {name}
           {kind}
           {value}
           {drop}
-        </div>
+        </Box>
       )}
       {error && (
         <ErrorText id={errorId} as="span" size="xs" role="alert">
@@ -506,23 +517,30 @@ function FileView(props: { text: string; onChange: (text: string) => void }) {
   const errors = useMemo(() => fileErrors(props.text), [props.text])
   const bad = new Set(errors.map((e) => e.line))
   const count = Math.max(1, props.text.replace(/\n$/, '').split('\n').length)
-  const lineStyle = { fontFamily: 'var(--mono, monospace)', fontSize: 12, lineHeight: '18px' }
   return (
     <Stack gap={1}>
       <Box css-border-color="border" css-height="220" flex overflow="hidden" rounded="base" border="all">
-        <div
+        <Box
           ref={gutter}
           aria-hidden="true"
-          className="select-none overflow-hidden px-2 py-1.5 text-right"
-          style={{ ...lineStyle, background: 'color-mix(in srgb, var(--text) 5%, var(--card, var(--bg)))', minWidth: '2.5rem' }}
+          css-font-family="mono-monospace"
+          css-font-size="12"
+          css-line-height="18px"
+          css-background="mix-text-5%-card-bg"
+          css-min-width="2.5rem"
+          selectNone
+          overflow="hidden"
+          px="2"
+          py="1.5"
+          align="right"
         >
           {Array.from({ length: count + 20 }, (_, i) => (
             <Box key={i} css-color={bad.has(i + 1) ? 'danger' : 'muted'} css-font-weight={bad.has(i + 1) ? '700' : '400'} css-visibility={i < count ? 'visible' : 'hidden'}>
               {i + 1}
             </Box>
           ))}
-        </div>
-        <textarea
+        </Box>
+        <PlainTextarea
           aria-label="Terms file"
           spellCheck={false}
           value={props.text}
@@ -530,8 +548,19 @@ function FileView(props: { text: string; onChange: (text: string) => void }) {
           onScroll={(e) => {
             if (gutter.current) gutter.current.scrollTop = e.currentTarget.scrollTop
           }}
-          className="flex-1 resize-none px-2 py-1.5"
-          style={{ ...lineStyle, background: 'var(--card, var(--bg))', color: 'var(--text)', border: 0, outline: 'none', whiteSpace: 'pre', overflow: 'auto' }}
+          css-font-family="mono-monospace"
+          css-font-size="12"
+          css-line-height="18px"
+          css-background="card-bg"
+          css-color="text"
+          css-border="0"
+          css-outline="none"
+          css-white-space="pre"
+          css-overflow="auto"
+          flex1
+          resizeNone
+          px="2"
+          py="1.5"
         />
       </Box>
       {errors.length > 0 && (
@@ -585,21 +614,26 @@ function TryIt({ rows }: { rows: TermRow[] }) {
                 ).map((piece, i) =>
                   !piece.rules.length && piece.allowed ? (
                     <span key={i} data-allowed={piece.allowed.join(' ')}>
-                      <del style={{ color: 'var(--muted)' }}>{piece.text}</del>
+                      <Box as="del" css-color="muted">
+                        {piece.text}
+                      </Box>
                       <Box as="span" css-margin-left="2" size="xs" tone="muted">
                         {' '}
                         (allowed)
                       </Box>
                     </span>
                   ) : piece.rules.length ? (
-                    <mark
+                    <Box
                       key={i}
                       title={undefined}
                       data-match={piece.rules.join(' ')}
-                      style={{ background: 'color-mix(in srgb, var(--danger) 25%, transparent)', color: 'inherit', borderRadius: 3 }}
+                      as="mark"
+                      css-background="mix-danger-25%-transparent"
+                      css-color="inherit"
+                      css-border-radius="3"
                     >
                       {piece.text}
-                    </mark>
+                    </Box>
                   ) : (
                     <span key={i}>{piece.text}</span>
                   ),

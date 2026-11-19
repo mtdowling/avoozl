@@ -8,31 +8,30 @@ import { LAYER } from './layers.ts'
 import { usePhone } from './list-detail.ts'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export function ListDetailBack(props: { label: string; onBack: () => void }) {
   return (
-    <button
+    <PlainButton
       type="button"
       data-list-detail-back
       onClick={props.onBack}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        flexShrink: 0,
-        padding: '2px 8px',
-        marginLeft: -4,
-        background: 'none',
-        border: 0,
-        borderRadius: 6,
-        color: 'var(--muted)',
-        cursor: 'pointer',
-        fontSize: 14,
-      }}
+      css-display="inline-flex"
+      css-align-items="center"
+      css-gap="4"
+      css-flex-shrink="0"
+      css-padding="2px-8px"
+      css-margin-left={-4}
+      css-background="none"
+      css-border="0"
+      css-border-radius="6"
+      css-color="muted"
+      css-cursor="pointer"
+      css-font-size="14"
     >
       <ArrowLeft size={14} aria-hidden="true" />
       {props.label}
-    </button>
+    </PlainButton>
   )
 }
 
@@ -76,9 +75,9 @@ export function DetailPane(props: { backLabel: string; onBack: () => void; title
     <div data-detail-pane>
       <DetailBar backLabel={props.backLabel} onBack={props.onBack} title={props.title} scrolledOut={scrolledOut} actions={props.actions} />
       {!props.ownTitle && (
-        <h2 ref={titleRef} data-detail-title style={{ margin: '4px 0 12px', fontSize: 20, fontWeight: 600, overflowWrap: 'anywhere' }}>
+        <Box ref={titleRef} data-detail-title as="h2" css-margin="4px-0-12px" css-font-size="20" css-font-weight="600" css-overflow-wrap="anywhere">
           {props.title}
-        </h2>
+        </Box>
       )}
       <TitleRef.Provider value={props.ownTitle ? titleRef : null}>{props.children}</TitleRef.Provider>
     </div>

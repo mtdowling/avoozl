@@ -32,6 +32,7 @@ import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
 import { PlainButton, PlainLink } from './ui/Plain'
 import { DOT } from './ui/looks/LandingQueueView.ts'
+import { TONE } from './ui/tones.ts'
 
 const DOT_TEXT: Record<string, string> = { pass: 'Checks passed', fail: 'Checks failed', pending: 'Checks running', stale: 'Checks are for an older head' }
 
@@ -42,18 +43,7 @@ function CheckDot(props: { checks: LandingItem['checks'] }) {
   const text = `${DOT_TEXT[dot] ?? dot}${age}`
   return (
     <Tooltip text={text}>
-      <Box
-        data-check-dot={dot}
-        role="img"
-        aria-label={text}
-        as="span"
-        css-width="8"
-        css-height="8"
-        css-background={DOT[dot] ?? 'var(--muted)'}
-        inlineBlock
-        shrink0
-        rounded="full"
-      />
+      <Box data-check-dot={dot} role="img" aria-label={text} as="span" css-width="8" css-height="8" css-background={DOT[dot] ?? TONE.muted} inlineBlock shrink0 rounded="full" />
     </Tooltip>
   )
 }
@@ -107,6 +97,11 @@ function Row(props: { item: LandingItem; now: number }) {
           </PlainLink>
         ))}
         {!item.pr && item.checks && <CheckDot checks={item.checks} />}
+        {item.unsandboxed && (
+          <Box as="span" tone="danger" data-landing-unsandboxed>
+            not sandboxed
+          </Box>
+        )}
         {item.since && (
           <Box as="span" tabularNums>
             waiting {duration(item.since, props.now)}

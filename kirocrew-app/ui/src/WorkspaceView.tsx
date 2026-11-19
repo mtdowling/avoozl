@@ -47,7 +47,7 @@ function WorkspaceRow(props: { workspace: CatalogWorkspace; selected: boolean; o
   const { workspace, selected } = props
   return (
     <ListItem
-      className={selected ? 'bg-accent/10' : ''}
+      highlighted={selected}
       title={
         <PlainButton type="button" aria-pressed={selected} onClick={props.onSelect} flex minW0 flexWrap items="center" gapX="2" align="left">
           <Box as="span" weight="medium">

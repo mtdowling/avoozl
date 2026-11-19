@@ -54,6 +54,7 @@ import { Box } from './ui/Box'
 import { PanningStyle } from './ui/PageStyles'
 import { PlainButton, SvgG, SvgPath, SvgRect, SvgRoot, SvgText } from './ui/Plain'
 import { STATE_COLOR } from './ui/looks/GraphView.ts'
+import { TONE } from './ui/tones.ts'
 
 // Graphs larger than this open with every group collapsed to one node.
 const COLLAPSE_ABOVE = 60
@@ -137,7 +138,7 @@ function Node(props: { node: LaidNode; selected: boolean; dim: boolean; onSelect
         strokeWidth={selected ? 2.5 : 1}
         strokeDasharray={node.members || draft ? '5 3' : undefined}
         css-fill="card"
-        css-stroke={selected ? 'var(--accent)' : color}
+        css-stroke={selected ? TONE.accent : color}
       />
       <SvgRect width={5} height={NODE_HEIGHT} rx={3} css-fill={color} />
       <SvgText x={12} y={15} fontSize={11} fontWeight={600} css-fill="text">
@@ -614,7 +615,7 @@ export default function GraphView({
           <Box mt="2">
             <Legend />
           </Box>
-          <div ref={canvas} className="mt-2 overflow-hidden rounded border" style={{ borderColor: 'var(--border)', height: CANVAS_HEIGHT, touchAction: 'none' }}>
+          <Box ref={canvas} css-border-color="border" css-height="640" css-touch-action="none" mt="2" overflow="hidden" rounded="base" border="all">
             <SvgRoot
               role="group"
               aria-label="Task graph. Drag to pan; pinch or hold Ctrl or Cmd and scroll to zoom."
@@ -709,7 +710,7 @@ export default function GraphView({
                 ))}
               </g>
             </SvgRoot>
-          </div>
+          </Box>
         </Card>
       )}
       {graph && task && <Details task={task} batch={graph.batches?.find((entry) => entry.id === task.batch) ?? null} neighbors={neighbors(graph, task.id)} onSelect={selectId} />}

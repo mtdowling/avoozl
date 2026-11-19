@@ -56,6 +56,22 @@ export type BoxTag =
   | 'summary'
   | 'fieldset'
   | 'legend'
+  | 'del'
+  | 'mark'
+  | 'kbd'
+  | 'abbr'
+  | 'time'
+  | 'b'
+  | 'i'
+  | 'sup'
+  | 'sub'
+  | 'ins'
+  | 's'
+  | 'u'
+  | 'blockquote'
+  | 'caption'
+  | 'figcaption'
+  | 'hr'
 
 export type BoxProps = Omit<HTMLAttributes<HTMLElement>, 'className' | 'style'> &
   Pick<TdHTMLAttributes<HTMLElement>, 'colSpan' | 'rowSpan' | 'scope'> & { htmlFor?: string; open?: boolean; children?: ReactNode; as?: BoxTag } & { [K in Flags]?: boolean } & {

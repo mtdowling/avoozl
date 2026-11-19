@@ -191,10 +191,10 @@ async function setup() {
     // medium sure (P50).
     investigate: { mode: "off", minConfidence: "medium" },
   };
-  config.harnesses = {
-    worker: HARNESS,
-    planner: HARNESS,
-    retro: HARNESS,
+  config.roles = {
+    worker: { harness: HARNESS },
+    planner: { harness: HARNESS },
+    retro: { harness: HARNESS },
   };
   fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + "\n");
 
