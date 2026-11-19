@@ -256,6 +256,12 @@ that there is one set of rules about what that machine is trusted to do.
 5. A machine with no GitHub access SHALL NOT be a worker machine. It can
    run its own workspace. Requirement 90.7 is retired (WP9).
 6. Proof P53 of the avoozl spec SHALL stay the live proof of worker pull.
+7. With `workers.offerTo` naming worker logins, the driver's tick SHALL
+   offer each ready task of a spec it drives to them once, SHALL NOT start
+   those tasks itself, SHALL answer their claim requests, and SHALL land a
+   checked result's working branch on the base branch. Without it, `spec
+   offer` and `spec claims` stay a person's commands (found by proof
+   wp-p3, where a person was needed at each step).
 
 ### Requirement WP6: Every session runs on this machine
 

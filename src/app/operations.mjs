@@ -534,6 +534,7 @@ import { specLinks } from "./scm-links.mjs";
 import { specAuthority, takeOverSpec } from "./spec-takeover.mjs";
 import { publishOffer, reserveClaims } from "./worker-claims.mjs";
 import { workerResultsStep } from "./worker-result-step.mjs";
+import { offerLogins, workerOffersStep } from "./worker-offer-step.mjs";
 import {
   checkStaleClaims,
   claimStaleMs,
@@ -2002,6 +2003,33 @@ export class Operations {
       review: planReviewSummary(this.store, plan.id),
     };
   }
+  // The driver's offers and claim answers for worker machines (WP5).
+  async workerOffers(store, driving) {
+    const config = loadLayeredConfig({
+        workspaceRoot: this.workspaceRoot,
+      }).config,
+      logins = offerLogins(config.workers?.offerTo);
+    if (!logins.length) return null;
+    return workerOffersStep(store, {
+      driving,
+      logins,
+      authorityFor: async (spec) => {
+        const driver = driverIdOf(store, spec);
+        if (!driver) return null;
+        const authority = await specAuthority(
+          store,
+          {
+            github: this.github,
+            workspaceRoot: this.workspaceRoot,
+            actor: this.operator,
+          },
+          spec,
+        );
+        return { ...authority, driver, github: this.github };
+      },
+    });
+  }
+
   // The driver's step for worker machines' pushed results (WP5.3).
   async workerResults(store, driving, journalFor) {
     const config = loadLayeredConfig({
@@ -2971,6 +2999,12 @@ export class Operations {
           driving,
           journalFor,
         }).catch(() => 0);
+        // Worker machines get the driven specs' ready tasks, and their
+        // claims are answered, when workers.offerTo names them (WP5).
+        if (driving.length)
+          await this.workerOffers(store, driving).catch((error) =>
+            store.event(null, "worker.offers", { error: error.message }),
+          );
         // What worker machines pushed is fetched, checked and landed here
         // (R90.2, worker-paths WP5.3); a result that fails is a failed attempt.
         if (driving.length)

@@ -1,3 +1,4 @@
+import { offeredTaskIds } from "./worker-offer-step.mjs";
 import { withGitHubReadSnapshots } from "./github-read-snapshot.mjs";
 import {
   enqueueSessionRequests,
@@ -954,7 +955,11 @@ async function runTick(
         }
       // No new work for a spec driven elsewhere or being handed off, and
       // none for an away task (R66.6, R66.10, R66.11).
-      const held = driverHeldTaskIds(store),
+      // A task offered to worker machines runs there, not here (WP5).
+      const held = new Set([
+          ...driverHeldTaskIds(store),
+          ...offeredTaskIds(store),
+        ]),
         readOnly = readOnlyPlanIds(store);
       const requested = unobserved.length
           ? []

@@ -17,6 +17,7 @@ import {
   ensureWorkingBranch,
   integrateVerified,
   sourceRegistry,
+  workingBranch,
 } from "./working-heads.mjs";
 
 const run = promisify(execFile);
@@ -62,6 +63,64 @@ const failedAttempt = (store, task, { worker, cause, state, at }) =>
       updatedAt: at,
     });
   });
+
+// Lands a spec's working branch on its project's base branch in the
+// driver's checkout: a fast-forward, after merging a moved base into the
+// working branch first. The checkout must be on its base branch with no
+// tracked change; it is never stashed or reset. Throws with the reason.
+export async function landWorkingBranch(store, project, { spec, task, at }) {
+  const git = async (...args) =>
+      (await run("git", args, { cwd: project.root })).stdout.trim(),
+    base = project.baseBranch || "main",
+    working = `refs/heads/${workingBranch(spec)}`;
+  if ((await git("branch", "--show-current")) !== base)
+    throw Error(`the checkout is not on ${base}`);
+  if (await git("status", "--porcelain", "--untracked-files=no"))
+    throw Error("the checkout has changes");
+  let head = await git("rev-parse", working);
+  const ancestor = await git("merge-base", "--is-ancestor", base, head).then(
+    () => true,
+    () => false,
+  );
+  if (!ancestor) {
+    // The base moved under the working branch: merge it in, never rebase.
+    const tree = (
+      await git("merge-tree", "--write-tree", "--no-messages", head, base)
+    ).split("\n")[0];
+    const merged = await git(
+      "commit-tree",
+      tree,
+      "-p",
+      head,
+      "-p",
+      await git("rev-parse", base),
+      "-m",
+      `Merge ${base} into ${workingBranch(spec)}`,
+    );
+    await git("update-ref", working, merged, head);
+    head = merged;
+  }
+  await git("merge", "--ff-only", "-q", head);
+  store.mutate(`Land ${task} from a worker machine`, (data) => {
+    const found = data.tasks.find((t) => t.id === task);
+    if (found)
+      found.integration = {
+        commit: head,
+        branch: workingBranch(spec),
+        into: base,
+        at,
+      };
+  });
+  const delivery = store.get("task_deliveries", task);
+  store.put("task_deliveries", {
+    ...(delivery ?? { id: task, taskId: task, attempts: [] }),
+    state: "integrated",
+    integratedCommit: head,
+    into: base,
+    updatedAt: at,
+  });
+  return head;
+}
 
 export async function workerResultsStep(
   store,
@@ -153,6 +212,12 @@ export async function workerResultsStep(
             evidence: verdict.evidence,
           });
           outcome = "landed";
+          // The working branch then lands on the base branch here (wp-p3).
+          await landWorkingBranch(store, project, {
+            spec,
+            task: id,
+            at: now(),
+          });
         } catch (error) {
           outcome = "held";
           cause = `the worker's result ${head.slice(0, 12)} did not integrate: ${error.message}`;

@@ -112,7 +112,7 @@ of the other specs.
     - after: wp-3.2
   - The roles `runner` and `driver`, the SSH transport and `driverTick` go; `remote.accept`, `remote.handoff` and `remote.pull` answer with their replacement; the worker cases of `remote-runner.test.mjs` move to `worker-mode.test.mjs`.
 
-- [ ] wp-p3 Proof: two workspaces, one driver and one worker, with only ticks, after wp-3.3 [WP5] (§D8)
+- [x] wp-p3 Proof: two workspaces, one driver and one worker, with only ticks, after wp-3.3 [WP5] (§D8)
   - Facts:
     - done:
       - Expected: (1) and (2) both tasks land on the driver's base branch and no `worker` command was run by hand; (3) the driver refuses it as a failed attempt and nothing lands.
