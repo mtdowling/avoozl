@@ -76,13 +76,6 @@ const input = (store) => ({
 });
 test("consolidation retains provenance, criteria, evidence, graph semantics and old task links", async (t) => {
   const { store, ops } = prepare(t);
-  store.put("runs", {
-    id: "old-run",
-    taskId: "copied-task",
-    state: "completed",
-    mode: "ask",
-    prompt: "Old history",
-  });
   const before = store.read().revision,
     result = await ops.execute("task.merge", input(store), before),
     data = store.read();
@@ -101,14 +94,9 @@ test("consolidation retains provenance, criteria, evidence, graph semantics and 
   const old = await ops.execute("task.get", { id: "copied-task" });
   assert.equal(old.id, "sample-task");
   assert.equal(old.requestedId, "copied-task");
-  assert.equal(old.runs[0].id, "old-run");
   assert.equal(
     queryTasks(data, { scope: "all", q: "id:copied-task" })[0].id,
     "sample-task",
-  );
-  assert.equal(
-    (await ops.execute("run.list", { taskId: "sample-task" })).items[0].id,
-    "old-run",
   );
   assert.deepEqual(validate(data), []);
   const receipt = await ops.execute("task.merge.get", { id: result.receiptId });

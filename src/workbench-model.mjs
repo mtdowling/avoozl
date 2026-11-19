@@ -30,7 +30,7 @@ export function taskSession(runs, task) {
 }
 
 const indexes = new WeakMap();
-export function taskIndex(data) {
+function taskIndex(data) {
   if (indexes.has(data)) return indexes.get(data);
   const tasks = new Map(data.tasks.map((task) => [task.id, task]));
   const prerequisites = new Map(),
@@ -92,7 +92,7 @@ export function isPlanInventory(data, task) {
   );
 }
 
-export function visibleWorkbenchTasks(
+function visibleWorkbenchTasks(
   data,
   tasks,
   { inventory = false, reported = false, now = Date.now() } = {},
@@ -106,7 +106,7 @@ export function visibleWorkbenchTasks(
   );
 }
 
-export function compareTasks(data, a, b) {
+function compareTasks(data, a, b) {
   return (
     Number(statusComplete(data, a.status)) -
       Number(statusComplete(data, b.status)) ||

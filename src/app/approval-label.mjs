@@ -14,7 +14,7 @@ const has = (issue, name) =>
   labelNames(issue).some((label) => lower(label) === lower(name));
 
 // A claim Avoozl held for a plan names Avoozl, never a crew.
-export const CLAIM_HOLDER = "avoozl";
+const CLAIM_HOLDER = "avoozl";
 const ownClaim = (body) =>
   parseMarkers(body).some((marker) => marker.id === CLAIM_HOLDER);
 

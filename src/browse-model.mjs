@@ -13,13 +13,6 @@ export function isHistoricalTask(data, task) {
       doc?.plan?.status === "abandoned",
   );
 }
-export function includeHistorical(state) {
-  return Boolean(
-    state.historical ||
-      state.tag === "historical" ||
-      /(?:^|\s)(?:tag:historical|historical:true)(?:\s|$)/.test(state.q || ""),
-  );
-}
 export function browseRows(data, tasks, { historical = false } = {}) {
   return historical
     ? tasks

@@ -17,7 +17,7 @@ import { git } from "./git.mjs";
 import { taskRepository } from "../work-model.mjs";
 
 export const TABLE = "corrections";
-export const CORRECTION_KINDS = Object.freeze([
+const CORRECTION_KINDS = Object.freeze([
   "changes-requested",
   "sent-back",
   "reverted",
@@ -102,22 +102,6 @@ export function retroCorrections(store, data, since) {
       summary: c.summary,
       at: c.at,
     }));
-}
-
-// Corrections per ISO week, for Flow (R78.5).
-export function correctionsByWeek(store, bucketOf) {
-  const weeks = new Map();
-  for (const c of list(store)) {
-    const key = bucketOf(c.at, "week");
-    weeks.set(key, (weeks.get(key) || 0) + 1);
-  }
-  return [...weeks.entries()]
-    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-    .map(([key, count]) => ({ key, count }));
-}
-
-export function correctionsPerWeek(store, now = Date.now()) {
-  return list(store).filter((c) => now - Date.parse(c.at) <= WEEK).length;
 }
 
 // Why a rule proposal is dropped, or null (R78.2, R78.4). It rests on two

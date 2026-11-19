@@ -128,22 +128,6 @@ export function mergeTasks(
         );
       if (
         store
-          .list("runs")
-          .some(
-            (r) =>
-              [
-                "starting",
-                "running",
-                "waiting-input",
-                "waiting-approval",
-                "disconnected",
-              ].includes(r.state) &&
-              tasks.some((t) => t.id === resolveTaskId(data, r.taskId)),
-          )
-      )
-        fail("A task has an unfinished agent session.", 409);
-      if (
-        store
           .list("batches")
           .some(
             (b) =>

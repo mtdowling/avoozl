@@ -10,7 +10,7 @@ import { fail } from "./store.mjs";
 
 export const LAUNCHD_LABEL = "dev.avoozl.supervisor";
 export const SYSTEMD_UNIT = "avoozl-supervisor.service";
-export const DEFAULT_TICK_SECONDS = 60;
+const DEFAULT_TICK_SECONDS = 60;
 
 // The unit kind this platform uses, or a refusal.
 export function unitKindFor(platform = process.platform) {

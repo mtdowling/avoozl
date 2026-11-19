@@ -6,12 +6,7 @@ import { randomUUID } from "node:crypto";
 import { queryTasks, statusComplete } from "./query.mjs";
 import { planSummaries } from "./plan-model.mjs";
 import { epicProgress } from "./progress-model.mjs";
-export const MCP_VERSIONS = [
-  "2026-07-28",
-  "2025-11-25",
-  "2025-06-18",
-  "2025-03-26",
-];
+const MCP_VERSIONS = ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26"];
 const identity = { name: "avoozl", version: "0.1.0" };
 const queryProperties = {
   scope: { type: "string", enum: ["all", "runtime"], default: "all" },

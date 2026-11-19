@@ -4,19 +4,9 @@ import { Operations } from "../operations.mjs";
 import { queryTasks } from "../../query.mjs";
 import { fixture } from "./fixtures.mjs";
 
-test("task archives hide active work while retaining every linked conversation", async (t) => {
+test("task archives hide active work and restore it", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
-  for (const id of ["first-session", "second-session"])
-    store.put("runs", {
-      id,
-      taskId: "sample-task",
-      provider: "openhands",
-      providerSessionId: "conversation-" + id,
-      state: "completed",
-      mode: "implement",
-      createdAt: new Date().toISOString(),
-    });
   const archived = await ops.execute("task.archive", { id: "sample-task" });
   assert.ok(archived.archivedAt);
   assert.equal(queryTasks(store.read(), { scope: "all" }).length, 0);
@@ -26,7 +16,6 @@ test("task archives hide active work while retaining every linked conversation",
     ),
     ["sample-task"],
   );
-  assert.equal(ops.detail("sample-task").runs.length, 2);
   const restored = await ops.execute("task.unarchive", { id: "sample-task" });
   assert.equal(restored.archivedAt, null);
   assert.equal(queryTasks(store.read(), { scope: "all" }).length, 1);

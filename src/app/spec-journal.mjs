@@ -33,10 +33,10 @@ import { privacyHits, privacyRules } from "./privacy.mjs";
 import { fail } from "./store.mjs";
 import { OUTCOME_KINDS } from "./task-outcomes.mjs";
 
-export const JOURNAL_VERSION = 1;
+const JOURNAL_VERSION = 1;
 // Significant transitions only. Poll results, frontiers, rankings and
 // routine checkpoint notices have no kind, so they cannot be written.
-export const JOURNAL_KINDS = [
+const JOURNAL_KINDS = [
   "outcome",
   "checkpoint",
   "approval",
@@ -327,7 +327,7 @@ function mapIds(record, spec, task) {
 }
 
 // The record as a public journal stores it; a private one is unchanged.
-export function encodeRecord(record, options = {}) {
+function encodeRecord(record, options = {}) {
   const names = options.names;
   if (!isPublic(options) || !names) return record;
   return mapIds(record, names.spec, names.task);

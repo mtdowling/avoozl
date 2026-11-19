@@ -24,13 +24,6 @@ export const hostConfigSchemaPath = fileURLToPath(
 );
 
 const WORKSPACE_ID = /^[a-z][a-z0-9-]{0,60}$/;
-const ACTIVE_RUN_STATES = new Set([
-  "queued",
-  "starting",
-  "running",
-  "waiting-input",
-  "waiting-approval",
-]);
 
 // The platform's own path rules, so a Windows layout can be computed (and
 // tested) on any host. An explicit XDG folder wins on every platform, which
@@ -412,9 +405,6 @@ function adoptDatabaseIdentity(store, id) {
       owners = ["machineHostOwner", "webOwner", "runtimeOwner"]
         .map((key) => ({ key, value: store.getMeta(key) }))
         .filter(({ value }) => value),
-      activeRuns = store
-        .list("runs")
-        .filter((run) => ACTIVE_RUN_STATES.has(run.state)),
       workLocks = store.db
         .prepare("SELECT COUNT(*) count FROM work_locks")
         .get().count;
@@ -425,42 +415,16 @@ function adoptDatabaseIdentity(store, id) {
           .map(({ key, value }) => `${key} PID ${value.pid}`)
           .join(", ")} is live.`,
       );
-    if (activeRuns.length || workLocks)
+    if (workLocks)
       throw Error(
-        `Workspace adoption refused with ${activeRuns.length} active runs and ${workLocks} protected operations.`,
+        `Workspace adoption refused with ${workLocks} protected operations.`,
       );
 
-    const updateRun = store.db.prepare("UPDATE runs SET body=? WHERE id=?");
-    let runsUpdated = 0;
-    for (const row of store.db.prepare("SELECT id,body FROM runs").all()) {
-      const run = JSON.parse(row.body);
-      if (run.workspaceId === id) continue;
-      run.workspaceId = id;
-      updateRun.run(JSON.stringify(run), row.id);
-      runsUpdated += 1;
-    }
-    const runCapabilitiesRevoked = store.db
-        .prepare(
-          "UPDATE run_capabilities SET revoked_at=? WHERE revoked_at IS NULL",
-        )
-        .run(new Date().toISOString()).changes,
-      surfaceCapabilitiesRevoked = store.db
-        .prepare("DELETE FROM surface_capabilities")
-        .run().changes,
-      intakeCapabilitiesRevoked = store.db
-        .prepare(
-          "UPDATE github_intake_capabilities SET revoked_at=? WHERE revoked_at IS NULL",
-        )
-        .run(new Date().toISOString()).changes,
-      staleOwnersCleared = owners.length;
+    const staleOwnersCleared = owners.length;
     for (const { key } of owners) store.setMeta(key, null);
     store.setMeta("workspaceId", id);
     store.setMeta("workspaceInstanceEpoch", null);
     const changes = {
-        runsUpdated,
-        runCapabilitiesRevoked,
-        surfaceCapabilitiesRevoked,
-        intakeCapabilitiesRevoked,
         staleOwnersCleared,
       },
       report = {

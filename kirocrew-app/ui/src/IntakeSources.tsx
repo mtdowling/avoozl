@@ -48,6 +48,7 @@ import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
 import { BOX } from './ui/looks/IntakeSources.ts'
+import { Glyph } from './ui/Glyph'
 
 const TONE: Record<SourceTone, BadgeVariant | undefined> = { ok: 'success', off: undefined, error: 'danger', waiting: 'info' }
 const SCOPE = { machine: 'This computer only', repository: 'Shared with the repo' }
@@ -101,7 +102,7 @@ function SourceBox(props: { id: string; title: string; badges: ReactNode; status
         </Box>
         {props.problem && (
           <Box as="p" mt="1" flex items="start" gap="1.5" size="xs" tone="danger" data-intake-problem>
-            <CircleAlert size={14} aria-hidden="true" style={{ flex: 'none', marginTop: 1 }} />
+            <Glyph icon={CircleAlert} size={14} aria-hidden="true" css-flex="none" css-margin-top="1" />
             <span>
               <Box as="span" weight="semibold">{props.problem.kind}:</Box> {props.problem.text}
             </span>
@@ -507,7 +508,7 @@ export default function IntakeSources({ workspaceId, plugins, onOpenGitHub, onOp
           title="Intake sources"
           actions={others.length ? addButton : undefined}
           blurb="Where work comes in. Items show in the Intake tab. Avoozl writes nothing back to a source."
-          className="mb-3"
+          mb="3"
         />
         {error || problem ? (
           <Box role="alert" as="p" mb="2" size="xs" tone="danger">

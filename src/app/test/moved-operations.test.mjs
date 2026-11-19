@@ -1,15 +1,11 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
 import test from "node:test";
 import { CLIENT_OPERATIONS } from "../client.mjs";
 import { handleMcp } from "../mcp.mjs";
 import { MCP_TOOLS } from "../../mcp.mjs";
 import { classifyOperation } from "../operation-kinds.mjs";
 import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
 import { fixture } from "./fixtures.mjs";
-import { temporaryDirectory } from "./temporary.mjs";
 
 // Names removed on 2026-11-18 (R56.3): the old one-tool-per-operation names,
 // the moved-operation stubs, plans_relay and plans_andon_*. A sample, with a
@@ -59,23 +55,19 @@ test("the removed plans_* names are gone, and each moved operation answers with 
     assert.match(result.message, /\S/, name);
   }
   assert.equal(store.read().revision, before, "a pointer writes nothing");
-  assert.equal(store.list("runs").length, 0);
 });
 
 test("a moved run tool names the task's Kiro Crew sessions", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
-  store.put("runs", {
-    id: "run-old",
-    taskId: "sample-task",
-    state: "completed",
-    provider: "codex",
-  });
   await ops.execute("session.bind", {
     taskId: "sample-task",
     slot: "dashboard:chat-1",
   });
-  const moved = await ops.execute("run.send", { id: "run-old", text: "Hi" });
+  const moved = await ops.execute("run.send", {
+    taskId: "sample-task",
+    text: "Hi",
+  });
   assert.equal(moved.taskId, "sample-task");
   assert.deepEqual(moved.sessions, [
     {
@@ -119,7 +111,6 @@ test("plans_session start with a repository and agent is a dispatch request", as
     agent: "worker-agent",
   });
   assert.equal(refused.isError, true);
-  assert.equal(store.list("runs").length, 0);
 });
 
 test("asking or running an agent through intent.submit answers with a pointer", async (t) => {
@@ -136,7 +127,6 @@ test("asking or running an agent through intent.submit answers with a pointer", 
     prompt: "Capture this",
   });
   assert.ok(task.id);
-  assert.equal(store.list("runs").length, 0);
 });
 
 test("an extraction without provider rounds opens a record; one with rounds is a pointer", async (t) => {
@@ -153,108 +143,6 @@ test("an extraction without provider rounds opens a record; one with rounds is a
     provider: "codex",
   });
   assert.equal(moved.moved, true);
-  assert.equal(store.list("runs").length, 0);
-});
-
-// The tables the agent host, safety gate and team coordination wrote. A
-// workspace that has them still opens, and their rows stay readable.
-function oldHostWorkspace() {
-  const root = temporaryDirectory(),
-    dbPath = path.join(root, "workspace.sqlite"),
-    store = new Store(dbPath);
-  store.importSnapshot(fixtureSnapshot());
-  store.put("runs", {
-    id: "run-old",
-    taskId: "sample-task",
-    provider: "codex",
-    mode: "implement",
-    state: "completed",
-    prompt: "Old work",
-    createdAt: new Date(0).toISOString(),
-  });
-  store.event("run-old", "message", { text: "Finished." });
-  store.put("deliveries", {
-    id: "delivery-old",
-    runId: "run-old",
-    text: "Follow up",
-    state: "delivered",
-  });
-  store.put("safety_incidents", {
-    id: "andon-0000000001",
-    revision: 1,
-    safetyEpoch: 1,
-    state: "resolved",
-    scope: { kind: "task", id: "sample-task" },
-    mode: "interrupt",
-    reason: "Old incident",
-    notes: [],
-    transitions: [],
-  });
-  store.put("execution_targets", { id: "target-old", state: "paired" });
-  store.put("execution_jobs", {
-    id: "job-old",
-    taskId: "sample-task",
-    state: "completed",
-  });
-  store.put("team_checkpoints", {
-    id: "checkpoint-old",
-    taskId: "sample-task",
-  });
-  store.db
-    .prepare(
-      "INSERT INTO run_capabilities(id,run_id,token_hash,expires_at,revoked_at,body) VALUES(?,?,?,?,NULL,?)",
-    )
-    .run("capability-old", "run-old", "hash-old", "2026-01-01T00:00:00Z", "{}");
-  store.close();
-  return { root, dbPath };
-}
-
-function fixtureSnapshot() {
-  const store = fixture({ after() {} }).store,
-    data = store.read();
-  store.close();
-  return data;
-}
-
-test("a workspace with the old host tables opens, reads its history, and stays read-only to it", async (t) => {
-  const { dbPath } = oldHostWorkspace(),
-    store = new Store(dbPath);
-  t.after(() => store.close());
-  const ops = new Operations(store);
-  const run = await ops.execute("run.get", { id: "run-old" });
-  assert.equal(run.state, "completed");
-  assert.equal(run.events.at(-1).text, "Finished.");
-  assert.equal(run.deliveries[0].id, "delivery-old");
-  assert.equal((await ops.execute("run.list", {})).items[0].id, "run-old");
-  const task = await ops.execute("task.get", { id: "sample-task" });
-  assert.equal(task.team.jobs[0].id, "job-old");
-  assert.equal(task.team.checkpoints[0].id, "checkpoint-old");
-  const workspace = await ops.execute("workspace", {});
-  assert.equal(workspace.runs[0].id, "run-old");
-  assert.equal((await ops.execute("graph.view", {})).tasks.length, 1);
-  const andon = await ops.execute("safety.status", {});
-  assert.equal(andon.moved, true);
-  assert.equal(
-    store.get("safety_incidents", "andon-0000000001").state,
-    "resolved",
-  );
-  assert.equal(store.list("execution_targets").length, 1);
-});
-
-test("an old workspace database opened read-only still answers", async (t) => {
-  const { dbPath } = oldHostWorkspace();
-  fs.chmodSync(dbPath, 0o444);
-  const before = fs.readFileSync(dbPath),
-    store = new Store(dbPath);
-  t.after(() => store.close());
-  assert.equal(store.readOnly, true);
-  const ops = new Operations(store);
-  assert.equal((await ops.execute("run.get", { id: "run-old" })).id, "run-old");
-  assert.equal(
-    (await ops.execute("run.interrupt", { id: "run-old" })).moved,
-    true,
-  );
-  assert.ok(fs.readFileSync(dbPath).equals(before));
 });
 
 test("every client operation is classified, moved ones included", () => {

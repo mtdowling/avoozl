@@ -484,7 +484,7 @@ const MARKER = "kirocrew-crew v=1",
 // The audit's cursors: the sign-off reads them to tell the audit is on.
 export const AUDIT_CURSORS = CURSORS;
 export const FIRST_LOOKBACK_MS = 24 * 60 * 60 * 1000;
-export const STAYS_REACHABLE =
+const STAYS_REACHABLE =
   "A pull request body, a commit or an edit history can stay reachable on GitHub by its address after deletion; removing it for good needs a request to GitHub.";
 
 const lower = (value) => String(value ?? "").toLowerCase();
@@ -856,8 +856,8 @@ export function publicCrewAuditRows(store) {
 // and lists the crews to pause in Kiro Crew. It cannot pause a crew: that
 // route is for the dashboard owner only, so a running crew keeps going.
 // Resuming is `flow.resume`, a person only (Requirement 64).
-export const PUBLIC_STOP_REASON = "Stop public crews was pressed.";
-export const PAUSE_NOTE =
+const PUBLIC_STOP_REASON = "Stop public crews was pressed.";
+const PAUSE_NOTE =
   "Avoozl stopped its own work on these repositories. It cannot pause a crew, so a running crew keeps going until you pause it in Issue Radar. Only a person resumes the stop.";
 
 // The policy repositories a public crew could write to.

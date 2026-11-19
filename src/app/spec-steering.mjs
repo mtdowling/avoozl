@@ -90,7 +90,7 @@ Avoozl.
 
 // Texts Avoozl shipped before, so a repository's unchanged copy is offered
 // the current one (the old text taught marker bullets, Requirement 111).
-export const OLDER_STEERING_TEXTS = [
+const OLDER_STEERING_TEXTS = [
   `---
 inclusion: always
 ---

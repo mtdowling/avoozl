@@ -684,7 +684,7 @@ if (query.get('page') === 'app' && query.get('home') === '1') {
   answer('plan.list', () => ({ total: 2, items: [{ id: 'meal-planner', title: 'Meal planner', state: 'approved', archivedAt: null }, { id: 'search-v2', title: 'Search v2', state: 'approved', archivedAt: null }] }))
   const session = (slot: string, role: string, status: string, minutes: number) => ({ slot, role, status, attempt: 1, link: `/sessions/${slot}`, boundAt: ago(minutes + 20), statusAt: ago(minutes), agent: 'kirocrew-worker', model: null })
   const item = (id: string, title: string, extra = {}) => ({
-    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, ...extra,
+    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, ...extra,
   })
   answer('delivery.view', () => ({
     revision: 1,
@@ -808,7 +808,7 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
   }))
   const session = (slot: string, role: string, status: string) => ({ slot, role, status, attempt: 1, link: `/sessions/${slot}`, boundAt: at, statusAt: at, agent: 'kirocrew-worker', model: null })
   const item = (id: string, title: string, extra = {}) => ({
-    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, ...extra,
+    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, ...extra,
   })
   const deliveryItems = [
     item('m3', 'Sync pantry items between devices', { status: 'running', sessions: [session('chat-m3', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }),
@@ -902,7 +902,7 @@ if (query.get('page') === 'app' && query.get('process') === '1') {
     'Writing .avoozl/result.json',
   ].join('\n')
   const item = (id: string, title: string, sessions: unknown[]) => ({
-    id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', sessions, runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null,
+    id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', sessions, evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null,
   })
   answer('delivery.view', () => ({
     revision: 1,
@@ -953,7 +953,7 @@ if (query.get('page') === 'app' && query.get('links') === '1') {
   answer('delivery.view', () => ({
     revision: 1,
     items: rows.map(([id, title, role, ref, pr, dot], index) => ({
-      id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null,
+      id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null,
       sessions: [{ slot: `chat-${id}`, role, attempt: 1, title: null, status: 'working', statusAt: new Date(Date.now() - (index + 1) * 60000).toISOString(), boundAt: at, agent: 'kirocrew-worker', model: 'claude-sonnet', crew: 'local', executor: 'kirocrew', link: `/chat?sid=chat-${id}` }],
       links: {
         branch: { kind: 'branch', repository: 'acme/recipe-box', ref, url: `${repo}/tree/${ref}` },

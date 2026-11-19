@@ -3,34 +3,9 @@ import assert from "node:assert/strict";
 import { fixture } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
 import { createPlan } from "../plans.mjs";
-test("deleting conversations and drafts preserves audit history, can restore, and refuses active or approved work", async (t) => {
+test("deleting drafts can restore and refuses approved work", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
-  store.put("runs", {
-    id: "chat",
-    taskId: "conversation:chat",
-    mode: "ask",
-    state: "completed",
-    prompt: "Question",
-  });
-  store.event("chat", "message", { text: "An answer" });
-  await ops.execute("run.delete", { id: "chat" });
-  assert.equal((await ops.execute("run.list")).total, 0);
-  assert.equal(
-    (await ops.execute("run.get", { id: "chat" })).events[0].text,
-    "An answer",
-  );
-  await ops.execute("run.restore", { id: "chat" });
-  assert.equal((await ops.execute("run.list")).total, 1);
-  store.put("runs", {
-    id: "active-chat",
-    taskId: "sample-task",
-    state: "running",
-  });
-  await assert.rejects(
-    ops.execute("run.delete", { id: "active-chat" }),
-    /Stop this session/,
-  );
   const plan = createPlan(store, { prompt: "A draft" });
   await ops.execute("plan.delete", { id: plan.id });
   assert.equal((await ops.execute("plan.list")).total, 0);
