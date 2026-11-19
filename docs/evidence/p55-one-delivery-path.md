@@ -1,6 +1,6 @@
 # P55: after removal there is one delivery path
 
-Run 2026-11-19 on branch `task/45-4-delete-task-issues` at `d0559573`,
+Run 2026-11-19 on branch `task/45-4-delete-task-issues` at `b7460949`,
 after 45.4 deleted per-task GitHub issues. Node 24, Linux. No real
 workspace, no GitHub.
 
