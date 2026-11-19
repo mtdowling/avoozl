@@ -5233,12 +5233,12 @@ proof or run a real workspace to get past that wait.
       - Preview export-issues SPEC, create only incomplete task issues and blocked-by links, record stable export bindings, then mark Exported and cease dispatch/landing. A retry creates no duplicate issues or links; a partial failure stays held and resumes safely.
       - Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.
       - Export never sets crew:avoozl (owner decision 2026-11-16), so Issue Radar and people may take exported issues. It is the only crew:avoozl opt-out. A test checks that no export create request carries crew:avoozl.
-  - Owner decision 2026-11-18: 45.4 deleted the export with per-task issues.
     - checks: npm test, git diff --check
     - after: 56.5, 56.7, 56.12
   - Preview export-issues SPEC, create only incomplete task issues and blocked-by links, record stable export bindings, then mark Exported and cease dispatch/landing. A retry creates no duplicate issues or links; a partial failure stays held and resumes safely.
   - Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.
   - Export never sets crew:avoozl (owner decision 2026-11-16), so Issue Radar and people may take exported issues. It is the only crew:avoozl opt-out. A test checks that no export create request carries crew:avoozl.
+  - Owner decision 2026-11-18: 45.4 deleted the export with per-task issues.
 
 - [x] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
   - Facts:
