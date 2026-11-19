@@ -1,5 +1,4 @@
 ---
-completion: integrated
 ---
 
 # Tasks

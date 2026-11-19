@@ -1,6 +1,5 @@
 ---
 repo: avoozl
-completion: integrated
 ---
 # Tasks: everything runs without Kiro Crew
 

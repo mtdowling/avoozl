@@ -60,7 +60,6 @@ const leaf = (summary, extra = {}) => ({
   acceptance: [summary],
   checks: [CHECK],
   completion: "integrated",
-  milestone: "one",
   ...extra,
 });
 

@@ -32,8 +32,6 @@ const COPIED = [
   "summary",
   "nextAction",
   "acceptance",
-  "acceptFrom",
-  "verify",
   "completion",
   "route",
   "repository",
@@ -43,8 +41,7 @@ const COPIED = [
   "resources",
   "contextDocuments",
 ];
-// What a person may set on the replacement. acceptFrom is not among them: it
-// changes only through plan approval (R38.4), so the replacement keeps it.
+// What a person may set on the replacement.
 const SETTABLE = {
   title: "text",
   summary: "text",

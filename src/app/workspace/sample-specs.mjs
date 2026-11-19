@@ -13,10 +13,8 @@ const item = (id, title, { summary = [], ...entry }) =>
   ].join("\n");
 
 const leaf = (done, extra = {}) => ({
-  kind: "leaf",
   repository: "app",
   acceptance: [done],
-  completion: "integrated",
   ...extra,
 });
 
@@ -52,11 +50,10 @@ export function sampleSpecs({ word = "demo" } = {}) {
           requires: ["1.2"],
         }),
         2.2: {
-          kind: "leaf",
           repository: "app",
           summary: ["A person imports three recipes on a phone."],
           acceptance: ["Three imports work on a phone."],
-          completion: "answered",
+          manual: true,
           requires: ["2.1"],
         },
       },

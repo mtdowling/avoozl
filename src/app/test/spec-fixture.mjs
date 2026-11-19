@@ -30,28 +30,18 @@ export function withFacts(files) {
     entries = {},
     front = epic ? ["kind: epic"] : [];
   for (const [id, entry] of Object.entries(facts.tasks ?? {})) {
-    const own = withDefaults({}, entry);
-    // Every task runs its repository's checks.
-    delete own.checks;
-    if (own.manual === true && own.completion === "person")
-      delete own.completion;
-    if (!epic && own.kind === "leaf") delete own.kind;
+    // Every task runs its repository's checks, a task completes when it
+    // lands, and nesting gives its kind.
+    const {
+      checks: _checks,
+      completion: _completion,
+      ...own
+    } = withDefaults({}, entry);
+    if (!epic) delete own.kind;
     entries[id] = own;
   }
-  for (const field of [
-    "ship",
-    "integrationBranch",
-    "integrationSync",
-    "forwardTarget",
-    "publicBranch",
-  ])
+  for (const field of ["integrationBranch", "integrationSync"])
     if (facts[field] !== undefined) front.push(`${field}: ${facts[field]}`);
-  for (const [id, phase] of Object.entries(facts.phases ?? {}))
-    front.push(`phase-${id}: ${phase.title}`);
-  for (const [id, group] of Object.entries(facts.batches ?? {})) {
-    front.push(`batch-${id}: ${group.reason}`);
-    for (const task of group.tasks) entries[task].batch = id;
-  }
   const items = new Map(
       specItems("x", tasks)
         .filter((item) => item.key)

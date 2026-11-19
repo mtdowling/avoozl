@@ -31,7 +31,6 @@ import {
 import { frontMatter, withoutFrontMatter } from "../../front-matter.mjs";
 import { resolveTaskId } from "../../task-identity.mjs";
 import { integrationOf } from "../epics/integration-branch.mjs";
-import { checkForwardTarget } from "../mirror/mirror-policy.mjs";
 import { repeatsTitle } from "../tasks/title-repeat.mjs";
 import {
   LETTERED,
@@ -87,9 +86,8 @@ export function revisionFiles(files = {}) {
 const NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const MAX_FILE_BYTES = 1000000;
 const CHECKBOX = /^\s*[-*+] \[([ xX~-])\]\*?[ \t]+(.*)$/;
-// A "Built:" note or "$built:" fact under a checked item names the work that
-// already landed.
-const BUILT = /^\s+(?:[-*+]\s+)?(?:Built|\$built):\s*(.+?)\s*$/;
+// A "Built:" note under a checked item names the work that already landed.
+const BUILT = /^\s+(?:[-*+]\s+)?Built:\s*(.+?)\s*$/;
 const TITLE_LIMIT = 240;
 // An epic row's lifecycle step (Requirement 59.1, design §4.32.6).
 const EPIC_STEPS = ["design", "review", "implement"];
@@ -386,9 +384,7 @@ export function headingPhases(text) {
   return byLine;
 }
 
-const PHASE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,59}$/;
-
-// Items checked [x] in tasks.md, with the first "$built:" fact under each.
+// Items checked [x] in tasks.md, with the first "Built:" note under each.
 // Approval reads these for tasks it creates (plans.mjs); a tick on the base
 // branch completes an existing task (spec-ticks.mjs). [~] and [-] are Kiro's
 // queued and running marks and stay planned.
@@ -572,15 +568,6 @@ export function parseSpec({
       diagnostics.push(diagnostic(code, "tasks.md", line, message, extra));
   for (const found of facts.problems)
     problem(found.code, found.line, found.message);
-  let specShip = manifest.ship;
-  if (specShip !== undefined && !["auto-merge", "manual"].includes(specShip)) {
-    specShip = undefined;
-    problem(
-      "facts.schema",
-      facts.frontLine("ship"),
-      'ship must be "auto-merge" or "manual".',
-    );
-  }
   // An integration branch (RC16.1); a spec without it is as before.
   try {
     integrationOf(manifest);
@@ -591,21 +578,6 @@ export function parseSpec({
         manifest.integrationBranch === undefined
           ? "integrationSync"
           : "integrationBranch",
-      ),
-      error.message,
-    );
-  }
-  // An epic's forward target (RC26.2).
-  try {
-    checkForwardTarget(manifest, "front-matter");
-  } catch (error) {
-    problem(
-      "facts.schema",
-      facts.frontLine(
-        manifest.forwardTarget === undefined ||
-          /publicBranch/.test(error.message)
-          ? "publicBranch"
-          : "forwardTarget",
       ),
       error.message,
     );
@@ -706,19 +678,6 @@ export function parseSpec({
     }
     return { type, kind: "epic", items, diagnostics, proposals, members };
   }
-  const phaseTitles = new Map();
-  for (const [phase, value] of Object.entries(manifest.phases ?? {}))
-    if (
-      !PHASE_ID.test(phase) ||
-      !value.title.trim() ||
-      value.title.length > TITLE_LIMIT
-    )
-      problem(
-        "facts.schema",
-        facts.frontLine(`phase-${phase}`),
-        `Phase "${phase}" needs an ID of letters, digits, ".", "_" or "-" and a title of 1–${TITLE_LIMIT} characters.`,
-      );
-    else phaseTitles.set(phase, value.title.trim());
   const headings = headingPhases(files["tasks.md"] || "");
   // A bugfix spec's unchanged behavior is acceptance on every fix leaf
   // (design §6.8), so a regression fails the leaf, not only Kiro's tests.
@@ -726,93 +685,56 @@ export function parseSpec({
     bugfix && !feature ? unchangedClauses(files["bugfix.md"]) : [];
   for (const item of byKey.values()) {
     const entry = entries[item.key];
-    if (entry === undefined) {
-      diagnostics.push(
-        diagnostic(
-          "facts.missing",
-          "tasks.md",
-          item.line,
-          `Task "${item.key}" has no facts. Add a "$done:" bullet under it.`,
-          { taskId: item.id },
-        ),
-      );
-      continue;
-    }
     if (!item.title) continue;
     const line = facts.lineOf(item.key);
-    let old = false;
-    if (entry.kind === "epic") {
-      old = true;
-      diagnostics.push(
-        diagnostic(
-          "spec.kind-epic",
-          "tasks.md",
-          line,
-          `Task "${item.key}" has "$kind: epic". Inside a plan a parent is a package: write "$kind: package". An epic is its own spec folder that lists plans.`,
-          { taskId: item.id, entry: item.key },
-        ),
-      );
-    }
-    // A nested item is a child of the item above it (R13.7), which must be a
-    // package: only those project as parent issues.
-    const parentKey = item.parent?.key,
-      parentOk = parentKey && entries[parentKey]?.kind === "package";
-    if (parentKey && !parentOk && entries[parentKey]?.kind !== "epic")
-      diagnostics.push(
-        diagnostic(
-          "task.parent-kind",
-          "tasks.md",
-          item.line,
-          `Task "${item.key}" is nested under "${parentKey}", which is not a package. Write "$kind: package" under "${parentKey}", or stop nesting this item.`,
-          { taskId: item.id },
-        ),
-      );
-    if (old) continue;
-    if (
-      entry.phase !== undefined &&
-      (typeof entry.phase !== "string" || !PHASE_ID.test(entry.phase))
-    ) {
-      diagnostics.push(
-        diagnostic(
-          "facts.schema",
-          "tasks.md",
-          facts.lineOfFact(item.key, "phase"),
-          `Task "${item.key}": phase is an ID of letters, digits, ".", "_" or "-", up to 60 characters.`,
-          { taskId: item.id },
-        ),
-      );
-      continue;
-    }
+    // A nested item is a child of the item above it (R13.7), which is a
+    // package because it has sub-items.
+    const parentKey = item.parent?.key;
     const local = (reference) => byKey.get(reference)?.id ?? reference;
     try {
       // The item's whole line is its title. One over the limit is refused;
       // its cut form only keeps the other checks from failing on it.
       // The item's description bullets are its summary. One that repeats
       // the title is refused and left out.
-      const own = (bullets.get(item.line) ?? []).filter((bullet) => {
-          if (!repeatsTitle(bullet.text, item.title)) return true;
+      let own = (bullets.get(item.line) ?? []).filter((bullet) => {
+        if (!repeatsTitle(bullet.text, item.title)) return true;
+        diagnostics.push(
+          diagnostic(
+            "task.summary-repeats-title",
+            "tasks.md",
+            bullet.line,
+            "This repeats the title; say what the title does not, or delete it.",
+            { taskId: item.id },
+          ),
+        );
+        return false;
+      });
+      const rest = structuredClone(entry);
+      // A leaf with no `$done` gives its results as plain bullets: each
+      // one is a result, and it has no summary.
+      if (rest.kind === "leaf" && rest.acceptance === undefined) {
+        if (!own.length) {
           diagnostics.push(
             diagnostic(
-              "task.summary-repeats-title",
+              "facts.missing",
               "tasks.md",
-              bullet.line,
-              "This repeats the title; say what the title does not, or delete it.",
+              item.line,
+              `Task "${item.key}" has no results. Add a "$done:" bullet under it for each result.`,
               { taskId: item.id },
             ),
           );
-          return false;
-        }),
-        summary = own.map((bullet) => bullet.text).join("\n");
-      const title = item.title.slice(0, TITLE_LIMIT),
-        // The batch fact only names a group; the group is stamped below.
-        { phase: phaseValue, batch: _batch, ...rest } = structuredClone(entry),
+          continue;
+        }
+        rest.acceptance = own.map((bullet) => bullet.text);
+        own = [];
+      }
+      const summary = own.map((bullet) => bullet.text).join("\n"),
+        title = item.title.slice(0, TITLE_LIMIT),
         fields = {
           ...rest,
           title,
           ...(summary ? { summary } : {}),
-          // The spec's ship mode and a bugfix spec's type reach each leaf
-          // (§4.25, §4.11).
-          ...(specShip && entry.kind !== "package" ? { specShip } : {}),
+          // A bugfix spec's type reaches each leaf (§4.11).
           ...(bugfix && !feature && entry.kind !== "package"
             ? { specType: "bugfix" }
             : {}),
@@ -828,34 +750,18 @@ export function parseSpec({
           ),
         );
       const proposal = validateProposal(fields);
-      for (const field of ["requires", "sequence", "supports"])
-        if (proposal[field]) proposal[field] = proposal[field].map(local);
-      if (proposal.conditions)
-        proposal.conditions = Object.fromEntries(
-          Object.entries(proposal.conditions).map(([key, value]) => [
-            local(key),
-            value,
-          ]),
-        );
+      if (proposal.requires) proposal.requires = proposal.requires.map(local);
       if (unchanged.length && proposal.kind !== "package")
         proposal.acceptance = [
           ...new Set([...(proposal.acceptance || []), ...unchanged]),
         ];
-      // Its phase: the fact, else the heading above it, else No phase
-      // (Requirement 59.5).
-      const phase =
-        phaseValue !== undefined
-          ? {
-              id: phaseValue,
-              title: phaseTitles.get(phaseValue) ?? phaseValue,
-            }
-          : (headings.get(item.line) ?? null);
+      // Its phase: the heading above it, else No phase (Requirement 59.5).
       proposals.push({
         ...proposal,
         id: item.id,
         specKey: item.key,
-        phase,
-        ...(parentOk ? { parent: item.parent.id } : {}),
+        phase: headings.get(item.line) ?? null,
+        ...(parentKey ? { parent: item.parent.id } : {}),
         ...(item.resolvedRefs.length ? { refs: item.resolvedRefs } : {}),
         lineStart: item.line,
         lineEnd: item.line,
@@ -872,96 +778,7 @@ export function parseSpec({
       );
     }
   }
-  if (manifest.batches !== undefined)
-    planBatchGroups(manifest.batches, {
-      byKey,
-      entries,
-      proposals,
-      diagnostics,
-      lineOf: facts.batchLine,
-    });
   return { type, kind: "plan", items, diagnostics, proposals };
-}
-
-// The planner's batch groups (§4.37, R108.2): `batches` is an object of
-// group ID to {tasks: [IDs as in tasks.md], reason}, read from the members'
-// `batch` facts and the front-matter `batch-<id>` reasons. A malformed group
-// is a facts error; a valid one is stamped on each member proposal as
-// `batch: {id, tasks, reason}` with full task IDs. Whether a group may run
-// as one handoff is checked again at dispatch (flow-batch.mjs).
-function planBatchGroups(
-  batches,
-  { byKey, entries, proposals, diagnostics, lineOf },
-) {
-  const problem = (line, message) =>
-    diagnostics.push(diagnostic("facts.schema", "tasks.md", line, message));
-  const owner = new Map(),
-    byId = new Map(proposals.map((p) => [p.specKey, p]));
-  for (const [id, group] of Object.entries(batches)) {
-    const line = lineOf(id),
-      tasks = group?.tasks,
-      reason = group?.reason;
-    if (!PHASE_ID.test(id)) {
-      problem(
-        line,
-        `Batch "${id}" needs an ID of letters, digits, ".", "_" or "-", up to 60 characters.`,
-      );
-      continue;
-    }
-    if (
-      !group ||
-      typeof group !== "object" ||
-      Array.isArray(group) ||
-      Object.keys(group).some((key) => !["tasks", "reason"].includes(key))
-    ) {
-      problem(line, `Batch "${id}" holds only "tasks" and "reason".`);
-      continue;
-    }
-    if (
-      !Array.isArray(tasks) ||
-      tasks.length < 2 ||
-      tasks.some((key) => typeof key !== "string") ||
-      new Set(tasks).size !== tasks.length
-    ) {
-      problem(line, `Batch "${id}" lists 2 or more different task IDs.`);
-      continue;
-    }
-    if (
-      typeof reason !== "string" ||
-      !reason.trim() ||
-      reason.length > 200 ||
-      /[\r\n]/.test(reason)
-    ) {
-      problem(
-        line,
-        `Batch "${id}" needs a reason of 1–200 characters on one line.`,
-      );
-      continue;
-    }
-    const bad = tasks.find(
-      (key) =>
-        !byKey.has(key) || entries[key]?.kind === "package" || !byId.has(key),
-    );
-    if (bad !== undefined) {
-      problem(line, `Batch "${id}" names "${bad}", which is not a leaf here.`);
-      continue;
-    }
-    const twice = tasks.find((key) => owner.has(key));
-    if (twice !== undefined) {
-      problem(
-        line,
-        `Task "${twice}" is in batch "${owner.get(twice)}" and batch "${id}". A task belongs to at most one batch.`,
-      );
-      continue;
-    }
-    for (const key of tasks) owner.set(key, id);
-    const stamp = {
-      id,
-      tasks: tasks.map((key) => byKey.get(key).id),
-      reason: reason.trim(),
-    };
-    for (const key of tasks) byId.get(key).batch = structuredClone(stamp);
-  }
 }
 
 // Spec structure plus lintPlan's graph and boundedness checks. Any error
@@ -1069,7 +886,7 @@ export function lintSpec({
 }
 
 // The facts of a folder's tasks.md, keyed as the manifest was: {tasks,
-// phases, batches, ship, ...}. Diagnostics are lintSpec's.
+// integrationBranch, ...}. Diagnostics are lintSpec's.
 export function specFacts(files = {}) {
   const text = files["tasks.md"] ?? "";
   return readFacts(text, specItems("x", text)).manifest;

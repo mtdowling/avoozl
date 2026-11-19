@@ -1044,17 +1044,13 @@ async function runTick(
           workspaceRoot,
           planIds: [...ready, ...pending]
             .filter((d) => d.role === "worker" && d.operation !== "send")
-            .flatMap((d) => [d.task, ...(d.batch?.tasks || [])])
-            .map((id) => taskPlan.get(id))
+            .map((d) => taskPlan.get(d.task))
             .filter(Boolean),
         }),
         generationHeld = (d) =>
           d.role === "worker" &&
-          [d.task, ...(d.batch?.tasks || [])].some(
-            (id) =>
-              generations.tasks.has(id) ||
-              generations.plans.has(taskPlan.get(id)),
-          );
+          (generations.tasks.has(d.task) ||
+            generations.plans.has(taskPlan.get(d.task)));
       if (lostDispatchPlans.size)
         dispatch = dispatch.filter(
           (d) => !lostDispatchPlans.has(taskPlan.get(d.task)),

@@ -702,28 +702,21 @@ export function switchDryRun(store, input = {}, options = {}) {
         role: b.role,
         model: b.model ?? null,
         where,
-      },
-      task = tasks.get(b.taskId),
-      pin =
-        b.role === "worker" && !task?.session?.choices
-          ? (task?.session?.model ?? null)
-          : null;
+      };
     const why =
       b.source !== "tick"
         ? "a Crew Mode chat: its conductor owns it"
         : b.crew
           ? `runs on remote crew ${b.crew}: only chats on this machine switch`
-          : pin && pin !== to
-            ? `its spec pins ${pin}`
-            : (b.model ?? "auto") === to
-              ? `already on ${to}`
-              : !b.model || b.model === "auto"
-                ? "runs on auto"
-                : forbidden(store, b, reviewRoles(b)).includes(to)
-                  ? b.role === "worker"
-                    ? `${to} is a review role's model`
-                    : `a distinctFrom: model reviewer; the writer ran on ${to}`
-                  : null;
+          : (b.model ?? "auto") === to
+            ? `already on ${to}`
+            : !b.model || b.model === "auto"
+              ? "runs on auto"
+              : forbidden(store, b, reviewRoles(b)).includes(to)
+                ? b.role === "worker"
+                  ? `${to} is a review role's model`
+                  : `a distinctFrom: model reviewer; the writer ran on ${to}`
+                : null;
     if (why) skipped.push({ ...row, why });
     else chats.push({ ...row, to });
   }
@@ -974,9 +967,7 @@ export function recordModelList(store, models) {
 const modelList = (store) => store.getMeta(MODELS)?.models || [];
 
 // The models a running chat may switch to (§4.20 Running chats): the
-// task's pin, then the models Kiro Crew lists.
-export function switchModels(store, task) {
-  return [task?.session?.model, ...modelList(store)].filter(
-    (m, i, all) => m && all.indexOf(m) === i,
-  );
+// models Kiro Crew lists.
+export function switchModels(store) {
+  return modelList(store).filter((m, i, all) => m && all.indexOf(m) === i);
 }

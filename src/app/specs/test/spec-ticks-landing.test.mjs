@@ -25,7 +25,6 @@ const TASKS = [
   "# Tasks",
   "",
   "- [ ] 1 Parent",
-  "  - $kind: package",
   "  - [ ] 1.1 First",
   "    - $done: It works",
   "    - A summary.",
@@ -222,18 +221,22 @@ test("landing ticks the task in the same commit, touches only its line, and tick
   );
 });
 
-test("a person's $built fact, like a tick, leaves the revision hash alone", () => {
+test("a person's Built: note names the landed work, and $built is refused", () => {
   const sha = "0123456789abcdef0123456789abcdef01234567",
-    text = tick(TASKS, 1).replace(
-      "    - $done: It works\n    - A summary.",
-      `    - $done: It works\n    - $built: ${sha.slice(0, 12)}\n    - A summary.`,
-    );
-  assert.notEqual(text, tick(TASKS, 1));
-  assert.equal(specHash({ "tasks.md": text }), specHash({ "tasks.md": TASKS }));
+    note = (line) =>
+      tick(TASKS, 1).replace(
+        "    - $done: It works\n    - A summary.",
+        `    - $done: It works\n    - ${line}\n    - A summary.`,
+      ),
+    text = note(`Built: ${sha.slice(0, 12)}`);
   assert.equal(checkedItems("s", text).get("s.1.1").built, sha.slice(0, 12));
-  // A real edit still moves it.
-  assert.notEqual(
-    specHash({ "tasks.md": text.replace("It works", "It runs") }),
+  assert.equal(
+    checkedItems("s", note(`$built: ${sha.slice(0, 12)}`)).get("s.1.1").built,
+    null,
+  );
+  // A tick alone leaves the hash.
+  assert.equal(
+    specHash({ "tasks.md": tick(TASKS, 1) }),
     specHash({ "tasks.md": TASKS }),
   );
 });

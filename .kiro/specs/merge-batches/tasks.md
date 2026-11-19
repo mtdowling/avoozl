@@ -1,6 +1,5 @@
 ---
 repo: avoozl
-completion: integrated
 ---
 # Tasks: merge batches
 

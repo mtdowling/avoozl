@@ -1,6 +1,5 @@
 ---
 repo: avoozl
-completion: integrated
 ---
 # Tasks: checks from a plugin
 

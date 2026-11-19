@@ -42,8 +42,8 @@ const worktrees = (checkout) =>
 test("a command-only bar opens no verifier chat: Avoozl runs the checks at the exact commit", async (t) => {
   // Nearby inputs: a second tick while the run is queued (no second run), a
   // page tick (queues nothing), the worktree left behind (none), flow
-  // timing (one `checks` span), and `verify: "agent"` or a prose-only bar
-  // (those still open a verifier chat).
+  // timing (one `checks` span), and a repository with no checks (that
+  // still opens a verifier chat).
   const { store, ops, checkout } = setup(t, {
     checks: [[node, "-e", "console.log('ok from checks')"]],
   });
@@ -92,11 +92,10 @@ test("a command-only bar opens no verifier chat: Avoozl runs the checks at the e
   // Judgment bars keep their verifier chat.
   const named = { checks: { test: ["npm", "test"] } };
   assert.equal(needsJudgment(leaf("x"), named), false);
-  assert.equal(needsJudgment(leaf("x", { verify: "agent" }), named), true);
   assert.equal(needsJudgment(leaf("x"), { checks: [] }), true);
   // A task's own list is not a check: only the repository's are.
   assert.equal(needsJudgment(leaf("x", { checks: ["npm test"] }), {}), true);
-  const judged = setup(t, { tasks: [leaf("j", { verify: "agent" })] });
+  const judged = setup(t, { tasks: [leaf("j")], checks: [] });
   await workerDone(judged.ops, "j", "w-j");
   const opened = await tick(judged.ops, ["w-j"]);
   assert.deepEqual(

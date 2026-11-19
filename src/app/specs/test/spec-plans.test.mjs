@@ -236,7 +236,8 @@ test("a fact breaking the task schema is refused at its Facts line", () => {
   const root = temporaryDirectory(),
     text = [
       "- [ ] 1.1 Read the config file",
-      "  - $completion: integrated",
+      "  - $type: Two Words",
+      "  - $done: It reads",
       "",
     ].join("\n");
   writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
@@ -245,7 +246,7 @@ test("a fact breaking the task schema is refused at its Facts line", () => {
     found.map((d) => `${d.code} ${d.file}:${d.lineStart}`),
     ["facts.schema tasks.md:2"],
   );
-  assert.match(found[0].message, /observable acceptance/);
+  assert.match(found[0].message, /one lowercase word/);
 });
 
 test("an ID owned by another plan is refused", () => {
@@ -580,15 +581,20 @@ test("an item nested under an epic is its child; flat items have no parent", () 
   assert.deepEqual(Object.values(parents(lint(flat))), [null, null, null]);
 });
 
-test("nesting under a leaf, or a parent fact, is refused at its line", () => {
+test("an item with sub-items is a package, and a parent fact is refused", () => {
   const root = temporaryDirectory(),
     text = tasksWithFacts(
       "- [ ] 1 Load and validate configuration\n  - [ ] 1.1 Read the config file\n    - [ ] 1.2 Validate loaded config\n",
     );
   writeSpec(root, "config", { "tasks.md": text });
-  assert.deepEqual(codes(lint(root)), [
-    `task.parent-kind tasks.md:${lineOf(text, "1.2 Validate")}`,
-  ]);
+  const kinds = Object.fromEntries(
+    lint(root).proposals.map((p) => [p.specKey, [p.kind, p.parent ?? null]]),
+  );
+  assert.deepEqual(kinds, {
+    1: ["package", null],
+    1.1: ["package", "config.1"],
+    1.2: ["leaf", "config.1.1"],
+  });
   const named = temporaryDirectory(),
     parented = specFiles()["tasks.md"].replace(
       "    - $done: A missing",
@@ -707,12 +713,8 @@ test("single-repo mode reads spec folders from code repositories only", async (t
 // approval; a stored row's owner wins over the manifest's.
 test("plan preview shows each task's authority and issue link", async (t) => {
   const { root, store, ops } = workspace(t),
-    app = temporaryDirectory(),
-    files = JSON.parse(legacySpecFiles()["avoozl/manifest.json"]);
-  files.tasks["1.2"].authority = "local";
-  writeSpec(app, "config", {
-    "avoozl/manifest.json": JSON.stringify(files),
-  });
+    app = temporaryDirectory();
+  writeSpec(app, "config");
   setMode(root, { mode: "single-repo" });
   store.put("repositories", {
     id: "app",
@@ -903,10 +905,10 @@ test("re-approving a linked spec replaces the plan's edges instead of repeating 
         reason: "Imported.",
       },
       {
-        id: "other-prep:sequence:config-load",
+        id: "other-prep:requires:config-load",
         from: "other-prep",
         to: "config-load",
-        kind: "sequence",
+        kind: "requires",
         planId: "other",
         reason: "Other plan.",
       },
@@ -915,7 +917,7 @@ test("re-approving a linked spec replaces the plan's edges instead of repeating 
   const legacy = await ops.execute("plan.get", { id: "config" }),
     files = legacySpec(),
     manifest = JSON.parse(files["avoozl/manifest.json"]);
-  manifest.tasks["config-load"].sequence = ["other-prep"];
+  manifest.tasks["config-load"].requires = ["other-prep"];
   files["avoozl/manifest.json"] = JSON.stringify(manifest);
   writeSpec(root, "config", files);
   await ops.execute("plan.save", {
@@ -936,7 +938,7 @@ test("re-approving a linked spec replaces the plan's edges instead of repeating 
     "the plan owns exactly its manifest's edges, minus one another plan owns",
   );
   assert.equal(
-    edges.find((e) => e.id === "other-prep:sequence:config-load").planId,
+    edges.find((e) => e.id === "other-prep:requires:config-load").planId,
     "other",
     "another plan's edge is kept",
   );
@@ -1067,25 +1069,9 @@ test("approval starts checked items as accepted from the approved tasks.md", asy
   assert.equal(row("config.1.2").status, "planned");
 });
 
-test("a checked item gated on validation, and a breakdown approval, start planned", async (t) => {
+test("a breakdown approval starts checked items planned", async (t) => {
   const { root, store, ops } = workspace(t),
-    files = legacySpecFiles(),
-    manifest = JSON.parse(files["avoozl/manifest.json"]);
-  manifest.tasks["1.1"].acceptFrom = "validation";
-  writeSpec(root, "config", {
-    "tasks.md": files["tasks.md"].replaceAll("- [ ]", "- [x]"),
-    "avoozl/manifest.json": JSON.stringify(manifest),
-  });
-  await ops.execute("plan.create", { spec: "config" });
-  assert.deepEqual(
-    (await ops.execute("plan.preview", { id: "config" })).baseline.taskIds,
-    ["config.1", "config.1.2"],
-  );
-  await approve(ops);
-  assert.equal(
-    store.read().tasks.find((task) => task.id === "config.1.1").status,
-    "planned",
-  );
+    files = legacySpecFiles();
   // approvePlan reads marks only when its caller asks (plan.approve does;
   // a GitHub breakdown's child approval does not).
   const { approvePlan } = await import("../plans.mjs");
@@ -1176,83 +1162,4 @@ test("an item's whole line is its title, and one over the limit is refused", () 
   );
   assert.equal(proposal.title, fits);
   assert.equal(proposal.summary, "- Report unknown keys.");
-});
-
-// The planner's batch groups (R108.1–R108.3, §4.37): members name the group
-// in a `batch` fact; front-matter holds its reason.
-const withBatch = (front, members) => {
-  let text = specFiles()["tasks.md"];
-  for (const [key, group] of Object.entries(members))
-    text = text.replace(
-      new RegExp(`(- \\[ \\] ${key.replace(".", "\\.")} .*\\n)`),
-      (head) =>
-        `${head}${" ".repeat(key.includes(".") ? 4 : 2)}- $batch: ${group}\n`,
-    );
-  return { "tasks.md": front ? `---\n${front}\n---\n${text}` : text };
-};
-
-test("a batch group lands on each member", () => {
-  const root = temporaryDirectory();
-  writeSpec(
-    root,
-    "config",
-    withBatch("batch-pair: Both edit config.mjs", { 1.1: "pair", 1.2: "pair" }),
-  );
-  const result = lint(root);
-  assert.deepEqual(codes(result), []);
-  for (const id of ["config.1.1", "config.1.2"]) {
-    const proposal = result.proposals.find((p) => p.id === id);
-    assert.deepEqual(proposal.batch, {
-      id: "pair",
-      tasks: ["config.1.1", "config.1.2"],
-      reason: "Both edit config.mjs",
-    });
-  }
-});
-
-test("a malformed batch group is an error in tasks.md", () => {
-  const cases = [
-    [
-      "batch-bad id: x",
-      { 1.1: "bad id", 1.2: "bad id" },
-      /needs an ID|front-matter/,
-    ],
-    ["batch-g: x", { 1.1: "g" }, /lists 2 or more different/],
-    ["batch-g: x", { 1: "g", 1.1: "g" }, /names "1", which is not a leaf/],
-    [null, { 1.1: "g", 1.2: "g" }, /Batch "g" has no reason/],
-    ["batch-g: x", {}, /lists 2 or more different/],
-  ];
-  for (const [front, members, message] of cases) {
-    const root = temporaryDirectory();
-    writeSpec(root, "config", withBatch(front, members));
-    const errors = lint(root).diagnostics.filter(
-      (d) => d.severity === "error" && d.file === "tasks.md",
-    );
-    assert.ok(
-      errors.some((d) => message.test(d.message)),
-      `${front} ${JSON.stringify(members)}: ${errors.map((d) => d.message).join("; ")}`,
-    );
-  }
-});
-
-test("approval stores the group with the approved hash; dropping it clears it", async (t) => {
-  const { root, ops } = workspace(t),
-    directory = writeSpec(
-      root,
-      "config",
-      withBatch("batch-pair: Same file", { 1.1: "pair", 1.2: "pair" }),
-    );
-  const plan = await ops.execute("plan.create", { spec: "config" });
-  await approve(ops);
-  const task = (id) => ops.read().tasks.find((x) => x.id === id);
-  assert.deepEqual(task("config.1.2").batch, {
-    id: "pair",
-    tasks: ["config.1.1", "config.1.2"],
-    reason: "Same file",
-  });
-  assert.ok(task("config.1.2").planHash);
-  fs.writeFileSync(path.join(directory, "tasks.md"), specFiles()["tasks.md"]);
-  await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
-  await approve(ops);
-  assert.equal(task("config.1.1").batch, undefined);
 });

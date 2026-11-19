@@ -56,7 +56,6 @@ export interface TaskTiming {
   stages: Record<Stage, number>
   coarse: boolean
   sources: string[]
-  batch: string | null
   firstPass: boolean
 }
 
@@ -231,7 +230,6 @@ export interface FlowViewModel {
   flaky: { id: string; check: string; commit: string; at: string }[]
   ciOnly: { id: string; taskId: string; commit: string; checks: string[]; at: string }[]
   retros: Retro[]
-  batches: { id: string; tasks: string[]; state: string }[]
   stages: Stage[]
   repositories: string[]
   epics: { id: string; title: string }[]

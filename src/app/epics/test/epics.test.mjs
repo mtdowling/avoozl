@@ -94,7 +94,7 @@ test("front-matter names an epic beside a category; a bad name is a problem", ()
   );
 });
 
-test("phases come from the manifest, then the nearest heading, then No phase", () => {
+test("phases come from the nearest heading, else No phase", () => {
   const text =
     "# Tasks\n\n- [ ] 0 Before\n\n## Phase 1: Load\n\n- [ ] 1 One\n\n### Detail\n\n- [ ] 2 Two\n\n## Phase 1: Load\n\n- [ ] 3 Three\n";
   const byLine = headingPhases(text);
@@ -124,9 +124,8 @@ test("the spec reader knows epic folders and refuses the old plan forms", (t) =>
   });
   plan(root, "beta", {
     front: "epic: rewrite",
-    tasks: "- [ ] 1 One\n- [ ] 2 Two\n",
-    entries: { 1: leaf({ phase: "w1" }), 2: leaf({ phase: "w2" }) },
-    extra: { phases: { w1: { title: "W1: core" } } },
+    tasks: "## W1: core\n\n- [ ] 1 One\n\n## W2\n\n- [ ] 2 Two\n",
+    entries: { 1: leaf(), 2: leaf() },
   });
   plan(root, "gamma", {
     front: "epic: rewrite",
@@ -157,10 +156,10 @@ test("the spec reader knows epic folders and refuses the old plan forms", (t) =>
   assert.deepEqual(
     beta.proposals.map((p) => p.phase),
     [
-      { id: "w1", title: "W1: core" },
-      { id: "w2", title: "w2" },
+      { id: "w1-core", title: "W1: core" },
+      { id: "w2", title: "W2" },
     ],
-    "a manifest value wins and shows its ID without a title",
+    "the heading above a task is its phase",
   );
   // gamma names the epic, which does not list it: a warning, approvable.
   const gamma = lint(ops, "gamma");
@@ -181,8 +180,7 @@ test("the spec reader knows epic folders and refuses the old plan forms", (t) =>
   const old = lint(ops, "old-epic");
   assert.ok(
     old.diagnostics.some(
-      (d) =>
-        d.code === "spec.epic-task-fields" && /"kind", "repo"/.test(d.message),
+      (d) => d.code === "spec.epic-task-fields" && /"repo"/.test(d.message),
     ),
   );
   writeSpec(root, "member-plan", {
@@ -233,16 +231,12 @@ test("the spec reader knows epic folders and refuses the old plan forms", (t) =>
       .filter(([, severity]) => severity === "error")
       .sort(),
     [
+      ["facts.removed-key", "error"],
       ["facts.unknown-key", "error"],
       ["facts.unknown-key", "error"],
-      ["spec.kind-epic", "error"],
     ],
   );
   assert.equal(legacy.canApprove, false);
-  assert.ok(
-    !legacy.proposals.some((p) => p.specKey === "1"),
-    "the old parent does not load",
-  );
 });
 
 async function approve(ops, name) {

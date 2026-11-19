@@ -1,5 +1,4 @@
-// Settings › Models picks a harness per role, and a task's `session` pin
-// may name one (R98.3, R98.4, design §4.28).
+// Settings › Models picks a harness per role (R98.3, R98.4, design §4.28).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,7 +11,6 @@ import {
 } from "../executors/harness-definitions.mjs";
 import { Operations } from "../api/operations.mjs";
 import { newPlanStarts } from "../specs/new-plan.mjs";
-import { validateSession } from "../sessions/session-pins.mjs";
 import { Store } from "../store/store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -48,32 +46,13 @@ test("a role's harness is kirocrew, a harness name or auto", () => {
   });
 });
 
-test("a session pin may name a harness, never auto or a bad name", () => {
-  assert.deepEqual(validateSession({ harness: "codex", model: "m" }), {
-    harness: "codex",
-    model: "m",
-  });
-  assert.deepEqual(validateSession({ harness: "kirocrew" }), {
-    harness: "kirocrew",
-  });
-  for (const harness of ["auto", "Bad", 3])
-    assert.throws(
-      () => validateSession({ harness }),
-      /harness must be kirocrew or a harness name/,
-    );
-});
-
-test("a worker runs on its pin's harness, else the saved one, else its repository's", (t) => {
+test("a worker runs on the saved harness, else its repository's", (t) => {
   const root = temporaryDirectory("avoozl-role-harness-"),
     store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   store.initialize({
     ...snapshot(),
-    tasks: [
-      leaf("pinned", { session: { harness: "codex" } }),
-      leaf("chat", { session: { harness: "kirocrew" } }),
-      leaf("plain"),
-    ],
+    tasks: [leaf("plain")],
     edges: [],
   });
   store.put("repositories", {
@@ -88,28 +67,15 @@ test("a worker runs on its pin's harness, else the saved one, else its repositor
         [d.executor, d.harness ?? null],
       ]),
     );
-  assert.deepEqual(run({}), {
-    pinned: ["process", "codex"],
-    chat: ["kirocrew", null],
-    plain: ["kirocrew", null],
-  });
-  assert.deepEqual(
-    run({ config: { roles: { worker: { harness: "claude-code" } } } }),
-    {
-      pinned: ["process", "codex"],
-      chat: ["kirocrew", null],
-      plain: ["process", "claude-code"],
-    },
-  );
+  const saved = { config: { roles: { worker: { harness: "claude-code" } } } };
+  assert.deepEqual(run({}), { plain: ["kirocrew", null] });
+  assert.deepEqual(run(saved), { plain: ["process", "claude-code"] });
   // A process worker's brief ends with the result file, as a repository on
   // process does; a chat's keeps the runner report.
-  const briefs = Object.fromEntries(
-    planReadyDispatches(store, policy, {
-      config: { roles: { worker: { harness: "claude-code" } } },
-    }).map((d) => [d.task, d.brief]),
-  );
-  assert.match(briefs.plain, /result\.json/);
-  assert.doesNotMatch(briefs.chat, /result\.json/);
+  const brief = (options) =>
+    planReadyDispatches(store, policy, options)[0].brief;
+  assert.match(brief(saved), /result\.json/);
+  assert.doesNotMatch(brief({}), /result\.json/);
   // A repository on process with nothing named keeps its own harness.
   store.put("repositories", {
     id: "r1",

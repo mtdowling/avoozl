@@ -1066,7 +1066,6 @@ if (query.get('page') === 'app' && query.get('home') === '1') {
     flaky: [{ id: 'f1', check: 'test (windows)', commit: 'c1', at: ago(300) }],
     ciOnly: [],
     retros: [],
-    batches: [],
     stages: [],
     repositories: ['acme/recipe-box', 'acme/docs'],
     epics: [],
@@ -1252,64 +1251,6 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
       lastOkAt: at,
     })
     answer('remote.view', () => ({ workers: [worker('r1', 1), worker('r2', 2)] }))
-  }
-  // &batch=1: a planner batch of three running in one chat (R108.9), and a
-  // grouped task that runs alone because its group broke a rule.
-  if (query.get('batch')) {
-    const run = { id: 'batch:docs:m5+m6+m7', group: 'docs', tasks: ['m5', 'm6', 'm7'], leader: 'm5', reason: 'Three one-line fixes in the recipe card help text', state: 'running' }
-    for (const [id, title] of [
-      ['m5', 'Fix the servings tooltip'],
-      ['m6', 'Fix the prep time label'],
-      ['m7', 'Fix the allergen note link'],
-    ]) {
-      graphTasks.push(t(id, title, 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }))
-      deliveryItems.push(
-        item(id, title, {
-          status: 'running',
-          batch: run.id,
-          batchGroup: run,
-          sessions: id === 'm5' ? [session('chat-m5', 'worker', 'coding')] : [],
-          deliveries: [{ state: 'running', updatedAt: at, batch: run.id }],
-        }),
-      )
-    }
-    graphTasks.push(t('s5', 'Rename the search box label', 'e2', 'search-v2', 'search', { state: 'running', status: 'running' }))
-    deliveryItems.push(
-      item('s5', 'Rename the search box label', {
-        status: 'running',
-        alone: 's6 waits on s5',
-        batchGroup: { id: null, group: 'labels', tasks: ['s5', 's6'], leader: 's5', reason: 'Two label renames', state: null },
-        sessions: [session('chat-s5', 'worker', 'coding')],
-        deliveries: [{ state: 'running', updatedAt: at }],
-      }),
-    )
-    // Each member's details name the batch and link to its leader.
-    answer('task.detail', (body) => {
-      const id = (body.input as { id: string }).id
-      const base = baseDetail(),
-        delivery = deliveryItems.find((entry) => entry.id === id) ?? null
-      return {
-        ...base,
-        summary: summaryAt('none'),
-        task: {
-          ...base.task,
-          id,
-          title: delivery?.title ?? id,
-          manual: false,
-          completion: 'integrated',
-          authority: 'local',
-          route: 'local',
-          issue: null,
-          state: 'running',
-          status: 'running',
-          repository: 'recipe-box',
-          phase: null,
-        },
-        waitsOn: [],
-        blocks: [],
-        delivery,
-      }
-    })
   }
   // The line, for the Delivery heading's Stop the line: a stop opens one,
   // Resume closes it. window.__lineCalls records both. &stopped=1 starts stopped.
@@ -1661,7 +1602,6 @@ if (query.get('basic') === '1') {
           flaky: [],
           ciOnly: [],
           retros: [],
-          batches: [],
           stages: [],
           repositories: ['acme/recipe-box'],
           epics: [],
@@ -1690,7 +1630,6 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
     stages,
     coarse: false,
     sources: ['tool-calls'],
-    batch: null,
     firstPass: true,
   }
   answer('flow.view', () => ({
@@ -1747,7 +1686,6 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
     flaky: [],
     ciOnly: [],
     retros: [],
-    batches: [],
     stages: [],
     repositories: ['acme/recipe-box'],
     epics: [],
@@ -1797,7 +1735,6 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
       stages,
       coarse: false,
       sources: ['tool-calls'],
-      batch: null,
       firstPass: true,
     }
   }
@@ -1930,7 +1867,6 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
       flaky: [],
       ciOnly: [],
       retros,
-      batches: [],
       stages: ['queued', 'coding', 'tests', 'ci-wait', 'review'],
       repositories: ['acme/pantry', 'acme/recipe-box'],
       epics: [],

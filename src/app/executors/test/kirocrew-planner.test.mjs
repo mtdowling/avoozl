@@ -155,7 +155,6 @@ test("the planner prompt's example spec folder passes the spec reader", () => {
   for (const leaf of result.proposals.filter((t) => t.kind === "leaf")) {
     assert.equal(typeof leaf.repository, "string", leaf.id);
     assert.equal(leaf.checks, undefined, "a task never names checks");
-    assert.equal(leaf.completion, "integrated", leaf.id);
   }
   for (const block of planner.prompt.matchAll(/^```finding\n([\s\S]*?)^```$/gm))
     assert.ok(JSON.parse(block[1]).kind, "finding blocks are JSON");

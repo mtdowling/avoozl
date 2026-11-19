@@ -154,30 +154,24 @@ test("the driver export carries the bundles and a take-over restores them", (t) 
   );
 });
 
-test("fix work, and the manifest's investigate and ship fields", () => {
+test("fix work, the investigate fact, and a task's ship mode", () => {
   assert.equal(isFixWork(leaf("x", { github: { issueType: "Bug" } })), true);
   assert.equal(isFixWork(leaf("x", { type: "fix" })), true);
   assert.equal(isFixWork(leaf("x", { flowFix: { stop: "s" } })), true);
   assert.equal(isFixWork(leaf("x", { type: "feature" })), false);
-  for (const bad of [{ investigate: "yes" }, { ship: "auto" }, { specShip: 1 }])
-    assert.throws(() => validateProposal({ ...leaf("x"), ...bad }));
-  validateProposal({ ...leaf("x"), investigate: false, ship: "manual" });
-  // The task's pin, then its spec's (a repository's landing.autoMerge is
-  // landing-block.test.mjs's), then auto-merge.
-  assert.equal(shipMode(null, leaf("x", { specShip: "manual" })), "manual");
-  assert.equal(
-    shipMode(null, leaf("x", { specShip: "manual", ship: "auto-merge" })),
-    "auto-merge",
-  );
+  assert.throws(() => validateProposal({ ...leaf("x"), investigate: "yes" }));
+  validateProposal({ ...leaf("x"), investigate: false });
+  // The task's own (triage sets one), then auto-merge; a repository's
+  // landing.autoMerge is landing-block.test.mjs's.
+  assert.equal(shipMode(null, leaf("x", { ship: "manual" })), "manual");
   assert.equal(shipMode(null, leaf("x")), "auto-merge");
 });
 
-test("a spec's ship mode and a bugfix spec's type reach each leaf", async () => {
+test("a bugfix spec's type reaches each leaf", async () => {
   const { parseSpec } = await import("../specs/spec-plans.mjs");
   const { legacySpecFiles, withFacts } = await import("./spec-fixture.mjs");
   const files = legacySpecFiles(),
     manifest = JSON.parse(files["avoozl/manifest.json"]);
-  manifest.ship = "manual";
   manifest.tasks["1.1"].investigate = false;
   const bugfix = withFacts({
     ...files,
@@ -188,19 +182,6 @@ test("a spec's ship mode and a bugfix spec's type reach each leaf", async () => 
   const parsed = parseSpec({ name: "fix-loader", exists: true, files: bugfix });
   const leaves = parsed.proposals.filter((p) => p.kind === "leaf");
   assert.equal(leaves.length, 2, JSON.stringify(parsed.diagnostics));
-  for (const p of leaves) {
-    assert.equal(p.specShip, "manual");
-    assert.equal(p.specType, "bugfix");
-  }
+  for (const p of leaves) assert.equal(p.specType, "bugfix");
   assert.equal(leaves.find((p) => p.specKey === "1.1").investigate, false);
-  manifest.ship = "sometimes";
-  const bad = parseSpec({
-    name: "fix-loader",
-    exists: true,
-    files: {
-      ...bugfix,
-      "tasks.md": bugfix["tasks.md"].replace("ship: manual", "ship: sometimes"),
-    },
-  });
-  assert.ok(bad.diagnostics.some((d) => /ship must be/.test(d.message)));
 });

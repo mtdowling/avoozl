@@ -14,29 +14,25 @@ Read the code in the named repositories first, so tasks match what exists. Write
 - Never write `avoozl/manifest.json`. Avoozl refuses a folder that has one. Each task's facts live in `tasks.md`.
 - Never write a `Status:` line (such as `Status: Draft`) in any of these files, and never say in prose that the spec is a draft or approved. Approval is a person's commit, never text in the files. Never commit or push spec files to main: they stay on a spec branch until a person approves them in Avoozl, which makes the approval commit on main.
 
-A `tasks.md` item's facts are bullets directly under it that start with `$`, one fact per bullet on one line: `- $after: 1.1`. A list is `$after: 1.1, 1.2`, or the same fact written again; `$done` is one result per bullet, so write one `$done:` bullet for each. Any other bullet under an item is its summary: what the task delivers and how, in a sentence or a few bullets. Its worker reads the title line, then the summary as written, then `done`. Write a summary only when it adds context the title lacks; Avoozl refuses one that repeats the title. Do not repeat `done` in it either, and write no `Done when:` bullet: `done` says it. Avoozl refuses an unknown fact, a one-value fact written twice, anything nested under a fact, a `$` fact that is not directly under its item, and a bullet such as `done:` that reads as a fact without its `$`. Edges come only from facts. Nesting in `tasks.md` names parents: an item indented under a `package` item is its child, and becomes its sub-issue. Never nest an item under a leaf.
+A `tasks.md` item's facts are bullets directly under it that start with `$`, one fact per bullet on one line: `- $after: 1.1`. A list is `$after: 1.1, 1.2`, or the same fact written again; `$done` is one result per bullet, so write one `$done:` bullet for each. Any other bullet under an item is its summary: what the task delivers and how, in a sentence or a few bullets. Its worker reads the title line, then the summary as written, then `done`. Write a summary only when it adds context the title lacks; Avoozl refuses one that repeats the title. Do not repeat `done` in it either, and write no `Done when:` bullet: `done` says it. Avoozl refuses an unknown fact, a one-value fact written twice, anything nested under a fact, a `$` fact that is not directly under its item, and a bullet such as `done:` that reads as a fact without its `$`. Edges come only from `$after`. Nesting in `tasks.md` names parents: an item with sub-items is a package, and each item indented under it is its child. A task's phase is the `##` heading above it.
 
-Front-matter at the top of `tasks.md` holds values for the whole spec: `repo` and `completion` are defaults for every leaf, and a leaf's own fact wins. A package takes no default. Front-matter keys take no `$`. `phase-<id>: <title>` names a phase, and `batch-<id>: <reason>` a batch group.
+Front-matter at the top of `tasks.md` holds values for the whole spec: `repo` is the default for every leaf, and a leaf's own `$repo` wins. Front-matter keys take no `$`.
 
-Facts of every item:
+The facts are:
 
-- `kind`: `package` (a group of leaves) or `leaf` (one bounded piece of work, the default). Never write `$kind: epic` on a task, or `$epic`: Avoozl refuses them. To place a task in a phase other than its heading's, give it `$phase: <id>` and name the title in front-matter, such as `phase-w1: W1: core`.
-- `after`: IDs that must finish first, each with an optional `:<completion>`. A parent is after its children, so it completes from them. Use `sequence` for ordering without a hard dependency, and `supports` for advisory links.
-- `source`: when the brief names an intake item or issue this plan comes from, its link on each task made from it. Avoozl ties the item to the task by it.
+- `after`: task IDs that must finish first. A parent is after its children, so it completes from them.
+- `repo`: the one registered repository a leaf changes.
+- `done`: observable statements a verifier can check, one `$done:` bullet each. Every leaf has at least one.
+- `manual`: `true` for a step only a person does.
+- `paths`: the files a leaf changes, when two leaves might touch the same files.
+- `investigate`: `true` when the worker must write up its findings before it codes.
+- `type`: one lowercase word for the kind of change, such as `fix`.
 
-A leaf is bounded. It also has:
+Avoozl refuses any other fact, such as `$kind`, `$phase`, `$batch`, `$completion` or `$checks`. Every task runs its repository's checks, which a person sets in Avoozl.
 
-- `repo`: exactly one registered repository ID.
-- `done`: observable statements a verifier can check, one `$done:` bullet each.
-- `completion`: `integrated` for local work, `merged-pr` for GitHub work.
+A step only a person does, such as a team review, is a manual leaf: `$manual: true`, its `repo` (where its issue lives), and `done` (what the person checks), with no `paths`. Avoozl runs no checks for it. No agent ever runs it; a person marks it done, and the tasks that require it wait. A seed from a workflow template carries a starter folder: start from it, keep its phases, task IDs and manual leaves, and fill in what its prompt asks.
 
-Never write `checks`, as a fact or in front-matter: every task runs its repository's checks, which a person sets in Avoozl, and Avoozl refuses a `checks` line.
-
-A step only a person does, such as a team review, is a manual leaf: `$manual: true`, its `repo` (where its issue lives), and `done` (what the person checks), with no `session`, `paths` or `route`, and in no batch group. `$manual: true` is how a task says a person does it: never write `$completion: person`. A manual leaf takes no `completion` default, and Avoozl runs no checks for it. No agent ever runs it; a person marks it done, and the tasks that require it wait. A seed from a workflow template carries a starter folder: start from it, keep its phases, task IDs and manual leaves, and fill in what its prompt asks.
-
-A leaf delivers one coherent, independently verifiable change within one repository and a reasonable worker-session and review scope. Include the implementation, tests, fixtures and documentation needed to establish that result. Split when parts can be implemented, verified and landed independently, enable useful parallel work, or exceed that scope. Keep dependent implementation steps together when neither produces a useful accepted result alone. Multiple acceptance conditions, an "and", or changes to several files do not by themselves justify splitting. Preserve independent platform bring-ups, risky implementation boundaries, person decisions and whole-system acceptance. Do not set `authority`; projection owns it.
-
-Batches are yours to decide; there is no setting for them. A batch is one worker in one chat and one pull request. Group related leaves by default: when leaves are in the same repository and the same area, give each one the fact `$batch: <group>` and write the group's reason once in front-matter: `batch-docs: Link and wording fixes in the docs pages`. One medium-sized pull request of related work beats many small ones. There is no limit on how many tasks a group holds. Split related work into separate groups or single tasks only when the parts can truly run at the same time, because they touch different files or areas and two workers would not step on each other, or for a hard reason: one task must land before another, the tasks are in different repositories, a step is manual, or a task needs its own review or investigation. Never split just to land tasks one at a time. The group ID is letters, digits, `.`, `_` or `-`; the reason is one line of at most 200 characters saying why the tasks belong together. Never group leaves where one requires or follows another, leaves in different repositories, a manual leaf, or a leaf that needs its own review or investigation. A task belongs to at most one group. Avoozl checks these rules again before it hands a group off and runs a group that breaks one as single tasks. Never write `size`; Avoozl ignores it.
+A leaf delivers one coherent, independently verifiable change within one repository and a reasonable worker-session and review scope. Include the implementation, tests, fixtures and documentation needed to establish that result. Split when parts can be implemented, verified and landed independently, enable useful parallel work, or exceed that scope. Keep dependent implementation steps together when neither produces a useful accepted result alone. Multiple acceptance conditions, an "and", or changes to several files do not by themselves justify splitting. Preserve independent platform bring-ups, risky implementation boundaries, person decisions and whole-system acceptance. One medium-sized leaf of related work beats many small ones; never split just to land tasks one at a time.
 
 Example, one fence per file:
 
@@ -60,14 +56,12 @@ A loader parses the file; a validator checks the parsed value.
 ````markdown tasks.md
 ---
 repo: sample
-completion: integrated
 ---
 # Tasks
 
 ## Phase 1: Configuration
 
 - [ ] 1 Load and validate configuration [R1] (§1)
-  - $kind: package
   - $after: 1.1, 1.2
   - Read config.json and report invalid configuration.
   - [ ] 1.1 Read the config file [R1.1] (§1)

@@ -212,7 +212,7 @@ export const entries = [
           const model = readDeliveryPolicy(this.workspaceRoot).delivery?.model;
           ready = readyCandidates(store, { github }).map((task) => ({
             taskId: task.id,
-            model: task.session?.model ?? model ?? null,
+            model: model ?? null,
           }));
         } catch {
           // The dry run still answers; the page says the list is unread.
@@ -341,7 +341,6 @@ export const entries = [
       const store = this.store;
       return {
         ...deliveryView(store, this.read(), {
-          config: this.savedConfig(),
           destinations: {
             standalone: this.kirocrewAbsent,
             links: machineLinks(),

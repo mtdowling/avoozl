@@ -227,53 +227,6 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
   )
 }
 
-// The planner batch a task belongs to (§4.37, R108.9): its reason and every
-// task in it, each opening that task's details; the leader's details stand
-// for the batch's one In progress card. When the group broke a rule, why the
-// task runs alone.
-function BatchBox(props: { batch: NonNullable<DeliveryItem['batchGroup']>; alone: string | null; self: string }) {
-  const drawer = useTaskDrawer()
-  const { batch } = props
-  return (
-    <SectionBox id="batch" title="Batch">
-      <Box flex flexCol gap="1" size="sm" data-task-batch={batch.id ?? batch.group ?? ''}>
-        <Box as="p" m0>
-          {batch.id ? 'Ran in batch ' : 'Planned batch '}
-          {batch.leader === props.self ? (
-            <Box as="span" weight="medium">
-              {batch.group ?? batch.id}
-            </Box>
-          ) : (
-            <PlainButton type="button" underline onClick={() => drawer.openTask(batch.leader)} data-batch-link={batch.leader}>
-              {batch.group ?? batch.id}
-            </PlainButton>
-          )}
-          {batch.reason ? <Hint> · {batch.reason}</Hint> : null}
-        </Box>
-        <Box as="ul" m0 flex flexCol gap="0.5" pl="4" size="xs">
-          {batch.tasks.map((id) => (
-            <li key={id}>
-              {id === props.self ? (
-                <span>{id} (this task)</span>
-              ) : (
-                <PlainButton type="button" underline onClick={() => drawer.openTask(id)}>
-                  {id}
-                </PlainButton>
-              )}
-              {id === batch.leader ? <Hint> · leads</Hint> : null}
-            </li>
-          ))}
-        </Box>
-        {props.alone && (
-          <Hint as="p" size="xs" flush data-runs-alone>
-            Runs alone: {props.alone}
-          </Hint>
-        )}
-      </Box>
-    </SectionBox>
-  )
-}
-
 function TaskPanel(props: {
   workspaceId: string
   id: string
@@ -608,7 +561,6 @@ function TaskPanel(props: {
             <TaskFiles workspaceId={workspaceId} taskId={task.id} active box={{ id: 'files', title: 'Files' }} />
           </>
         )}
-        {tab === 'overview' && delivery?.batchGroup && <BatchBox batch={delivery.batchGroup} alone={delivery.alone ?? null} self={task.id} />}
         {tab === 'work' && delivery && (
           <>
             <SectionBox id="delivery" title="Delivery">

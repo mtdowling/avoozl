@@ -213,13 +213,7 @@ in `.avoozl.json`:
 
 When coworkers share one `.avoozl.json`, leave `roles` out of it and set it
 in each person's `~/.config/avoozl/config.json` instead. Where both files set
-a role, `.avoozl.json` wins. A task can pin its own harness with a `$session`
-fact, and the pin wins over the role:
-
-```markdown
-- [ ] 2.1 Port the parser
-  - $session: {"harness": "claude-code"}
-```
+a role, `.avoozl.json` wins. A task names no harness of its own.
 
 The harness names a file on the machine that runs the session, so each
 machine approves its own. See [Agents and the CLI](agents.md#roles-and-models)

@@ -385,27 +385,6 @@ const isRunner = (b) =>
   b.role === "worker" && ["tick", "conductor"].includes(b.source);
 
 // The first stretch of a worker attempt, from its binding (events).
-// One binding per task: a batch binding stands for each task in it, with
-// that task's own report. A later task in a batch starts when the one
-// before it reported (its commit is made after that one).
-function perTask(binding) {
-  if (!binding.batch) return [binding];
-  return binding.batch.tasks.map((id, i) => {
-    const before = binding.batch.tasks
-      .slice(0, i)
-      .map((t) => binding.reports?.[t]?.at)
-      .filter(Boolean)
-      .sort()
-      .at(-1);
-    return {
-      ...binding,
-      taskId: id,
-      report: binding.reports?.[id] ?? null,
-      boundAt: before || binding.boundAt,
-    };
-  });
-}
-
 function ensureWorkerStart(store, binding) {
   const spans = listSpans(store, { taskId: binding.taskId }).filter(
     (s) => s.attempt === binding.attempt && s.role === "worker",
@@ -422,7 +401,6 @@ function ensureWorkerStart(store, binding) {
     ),
     taskId: binding.taskId,
     attempt: binding.attempt,
-    batchId: binding.batch?.id ?? null,
     role: "worker",
     stage: firstStage(binding),
     startedAt: binding.boundAt,
@@ -432,15 +410,8 @@ function ensureWorkerStart(store, binding) {
 
 // plans_report, as it is taken: phase markers, waiting on a question, and
 // the end of an attempt (R43.3, R43.5). Called after the report is stored.
-export function flowOnReport(
-  store,
-  binding,
-  report,
-  forTask = binding?.taskId,
-) {
+export function flowOnReport(store, binding, report) {
   if (!binding || !report?.at) return;
-  if (binding.batch)
-    binding = perTask(binding).find((b) => b.taskId === forTask) || binding;
   const at = report.at,
     { taskId, attempt } = binding;
   if (binding.role !== "worker") {
@@ -463,7 +434,6 @@ export function flowOnReport(
         id: spanId(source, taskId, attempt, "worker", stage, at),
         taskId,
         attempt,
-        batchId: binding.batch?.id ?? null,
         role: "worker",
         stage,
         startedAt: at,
@@ -582,7 +552,7 @@ export function syncSpans(store, { now = Date.now() } = {}) {
   const own = (taskId) => byTask.get(taskId) || [];
   let data = null;
   const memo = {};
-  for (const binding of bindings.flatMap(perTask)) {
+  for (const binding of bindings) {
     const { taskId, attempt } = binding;
     if (isRunner(binding)) {
       // queued: from ready to this worker's binding.
@@ -766,7 +736,6 @@ export function ingestToolRows(store, binding, rows, { checks = [] } = {}) {
         id: `tool-calls:${taskId}:${attempt}:worker:start#start`,
         taskId,
         attempt,
-        batchId: binding.batch?.id ?? null,
         role: "worker",
         stage: "coding",
         startedAt: binding.boundAt,
@@ -788,7 +757,6 @@ export function ingestToolRows(store, binding, rows, { checks = [] } = {}) {
         id: `tool-calls:${taskId}:${attempt}:worker:${row.ts}#${key}`,
         taskId,
         attempt,
-        batchId: binding.batch?.id ?? null,
         role: "worker",
         stage,
         startedAt: row.ts,
@@ -891,7 +859,6 @@ export function taskTiming(
     stages,
     coarse: workerSpans.some((s) => s.source !== "tool-calls"),
     sources: [...new Set(own.map((s) => s.source))],
-    batch: own.find((s) => s.batchId)?.batchId || null,
     fix: isFixWork(task),
     // A manual leaf's time is a person's: first-pass rate skips it.
     manual: task.manual === true,
@@ -1095,7 +1062,6 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
     retros: listOr(store, "flow_retros").sort((a, b) =>
       a.startedAt < b.startedAt ? 1 : -1,
     ),
-    batches: listOr(store, "flow_batches"),
     stages: [...STAGES],
     repositories: [
       ...new Set(data.tasks.map(taskRepository).filter(Boolean)),

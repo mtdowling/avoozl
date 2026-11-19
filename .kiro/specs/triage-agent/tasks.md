@@ -1,6 +1,5 @@
 ---
 repo: avoozl
-completion: integrated
 ---
 # Tasks: the triage agent and the GitHub pages
 

@@ -1,6 +1,5 @@
 ---
 repo: avoozl
-completion: integrated
 ---
 # Tasks: Avoozl as a Kiro Crew-native, GitHub-native product
 
@@ -124,7 +123,6 @@ new `plans_intake_*` tools. No earlier task changes.
 - [x] 0.2 Tag the last host-era release (OpenHands, website, extension) so removed surfaces stay recoverable. (§9)
   - $done: Tag the last host-era release (OpenHands, website, extension) so removed surfaces stay recoverable.
   - $done: The report names what was done and where the result is.
-  - $completion: answered
   - Tags the host-era release; no code change.
   - Built: tag `host-era-final` at `fa57279`.
 - [x] 0.3 Add a test fixture workspace generator that produces local, GitHub-cache, and mixed workspaces in a temporary directory. [R25]
@@ -1002,7 +1000,6 @@ receipts are that workspace's.
   - $done: Stale-plan cleanup
   - $done: List plan files in the planning repository that are stale or no longer current, each with one evidence line (every task done or migrated; superseded or no live reference); after owner approval of the list, delete them in one reviewed commit that changes nothing else.
   - $done: The report names what was done and where the result is.
-  - $completion: answered
   - $after: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
   - Works in the planning repository being moved, which this workspace does not register.
   - List plan files in the planning repository that are stale or no longer current, each with one evidence line (every task done or migrated; superseded or no live reference); after owner approval of the list, delete them in one reviewed commit that changes nothing else.
@@ -1011,7 +1008,6 @@ receipts are that workspace's.
   - $done: Move each current plan to `.kiro/specs/<name>/` with `requirements.md` (or `bugfix.md`), `design.md`, `tasks.md`, and `avoozl/manifest.json`, using existing task IDs as item tokens so markers and issue links stay
   - $done: Stop using the migration read path for the workspace. [R23.14, R23.15, R30] (§10.2 step 11)
   - $done: The report names what was done and where the result is.
-  - $completion: answered
   - $after: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8
   - Works in the planning repository being moved, which this workspace does not register.
   - Stop using the migration read path for the workspace. [R23.14, R23.15, R30] (§10.2 step 11)
@@ -1732,7 +1728,6 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - $done: MC-14 upstream ask
   - $done: File the standalone request with Kiro Crew for page links into Issue Radar (repository, filter, selected numbers, one item) (the review app link was dropped 2026-11-14); change no Kiro Crew code; when it ships, record the contract in §7.1 and switch 13.3's links to it.
   - $done: The report names what was done and where the result is.
-  - $completion: answered
   - $after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b
   - Files an upstream request with Kiro Crew; changes no code here.
   - File the standalone request with Kiro Crew for page links into Issue Radar (repository, filter, selected numbers, one item) (the review app link was dropped 2026-11-14); change no Kiro Crew code; when it ships, record the contract in §7.1 and switch 13.3's links to it.
@@ -2095,7 +2090,6 @@ the owner's own plans once, after P36 passes.
 - [x] 21.7 Rewrite the owner's plans once, after avoozl-p36 [R59.12, R59.13] (§6.9)
   - $done: Rewrite the owner's plans once, after avoozl-p36
   - $done: A one-time script, kept in the task's report and not in `src/`, runs through existing operations on a copy and then live after a sha256 backup; per-plan epics become phases, `doc:` tasks go to their section or No phase, orphaned tasks are archived as "plan removed", old manifest forms and `flow.batch.by: "epic"` are rewritten, every plan lints with 0 errors, a second run changes nothing, spec edits are local commits, and nothing is approved, started, written to GitHub, or pushed.
-  - $completion: answered
   - $after: avoozl-p36
   - A script kept in the task's report, not in `src/`, run through existing operations: first on a copy of the database and spec repositories, then live after a sha256 backup; per-plan epics to phases, `doc:` epics to their `tasks.md` section or No phase, orphaned tasks archived with `task.archive` reason "plan removed", old manifest forms rewritten in Nupp's plans (the rewrite epic folder and the native runtime plan) and checked in Avoozl's own spec, `flow.batch.by: "epic"` set to `phase`; every plan lints with 0 errors; a second run changes nothing; spec edits are local commits; nothing is approved, started, written to GitHub or pushed.
   - Built: Rewrite run once live on the owner's Nupp and Avoozl workspaces; script and receipts kept in the task report. Nupp plans: one local commit; Avoozl's own spec needed no change. 7cc538a and 334c7e8 let the existing operations do it.
@@ -3842,7 +3836,7 @@ Owner request 2026-11-19 (Requirement 113, design §4.41).
   - $done: The tick writes a Built line, and receipts are read by commit, after 65.2
   - $done: After a landing's push, one `[skip ci]` commit adds `Built: <main commit>` to the task's Facts block and the hash does not change; every commit reaching the base branch has its push run's receipts read once by that commit; a pull request head's receipts count under the commit it landed as; Flow and the task show one CI time per main commit; tests cover a direct push and a squash-merged pull request.
   - $after: 65.2
-  - $built: 07481b845595
+  - Built: `07481b845595`.
   - `builtText` and `recordBuilt` write the line, `readFacts` skips it, `applyTicks` keeps `task.built`, `readReceipts` reads base-branch push heads, `pr_ci.mergeCommit` links a head to its main commit, `observationsAtMain` and `buildRows` give one CI time per commit.
 - [x] 65.4 The tick commit is a task's landing commit; Avoozl writes no Built line, after 65.3 [R101.14, R113.8, R113.14] (§4.31, §4.41)
   - $done: The tick commit is a task's landing commit; Avoozl writes no Built line, after 65.3

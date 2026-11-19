@@ -174,12 +174,6 @@ test("no chat worker brief in the pair table names an MCP tool", async (t) => {
     repository = w.store.get("repositories", "app"),
     task = w.store.read().tasks[0],
     cliReport = { worktree: "/tmp/wt", token, workspace: w.dir },
-    data = w.store.read(),
-    leaf = {
-      task,
-      attempt: 1,
-      batch: { id: "x", tasks: ["a", "b"], reason: "Small" },
-    },
     seen = [];
   for (const kind of KINDS) {
     const { cell } = briefCell("kirocrew", kind);
@@ -191,7 +185,6 @@ test("no chat worker brief in the pair table names an MCP tool", async (t) => {
         findingsVia: { executor: "kirocrew", cliReport },
         steps: cell.steps({ task, repository, relay: false, cliReport }),
       });
-    else if (kind === "batch") text = cell.brief(w.store, data, leaf, "");
     else if (kind === "round") text = cell.finish;
     else
       text = cell.brief(
@@ -215,54 +208,6 @@ test("no chat worker brief in the pair table names an MCP tool", async (t) => {
     ].join("\n"),
     /plans_/,
   );
-});
-
-test("a batch reports each task with its leader's token", async (t) => {
-  const w = await setup(t),
-    lead = w.store.read().tasks[0],
-    token = issueReportToken(w.store, { taskId: "a", attempt: 1 }),
-    { batchBrief } = await import("../../flow/flow-batch.mjs"),
-    brief = batchBrief(
-      w.store,
-      w.store.read(),
-      { task: lead, attempt: 1, batch: { id: "x", tasks: ["a", "b"] } },
-      "",
-    );
-  assert.ok(brief.includes(`--token ${token}`));
-  assert.match(brief, /worktree prepare a/);
-  await w.ops.execute("session.bind", {
-    taskId: "a",
-    slot: "chat",
-    attempt: 1,
-    source: "tick",
-    title: "avoozl:a batch",
-    batch: { id: "x", tasks: ["a", "b"] },
-  });
-  const tree = (await w.ops.execute("worktree.prepare", { taskId: "a" })).path,
-    run = (id) =>
-      bare(
-        `${cliCommand()} runner report ${id} done --token ${token} --workspace ${JSON.stringify(w.dir)}`,
-        tree,
-      );
-  for (const id of ["a", "b"]) {
-    fs.writeFileSync(path.join(tree, id + ".txt"), id + "\n");
-    git(tree, "add", ".");
-    git(
-      tree,
-      "-c",
-      "user.name=T",
-      "-c",
-      "user.email=t@e.x",
-      "commit",
-      "-qm",
-      id,
-    );
-    const out = run(id);
-    assert.equal(out.status, 0, `${id}: ${out.stderr}`);
-  }
-  const binding = w.store.get("session_bindings", "chat");
-  assert.deepEqual(Object.keys(binding.reports).sort(), ["a", "b"]);
-  assert.notEqual(binding.reports.a.commit, binding.reports.b.commit);
 });
 
 test("plans_report still works for a session Avoozl did not start", async (t) => {

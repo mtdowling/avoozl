@@ -273,7 +273,6 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
                   )}
                 </Tooltip>
               )}
-              {task.batch && <Badge>batch</Badge>}
               {duration(task.leadMs)}
               <Tooltip text="Open this task's details in the drawer">
                 {(describedBy) => (
@@ -465,7 +464,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
 }
 
 // The drawer's Timing fold (R48.4): the task's bar and each span's stage,
-// length and source, and the batch it ran in.
+// length and source.
 export function TimingFold({
   timing,
 }: {
@@ -492,7 +491,6 @@ export function TimingFold({
           {duration(timing.leadMs)}
         </Box>
       </Row>
-      {timing.batch && <Hint size="xs">Ran in {timing.batch}.</Hint>}
       <Box as="ul" flex flexCol gap="0.5">
         {timing.spans.map((span) => (
           <Box key={span.id} as="li" flex items="center" gap="2">

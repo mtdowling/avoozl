@@ -40,7 +40,7 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-// A local workspace with a real checkout `app`, leaves a1, a2 (in a planner batch group), a3,
+// A local workspace with a real checkout `app`, leaves a1, a2 (`investigate: false`), a3,
 // and a bugfix spec's f1.
 function local(t, delivery = {}) {
   const root = temporaryDirectory("avoozl-p45-"),
@@ -58,7 +58,7 @@ function local(t, delivery = {}) {
     ...snapshot(),
     tasks: [
       leaf("a1"),
-      leaf("a2", { batch: { id: "g", tasks: ["a2"], reason: "Small edit" } }),
+      leaf("a2", { investigate: false }),
       leaf("a3"),
       leaf("f1", { specType: "bugfix" }),
     ],
@@ -118,7 +118,7 @@ test("P45 (1)–(3): findings first, a falsifier, the gate, Needs you, and small
   const w = local(t);
   let result = await w.tick();
   const byTask = new Map(result.dispatch.map((d) => [d.task, d]));
-  // (3) a2 is small: no investigation.
+  // (3) a2 says not to investigate.
   assert.equal(byTask.get("a2").investigate, undefined);
   assert.doesNotMatch(byTask.get("a2").brief, /Investigate first/);
   for (const id of ["a1", "a3"]) {

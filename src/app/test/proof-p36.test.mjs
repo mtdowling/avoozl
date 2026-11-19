@@ -190,13 +190,9 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
   });
   writePlan(root, "beta", {
     front: "epic: rewrite",
-    tasks: "- [ ] 1 One\n- [ ] 2 Two\n- [ ] 3 Three\n",
-    entries: {
-      1: leaf({ phase: "w1" }),
-      2: leaf({ phase: "w1" }),
-      3: leaf({ phase: "w2" }),
-    },
-    extra: { phases: { w1: { title: "W1: core" } } },
+    tasks:
+      "## W1: core\n\n- [ ] 1 One\n- [ ] 2 Two\n\n## W2\n\n- [ ] 3 Three\n",
+    entries: { 1: leaf(), 2: leaf(), 3: leaf() },
   });
   writePlan(root, "gamma", {
     front: "epic: rewrite",
@@ -229,13 +225,9 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
 
   // (2) beta named as a member while it names no epic blocks only the epic.
   writePlan(root, "beta", {
-    tasks: "- [ ] 1 One\n- [ ] 2 Two\n- [ ] 3 Three\n",
-    entries: {
-      1: leaf({ phase: "w1" }),
-      2: leaf({ phase: "w1" }),
-      3: leaf({ phase: "w2" }),
-    },
-    extra: { phases: { w1: { title: "W1: core" } } },
+    tasks:
+      "## W1: core\n\n- [ ] 1 One\n- [ ] 2 Two\n\n## W2\n\n- [ ] 3 Three\n",
+    entries: { 1: leaf(), 2: leaf(), 3: leaf() },
   });
   const unconfirmed = await lint(ops, "rewrite");
   assert.deepEqual(unconfirmed.counts, { error: 1, warning: 0, info: 0 });
@@ -263,13 +255,9 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
   // Restore both folders; the stored revisions never changed.
   writePlan(root, "beta", {
     front: "epic: rewrite",
-    tasks: "- [ ] 1 One\n- [ ] 2 Two\n- [ ] 3 Three\n",
-    entries: {
-      1: leaf({ phase: "w1" }),
-      2: leaf({ phase: "w1" }),
-      3: leaf({ phase: "w2" }),
-    },
-    extra: { phases: { w1: { title: "W1: core" } } },
+    tasks:
+      "## W1: core\n\n- [ ] 1 One\n- [ ] 2 Two\n\n## W2\n\n- [ ] 3 Three\n",
+    entries: { 1: leaf(), 2: leaf(), 3: leaf() },
   });
   writeEpic(root, "rewrite", ["alpha", "beta"]);
   await ops.execute("plan.save", {
@@ -280,7 +268,7 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
   assert.equal((await lint(ops, "rewrite")).counts.error, 0);
 
   // (3) Reads: the epic lists alpha then beta with computed progress;
-  // phases come from headings or manifest values; no doc: group anywhere.
+  // phases come from headings; no doc: group anywhere.
   const epic = await ops.execute("epic.get", { id: "rewrite" });
   assert.deepEqual(
     epic.members.map((m) => [m.plan, m.progress]),
@@ -302,8 +290,8 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
   assert.deepEqual(
     epic.members[1].phases.map((p) => [p.id, p.title, p.total]),
     [
-      ["w1", "W1: core", 2],
-      ["w2", "w2", 1],
+      ["w1-core", "W1: core", 2],
+      ["w2", "W2", 1],
     ],
   );
   const graph = await ops.execute("graph.view", {});
@@ -341,7 +329,7 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
   const w1 = await ops.execute("graph.view", {
     epic: "rewrite",
     plan: "beta",
-    phase: "w1",
+    phase: "w1-core",
   });
   assert.deepEqual(
     w1.tasks.map((task) => task.id),
@@ -357,7 +345,7 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
   );
   assert.deepEqual(
     flow.phases.map((p) => p.id),
-    ["w1", "w2"],
+    ["w1-core", "w2"],
   );
   const table = await ops.execute("plan.table", {});
   const rows = Object.fromEntries(table.items.map((row) => [row.spec, row]));
@@ -417,9 +405,10 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
     (d) => d.severity === "error",
   );
   assert.deepEqual(oldCodes.map((d) => [d.code, d.entry ?? null]).sort(), [
+    ["facts.removed-key", null],
+    ["facts.removed-key", null],
     ["facts.unknown-key", null],
     ["facts.unknown-key", null],
-    ["spec.kind-epic", "1"],
   ]);
   const epicCodes = (await quality("old-epic")).diagnostics.filter(
     (d) => d.severity === "error",

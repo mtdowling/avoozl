@@ -49,7 +49,6 @@ import { instanceView } from "../workspace/instance.mjs";
 import { landingNeedsYou } from "../epics/integration-head.mjs";
 import { syncNeedsYou } from "../epics/integration-sync.mjs";
 import { decideInvestigation } from "../delivery/investigate.mjs";
-import { kirocrewPinNeedsYou } from "../tick/kirocrew-pin.mjs";
 import { landingWaitNeedsYou } from "../landing/landing-queue-view.mjs";
 import { completeManual, reopenManual } from "../tasks/manual-tasks.mjs";
 import { publicBranchRows } from "../mirror/mirror-forward-batch.mjs";
@@ -460,7 +459,6 @@ export const entries = [
         });
       view.items.push(...planReviewNeedsYou(store));
       view.items.push(...specPullNeedsYou(store));
-      if (this.kirocrewAbsent) view.items.push(...kirocrewPinNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
       view.items.push(...landingWaitNeedsYou(store, this.read()));
       view.items.push(...syncNeedsYou(store));
@@ -596,7 +594,6 @@ export const entries = [
       const view = taskDetailView(store, data, detail, {
         plan: plan && !plan.deletedAt ? plan : null,
         approved: Boolean(plan && this.planApproved(plan)),
-        config: this.savedConfig(),
         destinations: {
           standalone: this.kirocrewAbsent,
           links: machineLinks(),
@@ -1408,30 +1405,11 @@ export const entries = [
           (data) => {
             const task = data.tasks.find((t) => t.id === input.id);
             if (!task) fail("Task not found.", 404);
-            // A validation-gated leaf is accepted only from checks Avoozl
-            // recorded at its integrated commit, never from typed text (R38.4).
-            if (task.acceptFrom === "validation") {
-              if (input.evidence?.trim() || input.componentOnly)
-                fail(
-                  `Task ${task.id} is accepted only from validation Avoozl recorded; typed evidence and component-only acceptance are refused.`,
-                  409,
-                );
-              if (!task.integration?.commit)
-                fail(
-                  `Task ${task.id} has no integrated commit; it is accepted after Avoozl integrates it.`,
-                  409,
-                );
-            }
             if (!task.integration && !input.componentOnly)
               fail("Record integration before whole-head acceptance.");
             const recorded = input.evidence?.trim()
               ? null
               : validationAt(store, data, task);
-            if (task.acceptFrom === "validation" && !recorded)
-              fail(
-                `Task ${task.id} has no passing validation of every declared check at commit ${task.integration.commit.slice(0, 12)}.`,
-                409,
-              );
             task.acceptanceEvidence = {
               at: new Date().toISOString(),
               evidence: input.evidence?.trim() || recorded?.summary || "",

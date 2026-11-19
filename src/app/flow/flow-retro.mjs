@@ -400,7 +400,6 @@ export function retroBrief(
           leadMs: t.leadMs,
           stages: t.stages,
           coarse: t.coarse,
-          batch: t.batch,
         })),
       lineStops: view.stops.map((s) => ({
         check: s.check,
@@ -410,11 +409,6 @@ export function retroBrief(
       })),
       flaky: view.flaky.map((r) => ({ check: r.check, commit: r.commit })),
       ciOnly: view.ciOnly.map((r) => ({ task: r.taskId, checks: r.checks })),
-      batches: view.batches.map((b) => ({
-        id: b.id,
-        tasks: b.tasks,
-        state: b.state,
-      })),
       earlierProposals: earlier,
       revertProposals: retro.reverts || [],
       // How much finished work was bug fixes (§4.11, R79.3).

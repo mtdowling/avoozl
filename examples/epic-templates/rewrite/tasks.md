@@ -1,5 +1,4 @@
 ---
-completion: integrated
 integrationBranch: rewrite/my-epic
 integrationSync: weekly
 ---

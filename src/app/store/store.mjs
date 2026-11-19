@@ -124,7 +124,6 @@ const BODY_TABLES = new Set([
   "flow_records",
   "flow_stops",
   "flow_retros",
-  "flow_batches",
   "pr_feedback",
   "pr_ci",
   "ci_runs",
@@ -302,7 +301,6 @@ export class Store {
    CREATE TABLE IF NOT EXISTS flow_records(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_stops(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_retros(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS flow_batches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS pr_feedback(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS pr_ci(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS ci_runs(id TEXT PRIMARY KEY,body TEXT NOT NULL);

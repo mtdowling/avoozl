@@ -173,7 +173,7 @@ const state = (store) => ({
   tasks: store
     .read()
     .tasks.filter((task) => task.planId)
-    .map((task) => [task.id, task.status, task.intakeSource ?? null])
+    .map((task) => [task.id, task.status, task.type ?? null])
     .sort(),
   // Flow's stage timings and the retros.
   spans: listSpans(store),
@@ -200,11 +200,11 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
     "Approve spec feature",
   );
   assert.match(approved.evidence, new RegExp(head));
-  // An intake-made task names its item.
+  // A second approved spec, with a fact of its own.
   const files = specFiles();
   files["tasks.md"] = files["tasks.md"].replace(
-    "    - $completion: integrated\n    - Parse",
-    "    - $completion: integrated\n    - $source: https://example.com/items/7\n    - Parse",
+    "    - Parse",
+    "    - $type: intake\n    - Parse",
   );
   writeSpec(r.root, "intake", files);
   await first.ops.execute("plan.create", { spec: "intake" });
@@ -259,12 +259,6 @@ test("Approve commits the spec on main as the person; a rebuilt database has the
   await first.ops.execute("plan.create", { spec: "other" });
   await assert.rejects(approve(first.ops, "other"), /spec branch/);
   const before = state(first.store);
-  assert.ok(
-    before.tasks.some(
-      ([id, , source]) =>
-        id === "intake.1.1" && source === "https://example.com/items/7",
-    ),
-  );
   assert.ok(
     before.tasks.some(
       ([id, status]) => id === "feature.1.1" && status === "accepted",

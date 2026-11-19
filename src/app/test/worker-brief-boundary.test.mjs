@@ -10,7 +10,6 @@ import {
   localSteps,
   workerBrief,
 } from "../delivery/delivery.mjs";
-import { batchBrief } from "../flow/flow-batch.mjs";
 import { Operations } from "../api/operations.mjs";
 import { rolePrompt } from "../agents/prompts.mjs";
 import { Store } from "../store/store.mjs";
@@ -53,14 +52,6 @@ test("worker briefs say edit, commit and report, never push, merge or comment", 
       steps: localSteps(TASK, REPOSITORY, { relay: true }),
     }),
     "relay",
-  );
-  const data = { tasks: [TASK, { ...TASK, id: "b" }] };
-  editsAndReportsOnly(
-    batchBrief(null, data, {
-      task: TASK,
-      batch: { id: "x", tasks: ["a", "b"] },
-    }),
-    "batch",
   );
   // The shipped standing rules carry no publishing step of their own.
   editsAndReportsOnly(rolePrompt("worker"), "worker.md", { boundary: false });

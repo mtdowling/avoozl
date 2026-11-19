@@ -294,7 +294,7 @@ templates/sdk-rewrite/
 - `proofKinds` is optional: proof outlines the prompt asks the planner to fill
   in.
 - `pack` is optional: a settings pack, as in the pack part.
-- `flow` is optional: flow defaults `batch`, `stopTheLine`, `localChecksFirst`
+- `flow` is optional: flow defaults `stopTheLine`, `localChecksFirst`
   and `retro.everyTasks`.
 
 The prompt and starter files may use a placeholder for an input:

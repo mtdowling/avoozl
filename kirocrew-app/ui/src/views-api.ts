@@ -243,15 +243,6 @@ export interface TaskLinks {
   checks: { state: 'pass' | 'fail' | 'pending'; dot: 'pass' | 'fail' | 'pending' | 'stale'; head: string; ageMs: number | null; current: boolean; url: string | null } | null
 }
 
-export interface DeliveryBatch {
-  id: string | null
-  group: string | null
-  tasks: string[]
-  leader: string
-  reason: string | null
-  state: string | null
-}
-
 export interface DeliveryItem extends TaskOwner {
   id: string
   title: string
@@ -267,10 +258,6 @@ export interface DeliveryItem extends TaskOwner {
   // The supersede chain (§5.2): the task this one replaced, and its replacement.
   supersedes?: string | null
   supersededBy?: string | null
-  // Its planner batch group (§4.37): `id` is the run once it has one; and,
-  // when it runs alone, the rule its group broke. Older backends omit both.
-  batchGroup?: DeliveryBatch | null
-  alone?: string | null
   sessions: DeliverySession[]
   // A worker start queued and not bound yet (direct-links DL1.3).
   starting?: boolean

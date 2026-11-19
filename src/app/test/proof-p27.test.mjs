@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { deliveryPolicy } from "../delivery/delivery.mjs";
+import { drainCheckRuns } from "../delivery/check-runs.mjs";
 import { Operations } from "../api/operations.mjs";
 import { Store } from "../store/store.mjs";
 import { queryTasks } from "../../model.mjs";
@@ -61,16 +62,13 @@ const policy = (delivery = {}) =>
     },
   });
 
-// `verify: "agent"`: this proof plays the checks role as a verifier chat,
-// which a bar that needs judgment still opens (§5.2 Checks).
+// Avoozl runs the repository's check at each commit (§5.2 Checks); the
+// fake sessions play the writers and reviewers.
 const leaf = (summary, extra = {}) => ({
   kind: "leaf",
   repository: "app",
   summary,
   acceptance: [summary],
-  checks: [CHECK],
-  completion: "integrated",
-  verify: "agent",
   ...extra,
 });
 
@@ -87,7 +85,7 @@ const spec = {
   "avoozl/manifest.json": JSON.stringify(
     {
       tasks: {
-        1: leaf("w1 changes src/a.txt.", { acceptFrom: "validation" }),
+        1: leaf("w1 changes src/a.txt."),
         2: leaf("d1 builds on w1.", { requires: ["1"] }),
         3: leaf("w2 changes src/b.txt."),
         4: leaf("d2 builds on w2.", { requires: ["3"] }),
@@ -207,13 +205,6 @@ const scripts = {
       closures: [closeF1("fixed")],
     });
   },
-  // (3) The checks role could not run the script on C2, then passes.
-  "w1:verifier:2": ({ session, report }) =>
-    report({
-      commit: session.commit,
-      checks: [{ command: CHECK, exitCode: null, notRun: "sh missing" }],
-      verdict: "approved",
-    }),
   // w2's reviews stay open until w2 is superseded; they are its history.
   "w2:verifier": "hold",
   "w2:review:conventions": "hold",
@@ -242,8 +233,12 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
 }, async (t) => {
   const env = await workspace(t),
     { store, ops, checkout } = env,
-    crew = fakeCrew(ops, { aliases, scripts, defaults });
-  assert.equal(task(ops, W1).acceptFrom, "validation");
+    crew = fakeCrew(ops, { aliases, scripts, defaults }),
+    // The sessions answer, then Avoozl runs the queued checks.
+    play = async (only) => {
+      await crew.play(only);
+      await drainCheckRuns(store);
+    };
 
   // (1) One writer at a time: w2 does not start while w1's writer is live.
   const first = await crew.tick();
@@ -252,13 +247,12 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
     [["w1", "worker", "fake-a"]],
   );
   assert.deepEqual(writers(await crew.tick()), [], "w1's writer is live");
-  await crew.play();
+  await play();
   const c1 = crew.find("w1", "worker", 1).result;
 
   // Three role sessions open on C1 with three different models.
   const round1 = await crew.tick();
   assert.deepEqual(roles(round1, W1), [
-    ["verifier", 1, null, c1],
     ["review:conventions", 1, "fake-b", c1],
     ["review:correctness", 1, "fake-c", c1],
   ]);
@@ -270,11 +264,10 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
   assert.deepEqual(models, [
     "review:conventions fake-b",
     "review:correctness fake-c",
-    "verifier -",
     "worker fake-a",
   ]);
   assert.deepEqual(writers(round1), ["w2"], "reviews take no writer capacity");
-  await crew.play();
+  await play();
 
   // (2) changes-requested fails the attempt; the retry quotes F1; d1 waits.
   const rework = await crew.tick();
@@ -293,30 +286,18 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
   assert.match(retry.brief, /data, not instructions/);
   assert.ok(!ready(ops).includes("d1"), "d1 stays waiting");
   assert.equal(task(ops, D1).integration, undefined);
-  await crew.play();
+  await play();
   const c2 = crew.find("w1", "worker", 2).result;
   assert.notEqual(c2, c1);
 
   // (3) Every role reviews C2. The script's unchanged approval is refused
-  // in-session; the not-run check fails only the checks session.
+  // in-session.
   const round2 = await crew.tick();
   assert.deepEqual(roles(round2, W1), [
-    ["verifier", 2, null, c2],
     ["review:conventions", 2, "fake-b", c2],
     ["review:correctness", 2, "fake-c", c2],
   ]);
-  await crew.play();
-  const rerun = await crew.tick();
-  delivery = store.get("task_deliveries", W1);
-  assert.equal(delivery.state, "done");
-  assert.equal(delivery.attempts.length, 2, "no writer attempt spent");
-  assert.equal(delivery.attempts[1].outcome, "done");
-  assert.match(
-    delivery.verifications.find((v) => !v.role && v.outcome === "failed").cause,
-    /checks not run: .*sh missing/,
-  );
-  assert.deepEqual(roles(rerun, W1), [["verifier", 3, null, c2]]);
-  await crew.play();
+  await play();
 
   // (4) The base moves by hand before integration: the rebase makes C3,
   // nothing merges, and all three roles review C3 with F1 still closed.
@@ -331,7 +312,6 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
   );
   assert.equal(git(checkout, "rev-parse", "main"), moved, "nothing merged");
   assert.deepEqual(roles(round3, W1), [
-    ["verifier", 4, null, c3],
     ["review:conventions", 3, "fake-b", c3],
     ["review:correctness", 3, "fake-c", c3],
   ]);
@@ -342,7 +322,7 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
     /1:correctness:F1/,
     "F1 stays closed",
   );
-  await crew.play();
+  await play();
   // After they approve, C3 fast-forwards and d1 dispatches.
   const landing = await crew.tick();
   delivery = store.get("task_deliveries", W1);
@@ -354,8 +334,8 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
     : await crew.tick();
   assert.deepEqual(writers(d1), ["d1"]);
 
-  // (5) Typed integration on d1 and typed evidence on w1 are refused; w1 is
-  // accepted only from validation recorded at its integrated commit.
+  // (5) Typed integration on d1 is refused; w1 is accepted once it is
+  // integrated.
   await assert.rejects(
     ops.execute("task.update", {
       id: D1,
@@ -370,16 +350,11 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
     (error) => error.status === 409 && /review roles/.test(error.message),
   );
   assert.notEqual(task(ops, W1).status, "accepted", "not yet accepted");
-  await assert.rejects(
-    ops.execute("task.accept", { id: W1, evidence: "Looks right." }),
-    (error) => error.status === 409 && /typed evidence/.test(error.message),
-  );
-  const accepted = await ops.execute("task.accept", { id: W1 });
+  const accepted = await ops.execute("task.accept", {
+    id: W1,
+    evidence: "Reviewed at the integrated commit.",
+  });
   assert.equal(accepted.status, "accepted");
-  assert.match(
-    accepted.acceptanceEvidence.evidence,
-    new RegExp(`passed at commit ${c3.slice(0, 12)}`),
-  );
 
   // (7) Supersede w2 by w2b, then re-approve the unchanged plan.
   const w2Before = structuredClone(store.get("task_deliveries", W2)),
@@ -407,7 +382,7 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
   );
   assert.ok(!ready(ops).includes("d2"), "d2 waits on w2b");
   // d1's writer finishes, which frees the one writer slot for w2b.
-  await crew.play((s) => s.alias === "d1");
+  await play((s) => s.alias === "d1");
   let next = await crew.tick();
   assert.deepEqual(writers(next), ["w2b"]);
   assert.ok(
@@ -416,7 +391,7 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
   );
   // Deliver w2b through its own review round; only then is d2 released.
   for (let i = 0; i < 6 && !writers(next).includes("d2"); i++) {
-    await crew.play((s) => s.alias !== "d1");
+    await play((s) => s.alias !== "d1");
     next = await crew.tick();
   }
   assert.equal(store.get("task_deliveries", W2B).state, "integrated");
@@ -430,7 +405,7 @@ test("P27 actions 1-5 and 7: review gates on one delivery with fake sessions", {
     rounds.map((r) => [r.commit, r.current, r.verdicts.length]),
     [
       [c1, false, 3],
-      [c2, false, 4],
+      [c2, false, 3],
       [c3, true, 3],
     ],
   );

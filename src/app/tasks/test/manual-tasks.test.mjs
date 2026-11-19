@@ -74,50 +74,19 @@ const errors = async (ops) =>
     .filter((d) => d.severity === "error")
     .map((d) => [d.code, d.message]);
 
-test("lint refuses each agent field on a manual leaf, by name, and person on any other", async (t) => {
+test("lint refuses paths on a manual leaf, by name", async (t) => {
   const { ops } = workspace(t);
   await ops.execute("plan.create", { spec: "sdk" });
   assert.deepEqual(await errors(ops), []);
-  for (const [key, value] of [
-    ["session", { agent: "coder" }],
-    ["paths", ["src/**"]],
-    ["route", "local"],
-  ]) {
-    const t2 = { after: t.after.bind(t) },
-      { ops: other } = workspace(t2, { ...REVIEW, [key]: value });
-    await other.execute("plan.create", { spec: "sdk" });
-    const found = await errors(other);
-    assert.ok(
-      found.some(
-        ([code, message]) =>
-          code === "spec.manual-field" && message.includes(`"${key}"`),
-      ),
-      `${key}: ${JSON.stringify(found)}`,
-    );
-  }
-  const { ops: wrong } = workspace(t, { ...REVIEW, completion: "integrated" });
-  await wrong.execute("plan.create", { spec: "sdk" });
+  const { ops: other } = workspace(t, { ...REVIEW, paths: ["src/**"] });
+  await other.execute("plan.create", { spec: "sdk" });
+  const found = await errors(other);
   assert.ok(
-    (await errors(wrong)).some(
+    found.some(
       ([code, message]) =>
-        code === "spec.manual-field" && /completion/.test(message),
+        code === "spec.manual-field" && message.includes('"paths"'),
     ),
-  );
-  const { root, ops: person } = workspace(t);
-  writeSpec(root, "sdk", {
-    "tasks.md": TASKS,
-    "avoozl/manifest.json": manifest({
-      1: leaf({ completion: "person" }),
-      2: REVIEW,
-      3: leaf({ requires: ["2"] }),
-    }),
-  });
-  await person.execute("plan.create", { spec: "sdk" });
-  assert.ok(
-    (await errors(person)).some(
-      ([code, message]) =>
-        code === "facts.person-completion" && /manual: true/.test(message),
-    ),
+    JSON.stringify(found),
   );
 });
 

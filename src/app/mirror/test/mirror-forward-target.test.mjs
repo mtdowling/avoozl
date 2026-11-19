@@ -2,13 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeGitHubPolicy } from "../../github/github-policy.mjs";
 import { forwardTargetOf } from "../mirror-policy.mjs";
-import { lintSpec, readSpecFolder } from "../../specs/spec-plans.mjs";
-import { fixture } from "../../test/fixtures.mjs";
-import {
-  legacySpecFiles,
-  specFiles,
-  writeSpec,
-} from "../../test/spec-fixture.mjs";
 
 // rc-25.1: forward target and per-epic override (RC26.1, RC26.2, D31.1).
 const mirrorOf = (extra) =>
@@ -81,30 +74,4 @@ test("a repository with no mirror still reads the epic's own values", () => {
   const found = forwardTargetOf(null, { forwardTarget: "each" });
   assert.equal(found.forwardTarget, "each");
   assert.equal(found.from.forwardTarget, "epic");
-});
-
-function lintWith(t, extra) {
-  const { root } = fixture(t),
-    manifest = JSON.parse(legacySpecFiles()["avoozl/manifest.json"]);
-  writeSpec(root, "config", {
-    "avoozl/manifest.json": JSON.stringify({ ...manifest, ...extra }),
-  });
-  return lintSpec({
-    spec: readSpecFolder(root, "config"),
-    plan: { id: "config" },
-  }).diagnostics.filter((d) => d.code === "facts.schema");
-}
-
-test("the manifest lint accepts good epic values and refuses bad ones", (t) => {
-  assert.deepEqual(lintWith(t, {}), []);
-  assert.deepEqual(
-    lintWith(t, { forwardTarget: "branch", publicBranch: "rewrite/x" }),
-    [],
-  );
-  assert.deepEqual(lintWith(t, { forwardTarget: "batch" }), []);
-  for (const extra of [{ forwardTarget: "all" }, { publicBranch: "a b" }]) {
-    const found = lintWith(t, extra);
-    assert.equal(found.length, 1, JSON.stringify(extra));
-    assert.match(found[0].message, /forwardTarget|publicBranch/);
-  }
 });

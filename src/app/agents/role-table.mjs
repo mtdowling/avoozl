@@ -329,15 +329,14 @@ export const processRow = (role) => {
   return row?.process ? row : null;
 };
 
-// The executor a role's request names: the task's `session.harness` pin
-// (where the role has a task), else the role's harness saved in Settings ›
-// Models, else the repository's executor; a row that cannot run as a child yet
+// The executor a role's request names: the role's harness saved in
+// Settings › Models, else the repository's executor; a row that cannot run as a child yet
 // keeps `kirocrew` there, so a repository's setting never breaks it.
 // Returns {executor, harness?}.
-export function roleRun(setting, { config, task, repository } = {}) {
+export function roleRun(setting, { config, repository } = {}) {
   const row = ROLE_TABLE[setting];
   if (!row) throw Error(`${setting} is not a role in the role table.`);
-  const named = task?.session?.harness ?? roleHarness(config, setting);
+  const named = roleHarness(config, setting);
   if (named) return harnessExecutor(named);
   return {
     executor: row.process ? repositoryExecutor(repository) : "kirocrew",

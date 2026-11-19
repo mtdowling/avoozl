@@ -31,7 +31,6 @@ function setup() {
     bind("s2", "t2", "alpha-2"),
     bind("s3", "t3", "alpha-1", { crew: "remote-1" }),
     bind("s4", "t4", "alpha-1", { source: "conductor" }),
-    bind("s5", "t5", "alpha-1"),
     bind("s6", "t6", "beta-1"),
     bind("s7", "t7", "alpha-1", { report: { kind: "done" } }),
     // t6's reviewer: distinctFrom model, and the writer ran on gamma-1.
@@ -44,7 +43,6 @@ function setup() {
       (id) => [id, { id, title: `Task ${id}`, planId: "spec-a" }],
     ),
   );
-  tasks.get("t5").session = { model: "alpha-1" };
   const options = {
     settings: {},
     tasks,
@@ -77,7 +75,6 @@ test("the dry run lists who switches, who cannot and why, and writes nothing", (
   const why = Object.fromEntries(dry.skipped.map((c) => [c.taskId, c.why]));
   assert.match(why.t3, /remote crew remote-1/);
   assert.match(why.t4, /Crew Mode/);
-  assert.match(why.t5, /spec pins alpha-1/);
   assert.match(why.t8, /distinctFrom: model reviewer/);
   assert.equal(why.t7, undefined, "a finished chat is not listed");
   assert.deepEqual(dry.marks, [
@@ -87,7 +84,7 @@ test("the dry run lists who switches, who cannot and why, and writes nothing", (
     dry.queued.map((q) => q.taskId),
     ["q1"],
   );
-  assert.deepEqual(dry.counts, { switch: 2, cannot: 4, queued: 1 });
+  assert.deepEqual(dry.counts, { switch: 2, cannot: 3, queued: 1 });
   assert.equal(listSwitches(store).length, 0);
   assert.equal(healthContext(store, { settings: {} }).empty, true);
 });

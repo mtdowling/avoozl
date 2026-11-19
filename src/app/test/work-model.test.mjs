@@ -175,7 +175,7 @@ test("direct edits of GitHub-owned rows are refused and routed to projection", a
   assert.equal(local.title, "Renamed");
 });
 
-test("plan blocks carry work-model fields and edge conditions into approval", async (t) => {
+test("plan blocks carry work-model fields and edges into approval", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store),
     text =
@@ -186,12 +186,8 @@ test("plan blocks carry work-model fields and edge conditions into approval", as
         kind: "package",
         summary: "All.",
       }) +
-      block(leaf("base", { completion: "released" })) +
-      block(
-        leaf("user", {
-          requires: [{ task: "base", condition: "integrated" }],
-        }),
-      ),
+      block(leaf("base")) +
+      block(leaf("user", { requires: ["base"] })),
     plan = await ops.execute("plan.create", { prompt: "Model.", text }),
     preview = await ops.execute("plan.preview", { id: plan.id });
   assert.equal(preview.quality.canApprove, true);
@@ -204,19 +200,11 @@ test("plan blocks carry work-model fields and edge conditions into approval", as
     byLocal = (id) =>
       data.tasks.find((task) => task.id === receipt.mapping[id]);
   assert.equal(byLocal("parent").kind, "package");
-  assert.equal(byLocal("base").completion, "released");
   assert.equal(byLocal("base").checks, undefined, "a task never names checks");
   assert.equal(
-    data.edges.find((edge) => edge.to === receipt.mapping.user).condition,
-    "integrated",
+    data.edges.find((edge) => edge.to === receipt.mapping.user).from,
+    receipt.mapping.base,
   );
-  const owned = lint(block(leaf("owned", { authority: "github" })));
-  assert.match(
-    owned.diagnostics[0].message,
-    /becomes github through projection/,
-  );
-  const local = lint(block(leaf("kept", { authority: "local" })));
-  assert.equal(local.diagnostics.length, 0);
 });
 
 test("validation reports a repeated task ID at its line", () => {
@@ -229,15 +217,7 @@ test("validation reports a repeated task ID at its line", () => {
   assert.match(found.message, /already used at line 3/);
 });
 
-test("a leaf names exactly one repository", () => {
-  const two = lint(
-    block(leaf("alpha", { repository: "x", repositoryId: "y" })),
-    [
-      { id: "x", checks: [["t"]] },
-      { id: "y", checks: [["t"]] },
-    ],
-  );
-  assert.ok(codes(two).includes("leaf.repository"));
+test("a leaf names one repository when the workspace has several", () => {
   const none = lint(block(leaf("alpha")), [
     { id: "x", checks: [["t"]] },
     { id: "y", checks: [["t"]] },

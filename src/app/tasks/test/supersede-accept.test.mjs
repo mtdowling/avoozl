@@ -12,14 +12,9 @@ import {
   planVerifierDispatches,
 } from "../../delivery/delivery.mjs";
 import { readDeliveryPolicy } from "../../tick/tick.mjs";
-import { lintSpec, readSpecFolder } from "../../specs/spec-plans.mjs";
 import { queryTasks } from "../../../model.mjs";
 import { snapshot } from "../../test/fixtures.mjs";
-import {
-  legacySpecFiles,
-  specFiles,
-  writeSpec,
-} from "../../test/spec-fixture.mjs";
+import { specFiles, writeSpec } from "../../test/spec-fixture.mjs";
 import { temporaryDirectory } from "../../test/temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -230,8 +225,10 @@ test("a superseded task gets no new verifier or check run; its running session i
   });
   assert.equal(planCheckRuns(store).length, 1);
   assert.deepEqual(planVerifierDispatches(store), [], "a command-only bar");
-  store.mutate("judge", (draft) => {
-    draft.tasks.find((x) => x.id === "a").verify = "agent";
+  // A repository with no checks is judged by a verifier chat.
+  store.put("repositories", {
+    ...store.get("repositories", "app"),
+    checks: [],
   });
   assert.equal(planVerifierDispatches(store).length, 1);
   await ops.execute("task.supersede", { id: "a", create: { id: "a-new" } });
@@ -241,71 +238,12 @@ test("a superseded task gets no new verifier or check run; its running session i
   assert.equal(store.get("task_deliveries", "a").state, "done");
 });
 
-test("acceptFrom is a manifest field on local integrated leaves only", async (t) => {
-  const root = temporaryDirectory(),
-    manifest = JSON.parse(legacySpecFiles()["avoozl/manifest.json"]);
-  manifest.tasks["1.1"].acceptFrom = "validation";
-  writeSpec(root, "config", {
-    "avoozl/manifest.json": JSON.stringify(manifest, null, 2),
-  });
-  const lint = (name) =>
-    lintSpec({ spec: readSpecFolder(root, name), plan: { id: name } })
-      .diagnostics;
-  assert.deepEqual(lint("config"), []);
-  const bad = structuredClone(manifest);
-  bad.tasks["1"].acceptFrom = "validation";
-  bad.tasks["1.2"].acceptFrom = "typed";
-  writeSpec(root, "bad", {
-    "avoozl/manifest.json": JSON.stringify(bad, null, 2),
-  });
-  const found = lint("bad").map((d) => `${d.code} ${d.taskId}`);
-  assert.ok(found.includes("leaf.accept-from bad.1"), found.join(", "));
-  assert.ok(found.includes("facts.schema bad.1.2"), found.join(", "));
-  const { ops } = workspace(t);
-  writeSpec(ops.workspaceRoot, "config", {
-    "avoozl/manifest.json": JSON.stringify(manifest, null, 2),
-  });
-  await ops.execute("plan.create", { spec: "config" });
-  await approve(ops);
-  assert.equal(task(ops, "config.1.1").acceptFrom, "validation");
-  assert.equal(task(ops, "config.1.2").acceptFrom, undefined);
-});
-
 const receipt = (commit) => ({
   commit,
   at: new Date().toISOString(),
   branch: "main",
   repo: "/tmp/app",
   evidence: ["Typed by hand."],
-});
-
-test("task.update cannot type its way past acceptFrom", async (t) => {
-  const { ops } = workspace(t, {
-    tasks: [leaf("w", { acceptFrom: "validation" })],
-  });
-  await refused(
-    ops.execute("task.update", { id: "w", integration: receipt(SHA("1")) }),
-  );
-  await refused(ops.execute("task.update", { id: "w", status: "accepted" }));
-  await refused(
-    ops.execute("task.update", { id: "w", acceptFrom: undefined }),
-    /plan approval/,
-  );
-  await refused(
-    ops.execute("task.update", {
-      id: "xyz",
-      create: true,
-      acceptFrom: "validation",
-    }),
-  );
-  // Other edits still work.
-  await ops.execute("task.update", {
-    id: "w",
-    notes: "Still going.",
-    status: "partial",
-  });
-  assert.equal(task(ops, "w").notes, "Still going.");
-  assert.equal(task(ops, "w").integration, undefined);
 });
 
 function record(store, taskId, commit, argv, exitCode, at) {
@@ -333,82 +271,6 @@ function integrate(store, id, commit) {
     };
   });
 }
-
-test("task.accept on an acceptFrom leaf takes only Avoozl's validation at the integrated commit", async (t) => {
-  const { store, ops } = workspace(t, {
-    tasks: [leaf("w", { acceptFrom: "validation", repository: "app" })],
-  });
-  store.put("repositories", {
-    id: "app",
-    root: "/tmp/app",
-    baseBranch: "main",
-    checks: [["npm", "test"], ["scripts/validate.sh"]],
-  });
-  await refused(
-    ops.execute("task.accept", { id: "w", evidence: "Looks right." }),
-    /typed evidence/,
-  );
-  await refused(ops.execute("task.accept", { id: "w", componentOnly: true }));
-  await refused(ops.execute("task.accept", { id: "w" }), /no integrated/);
-  const reviewed = SHA("c"),
-    landed = SHA("d");
-  // Every check passed, but at the reviewed commit, not the landed one.
-  record(store, "w", reviewed, ["npm", "test"], 0, "2026-01-01T00:00:01Z");
-  record(
-    store,
-    "w",
-    reviewed,
-    ["scripts/validate.sh"],
-    0,
-    "2026-01-01T00:00:02Z",
-  );
-  integrate(store, "w", landed);
-  await refused(
-    ops.execute("task.accept", { id: "w" }),
-    /every declared check/,
-  );
-  // At the landed commit one check is missing, then fails, then passes.
-  record(store, "w", landed, ["npm", "test"], 0, "2026-01-01T00:01:00Z");
-  await refused(ops.execute("task.accept", { id: "w" }));
-  record(
-    store,
-    "w",
-    landed,
-    ["scripts/validate.sh"],
-    1,
-    "2026-01-01T00:01:01Z",
-  );
-  await refused(ops.execute("task.accept", { id: "w" }));
-  // The checks role passes it at the landed commit (a verdict on the delivery).
-  store.put("task_deliveries", {
-    id: "w",
-    taskId: "w",
-    state: "integrated",
-    commit: landed,
-    attempts: [],
-    verifications: [
-      {
-        attempt: 1,
-        commit: landed,
-        outcome: "accepted",
-        checks: [
-          { command: "npm test", exitCode: 0 },
-          { command: "scripts/validate.sh", exitCode: 0 },
-        ],
-        at: "2026-01-01T00:02:00Z",
-      },
-    ],
-  });
-  const accepted = await ops.execute("task.accept", { id: "w" });
-  assert.equal(accepted.status, "accepted");
-  assert.match(
-    accepted.acceptanceEvidence.evidence,
-    new RegExp(`^2 configured checks passed at commit ${landed.slice(0, 12)}`),
-  );
-  // The newest result for each check is the checks role's, which has no
-  // evidence record of its own.
-  assert.equal(accepted.acceptanceEvidence.derivedFrom, undefined);
-});
 
 test("derived acceptance evidence is for the current commit and every declared check", async (t) => {
   const { store, ops } = workspace(t, {
@@ -484,12 +346,9 @@ test("a leaf whose repository has review roles takes no typed integration or com
   assert.equal(task(ops, "free").status, "accepted");
 });
 
-test("with no review roles, task.update keeps typed completion and the acceptFrom refusals", async (t) => {
+test("with no review roles, task.update keeps typed completion", async (t) => {
   const { ops } = workspace(t, {
-    tasks: [
-      leaf("plain", { repository: "app" }),
-      leaf("gated", { repository: "app", acceptFrom: "validation" }),
-    ],
+    tasks: [leaf("plain", { repository: "app" })],
   });
   await ops.execute("task.update", {
     id: "plain",
@@ -497,12 +356,4 @@ test("with no review roles, task.update keeps typed completion and the acceptFro
   });
   await ops.execute("task.update", { id: "plain", status: "accepted" });
   assert.equal(task(ops, "plain").status, "accepted");
-  await refused(
-    ops.execute("task.update", { id: "gated", status: "accepted" }),
-    /completes only through Avoozl's validation/,
-  );
-  await refused(
-    ops.execute("task.update", { id: "plain", acceptFrom: "validation" }),
-    /acceptFrom changes only through plan approval/,
-  );
 });

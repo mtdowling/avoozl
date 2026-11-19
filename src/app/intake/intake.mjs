@@ -463,12 +463,7 @@ export function startTask(store, row, source, action, how) {
   let created = null;
   store.mutate(`Take in ${row.source} ${row.itemId}`, (data) => {
     ensureInbox(data);
-    const existing = data.tasks.find(
-      (task) =>
-        task.id === taskId ||
-        // A spec task made from this item names it (`source:`, §4.42).
-        (row.record?.link && task.intakeSource === row.record.link),
-    );
+    const existing = data.tasks.find((task) => task.id === taskId);
     if (existing) {
       created = existing.id;
       return;

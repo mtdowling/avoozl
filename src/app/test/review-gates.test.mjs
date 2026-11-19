@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { deliveryPolicy, openFindings } from "../delivery/delivery.mjs";
+import { drainCheckRuns } from "../delivery/check-runs.mjs";
 import { Operations } from "../api/operations.mjs";
 import { Store } from "../store/store.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -31,9 +32,6 @@ const leaf = (id, extra = {}) => ({
   acceptance: ["Works."],
   checks: [CHECK],
   repository: "app",
-  // These tests play the checks role as a verifier chat, which a bar that
-  // needs judgment still opens (§5.2 Checks).
-  verify: "agent",
   ...extra,
 });
 
@@ -92,11 +90,14 @@ function setup(t, { delivery = {}, tasks, edges } = {}) {
     store,
     ops,
     slots,
-    // The cron's tick, with every bound slot in its roster.
-    tick: () =>
-      ops.execute("workspace.tick", {
+    // The cron's tick, with every bound slot in its roster, after Avoozl
+    // runs the checks it queued.
+    tick: async () => {
+      await drainCheckRuns(store);
+      return ops.execute("workspace.tick", {
         sessions: slots.map((target) => ({ target, status: "idle" })),
-      }),
+      });
+    },
     bind: async (taskId, slot, role, attempt, extra = {}) => {
       slots.push(slot);
       await ops.execute("session.bind", {
@@ -221,7 +222,7 @@ test("policy validation refuses a reviewer that cannot be shown distinct from th
   );
 });
 
-test("review gates: three roles per commit, rework, closure, not-run checks, and a rebase re-review", async (t) => {
+test("review gates: every role per commit, rework, closure, and a rebase re-review", async (t) => {
   // P27 actions 1–4 with fake sessions.
   const env = setup(t),
     { store, ops, checkout } = env;
@@ -232,11 +233,10 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
     "one writer at a time, opened on the writer's model",
   );
 
-  // (1) The writer reports C1; three role sessions open at once on C1.
+  // (1) The writer reports C1; both review sessions open at once on C1.
   const c1 = await writer(env, "w1", "w-1", 1, "src/a.txt", "a1\n");
   const round1 = await env.tick();
   assert.deepEqual(roles(round1, "w1"), [
-    ["verifier", 1, null, c1],
     ["review:conventions", 1, "fake-b", c1],
     ["review:correctness", 1, "fake-c", c1],
   ]);
@@ -250,7 +250,6 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
   assert.match(correctnessBrief, /Focus: correctness and performance/);
   assert.match(correctnessBrief, /--detach/);
   assert.doesNotMatch(correctnessBrief, /conventions/, "names no other role");
-  await env.bind("w1", "v-1", "verifier", 1, { commit: c1 });
   await env.bind("w1", "rc-1", "review:conventions", 1, {
     model: "fake-b",
     commit: c1,
@@ -317,12 +316,6 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
     verdict: "changes-requested",
     findings: [F1],
   });
-  await report(ops, "v-1", {
-    taskId: "w1",
-    commit: c1,
-    checks: passed,
-    verdict: "approved",
-  });
 
   // (2) changes-requested fails the writer attempt; the retry quotes F1.
   const rework = await env.tick();
@@ -359,7 +352,6 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
   const c2 = await writer(env, "w1", "w-2", 2, "src/a.txt", "a2\n");
   const round2 = await env.tick();
   assert.deepEqual(roles(round2, "w1"), [
-    ["verifier", 2, null, c2],
     ["review:conventions", 2, "fake-b", c2],
     ["review:correctness", 2, "fake-c", c2],
   ]);
@@ -372,7 +364,6 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
     /1:correctness/,
     "a role sees only its own findings",
   );
-  await env.bind("w1", "v-2", "verifier", 2, { commit: c2 });
   await env.bind("w1", "rc-2", "review:conventions", 2, {
     model: "fake-b",
     commit: c2,
@@ -411,29 +402,6 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
     closures: [close("fixed")],
   });
   await report(ops, "rc-2", { taskId: "w1", commit: c2, verdict: "approved" });
-  // The checks role could not run the script: only that session fails.
-  await report(ops, "v-2", {
-    taskId: "w1",
-    commit: c2,
-    checks: [{ command: CHECK, exitCode: null, notRun: "bash missing" }],
-    verdict: "approved",
-  });
-  const rerun = await env.tick();
-  delivery = store.get("task_deliveries", "w1");
-  assert.equal(delivery.state, "done");
-  assert.equal(delivery.attempts[1].outcome, "done", "no writer attempt spent");
-  assert.match(
-    delivery.verifications.find((v) => !v.role && v.outcome === "failed").cause,
-    /checks not run: .*bash missing/,
-  );
-  assert.deepEqual(roles(rerun, "w1"), [["verifier", 3, null, c2]]);
-  await env.bind("w1", "v-3", "verifier", 3, { commit: c2 });
-  await report(ops, "v-3", {
-    taskId: "w1",
-    commit: c2,
-    checks: passed,
-    verdict: "approved",
-  });
 
   // (4) The base moved: the rebase makes C3, nothing merges, all roles re-review.
   const moved = await commitIn(checkout, "README.md", "moved\n", "Move base");
@@ -448,7 +416,6 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
   );
   assert.equal(git(checkout, "rev-parse", "main"), moved, "nothing merged");
   assert.deepEqual(roles(round3, "w1"), [
-    ["verifier", 4, null, c3],
     ["review:conventions", 3, "fake-b", c3],
     ["review:correctness", 3, "fake-c", c3],
   ]);
@@ -457,7 +424,6 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
     /1:correctness/,
     "F1 stays closed",
   );
-  await env.bind("w1", "v-4", "verifier", 4, { commit: c3 });
   await env.bind("w1", "rc-3", "review:conventions", 3, {
     model: "fake-b",
     commit: c3,
@@ -471,12 +437,6 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
     (error) => error.status === 409,
     "a verdict on the old commit",
   );
-  await report(ops, "v-4", {
-    taskId: "w1",
-    commit: c3,
-    checks: passed,
-    verdict: "approved",
-  });
   await report(ops, "rc-3", { taskId: "w1", commit: c3, verdict: "approved" });
   await report(ops, "rr-3", { taskId: "w1", commit: c3, verdict: "approved" });
   await env.tick();
@@ -500,7 +460,7 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
     rounds.map((r) => [r.commit, r.current, r.verdicts.length]),
     [
       [c1, false, 3],
-      [c2, false, 4],
+      [c2, false, 3],
       [c3, true, 3],
     ],
   );
@@ -545,7 +505,7 @@ test("a writer whose model is unknown opens a decision instead of a review", asy
   const opened = await relaxed.tick();
   assert.deepEqual(
     roles(opened, "w1").map((r) => r[0]),
-    ["verifier", "review:conventions"],
+    ["review:conventions"],
   );
 });
 

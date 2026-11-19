@@ -285,7 +285,7 @@ const sleep = async (ms) => {
 };
 
 // Spec s1 under epic e1: leaves a1 and a2 (a2 requires a1) and a
-// local-authority leaf l1. The same files in every workspace's checkout.
+// leaf l1. The same files in every workspace's checkout.
 const leaf = (extra = {}) => ({
   kind: "leaf",
   summary: "Do it.",
@@ -303,7 +303,7 @@ function writeSpecs(root) {
       tasks: {
         1: leaf(),
         2: leaf({ requires: ["1"] }),
-        3: leaf({ authority: "local" }),
+        3: leaf(),
         // a3 waits on a2; it is here to be closed by someone not allowed.
         4: leaf({ requires: ["2"] }),
       },

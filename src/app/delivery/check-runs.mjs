@@ -37,10 +37,10 @@ const KIND = "check-run";
 export const declaredArgv = (_task, repository, files = null) =>
   selectedChecks(repository, files);
 
-// Whether this leaf's bar needs a verifier chat's judgment (§5.2): an
-// explicit `verify: "agent"`, or a repository with no checks.
-export const needsJudgment = (task, repository) =>
-  task.verify === "agent" || !selectedChecks(repository).length;
+// Whether this leaf's bar needs a verifier chat's judgment (§5.2): a
+// repository with no checks.
+export const needsJudgment = (_task, repository) =>
+  !selectedChecks(repository).length;
 
 export const checkRuns = (store) => {
   try {

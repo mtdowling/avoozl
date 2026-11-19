@@ -12,17 +12,16 @@ cutover. Mark it with `$manual: true` in `tasks.md`:
 ```
 
 A manual task needs `$done` and a `$repo`. `$manual: true` is the one way to say a
-person does a task. It completes by a person and takes no `completion` default.
+person does a task. It completes by a person.
 
 ## Lint rules
 
-Lint refuses `session`, `batch`, `paths` and `route` on a manual task, by name.
-It also refuses `$completion: person` anywhere, and names `$manual: true` as
-the fix.
+Lint refuses `$paths` on a manual task, by name. It refuses `$completion`
+anywhere, and names `$manual: true` as the fix.
 
 ## Running a manual task
 
-No agent ever runs a manual task: it is never ready, batched, checked, reviewed
+No agent ever runs a manual task: it is never ready, checked, reviewed
 or merged. Until its blockers finish it is in **Blocked or waiting**. Then it is
 in **Needs you**, tagged **Manual**, with the text "Waiting for a person:
 `<title>`". Its dependents wait on it like on any task.

@@ -1,8 +1,8 @@
 // Task facts in tasks.md (Requirement 111, design §4.40). A task's facts are
 // `$key: value` bullets directly under its item; spec-wide values are
 // front-matter at the top of the file. This turns both into the object the
-// manifest used to hold, `{tasks, ship, phases, batches, ...}`, plus the line
-// of every bullet, so parseSpec checks them as it always did.
+// manifest used to hold, `{tasks, ...}`, plus the line of every bullet, so
+// parseSpec checks them as it always did.
 //
 //   ---
 //   repo: avoozl
@@ -11,6 +11,9 @@
 //     - $after: 1.1
 //     - $done: The migration runs twice with no change
 //     - Add the queue table and its migration.
+//
+// A task's kind is not a fact: an item with sub-items is a package, and the
+// rest are leaves. Its phase is the `##` heading above it (spec-plans.mjs).
 //
 // This module imports nothing from spec-plans.mjs: callers pass the checklist
 // items, so the two files do not import each other.
@@ -24,100 +27,101 @@ const NOTE = /^([A-Za-z][A-Za-z0-9]*):/;
 const OPEN = /^\uFEFF?---[ \t]*$/;
 const CLOSE = /^(?:---|\.\.\.)[ \t]*$/;
 const STATUS = /^Status:/;
-const BUILT = "built";
 const ONE_LINE = (key) =>
   `A fact is one bullet on one line. Write another "$${key}:" bullet for each value, and nothing under it.`;
 
-// Fact key -> {as: the manifest key it is stored under, type}. `after` is a
-// list of task IDs, each with an optional `:<completion>`.
+// Fact key -> {as: the manifest key it is stored under, type}.
 const KEYS = {
-  kind: { as: "kind", type: "text" },
   repo: { as: "repository", type: "text" },
   done: { as: "acceptance", type: "list" },
-  completion: { as: "completion", type: "text" },
-  after: { as: "requires", type: "after" },
-  sequence: { as: "sequence", type: "list" },
-  supports: { as: "supports", type: "list" },
-  // A private task's reverse edge into a public one (RC25.9).
-  unblocks: { as: "unblocks", type: "list" },
+  after: { as: "requires", type: "list" },
   manual: { as: "manual", type: "bool" },
-  investigate: { as: "investigate", type: "bool" },
-  phase: { as: "phase", type: "text" },
-  batch: { as: "batch", type: "text" },
-  authority: { as: "authority", type: "text" },
-  route: { as: "route", type: "text" },
-  type: { as: "type", type: "text" },
-  milestone: { as: "milestone", type: "text" },
-  iteration: { as: "iteration", type: "text" },
-  scope: { as: "scope", type: "text" },
-  track: { as: "track", type: "text" },
-  repositoryId: { as: "repositoryId", type: "text" },
-  taskId: { as: "taskId", type: "text" },
-  nextAction: { as: "nextAction", type: "text" },
-  distinctReason: { as: "distinctReason", type: "text" },
-  acceptFrom: { as: "acceptFrom", type: "text" },
-  // The intake item a task came from: its link (design §4.42).
-  source: { as: "intakeSource", type: "text" },
-  verify: { as: "verify", type: "text" },
-  ship: { as: "ship", type: "text" },
-  tags: { as: "tags", type: "list" },
-  resources: { as: "resources", type: "list" },
   paths: { as: "paths", type: "list", item: (text) => pathOf(text) },
-  labels: { as: "labels", type: "list" },
-  needs: { as: "needs", type: "list" },
-  session: { as: "session", type: "json" },
+  investigate: { as: "investigate", type: "bool" },
+  type: { as: "type", type: "text" },
   // An epic folder's rows (Requirement 59.1).
   plan: { as: "plan", type: "text" },
   step: { as: "step", type: "text" },
 };
 // docs/specs.md has a row for each (spec-facts-docs.test.mjs).
 export const FACT_KEYS = Object.keys(KEYS);
-// A person's task is `manual: true`; `completion: person` is not written.
-const PERSON =
-  "A task a person does is `$manual: true`, which completes by a person. Write that, and delete this line.";
-// Facts that are gone, and what to do with a line that still has one.
-const CHECKS = "Every task runs the repository's checks; delete this line.";
-const REMOVED = {
+
+const GONE = "Avoozl no longer reads it; delete this line.";
+// Facts that are gone, and what to do with a line that still has one. Each
+// is the lint error `facts.removed-key` at its line.
+export const REMOVED_FACTS = {
   summary:
-    "The summary fact is gone: a task's summary is its own bullets under the item. Delete this line.",
-  checks: CHECKS,
+    "A task's summary is its own bullets under the item. Delete this line.",
+  checks: "Every task runs the repository's checks; delete this line.",
+  kind: "A task with sub-items is a package and the rest are leaves; delete this line.",
+  phase:
+    "A task's phase is the ## heading above it; delete this line and put the task under its heading.",
+  batch:
+    "Batches are gone: the agent groups its own work. Delete this line and the batch-<id> front-matter.",
+  completion:
+    "A task completes when it lands, and a person's task is `$manual: true`; delete this line.",
+  sequence: "Name the task in `$after`, and delete this line.",
+  repositoryId: "Write `$repo`, and delete this line.",
+  built:
+    "The commit that ticks a task records its landing; delete this line, or write a plain `Built:` note.",
+  session:
+    "Pick the agent, model and harness for a role in Settings; delete this line.",
+  verify:
+    "A repository with no checks gets a verifier chat; set checks in Settings and delete this line.",
+  ship: "The repository's landing setting says how work ships; delete this line.",
+  taskId: GONE,
+  nextAction: GONE,
+  labels: GONE,
+  milestone: GONE,
+  iteration: GONE,
+  scope: GONE,
+  resources: GONE,
+  needs: GONE,
+  tags: GONE,
+  supports: GONE,
+  unblocks: GONE,
+  authority: GONE,
+  route: GONE,
+  track: GONE,
+  source: GONE,
+  distinctReason: GONE,
+  acceptFrom: GONE,
 };
 
-// Front-matter: defaults for a leaf, and values for the whole spec.
+// Front-matter: a default for a leaf, and values for the whole spec.
 const DEFAULTS = {
   repo: { as: "repository", type: "text" },
-  completion: { as: "completion", type: "text" },
 };
-const SPEC_KEYS = [
-  "ship",
-  "integrationBranch",
-  "integrationSync",
-  "forwardTarget",
-  "publicBranch",
-  "kind",
-];
+const SPEC_KEYS = ["integrationBranch", "integrationSync", "kind"];
 export const FRONT_KEYS = [...Object.keys(DEFAULTS), ...SPEC_KEYS];
+// Front-matter keys that are gone. `phase-<id>` and `batch-<id>` are matched
+// by their prefix.
+export const REMOVED_FRONT = {
+  completion:
+    "A task completes when it lands, and a person's task is `$manual: true`; delete this line.",
+  ship: "The repository's landing setting says how work ships; delete this line.",
+  forwardTarget: "Delete this line; the spec names no mirror target.",
+  publicBranch: "Delete this line; the spec names no mirror branch.",
+  checks: "Every task runs the repository's checks; delete this line.",
+  "phase-<id>":
+    "A phase's title is its ## heading in tasks.md; delete this line.",
+  "batch-<id>":
+    "Batches are gone: the agent groups its own work. Delete this line and every `$batch` bullet.",
+};
+const removedFront = (key) => {
+  const named = /^(phase|batch)-./.exec(key);
+  return Object.hasOwn(REMOVED_FRONT, key)
+    ? REMOVED_FRONT[key]
+    : named && REMOVED_FRONT[`${named[1]}-<id>`];
+};
 
-// The order a task's keys have in the text the revision hash reads. It is the
-// order the manifest files had, so a converted spec hashes as it did.
-const ORDER = [
-  "kind",
-  "repository",
-  "acceptance",
-  "completion",
-  "requires",
-  "manual",
-];
+// The order a task's keys have in the text the revision hash reads.
+const ORDER = ["kind", "repository", "acceptance", "requires", "manual"];
 const TOP_ORDER = [
   "version",
   "kind",
-  "ship",
   "integrationBranch",
   "integrationSync",
-  "forwardTarget",
-  "publicBranch",
-  "phases",
-  "batches",
   "tasks",
 ];
 
@@ -152,7 +156,7 @@ function pathOf(item) {
 // Read one key: `inline` is the text after the colon, `nested` the child
 // bullets as [{line, text}]. Returns {value} or {error}.
 function readValue(key, spec, inline, nested) {
-  const loose = spec.type === "list" || spec.type === "after";
+  const loose = spec.type === "list";
   if (!loose && nested.length)
     return { error: `${key} takes one value on its line, not a list.` };
   if (loose && inline && nested.length)
@@ -161,32 +165,19 @@ function readValue(key, spec, inline, nested) {
     const items = nested.length
       ? nested.map((item) => item.text)
       : split(inline);
-    if (spec.type === "list")
-      return { value: spec.item ? items.map(spec.item) : items };
-    return {
-      value: items.map((item) => {
-        const at = item.indexOf(":");
-        return at < 0
-          ? item
-          : {
-              task: item.slice(0, at).trim(),
-              condition: item.slice(at + 1).trim(),
-            };
-      }),
-    };
+    // A dependency is a task ID: completion levels are gone.
+    const level = key === "after" && items.find((item) => item.includes(":"));
+    if (level)
+      return {
+        error: `"${level}" names a completion level, and levels are gone. Write the task ID alone.`,
+      };
+    return { value: spec.item ? items.map(spec.item) : items };
   }
   if (!inline) return { error: `${key} needs a value.` };
   if (spec.type === "bool") {
     if (inline !== "true" && inline !== "false")
       return { error: `${key} is true or false.` };
     return { value: inline === "true" };
-  }
-  if (spec.type === "json") {
-    try {
-      return { value: JSON.parse(inline) };
-    } catch {
-      return { error: `${key} is one line of JSON.` };
-    }
   }
   return { value: inline };
 }
@@ -243,20 +234,26 @@ function readFront(rows) {
       continue;
     }
     out.at[key] = line;
-    if (key === "checks") {
-      out.problems.push(problem("facts.removed-key", line, CHECKS, { key }));
+    const gone = removedFront(key);
+    if (gone) {
+      out.problems.push(
+        problem(
+          "facts.removed-key",
+          line,
+          `Front-matter key "${key}" is gone. ${gone}`,
+          { key },
+        ),
+      );
       continue;
     }
-    const named = /^(phase|batch)-(.+)$/.exec(key);
     let spec = DEFAULTS[key];
     if (!spec && SPEC_KEYS.includes(key)) spec = { type: "text" };
-    if (named) spec = { type: "text" };
     if (!spec) {
       out.problems.push(
         problem(
           "facts.unknown-key",
           line,
-          `Unknown front-matter key "${key}". Known keys: ${FRONT_KEYS.join(", ")}, phase-<id>, batch-<id>.`,
+          `Unknown front-matter key "${key}". Known keys: ${FRONT_KEYS.join(", ")}.`,
           { key },
         ),
       );
@@ -264,8 +261,6 @@ function readFront(rows) {
     }
     const read = readValue(key, spec, inline, nested);
     if (read.error) out.problems.push(problem("facts.value", line, read.error));
-    else if (key === "completion" && read.value === "person")
-      out.problems.push(problem("facts.person-completion", line, PERSON));
     else out.values[key] = read.value;
   }
   return out;
@@ -365,13 +360,14 @@ export function readFacts(text, items) {
       if (!lines.has(item.key)) lines.set(item.key, line);
       const [, key, inline] = match,
         spec = Object.hasOwn(KEYS, key) ? KEYS[key] : null;
-      // The commit that landed a ticked task (Requirement 113.14). The
-      // revision hash skips its text, and it is not a manifest value, so
-      // writing it never needs a new approval.
-      if (key === BUILT) continue;
-      if (Object.hasOwn(REMOVED, key)) {
+      if (Object.hasOwn(REMOVED_FACTS, key)) {
         problems.push(
-          problem("facts.removed-key", line, REMOVED[key], { key: item.key }),
+          problem(
+            "facts.removed-key",
+            line,
+            `"$${key}" is gone. ${REMOVED_FACTS[key]}`,
+            { key: item.key },
+          ),
         );
         continue;
       }
@@ -386,7 +382,7 @@ export function readFacts(text, items) {
         );
         continue;
       }
-      const list = spec.type === "list" || spec.type === "after";
+      const list = spec.type === "list";
       if (seen.has(key) && !list) {
         problems.push(
           problem(
@@ -412,12 +408,6 @@ export function readFacts(text, items) {
         );
         continue;
       }
-      if (key === "completion" && read.value === "person") {
-        problems.push(
-          problem("facts.person-completion", line, PERSON, { key: item.key }),
-        );
-        continue;
-      }
       // A list fact written again adds to the list.
       if (seen.has(key)) {
         entry[spec.as] = [...entry[spec.as], ...read.value];
@@ -427,7 +417,13 @@ export function readFacts(text, items) {
       entry[spec.as] = read.value;
       factLine.set(`${item.key}\0${spec.as}`, line);
     }
-    if (item.key && lines.has(item.key) && tasks[item.key] === undefined)
+    // Every task item has an entry: a leaf may give its results as plain
+    // bullets (parseSpec). An epic row needs its `$plan`.
+    if (
+      item.key &&
+      tasks[item.key] === undefined &&
+      (lines.has(item.key) || !isEpic)
+    )
       tasks[item.key] = entry;
   }
 
@@ -447,21 +443,19 @@ export function readFacts(text, items) {
     );
   });
 
-  // Defaults fill a leaf; a package takes none. A task keeps its facts in the
-  // order its bullets list them, and a filled-in key goes where `ORDER` puts
-  // it among them, so `factsText` gives back the manifest text it came from.
+  // An item with sub-items is a package; the rest are leaves. The repo
+  // default fills a leaf; a package takes none. A task keeps its facts in
+  // the order its bullets list them, and a filled-in key goes where `ORDER`
+  // puts it among them.
+  const parents = new Set(
+    items.map((item) => item.parent?.key).filter(Boolean),
+  );
   if (!isEpic)
     for (const [key, entry] of Object.entries(tasks)) {
-      const fill = {};
-      if (entry.kind === undefined) fill.kind = "leaf";
-      if (entry.kind !== "package")
-        // A manual leaf completes by a person: it takes no completion.
+      const fill = { kind: parents.has(key) ? "package" : "leaf" };
+      if (fill.kind === "leaf")
         for (const [name, spec] of Object.entries(DEFAULTS))
-          if (
-            !(entry.manual === true && name !== "repo") &&
-            front.values[name] !== undefined &&
-            entry[spec.as] === undefined
-          )
+          if (front.values[name] !== undefined && entry[spec.as] === undefined)
             fill[spec.as] = structuredClone(front.values[name]);
       tasks[key] = withDefaults(entry, fill);
     }
@@ -471,38 +465,6 @@ export function readFacts(text, items) {
   for (const key of SPEC_KEYS)
     if (key !== "kind" && front.values[key] !== undefined)
       manifest[key] = front.values[key];
-  const phases = {},
-    reasons = {};
-  for (const [key, value] of Object.entries(front.values)) {
-    const named = /^(phase|batch)-(.+)$/.exec(key);
-    if (named?.[1] === "phase") phases[named[2]] = { title: value };
-    if (named?.[1] === "batch") reasons[named[2]] = value;
-  }
-  if (Object.keys(phases).length) manifest.phases = phases;
-  // A batch group is its members' `batch` facts and one reason.
-  const batches = {},
-    batchLine = {};
-  for (const item of items) {
-    const group = tasks[item.key]?.batch;
-    if (typeof group !== "string") continue;
-    (batches[group] ??= { tasks: [], reason: reasons[group] }).tasks.push(
-      item.key,
-    );
-    batchLine[group] ??= factLine.get(`${item.key}\0batch`);
-  }
-  for (const id of Object.keys(reasons))
-    batches[id] ??= { tasks: [], reason: reasons[id] };
-  for (const [id, group] of Object.entries(batches)) {
-    if (group.reason === undefined)
-      problems.push(
-        problem(
-          "facts.value",
-          batchLine[id] ?? 1,
-          `Batch "${id}" has no reason. Add "batch-${id}: <reason>" to the front-matter of tasks.md.`,
-        ),
-      );
-  }
-  if (Object.keys(batches).length) manifest.batches = batches;
   manifest.tasks = tasks;
 
   return {
@@ -515,7 +477,6 @@ export function readFacts(text, items) {
     lineOfFact: (key, fact) =>
       factLine.get(`${key}\0${fact}`) ?? lineOfItem(items, key, lines),
     frontLine: (key) => front.at[key] ?? 1,
-    batchLine: (id) => front.at[`batch-${id}`] ?? batchLine[id] ?? 1,
   };
 }
 
@@ -612,21 +573,13 @@ export function withoutFacts(text, items) {
     .join("\n");
 }
 
-// The text a revision hash reads for the facts: the manifest file's text as it
-// was written, so a spec converted from a manifest keeps its hash. Spec-wide
-// keys have a fixed order; a task's keys keep their order (see readFacts).
-// A task's `batch` fact is written as the top-level `batches` it came from.
+// The text a revision hash reads for the facts: spec-wide keys in a fixed
+// order, then each task's keys in their order (see readFacts).
 export function factsText(manifest) {
   const out = Object.fromEntries(
     Object.entries(manifest).sort(
       ([a], [b]) => rank(TOP_ORDER, a) - rank(TOP_ORDER, b),
     ),
-  );
-  out.tasks = Object.fromEntries(
-    Object.entries(manifest.tasks ?? {}).map(([key, entry]) => {
-      const { batch: _batch, ...rest } = entry;
-      return [key, rest];
-    }),
   );
   return JSON.stringify(out, null, 2) + "\n";
 }
@@ -639,27 +592,25 @@ const FACT_OF = Object.fromEntries(
 export const factName = (key) => FACT_OF[key] ?? key;
 
 // The fact bullets for one entry in the manifest's key names, as lines at
-// column `indent`. `kind: leaf` is left out. A short list of plain items is
+// column `indent`. `kind` is left out: nesting says it. A short list of plain items is
 // one bullet; any other list, and `done` always, is one bullet per item.
 export function factsLines(entry, { indent = 2 } = {}) {
   const pad = `${" ".repeat(indent)}- $`,
     out = [],
     keys = Object.keys(entry);
   for (const key of keys) {
+    if (key === "kind") continue;
     const fact = FACT_OF[key],
       value = entry[key];
     if (!fact) throw Error(`"${key}" is not a task fact.`);
-    if (key === "kind" && value === "leaf") continue;
     const spec = KEYS[fact],
       line = (text) => {
         if (/[\r\n]/.test(text))
           throw Error(`${fact} must be one line of text.`);
         return text;
       };
-    if (spec.type === "list" || spec.type === "after") {
-      const items = value.map((item) =>
-        typeof item === "string" ? item : `${item.task}:${item.condition}`,
-      );
+    if (spec.type === "list") {
+      const items = value;
       if (
         fact === "done" ||
         items.some((item) => !item || /,/.test(item)) ||
@@ -668,9 +619,7 @@ export function factsLines(entry, { indent = 2 } = {}) {
         if (!items.length && fact !== "done") out.push(`${pad}${fact}:`);
         for (const item of items) out.push(`${pad}${fact}: ${line(item)}`);
       } else out.push(`${pad}${fact}: ${items.join(", ")}`);
-    } else if (spec.type === "json")
-      out.push(`${pad}${fact}: ${JSON.stringify(value)}`);
-    else out.push(`${pad}${fact}: ${line(String(value))}`);
+    } else out.push(`${pad}${fact}: ${line(String(value))}`);
   }
   return out;
 }

@@ -74,7 +74,7 @@ test("no module outside the Kiro Crew executor defaults a request to kirocrew", 
   );
 });
 
-test("a pin wins over the saved harness, which wins over the repository", () => {
+test("the saved harness wins over the repository", () => {
   const config = {
     roles: {
       verifier: { harness: "codex" },
@@ -82,14 +82,6 @@ test("a pin wins over the saved harness, which wins over the repository", () => 
     },
   };
   const repository = { executor: "process" };
-  assert.deepEqual(
-    roleRun("verifier", {
-      config,
-      task: { session: { harness: "pinned" } },
-      repository,
-    }),
-    { executor: "process", harness: "pinned" },
-  );
   assert.deepEqual(roleRun("verifier", { config, repository }), {
     executor: "process",
     harness: "codex",

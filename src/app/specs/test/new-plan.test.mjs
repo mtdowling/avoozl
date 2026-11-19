@@ -369,7 +369,6 @@ const builderTasks = [
   "## Phase 1",
   "",
   "- [ ] 1. Load and validate configuration",
-  "  - $kind: package",
   "  - $after: 1.1, 1.2",
   "  - [ ] 1.1 Read the config file",
   "    - $done: A missing file yields defaults.",

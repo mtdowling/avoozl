@@ -63,27 +63,26 @@ wants other rules. Avoozl never overwrites a changed copy.
   worker reads the title, then the summary as written, then \`$done:\`. Write
   one only when it adds to the title: lint refuses one that repeats it. Do
   not repeat \`$done:\` either, and write no \`Done when:\` bullet.
-- An item with sub-items is a group: its facts say \`$kind: package\` and
-  \`$after:\` its sub-items. It is done when its sub-items are.
+- An item with sub-items is a group. It is done when its sub-items are.
 - Every other item is one task for one agent session in one repository.
   Its facts:
   - \`$repo: <id>\`: the one repository it changes.
   - \`$after: 1.1, 2\`: task IDs that must finish first.
-  - \`$completion: integrated\`.
   - \`$done: <result>\`: one bullet per result someone can check.
+- A task's phase is the \`##\` heading above it.
 - Put values most tasks share in front-matter at the top of \`tasks.md\`,
   such as \`repo: app\` (no \`$\` there). A task's own fact wins.
 - Never write \`checks\`: every task runs its repository's checks, which a
   person sets in Avoozl.
 - A step only a person does is a manual task: \`$manual: true\`, what the
-  person checks as \`$done:\`. It completes by a person; never write
-  \`$completion: person\`.
+  person checks as \`$done:\`. It completes by a person.
+- Avoozl refuses any other fact, such as \`$kind\`, \`$phase\`, \`$batch\`
+  or \`$completion\`.
 - Kiro's \`_Requirements: 1.2_\` line is a note. Keep it.
 
   \`\`\`markdown
   ---
   repo: app
-  completion: integrated
   ---
   - [ ] 1.2 Validate config
     - $after: 1.1

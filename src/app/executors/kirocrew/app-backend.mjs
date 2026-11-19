@@ -359,16 +359,12 @@ export function startAppBackend({
             } catch (error) {
               console.error(error.message);
             }
-          if (modelSwitcher) {
-            const data = store.read(),
-              tasks = new Map(data.tasks.map((t) => [t.id, t]));
+          if (modelSwitcher)
             await applySwitches(store, modelSwitcher, {
               ...ops.providerOptions(),
               health: healthContext(store),
-              choicesFor: (binding) =>
-                switchModels(store, tasks.get(binding.taskId)),
+              choicesFor: () => switchModels(store),
             });
-          }
         } catch (error) {
           if (error.status !== 503) console.error(error);
         }

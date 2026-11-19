@@ -1,9 +1,5 @@
 ---
 repo: avoozl
-completion: integrated
-batch-login: Three parts of running unattended at login, each in its own module, after the server exists
-batch-codex: Codex's read class and the containment probes, in the harness and sandbox modules
-batch-hosts: The Codex and Kiro CLI host adapters, each its own folder and build adapter
 ---
 # Tasks: one machine server, thin front ends
 
@@ -43,16 +39,13 @@ they never collide with the IDs of the other specs.
 - [ ] ms-1.4 Login install on macOS and Linux, after ms-1.2 [MS4] (§D4)
   - $done: Tests with a fake `launchctl` and `systemctl`: `avoozl start --at-login` writes the unit with absolute paths, argv lists, the captured `PATH` and no secret, and runs the load commands it prints; `avoozl stop --at-login` unloads and deletes it; `--at-login` replaces its own unit and refuses a file without its marker; a Linux without a user systemd is refused with the `--foreground` line; both are refused with `AVOOZL_CHILD` and have no MCP tool.
   - $after: ms-1.2
-  - $batch: login
   - `avoozl start --at-login` and `avoozl stop --at-login`; `src/app/executors/supervisor-unit.mjs` is replaced by the new unit module.
 - [ ] ms-1.5 Login install on Windows, after ms-1.2 [MS4] (§D4)
   - $done: Tests on the Windows CI leg with a fake `schtasks`: `avoozl start --at-login` writes the XML with a logon trigger for the current user, least privilege, restart on failure and the marker description, and runs `/Create` and `/Run`; `avoozl stop --at-login` runs `/Delete`; a task without the marker is refused.
   - $after: ms-1.2
-  - $batch: login
 - [ ] ms-1.6 Model access and harness readiness for unattended children, after ms-1.2 [MS5] (§D6)
   - $done: Tests: a `keepEnv` value from `machine.env` reaches the child and no other name does; a group-readable file is refused on macOS and Linux; no value appears in logs, status or receipts; the sandbox test shows the file outside a child's read roots; a harness whose program is missing, or whose keys are all unset with no proxy, shows per role in `avoozl status` and Settings › Models and a request for it opens one Needs you item; screenshots of Settings › Models go to the owner; the pull request says whether Claude Code's plan sign-in on macOS is keychain-only, with how it was checked.
   - $after: ms-1.2
-  - $batch: login
 - [ ] ms-1.7 The role proof script for any harness, after ms-1.2 [MS6.3] (§D6)
   - $done: `scripts/proof-ms-roles-live.mjs --harness NAME` runs the D6 scenario table on a scratch repository and prints one line per row; a test fails when a `ROLE_TABLE` row with `process: true` is not in its list; a dry run with a fake harness passes every row.
   - $after: ms-1.2
@@ -94,12 +87,10 @@ they never collide with the IDs of the other specs.
 - [ ] ms-2.1 Codex's read class inside Avoozl's sandbox, after ms-1.2 [MS7.1, MS7.2, MS7.5] (§D7)
   - $done: Tests: `permission.read: "danger-full-access"` loads only with write roots and runs only inside Avoozl's sandbox; with no sandbox it is refused for every role, opt-in or not, on the Windows leg too; a read child's write roots exclude the task folder; `codex.json` uses it and still loads.
   - $after: ms-1.2
-  - $batch: codex
   - Codex's own sandbox stays off only inside Avoozl's sandbox, as the owner decided (D12).
 - [ ] ms-2.2 The containment probes and their CI test, after ms-1.2, ms-1.7 [MS8.1, MS8.2, MS8.3, MS8.4] (§D7)
   - $done: `src/app/sandbox-probes.mjs` holds every MS8.1 probe as an argv list; the test runs them under `confineChild` with `danger-full-access` and a stand-in harness on the macOS and Linux legs and every probe is refused; the Linux leg fails rather than skips without a usable `bwrap`; a probe planted to succeed fails the test naming it; `scripts/proof-ms-roles-live.mjs --probes` runs the same set in a live child.
   - $after: ms-1.2, ms-1.7
-  - $batch: codex
   - Fix any probe that gets through in `src/app/executors/sandbox.mjs`, never by changing the probe.
 
 - [ ] ms-p3 Proof: every role on Codex, and the sandbox contains it, after ms-2.1, ms-2.2, ms-p2 [MS7, MS8] (§D7)
@@ -158,11 +149,9 @@ they never collide with the IDs of the other specs.
 - [ ] ms-4.3 The Codex host package, after ms-p5 [MS11.4] (§D9)
   - $done: `hosts/codex/` is built by its adapter and checked; a test installs it into a temporary `CODEX_HOME` and finds the skills and the MCP entry; the guard or its documented absence is in the package's README; the pull request cites the Codex docs and version.
   - $after: ms-p5
-  - $batch: hosts
 - [ ] ms-4.4 The Kiro CLI host package, after ms-p5 [MS11.4] (§D9)
   - $done: `hosts/kiro-cli/` is built by its adapter and checked; a test installs it into a temporary Kiro CLI config and finds the agent, the steering or skills and the MCP entry; the guard or its documented absence is in the README; the pull request cites the Kiro CLI docs and version.
   - $after: ms-p5
-  - $batch: hosts
 
 - [ ] ms-p6 Proof: Codex and Kiro CLI as front ends, after ms-4.3, ms-4.4 [MS11.4] (§D9)
   - $done: Expected: in each tool, the agent drafts and does not approve, the person approves and answers at their own prompt, and the tasks land with the tool closed.

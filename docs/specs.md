@@ -83,19 +83,30 @@ with no `design.md` no design section: lint names the missing file.
 The page shows a task's refs as chips beside it, and a chip opens that
 requirement or section in the spec.
 
-The facts give the task's kind, its acceptance (`$done`), its dependencies
-(`$after`), and its completion level. Each fact is one bullet on one line. A
-list is comma-separated (`$after: 1.1, 1.2`) or the same fact written again,
-and each `$done:` bullet is one result. A comma inside backticks does not
-split. `$paths` also reads a Files note as written: in
+The facts give the task's acceptance (`$done`) and its dependencies
+(`$after`). Each fact is one bullet on one line. A list is comma-separated
+(`$after: 1.1, 1.2`) or the same fact written again, and each `$done:`
+bullet is one result. A comma inside backticks does not split. `$paths`
+also reads a Files note as written: in
 ``$paths: `src/a.nupp` (new), `README.md`.`` the backticks, the `(new)` note
-and the closing period are not part of the paths. The front matter holds defaults for
-every task, such as `repo`, written without the `$`. [Task facts](#task-facts)
-lists every fact, and [Front matter](#front-matter) every front-matter key.
+and the closing period are not part of the paths. The front matter holds
+defaults for every task, such as `repo`, written without the `$`.
+[Task facts](#task-facts) lists every fact, and
+[Front matter](#front-matter) every front-matter key.
+
+Two things are read from the layout, not from facts. An item with sub-items
+is a package, done when its sub-items are; every other item is a leaf. A
+task's phase is the `##` heading above it, and the heading text is the
+phase title.
 
 The summary says what the task delivers and how, and its worker reads it after
 the title. Write one only when it adds to the title. Lint refuses a summary
 that repeats the title.
+
+A leaf with no `$done` gives its results as plain bullets instead: each plain
+bullet under it is one result, and it has no summary. Avoozl's own writers
+(the planner, templates and skills) always write `$done`, so a task can keep
+a summary.
 
 A task never names checks. Every task runs its repository's checks. See
 [Repository checks and isolation](checks.md) for how
@@ -109,46 +120,26 @@ fact written again.
 
 | Fact | What it does | Required? | Format | Example |
 | --- | --- | --- | --- | --- |
-| `$done` | One result someone can check. The task is accepted when all hold. | Yes, on every leaf. A package may leave it out. | one per bullet | `$done: An unknown key is reported` |
-| `$after` | Tasks that must finish first. `id:<level>` waits for that completion level. | No | list | `$after: 1.1, x-2:released` |
-| `$kind` | `leaf` (the default) or `package`. A package is a group done when its sub-items are. `epic` is refused. | Yes, on a parent item | one value | `$kind: package` |
+| `$done` | One result someone can check. The task is accepted when all hold. | Yes, on every leaf, or plain bullets in its place. A package may leave it out. | one per bullet | `$done: An unknown key is reported` |
+| `$after` | Tasks that must finish first. | No | list | `$after: 1.1, x-2` |
 | `$repo` | The one repository the task changes. | Yes when the workspace has several repositories, and on a manual task | one value | `$repo: app` |
-| `$completion` | When the task counts as done: `integrated` (the default), `merged-pr`, `released` or `answered`. `person` is refused; write `$manual: true`. | No | one value | `$completion: released` |
-| `$manual` | `true` makes a step only a person does. It is never sent to an agent and is done when a person marks it. It may not have `$completion`, `$session`, `$batch`, `$paths` or `$route`. | No | one value | `$manual: true` |
-| `$sequence` | Tasks that must finish first, like `$after`, with no completion level. | No | list | `$sequence: 1.1` |
-| `$supports` | Tasks this one helps. It does not wait for them. | No | list | `$supports: 2.1` |
-| `$unblocks` | Tasks in another spec that wait on this one. A private spec uses it so the public spec never names the private task. | No | list | `$unblocks: pub-1` |
-| `$phase` | The phase ID the task belongs to. Without it the task takes the `##` heading above it. Letters, digits, `.`, `_` or `-`, up to 60 characters. | No | one value | `$phase: p2` |
-| `$batch` | The batch group the task runs in. See [Batches](#batches). | No | one value | `$batch: docs` |
+| `$manual` | `true` makes a step only a person does. It is never sent to an agent and is done when a person marks it. It may not have `$paths`. | No | one value | `$manual: true` |
 | `$paths` | Files the task changes. Avoozl holds a task back while a running task changes the same paths. | No | list | ``$paths: `src/a.mjs` (new)`` |
 | `$investigate` | `true` or `false`. With `true` the worker writes up its findings before it codes. | No | one value | `$investigate: true` |
-| `$verify` | Only `agent`. A verifier chat judges the task even when its repository has checks. | No | one value | `$verify: agent` |
-| `$acceptFrom` | Only `validation`. The task is accepted only from checks Avoozl ran at its landed commit. Needs a leaf whose completion is `integrated` or `released`. | No | one value | `$acceptFrom: validation` |
-| `$ship` | `auto-merge` or `manual`. Overrides the spec's and the repository's ship mode. | No | one value | `$ship: manual` |
-| `$session` | Pins the `agent`, `model` or `harness` that runs the task. | No | one value (JSON) | `$session: {"harness": "claude-code"}` |
 | `$type` | One lowercase word for the kind of change. `fix` counts as a bug fix in Flow. | No | one value | `$type: fix` |
-| `$labels` | Labels stored on the task: at most 30, each up to 100 characters. Nothing acts on them yet. | No | list | `$labels: docs, ui` |
-| `$milestone` | The Project's Release value for the task. Stored; nothing sends it yet. | No | one value | `$milestone: v1` |
-| `$iteration` | The Project's Iteration value for the task. Stored; nothing sends it yet. | No | one value | `$iteration: Sprint 4` |
-| `$scope` | The crew label scope the task is released into. Stored; nothing acts on it yet. | No | one value | `$scope: runtime` |
-| `$track` | The track the task is filed under. It must exist. The default is `catalog`. | No | one value | `$track: catalog` |
-| `$authority` | Only `local`: the task stays local and is never a GitHub issue. | No | one value | `$authority: local` |
-| `$route` | `local` or `github`. Both deliver locally now. | No | one value | `$route: local` |
-| `$repositoryId` | Another way to name the repository. It must match `$repo` when both are set. | No | one value | `$repositoryId: app` |
-| `$taskId` | An existing task this item reuses. It must exist. | No | one value | `$taskId: x-7` |
-| `$nextAction` | The next step shown for the task. The default is its title. | No | one value | `$nextAction: Write the parser` |
-| `$distinctReason` | Why this task is not a copy of a similar task, up to 2000 characters. | No | one value | `$distinctReason: Covers Windows only` |
-| `$source` | The link of the intake item the task came from. | No | one value | `$source: https://github.com/o/r/issues/4` |
-| `$tags` | Tags stored on the task. `historical` marks the task as history. | No | list | `$tags: cleanup` |
-| `$resources` | Resources stored on the task. Nothing acts on them yet. | No | list | `$resources: db` |
-| `$needs` | Read and kept in the revision hash. Nothing acts on it yet. | No | list | `$needs: gpu` |
 | `$plan` | In an epic folder only: the member spec's folder name. | Yes, on each epic item | one value | `$plan: runtime-contracts` |
 | `$step` | In an epic folder only: `design`, `review` or `implement` (the default). | No | one value | `$step: review` |
-| `$built` | The commit that landed a ticked task, written by a person. Avoozl reads it but never writes it, and it is not hashed. | No | one value | `$built: 9eb4a720` |
 
-An epic item may hold only `$plan` and `$step`. Two facts are gone, and
-lint names the line: `$summary` (write the summary as plain bullets) and
-`$checks` (every task runs its repository's checks).
+An epic item may hold only `$plan` and `$step`.
+
+Every other fact is gone. Lint reports each one as `facts.removed-key` at
+its line and says what to do: `$kind`, `$phase`, `$batch`, `$completion`,
+`$sequence`, `$repositoryId`, `$taskId`, `$nextAction`, `$labels`,
+`$milestone`, `$iteration`, `$scope`, `$resources`, `$needs`, `$tags`,
+`$supports`, `$unblocks`, `$authority`, `$route`, `$track`, `$source`,
+`$distinctReason`, `$session`, `$verify`, `$acceptFrom`, `$ship`, `$built`,
+`$summary` and `$checks`. An `$after` entry with a completion level, such
+as `x-2:released`, is refused too: write the task ID alone.
 
 A small spec with every common fact:
 
@@ -175,15 +166,13 @@ written without the `$`. A key not listed here is the lint error
 | Key | What it does | Required? | Format | Example |
 | --- | --- | --- | --- | --- |
 | `repo` | The default `$repo` for every leaf. | No | one value | `repo: app` |
-| `completion` | The default `$completion` for every leaf except a manual one. | No | one value | `completion: integrated` |
-| `ship` | The spec's ship mode: `auto-merge` or `manual`. | No | one value | `ship: manual` |
 | `integrationBranch` | The branch the spec's tasks land on before main. | No | one value | `integrationBranch: rewrite` |
 | `integrationSync` | How often main merges into the integration branch: `weekly` (the default), `daily` or `off`. Needs `integrationBranch`. | No | one value | `integrationSync: daily` |
-| `forwardTarget` | When a mirror forwards the work: `each` (the default), `branch` or `batch`. `branch` needs `publicBranch`. | No | one value | `forwardTarget: branch` |
-| `publicBranch` | The public branch a mirror forwards to. | No | one value | `publicBranch: rewrite` |
 | `kind` | Only `epic`: this folder lists member specs, not tasks. Leave it out otherwise. | Yes, in an epic folder | one value | `kind: epic` |
-| `phase-<id>` | The title of phase `<id>`, for tasks whose `$phase` names it. Up to 240 characters. | No | one value | `phase-p2: Storage` |
-| `batch-<id>` | The reason for batch `<id>`, 1 to 200 characters. | Yes, for each batch | one value | `batch-docs: Three help text fixes` |
+
+The keys `completion`, `ship`, `forwardTarget`, `publicBranch`, `checks`,
+`phase-<id>` and `batch-<id>` are gone. Lint reports each one as
+`facts.removed-key` and says what to do.
 
 `requirements.md` or `bugfix.md` may start with front matter too. Avoozl
 reads two keys there, and skips the rest without a warning. A bad value is
@@ -196,24 +185,6 @@ a warning, not an error, because it changes only how the spec is grouped.
 
 Avoozl reads no front matter in `design.md`.
 
-### Batches
-
-The planner can group small related tasks so they run in one session and one
-worktree, with one commit per task. Each member's facts say `$batch: <group>`,
-and the front matter gives the group's reason:
-
-```markdown
----
-repo: app
-batch-docs: Three one-line help text fixes in the same file
----
-```
-
-A group runs once every task in it is ready. Avoozl checks that the members
-share one spec and one repository, have no dependency between them, number at
-most 5, and come from an approved revision. A group that breaks a rule runs as
-single tasks, and Avoozl says why. A batch whose checks fail splits.
-
 ### Lint
 
 Avoozl refuses a folder that:
@@ -222,7 +193,7 @@ Avoozl refuses a folder that:
 - has a `tasks.md` with a missing or repeated ID
 - has a requirement or design ref that names nothing in the spec, or whose
   file the spec does not have
-- uses a fact Avoozl does not know
+- uses a fact or front-matter key Avoozl does not know, or one that is gone
 - still has a `Facts:` bullet, the old layout; write its facts as `$` bullets
 - still holds an `avoozl/manifest.json`
 

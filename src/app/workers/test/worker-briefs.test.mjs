@@ -14,8 +14,6 @@ import { fakeExecutor } from "../../test/worker-fakes.mjs";
 
 const REPOSITORY = { id: "app", root: "/tmp/app", baseBranch: "main" };
 const TASK = { id: "a", title: "Task a", acceptance: ["Works."] };
-const DATA = { tasks: [TASK, { ...TASK, id: "b", title: "Task b" }] };
-const LEAF = { task: TASK, batch: { id: "x", tasks: ["a", "b"] } };
 const RECORD = {
   envelope: { taskId: "a", baseCommit: "abc123", brief: "Do the work." },
 };
@@ -34,7 +32,6 @@ function build(executor, kind) {
       findingsVia: { executor, cliReport },
       steps: cell.steps({ task: TASK, repository: REPOSITORY, cliReport }),
     });
-  if (kind === "batch") return cell.brief(null, DATA, LEAF, "");
   if (kind === "round") return cell.finish;
   return cell.brief(RECORD, WHERE, "avoozl");
 }
@@ -92,12 +89,4 @@ test("a `process` brief asks for no commit, push or runner report", () => {
     ])
       assert.doesNotMatch(rest, pattern, `process ${kind}: ${pattern}`);
   }
-});
-
-test("a declined pair names the kind that runs instead", () => {
-  const found = briefCell("process", "batch");
-  assert.match(found.declined, /no commits/);
-  assert.equal(found.kind, "single");
-  assert.equal(found.asked, "batch");
-  assert.equal(briefCell("kirocrew", "batch").declined, null);
 });

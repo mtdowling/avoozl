@@ -1,30 +1,24 @@
 // One table from executor and task kind to the brief a worker gets, or to a
-// stated reason it does not (worker-paths WP3, design D3). Delivery, the batch
-// planner and the worker-machine tick ask it; none of them picks steps with a
-// conditional of its own.
+// stated reason it does not (worker-paths WP3, design D3). Delivery and the
+// worker-machine tick ask it; neither picks steps with a conditional of its
+// own.
 //
 // Kinds: `single` a task; `investigate` a task that investigates first;
-// `batch` one session for a group of tasks; `round` a landing or feedback
+// `round` a landing or feedback
 // message to a worker that already ran; `machine` a task pulled by a worker
 // machine. A cell holds the builder for its kind, or `declined` (the reason)
 // and `fallback` (the kind that runs instead).
 import { localSteps, processSteps } from "../delivery/delivery.mjs";
-import { batchBrief } from "../flow/flow-batch.mjs";
 
 export const EXECUTORS = Object.freeze(["kirocrew", "process"]);
 export const KINDS = Object.freeze([
   "single",
   "investigate",
-  "batch",
   "round",
   "machine",
 ]);
 
-export const BATCH_ON_PROCESS =
-  "a process child makes no commits, so one session cannot make one commit per task";
-
 const cell = (fields) => Object.freeze(fields);
-const declined = (reason, fallback) => cell({ declined: reason, fallback });
 
 // `ctx` is { task, repository, cliReport }.
 const chatSteps = ({ task, repository, cliReport }) =>
@@ -53,9 +47,6 @@ export const WORKER_BRIEFS = Object.freeze({
   kirocrew: Object.freeze({
     single: cell({ steps: chatSteps }),
     investigate: cell({ steps: chatSteps }),
-    batch: cell({
-      brief: (store, data, leaf, brief) => batchBrief(store, data, leaf, brief),
-    }),
     round: cell({
       finish:
         "Commit, and report done again with the new commit SHA. Do not push, rebase or force push.",
@@ -73,7 +64,6 @@ export const WORKER_BRIEFS = Object.freeze({
     single: cell({ steps: childSteps }),
     // Findings go in the result file; Go ahead resumes the child.
     investigate: cell({ steps: childSteps }),
-    batch: declined(BATCH_ON_PROCESS, "single"),
     round: cell({
       finish:
         'Do not commit, push, rebase or force push. When it is fixed, write .avoozl/result.json in this folder ({"state": "done", "text": "<what you changed>"}, or {"state": "blocked", "text": "<why>"}) and exit; Avoozl commits your changes.',

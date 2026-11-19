@@ -184,20 +184,11 @@ export function reviewRoles(policy) {
 // integration receipt or a complete status would meet completion with no
 // verifier, review, or merge (F60).
 export function refuseGateBypass(data, task, input, hasReviewers) {
-  if (Object.hasOwn(input, "acceptFrom"))
-    fail("acceptFrom changes only through plan approval.", 409);
   const typedIntegration = Object.hasOwn(input, "integration"),
     completes =
       Object.hasOwn(input, "status") &&
       input.status !== task.status &&
       statusComplete(data, input.status);
-  if (task.acceptFrom === "validation") {
-    if (typedIntegration || completes)
-      fail(
-        `Task ${task.id} completes only through Avoozl's validation and integration; a typed integration or complete status is refused.`,
-        409,
-      );
-  }
   const leaf =
       taskKind(Object.hasOwn(input, "kind") ? { kind: input.kind } : task) ===
       "leaf",

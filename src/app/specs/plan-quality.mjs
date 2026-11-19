@@ -5,12 +5,7 @@ import {
 } from "../../task-identity.mjs";
 import { extractPlan } from "./plans.mjs";
 import { repositoryChecks } from "../workspace/repository-checks.mjs";
-import {
-  isManual,
-  taskCompletion,
-  taskKind,
-  taskRoute,
-} from "../../work-model.mjs";
+import { isManual, taskKind } from "../../work-model.mjs";
 
 const taskBlocks = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
 
@@ -56,42 +51,17 @@ function effectiveRepository(plan, task, existing) {
   );
 }
 
-// Completion levels each route can observe (design §4.3).
-// `merged-pr` is an old value for landed (R102.20).
-const ROUTE_COMPLETIONS = {
-  local: ["integrated", "merged-pr", "released", "answered"],
-};
 // What a manual leaf may not hold: nothing runs it (R61.9).
-const MANUAL_REFUSED = [
-  "checks",
-  "agent",
-  "model",
-  "session",
-  "batch",
-  "paths",
-  "route",
-];
+const MANUAL_REFUSED = ["checks", "agent", "model", "paths"];
 
 // A manual leaf: acceptance, a repository for its issue, and nothing an
 // agent would use. It completes by a person; `manual: true` says so.
 function manualDiagnostics(task, repositoryId, add) {
-  if (task.manual !== true) {
-    if (task.completion === "person")
-      add(
-        "spec.person-completion",
-        `"${task.id}" has completion "person". A task a person does is "manual: true": write that instead.`,
-      );
-    return;
-  }
+  if (task.manual !== true) return;
   if (taskKind(task) !== "leaf")
     add(
       "spec.manual-field",
       `"${task.id}" is a package; only a leaf can be manual.`,
-    );
-  if (task.completion !== undefined && task.completion !== "person")
-    add(
-      "spec.manual-field",
-      `Manual task "${task.id}" has completion "${task.completion}"; a manual task completes by a person, so remove it.`,
     );
   for (const key of MANUAL_REFUSED)
     if (task[key] !== undefined)
@@ -106,8 +76,8 @@ function manualDiagnostics(task, repositoryId, add) {
     );
 }
 
-// A leaf is bounded: one repository, acceptance, checks and a completion
-// its route can observe. Acceptance is enforced by extractPlan.
+// A leaf is bounded: one repository, acceptance and checks. Acceptance is
+// enforced by extractPlan.
 function boundednessDiagnostics(task, repositoryId, repositories) {
   const at = taskLine(task),
     found = [],
@@ -117,44 +87,16 @@ function boundednessDiagnostics(task, repositoryId, repositories) {
           taskId: task.id,
         }),
       );
-  // acceptFrom gates a local leaf's acceptance on validation Avoozl ran at
-  // its integrated commit (§5.2); nothing else records such validation.
-  if (
-    task.acceptFrom !== undefined &&
-    (taskKind(task) !== "leaf" ||
-      taskRoute(task) !== "local" ||
-      !["integrated", "released"].includes(taskCompletion(task)))
-  )
-    add(
-      "leaf.accept-from",
-      `acceptFrom on "${task.id}" needs a local leaf that completes by integration.`,
-    );
   manualDiagnostics(task, repositoryId, add);
   if (taskKind(task) !== "leaf") return found;
-  // A manual leaf runs nothing: no route completion or checks to prove.
+  // A manual leaf runs nothing: no checks to prove.
   if (isManual(task)) return found;
-  if (
-    task.repository &&
-    task.repositoryId &&
-    task.repository !== task.repositoryId
-  )
-    add(
-      "leaf.repository",
-      `Leaf "${task.id}" names two repositories; a leaf changes exactly one.`,
-    );
   // With one registered repository or none (the workspace checkout), the
   // target is implied; with several the leaf must name one.
-  else if (!repositoryId && repositories.size > 1)
+  if (!repositoryId && repositories.size > 1)
     add(
       "leaf.repository",
       `Name the one repository leaf "${task.id}" changes; this workspace has several.`,
-    );
-  const completion = taskCompletion(task),
-    allowed = ROUTE_COMPLETIONS[taskRoute(task)];
-  if (allowed && !allowed.includes(completion))
-    add(
-      "leaf.completion",
-      `Completion "${completion}" cannot be observed on route "${taskRoute(task)}".`,
     );
   // An unregistered repository is reported as task.unknown-repository.
   // Every leaf runs its repository's checks; tasks never name them. Only a
@@ -162,7 +104,7 @@ function boundednessDiagnostics(task, repositoryId, repositories) {
   const known = Boolean(repositoryId) && repositories.has(repositoryId),
     checks = repositoryChecks(repositories.get(repositoryId));
   // A repository with no checks is judged by a verifier chat instead.
-  if (completion !== "answered" && !checks.length && known)
+  if (!checks.length && known)
     found.push(
       diagnostic(
         "leaf.checks",
@@ -222,7 +164,7 @@ function placeholderAcceptance(value) {
 function cycleDiagnostics(tasks, mapping) {
   const graph = new Map(tasks.map((task) => [task.id, []]));
   for (const task of tasks)
-    for (const field of ["requires", "sequence"])
+    for (const field of ["requires"])
       for (const reference of task[field] || []) {
         const local = mapping.get(reference);
         if (local) graph.get(local.id)?.push(task);
@@ -345,21 +287,8 @@ export function lintPlan({
           ),
         );
 
-    const canonical = task.taskId ? resolveTaskId(data, task.taskId) : null;
-    const existing = canonical ? existingTasks.get(canonical) : null;
-    let repositoryId = effectiveRepository(plan, task, existing);
-    if (task.taskId && !existing)
-      diagnostics.push(
-        diagnostic(
-          "task.unknown-target",
-          "error",
-          `Task "${task.taskId}" cannot be reused because it does not exist.`,
-          at.lineStart,
-          at.lineEnd,
-          { taskId: task.id },
-        ),
-      );
-    if (!task.taskId) {
+    let repositoryId = effectiveRepository(plan, task, null);
+    {
       titles ??= titleIndex(data.tasks || []);
       const duplicates = duplicateCandidates(
         data,
@@ -369,7 +298,7 @@ export function lintPlan({
         },
         { index: titles },
       );
-      if (duplicates.length && !task.distinctReason?.trim())
+      if (duplicates.length)
         diagnostics.push(
           diagnostic(
             "task.possible-duplicate",
@@ -418,7 +347,7 @@ export function lintPlan({
       ...boundednessDiagnostics(task, repositoryId, repositories),
     );
 
-    for (const field of ["requires", "sequence", "supports"]) {
+    for (const field of ["requires"]) {
       const seen = new Set();
       for (const reference of task[field] || []) {
         if (seen.has(reference))
@@ -466,7 +395,6 @@ export function lintPlan({
           ? effectiveRepository(plan, local, null)
           : existingReference?.repositoryId || null;
         if (
-          ["requires", "sequence"].includes(field) &&
           repositoryId &&
           dependencyRepository &&
           repositoryId !== dependencyRepository
@@ -490,7 +418,7 @@ export function lintPlan({
     if (reachable.has(id) || !all.has(id)) return;
     reachable.add(id);
     const task = all.get(id);
-    for (const field of ["requires", "sequence"])
+    for (const field of ["requires"])
       for (const from of task[field] || []) include(from);
   }
   for (const task of tasks) include(task.id);

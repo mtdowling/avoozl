@@ -41,7 +41,6 @@ import { linkSets } from "../tasks/scm-links.mjs";
 import { driverDecisions } from "../workers/driver.mjs";
 import { epicRows } from "../epics/epic-rows.mjs";
 import { taskLinks } from "../tasks/scm-links.mjs";
-import { approvals, batchRules } from "../flow/flow-batch.mjs";
 import { ownSummary } from "../tasks/title-repeat.mjs";
 import { DEFAULT_SPECS_PATH } from "../specs/specs-path.mjs";
 import {
@@ -701,10 +700,9 @@ export function reviewRounds(delivery) {
   return [...rounds.values()];
 }
 
-// `config` is the workspace's saved config, which says the executor a
-// batch would run on (batchRules). `destinations` says where a chat opens:
-// {standalone, links} (direct-links D2).
-export function deliveryView(store, data, { config, destinations = {} } = {}) {
+// `destinations` says where a chat opens: {standalone, links} (direct-links
+// D2).
+export function deliveryView(store, data, { destinations = {} } = {}) {
   const byTask = (rows) => {
     const map = new Map();
     for (const row of rows) {
@@ -759,52 +757,6 @@ export function deliveryView(store, data, { config, destinations = {} } = {}) {
     // Branch, pull request, checks and landed commit from stored records
     // only (R92.1-R92.3); In flight draws its chips from these (R92.6).
     taskLinkSets = linkSets(store, { data }).tasks;
-  const batchRuns = new Map(
-      optionalList(store, "flow_batches").map((row) => [row.id, row]),
-    ),
-    // A running batch's members have no delivery record of their own yet:
-    // the leader's binding names them.
-    boundRun = new Map(
-      bindingRows
-        .filter((b) => b?.batch?.id && Array.isArray(b.batch.tasks))
-        .flatMap((b) => b.batch.tasks.map((id) => [id, b.batch.id])),
-    ),
-    approved = approvals(store);
-  // A group's other members, even when `data` holds one task (task details).
-  let whole = null;
-  const batchOf = (id, task) => {
-    const runId =
-        (deliveries.get(id) || [])[0]?.batch ?? boundRun.get(id) ?? null,
-      run = runId ? batchRuns.get(runId) : null;
-    if (run)
-      return {
-        batchGroup: {
-          id: run.id,
-          group: task.batch?.id ?? null,
-          tasks: run.tasks,
-          leader: run.tasks[0],
-          reason: run.reason ?? task.batch?.reason ?? null,
-          state: run.state ?? null,
-        },
-        alone:
-          run.state === "split" ? "the batch was split after it failed" : null,
-      };
-    if (!task.batch) return { batchGroup: null, alone: null };
-    whole ??= store.read();
-    const rules = batchRules(store, whole, task, approved, { config });
-    if (!rules) return { batchGroup: null, alone: null };
-    return {
-      batchGroup: {
-        id: null,
-        group: rules.group.id,
-        tasks: rules.group.tasks,
-        leader: rules.members[0]?.id ?? rules.group.tasks[0],
-        reason: rules.group.reason ?? null,
-        state: null,
-      },
-      alone: rules.problem,
-    };
-  };
   const items = [];
   for (const task of data.tasks) {
     if (taskKind(task) !== "leaf") continue;
@@ -821,9 +773,7 @@ export function deliveryView(store, data, { config, destinations = {} } = {}) {
       !pullRequests.length &&
       !links.length &&
       !task.github?.unlinked &&
-      !starting.has(id) &&
-      // A planner-grouped task shows its batch or why it runs alone.
-      !task.batch
+      !starting.has(id)
     )
       continue;
     items.push({
@@ -840,11 +790,6 @@ export function deliveryView(store, data, { config, destinations = {} } = {}) {
       repository: taskRepository(task),
       supersedes: task.supersedes ?? null,
       supersededBy: task.supersededBy ?? null,
-      // The batch it ran in (§4.11), if any.
-      batch: (deliveries.get(id) || [])[0]?.batch ?? null,
-      // Its planner batch group (§4.37): the run when it has one, and the
-      // rule it broke when it runs alone (R108.5, R108.9).
-      ...batchOf(id, task),
       ...ownership(task),
       sessions: (bindings.get(id) || [])
         .map((binding) => ({
@@ -1030,7 +975,6 @@ export function conflictsView(store, data) {
       // Retry applies only to a delivery stopped for a decision; any other
       // ended attempt is retried by the tick on its own.
       deliveryState: delivery?.state ?? null,
-      batch: delivery?.batch ?? null,
     });
   }
   // Content rules (§4.9): a blocked write or an unavailable rule set. The
@@ -1120,7 +1064,7 @@ export function taskDetailView(
   store,
   data,
   detail,
-  { plan = null, approved = false, config, destinations } = {},
+  { plan = null, approved = false, destinations } = {},
 ) {
   const id = detail.id,
     graph = graphView(store, data, {}),
@@ -1150,7 +1094,7 @@ export function taskDetailView(
           ...data,
           tasks: data.tasks.filter((task) => task.id === id),
         },
-        { config, destinations },
+        { destinations },
       ).items[0] || null,
     conflicts = conflictsView(store, data).items.filter(
       (item) => item.taskId === id,

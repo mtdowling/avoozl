@@ -99,17 +99,16 @@ function investigatePolicy(policy, repository) {
   };
 }
 
-// Whether a leaf investigates first (R75.5): the manifest's `investigate`
-// wins, then the mode. `not-small` skips leaves in a planner batch group
-// (R108.10), which the planner keeps for small edits.
+// Whether a leaf investigates first (R75.5): the task's `investigate` fact
+// wins, then the mode.
+// shortcut: `not-small` skipped leaves in a planner batch group, and batches
+// are gone, so it now reads as `all`; drop the value once saved settings no
+// longer hold it.
 export function investigates(policy, task) {
   if (!policy || !task) return false;
   if (task.investigate === true || task.investigate === false)
     return task.investigate;
-  const { mode } = investigatePolicy(policy, taskRepository(task));
-  if (mode === "off") return false;
-  if (mode === "all") return true;
-  return !task.batch;
+  return investigatePolicy(policy, taskRepository(task)).mode !== "off";
 }
 
 const printable = (value, max) =>

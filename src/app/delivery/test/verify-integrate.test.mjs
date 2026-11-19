@@ -42,9 +42,9 @@ const tick = (ops, slots = []) =>
 
 const passed = [{ command: "git status", exitCode: 0 }];
 
-// A bar that needs judgment opens a verifier chat (§5.2 Checks); its done
+// A repository with no checks opens a verifier chat (§5.2 Checks); its done
 // report adds a verdict on the acceptance.
-const agent = { verify: "agent" };
+const unchecked = { repository: { checks: [] } };
 const judged = (ops, taskId, slot, commit, checks) =>
   ops.execute(
     "session.report",
@@ -100,12 +100,15 @@ test("the verifier agent ships with tool refs on the server key Kiro Crew regist
     assert.ok(served.includes(ref.split("/")[1]), ref + " is served");
 });
 
-test("a done report opens one verifier; only the matching SHA with passing declared checks is accepted", async (t) => {
-  // Nearby inputs: a second tick while the verifier is live, a verifier done
-  // without checks, a worker sending checks, a different SHA, a check missing,
-  // a check exiting 1, a verifier closed without a verdict, verifier retries
-  // past the bound, and a verdict repeated after it was recorded.
-  const { store, ops, checkout } = setup(t, { tasks: [leaf("a", agent)] });
+test("a done report opens one verifier; only the matching SHA is accepted", async (t) => {
+  // Nearby inputs: a second tick while the verifier is live, a worker
+  // sending checks, a different SHA, a verifier closed without a verdict,
+  // verifier retries past the bound, and a verdict repeated after it was
+  // recorded.
+  const { store, ops, checkout } = setup(t, {
+    tasks: [leaf("a")],
+    ...unchecked,
+  });
   const commit = await workerDone(ops, "a", "w-1");
   const first = await tick(ops);
   assert.equal(store.get("task_deliveries", "a").state, "done");
@@ -120,7 +123,7 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   assert.equal(intent.attempt, 1);
   assert.match(intent.title, /^avoozl:a verify /);
   assert.ok(intent.brief.includes(commit));
-  assert.match(intent.brief, /git status/);
+  assert.match(intent.brief, /Repository checks: none/);
   assert.match(intent.brief, /--detach/);
   await bind(ops, "a", "v-1", "verifier", 1);
   assert.deepEqual(
@@ -129,11 +132,6 @@ test("a done report opens one verifier; only the matching SHA with passing decla
     "one verifier per done report",
   );
 
-  await assert.rejects(
-    judged(ops, "a", "v-1", commit, undefined),
-    (error) => error.status === 400,
-    "a verifier's done lists checks",
-  );
   const other = setup(t, { tasks: [leaf("b")] });
   await bind(other.ops, "b", "w-b", "worker", 1);
   await assert.rejects(
@@ -163,54 +161,7 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   assert.deepEqual([retry.role, retry.attempt], ["worker", 2]);
   assert.match(retry.brief, /verifier rejected/);
 
-  // Attempt 2: a missing check fails only the checks session (R38.3), so the
-  // verifier is retried and no writer attempt is spent.
-  const second = await workerDone(ops, "a", "w-2", 2);
-  await tick(ops);
-  await bind(ops, "a", "v-2", "verifier", 2);
-  await judged(ops, "a", "v-2", second, [
-    { command: "npm run lint", exitCode: 0 },
-  ]);
-  const rerun = await tick(ops);
-  assert.equal(store.get("task_deliveries", "a").state, "done");
-  assert.equal(store.get("task_deliveries", "a").attempts[1].outcome, "done");
-  assert.match(
-    store.get("task_deliveries", "a").verifications.at(-1).cause,
-    /checks not run: check `git status` was not run/,
-  );
-  assert.deepEqual(
-    rerun.dispatch.map((d) => [d.role, d.attempt]),
-    [["verifier", 3]],
-  );
-  // Then a failing check: attempt 3 would be past retries 1, so a decision.
-  await bind(ops, "a", "v-3", "verifier", 3);
-  await judged(ops, "a", "v-3", second, [
-    { command: "git status", exitCode: 1 },
-  ]);
-  const decided = await tick(ops);
-  assert.equal(store.get("task_deliveries", "a").state, "decision");
-  assert.match(
-    store.get("task_deliveries", "a").attempts[1].cause,
-    /check `git status` exited 1/,
-  );
-  assert.equal(decided.notify.length, 1);
-  assert.deepEqual(decided.dispatch, []);
-
-  // A failing check, and verifiers that end without a verdict.
-  const c = setup(t, { tasks: [leaf("c", agent)] });
-  const cCommit = await workerDone(c.ops, "c", "w-c");
-  await tick(c.ops);
-  await bind(c.ops, "c", "v-c1", "verifier", 1);
-  await judged(c.ops, "c", "v-c1", cCommit, [
-    { command: "git status", exitCode: 1 },
-  ]);
-  await tick(c.ops);
-  assert.match(
-    c.store.get("task_deliveries", "c").attempts[0].cause,
-    /check `git status` exited 1/,
-  );
-
-  const d = setup(t, { tasks: [leaf("d", agent)] });
+  const d = setup(t, { tasks: [leaf("d")], ...unchecked });
   const dCommit = await workerDone(d.ops, "d", "w-d");
   await tick(d.ops);
   await bind(d.ops, "d", "v-d1", "verifier", 1);
@@ -238,8 +189,8 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   );
   assert.ok(dCommit);
 
-  // Accepted: matching SHA, every declared check 0.
-  const e = setup(t, { tasks: [leaf("e", agent)] });
+  // Accepted: matching SHA.
+  const e = setup(t, { tasks: [leaf("e")], ...unchecked });
   const eCommit = await workerDone(e.ops, "e", "w-e");
   await e.ops.execute("workspace.tick", {});
   await bind(e.ops, "e", "v-e1", "verifier", 1);
@@ -267,7 +218,7 @@ test("a quiet verifier is nudged, then failed and retried, so the graph never ha
   // Nearby inputs: idle for less than quietMinutes, a tick without a roster,
   // a verifier the roster does not list, a working verifier, one nudge per
   // interval, and the retry bound (a decision, not a hang).
-  const { store, ops, root } = setup(t, { tasks: [leaf("a", agent)] });
+  const { store, ops, root } = setup(t, { tasks: [leaf("a")], ...unchecked });
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({

@@ -60,7 +60,6 @@ import {
 } from "../reviews/plan-reviews.mjs";
 import {
   approvePlan,
-  baselineItems,
   createPlan,
   extractPlan,
   proposeWork,
@@ -72,6 +71,7 @@ import { recordFindingDecision } from "../reviews/review-findings.mjs";
 import { specLinks } from "../tasks/scm-links.mjs";
 import { approvalEvidence } from "../specs/spec-approval.mjs";
 import {
+  checkedItems,
   linkSpecPlan,
   proposeSpecWork,
   saveSpecPlan,
@@ -703,7 +703,7 @@ export const entries = [
         // Checked [x] items approval creates as accepted (plans.mjs).
         baseline: (() => {
           if (!specQuality) return { count: 0, taskIds: [], text: "" };
-          const checked = baselineItems(plan.spec, plan.text, proposals),
+          const checked = checkedItems(plan.spec, plan.text),
             taskIds = proposals
               .filter((p) => checked.has(p.id) && !existing.has(mapping[p.id]))
               .map((p) => mapping[p.id]);

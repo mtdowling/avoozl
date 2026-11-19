@@ -3,7 +3,12 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { FACT_KEYS, FRONT_KEYS } from "../specs/spec-facts.mjs";
+import {
+  FACT_KEYS,
+  FRONT_KEYS,
+  REMOVED_FACTS,
+  REMOVED_FRONT,
+} from "../specs/spec-facts.mjs";
 import { PROSE_KEYS } from "../../front-matter.mjs";
 
 const text = fs.readFileSync(
@@ -28,14 +33,18 @@ function tables(heading) {
 
 test("docs/specs.md has one row for each task fact the parser accepts", () => {
   const [facts] = tables("### Task facts");
-  assert.deepEqual(
-    facts,
-    [...FACT_KEYS, "built"].map((key) => `$${key}`).sort(),
-  );
+  assert.deepEqual(facts, FACT_KEYS.map((key) => `$${key}`).sort());
+});
+
+test("docs/specs.md names every fact and front-matter key that is gone", () => {
+  for (const key of Object.keys(REMOVED_FACTS))
+    assert.ok(text.includes(`\`$${key}\``), `$${key} is not named as gone`);
+  for (const key of Object.keys(REMOVED_FRONT))
+    assert.ok(text.includes(`\`${key}\``), `${key} is not named as gone`);
 });
 
 test("docs/specs.md has one row for each front-matter key", () => {
   const [tasks, prose] = tables("### Front matter");
-  assert.deepEqual(tasks, [...FRONT_KEYS, "phase-<id>", "batch-<id>"].sort());
+  assert.deepEqual(tasks, [...FRONT_KEYS].sort());
   assert.deepEqual(prose, [...PROSE_KEYS].sort());
 });

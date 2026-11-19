@@ -36,7 +36,7 @@ local or GitHub work.
 6. Show the user the graph before its first remote write.
 7. Deliver only ready leaves through Kiro Crew.
 8. Record commits, checks, pull requests, and conflicts.
-9. Release dependents only after their configured completion facts hold.
+9. Release dependents only after the tasks they wait on are done.
 
 Use `avoozl help` to inspect the installed CLI surface before choosing commands.
 
@@ -76,10 +76,10 @@ Steps 1 to 4 of local delivery. The chat you are in runs these steps. Two
 - Epics and phases are two things. An epic is a goal across plans: its own
   spec folder whose `tasks.md` front-matter says `kind: epic` and lists member
   plans in `plan` facts; each member's front-matter says `epic: <epic>`. A
-  phase is a group of tasks inside one plan: a `## ` heading in `tasks.md`, or
-  a `phase` fact. Read them with `plans_plan` `epics` and `epic`.
-  Never write `$kind: epic` on a task inside a plan, an `$epic` fact on a task, or an
-  `epics` list: Avoozl refuses them.
+  phase is a group of tasks inside one plan: the `## ` heading above them in
+  `tasks.md`. Read them with `plans_plan` `epics` and `epic`.
+  Never write a `$kind` or `$epic` fact on a task, or an `epics` list: Avoozl
+  refuses them.
 
 ### 2. Draft in a planner session
 

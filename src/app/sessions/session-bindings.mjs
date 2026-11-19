@@ -87,35 +87,6 @@ function bindingsFor(store, taskId) {
 // slot again is a no-op that writes nothing; a slot never moves between tasks.
 // `guard(taskId)` runs inside the write transaction, before a new binding, so
 // a claim is checked and recorded atomically across processes.
-function batchInput(value, role, leader) {
-  if (
-    role !== "worker" ||
-    !value ||
-    typeof value !== "object" ||
-    typeof value.id !== "string" ||
-    value.id.length > 1000 ||
-    !Array.isArray(value.tasks) ||
-    value.tasks.length < 2 ||
-    value.tasks.length > 10 ||
-    value.tasks.some(
-      (id) => typeof id !== "string" || !id || id.length > 200,
-    ) ||
-    value.tasks[0] !== leader
-  )
-    fail(
-      "A batch is {id, tasks: [leader, ...]} of 2–10 task IDs on a worker binding.",
-    );
-  return {
-    id: value.id,
-    tasks: [...value.tasks],
-    ...(typeof value.by === "string" ? { by: value.by } : {}),
-    // The planner's one-line reason (§4.37), shown on the batch's card.
-    ...(typeof value.reason === "string"
-      ? { reason: value.reason.slice(0, 200) }
-      : {}),
-  };
-}
-
 export function bindSession(
   store,
   input = {},
@@ -156,15 +127,7 @@ export function bindSession(
     (!Number.isInteger(input.attempt) || input.attempt < 1)
   )
     fail("Choose a positive whole attempt number.");
-  // A batch worker (§4.11): the leader's binding names every task it runs.
-  const batch =
-    input.batch === undefined
-      ? null
-      : batchInput(input.batch, role, text(input.taskId, "task ID", 200));
   return store.transaction(() => {
-    if (batch)
-      for (const id of batch.tasks)
-        if (!existingTask(store, id)) fail(`Batch task ${id} not found.`, 404);
     const named = text(input.taskId, "task ID", 200),
       // A responder binds to the issue snapshot it answers (github-respond.mjs).
       taskId =
@@ -239,7 +202,6 @@ export function bindSession(
       ...(input.crew && input.crew !== "local" ? { crew: input.crew } : {}),
       ...(input.sessionReason ? { sessionReason: input.sessionReason } : {}),
       ...(input.commit ? { commit: input.commit } : {}),
-      ...(batch ? { batch } : {}),
       // A worker opened to investigate first codes only after Go ahead
       // (§4.21).
       ...(input.investigate === true && role === "worker"
@@ -278,17 +240,6 @@ export function bindSession(
         });
     }
     store.ensureReportSecret();
-    // A batch (§4.11): one record per batch, for the Flow tab and the views.
-    if (binding.batch)
-      store.put("flow_batches", {
-        id: binding.batch.id,
-        tasks: binding.batch.tasks,
-        by: binding.batch.by ?? null,
-        reason: binding.batch.reason ?? null,
-        slot,
-        state: "running",
-        openedAt: binding.boundAt,
-      });
     return { binding, changed: true };
   });
 }

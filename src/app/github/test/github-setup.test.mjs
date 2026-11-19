@@ -485,7 +485,7 @@ test("github.setup runs through Operations and its proposal saves through Settin
   fs.writeFileSync(path.join(specs, "design.md"), "# Design\n");
   fs.writeFileSync(
     path.join(specs, "tasks.md"),
-    "- [ ] 1 First task\n  - $done: Works.\n  - $milestone: alpha\n",
+    "- [ ] 1 First task\n  - $done: Works.\n",
   );
   const preview = await ops
     .execute("github.setup", { ...PLANS, mode: undefined })

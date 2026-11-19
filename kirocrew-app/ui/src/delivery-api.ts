@@ -89,11 +89,6 @@ export interface LaneCard {
   // The archived plan it belongs to, or null; hidden unless Show archived.
   planArchived: string | null
   at: string | null
-  // A live planner batch (§4.37, R108.9): one In progress card stands for
-  // every task in it, with the planner's reason. Null on other cards.
-  batch: { id: string; reason: string | null; members: { id: string; title: string }[] } | null
-  // Why this task runs alone though the planner grouped it (R108.5).
-  alone: string | null
 }
 
 const deliveryState = (item: DeliveryItem | null) => {
@@ -171,8 +166,6 @@ export function deliveryLanes(graph: Graph | null, items: DeliveryItem[]): Recor
       nextAction: item?.nextAction ?? task?.nextAction ?? null,
       planArchived: item?.planArchived ?? task?.planArchived ?? null,
       at: newest(item),
-      batch: null,
-      alone: item?.alone ?? null,
     })
   }
   // Superseded tasks are history; the Delivery tab offers them separately.
@@ -182,43 +175,7 @@ export function deliveryLanes(graph: Graph | null, items: DeliveryItem[]): Recor
   for (const task of graph?.tasks ?? []) if (!seen.has(task.id) && task.kind === 'leaf' && task.status !== 'superseded') add(task, null)
   lanes.done.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
   lanes.running.sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
-  const names = new Map<string, string>([...tasks.values()].map((t) => [t.id, t.title]))
-  for (const item of items) names.set(item.id, item.title)
-  lanes.running = foldBatches(lanes.running, names)
-  lanes.reviewing = foldBatches(lanes.reviewing, names)
   return lanes
-}
-
-// One card per live batch (R108.9): the leader's card lists every member and
-// the planner's reason, and the other members' cards fold into it. A split
-// batch is not folded: its tasks run alone.
-export function foldBatches(cards: LaneCard[], names: Map<string, string> = new Map()): LaneCard[] {
-  const runs = new Map<string, LaneCard[]>()
-  for (const card of cards) {
-    const run = card.item?.batchGroup
-    if (run?.id && run.state !== 'split') runs.set(run.id, [...(runs.get(run.id) ?? []), card])
-  }
-  const out: LaneCard[] = []
-  for (const card of cards) {
-    const run = card.item?.batchGroup
-    const group = run?.id && run.state !== 'split' ? runs.get(run.id) : undefined
-    if (!run || !group) {
-      out.push(card)
-      continue
-    }
-    const host = group.find((c) => c.id === run.leader) ?? group[0]
-    if (card !== host) continue
-    const titles = new Map([...names, ...group.map((c): [string, string] => [c.id, c.title])])
-    out.push({
-      ...card,
-      batch: {
-        id: run.id as string,
-        reason: run.reason,
-        members: run.tasks.map((id) => ({ id, title: titles.get(id) ?? id })),
-      },
-    })
-  }
-  return out
 }
 
 // The status a resumed local task goes back to: `planned` when the

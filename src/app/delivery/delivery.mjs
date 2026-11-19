@@ -41,12 +41,6 @@ import {
   selectedChecks,
 } from "../workspace/repository-checks.mjs";
 import {
-  batchBrief,
-  planBatches,
-  splitBatch,
-  waitingForBatch,
-} from "../flow/flow-batch.mjs";
-import {
   git,
   integrateRun,
   prepareTaskWorktree,
@@ -261,7 +255,6 @@ export function shipMode(policy, task, store = null) {
     on = github ? policy?.autoMerge?.[github] : undefined;
   return (
     task?.ship ??
-    task?.specShip ??
     (typeof on === "boolean" ? (on ? "auto-merge" : "manual") : undefined) ??
     "auto-merge"
   );
@@ -347,43 +340,6 @@ function taskRepositoryRecord(store, task) {
   return repository;
 }
 
-// A split batch's first task retries alone (§4.11): its worktree holds the
-// whole batch's commits, so the branch is kept under another name and the
-// task starts again from the base. Nothing is lost: the old branch stays,
-// and a worktree with uncommitted changes is refused instead of removed.
-async function retireBatchWorktree(store, repository, taskId, branch) {
-  const delivery = store.get("task_deliveries", taskId),
-    current = store.get("task_worktrees", taskId);
-  if (!delivery?.batchSplit || delivery.batchWorktreeRetired || !current?.path)
-    return;
-  if (await worktreeChanges(current.path, repository.root).catch(() => ""))
-    fail(
-      `${taskId}'s batch worktree has uncommitted changes; commit or clear them before it retries alone.`,
-      409,
-    );
-  let name = `${branch}-batch`,
-    n = 1;
-  for (;;) {
-    try {
-      await git(repository.root, [
-        "rev-parse",
-        "--verify",
-        "--quiet",
-        "refs/heads/" + name,
-      ]);
-      name = `${branch}-batch-${++n}`;
-    } catch {
-      break;
-    }
-  }
-  await git(repository.root, ["branch", "-m", branch, name]);
-  await git(repository.root, ["worktree", "remove", current.path]);
-  store.transaction(() => {
-    store.remove("task_worktrees", taskId);
-    store.put("task_deliveries", { ...delivery, batchWorktreeRetired: name });
-  });
-}
-
 // plans_prepare_worktree: the task's own worktree on branch avoozl/<task-id>.
 // A retry returns the same worktree and writes nothing.
 export async function prepareWorktree(store, input = {}) {
@@ -398,7 +354,6 @@ export async function prepareWorktree(store, input = {}) {
     fail(`Task ID ${task.id} cannot name a branch.`, 409);
   const repository = taskRepositoryRecord(store, task),
     branch = "avoozl/" + task.id;
-  await retireBatchWorktree(store, repository, task.id, branch);
   // Prepare and the spec's qualified reference resolve the same base
   // (spec-base.mjs): the spec's working branch, else a legacy integration
   // branch, else the repository's base branch.
@@ -872,9 +827,7 @@ export async function reportSession(
   const task = findTask(store, input.taskId),
     bindings = listSessionBindings(store),
     binding = bindings.find((b) => slotKey(b.slot) === own);
-  const member =
-    binding?.batch?.tasks.includes(task.id) && binding.taskId !== task.id;
-  if (!binding || (binding.taskId !== task.id && !member))
+  if (!binding || binding.taskId !== task.id)
     fail("Only the session bound to this task may report on it.", 403);
   // A falsifier's done names no commit: it judges findings, not code
   // (R75.2). Everyone else's done stands for one (doneCommit).
@@ -887,7 +840,7 @@ export async function reportSession(
       : undefined;
   const findings =
     kind === "findings"
-      ? binding.role === "worker" && !binding.batch
+      ? binding.role === "worker"
         ? findingsInput(input.findings)
         : fail("Only a worker reports findings.")
       : input.findings !== undefined && !reviewRoleId(binding.role)
@@ -997,7 +950,7 @@ export async function reportSession(
   }
   const result = store.transaction(() => {
     const current = store.get("session_bindings", binding.slot),
-      last = current.batch ? current.reports?.[task.id] : current.report,
+      last = current.report,
       same =
         last &&
         last.kind === kind &&
@@ -1025,36 +978,14 @@ export async function reportSession(
       ...(reply ? { falsifier: reply } : {}),
       at: new Date().toISOString(),
     };
-    // A batch keeps one report per task; the binding's own report turns
-    // final only when every task in it has reported done or blocked.
-    const reports = current.batch
-        ? { ...(current.reports || {}), [task.id]: report }
-        : null,
-      all =
-        reports &&
-        current.batch.tasks.every((id) => FINAL_REPORTS.has(reports[id]?.kind)),
-      next = reports
-        ? {
-            ...current,
-            reports,
-            report: all
-              ? reports[current.batch.tasks.at(-1)]
-              : FINAL_REPORTS.has(kind)
-                ? {
-                    kind: "progress",
-                    text: `${current.batch.tasks.filter((id) => FINAL_REPORTS.has(reports[id]?.kind)).length} of ${current.batch.tasks.length} reported`,
-                    at: report.at,
-                  }
-                : report,
-          }
-        : { ...current, report };
+    const next = { ...current, report };
     store.put("session_bindings", next);
     // Investigate first (R75): the findings open a falsifier round; the
     // falsifier's reply runs the gate.
     if (findings) recordFindings(store, next, findings, report.at);
     if (reply) recordFalsifier(store, next, reply, report.at, { policy, task });
     // Timing (§4.11): the marker's time is the time Avoozl received it.
-    flowOnReport(store, next, report, task.id);
+    flowOnReport(store, next, report);
     return { binding: next, report, changed: true };
   });
   if (result.changed)
@@ -1182,28 +1113,6 @@ function outcomeOf(binding) {
   return null;
 }
 
-// Each batch binding stands for every task in it (§4.11): one entry per
-// task, carrying that task's own report. A task with no final report whose
-// session ended failed like any worker.
-function* expandBatches(attempts) {
-  for (const [taskId, binding] of attempts) {
-    if (!binding.batch) {
-      yield [taskId, binding];
-      continue;
-    }
-    for (const id of binding.batch.tasks)
-      yield [
-        id,
-        {
-          ...binding,
-          taskId: id,
-          report: binding.reports?.[id] ?? (id === taskId ? undefined : null),
-          ...(id === taskId ? {} : { member: true }),
-        },
-      ];
-  }
-}
-
 // Failed attempts since the last time a person chose to retry (retryDelivery).
 // A resume of a vanished chat (R88.4) costs nothing: it has its own bound.
 const failuresSince = (delivery, attempts) =>
@@ -1329,9 +1238,7 @@ export function reconcileDeliveries(
   const messages = [],
     notify = [],
     at = new Date(now).toISOString();
-  for (const [taskId, binding] of expandBatches(
-    runnerAttempts(listSessionBindings(store)),
-  )) {
+  for (const [taskId, binding] of runnerAttempts(listSessionBindings(store))) {
     const stored = store.get("task_deliveries", taskId),
       delivery = stored || {
         id: taskId,
@@ -1353,7 +1260,6 @@ export function reconcileDeliveries(
         {
           attempt: binding.attempt,
           slot: binding.slot,
-          ...(binding.batch ? { batch: binding.batch.id } : {}),
           // The prompt and skill versions it ran on (R68.12).
           ...(binding.prompts ? { prompts: binding.prompts } : {}),
           ...(binding.skills ? { skills: binding.skills } : {}),
@@ -1375,21 +1281,17 @@ export function reconcileDeliveries(
                 ? "decision"
                 : "failed",
         ...(result.outcome === "done" ? { commit: result.commit } : {}),
-        ...(binding.batch ? { batch: binding.batch.id } : {}),
         updatedAt: at,
       };
     } else if (
       open &&
       goneSettled(binding, now) &&
-      !binding.batch &&
       !delivery.attempts.slice(delivery.retryFrom || 0).some((a) => a.vanished)
     ) {
       // Kiro Crew says the chat is gone and it never reported (R88.4): the
       // attempt ends once, so the next tick opens one new chat in the same
       // worktree with the same brief and the last report quoted as data.
       // Quiet or an expired lease never gets here; only Kiro Crew's answer.
-      // shortcut: a batch keeps the decision below; resume it once batches
-      // carry one vanish count per member.
       next = {
         ...delivery,
         attempts: [
@@ -1419,8 +1321,7 @@ export function reconcileDeliveries(
         }),
       );
     } else if (open && goneSettled(binding, now)) {
-      // A second vanish since the last person retry, or a gone batch: a
-      // person decides. Retry ends this attempt (retryDelivery); a session
+      // A second vanish since the last person retry: a person decides. Retry ends this attempt (retryDelivery); a session
       // that reads live again resumes below.
       if (delivery.state !== "decision")
         next = {
@@ -1472,7 +1373,6 @@ export function reconcileDeliveries(
         }
       } else if (
         open &&
-        !binding.member &&
         binding.status === "idle" &&
         binding.source === "tick" &&
         (binding.report?.kind !== "findings" || decisionSent(store, binding))
@@ -1843,10 +1743,8 @@ export function busyTaskIds(store, bindings = listSessionBindings(store)) {
       store.list("task_deliveries").map((d) => [d.taskId, d]),
     );
   for (const binding of bindings)
-    if (binding.role === "worker" && liveAttempt(binding)) {
+    if (binding.role === "worker" && liveAttempt(binding))
       claimed.add(binding.taskId);
-      for (const id of binding.batch?.tasks || []) claimed.add(id);
-    }
   for (const [taskId, binding] of runnerAttempts(bindings)) {
     const delivery = deliveries.get(taskId);
     if (!delivery?.attempts.some((a) => a.attempt === binding.attempt))
@@ -2054,27 +1952,12 @@ const harnessOf = (run, leaf) => run.harness ?? leaf.repository.harness ?? null;
 export function planReadyDispatches(store, policy, options = {}) {
   const resumable = options.resumable ?? (() => true);
   const data = store.read(),
-    workspaceRoot = contentBinding(store)?.workspaceRoot,
-    candidates = readyCandidates(store, { skip: options.skip, data }),
-    waiting = waitingForBatch(store, candidates, {
-      workspaceRoot,
-      data,
-      config: options.config,
-    }),
-    skip = new Set([...(options.skip || []), ...waiting]),
-    leaves = planBatches(
-      store,
-      readyLeaves(store, policy, { ...options, skip }),
-      candidates.filter((task) => !skip.has(task.id)),
-      { workspaceRoot, data, policy, fits: null, config: options.config },
-    );
+    leaves = readyLeaves(store, policy, options);
   let health = null;
   return leaves.flatMap((leaf) => {
-    const run = workerExecutor(leaf.task, leaf.repository, options.config),
-      pin = leaf.task.session || {};
-    // Investigate first (R75.5): never for a batch, whose brief is one
-    // stretch of small tasks, and never where the pair table declines it.
-    const wants = !leaf.batch && investigates(policy, leaf.task),
+    const run = workerExecutor(leaf.task, leaf.repository, options.config);
+    // Investigate first (R75.5): never where the pair table declines it.
+    const wants = investigates(policy, leaf.task),
       // A child is resumed with Go ahead, so its harness must resume
       // (WP3.2); with none the task is coded without the step.
       skipped =
@@ -2084,22 +1967,11 @@ export function planReadyDispatches(store, policy, options = {}) {
       investigate =
         wants && !skipped && !briefCell(run.executor, "investigate").declined,
       ship = shipMode(policy, leaf.task, store);
-    let brief;
-    if (leaf.batch) {
-      // planBatches keeps a group whose executor makes no commits alone, so
-      // the batch cell here is never a declined one.
-      brief = briefCell(run.executor, "batch").cell.brief(
-        store,
-        data,
-        leaf,
-        leafBrief(store, data, leaf, { ship, executor: run.executor }),
-      );
-    } else
-      brief = leafBrief(store, data, leaf, {
-        investigate,
-        ship,
-        executor: run.executor,
-      });
+    const brief = leafBrief(store, data, leaf, {
+      investigate,
+      ship,
+      executor: run.executor,
+    });
     if (
       !briefAllowed(store, {
         taskId: leaf.task.id,
@@ -2109,10 +1981,10 @@ export function planReadyDispatches(store, policy, options = {}) {
       })
     )
       return [];
-    // The manifest's pin wins (R53.3), then the kept or delivery model. An
-    // out model is never offered (R72.5): a person's replacement for it is
-    // taken, else the task waits and Needs you says the provider is out.
-    let model = pin.model ?? keptModel(store, leaf.task.id, policy);
+    // The kept or delivery model. An out model is never offered (R72.5): a
+    // person's replacement for it is taken, else the task waits and Needs
+    // you says the provider is out.
+    let model = keptModel(store, leaf.task.id, policy);
     if (model) {
       health ??= healthContext(store);
       if (health.level(model) === "out") {
@@ -2121,20 +1993,13 @@ export function planReadyDispatches(store, policy, options = {}) {
         model = to;
       }
     }
-    const agent = pin.agent ?? keptAgent(store, leaf.task.id, policy);
+    const agent = keptAgent(store, leaf.task.id, policy);
     return [
       kirocrewRequest(store, {
         task: leaf.task.id,
         role: "worker",
         attempt: leaf.attempt,
-        title: sessionTitle(
-          leaf.task.id,
-          leaf.attempt,
-          leaf.batch
-            ? `batch of ${leaf.batch.tasks.length}: ${leaf.batch.tasks.join(", ")}`
-            : leaf.task.title || "",
-        ),
-        ...(leaf.batch ? { batch: leaf.batch } : {}),
+        title: sessionTitle(leaf.task.id, leaf.attempt, leaf.task.title || ""),
         ...(investigate ? { investigate: true } : {}),
         ...(skipped ? { investigateSkipped: skipped } : {}),
         // A worker on `process` runs as a supervisor child (R93.5), on the
@@ -2609,15 +2474,6 @@ export function reconcileVerifications(
             text: `Commit ${subject.slice(0, 12)}: ${record.cause}.`,
             resume: `Read the diff. To let it land: avoozl verify allow ${task.id} --reason TEXT. To send it back: avoozl retry ${task.id}.`,
           });
-      } else if (record.outcome === "rejected" && next.batch) {
-        // A failing batch does not say which task broke it: split it, and
-        // each task retries alone at no attempt cost (R46.6).
-        store.transaction(() => {
-          store.put("task_deliveries", next);
-          splitBatch(store, next.batch, "batch split: " + record.cause, at);
-        });
-        next = store.get("task_deliveries", task.id);
-        continue;
       } else if (record.outcome === "rejected") {
         // Fail the writer attempt that produced this commit (after a rebase
         // at integration, the newest done attempt), with the cause as data.
@@ -2798,20 +2654,6 @@ function judgeable(store, data) {
     if (!task || !repository?.root) continue;
     // A superseded task gets no new session (R39.1); a running one finishes.
     if (task.status === "superseded") continue;
-    // A batch is checked and reviewed once, on its head: the last task's
-    // commit, once every task in it is done (R46.5).
-    if (delivery.batch) {
-      const members = store
-        .list("task_deliveries")
-        .filter((d) => d.batch === delivery.batch);
-      const order = batchOrder(store, delivery.batch);
-      if (
-        order.at(-1) !== delivery.taskId ||
-        members.length < order.length ||
-        members.some((d) => d.state !== "done")
-      )
-        continue;
-    }
     // Held by a stopped line: no new checks session until it is green.
     if (
       (delivery.verifications || []).some(
@@ -3063,12 +2905,7 @@ export async function integrateVerified(
       }
     }
     const at = new Date(now).toISOString(),
-      // A batch runs in its first task's worktree (§4.11).
-      worktree =
-        store.get("task_worktrees", delivery.taskId) ||
-        (delivery.batch
-          ? store.get("task_worktrees", batchOrder(store, delivery.batch)[0])
-          : null),
+      worktree = store.get("task_worktrees", delivery.taskId),
       task = store.read().tasks.find((t) => t.id === delivery.taskId),
       id = `avoozl:${delivery.taskId}:${delivery.commit}`;
     let next;
@@ -3085,11 +2922,6 @@ export async function integrateVerified(
       // remote (41.9): bring the remote base here first; a queued task
       // waits unless its base moved.
       if (viaPullRequest || viaDirect) {
-        if (delivery.batch)
-          fail(
-            `A batch does not land ${viaDirect ? "directly" : "by pull request"} yet.`,
-            409,
-          );
         await syncBase(repository).catch(() => null);
         if (await stillQueued(store, { delivery, repository })) continue;
       }
@@ -3183,8 +3015,6 @@ export async function integrateVerified(
         into: entry.into,
         updatedAt: at,
       };
-      // The batch integrated as one rebase: each task keeps its own commit.
-      if (delivery.batch) await integrateMembers(store, delivery, entry, at);
     } catch (error) {
       if (error.contention) continue;
       // The base moved under a verified task and the merge conflicts: the
@@ -3201,9 +3031,7 @@ export async function integrateVerified(
             state: "conflict",
             entry: {
               key: `integrate:${delivery.taskId}:${delivery.commit}`,
-              tasks: delivery.batch
-                ? batchOrder(store, delivery.batch)
-                : [delivery.taskId],
+              tasks: [delivery.taskId],
               base: error.conflict.base,
               files: error.conflict.files,
               baseHead: null,
@@ -3260,66 +3088,6 @@ export function approveIntegration(store, input = {}, { by = "person" } = {}) {
     store.put("task_deliveries", next);
     return { delivery: next };
   });
-}
-
-// The tasks of a batch, in the order the worker made their commits.
-function batchOrder(store, batchId) {
-  return store.get("flow_batches", batchId)?.tasks || [];
-}
-
-// After a batch's head integrated, its other tasks integrate with it: each
-// task's commit is the one at its place in the integrated chain (the head's
-// own if the chain does not have one commit per task).
-async function integrateMembers(store, head, entry, at) {
-  const order = batchOrder(store, head.batch),
-    repository = store.get("repositories", entry.repositoryId),
-    chain = (
-      await git(repository.root, [
-        "rev-list",
-        "--reverse",
-        "-n",
-        String(order.length),
-        entry.integratedCommit,
-      ])
-    )
-      .split("\n")
-      .filter(Boolean),
-    exact = chain.length === order.length;
-  for (const [i, id] of order.entries()) {
-    if (id === head.taskId) continue;
-    const delivery = store.get("task_deliveries", id);
-    if (!delivery || delivery.state !== "done") continue;
-    const commit = exact ? chain[i] : entry.integratedCommit;
-    store.transaction(() =>
-      store.put("task_deliveries", {
-        ...delivery,
-        state: "integrated",
-        integratedCommit: commit,
-        into: entry.into,
-        updatedAt: at,
-      }),
-    );
-    store.mutate("Integrate " + id + " with its batch", (data) => {
-      const task = data.tasks.find((t) => t.id === id);
-      if (task)
-        task.integration = {
-          commit,
-          branch: entry.branch,
-          into: entry.into,
-          at: entry.integratedAt || at,
-          batch: head.batch,
-        };
-    });
-  }
-  const record = store.get("flow_batches", head.batch);
-  if (record)
-    store.transaction(() =>
-      store.put("flow_batches", {
-        ...record,
-        state: "integrated",
-        integratedAt: at,
-      }),
-    );
 }
 
 // Mark each epic and package whose children have all reached their own

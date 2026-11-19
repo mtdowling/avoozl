@@ -355,8 +355,7 @@ export async function applyTicks(store, plan, read) {
       !statusComplete(data, task.status) &&
       // Avoozl's own landing carried this tick: already known, so no second
       // Activity line and no worker released (Requirement 113.11).
-      !task.integration?.commit &&
-      task.acceptFrom !== "validation";
+      !task.integration?.commit;
   let commits;
   for (const [id, tick] of ticked) {
     const task = byId.get(plan.mapping?.[id]);

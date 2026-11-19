@@ -120,16 +120,16 @@ test("Kiro's three-file layout reads and hashes as before", () => {
     "bugfix.md":
       "---\ncategory: Runtime\n---\n# Fix the crash\n\n### Unchanged Behavior (Regression Prevention)\n\n3.1 WHEN a file is valid THEN the system SHALL CONTINUE TO load it\n",
   });
-  // The hashes the reader gave before only tasks.md was required.
+  // The hashes of the fixture in the cut fact set.
   assert.equal(
     readSpecFolder(root, "config").hash,
-    "c0c8aed5725ea1e555fb0270dd6b90be9a189fcd6592a62b965376559a11dd0c",
+    "30890fc38a9470995695d7a7135a8e4e88625aab82984b1b06298a8077264a30",
   );
   const fix = readSpecFolder(root, "fix"),
     result = lintSpec({ spec: fix, plan: { id: "fix" } });
   assert.equal(
     fix.hash,
-    "79819b668091cb2c5e965caa3705400a038b8f5bb00f18fb4f5db6918cadad8e",
+    "300981e3c9b2d13b039efbe2d51eb926225bbe49c935475a5c634196dabedd54",
   );
   assert.equal(result.type, "bugfix");
   assert.equal(specCategory(fix.files), "Runtime");

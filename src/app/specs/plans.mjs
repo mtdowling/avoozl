@@ -1,10 +1,9 @@
 import { approvedSpecDependency } from "../../spec-dependencies.mjs";
-import { duplicateCandidates, resolveTaskId } from "../../task-identity.mjs";
+import { resolveTaskId } from "../../task-identity.mjs";
 import { randomUUID } from "node:crypto";
 import { digest } from "../../model.mjs";
-import { COMPLETIONS, TASK_KINDS, isSource } from "../../work-model.mjs";
+import { TASK_KINDS } from "../../work-model.mjs";
 import { fail } from "../store/store.mjs";
-import { validateSession } from "../sessions/session-pins.mjs";
 import { frontMatterCategory } from "../../front-matter.mjs";
 import {
   checkedItems,
@@ -74,24 +73,9 @@ export function validateProposal(item) {
     fail(
       'A task names no epic: its plan does. Use "phase" to group tasks inside a plan.',
     );
-  // Local is opt-in per task; github comes only from projection (§3.2).
-  if (item.authority !== undefined && item.authority !== "local")
-    fail(
-      'authority may only be "local"; a task becomes github through projection.',
-    );
-  if (item.route !== undefined && !isSource(item.route))
-    fail("route must be local or github.");
-  if (item.completion !== undefined && !COMPLETIONS.includes(item.completion))
-    fail("completion must be one of " + COMPLETIONS.join(", ") + ".");
   // A step only a person does (R61.9); its other rules are lint's.
   if (item.manual !== undefined && item.manual !== true)
     fail("manual may only be true.");
-  // Accept only from Avoozl-recorded validation (§5.2, R38.4).
-  if (item.acceptFrom !== undefined && item.acceptFrom !== "validation")
-    fail('acceptFrom may only be "validation".');
-  // A verifier chat judges this bar even when it has checks (§5.2 Checks).
-  if (item.verify !== undefined && item.verify !== "agent")
-    fail('verify may only be "agent".');
   // Packages complete from their children; leaves are checked.
   const parent = item.kind === "package";
   if (
@@ -101,29 +85,7 @@ export function validateProposal(item) {
       item.acceptance.some((x) => typeof x !== "string" || !x.trim()))
   )
     fail("Each proposed task needs observable acceptance criteria.");
-  // A requires entry may name the completion level it waits for.
-  if (Array.isArray(item.requires)) {
-    const conditions = {};
-    item.requires = item.requires.map((entry) => {
-      if (typeof entry === "string" || entry === null) return entry;
-      if (
-        typeof entry?.task !== "string" ||
-        !COMPLETIONS.includes(entry.condition)
-      )
-        fail("A requires condition needs a task and a known completion.");
-      conditions[entry.task] = entry.condition;
-      return entry.task;
-    });
-    if (Object.keys(conditions).length) item.conditions = conditions;
-  }
-  for (const field of [
-    "requires",
-    "sequence",
-    "supports",
-    "tags",
-    "resources",
-    "checks",
-  ])
+  for (const field of ["requires", "checks"])
     if (
       item[field] !== undefined &&
       (!Array.isArray(item[field]) ||
@@ -138,35 +100,13 @@ export function validateProposal(item) {
     item.summary ??= item.prose;
     delete item.prose;
   }
-  for (const field of [
-    "summary",
-    "nextAction",
-    "track",
-    "repositoryId",
-    "taskId",
-    "distinctReason",
-    "repository",
-    // The Project's Release and Iteration values for this task (§6.7).
-    "milestone",
-    "iteration",
-    // The crew label scope the task is released into (RC4.2).
-    "scope",
-  ])
+  for (const field of ["summary", "repository"])
     if (item[field] !== undefined && typeof item[field] !== "string")
       fail(field + " must be text.");
-  // An old `size` tag is ignored: the planner groups batches in the
-  // manifest's `batches` instead (§4.37, R108.8).
-  delete item.size;
-  // Investigate first (§4.21) and ship mode (§4.25), per task; a spec's
-  // ship mode and type come from its folder.
+  // Investigate first (§4.21), per task; a spec's type comes from its
+  // folder.
   if (item.investigate !== undefined && typeof item.investigate !== "boolean")
     fail("investigate must be true or false.");
-  for (const field of ["ship", "specShip"])
-    if (
-      item[field] !== undefined &&
-      !["auto-merge", "manual"].includes(item[field])
-    )
-      fail(`${field} must be "auto-merge" or "manual".`);
   if (item.specType !== undefined && item.specType !== "bugfix")
     fail('specType may only be "bugfix".');
   if (
@@ -175,22 +115,12 @@ export function validateProposal(item) {
       item.paths.some((x) => typeof x !== "string"))
   )
     fail("paths must be a list of strings.");
-  // Labels, a type word, and a pinned agent, model or harness (R53.1).
-  if (
-    item.labels !== undefined &&
-    (!Array.isArray(item.labels) ||
-      item.labels.length > 30 ||
-      item.labels.some(
-        (x) => typeof x !== "string" || !x.trim() || x.length > 100,
-      ))
-  )
-    fail("labels must be a list of at most 30 names.");
+  // A type word (R53.1).
   if (
     item.type !== undefined &&
     (typeof item.type !== "string" || !/^[a-z][a-z0-9-]{0,39}$/.test(item.type))
   )
     fail("type must be one lowercase word, such as test.");
-  if (item.session !== undefined) validateSession(item.session);
   return item;
 }
 export function createPlan(
@@ -347,16 +277,7 @@ export function proposeWork(store, { id, proposal, fact, expectedHash }) {
     409,
   );
 }
-// The checked items approval would start as accepted: [x] in tasks.md, and
-// not gated on Avoozl-recorded validation (R38.4), which no mark can meet.
-export function baselineItems(name, text, proposals) {
-  const checked = checkedItems(name, text),
-    gated = new Set(
-      proposals.filter((p) => p.acceptFrom === "validation").map((p) => p.id),
-    );
-  for (const id of gated) checked.delete(id);
-  return checked;
-}
+
 function baselineAcceptance(item, hash, { at, approver }) {
   return {
     status: "accepted",
@@ -545,7 +466,7 @@ export function approvePlan(
       // for it, and only a task this approval creates starts accepted.
       checked =
         baseline && spec && !extracted
-          ? baselineItems(spec, plan.text, proposals)
+          ? checkedItems(spec, plan.text)
           : new Map(),
       baselined = [],
       approver = approvedBy?.trim() || operator?.trim() || "";
@@ -577,17 +498,10 @@ export function approvePlan(
             "route",
             "completion",
             "repository",
-            "acceptFrom",
-            "verify",
-            "milestone",
-            "iteration",
-            "releaseScope",
             "authority",
             "parent",
-            "labels",
             "paths",
             "type",
-            "session",
             "manual",
           ].map((key) => task[key] ?? null),
           task.source?.hash ?? null,
@@ -644,64 +558,36 @@ export function approvePlan(
           .map((entry) => entry.id),
       );
     for (const proposal of proposals) {
-      if (
-        proposal.taskId &&
-        !data.tasks.some((t) => t.id === resolveTaskId(data, proposal.taskId))
-      )
-        fail("Task to reuse was not found: " + proposal.taskId);
       const taskId = mapping[proposal.id],
         existing = data.tasks.find((t) => t.id === taskId),
         contextTask = data.tasks.find(
           (t) => t.id === resolveTaskId(data, plan.context.selected),
         );
       const track =
-        proposal.track ||
-        plan.context.filters?.track ||
-        contextTask?.track ||
-        "catalog";
+        plan.context.filters?.track || contextTask?.track || "catalog";
       if (!data.tracks.some((t) => t.id === track))
         fail("Unknown track " + track);
-      const specDependencies = ["requires", "sequence", "supports"].flatMap(
-          (kind) =>
-            (proposal[kind] || [])
-              .filter((ref) => !mapping[ref] && foreignDeclarations.has(ref))
-              .map((ref) => ({
-                ...foreignDeclarations.get(ref),
-                kind,
-                ...(proposal.conditions?.[ref]
-                  ? { condition: proposal.conditions[ref] }
-                  : {}),
-              })),
-        ),
+      const specDependencies = (proposal.requires || [])
+          .filter((ref) => !mapping[ref] && foreignDeclarations.has(ref))
+          .map((ref) => ({
+            ...foreignDeclarations.get(ref),
+            kind: "requires",
+          })),
         design = {
           id: taskId,
           title: proposal.title,
           ...(proposal.summary ? { summary: proposal.summary } : {}),
           acceptance: proposal.acceptance,
-          nextAction: proposal.nextAction || proposal.title,
+          nextAction: proposal.title,
           track,
-          tags: proposal.tags || [],
-          resources: proposal.resources || [],
-          repositoryId: proposal.repositoryId || plan.context.repositoryId,
+          repositoryId: plan.context.repositoryId,
           ...Object.fromEntries(
             [
               "kind",
-              "route",
-              "completion",
               "repository",
-              "acceptFrom",
-              "intakeSource",
-              "verify",
-              "milestone",
-              "iteration",
-              "labels",
               "paths",
               "type",
-              "session",
-              "batch",
               "investigate",
-              "ship",
-              "specShip",
               "specType",
               "manual",
               "refs",
@@ -757,19 +643,9 @@ export function approvePlan(
           409,
         );
       if (proposal.phase) design.phase = proposal.phase;
-      // The manifest's `scope` names a crew label scope. A task already has a
-      // catalog `scope`, so this one is stored as `releaseScope`.
-      if (proposal.scope) design.releaseScope = proposal.scope;
       // A spec plan names parents by nesting in tasks.md (spec-plans.mjs);
       // the parent is in the same plan, so it is in mapping.
       if (spec && proposal.parent) design.parent = mapping[proposal.parent];
-      // A planner batch group names its members by mapped ID (§4.37).
-      if (design.batch)
-        design.batch = {
-          ...design.batch,
-          tasks: design.batch.tasks.map((ref) => mapping[ref] || ref),
-        };
-      if (proposal.authority === "local") design.authority = "local";
       if (existing && existing.planId !== id) {
         existing.contextDocuments = [
           ...new Set([...(existing.contextDocuments || []), documentId]),
@@ -795,26 +671,11 @@ export function approvePlan(
           delete existing.specDependencies;
           delete existing.pendingSpecDependencies;
         }
-        if (!design.authority) delete existing.authority;
-        // A manifest that drops a milestone moves the task out of it, and
-        // one that drops acceptFrom lifts the validation gate.
+        // A fact the new revision drops leaves the task.
         for (const key of [
-          "milestone",
-          "iteration",
-          "releaseScope",
-          "acceptFrom",
-          "intakeSource",
-          "verify",
-          "labels",
           "paths",
           "type",
-          "session",
-          // An old `size` goes on re-approval; a dropped group leaves.
-          "size",
-          "batch",
           "investigate",
-          "ship",
-          "specShip",
           "specType",
           "phase",
           "manual",
@@ -827,10 +688,6 @@ export function approvePlan(
         Object.assign(existing, design, { needsReview: true });
       } else {
         if (checked.has(proposal.id)) baselined.push(taskId);
-        const candidates = duplicateCandidates(data, {
-          ...proposal,
-          id: taskId,
-        });
         data.tasks.push({
           ...design,
           scope:
@@ -845,13 +702,6 @@ export function approvePlan(
                 approver,
               })
             : {}),
-          ...(proposal.distinctReason && candidates.length
-            ? {
-                distinctFrom: Object.fromEntries(
-                  candidates.map((t) => [t.id, proposal.distinctReason]),
-                ),
-              }
-            : {}),
         });
       }
       data.edges = data.edges.filter((e) => {
@@ -859,43 +709,40 @@ export function approvePlan(
         if (drop && edgeById.get(e.id) === e) edgeById.delete(e.id);
         return !drop;
       });
-      for (const kind of ["requires", "sequence", "supports"])
-        for (const ref of proposal[kind] || []) {
-          const from = resolveTaskId(data, mapping[ref] || ref);
-          if (foreignDeclarations.has(ref) && !mapping[ref]) {
-            const expected = foreignDeclarations.get(ref),
-              target = data.tasks.find((task) => task.id === from);
-            if (target && target.planId !== expected.planId)
-              fail(
-                "Foreign dependency ownership does not match its declaration: " +
-                  ref,
-                409,
-              );
-            continue;
-          }
-          if (!known.has(from)) fail("Unknown " + kind + " reference " + ref);
-          const edgeId = `${from}:${kind}:${taskId}`,
-            same = edgeById.get(edgeId);
-          // An edge ID is unique. Another live plan's copy of the same edge
-          // stays its own; an unowned one (imported, hand-made, or from an
-          // old revision that did not name it) becomes this plan's.
-          if (same?.planId && same.planId !== id && livePlans.has(same.planId))
-            continue;
-          if (same) data.edges.splice(data.edges.indexOf(same), 1);
-          const edge = {
-            id: edgeId,
-            from,
-            to: taskId,
-            kind,
-            ...(kind === "requires" && proposal.conditions?.[ref]
-              ? { condition: proposal.conditions[ref] }
-              : {}),
-            planId: id,
-            reason: "Approved plan revision " + plan.hash.slice(0, 12),
-          };
-          data.edges.push(edge);
-          edgeById.set(edgeId, edge);
+      const kind = "requires";
+      for (const ref of proposal.requires || []) {
+        const from = resolveTaskId(data, mapping[ref] || ref);
+        if (foreignDeclarations.has(ref) && !mapping[ref]) {
+          const expected = foreignDeclarations.get(ref),
+            target = data.tasks.find((task) => task.id === from);
+          if (target && target.planId !== expected.planId)
+            fail(
+              "Foreign dependency ownership does not match its declaration: " +
+                ref,
+              409,
+            );
+          continue;
         }
+        if (!known.has(from)) fail("Unknown " + kind + " reference " + ref);
+        const edgeId = `${from}:${kind}:${taskId}`,
+          same = edgeById.get(edgeId);
+        // An edge ID is unique. Another live plan's copy of the same edge
+        // stays its own; an unowned one (imported, hand-made, or from an
+        // old revision that did not name it) becomes this plan's.
+        if (same?.planId && same.planId !== id && livePlans.has(same.planId))
+          continue;
+        if (same) data.edges.splice(data.edges.indexOf(same), 1);
+        const edge = {
+          id: edgeId,
+          from,
+          to: taskId,
+          kind,
+          planId: id,
+          reason: "Approved plan revision " + plan.hash.slice(0, 12),
+        };
+        data.edges.push(edge);
+        edgeById.set(edgeId, edge);
+      }
     }
     // Sequence edges also participate in readiness, so reject cycles across both kinds.
     const graph = new Map(),

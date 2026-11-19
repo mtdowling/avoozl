@@ -58,8 +58,8 @@ test("the sample has an epic, specs, phases, states, GitHub and history", async 
     assert.equal(status("recipe-import.1.1"), "accepted");
     assert.equal(status("shopping-list.1.2"), "blocked");
     assert.equal(
-      data.tasks.find((t) => t.id === "recipe-import.2.2").completion,
-      "answered",
+      data.tasks.find((t) => t.id === "recipe-import.2.2").manual,
+      true,
     );
     assert.ok(data.tasks.every((t) => t.github?.number));
     const graph = await demo.execute("graph.view", {});

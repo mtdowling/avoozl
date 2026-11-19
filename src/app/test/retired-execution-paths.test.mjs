@@ -4,10 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { workspaceConfig } from "../settings/config.mjs";
-import { kirocrewConfiguration } from "../executors/kirocrew.mjs";
 import { groupedCall, GROUPED_TOOLS } from "../mcp/mcp-tools.mjs";
 import { Operations } from "../api/operations.mjs";
-import { validateSession } from "../sessions/session-pins.mjs";
 import { Store } from "../store/store.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -83,7 +81,7 @@ test("the relay tool and relay.forget are gone", async (t) => {
   await assert.rejects(ops.execute("relay.forget", {}), /Unknown operation/);
 });
 
-test("an unknown machine file key is refused, naming it; pins still steer", async (t) => {
+test("an unknown machine file key is refused, naming it", async (t) => {
   fs.mkdirSync(path.dirname(MACHINE), { recursive: true });
   fs.writeFileSync(
     MACHINE,
@@ -96,10 +94,7 @@ test("an unknown machine file key is refused, naming it; pins still steer", asyn
     /Unknown setting "oldKey" in global Avoozl configuration/,
   );
   fs.writeFileSync(MACHINE, JSON.stringify({ version: 1 }));
-  const env = workspace(t, [
-    leaf("a"),
-    leaf("b", { session: { agent: "agent-p", model: "model-p" } }),
-  ]);
+  const env = workspace(t, [leaf("a"), leaf("b")]);
   const result = await env.ops.execute("workspace.tick", { sessions: [] }),
     workers = Object.fromEntries(
       result.dispatch
@@ -109,17 +104,5 @@ test("an unknown machine file key is refused, naming it; pins still steer", asyn
   assert.deepEqual(Object.keys(workers).sort(), ["a", "b"]);
   assert.ok(result.dispatch.every((d) => d.role !== "router" && !d.crew));
   assert.equal(workers.a.model, "model-d");
-  assert.equal(workers.b.model, "model-p");
-  assert.equal(kirocrewConfiguration(env.store, workers.b).agent, "agent-p");
-});
-
-test("a manifest session pin names an agent, model or harness only", () => {
-  assert.deepEqual(validateSession({ model: "m", harness: "kirocrew" }), {
-    model: "m",
-    harness: "kirocrew",
-  });
-  assert.throws(
-    () => validateSession({ crew: "box" }),
-    /session\.crew is not a session setting/,
-  );
+  assert.equal(workers.b.model, "model-d");
 });
