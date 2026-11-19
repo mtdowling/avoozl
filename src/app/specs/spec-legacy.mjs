@@ -125,11 +125,89 @@ export function foldManifest(files, { defaults = true, exact = true } = {}) {
   return { files: next, hoisted };
 }
 
+const FENCE = /^\s*(```|~~~)/;
+const BULLET = /^(\s*)([-*+])[ \t]+(.*?)\s*$/;
+const indentOf = (raw) => /^\s*/.exec(raw)[0].length;
+
+// tasks.md with each `Facts:` block, the layout from Requirement 111 until
+// 2026-11-19, written as `$key:` bullets in its place: a nested `done` list
+// is one `$done:` bullet per result, another nested list one comma list.
+// The text without facts and the parsed facts stay the same, so the
+// revision hash does too.
+export function foldFactsBlocks(text) {
+  const rows = String(text).split("\n"),
+    out = [];
+  let fenced = false;
+  for (let at = 0; at < rows.length; at++) {
+    const raw = rows[at].replace(/\r$/, ""),
+      cr = rows[at].endsWith("\r") ? "\r" : "",
+      bullet = BULLET.exec(raw);
+    if (FENCE.test(raw)) fenced = !fenced;
+    if (fenced || bullet?.[3] !== "Facts:") {
+      out.push(rows[at]);
+      continue;
+    }
+    const [, pad, marker] = bullet,
+      put = (key, value) =>
+        out.push(`${pad}${marker} $${key}:${value ? ` ${value}` : ""}${cr}`);
+    let fact = null,
+      child = null;
+    const flush = () => {
+      if (!fact) return;
+      const { key, inline, nested } = fact;
+      if (key !== "done")
+        put(key, nested.length ? nested.join(", ") : inline.trim());
+      else
+        for (const item of nested.length ? nested : inline.split(","))
+          if (item.trim()) put(key, item.trim());
+      fact = null;
+    };
+    for (; at + 1 < rows.length; at++) {
+      const row = rows[at + 1].replace(/\r$/, "");
+      if (!row.trim()) {
+        // A blank line inside the block is dropped; one after it is kept.
+        const next = rows.slice(at + 2).find((line) => line.trim());
+        if (next === undefined || indentOf(next) <= pad.length) break;
+        continue;
+      }
+      if (indentOf(row) <= pad.length) break;
+      child ??= indentOf(row);
+      const inner = BULLET.exec(row);
+      if (indentOf(row) > child) {
+        fact?.nested.push(inner ? inner[3] : row.trim());
+        continue;
+      }
+      flush();
+      const match =
+        inner && /^([A-Za-z][A-Za-z0-9]*):[ \t]*(.*)$/.exec(inner[3]);
+      if (match)
+        fact = {
+          key: match[1] === "Built" ? "built" : match[1],
+          inline: match[2],
+          nested: [],
+        };
+      else out.push(`${pad}${row.slice(child)}${cr}`);
+    }
+    flush();
+  }
+  return out.join("\n");
+}
+
+// Whether tasks.md on disk still has a `Facts:` block, which lint refuses.
+export const hasFactsBlocks = (text) =>
+  typeof text === "string" &&
+  text.includes("Facts:") &&
+  foldFactsBlocks(text) !== text;
+
 // Stored files in the layout the reader reads: an old record's manifest
-// folded into its tasks.md, anything else as it is. A manifest that cannot be
-// folded reads as no facts, which lint then reports.
+// folded into its tasks.md, and its `Facts:` blocks into `$` bullets,
+// anything else as it is. A manifest that cannot be folded reads as no
+// facts, which lint then reports.
 export function currentFiles(files = {}) {
-  if (files[MANIFEST] === undefined) return files;
+  if (files[MANIFEST] === undefined)
+    return hasFactsBlocks(files["tasks.md"])
+      ? { ...files, "tasks.md": foldFactsBlocks(files["tasks.md"]) }
+      : files;
   try {
     return foldManifest(files, { defaults: false }).files;
   } catch {

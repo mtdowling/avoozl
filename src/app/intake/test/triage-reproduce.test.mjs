@@ -88,6 +88,12 @@ test("a collaborator's reproduced bug lands with the reproduction passing", asyn
   assert.ok(task, "a fix started");
   assert.equal(w.runOf(1).outcome, "reproduced");
   assert.equal(task.ship, undefined, "it lands by the landing setting");
+  // The fix changes the code, not only its reproduction: no path is outside.
+  assert.deepEqual(
+    pathVerdict(["greet.js", REPRO.path], { declared: task.paths ?? [] })
+      .outside,
+    [],
+  );
   const commit = await workerFixes(w, task);
   await integrateVerified(w.store);
   await landDirect(w.store, { workspaceRoot: w.root, rounds: 2, machine: {} });

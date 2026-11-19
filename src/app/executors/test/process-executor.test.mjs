@@ -1134,3 +1134,13 @@ test("a planner child's served model is kept on its session", async (t) => {
   assert.equal(served?.model, "fake-writer");
   assert.equal(served.withheld, false);
 });
+
+// A harness that resolves its folder (macOS /var is /private/var) refused a
+// triage child's write to .avoozl/output/: its rule names a relative path.
+test("a session's own folder is named by its real path", async (t) => {
+  const { scratchFolder } = await import("../process.mjs");
+  const folder = scratchFolder("avoozl-real-");
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  assert.equal(folder, fs.realpathSync.native(folder));
+  assert.ok(path.basename(folder).startsWith("avoozl-real-"));
+});

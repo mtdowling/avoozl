@@ -5,15 +5,15 @@ import { foldManifest } from "./legacy-facts.mjs";
 const MANIFEST = "avoozl/manifest.json";
 
 // Tests may still describe facts as a manifest object: this folds it into
-// tasks.md as Facts bullets (Requirement 111), the only layout Avoozl reads.
-// A tasks.md that already has Facts bullets, or none, keeps no manifest.
+// tasks.md as $ fact bullets (Requirement 111), the only layout Avoozl reads.
+// A tasks.md that already has $ fact bullets, or none, keeps no manifest.
 export function withFacts(files) {
   const tasks = files["tasks.md"];
   if (
     files[MANIFEST] === undefined ||
     files[MANIFEST] === null ||
     typeof tasks !== "string" ||
-    /^\s*[-*+] Facts:\s*$/m.test(tasks)
+    /^\s*[-*+] \$[A-Za-z][A-Za-z0-9]*:/m.test(tasks)
   ) {
     const { [MANIFEST]: _gone, ...rest } = files;
     return rest;

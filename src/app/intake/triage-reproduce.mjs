@@ -163,7 +163,11 @@ export async function startReproducedFix(
     (task) => {
       task.fix = { ...task.fix, reproduction: { path: file.path } };
       task.summary = `${task.summary}\n\nAvoozl committed a reproduction at ${file.path}: the repository's checks fail with it. Make them pass without changing what it tests.`;
-      task.paths = [...new Set([...(task.paths || []), file.path])];
+      // A task that names its paths gets the reproduction among them; one
+      // that names none (a fix from an issue) may change any file, so adding
+      // the reproduction alone would hold the fix itself outside its paths.
+      if (task.paths?.length)
+        task.paths = [...new Set([...task.paths, file.path])];
       if (!collaborator) task.ship = "manual";
     },
   );

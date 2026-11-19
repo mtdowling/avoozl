@@ -17,8 +17,9 @@ name.
 
 ## Task list
 
-Each checkbox in `tasks.md` is a task with an ID and a title. Its first child
-is a `Facts:` bullet, and the bullets after it are the task's summary:
+Each checkbox in `tasks.md` is a task with an ID and a title. The bullets
+under it that start with `$` are its facts, and the other bullets are its
+summary:
 
 ```markdown
 ---
@@ -26,16 +27,16 @@ repo: app
 ---
 
 - [ ] 1.2 Validate config
-  - Facts:
-    - after: 1.1
-    - done:
-      - An unknown key is reported with its path
+  - $after: 1.1
+  - $done: An unknown key is reported with its path
   - Report each key the schema does not name, with its JSON path.
 ```
 
-The facts give the task's kind, its acceptance (`done`), its dependencies
-(`after`), and its completion level. The front matter holds defaults for every
-task, such as `repo`.
+The facts give the task's kind, its acceptance (`$done`), its dependencies
+(`$after`), and its completion level. Each fact is one bullet on one line. A
+list is comma-separated (`$after: 1.1, 1.2`) or the same fact written again,
+and each `$done:` bullet is one result. The front matter holds defaults for
+every task, such as `repo`, written without the `$`.
 
 The summary says what the task delivers and how, and its worker reads it after
 the title. Write one only when it adds to the title. Lint refuses a summary
@@ -48,7 +49,7 @@ checks are set.
 ### Batches
 
 The planner can group small related tasks so they run in one session and one
-worktree, with one commit per task. Each member's facts say `batch: <group>`,
+worktree, with one commit per task. Each member's facts say `$batch: <group>`,
 and the front matter gives the group's reason:
 
 ```markdown
@@ -70,6 +71,7 @@ Avoozl refuses a folder that:
 - is missing one of its files
 - has a `tasks.md` with a missing or repeated ID
 - uses a fact Avoozl does not know
+- still has a `Facts:` bullet, the old layout; write its facts as `$` bullets
 - still holds an `avoozl/manifest.json`
 
 ## Creating a spec

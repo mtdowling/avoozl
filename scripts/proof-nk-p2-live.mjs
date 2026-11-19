@@ -181,7 +181,7 @@ else if (/review\\.json/.test(text) && /plans_submit_review/.test(text)) {
 else if (/skip plans_create_plan/.test(text)) {
   fs.writeFileSync("requirements.md", "# Notes\\n\\nThe repository holds a note.\\n");
   fs.writeFileSync("design.md", "# Design\\n\\nOne file under notes/.\\n");
-  fs.writeFileSync("tasks.md", "# Tasks\\n\\n- [ ] 1.1 Write notes/beta.txt\\n  - Facts:\\n    - repo: app\\n    - done:\\n      - notes/beta.txt holds beta and a newline, and node check.mjs prints ok.\\n    - checks: node check.mjs\\n");
+  fs.writeFileSync("tasks.md", "# Tasks\\n\\n- [ ] 1.1 Write notes/beta.txt\\n  - $repo: app\\n  - $done: notes/beta.txt holds beta and a newline, and node check.mjs prints ok.\\n  - $checks: node check.mjs\\n");
 } else if (/"state": "findings"/.test(text)) write({ state: "findings", report: { read: "notes/", cause: "no note yet", plan: "add it", check: "node check.mjs", confidence: "high" } });
 else if (/^Go ahead/.test(text) || /Avoozl task/.test(text)) { fs.mkdirSync("notes", { recursive: true }); fs.writeFileSync("notes/beta.txt", "beta\\n"); write({ state: "done", text: "Wrote it." }); }
 `;

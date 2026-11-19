@@ -68,12 +68,10 @@ test("a discovery on a spec plan adds a tasks.md item with its Facts", async (t)
     tasks.endsWith(
       [
         "- [ ] cache-invalidation Invalidate the stale cache entry",
-        "  - Facts:",
-        "    - done:",
-        "      - A changed record invalidates its cache entry.",
-        "    - completion: integrated",
-        "    - after: 1.2",
-        "    - tags: discovered",
+        "  - $done: A changed record invalidates its cache entry.",
+        "  - $completion: integrated",
+        "  - $after: 1.2",
+        "  - $tags: discovered",
         "  - Found while implementing the delivery task.",
         "",
       ].join("\n"),

@@ -42,7 +42,7 @@ evidence baseline.
 | Plugins                              | Outside packages may add delivery routes and task trackers through one versioned seam, loaded only after a person approves each version, in a local child process with no listener. Private and company-internal integrations live outside the public repository and plug in only this way (§4.8)                                                                                                                                                                         | Owner, 2026-11-12; Requirements 22, 34, 35                 |
 | Review gates                         | Each local writer's exact commit gets the checks role plus review roles with split focus, each in a fresh session on a model other than the writer's, before integration; changes requested start a new writer attempt and new reviews; every finding is closed as fixed or unchanged against the changed files; a check that cannot run keeps the gate shut. Reviews are roles on one delivery, not graph tasks (§5.2)                                                   | Owner handoff, 2026-11-12; Requirements 36–39              |
 | Content rules                        | `.avoozl.json` names which rule sets apply and the action; the banned terms live in an untracked terms file or an approved private plugin. Every write or approval boundary is checked; a match blocks and opens a decision, never redacts, and can be allowed once with a reason; findings name rule and location, never the term. Today's leak, reply, and secret screens become built-in sets (§4.9)                                                                   | Owner, 2026-11-12; Requirement 40                          |
-| Plan layout                          | Required, not a default: every plan is a Kiro spec folder `.kiro/specs/<name>/` with `requirements.md` or `bugfix.md`, `design.md`, and `tasks.md` with a `Facts:` bullet per task (§4.40). Fenced plan files are a migration read path only                                                                                                                                                                                                                                              | Owner, 2026-11-11; Requirement 30                          |
+| Plan layout                          | Required, not a default: every plan is a Kiro spec folder `.kiro/specs/<name>/` with `requirements.md` or `bugfix.md`, `design.md`, and `tasks.md` with `$` fact bullets under each task (§4.40). Fenced plan files are a migration read path only                                                                                                                                                                                                                                              | Owner, 2026-11-11; Requirement 30                          |
 | Untriaged list                       | A read-only list of open issues and pull requests that no trigger rule, triage label, or task covers, linking out to GitHub and Issue Radar, and starting Avoozl's own code review chat; GitHub modes only; deep links wait on MC-14 (§8.5)                                                                                                                                                                                                                                                        | Owner, 2026-11-12; Requirement 49                          |
 
 ### New verified facts used by this design
@@ -155,7 +155,7 @@ a coder. It still hosts no UI outside Kiro Crew.
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | Reviewed design                                   | Git: a Kiro spec folder `.kiro/specs/<name>/` in the planning repository (plans-repo mode or no GitHub mode) or the code repository (single-repo mode), at an exact commit (§6.8) | Receipt: approved commit and hash                      | Never edited in SQLite                                                                                                        |
 | Repository policy and labels                      | Git: `.avoozl.json` at an exact commit                                                                                                                                            | Receipt of the commit applied                          | Settings view edits the file, not SQLite                                                                                      |
-| Task facts                                        | Git: `Facts:` bullets in the spec folder's `tasks.md` (§4.40), written then reviewed                                                                                                     | Receipt                                                | Pins design commit, policy commit, compiler digest                                                                            |
+| Task facts                                        | Git: `$` fact bullets in the spec folder's `tasks.md` (§4.40), written then reviewed                                                                                                      | Receipt                                                | Pins design commit, policy commit, compiler digest                                                                            |
 | Local task graph (local-only tasks)               | **SQLite** in the workspace, published to Git by `workspace-repository` (F36)                                                                                                     | **Authoritative**                                      | The only writable task store for local work                                                                                   |
 | Local task status                                 | **SQLite**                                                                                                                                                                        | **Authoritative**                                      | Derived states (ready) are computed, not stored                                                                               |
 | GitHub issue graph                                | GitHub: issues, sub-issue links, issue dependencies, hidden markers                                                                                                               | **Cache**                                              | Rebuildable from GitHub alone                                                                                                 |
@@ -1962,13 +1962,11 @@ Settings does (Requirement 55.5–55.7). Batches come from the planner's
 
 ```markdown
 - [ ] review Review with the team
-  - Facts:
-    - manual: true
-    - repo: sdk
-    - completion: person
-    - after: protocol-tests
-    - done:
-      - The team agreed the runtime and protocol results are good enough to cut over
+  - $manual: true
+  - $repo: sdk
+  - $completion: person
+  - $after: protocol-tests
+  - $done: The team agreed the runtime and protocol results are good enough to cut over
 ```
 
 - **Lint.** `manual` leaves need `done`, `repo` and completion `person`;
@@ -4440,11 +4438,9 @@ in a `batch` fact, and front-matter gives the group's reason once:
 batch-doc-links: Two one-line link fixes in README.md
 ---
 - [ ] 3.1 Fix the install link
-  - Facts:
-    - batch: doc-links
+  - $batch: doc-links
 - [ ] 3.2 Fix the license link
-  - Facts:
-    - batch: doc-links
+  - $batch: doc-links
 ```
 
 `parseSpec` (`spec-plans.mjs`) reads the group's tasks from its members and
@@ -4676,25 +4672,29 @@ A person read one and then hunted for the other. One file is easier to
 review, and Kiro chats, Claude Code and Codex write Markdown bullets without
 a second file to keep in step.
 
-**Shape.** The first child of a task item is a `Facts:` bullet. Subtasks
-follow it. Spec-wide defaults are front-matter at the top of `tasks.md`:
+**Shape.** A task's facts are the bullets directly under its item that
+start with `$`, one fact per bullet on one line. Other bullets under the item
+are its summary, and subtasks are its nested items, in any order around the
+facts. Spec-wide defaults are front-matter at the top of `tasks.md`, written
+without `$`:
 
 ```markdown
 ---
 repo: avoozl
 ---
 - [ ] lt-1.2 Queue table and records
-  - Facts:
-    - after: lt-1.1
-    - done:
-      - Tests load a valid file and get every default
-      - An unknown key is refused, and the message names the key
+  - $after: lt-1.1
+  - $done: Tests load a valid file and get every default
+  - $done: An unknown key is refused, and the message names the key
   - [ ] lt-1.2.1 Add the queue migration
-    - Facts:
-      - repo: nupp
-      - done:
-        - The migration runs twice with no change the second time
+    - $repo: nupp
+    - $done: The migration runs twice with no change the second time
 ```
+
+Changed 2026-11-19 (owner decision): the `Facts:` bullet and its nested
+`key: value` bullets are gone. A `Facts:` layer made every task two levels
+deep and its `done` list three, which was hard to read and easy to
+mis-indent; a `$` on the fact itself marks it without the layer.
 
 | Key | Was (manifest) | Value |
 | --- | --- | --- |
@@ -4708,19 +4708,21 @@ repo: avoozl
 | `session`, `tracker` | the same name | one line of JSON |
 | `plan`, `summary`, `step` | an epic's entry | text, in an epic folder |
 
-A list is `key: a, b` or `key:` with nested bullets. Nested bullets keep a
-comma inside an item, and the converter writes them for `done` always.
+A list is `$key: a, b`, or the same fact written again, each bullet adding
+to the list. `$done` is one result per bullet and is never split on commas,
+so a result may hold one; Avoozl writes one `$done:` bullet per result.
+Nothing nests under a fact.
 
 Changed 2026-11-18: there is no `checks` fact and no `checks` default.
-Every task runs its repository's checks (§5.2); a `checks` line in
-`Facts:` or front-matter is the error `facts.removed-key`, "Every task runs
+Every task runs its repository's checks (§5.2); a `$checks` fact or a
+`checks` front-matter line is the error `facts.removed-key`, "Every task runs
 the repository's checks; delete this line." A stored record's task list is
 dropped when it is read.
 
 **Front-matter keys.** `repo`, `completion` (defaults for leaves);
 `ship`, `integrationBranch`, `integrationSync`, `forwardTarget`,
 `publicBranch`, `kind: epic` (the spec); `phase-<id>: <title>` and
-`batch-<id>: <reason>`. A batch group's members each write `batch: <id>`, so
+`batch-<id>: <reason>`. A batch group's members each write `$batch: <id>`, so
 the group's task list is read from the members and its reason sits once in
 front-matter. This is the simplest home: no heading carries prose, a task's
 bullet names its own group, and a reader sees both without a second file.
@@ -4734,17 +4736,26 @@ plan-review view take the facts from it. A default fills a leaf's missing
 `tasks.md` and the bullet's line. A leftover `avoozl/manifest.json` is one
 error, `spec.manifest-left`, and nothing reads the file.
 
-**Lint codes** (errors): `facts.unknown-key`, `facts.twice`,
-`facts.duplicate-key`, `facts.value`, `facts.misplaced`, `facts.stray`,
-`facts.missing`, `spec.manifest-left`. The rules the manifest had keep their
-codes.
+**Lint codes** (errors): `facts.unknown-key` (a `$` fact Avoozl does not
+know), `facts.duplicate-key` (a one-value fact written twice), `facts.value`
+(a wrong value, or anything nested under a fact), `facts.misplaced` (a `$`
+fact that is not directly under a task item), `facts.stray` (a bullet such
+as `done:` under an item that reads as a fact without its `$`),
+`facts.missing` (a task with no facts), `facts.block` (a `Facts:` block
+still in `tasks.md` on disk), `spec.manifest-left`. The rules the manifest
+had keep their codes. A plan revision or receipt stored in SQLite with
+`Facts:` blocks is read and hashed as its `$` layout
+(`foldFactsBlocks`, `spec-legacy.mjs`), since a revision whose hash did not
+change is never stored again.
 
 **Revision hash.** The hash covers the prose files without `Status:`,
-`tasks.md` without checkbox marks, `Facts:` bullets and its front-matter, and
+`tasks.md` without checkbox marks, `$` fact bullets and its front-matter, and
 the parsed facts written as one JSON text in the shape the old manifest had
 (version 1, tasks in `tasks.md` order, each task's keys in bullet order,
 defaults filled in where they sit in a manifest). Defaults in front-matter or
-on each task, and a list inline or as bullets, hash the same. A conversion
+on each task, and a list on one bullet or repeated, hash the same. The move
+from `Facts:` blocks to `$` bullets (2026-11-19) kept every spec's hash: the
+text without facts and the parsed facts were unchanged. A conversion
 that keeps the old manifest's text exactly keeps its hash; four of this
 repository's eight specs did. The others could not, because their manifest
 listed tasks in another order than `tasks.md`, ordered a task's keys by hand,
@@ -4769,8 +4780,8 @@ to approve a spec whose issues name the old hash.
 wrote it, `spec-manifest.mjs` (the manifest drafted from marker bullets), the
 review tabs' manifest tab, and the marker bullets (`_Repository: x_`) the
 steering file taught. The planner prompt and the steering file teach
-`Facts:`; the old steering text counts as an older Avoozl copy, so New spec
-offers the new one over it. Keys nothing reads, such as a task's `agent`,
+`$` facts; each older steering text counts as an older Avoozl copy, kept as
+its sha256, so New spec offers the new one over it. Keys nothing reads, such as a task's `agent`,
 `model`, `size` and `budget`, are unknown facts now.
 
 **Conversion.** A one-off script folded each manifest into its `tasks.md` on
@@ -4782,7 +4793,7 @@ since the conversion.
 
 **Tests.** `spec-facts.test.mjs`: each key, each refusal with its line,
 defaults and packages, an epic folder, a batch group, a leftover manifest.
-`spec-plans.test.mjs` and the fixtures write `Facts:`. A hash test: the same
+`spec-plans.test.mjs` and the fixtures write `$` facts. A hash test: the same
 spec in old layout (built in the test) and new layout hashes the same, and a
 changed fact changes it. `spec-carry.test.mjs`: the same content carries;
 one character changed in prose, `after` or `done` does not.
@@ -4844,7 +4855,7 @@ is found from the tick commit (§4.31, R101.14).
   completing task's `integration.commit`. A fresh database finds the same
   commits from git.
 - A `Built:` line a person wrote is read into `task.built` and looked up
-  first. `readFacts` skips a `Built` fact, so it is neither a manifest value
+  first. `readFacts` skips a `$built` fact, so it is neither a manifest value
   nor hashed text. Avoozl writes none.
 - shortcut: in a merge batch only the head gets a push run, so a member's
   own landing merge has no CI of its own on another machine; the landing
@@ -5274,7 +5285,7 @@ the head moves. It is not part of the first cut (Requirement 36.13).
    asks for an ID on every `tasks.md` item (§6.8).
 2. In the Avoozl Plans view the user picks the spec folder and presses
    **Prepare delivery**. Avoozl reads the files from disk (MC-7 interim).
-3. An `avoozl-planner` session writes a `Facts:` bullet under every
+3. An `avoozl-planner` session writes `$` fact bullets under every
    `tasks.md` item (§4.40): its kind, repository, edges, checks, completion,
    and source references (file and heading).
 4. A critique session compares the task facts and prose and lists uncovered
@@ -5688,7 +5699,7 @@ P18 checks them (F39).
 .kiro/specs/<name>/
   requirements.md   (feature spec)   or   bugfix.md   (bugfix spec)
   design.md
-  tasks.md             (each task's facts: a Facts: bullet, §4.40)
+  tasks.md             (each task's facts: $ bullets, §4.40)
   avoozl/critique.md   (planner critique, optional)
 ```
 
@@ -5699,18 +5710,18 @@ P18 checks them (F39).
   usual numbering) becomes `<name>.<token>`; any other token (`w3.reactor-timers`)
   is used as is, which keeps migrated IDs. IDs are unique across the namespace.
 - **Mapping.** One `tasks.md` ID is one Avoozl task and, in a GitHub mode, one
-  issue. The task's `Facts:` bullet holds kind, repository, edges, checks,
+  issue. The task's `$` fact bullets hold kind, repository, edges,
   completion, milestone, iteration, and `authority` for opt-in local tasks
   (changed 2026-11-18, §4.40: there is no manifest file).
 - **Waves.** Kiro computes its own waves from `tasks.md` when it runs all
-  tasks (F47). Avoozl ignores them: its graph comes only from the `Facts:` bullets.
+  tasks (F47). Avoozl ignores them: its graph comes only from the `$` fact bullets.
   A `[x]` mark on the base branch completes its task (§4.41); other marks are
   not Avoozl state.
 - **Bugfix specs.** A `bugfix.md` spec maps the same way. Its unchanged
   behavior clauses become acceptance on the fix leaves.
 - **Validation** refuses: a missing folder; a missing `design.md` or
   `tasks.md`; neither or both of `requirements.md` and `bugfix.md`; an item
-  with no ID; an ID used twice; an item with no `Facts:` bullet, a leftover
+  with no ID; an ID used twice; an item with no facts, a leftover
   `avoozl/manifest.json`, and the other §4.40 refusals; and after approval, an approved ID whose
   item text changed without a new approval. Kiro's **Sync Files** can add or
   mark tasks (F48); a renumbered item fails this check instead of silently
@@ -5774,12 +5785,10 @@ done means. `design.md` says how the member plans fit and in what order.
 kind: epic
 ---
 - [ ] 1 Native runtime
-  - Facts:
-    - plan: native-runtime
-    - summary: Direction and work W1-W7
+  - $plan: native-runtime
+  - $summary: Direction and work W1-W7
 - [ ] 2 Runtime contracts
-  - Facts:
-    - plan: runtime-contracts
+  - $plan: runtime-contracts
 ```
 
 - A row may hold only `plan`, `summary` and `step` (§4.32.6). The older
@@ -6943,7 +6952,7 @@ handoff, execute, task, stop and delete under it; Avoozl's page calls only
    design.md and tasks.md only, and appends the description as the user's
    words. Its chat runs the default agent with the spec root as its
    folder, and that agent's resources include `.kiro/steering/**/*.md`.
-6. The steering file asks Spec Builder for a `Facts:` bullet under each
+6. The steering file asks Spec Builder for `$` fact bullets under each
    item and front-matter defaults (§4.40). Each tick the folder lints and,
    once clean, imports as a draft. Avoozl writes nothing into the folder.
    (Changed 2026-11-18: Avoozl no longer drafts a manifest from marker
@@ -7148,7 +7157,7 @@ and adds an `Epic` issue type if an organization admin runs it.
 11. **Move to the Kiro spec layout.** Each current plan file becomes
     `.kiro/specs/<name>/` with `requirements.md` (or `bugfix.md`), `design.md`,
     and `tasks.md` with task facts (§6.8; a manifest file then, `Facts:`
-    bullets since §4.40). Every `tasks.md` item uses
+    bullets from §4.40, `$` fact bullets since 2026-11-19). Every `tasks.md` item uses
     the task's existing ID as its token (`w3.reactor-timers`), so markers and
     issue links do not change. Validation must pass on every spec. A
     projection preview after the move must show no issue created, closed,

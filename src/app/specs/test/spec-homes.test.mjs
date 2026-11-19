@@ -322,8 +322,8 @@ test("a public spec that requires a private task is named, one that does not pas
     files: {
       ...files,
       "tasks.md": files["tasks.md"].replace(
-        "      - after: 1.1",
-        "      - after: hidden.1.1",
+        "    - $after: 1.1",
+        "    - $after: hidden.1.1",
       ),
     },
   };

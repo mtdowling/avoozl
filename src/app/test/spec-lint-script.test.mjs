@@ -49,7 +49,7 @@ test("spec lint refuses a Status line and says approval lives in Avoozl", () => 
     fs.writeFileSync(path.join(folder, "design.md"), "# Stale\n");
     fs.writeFileSync(
       path.join(folder, "tasks.md"),
-      "- [ ] 1 One\n  - Facts:\n    - done: it works\n",
+      "- [ ] 1 One\n  - $done: it works\n",
     );
     const run = spawnSync(process.execPath, [script, root], {
       encoding: "utf8",
