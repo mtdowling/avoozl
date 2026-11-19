@@ -31,6 +31,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 const LINE = { add: 'var(--success, #1a7f37)', del: 'var(--danger)', hunk: 'var(--muted)', same: 'var(--text)' } as const
 
@@ -60,9 +61,9 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
         <Badge>{proposal.type}</Badge>
         <Box as="code" size="xs">{proposalText(proposal)}</Box>
         <Hint>{directionText(proposal)}</Hint>
-        <button type="button" className="text-xs underline" data-proposal-retro={proposal.retro} onClick={onOpenRetro}>
+        <PlainButton type="button" size="xs" underline data-proposal-retro={proposal.retro} onClick={onOpenRetro}>
           From {proposal.retro}
-        </button>
+        </PlainButton>
         {proposal.removesCheck && <Badge variant="warning">removes a check</Badge>}
         {proposal.revertOf && <Badge>revert</Badge>}
         {proposal.pdca?.mixed && <Badge variant="warning">mixed window</Badge>}

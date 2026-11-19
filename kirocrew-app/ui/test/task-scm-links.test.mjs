@@ -34,7 +34,7 @@ test('a link shows owner/name#N, a branch or a short SHA', () => {
 
 test('every link opens in a new tab and the worktree is never a link', () => {
   const view = readFileSync(new URL('../src/TaskScmLinks.tsx', import.meta.url), 'utf8')
-  const anchors = [...view.matchAll(/<a\b[^>]*>/g)].map((m) => m[0])
+  const anchors = [...view.matchAll(/<(?:a|PlainLink)\b[^>]*>/g)].map((m) => m[0])
   assert.ok(anchors.length >= 1)
   for (const a of anchors) assert.match(a, /target="_blank" rel="noopener noreferrer"/)
   assert.doesNotMatch(view, /worktree[^\n]*href/)

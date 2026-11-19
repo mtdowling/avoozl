@@ -58,6 +58,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter, write: writeConflictFilter, empty: {} as ConflictFilter }
 
@@ -231,9 +232,9 @@ export function ConflictActions(props: {
           <Hint size="xs">Avoozl starts a new attempt on its own; dismiss this once you have read it.</Hint>
         )}
         {issue && (
-          <a href={linkHref(issue)} target="_blank" rel="noreferrer" className="text-sm underline">
+          <PlainLink href={linkHref(issue)} target="_blank" rel="noreferrer" size="sm" underline>
             {item.kind === 'needs-human' && item.reason === 'review-draft' ? `Open pull request${item.pullRequest ? ` #${item.pullRequest}` : ''}` : 'Open the issue'}
-          </a>
+          </PlainLink>
         )}
       </Row>
       {why && <Hint as="p" size="xs">{why}</Hint>}
@@ -303,10 +304,10 @@ export function LandBranch(props: { item: ConflictItem; busy: boolean; onLand: (
   return (
     <Row gap={2} data-branch-landing={item.branch}>
       {link && (
-        <a href={linkHref(link)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm underline">
+        <PlainLink href={linkHref(link)} target="_blank" rel="noreferrer" inlineFlex items="center" gap="1" size="sm" underline>
           <ExternalLink size={14} aria-hidden="true" />
           Compare {item.branch} with the default branch
-        </a>
+        </PlainLink>
       )}
       <DangerBtn
         icon={Check}
@@ -329,10 +330,10 @@ export function ReadyToMerge(props: { item: ConflictItem; busy: boolean; onInteg
   return (
     <Row gap={2} data-ready-to-merge={item.taskId}>
       {link && (
-        <a href={linkHref(link)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm underline">
+        <PlainLink href={linkHref(link)} target="_blank" rel="noreferrer" inlineFlex items="center" gap="1" size="sm" underline>
           <ExternalLink size={14} aria-hidden="true" />
           Open pull request{item.pullRequest ? ` #${item.pullRequest}` : ''} to merge it
-        </a>
+        </PlainLink>
       )}
       {item.integrate && (
         <DangerBtn
@@ -511,13 +512,12 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
       <Box css-background={props.focused ? 'accent-subtle-bg-elevated' : undefined} css-border-radius="6" flex items="start" gap="2" px="1" py="1.5">
         <Switch label={`Select ${item.title}`} checked={props.selected} disabled={!props.selectable} onChange={props.onSelect} />
         <Box flex minW0 flex1 flexCol items="stretch" gap="0.5">
-          <button
+          <PlainButton
             type="button"
             data-conflict-pick={itemKey(item)}
             aria-current={props.focused ? 'true' : undefined}
             onClick={props.onFocus}
-            className="flex min-w-0 flex-col items-stretch gap-0.5 text-left"
-            style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }}
+            css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" flex minW0 flexCol items="stretch" gap="0.5" align="left"
           >
             <Box as="span" flex minW0 items="center" gap="2">
               <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable', 'spec-pull'].includes(item.kind) ? 'warning' : 'danger'}>
@@ -529,7 +529,7 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
             <Box as="span" truncate size="xs" tone="muted" data-row-reason>
               {whyLine(item)}
             </Box>
-          </button>
+          </PlainButton>
           {(spec || task) && (
             <Box as="span" truncate size="xs" tone="muted" data-row-where>
               {spec && (
@@ -596,10 +596,10 @@ function ConflictDetail(props: {
           </IconLabel>
         )}
         {props.attach && (
-          <a href={linkHref(props.attach)} className="self-center text-sm underline" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <PlainLink href={linkHref(props.attach)} css-display="inline-flex" css-align-items="center" css-gap="4" self="center" size="sm" underline>
             <CirclePlus size={14} aria-hidden="true" />
             Session
-          </a>
+          </PlainLink>
         )}
         <IconLabel icon={MessageSquare} tooltip="Ask in a chat: a new chat seeded with this item's full context" onClick={props.onAsk}>
           Ask in a chat

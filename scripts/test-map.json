@@ -2621,6 +2621,7 @@
    "src/app/test/new-plan.test.mjs",
    "src/app/test/notification-sinks.test.mjs",
    "src/app/test/plan-review-step.test.mjs",
+   "src/app/test/pr-review.test.mjs",
    "src/app/test/process-executor.test.mjs",
    "src/app/test/process-reply-summary.test.mjs",
    "src/app/test/process-roles.test.mjs",
@@ -8946,6 +8947,7 @@
    "src/app/test/page-actions.test.mjs",
    "src/app/test/page-views.test.mjs",
    "src/app/test/panel-view.test.mjs",
+   "src/app/test/pr-landing.test.mjs",
    "src/app/test/proof-p40.test.mjs",
    "src/app/test/radar-coder-intake.test.mjs",
    "src/app/test/radar-escalations.test.mjs",
@@ -11186,6 +11188,7 @@
    "src/app/test/spec-pull-requests-ops.test.mjs"
   ],
   "src/app/pull-request-snapshot.mjs": [
+   "src/app/test/pr-review.test.mjs",
    "src/app/test/pull-request-snapshot.test.mjs",
    "src/app/test/review-draft.test.mjs"
   ],
@@ -11795,6 +11798,7 @@
    "src/app/test/cli-smoke.test.mjs",
    "src/app/test/delivery.test.mjs",
    "src/app/test/executor-requests.test.mjs",
+   "src/app/test/falsifier-title.test.mjs",
    "src/app/test/flow-batch.test.mjs",
    "src/app/test/flow-full-stop.test.mjs",
    "src/app/test/flow-timing.test.mjs",
@@ -11861,6 +11865,7 @@
   "src/app/report-match.mjs": [
    "src/app/test/check-runs.test.mjs",
    "src/app/test/delivery.test.mjs",
+   "src/app/test/falsifier-title.test.mjs",
    "src/app/test/flow-batch.test.mjs",
    "src/app/test/flow-full-stop.test.mjs",
    "src/app/test/kirocrew-pin.test.mjs",
@@ -14208,6 +14213,7 @@
    "src/app/test/needs-kirocrew.test.mjs",
    "src/app/test/notification-sinks.test.mjs",
    "src/app/test/plan-review-step.test.mjs",
+   "src/app/test/pr-review.test.mjs",
    "src/app/test/process-executor.test.mjs",
    "src/app/test/process-reply-summary.test.mjs",
    "src/app/test/process-roles.test.mjs",
@@ -14754,6 +14760,7 @@
   "src/app/verify.mjs": [
    "src/app/test/check-runs.test.mjs",
    "src/app/test/cli-smoke.test.mjs",
+   "src/app/test/direct-landing.test.mjs",
    "src/app/test/flow-batch.test.mjs",
    "src/app/test/integrator-cleanup.test.mjs",
    "src/app/test/integrator-engine.test.mjs",
@@ -14761,7 +14768,9 @@
    "src/app/test/integrator-red.test.mjs",
    "src/app/test/integrator-review-close.test.mjs",
    "src/app/test/integrator-validation.test.mjs",
+   "src/app/test/landing-pulls.test.mjs",
    "src/app/test/manual-claim.test.mjs",
+   "src/app/test/pr-landing.test.mjs",
    "src/app/test/proof-p28.test.mjs",
    "src/app/test/resource-slots.test.mjs",
    "src/app/test/verify.test.mjs",

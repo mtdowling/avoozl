@@ -37,6 +37,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainTextarea } from './ui/Plain'
 
 // Spec Builder resolves symlinks (/tmp is /private/tmp on macOS).
 const samePath = (left: string, right: string) => {
@@ -44,7 +45,6 @@ const samePath = (left: string, right: string) => {
   return plain(left) === plain(right)
 }
 
-const fieldStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
 function Field(props: { id: string; label: string; need: 'required' | 'optional'; hint?: string; problem?: string | null; children: ReactNode }) {
   return (
@@ -273,23 +273,21 @@ export default function NewPlanDrawer(props: {
             )}
           </Box>
           <Field id="avoozl-new-plan-goal" need="required" label="What you want" hint="The planner's first prompt: the goal, who it is for, and what done looks like." problem={tried && !form.goal.trim() ? 'Say what you want.' : null}>
-            <textarea
+            <PlainTextarea
               id="avoozl-new-plan-goal"
               rows={6}
               value={form.goal}
               onChange={(event) => set({ goal: event.target.value })}
-              className="rounded border px-2 py-1 text-sm"
-              style={fieldStyle}
+              css-border-color="border" css-color="text" css-background="card-transparent" rounded="base" border="all" px="2" py="1" size="sm"
             />
           </Field>
           <Field id="avoozl-new-plan-context" need="optional" label="Links and context" hint="Files, issues and notes the planner should read.">
-            <textarea
+            <PlainTextarea
               id="avoozl-new-plan-context"
               rows={4}
               value={form.context}
               onChange={(event) => set({ context: event.target.value })}
-              className="rounded border px-2 py-1 text-sm"
-              style={fieldStyle}
+              css-border-color="border" css-color="text" css-background="card-transparent" rounded="base" border="all" px="2" py="1" size="sm"
             />
           </Field>
     </>
@@ -413,13 +411,12 @@ export default function NewPlanDrawer(props: {
                 fields: (
                   <Stack gap={3}>
           <Field id="avoozl-new-plan-phases" need="optional" label="Phases" hint="One per line; each becomes a heading in tasks.md. Left blank, the planner picks them.">
-            <textarea
+            <PlainTextarea
               id="avoozl-new-plan-phases"
               rows={3}
               value={form.phases}
               onChange={(event) => set({ phases: event.target.value })}
-              className="rounded border px-2 py-1 text-sm"
-              style={fieldStyle}
+              css-border-color="border" css-color="text" css-background="card-transparent" rounded="base" border="all" px="2" py="1" size="sm"
             />
           </Field>
           {sharedFields}

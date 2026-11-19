@@ -345,6 +345,9 @@ export interface ItemContext {
   prior?: ({ title: string | null } & TaskText) | null
   unblocks?: { total: number; tasks: { id: string; title: string }[] }
   links?: TaskLinks | null
+  // The checks the task stopped on, each with its first error line when the
+  // check gave one.
+  failedChecks?: { commit: string | null; checks: { name: string; conclusion: string | null; firstError: string | null }[] } | null
   // A draft's review: counts by severity and the cached AI summary.
   review?: {
     state: string

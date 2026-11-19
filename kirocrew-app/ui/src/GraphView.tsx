@@ -52,6 +52,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
 import { PanningStyle } from './ui/PageStyles'
+import { PlainButton } from './ui/Plain'
 
 // Graphs larger than this open with every group collapsed to one node.
 const COLLAPSE_ABOVE = 60
@@ -278,9 +279,9 @@ function Details(props: {
                     {id === task.id ? (
                       id
                     ) : (
-                      <button type="button" className="underline" onClick={() => props.onSelect(id)}>
+                      <PlainButton type="button" underline onClick={() => props.onSelect(id)}>
                         {id}
-                      </button>
+                      </PlainButton>
                     )}
                   </span>
                 ))}
@@ -612,9 +613,9 @@ export default function GraphView({
                 <Box aria-label="Graph drill-in" as="nav" flex flexWrap items="center" gap="1" size="sm" data-graph-crumbs>
                   {drillCrumbs(stack, drill).map(({ at, label }) => (
                     <Box key={at} as="span" inlineFlex items="center" gap="1">
-                      <button type="button" className="truncate underline" style={{ maxWidth: '14rem' }} onClick={() => back(at)}>
+                      <PlainButton type="button" css-max-width="14rem" truncate underline onClick={() => back(at)}>
                         {label}
-                      </button>
+                      </PlainButton>
                       <Hint aria-hidden="true">
                         ›
                       </Hint>

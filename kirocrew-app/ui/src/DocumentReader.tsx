@@ -24,6 +24,7 @@ import { Modal } from './ui/Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export interface ReaderTarget {
   document: string
@@ -139,9 +140,9 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
           {line && (
             <Tooltip text={`Scroll back to ${line.toLowerCase()}`}>
               {(describedBy) => (
-                <button type="button" className="text-xs text-muted hover:underline" onClick={toLine} aria-describedby={describedBy}>
+                <PlainButton type="button" size="xs" tone="muted" hoverUnderline onClick={toLine} aria-describedby={describedBy}>
                   {line}
-                </button>
+                </PlainButton>
               )}
             </Tooltip>
           )}

@@ -11,6 +11,7 @@ import { taskClient, type TaskSummary } from './task-api.ts'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 
 export function TaskSummaryBox(props: { workspaceId: string; id: string; summary: TaskSummary | undefined }) {
@@ -54,9 +55,9 @@ export function TaskSummaryBox(props: { workspaceId: string; id: string; summary
       ) : failed ? (
         <Hint as="p" size="sm" flush data-task-summary-fallback>
           Summary unavailable{' '}
-          <button type="button" className="underline underline-offset-2" style={{ background: 'none', border: 0, padding: 0, color: 'var(--accent)', cursor: 'pointer' }} data-task-summary-retry onClick={() => ask(true)}>
+          <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="accent" css-cursor="pointer" underline underlineOffset2 data-task-summary-retry onClick={() => ask(true)}>
             Retry
-          </button>
+          </PlainButton>
         </Hint>
       ) : null}
     </Stack>

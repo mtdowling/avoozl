@@ -27,7 +27,9 @@ const SCALES = table.scales as Record<string, Record<string, string>>
 const STYLES = table.styles as Record<string, Record<string, string | number>>
 const camel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
 
-export const Box = forwardRef<HTMLElement, BoxProps>(function Box({ as = 'div', ...props }, ref) {
+// Splits look props from the element's own: the look becomes className and
+// style, the rest pass through. Shared by Box and the Plain* parts.
+export function lookProps<T extends object>(props: T): Record<string, unknown> {
   const classes: string[] = []
   const style: Record<string, string | number> = {}
   const rest: Record<string, unknown> = {}
@@ -42,10 +44,13 @@ export const Box = forwardRef<HTMLElement, BoxProps>(function Box({ as = 'div', 
       if (css !== undefined) style[camel(key.slice(4))] = css
     } else rest[key] = value
   }
-  return createElement(as, {
-    ...rest,
-    className: classes.join(' ') || undefined,
-    style: Object.keys(style).length ? (style as CSSProperties) : undefined,
-    ref: ref as Ref<HTMLElement>,
-  })
+  if (classes.length) rest.className = classes.join(' ')
+  if (Object.keys(style).length) rest.style = style as CSSProperties
+  return rest
+}
+
+export type LookProps = { [K in Flags]?: boolean } & { [K in keyof Scales]?: Scales[K] } & Styles
+
+export const Box = forwardRef<HTMLElement, BoxProps>(function Box({ as = 'div', ...props }, ref) {
+  return createElement(as, { ...lookProps(props), ref: ref as Ref<HTMLElement> })
 })

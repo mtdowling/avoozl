@@ -11,6 +11,7 @@ import Badge from './ui/Badge.tsx'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 export function FolderField(props: {
   id: string
@@ -97,17 +98,16 @@ export function FolderField(props: {
             {listing && listing.folders.length === 0 && <Box as="li" px="2" py="1" size="xs" tone="muted">No folders here.</Box>}
             {listing?.folders.map((folder) => (
               <li key={folder.path}>
-                <button
+                <PlainButton
                   type="button"
                   data-folder={folder.name}
                   onClick={() => pick(folder.path)}
-                  className="flex w-full items-center gap-2 px-2 py-1 text-left text-sm"
-                  style={{ background: 'none', border: 0, color: 'var(--text)', cursor: 'pointer' }}
+                  css-background="none" css-border="0" css-color="text" css-cursor="pointer" flex wFull items="center" gap="2" px="2" py="1" align="left" size="sm"
                 >
                   <Folder size={14} aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }} />
                   <Box as="span" minW0 flex1 truncate>{folder.name}</Box>
                   {folder.workspace && <Badge variant="info">Workspace</Badge>}
-                </button>
+                </PlainButton>
               </li>
             ))}
             {listing?.truncated && <Box as="li" px="2" py="1" size="xs" tone="muted">Only the first 500 folders show. Type the rest of the path.</Box>}

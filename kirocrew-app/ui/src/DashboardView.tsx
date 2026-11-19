@@ -36,6 +36,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
+import { PlainButton, PlainLink, PlainTextarea } from './ui/Plain'
 
 export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'delivery' | 'landing' | 'flow'
 
@@ -60,11 +61,10 @@ function NeedCard({ item, attach, onAnswer, onInfo, onAsk, onTitle }: { item: At
       </Box>
       <Tooltip text={attentionTip(item)} display="inline">
         {(describedBy) => (
-          <a
+          <PlainLink
             role="button"
             tabIndex={0}
-            className="text-sm font-medium underline"
-            style={{ cursor: 'pointer', color: 'inherit' }}
+            css-cursor="pointer" css-color="inherit" size="sm" weight="medium" underline
             onClick={onTitle}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -76,7 +76,7 @@ function NeedCard({ item, attach, onAnswer, onInfo, onAsk, onTitle }: { item: At
             data-attention-title
           >
             {item.title}
-          </a>
+          </PlainLink>
         )}
       </Tooltip>
       <span data-home-need-detail>{item.detail}</span>
@@ -184,13 +184,13 @@ function StuckList({ rows, loading }: { rows: StuckRow[]; loading: boolean }) {
           </span>
           {row.href &&
             (row.external ? (
-              <a href={linkHref(row.href)} target="_blank" rel="noopener noreferrer" className="text-xs underline">
+              <PlainLink href={linkHref(row.href)} target="_blank" rel="noopener noreferrer" size="xs" underline>
                 Issue
-              </a>
+              </PlainLink>
             ) : (
-              <a href={linkHref(row.href)} className="text-xs underline">
+              <PlainLink href={linkHref(row.href)} size="xs" underline>
                 Session
-              </a>
+              </PlainLink>
             ))}
         </li>
       ))}
@@ -242,14 +242,14 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
       </Box>
       <Box data-in-flight-actions as="span" css-flex="0-0-11rem" flex items="center" justify="end" gap="3">
         {linkHref(row.url) && (
-          <a href={linkHref(row.url)} target="_blank" rel="noopener noreferrer" className="text-sm underline" aria-label={`Open issue ${row.number} on GitHub`}>
+          <PlainLink href={linkHref(row.url)} target="_blank" rel="noopener noreferrer" size="sm" underline aria-label={`Open issue ${row.number} on GitHub`}>
             Issue
-          </a>
+          </PlainLink>
         )}
         {linkHref(row.prUrl) && (
-          <a href={linkHref(row.prUrl)} target="_blank" rel="noopener noreferrer" className="text-sm underline" aria-label={`Open pull request ${row.pr} on GitHub`}>
+          <PlainLink href={linkHref(row.prUrl)} target="_blank" rel="noopener noreferrer" size="sm" underline aria-label={`Open pull request ${row.pr} on GitHub`}>
             PR #{row.pr}
-          </a>
+          </PlainLink>
         )}
       </Box>
     </Box>
@@ -287,21 +287,6 @@ export function CopyAttach({ command, title }: { command: string; title: string 
   )
 }
 
-// One small link chip; the label shrinks with an ellipsis, so a long branch
-// name never widens a 390 px row.
-const CHIP: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 4,
-  maxWidth: '100%',
-  minWidth: 0,
-  padding: '0 6px',
-  border: '1px solid var(--border)',
-  borderRadius: 999,
-  color: 'var(--text)',
-  lineHeight: '18px',
-  textDecoration: 'none',
-}
 
 // In flight's `PR #N` chip with its check dot, and the branch chip (R92.6).
 // Both open GitHub in a new tab (R92.9).
@@ -318,27 +303,27 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
         // The PR chip never shrinks; the branch chip gives way.
         <Box as="span" css-display="inline-flex" css-flex="0-0-auto">
           <Tooltip text={dot.label}>
-            <a
+            <PlainLink
               data-pr-chip
               href={linkHref(links.pr.url)}
               target="_blank"
               rel="noopener noreferrer"
-              style={CHIP}
+              css-display="inline-flex" css-align-items="center" css-gap="4" css-max-width="100%" css-min-width="0" css-padding="0-6px" css-border="1px-solid-border" css-border-radius="999" css-color="text" css-line-height="18px" css-text-decoration="none"
               aria-label={`Pull request ${links.pr.number} for ${title}${links.pr.state === 'open' || links.pr.state === 'unknown' ? '' : `, ${links.pr.state}`}. ${dot.label}`}
             >
               <i data-check-dot={dot.dot} aria-hidden="true" style={{ display: 'block', flex: '0 0 auto', width: 8, height: 8, borderRadius: 999, background: dot.color }} />
               PR #{links.pr.number}
               {links.pr.state === 'merged' || links.pr.state === 'closed' ? <Hint>{links.pr.state}</Hint> : null}
-            </a>
+            </PlainLink>
           </Tooltip>
         </Box>
       )}
       {branch && links.branch && (
         <Tooltip text={links.branch.ref}>
-          <a data-branch-chip href={linkHref(links.branch.url)} target="_blank" rel="noopener noreferrer" style={CHIP} aria-label={`Branch ${links.branch.ref} for ${title}`}>
+          <PlainLink data-branch-chip href={linkHref(links.branch.url)} target="_blank" rel="noopener noreferrer" css-display="inline-flex" css-align-items="center" css-gap="4" css-max-width="100%" css-min-width="0" css-padding="0-6px" css-border="1px-solid-border" css-border-radius="999" css-color="text" css-line-height="18px" css-text-decoration="none" aria-label={`Branch ${links.branch.ref} for ${title}`}>
             <GitBranch size={12} aria-hidden="true" style={{ flex: '0 0 auto' }} />
             <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{links.branch.ref}</Box>
-          </a>
+          </PlainLink>
         </Tooltip>
       )}
     </Box>
@@ -369,10 +354,9 @@ function SendMessage({ title, onSend, onClose }: { title: string; onSend: (text:
         void send()
       }}
     >
-      <textarea
+      <PlainTextarea
         aria-label={`Message for ${title}`}
-        className="rounded border p-1.5 text-sm"
-        style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)', minHeight: '3.5em' }}
+        css-border-color="border" css-background="bg" css-color="text" css-min-height="3.5em" rounded="base" border="all" p="1.5" size="sm"
         maxLength={8000}
         value={text}
         onChange={(event) => setText(event.target.value)}
@@ -447,15 +431,14 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
         ) : !href ? (
           <Hint size="xs">Session waits on Kiro Crew</Hint>
         ) : (
-        <a
+        <PlainLink
           href={linkHref(href)}
-          className="text-sm underline"
+          css-display="inline-flex" css-align-items="center" css-gap="4" size="sm" underline
           aria-label={`Session: the ${row.role} chat for ${row.title}`}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
         >
           <CirclePlus size={14} aria-hidden="true" />
           Session
-        </a>
+        </PlainLink>
         )}
       </Box>
     </Box>
@@ -633,9 +616,9 @@ export default function DashboardView(props: {
               ))}
             </ul>
             {attention.length > NEEDS_SHOWN && (
-              <button type="button" className="mt-2 self-start text-xs underline" onClick={() => onNavigate('waiting')} data-home-needs-more>
+              <PlainButton type="button" mt="2" self="start" size="xs" underline onClick={() => onNavigate('waiting')} data-home-needs-more>
                 Show all {attention.length} in Needs you
-              </button>
+              </PlainButton>
             )}
           </>
         )}
@@ -763,7 +746,7 @@ export default function DashboardView(props: {
                   return (
                     <li key={entry.epic ?? '(none)'}>
                       <Tooltip text={`Show only ${title} in its spec graph${entry.running > 0 ? `. ${entry.running} Avoozl chats running now.` : ''}`} display="block">
-                        <button type="button" className="w-full rounded px-1 py-1 text-left hover:bg-accent/10" onClick={() => props.onDrill?.({ kind: 'epic', id: entry.epic, title })}>
+                        <PlainButton type="button" wFull rounded="base" px="1" py="1" align="left" hoverBgAccent10 onClick={() => props.onDrill?.({ kind: 'epic', id: entry.epic, title })}>
                           <Box as="span" flex items="center" justify="between" gap="2">
                             <Box as="span" truncate>{title}</Box>
                             <Box as="span" flex shrink0 items="center" gap="2" size="xs" tone="muted">
@@ -779,7 +762,7 @@ export default function DashboardView(props: {
                           <Box role="progressbar" aria-label={`${title} progress`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} as="span" css-background="border" mt="1" block h15 overflow="hidden" rounded="base">
                             <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
                           </Box>
-                        </button>
+                        </PlainButton>
                       </Tooltip>
                     </li>
                   )

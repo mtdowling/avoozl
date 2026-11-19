@@ -15,17 +15,17 @@ import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 import { NeedsContextStyle } from './ui/PageStyles'
+import { PlainButton } from './ui/Plain'
 
-const linkButton = { background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer', textAlign: 'left' as const }
 
 // The spec's title; it opens Specs on that spec when a stored plan exists.
 export function SpecLink({ spec }: { spec: NonNullable<ItemContext['spec']> }) {
   const open = useOpenSpec()
   if (!spec.planId || !open) return <span data-spec-name>{spec.title}</span>
   return (
-    <button type="button" className="underline" style={linkButton} data-spec-link={spec.planId} onClick={() => open(spec.planId!)}>
+    <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" css-text-align="left" underline data-spec-link={spec.planId} onClick={() => open(spec.planId!)}>
       {spec.title}
-    </button>
+    </PlainButton>
   )
 }
 
@@ -33,9 +33,9 @@ export function SpecLink({ spec }: { spec: NonNullable<ItemContext['spec']> }) {
 export function TaskLink({ task }: { task: { id: string; title: string } }) {
   const drawer = useTaskDrawer()
   return (
-    <button type="button" className="underline" style={linkButton} data-task-link={task.id} onClick={() => drawer.openTask(task.id)}>
+    <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" css-text-align="left" underline data-task-link={task.id} onClick={() => drawer.openTask(task.id)}>
       {task.id}: {task.title}
-    </button>
+    </PlainButton>
   )
 }
 
@@ -74,9 +74,9 @@ export function ReviewTaskContext({ task }: { task: ReviewTask }) {
   return (
     <Box as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" firstBorderT0 data-review-task={task.id}>
       <Box as="span" flex flexWrap items="baseline" gap="2" size="sm">
-        <button type="button" className="font-medium underline" style={linkButton} data-task-link={task.id} onClick={() => drawer.openTask(task.id)}>
+        <PlainButton type="button" css-background="none" css-border="0" css-padding="0" css-color="inherit" css-cursor="pointer" css-text-align="left" weight="medium" underline data-task-link={task.id} onClick={() => drawer.openTask(task.id)}>
           {task.id}: {task.title}
-        </button>
+        </PlainButton>
         {task.context?.spec && (
           <Hint size="xs">
             Spec: <SpecLink spec={task.context.spec} />
@@ -199,6 +199,20 @@ function Evidence({ item }: { item: ConflictItem }) {
           )}
           {context.links.checks && <Hint>{checkDot(context.links.checks).label}</Hint>}
         </Box>
+      )}
+      {kinds.includes('checks') && context?.failedChecks && (
+        <Stack gap={1} data-failed-checks>
+          {context.failedChecks.checks.map((check) => (
+            <Stack key={check.name}>
+              <span>
+                Failed check <strong>{check.name}</strong>
+                {check.conclusion ? ` (${check.conclusion})` : ''}
+                {context.failedChecks!.commit ? ` on ${context.failedChecks!.commit.slice(0, 7)}` : ''}
+              </span>
+              {check.firstError ? <code data-first-error>{check.firstError}</code> : <Hint size="xs">The check gave no error line.</Hint>}
+            </Stack>
+          ))}
+        </Stack>
       )}
       {kinds.includes('content') && (
         <Box as="p" m0 size="sm" data-content-evidence>
